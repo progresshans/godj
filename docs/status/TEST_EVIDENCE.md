@@ -23,6 +23,41 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 공통 project server와 실제 앱의 수명 조립 작성
+
+`407b4322` 기반에서 `project/server.Run`의 Start→Listen→Ready→HTTP drain→Stop 소유권과 Article 연결을 작성했다.
+설정 오류는 resource callback 전에, 앱의 인증·network 공개 정책은 listener 생성 전에 검사한다.
+Startup 중에는 caller 취소를 전달하고, 준비 뒤에는 진행 중인 HTTP 요청이 정리를 마칠 때까지 앱 context를 유지한다.
+부분 resource 반환·callback panic/Goexit·취소 중 callback join·독립 cleanup 기한·원인과 cleanup 오류 보존·동시 프로젝트 격리 검사를 작성했다.
+`apps`와 server는 같은 내부 callback 반환 경계를 사용하며 원래의 앱 dependency/rollback 의미는 유지한다.
+
+독립 generated 앱 소비자는 공개 API만으로 SQLite와 dependency worker를 시작하고, 실제 HTTP 요청을 진행한 채 서버를 취소한다.
+검사 본문에는 drain 중 모델 저장, worker→DB 역순 정리, 한 번 close, DB 재개방 뒤 저장 결과 확인을 포함한다.
+이 본문은 아직 로컬에서 실행하지 않았다. 실제 생성기로 만든 외부 module의 최소 compile만 확인했으며
+`gdj0137-project-server-compile-v1/receipt.json` SHA-256은
+`e3ef9d49de5154071173dd5f4e1b45136afb95e20c49136956627b8d955cfdf4`다.
+
+같은 경로의 `final-source.json` SHA-256은 `60185db1303af6d081396b365a6756f0f19a686ee271ce5d3180c467512a9daf`다.
+변경 Go source 13개와 8개 영향 package의 최소 compile, 237개 문서 링크, diff, 실제 consumer binary의 105개 root 목록을 기록했다.
+확장한 필수 consumer root는 12개 OS/arch/mode 좌표에서 각각 한 owner를 갖는다. 이는 실행 계획이며 본문 실행 결과가 아니다.
+Native `go list`에 새 callback/server 파일 3개가 나타나고 SYS-025/029의 제품 source prefix가 이들을 포함함을 확인했다.
+기존 전체 dependency·symlink guard의 실제 실행, HTTP/DB·race/platform·전체 원격 CI 원본 대조는 남아 있다.
+Scaffold·command·호환성 검사·event/logging·reload와 C1 전체 완료를 주장하지 않는다.
+
+## GDJ-0137 — macOS version workspace fixture의 실제 경로 정렬
+
+`407b4322`의 [CI 39859610980](https://github.com/progresshans/godj/actions/runs/39859610980)에서 macOS arm64 cgo0
+project-check job `120107439767`은 실제 workspace 의존 버전 검사 중 현재 모듈이 `go.work`에 없다는 오류로 실패했다.
+원본 log SHA-256은 `33971b081541db4d114eaea21198d227e1916cbda3aad8a02a2cb3c1dbbe5573`이다.
+macOS 임시 경로의 symlink와 Go process의 physical working directory가 서로 다른 module 경로로 비교되는 문제다.
+
+해당 HEAD archive와 별도 소유한 symlink TMPDIR에서 같은 한 root의 실패를 재현했다.
+Fixture의 repository/TempDir를 `filepath.EvalSymlinks`로 정렬한 뒤 같은 symlink TMPDIR·동일 root가 skip 없이 통과했다.
+`gdj0137-version-workspace-path-repro-v1/receipt.json` SHA-256은
+`1d2d251b62a18c3d53e67f2212039aa0e13428d194578f1e450a622255f14ff0`다.
+제품 버전 계산·고정 module/local replacement/workspace의 실제 build·consumer VCS 비상속 조건은 바꾸지 않았다.
+수정 fixture의 모든 원격 platform/mode 실행은 새 CI 대상이며, 앞선 실패 실행을 전체 PASS로 표시하지 않는다.
+
 ## GDJ-0137 — 전역 도구의 version source를 operator 증거에 포함
 
 `ea6bc611`의 [CI 39857082918](https://github.com/progresshans/godj/actions/runs/39857082918)에서 normal conformance

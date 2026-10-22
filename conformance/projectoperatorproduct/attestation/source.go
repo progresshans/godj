@@ -76,6 +76,7 @@ var productSourcePrefixes = []string{
 	"internal/irresource/",
 	"internal/projectcheck/failurecode/",
 	"internal/gobuild/",
+	"internal/callback/",
 	"admin/",
 	"api/",
 	"apps/",

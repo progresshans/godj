@@ -19,6 +19,8 @@ F1의 검증 대기 동안 독립 요구와 설계를 준비하며, F1의 완료
   `settings/database`는 공통 환경 snapshot·DB 선택·opener를 제공하며 예제는 환경 key/기본값 정책만 소유한다.
   `apps.Registry`는 선언 순서의 identity 목록이다. `apps.Start`의 명시적 dependency·callback·역순 정리를 작성했으며
   실제 외부 소비자와 전체 원격 실행은 검증 중이다.
+- `project/server.Run`에 Start/Listen/Ready·요청 drain·앱 cleanup을 연결하고 Article이 이를 사용하도록 작성했다.
+  Startup 취소와 준비 완료 뒤 앱 context의 수명을 구분하며 새 외부 generated/SQLite/HTTP 소비자의 원격 실행은 남아 있다.
 - 전역 `godj`는 project 선택과 build/process를 소유한다. 선언만 import하는 `project.Run`은
   generate·migration·초기 사용자 protocol을 실행하고, generated package를 import하는 Web runtime은 별도다.
 - `generate`는 canonical IR과 generator ABI를 snapshot하며 기존 bundle을 보존하는 게시·복구 경계가 있다.
@@ -106,7 +108,8 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 ambient `PG*`/기본 credential 파일 차단도 작성했다. 실제 독립 프로젝트·pool 재연결과 현재 source의 원격 검증은 남아 있다.
 App lifecycle의 의존 순서·실패 rollback·취소/비정상 callback 종료·재진입과 외부 generated 모델/SQLite 소비자도 작성했다.
 공통 서버 조립 전에 강제 연결 종료 후에도 남은 handler/stream 정리를 기다리는 경계를 보완했다. 실제 세 실패 경로의
-분리 재현과 수정 확인은 실행 증거에 있으며, 서버·앱·DB를 묶는 새 프로젝트 기본 runtime은 아직 작성 중이다.
+분리 재현과 수정 확인은 실행 증거에 있다. 서버·앱·DB를 묶는 공통 owner와 Article 연결, 외부 generated 모델의
+요청 drain 중 저장·worker/DB 역순 정리·재시작 소비자를 작성했으며 실제 원격 검증은 남아 있다.
 전역 도구와 외부 runtime의 build metadata 조회를 작성했다. 고정 version과 로컬 replacement/workspace의 실제
 소비자 검증 및 C1-05의 실행 전 호환성 검사·generated ABI 연결은 남아 있다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

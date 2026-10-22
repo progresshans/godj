@@ -36,6 +36,21 @@ func NewServer(application *Application, options ServerOptions) (*Server, error)
 	if application == nil {
 		return nil, invalidServerField("application", "application is nil", nil)
 	}
+	options, err := options.normalized()
+	if err != nil {
+		return nil, err
+	}
+	return &Server{application: application, options: options}, nil
+}
+
+// Validate checks options without opening resources or requiring an
+// application. Project startup can reject configuration before its callbacks.
+func (options ServerOptions) Validate() error {
+	_, err := options.normalized()
+	return err
+}
+
+func (options ServerOptions) normalized() (ServerOptions, error) {
 	if options.ReadHeaderTimeout == 0 {
 		options.ReadHeaderTimeout = defaultReadHeaderTimeout
 	}
@@ -43,15 +58,15 @@ func NewServer(application *Application, options ServerOptions) (*Server, error)
 		options.ShutdownTimeout = defaultShutdownTimeout
 	}
 	if options.ReadHeaderTimeout < 0 {
-		return nil, invalidServerField("read_header_timeout", "timeout must be positive", nil)
+		return ServerOptions{}, invalidServerField("read_header_timeout", "timeout must be positive", nil)
 	}
 	if options.ShutdownTimeout < 0 {
-		return nil, invalidServerField("shutdown_timeout", "timeout must be positive", nil)
+		return ServerOptions{}, invalidServerField("shutdown_timeout", "timeout must be positive", nil)
 	}
 	if options.MaxHeaderBytes < 0 {
-		return nil, invalidServerField("max_header_bytes", "limit must not be negative", nil)
+		return ServerOptions{}, invalidServerField("max_header_bytes", "limit must not be negative", nil)
 	}
-	return &Server{application: application, options: options}, nil
+	return options, nil
 }
 
 // Serve blocks until the listener fails or ctx requests shutdown. Graceful

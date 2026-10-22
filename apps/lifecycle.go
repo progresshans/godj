@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/progresshans/godj/internal/callback"
 )
 
 // Stop releases an app's resources. The callback must honor its context and
@@ -237,28 +239,14 @@ func startupPlan(registry Registry, definitions []Startup) ([]startupStep, error
 }
 
 func invokeStartup(ctx context.Context, app Config, start func(context.Context, Config) (Stop, error)) (Stop, error) {
-	type result struct {
-		stop Stop
-		err  error
-	}
-	completed := make(chan result, 1)
-	go func() {
-		outcome := result{err: &Error{Code: CodeCallbackAborted, Field: "startup", AppLabel: app.Label, Detail: "callback did not return normally"}}
-		defer func() { _ = recover(); completed <- outcome }()
-		outcome.stop, outcome.err = start(ctx, app)
-	}()
-	outcome := <-completed
-	return outcome.stop, outcome.err
+	return callback.Invoke(func() (Stop, error) { return start(ctx, app) },
+		&Error{Code: CodeCallbackAborted, Field: "startup", AppLabel: app.Label, Detail: "callback did not return normally"})
 }
 
 func invokeStop(ctx context.Context, label string, stop Stop) error {
-	completed := make(chan error, 1)
-	go func() {
-		outcome := error(&Error{Code: CodeCallbackAborted, Field: "shutdown", AppLabel: label, Detail: "callback did not return normally"})
-		defer func() { _ = recover(); completed <- outcome }()
-		outcome = stop(ctx)
-	}()
-	return <-completed
+	_, err := callback.Invoke(func() (struct{}, error) { return struct{}{}, stop(ctx) },
+		&Error{Code: CodeCallbackAborted, Field: "shutdown", AppLabel: label, Detail: "callback did not return normally"})
+	return err
 }
 
 func cloneLifecycleError(err error) error {

@@ -65,7 +65,7 @@ func (writer versionFailedWriter) Write(payload []byte) (int, error) {
 
 func TestActualGodjVersionNeedsNoProjectOrGoToolAtRuntime(t *testing.T) {
 	repository, environment := versionBuildFixture(t)
-	root := t.TempDir()
+	root := versionPhysicalPath(t, t.TempDir())
 	binary := filepath.Join(root, "godj")
 	versionCommand(t, repository, environment, "go", "build", "-buildvcs=true", "-trimpath", "-mod=readonly", "-o", binary, "./cmd/godj")
 	compiled, err := buildinfo.ReadFile(binary)
@@ -143,7 +143,7 @@ func TestActualGodjVersionNeedsNoProjectOrGoToolAtRuntime(t *testing.T) {
 
 func TestActualFrameworkIdentityInFixedAndDevelopmentDependencies(t *testing.T) {
 	repository, environment := versionBuildFixture(t)
-	root := t.TempDir()
+	root := versionPhysicalPath(t, t.TempDir())
 	project := filepath.Join(root, "consumer")
 	binary := filepath.Join(root, "consumer-binary")
 	const fixtureVersion = "v0.0.0-godj-version-test.1"
@@ -253,7 +253,18 @@ func versionBuildFixture(t *testing.T) (string, []string) {
 			}
 		}
 	}
-	return filepath.Clean(filepath.Join(filepath.Dir(source), "..", "..")), testenv.OfflineGo(os.Environ(), flags)
+	return versionPhysicalPath(t, filepath.Join(filepath.Dir(source), "..", "..")), testenv.OfflineGo(os.Environ(), flags)
+}
+
+func versionPhysicalPath(t *testing.T, path string) string {
+	t.Helper()
+	// Go compares workspace module directories with the process's physical
+	// working directory. macOS temporary paths can contain /var symlinks.
+	resolved, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		t.Fatal("version fixture physical path unavailable", err)
+	}
+	return resolved
 }
 
 func versionCommand(t *testing.T, directory string, environment []string, program string, args ...string) []byte {

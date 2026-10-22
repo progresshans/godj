@@ -28,6 +28,15 @@ goroutine은 만들지 않는다. 종료 중 Shutdown에 재진입하면 즉시 
 deadlock을 피한다. 동시 caller의 완료 관찰은 Wait로 분리한다. 완료 결과는 독립된 framework 오류 사본으로 반환한다.
 Web drain·process 교체·DB/파일 게시와 app lifecycle을 하나의 transaction처럼 취급하지 않는다.
 
+`project/server.Run`은 프로젝트의 Start·Listen·Ready·HTTP Serve·Stop을 연결한다. Start를 Listen보다 먼저 실행해
+인증/공개 정책의 거부가 listener 생성보다 앞서게 한다. Start/Listen이 cleanup 가능한 resource와 error를 함께 반환하면
+부분 획득도 해당 owner가 정리한다. 공통 callback 실행 경계는 apps와 server가 공유하며 의미별 오류와 순서는 각 owner가 정한다.
+
+Caller 취소를 앱 context에 영구 연결하면 HTTP drain 중에도 worker가 멈추거나 DB를 닫을 수 있다. 따라서 startup 동안만
+caller 취소를 전달하고, Ready 이후에는 caller 취소로 HTTP drain을 시작한다. 전체 handler/stream cleanup이 끝나면 앱 context를
+취소하고 별도 cleanup deadline으로 Stop을 호출한다. Context 값은 유지하며 준비 이후의 취소는 정상 종료지만 serving/cleanup
+오류를 숨기지 않는다. 이 분리는 새 runtime의 source 게시나 reload의 성공을 의미하지 않는다.
+
 외부 생성 소비자는 model-free storage app과 실제 모델 app의 의존성, 명시적 사전 migration, worker/DB 수명과 실패 후
 기존 데이터 보존을 사용한다. App lifecycle 작성은 C1의 scaffold·command·event/logging·reload 완료를 대신하지 않는다.
 설계·구현과 환경별 실행 결과는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 구분한다.

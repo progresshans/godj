@@ -10,11 +10,11 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
+	projectserver "github.com/progresshans/godj/project/server"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/web"
@@ -43,10 +43,11 @@ func main() {
 }
 
 func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) error {
-	return runWithListener(ctx, arguments, stdout, stderr, net.Listen, database.Open)
+	var listener net.ListenConfig
+	return runWithListener(ctx, arguments, stdout, stderr, listener.Listen, database.Open)
 }
 
-type listenFunc func(network, address string) (net.Listener, error)
+type listenFunc func(context.Context, string, string) (net.Listener, error)
 type backendOpener func(context.Context, database.Config) (database.Backend, error)
 
 func runWithListener(
@@ -55,15 +56,15 @@ func runWithListener(
 	stdout, stderr io.Writer,
 	listen listenFunc,
 	openBackend backendOpener,
-) (resultErr error) {
+) error {
 	if ctx == nil {
 		return errors.New("article site: nil context")
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if openBackend == nil {
-		return errors.New("article site: nil backend opener")
+	if openBackend == nil || listen == nil {
+		return errors.New("article site: nil resource opener")
 	}
 	config, err := parseServeConfig(arguments, stderr)
 	if err != nil {
@@ -77,39 +78,40 @@ func runWithListener(
 	if err != nil {
 		return err
 	}
-	backend, err := openBackend(ctx, selected)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		resultErr = errors.Join(resultErr, backend.Close())
-	}()
-	application, err := applicationForServe(ctx, backend, loopbackListenAddress(config.listenAddress))
-	if err != nil {
-		return err
-	}
-	listener, err := listen("tcp", config.listenAddress)
-	if err != nil {
-		return fmt.Errorf("article site: listen: %w", err)
-	}
-	ownedListener := &onceCloseListener{Listener: listener}
-	defer func() {
-		resultErr = errors.Join(resultErr, ownedListener.Close())
-	}()
-	server, err := web.NewServer(application, web.ServerOptions{})
-	if err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(stdout, "article site listening on http://%s\n", ownedListener.Addr()); err != nil {
-		return fmt.Errorf("article site: report listener: %w", err)
-	}
-	if err := server.Serve(ctx, ownedListener); err != nil {
-		if contextErr := ctx.Err(); contextErr != nil && err == contextErr {
-			return nil
-		}
-		return fmt.Errorf("article site: serve: %w", err)
-	}
-	return nil
+	return projectserver.Run(ctx, projectserver.Config{
+		Start: func(startContext context.Context) (projectserver.Runtime, error) {
+			backend, err := openBackend(startContext, selected)
+			var runtime projectserver.Runtime
+			if backend != nil {
+				runtime.Stop = func(context.Context) error { return backend.Close() }
+			}
+			if err != nil {
+				return runtime, err
+			}
+			// Until this callback returns, it owns the opened backend, including
+			// cleanup if application construction panics or calls Goexit.
+			returned := false
+			defer func() {
+				if !returned && runtime.Stop != nil {
+					_ = runtime.Stop(context.WithoutCancel(startContext))
+				}
+			}()
+			runtime.Application, err = applicationForServe(startContext, backend, loopbackListenAddress(config.listenAddress))
+			returned = true
+			return runtime, err
+		},
+		Listen: func(listenContext context.Context) (net.Listener, error) {
+			return listen(listenContext, "tcp", config.listenAddress)
+		},
+		Ready: func(_ context.Context, info projectserver.ListenerInfo) error {
+			document := "article site listening on http://" + info.Address + "\n"
+			count, err := io.WriteString(stdout, document)
+			if err == nil && count != len(document) {
+				return io.ErrShortWrite
+			}
+			return err
+		},
+	})
 }
 
 func applicationForServe(
@@ -122,19 +124,6 @@ func applicationForServe(
 		config = config.WithLoopbackAuthentication()
 	}
 	return siteapp.New(ctx, config)
-}
-
-type onceCloseListener struct {
-	net.Listener
-	once     sync.Once
-	closeErr error
-}
-
-func (l *onceCloseListener) Close() error {
-	l.once.Do(func() {
-		l.closeErr = l.Listener.Close()
-	})
-	return l.closeErr
 }
 
 func parseServeConfig(arguments []string, stderr io.Writer) (serveConfig, error) {

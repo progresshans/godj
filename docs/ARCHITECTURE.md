@@ -213,6 +213,9 @@ PostgreSQL adapter는 명시한 URL identity와 TLS 파일을 사용하고, 드�
 선언 snapshot과 resource lifetime을 분리하며 startup이 migration·repair를 암묵적으로 수행하지 않는다.
 HTTP server는 graceful shutdown 기한 뒤 연결을 강제로 닫은 경우에도 기존 application 호출과 stream 정리의 반환을 기다린다.
 새 application 진입은 종료 barrier에서 막고, 서버 반환 뒤에만 앱/DB resource를 닫을 수 있다. Callback의 취소 협력은 필요하다.
+[`project/server`](../project/server/README.md)는 프로젝트의 Start/Listen/Ready와 HTTP drain·Stop을 한 invocation에서 조정한다.
+Startup 취소는 앱 context에 전달하지만 준비 완료 뒤에는 HTTP 요청의 drain이 끝나야 앱 context를 취소한다.
+프로젝트가 설정·backend·인가 정책을 소유하며 공통 server가 migration이나 resource를 추측해 생성하지 않는다.
 
 잘못된 argv와 descriptor는 불필요한 build/init/I/O 전에 거부한다. 실제 child 실행은 timeout·cancel·signal·stdout/stderr·reap의
 소유자를 하나로 둔다. 성공 결과는 strict bounded protocol로 검증한 뒤 게시한다. Child/build의 실패 원인을 보존하되

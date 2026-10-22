@@ -25,6 +25,7 @@ import (
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	projectserver "github.com/progresshans/godj/project/server"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/systemstate"
@@ -490,7 +491,7 @@ func TestRunRejectsProvisionedAuthenticatedNonLoopbackBeforeListener(t *testing.
 		backendCalls.Add(1)
 		return backend, nil
 	}
-	listen := func(string, string) (net.Listener, error) {
+	listen := func(context.Context, string, string) (net.Listener, error) {
 		listenCalls.Add(1)
 		return nil, nil
 	}
@@ -504,7 +505,8 @@ func TestRunRejectsProvisionedAuthenticatedNonLoopbackBeforeListener(t *testing.
 		listen,
 		openBackend,
 	)
-	if err == nil || !strings.Contains(err.Error(), "loopback") {
+	var startup *projectserver.Error
+	if !errors.As(err, &startup) || startup.Code != projectserver.CodeStartFailed || startup.Unwrap() == nil || !strings.Contains(startup.Unwrap().Error(), "loopback") {
 		t.Fatalf("non-loopback authenticated startup error = %v", err)
 	}
 	if backendCalls.Load() != 1 || listenCalls.Load() != 0 {
@@ -530,7 +532,7 @@ func TestRunPublishesOptInAdminAndAPIAndCancelsCleanly(t *testing.T) {
 		return backend, nil
 	}
 	listenerReady := make(chan net.Listener, 1)
-	listen := func(network, _ string) (net.Listener, error) {
+	listen := func(_ context.Context, network, _ string) (net.Listener, error) {
 		listener, err := net.Listen(network, "127.0.0.1:0")
 		if err == nil {
 			listenerReady <- listener
@@ -665,7 +667,7 @@ func TestRunClosesBackendAndListenerOnceWhenContextCancelsBeforeServeOwnership(t
 		return &countingArticleBackend{Backend: backend, closes: &backendCloses}, nil
 	}
 	var listener *countingListener
-	listen := func(network, address string) (net.Listener, error) {
+	listen := func(_ context.Context, network, address string) (net.Listener, error) {
 		opened, err := net.Listen(network, "127.0.0.1:0")
 		if err != nil {
 			return nil, err
