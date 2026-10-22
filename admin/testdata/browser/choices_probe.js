@@ -189,8 +189,16 @@ async (page) => {
         await input("name", mutator).fill("Revoked target");
         await stage("save target rename");
         await mutator.getByRole("button", {name: "Save", exact: true}).click();
+        await stage("target rename response received");
         if (new URL(mutator.url()).pathname !== "/admin/labels/") throw new Error("target catalog update failed");
-    } finally { await mutator.close(); }
+    } catch (error) {
+        await stage("target editor failed: " + error.name);
+        throw error;
+    } finally {
+        try { await stage("close target editor"); }
+        finally { await mutator.close(); }
+    }
+    await stage("target editor closed");
     await page.getByRole("button", {name: "Save", exact: true}).click();
     await check(await page.locator('[data-error-field="labels"][data-error-code="invalid_choice"]').count() === 1 && !await field("labels").textContent().then(text => text.includes("Choice stale")), "a target revoked after search is rejected without retaining its old label");
     const afterStale = await savedState();

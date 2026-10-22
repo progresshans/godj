@@ -23,6 +23,31 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 공통 서버의 process 오류 표현과 browser 중단 진단
+
+`7932d464`의 [CI 39861719697](https://github.com/progresshans/godj/actions/runs/39861719697)에서 normal/race/cgo0
+products의 migration→runserver 검사가 이전 중첩 오류 문장 전체를 기대해 실패했다.
+새 공통 서버의 비공개 cause를 그대로 출력하는 대신 이미 채택한 `project server: start_failed`를 process 기대값으로 사용한다.
+Exit 3·빈 stdout·완전한 stderr, 미적용 DB 거부와 무변경, 명시적 migration, 저장 데이터의 두 차례 재시작 검사는 유지한다.
+`schema_unavailable/migration_history`의 typed cause는 기존 Article application 검사에서 계속 확인한다.
+
+Normal job `120114500156`의 원본 log SHA-256은 `bd6bb47b3af8f0f99a045d51d51149dc221646cddc9b34009a1d30878dac36b3`다.
+같은 HEAD archive의 해당 한 subtest에서 before 실패와 기대값만 수정한 after 통과를 확인했다.
+`gdj0137-server-diagnostic-repro-v1/receipt.json` SHA-256은
+`1a0057b1a8d32d1e7fb64fce00538acb202d877aea1720a4ea47dca2f6774861`이다. 제품 source와 나머지 실패 조건은 바꾸지 않았다.
+
+같은 CI의 normal integration job `120114500246`은 choices browser probe가 60초에 `TimeoutExpired`로 중단됐다.
+마지막 console 단계는 별도 target editor의 Save였다. 저장 응답 반환·오류·탭 종료 전후의 단계 로그를 추가했다.
+기존 34개 선택·권한·저장 검증과 60초 기한, browser/fixture/DB 정리 조건은 유지한다.
+원본 artifact `12461464721`의 ZIP SHA-256은 `6cf59ed7de4074853b3d93ac9f6ea9b65668296ce4d5b0b05ff83286287f3925`이며
+`gdj0137-7932d464-ci-39861719697/admin-browser/choices/receipt.json` SHA-256은
+`f1bf8fefd5ddda505cc56aadd524a2e26b6ddaf0ce53472ef376c65513e9f77c`다. 이 실패를 성공으로 계산하지 않는다.
+
+동일 source의 해당 flow만 고정 CLI/Chromium으로 로컬 재현 시도한 결과 34개 검사·native 상태·정리가 통과했다.
+`gdj0137-7932d464-choice-repro-v1/output/playwright/receipt.json` SHA-256은
+`be14887e319d68152cf42452014063b04ad894a147d215662aca2f67b872f28f`다.
+따라서 원격 중단의 원인은 아직 확정하지 않았으며 수정됐다고 주장하지 않는다. 새 단계 로그는 JS 구문만 확인했고 원격 후속 실행에서 관측한다.
+
 ## GDJ-0137 — 공통 project server와 실제 앱의 수명 조립 작성
 
 `407b4322` 기반에서 `project/server.Run`의 Start→Listen→Ready→HTTP drain→Stop 소유권과 Article 연결을 작성했다.

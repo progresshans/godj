@@ -247,7 +247,10 @@ func assertGlobalArticleServerRejectsUnmigratedState(
 		t.Fatal(err)
 	}
 	assertOutputSanitized(t, result, databasePath)
-	const wantStderr = "article site failed: article site application: system state: systemstate: schema_unavailable: migration_history: exact identity/system migration graph is not applied\n" +
+	// The common server publishes a closed stage diagnostic. Typed migration
+	// causes remain available to the in-process site application tests; the
+	// process boundary retains refusal, no implicit migration and restart checks.
+	const wantStderr = "article site failed: project server: start_failed\n" +
 		"project_runserver_runtime_error/project_runtime_exited\n"
 	if result.ExitCode != 3 || result.Stdout != "" || result.Stderr != wantStderr ||
 		result.StdoutTruncated || result.StderrTruncated {
