@@ -46,7 +46,7 @@ func (a *Application) readCostPreview(ctx context.Context, actor auth.Principal,
 		return zero, errors.New("helpdesk: cost preview input was not validated")
 	}
 	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (costPreviewPage, error) {
-		if nilFormReader(reader) {
+		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil cost preview reader")
 		}
 		category, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Get(work)

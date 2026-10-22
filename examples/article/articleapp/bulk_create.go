@@ -20,7 +20,7 @@ const bulkCreateBatchSize = 20
 // the mutation hook and commit. Failure returns no partial application result.
 // This bounded, atomic bulk policy belongs to Article, not to Django's default
 // list serializer or the lower ORM BulkCreate operation.
-func BulkCreateAndPrepare[T any](ctx context.Context, repository Repository, inputs []Input, prepare func(context.Context, []Article) (T, error)) (T, error) {
+func BulkCreateAndPrepare[T any](ctx context.Context, repository Repository, inputs []orm.ModelInput[articlemodels.Article], prepare func(context.Context, []articlemodels.Article) (T, error)) (T, error) {
 	var zero T
 	if err := validateContext(ctx); err != nil {
 		return zero, err
@@ -31,43 +31,31 @@ func BulkCreateAndPrepare[T any](ctx context.Context, repository Repository, inp
 	if len(inputs) < 1 || len(inputs) > BulkCreateMaximum {
 		return zero, validation.Reject(validation.NewErrors(validation.New(validation.NonField, "invalid_count", validation.NewParam("min", "1"), validation.NewParam("max", strconv.Itoa(BulkCreateMaximum)))), nil)
 	}
-	creates := make([]articlemodels.ArticleCreate, len(inputs))
-	slugs := make([]*string, len(inputs))
+	prepared := make([]orm.PreparedModel[articlemodels.Article], len(inputs))
+	candidates := make([]articlemodels.Article, len(inputs))
 	for index, input := range inputs {
 		if err := ctx.Err(); err != nil {
 			return zero, err
 		}
-		if err := ValidateInput(input); err != nil {
+		value, candidate, err := prepareCreate(input)
+		if err != nil {
 			return zero, err
 		}
-		create := articlemodels.NewArticleCreate(input.Title).WithPublished(input.Published)
-		if input.Summary == nil {
-			create = create.WithSummaryNull()
-		} else {
-			create = create.WithSummary(*input.Summary)
-		}
-		if input.Slug == nil {
-			create = create.WithSlugNull()
-		} else {
-			value := *input.Slug
-			slugs[index] = &value
-			create = create.WithSlug(value)
-		}
-		creates[index] = create
+		prepared[index], candidates[index] = value, candidate
 	}
 	return preparedAtomic(ctx, repository, MutationBulkCreate, func(work context.Context, session db.Session) (T, error) {
 		seen := make(map[string]bool)
 		var diagnostics []validation.Violation
-		for index, create := range creates {
+		for index, candidate := range candidates {
 			if err := work.Err(); err != nil {
 				return zero, err
 			}
-			failures, err := articlemodels.ArticleObjects.ValidateUniqueCreate(work, session, create)
+			failures, err := prepared[index].ValidateUnique(work, session, candidate)
 			if err != nil {
 				return zero, err
 			}
 			// Empty non-null slugs are values too; multiple SQL nulls remain distinct.
-			if slug := slugs[index]; slug != nil {
+			if slug := candidate.Slug; slug != nil {
 				if seen[*slug] {
 					failures = validation.Join(failures, validation.NewErrors(validation.New("slug", validation.CodeUnique)))
 				}
@@ -80,29 +68,29 @@ func BulkCreateAndPrepare[T any](ctx context.Context, repository Repository, inp
 		if len(diagnostics) != 0 {
 			return zero, validation.Reject(validation.NewErrors(diagnostics...), nil)
 		}
-		created, err := articlemodels.ArticleObjects.BulkCreateInputs(work, session, orm.CreateInputs[articlemodels.Article](creates), orm.BulkBatchSize[articlemodels.Article](bulkCreateBatchSize))
+		created, err := articlemodels.ArticleObjects.BulkCreate(work, session, candidates, orm.BulkBatchSize[articlemodels.Article](bulkCreateBatchSize))
 		if err != nil {
 			return zero, writeRejection(err)
 		}
-		if !created.ReturnedKeys || created.RowsAffected != int64(len(creates)) || len(created.Objects) != len(creates) {
+		if !created.ReturnedKeys || created.RowsAffected != int64(len(candidates)) || len(created.Objects) != len(candidates) {
 			return zero, errors.New("article: incomplete bulk creation result")
 		}
-		rows := make([]Article, len(creates))
-		keys := make(map[int64]bool, len(creates))
-		mutation := MutationResult{Operation: MutationBulkCreate, Items: make([]MutationItem, len(creates))}
+		rows := make([]articlemodels.Article, len(candidates))
+		keys := make(map[int64]bool, len(candidates))
+		mutation := MutationResult{Operation: MutationBulkCreate, Items: make([]MutationItem, len(candidates))}
 		for index, created := range created.Objects {
 			if created.ID <= 0 || keys[created.ID] {
 				return zero, errors.New("article: invalid or repeated bulk creation key")
 			}
 			keys[created.ID] = true
-			stored, found, err := getModel(work, session, created.ID)
+			stored, found, err := repository.getIn(work, session, created.ID)
 			if err != nil {
 				return zero, err
 			}
 			if !found {
 				return zero, errors.New("article: newly created row is absent")
 			}
-			rows[index] = snapshot(stored)
+			rows[index] = cloneArticle(stored)
 			mutation.Items[index] = MutationItem{Article: cloneArticle(rows[index])}
 		}
 		result, err := prepare(work, rows)

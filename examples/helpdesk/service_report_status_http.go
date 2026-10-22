@@ -19,7 +19,7 @@ type ServiceReportStatus struct {
 }
 
 func (a *Application) ServiceReportStatus(authentication *sessionauth.Runtime) (*ServiceReportStatus, error) {
-	if a == nil || nilFormReader(a.backend) || authentication == nil {
+	if a == nil || interfaceNil(a.backend) || authentication == nil {
 		return nil, errors.New("helpdesk: report status requires application and authentication")
 	}
 	if !authentication.CookiesApplyTo(ServiceReportStatusPath) || !authentication.AllowsNext(ServiceReportStatusPath) {

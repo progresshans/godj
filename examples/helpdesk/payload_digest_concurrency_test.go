@@ -105,14 +105,22 @@ func verifyPayloadDigestPostgresConcurrency(t *testing.T, b formSaveDatabase, ob
 		row ticketRecord
 		err error
 	}
+	leftInput, err := models.TicketObjects.Input(map[string]query.Value{"subject": query.String("Binary locked")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rightInput, err := models.TicketObjects.Input(map[string]query.Value{"external_payload": query.JSON(after)})
+	if err != nil {
+		t.Fatal(err)
+	}
 	left, right := make(chan result, 1), make(chan result, 1)
 	var workers sync.WaitGroup
 	defer func() { release(); cancel(); workers.Wait() }()
 	workers.Add(1)
 	go func() {
 		defer workers.Done()
-		row, _, err := first.updatePatch(ctx, actor, initial.ID, models.TicketPatch{}.WithSubject("Binary locked"), nil)
-		left <- result{row, err}
+		row, err := first.updateTicket(ctx, actor, initial.ID, leftInput)
+		left <- result{row.value, err}
 	}()
 	select {
 	case <-wrapper.written:
@@ -124,8 +132,8 @@ func verifyPayloadDigestPostgresConcurrency(t *testing.T, b formSaveDatabase, ob
 	workers.Add(1)
 	go func() {
 		defer workers.Done()
-		row, _, err := second.updatePatch(ctx, actor, initial.ID, models.TicketPatch{}.WithExternalPayload(after), nil)
-		right <- result{row, err}
+		row, err := second.updateTicket(ctx, actor, initial.ID, rightInput)
+		right <- result{row.value, err}
 	}()
 	ticker := time.NewTicker(10 * time.Millisecond)
 	defer ticker.Stop()

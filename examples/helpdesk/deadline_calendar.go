@@ -112,7 +112,7 @@ func (a *Application) readDeadlineCalendar(ctx context.Context, actor auth.Princ
 		return zero, err
 	}
 	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (deadlineCalendarPage, error) {
-		if nilFormReader(reader) {
+		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil deadline calendar reader")
 		}
 		category, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Get(work)

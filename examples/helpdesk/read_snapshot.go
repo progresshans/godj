@@ -16,7 +16,7 @@ func readSnapshotValue[R any](ctx context.Context, backend interface {
 	db.SnapshotReader
 }, read func(context.Context, db.Queryer) (R, error)) (R, error) {
 	var zero R
-	if ctx == nil || nilFormReader(backend) || read == nil {
+	if ctx == nil || interfaceNil(backend) || read == nil {
 		return zero, errors.New("helpdesk: read snapshot requires context, backend and callback")
 	}
 	if err := ctx.Err(); err != nil {

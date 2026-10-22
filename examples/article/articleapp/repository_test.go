@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	query "github.com/progresshans/godj/query"
 	"strings"
 	"testing"
 
@@ -58,11 +60,11 @@ func TestRepositoryProvidesNeutralArticlePersistenceAndNotFoundMarker(t *testing
 		t.Fatalf("NewRepository() error = %v", err)
 	}
 	summary := "neutral"
-	created, err := repository.Create(ctx, articleapp.Input{
+	created, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{
 		Title:     "Article",
 		Published: true,
 		Summary:   &summary,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
@@ -97,23 +99,23 @@ func TestArticlePermissionsRemainAppOwned(t *testing.T) {
 func TestRepositoryListCombinesClosedFilterSearchOrderingAndPaging(t *testing.T) {
 	ctx, _, repository := openArticleRepository(t, "article-app-list-options")
 	needleSummary := "needle appears only in the summary"
-	first, err := repository.Create(ctx, articleapp.Input{
+	first, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{
 		Title:     "Alpha",
 		Published: true,
 		Summary:   &needleSummary,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("Create(first) error = %v", err)
 	}
-	second, err := repository.Create(ctx, articleapp.Input{Title: "Needle Beta", Published: true})
+	second, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Needle Beta", Published: true}))
 	if err != nil {
 		t.Fatalf("Create(second) error = %v", err)
 	}
-	third, err := repository.Create(ctx, articleapp.Input{Title: "Needle Gamma", Published: false})
+	third, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Needle Gamma", Published: false}))
 	if err != nil {
 		t.Fatalf("Create(third) error = %v", err)
 	}
-	fourth, err := repository.Create(ctx, articleapp.Input{Title: "Needle Delta", Published: true})
+	fourth, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Needle Delta", Published: true}))
 	if err != nil {
 		t.Fatalf("Create(fourth) error = %v", err)
 	}
@@ -182,17 +184,17 @@ func TestRepositoryListRejectsInvalidClosedOptionsAndSearchBounds(t *testing.T) 
 func TestRepositoryPatchDistinguishesSuppliedNullEmptyAndOmittedFields(t *testing.T) {
 	ctx, backend, repository := openArticleRepository(t, "article-app-patch")
 	initialSummary := "initial summary"
-	created, err := repository.Create(ctx, articleapp.Input{
+	created, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{
 		Title:     "Initial",
 		Published: false,
 		Summary:   &initialSummary,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
 
-	titlePatch := (articleapp.Patch{}).WithTitle("Renamed")
-	if !(articleapp.Patch{}).Empty() || titlePatch.Empty() {
+	titlePatch := partialArticleInput(t, map[string]query.Value{"title": query.String("Renamed")})
+	if len(partialArticleInput(t, nil).Values()) != 0 || len(titlePatch.Values()) != 1 {
 		t.Fatal("Patch immutable builder or empty state is incorrect")
 	}
 	renamed, changed, err := repository.Patch(ctx, created.ID, titlePatch)
@@ -204,7 +206,7 @@ func TestRepositoryPatchDistinguishesSuppliedNullEmptyAndOmittedFields(t *testin
 		t.Fatalf("Patch(title) = %#v, changed=%v", renamed, changed)
 	}
 
-	nulled, changed, err := repository.Patch(ctx, created.ID, (articleapp.Patch{}).WithSummaryNull())
+	nulled, changed, err := repository.Patch(ctx, created.ID, partialArticleInput(t, map[string]query.Value{"summary": query.Null()}))
 	if err != nil {
 		t.Fatalf("Patch(summary null) error = %v", err)
 	}
@@ -212,7 +214,7 @@ func TestRepositoryPatchDistinguishesSuppliedNullEmptyAndOmittedFields(t *testin
 		t.Fatalf("Patch(summary null) = %#v, changed=%v", nulled, changed)
 	}
 
-	empty, changed, err := repository.Patch(ctx, created.ID, (articleapp.Patch{}).WithSummary(""))
+	empty, changed, err := repository.Patch(ctx, created.ID, partialArticleInput(t, map[string]query.Value{"summary": query.String("")}))
 	if err != nil {
 		t.Fatalf("Patch(empty summary) error = %v", err)
 	}
@@ -227,7 +229,7 @@ func TestRepositoryPatchDistinguishesSuppliedNullEmptyAndOmittedFields(t *testin
 		END`); err != nil {
 		t.Fatalf("create update rejection trigger: %v", err)
 	}
-	unchanged, changed, err := repository.Patch(ctx, created.ID, articleapp.Patch{})
+	unchanged, changed, err := repository.Patch(ctx, created.ID, partialArticleInput(t, nil))
 	if err != nil {
 		t.Fatalf("Patch(empty no-op) error = %v", err)
 	}
@@ -243,15 +245,12 @@ func TestRepositoryPatchDistinguishesSuppliedNullEmptyAndOmittedFields(t *testin
 func TestRepositoryPatchRejectsInvalidAndMissingWithoutMutation(t *testing.T) {
 	ctx, _, repository := openArticleRepository(t, "article-app-patch-rejection")
 	summary := "preserved"
-	created, err := repository.Create(ctx, articleapp.Input{Title: "Original", Summary: &summary})
+	created, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Original", Summary: &summary}))
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
 
-	invalidPatch := (articleapp.Patch{}).
-		WithTitle(" \t ").
-		WithPublished(true).
-		WithSummary(strings.Repeat("x", 201))
+	invalidPatch := partialArticleInput(t, map[string]query.Value{"title": query.String(" \t "), "published": query.Boolean(true), "summary": query.String(strings.Repeat("x", 201))})
 	if _, _, err := repository.Patch(ctx, created.ID, invalidPatch); !articleapp.IsCode(err, articleapp.CodeInvalidInput) {
 		t.Fatalf("Patch(invalid) error = %v, want invalid_input", err)
 	}
@@ -261,7 +260,7 @@ func TestRepositoryPatchRejectsInvalidAndMissingWithoutMutation(t *testing.T) {
 		t.Fatalf("Get(after invalid patch) = %#v, found=%t, error=%v", current, found, err)
 	}
 
-	if _, _, err := repository.Patch(ctx, created.ID+9999, (articleapp.Patch{}).WithTitle("Missing")); !errors.Is(err, articleapp.ErrNotFound) || !articleapp.IsCode(err, articleapp.CodeNotFound) {
+	if _, _, err := repository.Patch(ctx, created.ID+9999, partialArticleInput(t, map[string]query.Value{"title": query.String("Missing")})); !errors.Is(err, articleapp.ErrNotFound) || !articleapp.IsCode(err, articleapp.CodeNotFound) {
 		t.Fatalf("Patch(missing) error = %v, want not_found", err)
 	}
 	current, found, err = repository.Get(ctx, created.ID)
@@ -273,7 +272,7 @@ func TestRepositoryPatchRejectsInvalidAndMissingWithoutMutation(t *testing.T) {
 func TestRepositoryPatchFailureRollsBackAllChangedFields(t *testing.T) {
 	ctx, backend, repository := openArticleRepository(t, "article-app-patch-atomic")
 	summary := "before"
-	created, err := repository.Create(ctx, articleapp.Input{Title: "Before", Summary: &summary})
+	created, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Before", Summary: &summary}))
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
@@ -285,10 +284,7 @@ func TestRepositoryPatchFailureRollsBackAllChangedFields(t *testing.T) {
 		t.Fatalf("create update rejection trigger: %v", err)
 	}
 
-	patch := (articleapp.Patch{}).
-		WithTitle("After").
-		WithPublished(true).
-		WithSummary("after")
+	patch := partialArticleInput(t, map[string]query.Value{"title": query.String("After"), "published": query.Boolean(true), "summary": query.String("after")})
 	if _, _, err := repository.Patch(ctx, created.ID, patch); err == nil {
 		t.Fatal("Patch(forced failure) error = nil")
 	}
@@ -301,14 +297,11 @@ func TestRepositoryPatchFailureRollsBackAllChangedFields(t *testing.T) {
 
 func TestRepositoryPatchChangedFieldsUseDeclaredOrder(t *testing.T) {
 	ctx, _, repository := openArticleRepository(t, "article-app-patch-order")
-	created, err := repository.Create(ctx, articleapp.Input{Title: "Before"})
+	created, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Before"}))
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	updated, changed, err := repository.Patch(ctx, created.ID, (articleapp.Patch{}).
-		WithSummary("after").
-		WithPublished(true).
-		WithTitle("After"))
+	updated, changed, err := repository.Patch(ctx, created.ID, partialArticleInput(t, map[string]query.Value{"summary": query.String("after"), "published": query.Boolean(true), "title": query.String("After")}))
 	if err != nil {
 		t.Fatalf("Patch() error = %v", err)
 	}
@@ -336,26 +329,26 @@ func TestRepositoryMutationHookReceivesDetachedDeterministicResultsAndSkipsNoOps
 	})
 
 	summary := "initial"
-	created, err := hooked.Create(ctx, articleapp.Input{Title: "First", Summary: &summary})
+	created, err := hooked.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "First", Summary: &summary}))
 	if err != nil || created.Title != "First" || created.Summary == nil || *created.Summary != "initial" {
 		t.Fatalf("Create() = %#v, %v", created, err)
 	}
-	updated, changed, err := hooked.Update(ctx, created.ID, articleapp.Input{Title: "Second", Summary: &summary})
+	updated, changed, err := hooked.Update(ctx, created.ID, fullArticleInput(t, articlemodels.Article{Title: "Second", Summary: &summary}))
 	if err != nil || fmt.Sprint(changed) != "[title]" || updated.Title != "Second" {
 		t.Fatalf("Update() = %#v, changed=%v, error=%v", updated, changed, err)
 	}
-	patched, changed, err := hooked.Patch(ctx, created.ID, (articleapp.Patch{}).WithSummary("patched"))
+	patched, changed, err := hooked.Patch(ctx, created.ID, partialArticleInput(t, map[string]query.Value{"summary": query.String("patched")}))
 	if err != nil || fmt.Sprint(changed) != "[summary]" || patched.Summary == nil || *patched.Summary != "patched" {
 		t.Fatalf("Patch() = %#v, changed=%v, error=%v", patched, changed, err)
 	}
-	if _, changed, err := hooked.Update(ctx, created.ID, articleapp.Input{Title: patched.Title, Published: patched.Published, Summary: patched.Summary}); err != nil || len(changed) != 0 {
+	if _, changed, err := hooked.Update(ctx, created.ID, fullArticleInput(t, articlemodels.Article{Title: patched.Title, Published: patched.Published, Summary: patched.Summary})); err != nil || len(changed) != 0 {
 		t.Fatalf("Update(no-op) changed=%v, error=%v", changed, err)
 	}
-	if _, changed, err := hooked.Patch(ctx, created.ID, articleapp.Patch{}); err != nil || len(changed) != 0 {
+	if _, changed, err := hooked.Patch(ctx, created.ID, partialArticleInput(t, nil)); err != nil || len(changed) != 0 {
 		t.Fatalf("Patch(no-op) changed=%v, error=%v", changed, err)
 	}
 
-	other, err := repository.Create(ctx, articleapp.Input{Title: "Other"})
+	other, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Other"}))
 	if err != nil {
 		t.Fatalf("Create(other) error = %v", err)
 	}
@@ -393,11 +386,11 @@ func TestRepositoryMutationHookReceivesDetachedDeterministicResultsAndSkipsNoOps
 
 func TestRepositoryMutationHookFailureRollsBackEveryArticleKernel(t *testing.T) {
 	ctx, _, repository := openArticleRepository(t, "article-app-mutation-hook-rollback")
-	first, err := repository.Create(ctx, articleapp.Input{Title: "First"})
+	first, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "First"}))
 	if err != nil {
 		t.Fatalf("Create(first) error = %v", err)
 	}
-	second, err := repository.Create(ctx, articleapp.Input{Title: "Second"})
+	second, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Second"}))
 	if err != nil {
 		t.Fatalf("Create(second) error = %v", err)
 	}
@@ -408,13 +401,13 @@ func TestRepositoryMutationHookFailureRollsBackEveryArticleKernel(t *testing.T) 
 		return hookFailure
 	})
 
-	if _, err := rejected.Create(ctx, articleapp.Input{Title: "Never committed"}); !errors.Is(err, hookFailure) {
+	if _, err := rejected.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Never committed"})); !errors.Is(err, hookFailure) {
 		t.Fatalf("Create(hook failure) error = %v", err)
 	}
-	if _, _, err := rejected.Update(ctx, first.ID, articleapp.Input{Title: "Changed"}); !errors.Is(err, hookFailure) {
+	if _, _, err := rejected.Update(ctx, first.ID, fullArticleInput(t, articlemodels.Article{Title: "Changed"})); !errors.Is(err, hookFailure) {
 		t.Fatalf("Update(hook failure) error = %v", err)
 	}
-	if _, _, err := rejected.Patch(ctx, first.ID, (articleapp.Patch{}).WithPublished(true)); !errors.Is(err, hookFailure) {
+	if _, _, err := rejected.Patch(ctx, first.ID, partialArticleInput(t, map[string]query.Value{"published": query.Boolean(true)})); !errors.Is(err, hookFailure) {
 		t.Fatalf("Patch(hook failure) error = %v", err)
 	}
 	if _, err := rejected.Delete(ctx, first.ID); !errors.Is(err, hookFailure) {
@@ -423,7 +416,7 @@ func TestRepositoryMutationHookFailureRollsBackEveryArticleKernel(t *testing.T) 
 	if _, err := rejected.Publish(ctx, []int64{second.ID, first.ID}); !errors.Is(err, hookFailure) {
 		t.Fatalf("Publish(hook failure) error = %v", err)
 	}
-	if _, changed, err := rejected.Update(ctx, first.ID, articleapp.Input{Title: "First"}); err != nil || len(changed) != 0 {
+	if _, changed, err := rejected.Update(ctx, first.ID, fullArticleInput(t, articlemodels.Article{Title: "First"})); err != nil || len(changed) != 0 {
 		t.Fatalf("Update(no-op with rejecting hook) changed=%v, error=%v", changed, err)
 	}
 	if hookCalls != 5 {

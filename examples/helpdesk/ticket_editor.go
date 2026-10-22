@@ -58,7 +58,7 @@ type TicketEditor struct {
 }
 
 func (a *Application) TicketEditor(config TicketEditorConfig) (*TicketEditor, error) {
-	if a == nil || nilFormReader(a.backend) || config.Auth == nil || config.AppendAudit == nil {
+	if a == nil || interfaceNil(a.backend) || config.Auth == nil || config.AppendAudit == nil {
 		return nil, errors.New("helpdesk: ticket editor requires application, authentication and transactional audit")
 	}
 	if !config.Auth.CookiesApplyTo(TicketEditorPath) || !config.Auth.AllowsNext(TicketEditorPath) {

@@ -8,6 +8,7 @@ import (
 	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
@@ -26,7 +27,7 @@ func (a *Application) labelUpdateEndpoint(authentication api.Authentication, mod
 	})
 	// Only the positive-key check precedes parsing here. Missing/scoped target
 	// lookup remains inside updateLabel, after full body validation.
-	return endpoint.New(authentication, endpoint.Config[endpoint.Pair[int64, labelAPIInput], models.Label]{
+	return endpoint.New(authentication, endpoint.Config[endpoint.Pair[int64, orm.ModelInput[models.Label]], models.Label]{
 		Route: web.Route{Name: name, Method: method, Path: "/api/labels/<int64:id>/"}, Summary: summary, Description: labelWritePolicy,
 		Admission: endpoint.All(ChangeLabel), Input: endpoint.Sequence(id, endpoint.JSONBody(component, a.labelInput, mode, "")), Output: a.responses.label,
 		Success: []endpoint.Status{{Code: 200, Description: "The saved label."}},
@@ -36,12 +37,8 @@ func (a *Application) labelUpdateEndpoint(authentication api.Authentication, mod
 			{Code: 413, Description: "The JSON body exceeds 4096 bytes."},
 			{Code: 415, Description: "The body is not application/json."},
 		},
-		Handle: func(request *web.Request, _ auth.Principal, value endpoint.Pair[int64, labelAPIInput]) (output.Prepared[models.Label], error) {
-			patch := models.LabelPatch{}
-			if name, present := value.Second.name.Get(); present {
-				patch = patch.WithName(name)
-			}
-			result, err := a.updateLabel(request.Context(), value.First, patch)
+		Handle: func(request *web.Request, _ auth.Principal, value endpoint.Pair[int64, orm.ModelInput[models.Label]]) (output.Prepared[models.Label], error) {
+			result, err := a.updateLabel(request.Context(), value.First, value.Second)
 			if err != nil {
 				return output.Prepared[models.Label]{}, typedEndpointFailure(err)
 			}

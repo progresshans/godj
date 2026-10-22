@@ -60,25 +60,9 @@ func (m Manager[M]) ApplyValues(current M, values map[string]query.Value) (M, er
 	if !ok || interfaceIsNil(descriptor) {
 		return zero, invalidWritePlan("descriptor does not implement model value assignment")
 	}
-	// Snapshot and validate all caller entries before invoking assignment code.
-	// Error order and application order do not depend on Go map iteration.
-	names := make([]string, 0, len(values))
-	for name := range values {
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	owned := make(map[string]query.Value, len(values))
-	for _, name := range names {
-		index, found := m.prepared.byName[name]
-		if !found || m.prepared.metadata.Fields[index].PrimaryKey {
-			return zero, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownField, Field: name, Detail: "model value field is not writable metadata"}
-		}
-		field := m.prepared.metadata.Fields[index]
-		value := values[name]
-		if !mutationValueMatches(field, value) {
-			return zero, invalidModelValue(name, "model input does not match field type or nullability")
-		}
-		owned[name] = value
+	owned, err := m.inputValues(values)
+	if err != nil {
+		return zero, err
 	}
 	baseline := descriptor.CloneWriteModel(current)
 	result := descriptor.CloneWriteModel(current)
@@ -106,6 +90,30 @@ func (m Manager[M]) ApplyValues(current M, values map[string]query.Value) (M, er
 		return zero, invalidWritePlan("model assignment changed primary key state")
 	}
 	return descriptor.CloneWriteModel(result), nil
+}
+
+func (m Manager[M]) inputValues(values map[string]query.Value) (map[string]query.Value, error) {
+	// Snapshot and validate all caller entries before invoking assignment code.
+	// Error order and application order do not depend on Go map iteration.
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	owned := make(map[string]query.Value, len(values))
+	for _, name := range names {
+		index, found := m.prepared.byName[name]
+		if !found || m.prepared.metadata.Fields[index].PrimaryKey {
+			return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownField, Field: name, Detail: "model value field is not writable metadata"}
+		}
+		field := m.prepared.metadata.Fields[index]
+		value := values[name]
+		if !mutationValueMatches(field, value) {
+			return nil, invalidModelValue(name, "model input does not match field type or nullability")
+		}
+		owned[name] = value
+	}
+	return owned, nil
 }
 
 func (m Manager[M]) modelValueDescriptor() (WriteDescriptor[M], error) {

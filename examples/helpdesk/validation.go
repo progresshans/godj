@@ -22,8 +22,10 @@ func writeRejection(err error) error {
 // A confirmed rollback's typed rejection stays intact. Cancellation and any
 // concurrent execution failure remain errors instead of input diagnostics.
 func operationError(ctx context.Context, err error) error {
-	if contextErr := ctx.Err(); contextErr != nil {
-		return errors.Join(err, contextErr)
+	if !interfaceNil(ctx) {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return errors.Join(err, contextErr)
+		}
 	}
 	return err
 }

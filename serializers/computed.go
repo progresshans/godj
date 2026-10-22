@@ -45,6 +45,7 @@ func (encoder ModelEncoder[M]) WithComputed(fields ...ComputedField[M]) (ModelEn
 	if err != nil {
 		return ModelEncoder[M]{}, err
 	}
+	result.spec.model = encoder.spec.model
 	return result, nil
 }
 

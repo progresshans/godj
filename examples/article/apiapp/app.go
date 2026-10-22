@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/web"
 )
@@ -41,7 +42,7 @@ const (
 // route declarations whose handlers share this read-only configuration.
 type Application struct {
 	repository     articleapp.Repository
-	body           bodyinput.Body[articleInput]
+	body           bodyinput.Body[orm.ModelInput[articlemodels.Article]]
 	response       output.Output[articlemodels.Article]
 	bulkResponse   output.Output[[]articlemodels.Article]
 	encoder        serializers.ModelEncoder[articlemodels.Article]
@@ -81,7 +82,7 @@ func New(backend articleapp.Backend, authentication api.Authentication) (*Applic
 	if err != nil {
 		return nil, fmt.Errorf("article api encoder: %w", err)
 	}
-	body, err := prepareArticleInput(spec, parserConfig)
+	body, err := prepareArticleInput(repository.ModelResource(), spec, parserConfig)
 	if err != nil {
 		return nil, fmt.Errorf("article api typed input: %w", err)
 	}

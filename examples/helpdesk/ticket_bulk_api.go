@@ -3,6 +3,8 @@ package helpdesk
 import (
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/orm"
 	"net/http"
 	"strconv"
 
@@ -16,13 +18,13 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-func (a *Application) bulkTicketEndpoint(authentication api.Authentication, appendAudit appendTicketAudit, item endpoint.Input[ticketInput]) (endpoint.Endpoint, error) {
+func (a *Application) bulkTicketEndpoint(authentication api.Authentication, appendAudit appendTicketAudit, item endpoint.Input[orm.ModelInput[models.Ticket]]) (endpoint.Endpoint, error) {
 	list := endpoint.JSONListBody(item, input.ListConfig{
 		Parser:     api.ParserConfig{MaxBodyBytes: ticketBulkBodyBytes, JSONLimits: serializers.Limits{MaxValues: maximumJSONListValues}},
 		ItemLimits: serializers.Limits{MaxDocumentBytes: maximumJSONBodyBytes},
 		MinItems:   1, MaxItems: ticketBulkMaximum,
 	}, fmt.Sprintf("A nonempty array of at most %d TicketCreate objects; the whole body is limited to %d bytes, depth 16 and 65536 values. Every item's compact JSON is limited to %d bytes and the ordinary TicketCreate field policy. The single-request limits on duplicate keys, exact numbers, Unicode, NUL, read-only/unknown fields and external JSON still apply. Blank arrays and non-object items are rejected. Omitted fields use the same defaults and SQL nulls as single creation.", ticketBulkMaximum, ticketBulkBodyBytes, maximumJSONBodyBytes), validateTicketAPIInput)
-	return endpoint.New(authentication, endpoint.Config[[]ticketInput, []ticketRecord]{
+	return endpoint.New(authentication, endpoint.Config[[]orm.ModelInput[models.Ticket], []ticketRecord]{
 		Route:       web.Route{Name: "helpdesk:ticket-bulk-create", Method: http.MethodPost, Path: "/api/tickets/bulk/"},
 		Summary:     "Create several tickets",
 		Admission:   endpoint.All(AddTicket, ViewLabel),
@@ -37,10 +39,19 @@ func (a *Application) bulkTicketEndpoint(authentication api.Authentication, appe
 			{Code: http.StatusRequestEntityTooLarge, Description: "The whole request exceeds its byte limit."},
 			{Code: http.StatusUnsupportedMediaType, Description: "Exactly one supported application/json Content-Type is required."},
 		},
-		Handle: func(request *web.Request, actor auth.Principal, rows []ticketInput) (output.Prepared[[]ticketRecord], error) {
+		Handle: func(request *web.Request, actor auth.Principal, rows []orm.ModelInput[models.Ticket]) (output.Prepared[[]ticketRecord], error) {
 			candidates := make([]ticketBulkCandidate, len(rows))
 			for index, value := range rows {
-				candidates[index] = ticketBulkCandidate{index: index, value: value.model(a.categoryID), labels: value.labels}
+				prepared, err := a.prepareNewTicket(value)
+				if err != nil {
+					return output.Prepared[[]ticketRecord]{}, err
+				}
+				candidate, err := prepared.Model()
+				if err != nil {
+					return output.Prepared[[]ticketRecord]{}, err
+				}
+				labels, _ := value.Collection("labels")
+				candidates[index] = ticketBulkCandidate{index: index, value: candidate, labels: labels}
 			}
 			created, err := a.createTickets(request.Context(), actor, candidates, appendAudit)
 			if err != nil {

@@ -66,33 +66,41 @@ func TestRegisterArticleRejectsInvalidOrDuplicateStartupService(t *testing.T) {
 	}
 }
 
-func TestArticleInputAcceptsOnlyCompleteTypedCleanedValues(t *testing.T) {
+func TestArticleFormTransfersOnlyValidatedOwnedInput(t *testing.T) {
 	spec, err := formmodel.NewSpec((articlemodels.ArticleDescriptor{}).Metadata())
 	if err != nil {
 		t.Fatalf("formmodel.NewSpec() error = %v", err)
 	}
-	bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{
+	bound, err := formmodel.Bind(t.Context(), (articlemodels.ArticleDescriptor{}).Metadata(), spec, forms.NewData(map[string][]string{
 		"title":     {"  GoDj  "},
 		"published": {"on"},
 		"summary":   {""},
-	}), nil)
-	if err != nil || !bound.Valid() {
+	}), nil, formmodel.PostClean{})
+	if err != nil || !bound.Form().Valid() {
 		t.Fatalf("Bind() = %#v, %v", bound, err)
 	}
-	input, err := articleInput(bound.Cleaned())
+	input, err := formmodel.PrepareInput(articlemodels.ArticleObjects, bound)
 	if err != nil {
-		t.Fatalf("articleInput() error = %v", err)
+		t.Fatalf("PrepareInput() error = %v", err)
 	}
-	if input.Title != "GoDj" || !input.Published || input.Summary != nil {
-		t.Fatalf("articleInput() = %#v", input)
+	prepared, err := articlemodels.ArticleObjects.PrepareInput(input, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := prepared.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.Title != "GoDj" || !value.Published || value.Summary != nil {
+		t.Fatalf("prepared model = %#v", value)
 	}
 
-	invalid, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"published": {"on"}}), nil)
-	if err != nil || invalid.Valid() {
+	invalid, err := formmodel.Bind(t.Context(), (articlemodels.ArticleDescriptor{}).Metadata(), spec, forms.NewData(map[string][]string{"published": {"on"}}), nil, formmodel.PostClean{})
+	if err != nil || invalid.Form().Valid() {
 		t.Fatalf("invalid Bind() = %#v, %v", invalid, err)
 	}
-	if _, err := articleInput(invalid.Cleaned()); err == nil {
-		t.Fatal("articleInput(incomplete cleaned data) error = nil")
+	if _, err := formmodel.PrepareInput(articlemodels.ArticleObjects, invalid); err == nil {
+		t.Fatal("PrepareInput(invalid form) error = nil")
 	}
 }
 

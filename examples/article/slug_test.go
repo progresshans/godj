@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
+
 	"html"
 	"io"
 	"net/http"
@@ -12,12 +14,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
@@ -147,22 +147,26 @@ func runArticleSlugUserFlow(t *testing.T, open func(context.Context) (articleSlu
 		}
 		return articleAPIHTTPResult{status: response.StatusCode, header: response.Header, body: string(body)}
 	}
-	decode := func(response articleAPIHTTPResult, status int) articleapp.Article {
+	decode := func(response articleAPIHTTPResult, status int) articlemodels.Article {
 		t.Helper()
 		if response.status != status {
 			t.Fatalf("slug HTTP status %d, want %d: %s", response.status, status, response.body)
 		}
-		var value articleapp.Article
+		var value articlemodels.Article
 		if err := json.Unmarshal([]byte(response.body), &value); err != nil {
 			t.Fatal(err)
 		}
 		return value
 	}
-	assertStored := func(expected articleapp.Article) {
+	assertStored := func(expected articlemodels.Article) {
 		t.Helper()
 		actual, found, err := fixture.repository.Get(ctx, expected.ID)
-		if err != nil || !found || !reflect.DeepEqual(actual, expected) {
+		if err != nil || !found {
 			t.Fatal("rejected request changed Article data", actual, expected, err)
+		}
+		assertArticleAdminArticleEqual(t, actual, expected)
+		if _, present := (articlemodels.ArticleDescriptor{}).PrimaryKey(actual); !present {
+			t.Fatal("stored model lost key presence")
 		}
 	}
 	login := fixture.login(t, fixture.client, articleAdminUsername, articleAdminPassword)
@@ -296,7 +300,7 @@ func runArticleSlugUserFlow(t *testing.T, open func(context.Context) (articleSlu
 	t.Run("rollback_and_legacy_output", func(t *testing.T) {
 		failure := errors.New("rollback after slug DML")
 		repository := fixture.repository.WithMutationHook(func(context.Context, db.Session, articleapp.MutationResult) error { return failure })
-		if _, _, err := repository.Patch(ctx, created.ID, (articleapp.Patch{}).WithSlug("Rolled_back")); !errors.Is(err, failure) {
+		if _, _, err := repository.Patch(ctx, created.ID, partialArticleInput(t, map[string]query.Value{"slug": query.String("Rolled_back")})); !errors.Is(err, failure) {
 			t.Fatal("slug update lost callback rollback", err)
 		}
 		assertStored(created)
@@ -340,9 +344,9 @@ func runArticleSlugUserFlow(t *testing.T, open func(context.Context) (articleSlu
 						t.Fatal(err)
 					}
 					if operation == "create" {
-						_, err = repository.Create(requestContext, articleapp.Input{Title: "Must roll back", Slug: &wrapper.slug})
+						_, err = repository.Create(requestContext, fullArticleInput(t, articlemodels.Article{Title: "Must roll back", Slug: &wrapper.slug}))
 					} else {
-						_, _, err = repository.Patch(requestContext, created.ID, (articleapp.Patch{}).WithSlug(wrapper.slug))
+						_, _, err = repository.Patch(requestContext, created.ID, partialArticleInput(t, map[string]query.Value{"slug": query.String(wrapper.slug)}))
 					}
 					failures, rejected := validation.Rejected(err)
 					var conflict *query.Error
@@ -378,11 +382,12 @@ func runArticleSlugUserFlow(t *testing.T, open func(context.Context) (articleSlu
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []articleapp.Article{legacy, created} {
+	for _, want := range []articlemodels.Article{legacy, created} {
 		got, found, err := reopened.Get(ctx, want.ID)
-		if err != nil || !found || !reflect.DeepEqual(got, want) {
+		if err != nil || !found {
 			t.Fatal("fresh connection lost committed slug state", got, want, err)
 		}
+		assertArticleAdminArticleEqual(t, got, want)
 	}
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal("reopened slug history lost no-op", err)

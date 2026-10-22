@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
@@ -24,26 +25,26 @@ func (a *Application) typedUpdate(authentication api.Authentication, mode serial
 	}
 	// DRF's target lookup precedes body I/O. Permission/CSRF remain outside
 	// both stages, and the write rechecks current state in its own transaction.
-	current := endpoint.Resolve(endpoint.PathInt64("id"), func(request *web.Request, _ auth.Principal, id int64) (articleapp.Article, error) {
+	current := endpoint.Resolve(endpoint.PathInt64("id"), func(request *web.Request, _ auth.Principal, id int64) (articlemodels.Article, error) {
 		if id <= 0 {
-			return articleapp.Article{}, endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
+			return articlemodels.Article{}, endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
 		}
 		article, found, err := a.repository.Get(request.Context(), id)
 		if err != nil {
-			return articleapp.Article{}, typedArticleFailure(err)
+			return articlemodels.Article{}, typedArticleFailure(err)
 		}
 		if !found {
-			return articleapp.Article{}, endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
+			return articlemodels.Article{}, endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
 		}
 		return article, nil
 	})
-	body := endpoint.Resolve(endpoint.JSONBody(component, a.body, mode, bodyDescription), func(_ *web.Request, _ auth.Principal, value articleInput) (articleInput, error) {
-		if diagnostics := value.textDiagnostics(); !diagnostics.Empty() {
-			return articleInput{}, endpoint.Reject(400, api.CodeValidationError, diagnostics)
+	body := endpoint.Resolve(endpoint.JSONBody(component, a.body, mode, bodyDescription), func(_ *web.Request, _ auth.Principal, value orm.ModelInput[articlemodels.Article]) (orm.ModelInput[articlemodels.Article], error) {
+		if diagnostics := articleTextDiagnostics(value); !diagnostics.Empty() {
+			return orm.ModelInput[articlemodels.Article]{}, endpoint.Reject(400, api.CodeValidationError, diagnostics)
 		}
 		return value, nil
 	})
-	return endpoint.New(authentication, endpoint.Config[endpoint.Pair[articleapp.Article, articleInput], articlemodels.Article]{
+	return endpoint.New(authentication, endpoint.Config[endpoint.Pair[articlemodels.Article, orm.ModelInput[articlemodels.Article]], articlemodels.Article]{
 		Route: web.Route{Name: name, Method: method, Path: DetailPath}, Summary: summary, Description: orderDescription,
 		Admission: endpoint.All(articleapp.ArticleChangePermission), Input: endpoint.Sequence(current, body), Output: a.response,
 		Success: []endpoint.Status{{Code: http.StatusOK, Description: "The updated Article."}},
@@ -53,16 +54,16 @@ func (a *Application) typedUpdate(authentication api.Authentication, mode serial
 			{Code: 413, Description: "The request body exceeds 4096 bytes."},
 			{Code: 415, Description: "The request Content-Type is not supported application/json."},
 		},
-		Handle: func(request *web.Request, _ auth.Principal, input endpoint.Pair[articleapp.Article, articleInput]) (output.Prepared[articlemodels.Article], error) {
-			prepare := func(ctx context.Context, article articleapp.Article, _ []string) (output.Prepared[articlemodels.Article], error) {
-				return a.response.Prepare(ctx, http.StatusOK, articleapp.ModelSnapshot(article))
+		Handle: func(request *web.Request, _ auth.Principal, input endpoint.Pair[articlemodels.Article, orm.ModelInput[articlemodels.Article]]) (output.Prepared[articlemodels.Article], error) {
+			prepare := func(ctx context.Context, article articlemodels.Article, _ []string) (output.Prepared[articlemodels.Article], error) {
+				return a.response.Prepare(ctx, http.StatusOK, article)
 			}
 			var prepared output.Prepared[articlemodels.Article]
 			var err error
 			if mode == serializers.ModePartial {
-				prepared, err = articleapp.PatchAndPrepare(request.Context(), a.repository, input.First.ID, input.Second.patch(), prepare)
+				prepared, err = articleapp.PatchAndPrepare(request.Context(), a.repository, input.First.ID, input.Second, prepare)
 			} else {
-				prepared, err = articleapp.UpdateAndPrepare(request.Context(), a.repository, input.First.ID, input.Second.full(&input.First), prepare)
+				prepared, err = articleapp.UpdateAndPrepare(request.Context(), a.repository, input.First.ID, input.Second, prepare)
 			}
 			if err != nil {
 				return output.Prepared[articlemodels.Article]{}, typedArticleFailure(err)

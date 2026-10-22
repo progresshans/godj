@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"testing"
 
 	"github.com/progresshans/godj/db/sqlite"
@@ -36,15 +37,15 @@ func TestRepositorySQLiteCRUDSearchAndAtomicPublish(t *testing.T) {
 		t.Fatalf("NewRepository() error = %v", err)
 	}
 	goSummary := "Go systems"
-	first, err := repository.Create(ctx, articleapp.Input{Title: "Alpha", Summary: &goSummary})
+	first, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Alpha", Summary: &goSummary}))
 	if err != nil {
 		t.Fatalf("Create(first) error = %v", err)
 	}
-	second, err := repository.Create(ctx, articleapp.Input{Title: "Go Beta", Published: false})
+	second, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Go Beta", Published: false}))
 	if err != nil {
 		t.Fatalf("Create(second) error = %v", err)
 	}
-	third, err := repository.Create(ctx, articleapp.Input{Title: "Gamma", Published: false})
+	third, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Gamma", Published: false}))
 	if err != nil {
 		t.Fatalf("Create(third) error = %v", err)
 	}
@@ -58,11 +59,11 @@ func TestRepositorySQLiteCRUDSearchAndAtomicPublish(t *testing.T) {
 	}
 
 	emptySummary := ""
-	updated, changed, err := repository.Update(ctx, first.ID, articleapp.Input{
+	updated, changed, err := repository.Update(ctx, first.ID, fullArticleInput(t, articlemodels.Article{
 		Title:     "Alpha Updated",
 		Published: true,
 		Summary:   &emptySummary,
-	})
+	}))
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
@@ -113,7 +114,7 @@ func TestRepositoryRejectsInvalidInputBeforeBackendWork(t *testing.T) {
 
 	for name, run := range map[string]func() error{
 		"empty title": func() error {
-			_, err := repository.Create(ctx, articleapp.Input{Title: "  "})
+			_, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "  "}))
 			return err
 		},
 		"negative offset": func() error {

@@ -2,6 +2,7 @@ package article_test
 
 import (
 	"context"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -145,7 +146,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 	if got := articleAPIArticleCount(t, fixture.repository); got != 6 {
 		t.Fatalf("valid create Article count = %d, want 6", got)
 	}
-	articleAPIRequireArticle(t, fixture.repository, articleapp.Article{
+	articleAPIRequireArticle(t, fixture.repository, articlemodels.Article{
 		ID:        6,
 		Title:     "API Created",
 		Published: true,
@@ -178,7 +179,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		freshCSRF,
 	)
 	validPUT.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":false,"summary":null,"slug":null}`)
-	articleAPIRequireArticle(t, fixture.repository, articleapp.Article{ID: 6, Title: "Replaced"})
+	articleAPIRequireArticle(t, fixture.repository, articlemodels.Article{ID: 6, Title: "Replaced"})
 
 	beforeInvalidPatch := articleAPIGet(t, fixture.repository, 6)
 	invalidPatch := fixture.request(
@@ -203,7 +204,7 @@ func runArticleAPIAdminSessionUserFlow(t *testing.T, backend articleapp.Backend)
 		freshCSRF,
 	)
 	validPatch.requireJSON(t, http.StatusOK, `{"id":6,"title":"Replaced","published":true,"summary":"","slug":null}`)
-	articleAPIRequireArticle(t, fixture.repository, articleapp.Article{
+	articleAPIRequireArticle(t, fixture.repository, articlemodels.Article{
 		ID:        6,
 		Title:     "Replaced",
 		Published: true,
@@ -599,13 +600,13 @@ func articleAPICookieValue(t *testing.T, jar http.CookieJar, rawURL string, name
 
 func seedArticleAPIFlow(t *testing.T, repository articleapp.Repository) {
 	t.Helper()
-	inputs := []articleapp.Input{
+	inputs := fullArticleInputs(t, []articlemodels.Article{
 		{Title: "Go Alpha", Published: true},
 		{Title: "Rust Beta", Summary: articleAPIString("second")},
 		{Title: "Go Gamma", Published: true, Summary: articleAPIString("third")},
 		{Title: "Go Draft", Summary: articleAPIString("fourth")},
 		{Title: "Go Omega", Published: true, Summary: articleAPIString("fifth")},
-	}
+	})
 	for index, input := range inputs {
 		created, err := repository.Create(context.Background(), input)
 		if err != nil {
@@ -617,7 +618,7 @@ func seedArticleAPIFlow(t *testing.T, repository articleapp.Repository) {
 	}
 }
 
-func articleAPIGet(t *testing.T, repository articleapp.Repository, id int64) articleapp.Article {
+func articleAPIGet(t *testing.T, repository articleapp.Repository, id int64) articlemodels.Article {
 	t.Helper()
 	article, found, err := repository.Get(context.Background(), id)
 	if err != nil || !found {
@@ -626,7 +627,7 @@ func articleAPIGet(t *testing.T, repository articleapp.Repository, id int64) art
 	return article
 }
 
-func articleAPIRequireArticle(t *testing.T, repository articleapp.Repository, want articleapp.Article) {
+func articleAPIRequireArticle(t *testing.T, repository articleapp.Repository, want articlemodels.Article) {
 	t.Helper()
 	got := articleAPIGet(t, repository, want.ID)
 	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published || !articleAPIStringPointersEqual(got.Summary, want.Summary) || !articleAPIStringPointersEqual(got.Slug, want.Slug) {

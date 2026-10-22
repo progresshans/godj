@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"reflect"
 	"testing"
 	"time"
@@ -21,7 +22,7 @@ func TestPreparedArticleUpdateOwnsEncodingHookSnapshotsAndRollback(t *testing.T)
 			t.Run(operation+"/"+mode, func(t *testing.T) {
 				ctx, _, repository := openArticleRepository(t, t.Name())
 				summary := "original summary"
-				created, err := repository.Create(ctx, articleapp.Input{Title: "Original", Summary: &summary})
+				created, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Original", Summary: &summary}))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -47,7 +48,7 @@ func TestPreparedArticleUpdateOwnsEncodingHookSnapshotsAndRollback(t *testing.T)
 				if err != nil {
 					t.Fatal(err)
 				}
-				prepare := func(work context.Context, article articleapp.Article, fields []string) (output.Prepared[string], error) {
+				prepare := func(work context.Context, article articlemodels.Article, fields []string) (output.Prepared[string], error) {
 					stages = append(stages, "prepare")
 					if mode == "no-op" && len(fields) != 0 {
 						t.Error("no-op manufactured a mutation")
@@ -76,9 +77,9 @@ func TestPreparedArticleUpdateOwnsEncodingHookSnapshotsAndRollback(t *testing.T)
 				}
 				var result output.Prepared[string]
 				if operation == "update" {
-					result, err = articleapp.UpdateAndPrepare(ctx, hooked, created.ID, articleapp.Input{Title: title, Summary: &summary}, prepare)
+					result, err = articleapp.UpdateAndPrepare(ctx, hooked, created.ID, fullArticleInput(t, articlemodels.Article{Title: title, Summary: &summary}), prepare)
 				} else {
-					result, err = articleapp.PatchAndPrepare(ctx, hooked, created.ID, (articleapp.Patch{}).WithTitle(title), prepare)
+					result, err = articleapp.PatchAndPrepare(ctx, hooked, created.ID, partialArticleInput(t, map[string]query.Value{"title": query.String(title)}), prepare)
 				}
 				ok := mode == "success" || mode == "no-op"
 				if (err == nil) != ok {
@@ -133,7 +134,7 @@ func TestPreparedArticleUpdateRejectsUnownedAtomicCompletion(t *testing.T) {
 	for _, mode := range []string{"skipped", "nil session", "typed nil session", "repeated", "concurrent", "retained", "unfinished", "swallowed miss", "unknown commit", "joined miss", "wrapped miss", "confirmed miss", "confirmed late cancel", "begin failure"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, native, repository := openArticleRepository(t, t.Name())
-			created, err := repository.Create(ctx, articleapp.Input{Title: "Original"})
+			created, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Original"}))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -202,7 +203,7 @@ func TestPreparedArticleUpdateRejectsUnownedAtomicCompletion(t *testing.T) {
 			if mode == "swallowed miss" || mode == "joined miss" || mode == "wrapped miss" || mode == "confirmed miss" {
 				id++
 			}
-			result, err := articleapp.PatchAndPrepare(ctx, wrapped, id, articleapp.Patch{}, func(context.Context, articleapp.Article, []string) (string, error) {
+			result, err := articleapp.PatchAndPrepare(ctx, wrapped, id, partialArticleInput(t, nil), func(context.Context, articlemodels.Article, []string) (string, error) {
 				if mode == "concurrent" || mode == "unfinished" {
 					close(started)
 					<-release

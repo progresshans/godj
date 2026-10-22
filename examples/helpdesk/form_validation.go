@@ -39,7 +39,7 @@ func (a *Application) readFormValidation(ctx context.Context, actor auth.Princip
 	calls := 0
 	err := a.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
 		calls++
-		if calls != 1 || nilFormReader(reader) {
+		if calls != 1 || interfaceNil(reader) {
 			callbackErr = errors.New("helpdesk: invalid read snapshot callback")
 			return callbackErr
 		}
@@ -71,7 +71,7 @@ func (a *Application) readFormValidation(ctx context.Context, actor auth.Princip
 	return validation.Reject(failures, nil)
 }
 
-func nilFormReader(reader db.Queryer) bool {
+func interfaceNil(reader any) bool {
 	if reader == nil {
 		return true
 	}

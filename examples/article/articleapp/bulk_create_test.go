@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	orm "github.com/progresshans/godj/orm"
 	"slices"
 	"testing"
 
@@ -117,29 +119,29 @@ func TestPreparedArticleBulkCreateOwnsAllBatchesReloadOutputAndHook(t *testing.T
 					t.Fatal(err)
 				}
 			}
-			inputs := make([]articleapp.Input, 40)
-			for index := range inputs {
+			candidates := make([]articlemodels.Article, 40)
+			for index := range candidates {
 				summary, slug := "original summary", fmt.Sprintf("slug-%02d", index)
-				inputs[index] = articleapp.Input{Title: fmt.Sprintf("row %02d", index), Summary: &summary, Slug: &slug}
+				candidates[index] = articlemodels.Article{Title: fmt.Sprintf("row %02d", index), Summary: &summary, Slug: &slug}
 			}
 			// Distinct SQL NULLs must survive the whole-candidate uniqueness check.
-			inputs[0].Slug, inputs[1].Slug = nil, nil
+			candidates[0].Slug, candidates[1].Slug = nil, nil
 			seedCount := int64(0)
 			if mode == "duplicate existing" || mode == "native later conflict" {
-				if _, err := plain.Create(ctx, inputs[39]); err != nil {
+				if _, err := plain.Create(ctx, fullArticleInput(t, candidates[39])); err != nil {
 					t.Fatal(err)
 				}
 				seedCount = 1
 			}
 			if mode == "duplicate batch" {
-				inputs[39].Slug = inputs[2].Slug
+				candidates[39].Slug = candidates[2].Slug
 			}
 			if mode == "duplicate empty slug" {
 				empty := ""
-				inputs[2].Slug, inputs[39].Slug = &empty, &empty
+				candidates[2].Slug, candidates[39].Slug = &empty, &empty
 			}
 			if mode == "invalid last" {
-				inputs[39].Title = ""
+				candidates[39].Title = ""
 			}
 			ctx, cancel := context.WithCancel(ctx)
 			defer cancel()
@@ -183,7 +185,7 @@ func TestPreparedArticleBulkCreateOwnsAllBatchesReloadOutputAndHook(t *testing.T
 			if err != nil {
 				t.Fatal(err)
 			}
-			prepare := func(work context.Context, rows []articleapp.Article) (output.Prepared[[]int64], error) {
+			prepare := func(work context.Context, rows []articlemodels.Article) (output.Prepared[[]int64], error) {
 				stages = append(stages, "prepare")
 				if len(rows) != 40 {
 					t.Fatal("partial preparation", len(rows))
@@ -216,7 +218,7 @@ func TestPreparedArticleBulkCreateOwnsAllBatchesReloadOutputAndHook(t *testing.T
 			if mode == "nil prepare" {
 				prepare = nil
 			}
-			prepared, err := articleapp.BulkCreateAndPrepare(ctx, repository, inputs, prepare)
+			prepared, err := articleapp.BulkCreateAndPrepare(ctx, repository, fullArticleInputs(t, candidates), prepare)
 			ok := mode == "created" || mode == "stored values" || mode == "confirmed late cancel"
 			if (err == nil) != ok {
 				t.Fatal("bulk outcome", err)
@@ -305,7 +307,7 @@ func TestPreparedArticleBulkCreateOwnsAllBatchesReloadOutputAndHook(t *testing.T
 					t.Fatal("callback mutated stored values", row)
 				}
 			}
-			for _, input := range inputs {
+			for _, input := range candidates {
 				if input.Summary == nil || *input.Summary != "original summary" {
 					t.Fatal("callback retained caller-owned pointers")
 				}
@@ -321,12 +323,12 @@ func TestPreparedArticleBulkRejectsCountAndContextBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prepare := func(context.Context, []articleapp.Article) (string, error) {
+	prepare := func(context.Context, []articlemodels.Article) (string, error) {
 		t.Fatal("invalid bulk reached preparation")
 		return "", nil
 	}
 	for _, count := range []int{0, 41} {
-		value, err := articleapp.BulkCreateAndPrepare(context.Background(), repository, make([]articleapp.Input, count), prepare)
+		value, err := articleapp.BulkCreateAndPrepare(context.Background(), repository, make([]orm.ModelInput[articlemodels.Article], count), prepare)
 		if _, rejected := validation.Rejected(err); !rejected || value != "" {
 			t.Fatal("invalid count accepted", err)
 		}
@@ -334,11 +336,11 @@ func TestPreparedArticleBulkRejectsCountAndContextBeforeIO(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	for _, ctx := range []context.Context{nil, ctx} {
-		if value, err := articleapp.BulkCreateAndPrepare(ctx, repository, []articleapp.Input{{Title: "valid"}}, prepare); err == nil || value != "" {
+		if value, err := articleapp.BulkCreateAndPrepare(ctx, repository, fullArticleInputs(t, []articlemodels.Article{{Title: "valid"}}), prepare); err == nil || value != "" {
 			t.Fatal("invalid context accepted")
 		}
 	}
-	if value, err := articleapp.BulkCreateAndPrepare(context.Background(), articleapp.Repository{}, []articleapp.Input{{Title: "valid"}}, prepare); err == nil || value != "" {
+	if value, err := articleapp.BulkCreateAndPrepare(context.Background(), articleapp.Repository{}, fullArticleInputs(t, []articlemodels.Article{{Title: "valid"}}), prepare); err == nil || value != "" {
 		t.Fatal("zero repository accepted")
 	}
 	if backend.atomics != 0 || backend.reads != 0 || len(backend.batches) != 0 {

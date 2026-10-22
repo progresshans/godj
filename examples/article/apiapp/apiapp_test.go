@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -153,7 +154,7 @@ func TestNewBuildsAuthenticationRoutesAtomically(t *testing.T) {
 
 func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing.T) {
 	harness := newHarness(t)
-	created, err := harness.repository.Create(context.Background(), articleapp.Input{Title: "Existing", Published: true})
+	created, err := harness.repository.Create(context.Background(), fullArticleInput(t, articlemodels.Article{Title: "Existing", Published: true}))
 	if err != nil || created.ID != 1 {
 		t.Fatalf("seed = %#v, %v", created, err)
 	}
@@ -258,13 +259,13 @@ func TestArticleJSONCRUDPreservesFullPartialLocationAndEmptySemantics(t *testing
 func TestListFilterOrderingPaginationAndInvalidQueries(t *testing.T) {
 	harness := newHarness(t)
 	summaries := []*string{nil, pointer("needle only in summary"), pointer("misc"), pointer("API"), pointer("draft")}
-	fixtures := []articleapp.Input{
+	fixtures := fullArticleInputs(t, []articlemodels.Article{
 		{Title: "Go Guide", Published: true, Summary: summaries[0]},
 		{Title: "Django Notes", Published: false, Summary: summaries[1]},
 		{Title: "Other", Published: true, Summary: summaries[2]},
 		{Title: "Go Deep Dive", Published: true, Summary: summaries[3]},
 		{Title: "Go Draft", Published: false, Summary: summaries[4]},
-	}
+	})
 	for _, input := range fixtures {
 		if _, err := harness.repository.Create(context.Background(), input); err != nil {
 			t.Fatal(err)
@@ -316,7 +317,7 @@ func TestListFilterOrderingPaginationAndInvalidQueries(t *testing.T) {
 
 func TestAuthenticationCSRFTransportAndValidationDenialsMutateNoArticles(t *testing.T) {
 	harness := newHarness(t)
-	if _, err := harness.repository.Create(context.Background(), articleapp.Input{Title: "Existing"}); err != nil {
+	if _, err := harness.repository.Create(context.Background(), fullArticleInput(t, articlemodels.Article{Title: "Existing"})); err != nil {
 		t.Fatal(err)
 	}
 

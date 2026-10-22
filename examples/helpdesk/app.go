@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
@@ -15,11 +14,8 @@ import (
 	"github.com/progresshans/godj/api/output"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/calendar"
-	"github.com/progresshans/godj/clock"
+	"github.com/progresshans/godj/crud"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/decimal"
-	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
@@ -28,7 +24,6 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
-	"github.com/progresshans/godj/uuid"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
@@ -62,12 +57,13 @@ type Backend interface {
 }
 
 type Application struct {
+	resources       modelResources
 	adminAudit      func(context.Context, db.Session, admin.PreparedEvent) error
 	backend         Backend
 	categoryID      int64
 	registry        admin.Registry
 	input           serializers.Spec
-	ticketInput     input.Body[ticketInput]
+	ticketInput     input.Body[orm.ModelInput[models.Ticket]]
 	output          serializers.Spec
 	encoder         serializers.ModelEncoder[ticketRecord]
 	responses       apiOutputs
@@ -81,7 +77,7 @@ type Application struct {
 	reportSaveInput input.Body[reportAPIInput]
 	reportOutput    serializers.Spec
 	reportEncoder   serializers.ModelEncoder[models.ServiceReport]
-	labelInput      input.Body[labelAPIInput]
+	labelInput      input.Body[orm.ModelInput[models.Label]]
 	labelOutput     serializers.Spec
 	labelEncoder    serializers.ModelEncoder[models.Label]
 	linkInput       serializers.Spec
@@ -117,6 +113,9 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	}
 	a.deleters, err = project.BindRelationDeleters()
 	if err != nil {
+		return nil, err
+	}
+	if err = a.initResources(); err != nil {
 		return nil, err
 	}
 	if err = a.initReports(); err != nil {
@@ -156,7 +155,7 @@ func New(backend Backend, categoryID int64) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	a.ticketInput, err = prepareTicketAPIInput(a.input)
+	a.ticketInput, err = prepareTicketAPIInput(a.resources.ticket, a.input)
 	if err != nil {
 		return nil, err
 	}
@@ -189,24 +188,15 @@ func (a *Application) register(builder *admin.Builder) error {
 		AppLabel: "helpdesk", Slug: "categories", Model: categoryDescriptor.Metadata(), ReadOnly: true,
 		ListFields: []string{"id", "name"}, SearchFields: []string{"name"}, Permissions: admin.Permissions{View: ViewCategory},
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Category], error) {
-			query := models.CategoryObjects.Using(a.backend).OrderBy(models.CategoryFields.ID.Asc())
+			var filters []orm.Predicate[models.Category]
 			if request.Search != "" {
-				query = query.Filter(models.CategoryFields.Name.IContains(request.Search))
+				filters = append(filters, models.CategoryFields.Name.IContains(request.Search))
 			}
-			total, err := query.Count(ctx)
+			page, err := a.resources.category.List(ctx, a.backend, crud.ListOptions[models.Category]{Filter: filters, Offset: request.Offset, Limit: request.Limit})
 			if err != nil {
 				return admin.Page[models.Category]{}, err
 			}
-			query, err = query.Offset(request.Offset)
-			if err != nil {
-				return admin.Page[models.Category]{}, err
-			}
-			query, err = query.Limit(request.Limit)
-			if err != nil {
-				return admin.Page[models.Category]{}, err
-			}
-			items, err := query.All(ctx)
-			return admin.Page[models.Category]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+			return admin.Page[models.Category]{Items: page.Items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
 		},
 		Snapshot: func(value models.Category) (admin.Object, error) {
 			return categoryProjector.Project(value, value.ID, value.Name)
@@ -216,7 +206,7 @@ func (a *Application) register(builder *admin.Builder) error {
 	}
 	descriptor := models.TicketDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"subject", "details", "closed", "priority", "resolution", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "labels"}
+	fields := a.resources.ticket.Fields()
 	overrides := []formmodel.Override{formmodel.OverrideField("external_payload", formmodel.WithValidators(forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
 		if value.IsNull() {
 			return validation.NewErrors()
@@ -301,29 +291,18 @@ func (a *Application) list(ctx context.Context, request admin.ListRequest) (admi
 }
 
 func (a *Application) listMatching(ctx context.Context, request admin.ListRequest, source string) (admin.Page[ticketRecord], error) {
-	rows := a.objects.ModelsTicket.Filter(a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc())
+	rows := a.objects.ModelsTicket.Filter(a.resources.ticket.Predicates()...).OrderBy(models.TicketFields.ID.Asc())
 	if request.Search != "" {
 		rows = rows.Filter(orm.Or(models.TicketFields.Subject.IContains(request.Search), models.TicketFields.ExternalPayload.IContains(request.Search)))
 	}
 	if source != "" {
 		rows = rows.Filter(models.TicketFields.ExternalPayload.At(query.JSONKey("source")).IContains(source))
 	}
-	total, err := rows.Count(ctx)
+	page, err := crud.ListQuery(ctx, a.withTicketLabels(rows), request.Offset, request.Limit)
 	if err != nil {
 		return admin.Page[ticketRecord]{}, err
 	}
-	rows, err = rows.Offset(request.Offset)
-	if err != nil {
-		return admin.Page[ticketRecord]{}, err
-	}
-	rows, err = rows.Limit(request.Limit)
-	if err != nil {
-		return admin.Page[ticketRecord]{}, err
-	}
-	selected, err := a.withTicketLabels(rows).All(ctx)
-	if err != nil {
-		return admin.Page[ticketRecord]{}, err
-	}
+	selected := page.Items
 	items := make([]ticketRecord, len(selected))
 	for index, row := range selected {
 		items[index], err = ticketRecordFromModel(ctx, row)
@@ -331,32 +310,13 @@ func (a *Application) listMatching(ctx context.Context, request admin.ListReques
 			return admin.Page[ticketRecord]{}, err
 		}
 	}
-	return admin.Page[ticketRecord]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, nil
-}
-
-type ticketInput struct {
-	labels            []int64
-	subject           string
-	details           *string
-	closed            bool
-	priority          *int64
-	resolution        *string
-	dueAt             *time.Time
-	reviewed          *bool
-	serviceOn         *calendar.Date
-	serviceAt         *clock.Time
-	elapsed           *duration.Duration
-	effort            *float64
-	expectedCost      *decimal.Decimal
-	externalReference *uuid.UUID
-	externalPayload   *jsonvalue.Value
-	externalURL       *string
+	return admin.Page[ticketRecord]{Items: items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
 }
 
 func ticket(ctx context.Context, backend db.Queryer, id int64) (models.Ticket, bool, error) {
 	return models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
 }
-func (a *Application) createTicket(ctx context.Context, principal auth.Principal, input ticketInput) (output.Prepared[ticketRecord], error) {
+func (a *Application) createTicket(ctx context.Context, principal auth.Principal, input orm.ModelInput[models.Ticket]) (output.Prepared[ticketRecord], error) {
 	return runApplicationRelationAtomic(ctx, a.backend, "ticket create", func(ctx context.Context, session db.RelationSession) (output.Prepared[ticketRecord], error) {
 		created, err := a.createTicketInSession(ctx, session, principal, input)
 		if err != nil {
@@ -366,193 +326,65 @@ func (a *Application) createTicket(ctx context.Context, principal auth.Principal
 	})
 }
 
-func (a *Application) createTicketInSession(ctx context.Context, session db.RelationSession, principal auth.Principal, input ticketInput) (ticketRecord, error) {
+func (a *Application) createTicketInSession(ctx context.Context, session db.RelationSession, principal auth.Principal, input orm.ModelInput[models.Ticket]) (ticketRecord, error) {
 	if err := ticketWritePermission(ctx, principal, AddTicket); err != nil {
 		return ticketRecord{}, err
 	}
-	if _, found, err := models.CategoryObjects.Using(session).Filter(models.CategoryFields.ID.Exact(a.categoryID)).OrderBy(models.CategoryFields.ID.Asc()).First(ctx); err != nil {
-		return ticketRecord{}, err
-	} else if !found {
-		return ticketRecord{}, admin.ErrObjectNotFound
-	}
-	keys, err := a.validateTicketLabelKeys(ctx, session, input.labels)
+	mutation, err := a.resources.ticket.CreateInSession(ctx, session, input, a.ticketSaveOptions(principal, input, true, false))
 	if err != nil {
-		return ticketRecord{}, err
+		return ticketRecord{}, resourceError(err)
 	}
-	create := models.NewTicketCreate(input.subject, a.categoryID).WithClosed(input.closed)
-	if input.priority == nil {
-		create = create.WithPriorityNull()
-	} else {
-		create = create.WithPriority(*input.priority)
-	}
-	if input.details == nil {
-		create = create.WithDetailsNull()
-	} else {
-		create = create.WithDetails(*input.details)
-	}
-	if input.resolution == nil {
-		create = create.WithResolutionNull()
-	} else {
-		create = create.WithResolution(*input.resolution)
-	}
-	if input.dueAt == nil {
-		create = create.WithDueAtNull()
-	} else {
-		create = create.WithDueAt(*input.dueAt)
-	}
-	if input.reviewed == nil {
-		create = create.WithReviewedNull()
-	} else {
-		create = create.WithReviewed(*input.reviewed)
-	}
-	if input.serviceOn == nil {
-		create = create.WithServiceOnNull()
-	} else {
-		create = create.WithServiceOn(*input.serviceOn)
-	}
-	if input.externalReference == nil {
-		create = create.WithExternalReferenceNull()
-	} else {
-		create = create.WithExternalReference(*input.externalReference)
-	}
-	if input.externalURL == nil {
-		create = create.WithExternalURLNull()
-	} else {
-		create = create.WithExternalURL(*input.externalURL)
-	}
-	if input.externalPayload == nil {
-		create = create.WithExternalPayloadNull()
-	} else {
-		create = create.WithExternalPayload(*input.externalPayload)
-	}
-	if input.expectedCost == nil {
-		create = create.WithExpectedCostNull()
-	} else {
-		create = create.WithExpectedCost(*input.expectedCost)
-	}
-	if input.effort == nil {
-		create = create.WithEffortNull()
-	} else {
-		create = create.WithEffort(*input.effort)
-	}
-	if input.elapsed == nil {
-		create = create.WithElapsedNull()
-	} else {
-		create = create.WithElapsed(*input.elapsed)
-	}
-	if input.serviceAt == nil {
-		create = create.WithServiceAtNull()
-	} else {
-		create = create.WithServiceAt(*input.serviceAt)
-	}
-	violations, err := models.TicketObjects.ValidateUniqueCreate(ctx, session, create)
-	if err != nil {
-		return ticketRecord{}, err
-	}
-	if !violations.Empty() {
-		return ticketRecord{}, validation.Reject(violations, nil)
-	}
-	raw, err := models.TicketObjects.Create(ctx, session, create)
-	if err != nil {
-		return ticketRecord{}, writeRejection(err)
-	}
-	if _, err := a.setTicketLabelKeys(ctx, session, raw, keys); err != nil {
-		return ticketRecord{}, err
-	}
-	return a.publishableTicket(ctx, session, raw.ID, true)
+	return a.publishableTicket(ctx, session, mutation.Value.ID, true)
 }
 
-// Resolve the current row and apply explicit changes in the same transaction.
-// Comparing assignments preserves omitted fields and does not expose or mutate
-// the generated mutation's private model value.
-func (a *Application) updatePatch(ctx context.Context, principal auth.Principal, id int64, patch models.TicketPatch, labels []int64) (ticketRecord, []string, error) {
-	var updated ticketRecord
-	var changed []string
-	err := a.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
-		if err := ticketWritePermission(ctx, principal, ChangeTicket); err != nil {
-			return err
+type updatedTicket struct {
+	value    ticketRecord
+	changed  []string
+	response output.Prepared[ticketRecord]
+}
+
+// Resolve the current row and selected collection inside the owned write.
+// Response preparation and digest synchronization complete before commit.
+func (a *Application) updateTicket(ctx context.Context, principal auth.Principal, id int64, input orm.ModelInput[models.Ticket]) (updatedTicket, error) {
+	return runApplicationRelationAtomic(ctx, a.backend, "ticket update", func(work context.Context, session db.RelationSession) (updatedTicket, error) {
+		if err := ticketWritePermission(work, principal, ChangeTicket); err != nil {
+			return updatedTicket{}, err
 		}
-		current, found, err := ticket(ctx, session, id)
+		mutation, err := a.resources.ticket.UpdateInSession(work, session, id, input, a.ticketSaveOptions(principal, input, false, false))
 		if err != nil {
-			return err
+			return updatedTicket{}, resourceError(err)
 		}
-		if !found || current.CategoryID != a.categoryID {
-			return admin.ErrObjectNotFound
-		}
-		var keys []int64
-		if labels != nil {
-			keys, err = a.validateTicketLabelKeys(ctx, session, labels)
-			if err != nil {
-				return err
+		scalarWritten := false
+		for _, field := range mutation.ChangedFields {
+			if field != "labels" {
+				scalarWritten = true
 			}
 		}
-		raw, scalarChanged, err := updateTicketScalars(ctx, session, current, patch)
+		stored, err := a.publishableTicket(work, session, mutation.Value.ID, scalarWritten)
 		if err != nil {
-			return err
+			return updatedTicket{}, err
 		}
-		changed = scalarChanged
-		if labels != nil {
-			collectionChanged, err := a.setTicketLabelKeys(ctx, session, raw, keys)
-			if err != nil {
-				return err
-			}
-			if collectionChanged {
-				changed = append(changed, "labels")
-			}
+		changed := payloadDigestChanges(mutation.ChangedFields, *mutation.Before, stored.Ticket)
+		response, err := a.responses.ticket.Prepare(work, http.StatusOK, stored)
+		if err != nil {
+			return updatedTicket{}, err
 		}
-		updated, err = a.publishableTicket(ctx, session, raw.ID, len(scalarChanged) != 0)
-		if err == nil {
-			changed = payloadDigestChanges(changed, current, updated.Ticket)
-		}
-		return err
+		return updatedTicket{value: stored, changed: changed, response: response}, nil
 	})
-	if err != nil {
-		if contextErr := ctx.Err(); contextErr != nil {
-			return ticketRecord{}, nil, errors.Join(err, contextErr)
-		}
-		return ticketRecord{}, nil, err
-	}
-	return updated, changed, nil
 }
 
-func updateTicketScalars(ctx context.Context, session db.Session, current models.Ticket, patch models.TicketPatch) (models.Ticket, []string, error) {
-	var changed []string
-	mutation := patch.BuildPatch(current)
-	if err := mutation.Err(); err != nil {
-		return models.Ticket{}, nil, err
+// Ticket's numeric no-op policy treats equal decimal values and both float
+// zero signs alike. Retain the exact current representation before the generic
+// preparation computes the write mask; query AST identity stays unchanged.
+func preserveTicketNumericValues(current models.Ticket, candidate *models.Ticket) {
+	if current.Effort != nil && candidate.Effort != nil && *current.Effort == *candidate.Effort {
+		value := *current.Effort
+		candidate.Effort = &value
 	}
-
-	descriptor := models.TicketDescriptor{}
-	assignments := mutation.Assignments()
-	for _, field := range descriptor.Metadata().Fields {
-		for _, assignment := range assignments {
-			if assignment.Field().Name() != field.Name {
-				continue
-			}
-			before, valid := descriptor.WriteFieldValue(current, field)
-			if !valid {
-				return models.Ticket{}, nil, errors.New("helpdesk: field cannot be read for update")
-			}
-			if !ticketValuesEqual(before, assignment.Value()) {
-				changed = append(changed, field.Name)
-			}
-		}
+	if current.ExpectedCost != nil && candidate.ExpectedCost != nil && current.ExpectedCost.Equal(*candidate.ExpectedCost) {
+		value := *current.ExpectedCost
+		candidate.ExpectedCost = &value
 	}
-	if len(changed) == 0 {
-		return current, nil, nil
-	}
-	violations, err := models.TicketObjects.ValidateUniqueUpdate(ctx, session, current, patch)
-	if err != nil {
-		return models.Ticket{}, nil, err
-	}
-	if !violations.Empty() {
-		return models.Ticket{}, nil, validation.Reject(violations, nil)
-	}
-	updated, err := models.TicketObjects.Patch(ctx, session, current, patch)
-	if err != nil {
-		return models.Ticket{}, nil, writeRejection(err)
-	}
-	return updated, changed, nil
 }
 
 // Native storage can normalize a JSON numeric token into a longer spelling.
@@ -605,42 +437,36 @@ func externalPayloadErrors(document jsonvalue.Value) validation.Errors {
 }
 
 func (a *Application) delete(ctx context.Context, id int64) (ticketRecord, error) {
-	var removed ticketRecord
-	target := models.NewTicketWithID(id)
-	scoped := scopedRelationDelete{backend: a.backend, check: func(session db.RelationSession) error {
-		objects, err := project.UsingSession(session)
+	return runApplicationRelationAtomic(ctx, a.backend, "ticket delete", func(work context.Context, session db.RelationSession) (ticketRecord, error) {
+		var removed ticketRecord
+		_, err := a.resources.ticket.DeleteInSession(work, session, id, crud.DeleteOptions[models.Ticket]{
+			Before: func(ctx context.Context, backend db.Session, value models.Ticket) error {
+				objects, err := project.UsingSession(backend)
+				if err != nil {
+					return err
+				}
+				var found bool
+				removed, found, err = a.readTicketRecord(ctx, objects, value.ID)
+				if err != nil {
+					return err
+				}
+				if !found || removed.CategoryID != a.categoryID {
+					return admin.ErrObjectNotFound
+				}
+				return nil
+			},
+			Delete: func(ctx context.Context, backend db.Session, value models.Ticket) (int64, error) {
+				relations, ok := backend.(db.RelationSession)
+				if !ok {
+					return 0, errors.New("helpdesk: deletion lost relation session")
+				}
+				return a.deleters.ModelsTicket.DeleteInSession(ctx, relations, value)
+			},
+		})
 		if err != nil {
-			return err
+			return ticketRecord{}, resourceError(err)
 		}
-		current, found, err := a.readTicketRecord(ctx, objects, id)
-		if err != nil {
-			return err
-		}
-		if !found || current.CategoryID != a.categoryID {
-			return admin.ErrObjectNotFound
-		}
-		removed = current
-		return nil
-	}}
-	if _, err := a.deleters.ModelsTicket.Delete(ctx, scoped, &target); err != nil {
-		return ticketRecord{}, err
-	}
-	return removed, nil
-}
-
-// The category check and complete incoming relation policy share the same
-// transaction. A failed check is an AtomicRelation precondition failure.
-type scopedRelationDelete struct {
-	backend db.RelationAtomic
-	check   func(db.RelationSession) error
-}
-
-func (scoped scopedRelationDelete) AtomicRelation(ctx context.Context, fn func(db.RelationSession) error) error {
-	return scoped.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
-		if err := scoped.check(session); err != nil {
-			return err
-		}
-		return fn(session)
+		return removed, nil
 	})
 }
 

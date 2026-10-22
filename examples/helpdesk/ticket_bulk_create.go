@@ -204,10 +204,3 @@ func (a *Application) createTicketsInSession(ctx context.Context, session db.Rel
 	}
 	return result, nil
 }
-
-func (input ticketInput) model(categoryID int64) models.Ticket {
-	return models.Ticket{Subject: input.subject, Details: input.details, Closed: input.closed, CategoryID: categoryID,
-		Priority: input.priority, Resolution: input.resolution, DueAt: input.dueAt, Reviewed: input.reviewed,
-		ServiceOn: input.serviceOn, ServiceAt: input.serviceAt, Elapsed: input.elapsed, Effort: input.effort,
-		ExpectedCost: input.expectedCost, ExternalReference: input.externalReference, ExternalPayload: input.externalPayload, ExternalURL: input.externalURL}
-}

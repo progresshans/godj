@@ -15,6 +15,7 @@ import (
 	"github.com/progresshans/godj/internal/durationinput"
 	"github.com/progresshans/godj/internal/temporal"
 	"github.com/progresshans/godj/internal/timeinput"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -310,7 +311,18 @@ const (
 type Spec struct {
 	fields []Field
 	index  map[string]int
+	model  *ir.Model
 	valid  bool
+}
+
+// Model returns an owned copy of the Schema IR from which FromModel selected
+// this Spec. A generic NewSpec has no model source, even when its fields happen
+// to look identical. Read-only computed extensions preserve this source.
+func (s Spec) Model() (ir.Model, bool) {
+	if !s.valid || s.model == nil {
+		return ir.Model{}, false
+	}
+	return s.model.Clone(), true
 }
 
 func NewSpec(fields []Field) (Spec, error) {

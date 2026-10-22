@@ -8,11 +8,11 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
 )
 
 const articleModelIdentity = "godj_conformance.article"
-
-var articleWritableFields = []string{"title", "published", "summary", "slug"}
 
 // TransactionalAuditWriter is the exact same-transaction write capability
 // required by Article Admin. Implementations may append and prune through the
@@ -73,55 +73,55 @@ func (s Service) List(ctx context.Context, options articleapp.ListOptions) (arti
 	return s.repository.List(ctx, options)
 }
 
-func (s Service) Get(ctx context.Context, id int64) (articleapp.Article, bool, error) {
+func (s Service) Get(ctx context.Context, id int64) (articlemodels.Article, bool, error) {
 	if !s.validState() {
-		return articleapp.Article{}, false, invalid("service", "service is zero or invalid")
+		return articlemodels.Article{}, false, invalid("service", "service is zero or invalid")
 	}
 	return s.repository.Get(ctx, id)
 }
 
-func (s Service) Create(ctx context.Context, actorID string, input articleapp.Input) (articleapp.Article, error) {
+func (s Service) Create(ctx context.Context, actorID string, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, error) {
 	if !s.validState() {
-		return articleapp.Article{}, invalid("service", "service is zero or invalid")
+		return articlemodels.Article{}, invalid("service", "service is zero or invalid")
 	}
-	template, err := admin.PrepareEventTemplate(
+	_, err := admin.PrepareEventTemplate(
 		actorID,
 		articleModelIdentity,
 		admin.ActionAdd,
 		nil,
-		input.Title,
+		"",
 	)
 	if err != nil {
-		return articleapp.Article{}, fmt.Errorf("article admin prepare add audit: %w", err)
+		return articlemodels.Article{}, fmt.Errorf("article admin prepare add audit: %w", err)
 	}
 	hook, publish := s.auditMutation(func(result articleapp.MutationResult) ([]admin.PreparedEvent, error) {
 		item, err := singleMutationItem(result, articleapp.MutationCreate)
 		if err != nil {
 			return nil, err
 		}
-		event, ok := template.ForObject(item.Article.ID)
-		if !ok {
-			return nil, reconciliation("confirmed create returned an invalid object id")
+		event, err := admin.PrepareEvent(actorID, articleModelIdentity, item.Article.ID, admin.ActionAdd, nil, item.Article.Title)
+		if err != nil {
+			return nil, err
 		}
 		return []admin.PreparedEvent{event}, nil
 	})
 	created, err := s.repository.WithMutationHook(hook).Create(ctx, input)
 	if err != nil {
-		return articleapp.Article{}, err
+		return articlemodels.Article{}, err
 	}
 	if err := publish(); err != nil {
-		return articleapp.Article{}, err
+		return articlemodels.Article{}, err
 	}
 	return created, nil
 }
 
-func (s Service) Update(ctx context.Context, actorID string, id int64, input articleapp.Input) (articleapp.Article, []string, error) {
+func (s Service) Update(ctx context.Context, actorID string, id int64, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, []string, error) {
 	if !s.validState() {
-		return articleapp.Article{}, nil, invalid("service", "service is zero or invalid")
+		return articlemodels.Article{}, nil, invalid("service", "service is zero or invalid")
 	}
-	_, err := admin.PrepareEventTemplate(actorID, articleModelIdentity, admin.ActionChange, nil, input.Title)
+	_, err := admin.PrepareEventTemplate(actorID, articleModelIdentity, admin.ActionChange, nil, "")
 	if err != nil {
-		return articleapp.Article{}, nil, err
+		return articlemodels.Article{}, nil, err
 	}
 	hook, publish := s.auditMutation(func(result articleapp.MutationResult) ([]admin.PreparedEvent, error) {
 		item, err := singleMutationItem(result, articleapp.MutationUpdate)
@@ -131,7 +131,7 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input art
 		if !validArticleChangedFields(item.ChangedFields) {
 			return nil, reconciliation("confirmed update returned an unknown changed-field set")
 		}
-		event, err := admin.PrepareEvent(actorID, articleModelIdentity, item.Article.ID, admin.ActionChange, item.ChangedFields, input.Title)
+		event, err := admin.PrepareEvent(actorID, articleModelIdentity, item.Article.ID, admin.ActionChange, item.ChangedFields, item.Article.Title)
 		if err != nil {
 			return nil, fmt.Errorf("article admin prepare change audit: %w", err)
 		}
@@ -139,25 +139,25 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input art
 	})
 	updated, changed, err := s.repository.WithMutationHook(hook).Update(ctx, id, input)
 	if err != nil {
-		return articleapp.Article{}, nil, err
+		return articlemodels.Article{}, nil, err
 	}
 	if len(changed) == 0 {
 		return updated, nil, nil
 	}
 	if err := publish(); err != nil {
-		return articleapp.Article{}, nil, err
+		return articlemodels.Article{}, nil, err
 	}
 	return updated, append([]string(nil), changed...), nil
 }
 
-func (s Service) Delete(ctx context.Context, actorID string, id int64) (articleapp.Article, error) {
+func (s Service) Delete(ctx context.Context, actorID string, id int64) (articlemodels.Article, error) {
 	if !s.validState() {
-		return articleapp.Article{}, invalid("service", "service is zero or invalid")
+		return articlemodels.Article{}, invalid("service", "service is zero or invalid")
 	}
 	// Validate actor/model/action before backend work. The row-derived display
 	// label is validated by the hook after DML, so failure still rolls back.
 	if _, err := admin.PrepareEventTemplate(actorID, articleModelIdentity, admin.ActionDelete, nil, ""); err != nil {
-		return articleapp.Article{}, fmt.Errorf("article admin prepare delete audit: %w", err)
+		return articlemodels.Article{}, fmt.Errorf("article admin prepare delete audit: %w", err)
 	}
 	hook, publish := s.auditMutation(func(result articleapp.MutationResult) ([]admin.PreparedEvent, error) {
 		item, err := singleMutationItem(result, articleapp.MutationDelete)
@@ -179,10 +179,10 @@ func (s Service) Delete(ctx context.Context, actorID string, id int64) (articlea
 	})
 	deleted, err := s.repository.WithMutationHook(hook).Delete(ctx, id)
 	if err != nil {
-		return articleapp.Article{}, err
+		return articlemodels.Article{}, err
 	}
 	if err := publish(); err != nil {
-		return articleapp.Article{}, err
+		return articlemodels.Article{}, err
 	}
 	return deleted, nil
 }
@@ -325,7 +325,7 @@ func validArticleChangedFields(fields []string) bool {
 		return false
 	}
 	next := 0
-	for _, field := range articleWritableFields {
+	for _, field := range articleapp.WritableFields() {
 		if next < len(fields) && fields[next] == field {
 			next++
 		}

@@ -8,12 +8,14 @@ import (
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/crud"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
-	"github.com/progresshans/godj/validation"
 )
 
 func (a *Application) initLabels() error {
@@ -23,7 +25,7 @@ func (a *Application) initLabels() error {
 	if err != nil {
 		return err
 	}
-	a.labelInput, err = prepareLabelAPIInput(inputSpec)
+	a.labelInput, err = prepareLabelAPIInput(a.resources.label, inputSpec)
 	if err != nil {
 		return err
 	}
@@ -38,7 +40,7 @@ func (a *Application) initLabels() error {
 func (a *Application) registerLabels(builder *admin.Builder) error {
 	descriptor := models.LabelDescriptor{}
 	metadata := descriptor.Metadata()
-	fields := []string{"name"}
+	fields := a.resources.label.Fields()
 	form, err := formmodel.NewSpecForFields(metadata, fields)
 	if err != nil {
 		return err
@@ -69,31 +71,18 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 			return a.checkLabelForm(ctx, actor, mutation.ID, bound)
 		},
 		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.Label, error) {
-			values, inputErr := bound.Input()
-			if inputErr != nil {
-				var zero models.Label
-				return zero, inputErr
+			input, err := formmodel.PrepareInput(models.LabelObjects, bound)
+			if err != nil {
+				return models.Label{}, err
 			}
-
-			name, ok := values.String("name")
-			if !ok {
-				return models.Label{}, errors.New("helpdesk: invalid label name")
-			}
-			return a.createLabel(ctx, name)
+			return a.createLabel(ctx, input)
 		},
 		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.Label, []string, error) {
-			values, inputErr := bound.Input()
-			if inputErr != nil {
-				var zero models.Label
-				return zero, nil, inputErr
+			input, err := formmodel.PrepareInput(models.LabelObjects, bound)
+			if err != nil {
+				return models.Label{}, nil, err
 			}
-
-			id := mutation.ID
-			name, ok := values.String("name")
-			if !ok {
-				return models.Label{}, nil, errors.New("helpdesk: invalid label name")
-			}
-			result, err := a.updateLabel(ctx, id, models.LabelPatch{}.WithName(name))
+			result, err := a.updateLabel(ctx, mutation.ID, input)
 			return result.value, result.changed, err
 		},
 		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.Label, error) {
@@ -104,59 +93,41 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 }
 
 func (a *Application) listLabels(ctx context.Context, request admin.ListRequest) (admin.Page[models.Label], error) {
-	rows := models.LabelObjects.Using(a.backend).Filter(a.relations.ModelsLabel.Category.ID.Exact(a.categoryID)).OrderBy(models.LabelFields.ID.Asc())
+	var filters []orm.Predicate[models.Label]
 	if request.Search != "" {
-		rows = rows.Filter(models.LabelFields.Name.IContains(request.Search))
+		filters = append(filters, models.LabelFields.Name.IContains(request.Search))
 	}
-	total, err := rows.Count(ctx)
+	page, err := a.resources.label.List(ctx, a.backend, crud.ListOptions[models.Label]{Filter: filters, Offset: request.Offset, Limit: request.Limit})
 	if err != nil {
 		return admin.Page[models.Label]{}, err
 	}
-	rows, err = rows.Offset(request.Offset)
-	if err != nil {
-		return admin.Page[models.Label]{}, err
-	}
-	rows, err = rows.Limit(request.Limit)
-	if err != nil {
-		return admin.Page[models.Label]{}, err
-	}
-	values, err := rows.All(ctx)
-	return admin.Page[models.Label]{Items: values, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+	return admin.Page[models.Label]{Items: page.Items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
 }
 
 func (a *Application) label(ctx context.Context, backend db.Queryer, id int64) (models.Label, bool, error) {
-	return models.LabelObjects.Using(backend).Filter(models.LabelFields.ID.Exact(id), a.relations.ModelsLabel.Category.ID.Exact(a.categoryID)).OrderBy(models.LabelFields.ID.Asc()).First(ctx)
+	return a.resources.label.Get(ctx, backend, id)
 }
 
-func (a *Application) createLabel(ctx context.Context, name string) (models.Label, error) {
-	input := models.NewLabelCreate(name, a.categoryID)
-	var created models.Label
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		_, found, err := models.CategoryObjects.Using(session).Filter(models.CategoryFields.ID.Exact(a.categoryID)).OrderBy(models.CategoryFields.ID.Asc()).First(ctx)
+func (a *Application) createLabel(ctx context.Context, input orm.ModelInput[models.Label]) (models.Label, error) {
+	return runApplicationAtomic(ctx, a.backend, "label create", func(work context.Context, session db.Session) (models.Label, error) {
+		mutation, err := a.resources.label.CreateInSession(work, session, input, crud.SaveOptions[models.Label]{
+			ServerValues: map[string]query.Value{"category": query.Integer(a.categoryID)},
+			Before: func(ctx context.Context, session db.Session, _, _ *models.Label) error {
+				_, found, err := a.resources.category.Get(ctx, session, a.categoryID)
+				if err != nil {
+					return err
+				}
+				if !found {
+					return admin.ErrObjectNotFound
+				}
+				return nil
+			},
+		})
 		if err != nil {
-			return err
+			return models.Label{}, resourceError(err)
 		}
-		if !found {
-			return admin.ErrObjectNotFound
-		}
-		violations, err := models.LabelObjects.ValidateUniqueCreate(ctx, session, input)
-		if err != nil {
-			return err
-		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		created, err = models.LabelObjects.Create(ctx, session, input)
-		if err != nil {
-			return writeRejection(err)
-		}
-		created, err = a.publishableLabel(ctx, session, created.ID)
-		return err
+		return a.publishableLabel(work, session, mutation.Value.ID)
 	})
-	if err != nil {
-		return models.Label{}, operationError(ctx, err)
-	}
-	return created, nil
 }
 
 type updatedLabel struct {
@@ -165,45 +136,15 @@ type updatedLabel struct {
 	response output.Prepared[models.Label]
 }
 
-func (a *Application) updateLabel(ctx context.Context, id int64, patch models.LabelPatch) (updatedLabel, error) {
+func (a *Application) updateLabel(ctx context.Context, id int64, input orm.ModelInput[models.Label]) (updatedLabel, error) {
 	return runApplicationAtomic(ctx, a.backend, "label update", func(work context.Context, session db.Session) (updatedLabel, error) {
-		current, found, err := a.label(work, session, id)
+		mutation, err := a.resources.label.UpdateInSession(work, session, id, input, crud.SaveOptions[models.Label]{})
 		if err != nil {
-			return updatedLabel{}, err
+			return updatedLabel{}, resourceError(err)
 		}
-		if !found {
-			return updatedLabel{}, admin.ErrObjectNotFound
-		}
-		mutation := patch.BuildPatch(current)
-		if err := mutation.Err(); err != nil {
-			return updatedLabel{}, err
-		}
-		var changed []string
-		for _, assignment := range mutation.Assignments() {
-			if assignment.Field().Name() != "name" {
-				return updatedLabel{}, errors.New("helpdesk: label category is assigned by the server")
-			}
-			name, ok := assignment.Value().String()
-			if !ok {
-				return updatedLabel{}, errors.New("helpdesk: invalid label name")
-			}
-			if name != current.Name {
-				changed = append(changed, "name")
-			}
-		}
-		updated := current
+		updated, changed := mutation.Value, mutation.ChangedFields
 		if len(changed) != 0 {
-			violations, err := models.LabelObjects.ValidateUniqueUpdate(work, session, current, patch)
-			if err != nil {
-				return updatedLabel{}, err
-			}
-			if !violations.Empty() {
-				return updatedLabel{}, validation.Reject(violations, nil)
-			}
-			updated, err = models.LabelObjects.Patch(work, session, current, patch)
-			if err != nil {
-				return updatedLabel{}, writeRejection(err)
-			}
+			var found bool
 			updated, found, err = a.label(work, session, updated.ID)
 			if err != nil {
 				return updatedLabel{}, err
@@ -243,21 +184,17 @@ func (a *Application) publishableLabel(ctx context.Context, backend db.Queryer, 
 }
 
 func (a *Application) deleteLabel(ctx context.Context, id int64) (models.Label, error) {
-	var removed models.Label
-	target := models.NewLabelWithID(id)
-	scoped := scopedRelationDelete{backend: a.backend, check: func(session db.RelationSession) error {
-		current, found, err := a.label(ctx, session, id)
+	return runApplicationRelationAtomic(ctx, a.backend, "label delete", func(work context.Context, session db.RelationSession) (models.Label, error) {
+		removed, err := a.resources.label.DeleteInSession(work, session, id, crud.DeleteOptions[models.Label]{Delete: func(ctx context.Context, backend db.Session, value models.Label) (int64, error) {
+			relations, ok := backend.(db.RelationSession)
+			if !ok {
+				return 0, errors.New("helpdesk: deletion lost relation session")
+			}
+			return a.deleters.ModelsLabel.DeleteInSession(ctx, relations, value)
+		}})
 		if err != nil {
-			return err
+			return models.Label{}, resourceError(err)
 		}
-		if !found {
-			return admin.ErrObjectNotFound
-		}
-		removed = current
-		return nil
-	}}
-	if _, err := a.deleters.ModelsLabel.Delete(ctx, scoped, &target); err != nil {
-		return models.Label{}, err
-	}
-	return removed, nil
+		return removed, nil
+	})
 }

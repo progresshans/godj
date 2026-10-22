@@ -42,6 +42,9 @@ func NewModelEncoder[M any](spec Spec, model ir.Model, read func(M, ir.Field) (q
 	if !spec.valid || read == nil {
 		return ModelEncoder[M]{}, invalidConfig("model", "invalid projection")
 	}
+	if spec.model != nil && !spec.model.Equal(model) {
+		return ModelEncoder[M]{}, invalidConfig("model", "serializer source does not match model metadata")
+	}
 	byName := make(map[string]ir.Field, len(model.Fields))
 	for _, field := range model.Fields {
 		if _, duplicate := byName[field.Name]; duplicate {
@@ -405,5 +408,11 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 		}
 		fields = append(fields, projected)
 	}
-	return NewSpec(fields)
+	spec, err := NewSpec(fields)
+	if err != nil {
+		return Spec{}, err
+	}
+	source := model.Clone()
+	spec.model = &source
+	return spec, nil
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -1328,7 +1329,11 @@ func newSystemStateWebProcess(
 		if err != nil {
 			return web.Response{}, err
 		}
-		if _, err := repository.Create(request.Context(), articleapp.Input{Title: "CSRF mutation"}); err != nil {
+		input, err := articlemodels.ArticleObjects.Input(map[string]query.Value{"title": query.String("CSRF mutation")})
+		if err != nil {
+			return web.Response{}, err
+		}
+		if _, err := repository.Create(request.Context(), input); err != nil {
 			return web.Response{}, err
 		}
 		return systemStateWebResponse(http.StatusCreated, "created", "")
@@ -1545,7 +1550,11 @@ func systemStateCommitOutcomeUnknown(
 		return protocol.Observation{}, err
 	}
 	fixture.observed.resetDML()
-	_, mutationErr := service.Create(ctx, fixture.config.PrincipalID, articleapp.Input{Title: "Outcome unknown"})
+	input, err := articlemodels.ArticleObjects.Input(map[string]query.Value{"title": query.String("Outcome unknown")})
+	if err != nil {
+		return protocol.Observation{}, err
+	}
+	_, mutationErr := service.Create(ctx, fixture.config.PrincipalID, input)
 	var outcome *query.Error
 	classifiedUnknown := errors.As(mutationErr, &outcome) && outcome.Code == query.CodeCommitOutcomeUnknown
 	if !classifiedUnknown {

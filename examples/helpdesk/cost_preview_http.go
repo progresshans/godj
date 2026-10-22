@@ -20,7 +20,7 @@ type CostPreview struct {
 }
 
 func (a *Application) CostPreview(authentication *sessionauth.Runtime) (*CostPreview, error) {
-	if a == nil || nilFormReader(a.backend) || authentication == nil {
+	if a == nil || interfaceNil(a.backend) || authentication == nil {
 		return nil, errors.New("helpdesk: cost preview requires application and authentication")
 	}
 	if !authentication.CookiesApplyTo(CostPreviewPath) || !authentication.AllowsNext(CostPreviewPath) {

@@ -62,7 +62,7 @@ func (a *Application) readLabelUsage(ctx context.Context, actor auth.Principal, 
 }
 func (a *Application) labelUsageInSnapshot(ctx context.Context, reader db.Queryer, input labelUsageQuery) (labelUsagePage, error) {
 	var zero labelUsagePage
-	if nilFormReader(reader) {
+	if interfaceNil(reader) {
 		return zero, errors.New("helpdesk: nil label usage reader")
 	}
 	divisorSign, divisorErr := input.elapsedDivisor.Compare(decimal.Decimal{})

@@ -78,7 +78,7 @@ func (a *Application) readTicketSummary(ctx context.Context, input ticketSummary
 
 func (a *Application) ticketSummaryInSnapshot(ctx context.Context, reader db.Queryer, input ticketSummaryQuery) (ticketSummaryPage, error) {
 	var result ticketSummaryPage
-	if nilFormReader(reader) {
+	if interfaceNil(reader) {
 		return result, errors.New("helpdesk: nil ticket summary reader")
 	}
 	category, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Get(ctx)

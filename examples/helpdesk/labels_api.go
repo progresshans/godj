@@ -122,8 +122,7 @@ func (a *Application) apiLabelCreate(request *web.Request, _ auth.Principal) (we
 	if handled || err != nil {
 		return response, err
 	}
-	name, _ := values.name.Get()
-	created, err := a.createLabel(request.Context(), name)
+	created, err := a.createLabel(request.Context(), values)
 	if err != nil {
 		return objectFailure(err)
 	}

@@ -15,7 +15,6 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk/project"
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/uuid"
 	"github.com/progresshans/godj/validation"
@@ -25,11 +24,10 @@ import (
 // The selected surface owns field cleaning; this candidate retains only its
 // explicit patch or bound form. Current objects are always read in the writer.
 type ticketBulkChange struct {
-	index  int
-	id     int64
-	patch  models.TicketPatch
-	labels []int64
-	form   *formmodel.BoundForm
+	index int
+	id    int64
+	input orm.ModelInput[models.Ticket]
+	form  *formmodel.BoundForm
 }
 
 type updatedTickets struct {
@@ -55,16 +53,16 @@ func (change ticketBulkChange) prepare(current models.Ticket) (models.Ticket, []
 		}
 		return candidate, labels, nil
 	}
-	mutation := change.patch.BuildPatch(current)
-	if err := mutation.Err(); err != nil {
+	prepared, err := models.TicketObjects.PrepareInput(change.input, &current)
+	if err != nil {
 		return models.Ticket{}, nil, err
 	}
-	fields := make(map[string]query.Value)
-	for _, assignment := range mutation.Assignments() {
-		fields[assignment.Field().Name()] = assignment.Value()
+	value, err := prepared.Model()
+	labels, selected := change.input.Collection("labels")
+	if selected && labels == nil {
+		labels = []int64{}
 	}
-	value, err := models.TicketObjects.ApplyValues(current, fields)
-	return value, slices.Clone(change.labels), err
+	return value, labels, err
 }
 
 func (a *Application) updateTickets(ctx context.Context, actor auth.Principal, changes []ticketBulkChange, appendAudit appendTicketAudit) (updatedTickets, error) {
@@ -86,7 +84,7 @@ func (a *Application) updateTickets(ctx context.Context, actor auth.Principal, c
 // all-or-nothing rule is stronger than the ORM's valid missing-key/count policy.
 // A borrowed success remains provisional until its parent commits.
 func (a *Application) updateTicketsInSession(ctx context.Context, session db.RelationSession, actor auth.Principal, changes []ticketBulkChange, appendAudit appendTicketAudit) (updatedTickets, error) {
-	if ctx == nil || appendAudit == nil || nilFormReader(session) {
+	if ctx == nil || appendAudit == nil || interfaceNil(session) {
 		return updatedTickets{}, errors.New("helpdesk: bulk update requires a live owner and audit")
 	}
 	if err := ticketWritePermission(ctx, actor, ChangeTicket); err != nil {

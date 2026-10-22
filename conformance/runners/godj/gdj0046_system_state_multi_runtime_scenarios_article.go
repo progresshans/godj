@@ -5,7 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	orm "github.com/progresshans/godj/orm"
 	"slices"
 	"strconv"
 
@@ -17,7 +18,7 @@ import (
 )
 
 type gdj0046ArticleCreateResult struct {
-	article articleapp.Article
+	article articlemodels.Article
 	err     error
 }
 
@@ -216,11 +217,18 @@ func systemStateConcurrentArticleAudit(
 	if err != nil {
 		return protocol.Observation{}, err
 	}
+	inputs := make([]orm.ModelInput[articlemodels.Article], 5)
+	for index, title := range []string{"GDJ-0046 seed one", "GDJ-0046 seed two", "GDJ-0046 holder", "GDJ-0046 contender", "GDJ-0046 rollback"} {
+		inputs[index], err = articlemodels.ArticleObjects.Input(map[string]query.Value{"title": query.String(title)})
+		if err != nil {
+			return protocol.Observation{}, err
+		}
+	}
 	actor := pair.config.PrincipalID
-	if _, err := holderService.Create(ctx, actor, articleapp.Input{Title: "GDJ-0046 seed one"}); err != nil {
+	if _, err := holderService.Create(ctx, actor, inputs[0]); err != nil {
 		return protocol.Observation{}, err
 	}
-	if _, err := holderService.Create(ctx, actor, articleapp.Input{Title: "GDJ-0046 seed two"}); err != nil {
+	if _, err := holderService.Create(ctx, actor, inputs[1]); err != nil {
 		return protocol.Observation{}, err
 	}
 
@@ -228,7 +236,7 @@ func systemStateConcurrentArticleAudit(
 	holderResult := make(chan gdj0046ArticleCreateResult, 1)
 	contenderResult := make(chan gdj0046ArticleCreateResult, 1)
 	go func() {
-		article, err := holderService.Create(ctx, actor, articleapp.Input{Title: "GDJ-0046 holder"})
+		article, err := holderService.Create(ctx, actor, inputs[2])
 		holderResult <- gdj0046ArticleCreateResult{article: article, err: err}
 	}()
 	if err := gdj0046WaitSignal(ctx, barrier.holderEntered, "Article holder callback"); err != nil {
@@ -236,7 +244,7 @@ func systemStateConcurrentArticleAudit(
 		return protocol.Observation{}, err
 	}
 	go func() {
-		article, err := contenderService.Create(ctx, actor, articleapp.Input{Title: "GDJ-0046 contender"})
+		article, err := contenderService.Create(ctx, actor, inputs[3])
 		contenderResult <- gdj0046ArticleCreateResult{article: article, err: err}
 	}()
 	if err := gdj0046AssertBlocked(ctx, pair.backends, barrier); err != nil {
@@ -302,7 +310,7 @@ func systemStateConcurrentArticleAudit(
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	_, faultErr := failingService.Create(ctx, actor, articleapp.Input{Title: "GDJ-0046 rollback"})
+	_, faultErr := failingService.Create(ctx, actor, inputs[4])
 	if !errors.Is(faultErr, failure) || failingAudit.calls != 1 {
 		return protocol.Observation{}, fmt.Errorf("audit fault = calls %d error %v", failingAudit.calls, faultErr)
 	}

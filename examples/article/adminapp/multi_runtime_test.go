@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -59,11 +60,11 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 		t.Fatalf("NewDurableService(contender): %v", err)
 	}
 
-	first, err := holderService.Create(ctx, principalID, articleapp.Input{Title: "Seed one"})
+	first, err := holderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Seed one"}))
 	if err != nil {
 		t.Fatalf("Create(first seed): %v", err)
 	}
-	second, err := holderService.Create(ctx, principalID, articleapp.Input{Title: "Seed two"})
+	second, err := holderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Seed two"}))
 	if err != nil {
 		t.Fatalf("Create(second seed): %v", err)
 	}
@@ -76,12 +77,12 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	holderResult := make(chan articleCreateResult, 1)
 	contenderResult := make(chan articleCreateResult, 1)
 	go func() {
-		article, err := holderService.Create(ctx, principalID, articleapp.Input{Title: "Holder"})
+		article, err := holderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Holder"}))
 		holderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.holderEntered, "holder coordinated callback")
 	go func() {
-		article, err := contenderService.Create(ctx, principalID, articleapp.Input{Title: "Contender"})
+		article, err := contenderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Contender"}))
 		contenderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.contenderAttempted, "contender coordinated attempt")
@@ -129,7 +130,7 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	if err != nil {
 		t.Fatalf("NewDurableService(failing audit): %v", err)
 	}
-	if _, err := failingService.Create(ctx, principalID, articleapp.Input{Title: "Rolled back"}); !errors.Is(err, rollbackFailure) {
+	if _, err := failingService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Rolled back"})); !errors.Is(err, rollbackFailure) {
 		t.Fatalf("Create(audit callback failure) error = %v, want injected failure", err)
 	}
 	if failingAudit.calls != 1 {
@@ -211,7 +212,7 @@ func (barrier *articleCoordinationBarrier) release() {
 }
 
 type articleCreateResult struct {
-	article articleapp.Article
+	article articlemodels.Article
 	err     error
 }
 

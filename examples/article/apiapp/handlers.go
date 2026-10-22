@@ -1,7 +1,9 @@
 package apiapp
 
 import (
+	"context"
 	"errors"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"net/http"
 	"strings"
 
@@ -67,25 +69,27 @@ func (a *Application) create(request *web.Request, _ auth.Principal) (web.Respon
 	if handled || err != nil {
 		return response, err
 	}
-	created, err := a.repository.Create(request.Context(), values.full(nil))
+	prepared, err := articleapp.CreateAndPrepare(request.Context(), a.repository, values, func(_ context.Context, created articlemodels.Article) (web.Response, error) {
+		value, err := a.articleValue(created)
+		if err != nil {
+			return web.Response{}, err
+		}
+		response, err := api.JSON(http.StatusCreated, value)
+		if err != nil {
+			return web.Response{}, err
+		}
+		location, err := request.ReverseWith(DetailRouteName, web.Int64Argument("id", created.ID))
+		if err != nil {
+			return web.Response{}, err
+		}
+		header := response.Header()
+		header.Set("Location", location)
+		return response.WithHeaders(header)
+	})
 	if err != nil {
 		return a.writeError(err)
 	}
-	value, err := a.articleValue(created)
-	if err != nil {
-		return web.Response{}, err
-	}
-	response, err = api.JSON(http.StatusCreated, value)
-	if err != nil {
-		return web.Response{}, err
-	}
-	location, err := request.ReverseWith(DetailRouteName, web.Int64Argument("id", created.ID))
-	if err != nil {
-		return web.Response{}, err
-	}
-	header := response.Header()
-	header.Set("Location", location)
-	return response.WithHeaders(header)
+	return prepared, nil
 }
 
 func (a *Application) retrieve(request *web.Request, _ auth.Principal) (web.Response, error) {

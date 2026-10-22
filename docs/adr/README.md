@@ -97,6 +97,8 @@ Accepted는 설계 채택이며 코드 구현과 platform 검증은 [Matrix](../
 | [0089](0089-bulk-update-and-selected-field-ownership.md) | Accepted | Selected-field bulk update와 native 잠금 재평가·업무 전부 성공 조건 |
 | [0090](0090-query-update-and-scalar-expressions.md) | Accepted design | QuerySet native 갱신과 불변 scalar 표현식·정확한 수치·cache 소유권 |
 
+| [0092](0092-model-input-and-crud-assembly.md) | Accepted design; 검증 진행 | 모델 입력 source·Form target binding·명시적 CRUD와 확정 transaction 결과 |
+
 ## 대체된 결정
 
 ADR-0019/0020/0024/0031/0032/0034의 옛 format·handoff·generated publication 규칙은

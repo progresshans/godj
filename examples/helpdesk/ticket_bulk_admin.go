@@ -2,6 +2,7 @@ package helpdesk
 
 import (
 	"context"
+	"github.com/progresshans/godj/query"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -30,7 +31,11 @@ func (a *Application) ticketBulkActions() []admin.ActionConfig {
 			Run: func(ctx context.Context, actor auth.Principal, ids []int64) (admin.ActionResult, error) {
 				changes := make([]ticketBulkChange, len(ids))
 				for index, id := range ids {
-					changes[index] = ticketBulkChange{index: index, id: id, patch: models.TicketPatch{}.WithClosed(action.closed)}
+					input, err := models.TicketObjects.Input(map[string]query.Value{"closed": query.Boolean(action.closed)})
+					if err != nil {
+						return admin.ActionResult{}, err
+					}
+					changes[index] = ticketBulkChange{index: index, id: id, input: input}
 				}
 				updated, err := a.updateTickets(ctx, actor, changes, a.adminAudit)
 				if err != nil {

@@ -60,7 +60,7 @@ func (a *Application) readServicePreview(ctx context.Context, actor auth.Princip
 		}
 	}
 	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (servicePreviewPage, error) {
-		if nilFormReader(reader) {
+		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil service preview reader")
 		}
 		category, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Get(work)

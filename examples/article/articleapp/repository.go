@@ -11,6 +11,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/crud"
 	"github.com/progresshans/godj/db"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/orm"
@@ -79,26 +80,6 @@ func (e *Error) Is(target error) bool {
 	return e != nil && e.Code == CodeNotFound && target == ErrNotFound
 }
 
-// Article is an explicit persistence snapshot. Generated model key state and
-// ORM caches never cross this boundary.
-type Article struct {
-	ID        int64
-	Title     string
-	Published bool
-	Summary   *string
-	Slug      *string
-}
-
-// Input is already-cleaned Article data. Repository validation remains
-// defensive so bypassing a presentation-layer validator cannot write invalid
-// scalar values.
-type Input struct {
-	Title     string
-	Published bool
-	Summary   *string
-	Slug      *string
-}
-
 // PublishedFilter is the closed Article publication-state filter. Its zero
 // value preserves the existing behavior and includes both published and
 // unpublished rows.
@@ -137,68 +118,8 @@ type ListOptions struct {
 	SearchScope SearchScope
 }
 
-// Patch is an immutable, closed Article partial-update value. The zero value
-// is an empty patch. Value-receiver builders return a copy, so omitted fields,
-// explicit summary NULL, and an explicit empty summary remain distinct.
-type Patch struct {
-	title     patchString
-	published patchBool
-	summary   patchNullableString
-	slug      patchNullableString
-}
-
-type patchString struct {
-	supplied bool
-	value    string
-}
-
-type patchBool struct {
-	supplied bool
-	value    bool
-}
-
-type patchNullableString struct {
-	supplied bool
-	null     bool
-	value    string
-}
-
-func (patch Patch) WithTitle(value string) Patch {
-	patch.title = patchString{supplied: true, value: value}
-	return patch
-}
-
-func (patch Patch) WithPublished(value bool) Patch {
-	patch.published = patchBool{supplied: true, value: value}
-	return patch
-}
-
-func (patch Patch) WithSummary(value string) Patch {
-	patch.summary = patchNullableString{supplied: true, value: value}
-	return patch
-}
-
-func (patch Patch) WithSummaryNull() Patch {
-	patch.summary = patchNullableString{supplied: true, null: true}
-	return patch
-}
-
-func (patch Patch) WithSlug(value string) Patch {
-	patch.slug = patchNullableString{supplied: true, value: value}
-	return patch
-}
-
-func (patch Patch) WithSlugNull() Patch {
-	patch.slug = patchNullableString{supplied: true, null: true}
-	return patch
-}
-
-func (patch Patch) Empty() bool {
-	return !patch.title.supplied && !patch.published.supplied && !patch.summary.supplied && !patch.slug.supplied
-}
-
 type Page struct {
-	Articles []Article
+	Articles []articlemodels.Article
 	Total    int64
 	Offset   int
 	Limit    int
@@ -228,7 +149,7 @@ const (
 // the app-declared field order and is empty only where the operation itself
 // carries the semantic action, such as create or delete.
 type MutationItem struct {
-	Article       Article
+	Article       articlemodels.Article
 	ChangedFields []string
 }
 
@@ -238,7 +159,7 @@ func (item MutationItem) Clone() MutationItem {
 	return item
 }
 
-// MutationResult is detached from generated model state and the transaction
+// MutationResult owns detached generated models and no transaction
 // session. A hook may retain this value, but must not retain the borrowed
 // db.Session passed alongside it.
 type MutationResult struct {
@@ -266,6 +187,7 @@ type MutationHook func(context.Context, db.Session, MutationResult) error
 // when its backend is safe for concurrent use.
 type Repository struct {
 	backend      Backend
+	resource     crud.Resource[articlemodels.Article]
 	mutationHook MutationHook
 }
 
@@ -273,8 +195,21 @@ func NewRepository(backend Backend) (Repository, error) {
 	if interfaceNil(backend) {
 		return Repository{}, invalid("backend", "backend is nil")
 	}
-	return Repository{backend: backend}, nil
+	resource, err := crud.New(articlemodels.ArticleObjects, crud.Config{Fields: WritableFields()})
+	if err != nil {
+		return Repository{}, err
+	}
+	return Repository{backend: backend, resource: resource}, nil
 }
+
+// WritableFields is the owned Article input selection shared by its service
+// and Admin adapter. Scalar type, NULL and defaults remain in generated IR.
+func WritableFields() []string { return []string{"title", "published", "summary", "slug"} }
+
+// ModelResource shares the repository's immutable field/source policy with
+// presentation adapters. Current authorization and Article business validation
+// still belong to the application write methods, not this configuration value.
+func (r Repository) ModelResource() crud.Resource[articlemodels.Article] { return r.resource }
 
 // WithMutationHook returns an immutable repository view whose writes invoke
 // hook inside their existing transaction. A nil hook preserves the ordinary
@@ -298,154 +233,100 @@ func (r Repository) List(ctx context.Context, options ListOptions) (Page, error)
 		options.Limit = DefaultPageSize
 	}
 
-	querySet := articlemodels.ArticleObjects.Using(r.backend)
+	var filters []orm.Predicate[articlemodels.Article]
 	if options.Search != "" {
 		switch options.SearchScope {
 		case SearchTitleAndSummary:
-			querySet = querySet.Filter(orm.Or(
+			filters = append(filters, orm.Or(
 				articlemodels.ArticleFields.Title.IContains(options.Search),
 				articlemodels.ArticleFields.Summary.IContains(options.Search),
 			))
 		case SearchTitleOnly:
-			querySet = querySet.Filter(articlemodels.ArticleFields.Title.IContains(options.Search))
+			filters = append(filters, articlemodels.ArticleFields.Title.IContains(options.Search))
 		}
 	}
 	switch options.Published {
 	case PublishedOnly:
-		querySet = querySet.Filter(articlemodels.ArticleFields.Published.Exact(true))
+		filters = append(filters, articlemodels.ArticleFields.Published.Exact(true))
 	case UnpublishedOnly:
-		querySet = querySet.Filter(articlemodels.ArticleFields.Published.Exact(false))
-	}
-	total, err := querySet.Count(ctx)
-	if err != nil {
-		return Page{}, fmt.Errorf("article list count: %w", err)
+		filters = append(filters, articlemodels.ArticleFields.Published.Exact(false))
 	}
 	ordering := articlemodels.ArticleFields.ID.Asc()
 	if options.Ordering == IDDescending {
 		ordering = articlemodels.ArticleFields.ID.Desc()
 	}
-	pageQuery, err := querySet.OrderBy(ordering).Offset(options.Offset)
+	page, err := r.resource.List(ctx, r.backend, crud.ListOptions[articlemodels.Article]{Filter: filters, Ordering: []orm.Ordering[articlemodels.Article]{ordering}, Offset: options.Offset, Limit: options.Limit})
 	if err != nil {
-		return Page{}, fmt.Errorf("article list offset: %w", err)
+		return Page{}, fmt.Errorf("article list: %w", err)
 	}
-	pageQuery, err = pageQuery.Limit(options.Limit)
-	if err != nil {
-		return Page{}, fmt.Errorf("article list limit: %w", err)
-	}
-	models, err := pageQuery.All(ctx)
-	if err != nil {
-		return Page{}, fmt.Errorf("article list rows: %w", err)
-	}
-	articles := make([]Article, len(models))
-	for index := range models {
-		articles[index] = snapshot(models[index])
-	}
-	return Page{
-		Articles: articles,
-		Total:    total,
-		Offset:   options.Offset,
-		Limit:    options.Limit,
-	}, nil
+	return Page{Articles: page.Items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
 }
 
-func (r Repository) Get(ctx context.Context, id int64) (Article, bool, error) {
+func (r Repository) Get(ctx context.Context, id int64) (articlemodels.Article, bool, error) {
 	if err := validateContext(ctx); err != nil {
-		return Article{}, false, err
+		return articlemodels.Article{}, false, err
 	}
 	if interfaceNil(r.backend) {
-		return Article{}, false, invalid("backend", "repository is zero or invalid")
+		return articlemodels.Article{}, false, invalid("backend", "repository is zero or invalid")
 	}
-	model, found, err := getModel(ctx, r.backend, id)
+	model, found, err := r.getIn(ctx, r.backend, id)
 	if err != nil || !found {
-		return Article{}, found, err
+		return articlemodels.Article{}, found, err
 	}
-	return snapshot(model), true, nil
+	return cloneArticle(model), true, nil
 }
 
-func (r Repository) Create(ctx context.Context, input Input) (Article, error) {
-	if err := r.validateWrite(ctx, input); err != nil {
-		return Article{}, err
-	}
-	var created articlemodels.Article
-	err := r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
-		create := articlemodels.NewArticleCreate(input.Title).WithPublished(input.Published)
-		if input.Summary == nil {
-			create = create.WithSummaryNull()
-		} else {
-			create = create.WithSummary(*input.Summary)
-		}
-		if input.Slug == nil {
-			create = create.WithSlugNull()
-		} else {
-			create = create.WithSlug(*input.Slug)
-		}
-		violations, err := articlemodels.ArticleObjects.ValidateUniqueCreate(ctx, session, create)
-		if err != nil {
-			return MutationResult{}, err
-		}
-		if !violations.Empty() {
-			return MutationResult{}, validation.Reject(violations, nil)
-		}
-		value, err := articlemodels.ArticleObjects.Create(ctx, session, create)
-		if err != nil {
-			return MutationResult{}, writeRejection(err)
-		}
-		created = value
-		return mutationResult(MutationCreate, snapshot(created), nil), nil
+func (r Repository) Create(ctx context.Context, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, error) {
+	return CreateAndPrepare(ctx, r, input, func(_ context.Context, article articlemodels.Article) (articlemodels.Article, error) {
+		return article, nil
 	})
-	if err != nil {
-		return Article{}, mutationError(ctx, "create", err)
-	}
-	return snapshot(created), nil
 }
 
 // Update replaces the submitted scalar values and returns the confirmed row.
-func (r Repository) Update(ctx context.Context, id int64, input Input) (Article, []string, error) {
+func (r Repository) Update(ctx context.Context, id int64, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, []string, error) {
 	result, err := UpdateAndPrepare(ctx, r, id, input, ownUpdatedArticle)
 	return result.article, result.changed, err
 }
 
 // Patch updates only supplied fields in one transaction. Empty and equivalent
 // inputs still require the row to exist and return its confirmed current value.
-func (r Repository) Patch(ctx context.Context, id int64, patch Patch) (Article, []string, error) {
-	result, err := PatchAndPrepare(ctx, r, id, patch, ownUpdatedArticle)
+func (r Repository) Patch(ctx context.Context, id int64, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, []string, error) {
+	result, err := PatchAndPrepare(ctx, r, id, input, ownUpdatedArticle)
 	return result.article, result.changed, err
 }
 
 type updatedArticle struct {
-	article Article
+	article articlemodels.Article
 	changed []string
 }
 
-func ownUpdatedArticle(_ context.Context, article Article, changed []string) (updatedArticle, error) {
+func ownUpdatedArticle(_ context.Context, article articlemodels.Article, changed []string) (updatedArticle, error) {
 	return updatedArticle{article: article, changed: changed}, nil
 }
 
-func (r Repository) Delete(ctx context.Context, id int64) (Article, error) {
+func (r Repository) Delete(ctx context.Context, id int64) (articlemodels.Article, error) {
 	if err := validateContext(ctx); err != nil {
-		return Article{}, err
+		return articlemodels.Article{}, err
 	}
 	if interfaceNil(r.backend) {
-		return Article{}, invalid("backend", "repository is zero or invalid")
+		return articlemodels.Article{}, invalid("backend", "repository is zero or invalid")
 	}
 	if id <= 0 {
-		return Article{}, invalid("id", "id must be positive")
+		return articlemodels.Article{}, invalid("id", "id must be positive")
 	}
-	return preparedAtomic(ctx, r, MutationDelete, func(work context.Context, session db.Session) (Article, error) {
-		current, found, err := getModel(work, session, id)
+	return preparedAtomic(ctx, r, MutationDelete, func(work context.Context, session db.Session) (articlemodels.Article, error) {
+		deleted, err := r.resource.DeleteInSession(work, session, id, crud.DeleteOptions[articlemodels.Article]{Delete: func(ctx context.Context, session db.Session, value articlemodels.Article) (int64, error) {
+			return articlemodels.ArticleObjects.Delete(ctx, session, &value)
+		}})
+		if err == crud.ErrNotFound {
+			return articlemodels.Article{}, notFound(id)
+		}
 		if err != nil {
-			return Article{}, err
-		}
-		if !found {
-			return Article{}, notFound(id)
-		}
-		deleted := snapshot(current)
-		if _, err := articlemodels.ArticleObjects.Delete(work, session, &current); err != nil {
-			return Article{}, err
+			return articlemodels.Article{}, err
 		}
 		if r.mutationHook != nil {
 			if err := r.mutationHook(work, session, mutationResult(MutationDelete, deleted, nil)); err != nil {
-				return Article{}, err
+				return articlemodels.Article{}, err
 			}
 		}
 		return deleted, nil
@@ -463,52 +344,35 @@ func (r Repository) Publish(ctx context.Context, ids []int64) (PublishResult, er
 	if err != nil {
 		return PublishResult{}, err
 	}
-	matched := make([]int64, 0, len(canonical))
-	err = r.atomicMutation(ctx, func(session db.Session) (MutationResult, error) {
+	return preparedAtomic(ctx, r, MutationPublish, func(work context.Context, session db.Session) (PublishResult, error) {
+		matched := make([]int64, 0, len(canonical))
 		items := make([]MutationItem, 0, len(canonical))
 		for _, id := range canonical {
-			current, found, err := getModel(ctx, session, id)
+			current, found, err := r.getIn(work, session, id)
 			if err != nil {
-				return MutationResult{}, err
+				return PublishResult{}, err
 			}
 			if !found {
 				continue
 			}
-			patch := (articlemodels.ArticlePatch{}).WithPublished(true)
-			updated, err := articlemodels.ArticleObjects.Patch(ctx, session, current, patch)
+			// Publishing is an explicit action, including already-published rows.
+			updated, err := articlemodels.ArticleObjects.Patch(work, session, current, (articlemodels.ArticlePatch{}).WithPublished(true))
 			if err != nil {
-				return MutationResult{}, err
+				return PublishResult{}, err
 			}
 			matched = append(matched, id)
-			items = append(items, MutationItem{
-				Article:       snapshot(updated),
-				ChangedFields: []string{"published"},
-			})
+			items = append(items, MutationItem{Article: cloneArticle(updated), ChangedFields: []string{"published"}})
 		}
-		return MutationResult{Operation: MutationPublish, Items: items}, nil
-	})
-	if err != nil {
-		return PublishResult{}, fmt.Errorf("article publish: %w", err)
-	}
-	return PublishResult{MatchedIDs: append([]int64(nil), matched...)}, nil
-}
-
-func (r Repository) atomicMutation(ctx context.Context, mutate func(db.Session) (MutationResult, error)) error {
-	return r.backend.Atomic(ctx, func(session db.Session) error {
-		result, err := mutate(session)
-		if err != nil {
-			return err
-		}
-		if r.mutationHook != nil && len(result.Items) > 0 {
-			if err := r.mutationHook(ctx, session, result.Clone()); err != nil {
-				return err
+		if r.mutationHook != nil && len(items) != 0 {
+			if err := r.mutationHook(work, session, MutationResult{Operation: MutationPublish, Items: items}.Clone()); err != nil {
+				return PublishResult{}, err
 			}
 		}
-		return nil
+		return PublishResult{MatchedIDs: matched}, nil
 	})
 }
 
-func mutationResult(operation MutationOperation, article Article, changedFields []string) MutationResult {
+func mutationResult(operation MutationOperation, article articlemodels.Article, changedFields []string) MutationResult {
 	return MutationResult{
 		Operation: operation,
 		Items: []MutationItem{{
@@ -518,24 +382,32 @@ func mutationResult(operation MutationOperation, article Article, changedFields 
 	}
 }
 
-// ValidateInput applies the scalar validation used immediately before Article
-// writes. It performs no I/O.
-func ValidateInput(input Input) error {
-	if input.Slug != nil && *input.Slug != "" && !ValidAddressSlug(*input.Slug) {
-		return invalid("slug", "slug is outside the model input policy")
+// ValidateInput applies Article's defensive business policy to supplied
+// scalars without I/O. ModelInput owns type, NULL and source identity; the
+// transport owns trimming, required-input policy and its explicit allowlist.
+func ValidateInput(input orm.ModelInput[articlemodels.Article]) error {
+	model, valid := input.Model()
+	if !valid || !model.Equal((articlemodels.ArticleDescriptor{}).Metadata()) {
+		return invalid("input", "model input source does not match Article")
 	}
-	if err := validateModelText("title", input.Title, false); err != nil {
-		return err
+	if value, supplied := input.Get("slug"); supplied && !value.IsNull() {
+		slug, _ := value.String()
+		if slug != "" && !ValidAddressSlug(slug) {
+			return invalid("slug", "slug is outside the model input policy")
+		}
 	}
-	if input.Summary != nil {
-		if err := validateModelText("summary", *input.Summary, true); err != nil {
-			return err
+	for _, name := range []string{"title", "summary"} {
+		if value, supplied := input.Get(name); supplied && !value.IsNull() {
+			text, _ := value.String()
+			if err := validateModelText(name, text, name == "summary"); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
-func (r Repository) validateWrite(ctx context.Context, input Input) error {
+func (r Repository) validateWrite(ctx context.Context, input orm.ModelInput[articlemodels.Article]) error {
 	if err := validateContext(ctx); err != nil {
 		return err
 	}
@@ -545,14 +417,11 @@ func (r Repository) validateWrite(ctx context.Context, input Input) error {
 	return ValidateInput(input)
 }
 
-func getModel(ctx context.Context, backend db.Queryer, id int64) (articlemodels.Article, bool, error) {
+func (r Repository) getIn(ctx context.Context, backend db.Queryer, id int64) (articlemodels.Article, bool, error) {
 	if id <= 0 {
 		return articlemodels.Article{}, false, invalid("id", "id must be positive")
 	}
-	querySet := articlemodels.ArticleObjects.Using(backend).
-		Filter(articlemodels.ArticleFields.ID.Exact(id)).
-		OrderBy(articlemodels.ArticleFields.ID.Asc())
-	value, found, err := querySet.First(ctx)
+	value, found, err := r.resource.Get(ctx, backend, id)
 	if err != nil {
 		return articlemodels.Article{}, false, fmt.Errorf("article get: %w", err)
 	}
@@ -577,23 +446,6 @@ func validateListOptions(options ListOptions) error {
 	}
 	if options.SearchScope > SearchTitleOnly {
 		return invalid("search_scope", "search scope is unsupported")
-	}
-	return nil
-}
-
-func validatePatch(patch Patch) error {
-	if patch.slug.supplied && !patch.slug.null && patch.slug.value != "" && !ValidAddressSlug(patch.slug.value) {
-		return invalid("slug", "slug is outside the model input policy")
-	}
-	if patch.title.supplied {
-		if err := validateModelText("title", patch.title.value, false); err != nil {
-			return err
-		}
-	}
-	if patch.summary.supplied && !patch.summary.null {
-		if err := validateModelText("summary", patch.summary.value, true); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -629,7 +481,7 @@ func validateText(field, value string, allowEmpty bool, maximumRunes int) error 
 }
 
 func validateContext(ctx context.Context) error {
-	if ctx == nil {
+	if interfaceNil(ctx) {
 		return invalid("context", "context is nil")
 	}
 	return ctx.Err()
@@ -660,66 +512,8 @@ func canonicalIDs(ids []int64) ([]int64, error) {
 	return canonical[:write], nil
 }
 
-func patchChangedFields(current articlemodels.Article, patch Patch) []string {
-	changed := make([]string, 0, 4)
-	if patch.title.supplied && current.Title != patch.title.value {
-		changed = append(changed, "title")
-	}
-	if patch.published.supplied && current.Published != patch.published.value {
-		changed = append(changed, "published")
-	}
-	if patch.summary.supplied && !patchSummaryEquals(current.Summary, patch.summary) {
-		changed = append(changed, "summary")
-	}
-	if patch.slug.supplied && !patchSummaryEquals(current.Slug, patch.slug) {
-		changed = append(changed, "slug")
-	}
-	return changed
-}
-
-func patchSummaryEquals(current *string, patch patchNullableString) bool {
-	if patch.null {
-		return current == nil
-	}
-	return current != nil && *current == patch.value
-}
-
-func snapshot(value articlemodels.Article) Article {
-	result := Article{
-		ID:        value.ID,
-		Title:     value.Title,
-		Published: value.Published,
-	}
-	if value.Summary != nil {
-		summary := *value.Summary
-		result.Summary = &summary
-	}
-	if value.Slug != nil {
-		slug := *value.Slug
-		result.Slug = &slug
-	}
-	return result
-}
-
-func cloneArticle(article Article) Article {
-	if article.Summary != nil {
-		summary := *article.Summary
-		article.Summary = &summary
-	}
-	if article.Slug != nil {
-		slug := *article.Slug
-		article.Slug = &slug
-	}
-	return article
-}
-
-// ModelSnapshot reconstructs a detached generated value for metadata-driven
-// presentation readers. It does not copy query caches or retain nullable input.
-func ModelSnapshot(article Article) articlemodels.Article {
-	article = cloneArticle(article)
-	model := articlemodels.NewArticleWithID(article.ID)
-	model.Title, model.Published, model.Summary, model.Slug = article.Title, article.Published, article.Summary, article.Slug
-	return model
+func cloneArticle(article articlemodels.Article) articlemodels.Article {
+	return (articlemodels.ArticleDescriptor{}).CloneModel(article)
 }
 
 func invalid(field, detail string) error {
@@ -770,8 +564,10 @@ func writeRejection(err error) error {
 }
 
 func mutationError(ctx context.Context, operation string, err error) error {
-	if contextErr := ctx.Err(); contextErr != nil {
-		return errors.Join(err, contextErr)
+	if !interfaceNil(ctx) {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return errors.Join(err, contextErr)
+		}
 	}
 	if _, rejected := validation.Rejected(err); rejected {
 		return err

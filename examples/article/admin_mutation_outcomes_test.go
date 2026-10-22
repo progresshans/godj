@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"net/url"
 	"strings"
 	"testing"
@@ -27,7 +28,7 @@ func verifyArticleAdminMutationOutcomes(t *testing.T, native articleapp.Backend)
 		}
 		for _, mode := range modes {
 			t.Run(operation+"/"+mode, func(t *testing.T) {
-				before, err := repository.Create(t.Context(), articleapp.Input{Title: "Admin mutation baseline"})
+				before, err := repository.Create(t.Context(), fullArticleInput(t, articlemodels.Article{Title: "Admin mutation baseline"}))
 				if err != nil {
 					t.Fatal(err)
 				}

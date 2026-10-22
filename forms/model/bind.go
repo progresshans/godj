@@ -3,13 +3,13 @@ package model
 import (
 	"context"
 	"fmt"
-	"github.com/progresshans/godj/binaryvalue"
 	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
@@ -170,6 +170,10 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 	if err != nil {
 		return modelBinding{}, nil, &Error{Path: "model", Code: "invalid_image_dimensions"}
 	}
+	initialValues, err := orm.InitialModelValues(model)
+	if err != nil {
+		return modelBinding{}, nil, err
+	}
 	byName := make(map[string]ir.Field, len(model.Fields))
 	candidate := make(map[string]forms.Value, len(model.Fields)+len(model.ManyToMany))
 	for _, field := range model.Fields {
@@ -177,36 +181,9 @@ func prepareModelBinding(model ir.Model, fields []forms.Field, initial map[strin
 			return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "duplicate"}
 		}
 		byName[field.Name] = field
-		value := forms.Null()
-		if field.Default != nil && field.Kind.IsFile() {
-			// A model default is a stored reference, not a submitted selection.
-			// Preparing it must not require a form's image I/O capability.
-			var err error
-			value, err = fileDefaultValue(field)
-			if err != nil {
-				return modelBinding{}, nil, err
-			}
-		} else if field.Default != nil {
-			projected, err := projectField(field, overrideConfig{hasRequired: true, required: true})
-			if err != nil {
-				return modelBinding{}, nil, err
-			}
-			var present bool
-			value, present = projected.Default()
-			if !present {
-				return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "missing_default"}
-			}
-		} else if !field.Nullable && field.Kind == ir.FieldBinary {
-			value = forms.Binary(binaryvalue.Value{})
-		} else if !field.Nullable && (field.Kind == ir.FieldChar || field.Kind == ir.FieldEmail || field.Kind == ir.FieldURL || field.Kind == ir.FieldSlug || field.Kind.IsFile() || field.Kind == ir.FieldText) {
-			value = forms.String("")
-		}
-		if field.Kind.IsFile() {
-			var err error
-			value, err = fileReferenceValue(value)
-			if err != nil {
-				return modelBinding{}, nil, err
-			}
+		value, valid := formValue(initialValues[field.Name])
+		if !valid {
+			return modelBinding{}, nil, &Error{Path: "model." + field.Name, Code: "invalid_initial_value"}
 		}
 		candidate[field.Name] = value
 	}

@@ -124,6 +124,9 @@ func (a *Application) validateStoredTicketLabels(ctx context.Context, session db
 // update revokes future sessions; it does not retroactively cancel admitted
 // work. The same requirements are rechecked before any transaction reads.
 func ticketWritePermission(ctx context.Context, principal auth.Principal, permission auth.Permission) error {
+	if interfaceNil(ctx) {
+		return errors.New("helpdesk: missing write context")
+	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}

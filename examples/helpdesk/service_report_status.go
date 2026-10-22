@@ -64,7 +64,7 @@ func (a *Application) readServiceReportStatus(ctx context.Context, actor auth.Pr
 
 func (a *Application) serviceReportStatusInSnapshot(ctx context.Context, reader db.Queryer, input serviceReportStatusQuery) (serviceReportStatusPage, error) {
 	var zero serviceReportStatusPage
-	if nilFormReader(reader) {
+	if interfaceNil(reader) {
 		return zero, errors.New("helpdesk: nil report status reader")
 	}
 	if input.page < 1 || input.page > serviceReportStatusMaximumPage || input.comparison != "all" && input.comparison != "same" && input.comparison != "different" {

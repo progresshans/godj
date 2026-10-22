@@ -2,7 +2,6 @@ package adminapp
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -35,7 +34,7 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 	}
 	descriptor := articlemodels.ArticleDescriptor{}
 	metadata := descriptor.Metadata()
-	initialSpec, err := formmodel.NewSpecForFields(metadata, articleWritableFields)
+	initialSpec, err := formmodel.NewSpecForFields(metadata, articleapp.WritableFields())
 	if err != nil {
 		return err
 	}
@@ -43,11 +42,11 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 	if err != nil {
 		return err
 	}
-	return admin.RegisterModel(builder, admin.ModelConfig[articleapp.Article]{
+	return admin.RegisterModel(builder, admin.ModelConfig[articlemodels.Article]{
 		AppLabel:   "godj_conformance",
 		Slug:       "articles",
 		Model:      metadata,
-		FormFields: append([]string(nil), articleWritableFields...),
+		FormFields: append([]string(nil), articleapp.WritableFields()...),
 		FormOverrides: []formmodel.Override{
 			formmodel.OverrideField("title", formmodel.WithValidators(articleDisplayTextValidator("title"))),
 			formmodel.OverrideField("summary", formmodel.WithValidators(articleDisplayTextValidator("summary"))),
@@ -55,60 +54,47 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		ListFields:   []string{"id", "title", "published", "summary", "slug"},
 		SearchFields: []string{"title", "summary"},
 		Permissions:  permissions,
-		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[articleapp.Article], error) {
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[articlemodels.Article], error) {
 			page, err := service.List(ctx, articleapp.ListOptions{
 				Search: request.Search,
 				Offset: request.Offset,
 				Limit:  request.Limit,
 			})
 			if err != nil {
-				return admin.Page[articleapp.Article]{}, err
+				return admin.Page[articlemodels.Article]{}, err
 			}
-			return admin.Page[articleapp.Article]{
-				Items:  append([]articleapp.Article(nil), page.Articles...),
+			return admin.Page[articlemodels.Article]{
+				Items:  append([]articlemodels.Article(nil), page.Articles...),
 				Total:  page.Total,
 				Offset: page.Offset,
 				Limit:  page.Limit,
 			}, nil
 		},
-		Get: func(ctx context.Context, _ auth.Principal, id int64) (articleapp.Article, bool, error) {
+		Get: func(ctx context.Context, _ auth.Principal, id int64) (articlemodels.Article, bool, error) {
 			return service.Get(ctx, id)
 		},
-		Snapshot: func(article articleapp.Article) (admin.Object, error) {
-			return projector.Project(articleapp.ModelSnapshot(article), article.ID, article.Title)
+		Snapshot: func(article articlemodels.Article) (admin.Object, error) {
+			return projector.Project(article, article.ID, article.Title)
 		},
-		Initial: func(article articleapp.Article) (map[string]forms.Value, error) {
-			return formmodel.InitialValues(metadata, initialSpec, articleapp.ModelSnapshot(article), descriptor.WriteFieldValue)
+		Initial: func(article articlemodels.Article) (map[string]forms.Value, error) {
+			return formmodel.InitialValues(metadata, initialSpec, article, descriptor.WriteFieldValue)
 		},
-		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (articleapp.Article, error) {
-			values, inputErr := bound.Input()
-			if inputErr != nil {
-				var zero articleapp.Article
-				return zero, inputErr
-			}
-
-			input, err := articleInput(values)
+		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (articlemodels.Article, error) {
+			input, err := formmodel.PrepareInput(articlemodels.ArticleObjects, bound)
 			if err != nil {
-				return articleapp.Article{}, err
+				return articlemodels.Article{}, err
 			}
 			return service.Create(ctx, principal.ID(), input)
 		},
-		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (articleapp.Article, []string, error) {
-			values, inputErr := bound.Input()
-			if inputErr != nil {
-				var zero articleapp.Article
-				return zero, nil, inputErr
-			}
-
-			id := mutation.ID
-			input, err := articleInput(values)
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (articlemodels.Article, []string, error) {
+			input, err := formmodel.PrepareInput(articlemodels.ArticleObjects, bound)
 			if err != nil {
-				return articleapp.Article{}, nil, err
+				return articlemodels.Article{}, nil, err
 			}
-			article, changed, err := service.Update(ctx, principal.ID(), id, input)
+			article, changed, err := service.Update(ctx, principal.ID(), mutation.ID, input)
 			return article, changed, adminMutationError(err)
 		},
-		Delete: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation) (articleapp.Article, error) {
+		Delete: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation) (articlemodels.Article, error) {
 			id := mutation.ID
 			article, err := service.Delete(ctx, principal.ID(), id)
 			return article, adminMutationError(err)
@@ -163,51 +149,4 @@ func adminMutationError(err error) error {
 		return admin.ErrObjectNotFound
 	}
 	return err
-}
-
-func articleInput(values forms.Values) (articleapp.Input, error) {
-	if len(values.All()) != len(articleWritableFields) {
-		return articleapp.Input{}, invalid("form", "cleaned Article field set is incomplete")
-	}
-	title, ok := values.String("title")
-	if !ok {
-		return articleapp.Input{}, invalid("title", "cleaned title is unavailable")
-	}
-	published, ok := values.Boolean("published")
-	if !ok {
-		return articleapp.Input{}, invalid("published", "cleaned published value is unavailable")
-	}
-	summaryValue, ok := values.Get("summary")
-	if !ok {
-		return articleapp.Input{}, invalid("summary", "cleaned summary is unavailable")
-	}
-	var summary *string
-	switch summaryValue.Kind() {
-	case forms.ValueNull:
-	case forms.ValueString:
-		value, stringOK := summaryValue.AsString()
-		if !stringOK {
-			return articleapp.Input{}, invalid("summary", "cleaned summary type is invalid")
-		}
-		summary = &value
-	default:
-		return articleapp.Input{}, invalid("summary", "cleaned summary type is invalid")
-	}
-	slugValue, ok := values.Get("slug")
-	if !ok {
-		return articleapp.Input{}, invalid("slug", "cleaned slug is unavailable")
-	}
-	var slug *string
-	if !slugValue.IsNull() {
-		value, ok := slugValue.AsString()
-		if !ok {
-			return articleapp.Input{}, invalid("slug", "cleaned slug type is invalid")
-		}
-		slug = &value
-	}
-	input := articleapp.Input{Title: title, Published: published, Summary: summary, Slug: slug}
-	if err := articleapp.ValidateInput(input); err != nil {
-		return articleapp.Input{}, fmt.Errorf("article admin form conversion: %w", err)
-	}
-	return input, nil
 }

@@ -3,6 +3,7 @@ package article_test
 import (
 	"context"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -525,7 +526,7 @@ func (result articleAdminHTTPResult) csrfToken(t *testing.T) string {
 	return match[1]
 }
 
-func assertArticleAdminArticleEqual(t *testing.T, got, want articleapp.Article) {
+func assertArticleAdminArticleEqual(t *testing.T, got, want articlemodels.Article) {
 	t.Helper()
 	if got.ID != want.ID || got.Title != want.Title || got.Published != want.Published || !articleAdminOptionalStringEqual(got.Summary, want.Summary) || !articleAdminOptionalStringEqual(got.Slug, want.Slug) {
 		t.Fatalf("Article = %#v, want %#v", got, want)

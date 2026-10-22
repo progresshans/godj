@@ -4,6 +4,21 @@
 schema를 제공한다. 모델 입력은 `serializers.FromModel`로 Schema IR의 타입·nullable·default·choices와 허용 필드를
 가져온다. DTO는 업무에 필요한 Go 구조이며 struct reflection이나 독립 schema/decoder 선언을 사용하지 않는다.
 
+## 모델과 공통 CRUD 입력
+
+`NewModel(manager, spec, parserConfig)`는 별도 DTO·setter 없이 `Body[orm.ModelInput[M]]`을 만든다.
+Spec은 해당 manager와 완전히 같은 IR로 `FromModel`에서 만들어져야 한다. 이름만 같은 generic Spec이나
+다른 default·hidden field·table source는 시작 시 거부한다. `NewResource(resource, spec, parserConfig)`는
+JSON의 쓰기 노출이 [CRUD Resource](../../crud/README.md)의 명시적 목록을 넓히지 않는지도 확인한다.
+
+`ModelInput.Get`은 생략·SQL NULL·명시적 zero를 구분하고, collection은 별도의 owned 선택으로 보존한다.
+`Manager.PrepareInput(input, current)`는 최신 current 객체의 제외 열을 보존하며 nil이면 전체 IR default를 적용한다.
+`forms/model.PrepareInput`도 같은 입력을 사용한다. 폼은 초기 객체 key binding까지 전달하므로 다른 대상에
+재사용할 수 없다. 이 준비는 인가·full_clean·commit 증거가 아니며, 관계 선택·고유성·출력 준비는 소유 write
+scope에서 확인한다. Pending upload는 일반 scalar 전달이 아닌 파일 게시 경로를 사용한다.
+
+아래의 `New`·`Property` 경로는 임의 DTO와 업무 명령에 계속 사용할 수 있다.
+
 ```go
 type PatchDTO struct {
     Name     input.Presence[string]

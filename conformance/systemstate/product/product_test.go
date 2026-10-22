@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/query"
 	"os"
 	"path/filepath"
 	"strings"
@@ -233,7 +235,11 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil {
 		t.Fatalf("construct rollback Article audit service: %v", err)
 	}
-	if _, err := rollbackService.Create(ctx, secondConfig.PrincipalID, articleapp.Input{Title: "Rolled back Article"}); !errors.Is(err, errInjectedAuditRollback) {
+	rollbackInput, err := articlemodels.ArticleObjects.Input(map[string]query.Value{"title": query.String("Rolled back Article")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := rollbackService.Create(ctx, secondConfig.PrincipalID, rollbackInput); !errors.Is(err, errInjectedAuditRollback) {
 		t.Fatalf("Article create with injected audit failure = %v, want rollback sentinel", err)
 	}
 	if rollbackStore.objectID <= 0 {
@@ -256,7 +262,11 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil {
 		t.Fatalf("construct committed Article audit service: %v", err)
 	}
-	committedArticle, err := commitService.Create(ctx, secondConfig.PrincipalID, articleapp.Input{Title: "Committed Article"})
+	commitInput, err := articlemodels.ArticleObjects.Input(map[string]query.Value{"title": query.String("Committed Article")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	committedArticle, err := commitService.Create(ctx, secondConfig.PrincipalID, commitInput)
 	if err != nil || committedArticle.ID <= 0 {
 		t.Fatalf("commit Article and audit together = (%#v, %v)", committedArticle, err)
 	}

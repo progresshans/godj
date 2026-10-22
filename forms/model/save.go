@@ -55,7 +55,7 @@ func (prepared PreparedInstance[M]) Save(ctx context.Context, backend db.Session
 	if instance == nil {
 		return &Error{Path: "instance", Code: "nil"}
 	}
-	if err := prepared.manager.Save(ctx, backend, instance); err != nil {
+	if err := prepared.scalar.Save(ctx, backend, instance); err != nil {
 		return err
 	}
 	return prepared.saveCollections(ctx, backend, *instance, operations)

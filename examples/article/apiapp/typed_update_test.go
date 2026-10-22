@@ -2,13 +2,14 @@ package apiapp_test
 
 import (
 	"errors"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"io"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/api"
-	"github.com/progresshans/godj/examples/article/articleapp"
+
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -29,7 +30,7 @@ func (*articleObservedBody) Close() error { return nil }
 
 func TestTypedArticleLookupAndAdmissionPrecedeBodyIO(t *testing.T) {
 	harness := newHarness(t)
-	created, err := harness.repository.Create(t.Context(), articleapp.Input{Title: "Existing"})
+	created, err := harness.repository.Create(t.Context(), fullArticleInput(t, articlemodels.Article{Title: "Existing"}))
 	if err != nil {
 		t.Fatal(err)
 	}

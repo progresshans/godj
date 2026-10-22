@@ -30,7 +30,7 @@ type AdminConfig struct {
 // AdminRegistry builds an independent registration with the audited workflows.
 // It does no I/O and does not change the application's standalone registry.
 func (a *Application) AdminRegistry(config AdminConfig) (admin.Registry, error) {
-	if a == nil || nilFormReader(a.backend) || config.AppendAudit == nil {
+	if a == nil || interfaceNil(a.backend) || config.AppendAudit == nil {
 		return admin.Registry{}, errors.New("helpdesk: Admin workflows require application and transactional audit")
 	}
 	installed, err := apps.New(InstalledApps())

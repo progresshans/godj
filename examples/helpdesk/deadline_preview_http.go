@@ -21,7 +21,7 @@ type DeadlinePreview struct {
 }
 
 func (a *Application) DeadlinePreview(authentication *sessionauth.Runtime) (*DeadlinePreview, error) {
-	if a == nil || nilFormReader(a.backend) || authentication == nil {
+	if a == nil || interfaceNil(a.backend) || authentication == nil {
 		return nil, errors.New("helpdesk: deadline preview requires application and authentication")
 	}
 	if !authentication.CookiesApplyTo(DeadlinePreviewPath) || !authentication.AllowsNext(DeadlinePreviewPath) {

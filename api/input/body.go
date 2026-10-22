@@ -64,7 +64,7 @@ func Field[T, V any](name string, codec Codec[V], assign func(*T, Presence[V])) 
 type Body[T any] struct {
 	spec          serializers.Spec
 	parser        api.Parser
-	properties    []Property[T]
+	transfer      func(context.Context, serializers.Values) (T, error)
 	full, partial openapi.Schema
 	valid         bool
 }
@@ -96,7 +96,7 @@ func New[T any](spec serializers.Spec, config api.ParserConfig, properties ...Pr
 		}
 		byName[property.name] = property
 	}
-	body := Body[T]{spec: spec, properties: make([]Property[T], 0, len(properties))}
+	ordered := make([]Property[T], 0, len(properties))
 	for _, field := range fields {
 		if field.ReadOnly() {
 			continue
@@ -105,8 +105,35 @@ func New[T any](spec serializers.Spec, config api.ParserConfig, properties ...Pr
 		if !present {
 			return Body[T]{}, configError("fields."+field.Name(), "writable field has no typed binding")
 		}
-		body.properties = append(body.properties, property)
+		ordered = append(ordered, property)
 	}
+	return newBody(spec, config, func(ctx context.Context, values serializers.Values) (T, error) {
+		var zero T
+		assignments := make([]func(*T), len(ordered))
+		for index, property := range ordered {
+			if err := ctx.Err(); err != nil {
+				return zero, err
+			}
+			value, present := values.Get(property.name)
+			assign, ok := property.decode(value, present)
+			if !ok {
+				return zero, configError("fields."+property.name, "validated value does not match its declared type")
+			}
+			assignments[index] = assign
+		}
+		var result T
+		for _, assign := range assignments {
+			if err := ctx.Err(); err != nil {
+				return zero, err
+			}
+			assign(&result)
+		}
+		return result, nil
+	})
+}
+
+func newBody[T any](spec serializers.Spec, config api.ParserConfig, transfer func(context.Context, serializers.Values) (T, error)) (Body[T], error) {
+	body := Body[T]{spec: spec, transfer: transfer}
 	var err error
 	if body.parser, err = api.NewParser(config); err != nil {
 		return Body[T]{}, err
@@ -177,27 +204,11 @@ func (body Body[T]) Bind(ctx context.Context, object serializers.Object, mode se
 	if !bound.Valid() {
 		return zero, bound.Errors(), nil
 	}
-	values := bound.Values()
-	assignments := make([]func(*T), len(body.properties))
-	for index, property := range body.properties {
-		if err := ctx.Err(); err != nil {
-			return zero, validation.Errors{}, err
-		}
-		value, present := values.Get(property.name)
-		assign, ok := property.decode(value, present)
-		if !ok {
-			return zero, validation.Errors{}, configError("fields."+property.name, "validated value does not match its declared type")
-		}
-		assignments[index] = assign
-	}
-	var result T
-	for _, assign := range assignments {
-		if err := ctx.Err(); err != nil {
-			return zero, validation.Errors{}, err
-		}
-		assign(&result)
-	}
+	result, err := body.transfer(ctx, bound.Values())
 	if err := ctx.Err(); err != nil {
+		return zero, validation.Errors{}, err
+	}
+	if err != nil {
 		return zero, validation.Errors{}, err
 	}
 	return result, validation.Errors{}, nil

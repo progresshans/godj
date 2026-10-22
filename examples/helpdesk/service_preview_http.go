@@ -22,7 +22,7 @@ type ServicePreview struct {
 }
 
 func (a *Application) ServicePreview(authentication *sessionauth.Runtime) (*ServicePreview, error) {
-	if a == nil || nilFormReader(a.backend) || authentication == nil {
+	if a == nil || interfaceNil(a.backend) || authentication == nil {
 		return nil, errors.New("helpdesk: service preview requires application and authentication")
 	}
 	if !authentication.CookiesApplyTo(ServicePreviewPath) || !authentication.AllowsNext(ServicePreviewPath) {

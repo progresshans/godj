@@ -121,6 +121,7 @@ func PrepareInstance[M any](manager orm.Manager[M], bound BoundForm, instance *M
 // must preserve all intended scalar/collection operations in their authorized
 // write scope; this value does not imply that any database check has run.
 type PreparedInstance[M any] struct {
+	scalar      orm.PreparedModel[M]
 	manager     orm.Manager[M]
 	value       M
 	input       forms.Values
@@ -195,7 +196,15 @@ func (form InstanceForm[M]) Prepare() (PreparedInstance[M], error) {
 		}
 		values[field.Name] = scalar
 	}
-	value, err := form.manager.ApplyValues(form.instance, values)
+	var current *M
+	if form.hasInstance {
+		current = &form.instance
+	}
+	scalar, err := form.manager.PrepareValues(current, values)
+	if err != nil {
+		return PreparedInstance[M]{}, err
+	}
+	value, err := scalar.Model()
 	if err != nil {
 		return PreparedInstance[M]{}, err
 	}
@@ -205,7 +214,7 @@ func (form InstanceForm[M]) Prepare() (PreparedInstance[M], error) {
 			collections[field.Name] = value
 		}
 	}
-	return PreparedInstance[M]{manager: form.manager, value: value, input: input, collections: forms.NewValues(collections), files: files}, nil
+	return PreparedInstance[M]{scalar: scalar, manager: form.manager, value: value, input: input, collections: forms.NewValues(collections), files: files}, nil
 }
 
 func formValue(value query.Value) (forms.Value, bool) {

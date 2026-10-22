@@ -182,7 +182,10 @@ OpenAPI를 함께 구성한다. Ticket의 기존 모델 encoder와 Category의 �
 모든 값을 검증한 뒤 DTO를 할당한다. 인증 우선순위·Category 범위·조회 방식과 각 화면/API의 오류 표현은 유지한다.
 [입력 API](../../api/parameters/README.md)는 query 부재·기본값·Optional 의미와 제한을 설명한다.
 
-Ticket 생성·Label·ServiceReport의 JSON 입력은 [typed body 선언](api_inputs.go)에서 기존 모델 Serializer와 DTO를 연결한다.
+Ticket·Label의 JSON 입력은 [typed body 선언](api_inputs.go)에서 모델 Serializer를 공통 `ModelInput`에 연결한다.
+[명시적 CRUD 목록](resources.go)과 JSON 노출을 시작 시 대조하고, Admin의 검증된 폼도 같은 모델 입력·저장 준비를 사용한다.
+현재 Category·객체/라벨 권한, numeric/JSON 동등성, bulk·inline·audit와 결과 준비는 애플리케이션 정책으로 유지한다.
+ServiceReport 같은 별도 입력·업무 명령은 기존 typed DTO 경로를 사용한다.
 Full은 required/default를 적용하고 Partial은 생략을 보존한다. 명시적 false·null과 생략을 구분하며 같은 Spec으로
 OpenAPI를 만든다. Create/PUT/PATCH·Label ensure·Report save의 인가/CSRF·관계/고유성·transaction/audit 순서는 유지한다.
 Ticket 단건/배열 생성·요약·Label ensure·Label PUT/PATCH는 [typed endpoint](../../api/endpoint/README.md)에서 같은 입력·권한·응답·상태를 실제 handler와

@@ -3,6 +3,22 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0135 — 공통 모델 입력·CRUD와 소비자 구현
+
+2026-10-22, `8d61f245`에서 이어지는 `codex/model-centered-form-admin-api`의 A1 변경을 구현 중이다.
+완전한 모델 source를 유지하는 JSON/Form 입력, IR default·현재 객체 기반 준비, 명시적 Resource CRUD와
+확정 transaction 결과를 Article·Helpdesk에 연결했다. 외부 Directory–Inventory 생성 프로젝트에는
+필드 추가·권한 교체·응답 선택 변경, 이전 수동 조립 패턴과의 동일 입력 비교 및 부정 대조를 작성했다.
+동일 변경의 수동 책임과 비교 한계는 [활성 작업](../../work/0135-model-centered-form-admin-api.md)에 명시한다.
+
+로컬은 gofmt·최소 build/compile만 사용했다. `api/input`, `crud`, `orm`, `db`, `forms/model`, Article의 세
+애플리케이션 패키지와 실제 Article/Helpdesk 소비자, 영향 conformance·source attestation 패키지를
+`go test -run '^$'`로 컴파일했다. 외부 프로젝트의 기본·변경 버전도 생성 후 별도 모듈에서 동일하게 컴파일했다.
+외부 Admin 연결의 잘못된 `Contains` 호출을 공개 `IContains`로 수정했다. 테스트 본문은 실행하지 않았다.
+문서 링크 227개·diff 검사와 PostgreSQL 필수 실행의 세 mode 소유권 구성을 확인했다.
+새 source의 native DB·race·process·browser·generated drift·전체 CI와 실제 비교 결과는 아직 미완료다.
+아래 Q1의 성공을 이 변경의 검증으로 계산하지 않는다.
+
 ## GDJ-0134 — 전체 통합 검증과 G-ORM 전환
 
 2026-10-22에 제품 source `82142bbf407798dd5649d433288e6491be3eb277`의

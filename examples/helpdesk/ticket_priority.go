@@ -59,7 +59,7 @@ func (a *Application) raiseTicketPriority(ctx context.Context, actor auth.Princi
 }
 
 func (a *Application) raiseTicketPriorityInSession(ctx context.Context, session db.RelationSession, actor auth.Principal, ids []int64, appendAudit appendTicketAudit) (updatedTickets, error) {
-	if ctx == nil || appendAudit == nil || nilFormReader(session) {
+	if ctx == nil || appendAudit == nil || interfaceNil(session) {
 		return updatedTickets{}, errors.New("helpdesk: priority raise requires a live owner and audit")
 	}
 	if err := ticketWritePermission(ctx, actor, ChangeTicket); err != nil {

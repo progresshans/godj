@@ -29,20 +29,20 @@ type Savepointer interface {
 // Native backends reject entry while a parent cursor or batch stream is open.
 // Retained handles and rowsets report backend invalid_plan after scope exit.
 func WithSavepoint(ctx context.Context, session Session, callback func(Session) error) error {
-	if nilSavepointValue(ctx) {
+	if nilValue(ctx) {
 		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidPlan, Detail: "savepoint context is nil"}
 	}
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if nilSavepointValue(session) {
+	if nilValue(session) {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan, Detail: "savepoint session is nil"}
 	}
 	if callback == nil {
 		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidPlan, Detail: "savepoint callback is nil"}
 	}
 	source, ok := session.(Savepointer)
-	if !ok || nilSavepointValue(source) {
+	if !ok || nilValue(source) {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "session does not support savepoints"}
 	}
 	if err := source.ValidateSession(ctx); err != nil {
@@ -51,7 +51,7 @@ func WithSavepoint(ctx context.Context, session Session, callback func(Session) 
 	return source.Savepoint(ctx, callback)
 }
 
-func nilSavepointValue(value any) bool {
+func nilValue(value any) bool {
 	if value == nil {
 		return true
 	}

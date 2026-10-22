@@ -103,23 +103,20 @@ func (a *Application) apiBulkUpdateTickets(parser api.Parser, appendAudit append
 			if err != nil {
 				return web.Response{}, err
 			}
-			bound, err := a.input.Bind(patchObject, serializers.ModePartial)
+			input, diagnostics, err := a.ticketInput.Bind(request.Context(), patchObject, serializers.ModePartial)
 			if err != nil {
 				return web.Response{}, err
 			}
-			if !bound.Valid() {
-				failures = validation.Join(failures, bulkRowFailures(index, bound.Errors()))
+			if !diagnostics.Empty() {
+				failures = validation.Join(failures, bulkRowFailures(index, diagnostics))
 				continue
 			}
-			if payload, present := bound.Values().Get("external_payload"); present && !payload.IsNull() {
-				document, _ := payload.AsJSON()
-				failures = validation.Join(failures, bulkRowFailures(index, externalPayloadErrors(document)))
-			}
-			patch, labels, err := ticketPatchFromValues(bound.Values())
+			payloadFailures, err := validateTicketAPIInput(request.Context(), input)
 			if err != nil {
 				return web.Response{}, err
 			}
-			changes[index] = ticketBulkChange{index: index, id: id, patch: patch, labels: labels}
+			failures = validation.Join(failures, bulkRowFailures(index, payloadFailures))
+			changes[index] = ticketBulkChange{index: index, id: id, input: input}
 		}
 		if !failures.Empty() {
 			return bulkValidationResponse(failures)

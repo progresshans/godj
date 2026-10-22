@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"testing"
 
 	"github.com/progresshans/godj/admin"
@@ -39,18 +40,18 @@ func TestServicePublishesAuditOnlyForConfirmedSemanticWrites(t *testing.T) {
 		t.Fatalf("NewService() error = %v", err)
 	}
 
-	created, err := service.Create(ctx, "operator", articleapp.Input{Title: "Initial"})
+	created, err := service.Create(ctx, "operator", fullArticleInput(t, articlemodels.Article{Title: "Initial"}))
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	updated, changed, err := service.Update(ctx, "operator", created.ID, articleapp.Input{Title: "Changed"})
+	updated, changed, err := service.Update(ctx, "operator", created.ID, fullArticleInput(t, articlemodels.Article{Title: "Changed"}))
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
 	if fmt.Sprint(changed) != "[title]" {
 		t.Fatalf("Update() changed = %v", changed)
 	}
-	if _, unchanged, err := service.Update(ctx, "operator", created.ID, articleapp.Input{Title: updated.Title}); err != nil || len(unchanged) != 0 {
+	if _, unchanged, err := service.Update(ctx, "operator", created.ID, fullArticleInput(t, articlemodels.Article{Title: updated.Title})); err != nil || len(unchanged) != 0 {
 		t.Fatalf("no-op Update() changed = %v, error = %v", unchanged, err)
 	}
 	result, err := service.Publish(ctx, "operator", []int64{created.ID})
@@ -141,7 +142,7 @@ func TestServiceRejectsInvalidActorBeforeArticleMutation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
-	if _, err := service.Create(ctx, "bad\nactor", articleapp.Input{Title: "Never written"}); err == nil {
+	if _, err := service.Create(ctx, "bad\nactor", fullArticleInput(t, articlemodels.Article{Title: "Never written"})); err == nil {
 		t.Fatal("Create(invalid actor) error = nil")
 	}
 	if audit.Len() != 0 {
@@ -186,11 +187,11 @@ func TestDurableServiceAuditSharesArticleTransactionAndPublishOrder(t *testing.T
 	if err != nil {
 		t.Fatalf("NewRepository() error = %v", err)
 	}
-	first, err := repository.Create(ctx, articleapp.Input{Title: "First"})
+	first, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "First"}))
 	if err != nil {
 		t.Fatalf("Create(first) error = %v", err)
 	}
-	second, err := repository.Create(ctx, articleapp.Input{Title: "Second"})
+	second, err := repository.Create(ctx, fullArticleInput(t, articlemodels.Article{Title: "Second"}))
 	if err != nil {
 		t.Fatalf("Create(second) error = %v", err)
 	}
@@ -234,7 +235,7 @@ func TestDurableServiceAuditSharesArticleTransactionAndPublishOrder(t *testing.T
 		t.Fatalf("committed audit rows = %#v", rows)
 	}
 	store.reset()
-	unchanged, changed, err := service.Update(ctx, "operator", first.ID, articleapp.Input{Title: "First", Published: true})
+	unchanged, changed, err := service.Update(ctx, "operator", first.ID, fullArticleInput(t, articlemodels.Article{Title: "First", Published: true}))
 	if err != nil || len(changed) != 0 || !unchanged.Published {
 		t.Fatalf("Update(no-op) = %#v, changed=%v, error=%v", unchanged, changed, err)
 	}
@@ -285,7 +286,7 @@ func TestMemoryServiceCommitUnknownDoesNotRetryOrPublishSyntheticAudit(t *testin
 	if err != nil {
 		t.Fatalf("NewService() error = %v", err)
 	}
-	if _, err := service.Create(ctx, "operator", articleapp.Input{Title: "Outcome unknown"}); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}) {
+	if _, err := service.Create(ctx, "operator", fullArticleInput(t, articlemodels.Article{Title: "Outcome unknown"})); !errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}) {
 		t.Fatalf("Create(commit unknown) error = %v", err)
 	}
 	if unknown.atomicCalls != 1 {

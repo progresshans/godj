@@ -10,7 +10,6 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/progresshans/godj/internal/migrationdefault"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -19,7 +18,7 @@ func compilePostgresMigrationDefault(field ir.Field) (string, error) {
 	if field.Default == nil || field.PrimaryKey || field.Relation != nil {
 		return "", errors.New("migration backfill requires a scalar default")
 	}
-	value, err := migrationdefault.Value(*field.Default)
+	value, err := query.ValueFromScalar(*field.Default)
 	if err != nil {
 		return "", err
 	}

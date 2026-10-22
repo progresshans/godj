@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	orm "github.com/progresshans/godj/orm"
 	"net/http"
 	"strings"
 	"sync/atomic"
@@ -67,7 +69,7 @@ func verifyArticleTypedBulk(t *testing.T, native articleapp.Backend) {
 			seed := int64(0)
 			if mode == "duplicate_existing" || mode == "native_later_conflict" {
 				slug := "bulk-39"
-				if _, err := repository.Create(t.Context(), articleapp.Input{Title: "existing bulk slug", Slug: &slug}); err != nil {
+				if _, err := repository.Create(t.Context(), fullArticleInput(t, articlemodels.Article{Title: "existing bulk slug", Slug: &slug})); err != nil {
 					t.Fatal(err)
 				}
 				seed = 1
@@ -140,11 +142,11 @@ func verifyArticleTypedBulk(t *testing.T, native articleapp.Backend) {
 			hooks, prepares := 0, 0
 			private := errors.New("private bulk hook failure")
 			hooked := repository.WithMutationHook(func(context.Context, db.Session, articleapp.MutationResult) error { hooks++; return private })
-			values := make([]articleapp.Input, 40)
+			values := make([]orm.ModelInput[articlemodels.Article], 40)
 			for i := range values {
-				values[i].Title = fmt.Sprintf("prepared bulk %02d", i)
+				values[i] = partialArticleInput(t, map[string]query.Value{"title": query.String(fmt.Sprintf("prepared bulk %02d", i))})
 			}
-			result, err := articleapp.BulkCreateAndPrepare(t.Context(), hooked, values, func(ctx context.Context, rows []articleapp.Article) (output.Prepared[[]string], error) {
+			result, err := articleapp.BulkCreateAndPrepare(t.Context(), hooked, values, func(ctx context.Context, rows []articlemodels.Article) (output.Prepared[[]string], error) {
 				prepares++
 				if len(rows) != 40 {
 					t.Fatal("partial rows reached prepare")
@@ -219,7 +221,7 @@ func verifyArticleBulkSession(t *testing.T, fixture articleAPIAdminSessionFixtur
 
 func verifyArticleBulkRows(t *testing.T, repository articleapp.Repository, body string, count int) []int64 {
 	t.Helper()
-	var rows []articleapp.Article
+	var rows []articlemodels.Article
 	if err := json.Unmarshal([]byte(body), &rows); err != nil {
 		t.Fatal(err)
 	}

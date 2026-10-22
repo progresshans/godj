@@ -1,6 +1,6 @@
 # GDJ-0135: 모델 중심 Form/Admin/API 조립
 
-- 상태: A1 착수; 공개 경계와 첫 소비자 연결 준비
+- 상태: A1 구현·검증 중; 공통 입력·CRUD, Article·Helpdesk와 외부 생성 소비자 연결, 실행 검증 미완료
 - 시작: 2026-10-22
 - 기준: `82142bbf407798dd5649d433288e6491be3eb277` — Q1의 전체 통합 검증과 G-ORM H1~H6 충족
 - 근거: [전체 실행 계획의 A1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -69,6 +69,29 @@ DTO helper 하나의 완성을 A1 전체 완료로 계산하지 않는다.
 F1은 Form/Admin의 더 넓은 widget·관계 UI·formset/inline 확장, A2는 일반 viewset/router·문서 UI·client 도구 확대를
 계속 소유한다. 이 구분은 현재 지원된 권한·관계·파일·inline 동작을 A1에서 제거하거나 검증에서 빼는 근거가 아니다.
 
+## 같은 변경의 비교 범위
+
+[외부 생성 소비자](../codegen/consumertest/model_resource_test.go)는 Directory.Workspace와 Inventory.Asset를
+독립 모듈로 생성한다. 기본 버전과 변경 버전에 같은 native DB·Form·실제 HTTP/Admin 검증을 적용한다.
+변경은 `priority` 정수(default 5, choices 1/5/9) 추가, 쓰기 권한 교체, 응답에서 `note`를 제외하고 `priority`를
+포함하는 것으로 고정한다. 기존 선택 목록을 유지한 대조에서는 새 필드가 입력에 자동 노출되지 않아야 한다.
+
+| 변경 책임 | 기존 수동 조립 패턴 | 공통 모델 조립 |
+|---|---|---|
+| 저장 필드 | Schema 선언과 생성물 갱신 | 동일. 타입·default·choices는 IR이 소유 |
+| 입력 노출 | Model Spec/Form 선택과 별도의 입력 DTO | 명시적 Resource 목록에서 Form·JSON을 구성; JSON별 required/empty는 별도 정책 |
+| 새 필드 전달 | DTO 필드·codec/setter·create builder·partial patch·Form typed 값 변환을 함께 변경 | `NewResource`·`PrepareInput`·공통 CRUD 구현을 변경하지 않음 |
+| 권한 교체 | 명시적 권한을 admission/Admin에 연결 | 동일한 책임을 유지; 권한 선언 자체의 비용 감소는 주장하지 않음 |
+| 응답 교체 | ModelEncoder의 명시적 투영 | 같은 투영을 사용; 실제 JSON·OpenAPI·Admin 목록이 함께 변경되는지 확인 |
+| 현재 객체와 결과 | scope·선택·unique·transaction·출력/감사 소유 | 공통 조회·준비·선택 열 저장 위에 앱 정책과 확정 결과 경계를 연결 |
+
+비교용 [기본 수동 연결](../codegen/consumertest/testdata/modelresource/manual_baseline.go.txt)과
+[변경 후 수동 연결](../codegen/consumertest/testdata/modelresource/manual_changed.go.txt)은 `82142bbf` Article의
+DTO/setter·Form-to-builder 패턴을 현재 공개 API로 재현한 테스트 입력이다. 과거 binary를 실행한 근거가 아니다.
+[대조 본문](../codegen/consumertest/testdata/modelresource/comparison_test.go)은 같은 JSON/Form·PATCH의 저장 값,
+응답과 schema·권한을 비교하고 관측 write를 rollback한다. 제품에 과거 DTO 호환 계층을 남기지 않는다.
+필드별 수동 변환의 제거를 평가하며 개발 시간·실행 성능이나 모든 앱의 비용 감소를 수치로 주장하지 않는다.
+
 ## 완료 조건
 
 - [ ] A1-01~02의 공통 모델 입력·Form 준비·저장을 타입·presence·기본값·실패 의미까지 연결한다.
@@ -76,4 +99,8 @@ F1은 Form/Admin의 더 넓은 widget·관계 UI·formset/inline 확장, A2는 �
 - [ ] A1-06의 외부 소비자·동일 변경 실험과 보안·데이터 무결성 부정 대조를 확인한다.
 - [ ] 같은 source의 필수 환경·생성 drift·전체 CI 원본을 대조하고 현행 문서와 다음 F1의 경계를 갱신한다.
 
-현재는 요구와 소비자 경계를 정한 단계다. 구현·실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
+현재 `ModelInput`·공통 모델 준비·`crud.Resource`·확정 transaction 결과 경계를 구현하고 Article·Helpdesk에
+연결했다. [ADR-0092](../docs/adr/0092-model-input-and-crud-assembly.md)에 장기 의미를 기록한다.
+로컬 포맷·최소 compile만 확인했으며 새 테스트 본문·원격 CI는 아직 실행하지 않았다.
+외부 생성 소비자와 동일 변경 실험의 사례를 작성했다. 현재 source의 테스트 본문·전체 CI 검증은 남아 있다.
+구현·실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.

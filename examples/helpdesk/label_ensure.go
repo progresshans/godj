@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/web"
 )
@@ -118,7 +119,7 @@ func (a *Application) labelEnsureCommands(form forms.Spec) []admin.CollectionCom
 }
 
 func (a *Application) labelEnsureEndpoint(authentication api.Authentication, appendAudit appendLabelAudit) (endpoint.Endpoint, error) {
-	return endpoint.New(authentication, endpoint.Config[labelAPIInput, labelEnsureResponse]{
+	return endpoint.New(authentication, endpoint.Config[orm.ModelInput[models.Label], labelEnsureResponse]{
 		Route:       web.Route{Name: "helpdesk:label-ensure", Method: http.MethodPost, Path: "/api/labels/ensure/"},
 		Summary:     "Find or create a category label",
 		Description: "Authentication, both add and view permissions, and CSRF precede parsing. Accepts the same normalized name as ordinary creation; category and id remain server-owned. Query parameters are rejected. The current assigned category is checked in the parent transaction. An exact (category, name) match returns 200 with created=false; a new label returns 201 with created=true only after the row and its single add audit event commit together. Reuse does not append an audit event. A concurrent native unique conflict is rolled back to a savepoint before one fresh lookup. Output, audit, cancellation and uncertain transaction failures do not publish a result or trigger automatic retries. Ordinary creation continues to reject duplicates.",
@@ -132,8 +133,9 @@ func (a *Application) labelEnsureEndpoint(authentication api.Authentication, app
 			{Code: http.StatusRequestEntityTooLarge, Description: "The JSON body exceeds 4096 bytes."},
 			{Code: http.StatusUnsupportedMediaType, Description: "The body is not application/json."},
 		},
-		Handle: func(request *web.Request, actor auth.Principal, values labelAPIInput) (output.Prepared[labelEnsureResponse], error) {
-			name, _ := values.name.Get()
+		Handle: func(request *web.Request, actor auth.Principal, values orm.ModelInput[models.Label]) (output.Prepared[labelEnsureResponse], error) {
+			scalar, _ := values.Get("name")
+			name, _ := scalar.String()
 			result, err := a.ensureLabel(request.Context(), actor, name, appendAudit)
 			if err != nil {
 				return output.Prepared[labelEnsureResponse]{}, typedEndpointFailure(err)

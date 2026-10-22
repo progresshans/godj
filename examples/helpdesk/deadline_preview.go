@@ -53,7 +53,7 @@ func (a *Application) readDeadlinePreview(ctx context.Context, actor auth.Princi
 		return zero, errors.New("helpdesk: deadline preview input was not validated")
 	}
 	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (deadlinePreviewPage, error) {
-		if nilFormReader(reader) {
+		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil deadline preview reader")
 		}
 		category, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Get(work)

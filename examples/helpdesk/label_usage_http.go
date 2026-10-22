@@ -20,7 +20,7 @@ type LabelUsage struct {
 }
 
 func (a *Application) LabelUsage(authentication *sessionauth.Runtime) (*LabelUsage, error) {
-	if a == nil || nilFormReader(a.backend) || authentication == nil {
+	if a == nil || interfaceNil(a.backend) || authentication == nil {
 		return nil, errors.New("helpdesk: label usage requires application and authentication")
 	}
 	if !authentication.CookiesApplyTo(LabelUsagePath) || !authentication.AllowsNext(LabelUsagePath) {

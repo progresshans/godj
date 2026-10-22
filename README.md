@@ -43,7 +43,8 @@ SQLite 선택과 PostgreSQL 환경변수를 동시에 설정하지 않는다. Po
 - [Article Web](examples/article/webapp/), [Admin](examples/article/adminapp/), [API](examples/article/apiapp/)
 - [Typed API 출력](api/output/README.md): 같은 필드 선언에서 JSON 검증과 OpenAPI 연결
 - [Typed query 입력](api/parameters/README.md): 변환·기본값·부재와 OpenAPI parameter 연결
-- [Typed JSON 입력](api/input/README.md): 같은 모델 Serializer에서 DTO·full/partial·null과 OpenAPI 연결
+- [Typed JSON 입력](api/input/README.md): 같은 모델 Serializer에서 모델 입력 또는 DTO·full/partial·null과 OpenAPI 연결
+- [모델 CRUD 조립](crud/README.md): 명시적 쓰기 목록·현재 scope·Form/API 입력·선택 열 저장과 확정 transaction 결과
 - [Typed endpoint](api/endpoint/README.md): 경로·query/body의 명시적 순서, 준비 응답·권한·상태에서 HTTP handler와 OpenAPI 구성
 - [아키텍처](docs/ARCHITECTURE.md), [동시성과 실패](docs/CONCURRENCY.md), [테스트 실행](docs/TESTING.md)
 

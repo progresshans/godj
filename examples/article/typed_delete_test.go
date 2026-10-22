@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"strings"
 	"testing"
 
@@ -20,7 +21,7 @@ func verifyArticleTypedDelete(t *testing.T, native articleapp.Backend) {
 	}
 	for _, mode := range []string{"success", "ignored_body_query", "missing", "invalid_id", "permission", "anonymous", "missing_callback", "swallowed_miss", "joined_miss", "confirmed_miss", "delete_error", "delete_cancel", "delete_rejection", "delete_rollback_unknown", "commit_unknown"} {
 		t.Run(mode, func(t *testing.T) {
-			before, err := repository.Create(t.Context(), articleapp.Input{Title: "Typed deletion"})
+			before, err := repository.Create(t.Context(), fullArticleInput(t, articlemodels.Article{Title: "Typed deletion"}))
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -28,7 +28,7 @@ func verifyArticleTypedUpdate(t *testing.T, native articleapp.Backend) {
 		t.Fatal(err)
 	}
 	for _, method := range []string{"PUT", "PATCH"} {
-		modes := []string{"success", "no_op", "malformed_existing", "malformed_missing", "invalid_id", "permission", "missing_callback", "swallowed_miss", "joined_miss", "confirmed_miss", "commit_unknown"}
+		modes := []string{"success", "fresh_omitted", "no_op", "malformed_existing", "malformed_missing", "invalid_id", "permission", "missing_callback", "swallowed_miss", "joined_miss", "confirmed_miss", "commit_unknown"}
 		// A partial write can retain an invalid legacy field. Full replacement
 		// validates/replaces every scalar, so its encode budget is probed below.
 		if method == "PATCH" {
@@ -36,7 +36,7 @@ func verifyArticleTypedUpdate(t *testing.T, native articleapp.Backend) {
 		}
 		for _, mode := range modes {
 			t.Run(method+"/"+mode, func(t *testing.T) {
-				before, err := repository.Create(t.Context(), articleapp.Input{Title: "Typed update baseline"})
+				before, err := repository.Create(t.Context(), fullArticleInput(t, articlemodels.Article{Title: "Typed update baseline"}))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -53,7 +53,7 @@ func verifyArticleTypedUpdate(t *testing.T, native articleapp.Backend) {
 				}
 				status := 500
 				switch mode {
-				case "success":
+				case "success", "fresh_omitted":
 					status = 200
 				case "no_op", "no_op_output_failure":
 					body = `{}`
@@ -93,15 +93,23 @@ func verifyArticleTypedUpdate(t *testing.T, native articleapp.Backend) {
 				if err != nil || !found {
 					t.Fatal("failed update lost original row", err)
 				}
-				wantPublished := mode == "success" || mode == "commit_unknown"
-				if stored.Title != before.Title || stored.Published != wantPublished || stored.Summary != nil || stored.Slug != nil {
+				wantPublished := mode == "success" || mode == "fresh_omitted" || mode == "commit_unknown"
+				if stored.Title != before.Title || stored.Published != wantPublished {
 					t.Fatal("prepare/transaction failure changed durable state", stored)
 				}
-				if mode == "success" || mode == "no_op" {
-					var decoded articleapp.Article
-					if err := json.Unmarshal([]byte(response.body), &decoded); err != nil || decoded != stored {
+				if mode == "fresh_omitted" {
+					if stored.Summary == nil || *stored.Summary != "changed after lookup" || stored.Slug == nil || *stored.Slug != fmt.Sprintf("fresh-%d", before.ID) {
+						t.Fatal("omission replaced fresh excluded values", stored)
+					}
+				} else if stored.Summary != nil || stored.Slug != nil {
+					t.Fatal("unexpected stored optional values", stored)
+				}
+				if mode == "success" || mode == "fresh_omitted" || mode == "no_op" {
+					var decoded articlemodels.Article
+					if err := json.Unmarshal([]byte(response.body), &decoded); err != nil {
 						t.Fatal("prepared response differs from committed row", decoded, err)
 					}
+					assertArticleAdminArticleEqual(t, decoded, stored)
 				}
 				if mode == "output_failure" && backend.writes.Load() != 1 {
 					t.Fatal("output failure was not after DML", backend.writes.Load())
@@ -117,7 +125,7 @@ func verifyArticleTypedUpdate(t *testing.T, native articleapp.Backend) {
 			})
 		}
 		t.Run(method+"/prepare_budget_rollback", func(t *testing.T) {
-			before, err := repository.Create(t.Context(), articleapp.Input{Title: "Budget baseline"})
+			before, err := repository.Create(t.Context(), fullArticleInput(t, articlemodels.Article{Title: "Budget baseline"}))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -132,7 +140,7 @@ func verifyArticleTypedUpdate(t *testing.T, native articleapp.Backend) {
 			}
 			prepares, hooks := 0, 0
 			hooked := repository.WithMutationHook(func(context.Context, db.Session, articleapp.MutationResult) error { hooks++; return nil })
-			prepare := func(ctx context.Context, value articleapp.Article, fields []string) (output.Prepared[string], error) {
+			prepare := func(ctx context.Context, value articlemodels.Article, fields []string) (output.Prepared[string], error) {
 				prepares++
 				if value.Title != "Budget must roll back" || fmt.Sprint(fields) != "[title]" {
 					t.Error("preparation did not receive DML result")
@@ -141,9 +149,9 @@ func verifyArticleTypedUpdate(t *testing.T, native articleapp.Backend) {
 			}
 			var prepared output.Prepared[string]
 			if method == "PUT" {
-				prepared, err = articleapp.UpdateAndPrepare(t.Context(), hooked, before.ID, articleapp.Input{Title: "Budget must roll back"}, prepare)
+				prepared, err = articleapp.UpdateAndPrepare(t.Context(), hooked, before.ID, fullArticleInput(t, articlemodels.Article{Title: "Budget must roll back"}), prepare)
 			} else {
-				prepared, err = articleapp.PatchAndPrepare(t.Context(), hooked, before.ID, (articleapp.Patch{}).WithTitle("Budget must roll back"), prepare)
+				prepared, err = articleapp.PatchAndPrepare(t.Context(), hooked, before.ID, partialArticleInput(t, map[string]query.Value{"title": query.String("Budget must roll back")}), prepare)
 			}
 			if err == nil || prepares != 1 || hooks != 0 {
 				t.Fatal("encoding limit did not abort before hook", err, prepares, hooks)
@@ -176,6 +184,18 @@ func (backend *typedArticleBackend) Atomic(ctx context.Context, callback func(db
 		return nil
 	}
 	err := backend.Backend.Atomic(ctx, func(session db.Session) error {
+		if backend.mode == "fresh_omitted" {
+			current, found, err := articlemodels.ArticleObjects.Using(session).Filter(articlemodels.ArticleFields.ID.Exact(backend.id)).First(ctx)
+			if err != nil {
+				return err
+			}
+			if !found {
+				return articleapp.ErrNotFound
+			}
+			if _, err := articlemodels.ArticleObjects.Patch(ctx, session, current, (articlemodels.ArticlePatch{}).WithSummary("changed after lookup").WithSlug(fmt.Sprintf("fresh-%d", backend.id))); err != nil {
+				return err
+			}
+		}
 		if backend.mode == "swallowed_miss" || backend.mode == "joined_miss" || backend.mode == "wrapped_miss" || backend.mode == "confirmed_miss" {
 			row := articlemodels.NewArticleWithID(backend.id)
 			if _, err := articlemodels.ArticleObjects.Delete(ctx, session, &row); err != nil {

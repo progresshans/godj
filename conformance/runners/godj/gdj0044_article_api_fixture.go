@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -502,7 +503,7 @@ func articleAPIEntropy(size int, seed byte) []byte {
 
 func articleAPIStringPointer(value string) *string { return &value }
 
-func articleAPIArticleValue(article articleapp.Article) protocol.Value {
+func articleAPIArticleValue(article articlemodels.Article) protocol.Value {
 	summary := protocol.Null()
 	if article.Summary != nil {
 		summary = protocol.String(*article.Summary)

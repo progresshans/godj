@@ -3621,3 +3621,10 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotations/
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotations/scalars/stage_operand_in_model
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedNamedAnnotationReference
 github.com/progresshans/godj/codegen/consumertest|TestNamedAnnotationReferenceBoundaryEvidence
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/baseline
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/baseline/foreign_input
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/baseline/foreign_form_manager
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/changed
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/changed/foreign_input
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedModelResources/changed/foreign_form_manager

@@ -22,7 +22,7 @@ type TicketSummary struct {
 }
 
 func (a *Application) TicketSummary(authentication *sessionauth.Runtime) (*TicketSummary, error) {
-	if a == nil || nilFormReader(a.backend) || authentication == nil {
+	if a == nil || interfaceNil(a.backend) || authentication == nil {
 		return nil, errors.New("helpdesk: ticket summary requires application and authentication")
 	}
 	if !authentication.CookiesApplyTo(TicketSummaryPath) || !authentication.AllowsNext(TicketSummaryPath) {

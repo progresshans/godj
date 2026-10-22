@@ -22,7 +22,7 @@ type DeadlineCalendar struct {
 }
 
 func (a *Application) DeadlineCalendar(authentication *sessionauth.Runtime) (*DeadlineCalendar, error) {
-	if a == nil || nilFormReader(a.backend) || authentication == nil {
+	if a == nil || interfaceNil(a.backend) || authentication == nil {
 		return nil, errors.New("helpdesk: deadline calendar requires application and authentication")
 	}
 	if !authentication.CookiesApplyTo(DeadlineCalendarPath) || !authentication.AllowsNext(DeadlineCalendarPath) {
