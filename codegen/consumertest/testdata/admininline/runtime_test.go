@@ -283,7 +283,7 @@ func newInlineHarness(t *testing.T, backend resourceBackend, name string) *inlin
 		SessionCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true},
 		LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowed})
 	check(t, err)
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "inline", Registry: registry, Auth: runtime})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "inventory", Registry: registry, Auth: runtime})
 	check(t, err)
 	h.application, err = web.NewApplication(web.Config{Settings: configured, Routes: site.Routes()})
 	check(t, err)

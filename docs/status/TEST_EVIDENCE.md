@@ -18,8 +18,8 @@ Admin inline·업로드 browser 두 흐름은 Portable normal integration에서 
 네트워크 module 조회를 끈다. incoming 관계가 없는 Asset의 생성 삭제 도우미 참조를 일반 모델 삭제로 수정한 뒤
 두 버전 모두 컴파일을 통과했다. 테스트 본문·DB·HTTP·race·실제 browser는 실행하지 않았다.
 Go format, 추가 Python/JavaScript의 문법, workflow YAML과 변경 문서의 링크·diff만 로컬에서 확인했다.
-Source와 외부 생성 모듈 hash는 검증 보관 디렉터리의 `gdj0136-typed-inline-external-compile.json`에 있다.
-Receipt SHA-256은 `713dfc93a83280da90bafc480620f05c83cc1694df453e5f29fb0f44f12d003f`다.
+Source와 외부 생성 모듈 hash는 검증 보관 디렉터리의 `gdj0136-typed-inline-external-compile-v2.json`에 있다.
+Receipt SHA-256은 `4f90dde1050e7a7d5d7d052a3e790d64ed47c700f346ae03a899492410283b30`다.
 
 이 근거는 compile-only이며 F1 기능이나 선행 A1의 전체 검증 완료를 뜻하지 않는다.
 새 source의 원격 필수 실행·원본 대조와 F1의 관계 검색·일반 여러 행/모델 파일·widget 확장 등은 미완료다.
