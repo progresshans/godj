@@ -30,7 +30,9 @@ return db.AtomicResult(ctx, backend, func(work context.Context, session db.Sessi
 })
 ```
 
-- 요청 권한과 CSRF는 body·객체 I/O 전에 확인한다. Resource는 인증이나 권한을 추측하지 않는다.
+- API의 요청 권한·header CSRF와 업로드 선행 admission은 body·객체 I/O 전에 확인한다.
+  HTML 폼의 본문 CSRF 토큰은 기존처럼 파싱 뒤 검증하고, 거부 시 객체/관계 I/O·mutation을 수행하지 않는다.
+  Resource는 인증이나 권한을 추측하지 않는다.
   `SaveOptions.Before`는 현재 객체·revision·관계 선택 검사와 명시적 서버 조정을 담당한다.
 - `ServerValues`는 입력 검증 뒤 서버 소유 값을 추가한다. 입력에 이미 같은 필드가 있으면 오류다.
   Before가 객체 키를 교체할 수도 없다.

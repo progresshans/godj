@@ -94,7 +94,7 @@ var deniedWorkspace = errors.New("workspace no longer writable")
 
 func (a assembly) saveOptions(create bool) crud.SaveOptions[inventory.Asset] {
 	options := crud.SaveOptions[inventory.Asset]{Before: func(ctx context.Context, session db.Session, current, candidate *inventory.Asset) error {
-		workspace, found, err := directory.WorkspaceObjects.Using(session).Filter(directory.WorkspaceFields.ID.Exact(a.workspace.ID)).First(ctx)
+		workspace, found, err := directory.WorkspaceObjects.Using(session).Filter(directory.WorkspaceFields.ID.Exact(a.workspace.ID)).OrderBy(directory.WorkspaceFields.ID.Asc()).First(ctx)
 		if err != nil {
 			return err
 		}

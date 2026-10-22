@@ -109,7 +109,7 @@ func (a *Application) label(ctx context.Context, backend db.Queryer, id int64) (
 }
 
 func (a *Application) createLabel(ctx context.Context, input orm.ModelInput[models.Label]) (models.Label, error) {
-	return runApplicationAtomic(ctx, a.backend, "label create", func(work context.Context, session db.Session) (models.Label, error) {
+	return runApplicationAtomic(ctx, a.backend, func(work context.Context, session db.Session) (models.Label, error) {
 		mutation, err := a.resources.label.CreateInSession(work, session, input, crud.SaveOptions[models.Label]{
 			ServerValues: map[string]query.Value{"category": query.Integer(a.categoryID)},
 			Before: func(ctx context.Context, session db.Session, _, _ *models.Label) error {
@@ -137,7 +137,7 @@ type updatedLabel struct {
 }
 
 func (a *Application) updateLabel(ctx context.Context, id int64, input orm.ModelInput[models.Label]) (updatedLabel, error) {
-	return runApplicationAtomic(ctx, a.backend, "label update", func(work context.Context, session db.Session) (updatedLabel, error) {
+	return runApplicationAtomic(ctx, a.backend, func(work context.Context, session db.Session) (updatedLabel, error) {
 		mutation, err := a.resources.label.UpdateInSession(work, session, id, input, crud.SaveOptions[models.Label]{})
 		if err != nil {
 			return updatedLabel{}, resourceError(err)
@@ -184,7 +184,7 @@ func (a *Application) publishableLabel(ctx context.Context, backend db.Queryer, 
 }
 
 func (a *Application) deleteLabel(ctx context.Context, id int64) (models.Label, error) {
-	return runApplicationRelationAtomic(ctx, a.backend, "label delete", func(work context.Context, session db.RelationSession) (models.Label, error) {
+	return runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (models.Label, error) {
 		removed, err := a.resources.label.DeleteInSession(work, session, id, crud.DeleteOptions[models.Label]{Delete: func(ctx context.Context, backend db.Session, value models.Label) (int64, error) {
 			relations, ok := backend.(db.RelationSession)
 			if !ok {

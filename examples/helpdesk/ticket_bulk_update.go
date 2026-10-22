@@ -75,7 +75,7 @@ func (a *Application) updateTickets(ctx context.Context, actor auth.Principal, c
 	if len(changes) < 1 || len(changes) > ticketBulkMaximum {
 		return updatedTickets{}, bulkCountFailure()
 	}
-	return runApplicationRelationAtomic(ctx, a.backend, "bulk ticket update", func(ctx context.Context, session db.RelationSession) (updatedTickets, error) {
+	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (updatedTickets, error) {
 		return a.updateTicketsInSession(ctx, session, actor, changes, appendAudit)
 	})
 }

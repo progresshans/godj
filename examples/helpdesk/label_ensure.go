@@ -36,7 +36,7 @@ func (a *Application) ensureLabel(ctx context.Context, actor auth.Principal, nam
 	if err := labelEnsurePermission(ctx, actor); err != nil {
 		return ensuredLabel{}, err
 	}
-	return runApplicationAtomic(ctx, a.backend, "label", func(workContext context.Context, session db.Session) (ensuredLabel, error) {
+	return runApplicationAtomic(ctx, a.backend, func(workContext context.Context, session db.Session) (ensuredLabel, error) {
 		return a.ensureLabelInSession(workContext, session, actor, name, appendAudit)
 	})
 }

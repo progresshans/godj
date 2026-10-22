@@ -53,7 +53,7 @@ func (a *Application) raiseTicketPriority(ctx context.Context, actor auth.Princi
 		return updatedTickets{}, err
 	}
 	keys := slices.Clone(ids)
-	return runApplicationRelationAtomic(ctx, a.backend, "ticket priority raise", func(ctx context.Context, session db.RelationSession) (updatedTickets, error) {
+	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (updatedTickets, error) {
 		return a.raiseTicketPriorityInSession(ctx, session, actor, keys, appendAudit)
 	})
 }

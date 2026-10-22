@@ -317,7 +317,7 @@ func ticket(ctx context.Context, backend db.Queryer, id int64) (models.Ticket, b
 	return models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
 }
 func (a *Application) createTicket(ctx context.Context, principal auth.Principal, input orm.ModelInput[models.Ticket]) (output.Prepared[ticketRecord], error) {
-	return runApplicationRelationAtomic(ctx, a.backend, "ticket create", func(ctx context.Context, session db.RelationSession) (output.Prepared[ticketRecord], error) {
+	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (output.Prepared[ticketRecord], error) {
 		created, err := a.createTicketInSession(ctx, session, principal, input)
 		if err != nil {
 			return output.Prepared[ticketRecord]{}, err
@@ -346,7 +346,7 @@ type updatedTicket struct {
 // Resolve the current row and selected collection inside the owned write.
 // Response preparation and digest synchronization complete before commit.
 func (a *Application) updateTicket(ctx context.Context, principal auth.Principal, id int64, input orm.ModelInput[models.Ticket]) (updatedTicket, error) {
-	return runApplicationRelationAtomic(ctx, a.backend, "ticket update", func(work context.Context, session db.RelationSession) (updatedTicket, error) {
+	return runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (updatedTicket, error) {
 		if err := ticketWritePermission(work, principal, ChangeTicket); err != nil {
 			return updatedTicket{}, err
 		}
@@ -437,7 +437,7 @@ func externalPayloadErrors(document jsonvalue.Value) validation.Errors {
 }
 
 func (a *Application) delete(ctx context.Context, id int64) (ticketRecord, error) {
-	return runApplicationRelationAtomic(ctx, a.backend, "ticket delete", func(work context.Context, session db.RelationSession) (ticketRecord, error) {
+	return runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (ticketRecord, error) {
 		var removed ticketRecord
 		_, err := a.resources.ticket.DeleteInSession(work, session, id, crud.DeleteOptions[models.Ticket]{
 			Before: func(ctx context.Context, backend db.Session, value models.Ticket) error {

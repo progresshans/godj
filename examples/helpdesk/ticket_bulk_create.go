@@ -76,7 +76,7 @@ func (a *Application) createTickets(ctx context.Context, actor auth.Principal, c
 	if len(candidates) < 1 || len(candidates) > ticketBulkMaximum {
 		return createdTickets{}, bulkCountFailure()
 	}
-	return runApplicationRelationAtomic(ctx, a.backend, "bulk ticket create", func(ctx context.Context, session db.RelationSession) (createdTickets, error) {
+	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (createdTickets, error) {
 		return a.createTicketsInSession(ctx, session, actor, candidates, appendAudit)
 	})
 }

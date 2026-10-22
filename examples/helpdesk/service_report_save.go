@@ -45,7 +45,7 @@ func (a *Application) saveServiceReport(ctx context.Context, actor auth.Principa
 	if err := reportSavePermission(ctx, actor); err != nil {
 		return savedServiceReport{}, err
 	}
-	return runApplicationAtomic(ctx, a.backend, "report save", func(ctx context.Context, session db.Session) (savedServiceReport, error) {
+	return runApplicationAtomic(ctx, a.backend, func(ctx context.Context, session db.Session) (savedServiceReport, error) {
 		return a.saveServiceReportInSession(ctx, session, actor, input, appendAudit)
 	})
 }

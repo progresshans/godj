@@ -185,7 +185,7 @@ func (backend *typedArticleBackend) Atomic(ctx context.Context, callback func(db
 	}
 	err := backend.Backend.Atomic(ctx, func(session db.Session) error {
 		if backend.mode == "fresh_omitted" {
-			current, found, err := articlemodels.ArticleObjects.Using(session).Filter(articlemodels.ArticleFields.ID.Exact(backend.id)).First(ctx)
+			current, found, err := articlemodels.ArticleObjects.Using(session).Filter(articlemodels.ArticleFields.ID.Exact(backend.id)).OrderBy(articlemodels.ArticleFields.ID.Asc()).First(ctx)
 			if err != nil {
 				return err
 			}

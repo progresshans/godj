@@ -18,7 +18,7 @@ import (
 // intent. Current admission/row/category, complete write uniqueness, relation
 // endpoints and publishable output all remain in the original write scope.
 func (a *Application) saveTicketForm(ctx context.Context, principal auth.Principal, id int64, bound formmodel.BoundForm, inlines admin.InlineSubmission) (ticketRecord, []string, error) {
-	result, err := runApplicationRelationAtomic(ctx, a.backend, "Admin ticket save", func(work context.Context, session db.RelationSession) (updatedTicket, error) {
+	result, err := runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (updatedTicket, error) {
 		inline, present, err := a.bindAdminReports(work, session, principal, id, inlines)
 		if err != nil {
 			return updatedTicket{}, err

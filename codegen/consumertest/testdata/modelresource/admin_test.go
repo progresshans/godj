@@ -170,9 +170,23 @@ func verifyAdmin(t *testing.T, backend resourceBackend) {
 		if oldPage.Code != http.StatusForbidden || probe.reads.Load() != beforeReads || probe.writes.Load() != beforeWrites {
 			t.Fatal("changed Admin permission performed object I/O", oldPage.Code)
 		}
-		response, reads := send(http.MethodPost, "/admin/assets/add/", url.Values{"code": {"old-admin"}})
-		if response.Code != http.StatusForbidden || reads != 0 || probe.reads.Load() != beforeReads || probe.writes.Load() != beforeWrites {
-			t.Fatal("denied Admin POST read its body or storage", response.Code, reads)
+		// Upload admission precedes allocating/reading multipart resources.
+		// Ordinary HTML forms retain the existing body-token CSRF ordering.
+		body := &bodyProbe{Reader: strings.NewReader("must not be parsed")}
+		request := httptest.NewRequest(http.MethodPost, "http://inventory.test/admin/assets/add/", body)
+		request.Header.Set("Content-Type", "multipart/form-data; boundary=not-read")
+		for _, cookie := range jar.Cookies(request.URL) {
+			request.AddCookie(cookie)
+		}
+		response := httptest.NewRecorder()
+		application.ServeHTTP(response, request)
+		if response.Code != http.StatusForbidden || body.reads.Load() != 0 || probe.reads.Load() != beforeReads || probe.writes.Load() != beforeWrites {
+			t.Fatal("denied Admin upload read its body or storage", response.Code, body.reads.Load())
+		}
+		index, _ := send(http.MethodGet, "/admin/", nil)
+		response, reads := send(http.MethodPost, "/admin/assets/add/", url.Values{"code": {"old-admin"}, "csrfmiddlewaretoken": {csrf(t, index)}})
+		if response.Code != http.StatusForbidden || reads == 0 || probe.reads.Load() != beforeReads || probe.writes.Load() != beforeWrites {
+			t.Fatal("denied HTML form changed its CSRF/body or object boundary", response.Code, reads)
 		}
 	} else if oldPage.Code != http.StatusOK {
 		t.Fatal("baseline Admin permission did not admit old actor", oldPage.Code)
@@ -183,9 +197,9 @@ func verifyAdmin(t *testing.T, backend resourceBackend) {
 		t.Fatal("rendered Form differs from explicit model fields", page.Code, page.Body.String())
 	}
 	beforeReads, beforeWrites = probe.reads.Load(), probe.writes.Load()
-	// Cross-origin rejection does not need a form token or a body read. Use the
-	// real middleware's Origin check, independently of form-token verification.
-	requestBody := &bodyProbe{Reader: strings.NewReader("code=csrf-denied")}
+	// The HTML transport parses its body token before VerifyCSRF. A valid token
+	// still cannot authorize a foreign Origin, and no object I/O is permitted.
+	requestBody := &bodyProbe{Reader: strings.NewReader(url.Values{"code": {"csrf-denied"}, "csrfmiddlewaretoken": {csrf(t, page)}}.Encode())}
 	request := httptest.NewRequest(http.MethodPost, "http://inventory.test/admin/assets/add/", requestBody)
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Set("Origin", "https://foreign.test")
@@ -196,8 +210,8 @@ func verifyAdmin(t *testing.T, backend resourceBackend) {
 	}
 	rejected := httptest.NewRecorder()
 	application.ServeHTTP(rejected, request)
-	if rejected.Code != http.StatusForbidden || requestBody.reads.Load() != 0 || probe.reads.Load() != beforeReads || probe.writes.Load() != beforeWrites {
-		t.Fatal("CSRF denial read body or object storage", rejected.Code, requestBody.reads.Load())
+	if rejected.Code != http.StatusForbidden || requestBody.reads.Load() == 0 || probe.reads.Load() != beforeReads || probe.writes.Load() != beforeWrites {
+		t.Fatal("HTML CSRF denial changed its body-token or object boundary", rejected.Code, requestBody.reads.Load())
 	}
 	values := url.Values{"code": {"admin-asset"}, "enabled": {"on"}, "note": {"from HTML"}, "csrfmiddlewaretoken": {csrf(t, page)}}
 	if evolved {
@@ -213,7 +227,7 @@ func verifyAdmin(t *testing.T, backend resourceBackend) {
 	if created.Code != http.StatusFound {
 		t.Fatal("Admin create failed", created.Code, created.Body.String())
 	}
-	asset, found, err := a.resource.Query(backend).Filter(inventory.AssetFields.Code.Exact("admin-asset")).First(t.Context())
+	asset, found, err := a.resource.Query(backend).Filter(inventory.AssetFields.Code.Exact("admin-asset")).OrderBy(inventory.AssetFields.ID.Asc()).First(t.Context())
 	check(t, err)
 	if !found || asset.Stamp != "server" || asset.Note == nil || *asset.Note != "from HTML" {
 		t.Fatal("Admin did not use common model preparation", asset)

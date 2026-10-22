@@ -3,6 +3,33 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0135 — 첫 원격 실패와 오류 응답 경계 수정
+
+제출 source `d03984dacfdac5fa300a87ba6e660b9b490adbea`의
+[CI 39720681823](https://github.com/progresshans/godj/actions/runs/39720681823), attempt 1에서 Portable integration의
+normal `119633221355`·CGO 비활성 `119633221030`이 같은 실패를 보고했다. 두 원본은 검증 보관 디렉터리의
+`gdj0135-d03984da-ci-39720681823/portable-*-integration-*.log`에 보존했다. 전체 CI 성공 근거가 아니다.
+
+- Helpdesk transaction 래퍼가 삭제 보호·inline 거부 등 직접 오류를 감싸면서 기존 client 응답이 500으로 바뀌었다.
+  확정 rollback의 직접 오류를 그대로 전달하고, 취소·불확실한 outcome의 joined/wrapped 오류는 그대로 유지하도록 수정했다.
+  API가 오류 원인 트리를 탐색해 client 오류로 승격하지 않는다.
+- Article의 새 `fresh_omitted` 검증용 조회가 `First`의 명시적 정렬 계약을 누락했다. 검증 fixture에 PK 정렬을 추가했고,
+  외부 생성 소비자의 동일한 조회도 함께 수정했다. 제품의 생략 값 보존 의미는 바꾸지 않는다.
+- 별도 외부 Admin fixture는 기존 HTML 본문-token CSRF 순서와 API·multipart의 선행 admission을 구분한다.
+  Multipart 거부의 body/객체 I/O 0, HTML CSRF/권한 거부의 객체/관계 I/O·mutation 0을 각각 검사한다.
+
+위 원격 실패를 로컬에서 좁혀 재현한 후, 후속 수정 작업트리에서 아래 실행이 통과했다.
+Article의 PUT/PATCH 두 `fresh_omitted`, Helpdesk service report·ticket label 삭제 보호와 `admin_inlines/late_cohort`,
+독립 생성 OpenAPI client의 기존 전체 contract root다. 로컬 전체 패키지·DB/mode matrix는 다시 실행하지 않았다.
+
+```sh
+go test ./examples/article -run '^TestArticleAPIBearerSQLiteUserFlow$/^typed_update$/^(PUT|PATCH)$/^fresh_omitted$' -count=1 -v
+go test ./examples/helpdesk -run '^TestPublicHelpdeskConsumerWithExistingDatabasePermissionsAndSelectedAdminFields$/^(service_reports|ticket_labels|admin_inlines)$/^late_cohort$' -count=1 -v
+go test ./api/openapi/consumertest -run '^TestGeneratedOpenAPIClientContract$' -count=1 -v
+```
+
+수정 source의 native PostgreSQL·race·CGO 비활성·외부 생성 소비자·browser·전체 CI 결과는 아직 미완료다.
+
 ## GDJ-0135 — 공통 모델 입력·CRUD와 소비자 구현
 
 2026-10-22, `8d61f245`에서 이어지는 `codex/model-centered-form-admin-api`의 A1 변경을 구현 중이다.
