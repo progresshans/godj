@@ -11,6 +11,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -50,9 +51,9 @@ func editableRelationConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket
 	config.Delete = func(context.Context, auth.Principal, Mutation) (selectionTicket, error) {
 		return selectionTicket{1, "Printer", 7}, nil
 	}
-	config.RelatedChoices = []RelatedChoices{{Field: "category", Permission: "helpdesk.view_category", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+	config.RelatedChoices = []RelatedChoices{testRelationChoices(t, config.Model, config.AppLabel, "category", "helpdesk.view_category", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		return []forms.Choice{{Value: forms.Integer(7), Label: "Visible"}}, nil
-	}}}
+	})}
 	return builder, config
 }
 
@@ -65,18 +66,26 @@ func TestRelatedChoicesRegistrationRequiresExactExplicitSourcesWithoutIO(t *test
 		{"duplicate", func(c *ModelConfig[selectionTicket]) {
 			c.RelatedChoices = append(c.RelatedChoices, c.RelatedChoices[0])
 		}},
-		{"scalar", func(c *ModelConfig[selectionTicket]) { c.RelatedChoices[0].Field = "subject" }},
-		{"unknown", func(c *ModelConfig[selectionTicket]) { c.RelatedChoices[0].Field = "unknown" }},
-		{"missing callback", func(c *ModelConfig[selectionTicket]) { c.RelatedChoices[0].Load = nil }},
-		{"missing permission", func(c *ModelConfig[selectionTicket]) { c.RelatedChoices[0].Permission = "" }},
+		{"scalar", func(c *ModelConfig[selectionTicket]) {
+			c.RelatedChoices[0] = testChoicesWithField(c.RelatedChoices[0], "subject")
+		}},
+		{"unknown", func(c *ModelConfig[selectionTicket]) {
+			c.RelatedChoices[0] = testChoicesWithField(c.RelatedChoices[0], "unknown")
+		}},
+		{"missing callback", func(c *ModelConfig[selectionTicket]) {
+			c.RelatedChoices[0] = testChoicesWithoutScope(t, c.RelatedChoices[0])
+		}},
+		{"missing permission", func(c *ModelConfig[selectionTicket]) {
+			c.RelatedChoices[0] = testChoicesWithPermission(c.RelatedChoices[0], "")
+		}},
 		{"read only", func(c *ModelConfig[selectionTicket]) { c.ReadOnly = true }},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			builder, config := editableRelationConfig(t)
-			config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) {
+			config.RelatedChoices[0] = testChoicesWithRead(config.RelatedChoices[0], func(context.Context, auth.Principal) ([]forms.Choice, error) {
 				t.Fatal("registration queried choices")
 				return nil, nil
-			}
+			})
 			test.change(&config)
 			if err := RegisterModel(builder, config); err == nil {
 				t.Fatal("invalid choice source accepted")
@@ -84,10 +93,10 @@ func TestRelatedChoicesRegistrationRequiresExactExplicitSourcesWithoutIO(t *test
 		})
 	}
 	builder, config := editableRelationConfig(t)
-	config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) {
+	config.RelatedChoices[0] = testChoicesWithRead(config.RelatedChoices[0], func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		t.Fatal("registration queried choices")
 		return nil, nil
-	}
+	})
 	if err := RegisterModel(builder, config); err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +110,7 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	choices := []forms.Choice{{Value: forms.Integer(7), Label: "Visible"}}
 	var loads, mutations int
 	var failure error
-	config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) { loads++; return choices, failure }
+	config.RelatedChoices[0] = testChoicesWithRead(config.RelatedChoices[0], func(context.Context, auth.Principal) ([]forms.Choice, error) { loads++; return choices, failure })
 	create, update := config.Create, config.Update
 	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
 
@@ -122,7 +131,7 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	}
 	model := registry.models[0]
 	principal := mustPrincipalWithPermissions(t, config.Permissions.Add, config.Permissions.Change, "helpdesk.view_category")
-	spec, err := model.formFor(context.Background(), principal)
+	spec, err := model.resolveForm(context.Background(), principal, model.origin(ChoiceChange, 1), forms.NewData(map[string][]string{"category": {"7"}}), nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,13 +191,17 @@ func TestRelatedChoiceSnapshotsAuthorizeAllSourcesAndIsolateConcurrentScopes(t *
 		key := ctx.Value(scopeKey{}).(int64)
 		return []forms.Choice{{Value: forms.Integer(key), Label: fmt.Sprint(key)}}, nil
 	}
-	sources := []RelatedChoices{{Field: "second", Permission: "rows.second", Load: load}, {Field: "first", Permission: "rows.first", Load: load}}
-	resolve, _, err := prepareRelatedChoices(spec, sources)
+	sources := []RelatedChoices{testTargetChoices(t, "second", "rows.second", load), testTargetChoices(t, "first", "rows.first", load)}
+	resolve, _, err := prepareRelatedChoices(ir.Model{}, ir.ModelIdentity{}, spec, sources, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.WithValue(context.Background(), scopeKey{}, int64(7))
-	if _, err := resolve(ctx, mustPrincipalWithPermissions(t, "rows.first")); err == nil || calls.Load() != 0 {
+	origin := ChoiceOrigin{operation: ChoiceCollection, valid: true}
+	keys := func(key int64) choiceKeys {
+		return func(string) ([]int64, bool, error) { return []int64{key}, true, nil }
+	}
+	if _, err := resolve(ctx, mustPrincipalWithPermissions(t, "rows.first"), origin, keys(7)); err == nil || calls.Load() != 0 {
 		t.Fatal("partly authorized source queried", err)
 	}
 	principal := mustPrincipalWithPermissions(t, "rows.first", "rows.second")
@@ -198,7 +211,7 @@ func TestRelatedChoiceSnapshotsAuthorizeAllSourcesAndIsolateConcurrentScopes(t *
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			value, err := resolve(context.WithValue(context.Background(), scopeKey{}, key), principal)
+			value, err := resolve(context.WithValue(context.Background(), scopeKey{}, key), principal, origin, keys(key))
 			if err != nil {
 				failures <- err
 				return
@@ -223,23 +236,28 @@ func TestRelatedChoiceSnapshotsAuthorizeAllSourcesAndIsolateConcurrentScopes(t *
 		}
 	}
 	canceled, cancel := context.WithCancel(ctx)
-	sources[1].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) {
+	sources[1] = testChoicesWithRead(sources[1], func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		cancel()
 		return []forms.Choice{{Value: forms.Integer(7), Label: "Visible"}}, nil
-	}
-	resolve, _, err = prepareRelatedChoices(spec, sources)
+	})
+	resolve, _, err = prepareRelatedChoices(ir.Model{}, ir.ModelIdentity{}, spec, sources, true)
 	if err != nil {
 		t.Fatal(err)
 	}
 	before := calls.Load()
-	if result, err := resolve(canceled, principal); !errors.Is(err, context.Canceled) || len(result.Fields()) != 0 || calls.Load() != before {
+	if result, err := resolve(canceled, principal, origin, keys(7)); !errors.Is(err, context.Canceled) || len(result.Fields()) != 0 || calls.Load() != before {
 		t.Fatal("canceled partial snapshot published or next source queried", err)
 	}
-	sources[1].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) {
+	sources[1] = testChoicesWithRead(sources[1], func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		return []forms.Choice{{Value: forms.String("7"), Label: "bad"}}, nil
-	}
-	resolve, _, _ = prepareRelatedChoices(spec, sources)
-	if result, err := resolve(ctx, principal); errorCode(err) != "invalid_result" || len(result.Fields()) != 0 {
-		t.Fatal("invalid provider result accepted", err)
+	})
+	resolve, _, _ = prepareRelatedChoices(ir.Model{}, ir.ModelIdentity{}, spec, sources, true)
+	if result, err := resolve(ctx, principal, origin, keys(7)); err != nil {
+		var failure *formmodel.Error
+		if !errors.As(err, &failure) || failure.Code != "invalid_primary_key" || len(result.Fields()) != 0 {
+			t.Fatal("invalid provider result lost its failure or published a partial form", err)
+		}
+	} else {
+		t.Fatal("invalid provider result accepted")
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/validation"
@@ -178,7 +179,7 @@ func (site *Site) modelAddGet(model registeredModel) sessionauth.AuthenticatedHa
 		}
 		requestModel := model
 		var err error
-		requestModel.form, err = model.formFor(request.Context(), principal)
+		requestModel, err = site.resolveChoiceModel(request.Context(), principal, model, model.origin(ChoiceAdd, 0), forms.Data{}, nil, true, site.modelPath(model)+"add/")
 		if err != nil {
 			return operationResponse(err)
 		}
@@ -230,7 +231,7 @@ func (site *Site) modelAddPost(model registeredModel) web.Handler {
 				return siteForbidden()
 			}
 			requestModel := model
-			requestModel.form, err = model.formFor(request.Context(), principal)
+			requestModel, err = site.resolveChoiceModel(request.Context(), principal, model, model.origin(ChoiceAdd, 0), modelData(model, input), nil, false, site.modelPath(model)+"add/")
 			if err != nil {
 				return operationResponse(err)
 			}
@@ -328,7 +329,7 @@ func (site *Site) modelChangeGet(model registeredModel) sessionauth.Authenticate
 			return siteNotFound()
 		}
 		requestModel := model
-		requestModel.form, err = model.formFor(request.Context(), principal)
+		requestModel, err = site.resolveChoiceModel(request.Context(), principal, model, model.origin(ChoiceChange, id), forms.Data{}, record.candidateInitial, true, site.modelPath(model)+"change/")
 		if err != nil {
 			return operationResponse(err)
 		}
@@ -408,7 +409,7 @@ func (site *Site) modelChangePost(model registeredModel) web.Handler {
 				return operationResponse(err)
 			}
 			requestModel := model
-			requestModel.form, err = model.formFor(request.Context(), principal)
+			requestModel, err = site.resolveChoiceModel(request.Context(), principal, model, model.origin(ChoiceChange, id), modelData(model, input), record.candidateInitial, false, site.modelPath(model)+"change/")
 			if err != nil {
 				return operationResponse(err)
 			}

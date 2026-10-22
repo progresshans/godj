@@ -80,15 +80,25 @@ func (site *Site) collectionFormSetPost(model registeredModel, definition Collec
 }
 
 func (site *Site) renderCollectionFormSet(request *web.Request, model registeredModel, definition CollectionFormSet, bound collectionFormSetBound) (web.Response, error) {
+	viewsFor := func(index int) map[string]choiceFieldView {
+		views := make(map[string]choiceFieldView, len(bound.choiceViews[index]))
+		for name, view := range bound.choiceViews[index] {
+			if !view.Disabled {
+				view.URL = site.collectionFormSetPath(model, definition) + "choices/" + name + "/"
+			}
+			views[name] = view
+		}
+		return views
+	}
 	rows := make([]templates.Value, 0, bound.set.TotalForms())
 	for _, row := range bound.set.Forms() {
-		value, err := formSetRowContext(row, "", forms.Null(), false, 0, true)
+		value, err := formSetRowContext(row, "", forms.Null(), false, 0, true, viewsFor(row.Index()))
 		if err != nil {
 			return web.Response{}, err
 		}
 		rows = append(rows, value)
 	}
-	empty, err := formSetRowContext(bound.empty, "", forms.Null(), false, 0, true)
+	empty, err := formSetRowContext(bound.empty, "", forms.Null(), false, 0, true, viewsFor(-1))
 	if err != nil {
 		return web.Response{}, err
 	}

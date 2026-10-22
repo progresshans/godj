@@ -378,11 +378,14 @@ type registeredModel struct {
 	model                   ir.Model
 	form                    forms.Spec
 	postClean               formmodel.PostClean
-	formFor                 func(context.Context, auth.Principal) (forms.Spec, error)
+	formFor                 choiceFormFor
+	choiceSources           []RelatedChoices
+	choiceViews             map[string]choiceFieldView
 	choicePermissions       []auth.Permission
 	createForm              forms.Spec
 	createPostClean         formmodel.PostClean
-	createFormFor           func(context.Context, auth.Principal) (forms.Spec, error)
+	createFormFor           choiceFormFor
+	createChoiceSources     []RelatedChoices
 	createChoicePermissions []auth.Permission
 	addPermissions          []auth.Permission
 	revisionField           string
@@ -506,7 +509,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	formFields := form.Fields()
-	formFor, choicePermissions, err := prepareRelatedChoices(form, config.RelatedChoices)
+	formFor, choicePermissions, err := prepareRelatedChoices(model, ir.ModelIdentity{AppLabel: config.AppLabel, ModelName: model.Name}, form, config.RelatedChoices, false)
 	if err != nil {
 		return registeredModel{}, err
 	}
@@ -518,7 +521,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return registeredModel{}, &ConfigError{Path: "model.create_form", Code: "invalid", Cause: err}
 		}
-		createFormFor, createChoicePermissions, err = prepareRelatedChoices(createForm, config.CreateForm.RelatedChoices)
+		createFormFor, createChoicePermissions, err = prepareRelatedChoices(model, ir.ModelIdentity{AppLabel: config.AppLabel, ModelName: model.Name}, createForm, config.CreateForm.RelatedChoices, false)
 		if err != nil {
 			return registeredModel{}, err
 		}
@@ -693,7 +696,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	if err != nil {
 		return registeredModel{}, err
 	}
-	registered.collectionFormSets, err = prepareCollectionFormSets(config.CollectionFormSets, registered.model)
+	registered.collectionFormSets, err = prepareCollectionFormSets(config.CollectionFormSets, registered.model, ir.ModelIdentity{AppLabel: config.AppLabel, ModelName: model.Name})
 	if err != nil {
 		return registeredModel{}, err
 	}
@@ -808,6 +811,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		}
 		return registeredRecord{object: object, initial: valuesMap(resolved), candidateInitial: candidateInitial}, true, nil
 	}
+	registered.choiceSources = slices.Clone(config.RelatedChoices)
+	registered.createChoiceSources = slices.Clone(config.RelatedChoices)
+	if config.CreateForm != nil {
+		registered.createChoiceSources = slices.Clone(config.CreateForm.RelatedChoices)
+	}
 	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form, inlines InlineSubmission) (Object, error) {
 		if config.ReadOnly {
 			return Object{}, &ConfigError{Path: "create", Code: "read_only"}
@@ -821,7 +829,11 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, err
 		}
-		currentForm, err := createFormFor(ctx, principal)
+		keys, err := modelChoiceKeys(model, createForm, data, nil, false)
+		if err != nil {
+			return Object{}, err
+		}
+		currentForm, err := createFormFor(ctx, principal, registered.origin(ChoiceAdd, 0), keys)
 		if err != nil {
 			return Object{}, err
 		}
@@ -864,9 +876,10 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if err != nil {
 			return Object{}, nil, err
 		}
-		currentForm, err := formFor(ctx, principal)
-		if err != nil {
-			return Object{}, nil, err
+		for _, permission := range choicePermissions {
+			if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+				return Object{}, nil, err
+			}
 		}
 		current, found, err := registered.get(ctx, principal, id)
 		if err != nil {
@@ -876,6 +889,14 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 			return Object{}, nil, ErrObjectNotFound
 		}
 		if err := registered.checkObservedMutation(mutation, current.object); err != nil {
+			return Object{}, nil, err
+		}
+		keys, err := modelChoiceKeys(model, form, data, current.candidateInitial, false)
+		if err != nil {
+			return Object{}, nil, err
+		}
+		currentForm, err := formFor(ctx, principal, registered.origin(ChoiceChange, id), keys)
+		if err != nil {
 			return Object{}, nil, err
 		}
 		values, err := validateModelBoundData(ctx, model, data, currentForm, current.candidateInitial, postClean)
@@ -1466,8 +1487,8 @@ func validateObject(object Object, fieldByName map[string]ir.Field, many map[str
 				return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
 			}
 			for _, item := range items {
-				key, ok := item.AsInteger()
-				if !ok || key <= 0 {
+				_, ok := item.AsInteger()
+				if !ok {
 					return &ConfigError{Path: "snapshot." + member.Name(), Code: "type_or_constraint_mismatch"}
 				}
 			}
@@ -1607,8 +1628,10 @@ func validSnapshotValue(value templates.Value, field ir.Field, objectID int64) b
 		if value.IsNull() {
 			return field.Nullable
 		}
-		integer, ok := value.AsInteger()
-		return ok && integer > 0
+		// Target keys use the model's signed int64 storage range. The owning
+		// Admin object's positive route identity is checked independently.
+		_, ok := value.AsInteger()
+		return ok
 	default:
 		return false
 	}

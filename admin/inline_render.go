@@ -44,10 +44,10 @@ func inlineContext(submission InlineSubmission) (templates.Value, error) {
 }
 
 func inlineRowContext(entry inlineBound, row forms.SetForm, identityValue forms.Value, revisionValue int64) (templates.Value, error) {
-	return formSetRowContext(row, entry.definition.primary, identityValue, entry.definition.revision != "", revisionValue, entry.access.Add && (row.Index() < 0 || row.Index() >= entry.set.InitialForms()))
+	return formSetRowContext(row, entry.definition.primary, identityValue, entry.definition.revision != "", revisionValue, entry.access.Add && (row.Index() < 0 || row.Index() >= entry.set.InitialForms()), entry.choiceViews[row.Index()])
 }
 
-func formSetRowContext(row forms.SetForm, primary string, identityValue forms.Value, hasRevision bool, revisionValue int64, canRemove bool) (templates.Value, error) {
+func formSetRowContext(row forms.SetForm, primary string, identityValue forms.Value, hasRevision bool, revisionValue int64, canRemove bool, views ...map[string]choiceFieldView) (templates.Value, error) {
 	index, number := "__prefix__", "__prefix__"
 	if row.Index() >= 0 {
 		index = strconv.Itoa(row.Index())
@@ -71,7 +71,7 @@ func formSetRowContext(row forms.SetForm, primary string, identityValue forms.Va
 			submitted[field.Name()] = values
 		}
 	}
-	values, err := formFieldContext(fields, row.Form(), submitted, row.Prefix()+"-", false)
+	values, err := formFieldContext(fields, row.Form(), submitted, row.Prefix()+"-", false, views...)
 	if err != nil {
 		return templates.Value{}, err
 	}

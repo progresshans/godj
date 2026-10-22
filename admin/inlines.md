@@ -8,7 +8,8 @@
 실제 소비자다. 기존 객체 선택이나 부모 inline이 없는 생성 전용 표면이다.
 
 Site는 active staff, 모델 조회 권한, 선언한 실행 권한과 추가/choice 권한을 데이터 조회·입력 파싱 전에 확인한다.
-POST는 CSRF 검증 후 현재 선택지를 읽어 한 번 바인딩한다. `Run`은 검증된 `InstanceSet[M]`을 받아 `Prepare`로
+POST는 CSRF와 management admission 뒤 각 행의 제출 key를 현재 범위에서 해석해 한 번 바인딩한다.
+검색 페이지는 [관계 선택](choices.md)의 표시용 결과이며 검증 허용 목록으로 사용하지 않는다. `Run`은 검증된 `InstanceSet[M]`을 받아 `Prepare`로
 typed 후보를 얻으며 Form clean을 반복하지 않는다. Form에서 제외한 서버 소유 필드는 `Definition.PostClean`으로
 typed 준비 전에 설정한다. Callback은 저장 transaction에서 현재 scope·고유성·관계를 다시 확인하고 모든 저장과
 감사 기록을 수행한다. 범용 bulk 저장이나 audit callback을 Admin이 자동으로 추측하지 않는다.

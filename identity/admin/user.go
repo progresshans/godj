@@ -57,6 +57,14 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 	// the declared storage field so an existing longer API/CLI-created username
 	// can still be displayed and retained without a hidden form-initial failure.
 	username := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithStringNormalizer(forminput.UsernameNormalizer(usernameLimit)), formmodel.WithValidators(forminput.UsernameValidator(usernameLimit)))
+	groups, err := a.manager.UserGroupChoiceSource()
+	if err != nil {
+		return err
+	}
+	permissions, err := a.manager.UserPermissionChoiceSource()
+	if err != nil {
+		return err
+	}
 	return admin.RegisterModel(builder, admin.ModelConfig[userRow]{
 		AppLabel: "godj_identity", Slug: "users", Model: metadata,
 		FormFields: userFields, RevisionField: "revision",
@@ -80,16 +88,9 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			return operationError(a.manager.CheckUserChange(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
 		AdditionalAddPermissions: []auth.Permission{identity.ChangeUser}, AdditionalAuditFields: []string{"password"},
-		RelatedChoices: []admin.RelatedChoices{
-			{Field: "groups", Permission: identity.ChangeUser, Load: func(ctx context.Context, p auth.Principal) ([]forms.Choice, error) {
-				return formChoices(a.manager.UserGroupChoices(ctx, p))
-			}},
-			{Field: "permissions", Permission: identity.ChangeUser, Load: func(ctx context.Context, p auth.Principal) ([]forms.Choice, error) {
-				return formChoices(a.manager.UserPermissionChoices(ctx, p))
-			}},
-		},
-		ListFields:  []string{"id", "username", "email", "active", "staff"},
-		Permissions: admin.Permissions{View: identity.ViewUser, Add: identity.AddUser, Change: identity.ChangeUser, Delete: identity.DeleteUser},
+		RelatedChoices: []admin.RelatedChoices{groups, permissions},
+		ListFields:     []string{"id", "username", "email", "active", "staff"},
+		Permissions:    admin.Permissions{View: identity.ViewUser, Add: identity.AddUser, Change: identity.ChangeUser, Delete: identity.DeleteUser},
 		List: func(ctx context.Context, p auth.Principal, r admin.ListRequest) (admin.Page[userRow], error) {
 			page, err := a.manager.Users(ctx, p, r.Offset, r.Limit)
 			if err != nil {

@@ -58,19 +58,27 @@ row의 모든 stored scalar를 제공해야 하며 PK와 구성된 revision은 r
 장기 의미는 [ADR-0080](../../docs/adr/0080-model-blank-policy-and-form-post-clean.md), 실행 범위는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
 
-## 관계 선택의 검색과 선택 key 해석
+## 모델 선택의 검색과 선택 key 해석
 
+`ModelChoices[M]`는 target-only 선택과 canonical 관계 선택에 공통으로 쓰는 immutable 선언이다.
+`NewModelChoices(project, targetIdentity, targetManager, config)`는 관계 없는 command 등의 target을 명시하고,
 `NewRelationChoices(project, sourceIdentity, field, targetManager, config)`는 canonical 프로젝트의
-FK·OneToOne·M2M target과 전체 target metadata를 확인한다. 재사용 선언에는 순수한 `Label`, 검색어를 typed
+FK·OneToOne·M2M target과 전체 target metadata를 확인한다. 두 생성자는 같은 검색·선택 해석 서비스를 반환한다.
+재사용 `ModelChoiceConfig[M]`에는 순수한 `Label`, 검색어를 typed
 predicate로 바꾸는 `Search`, `Order`를 두며 PK 정렬을 tie-breaker로 유지한다. 현재 IR의 AutoField PK를
 사용하며, target descriptor는 `orm.PrimaryKeyDescriptor` 읽기 capability만 필요하고 writer는 필요 없다.
 `Manager.PrimaryKeyField()`로 등록 시 capability와 key metadata를 검사하며 zero 모델의 callback을 호출하지 않는다.
+
+`ModelChoiceMetadata.Kind`는 `ModelChoiceTarget` 또는 `ModelChoiceRelation`이다. target-only 선언의
+Source·SourceModel·Field는 비어 있고 입력의 단일/복수 여부는 소비 Form field가 소유한다. relation 선언에서만
+Source·Field·Multiple이 canonical 관계를 뜻한다. 등록 adapter는 kind와 전체 모델 metadata를 확인해야 하며,
+비어 있는 kind를 target 선언으로 간주하거나 command 입력에 가짜 source 관계를 만들어서는 안 된다.
 
 ```go
 choices, err := formmodel.NewRelationChoices(
     project, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"},
     "labels", models.LabelObjects,
-    formmodel.RelationChoiceConfig[models.Label]{
+    formmodel.ModelChoiceConfig[models.Label]{
         Label: func(row models.Label) (string, error) { return row.Name, nil },
         Search: func(term string) ([]orm.Predicate[models.Label], error) {
             if term == "" { return nil, nil }
@@ -96,7 +104,7 @@ key·잘못된 label·한도 초과·cursor 실패·취소는 부분 결과를 �
 포함하지 않아 원래 raw 입력을 그대로 바인딩하면 `invalid_choice`가 된다. 단일/복수 field의 기존 변환·중복 입력
 의미는 바꾸지 않으며 PK 0·음수·큰 int64도 유지한다. 브라우저에서는 key를 문자열로 다룬다.
 
-`ChoicePage`와 `ChoiceSelection`은 `Metadata()`로 source 관계를 보존하고 모든 slice/model accessor를 복사한다.
+`ChoicePage`와 `ChoiceSelection`은 `Metadata()`로 binding kind·target·선언된 source 관계를 보존하고 모든 slice/model accessor를 복사한다.
 `ChoiceSelection.Keys()`는 첫 요청 순서의 distinct key이며 `Items()`는 target 정렬 순서다. `Initialized()`는
 zero와 정상적인 빈 결과를 구분한다. 페이지 밖 현재 선택은 별도로 Resolve하여 표시하고, 승인되지 않은 key의
 과거 label을 오류 화면에 재사용하지 않는다. 검색 결과를 제출 membership으로 사용하지 않는다.
@@ -105,6 +113,19 @@ Backend·actor·QuerySet·결과 cache는 선언에 보관하지 않으며 Searc
 동기적으로 끝난다. 일반 Form·FormSet·inline의 순수 Bind에는 I/O를 추가하지 않는다. 현재 저장 권한·scope를 확인하고
 최종 transaction에서 다시 Resolve하는 책임은 caller에게 있다. 행별 권한이 다르면 row별 결과를 준비해야 하며,
 여러 행의 선택을 한 membership 목록으로 합쳐 다른 행에 권한을 전달해서는 안 된다.
+
+단일 ModelForm은 `PrepareChoiceInput(model, spec, data, initial)`로 model metadata·선택 field·raw 입력·서버 initial을
+한 번 준비한다. `ChoiceKeys(fieldName)`는 현재 바인딩이 필요로 하는 제출 key를 순수하게 읽는다. optional scalar ModelChoice를
+생략했고 지원되는 IR default가 있으면 현재 모델 값 또는 새 모델의 IR default를 요청한다. 현재 canonical FK는 default를
+지원하지 않으며, optional FK 누락은 빈 lookup이다. required 누락·명시적인 빈 입력·M2M 누락은
+기존 값을 덧붙이지 않는다. 잘못된 문법은 `(nil, false, nil)`로 알려 lookup을 생략하고 원래 Bind의 진단을 유지한다.
+이 준비와 key 접근은 field·cross-field·model validator를 실행하지 않으며 raw 입력을 변경하지 않는다.
+
+GET 또는 readonly 표시에는 `InitialChoiceKeys(fieldName)`를 쓴다. 명시적인 서버 initial(NULL 포함)이 우선이고, 없으면
+Form field의 표시 default를 사용하므로 `Spec.Unbound`와 같은 값을 표시한다. IntegerField를 ModelChoice로 명시적으로
+override하고 표시 default가 99, IR default가 2라면 새 GET은 99를 표시하지만 생략된 optional POST는 저장 후보인 2를 Resolve한다. 기존 readonly 행은
+현재 서버 initial만 사용하며 공격자가 제출한 key로 조회 범위를 넓히지 않는다. 각 accessor의 반환 slice는 복사본이다.
+모델 없는 command Form은 `Field.ModelChoiceKeys(data)`와 표시용 `Field.Default()`를 직접 사용한다.
 
 ## 여러 모델 행의 준비
 

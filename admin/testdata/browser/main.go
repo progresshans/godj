@@ -45,6 +45,9 @@ func main() {
 }
 func run() (runErr error) {
 	mode := os.Getenv("GODJ_ADMIN_BROWSER_MODE")
+	if mode == "choices" {
+		return runChoiceFixture()
+	}
 	if mode != "" && mode != "inline" && mode != "uploads" {
 		return errors.New("invalid Admin browser fixture mode")
 	}

@@ -19,18 +19,17 @@ type groupRow struct {
 
 func (a *registration) registerGroup(builder *admin.Builder) error {
 	fields := []string{"name", "permissions"}
-	choices := func(action admin.Action) []admin.RelatedChoices {
-		permission := identity.ChangeGroup
-		if action == admin.ActionAdd {
-			permission = identity.AddGroup
-		}
-		return []admin.RelatedChoices{{Field: "permissions", Permission: permission, Load: func(ctx context.Context, p auth.Principal) ([]forms.Choice, error) {
-			return formChoices(a.manager.GroupPermissionChoices(ctx, p, action))
-		}}}
+	changeChoices, err := a.manager.GroupPermissionChoiceSource(admin.ActionChange)
+	if err != nil {
+		return err
+	}
+	addChoices, err := a.manager.GroupPermissionChoiceSource(admin.ActionAdd)
+	if err != nil {
+		return err
 	}
 	return admin.RegisterModel(builder, admin.ModelConfig[groupRow]{
 		AppLabel: "godj_identity", Slug: "groups", Model: models.GroupDescriptor{}.Metadata(), FormFields: fields, RevisionField: "revision",
-		RelatedChoices: choices(admin.ActionChange), CreateForm: &admin.FormConfig{Definition: formmodel.Definition{Fields: fields}, RelatedChoices: choices(admin.ActionAdd)},
+		RelatedChoices: []admin.RelatedChoices{changeChoices}, CreateForm: &admin.FormConfig{Definition: formmodel.Definition{Fields: fields}, RelatedChoices: []admin.RelatedChoices{addChoices}},
 		ListFields: []string{"id", "name"}, Permissions: admin.Permissions{View: identity.ViewGroup, Add: identity.AddGroup, Change: identity.ChangeGroup, Delete: identity.DeleteGroup},
 		List: func(ctx context.Context, p auth.Principal, r admin.ListRequest) (admin.Page[groupRow], error) {
 			page, err := a.manager.Groups(ctx, p, r.Offset, r.Limit)
@@ -241,15 +240,4 @@ func integerValues(ids []int64) templates.Value {
 		values[i] = templates.Integer(id)
 	}
 	return templates.List(values...)
-}
-
-func formChoices(choices []identity.ManagementChoice, err error) ([]forms.Choice, error) {
-	if err != nil {
-		return nil, operationError(err)
-	}
-	result := make([]forms.Choice, len(choices))
-	for i, choice := range choices {
-		result[i] = forms.Choice{Value: forms.Integer(choice.ID), Label: choice.Label}
-	}
-	return result, nil
 }

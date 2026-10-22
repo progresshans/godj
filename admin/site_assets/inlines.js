@@ -27,7 +27,7 @@
             const before = row.dataset.inlineRowPrefix;
             const after = prefix + "-" + index;
             for (const element of [row, ...row.querySelectorAll("*")]) {
-                for (const attribute of ["name", "id", "for", "data-field-name", "data-error-field", "data-inline-error"]) {
+                for (const attribute of ["name", "id", "for", "aria-controls", "aria-describedby", "data-field-name", "data-error-field", "data-inline-error"]) {
                     const value = element.getAttribute(attribute);
                     if (value === before || value?.startsWith(before + "-")) {
                         element.setAttribute(attribute, after + value.slice(before.length));

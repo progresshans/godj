@@ -155,13 +155,13 @@ func (a *Application) saveServiceReportInSession(ctx context.Context, session db
 	return savedServiceReport{report: value, created: created, changed: changed, response: response}, nil
 }
 
-func (a *Application) reportSaveCommands(form forms.Spec) []admin.CollectionCommandConfig {
+func (a *Application) reportSaveCommands(form forms.Spec, ticketChoices admin.RelatedChoices) []admin.CollectionCommandConfig {
 	if a.adminAudit == nil {
 		return nil
 	}
 	return []admin.CollectionCommandConfig{{Name: "save", Label: "Save report for a ticket", Permission: ChangeServiceReport,
 		AdditionalPermissions: []auth.Permission{AddServiceReport, ViewServiceReport}, Form: form,
-		RelatedChoices: []admin.RelatedChoices{{Field: "ticket", Permission: ViewTicket, Load: a.reportTicketChoices}},
+		RelatedChoices: []admin.RelatedChoices{ticketChoices},
 		Run: func(ctx context.Context, actor auth.Principal, values forms.Values) (admin.CollectionCommandResult, error) {
 			ticket, ok := values.Integer("ticket")
 			if !ok {

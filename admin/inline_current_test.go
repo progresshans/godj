@@ -290,9 +290,9 @@ func TestModelInlineCurrentRelationChoicesUseWriterScope(t *testing.T) {
 	inline, err := NewInline(InlineConfig[models.Category, models.Ticket]{
 		Project: report.Project, Parent: models.CategoryObjects, Child: models.TicketObjects, ParentWithID: models.NewCategoryWithID,
 		ForeignKey: "category", Label: "Tickets", Set: report.Set, Permissions: permissions,
-		Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"subject", "labels"}}, RelatedChoices: []RelatedChoices{{Field: "labels", Permission: "helpdesk.view_label", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+		Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"subject", "labels"}}, RelatedChoices: []RelatedChoices{testRelationChoices(t, (models.TicketDescriptor{}).Metadata(), "helpdesk", "labels", "helpdesk.view_label", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 			return []forms.Choice{{Value: forms.Integer(1), Label: "Initial label"}}, nil
-		}}}},
+		})}},
 		Load: func(context.Context, auth.Principal, int64) (InlineSnapshot[models.Ticket], error) {
 			return childSnapshot, nil
 		},
@@ -337,9 +337,9 @@ func TestModelInlineCurrentChoicesRemainPerRowAfterReordering(t *testing.T) {
 	inline, err := NewInline(InlineConfig[models.Category, models.Ticket]{
 		Project: report.Project, Parent: models.CategoryObjects, Child: models.TicketObjects, ParentWithID: models.NewCategoryWithID,
 		ForeignKey: "category", Label: "Tickets", Set: config, Permissions: permissions,
-		Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"subject", "labels"}}, RelatedChoices: []RelatedChoices{{Field: "labels", Permission: "helpdesk.view_label", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+		Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"subject", "labels"}}, RelatedChoices: []RelatedChoices{testRelationChoices(t, (models.TicketDescriptor{}).Metadata(), "helpdesk", "labels", "helpdesk.view_label", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 			return []forms.Choice{{Value: forms.Integer(1), Label: "One"}, {Value: forms.Integer(2), Label: "Two"}}, nil
-		}}}},
+		})}},
 		Load: func(context.Context, auth.Principal, int64) (InlineSnapshot[models.Ticket], error) {
 			return children, nil
 		},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/progresshans/godj/apps"
@@ -114,20 +115,9 @@ func (site *Site) loadInlines(request *web.Request, actor auth.Principal, model 
 	}
 	result := InlineSubmission{owner: model.inlineOwner, parentID: parentID}
 	for _, inline := range model.inlines {
-		access := InlineAccess{}
-		for _, right := range []struct {
-			target     *bool
-			permission auth.Permission
-		}{{&access.View, inline.permissions.View}, {&access.Add, inline.permissions.Add}, {&access.Change, inline.permissions.Change}, {&access.Delete, inline.permissions.Delete}} {
-			allowed, err := site.permissionGranted(request, actor, right.permission)
-			if err != nil {
-				return InlineSubmission{}, err
-			}
-			*right.target = allowed
-		}
-		access.View = access.read()
-		if !editable {
-			access.Add, access.Change, access.Delete = false, false, false
+		access, err := site.inlineAccess(request, actor, inline, editable)
+		if err != nil {
+			return InlineSubmission{}, err
 		}
 		values := map[string][]string{}
 		files := map[string][]uploads.File{}
@@ -169,6 +159,23 @@ func (site *Site) loadInlines(request *web.Request, actor auth.Principal, model 
 		if err != nil {
 			return InlineSubmission{}, err
 		}
+
+		path := site.modelPath(model) + "add/inline/" + inline.prefix + "/"
+		if parentID != 0 {
+			path = site.modelPath(model) + "change/inline/" + inline.prefix + "/"
+		}
+		for index, views := range bound.choiceViews {
+			for name, view := range views {
+				if !view.Disabled {
+					view.URL = path + "choices/" + name + "/"
+					if parentID != 0 {
+						view.URL += "?id=" + strconv.FormatInt(parentID, 10)
+					}
+				}
+				views[name] = view
+			}
+			bound.choiceViews[index] = views
+		}
 		result.entries = append(result.entries, bound)
 	}
 	return result, nil
@@ -205,4 +212,30 @@ func inlineFormRejection(ctx context.Context, form forms.Form, submission Inline
 	}
 	form, err = formWithRejection(ctx, form, failure)
 	return form, submission, err
+}
+
+func (site *Site) inlineAccess(request *web.Request, actor auth.Principal, inline Inline, editable bool) (InlineAccess, error) {
+	access := InlineAccess{choiceAccess: &inlineChoiceAccess{allowed: make(map[string]bool)}}
+	for _, right := range []struct {
+		target     *bool
+		permission auth.Permission
+	}{{&access.View, inline.permissions.View}, {&access.Add, inline.permissions.Add}, {&access.Change, inline.permissions.Change}, {&access.Delete, inline.permissions.Delete}} {
+		allowed, err := site.permissionGranted(request, actor, right.permission)
+		if err != nil {
+			return InlineAccess{}, err
+		}
+		*right.target = allowed
+	}
+	access.View = access.read()
+	if !editable {
+		access.Add, access.Change, access.Delete = false, false, false
+	}
+	for _, source := range inline.choiceSources {
+		allowed, err := site.permissionGranted(request, actor, source.choicePermission())
+		if err != nil {
+			return InlineAccess{}, err
+		}
+		access.choiceAccess.allowed[source.choiceField()] = allowed
+	}
+	return access, nil
 }

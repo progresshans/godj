@@ -16,17 +16,17 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 	var createLoads, changeLoads, writes int
 	var createFailure error
 	available := true
-	config.RelatedChoices[0] = RelatedChoices{Field: "category", Permission: config.Permissions.Change, Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+	config.RelatedChoices[0] = testRelationChoices(t, config.Model, config.AppLabel, "category", config.Permissions.Change, func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		changeLoads++
 		return []forms.Choice{{Value: forms.Integer(9), Label: "Change selection"}}, nil
-	}}
-	config.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"category"}}, RelatedChoices: []RelatedChoices{{Field: "category", Permission: config.Permissions.Add, Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+	})
+	config.CreateForm = &FormConfig{Definition: formmodel.Definition{Fields: []string{"category"}}, RelatedChoices: []RelatedChoices{testRelationChoices(t, config.Model, config.AppLabel, "category", config.Permissions.Add, func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		createLoads++
 		if createFailure != nil || !available {
 			return nil, createFailure
 		}
 		return []forms.Choice{{Value: forms.Integer(7), Label: "Create selection"}}, nil
-	}}}}
+	})}}
 	create := config.Create
 	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
 
@@ -40,7 +40,10 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 	model := registry.models[0]
 	creator := mustPrincipalWithPermissions(t, config.Permissions.Add)
 	changer := mustPrincipalWithPermissions(t, config.Permissions.Change)
-	spec, err := model.forCreate().formFor(context.Background(), creator)
+	createModel := model.forCreate()
+	createInput := forms.NewData(map[string][]string{"category": {"7"}})
+	changeInput := forms.NewData(map[string][]string{"category": {"9"}})
+	spec, err := createModel.resolveForm(context.Background(), creator, createModel.origin(ChoiceAdd, 0), createInput, nil, false)
 	if err != nil || createLoads != 1 || changeLoads != 0 {
 		t.Fatal("create invoked the change loader")
 	}
@@ -51,10 +54,10 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 	if _, err := model.create(context.Background(), creator, bound, InlineSubmission{}); err != nil || writes != 1 || changeLoads != 0 {
 		t.Fatal("add-only action required unrelated view/change authority", err)
 	}
-	if _, err := model.formFor(context.Background(), creator); err == nil || changeLoads != 0 {
+	if _, err := model.resolveForm(context.Background(), creator, model.origin(ChoiceChange, 1), changeInput, nil, false); err == nil || changeLoads != 0 {
 		t.Fatal("creator queried change-only labels")
 	}
-	if _, err := model.formFor(context.Background(), changer); err != nil || changeLoads != 1 {
+	if _, err := model.resolveForm(context.Background(), changer, model.origin(ChoiceChange, 1), changeInput, nil, false); err != nil || changeLoads != 1 {
 		t.Fatal("change choice scope failed", err)
 	}
 	available = false
@@ -64,13 +67,13 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 		t.Fatal("stale create choice was not a confirmed rejection")
 	}
 	createFailure = NewOperationError(OperationDenied, nil)
-	if _, err := model.createFormFor(context.Background(), creator); err != createFailure {
+	if _, err := createModel.resolveForm(context.Background(), creator, createModel.origin(ChoiceAdd, 0), createInput, nil, false); err != createFailure {
 		t.Fatal("loader lost its definite outer classification")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	// Cancellation still takes precedence over a permission-shaped result.
 	cancel()
-	if _, err := model.createFormFor(ctx, creator); !errors.Is(err, context.Canceled) {
+	if _, err := createModel.resolveForm(ctx, creator, createModel.origin(ChoiceAdd, 0), createInput, nil, false); !errors.Is(err, context.Canceled) {
 		t.Fatal("loader lost cancellation")
 	}
 }

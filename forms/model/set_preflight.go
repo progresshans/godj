@@ -146,41 +146,20 @@ func (input SetPreflight[M]) ChoiceKeys(index int, fieldName string) ([]int64, b
 		return nil, false, err
 	}
 	if readonly {
-		value, present := input.initial[index][fieldName]
-		if !present {
-			value, _ = field.Default()
-		}
-		return modelChoiceValueKeys(field, value)
+		return modelChoiceInitialKeys(field, input.initial[index])
 	}
-	keys, valid, err := field.ModelChoiceKeys(data)
-	if err != nil || !valid || len(keys) != 0 || field.Required() || field.Kind() != forms.FieldInteger {
-		return keys, valid, err
-	}
+	var selected ir.Field
 	for _, metadata := range input.metadata.Fields {
-		if metadata.Name != fieldName || !retainsOmittedDefault(metadata, field, data, forms.Null()) {
-			continue
+		if metadata.Name == fieldName {
+			selected = metadata
+			break
 		}
-		value := input.defaults[fieldName]
-		if index < len(input.current) {
-			value = input.current[index].values[fieldName]
-		}
-		return modelChoiceValueKeys(field, value)
 	}
-	return keys, valid, nil
-}
-
-func modelChoiceValueKeys(field forms.Field, value forms.Value) ([]int64, bool, error) {
-	if value.IsNull() {
-		return nil, true, nil
+	retained := input.defaults[fieldName]
+	if index < len(input.current) {
+		retained = input.current[index].values[fieldName]
 	}
-	if field.Kind() == forms.FieldIntegerList {
-		if keys, valid := value.AsIntegers(); valid {
-			return keys, true, nil
-		}
-	} else if key, valid := value.AsInteger(); valid {
-		return []int64{key}, true, nil
-	}
-	return nil, false, &Error{Path: "set.choices." + field.Name(), Code: "invalid_initial_value"}
+	return modelChoiceInputKeys(field, selected, data, retained)
 }
 
 func (input SetPreflight[M]) ReadOnly(index int) (bool, error) {

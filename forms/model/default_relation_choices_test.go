@@ -16,17 +16,22 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-type defaultChoicePostDescriptor struct {
+type scalarChoicePostDescriptor struct {
 	blog.PostDescriptor
 	model ir.Model
 }
 
-func (descriptor defaultChoicePostDescriptor) Metadata() ir.Model { return descriptor.model.Clone() }
+func (descriptor scalarChoicePostDescriptor) Metadata() ir.Model { return descriptor.model.Clone() }
 
-func defaultChoicePostModel() ir.Model {
+// scalarChoicePostModel reuses the generated nullable integer storage while
+// explicitly replacing the reviewer FK with a valid scalar ModelChoice input.
+// Canonical ForeignKey fields do not support defaults.
+func scalarChoicePostModel() ir.Model {
 	model := (blog.PostDescriptor{}).Metadata()
 	for index := range model.Fields {
 		if model.Fields[index].Name == "reviewer" {
+			model.Fields[index].Kind = ir.FieldInteger
+			model.Fields[index].Relation = nil
 			model.Fields[index].Blank = true
 			model.Fields[index].Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: 2}
 		}
@@ -36,18 +41,19 @@ func defaultChoicePostModel() ir.Model {
 
 func reviewerSpec(t *testing.T, model ir.Model, required bool, choices ...forms.Choice) forms.Spec {
 	t.Helper()
-	spec, err := formmodel.NewSpecForFields(model, []string{"reviewer"}, formmodel.OverrideField("reviewer", formmodel.WithRequired(required)))
-	if err == nil {
-		spec, err = spec.WithModelChoices("reviewer", choices...)
+	field, err := forms.ModelChoiceField("reviewer", forms.WithRequired(required), forms.WithNullable(), forms.WithChoices(choices...))
+	if err != nil {
+		t.Fatal(err)
 	}
+	spec, err := forms.NewSpec([]forms.Field{field})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return spec
 }
 
-func TestOmittedDefaultModelChoiceRequiresCurrentMembership(t *testing.T) {
-	model := defaultChoicePostModel()
+func TestOmittedScalarModelChoiceDefaultRequiresCurrentMembership(t *testing.T) {
+	model := scalarChoicePostModel()
 	for _, snapshot := range []struct {
 		name  string
 		value forms.Value
@@ -76,7 +82,7 @@ func TestOmittedDefaultModelChoiceRequiresCurrentMembership(t *testing.T) {
 					}})
 					valid := authorized || retained.IsNull()
 					if err != nil || bound.Form().Valid() != valid || calls != 1 {
-						t.Fatal("retained relation bypassed selection or skipped model clean", err, calls)
+						t.Fatal("retained scalar choice bypassed selection or skipped model clean", err, calls)
 					}
 					if value, _ := bound.Candidate().Get("reviewer"); !value.Equal(retained) {
 						t.Fatal("retained candidate changed")
@@ -100,13 +106,13 @@ func TestOmittedDefaultModelChoiceRequiresCurrentMembership(t *testing.T) {
 	}
 }
 
-func TestDefaultModelChoiceKeepsExplicitEmptyRequiredExcludedAndPostCleanSemantics(t *testing.T) {
-	model := defaultChoicePostModel()
+func TestScalarModelChoiceDefaultKeepsExplicitEmptyRequiredExcludedAndPostCleanSemantics(t *testing.T) {
+	model := scalarChoicePostModel()
 	for _, raw := range [][]string{nil, {""}} {
 		bound, err := formmodel.Bind(t.Context(), model, reviewerSpec(t, model, false), forms.NewData(map[string][]string{"reviewer": raw}), map[string]forms.Value{"reviewer": forms.Integer(7)}, formmodel.PostClean{})
 		value, present := bound.Candidate().Get("reviewer")
 		if err != nil || !bound.Form().Valid() || !present || !value.IsNull() {
-			t.Fatal("present empty relation retained current/default", err)
+			t.Fatal("present empty scalar choice retained current/default", err)
 		}
 	}
 	required, err := formmodel.Bind(t.Context(), model, reviewerSpec(t, model, true), forms.NewData(nil), nil, formmodel.PostClean{})
@@ -129,12 +135,12 @@ func TestDefaultModelChoiceKeepsExplicitEmptyRequiredExcludedAndPostCleanSemanti
 	}
 	excluded, err := formmodel.Bind(t.Context(), model, excludedSpec, forms.NewData(map[string][]string{"title": {"New"}}), nil, formmodel.PostClean{})
 	if err != nil || !excluded.Form().Valid() {
-		t.Fatal("excluded default relation required choices", err)
+		t.Fatal("excluded scalar choice default required choices", err)
 	}
 	if input, err := excluded.Input(); err != nil {
 		t.Fatal(err)
 	} else if _, selected := input.Get("reviewer"); selected {
-		t.Fatal("excluded default relation became selected input")
+		t.Fatal("excluded scalar choice default became selected input")
 	}
 	for _, mode := range []string{"explicit_allowed", "retained_allowed", "retained_denied"} {
 		data := map[string][]string{}
@@ -158,9 +164,9 @@ func TestDefaultModelChoiceKeepsExplicitEmptyRequiredExcludedAndPostCleanSemanti
 	}
 }
 
-func defaultChoicePostSet(t *testing.T, readonly bool, clean forms.CrossValidator) (orm.Manager[blog.Post], forms.SetSpec) {
+func scalarChoicePostSet(t *testing.T, readonly bool, clean forms.CrossValidator) (orm.Manager[blog.Post], forms.SetSpec) {
 	t.Helper()
-	manager := orm.NewManager[blog.Post](defaultChoicePostDescriptor{model: defaultChoicePostModel()})
+	manager := orm.NewManager[blog.Post](scalarChoicePostDescriptor{model: scalarChoicePostModel()})
 	// A manual display default must not replace the Schema IR candidate default.
 	field, err := forms.ModelChoiceField("reviewer", forms.WithRequired(false), forms.WithNullable(), forms.WithDefault(forms.Integer(99)))
 	if err != nil {
@@ -188,7 +194,7 @@ func defaultChoicePostSet(t *testing.T, readonly bool, clean forms.CrossValidato
 	return manager, spec
 }
 
-func defaultChoicePostRows() ([]blog.Post, map[string][]string) {
+func scalarChoicePostRows() ([]blog.Post, map[string][]string) {
 	one, two, three := blog.NewPostWithID(10), blog.NewPostWithID(11), blog.NewPostWithID(12)
 	one.Title, two.Title, three.Title = "One", "Two", "Three"
 	one.AuthorID, two.AuthorID, three.AuthorID = 5, 5, 5
@@ -202,13 +208,13 @@ func defaultChoicePostRows() ([]blog.Post, map[string][]string) {
 	}
 }
 
-func TestPreflightChoiceKeysUseRetainedCurrentAndIRDefaults(t *testing.T) {
+func TestPreflightScalarChoiceKeysUseRetainedCurrentAndIRDefaults(t *testing.T) {
 	fieldCalls, modelCalls := 0, 0
-	manager, spec := defaultChoicePostSet(t, false, forms.CrossValidatorFunc(func(forms.Values) validation.Errors {
+	manager, spec := scalarChoicePostSet(t, false, forms.CrossValidatorFunc(func(forms.Values) validation.Errors {
 		fieldCalls++
 		return validation.Errors{}
 	}))
-	current, data := defaultChoicePostRows()
+	current, data := scalarChoicePostRows()
 	input, err := formmodel.PreflightSet(t.Context(), manager, spec, forms.NewData(data), current, formmodel.PostClean{Clean: func(forms.Values) (forms.Values, validation.Errors) {
 		modelCalls++
 		return forms.Values{}, validation.Errors{}
@@ -246,11 +252,11 @@ func TestPreflightChoiceKeysUseRetainedCurrentAndIRDefaults(t *testing.T) {
 	}
 }
 
-func TestPreflightChoiceKeysRespectPresenceRequiredReadonlyAndAdmission(t *testing.T) {
+func TestPreflightScalarChoiceKeysRespectPresenceRequiredReadonlyAndAdmission(t *testing.T) {
 	for _, mode := range []string{"explicit_empty", "present_empty_slice", "required", "malformed", "readonly", "foreign_pk"} {
 		t.Run(mode, func(t *testing.T) {
-			manager, spec := defaultChoicePostSet(t, mode == "readonly", nil)
-			current, data := defaultChoicePostRows()
+			manager, spec := scalarChoicePostSet(t, mode == "readonly", nil)
+			current, data := scalarChoicePostRows()
 			want, valid := []int64{0}, true
 			switch mode {
 			case "explicit_empty":
@@ -301,12 +307,12 @@ func TestPreflightChoiceKeysRespectPresenceRequiredReadonlyAndAdmission(t *testi
 	}
 }
 
-func TestInlinePreflightChoiceKeysPreserveServerParentOwnership(t *testing.T) {
-	manager, rows := defaultChoicePostSet(t, false, nil)
+func TestInlinePreflightScalarChoiceKeysPreserveServerParentOwnership(t *testing.T) {
+	manager, rows := scalarChoicePostSet(t, false, nil)
 	app := blog.GoDjRelationSchema()
 	for index := range app.Models {
 		if app.Models[index].Name == "post" {
-			app.Models[index] = defaultChoicePostModel()
+			app.Models[index] = scalarChoicePostModel()
 		}
 	}
 	project, err := orm.BindProject(authors.GoDjRelationSchema(), app)
@@ -317,13 +323,13 @@ func TestInlinePreflightChoiceKeysPreserveServerParentOwnership(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	current, data := defaultChoicePostRows()
+	current, data := scalarChoicePostRows()
 	input, err := spec.Preflight(t.Context(), forms.NewData(data), authors.NewAuthorWithID(5), current, formmodel.PostClean{})
 	if err != nil || !input.AdmissionValid() {
 		t.Fatal(err)
 	}
 	if keys, valid, err := input.ChoiceKeys(3, "reviewer"); err != nil || !valid || !slices.Equal(keys, []int64{2}) {
-		t.Fatal("inline lost pending child model default", keys, err)
+		t.Fatal("inline lost pending child scalar default", keys, err)
 	}
 	if _, _, err := input.ChoiceKeys(0, "author"); err == nil {
 		t.Fatal("server-owned parent became a selected relation")
@@ -365,5 +371,74 @@ func TestPreflightChoiceKeysUseReadonlyManyToManyInitial(t *testing.T) {
 				t.Fatal("lookup key accessor exposed initial collection storage", err)
 			}
 		}
+	}
+}
+
+func TestForeignKeyChoiceOmissionClearsWritableInputAndKeepsReadonlyCurrent(t *testing.T) {
+	model := (blog.PostDescriptor{}).Metadata()
+	for _, readonly := range []bool{false, true} {
+		row, err := formmodel.NewSpecForFields(model, []string{"title", "reviewer"}, formmodel.OverrideField("reviewer", formmodel.WithRequired(false)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		config := forms.DefaultSetConfig()
+		config.Prefix, config.ExtraForms, config.MaxForms, config.AbsoluteMax = "items", 0, 4, 5
+		config.ReadOnlyInitial = readonly
+		spec, err := forms.NewSetSpec(row, config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		current, data := scalarChoicePostRows()
+		if readonly {
+			data["items-0-reviewer"] = []string{"999"}
+		}
+		input, err := formmodel.PreflightSet(t.Context(), blog.PostObjects, spec, forms.NewData(data), current, formmodel.PostClean{})
+		if err != nil || !input.AdmissionValid() {
+			t.Fatal(err)
+		}
+		keys, valid, err := input.ChoiceKeys(0, "reviewer")
+		var want []int64
+		if readonly {
+			want = []int64{0}
+		}
+		if err != nil || !valid || !slices.Equal(keys, want) {
+			t.Fatal("FK omission retained a writable value or used hostile readonly input", keys, err)
+		}
+		if !readonly {
+			bound, err := input.Bind(t.Context(), forms.RowModelChoices{})
+			if err != nil || !bound.Valid() {
+				t.Fatal("omitted optional FK required current membership", err)
+			}
+			instance, _ := bound.Instance(0)
+			value, _ := instance.BoundForm().Candidate().Get("reviewer")
+			if !value.IsNull() {
+				t.Fatal("omitted optional FK preserved current key")
+			}
+		}
+	}
+}
+
+func TestForeignKeyChoiceDefaultsRemainNoncanonical(t *testing.T) {
+	model := (blog.PostDescriptor{}).Metadata()
+	for index := range model.Fields {
+		if model.Fields[index].Name == "reviewer" {
+			model.Fields[index].Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: 2}
+		}
+	}
+	app := blog.GoDjRelationSchema()
+	for index := range app.Models {
+		if app.Models[index].Name == model.Name {
+			app.Models[index] = model
+		}
+	}
+	if _, err := orm.BindProject(authors.GoDjRelationSchema(), app); err == nil {
+		t.Fatal("canonical project accepted an unsupported FK default")
+	}
+	spec := reviewerSpec(t, model, false)
+	if _, err := formmodel.PrepareChoiceInput(model, spec, forms.Data{}, nil); err == nil {
+		t.Fatal("lookup preparation accepted an unsupported FK default")
+	}
+	if _, err := formmodel.Bind(t.Context(), model, spec, forms.Data{}, nil, formmodel.PostClean{}); err == nil {
+		t.Fatal("model binding accepted an unsupported FK default")
 	}
 }

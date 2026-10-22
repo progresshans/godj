@@ -231,6 +231,10 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
+	labelChoices, err := a.labelChoiceSource("ticket", "labels")
+	if err != nil {
+		return err
+	}
 	if err := admin.RegisterModel(builder, admin.ModelConfig[ticketRecord]{
 		Inlines:            inlines,
 		CollectionFormSets: bulkForms,
@@ -243,7 +247,7 @@ func (a *Application) register(builder *admin.Builder) error {
 			}
 			return value.ExternalPayloadDigest.Base64(), nil
 		}}},
-		RelatedChoices: []admin.RelatedChoices{{Field: "labels", Permission: ViewLabel, Load: a.ticketLabelChoices}},
+		RelatedChoices: []admin.RelatedChoices{labelChoices},
 		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "external_payload_digest"}, SearchFields: []string{"subject", "external_payload"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[ticketRecord], error) {

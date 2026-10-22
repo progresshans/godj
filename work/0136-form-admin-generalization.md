@@ -87,11 +87,14 @@ Go 고유 source·수명·게시 결과는 독립 native 실패/경합 검사로
 검사를 작성했다. 별도 생성 Directory–Inventory의 baseline·필드/권한 변경 버전은 같은 typed 선언으로 현재 값,
 새 부모·삭제·read-only·scope 거부·cohort 변동·늦은 실패 rollback을 검사하도록 연결했다.
 기존 inline·업로드 probe는 원격 browser owner에 연결했고 native 저장/정리 증거를 추가했다.
-`RelationChoices`는 canonical FK/OneToOne/M2M의 bounded Search와 선택 key Resolve를 구분한다. 읽기 전용 target
+`ModelChoices`는 canonical FK/OneToOne/M2M 및 명시적 target-only 선택의 bounded Search와 선택 key Resolve를 구분한다. 읽기 전용 target
 key capability, 안정된 root PK 보조 정렬, 실제 DB scope/취소/수명·오류 검사를 추가했다. `SetPreflight`와
 `InlinePreflight`는 management·PK/cohort·parent를 먼저 검사하고, Admin writer는 행별 선택 snapshot으로 검증을
-이어간다. 기본/현재 FK를 입력 누락으로 보존하는 경우에도 선택 범위를 확인하며 기존 PostClean 순서는 유지한다.
+이어간다. 지원되는 정수 ModelChoice의 기본값/현재 값을 입력 누락으로 보존하는 경우에도 선택 범위를 확인하며 기존 PostClean 순서는 유지한다. canonical FK default는 현재 IR에서 지원하지 않는다.
 로컬의 최소 compile과 아직 실행하지 않은 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
-Admin의 실제 검색 route·선택 widget과 초기 view의 행별 Resolve, 일반 여러 행/모델 파일·widget 확장,
-외부 소비자의 추가 범용성과 새 기반의 원격 실행 검증은 미완료다.
+Admin의 일반 Form·command·inline·여러 건 생성에 선택 key Resolve와 별도의 검색 페이지를 연결했다.
+Helpdesk와 identity는 전체 target loader 대신 canonical 선언과 현재 범위를 사용한다. 검색 widget은 native select와
+문자열 ID를 유지한다. source 검토에서 기존 inline control initial의 혼입, 저장 직전 거절된 label의 재사용,
+readonly 취소 소거를 수정하고 회귀 검사를 추가했다. 새 실제 browser 흐름과 같은 source의 전체 실행 검증은 진행 중이다.
+일반 여러 행/모델 파일·widget 확장, 외부 소비자의 추가 범용성과 독립 Django Admin 검색 관측은 미완료다.
 이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.

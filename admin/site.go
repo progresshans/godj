@@ -60,16 +60,17 @@ type SiteConfig struct {
 
 // Site is an immutable concurrent-use Admin HTTP route collection.
 type Site struct {
-	namespace string
-	basePath  string
-	registry  Registry
-	auth      *sessionauth.Runtime
-	templates *templates.Engine
-	routes    []web.Route
-	pageSize  int
-	uploads   uploads.Config
-	access    auth.Permission
-	noticeKey [32]byte
+	namespace   string
+	basePath    string
+	registry    Registry
+	auth        *sessionauth.Runtime
+	templates   *templates.Engine
+	routes      []web.Route
+	choicePaths map[string]bool
+	pageSize    int
+	uploads     uploads.Config
+	access      auth.Permission
+	noticeKey   [32]byte
 }
 
 // NewSite validates and compiles the complete bounded Admin route and
@@ -199,6 +200,14 @@ func (site *Site) buildRoutes() error {
 	if site.hasInlines() {
 		routes = append(routes, web.Route{Name: name("inline-script"), Method: http.MethodGet, Path: site.inlineScriptPath(), Handler: site.inlineScript})
 	}
+	if site.hasChoiceSearch() {
+		routes = append(routes, web.Route{Name: name("choice-script"), Method: http.MethodGet, Path: site.choiceScriptPath(), Handler: site.choiceScript})
+	}
+	site.choicePaths = make(map[string]bool)
+	addChoiceRoute := func(name, path string, permission auth.Permission, handler sessionauth.AuthenticatedHandler) {
+		site.choicePaths[path] = true
+		routes = append(routes, web.Route{Name: name, Method: http.MethodGet, Path: path, Handler: site.adminRequire(permission, handler)})
+	}
 	for index := range site.registry.models {
 		model := site.registry.models[index]
 		prefix := site.basePath + "/" + model.slug
@@ -220,6 +229,19 @@ func (site *Site) buildRoutes() error {
 			web.Route{Name: modelName("delete-get"), Method: http.MethodGet, Path: prefix + "/delete/", Handler: site.adminRequire(model.permissions.Delete, site.modelDeleteGet(model))},
 			web.Route{Name: modelName("delete-post"), Method: http.MethodPost, Path: prefix + "/delete/", Handler: site.modelDeletePost(model)},
 		)
+
+		for _, source := range model.createChoiceSources {
+			addChoiceRoute(modelName("add-choice-"+source.choiceField()), prefix+"/add/choices/"+source.choiceField()+"/", model.permissions.Add, site.modelChoiceSearch(model.forCreate(), source, ChoiceAdd))
+		}
+		for _, source := range model.choiceSources {
+			addChoiceRoute(modelName("change-choice-"+source.choiceField()), prefix+"/change/choices/"+source.choiceField()+"/", model.permissions.Change, site.modelChoiceSearch(model, source, ChoiceChange))
+		}
+		for _, inline := range model.inlines {
+			for _, source := range inline.choiceSources {
+				addChoiceRoute(modelName("add-inline-"+inline.prefix+"-choice-"+source.choiceField()), prefix+"/add/inline/"+inline.prefix+"/choices/"+source.choiceField()+"/", model.permissions.Add, site.inlineChoiceSearch(model, inline, source, false))
+				addChoiceRoute(modelName("change-inline-"+inline.prefix+"-choice-"+source.choiceField()), prefix+"/change/inline/"+inline.prefix+"/choices/"+source.choiceField()+"/", model.permissions.Change, site.inlineChoiceSearch(model, inline, source, true))
+			}
+		}
 		for actionIndex := range model.actions {
 			action := model.actions[actionIndex]
 			routes = append(routes, web.Route{
@@ -238,6 +260,9 @@ func (site *Site) buildRoutes() error {
 		}
 		for _, command := range model.collectionCommands {
 			path := site.collectionCommandPath(model, command)
+			for _, source := range command.choiceSources {
+				addChoiceRoute(modelName("collection-"+command.name+"-choice-"+source.choiceField()), path+"choices/"+source.choiceField()+"/", command.permissions[0], site.commandChoiceSearch(model, command, source))
+			}
 			routes = append(routes,
 				web.Route{Name: modelName("collection-" + command.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(command.permissions[0], site.collectionCommandGet(model, command))},
 				web.Route{Name: modelName("collection-" + command.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.collectionCommandPost(model, command)},
@@ -245,6 +270,9 @@ func (site *Site) buildRoutes() error {
 		}
 		for _, definition := range model.collectionFormSets {
 			path := site.collectionFormSetPath(model, definition)
+			for _, source := range definition.choiceSources {
+				addChoiceRoute(modelName("collection-set-"+definition.name+"-choice-"+source.choiceField()), path+"choices/"+source.choiceField()+"/", definition.permissions[0], site.collectionSetChoiceSearch(model, definition, source))
+			}
 			routes = append(routes,
 				web.Route{Name: modelName("collection-set-" + definition.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(definition.permissions[0], site.collectionFormSetGet(model, definition))},
 				web.Route{Name: modelName("collection-set-" + definition.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.collectionFormSetPost(model, definition)},
@@ -317,7 +345,10 @@ func (site *Site) validateRoutesAndNextPaths() error {
 			return &ConfigError{Path: "site.routes.method_path", Code: "duplicate"}
 		}
 		byMethodPath[key] = struct{}{}
-		if route.Method == http.MethodGet && route.Path != site.basePath+"/login/" && route.Path != site.inlineScriptPath() && !site.auth.AllowsNext(route.Path) {
+		if site.choicePaths[route.Path] && site.auth.AllowsNext(route.Path) {
+			return &ConfigError{Path: "site.auth.allowed_next_paths", Code: "json_destination"}
+		}
+		if route.Method == http.MethodGet && route.Path != site.basePath+"/login/" && route.Path != site.inlineScriptPath() && route.Path != site.choiceScriptPath() && !site.choicePaths[route.Path] && !site.auth.AllowsNext(route.Path) {
 			return &ConfigError{Path: "site.auth.allowed_next_paths", Code: "missing", Cause: fmt.Errorf("path %q", route.Path)}
 		}
 	}

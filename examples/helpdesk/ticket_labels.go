@@ -51,14 +51,19 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		}
 		return ticket, label, nil
 	}
+	ticketChoices, err := a.ticketChoiceSource("ticket_label", "ticket")
+	if err != nil {
+		return err
+	}
+	labelChoices, err := a.labelChoiceSource("ticket_label", "label")
+	if err != nil {
+		return err
+	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.TicketLabel]{
 		AppLabel: "helpdesk", Slug: "ticket-labels", Model: metadata, FormFields: fields,
-		RelatedChoices: []admin.RelatedChoices{
-			{Field: "ticket", Permission: ViewTicket, Load: a.reportTicketChoices},
-			{Field: "label", Permission: ViewLabel, Load: a.ticketLabelChoices},
-		},
-		ListFields:  []string{"id", "ticket", "label"},
-		Permissions: admin.Permissions{View: ViewTicketLabel, Add: AddTicketLabel, Change: ChangeTicketLabel, Delete: DeleteTicketLabel},
+		RelatedChoices: []admin.RelatedChoices{ticketChoices, labelChoices},
+		ListFields:     []string{"id", "ticket", "label"},
+		Permissions:    admin.Permissions{View: ViewTicketLabel, Add: AddTicketLabel, Change: ChangeTicketLabel, Delete: DeleteTicketLabel},
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.TicketLabel], error) {
 			return a.listTicketLabels(ctx, request)
 		},
@@ -109,20 +114,6 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 			return a.deleteTicketLabel(ctx, id)
 		},
 	})
-}
-
-func (a *Application) ticketLabelChoices(ctx context.Context, _ auth.Principal) ([]forms.Choice, error) {
-	rows, err := models.LabelObjects.Using(a.backend).Filter(a.relations.ModelsLabel.Category.ID.Exact(a.categoryID)).OrderBy(models.LabelFields.ID.Asc()).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	choices := make([]forms.Choice, 0, len(rows))
-	for _, row := range rows {
-		if row.ID > 0 {
-			choices = append(choices, forms.Choice{Value: forms.Integer(row.ID), Label: row.Name})
-		}
-	}
-	return choices, nil
 }
 
 // The category is the trusted scope of both endpoints, not a third mutable

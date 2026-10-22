@@ -34,6 +34,8 @@ func (site *Site) render(request *web.Request, name string, values map[string]te
 	// Site handlers transfer a fresh context map. NewContext snapshots it once
 	// after these shared navigation values have been added.
 	values["inline_script_url"] = templates.String(site.inlineScriptPath())
+	values["choice_script_url"] = templates.String(site.choiceScriptPath())
+	values["has_choice_search"] = templates.Bool(site.hasChoiceSearch())
 	values["index_path"] = templates.String(site.basePath + "/")
 	values["login_path"] = templates.String(site.basePath + "/login/")
 	values["logout_path"] = templates.String(site.basePath + "/logout/")
@@ -326,7 +328,7 @@ func (site *Site) formContext(
 	form forms.Form,
 	submitted url.Values,
 ) (map[string]templates.Value, error) {
-	fieldValues, err := formFieldContext(model.form.Fields(), form, submitted, "", true)
+	fieldValues, err := formFieldContext(model.form.Fields(), form, submitted, "", true, model.choiceViews)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +353,7 @@ func (site *Site) formContext(
 	}, nil
 }
 
-func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Values, prefix string, require bool) ([]templates.Value, error) {
+func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Values, prefix string, require bool, views ...map[string]choiceFieldView) ([]templates.Value, error) {
 	fieldValues := make([]templates.Value, len(fields))
 	for index, field := range fields {
 		value, checked := renderedFieldValue(field, form, submitted)
@@ -385,7 +387,30 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 				}
 			}
 		}
+		view, searchable := choiceFieldView{}, false
+		if len(views) > 0 {
+			view, searchable = views[0][field.Name()]
+		}
+		searchable = searchable && (field.Widget() == forms.Select || field.Widget() == forms.SelectMultiple)
+		// A later writer can reject a key after the initial Resolve succeeded.
+		// That first snapshot is no longer label authority for this field.
+		// Keep raw keys/errors without re-running validators or target I/O.
+		discardLabels := false
+		if field.ModelChoice() {
+			for _, failure := range form.Errors().ByField(validation.Field(field.Name())).All() {
+				if failure.Code() == "invalid_choice" {
+					discardLabels = true
+					break
+				}
+			}
+		}
+		if discardLabels {
+			view.Items, view.More, view.Offset = nil, false, 0
+		}
 		options, err := choiceOptionValues(field, selected...)
+		if searchable || discardLabels {
+			options, err = searchedChoiceOptionValues(field, view, selected, discardLabels)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -414,6 +439,12 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 			"select":            templates.Bool(field.Widget() == forms.Select || field.Widget() == forms.NullBooleanSelect || field.Widget() == forms.SelectMultiple),
 			"options":           templates.List(options...),
 			"multiple":          templates.Bool(field.Widget() == forms.SelectMultiple),
+			"choice_search":     templates.Bool(searchable),
+			"choice_url":        templates.String(view.URL),
+			"choice_offset":     templates.Integer(int64(view.Offset)),
+			"choice_limit":      templates.Integer(int64(view.Limit)),
+			"choice_more":       templates.Bool(view.More),
+			"choice_disabled":   templates.Bool(view.Disabled || form.ReadOnly()),
 			"datetime":          templates.Bool(field.Kind() == forms.FieldDateTime),
 			"time":              templates.Bool(field.Kind() == forms.FieldTime),
 			"duration":          templates.Bool(field.Kind() == forms.FieldDuration),
@@ -434,6 +465,65 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 		fieldValues[index] = item
 	}
 	return fieldValues, nil
+}
+
+// searchedChoiceOptionValues combines only the current selection and one search
+// page for display. The bound field keeps its Resolve-only validation choices.
+func searchedChoiceOptionValues(field forms.Field, view choiceFieldView, selected []string, discardLabels bool) ([]templates.Value, error) {
+	chosen := make(map[string]bool, len(selected))
+	for _, value := range selected {
+		chosen[value] = true
+	}
+	labels := make(map[string]string)
+	if !discardLabels {
+		for _, choice := range field.Choices() {
+			labels[choice.InputValue()] = choice.Label
+		}
+	}
+	page := make(map[string]bool, len(view.Items))
+	for _, choice := range view.Items {
+		value := choice.InputValue()
+		labels[value], page[value] = choice.Label, true
+	}
+	result := make([]templates.Value, 0, len(selected)+len(view.Items)+1)
+	seen := make(map[string]bool)
+	appendOption := func(value, label string) error {
+		if seen[value] {
+			return nil
+		}
+		seen[value] = true
+		option, err := templateObject(map[string]templates.Value{
+			"value": templates.String(value), "label": templates.String(label),
+			"selected": templates.Bool(chosen[value]), "page": templates.Bool(page[value]),
+		})
+		if err == nil {
+			result = append(result, option)
+		}
+		return err
+	}
+	if field.Widget() == forms.Select {
+		if err := appendOption("", "---------"); err != nil {
+			return nil, err
+		}
+	}
+	for _, value := range selected {
+		if value == "" {
+			continue
+		}
+		label, present := labels[value]
+		if !present {
+			label = value
+		}
+		if err := appendOption(value, label); err != nil {
+			return nil, err
+		}
+	}
+	for _, choice := range view.Items {
+		if err := appendOption(choice.InputValue(), choice.Label); err != nil {
+			return nil, err
+		}
+	}
+	return result, nil
 }
 
 func renderedFieldValue(field forms.Field, form forms.Form, submitted url.Values) (string, bool) {

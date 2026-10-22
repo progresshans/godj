@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the existing Admin inline and upload probes in fresh isolated fixtures."""
+"""Run Admin inline, upload and choice probes in fresh isolated fixtures."""
 import argparse
 import hashlib
 import json
@@ -15,7 +15,7 @@ from helpdesk_browser import result_document
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / 'admin/testdata/browser'
-PROBES = {'inline': 'probe.js', 'uploads': 'uploads_probe.js'}
+PROBES = {'inline': 'probe.js', 'uploads': 'uploads_probe.js', 'choices': 'choices_probe.js'}
 CHECKS = {'inline': ('zero configured extra rows still allow addition',
             'existing identities came from the server',
             'prototype controls are inert document-fragment content',
@@ -69,6 +69,42 @@ CHECKS = {'inline': ('zero configured extra rows still allow addition',
              'read-only child file widget is disabled',
              'read-only child uploads do not change parent transport',
              'read-only upload is not a successful control')}
+CHECKS['choices'] = (
+    'selected int64 key outside the first page remains selected',
+    'initial choices are bounded to one page plus selection',
+    'no JavaScript retains selection and the initial native choices',
+    'next page replaces prior results while retaining selected keys',
+    'previous page restores a bounded first page',
+    'search labels remain escaped text in JSON and native options',
+    'zero negative and large keys remain exact strings across searches',
+    'multiple selections survive replacement of the search page',
+    'a delayed superseded response cannot overwrite newer results',
+    'search failure reports an error without losing the selection',
+    'a successful retry clears the loading and error state',
+    'keyboard Enter searches without submitting the parent form',
+    'single choice retains an exact selected key outside its first page',
+    'single zero key survives native form submission and stored reload',
+    'single large key survives native form submission and stored reload',
+    'clear selection removes all multiple selected values',
+    'cleared membership is persisted and read back from SQLite',
+    'searched multiple selection persists exact negative and large keys',
+    'a forged target outside the source scope is rejected without its label',
+    'invalid membership leaves current scalar and relation rows unchanged',
+    'a target revoked after search is rejected without retaining its old label',
+    'stale target rejection preserves the current owner and membership',
+    'server rejects oversized pages terms and caller-selected fields',
+    'inline search rejects a stored child outside the current parent cohort',
+    'new inline search uses the live row index without a forged stored identity',
+    'renumbered inline search keeps selection and refreshes its current row scope',
+    'inline renumbering preserves accessible control and status connections',
+    'typed inline writer accepts the searched relation in its current transaction',
+    'fresh inline read confirms new child keys and both persisted memberships',
+    'read-only inline selection has no active search and retains its server identity',
+    'read-only inline search is denied and disabled selections are not submitted',
+    'a read-only row without target permission displays only stored identifiers',
+    'missing target permission denies both search and form mutation',
+    'permission denial leaves current stored scalar and membership unchanged',
+)
 
 
 def verify_probe(flow, value, browser_version):
@@ -84,6 +120,31 @@ def verify_probe(flow, value, browser_version):
 
 
 def verify_native(flow, value):
+    if flow == 'choices':
+        labels = [{'id': '-7', 'category': '1', 'name': 'Choice negative'},
+                  {'id': '0', 'category': '1', 'name': 'Choice zero'}]
+        labels += [{'id': str(key), 'category': '1', 'name': 'Choice %02d' % key}
+                   for key in range(1, 31)]
+        labels += [
+            {'id': '31', 'category': '1', 'name': 'Revoked target'},
+            {'id': '32', 'category': '1', 'name': 'Choice <img src=x onerror="window.choiceInjected=true">'},
+            {'id': '9007199254740993', 'category': '1', 'name': 'Choice selected outside page'},
+            {'id': '9007199254740994', 'category': '2', 'name': 'Choice foreign'},
+        ]
+        expected = {
+            'seed_scalars_preserved': True,
+            'categories': [{'id': '1', 'name': 'Choice category'}, {'id': '2', 'name': 'Foreign category'}],
+            'labels': labels,
+            'tickets': [{'id': '1', 'category': '1', 'subject': 'Choice owner', 'closed': False},
+                        {'id': '2', 'category': '2', 'subject': 'Foreign owner', 'closed': False},
+                        {'id': '3', 'category': '1', 'subject': 'Browser inline', 'closed': False}],
+            'links': [{'ticket': '1', 'label': '-7'}, {'ticket': '1', 'label': '9007199254740993'},
+                      {'ticket': '2', 'label': '9007199254740994'}, {'ticket': '3', 'label': '0'}],
+            'reports': 0,
+        }
+        if json.dumps(value, sort_keys=True) != json.dumps(expected, sort_keys=True):
+            raise ValueError('Admin choice browser native rows differ from the complete expected state')
+        return value
     expected = {
         'initial_rows_unchanged': True,
         'categories': [{'id': 1, 'name': 'Browser category'}],
@@ -176,7 +237,7 @@ def run_flow(flow, binary, cli, browser_path, browser_version, environment, outp
             deadline = time.monotonic() + 60
             while time.monotonic() < deadline:
                 lines = stdout.read_text().splitlines()
-                if len(lines) == 2 and re.fullmatch(r'http://127\.0\.0\.1:[0-9]+/admin/categories/change/\?id=1', lines[0]) and lines[1] == 'fixture_pid=' + str(process.pid):
+                if len(lines) == 2 and re.fullmatch(r'http://127\.0\.0\.1:[0-9]+/admin/' + ('tickets' if flow == 'choices' else 'categories') + r'/change/\?id=1', lines[0]) and lines[1] == 'fixture_pid=' + str(process.pid):
                     break
                 if process.poll() is not None:
                     raise ValueError('Admin browser fixture stopped before readiness')
@@ -264,7 +325,8 @@ def run(node_tools, output):
         receipt.update({'cli_version': package['version'], 'core_version': core_version, 'browser_version': browser_version,
                         'source_checkout': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                         'source_tree': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip(),
-                        'fixture_source_sha256': digest(FIXTURE / 'main.go')})
+                        'fixture_source_sha256': digest(FIXTURE / 'main.go'),
+                        'fixture_sources_sha256': {path.name: digest(path) for path in sorted(FIXTURE.glob('*.go'))}})
         receipt['node_version'] = command(receipt, output, environment, 'node-version', ['node', '--version']).strip()
         browser_path = command(receipt, output, environment, 'browser-path', ['node', '-e', 'process.stdout.write(require(process.argv[1]).chromium.executablePath())', str(node_tools / 'node_modules/playwright')]).strip()
         if not Path(browser_path).is_file():

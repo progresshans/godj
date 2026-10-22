@@ -73,13 +73,17 @@ func (a *Application) ticketBulkFormSets(fields []string, overrides []formmodel.
 	policy.Prefix, policy.ExtraForms, policy.MinForms = "tickets", 1, 1
 	policy.MaxForms, policy.AbsoluteMax = ticketBulkMaximum, ticketBulkMaximum
 	policy.ValidateMin, policy.ValidateMax = true, true
+	labelChoices, err := a.labelChoiceSource("ticket", "labels")
+	if err != nil {
+		return nil, err
+	}
 	definition, err := admin.NewCollectionFormSet(admin.CollectionFormSetConfig[models.Ticket]{
 		Name: "create", Label: "Create multiple tickets", Manager: models.TicketObjects, Permission: AddTicket,
 		Form: admin.FormConfig{Definition: formmodel.Definition{Fields: fields, Overrides: overrides,
 			PostClean: formmodel.PostClean{Fields: []string{"category"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
 				return forms.NewValues(map[string]forms.Value{"category": forms.Integer(a.categoryID)}), validation.NewErrors()
 			}},
-		}, RelatedChoices: []admin.RelatedChoices{{Field: "labels", Permission: ViewLabel, Load: a.ticketLabelChoices}}},
+		}, RelatedChoices: []admin.RelatedChoices{labelChoices}},
 		Set: policy,
 		Run: func(ctx context.Context, actor auth.Principal, set formmodel.InstanceSet[models.Ticket]) ([]int64, error) {
 			prepared, err := set.Prepare()

@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -22,9 +23,9 @@ func collectionSetFixture(t *testing.T) (CollectionFormSetConfig[models.Ticket],
 	return CollectionFormSetConfig[models.Ticket]{Name: "create", Label: "Create tickets", Manager: models.TicketObjects, Permission: "helpdesk.add_ticket",
 		Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"subject", "closed", "external_reference", "labels"}, PostClean: formmodel.PostClean{Fields: []string{"category"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
 			return forms.NewValues(map[string]forms.Value{"category": forms.Integer(7)}), validation.NewErrors()
-		}}}, RelatedChoices: []RelatedChoices{{Field: "labels", Permission: "helpdesk.view_label", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+		}}}, RelatedChoices: []RelatedChoices{testRelationChoices(t, (models.TicketDescriptor{}).Metadata(), "helpdesk", "labels", "helpdesk.view_label", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 			return []forms.Choice{{Value: forms.Integer(9), Label: "Owned <&>"}}, nil
-		}}}}, Set: policy,
+		})}}, Set: policy,
 		Run: func(context.Context, auth.Principal, formmodel.InstanceSet[models.Ticket]) ([]int64, error) {
 			return []int64{21, 22}, nil
 		},
@@ -39,11 +40,13 @@ func TestCollectionFormSetOwnsTypedCandidatesPermissionsAndResult(t *testing.T) 
 	config, actor := collectionSetFixture(t)
 	loads, cleans, writes := 0, 0, 0
 	config.Form.Definition.Validators = []forms.CrossValidator{forms.CrossValidatorFunc(func(forms.Values) validation.Errors { cleans++; return validation.NewErrors() })}
-	loader := config.Form.RelatedChoices[0].Load
-	config.Form.RelatedChoices[0].Load = func(ctx context.Context, actor auth.Principal) ([]forms.Choice, error) {
+	loader := func(context.Context, auth.Principal) ([]forms.Choice, error) {
+		return []forms.Choice{{Value: forms.Integer(9), Label: "Owned <&>"}}, nil
+	}
+	config.Form.RelatedChoices[0] = testChoicesWithRead(config.Form.RelatedChoices[0], func(ctx context.Context, actor auth.Principal) ([]forms.Choice, error) {
 		loads++
 		return loader(ctx, actor)
-	}
+	})
 	returned := []int64{21, 22}
 	config.Run = func(ctx context.Context, principal auth.Principal, set formmodel.InstanceSet[models.Ticket]) ([]int64, error) {
 		writes++
@@ -71,7 +74,7 @@ func TestCollectionFormSetOwnsTypedCandidatesPermissionsAndResult(t *testing.T) 
 		t.Fatal(err)
 	}
 	config.Form.Definition.Fields[0] = "closed"
-	config.Form.RelatedChoices[0].Permission = "helpdesk.delete_ticket"
+	config.Form.RelatedChoices[0] = testChoicesWithPermission(config.Form.RelatedChoices[0], "helpdesk.delete_ticket")
 	descriptor := collectionFormSetDescriptors([]CollectionFormSet{definition})[0]
 	descriptor.Permissions[0] = "helpdesk.delete_ticket"
 	descriptor.FormFields[0] = cField(t, "forged")
@@ -80,7 +83,7 @@ func TestCollectionFormSetOwnsTypedCandidatesPermissionsAndResult(t *testing.T) 
 		t.Fatal("choices loaded without required permission", err)
 	}
 	view, err := definition.bind(t.Context(), actor, nil)
-	if err != nil || view.set.Bound() || view.set.TotalForms() != 2 || view.empty.Prefix() != "tickets-__prefix__" || loads != 1 || cleans != 0 {
+	if err != nil || view.set.Bound() || view.set.TotalForms() != 2 || view.empty.Prefix() != "tickets-__prefix__" || loads != 3 || cleans != 0 {
 		t.Fatal("unbound formset", err)
 	}
 	if _, err := view.run(t.Context()); err == nil || writes != 0 {
@@ -172,10 +175,10 @@ func TestCollectionFormSetRejectsUnsafeConfigurationAndUnconfirmedResults(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prepareCollectionFormSets([]CollectionFormSet{definition, definition}, definition.model); err == nil {
+	if _, err := prepareCollectionFormSets([]CollectionFormSet{definition, definition}, definition.model, definition.identity); err == nil {
 		t.Fatal("duplicate definition")
 	}
-	if _, err := prepareCollectionFormSets([]CollectionFormSet{definition}, models.CategoryDescriptor{}.Metadata()); err == nil {
+	if _, err := prepareCollectionFormSets([]CollectionFormSet{definition}, models.CategoryDescriptor{}.Metadata(), ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "category"}); err == nil {
 		t.Fatal("foreign model accepted")
 	}
 }

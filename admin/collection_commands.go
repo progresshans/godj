@@ -8,6 +8,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 // CollectionCommandConfig resolves, creates or changes an object from its inputs,
@@ -43,11 +44,12 @@ type CollectionCommandDescriptor struct {
 }
 
 type registeredCollectionCommand struct {
-	name, label string
-	permissions []auth.Permission
-	form        forms.Spec
-	formFor     func(context.Context, auth.Principal) (forms.Spec, error)
-	run         func(context.Context, auth.Principal, forms.Form) (CollectionCommandResult, error)
+	name, label   string
+	permissions   []auth.Permission
+	form          forms.Spec
+	formFor       choiceFormFor
+	choiceSources []RelatedChoices
+	run           func(context.Context, auth.Principal, forms.Form) (CollectionCommandResult, error)
 }
 
 func prepareCollectionCommands(configs []CollectionCommandConfig, model registeredModel) ([]registeredCollectionCommand, error) {
@@ -87,7 +89,7 @@ func prepareCollectionCommands(configs []CollectionCommandConfig, model register
 				return nil, &ConfigError{Path: path + ".form", Code: "unsupported_field"}
 			}
 		}
-		formFor, choicePermissions, err := prepareRelatedChoices(config.Form, config.RelatedChoices)
+		formFor, choicePermissions, err := prepareRelatedChoices(model.model, ir.ModelIdentity{AppLabel: model.appLabel, ModelName: model.model.Name}, config.Form, config.RelatedChoices, true)
 		if err != nil {
 			return nil, &ConfigError{Path: path + ".related_choices", Code: "invalid", Cause: err}
 		}
@@ -100,7 +102,7 @@ func prepareCollectionCommands(configs []CollectionCommandConfig, model register
 		if err != nil {
 			return nil, err
 		}
-		command := registeredCollectionCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form, formFor: formFor}
+		command := registeredCollectionCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form, formFor: formFor, choiceSources: slices.Clone(config.RelatedChoices)}
 		command.run = func(ctx context.Context, principal auth.Principal, submitted forms.Form) (CollectionCommandResult, error) {
 			if err := validatePrincipalRead(ctx, principal, model.permissions); err != nil {
 				return CollectionCommandResult{}, err
@@ -114,7 +116,9 @@ func prepareCollectionCommands(configs []CollectionCommandConfig, model register
 			if err != nil {
 				return CollectionCommandResult{}, err
 			}
-			currentForm, err := formFor(ctx, principal)
+			origin := model.origin(ChoiceCollection, 0)
+			origin.name = config.Name
+			currentForm, err := formFor(ctx, principal, origin, formChoiceKeys(config.Form, data, false))
 			if err != nil {
 				return CollectionCommandResult{}, err
 			}

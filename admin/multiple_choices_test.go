@@ -76,19 +76,19 @@ func multipleChoiceConfig(t *testing.T) (*Builder, ModelConfig[multipleSelection
 		Delete: func(context.Context, auth.Principal, Mutation) (multipleSelection, error) {
 			return multipleSelection{1, []int64{}}, nil
 		},
-		RelatedChoices: []RelatedChoices{{Field: "labels", Permission: "helpdesk.view_label", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+		RelatedChoices: []RelatedChoices{testRelationChoices(t, base.Model, base.AppLabel, "labels", "helpdesk.view_label", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 			return []forms.Choice{{Value: forms.Integer(7), Label: "Seven"}, {Value: forms.Integer(9), Label: "Nine"}}, nil
-		}}},
+		})},
 	}
 	return builder, config
 }
 
 func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing.T) {
 	builder, config := multipleChoiceConfig(t)
-	choices, _ := config.RelatedChoices[0].Load(context.Background(), auth.Principal{})
+	choices := []forms.Choice{{Value: forms.Integer(7), Label: "Seven"}, {Value: forms.Integer(9), Label: "Nine"}}
 	var failure error
 	var reads, writes int
-	config.RelatedChoices[0].Load = func(context.Context, auth.Principal) ([]forms.Choice, error) { reads++; return choices, failure }
+	config.RelatedChoices[0] = testChoicesWithRead(config.RelatedChoices[0], func(context.Context, auth.Principal) ([]forms.Choice, error) { reads++; return choices, failure })
 	create, update := config.Create, config.Update
 	var received []int64
 	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, error) {
@@ -122,7 +122,7 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	}
 	model := registry.models[0]
 	principal := mustPrincipalWithPermissions(t, config.Permissions.View, config.Permissions.Add, config.Permissions.Change, "helpdesk.view_label")
-	spec, err := model.formFor(context.Background(), principal)
+	spec, err := model.resolveForm(context.Background(), principal, model.origin(ChoiceChange, 1), forms.NewData(map[string][]string{"labels": {"9", "7", "9"}}), nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func articleMultipleChoices(t *testing.T, config *ModelConfig[registryArticle], 
 	config.Model.ManyToMany = definition.Models[0].ManyToMany
 	config.FormFields = []string{"title", "summary", "published", "labels"}
 	config.FormOverrides = append(config.FormOverrides, formmodel.OverrideField("labels", formmodel.WithRequired(false)))
-	config.RelatedChoices = []RelatedChoices{{Field: "labels", Permission: "articles.view", Load: load}}
+	config.RelatedChoices = []RelatedChoices{testRelationChoices(t, config.Model, config.AppLabel, "labels", "articles.view", load)}
 	snapshot, initial := config.Snapshot, config.Initial
 	config.Snapshot = func(row registryArticle) (Object, error) {
 		base, err := snapshot(row)
@@ -269,7 +269,7 @@ func TestMultipleChoicesHTTPRenderingCSRFAndWholeSetRevalidation(t *testing.T) {
 	client.login(t, "admin", "secret", "/admin/articles/")
 	change := client.do(http.MethodGet, "/admin/articles/change/?id=1", nil)
 	body := change.Body.String()
-	if change.Code != http.StatusOK || !strings.Contains(body, `<select name="labels" multiple>`) || !strings.Contains(body, `<option value="7" selected>`) || !strings.Contains(body, `<option value="99" selected>99 (not a current choice)</option>`) || strings.Contains(body, `<script>`) || !strings.Contains(body, `&lt;script&gt;`) {
+	if change.Code != http.StatusOK || !strings.Contains(body, `<select name="labels" id="labels-choices" aria-describedby="labels-choice-status" multiple>`) || !strings.Contains(body, `<option value="7" data-choice-page selected>`) || !strings.Contains(body, `<option value="99" selected>99</option>`) || strings.Contains(body, `<script>`) || !strings.Contains(body, `&lt;script&gt;`) {
 		t.Fatalf("invalid multiple widget: %d %s", change.Code, body)
 	}
 	token := siteCSRFToken(t, body)
@@ -280,14 +280,14 @@ func TestMultipleChoicesHTTPRenderingCSRFAndWholeSetRevalidation(t *testing.T) {
 	}
 	input := url.Values{"csrfmiddlewaretoken": {token}, "title": {"First article"}, "summary": {""}, "labels": {"7", "<script>bad</script>"}}
 	invalid := client.do(http.MethodPost, "/admin/articles/change/?id=1", input)
-	if invalid.Code != http.StatusOK || !strings.Contains(invalid.Body.String(), `data-error-code="invalid_pk_value"`) || !strings.Contains(invalid.Body.String(), `<option value="7" selected>`) || strings.Contains(invalid.Body.String(), `<script>`) || !strings.Contains(invalid.Body.String(), `&lt;script&gt;bad&lt;/script&gt;`) || harness.state.mutationCounts() != before {
+	if invalid.Code != http.StatusOK || !strings.Contains(invalid.Body.String(), `data-error-code="invalid_pk_value"`) || !strings.Contains(invalid.Body.String(), `<option value="7" selected>7</option>`) || strings.Contains(invalid.Body.String(), `<script>`) || !strings.Contains(invalid.Body.String(), `&lt;script&gt;bad&lt;/script&gt;`) || strings.Contains(invalid.Body.String(), `&lt;script&gt;Seven`) || reads != beforeReads || harness.state.mutationCounts() != before {
 		t.Fatal("invalid collection was truncated, unsafe or mutated", invalid.Code, invalid.Body.String())
 	}
 	input.Set("labels", "7")
 	input.Add("labels", "9")
 	dropSecondOnRead = reads + 2 // first binding succeeds; the mutation's fresh source must reject.
 	stale := client.do(http.MethodPost, "/admin/articles/change/?id=1", input)
-	if stale.Code != http.StatusOK || !strings.Contains(stale.Body.String(), `data-error-code="invalid_choice"`) || harness.state.mutationCounts() != before {
+	if stale.Code != http.StatusOK || !strings.Contains(stale.Body.String(), `data-error-code="invalid_choice"`) || strings.Contains(stale.Body.String(), "Nine") || strings.Contains(stale.Body.String(), "&lt;script&gt;Seven") || !strings.Contains(stale.Body.String(), `<option value="9" selected>9</option>`) || harness.state.mutationCounts() != before {
 		t.Fatal("stale second key reached mutation", stale.Code, stale.Body.String())
 	}
 	dropSecondOnRead = 0

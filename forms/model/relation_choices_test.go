@@ -28,8 +28,8 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func labelChoicePolicy() formmodel.RelationChoiceConfig[models.Label] {
-	return formmodel.RelationChoiceConfig[models.Label]{
+func labelChoicePolicy() formmodel.ModelChoiceConfig[models.Label] {
+	return formmodel.ModelChoiceConfig[models.Label]{
 		Label: func(row models.Label) (string, error) { return row.Name, nil },
 		Search: func(term string) ([]orm.Predicate[models.Label], error) {
 			if term == "" {
@@ -41,7 +41,7 @@ func labelChoicePolicy() formmodel.RelationChoiceConfig[models.Label] {
 	}
 }
 
-func newLabelChoices(t *testing.T, config formmodel.RelationChoiceConfig[models.Label]) formmodel.RelationChoices[models.Label] {
+func newLabelChoices(t *testing.T, config formmodel.ModelChoiceConfig[models.Label]) formmodel.ModelChoices[models.Label] {
 	t.Helper()
 	binding, err := project.Bind()
 	if err != nil {
@@ -60,17 +60,17 @@ func TestRelationChoicesBindCanonicalFKOneToOneManyToManyAndCrossApp(t *testing.
 		t.Fatal(err)
 	}
 	called := 0
-	categories, err := formmodel.NewRelationChoices(binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"}, "category", models.CategoryObjects, formmodel.RelationChoiceConfig[models.Category]{Label: func(models.Category) (string, error) { called++; return "", nil }})
-	if err != nil || !categories.Initialized() || categories.Metadata().Multiple || categories.Metadata().Target.ModelName != "category" {
+	categories, err := formmodel.NewRelationChoices(binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "ticket"}, "category", models.CategoryObjects, formmodel.ModelChoiceConfig[models.Category]{Label: func(models.Category) (string, error) { called++; return "", nil }})
+	if err != nil || !categories.Initialized() || categories.Metadata().Kind != formmodel.ModelChoiceRelation || categories.Metadata().Multiple || categories.Metadata().Target.ModelName != "category" {
 		t.Fatal("FK binding", err)
 	}
-	tickets, err := formmodel.NewRelationChoices(binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"}, "ticket", models.TicketObjects, formmodel.RelationChoiceConfig[models.Ticket]{Label: func(models.Ticket) (string, error) { called++; return "", nil }})
+	tickets, err := formmodel.NewRelationChoices(binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "service_report"}, "ticket", models.TicketObjects, formmodel.ModelChoiceConfig[models.Ticket]{Label: func(models.Ticket) (string, error) { called++; return "", nil }})
 	if err != nil || tickets.Metadata().Multiple || tickets.Metadata().Target.ModelName != "ticket" {
 		t.Fatal("OneToOne binding", err)
 	}
 	labels := newLabelChoices(t, labelChoicePolicy())
 	metadata := labels.Metadata()
-	if !metadata.Multiple || metadata.Source.ModelName != "ticket" || metadata.Field != "labels" || metadata.Target.ModelName != "label" {
+	if metadata.Kind != formmodel.ModelChoiceRelation || !metadata.Multiple || metadata.Source.ModelName != "ticket" || metadata.Field != "labels" || metadata.Target.ModelName != "label" {
 		t.Fatal("M2M binding")
 	}
 	metadata.SourceModel.Fields[0].Name = "mutated"
@@ -84,9 +84,94 @@ func TestRelationChoicesBindCanonicalFKOneToOneManyToManyAndCrossApp(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	authorChoices, err := formmodel.NewRelationChoices(cross, ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "author", authors.AuthorObjects, formmodel.RelationChoiceConfig[authors.Author]{Label: func(authors.Author) (string, error) { called++; return "", nil }})
+	authorChoices, err := formmodel.NewRelationChoices(cross, ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}, "author", authors.AuthorObjects, formmodel.ModelChoiceConfig[authors.Author]{Label: func(authors.Author) (string, error) { called++; return "", nil }})
 	if err != nil || authorChoices.Metadata().Target.AppLabel != "authors" || called != 0 {
 		t.Fatal("cross-app binding or startup I/O", err, called)
+	}
+}
+
+func TestModelChoicesBindTargetWithoutInventingSourceRelation(t *testing.T) {
+	binding, err := project.Bind()
+	if err != nil {
+		t.Fatal(err)
+	}
+	called := 0
+	policy := labelChoicePolicy()
+	policy.Label = func(row models.Label) (string, error) { called++; return row.Name, nil }
+	identity := ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}
+	choices, err := formmodel.NewModelChoices(binding, identity, models.LabelObjects, policy)
+	if err != nil || !choices.Initialized() || called != 0 {
+		t.Fatal("target-only construction evaluated a callback or failed", err)
+	}
+	check := func(metadata formmodel.ModelChoiceMetadata) {
+		t.Helper()
+		if metadata.Kind != formmodel.ModelChoiceTarget || metadata.Target != identity || !metadata.TargetModel.Equal((models.LabelDescriptor{}).Metadata()) ||
+			metadata.Source != (ir.ModelIdentity{}) || !metadata.SourceModel.Equal(ir.Model{}) || metadata.Field != "" || metadata.Multiple {
+			t.Fatal("target-only declaration gained relation metadata")
+		}
+	}
+	check(choices.Metadata())
+	metadata := choices.Metadata()
+	metadata.Kind, metadata.Field, metadata.TargetModel.Fields[0].Name = formmodel.ModelChoiceRelation, "forged", "forged"
+	check(choices.Metadata())
+	backend := &choiceReadBackend{rows: []models.Label{{ID: 7, Name: "Selected", CategoryID: 1}, {ID: 9, Name: "Later", CategoryID: 1}}}
+	scoped := choices.Filter(models.LabelFields.CategoryID.Exact(1))
+	page, err := scoped.Search(t.Context(), backend, formmodel.ChoiceRequest{Limit: 1})
+	if err != nil || !page.More() || !slices.Equal(choiceKeys(page.Items()), []int64{7}) {
+		t.Fatal("target-only page lost common bounds", err)
+	}
+	check(page.Metadata())
+	backend.rows = backend.rows[1:]
+	selection, err := scoped.Resolve(t.Context(), backend, []int64{9})
+	if err != nil || !slices.Equal(choiceKeys(selection.Items()), []int64{9}) {
+		t.Fatal("target-only selection outside page failed", err)
+	}
+	check(selection.Metadata())
+	before := len(backend.plans)
+	empty, err := scoped.Resolve(t.Context(), backend, nil)
+	if err != nil || !empty.Initialized() || len(backend.plans) != before {
+		t.Fatal("target-only empty selection enumerated rows", err)
+	}
+	check(empty.Metadata())
+	if (formmodel.ModelChoices[models.Label]{}).Metadata().Kind != "" || (formmodel.ChoicePage{}).Metadata().Kind != "" || (formmodel.ChoiceSelection{}).Metadata().Kind != "" {
+		t.Fatal("zero result acquired a binding kind")
+	}
+}
+
+func TestModelChoicesRejectInvalidTargetDeclarations(t *testing.T) {
+	binding, err := project.Bind()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mode := range []string{"zero_project", "zero_identity", "unknown_target", "wrong_target", "metadata_mismatch", "missing_key_reader", "missing_label", "invalid_order"} {
+		t.Run(mode, func(t *testing.T) {
+			canonical, identity := binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}
+			target, config := models.LabelObjects, labelChoicePolicy()
+			switch mode {
+			case "zero_project":
+				canonical = orm.ProjectBinding{}
+			case "zero_identity":
+				identity = ir.ModelIdentity{}
+			case "unknown_target":
+				identity.ModelName = "unknown"
+			case "wrong_target":
+				identity.ModelName = "category"
+			case "metadata_mismatch":
+				metadata := (models.LabelDescriptor{}).Metadata()
+				metadata.Fields[1].MaxLength++
+				target = orm.NewManager[models.Label](choiceLabelDescriptor{metadata: metadata})
+			case "missing_key_reader":
+				target = orm.NewManager[models.Label](choiceLabelWithoutKey{})
+			case "missing_label":
+				config.Label = nil
+			case "invalid_order":
+				config.Order = []orm.Ordering[models.Label]{{}}
+			}
+			value, err := formmodel.NewModelChoices(canonical, identity, target, config)
+			if err == nil || value.Initialized() || value.Metadata().Kind != "" {
+				t.Fatal("invalid target declaration acquired an initialized binding")
+			}
+		})
 	}
 }
 
@@ -322,7 +407,7 @@ func TestRelationChoicesRejectInvalidInputsBeforeReads(t *testing.T) {
 			t.Fatal("invalid page read target rows")
 		}
 	}
-	keys := make([]int64, formmodel.MaximumRelationChoiceKeys+1)
+	keys := make([]int64, formmodel.MaximumModelChoiceKeys+1)
 	for index := range keys {
 		keys[index] = int64(index)
 	}
@@ -346,7 +431,7 @@ func TestRelationChoicesRejectInvalidInputsBeforeReads(t *testing.T) {
 			case "expired":
 				queryer = &choiceReadBackend{sessionErr: errors.New("expired")}
 			case "uninitialized":
-				current = formmodel.RelationChoices[models.Label]{}
+				current = formmodel.ModelChoices[models.Label]{}
 			case "invalid_filter":
 				current = choices.Filter(orm.Predicate[models.Label]{})
 			case "foreign_filter":
@@ -457,7 +542,7 @@ func TestRelationChoiceResultsAreRecognizableAndRedacted(t *testing.T) {
 			t.Fatal("choice state leaked through formatting")
 		}
 	}
-	if (formmodel.ChoicePage{}).Initialized() || (formmodel.ChoiceSelection{}).Initialized() || (formmodel.RelationChoices[models.Label]{}).Initialized() {
+	if (formmodel.ChoicePage{}).Initialized() || (formmodel.ChoiceSelection{}).Initialized() || (formmodel.ModelChoices[models.Label]{}).Initialized() {
 		t.Fatal("zero state looks initialized")
 	}
 }
@@ -576,6 +661,22 @@ func verifyNativeRelationChoices(t *testing.T, backend choiceNativeDatabase, exe
 		t.Fatal(err)
 	}
 	scoped := choices.Filter(models.LabelFields.CategoryID.Exact(1))
+	t.Run("target_only_binding", func(t *testing.T) {
+		commands, err := formmodel.NewModelChoices(binding, ir.ModelIdentity{AppLabel: "helpdesk", ModelName: "label"}, models.LabelObjects, config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		commands = commands.Filter(models.LabelFields.CategoryID.Exact(1))
+		reader := &choiceTraceQueryer{Queryer: backend}
+		page, err := commands.Search(t.Context(), reader, formmodel.ChoiceRequest{Term: "Visible", Limit: 1})
+		if err != nil || page.Metadata().Kind != formmodel.ModelChoiceTarget || !page.More() || !slices.Equal(choiceKeys(page.Items()), []int64{-4}) || reader.calls != 1 {
+			t.Fatal("native command target search differs", err)
+		}
+		selected, err := commands.Resolve(t.Context(), reader, []int64{1 << 60, math.MaxInt64})
+		if err != nil || selected.Metadata().Kind != formmodel.ModelChoiceTarget || selected.Metadata().Field != "" || !slices.Equal(choiceKeys(selected.Items()), []int64{1 << 60}) || reader.calls != 2 {
+			t.Fatal("native target selection escaped scope or fabricated relation", err)
+		}
+	})
 	t.Run("stable_pages_and_search", func(t *testing.T) {
 		for _, mode := range []string{"root_foreign_key", "related_primary_key"} {
 			t.Run(mode, func(t *testing.T) {

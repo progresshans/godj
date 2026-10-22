@@ -17,6 +17,7 @@ func (site *Site) collectionCommandPath(model registeredModel, command registere
 
 func collectionCommandModel(model registeredModel, command registeredCollectionCommand) registeredModel {
 	model.form, model.formFor, model.revisionField = command.form, command.formFor, ""
+	model.choiceSources = command.choiceSources
 	return model
 }
 
@@ -43,7 +44,9 @@ func (site *Site) collectionCommandGet(model registeredModel, command registered
 		}
 		requestModel := collectionCommandModel(model, command)
 		var err error
-		requestModel.form, err = command.formFor(request.Context(), principal)
+		origin := model.origin(ChoiceCollection, 0)
+		origin.name = command.name
+		requestModel, err = site.resolveCommandChoiceModel(request.Context(), principal, requestModel, origin, forms.Data{}, true, site.collectionCommandPath(model, command))
 		if err != nil {
 			return operationResponse(err)
 		}
@@ -82,7 +85,9 @@ func (site *Site) collectionCommandPost(model registeredModel, command registere
 				return siteForbidden()
 			}
 			requestModel := commandModel
-			requestModel.form, err = command.formFor(request.Context(), principal)
+			origin := model.origin(ChoiceCollection, 0)
+			origin.name = command.name
+			requestModel, err = site.resolveCommandChoiceModel(request.Context(), principal, requestModel, origin, modelData(commandModel, input), false, site.collectionCommandPath(model, command))
 			if err != nil {
 				return operationResponse(err)
 			}

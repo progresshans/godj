@@ -3,16 +3,73 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — bounded Admin 검색과 실제 선택 브라우저 준비
+
+`5004a87d` 뒤의 변경은 일반 Form·command·inline·여러 건 생성의 `RelatedChoices.Load`를 제거하고
+canonical `ModelChoices`의 선택 key Resolve와 별도 검색 페이지로 연결한다. Helpdesk의 category scope와 identity의
+현재 stored assignment 권한을 유지하며, target-only command와 실제 관계 선언을 구별한다.
+선택 UI는 native select·문자열 ID·취소/응답 순서·현재 행 identity를 사용한다. 같은 key의 옛 label을 저장 직전
+거절 뒤 재표시하지 않고, readonly 취소 오류도 보존한다. 대상 FK/M2M의 signed int64를 관리 객체 자체의 양수
+URL identity와 구분했다. 기존 inline의 ORDER/DELETE가 모델 initial로 들어가는 경로도 수정했다.
+
+Helpdesk의 새 native HTTP 시나리오는 125개 target의 페이지/검색, source·target 권한/범주 admission,
+페이지 밖 선택 저장과 나중의 scope 이동 후 거절·부모/회원 관계 보존을 검사하도록 작성했다.
+Identity의 기존 snapshot·권한 회수·조회 종료 실패 검사를 실제 검색 endpoint로 이관하고 121개 catalog의
+전체 페이지와 검색을 확인하도록 연결했다. Chromium choices 34개 check는 단일/다중·0/음수/큰 key,
+현재 선택·검색/페이지·escaping·키보드·stale response·inline 동적 행·readonly·실제 저장/재조회와
+현재 범위 거절을 다룬다. 기존 inline 33개와 uploads 20개 check 및 native 저장/정리 조건은 유지했다.
+Command/collection-set 선택의 실제 browser flow와 독립 Django Admin 검색 관측은 아직 이 근거에 포함되지 않는다.
+
+Go 1.26.5 darwin/arm64에서 영향 Form/ORM/Admin/Helpdesk/browser/identity/외부 소비자 package와 별도 생성
+baseline·changed 두 모듈을 `go test -run '^$' -vet=off`로 컴파일했다. 외부 모듈은 `-mod=mod`이며
+`GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`를 사용했다. 컴파일 전후 변경 source hash가 같음을 확인했다.
+명령·각 출력·hash는 `gdj0136-bounded-admin-compile-v1/receipt.json`에 있으며 SHA-256은
+`6675499ca9f878c951fec87e4f534dcdfd27defb8b2ba0f288dbbd006a179660`이다.
+Gofmt·변경 JavaScript/Python 구문·문서 229개의 local link·diff와 PostgreSQL 필수 실행 3,852개의
+3모드/7분할 소유권을 정적으로 확인했다. 아래 실패 재현 7개 root를 제외한 새 테스트 본문·실제 DB/HTTP·
+race·브라우저를 로컬에서 실행하지 않았다. 새 source 전체 원격 실행과 필수 원본 대조는 미완료다.
+
+## GDJ-0135 — macOS runtime 작업 제한에 의한 취소
+
+Source `ffc8b5ad0bcb17aaa548f8aab71835ad3db68879`의
+[CI 39731056051](https://github.com/progresshans/godj/actions/runs/39731056051), attempt 1에서
+`Relation product (macos-26, cgo0, runtime)` 작업 `119666453222`는 45분 작업 제한으로 취소됐다.
+GitHub check annotation과 원본 job log로 확인했으며, 종료 때 아직 compiler와 SQLite test process가 있었다.
+작업의 필수 실행 완료·clean worktree 검사는 수행되지 않았다. 잘린 실행을 기능 통과나 특정 제품 결함으로
+판정하지 않는다. 같은 run의 다른 작업과 전체 검증은 아직 미완료다.
+원본은 `gdj0135-ffc8b5ad-ci-39731056051/119666453222.log`와 `job.json`, `annotations.json`에 보존했고,
+job log SHA-256은 `dcadbe96ab769f78d528decf6dfe8358b1fff455f7b55c79c89ab2e93f7d32ab`이다.
+
+## GDJ-0136 — 관계 기본값 fixture의 원격 실패와 정정
+
+Source `5004a87d7e0ab7bd09c52d51e219521c6dc0a273`의
+[CI 39744125831](https://github.com/progresshans/godj/actions/runs/39744125831)에서 Portable core normal/cgo0/race가
+`default_relation_choices_test.go`의 동일한 Schema IR 오류로 실패했다. 실제 checkout
+`d6666f155ae9e03717e6edebf603807b271ea1fc`, tree `715c4640950f53cd083c6ab55d2bf2f35be23d26`와
+제출 head·두 parent·validation plan을 대조했다. 원본 로그 세 개는 검증 보관 디렉터리의
+`gdj0136-5004a87d-ci-39744125831/`에 보존했다.
+
+해당 fixture는 현재 IR이 금지하는 ForeignKey default를 설정했다. 따라서 아래 이전 source 검토의
+“optional FK default가 선택 범위를 우회한다”는 판단은 유효한 canonical FK에서 재현되는 결함이 아니었다.
+IR 제약을 유지하고, 지원되는 nullable Integer 모델 필드에 명시적인 ModelChoice override를 적용해
+기본값·현재 값 보존 시 선택 범위를 검사하도록 fixture를 수정했다. 실제 FK는 optional 입력 생략으로
+NULL이 되며 readonly는 서버 현재 key를 사용한다. 이 경계와 비정규 FK default의 거절을 별도로 검사한다.
+수정 후 위 원격 실패와 직접 관련된 기존 5개 root와 새 FK 경계 2개 root를 Go 1.26.5 darwin/arm64에서
+로컬 재실행해 통과했다(`forms/model`, 0.601s). 전체 package 본문이나 DB/browser를 재실행한 결과는 아니다.
+명령·실행 출력·관련 source 복사본/hash는 `gdj0136-scalar-choice-failure-repro-v1/receipt.json`에 있으며 SHA-256은
+`1554382046ad68d1d5086759078b507ea7311ceb1a799644b84334abcab72bc8`이다.
+변경 묶음의 새 원격 실행과 source 대조는 아직 미완료다.
+
 ## GDJ-0136 — bounded 관계 조회와 행별 선택 사전 검사
 
 F1 준비 branch의 `d0b51098` 뒤에 `RelationChoices`의 bounded Search/Resolve, read-only target PK 읽기,
 FormSet/typed inline preflight와 행별 선택 snapshot을 작성했다. Admin writer는 현재 parent·cohort admission 뒤에만
 동기 선택 resolver를 호출한다. 초기 view의 전체 선택 loader와 검색 widget은 아직 다음 연결 범위다.
 
-독립 source 검토에서 관련 모델의 PK 정렬을 대상 모델 PK로 잘못 인식하는 경로와 optional FK의 누락 default가
-빈 선택 snapshot을 우회하는 경로를 확인하고 수정했다. 관련 정렬/대상 PK의 구별과 default·현재 값·명시적 빈값·
-readonly·PostClean 순서의 회귀 검사를 추가했다. 전자는 실제 SQLite/PostgreSQL의 동률 페이지에도 연결했고,
-후자는 후보·원래 입력을 유지하면서 선택 범위 오류만 추가한다. 이 추가 guard를 Django FK 전체 동등성으로 주장하지 않는다.
+독립 source 검토에서 관련 모델의 PK 정렬을 대상 모델 PK로 잘못 인식하는 경로를 수정하고 실제
+SQLite/PostgreSQL의 동률 페이지 검사에 연결했다. 함께 추가했던 optional FK default 검사는 위 정정과 같이
+지원되지 않는 IR을 사용했으므로 당시 compile-only 근거로 기능 동작을 확인할 수 없었다. 정수 ModelChoice의
+기본값·현재 값·명시적 빈값·readonly·PostClean 검증은 수정 source의 실행 근거를 따른다.
 
 Go 1.26.5 darwin/arm64에서 아래 최소 compile이 통과했다. `GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`를 사용했다.
 

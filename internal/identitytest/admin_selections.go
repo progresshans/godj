@@ -2,8 +2,12 @@ package identitytest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/admin"
@@ -16,13 +20,28 @@ import (
 
 type adminSelectionBoundary struct {
 	*systemstate.Runtime
-	mode   string
-	cancel context.CancelFunc
-	before func(context.Context) error
-	fault  error
+	mode          string
+	skipSnapshots int
+	cancel        context.CancelFunc
+	before        func(context.Context) error
+	fault         error
 }
 
 func (b *adminSelectionBoundary) ReadSnapshot(ctx context.Context, callback func(db.Queryer) error) error {
+	if b.skipSnapshots > 0 {
+		b.skipSnapshots--
+		return b.Runtime.ReadSnapshot(ctx, callback)
+	}
+	if b.mode == "canceled" {
+		work, cancel := context.WithCancel(ctx)
+		defer cancel()
+		err := b.Runtime.ReadSnapshot(work, func(reader db.Queryer) error {
+			result := callback(reader)
+			cancel()
+			return result
+		})
+		return errors.Join(err, work.Err())
+	}
 	base := &managementBoundary{ManagementBackend: b.Runtime, mode: b.mode}
 	err := base.ReadSnapshot(ctx, func(reader db.Queryer) error {
 		if reader == nil {
@@ -49,7 +68,11 @@ func (r *adminSelectionReader) ValidateSession(ctx context.Context) error {
 	return validator.ValidateSession(ctx)
 }
 func (r *adminSelectionReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	if plan.Table() == "godj_identity_group" {
+	_, filtered := plan.Where()
+	limit, limited := plan.Limit()
+	// User source admission reads current memberships first. Inject the
+	// failure/revocation only into the subsequent bounded target Search.
+	if plan.Table() == "godj_identity_group" && !filtered && limited && limit == admin.DefaultListLimit+1 {
 		if r.boundary.before != nil {
 			if err := r.boundary.before(ctx); err != nil {
 				return nil, err
@@ -60,6 +83,25 @@ func (r *adminSelectionReader) Query(ctx context.Context, plan query.Plan) (db.R
 		}
 	}
 	return r.Queryer.Query(ctx, plan)
+}
+
+type adminChoicePage struct {
+	Items  []struct{ Value, Label string } `json:"items"`
+	Offset int                             `json:"offset"`
+	Limit  int                             `json:"limit"`
+	More   bool                            `json:"more"`
+}
+
+func readAdminChoicePage(t *testing.T, response adminHTTPResult) adminChoicePage {
+	t.Helper()
+	var page adminChoicePage
+	if err := json.Unmarshal([]byte(response.body), &page); err != nil {
+		t.Fatal("invalid choice JSON", err)
+	}
+	if response.header.Get("Content-Type") != "application/json; charset=utf-8" || response.header.Get("X-Content-Type-Options") != "nosniff" || page.Items == nil {
+		t.Fatal("choice response lost its bounded JSON envelope")
+	}
+	return page
 }
 
 func runAdminSelectionBoundaries(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
@@ -81,14 +123,17 @@ func runAdminSelectionBoundaries(t *testing.T, open func(*testing.T) (Transition
 				return err
 			})
 		}}
-		manager := f.manager(t, boundary)
-		choices, err := manager.UserGroupChoices(t.Context(), f.actor)
-		if err != nil || len(choices) != 1 || choices[0].Label != "Original choice" || calls != 1 {
-			t.Fatal("choices escaped authority snapshot", choices, err, calls)
+		h := newIdentityAdminHTTP(t, f, boundary)
+		h.loginAdmin(t, h.client, "manager", managementOldPassword)
+		path := adminObjectPath("users", "change/choices/groups", f.user.ID)
+		page := readAdminChoicePage(t, h.call(t, h.client, "GET", path, nil, 200))
+		if len(page.Items) != 1 || page.Items[0].Label != "Original choice" || calls != 1 {
+			t.Fatal("choices escaped authority snapshot", page, calls)
 		}
-		choices[0].Label = "Caller edit"
-		if values, err := manager.UserGroupChoices(t.Context(), f.actor); !errors.Is(err, &identity.Error{Code: identity.CodePermission}) || values != nil || calls != 1 {
-			t.Fatal("revoked authority reused", values, err)
+		page.Items[0].Label = "Caller edit"
+		h.call(t, h.client, "GET", path, nil, 403)
+		if calls != 1 {
+			t.Fatal("revoked authority performed target I/O")
 		}
 		if row, _, err := models.GroupObjects.Using(backend).OrderBy(models.GroupFields.ID.Asc()).First(t.Context()); err != nil || row.Name != "Concurrent choice" {
 			t.Fatal("result mutated storage", err)
@@ -99,48 +144,51 @@ func runAdminSelectionBoundaries(t *testing.T, open func(*testing.T) (Transition
 		f := newManagementFixture(t, backend, 0)
 		for _, mode := range []string{"read_end_failure", "read_zero", "read_nil", "read_twice", "read_swallowed_failure", "canceled"} {
 			t.Run(mode, func(t *testing.T) {
+				boundary := &adminSelectionBoundary{Runtime: f.runtime}
+				h := newIdentityAdminHTTP(t, f, boundary)
+				h.loginAdmin(t, h.client, "manager", managementOldPassword)
+				boundary.mode = mode
+				for _, path := range []string{
+					adminObjectPath("users", "change/choices/groups", f.user.ID),
+					adminObjectPath("users", "change/choices/permissions", f.user.ID),
+					"/admin/groups/add/choices/permissions/",
+				} {
+					if strings.HasPrefix(path, "/admin/users/change/") {
+						boundary.skipSnapshots = 1
+					}
+					response := h.call(t, h.client, "GET", path, nil, 500)
+					if strings.Contains(response.body, `"items"`) {
+						t.Fatal("failed choice scope published a page")
+					}
+				}
 				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
-				boundary := &adminSelectionBoundary{Runtime: f.runtime, mode: mode}
 				if mode == "canceled" {
-					boundary.cancel = cancel
+					boundary.mode, boundary.cancel = "", cancel
 				}
-				manager := f.manager(t, boundary)
-				for _, call := range []func() (int, error){
-					func() (int, error) { values, err := manager.UserGroupChoices(ctx, f.actor); return len(values), err },
-					func() (int, error) {
-						values, err := manager.UserPermissionChoices(ctx, f.actor)
-						return len(values), err
-					},
-					func() (int, error) {
-						values, err := manager.GroupPermissionChoices(ctx, f.actor, admin.ActionAdd)
-						return len(values), err
-					},
-					func() (int, error) {
-						values, err := manager.UserHistory(ctx, f.actor, f.user.ID, 10)
-						return len(values), err
-					},
-				} {
-					if count, err := call(); err == nil || count != 0 {
-						t.Fatal("failed scope published data", count, err)
-					}
+				if values, err := f.manager(t, boundary).UserHistory(ctx, f.actor, f.user.ID, 10); err == nil || len(values) != 0 {
+					t.Fatal("failed history scope published data", err)
 				}
 			})
 		}
 		fault := errors.Join(errors.New("private-admin-fault"), &identity.Error{Code: identity.CodePermission})
-		manager := f.manager(t, &adminSelectionBoundary{Runtime: f.runtime, fault: fault})
-		if choices, err := manager.UserGroupChoices(t.Context(), f.actor); choices != nil || !errors.Is(err, fault) || err.(*identity.Error).Code != identity.CodePersistence {
-			t.Fatal("execution failure became permission denial", err)
+		boundary := &adminSelectionBoundary{Runtime: f.runtime, fault: fault}
+		h := newIdentityAdminHTTP(t, f, boundary)
+		h.loginAdmin(t, h.client, "manager", managementOldPassword)
+		response := h.call(t, h.client, "GET", adminObjectPath("users", "change/choices/groups", f.user.ID), nil, 500)
+		if strings.Contains(response.body, `"items"`) {
+			t.Fatal("execution failure became successful selection")
 		}
-		if values, err := manager.GroupPermissionChoices(t.Context(), f.actor, admin.ActionDelete); values != nil || !errors.Is(err, &identity.Error{Code: identity.CodeInvalidInput}) {
+		if source, err := f.manager(t, f.runtime).GroupPermissionChoiceSource(admin.ActionDelete); source != nil || !errors.Is(err, &identity.Error{Code: identity.CodeInvalidInput}) {
 			t.Fatal("unsupported choice action accepted", err)
 		}
 	})
-	t.Run("oversized_choice_catalog_is_never_silently_truncated", func(t *testing.T) {
+	t.Run("large_choice_catalog_has_complete_pages_and_search", func(t *testing.T) {
 		backend, _ := open(t)
 		f := newManagementFixture(t, backend, 0)
+		const total = 121
 		if err := backend.CoordinatedAtomic(t.Context(), func(session db.Session) error {
-			for i := range identity.MaximumManagementChoices {
+			for i := range total {
 				if _, err := models.GroupObjects.Create(t.Context(), session, models.NewGroupCreate(fmt.Sprintf("choice-%04d", i))); err != nil {
 					return err
 				}
@@ -154,33 +202,48 @@ func runAdminSelectionBoundaries(t *testing.T, open func(*testing.T) (Transition
 		}); err != nil {
 			t.Fatal(err)
 		}
-		manager := f.manager(t, f.runtime)
-		for _, call := range []func() ([]identity.ManagementChoice, error){func() ([]identity.ManagementChoice, error) { return manager.UserGroupChoices(t.Context(), f.actor) }, func() ([]identity.ManagementChoice, error) {
-			return manager.UserPermissionChoices(t.Context(), f.actor)
-		}} {
-			choices, err := call()
-			if err != nil || len(choices) != identity.MaximumManagementChoices {
-				t.Fatal("complete catalog rejected", len(choices), err)
+		h := newIdentityAdminHTTP(t, f, f.runtime)
+		h.loginAdmin(t, h.client, "manager", managementOldPassword)
+		for _, path := range []string{
+			adminObjectPath("users", "change/choices/groups", f.user.ID),
+			adminObjectPath("users", "change/choices/permissions", f.user.ID),
+			"/admin/groups/add/choices/permissions/",
+		} {
+			address, err := url.Parse(path)
+			if err != nil {
+				t.Fatal(err)
 			}
-			for i := 1; i < len(choices); i++ {
-				if choices[i-1].ID >= choices[i].ID {
-					t.Fatal("choices not deterministically ordered")
+			seen, last := 0, int64(0)
+			for offset := 0; ; offset += 50 {
+				params := address.Query()
+				params.Set("offset", strconv.Itoa(offset))
+				params.Set("limit", "50")
+				address.RawQuery = params.Encode()
+				page := readAdminChoicePage(t, h.call(t, h.client, "GET", address.String(), nil, 200))
+				if page.Offset != offset || page.Limit != 50 || len(page.Items) > 50 || page.More != (offset+len(page.Items) < total) {
+					t.Fatal("page boundary silently truncated catalog", page)
+				}
+				for _, item := range page.Items {
+					id, err := strconv.ParseInt(item.Value, 10, 64)
+					if err != nil || id <= last {
+						t.Fatal("choice key/order changed", item.Value, err)
+					}
+					last, seen = id, seen+1
+				}
+				if !page.More {
+					break
 				}
 			}
-		}
-		if _, err := models.GroupObjects.Create(t.Context(), backend, models.NewGroupCreate("overflow")); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate("choice.overflow", "Overflow")); err != nil {
-			t.Fatal(err)
-		}
-		for _, call := range []func() ([]identity.ManagementChoice, error){func() ([]identity.ManagementChoice, error) { return manager.UserGroupChoices(t.Context(), f.actor) }, func() ([]identity.ManagementChoice, error) {
-			return manager.UserPermissionChoices(t.Context(), f.actor)
-		}, func() ([]identity.ManagementChoice, error) {
-			return manager.GroupPermissionChoices(t.Context(), f.actor, admin.ActionAdd)
-		}} {
-			if choices, err := call(); choices != nil || !errors.Is(err, &identity.Error{Code: identity.CodePersistence}) {
-				t.Fatal("oversized catalog truncated", len(choices), err)
+			if seen != total {
+				t.Fatal("catalog row missing or duplicated", seen)
+			}
+			params := address.Query()
+			params.Del("offset")
+			params.Set("q", "0120")
+			address.RawQuery = params.Encode()
+			page := readAdminChoicePage(t, h.call(t, h.client, "GET", address.String(), nil, 200))
+			if len(page.Items) != 1 || page.More || !strings.Contains(page.Items[0].Label, "0120") {
+				t.Fatal("search did not find target outside first page", page)
 			}
 		}
 	})

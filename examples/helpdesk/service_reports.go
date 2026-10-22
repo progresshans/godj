@@ -54,12 +54,16 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 	if err != nil {
 		return err
 	}
+	ticketChoices, err := a.ticketChoiceSource("service_report", "ticket")
+	if err != nil {
+		return err
+	}
 	return admin.RegisterModel(builder, admin.ModelConfig[models.ServiceReport]{
 		AppLabel: "helpdesk", Slug: "service-reports", Model: metadata, FormFields: fields, FormOverrides: overrides,
-		RelatedChoices: []admin.RelatedChoices{{Field: "ticket", Permission: ViewTicket, Load: a.reportTicketChoices}},
+		RelatedChoices: []admin.RelatedChoices{ticketChoices},
 		ListFields:     []string{"id", "ticket", "summary", "completed"}, SearchFields: []string{"summary"},
 		Permissions:        admin.Permissions{View: ViewServiceReport, Add: AddServiceReport, Change: ChangeServiceReport, Delete: DeleteServiceReport},
-		CollectionCommands: a.reportSaveCommands(form),
+		CollectionCommands: a.reportSaveCommands(form, ticketChoices),
 		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {
 			return a.listReports(ctx, request)
 		},
@@ -126,20 +130,6 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 			return a.deleteReport(ctx, id)
 		},
 	})
-}
-
-func (a *Application) reportTicketChoices(ctx context.Context, _ auth.Principal) ([]forms.Choice, error) {
-	rows, err := models.TicketObjects.Using(a.backend).Filter(a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
-	if err != nil {
-		return nil, err
-	}
-	choices := make([]forms.Choice, 0, len(rows))
-	for _, row := range rows {
-		if row.ID > 0 {
-			choices = append(choices, forms.Choice{Value: forms.Integer(row.ID), Label: row.Subject})
-		}
-	}
-	return choices, nil
 }
 
 func (a *Application) listReports(ctx context.Context, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {

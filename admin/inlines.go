@@ -23,7 +23,10 @@ const (
 
 // InlineAccess is the request's admitted operation policy, including the
 // Site's deny overlay. It is a snapshot, not proof of current stored authority.
-type InlineAccess struct{ View, Add, Change, Delete bool }
+type InlineAccess struct {
+	View, Add, Change, Delete bool
+	choiceAccess              *inlineChoiceAccess
+}
 
 func (access InlineAccess) visible() bool {
 	return access.View || access.Add || access.Change || access.Delete
@@ -74,18 +77,21 @@ type Inline struct {
 	config                        forms.SetConfig
 	permissions                   Permissions
 	choicePermissions             []auth.Permission
+	choiceSources                 []RelatedChoices
+	searchOrigin                  func(context.Context, auth.Principal, int64, int64, InlineAccess) (ChoiceOrigin, error)
 	bind                          func(context.Context, auth.Principal, int64, InlineAccess, *forms.Data) (inlineBound, error)
 }
 type inlineToken struct{ marker byte }
 type inlineBound struct {
-	definition Inline
-	access     InlineAccess
-	parentID   int64
-	set        forms.Set
-	identities []forms.Value
-	revisions  []int64
-	empty      *forms.SetForm
-	policy     forms.SetConfig
+	definition  Inline
+	access      InlineAccess
+	parentID    int64
+	set         forms.Set
+	identities  []forms.Value
+	revisions   []int64
+	empty       *forms.SetForm
+	policy      forms.SetConfig
+	choiceViews map[int]map[string]choiceFieldView
 }
 
 func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
@@ -120,7 +126,14 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		return ModelInline[P, C]{}, err
 	}
 	rows = spec.SetSpec()
-	formFor, choices, err := prepareRelatedChoices(rows.FormSpec(), config.Form.RelatedChoices)
+	var childIdentity ir.ModelIdentity
+	for _, relation := range config.Project.ForwardRelations() {
+		current, present := config.Project.Model(relation.Source)
+		if present && current.Equal(child) && relation.Field == config.ForeignKey {
+			childIdentity = relation.Source
+		}
+	}
+	_, choices, err := prepareRelatedChoices(child, childIdentity, rows.FormSpec(), config.Form.RelatedChoices, false)
 	if err != nil {
 		return ModelInline[P, C]{}, err
 	}
@@ -128,7 +141,7 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 	if slices.Contains(postClean.Fields, config.ForeignKey) {
 		return ModelInline[P, C]{}, &ConfigError{Path: "inline.post_clean", Code: "parent_is_server_owned"}
 	}
-	definition := Inline{token: &inlineToken{}, parent: parent, child: child, prefix: rows.Config().Prefix, label: config.Label, fields: rows.FormSpec().Fields(), config: rows.Config(), permissions: config.Permissions, choicePermissions: choices}
+	definition := Inline{token: &inlineToken{}, parent: parent, child: child, prefix: rows.Config().Prefix, label: config.Label, fields: rows.FormSpec().Fields(), config: rows.Config(), permissions: config.Permissions, choicePermissions: choices, choiceSources: slices.Clone(config.Form.RelatedChoices)}
 	for _, field := range definition.fields {
 		if field.Name() == "ORDER" || field.Name() == "DELETE" {
 			return ModelInline[P, C]{}, &ConfigError{Path: "inline.form", Code: "reserved"}
@@ -178,7 +191,7 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		}
 		return nil
 	}
-	bindSnapshot := func(ctx context.Context, parentID int64, access InlineAccess, owner P, snapshot InlineSnapshot[C], currentForm forms.Spec, submitted *forms.Data, resolve func(context.Context, formmodel.InlinePreflight[P, C]) (forms.RowModelChoices, error)) (formmodel.InlineSet[P, C], inlineBound, error) {
+	bindSnapshot := func(ctx context.Context, parentID int64, access InlineAccess, owner P, snapshot InlineSnapshot[C], currentForm forms.Spec, submitted *forms.Data, resolve func(context.Context, formmodel.InlinePreflight[P, C]) (forms.RowModelChoices, error), selections *forms.RowModelChoices) (formmodel.InlineSet[P, C], inlineBound, error) {
 		if err := validateParent(owner, parentID); err != nil {
 			return formmodel.InlineSet[P, C]{}, inlineBound{}, err
 		}
@@ -201,6 +214,12 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		requestRows, err := forms.NewSetSpec(currentForm, policy, validators...)
 		if err != nil {
 			return formmodel.InlineSet[P, C]{}, inlineBound{}, err
+		}
+		if selections != nil {
+			requestRows, err = requestRows.WithRowModelChoices(*selections)
+			if err != nil {
+				return formmodel.InlineSet[P, C]{}, inlineBound{}, err
+			}
 		}
 		requestSpec, err := formmodel.NewInlineSpec(config.Project, config.Parent, config.Child, config.ForeignKey, requestRows)
 		if err != nil {
@@ -301,12 +320,6 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		}
 		currentForm := rows.FormSpec()
 		var err error
-		if access.Add || access.Change {
-			currentForm, err = formFor(ctx, actor)
-			if err != nil {
-				return inlineBound{}, err
-			}
-		}
 		var snapshot InlineSnapshot[C]
 		if parentID != 0 && access.read() {
 			snapshot, err = config.Load(ctx, actor, parentID)
@@ -317,9 +330,108 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 				return inlineBound{}, err
 			}
 		}
-		bound, result, err := bindSnapshot(ctx, parentID, access, owner, snapshot, currentForm, submitted, nil)
+
+		admitted := submitted == nil
+		resolve := func(work context.Context, input formmodel.InlinePreflight[P, C]) (forms.RowModelChoices, error) {
+			admitted = true
+			selections := make(map[int]map[string][]forms.Choice, input.TotalForms())
+			for index := 0; index < input.TotalForms(); index++ {
+				identity, _ := input.Identity(index)
+				rowID, _ := identity.AsInteger()
+				readOnly, err := input.ReadOnly(index)
+				if err != nil {
+					return forms.RowModelChoices{}, err
+				}
+				origin := definition.choiceOrigin(parentID, rowID)
+				selected, err := resolveRowChoices(work, actor, origin, definition.choiceSources, readOnly, access.allowedChoices(), func(name string) ([]int64, bool, error) { return input.ChoiceKeys(index, name) })
+				if err != nil {
+					return forms.RowModelChoices{}, err
+				}
+				selections[index] = selected
+			}
+			return forms.NewRowModelChoices(selections, nil), nil
+		}
+		bound, result, err := bindSnapshot(ctx, parentID, access, owner, snapshot, currentForm, submitted, resolve, nil)
 		if err != nil {
 			return inlineBound{}, err
+		}
+
+		if admitted && len(definition.choiceSources) != 0 {
+			rowChoices := make(map[int]map[string][]forms.Choice)
+			result.choiceViews = make(map[int]map[string]choiceFieldView)
+			for _, row := range result.set.Forms() {
+				index := row.Index()
+				identity, _ := bound.Identity(index)
+				rowID, _ := identity.AsInteger()
+				origin := definition.choiceOrigin(parentID, rowID)
+				if submitted == nil {
+					var initial map[string]forms.Value
+					if rowID != 0 {
+						// Formset ORDER/DELETE controls are not model input.
+						// Project only the server values selected by this form.
+						initial = make(map[string]forms.Value, len(currentForm.Fields()))
+						for _, field := range currentForm.Fields() {
+							if value, present := row.Form().Initial().Get(field.Name()); present {
+								initial[field.Name()] = value
+							}
+						}
+					}
+					keys, keyErr := modelChoiceKeys(child, currentForm, forms.Data{}, initial, true)
+					if keyErr != nil {
+						return inlineBound{}, keyErr
+					}
+					selected, resolveErr := resolveRowChoices(ctx, actor, origin, definition.choiceSources, row.Form().ReadOnly(), access.allowedChoices(), keys)
+					if resolveErr != nil {
+						return inlineBound{}, resolveErr
+					}
+					rowChoices[index] = selected
+				}
+				views, viewErr := choiceViews(ctx, actor, origin, definition.choiceSources, "", row.Form().ReadOnly(), submitted == nil)
+				if viewErr != nil {
+					return inlineBound{}, viewErr
+				}
+				result.choiceViews[index] = views
+			}
+			var prototype map[string][]forms.Choice
+			if access.Add {
+				origin := definition.choiceOrigin(parentID, 0)
+				keys, keyErr := modelChoiceKeys(child, currentForm, forms.Data{}, nil, true)
+				if keyErr != nil {
+					return inlineBound{}, keyErr
+				}
+				prototype, err = resolveRowChoices(ctx, actor, origin, definition.choiceSources, false, access.allowedChoices(), keys)
+				if err != nil {
+					return inlineBound{}, err
+				}
+				views, viewErr := choiceViews(ctx, actor, origin, definition.choiceSources, "", false, submitted == nil)
+				if viewErr != nil {
+					return inlineBound{}, viewErr
+				}
+				result.choiceViews[-1] = views
+			}
+			if submitted == nil {
+				selections := forms.NewRowModelChoices(rowChoices, prototype)
+				views := result.choiceViews
+				bound, result, err = bindSnapshot(ctx, parentID, access, owner, snapshot, currentForm, nil, nil, &selections)
+				if err != nil {
+					return inlineBound{}, err
+				}
+				result.choiceViews = views
+			} else if access.Add {
+				prototypeRows, prototypeErr := rows.WithRowModelChoices(forms.NewRowModelChoices(nil, prototype))
+				if prototypeErr != nil {
+					return inlineBound{}, prototypeErr
+				}
+				prototypeSpec, prototypeErr := formmodel.NewInlineSpec(config.Project, config.Parent, config.Child, config.ForeignKey, prototypeRows)
+				if prototypeErr != nil {
+					return inlineBound{}, prototypeErr
+				}
+				empty, prototypeErr := prototypeSpec.EmptyForm(owner)
+				if prototypeErr != nil {
+					return inlineBound{}, prototypeErr
+				}
+				result.empty = &empty
+			}
 		}
 		if submitted != nil && config.Validate != nil && bound.FormSet().NonFormErrors().Empty() {
 			if err := config.Validate(ctx, actor, bound); err != nil {
@@ -340,6 +452,51 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 		}
 		return result, nil
 	}
+
+	definition.searchOrigin = func(ctx context.Context, actor auth.Principal, parentID, rowID int64, access InlineAccess) (ChoiceOrigin, error) {
+		if err := validateInlineAccess(ctx, actor, parentID, access, definition); err != nil {
+			return ChoiceOrigin{}, err
+		}
+		if rowID == 0 {
+			if !access.Add {
+				return ChoiceOrigin{}, NewOperationError(OperationDenied, nil)
+			}
+			return definition.choiceOrigin(parentID, 0), nil
+		}
+		if parentID == 0 || !access.Change || config.Set.ReadOnlyInitial {
+			return ChoiceOrigin{}, NewOperationError(OperationDenied, nil)
+		}
+		owner := config.ParentWithID(parentID)
+		if err := validateParent(owner, parentID); err != nil {
+			return ChoiceOrigin{}, err
+		}
+		snapshot, err := config.Load(ctx, actor, parentID)
+		if err != nil {
+			return ChoiceOrigin{}, err
+		}
+		if err := ctx.Err(); err != nil {
+			return ChoiceOrigin{}, err
+		}
+		if len(snapshot.Current) > rows.Config().AbsoluteMax {
+			return ChoiceOrigin{}, &ConfigError{Path: "inline.current", Code: "limit_exceeded"}
+		}
+		var readers []func(C, ir.ManyToManyField) ([]int64, bool)
+		if snapshot.Related != nil {
+			readers = append(readers, snapshot.Related)
+		}
+		current, err := spec.Unbound(owner, snapshot.Current, readers...)
+		if err != nil {
+			return ChoiceOrigin{}, err
+		}
+		for _, row := range current.FormSet().Forms() {
+			identity, present := current.Identity(row.Index())
+			key, valid := identity.AsInteger()
+			if present && valid && key == rowID {
+				return definition.choiceOrigin(parentID, rowID), nil
+			}
+		}
+		return ChoiceOrigin{}, ErrObjectNotFound
+	}
 	return ModelInline[P, C]{view: definition, bindCurrent: func(ctx context.Context, parentID int64, access InlineAccess, data forms.Data, current InlineCurrent[P, C]) (formmodel.InlineSet[P, C], error) {
 		resolve := func(work context.Context, input formmodel.InlinePreflight[P, C]) (forms.RowModelChoices, error) {
 			if current.ResolveChoices != nil {
@@ -354,7 +511,7 @@ func NewInline[P, C any](config InlineConfig[P, C]) (ModelInline[P, C], error) {
 			}
 			return forms.RowModelChoices{}, nil
 		}
-		bound, _, err := bindSnapshot(ctx, parentID, access, current.Parent, current.Children, rows.FormSpec(), &data, resolve)
+		bound, _, err := bindSnapshot(ctx, parentID, access, current.Parent, current.Children, rows.FormSpec(), &data, resolve, nil)
 		return bound, err
 	}}, nil
 }
@@ -482,4 +639,54 @@ func applyInlineRejection(entry inlineBound, rejection *InlineRejection) (inline
 		entry.set, err = entry.set.WithFormErrors(rejection.index, rejection.failures)
 	}
 	return entry, err
+}
+
+func (definition Inline) choiceOrigin(parentID, rowID int64) ChoiceOrigin {
+	return ChoiceOrigin{source: definition.childIdentity, operation: ChoiceInline, objectID: rowID, parent: definition.parentIdentity, parentID: parentID, rowID: rowID, name: definition.prefix, valid: true}
+}
+func resolveRowChoices(ctx context.Context, actor auth.Principal, origin ChoiceOrigin, sources []RelatedChoices, readOnly bool, access map[string]bool, keys choiceKeys) (map[string][]forms.Choice, error) {
+	if ctx == nil {
+		return nil, &ConfigError{Path: "operation.context", Code: "nil"}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	result := make(map[string][]forms.Choice, len(sources))
+	for _, source := range sources {
+		if readOnly {
+			if access != nil && !access[source.choiceField()] {
+				continue
+			}
+			if err := validatePrincipalPermission(ctx, actor, source.choicePermission()); err != nil {
+				if denied, ok := err.(*ConfigError); ok && denied.Path == "operation.permission" && denied.Code == "denied" {
+					continue
+				}
+				return nil, err
+			}
+		}
+		selected, valid, err := keys(source.choiceField())
+		if err != nil {
+			return nil, err
+		}
+		if !valid {
+			continue
+		}
+		result[source.choiceField()], err = source.resolve(ctx, actor, origin, selected)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+type inlineChoiceAccess struct{ allowed map[string]bool }
+
+func (access InlineAccess) allowedChoices() map[string]bool {
+	if access.choiceAccess == nil {
+		return nil
+	}
+	return access.choiceAccess.allowed
 }

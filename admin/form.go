@@ -44,6 +44,7 @@ func additionalPermissions(primary auth.Permission, additional []auth.Permission
 
 func (model registeredModel) forCreate() registeredModel {
 	model.form, model.formFor, model.choicePermissions = model.createForm, model.createFormFor, model.createChoicePermissions
+	model.choiceSources = model.createChoiceSources
 	model.postClean = model.createPostClean
 	model.revisionField = ""
 	return model
@@ -145,4 +146,15 @@ func modelInitialValues(model ir.Model, spec forms.Spec, provided map[string]for
 		return nil, nil, &ConfigError{Path: "get.result.initial", Code: "invalid_model_value", Cause: err}
 	}
 	return selected, candidate, nil
+}
+
+func (model registeredModel) origin(operation ChoiceOperation, id int64) ChoiceOrigin {
+	return ChoiceOrigin{source: ir.ModelIdentity{AppLabel: model.appLabel, ModelName: model.model.Name}, operation: operation, objectID: id, valid: true}
+}
+func (model registeredModel) resolveForm(ctx context.Context, actor auth.Principal, origin ChoiceOrigin, data forms.Data, initial map[string]forms.Value, unbound bool) (forms.Spec, error) {
+	keys, err := modelChoiceKeys(model.model, model.form, data, initial, unbound)
+	if err != nil {
+		return forms.Spec{}, err
+	}
+	return model.formFor(ctx, actor, origin, keys)
 }

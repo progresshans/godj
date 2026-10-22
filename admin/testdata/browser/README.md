@@ -36,9 +36,28 @@ SQLite/PostgreSQL 검증은 [Helpdesk HTTP 검사](../../../examples/helpdesk/ad
 파일 선택 유지/재번호, 오류 재표시, readonly의 disabled/successful control 제외도 검사한다. 기본 `probe.js`의 33개 조건은
 파일이 없는 multipart 제출에서도 그대로 적용한다. 두 probe는 각각 새 DB를 사용한다.
 
-원격 CI에서는 Portable normal integration이 [Admin browser runner](../../../scripts/ci/admin_browser.py)로 두 흐름을
+원격 CI에서는 Portable normal integration이 [Admin browser runner](../../../scripts/ci/admin_browser.py)로 세 흐름을
 각각 새 fixture·별도 브라우저 세션에서 실행한다. 기존 Helpdesk browser owner와 동일한 고정 CLI/Chromium을 쓰며
 추가 npm 잠금이나 전역 도구 설치는 필요하지 않다. 각 흐름의 검사 목록·실제 버전, native 저장 행/부모 연결,
 기존 행의 모든 scalar 보존, browser/server 종료와 임시 DB 삭제를 확인한다. 원본 로그·snapshot·screenshot·source와
 receipt는 `admin-inline-browser` artifact에 보존한다. 이 브라우저의 파일은 여전히 비저장 검증 명령이며
 모델 파일 storage 게시와 실제 PostgreSQL의 검증을 대신하지 않는다.
+
+관계 선택 UI는 `GODJ_ADMIN_BROWSER_MODE=choices go run ./admin/testdata/browser`로 별도 fixture를 시작하고
+`choices_probe.js`를 실행한다. 34개 조건을 검사하며 고정된 35개 허용 label 후보와 별도 category의 후보를 사용한다. 일반 Ticket의 M2M,
+TicketLabel의 FK, Category→Ticket typed inline M2M은 모두 공개 `NewRelationChoices` / `NewRelatedChoices`를
+소비하며 writer는 같은 transaction에서 선택 키를 다시 Resolve하거나 `BindCurrent`로 재검증한다. Label의 이름을
+다른 인증된 Admin 탭에서 바꾸면 현재 scope에서 제외되므로 오래된 검색 결과의 제출 거부도 실제 저장 상태로 확인한다.
+
+이 흐름은 선택값을 제외한 검색 페이지 상한, 이전/다음, 페이지 밖 선택 유지, 0·음수·2^53 초과 문자열 ID,
+label escaping, 다중 선택 유지·해제·저장, 지연 응답 무시, 오류 후 재시도, JavaScript 없는 초기 선택,
+새 inline·재번호·현재 저장 cohort·readonly, 잘못된 선택·대상 권한 거부·오래된 대상 거부를 검사한다.
+응답 지연과 일시 오류만 Playwright route로 제어하며 후보 내용·검색·저장은 실제 fixture와 SQLite를 사용한다.
+마지막 native receipt는 전체 category/label/ticket/link cohort를 문자열 ID로 기록하고, 의도한 대상 이름 변경을 제외한
+초기 모델의 모든 scalar 보존과 최종 관계를 확인한다. 브라우저 검사는 final writer 도중 별도 DB transaction이
+동시에 정책을 바꾸는 경쟁, PostgreSQL, 실제 보조공학 사용자 검증의 증거가 아니다.
+
+CI runner는 기존 `inline` 33개·`uploads` 20개 검사와 `choices` 34개 검사를 각각 새 SQLite와 Chromium context에서
+실행한다. 새 fixture의 Go 소스 hash도 receipt에 기록하고 같은 `admin-inline-browser` artifact 안에 각 흐름의
+원본 로그·snapshot·screenshot·완전한 검사 목록과 native receipt를 남긴다. 검사 작성·syntax/compile 통과와
+Hosted 실행 성공은 별개이며, 실제 실행 결과는 해당 source commit의 CI receipt로 판단한다.

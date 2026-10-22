@@ -36,19 +36,22 @@ type CollectionFormSetConfig[M any] struct {
 // Ordering/deletion controls and uploaded files are currently unsupported;
 // configuration fails explicitly instead of ignoring those policies.
 type CollectionFormSet struct {
-	model       ir.Model
-	name, label string
-	permissions []auth.Permission
-	fields      []forms.Field
-	config      forms.SetConfig
-	rules       inputRules
-	bind        func(context.Context, auth.Principal, *forms.Data) (collectionFormSetBound, error)
+	model         ir.Model
+	identity      ir.ModelIdentity
+	choiceSources []RelatedChoices
+	name, label   string
+	permissions   []auth.Permission
+	fields        []forms.Field
+	config        forms.SetConfig
+	rules         inputRules
+	bind          func(context.Context, auth.Principal, *forms.Data) (collectionFormSetBound, error)
 }
 
 type collectionFormSetBound struct {
-	set   forms.Set
-	empty forms.SetForm
-	run   func(context.Context) ([]int64, error)
+	choiceViews map[int]map[string]choiceFieldView
+	set         forms.Set
+	empty       forms.SetForm
+	run         func(context.Context) ([]int64, error)
 }
 
 type CollectionFormSetDescriptor struct {
@@ -85,7 +88,11 @@ func NewCollectionFormSet[M any](config CollectionFormSetConfig[M]) (CollectionF
 	if _, err := formmodel.UnboundSet(config.Manager, rows, nil); err != nil {
 		return CollectionFormSet{}, err
 	}
-	formFor, choices, err := prepareRelatedChoices(form, config.Form.RelatedChoices)
+	var identity ir.ModelIdentity
+	if len(config.Form.RelatedChoices) > 0 && config.Form.RelatedChoices[0] != nil {
+		identity = config.Form.RelatedChoices[0].choiceMetadata().Source
+	}
+	_, choices, err := prepareRelatedChoices(model, identity, form, config.Form.RelatedChoices, false)
 	if err != nil {
 		return CollectionFormSet{}, err
 	}
@@ -116,35 +123,86 @@ func NewCollectionFormSet[M any](config CollectionFormSetConfig[M]) (CollectionF
 		}
 	}
 	postClean := config.Form.Definition.PostClean.Clone()
-	definition := CollectionFormSet{model: model, name: config.Name, label: config.Label, permissions: permissions, fields: fields, config: policy, rules: rules}
+	definition := CollectionFormSet{model: model, identity: identity, choiceSources: slices.Clone(config.Form.RelatedChoices), name: config.Name, label: config.Label, permissions: permissions, fields: fields, config: policy, rules: rules}
 	definition.bind = func(ctx context.Context, actor auth.Principal, submitted *forms.Data) (collectionFormSetBound, error) {
 		for _, permission := range permissions {
 			if err := validatePrincipalPermission(ctx, actor, permission); err != nil {
 				return collectionFormSetBound{}, err
 			}
 		}
-		current, err := formFor(ctx, actor)
-		if err != nil {
-			return collectionFormSetBound{}, err
-		}
-		spec, err := forms.NewSetSpec(current, policy, validators...)
-		if err != nil {
-			return collectionFormSetBound{}, err
-		}
+
+		origin := ChoiceOrigin{source: identity, operation: ChoiceCollectionSet, name: config.Name, valid: true}
+		spec := rows
 		var typed formmodel.InstanceSet[M]
+		var input formmodel.SetPreflight[M]
+		var err error
+		views := make(map[int]map[string]choiceFieldView)
+		selections := make(map[int]map[string][]forms.Choice)
+		admitted := submitted == nil
 		if submitted == nil {
 			typed, err = formmodel.UnboundSet(config.Manager, spec, nil)
 		} else {
-			typed, err = formmodel.BindSet(ctx, config.Manager, spec, *submitted, nil, postClean)
+			input, err = formmodel.PreflightSet(ctx, config.Manager, spec, *submitted, nil, postClean)
+			admitted = input.AdmissionValid()
 		}
 		if err != nil {
 			return collectionFormSetBound{}, err
 		}
-		empty, err := spec.EmptyForm()
+		count := typed.FormSet().TotalForms()
+		if submitted != nil {
+			count = input.TotalForms()
+		}
+		var prototype map[string][]forms.Choice
+		if admitted {
+			initialKeys, keyErr := modelChoiceKeys(model, form, forms.Data{}, nil, true)
+			if keyErr != nil {
+				return collectionFormSetBound{}, keyErr
+			}
+			for index := 0; index < count; index++ {
+				keys := initialKeys
+				if submitted != nil {
+					keys = func(name string) ([]int64, bool, error) { return input.ChoiceKeys(index, name) }
+				}
+				selections[index], err = resolveRowChoices(ctx, actor, origin, definition.choiceSources, false, nil, keys)
+				if err != nil {
+					return collectionFormSetBound{}, err
+				}
+				views[index], err = choiceViews(ctx, actor, origin, definition.choiceSources, "", false, submitted == nil)
+				if err != nil {
+					return collectionFormSetBound{}, err
+				}
+			}
+			prototype, err = resolveRowChoices(ctx, actor, origin, definition.choiceSources, false, nil, initialKeys)
+			if err != nil {
+				return collectionFormSetBound{}, err
+			}
+			views[-1], err = choiceViews(ctx, actor, origin, definition.choiceSources, "", false, submitted == nil)
+			if err != nil {
+				return collectionFormSetBound{}, err
+			}
+		}
+		choices := forms.NewRowModelChoices(selections, prototype)
+		if submitted == nil {
+			spec, err = spec.WithRowModelChoices(choices)
+			if err != nil {
+				return collectionFormSetBound{}, err
+			}
+			typed, err = formmodel.UnboundSet(config.Manager, spec, nil)
+		} else {
+			typed, err = input.Bind(ctx, choices)
+		}
 		if err != nil {
 			return collectionFormSetBound{}, err
 		}
-		bound := collectionFormSetBound{set: typed.FormSet(), empty: empty}
+		prototypeSpec, err := spec.WithRowModelChoices(forms.NewRowModelChoices(nil, prototype))
+		if err != nil {
+			return collectionFormSetBound{}, err
+		}
+		empty, err := prototypeSpec.EmptyForm()
+		if err != nil {
+			return collectionFormSetBound{}, err
+		}
+		bound := collectionFormSetBound{set: typed.FormSet(), empty: empty, choiceViews: views}
 		bound.run = func(ctx context.Context) ([]int64, error) {
 			for _, permission := range permissions {
 				if err := validatePrincipalPermission(ctx, actor, permission); err != nil {
@@ -157,6 +215,34 @@ func NewCollectionFormSet[M any](config CollectionFormSetConfig[M]) (CollectionF
 			active, err := typed.FormSet().ActiveForms()
 			if err != nil {
 				return nil, err
+			}
+
+			// Re-resolve the original submitted/default keys without re-running clean
+			// hooks or using any post-clean rewrite as a lookup request.
+			for _, row := range active {
+				index := row.Index()
+				keys := func(name string) ([]int64, bool, error) { return input.ChoiceKeys(index, name) }
+				selections, resolveErr := resolveRowChoices(ctx, actor, origin, definition.choiceSources, false, nil, keys)
+				if resolveErr != nil {
+					return nil, resolveErr
+				}
+				for _, source := range definition.choiceSources {
+					requested, valid, keyErr := keys(source.choiceField())
+					if keyErr != nil {
+						return nil, keyErr
+					}
+					if !valid {
+						return nil, &ConfigError{Path: "collection_formset.keys", Code: "invalid"}
+					}
+					for _, key := range requested {
+						if !slices.ContainsFunc(selections[source.choiceField()], func(choice forms.Choice) bool {
+							value, present := choice.Value.AsInteger()
+							return present && value == key
+						}) {
+							return nil, RejectCollectionFormSet(map[int]validation.Errors{index: validation.NewErrors(validation.New(validation.Field(source.choiceField()), "invalid_choice"))}, validation.Errors{}, nil)
+						}
+					}
+				}
 			}
 			identities, err := config.Run(ctx, actor, typed)
 			if err != nil {
@@ -179,13 +265,13 @@ func NewCollectionFormSet[M any](config CollectionFormSetConfig[M]) (CollectionF
 	return definition, nil
 }
 
-func prepareCollectionFormSets(input []CollectionFormSet, model ir.Model) ([]CollectionFormSet, error) {
+func prepareCollectionFormSets(input []CollectionFormSet, model ir.Model, identity ir.ModelIdentity) ([]CollectionFormSet, error) {
 	if len(input) > MaximumActions {
 		return nil, &ConfigError{Path: "model.collection_formsets", Code: "limit_exceeded"}
 	}
 	seen := make(map[string]bool, len(input))
 	for _, definition := range input {
-		if definition.bind == nil || !definition.model.Equal(model) || seen[definition.name] {
+		if definition.bind == nil || !definition.model.Equal(model) || len(definition.choiceSources) > 0 && definition.identity != identity || seen[definition.name] {
 			return nil, &ConfigError{Path: "model.collection_formsets", Code: "invalid_or_duplicate"}
 		}
 		seen[definition.name] = true

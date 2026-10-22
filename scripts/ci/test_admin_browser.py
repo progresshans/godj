@@ -96,6 +96,63 @@ class AdminBrowserEvidenceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             verify_native('uploads', state)
 
+    def test_native_choices_reject_missing_numeric_foreign_and_changed_seed_evidence(self):
+        labels = [{'id': '-7', 'category': '1', 'name': 'Choice negative'},
+                  {'id': '0', 'category': '1', 'name': 'Choice zero'}]
+        labels += [{'id': str(key), 'category': '1', 'name': 'Choice %02d' % key}
+                   for key in range(1, 31)]
+        labels += [
+            {'id': '31', 'category': '1', 'name': 'Revoked target'},
+            {'id': '32', 'category': '1', 'name': 'Choice <img src=x onerror="window.choiceInjected=true">'},
+            {'id': '9007199254740993', 'category': '1', 'name': 'Choice selected outside page'},
+            {'id': '9007199254740994', 'category': '2', 'name': 'Choice foreign'},
+        ]
+        state = {
+            'seed_scalars_preserved': True,
+            'categories': [{'id': '1', 'name': 'Choice category'}, {'id': '2', 'name': 'Foreign category'}],
+            'labels': labels,
+            'tickets': [{'id': '1', 'category': '1', 'subject': 'Choice owner', 'closed': False},
+                        {'id': '2', 'category': '2', 'subject': 'Foreign owner', 'closed': False},
+                        {'id': '3', 'category': '1', 'subject': 'Browser inline', 'closed': False}],
+            'links': [{'ticket': '1', 'label': '-7'}, {'ticket': '1', 'label': '9007199254740993'},
+                      {'ticket': '2', 'label': '9007199254740994'}, {'ticket': '3', 'label': '0'}],
+            'reports': 0,
+        }
+        verify_native('choices', state)
+        for path, value in [
+            (('seed_scalars_preserved',), False),
+            (('seed_scalars_preserved',), 1),
+            (('labels',), state['labels'][:-1]),
+            (('tickets',), state['tickets'][:-1]),
+            (('links',), state['links'][:-1]),
+            (('links',), state['links'] + [state['links'][0]]),
+            (('labels', 34, 'id'), 9007199254740993),
+            (('labels', 34, 'id'), '9007199254740992'),
+            (('links', 1, 'label'), '9007199254740994'),
+            (('links', 3, 'label'), 0),
+            (('links', 3, 'ticket'), '2'),
+            (('labels', 0, 'name'), 'Changed seed'),
+            (('labels', 32, 'name'), 'Choice stale'),
+            (('tickets', 0, 'subject'), 'Rejected stale overwrite'),
+            (('tickets', 2, 'closed'), 0),
+            (('reports',), 1),
+        ]:
+            with self.subTest(path=path, value=value):
+                altered = copy.deepcopy(state)
+                parent = altered
+                for key in path[:-1]:
+                    parent = parent[key]
+                parent[path[-1]] = value
+                with self.assertRaises(ValueError):
+                    verify_native('choices', altered)
+        for key in state:
+            altered = copy.deepcopy(state)
+            del altered[key]
+            with self.assertRaises(ValueError):
+                verify_native('choices', altered)
+        with self.assertRaises(ValueError):
+            verify_native('choices', state | {'unexpected': []})
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -533,6 +533,7 @@ func runPublicHelpdeskConsumer(t *testing.T, ctx context.Context, open func(cont
 	t.Run("ticket_collections", func(t *testing.T) {
 		verifyHelpdeskTicketCollections(t, ctx, runtime, open, client, category.ID, other.ID, after, seedLargeLabel)
 	})
+	t.Run("admin_choices", func(t *testing.T) { verifyHelpdeskAdminChoices(t, ctx, runtime, client) })
 	t.Run("admin_inlines", func(t *testing.T) {
 		verifyHelpdeskAdminInlines(t, ctx, runtime, client)
 	})

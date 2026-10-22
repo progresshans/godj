@@ -29,27 +29,27 @@ func TestAdminCollectionCommandChoiceDefinition(t *testing.T) {
 					t.Fatal("registration called the writer")
 					return CollectionCommandResult{}, nil
 				},
-				RelatedChoices: []RelatedChoices{{Field: "target", Permission: "accounts.view", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+				RelatedChoices: []RelatedChoices{testTargetChoices(t, "target", "accounts.view", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 					t.Fatal("registration queried choices")
 					return nil, nil
-				}}},
+				})},
 			}
 			switch mode {
 			case "shared_permission":
-				config.RelatedChoices[0].Permission = config.Permission
+				config.RelatedChoices[0] = testChoicesWithPermission(config.RelatedChoices[0], config.Permission)
 			case "missing":
 				config.RelatedChoices = nil
 			case "duplicate":
 				config.RelatedChoices = append(config.RelatedChoices, config.RelatedChoices[0])
 			case "unknown":
-				config.RelatedChoices[0].Field = "missing"
+				config.RelatedChoices[0] = testChoicesWithField(config.RelatedChoices[0], "missing")
 			case "missing_permission":
-				config.RelatedChoices[0].Permission = ""
+				config.RelatedChoices[0] = testChoicesWithPermission(config.RelatedChoices[0], "")
 			case "missing_loader":
-				config.RelatedChoices[0].Load = nil
+				config.RelatedChoices[0] = testChoicesWithoutScope(t, config.RelatedChoices[0])
 			case "scalar_source":
 				config.Form = managementCommandForm(t)
-				config.RelatedChoices[0].Field = "name"
+				config.RelatedChoices[0] = testChoicesWithField(config.RelatedChoices[0], "name")
 			}
 			commands, err := prepareCollectionCommands([]CollectionCommandConfig{config}, model)
 			if mode != "valid" && mode != "shared_permission" {
@@ -92,7 +92,7 @@ func TestAdminCollectionCommandCurrentRelatedChoices(t *testing.T) {
 			})
 			loads, writes := 0, 0
 			posting := false
-			sources := []RelatedChoices{{Field: "target", Permission: "accounts.delete", Load: func(context.Context, auth.Principal) ([]forms.Choice, error) {
+			sources := []RelatedChoices{testTargetChoices(t, "target", "accounts.delete", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 				loads++
 				if posting {
 					if mode == "load_error" || mode == "reload_error" && loads == 2 {
@@ -106,7 +106,7 @@ func TestAdminCollectionCommandCurrentRelatedChoices(t *testing.T) {
 					}
 				}
 				return []forms.Choice{{Value: forms.Integer(7), Label: "Visible <&>"}}, nil
-			}}}
+			})}
 			client, _, registry := newManagementFormSite(t, authorizer, func(config *ModelConfig[managementFormRow]) {
 				config.CollectionCommands = []CollectionCommandConfig{{Name: "save", Label: "Save for target", Permission: "accounts.change", Form: form, RelatedChoices: sources,
 					Run: func(_ context.Context, _ auth.Principal, values forms.Values) (CollectionCommandResult, error) {
@@ -121,8 +121,8 @@ func TestAdminCollectionCommandCurrentRelatedChoices(t *testing.T) {
 			if loads != 0 {
 				t.Fatal("registration queried related rows")
 			}
-			sources[0].Permission = "forged.permission"
-			sources[0].Load = nil
+			sources[0] = testChoicesWithPermission(sources[0], "forged.permission")
+			sources[0] = nil
 			description := registry.All()[0].CollectionCommands[0]
 			if !slices.Equal(description.Permissions, []auth.Permission{"accounts.change", "accounts.delete"}) {
 				t.Fatal("descriptor lost owned target permission")
@@ -154,8 +154,10 @@ func TestAdminCollectionCommandCurrentRelatedChoices(t *testing.T) {
 			response := client.do("POST", path, values)
 			want, wantWrites, wantLoads := 302, 1, 2
 			switch mode {
-			case "stale_before_bind", "duplicate":
+			case "stale_before_bind":
 				want, wantWrites, wantLoads = 200, 0, 1
+			case "duplicate":
+				want, wantWrites, wantLoads = 200, 0, 0
 			case "stale_before_run":
 				want, wantWrites, wantLoads = 200, 0, 2
 			case "load_error", "invalid_choices":
