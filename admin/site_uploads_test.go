@@ -82,7 +82,7 @@ func siteUploadSubmit(t *testing.T, client *siteHTTPClient, target string, value
 	return siteUploadRequest(client, target, bytes.NewReader(body), contentType)
 }
 
-func uploadTestSite[M any](t *testing.T, config ModelConfig[M], policy uploads.Config, authorizer auth.Authorizer) (*siteHTTPClient, *Site, *siteCountingStore) {
+func uploadTestSite[M any](t *testing.T, config ModelConfig[M], policy uploads.Config, authorizer auth.Authorizer, widgets ...WidgetConfig) (*siteHTTPClient, *Site, *siteCountingStore) {
 	t.Helper()
 	installed := mustApps(t)
 	builder := NewBuilder(installed)
@@ -98,7 +98,14 @@ func uploadTestSite[M any](t *testing.T, config ModelConfig[M], policy uploads.C
 		t.Fatal(err)
 	}
 	runtime, store := siteTestRuntimeConfigured(t, paths, "/admin/login/", "/admin/", siteTestIdentities(t), "/", "/", authorizer)
-	site, err := NewSite(SiteConfig{Apps: installed, Namespace: "godj_conformance", Registry: registry, Auth: runtime, Uploads: &policy})
+	siteConfig := SiteConfig{Apps: installed, Namespace: "godj_conformance", Registry: registry, Auth: runtime, Uploads: &policy}
+	if len(widgets) > 1 {
+		t.Fatal("multiple widget configurations")
+	}
+	if len(widgets) == 1 {
+		siteConfig.Widgets = widgets[0]
+	}
+	site, err := NewSite(siteConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

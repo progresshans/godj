@@ -1,5 +1,11 @@
 // Run on a fresh choices-mode fixture via playwright-cli run-code --filename.
 async (page) => {
+    // run-code has no locator timeout by default. Bound every page in this
+    // context so a missing control produces an actionable failure before the
+    // runner's unchanged overall process deadline.
+    page.context().setDefaultTimeout(10000);
+    page.context().setDefaultNavigationTimeout(20000);
+    const stage = name => page.evaluate(name => console.info("CHOICE_STAGE: " + name), name);
     const origin = new URL(page.url()).origin;
     if (!origin.startsWith("http://127.0.0.1:")) throw new Error("expected isolated loopback fixture");
     const cases = [];
@@ -170,13 +176,18 @@ async (page) => {
     await check(afterForeign.subject === "Choice owner" && same(afterForeign.labels, [large, "-7"]), "invalid membership leaves current scalar and relation rows unchanged");
 
     await page.goto(edit);
+    await stage("stale target search");
     await search("labels", "stale");
+    await stage("stale target selection");
     await input("labels").selectOption([large, "-7", "31"]);
     await input("subject").fill("Rejected stale overwrite");
+    await stage("open target editor");
     const mutator = await page.context().newPage();
     try {
         await mutator.goto(origin + "/admin/labels/change/?id=31");
+        await stage("rename target");
         await input("name", mutator).fill("Revoked target");
+        await stage("save target rename");
         await mutator.getByRole("button", {name: "Save", exact: true}).click();
         if (new URL(mutator.url()).pathname !== "/admin/labels/") throw new Error("target catalog update failed");
     } finally { await mutator.close(); }

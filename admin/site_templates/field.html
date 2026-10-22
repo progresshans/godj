@@ -1,5 +1,5 @@
 {% if field.hidden %}<input type="hidden" name="{{ field.name }}" value="{{ field.value }}">{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}{% else %}<div data-field-name="{{ field.name }}"{% if field.choice_search %} data-choice-url="{{ field.choice_url }}" data-choice-offset="{{ field.choice_offset }}" data-choice-limit="{{ field.choice_limit }}" data-choice-more="{% if field.choice_more %}true{% else %}false{% endif %}"{% if field.choice_disabled %} data-choice-disabled{% endif %}{% endif %}><label>{{ field.label }}
-{% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.binary_max_length %} maxlength="{{ field.binary_max_length }}"{% endif %}{% if field.required %} required{% endif %}>{% endif %}
+{% if field.custom_widget %}{{ field.custom_widget }}{% else %}{% if field.char %}<input name="{{ field.name }}" value="{{ field.value }}"{% if field.binary_max_length %} maxlength="{{ field.binary_max_length }}"{% endif %}{% if field.required %} required{% endif %}>{% endif %}
 {% if field.email %}<input type="email" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.url %}<input type="url" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.password %}<input type="password" name="{{ field.name }}" autocomplete="new-password"{% if field.required %} required{% endif %}>{% endif %}
@@ -14,7 +14,7 @@
 {% if field.datetime %}<input type="text" name="{{ field.name }}" value="{{ field.value }}" placeholder="YYYY-MM-DDTHH:MM:SSZ"{% if field.required %} required{% endif %}><span>UTC if no offset is provided.</span>{% endif %}
 {% if field.integer %}<input type="text" inputmode="numeric" name="{{ field.name }}" value="{{ field.value }}"{% if field.required %} required{% endif %}>{% endif %}
 {% if field.select %}<select name="{{ field.name }}"{% if field.choice_search %} id="{{ field.name }}-choices" aria-describedby="{{ field.name }}-choice-status"{% if field.choice_disabled %} disabled{% endif %}{% endif %}{% if field.multiple %} multiple{% endif %}{% if field.required %} required{% endif %}>{% for option in field.options %}<option value="{{ option.value }}"{% if field.choice_search %}{% if option.page %} data-choice-page{% endif %}{% endif %}{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select>{% endif %}
-{% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}</label>
+{% if field.boolean %}<input type="checkbox" name="{{ field.name }}" value="on"{% if field.checked %} checked{% endif %}>{% endif %}{% endif %}</label>
 {% if field.choice_search %}<div data-choice-controls hidden>
 <label>Search {{ field.label }} <input type="search" data-choice-query id="{{ field.name }}-choice-query" maxlength="256" autocomplete="off" aria-controls="{{ field.name }}-choices" aria-describedby="{{ field.name }}-choice-status"{% if field.choice_disabled %} disabled{% endif %}></label>
 <button type="button" data-choice-search aria-controls="{{ field.name }}-choices"{% if field.choice_disabled %} disabled{% endif %}>Search</button>
@@ -25,4 +25,4 @@
 {% if field.file_initial %}<span>Currently: {{ field.file_name }}</span>{% endif %}
 {% if field.file_clear %}<label><input type="checkbox" name="{{ field.clear_name }}" value="on"{% if field.clear_checked %} checked{% endif %}>Clear {{ field.label }}</label>{% endif %}
 {% if field.file_reselect %}<p data-file-reselect="{{ field.name }}">Select the file again before submitting.</p>{% endif %}
-{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endif %}
+{% if field.errors %}<div id="{{ field.error_id }}">{% for error in field.errors %}<p data-error-field="{{ field.name }}" data-error-code="{{ error.code }}">{{ error.message }}</p>{% endfor %}</div>{% endif %}</div>{% endif %}

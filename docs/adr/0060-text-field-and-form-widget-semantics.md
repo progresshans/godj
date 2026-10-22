@@ -38,6 +38,13 @@ Admin은 같은 widget metadata를 사용한다. Textarea 내용도 일반 templ
 HTML parser가 시작 직후의 newline 하나를 제거하므로 태그와 값 사이에 newline 하나를 항상 넣는다.
 HTTP body, serializer parser와 template의 기존 자원 제한은 TextField 저장 길이와 별개로 유지한다.
 
+F1에서는 native `Widget`과 분리한 `WithWidgetTemplate` 이름을 추가한다. Admin Site가 신뢰하는 애플리케이션의
+템플릿 filesystem과 이름/native widget 매핑을 시작 시 검증·compile한다. 모델 IR과 입력/검증/저장 정책은 그대로 두며
+일반 Form·command·inline·collection의 control 표시만 공유한다. 요청마다 renderer callback이나 filesystem I/O는 없다.
+표시 context는 안전한 원래 입력·현재 공개 값과 오류/상태로 제한하고 request·principal·모델 후보·파일 capability를
+전달하지 않는다. Password/Hidden은 기본 표시를 유지한다. Native control 계약과 bounded 출력, 파일·오류·readonly의
+소유권은 [위젯 확장](../../admin/widgets.md)에 명시한다. 이것이 신뢰하지 않는 HTML 실행이나 template 언어 전체 확장을 뜻하지 않는다.
+
 ## API와 모델 성장
 
 모델 serializer는 기존 string normalization·full/partial·null/생략·default 정책을 재사용한다. String default의 앞뒤 공백도
@@ -56,5 +63,6 @@ NULL로 남긴다. API 생략/null은 NULL, 명시적 빈 문자열은 빈 값�
 저장소 lock의 Django 6.1 `django/db/models/fields/__init__.py`의 CharField/TextField, `django/forms/fields.py`의 CharField와
 `django/forms/templates/django/forms/widgets/textarea.html`을 참조했다. BSD-3-Clause이며 Python 내부 구조를 복제하지 않는다.
 [Reference runner](../../conformance/runners/django/text_field_reference.py)와 [고정 관찰값](../../forms/model/testdata/text-django61.json)은
-독립 작성한 입력 roster(`derived=false`)의 문자열 cleaning·오류 code·widget만 비교한다. 임의 collation·모든 Text 옵션·범용 widget·relation input은
-별도 미완료 범위다.
+독립 작성한 입력 roster(`derived=false`)의 문자열 cleaning·오류 code·widget만 비교한다. 이 과거 관측이 현재의
+등록 widget이나 relation input 전체 검증은 아니다. 해당 기능의 현재 구현·실행 범위는 F1과 TEST_EVIDENCE를 따른다.
+임의 collation·모든 Text 옵션은 별도 미완료 범위다.

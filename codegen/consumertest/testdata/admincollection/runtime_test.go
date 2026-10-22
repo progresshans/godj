@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	"example.com/godj-project-bundle/directory"
 	"example.com/godj-project-bundle/inventory"
@@ -159,7 +160,7 @@ func newCollectionHarness(t *testing.T, backend resourceBackend, mode, name stri
 	declaration, err = admin.NewCollectionFormSet(admin.CollectionFormSetConfig[inventory.Asset]{
 		Name: "edit", Label: "Edit assets", Project: binding, Source: ir.ModelIdentity{AppLabel: "inventory", ModelName: "asset"}, Manager: inventory.AssetObjects, Permissions: permissions, Set: policy, RevisionField: "revision",
 		Form: admin.FormConfig{Definition: formmodel.Definition{
-			Fields: fields, Overrides: []formmodel.Override{formmodel.OverrideField("code", formmodel.WithStringNormalizer(strings.ToUpper))},
+			Fields: fields, Overrides: []formmodel.Override{formmodel.OverrideField("code", formmodel.WithStringNormalizer(strings.ToUpper), formmodel.WithWidgetTemplate("asset_code")), formmodel.OverrideField("attachment", formmodel.WithWidgetTemplate("asset_file"))},
 			PostClean: formmodel.PostClean{Fields: []string{"workspace"}, Clean: func(forms.Values) (forms.Values, validation.Errors) {
 				return forms.NewValues(map[string]forms.Value{"workspace": forms.Integer(h.workspace.ID)}), validation.Errors{}
 			}},
@@ -375,7 +376,10 @@ func newCollectionHarness(t *testing.T, backend resourceBackend, mode, name stri
 	check(t, err)
 	h.uploadPolicy = uploads.DefaultConfig()
 	h.uploadPolicy.MemoryBytes, h.uploadPolicy.TempDir = 0, t.TempDir()
-	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "inventory", Registry: registry, Auth: runtime, Uploads: &h.uploadPolicy})
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "inventory", Registry: registry, Auth: runtime, Uploads: &h.uploadPolicy, Widgets: admin.WidgetConfig{Templates: fstest.MapFS{
+		"code.html": {Data: []byte(`<input data-asset-code name="{{ field.name }}" id="{{ field.control_id }}" value="{{ field.value }}"{% if field.readonly %} disabled{% endif %}{% if field.invalid %} aria-invalid="true" aria-describedby="{{ field.error_id }}"{% endif %}>`)},
+		"file.html": {Data: []byte(`<input type="file" data-asset-file name="{{ field.name }}" id="{{ field.control_id }}"{% if field.readonly %} disabled{% endif %}{% if field.invalid %} aria-invalid="true" aria-describedby="{{ field.error_id }}"{% endif %}>`)},
+	}, Entries: []admin.WidgetTemplate{{Name: "asset_code", Widget: forms.TextInput, Template: "code.html"}, {Name: "asset_file", Widget: forms.ClearableFileInput, Template: "file.html"}}}})
 	check(t, err)
 	h.application, err = web.NewApplication(web.Config{Settings: configured, Routes: site.Routes()})
 	check(t, err)
@@ -426,6 +430,9 @@ func (h *collectionHarness) input() url.Values {
 	page := h.send("GET", collectionPath, nil)
 	if page.Code != 200 {
 		h.t.Fatal("collection GET", page.Code, page.Body.String())
+	}
+	if !strings.Contains(page.Body.String(), `data-asset-code`) || !strings.Contains(page.Body.String(), `data-asset-file`) {
+		h.t.Fatal("generated consumer omitted its registered control templates")
 	}
 	document, err := html.Parse(strings.NewReader(page.Body.String()))
 	check(h.t, err)

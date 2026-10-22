@@ -11,6 +11,9 @@
 [외부 Directory–Inventory 소비자](../codegen/consumertest/testdata/admincollection/runtime_test.go)는 실제 생성 FileField,
 revision과 보호된 관계를 같은 공개 경로에 연결한다. 두 모델 버전의 필드/권한 차이도 같은 writer로 처리한다.
 
+행 Form의 [등록 위젯](widgets.md)은 기존 행과 새 행/prototype에 같은 표시 경로를 사용한다.
+표시 템플릿이 field/model/set 검증, readonly·PK/revision이나 파일 재선택의 소유권을 바꾸지 않는다.
+
 `Load`는 허용된 전체 현재 행과 이미 읽은 M2M 값의 순수 snapshot을 반환한다. 제출 ID만 조회하거나 상한에서
 조용히 자르면 안 된다. Site는 active staff·모델 조회 권한과 각 View/Add/Change/Delete, 추가 권한 및 choice 권한을
 먼저 확인한다. Change가 없는 기존 행은 read-only이며 Add가 있으면 새 행을 추가할 수 있다. Delete와 ORDER는

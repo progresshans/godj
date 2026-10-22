@@ -61,6 +61,12 @@ func WithWidget(widget forms.Widget) OverrideOption {
 	})
 }
 
+// WithWidgetTemplate selects presentation without replacing the projected IR
+// type, native widget, constraints, model clean or assignment behavior.
+func WithWidgetTemplate(name string) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.widgetTemplate, config.hasWidgetTemplate = name, true })
+}
+
 func WithValidators(validators ...forms.FieldValidator) OverrideOption {
 	detached := append([]forms.FieldValidator(nil), validators...)
 	return overrideOption(func(config *overrideConfig) {
@@ -106,6 +112,8 @@ type overrideConfig struct {
 	hasRequired         bool
 	widget              forms.Widget
 	hasWidget           bool
+	widgetTemplate      string
+	hasWidgetTemplate   bool
 	validators          []forms.FieldValidator
 }
 
@@ -293,6 +301,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 			choices[index] = forms.Choice{Value: value, Label: choice.Label}
 		}
 		options = append(options, forms.WithChoices(choices...))
+	}
+	if override.hasWidgetTemplate {
+		options = append(options, forms.WithWidgetTemplate(override.widgetTemplate))
 	}
 	if override.hasWidget {
 		options = append(options, forms.WithWidget(override.widget))

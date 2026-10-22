@@ -44,6 +44,8 @@ type SiteConfig struct {
 	// RenderLimits bounds the complete HTML page. Zero uses template defaults.
 	// The enclosing web.Application must allow the same output-byte budget.
 	RenderLimits templates.Limits
+	// Widgets registers trusted control templates for explicitly named form fields.
+	Widgets WidgetConfig
 	// Uploads snapshots a multipart policy. nil uses uploads.DefaultConfig.
 	// Admin's text and input-count ceilings also apply; this policy may tighten
 	// them. File capabilities expire when the synchronous request returns.
@@ -65,6 +67,7 @@ type Site struct {
 	registry    Registry
 	auth        *sessionauth.Runtime
 	templates   *templates.Engine
+	widgets     widgetRegistry
 	routes      []web.Route
 	choicePaths map[string]bool
 	pageSize    int
@@ -129,12 +132,17 @@ func NewSite(config SiteConfig) (*Site, error) {
 	if err != nil {
 		return nil, &ConfigError{Path: "site.templates", Code: "invalid", Cause: err}
 	}
+	widgets, err := prepareWidgets(config.Widgets, config.Registry, config.RenderLimits)
+	if err != nil {
+		return nil, err
+	}
 	site := &Site{
 		namespace: config.Namespace,
 		basePath:  basePath,
 		registry:  config.Registry,
 		auth:      config.Auth,
 		templates: engine,
+		widgets:   widgets,
 		pageSize:  pageSize,
 		uploads:   uploadPolicy,
 		access:    access,

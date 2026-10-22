@@ -39,6 +39,9 @@ func (site *Site) render(request *web.Request, name string, values map[string]te
 	values["index_path"] = templates.String(site.basePath + "/")
 	values["login_path"] = templates.String(site.basePath + "/login/")
 	values["logout_path"] = templates.String(site.basePath + "/logout/")
+	if err := site.widgets.apply(request.Context(), values); err != nil {
+		return web.Response{}, err
+	}
 	contextValues, err := templates.NewContext(values)
 	if err != nil {
 		return web.Response{}, &ConfigError{Path: "site.context", Code: "invalid", Cause: err}
@@ -420,6 +423,12 @@ func formFieldContext(fields []forms.Field, form forms.Form, submitted url.Value
 		}
 		item, err := templateObject(map[string]templates.Value{
 			"name":              templates.String(prefix + field.Name()),
+			"widget_template":   templates.String(field.WidgetTemplate()),
+			"widget_kind":       templates.Integer(int64(field.Widget())),
+			"control_id":        templates.String(prefix + field.Name() + "-control"),
+			"error_id":          templates.String(prefix + field.Name() + "-errors"),
+			"invalid":           templates.Bool(len(errors) != 0),
+			"readonly":          templates.Bool(form.ReadOnly()),
 			"label":             templates.String(field.Label()),
 			"char":              templates.Bool((field.Kind() == forms.FieldChar || field.Kind() == forms.FieldEmail || field.Kind() == forms.FieldURL || field.Kind() == forms.FieldSlug || field.Kind() == forms.FieldBinary || field.Kind() == forms.FieldUUID || field.Kind() == forms.FieldJSON) && field.Widget() == forms.TextInput),
 			"password":          templates.Bool(field.Widget() == forms.PasswordInput),

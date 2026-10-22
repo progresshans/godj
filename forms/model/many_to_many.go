@@ -26,6 +26,9 @@ func projectManyToMany(field ir.ManyToManyField, override overrideConfig) (forms
 	if override.hasRequired {
 		options = append(options, forms.WithRequired(override.required))
 	}
+	if override.hasWidgetTemplate {
+		options = append(options, forms.WithWidgetTemplate(override.widgetTemplate))
+	}
 	if override.hasWidget {
 		options = append(options, forms.WithWidget(override.widget))
 	}

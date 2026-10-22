@@ -215,6 +215,16 @@ func WithWidget(widget Widget) FieldOption {
 	return fieldOption(func(config *fieldConfig) { config.widget, config.hasWidget = widget, true })
 }
 
+const MaximumWidgetTemplateNameBytes = 64
+
+// WithWidgetTemplate selects a renderer-owned presentation by name. It does not
+// change the native widget, input representation, validation or storage rules.
+// The renderer must resolve the name and check widget compatibility at startup.
+// Password and hidden controls always use the built-in renderer.
+func WithWidgetTemplate(name string) FieldOption {
+	return fieldOption(func(config *fieldConfig) { config.widgetTemplate, config.hasWidgetTemplate = name, true })
+}
+
 // WithTrimWhitespace controls CharField cleaning. Password forms should retain
 // whitespace explicitly; the widget itself never changes a field's value rules.
 func WithTrimWhitespace(trim bool) FieldOption {
@@ -262,6 +272,8 @@ type fieldConfig struct {
 	label               string
 	widget              Widget
 	hasWidget           bool
+	widgetTemplate      string
+	hasWidgetTemplate   bool
 	choices             []Choice
 	modelChoice         bool
 	emptyValue          Value
@@ -289,6 +301,7 @@ type Field struct {
 	label              string
 	kind               FieldKind
 	widget             Widget
+	widgetTemplate     string
 	choices            []Choice
 	modelChoice        bool
 	inlineParent       bool
@@ -415,6 +428,9 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		kind == FieldDate && (config.widget == DateInput || config.widget == TextInput) ||
 		(config.modelChoice || config.choices != nil) && config.widget == Select) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".widget", Code: "unsupported_combination"}
+	}
+	if config.hasWidgetTemplate && (!validName(config.widgetTemplate) || len(config.widgetTemplate) > MaximumWidgetTemplateNameBytes || config.widget == PasswordInput || config.widget == HiddenInput) {
+		return Field{}, &ConfigError{Path: "fields." + name + ".widget_template", Code: "invalid_or_protected"}
 	}
 	if config.hasEmptyValue {
 		if !stringFieldKind(kind) || !(config.emptyValue.IsNull() && config.nullable ||
@@ -594,6 +610,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		label:              config.label,
 		kind:               kind,
 		widget:             config.widget,
+		widgetTemplate:     config.widgetTemplate,
 		choices:            append([]Choice(nil), config.choices...),
 		modelChoice:        config.modelChoice,
 		emptyValue:         config.emptyValue,
@@ -634,6 +651,7 @@ func (f Field) Name() string              { return f.name }
 func (f Field) Label() string             { return f.label }
 func (f Field) Kind() FieldKind           { return f.kind }
 func (f Field) Widget() Widget            { return f.widget }
+func (f Field) WidgetTemplate() string    { return f.widgetTemplate }
 func (f Field) EmptyValue() (Value, bool) { return f.emptyValue, stringFieldKind(f.kind) }
 func (f Field) Required() bool            { return f.required }
 func (f Field) Nullable() bool            { return f.nullable }

@@ -96,7 +96,7 @@ func TestAdminCollectionFilesRetainCurrentBindingPublicationAndRequestLifetime(t
 			calls, currentLoads := 0, 0
 			definition, err = NewCollectionFormSet(CollectionFormSetConfig[article.Article]{
 				Name: "files", Label: "Edit files", Project: binding, Source: ir.ModelIdentity{AppLabel: config.AppLabel, ModelName: metadata.Name}, Manager: manager, Permissions: config.Permissions,
-				Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"title", "summary"}}}, Set: policy,
+				Form: FormConfig{Definition: formmodel.Definition{Fields: []string{"title", "summary"}, Overrides: []formmodel.Override{formmodel.OverrideField("title", formmodel.WithWidgetTemplate("file_control"))}}}, Set: policy,
 				Load: func(context.Context, auth.Principal, CollectionSetAccess) (CollectionSetSnapshot[article.Article], error) {
 					return CollectionSetSnapshot[article.Article]{Current: []article.Article{current}}, nil
 				},
@@ -193,11 +193,11 @@ func TestAdminCollectionFilesRetainCurrentBindingPublicationAndRequestLifetime(t
 				authorizer = siteDenyAuthorizer{denied: config.Permissions.Add}
 			}
 			uploadPolicy := uploadTestPolicy(t)
-			client, _, _ := uploadTestSite(t, config, uploadPolicy, authorizer)
+			client, _, _ := uploadTestSite(t, config, uploadPolicy, authorizer, fileWidgetTestConfig())
 			client.login(t, "admin", "secret", "/admin/")
 			path := "/admin/articles/collection-set/files/"
 			page := client.do(http.MethodGet, path, nil)
-			if page.Code != 200 || !strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) || !strings.Contains(page.Body.String(), "old/first.txt") {
+			if page.Code != 200 || !strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) || !strings.Contains(page.Body.String(), "old/first.txt") || !strings.Contains(page.Body.String(), `data-custom-file="files-0-title"`) || !strings.Contains(page.Body.String(), `data-custom-file="files-__prefix__-title"`) {
 				t.Fatal("file collection initial display", page.Code, page.Body.String())
 			}
 			values := url.Values{"csrfmiddlewaretoken": {siteCSRFToken(t, page.Body.String())}, "files-TOTAL_FORMS": {"2"}, "files-INITIAL_FORMS": {"1"}, "files-0-id": {"11"}, "files-1-id": {""}}
@@ -234,7 +234,7 @@ func TestAdminCollectionFilesRetainCurrentBindingPublicationAndRequestLifetime(t
 			if response.Code != status || calls != wantCalls || currentLoads != wantCalls || backend.saves != wantSaves || backend.deletes != 0 {
 				t.Fatal("multipart/publication boundary", response.Code, status, calls, currentLoads, backend.saves, response.Body.String())
 			}
-			if status == 200 && (!strings.Contains(response.Body.String(), `data-file-reselect="files-0-title"`) || strings.Contains(response.Body.String(), `value="first.txt"`)) {
+			if status == 200 && (!strings.Contains(response.Body.String(), `data-file-reselect="files-0-title"`) || strings.Contains(response.Body.String(), `value="first.txt"`) || !strings.Contains(response.Body.String(), `data-custom-file="files-0-title"`)) {
 				t.Fatal("invalid file display did not request reselection")
 			}
 			if len(receipts) != wantSaves {

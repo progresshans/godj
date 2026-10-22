@@ -23,6 +23,38 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 등록 위젯과 검증/파일 경계 연결
+
+`WithWidgetTemplate`은 native widget과 별도로 표시 이름을 선택하며 Admin Site가 템플릿 FS와 이름/종류를
+시작 시 검증·compile한다. 일반 수정/생성·object/collection command·inline·collection을 같은 표시 경로로
+연결했다. 잘못된 등록·모든 표면의 미해석 이름·종류 불일치, 원래 입력과 field/cross/model 진단 합성,
+readonly와 snapshot 소유권·취소·합계 출력 한도 검사를 작성했다. Password/Hidden 선택은 거부한다.
+기존 multipart 컬렉션 15개 검사와 외부 Directory–Inventory 두 버전의 code/file 위젯에도 연결했다.
+이 변경은 validator·IR·현재 writer·파일 receipt와 request 수명 계약을 변경하지 않는다.
+
+Go 1.26.5 darwin/arm64에서 `683d2c44` archive에 변경 소스를 복사한 분리 snapshot으로
+forms/forms-model/admin/consumer parent의 `-run '^$'`와 두 생성 모듈의 최소 compile만 확인했다.
+생성 schema·bundle은 앞서 보존한 동일 기본/변경 bundle을 사용하며 현재 consumer source를 복사했다.
+`gdj0136-widget-compile-v1/receipt.json` SHA-256은
+`777a27a2197148c6748c6507369a8924d7c199626390ba0b1caafe76eea43e72`다.
+Widget 본문·두 native DB·race·browser 전체를 로컬에서 실행하지 않았다. 새 필수 경로 28개를 추가했고
+PostgreSQL manifest의 4,237개 경로는 각 세 mode에서 정확히 한 owner를 가진다. 원격 실행 결과는 미완료다.
+
+선행 `683d2c44`의 [CI 39816322336](https://github.com/progresshans/godj/actions/runs/39816322336)에서
+Portable normal integration의 choices browser가 probe의 60초 제한으로 중단됐다. 원본 console은 20번째
+검사까지 통과하고 stale target 단계 이후 기록이 없다. 이를 위젯이나 저장 로직 결함으로 확정하지 않는다.
+`gdj0136-683d2c44-ci-39816322336/`의 job `119956392109` log SHA-256은
+`4c9ac409f26b182a227b38470fdc9bcee4f679b9ee3fe773f070f7e2417f85a1`, browser artifact 원본 ZIP은
+`027db3ecf2f955b0795bbd5d1d803e7047075bacdde8e029de6dd39af02ef329`다.
+validation-plan 원본으로 checkout `598b9b45`와 head의 동일 tree `85695c26`을 확인했다.
+
+같은 실패 source archive와 고정 CLI 0.1.22 / Chromium 155.0.8059.12의 로컬 진단은 34개 검사·완전한
+native 행·서버/브라우저 종료·임시 DB 정리를 통과해 중단을 재현하지 못했다. Probe context의 locator/navigation
+제한과 stale 단계 로그를 추가했으며 전체 제한·검사 목록·native 판정은 줄이지 않았다. 같은 분리 source에서
+변경 probe도 34개와 native/정리를 통과했다. `gdj0136-683d-choice-browser-repro-v1/after/receipt.json`의
+SHA-256은 `946256a3d0a33c89a365dbd1cb9d83e8f8fde0dca91d945b4c47fa27a51984b6`다. 이는 해당 실패 범위의 진단이며 위젯 변경이나 전체 F1의 PASS가 아니다.
+현재 source의 원격 재확인, 실제 컬렉션 브라우저 편집과 전체 필수 원본 대조가 남아 있다.
+
 ## GDJ-0136 — 독립 생성 컬렉션과 파일/DB 결과 검증 작성
 
 `TestGeneratedAdminCollections`는 별도 Directory–Inventory project를 기본/변경 버전으로 생성한다.

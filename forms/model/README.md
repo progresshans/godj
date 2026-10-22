@@ -4,6 +4,9 @@ Schema IR에서 선택한 필드를 `Definition`으로 투영한다. `Bind`는 �
 현재/default 모델 후보를 별도로 만든다. 모델 field cleaning 뒤 `PostClean.Clean`, 읽기 전용 `PostClean.Validators`를
 실행한다. 필드가 실패해도 후처리는 실행하며, 값 변환이 기존 오류를 없애거나 field cleaning을 다시 실행하지 않는다.
 
+`WithWidgetTemplate`은 투영된 native widget과 입력/저장 규칙을 유지하며 이름으로 표시를 선택한다.
+Admin의 시작 시 등록·제한된 표시 context·secret/hidden 보호와 오류/파일 안내는 [위젯 확장](../../admin/widgets.md)을 따른다.
+
 제공한 initial은 기존 값의 표시와 변경 비교에 사용한다. Form 입력의 길이·Decimal 정밀도를 더 좁혀도 기존 값을
 자르거나 거부하지 않아 사용자가 유효한 값으로 수정할 수 있다. 같은 기존 값을 그대로 제출하면 현재 입력 제약으로
 검증하므로 오류가 나면서도 Changed는 비어 있을 수 있다. 타입·유효한 표현·UTF-8/NUL 검사와 선언한 default의 제약,
