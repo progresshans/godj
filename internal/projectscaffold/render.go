@@ -15,11 +15,13 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/progresshans/godj/internal/identifiers"
+	"github.com/progresshans/godj/schema"
 	"github.com/progresshans/godj/version"
 )
 
-//go:embed templates
-var projectTemplates embed.FS
+//go:embed templates app_templates
+var scaffoldTemplates embed.FS
 
 // Project declares an explicit module dependency. A development source is a
 // caller-selected physical path; it is never inferred from the installed tool.
@@ -28,6 +30,10 @@ type Project struct {
 	FrameworkVersion string
 	FrameworkSource  string
 }
+
+// App creates editable model declarations. The project explicitly selects
+// installed apps in its own ProjectSpec, independently of source creation.
+type App struct{ Label string }
 
 // File is one caller-owned source document, before model generation. No
 // generated ABI bytes or private publication metadata are fabricated here.
@@ -64,15 +70,38 @@ func RenderProject(project Project) ([]File, error) {
 	} else if len(project.FrameworkVersion) > 128 || !fixedVersion.MatchString(project.FrameworkVersion) {
 		return nil, fmt.Errorf("scaffold: explicit framework dependency required")
 	}
+	return renderTemplates("templates", project)
+}
+
+func ValidateAppLabel(label string) error {
+	if len(label) > 63 || !identifiers.PortablePathElement(label) {
+		return fmt.Errorf("scaffold: invalid app label")
+	}
+	if _, err := schema.Build(schema.Definition{AppLabel: label}); err != nil {
+		return fmt.Errorf("scaffold: invalid app label")
+	}
+	return nil
+}
+
+// RenderApp returns fresh declaration sources, without modifying the project's
+// installed app list, generated bundle, migrations, or database.
+func RenderApp(app App) ([]File, error) {
+	if err := ValidateAppLabel(app.Label); err != nil {
+		return nil, err
+	}
+	return renderTemplates("app_templates", app)
+}
+
+func renderTemplates(directory string, data any) ([]File, error) {
 	var files []File
-	err := fs.WalkDir(projectTemplates, "templates", func(name string, entry fs.DirEntry, err error) error {
+	err := fs.WalkDir(scaffoldTemplates, directory, func(name string, entry fs.DirEntry, err error) error {
 		if err != nil || entry.IsDir() {
 			return err
 		}
 		if !strings.HasSuffix(name, ".tmpl") {
 			return fmt.Errorf("scaffold: invalid embedded template")
 		}
-		source, err := projectTemplates.ReadFile(name)
+		source, err := scaffoldTemplates.ReadFile(name)
 		if err != nil {
 			return err
 		}
@@ -81,10 +110,10 @@ func RenderProject(project Project) ([]File, error) {
 			return fmt.Errorf("scaffold: invalid embedded template")
 		}
 		var output bytes.Buffer
-		if err := parsed.Execute(&output, project); err != nil {
+		if err := parsed.Execute(&output, data); err != nil {
 			return fmt.Errorf("scaffold: template rendering failed")
 		}
-		relative := strings.TrimSuffix(strings.TrimPrefix(name, "templates/"), ".tmpl")
+		relative := strings.TrimSuffix(strings.TrimPrefix(name, directory+"/"), ".tmpl")
 		if relative == "gitignore" {
 			relative = ".gitignore"
 		}

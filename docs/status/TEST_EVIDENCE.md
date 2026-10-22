@@ -66,6 +66,42 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 빈 앱 게시 검증과 startapp 연결
+
+`5607df5a`의 [CI 39868556273](https://github.com/progresshans/godj/actions/runs/39868556273)에서 새 startproject root가 실패했다.
+Linux arm64 normal job `120137336632`의 원본 log SHA-256은
+`e4a84a536e368ae6171d6afb9086c0a0346f4958738c87d2bef1f3d5e023dbbe`다.
+Checkout `155d3054a86577d24442f0aae21de19da22a5082`의 tree `6d65d85514532b7bf503467af3629955680977ff`는 제출 source와 같다.
+원본 metadata/log와 Git 대조는 `gdj0137-5607df5a-ci-39868556273/`에 있다.
+
+동일 archive의 실패한 한 root를 재현했다. Schema IR/생성기는 빈 앱을 지원했지만 source namespace 검사가 모든 앱에
+raw model surface를 요구했다. 해당 label의 canonical empty IR hash와 일치할 때만 모델 부재를 허용하도록 수정했다.
+빈 앱도 source/디렉터리/imported companion 검사 대상이며 첫 모델의 reserved method 보호를 유지한다.
+빈 앱 게시·symlink·첫 모델과 비어 있지 않은 schema hash 위조 거부 검사를 추가했다. 내부 generate 실패의 닫힌 category/code도 전달한다.
+
+같은 root의 새 소비자 기대값도 기존 계약에 맞췄다. Admin 표시 문구 대신 실제 `/admin/groups/` 링크와 저장된 그룹 조회를 사용하고,
+API 목록의 기존 `items`를 읽는다. 출력 실패는 fd 1을 닫는 shell 대신 reader가 닫힌 실제 pipe를 사용한다.
+공통 testprocess owner가 stderr 한도·Wait·timeout·process group 정리를 유지한다. 생성·migration·PTY 계정·인증/CSRF 저장·
+두 재시작·게시 후 출력 실패와 재시도 보존을 좁힌 root에서 통과했다. 새 startapp 흐름은 이 재현에 포함하지 않았다.
+`gdj0137-startproject-repro-v1/pipe-final-receipt.json` SHA-256은
+`fb5aaf43f808070a58e27bfd9ffd539a7243f8fabbfbf5d3b949aaf5435c3a51`이며 run/pass 2/2, skip/fail 0/0이다.
+원래 실패, 임시 원인 진단과 중간 실패 로그를 보존했고 진단용 raw 오류 출력은 제품에 넣지 않았다.
+
+macOS normal job `120137336504`는 offline cache의 `testify@v1.3.0` module metadata 누락으로 실패했다.
+원본 log SHA-256은 `0f33743ab37b64f7860af1e0c3ae01915be0bbf20c146134f42f7ca75c9bbdeb`다.
+별도 소유한 cache에서 해당 metadata만 보존 후 제거해 같은 오류를 재현했다. 기존 다른 CI owner와 같은
+`go mod download all` 준비 뒤 offline 실제 CLI 생성이 성공했고 module source는 바뀌지 않았으며 DB는 만들지 않았다.
+`gdj0137-startproject-dependency-repro-v1/receipt.json` SHA-256은
+`7b306dcbd39a22df6830e80c1adcb115d520f9f222ce9bf52ab0674e79627be2`다.
+초기 재현 fixture의 HOME 아래 TMPDIR 거부는 이 dependency 재현으로 세지 않는다. 전체 원격 실행을 대신하는 결과는 아니다.
+
+`startapp LABEL [DIRECTORY]`는 같은 디렉터리 게시 owner로 새 선언과 안내를 만들고 `installed: false`를 반환한다.
+설치는 명시적 Go 선언에서 선택한다. 기존 source/DB 보존·입력 거부·취소·게시 후 출력 실패와, 외부 프로젝트의
+빈 앱 등록→첫 모델→기존 데이터가 있는 nullable field 추가·migration→identity 재시작 시나리오를 작성했다.
+이 새 본문은 로컬에서 실행하지 않았다. `gdj0137-startapp-compile-v1/final-source.json` SHA-256은
+`853a0e8f64506f9c5d853444c995a3692564a383f41f27779273eb926c29db37`이며 변경 source 17개·7개 package의 최소 compile과
+embedded template 14개 목록을 확인했다. 실제 새 앱·전체 platform/DB/race·source guard는 자동 전체 CI에서 확인한다.
+
 ## GDJ-0137 — startproject와 기본 identity runtime 작성
 
 `2af6172f` 기반에서 `godj startproject MODULE DIRECTORY`를 작성했다. 명시한 fixed module version 또는

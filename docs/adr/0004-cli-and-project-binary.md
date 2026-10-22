@@ -48,4 +48,23 @@ cleanup·stdout 실패를 구분한다. `published_...`는 기존 정상 생성�
 출력은 `format_version=1`, `status=created`, `directory`의 JSON 한 문서다. Credential·DB provisioning·server start는 생성 과정에 없다.
 
 이 결정의 구현과 환경별 실행은 [C1](../../work/0137-project-core-startup.md) 및
-[TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다. App 추가의 기존 source 수정·일반 command·호환성/reload 완료를 뜻하지 않는다.
+[TEST_EVIDENCE](../status/TEST_EVIDENCE.md)를 따른다. 일반 command·호환성/reload 완료를 뜻하지 않는다.
+
+## 앱 생성과 설치 등록
+
+`startapp LABEL [DIRECTORY]`는 같은 exclusive directory 게시 경계로 새 선언과 안내를 만든다.
+프로젝트가 선택하는 설치 앱은 `ProjectSpec`의 명시적인 Go 선언이다. 파일 생성과 등록을 구분해 전역 init registry나
+파일 목록 탐색으로 실행 중인 앱 집합이 바뀌는 일을 피한다. 생성 결과는 `installed: false`를 명시한다.
+
+Starter의 `Applications()`에서 새 선언 package를 import하고 `Definition()`을 추가한다. 기존 앱 목록·생성물·migration·DB는
+앱 생성 명령이 수정하지 않는다. `generate`가 정규화된 IR과 동일 project binding을 만들고 migration은 별도 실행한다.
+빈 앱도 source namespace와 imported companion 검사 대상이다. Raw model surface가 없다는 이유만으로 검사를 생략하지 않고,
+해당 label의 canonical empty Schema IR hash와 같을 때만 모델이 없음을 인정한다. 첫 모델부터 기존 namespace guard를 적용한다.
+
+기본 scaffold는 SQL label에서 Go alias를 만들 때 고정 `app` prefix와 `_`→`X` 인코딩을 사용한다. Canonical label에 uppercase가
+없으므로 서로 다른 underscore 배치가 같은 alias가 되지 않으며 Go keyword도 사용할 수 있다. 앱 identity는 원래 IR label이다.
+다른 project layout은 공개 `AppSpec`에 명시적 alias와 위치를 선택할 수 있다.
+
+이 생성/등록 구분은 Django의 [startapp](https://docs.djangoproject.com/en/6.1/ref/django-admin/#startapp)과
+[설치 목록 편집](https://docs.djangoproject.com/en/6.1/intro/tutorial02/#activating-models)의 외부 흐름을 참고한다.
+Python import 구조를 복제하지 않는다. 고정 source의 독립 실행 비교와 C1 전체 수용은 해당 작업에 남는다.

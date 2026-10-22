@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/progresshans/godj/internal/projectscaffold"
 	"github.com/progresshans/godj/version"
@@ -25,10 +24,11 @@ type StartProjectInvocation struct {
 }
 
 type StartProjectReport struct {
-	ExitCode        int
-	FailureCode     string
-	Publication     projectscaffold.Result
-	BuildDiagnostic string
+	ExitCode          int
+	FailureCode       string
+	Publication       projectscaffold.Result
+	BuildDiagnostic   string
+	GenerationFailure GenerationFailure
 }
 
 type startProjectArguments struct {
@@ -40,14 +40,14 @@ func parseStartProjectArguments(args []string, installed version.Info) (startPro
 	if len(args) != 3 && len(args) != 5 || len(args) == 0 || args[0] != "startproject" {
 		return startProjectArguments{}, false
 	}
-	if projectscaffold.ValidateModule(args[1]) != nil || !startProjectPath(args[2]) {
+	if projectscaffold.ValidateModule(args[1]) != nil || !scaffoldPath(args[2]) {
 		return startProjectArguments{}, false
 	}
 	result := startProjectArguments{project: projectscaffold.Project{Module: args[1]}, destination: args[2]}
 	if len(args) == 5 {
 		switch args[3] {
 		case "--framework-source":
-			if !startProjectPath(args[4]) {
+			if !scaffoldPath(args[4]) {
 				return startProjectArguments{}, false
 			}
 			result.project.FrameworkSource = args[4]
@@ -70,10 +70,6 @@ func parseStartProjectArguments(args []string, installed version.Info) (startPro
 	return result, true
 }
 
-func startProjectPath(value string) bool {
-	return value != "" && len(value) <= 4096 && !strings.HasPrefix(value, "-") && !strings.ContainsAny(value, "\x00\r\n")
-}
-
 // RunStartProject creates a new directory only after declaration generation,
 // module resolution and runtime compilation succeed. It never starts a site,
 // applies migrations or creates credentials.
@@ -86,6 +82,9 @@ func RunStartProject(input StartProjectInvocation) StartProjectReport {
 		report.FailureCode, report.ExitCode = code, exit
 		if input.Stderr != nil {
 			diagnostic := "startproject_error/" + code + "\n"
+			if code == "candidate_generation_failed" && report.GenerationFailure.Code != "" {
+				diagnostic += report.GenerationFailure.Category + "/" + report.GenerationFailure.Code + "\n"
+			}
 			if (code == "candidate_build_failed" || code == "candidate_generation_failed") && report.BuildDiagnostic != "" {
 				diagnostic += report.BuildDiagnostic + "\n"
 			}
@@ -131,49 +130,14 @@ func RunStartProject(input StartProjectInvocation) StartProjectReport {
 		}
 		arguments.project.FrameworkSource = physical
 	}
-	ctx, cancel := context.WithCancel(input.Context)
-	interruptionJoined := make(chan struct{})
-	go func() {
-		defer close(interruptionJoined)
-		select {
-		case <-input.Interrupt:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-	defer func() { cancel(); <-interruptionJoined }()
+	ctx, join := scaffoldCommandContext(input.Context, input.Interrupt)
+	defer join()
 	publication, err := projectscaffold.PublishProject(ctx, arguments.destination, arguments.project, func(ctx context.Context, candidate string) error {
 		return prepareScaffoldProject(ctx, candidate, input, &report)
 	})
 	report.Publication = publication
 	if err != nil {
-		code, exit := "publication_failed", 1
-		var stage *projectscaffold.Error
-		if errors.As(err, &stage) {
-			code = stage.Code
-		}
-		var preparation *startProjectPreparationError
-		if errors.As(err, &preparation) {
-			code = preparation.code
-		}
-		cleanupFailed := false
-		for _, cleanup := range []string{"staging_recovery_required", "cleanup_failed"} {
-			if errors.Is(err, &projectscaffold.Error{Code: cleanup}) {
-				code, cleanupFailed = cleanup, true
-				break
-			}
-		}
-		if errors.Is(err, &startProjectPreparationError{code: "build_cleanup_failed"}) {
-			code, cleanupFailed = "build_cleanup_failed", true
-		}
-		// A committed result always takes precedence over a late interrupt.
-		if !publication.Published && !cleanupFailed {
-			if interrupted := commandInterruption(input.Context, input.Interrupt); interrupted != "" {
-				code, exit = interrupted, 130
-			}
-		} else if publication.Published {
-			code = "published_" + code
-		}
+		code, exit := scaffoldFailure(input.Context, input.Interrupt, publication, err)
 		return fail(code, exit)
 	}
 	document, _ := json.Marshal(struct {
@@ -268,6 +232,9 @@ func prepareScaffoldProject(ctx context.Context, candidate string, input StartPr
 		})
 		if generated.BuildDiagnostic != "" {
 			report.BuildDiagnostic = generated.BuildDiagnostic
+		}
+		if generated.HasGenerationFailure {
+			report.GenerationFailure = generated.GenerationFailure
 		}
 		// A nested command's failed process/workspace cleanup must survive a
 		// concurrent cancellation at this outer publication boundary.

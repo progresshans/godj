@@ -66,12 +66,26 @@ func PublishProject(ctx context.Context, destination string, project Project, pr
 }
 
 func publishProject(ctx context.Context, destination string, project Project, prepare func(context.Context, string) error, hooks publicationHooks) (result Result, resultErr error) {
-	if ctx == nil || destination == "" || strings.ContainsAny(destination, "\x00\r\n") || prepare == nil {
-		return result, &Error{Code: "invalid_configuration"}
-	}
 	files, err := RenderProject(project)
 	if err != nil {
 		return result, &Error{Code: "invalid_configuration", cause: err}
+	}
+	return publishDirectory(ctx, destination, files, ".godj-startproject-", prepare, hooks)
+}
+
+// PublishApp creates source only. Installing the app is an explicit declaration
+// change followed by generation and migrations through the existing owners.
+func PublishApp(ctx context.Context, destination string, app App) (Result, error) {
+	files, err := RenderApp(app)
+	if err != nil {
+		return Result{}, &Error{Code: "invalid_configuration", cause: err}
+	}
+	return publishDirectory(ctx, destination, files, ".godj-startapp-", func(context.Context, string) error { return nil }, publicationHooks{})
+}
+
+func publishDirectory(ctx context.Context, destination string, files []File, prefix string, prepare func(context.Context, string) error, hooks publicationHooks) (result Result, resultErr error) {
+	if ctx == nil || destination == "" || strings.ContainsAny(destination, "\x00\r\n") || prepare == nil {
+		return result, &Error{Code: "invalid_configuration"}
 	}
 	if err := ctx.Err(); err != nil {
 		return result, err
@@ -103,7 +117,7 @@ func publishProject(ctx context.Context, destination string, project Project, pr
 	if _, err := parentRoot.Lstat(name); !errors.Is(err, fs.ErrNotExist) {
 		return result, &Error{Code: "destination_exists", cause: err}
 	}
-	stageName := ".godj-startproject-" + rand.Text()
+	stageName := prefix + rand.Text()
 	if err := parentRoot.Mkdir(stageName, 0o700); err != nil {
 		return result, &Error{Code: "staging_failed", cause: err}
 	}

@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 const (
@@ -177,13 +178,6 @@ func sourceNamespacePlanFromBundle(bundle codegen.GeneratedBundle, manifest comm
 			aliases[spec.Name.Name] = sourceNamespaceModel{appImportPath: importPath, rawType: selector.Sel.Name}
 		}
 	}
-	if len(aliases) == 0 {
-		if len(manifest.Apps) == 0 {
-			return sourceNamespacePlan{}, nil
-		}
-		return sourceNamespacePlan{}, sourceNamespacePlanInvalid("project relation facade has no private raw-model aliases")
-	}
-
 	modelsBySurface := make(map[string]sourceNamespaceModel, len(aliases))
 	aliasSurfaces := make(map[string]string, len(aliases))
 	for surface, structure := range structs {
@@ -272,8 +266,12 @@ func sourceNamespacePlanFromBundle(bundle codegen.GeneratedBundle, manifest comm
 	plan := sourceNamespacePlan{apps: make([]sourceNamespaceApp, 0, len(manifest.Apps))}
 	for _, app := range manifest.Apps {
 		planned := planByImport[app.Package.ImportPath]
-		if planned == nil || len(planned.models) == 0 {
-			return sourceNamespacePlan{}, sourceNamespacePlanInvalid("declared app %q has no raw-model facade surface", app.AppLabel)
+		// The canonical schema hash proves that an app really has no models.
+		// Keep even empty apps in the namespace plan so source, directory and
+		// imported-companion guards still apply before the first model exists.
+		emptyHash, err := ir.Hash(ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: app.AppLabel})
+		if err != nil || planned == nil || (len(planned.models) == 0) != (app.SchemaSHA256 == emptyHash) {
+			return sourceNamespacePlan{}, sourceNamespacePlanInvalid("declared app %q raw-model facade does not match its schema", app.AppLabel)
 		}
 		plan.apps = append(plan.apps, *planned)
 	}

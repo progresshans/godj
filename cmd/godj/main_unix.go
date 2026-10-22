@@ -38,10 +38,15 @@ func execute(
 	stdout, stderr io.Writer,
 	interrupt <-chan struct{},
 ) int {
-	if len(args) != 0 && args[0] == "startproject" {
+	if len(args) != 0 && (args[0] == "startproject" || args[0] == "startapp") {
 		brokenPipe := make(chan os.Signal, 1)
 		signal.Notify(brokenPipe, syscall.SIGPIPE)
 		defer signal.Stop(brokenPipe)
+		if args[0] == "startapp" {
+			return projectcheck.RunStartApp(projectcheck.StartAppInvocation{
+				Context: ctx, CWD: cwd, Args: args, Stdout: stdout, Stderr: stderr, Interrupt: interrupt,
+			}).ExitCode
+		}
 		return projectcheck.RunStartProject(projectcheck.StartProjectInvocation{
 			Context: ctx, CWD: cwd, Args: args, Environment: environment,
 			Stdout: stdout, Stderr: stderr, Interrupt: interrupt,

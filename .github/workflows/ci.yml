@@ -562,6 +562,10 @@ jobs:
           test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
           test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
+      - name: Prewarm project scaffold dependencies
+        timeout-minutes: 3
+        run: go mod download all
+
       - name: Run and inventory product project-check mode
         env:
           PORTABLE_COVERED: ${{ matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}

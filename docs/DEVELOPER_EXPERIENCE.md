@@ -34,8 +34,17 @@ cd ../my-site
 생성된 `README.md`가 모델 선언·Admin/API 노출·DB 설정과 변경 후 명령을 설명한다. 업무 모델을 추가해도 모든 field를
 자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
 Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
-`startapp`·일반 command·설치 호환성 검사·reload는 [C1](../work/0137-project-core-startup.md)의 남은 구현이다.
+일반 command·설치 호환성 검사·reload는 [C1](../work/0137-project-core-startup.md)의 남은 구현이다.
 이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+
+`godj startapp LABEL [DIRECTORY]`는 `modeldef/schema.go`와 등록 안내를 새 디렉터리에 만든다.
+생략한 대상은 현재 디렉터리 아래 LABEL이다. 기존 대상은 거부하며 프로젝트 탐색·실행·DB I/O는 하지 않는다.
+Label은 63자 이내의 canonical schema 이름과 portable path 규칙을 사용한다. 설치 여부는 결과의 `installed: false`로 구분한다.
+
+Starter project에서는 `godj startapp line_items apps/line_items` 뒤 새 `modeldef`를 import하고
+`modeldef/apps.go`의 `Applications()`에 그 `Definition()`을 추가한다. 기존 앱 정의를 보존한다.
+이후 `generate`와 명시적 migration을 사용한다. 새 앱은 빈 상태로 등록할 수 있고 나중에 첫 모델을 추가한다.
+Generated model package와 선언 package는 분리하며 Admin/API 노출과 권한은 프로젝트가 명시한다.
 
 ## 모델에서 query까지
 

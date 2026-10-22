@@ -4,6 +4,7 @@ package testprocess
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
@@ -28,6 +29,22 @@ type CommandResult struct {
 // truncated output, incomplete Wait and surviving process groups fail the test.
 func Run(t testing.TB, limits CommandLimits, directory string, environment []string, name string, arguments ...string) CommandResult {
 	t.Helper()
+	return runCommand(t, limits, directory, environment, nil, name, arguments...)
+}
+
+// RunWithStdout passes an actual descriptor to fd 1, for example a pipe whose
+// reader is closed. The caller owns that descriptor. Stdout is not captured;
+// stderr, timeout, Wait and process-group cleanup retain Run's strict bounds.
+func RunWithStdout(t testing.TB, limits CommandLimits, directory string, environment []string, stdout *os.File, name string, arguments ...string) CommandResult {
+	t.Helper()
+	if stdout == nil {
+		t.Fatal("external command requires an explicit stdout descriptor")
+	}
+	return runCommand(t, limits, directory, environment, stdout, name, arguments...)
+}
+
+func runCommand(t testing.TB, limits CommandLimits, directory string, environment []string, output *os.File, name string, arguments ...string) CommandResult {
+	t.Helper()
 	if limits.Timeout <= 0 || limits.Output <= 0 {
 		t.Fatal("external command requires positive resource limits")
 	}
@@ -36,6 +53,9 @@ func Run(t testing.TB, limits CommandLimits, directory string, environment []str
 	command.Dir = directory
 	command.Env = append([]string(nil), environment...)
 	command.Stdout, command.Stderr = stdout, stderr
+	if output != nil {
+		command.Stdout = output
+	}
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := command.Start(); err != nil {
 		t.Fatalf("start %s: %v", filepath.Base(name), err)

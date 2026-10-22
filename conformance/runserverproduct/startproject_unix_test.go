@@ -37,13 +37,13 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 		delete(values, key)
 	}
 	environment := testenv.Sorted(values)
-	run := func(directory string, args ...string) testprocess.CommandResult {
+	run := func(t *testing.T, directory string, args ...string) testprocess.CommandResult {
 		t.Helper()
 		result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, environment, global, args...)
 		assertRunserverWorkspaceEmpty(t, workspace)
 		return result
 	}
-	created := run(parent, "startproject", "example.com/started-site", "new-site", "--framework-source", repository)
+	created := run(t, parent, "startproject", "example.com/started-site", "new-site", "--framework-source", repository)
 	var result struct {
 		FormatVersion int    `json:"format_version"`
 		Status        string `json:"status"`
@@ -61,12 +61,12 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 		t.Fatal("startproject performed database I/O", err)
 	}
 	before := snapshotRunserverProjectTree(t, project)
-	conflict := run(parent, "startproject", "example.com/other", "new-site", "--framework-source", repository)
+	conflict := run(t, parent, "startproject", "example.com/other", "new-site", "--framework-source", repository)
 	if conflict.ExitCode != 1 || conflict.Stdout != "" || conflict.Stderr != "startproject_error/destination_exists\n" || !reflect.DeepEqual(before, snapshotRunserverProjectTree(t, project)) {
 		t.Fatal("conflicting scaffold changed the existing project", conflict.ExitCode)
 	}
 	for _, args := range [][]string{{"generate", "--check"}, {"migrations", "check"}, {"migrate"}} {
-		result := run(project, args...)
+		result := run(t, project, args...)
 		if result.ExitCode != 0 || result.Stderr != "" {
 			t.Fatalf("public command %s failed: %d %s", args[0], result.ExitCode, result.Stderr)
 		}
@@ -106,18 +106,27 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 			}
 		}
 	}
+	t.Run("explicit_app_registration_and_existing_data", func(t *testing.T) {
+		exerciseStartedApp(t, global, project, workspace, environment, username, password)
+	})
 	t.Run("published_output_failure_preserves_complete_project", func(t *testing.T) {
-		// The shell only closes fd 1 and execs the real CLI. Shared process
-		// ownership still enforces Wait, timeout and descendant cleanup.
-		failed := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput},
-			parent, environment, "/bin/sh", "-c", `exec "$@" >&-`, "godj-output-failure",
+		reader, writer, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer writer.Close()
+		if err := reader.Close(); err != nil {
+			t.Fatal(err)
+		}
+		failed := testprocess.RunWithStdout(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput},
+			parent, environment, writer,
 			global, "startproject", "example.com/output-failed-site", "output-failed", "--framework-source", repository)
 		assertRunserverWorkspaceEmpty(t, workspace)
 		if failed.ExitCode != 1 || failed.Stdout != "" || failed.Stderr != "startproject_error/published_output_failed\n" {
 			t.Fatalf("published output failure: exit=%d stdout=%q stderr=%q", failed.ExitCode, failed.Stdout, failed.Stderr)
 		}
 		created := filepath.Join(parent, "output-failed")
-		check := run(created, "generate", "--check")
+		check := run(t, created, "generate", "--check")
 		if check.ExitCode != 0 || check.Stderr != "" {
 			t.Fatal("output failure removed or invalidated the committed bundle", check.ExitCode, check.Stderr)
 		}
@@ -125,7 +134,7 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 			t.Fatal("output failure path performed database I/O", err)
 		}
 		original := snapshotRunserverProjectTree(t, created)
-		retry := run(parent, "startproject", "example.com/output-retry", "output-failed", "--framework-source", repository)
+		retry := run(t, parent, "startproject", "example.com/output-retry", "output-failed", "--framework-source", repository)
 		if retry.ExitCode != 1 || retry.Stderr != "startproject_error/destination_exists\n" || !reflect.DeepEqual(original, snapshotRunserverProjectTree(t, created)) {
 			t.Fatal("retry replaced a known published project")
 		}
@@ -164,7 +173,7 @@ func exerciseStartedIdentity(address, username, password string, create bool, se
 		*sensitive = append(*sensitive, cookie.Value)
 	}
 	admin, err := requestAuthenticatedRunserver(client, http.MethodGet, base+"/admin/", "", "")
-	if err != nil || admin.status != 200 || !bytes.Contains(admin.body, []byte("Groups")) {
+	if err != nil || admin.status != 200 || !bytes.Contains(admin.body, []byte(`href="/admin/groups/"`)) {
 		return fmt.Errorf("scaffold identity Admin: %d %w", admin.status, err)
 	}
 	list, err := requestAuthenticatedRunserver(client, http.MethodGet, groups, "application/json", "")
@@ -210,14 +219,18 @@ func exerciseStartedIdentity(address, username, password string, create bool, se
 		}
 	}
 	var page struct {
-		Count   int64 `json:"count"`
-		Results []struct {
+		Count int64 `json:"count"`
+		Items []struct {
 			ID   int64  `json:"id"`
 			Name string `json:"name"`
-		} `json:"results"`
+		} `json:"items"`
 	}
-	if err := json.Unmarshal(list.body, &page); err != nil || page.Count != 1 || len(page.Results) != 1 || page.Results[0].ID <= 0 || page.Results[0].Name != "Starter operators" {
+	if err := json.Unmarshal(list.body, &page); err != nil || page.Count != 1 || len(page.Items) != 1 || page.Items[0].ID <= 0 || page.Items[0].Name != "Starter operators" {
 		return errors.New("scaffold API write or persisted restart data differs")
+	}
+	adminGroups, err := requestAuthenticatedRunserver(client, http.MethodGet, base+"/admin/groups/", "", "")
+	if err != nil || adminGroups.status != 200 || !bytes.Contains(adminGroups.body, []byte("Starter operators")) {
+		return fmt.Errorf("scaffold Admin did not expose the stored group: status=%d, error=%v", adminGroups.status, err)
 	}
 	return nil
 }

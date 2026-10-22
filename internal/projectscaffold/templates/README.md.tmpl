@@ -7,7 +7,7 @@ migrations and the initial account are explicit operations.
 
 ## Run locally
 
-Use the `godj` executable that created this project, with Go 1.26 or later in PATH.
+Use the `godj` executable that created this project, with Go 1.26.5 in PATH.
 Run these commands from this directory:
 
 ```sh
@@ -35,8 +35,8 @@ separate production entrypoint.
 
 ## Change the application
 
-- Declare apps and model fields in `modeldef/apps.go`. This file uses Schema DSL
-  and imports no generated model code.
+- Select app definitions in `modeldef/apps.go`. Define models there or import
+  the app's declaration package; neither imports generated model code.
 - `modeldef/project.go` binds each app to `apps/<label>/models` and creates the
   generated project binding in `project/`.
 - Edit `internal/config/config.go` for database and identity policy. It reads an
@@ -51,6 +51,29 @@ After changing a model, run `godj generate`, `godj makemigrations`, inspect the
 new migration, then run `godj migrate`. Stop and restart `godj runserver` to load
 the changes. Generation and server startup do not apply migrations or change
 stored account permissions automatically.
+
+## Add an app
+
+```sh
+godj startapp line_items apps/line_items
+```
+
+In `modeldef/apps.go`, import the declaration package:
+
+```go
+lineitemsdef "[[.Module]]/apps/line_items/modeldef"
+```
+
+Add `lineitemsdef.Definition()` to the returned `[]schema.Definition`, preserving
+the existing definitions. Then run `godj generate`. The empty app has a stable
+identity and no tables. Add its models in `apps/line_items/modeldef/schema.go`,
+generate again, and create/review/apply migrations as described above.
+
+App creation and installation are separate: `startapp` writes a new directory
+and reports `installed: false`. The project's explicit declaration selects the
+installed apps. It does not rewrite the existing declaration, generated bundle,
+database or HTTP permissions. App labels use the canonical lowercase schema
+namespace; the starter derives distinct Go aliases for underscores and keywords.
 
 To select another SQLite database, set `GODJ_SQLITE_DATABASE`. To select
 PostgreSQL, unset that variable and set `GODJ_POSTGRES_URL` and

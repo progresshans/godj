@@ -116,5 +116,8 @@ App lifecycle의 의존 순서·실패 rollback·취소/비정상 callback 종�
 `startproject`에 명시한 dependency·새 디렉터리·기존 generator와 readonly runtime compile을 연결했다.
 기본 identity/Admin/API·SQLite 설정과 선언/노출 정책의 수정 위치를 담은 안내를 생성한다. 실제 CLI의 빈 앱 생성→
 migration→초기 사용자→인증/CSRF 저장→재시작, 기존 경로 보존과 게시 후 출력 실패 검사를 원격 CI에 연결했다.
-현재 대상 이름은 없어야 하며 기존 빈 디렉터리도 거부한다. App 추가·기존 데이터가 있는 모델 변경과 나머지 C1 요구는 남아 있다.
+현재 대상 이름은 없어야 하며 기존 빈 디렉터리도 거부한다.
+`startapp`의 앱 선언·등록 안내 생성과 명시적 프로젝트 설치를 연결했다. 새 앱은 implicit init 등록을 사용하지 않는다.
+외부 소비자에 빈 앱 등록→첫 모델→기존 데이터가 있는 nullable field 추가·migration→기존 identity 재시작 검사를 작성했다.
+Go alias는 canonical SQL label과 구분해 underscore/keyword 충돌을 피한다. 현재 source의 실제 원격 실행과 나머지 C1 요구는 남아 있다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

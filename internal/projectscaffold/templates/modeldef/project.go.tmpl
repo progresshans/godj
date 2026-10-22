@@ -4,6 +4,7 @@ package modeldef
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/progresshans/godj/codegen"
 	identitydef "github.com/progresshans/godj/identity/modeldef"
@@ -32,7 +33,9 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 		}
 		directory := "apps/" + appSchema.AppLabel + "/models"
 		result.Apps = append(result.Apps, codegen.AppSpec{
-			Alias: appSchema.AppLabel,
+			// SQL labels contain no uppercase letters. Encoding '_' as 'X'
+			// after a fixed prefix gives a unique Go alias, including keywords.
+			Alias: "app" + strings.ReplaceAll(appSchema.AppLabel, "_", "X"),
 			Package: codegen.PackageSpec{PackageName: "models", ImportPath: "[[.Module]]/" + directory, Directory: directory},
 			Schema: appSchema,
 		})

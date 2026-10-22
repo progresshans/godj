@@ -168,7 +168,7 @@ func sourcePathOwned(path string) bool {
 	if strings.HasPrefix(path, captureFixturePrefix) {
 		return false
 	}
-	if strings.HasPrefix(path, "internal/projectscaffold/templates/") && strings.HasSuffix(path, ".tmpl") {
+	if (strings.HasPrefix(path, "internal/projectscaffold/templates/") || strings.HasPrefix(path, "internal/projectscaffold/app_templates/")) && strings.HasSuffix(path, ".tmpl") {
 		return true
 	}
 	for _, prefix := range embeddedAssetPrefixes {
