@@ -1,15 +1,15 @@
 # GDJ-0136: Form/Admin의 관계 선택과 typed 편집 일반화
 
-- 상태: F1 준비·typed inline과 관계 조회/행별 선택 기반 구현; 선행 A1의 전체 실행 검증을 기다리는 별도 작업트리
+- 상태: F1 구현 중 — A1 완료 후 주 작업 전환; typed inline·bounded 선택·독립 비교의 원격 검증 진행
 - 시작: 2026-10-22
-- 구현 기준: `ffc8b5ad0bcb17aaa548f8aab71835ad3db68879` — A1 구현, 전체 CI 검증 중
+- 구현 기준: `ffc8b5ad0bcb17aaa548f8aab71835ad3db68879` — A1 구현과 같은 source의 전체 CI 원본 대조 완료
 - 근거: [전체 실행 계획의 F1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
   [모델 Form](../forms/model/README.md), [Admin inline](../admin/inlines.md),
   [공통 모델 입력과 CRUD](../docs/adr/0092-model-input-and-crud-assembly.md)
 
 A1의 공통 모델 준비·현재 행 기반 저장을 Form/Admin의 관계 선택, 여러 행·inline 편집과 파일에 연결한다.
-이 작업의 준비가 A1 완료를 뜻하지 않는다. 주 작업 전환은 A1의 현재 source 검증을 확인한 뒤 기록한다.
-검증을 기다리는 A1 작업트리는 보존하며 여기서는 다음 변경의 독립적인 요구·설계를 구체화한다.
+A1 검증 중에는 별도 작업트리에서 독립적인 요구·설계와 다음 구현을 준비했다.
+A1의 같은 source 전체 검증·원본 대조를 확인해 주 작업을 전환했다. A1의 검증된 작업트리는 보존한다.
 
 ## 현재 출발점
 
@@ -77,7 +77,7 @@ Go 고유 source·수명·게시 결과는 독립 native 실패/경합 검사로
 
 ## 완료 조건
 
-- [ ] A1의 현재 source 전체 검증을 확인하고 F1으로의 주 작업 전환을 기록한다.
+- [x] A1의 현재 source 전체 검증을 확인하고 F1으로의 주 작업 전환을 기록한다.
 - [ ] F1-01~02의 재사용 선언·현재 바인딩·관계 선택을 실제 앱에서 사용한다.
 - [ ] F1-03~05의 여러 행·파일·read-only·확장과 실패 경계를 연결한다.
 - [ ] F1-06의 두 앱·외부 cross-app·동일 변경·실제 브라우저와 native DB 증거를 확인한다.

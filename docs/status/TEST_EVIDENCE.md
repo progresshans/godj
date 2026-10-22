@@ -3,6 +3,26 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0135 — A1 전체 검증 완료와 F1 전환
+
+제품 source `ffc8b5ad0bcb17aaa548f8aab71835ad3db68879`의
+[CI 39731056051 attempt 2](https://github.com/progresshans/godj/actions/runs/39731056051/attempts/2)는 성공했다.
+45분 제한으로 취소된 macOS cgo0 runtime과 최종 집계만 같은 source에서 재실행했다.
+최종 90개 작업은 attempt 1의 실제 성공 88개와 attempt 2의 실제 성공 2개로 대조했다.
+GitHub가 재사용 결과에 부여한 새 job ID를 새로운 실행으로 세지 않았으며 취소·실패 원본도 보존했다.
+
+`hosted-full-pr-39731056051/`의 원본·소스·artifact를 대조한 `audit.json`은 `pass=true`,
+`declared_ci_scope_verified=true`, `new_required_execution_verified=true`, `audit_findings=[]`다.
+SHA-256은 `8444c93d4f40cc134e9dc23e8a6717abd9c2a115fe7886c0346bcd3f13ccb1aa`다.
+Checkout `ee89828d`의 tree `47ba0b0b`는 해당 제품 source와 같다.
+3,809개 source 파일, 17개 artifact, 95개 Go inventory, 관계 소비자 12개 좌표·36개 작업을 대조했다.
+PostgreSQL 필수 3,630개 경로는 각 normal/race/cgo0 owner에서 누락·skip 없이 실행됐고 raw event를 다시 검사했다.
+독립 Directory–Inventory의 기본/변경 모델, 두 native DB, 세 mode의 Form·HTTP/Admin·독립 SDK,
+source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source에 바인딩된 원본에서 확인했다.
+
+이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
+남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
+
 ## GDJ-0136 — 독립 Django Admin 선택 비교 작성
 
 [고정 입력](../../conformance/runners/django/admin_choice_fixture/input.json)의 94개 사례(검색 63, Form 31)를

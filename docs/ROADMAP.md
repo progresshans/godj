@@ -8,8 +8,9 @@
 
 [전체 범위 실행 계획](EXECUTION_PLAN.md)은 카탈로그 20개 영역의 잔여 범위·작업 묶음·선행 조건·완료 기준을 연결한다.
 현재 작업을 닫은 뒤에는 그 계획에서 가장 앞선 실행 가능한 묶음을 선택한다.
-GDJ-0134 named annotation의 전체 구현·실행과 G-ORM 전환 기준을 충족해 주 작업을
-[GDJ-0135 모델 중심 Form/Admin/API 조립](../work/0135-model-centered-form-admin-api.md)으로 옮겼다.
+GDJ-0134 named annotation과 G-ORM 전환 기준, 이어지는
+[GDJ-0135 모델 중심 Form/Admin/API 조립](../work/0135-model-centered-form-admin-api.md)의 구현·전체 실행을 확인해
+주 작업을 [GDJ-0136 Form/Admin 일반화](../work/0136-form-admin-generalization.md)로 옮겼다.
 일반 함수·subquery/window·고급 관계·추가 DB는 배정된 후속 묶음에서 끝까지 수행한다.
 ORM 전체의 완성을 다른 영역 착수의 선행 조건으로 추가하지 않는다.
 

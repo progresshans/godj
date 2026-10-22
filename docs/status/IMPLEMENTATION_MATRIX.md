@@ -9,7 +9,7 @@ GDJ-0134는 query가 소유하는 명명 scalar·aggregate와 alias, 정의 순�
 명시적 결과 stage를 공통 AST·양 compiler에 연결했다. Typed/dynamic ORM과 생성 facade는 원 모델/projection과
 별도 명명 셀을 반환한다. 구조가 다른 두 생성 소비자, 고정 Django 77개 관측의 native 비교와 Helpdesk 기한
 미리보기의 HTML/API/client 경로를 연결했다. Source `82142bbf`의 양 DB·세 mode·독립 비교·생성 소비자와
-전체 CI 90개 작업의 필수 실행·원본 대조를 완료해 Q1/G-ORM을 충족했다. A1은 현재 구현·검증 중이다.
+전체 CI 90개 작업의 필수 실행·원본 대조를 완료해 Q1/G-ORM을 충족했다. 후속 A1도 완료해 주 작업은 F1이다.
 Named eager/prefetch 조합은 Q2, named 표현식 쓰기는 Q3의 미완료 요구로 유지한다.
 이름·도메인의 명시적 차이는 [DEV-0026](../DEVIATIONS.md#dev-0026--명명-조회의-예약-이름과-식별자-경계)과
 [DEV-0021](../DEVIATIONS.md#dev-0021--query-update의-정확한-정수와-명시적-변환), 실행 상태는 TEST_EVIDENCE를 따른다.
@@ -17,9 +17,14 @@ Named eager/prefetch 조합은 Q2, named 표현식 쓰기는 Q3의 미완료 요
 GDJ-0135는 source가 결합된 `ModelInput`, IR default·fresh current 기반의 모델 준비와 명시적 allowlist의
 `crud.Resource`, 확정 transaction 뒤의 결과 반환을 Article·Helpdesk의 Form/Admin/API에 연결했다.
 외부 Directory–Inventory 생성 프로젝트의 동일 필드·권한·응답 변경과 기존 수동 변환 방식의 비교 사례를 추가했다.
-최소 compile과 확인된 원격 실패의 좁힌 로컬 재현은 통과했다. 수정된 전체 A1 source의 native DB·race·browser·전체 CI 검증은 미완료다.
+Source `ffc8b5ad`의 native DB·race·browser·process·generated drift와 전체 CI 90개 작업의 원본 대조를 완료했다.
+외부 기본/변경 모델의 실제 HTTP/Admin·독립 SDK·전후 조립 책임 및 source/권한 부정 대조를 세 mode에서 확인했다.
 공통 CRUD는 일반 router/viewset, 파일 게시·formset/inline 전체의 일반화나 새 인증 정책을 대신하지 않는다.
 [GDJ-0135](../../work/0135-model-centered-form-admin-api.md)와 [ADR-0092](../adr/0092-model-input-and-crud-assembly.md)를 따른다.
+
+GDJ-0136은 같은 typed inline 선언의 현재 재바인딩과 bounded 관계 선택, 행별 management/PK 사전 검사,
+독립 Django Admin 선택 비교를 구현 중이다. 일반 여러 행 편집·모델 파일·widget 확장과 추가 범용성은 남아 있다.
+현재 변경의 전체 원격 검증은 미완료이며 A1의 성공을 F1 결과로 옮기지 않는다.
 
 GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
 양 backend가 같은 고정 전환표를 사용하고, 원본·지역 값·최종 UTC 결과의 전체 모델 범위를 검사한다.

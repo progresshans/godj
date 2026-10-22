@@ -1,6 +1,6 @@
 # GDJ-0135: 모델 중심 Form/Admin/API 조립
 
-- 상태: A1 구현·검증 중; 공통 입력·CRUD, Article·Helpdesk와 외부 생성 소비자 연결, 실행 검증 미완료
+- 상태: A1 완료 — `ffc8b5ad`의 공통 입력·CRUD, 실제 앱·외부 생성 소비자와 전체 CI 원본 대조 완료
 - 시작: 2026-10-22
 - 기준: `82142bbf407798dd5649d433288e6491be3eb277` — Q1의 전체 통합 검증과 G-ORM H1~H6 충족
 - 근거: [전체 실행 계획의 A1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -102,14 +102,15 @@ SDK 호출과 결과 검사는 전후 타입에 맞춘 별도 테스트 소비�
 
 ## 완료 조건
 
-- [ ] A1-01~02의 공통 모델 입력·Form 준비·저장을 타입·presence·기본값·실패 의미까지 연결한다.
-- [ ] A1-03~05를 Article와 Helpdesk의 실제 CRUD·업무 명령·HTML/API/client에서 사용한다.
-- [ ] A1-06의 외부 소비자·동일 변경 실험과 보안·데이터 무결성 부정 대조를 확인한다.
-- [ ] 같은 source의 필수 환경·생성 drift·전체 CI 원본을 대조하고 현행 문서와 다음 F1의 경계를 갱신한다.
+- [x] A1-01~02의 공통 모델 입력·Form 준비·저장을 타입·presence·기본값·실패 의미까지 연결한다.
+- [x] A1-03~05를 Article와 Helpdesk의 실제 CRUD·업무 명령·HTML/API/client에서 사용한다.
+- [x] A1-06의 외부 소비자·동일 변경 실험과 보안·데이터 무결성 부정 대조를 확인한다.
+- [x] 같은 source의 필수 환경·생성 drift·전체 CI 원본을 대조하고 현행 문서와 다음 F1의 경계를 갱신한다.
 
 현재 `ModelInput`·공통 모델 준비·`crud.Resource`·확정 transaction 결과 경계를 구현하고 Article·Helpdesk에
 연결했다. [ADR-0092](../docs/adr/0092-model-input-and-crud-assembly.md)에 장기 의미를 기록한다.
 로컬은 포맷·최소 compile과 원격 실패를 좁힌 재현에 사용했다. 선행 표현 정책 검증의 실패 재현은 수정 후 통과했다.
 추가한 독립 SDK의 인증 예상값 오류도 좁힌 SQLite 호출에서 수정 후 통과했다.
-수정한 현재 source의 전체 시나리오·PostgreSQL·race·전체 CI 검증은 남아 있다.
-구현·실행 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록한다.
+Source `ffc8b5ad`의 전체 시나리오·PostgreSQL·race·전체 CI 원본 대조를 완료했다.
+취소된 macOS runtime은 같은 source에서 재실행했고, 기존 성공과 실제 재실행의 원본을 구분했다.
+환경별 결과는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 기록하고 주 작업을 F1으로 전환한다.
