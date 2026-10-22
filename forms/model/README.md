@@ -69,6 +69,13 @@ predicate로 바꾸는 `Search`, `Order`를 두며 PK 정렬을 tie-breaker로 �
 사용하며, target descriptor는 `orm.PrimaryKeyDescriptor` 읽기 capability만 필요하고 writer는 필요 없다.
 `Manager.PrimaryKeyField()`로 등록 시 capability와 key metadata를 검사하며 zero 모델의 callback을 호출하지 않는다.
 
+Admin 검색과 현재 선택의 외부 비교는 [고정 Django 관측기](../../conformance/runners/django/admin_choice_reference.py)의
+실제 autocomplete 응답과 ModelAdmin 생성 Form을 사용한다. 검색 페이지의 순서는 그대로 비교하고, M2M의 cleaned
+key와 저장 membership은 집합으로 비교하되 원래 순서는 증거에 남긴다. 선택한 필드의 저장 후 읽기·rollback 관측과
+Go Admin HTTP writer의 실제 commit 후 읽기를 구분한다. Django의 source 권한·target change 권한·빈 페이지 오류·
+읽기 전용 투영과 Go의 명시적 admission 차이는 입력에 기록하며 동일 동작으로 간주하지 않는다.
+이 관측기의 환경별 실행 상태는 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 `ModelChoiceMetadata.Kind`는 `ModelChoiceTarget` 또는 `ModelChoiceRelation`이다. target-only 선언의
 Source·SourceModel·Field는 비어 있고 입력의 단일/복수 여부는 소비 Form field가 소유한다. relation 선언에서만
 Source·Field·Multiple이 canonical 관계를 뜻한다. 등록 adapter는 kind와 전체 모델 metadata를 확인해야 하며,

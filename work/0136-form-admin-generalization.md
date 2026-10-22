@@ -96,5 +96,8 @@ Admin의 일반 Form·command·inline·여러 건 생성에 선택 key Resolve�
 Helpdesk와 identity는 전체 target loader 대신 canonical 선언과 현재 범위를 사용한다. 검색 widget은 native select와
 문자열 ID를 유지한다. source 검토에서 기존 inline control initial의 혼입, 저장 직전 거절된 label의 재사용,
 readonly 취소 소거를 수정하고 회귀 검사를 추가했다. 새 실제 browser 흐름과 같은 source의 전체 실행 검증은 진행 중이다.
-일반 여러 행/모델 파일·widget 확장, 외부 소비자의 추가 범용성과 독립 Django Admin 검색 관측은 미완료다.
+고정 Django Admin의 autocomplete·Form 관측기와 Go의 native 비교를 작성했다. 두 DB의 94개 입력 가운데
+49개 공통 동작과 45개 정책 차이를 분리하고, 실제 HTTP commit·현재 scope·source 원본·정리 결과를 보존한다.
+이 비교의 로컬 최소 compile만 확인했으며 독립 관측과 native 본문은 원격 CI에서 실행해야 한다.
+일반 여러 행/모델 파일·widget 확장과 외부 소비자의 추가 범용성은 미완료다.
 이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.

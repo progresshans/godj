@@ -3,6 +3,52 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — 독립 Django Admin 선택 비교 작성
+
+[고정 입력](../../conformance/runners/django/admin_choice_fixture/input.json)의 94개 사례(검색 63, Form 31)를
+[독립 Django 관측기](../../conformance/runners/django/admin_choice_reference.py)와
+[Go native 비교](../../admin/choice_reference_test.go)에 연결했다. Django `fe0a859f`의 실제 AdminSite autocomplete와
+ModelAdmin 생성 Form을 사용하며 설치한 네 upstream 모듈의 바이트를 고정 출처와 대조한다.
+49개 공통 사례와 45개 native 정책 차이의 이름·이유·원본 결과를 유지한다. target view/change의 차이,
+source mutation admission, 범위를 지난 페이지, read-only/add 투영을 같은 결과로 위장하지 않는다.
+
+Go는 canonical IR과 typed descriptor에 같은 대상을 준비하고, 공개 Admin HTTP 검색을 실행한다.
+Form의 selected-key Resolve·바인딩·typed 준비·저장·새 조회는 borrowed transaction에서 관측 후 rollback한다.
+별도 HTTP POST 경로는 최종 writer에서 다시 scope를 검사하고 실제 outer commit 이후 새 조회를 확인한다.
+M2M cleaned membership만 명시적으로 정규화하며 검색 순서·원문·각 비교의 경계를 보존한다.
+입력/관측기/upstream/native source SHA, 현재 DB profile, 각 사례의 복원 및 소유 DB 정리 결과를 별도 capture로 쓴다.
+PostgreSQL target/source seed는 매개변수 SQL이며, 생성키 명시 삽입 지원을 주장하지 않는다.
+
+normal/race/cgo0 PostgreSQL core owner마다 독립 SQLite·PostgreSQL 관측과 native 비교를 실행하도록 연결했다.
+필수 manifest에 root·DB·94개 사례·원본 변조 거부 215개 경로를 추가했다. 전체 4,067개 경로는 세 mode에서
+각각 유일한 owner를 가진다. Python AST, workflow actionlint 1.7.7, Go 최소 compile을 확인했다.
+`gdj0136-admin-choice-oracle-compile-v1/receipt.json` SHA-256
+`ba15a46e8c2479205a77b348c4def77ae1333cca8adab25ae45b7900b3c831a3`은 `-run '^$'` 결과와 source 복사본을 가리킨다.
+새 Django 관측·Go native 비교·race 본문은 로컬에서 실행하지 않았으며 원격 검증 전이다. 이 작성 상태는 F1 PASS가 아니다.
+
+## GDJ-0136 — runserver 명령 감사 정정과 선택 browser 진단
+
+Source `3de7f2d0`의 [CI 39791918336](https://github.com/progresshans/godj/actions/runs/39791918336)에서
+runserver 감사가 새 `go telemetry off`를 기존 binary build 순서 밖의 명령으로 거부했다.
+원본 job API/log는 `gdj0136-3de7f2d0-ci-39791918336/`에 보존했다. 감사는 private HOME/XDG/tmp 및 telemetry
+환경 격리를 확인하고, 초기화와 같은 소유 workspace의 정확한 metadata 조회를 순서대로 요구한다.
+일반 Go 명령 허용 범위를 넓히지 않았다. 준비 진단에는 인자 대신 고정된 초기화 단계 이름을 표시한다.
+
+로컬의 실패 시나리오 `TestGlobalRunserverArticleSQLiteDevelopmentLoop/start-stop-1`은 수정 전 실패하고
+수정 후 통과했다. 11개 환경 변조와 9개 명령 순서 변조 및 기존 비밀 제거 진단도 좁혀 확인했다.
+`gdj0136-runserver-telemetry-audit-repro-v1/after.json` SHA-256
+`ca46e69d82208338e6109abd3d3cd1e448819e24b44fe4ebc6d7ffc7e4a93064`, `helpers.json` SHA-256
+`7b38c6a3572175fdf6fcac633751c824913dd199cfec8733a0a2abb1845b1daf`에 명령·원본·source를 구분했다.
+
+같은 CI의 Admin browser는 inline/upload가 통과했으나 choices probe가 60초 command 제한에 걸렸다.
+보존한 artifact `12432831201`의 SHA-256은 `1ec556645624b8db5e6007d283bddd5e446099c16b9ff64814e4e3a4563ae23e`다.
+로컬의 동일한 원본 choices probe는 34개 검사와 실제 SQLite 최종 상태·정리를 통과해 원격 중단을 재현하지 못했다.
+마지막 완료 검사와 개별 10초 대기 실패를 남기도록 probe 진단을 보강했다. 전체 시간이나 34개 동작 범위를 줄이거나
+실패를 통과 처리하지 않았다. 진단 보강 뒤에도 같은 선택 흐름과 native 정리를 확인했다.
+`gdj0136-choice-browser-failure-repro-v1/original/receipt.json`과 `after/receipt.json`을 별도로 보존했으며
+후자의 SHA-256은 `9e73bbf6cbf4db30752df46f3e49700549df65d888d4b6e361a4a251377da3b6`다.
+이 로컬 재현은 원격 Linux 결과나 전체 browser PASS를 대신하지 않는다. 다음 원격 결과로 중단 지점을 확인해야 한다.
+
 ## GDJ-0136 — PostgreSQL 선택 준비와 생성기 임시 경로 수명 정정
 
 Source `6fec99a2`의 [CI 39753263759](https://github.com/progresshans/godj/actions/runs/39753263759) 원본을

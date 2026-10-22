@@ -63,7 +63,7 @@ func runAuditedGoCommand() int {
 	if realGo == "" || logPath == "" {
 		return 95
 	}
-	payload, err := json.Marshal(runserverGoAuditRecord{Arguments: os.Args[1:], StartedAt: time.Now().UTC()})
+	payload, err := json.Marshal(runserverGoAuditRecord{Arguments: os.Args[1:], StartedAt: time.Now().UTC(), CandidateWorkspace: runserverCandidateWorkspace(os.Environ())})
 	if err != nil {
 		return 96
 	}
@@ -921,27 +921,48 @@ func assertRunserverGoBuildAudit(t *testing.T, logPath string, wantPackages []st
 	if err != nil {
 		t.Fatalf("read runserver Go build audit: %v", err)
 	}
+	if err := validateRunserverGoBuildAudit(payload, wantPackages); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func validateRunserverGoBuildAudit(payload []byte, wantPackages []string) error {
 	lines := bytes.Split(bytes.TrimSpace(payload), []byte{'\n'})
 	buildIndex := 0
+	pending := ""
+	workspaces := map[string]bool{}
 	for index, line := range lines {
 		var record runserverGoAuditRecord
 		if err := json.Unmarshal(line, &record); err != nil || record.StartedAt.IsZero() {
-			t.Fatalf("decode runserver Go command audit %d: %v", index, err)
+			return fmt.Errorf("invalid runserver Go command audit %d", index)
 		}
 		arguments := record.Arguments
-		// Reusable identity models resolve their package directory read-only.
-		// Only this exact metadata query is allowed alongside binary builds.
-		if reflect.DeepEqual(arguments, []string{"list", "-mod=readonly", "-find", "-json", "github.com/progresshans/godj/identity/models"}) {
+		// A fresh private telemetry initialization must immediately precede
+		// the one supported external-model query in the same workspace.
+		if reflect.DeepEqual(arguments, []string{"telemetry", "off"}) {
+			if buildIndex == 0 || pending != "" || record.CandidateWorkspace == "" || workspaces[record.CandidateWorkspace] {
+				return fmt.Errorf("runserver Go command audit %d: unowned, repeated or misplaced telemetry initialization", index)
+			}
+			pending = record.CandidateWorkspace
+			workspaces[pending] = true
 			continue
 		}
-		if buildIndex >= len(wantPackages) || len(arguments) != 6 || arguments[0] != "build" || arguments[1] != "-buildvcs=false" || arguments[2] != "-mod=readonly" || arguments[3] != "-o" || !filepath.IsAbs(arguments[4]) || arguments[5] != wantPackages[buildIndex] {
-			t.Fatalf("runserver Go command audit %d = %q, want the next exact readonly binary build", index, arguments)
+		if reflect.DeepEqual(arguments, []string{"list", "-mod=readonly", "-find", "-json", "github.com/progresshans/godj/identity/models"}) {
+			if pending == "" || record.CandidateWorkspace != pending {
+				return fmt.Errorf("runserver Go command audit %d: metadata query outside initialized workspace", index)
+			}
+			pending = ""
+			continue
+		}
+		if pending != "" || buildIndex >= len(wantPackages) || len(arguments) != 6 || arguments[0] != "build" || arguments[1] != "-buildvcs=false" || arguments[2] != "-mod=readonly" || arguments[3] != "-o" || !filepath.IsAbs(arguments[4]) || arguments[5] != wantPackages[buildIndex] {
+			return fmt.Errorf("runserver Go command audit %d: expected the next exact readonly binary build", index)
 		}
 		buildIndex++
 	}
-	if buildIndex != len(wantPackages) {
-		t.Fatalf("runserver binary build count = %d, want %d", buildIndex, len(wantPackages))
+	if pending != "" || buildIndex != len(wantPackages) {
+		return fmt.Errorf("runserver Go command sequence incomplete: builds=%d want=%d", buildIndex, len(wantPackages))
 	}
+	return nil
 }
 
 func assertRunserverWorkspaceEmpty(t *testing.T, root string) {
