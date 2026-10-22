@@ -23,6 +23,26 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 생성 import 충돌과 외부 소비자 의존성 수정
+
+`b8b41da5c109d6f52b69796bd97d1ef239d25803`의
+[CI 39835794991](https://github.com/progresshans/godj/actions/runs/39835794991)에서 Portable 8개 작업이
+세 원인으로 실패했다. 생성 AST 검사가 같은 파일의 중복 import alias를 놓쳤고, migration writer 외부 소비자의
+공개 import 목록과 namespace/recovery 외부 사본의 dependency 목록에 새 `apps` package가 없었다.
+원본 8개 job metadata/log는 `gdj0137-b8b41da5-ci-39835794991/`에 보존했다.
+
+공통 AST 검사에 파일 단위 alias 중복 거부를 추가했다. 서로 다른 파일의 import scope는 구분하며,
+기존 선언/receiver 충돌 검사도 유지한다. 외부 소비자에는 필요한 공개 `apps` dependency만 추가했고,
+private/example import 거부와 실제 candidate compile·복구 검사를 유지했다.
+
+같은 source archive의 분리 사본에서 두 namespace root·외부 게시/복구·SQLite migration writer의 실패를
+각각 재현했다. 네 파일을 수정한 뒤 같은 검사들이 skip 없이 통과했다. 전체 제품/DB/race/platform을 로컬에서
+중복 실행하지 않았으며 현재 작성 중인 공통 DB 설정 변경은 이 사본에 포함하지 않았다.
+`gdj0137-b8b41da5-import-repro-v1/receipt.json` SHA-256은
+`28b489310d9505c8bd39d3a87287255ade6b737de4b8c75b2e51a8c9d62feeb0`이다.
+Archive SHA-256은 `7f6c02a2ea8e8245e5423f5b47ef2d111f3d3a23b48c80e7e18baf309e62f8ad`이며,
+수정 파일 hash·원래 실패·실제 명령·Go event 원본을 함께 기록했다. 수정 source의 전체 CI와 원본 대조는 계속 필요하다.
+
 ## GDJ-0137 — 모델 없는 앱과 생성된 설치 앱 목록 작성
 
 `260bb5d0` 기반 작업 사본에서 현재 IR이 모델 없는 앱의 label·format·hash를 유지하도록 확장했다.

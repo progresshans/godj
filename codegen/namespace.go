@@ -196,6 +196,7 @@ func finalizeGeneratedFiles(files []projectRenderedFile) error {
 }
 
 func (namespace *generatedNamespace) inspect(file *ast.File, filename string) error {
+	fileImports := make(map[string]struct{}, len(file.Imports))
 	for _, imported := range file.Imports {
 		var name string
 		if imported.Name != nil {
@@ -212,6 +213,10 @@ func (namespace *generatedNamespace) inspect(file *ast.File, filename string) er
 		if name == "_" || name == "." {
 			continue
 		}
+		if _, duplicate := fileImports[name]; duplicate {
+			return fmt.Errorf("duplicate generated import alias %s in %s", name, filename)
+		}
+		fileImports[name] = struct{}{}
 		if previous, collision := namespace.names[name]; collision {
 			return fmt.Errorf("import alias %s in %s conflicts with %s", name, filename, previous)
 		}

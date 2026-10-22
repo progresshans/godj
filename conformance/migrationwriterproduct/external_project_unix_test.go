@@ -36,6 +36,7 @@ const (
 )
 
 var externalAllowedGoDjImports = map[string]struct{}{
+	"github.com/progresshans/godj/apps":      {},
 	"github.com/progresshans/godj/codegen":   {},
 	"github.com/progresshans/godj/db/sqlite": {},
 	"github.com/progresshans/godj/project":   {},

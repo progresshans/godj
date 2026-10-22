@@ -20,6 +20,9 @@ func TestGeneratedNamespaceChecksActualDeclarationsAcrossFiles(t *testing.T) {
 		{"default import", "import \"net/http\"", "var http int", "package symbol http"},
 		{"same method on different receivers", "type A struct{}; func (A) From() {}", "type B struct{}; func (B) From() {}", ""},
 		{"shared import", "import used \"io\"", "import used \"io\"", ""},
+		{"same-file explicit import collision", "import (used \"io\"; used \"fmt\")", "", "duplicate generated import alias used"},
+		{"same-file default import collision", "import (\"encoding/json\"; json \"io\")", "", "duplicate generated import alias json"},
+		{"separate file import scopes", "import used \"io\"", "import used \"fmt\"", ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			files := []projectRenderedFile{
