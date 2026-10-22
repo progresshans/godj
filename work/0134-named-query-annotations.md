@@ -1,6 +1,6 @@
 # GDJ-0134: 명명된 계산식과 조회 결과
 
-- 상태: 공통 AST·compiler·ORM·생성 facade·두 생성 소비자·독립 비교·Helpdesk 연결 작성; 원격 검증 진행 중
+- 상태: 구현·같은 source의 전체 통합 검증·G-ORM 전환 기준 완료; 다음은 A1 / GDJ-0135
 - 시작: 2026-10-19
 - 기준: `90437ebc6b8508995de962660adc3b6cad66a839` — GDJ-0133 뒤 전체 실행 계획 포함; 제품 source `55928651`의 전체 통합 검증 완료
 - 근거: [헌장](../docs/CHARTER.md), [기능 카탈로그](../docs/CAPABILITY_CATALOG.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
@@ -46,10 +46,10 @@ Helpdesk의 기한 미리보기에서 조정 기한·남은 시간을 명명된 
 
 ## 완료 조건
 
-- [ ] 이름·참조·재정의·소유권과 자원 한도가 공통 AST와 양 backend에 연결된다.
-- [ ] Scalar/집계·필터 순서·선택/alias·원 모델 및 결과 단계의 typed/dynamic·생성 API와 실패 의미가 구현된다.
-- [ ] 구조가 다른 생성 소비자와 Helpdesk의 실제 흐름·독립 비교·인가/저장 보존을 검증한다.
-- [ ] 같은 source의 필수 실행과 원본을 대조하고 현행 지원·차이·미완료 범위를 갱신한다.
+- [x] 이름·참조·재정의·소유권과 자원 한도가 공통 AST와 양 backend에 연결된다.
+- [x] Scalar/집계·필터 순서·선택/alias·원 모델 및 결과 단계의 typed/dynamic·생성 API와 실패 의미가 구현된다.
+- [x] 구조가 다른 생성 소비자와 Helpdesk의 실제 흐름·독립 비교·인가/저장 보존을 검증한다.
+- [x] 같은 source의 필수 실행과 원본을 대조하고 현행 지원·차이·미완료 범위를 갱신한다.
 
 ## 현재 근거
 
@@ -79,8 +79,8 @@ AST의 참조/예산 부정 대조와 양 DB의 독립 seed 기반 검사 본문
 Helpdesk는 `adjusted_due_at`에 의존하는 `remaining`을 같은 명명 query에 bind하고 기존 필터·정렬·DB Page와
 HTML/API/client 계약을 사용한다. 고정 Django observer의 양 DB 77개 결과·오류와 명시한 Go 차이를 외부 생성
 소비자에 연결했다. 모든 비교는 rollback과 네 모델의 전체 저장 행·관계 보존을 확인하며, 의도한 차이의 Django
-결과도 고정 원본과 일치해야 한다. 원격 runtime·race·실제 Helpdesk 흐름의 검증 완료는 아직 남아 있다.
-코드와 검사 본문의 존재나 compile-only를 runtime PASS로 계산하지 않는다.
+결과도 고정 원본과 일치해야 한다. Source `82142bbf`에서 원격 runtime·race·실제 Helpdesk 흐름과
+전체 통합 원본 대조를 완료했다. 코드와 검사 본문의 존재나 compile-only를 runtime PASS로 계산하지 않는다.
 
 기존 독립 Django 6.1 annotation observer와 보존된 양 DB 77개 관측을 읽었다. 앞선 정의 참조, forward reference 오류,
 재정의 후 기존 dependency 보존, 필드/관계 이름 충돌, alias 선택 거부, 집계 전후 Filter와 nested aggregate 오류를
@@ -90,7 +90,7 @@ HTML/API/client 계약을 사용한다. 고정 Django observer의 양 DB 77개 �
 
 ## G-ORM의 다음 소비자 준비
 
-A1의 기존 공개 경로를 source `8325c30f`에서 확인했다. 아래 준비는 새 자동 CRUD의 구현이나 사용자 실험을 뜻하지 않는다.
+A1의 기존 공개 경로를 source `82142bbf`에서 다시 확인했다. 아래 준비는 새 자동 CRUD의 구현이나 사용자 실험을 뜻하지 않는다.
 
 | 소비자 | 현재 사용 가능한 공개 경계 | A1에서 함께 유지할 책임 |
 |---|---|---|
@@ -106,4 +106,23 @@ A1의 기존 공개 경로를 source `8325c30f`에서 확인했다. 아래 준�
 [명명 기한 조회](../examples/helpdesk/deadline_preview.go)에 있다.
 Source 검토에서 이 세 흐름을 위해 추가로 먼저 구현해야 할 ORM 기능은 찾지 못했다.
 A1은 이미 있는 public 기능의 반복 DTO·snapshot·입력 매핑과 저장 연결을 줄이는 작업으로 시작할 수 있다.
-권한·transaction·응답 준비를 일반 CRUD로 바꾸면서 생략하지 않으며, G-ORM의 현재 실행 조건은 별도로 끝낸다.
+권한·transaction·응답 준비를 일반 CRUD로 바꾸면서 생략하지 않는다.
+
+## G-ORM 판정과 남은 범위
+
+2026-10-22, source `82142bbf`의 [전체 통합 증거](../docs/status/TEST_EVIDENCE.md#gdj-0134--전체-통합-검증과-g-orm-전환)와
+현재 공개 경로를 대조해 H1~H6을 충족했다. 실행 상세·수치·원본 hash는 TEST_EVIDENCE가 소유한다.
+
+| 조건 | 확인한 범위 |
+|---|---|
+| H1 | Scalar/aggregate·annotation/alias·의존/재정의·정의 시점 JOIN·선택/필터/정렬/집계·결과 반환 |
+| H2 | 공통 AST의 typed/dynamic source/type/NULL, generated facade와 source가 다른 참조·쓰기의 부정 대조 |
+| H3 | Scalar와 cross-app collection 생성 앱, Helpdesk 기한 미리보기의 HTML/API/client·DB Page·브라우저 |
+| H4 | 권한·현재 Category·저장/관계/audit 보존, 실패·NULL·자원 한도·취소·rollback/cache·동시 분기 |
+| H5 | 같은 source의 양 DB·독립 기준·필수 실행과 전체 platform/race/process·생성 drift 원본 대조 |
+| H6 | 위 세 A1 소비자의 공개 준비/저장/출력 경로를 확인했고 추가 ORM 선행 결함을 찾지 못함 |
+
+주 작업은 [GDJ-0135](0135-model-centered-form-admin-api.md)로 옮긴다. Named 모델 결과와 eager/prefetch의 조합은
+Q2, named 표현식을 사용하는 QuerySet UPDATE·Save/BulkUpdate는 Q3에서 구현·검증할 미완료 요구다.
+일반 함수·subquery/window·넓은 관계와 DB도 [전체 실행 계획](../docs/EXECUTION_PLAN.md)의 담당 묶음에 남는다.
+이 전환을 ORM 전체 완료나 현재 거부하는 조합의 지원으로 표시하지 않는다.

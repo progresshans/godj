@@ -3,6 +3,49 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0134 — 전체 통합 검증과 G-ORM 전환
+
+2026-10-22에 제품 source `82142bbf407798dd5649d433288e6491be3eb277`의
+[CI 39561518008](https://github.com/progresshans/godj/actions/runs/39561518008), attempt 1의 종료와 원본을 대조했다.
+CI는 2026-10-21 UTC에 90개 작업 모두 success로 완료했다. 실제 PR checkout은
+`a55d4662c53ffcf6c11d88230ca279b9633805ed`, tree는 `232a6df099be471da0132a54e5b3ed5ee723ccaa`다.
+두 parent·제출 head·tree를 GitHub API와 validation-plan 로그로 확인했고, 보관 source 3,773개 파일의
+Git blob·mode·SHA-256을 다시 대조했다. 전체 90개 job log와 17개 artifact의 digest·출처·실행 목록을 확인했다.
+
+- 명명 조회의 normal·race·CGO 비활성 모두 fresh Django 6.1의 SQLite/PostgreSQL 각 77개 관측과
+  Go 생성 소비자의 값·오류·명시적 차이를 대조했다. 각 mode의 reference child 157개, scalar 17개,
+  collection 11개가 정확히 한 번씩 run/pass이며 skip 0이다. Compile 부정 대조 7개, source/runtime/입력,
+  전체 저장 행·관계 rollback 보존과 정리 기록, parent가 기록한 child log hash도 일치한다.
+- Native core는 각 mode에서 실제 6,511개 run/pass·필수 3,623개·skip 0이다. Race의 다섯 partition을 합친
+  실제 목록과 필수 목록이 normal·CGO 비활성과 같고 누락·중복이 없다. Operator-target 세 mode의
+  필수 3개를 포함한 12개 run/pass도 각각 확인했다. PostgreSQL 실제 제품 10개 작업을 모두 대조했다.
+- 관계 제품의 4 OS/arch × 세 mode, 12개 좌표에서 현재 consumer binary가 발견한 root 99개를 각각
+  빠짐없이 한 owner가 실행했다. Portable·생성 drift·command/process·project-check·cold external CLI,
+  고정 darwin/arm64 기준, Python 네 버전, 32비트 compile 및 실제 관계 실행을 확인했다.
+  Portable에서 제외하는 native·고정 profile 검사는 해당 owner에서 실제 실행됐으며 skip을 성공으로 세지 않았다.
+- 같은 실행의 system-state capture `12329329905`와 operator capture `12328181343`의 producer·source binding,
+  payload digest와 후속 conformance 소비를 대조했다. 현재 제품 conformance suite 26개와 고정 S3 service의
+  build·lifecycle 근거도 확인했다. CI 도구 검사는 69개·skip 0이다.
+- Helpdesk browser artifact `12328393632`는 7개 흐름의 236개 check와 저장 행·관계·audit 보존,
+  browser 종료·fixture exit 0·임시 DB 정리를 확인했다. 명명 기한 미리보기 34개를 포함하며 screenshot bytes는
+  앞서 시각 검토한 화면과 같다. HTML/API·OpenAPI·독립 Go client도 현재 source의 실행 근거와 대조했다.
+
+전체 원본은 검증 보관 디렉터리의 `hosted-full-pr-39561518008/`에 있다.
+`collection.json` SHA-256은 `1c9f063f0875b4e82fc4fbd17d7d924a4555c6a94df2e8d091cfa0acab414b78`,
+`audit.json`은 `f8d18de756f4d77ded79c0a2ace2ebc9828240befabb5770314f07cbfd701f21`이다.
+전체 raw log manifest와 각 archive의 해시는 그 receipt에 있다. 세 mode의 실제 core 목록 대조는
+`gdj0134-82142bbf-ci-39561518008/core-mode-inventory-audit.json`에 보존했으며 SHA-256은
+`64abe3fa7f3ef5bc01423fd582abe8c44c5dde2b94202ad35535e77f2212d91a`다.
+원본 수집·대조에서 로컬 Go 실행은 source binding과 compiled test 목록 발견뿐이며 테스트 본문을 다시 실행하지 않았다.
+
+[GDJ-0134](../../work/0134-named-query-annotations.md)의 Q1과 G-ORM H1~H6을 충족해 주 작업을
+[A1 / GDJ-0135](../../work/0135-model-centered-form-admin-api.md)로 옮긴다. 이는 ORM 전체나 A1의 완료가 아니다.
+Named eager/prefetch 조합은 Q2, named 표현식 쓰기는 Q3의 미완료 요구로 유지한다.
+아래의 이전 실패·부분 실행·복구 기록은 각 source의 당시 상태이며 이번 완료 근거와 구분한다.
+
+완료 기록과 A1 요구 정의는 Markdown 7개만 변경한다. 2026-10-22에 로컬 문서 링크 225개와
+`git diff --check`를 통과했고, 제품·생성물·CI 설정은 위 검증 source와 동일함을 확인했다.
+
 ## GDJ-0134 — 52d의 native 실행과 전체 패키지 시간 예산
 
 Source `52d9770cb7da929cef94e6e0598731075c38b9ae`의
