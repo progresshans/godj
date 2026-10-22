@@ -8,6 +8,8 @@ Schema IR에서 선택한 필드를 `Definition`으로 투영한다. `Bind`는 �
 자르거나 거부하지 않아 사용자가 유효한 값으로 수정할 수 있다. 같은 기존 값을 그대로 제출하면 현재 입력 제약으로
 검증하므로 오류가 나면서도 Changed는 비어 있을 수 있다. 타입·유효한 표현·UTF-8/NUL 검사와 선언한 default의 제약,
 Admin의 모델 snapshot 및 최종 ORM 저장 검사는 유지한다. `InitialValues`는 저장 가능성이나 권한 검사의 대체가 아니다.
+문자 필드의 Changed 비교는 NULL 초기값과 빈 입력을 같은 빈 값으로 본다. Initial과 Cleaned의 NULL/빈 문자열 구분은
+유지하므로, 실제 저장을 명시한 Form의 후보 값과 변경 없는 FormSet 행을 생략하는 정책은 별개다.
 
 ```go
 definition := formmodel.Definition{

@@ -209,7 +209,7 @@ func verifyHelpdeskAdminCollectionEdit(t *testing.T, ctx context.Context, runtim
 			case "duplicate_tuple":
 				values.Set("tickets-0-external_reference", "ec3f1530-c1ce-4e26-a0b0-4e4a24e37b20")
 				values.Set("tickets-1-external_reference", "ec3f1530c1ce4e26a0b04e4a24e37b20")
-				wantCode, wantAtomics = "unique", 1
+				wantCode = "unique"
 			case "forged_category":
 				values.Set("tickets-0-category", strconv.FormatInt(outside.ID, 10))
 				wantStatus = 400
@@ -317,9 +317,9 @@ func verifyHelpdeskAdminCollectionEdit(t *testing.T, ctx context.Context, runtim
 					t.Fatal("new row audit missing", err)
 				}
 			}
-			// A protected/unique failure may follow a real first-row write, but
-			// its audit must roll back. Count those attempted callbacks separately.
-			if mode == "protected_delete" || mode == "duplicate_tuple" {
+			// A protected deletion follows a real first-row write, whose audit
+			// must roll back. Model formset uniqueness rejects before the writer.
+			if mode == "protected_delete" {
 				wantAudits = 1
 			}
 			if audits != wantAudits {

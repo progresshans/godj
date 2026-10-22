@@ -123,6 +123,21 @@ func (a *Application) ticketEditFormSet(fields []string, overrides []formmodel.O
 				_, err = plan.Save(ctx, session, formmodel.SetSaveOptions[models.Ticket]{
 					Save: func(work context.Context, scope db.Session, row *formmodel.SetSaveRow[models.Ticket]) error {
 						if row.Existing() {
+							// ORDER selects a form operation, but this application has
+							// no stored position. Preserve the current model instead of
+							// applying unrelated HTML empty-value normalization.
+							if slices.Equal(row.Changed(), []string{"ORDER"}) {
+								current, present, err := bound.Set().Current(row.Index())
+								if err != nil {
+									return err
+								}
+								if !present {
+									return errors.New("helpdesk: missing ordered collection row")
+								}
+								*row.Model() = current
+								writes = append(writes, admin.CollectionSetWrite{Index: row.Index(), Kind: "update", ID: current.ID})
+								return nil
+							}
 							instance, present := bound.Set().Instance(row.Index())
 							if !present {
 								return errors.New("helpdesk: missing current collection instance")

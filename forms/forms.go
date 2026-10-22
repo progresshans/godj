@@ -909,6 +909,8 @@ func (s Spec) Bind(ctx context.Context, data Data, initial map[string]Value) (Fo
 			sameInitial = !fieldChanged(field, data, initialValue)
 		} else if field.kind == FieldJSON {
 			sameInitial = equalJSON(value, initialValue)
+		} else if stringFieldKind(field.kind) {
+			sameInitial = equalTextInitial(value, initialValue)
 		} else {
 			sameInitial = value.Equal(initialValue)
 		}
@@ -1260,8 +1262,8 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 			raw = submitted[0]
 		}
 		if raw == "" {
-			if field.kind == FieldChar {
-				return !field.emptyValue.Equal(initial)
+			if stringFieldKind(field.kind) {
+				return !equalTextInitial(field.emptyValue, initial)
 			}
 			return !initial.IsNull()
 		}
@@ -1355,7 +1357,7 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		if raw == "" {
 			value = field.emptyValue
 		}
-		return !value.Equal(initial)
+		return !equalTextInitial(value, initial)
 	case FieldBoolean:
 		raw := ""
 		if present && len(submitted) == 1 {
@@ -1376,6 +1378,18 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 	default:
 		return true
 	}
+}
+
+// Change detection treats a missing text initial and an empty input equally.
+// It does not rewrite Initial or Cleaned: nullable Char and Text fields may
+// still have different empty storage values. Django Field.has_changed at
+// fe0a859f537d4238cf49fca39073513206f83122, BSD-3-Clause (LICENSE.django).
+func equalTextInitial(value, initial Value) bool {
+	empty := func(value Value) bool {
+		text, stringValue := value.AsString()
+		return value.IsNull() || stringValue && text == ""
+	}
+	return value.Equal(initial) || empty(value) && empty(initial)
 }
 
 func nullableBooleanValue(raw string) Value {

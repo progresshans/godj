@@ -179,5 +179,12 @@ func rejectTicketCollectionSet(set forms.Set) error {
 			rows[row.Index()] = row.Form().Errors()
 		}
 	}
-	return admin.RejectCollectionFormSet(rows, validation.Join(set.NonFormErrors(), set.Management().Errors()), nil)
+	whole := set.NonFormErrors()
+	for _, failure := range set.Management().Errors().All() {
+		// Management fields belong to the set, not to any row Form. Preserve
+		// their code/parameters while naming the control as diagnostic context.
+		params := append(failure.Params(), validation.NewParam("field", string(failure.Field())))
+		whole = validation.Join(whole, validation.NewErrors(validation.New(validation.NonField, failure.Code(), params...)))
+	}
+	return admin.RejectCollectionFormSet(rows, whole, nil)
 }

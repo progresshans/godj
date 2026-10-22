@@ -29,8 +29,10 @@ Form의 cleaned value type과 widget은 독립이다. `forms.Widget`의 TextInpu
 Text Form은 nullable 여부와 관계없이 빈 문자열 정책을 선택하며 required 입력의 빈 값은 계속 오류다. 앞뒤 공백은 기존
 Char Form처럼 제거하고 내부 줄바꿈은 보존한다. 입력 default는 제출한 빈 값을 대체하지 않는다.
 
-초기 model 값은 별도로 주입한다. 명시적으로 저장된 NULL과 제출한 빈 문자열은 서로 다른 값이며 기존 Changed 판정도 이를
-구분한다. 이 결정은 Django의 모든 `has_changed`·ModelForm 저장 정책에 대한 호환 주장이 아니다.
+초기 model 값은 별도로 주입한다. 저장된 NULL과 cleaned 빈 문자열은 서로 다른 값으로 유지하지만, 문자 필드의
+`Changed` 비교에서는 NULL과 빈 문자열을 같은 빈 입력으로 본다. F1의 여러 행 편집에서 그대로 표시한 빈 Text가
+불필요한 저장/audit를 만들지 않도록 기존 판정을 보완했다. 이는 고정 Django 6.1 `Field.has_changed`의 빈 초기값
+비교를 따르며 Initial·Cleaned·required 검증을 다시 쓰지 않는다. 저장하는 행을 고르는 정책과 실제 저장 값은 별개다.
 
 Admin은 같은 widget metadata를 사용한다. Textarea 내용도 일반 template escaping을 거치며 trusted HTML로 바꾸지 않는다.
 HTML parser가 시작 직후의 newline 하나를 제거하므로 태그와 값 사이에 newline 하나를 항상 넣는다.
@@ -43,7 +45,9 @@ HTTP body, serializer parser와 template의 기존 자원 제한은 TextField �
 정하고 OpenAPI에는 string/null을 투영한다. 저장 길이 제약이 없다는 이유로 HTTP 입력 한도를 없애지 않는다.
 
 Helpdesk의 nullable resolution은 새 `0003_ticket_resolution` migration으로 추가한다. 기존 0001·0002는 보존하고 기존 행은
-NULL로 남긴다. API 생략/null은 NULL, 명시적 빈 문자열은 빈 값이며 Admin의 빈 Text 제출은 빈 문자열로 저장한다.
+NULL로 남긴다. API 생략/null은 NULL, 명시적 빈 문자열은 빈 값이며 Admin의 빈 Text가 실제 저장 후보에 포함되면
+빈 문자열로 저장한다. 변경 없는 FormSet 행은 저장하지 않는다. ORDER만 바뀐 경우 모델 값을 저장할지는 application이
+명시하며 Helpdesk는 위치 열이 없으므로 기존 값을 보존한다.
 실제 DB의 적용·reverse·재적용과 외부 ogen client를 통해 이 차이를 검증한다. 실행 환경과 결과는
 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.
 

@@ -23,6 +23,29 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 컬렉션의 빈 초기값과 현재 management 오류 수정
+
+Source `1944b224`의 [CI 39811818947](https://github.com/progresshans/godj/actions/runs/39811818947)에서
+PostgreSQL race Helpdesk와 Portable normal/cgo0 integration이 실패했다. `gdj0136-1944b224-ci-39811818947/`에
+job `119940795755`, `119940796237`의 API/원본 log를 보존했다. 두 log의 SHA-256은 각각
+`8e4277643bf7e3bb9917b2b7fb7660aa364ebae45a6fa3a95c9de3cf6e50a3e3`,
+`8d7681e6409c46e2100686c37d855534df79f01862d263450127b1aa66e853ee`다.
+검증 checkout `9652d6c2`의 tree는 해당 head와 같은 `476e2d19`임을 validation-plan 원본과 대조했다.
+
+같은 source archive에서 실패한 SQLite 9개 사례만 재현했다. 빈 Text를 표시한 NULL 행이 빈 문자열로 저장됐고,
+late cohort 오류는 management 필드 진단을 집합의 NonField 오류에 그대로 넣어 500으로 바뀌었다.
+문자 필드의 변경 비교에서 NULL/빈 입력을 같은 빈 값으로 보도록 [ADR-0060](../adr/0060-text-field-and-form-widget-semantics.md)을
+보완했다. Initial·Cleaned·required 검증의 값은 유지한다. Helpdesk는 ORDER만 바뀌면 현재 모델을 보존한다.
+Management 오류의 code/params는 전체 집합 진단으로 보존하면서 control 이름을 context에 둔다.
+중복 unique tuple은 이미 순수 FormSet 검증에서 거절하므로 fixture도 transaction/audit 0회를 요구하도록 정정했다.
+
+수정 후 같은 SQLite 9개 사례를 포함한 11개 경로가 통과했다. 관련 빈 초기값 16개 조합과 기존 고정 초기값 비교의
+30개 경로도 skip 없이 통과했다. 전후 source·명령·원본 log를 보존한
+`gdj0136-collection-failure-repro-v1/after-receipt.json` SHA-256은
+`15ad797f45dd0158c5a74b0913b22cb16498ccbb9169ed2bb079124ea309c5ca`다.
+검증은 Go 1.26.5 darwin/arm64의 좁힌 실패 재현이다. 로컬 PostgreSQL·race·전체 제품을 실행하지 않았으며,
+함께 작성 중인 독립 생성 컬렉션 소비자도 재현 source에서 제외했다. 수정 source의 전체 CI 검증은 미완료다.
+
 ## GDJ-0136 — 현재 cohort 기반 컬렉션 편집과 파일 바인딩 작성
 
 `ModelCollectionFormSet`의 canonical 선언과 sealed 제출/결과를 도입했다. 초기 Form과 writer의 `BindCurrent`는
