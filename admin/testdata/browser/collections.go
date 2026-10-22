@@ -233,9 +233,18 @@ func runCollectionFixture() (runErr error) {
 }
 
 func (fixture *collectionBrowserFixture) migrate(ctx context.Context) error {
-	migration := migrations.Migration{App: "browser_inventory", Name: "0001_initial", Dependencies: []migrations.MigrationKey{{App: "helpdesk", Name: "0001_initial"}}}
-	for _, model := range inventory.GoDjRelationSchema().Models {
+	migration := migrations.Migration{App: "browser_inventory", Name: "0001_initial", Dependencies: []migrations.MigrationKey{{App: "helpdesk", Name: "0023_ticket_external_payload_digest"}}}
+	schema := inventory.GoDjRelationSchema()
+	for _, model := range schema.Models {
+		model.ManyToMany = nil
 		migration.Operations = append(migration.Operations, migrations.CreateModel{AppLabel: migration.App, Model: model})
+	}
+	// Explicit through models must exist before their collection metadata is
+	// introduced, even when all operations belong to the same initial migration.
+	for _, model := range schema.Models {
+		for _, field := range model.ManyToMany {
+			migration.Operations = append(migration.Operations, migrations.AddManyToMany{AppLabel: migration.App, ModelName: model.Name, Field: field})
+		}
 	}
 	wire, err := definition.Encode(definition.Producer{Name: "collection-browser", Version: "1"}, migration)
 	if err != nil {

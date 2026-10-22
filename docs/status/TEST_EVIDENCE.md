@@ -23,6 +23,30 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 컬렉션 브라우저 초기 migration과 실제 흐름 재현
+
+`74a7ad540e679ac8c3056c93f9db457fca7f8c14`의
+[CI 39826005312](https://github.com/progresshans/godj/actions/runs/39826005312)에서 Portable normal integration
+job `119990233913`은 collections 서버의 준비 단계에서 실패했다. Fixture가 Asset의 M2M metadata를
+중간 AssetLabel 모델보다 먼저 추가했고 외부 Helpdesk 의존성도 Label 생성 전인 `0001_initial`만 가리켰다.
+Migration 검증을 완화하지 않고 모든 모델 생성 뒤 AddManyToMany를 추가하며 현행 Helpdesk 이력에 의존하도록 고쳤다.
+
+`gdj0136-74a7ad54-ci-39826005312/`에 API metadata·job log와 browser artifact 원본을 보존했다.
+Log SHA-256은 `f31c678fd7516e9b906c8f0af77383d0e65f8bccd57b8d6aaf5c9f5c14166b55`, artifact `12447881419`
+ZIP은 `f401e892cdac616b73f875379749d1bdd2bcbbce829baff62b7dec72926442c5`다.
+같은 artifact의 inline 33개·uploads 20개·choices 34개는 native 결과와 종료/정리 성공을 기록하며,
+collections는 browser 시작 전 실패이므로 검사 누락을 성공으로 계산하지 않는다.
+
+같은 source archive의 분리 사본에서 collections 흐름만 재현했다. 원래 두 migration 문제를 순서대로 확인하고,
+fixture의 `collections.go`만 수정한 뒤 고정 CLI 0.1.22 / Chromium 155.0.8059.12로 38개 검사를 통과했다.
+전체 Asset 4개·link 4개·audit 7개·파일 8개·writer 시도 7개와 게시 결과·upload 수명·종료·정리가
+독립 기대 상태와 일치했다. `gdj0136-74a7-collection-browser-repro-v1/after-dependencies/reproduction.json`
+SHA-256은 `87fc73a4136026bd0de69a9415dcbd2a52af306b13706634a2212d240995cf86`이며 source/중간 실패를 함께
+기록한 `correction.json`은 `e7b7870515cc482ec3cf513c85b5cd70a16cf4698bd98a12de7ef6f2bc25c6f2`다.
+환경은 Go 1.26.5 darwin/arm64와 Node 24.11.1이다. 다른 browser 흐름·전체 DB/race/platform을 로컬에서
+재실행하지 않았으며 이 결과를 원격 Linux/Node 22 실행이나 F1 전체 완료로 옮기지 않는다.
+수정 source의 전체 원격 실행과 원본 대조는 계속 필요하다.
+
 ## GDJ-0136 — 오류 재표시의 새 행 권한 유지
 
 `48151ba2` source 검토에서 관계 선택을 가진 Inline/collection의 오류 재표시 prototype이 최초 등록의
