@@ -74,7 +74,7 @@ func TestChoiceSearchRenderingKeepsSelectionSeparateFromSearchMembership(t *test
 }
 
 func TestChoiceSearchRenderingRetainsRejectedValuesAndReadOnlyIdentifiers(t *testing.T) {
-	field, err := forms.ModelChoiceField("owner", forms.WithRequired(false))
+	field, err := forms.ModelChoiceField("owner", forms.WithRequired(false), forms.WithNullable())
 	if err != nil {
 		t.Fatal(err)
 	}

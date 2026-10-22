@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	formmodel "github.com/progresshans/godj/forms/model"
 	"sync"
 	"sync/atomic"
 	"testing"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
@@ -253,8 +254,8 @@ func TestRelatedChoiceSnapshotsAuthorizeAllSourcesAndIsolateConcurrentScopes(t *
 	})
 	resolve, _, _ = prepareRelatedChoices(ir.Model{}, ir.ModelIdentity{}, spec, sources, true)
 	if result, err := resolve(ctx, principal, origin, keys(7)); err != nil {
-		var failure *formmodel.Error
-		if !errors.As(err, &failure) || failure.Code != "invalid_primary_key" || len(result.Fields()) != 0 {
+		var failure *query.Error
+		if !errors.As(err, &failure) || failure.Category != query.CategoryField || failure.Code != query.CodeInvalidValue || failure.Field != "id" || len(result.Fields()) != 0 {
 			t.Fatal("invalid provider result lost its failure or published a partial form", err)
 		}
 	} else {

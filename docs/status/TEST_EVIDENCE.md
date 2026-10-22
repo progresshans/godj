@@ -3,6 +3,23 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0136 — 선택 fixture의 signed key와 오류 계약 정정
+
+Source `52b1441f24acd85378ad1684fe58a0808d649201`의
+[CI 39751087055](https://github.com/progresshans/godj/actions/runs/39751087055)에서 Portable core normal/cgo0/race가
+동일한 Admin 테스트 세 개에서 실패했다. PR checkout `17bf357385fc68471e7c3137fab141538d12e5e8`과
+head의 tree `601edba4f3053ba598d9bd85ea4a098c61833b28`가 같음을 확인했다.
+원본 job/API 로그는 `gdj0136-52b1441f-ci-39751087055/`에 보존했다.
+
+0인 관계 key를 거부하던 옛 기대를 비정수 key 거부로 바꿨다. signed 관계 key와 양수 관리 객체 identity의
+분리 검사는 `TestAdminSnapshotsPreserveSignedTargetKeysAndPositiveOwningIdentity`에 유지한다.
+잘못된 descriptor key는 ORM이 반환하는 `query.Error`의 field/category/code와 부분 결과 미공개를 검사하고,
+선택적 ModelChoice 렌더링 fixture에는 기존 정수 규칙대로 nullable 설정을 명시했다. 제품 계약은 바꾸지 않았다.
+Go 1.26.5 darwin/arm64에서 CI 실패 세 root만 수정 전 재현하고 수정 후 통과했다(`admin`, 0.538s).
+명령·전후 source·출력은 `gdj0136-choice-fixture-failure-repro-v1/`에 보존했으며 `after.json` SHA-256은
+`38b9faa56ee21456946f8a39393c3b43aed40e10b9b7260eda84f92a95e28d4c`이다.
+로컬 전체·DB·race·브라우저 검증은 실행하지 않았다. 수정 source의 원격 전체 실행은 미완료다.
+
 ## GDJ-0136 — bounded Admin 검색과 실제 선택 브라우저 준비
 
 `5004a87d` 뒤의 변경은 일반 Form·command·inline·여러 건 생성의 `RelatedChoices.Load`를 제거하고

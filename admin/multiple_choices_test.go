@@ -180,9 +180,9 @@ func TestMultipleChoicesRejectMissingSourcesAndInconsistentSnapshots(t *testing.
 				return NewObject(row.id, "Ticket", map[string]templates.Value{"id": templates.Integer(row.id), "labels": templates.Integer(7)})
 			}
 		}},
-		{"nonpositive key", func(c *ModelConfig[multipleSelection]) {
-			c.Get = func(context.Context, auth.Principal, int64) (multipleSelection, bool, error) {
-				return multipleSelection{1, []int64{0}}, true, nil
+		{"noninteger key", func(c *ModelConfig[multipleSelection]) {
+			c.Snapshot = func(row multipleSelection) (Object, error) {
+				return NewObject(row.id, "Ticket", map[string]templates.Value{"id": templates.Integer(row.id), "labels": templates.List(templates.String("7"))})
 			}
 		}},
 		{"null initial", func(c *ModelConfig[multipleSelection]) {
