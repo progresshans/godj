@@ -1,7 +1,7 @@
 import copy
 import unittest
 
-from admin_browser import CHECKS, verify_native, verify_probe
+from admin_browser import CHECKS, expected_collection_state, fixture_url_matches, verify_native, verify_probe
 
 
 class AdminBrowserEvidenceTests(unittest.TestCase):
@@ -152,6 +152,58 @@ class AdminBrowserEvidenceTests(unittest.TestCase):
                 verify_native('choices', altered)
         with self.assertRaises(ValueError):
             verify_native('choices', state | {'unexpected': []})
+
+    def test_native_collections_require_complete_files_rows_revisions_audits_and_attempts(self):
+        state = expected_collection_state()
+        verify_native('collections', state)
+        for path, value in [
+            (('upload_capabilities_closed',), 4), (('upload_capabilities_closed',), 5.0),
+            (('upload_temporaries_empty',), False), (('seed_scalars_preserved',), 1),
+            (('assets', 0, 'revision'), 5), (('assets', 0, 'note'), ''),
+            (('assets', 1, 'category'), 1), (('assets', 2, 'code'), 'STALE'),
+            (('assets', 3, 'attachment'), 'attempt-6/3/rollback-new.txt'),
+            (('files', 4, 'content'), 'missing rollback file'),
+            (('links', 0, 'label'), 26), (('audits', 5, 'actor'), 'editor'),
+            (('attempts', 0, 'ordered'), [0, 2]), (('attempts', 1, 'writes'), 1),
+            (('attempts', 5, 'committed'), True), (('attempts', 5, 'publications', 0, 'published'), False),
+            (('attempts', 5, 'publications', 1, 'error'), True),
+            (('other_rows', 'tickets'), 1),
+        ]:
+            with self.subTest(path=path):
+                altered = copy.deepcopy(state)
+                parent = altered
+                for key in path[:-1]:
+                    parent = parent[key]
+                parent[path[-1]] = value
+                with self.assertRaises(ValueError):
+                    verify_native('collections', altered)
+        for collection in ('assets', 'links', 'audits', 'files', 'attempts', 'labels', 'categories'):
+            for mutation in ('missing', 'duplicate'):
+                altered = copy.deepcopy(state)
+                if mutation == 'missing':
+                    altered[collection].pop()
+                else:
+                    altered[collection].append(copy.deepcopy(altered[collection][0]))
+                with self.subTest(collection=collection, mutation=mutation):
+                    with self.assertRaises(ValueError):
+                        verify_native('collections', altered)
+        for key in state:
+            altered = copy.deepcopy(state)
+            del altered[key]
+            with self.assertRaises(ValueError):
+                verify_native('collections', altered)
+        with self.assertRaises(ValueError):
+            verify_native('collections', state | {'unverified_extra': []})
+        with self.assertRaises(ValueError):
+            verify_native('choices', state)
+
+    def test_collection_fixture_readiness_requires_the_exact_loopback_edit_route(self):
+        self.assertTrue(fixture_url_matches('collections', 'http://127.0.0.1:49152/admin/assets/collection-set/edit/'))
+        for value in ('http://127.0.0.1:49152/admin/assets/change/?id=1',
+                      'https://127.0.0.1:49152/admin/assets/collection-set/edit/',
+                      'http://example.test/admin/assets/collection-set/edit/',
+                      'http://127.0.0.1:49152/admin/assets/collection-set/edit/?scope=other'):
+            self.assertFalse(fixture_url_matches('collections', value))
 
 
 if __name__ == '__main__':

@@ -9,7 +9,7 @@
 ## 다음
 
 1. F1의 typed inline·bounded 관계 선택·독립 Django Admin 비교와 원격 browser 중단을 현재 source에서 확인한다.
-2. 여러 행 편집·파일·외부 생성 소비자의 원격 검증을 확인하고, widget/validation 확장의 원격 실행을 확인하고 실제 브라우저 컬렉션 편집을 마무리한다.
+2. 여러 행 편집·파일·외부 생성 소비자의 원격 검증을 확인하고, widget/validation 확장과 실제 브라우저 컬렉션 편집의 원격 실행을 확인한다.
 3. 구조가 다른 앱·외부 cross-app 소비자의 전체 시나리오와 같은 source의 필수 CI 원본을 대조한 뒤 C1로 연결한다.
 
 ## 검증 경계

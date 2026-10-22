@@ -1,0 +1,1 @@
+<input data-asset-code name="{{ field.name }}" id="{{ field.control_id }}" value="{{ field.value }}"{% if field.readonly %} disabled{% endif %}{% if field.required %} required{% endif %}{% if field.invalid %} aria-invalid="true" aria-describedby="{{ field.error_id }}"{% endif %}><span>Code is normalized when saved.</span>

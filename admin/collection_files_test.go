@@ -197,7 +197,7 @@ func TestAdminCollectionFilesRetainCurrentBindingPublicationAndRequestLifetime(t
 			client.login(t, "admin", "secret", "/admin/")
 			path := "/admin/articles/collection-set/files/"
 			page := client.do(http.MethodGet, path, nil)
-			if page.Code != 200 || !strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) || !strings.Contains(page.Body.String(), "old/first.txt") || !strings.Contains(page.Body.String(), `data-custom-file="files-0-title"`) || !strings.Contains(page.Body.String(), `data-custom-file="files-__prefix__-title"`) {
+			if page.Code != 200 || !strings.Contains(page.Body.String(), `enctype="multipart/form-data"`) || !strings.Contains(page.Body.String(), "old/first.txt") || !strings.Contains(page.Body.String(), `data-custom-file="files-0-title"`) || strings.Contains(page.Body.String(), `data-custom-file="files-__prefix__-title"`) != (mode != "denied_add") {
 				t.Fatal("file collection initial display", page.Code, page.Body.String())
 			}
 			values := url.Values{"csrfmiddlewaretoken": {siteCSRFToken(t, page.Body.String())}, "files-TOTAL_FORMS": {"2"}, "files-INITIAL_FORMS": {"1"}, "files-0-id": {"11"}, "files-1-id": {""}}

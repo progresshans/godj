@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Admin inline, upload and choice probes in fresh isolated fixtures."""
+"""Run Admin inline, upload, choice and collection probes in fresh isolated fixtures."""
 import argparse
 import hashlib
 import json
@@ -15,7 +15,7 @@ from helpdesk_browser import result_document
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / 'admin/testdata/browser'
-PROBES = {'inline': 'probe.js', 'uploads': 'uploads_probe.js', 'choices': 'choices_probe.js'}
+PROBES = {'inline': 'probe.js', 'uploads': 'uploads_probe.js', 'choices': 'choices_probe.js', 'collections': 'collections_probe.js'}
 CHECKS = {'inline': ('zero configured extra rows still allow addition',
             'existing identities came from the server',
             'prototype controls are inert document-fragment content',
@@ -107,6 +107,46 @@ CHECKS['choices'] = (
 )
 
 
+CHECKS['collections'] = (
+    'existing collection renders a multipart cohort without a parent identity',
+    'stored identities revisions and server scope are separate from editable fields',
+    'registered text and file controls keep current stored file references',
+    'collection choices retain an off-page selection within a bounded page',
+    'collection search rejects a stored row outside the current cohort',
+    'keyboard focus enters a new custom widget without a fabricated key or revision',
+    'deleting a saved row retains its identity and the initial management cohort',
+    'invalid custom input stays on the bound collection form',
+    'field model and collection validation diagnostics are composed',
+    'custom redisplay retains original text while escaping markup',
+    'invalid multipart collection requires reselection of both uploaded files',
+    'field rejection leaves all current database values and memberships unchanged',
+    'removing an extra row renumbers structure without rewriting user text or saved keys',
+    'custom file selection and bytes survive collection row renumbering',
+    'renumbering moves custom error links and file reselection anchors together',
+    'renumbered row retains searched membership and explicit order input',
+    'corrected collection commits changed new deleted and related rows',
+    'stored reload confirms normalized values generated keys and revision fences',
+    'stored reload confirms both file references and cross-app memberships',
+    'unchanged collection submission preserves revisions scalar values and file references',
+    'clear file intent passes through the existing collection writer',
+    'clear removes only the model reference and preserves the other row file',
+    'membership-only collection changes use the same typed save path',
+    'membership-only reload preserves scalar and cleared file state',
+    'read-only existing rows disable custom fields and omit mutation controls',
+    'read-only successful controls retain identity and revision without editable payloads',
+    'add permission creates a file row while all existing rows stay read-only',
+    'stored reload confirms read-only preservation and the new row ownership',
+    'late audit rejection redisplays only after the native transaction rolls back',
+    'late rejection retains raw text and requests both files again',
+    'fresh read confirms rollback of earlier scalar membership revision and file-reference writes',
+    'an older collection revision is rejected before its write callback',
+    'stale rejection preserves the newer committed cohort',
+    'denied add permission omits collection prototypes while keeping authorized edits',
+    'view-only permission cannot enter the collection mutation form',
+    'permission-only navigation leaves the complete stored cohort unchanged',
+)
+
+
 def verify_probe(flow, value, browser_version):
     if flow not in CHECKS or set(value) != {'passed', 'cases', 'browser_version'}:
         raise ValueError('unknown or incomplete Admin browser receipt')
@@ -120,6 +160,10 @@ def verify_probe(flow, value, browser_version):
 
 
 def verify_native(flow, value):
+    if flow == 'collections':
+        if json.dumps(value, sort_keys=True) != json.dumps(expected_collection_state(), sort_keys=True):
+            raise ValueError('Admin collection browser native database, file or attempt state differs')
+        return value
     if flow == 'choices':
         labels = [{'id': '-7', 'category': '1', 'name': 'Choice negative'},
                   {'id': '0', 'category': '1', 'name': 'Choice zero'}]
@@ -173,6 +217,50 @@ def verify_native(flow, value):
     if json.dumps(value, sort_keys=True) != json.dumps(expected, sort_keys=True):
         raise ValueError('Admin browser native rows do not match the submitted flow')
     return value
+
+
+
+def fixture_url_matches(flow, url):
+    path = '/admin/assets/collection-set/edit/' if flow == 'collections' else ('/admin/tickets/change/?id=1' if flow == 'choices' else '/admin/categories/change/?id=1')
+    return re.fullmatch(r'http://127\.0\.0\.1:[0-9]+' + re.escape(path), url) is not None
+
+
+def expected_collection_state():
+    def asset(key, code, enabled, category, attachment, revision):
+        return {'id': key, 'code': code, 'enabled': enabled, 'category': category,
+                'attachment': attachment, 'revision': revision, 'note': None}
+    def audit(key, action, asset, actor, revision):
+        return {'id': key, 'action': action, 'asset': asset, 'actor': actor, 'revision': revision}
+    def publication(index, name):
+        return {'index': index, 'field': 'attachment', 'name': name, 'published': True, 'error': False}
+    attempts = []
+    for number, actor, committed, writes, ordered, publications in [
+        (1, 'editor', True, 3, [2, 0], [publication(0, 'attempt-1/0/first-v2.txt'), publication(2, 'attempt-1/2/new.txt')]),
+        (2, 'editor', True, 0, [0, 1], []),
+        (3, 'editor', True, 1, [0, 1], []),
+        (4, 'editor', True, 1, [0, 1], []),
+        (5, 'readonly', True, 1, [], [publication(2, 'attempt-5/2/readonly.txt')]),
+        (6, 'editor', False, 2, [0, 1, 2, 3], [publication(0, 'attempt-6/0/rollback-first.txt'), publication(3, 'attempt-6/3/rollback-new.txt')]),
+        (7, 'editor', True, 1, [0, 1, 2], []),
+    ]:
+        attempts.append({'number': number, 'actor': actor, 'committed': committed,
+                         'writes': writes, 'ordered': ordered, 'publications': publications})
+    return {
+        'seed_scalars_preserved': True, 'upload_capabilities_closed': 5, 'upload_temporaries_empty': True,
+        'categories': [{'id': 1, 'name': 'Inventory category'}, {'id': 2, 'name': 'Foreign category'}],
+        'labels': [{'id': key, 'category': 1 if key < 26 else 2, 'name': 'Inventory label %02d' % key} for key in range(1, 27)],
+        'assets': [asset(1, 'FIRST REVISED', True, 1, '', 4), asset(3, 'FOREIGN', True, 2, 'old/3.txt', 1),
+                   asset(4, 'CONCURRENT', True, 1, 'attempt-1/2/new.txt', 2), asset(5, 'READONLYADD', True, 1, 'attempt-5/2/readonly.txt', 1)],
+        'links': [{'asset': 1, 'label': 4}, {'asset': 3, 'label': 26}, {'asset': 4, 'label': 1}, {'asset': 5, 'label': 5}],
+        'audits': [audit(1, 'update', 1, 'editor', 2), audit(2, 'delete', 2, 'editor', 2), audit(3, 'create', 4, 'editor', 1),
+                   audit(4, 'update', 1, 'editor', 3), audit(5, 'update', 1, 'editor', 4), audit(6, 'create', 5, 'readonly', 1), audit(7, 'update', 4, 'editor', 2)],
+        'files': [{'name': name, 'content': content} for name, content in [
+            ('attempt-1/0/first-v2.txt', 'first replacement'), ('attempt-1/2/new.txt', 'new attachment'),
+            ('attempt-5/2/readonly.txt', 'readonly attachment'), ('attempt-6/0/rollback-first.txt', 'rolled back first'),
+            ('attempt-6/3/rollback-new.txt', 'rolled back new'), ('old/1.txt', 'old FIRST'), ('old/2.txt', 'old SECOND'), ('old/3.txt', 'old FOREIGN'),
+        ]],
+        'attempts': attempts, 'other_rows': {'tickets': 0, 'ticket_links': 0, 'reports': 0},
+    }
 
 
 def digest(path):
@@ -237,7 +325,7 @@ def run_flow(flow, binary, cli, browser_path, browser_version, environment, outp
             deadline = time.monotonic() + 60
             while time.monotonic() < deadline:
                 lines = stdout.read_text().splitlines()
-                if len(lines) == 2 and re.fullmatch(r'http://127\.0\.0\.1:[0-9]+/admin/' + ('tickets' if flow == 'choices' else 'categories') + r'/change/\?id=1', lines[0]) and lines[1] == 'fixture_pid=' + str(process.pid):
+                if len(lines) == 2 and fixture_url_matches(flow, lines[0]) and lines[1] == 'fixture_pid=' + str(process.pid):
                     break
                 if process.poll() is not None:
                     raise ValueError('Admin browser fixture stopped before readiness')
@@ -326,7 +414,9 @@ def run(node_tools, output):
                         'source_checkout': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
                         'source_tree': subprocess.check_output(['git', 'rev-parse', 'HEAD^{tree}'], cwd=ROOT, text=True).strip(),
                         'fixture_source_sha256': digest(FIXTURE / 'main.go'),
-                        'fixture_sources_sha256': {path.name: digest(path) for path in sorted(FIXTURE.glob('*.go'))}})
+                        'fixture_sources_sha256': {str(path.relative_to(FIXTURE)): digest(path) for path in sorted(FIXTURE.rglob('*.go'))},
+                        'fixture_widgets_sha256': {path.name: digest(path) for path in sorted((FIXTURE / 'widgets').glob('*.html'))},
+                        'fixture_manifest_sha256': digest(FIXTURE / '.godj/generated-manifest.json')})
         receipt['node_version'] = command(receipt, output, environment, 'node-version', ['node', '--version']).strip()
         browser_path = command(receipt, output, environment, 'browser-path', ['node', '-e', 'process.stdout.write(require(process.argv[1]).chromium.executablePath())', str(node_tools / 'node_modules/playwright')]).strip()
         if not Path(browser_path).is_file():

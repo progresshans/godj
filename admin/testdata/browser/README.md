@@ -1,4 +1,4 @@
-# Admin inline 브라우저 검증
+# Admin 브라우저 검증
 
 이 명령은 공개 GoDj API로 Category에 Label·Ticket inline을 연결하는 로컬 소비자다. 임시 SQLite에 migration과 초기
 데이터를 만들고 loopback 임의 포트에서 실행한다. 운영 인증/감사 저장소의 예제가 아니다. 종료 시 자신의 DB를 정리한다.
@@ -36,12 +36,12 @@ SQLite/PostgreSQL 검증은 [Helpdesk HTTP 검사](../../../examples/helpdesk/ad
 파일 선택 유지/재번호, 오류 재표시, readonly의 disabled/successful control 제외도 검사한다. 기본 `probe.js`의 33개 조건은
 파일이 없는 multipart 제출에서도 그대로 적용한다. 두 probe는 각각 새 DB를 사용한다.
 
-원격 CI에서는 Portable normal integration이 [Admin browser runner](../../../scripts/ci/admin_browser.py)로 세 흐름을
+원격 CI에서는 Portable normal integration이 [Admin browser runner](../../../scripts/ci/admin_browser.py)로 네 흐름을
 각각 새 fixture·별도 브라우저 세션에서 실행한다. 기존 Helpdesk browser owner와 동일한 고정 CLI/Chromium을 쓰며
 추가 npm 잠금이나 전역 도구 설치는 필요하지 않다. 각 흐름의 검사 목록·실제 버전, native 저장 행/부모 연결,
 기존 행의 모든 scalar 보존, browser/server 종료와 임시 DB 삭제를 확인한다. 원본 로그·snapshot·screenshot·source와
-receipt는 `admin-inline-browser` artifact에 보존한다. 이 브라우저의 파일은 여전히 비저장 검증 명령이며
-모델 파일 storage 게시와 실제 PostgreSQL의 검증을 대신하지 않는다.
+receipt는 `admin-inline-browser` artifact에 보존한다. `uploads` 흐름은 비저장 파일 명령이며 `collections` 흐름은 아래의 실제 모델 파일 게시를 검사한다.
+이 SQLite 브라우저 결과는 PostgreSQL 검증을 대신하지 않는다.
 
 관계 선택 UI는 `GODJ_ADMIN_BROWSER_MODE=choices go run ./admin/testdata/browser`로 별도 fixture를 시작하고
 `choices_probe.js`를 실행한다. 34개 조건을 검사하며 고정된 35개 허용 label 후보와 별도 category의 후보를 사용한다. 일반 Ticket의 M2M,
@@ -57,7 +57,31 @@ label escaping, 다중 선택 유지·해제·저장, 지연 응답 무시, 오�
 초기 모델의 모든 scalar 보존과 최종 관계를 확인한다. 브라우저 검사는 final writer 도중 별도 DB transaction이
 동시에 정책을 바꾸는 경쟁, PostgreSQL, 실제 보조공학 사용자 검증의 증거가 아니다.
 
-CI runner는 기존 `inline` 33개·`uploads` 20개 검사와 `choices` 34개 검사를 각각 새 SQLite와 Chromium context에서
+CI runner는 `inline` 33개·`uploads` 20개·`choices` 34개·`collections` 36개 검사를 각각 새 SQLite와 Chromium context에서
 실행한다. 새 fixture의 Go 소스 hash도 receipt에 기록하고 같은 `admin-inline-browser` artifact 안에 각 흐름의
 원본 로그·snapshot·screenshot·완전한 검사 목록과 native receipt를 남긴다. 검사 작성·syntax/compile 통과와
 Hosted 실행 성공은 별개이며, 실제 실행 결과는 해당 source commit의 CI receipt로 판단한다.
+
+
+컬렉션 편집은 `GODJ_ADMIN_BROWSER_MODE=collections go run ./admin/testdata/browser`와
+`collections_probe.js`를 사용한다. `modeldef`가 선언하고 같은 디렉터리의 manifest로 관리하는 Inventory Asset,
+AssetLabel, Audit 생성 모델을 기존 Helpdesk 외부 앱의 Category/Label에 연결한다. 별도 부모 객체는 만들지 않는다.
+`go run ./cmd/godj generate --project admin/testdata/browser/godj.toml`로 재생성하며 CI의
+`TestAdminCollectionBrowserGeneratedSourceMatchesDeclaration`이 declaration과 생성 byte/ownership을 확인한다.
+
+`collections.go`는 현재 category의 완전한 bounded cohort와 membership snapshot을 읽고,
+같은 typed declaration의 `BindCurrent`를 borrowed transaction 안에서 다시 사용한다. 현재 revision 조건부 갱신,
+scalar/M2M·canonical 삭제와 audit를 한 transaction으로 묶는다. `SaveFiles`의 게시 결과는 따로 보존하며
+명시적으로 발생시킨 늦은 audit rejection에서도 게시한 파일을 자동 삭제하지 않는다. ORDER는 Form의 순서
+선택이며 저장 순서를 바꾸거나 모델 위치 열을 추정하지 않는다. native receipt에 선택 순서와 실제 시도를 나눠 기록한다.
+
+실제 Chromium은 custom code/file widget, 페이지 밖 관계 선택, 추가/삭제/재번호/키보드 focus,
+원래 입력의 escaping과 field/model/set 진단 합성, 파일 재선택·재번호 후 bytes 보존을 검사한다.
+변경+신규+삭제+M2M+파일 혼합 commit과 저장 후 reload, 미변경·clear·collection-only,
+readonly 기존 행+허용된 신규, 늦은 audit rollback·파일 재선택, 다른 탭의 revision 변경 뒤 409,
+추가/쓰기 권한 거부를 포함한다. Prototype와 오류/재선택 anchor는 live 행 이름으로 함께 재번호한다.
+
+종료 시 전체 Asset/AssetLabel/Audit/대상 cohort·외부 행과 숨긴 scalar 보존, 7개 시도의 commit/실패와 순서,
+모든 이전/새/rollback 뒤 남은 파일의 실제 bytes, request capability 만료와 multipart 임시 파일 정리를 대조한다.
+runner는 36개 검사 중 누락·중복, source/위젯/생성 manifest 불일치, native state의 누락·추가·잘못된 타입을 성공으로
+보지 않는다. 새 흐름은 현재 원격 CI의 실행 대상이며 최소 compile이나 검사 작성 자체가 browser PASS는 아니다.

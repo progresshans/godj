@@ -23,6 +23,47 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0136 — 실제 컬렉션 브라우저 소비자 작성
+
+`admin/testdata/browser/modeldef`의 Inventory Asset/FileField·AssetLabel·Audit를 생성하고,
+기존 Helpdesk Category/Label을 독립 외부 앱으로 연결했다. 생성 snapshot은
+`223881c37b39d85708bf738b7fdab98f4239cdbca7ac8550ec3088e34cf40849`, 소유한 Go 파일은 12개다.
+현재 cohort/membership과 revision을 쓰기 transaction에서 다시 바인딩하고,
+scalar·M2M·canonical 삭제·audit와 파일 게시 receipt를 같은 공개 API로 연결했다.
+등록한 code/file widget을 실제 HTML에 사용하며 36개 Chromium 검사와 완전한 native 종료 대조를 작성했다.
+
+검사는 기존/신규/삭제 혼합, off-page 선택, readonly+추가, 미변경·clear·collection-only,
+field/model/set 오류 합성과 원래 입력 escaping, 두 업로드의 재선택/재번호 뒤 bytes,
+늦은 audit rollback과 파일 보존, 다른 탭 갱신 뒤 stale revision 409 및 권한 거부를 포함한다.
+재번호 때 `data-file-reselect`도 name/id/error 연결과 함께 바꾸도록 공통 JS를 수정했다.
+최종 전체 Asset/links/audit/대상 행·외부/숨긴 scalar, 7개 writer 시도·5개 게시 receipt와 실제 파일 8개,
+upload 수명·임시 파일/DB·브라우저/서버 정리를 독립 기대 상태와 대조하도록 연결했다.
+아직 새 흐름을 실행하지 않았으므로 이 숫자는 작성한 요구이며 실제 관측 PASS가 아니다.
+
+Go 1.26.5 darwin/arm64에서 `go test ./admin/testdata/browser ./admin -run '^$'` 최소 compile을 확인했다.
+`gdj0136-collection-browser-compile-v1/receipt.json` SHA-256은
+`c946baa2366d349820fb0f6f420601a49be75bd9a710d3b29502b2c53a7a6c53`다. 해당 기록은 terminal 결과와
+compile 후 변경 없는 Go/embedded 입력의 hash이며 frozen archive 재실행이나 테스트 본문 결과로 표현하지 않는다.
+JS/Python syntax, 33/20/34/36개 probe literal과 필수 목록의 정확한 일치, 문서 링크와 diff를 확인했다.
+새 generated drift root를 필수 목록에 추가해 PostgreSQL의 4,238개 경로가 세 mode에서 각 한 owner를 가진다.
+새 DB/browser 본문·부정 증거 검사와 현재 source의 전체 CI 원본 대조는 원격 실행 대상이다.
+
+선행 `a608fec2`의 [CI 39820469096](https://github.com/progresshans/godj/actions/runs/39820469096)에서
+Portable cgo0/race/normal core가 같은 `denied_add` 사례로 실패했다. 새 file widget assertion이 추가 권한을
+거부한 화면에도 prototype을 요구한 오류다. 실제 화면은 이를 숨겼다. 권한이 허용되면 존재하고 거부되면
+없어야 한다는 양쪽 조건으로 수정했으며 제품 권한 정책은 바꾸지 않았다.
+원본 job `119970998153`, `119970998324`, `119970998490`의 log를
+`gdj0136-a608fec2-ci-39820469096/`에 보존했다. 각각의 SHA-256은
+`db312272b31b86313e5d61bfd280216a382682f5ab3f34df00951c133b68646e`,
+`220365ac60fdbe0b14a5b73f625e9d09a52b97ce49f86c3807985dd09fb13c26`,
+`bc5ae20c8e07322723c04a8dbaff8f4701d07739dfd3eb398e21473f11eb0873`다.
+validation-plan은 checkout `7590548a`와 head의 동일 tree `54b00eb4`에 바인딩했다.
+
+실패 source archive에서 이 subtest만 재현했고, assertion 한 줄을 바꾼 후 root/subtest 2개가 통과했다.
+`gdj0136-widget-denied-prototype-repro-v1/receipt.json` SHA-256은
+`72e9cb37cff5bcb40c0172eb63d58a260199900527a6fec6a609232e3435ec19`다.
+이 좁힌 재현은 작성 중인 새 컬렉션 브라우저나 전체 widget/DB/race의 성공 증거가 아니다.
+
 ## GDJ-0136 — 등록 위젯과 검증/파일 경계 연결
 
 `WithWidgetTemplate`은 native widget과 별도로 표시 이름을 선택하며 Admin Site가 템플릿 FS와 이름/종류를

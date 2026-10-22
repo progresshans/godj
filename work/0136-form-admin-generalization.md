@@ -109,5 +109,11 @@ multipart 모델 파일의 현재 바인딩·부분/unknown 게시·request 수�
 기본/필드·권한 변경 모델에서 같은 공개 선언과 writer를 사용하고, 양 DB의 19개 사례와 잘못된 typed loader/file saver
 compile 거부를 필수 실행으로 작성했다. 파일 게시 뒤 DB rollback/unknown 결과, 읽기 전용/삭제의 stale revision,
 현재 scope/cohort와 오래된 권한을 대조한다. 두 생성 모듈의 최소 compile만 확인했으며 실제 native 실행은 미검증이다.
-실제 브라우저 컬렉션 편집과 widget 확장, 전체 원격 원본 대조는 계속 남아 있다.
+등록 widget 이름과 제한된 표시 context·시작 시 compile/검사를 일반 Form·명령·inline·collection에 연결했다.
+필드/모델 입력과 기존 검증은 유지하고 원래 입력·합성 진단·readonly·파일 재선택·출력 한도/취소 검사를 작성했다.
+기존 multipart와 외부 생성 소비자는 code/file의 실제 등록 템플릿을 사용한다. 최소 compile만 확인했으며
+widget 본문과 현재 source의 전체 원격 원본 대조는 계속 남아 있다.
+브라우저 소비자에는 외부 Helpdesk와 연결한 생성 Inventory 모델·FileField·M2M·revision·audit를 추가했다.
+같은 공개 typed collection/위젯 선언을 36개 Chromium 흐름에 연결하고, 전체 DB/파일/시도 결과와 정리의 대조 및
+누락/중복/변조 부정 검사를 작성했다. 새 browser 흐름·native 종료 대조는 실행하지 않았으며 원격 CI에서 확인해야 한다.
 이 구현 묶음이나 이 파일의 요구 정의를 F1 전체 PASS로 계산하지 않는다.

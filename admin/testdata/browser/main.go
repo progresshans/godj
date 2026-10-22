@@ -45,6 +45,9 @@ func main() {
 }
 func run() (runErr error) {
 	mode := os.Getenv("GODJ_ADMIN_BROWSER_MODE")
+	if mode == "collections" {
+		return runCollectionFixture()
+	}
 	if mode == "choices" {
 		return runChoiceFixture()
 	}
