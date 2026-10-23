@@ -328,6 +328,9 @@ func (backend *gdj0055BuildBackend) Execute(
 	command productcheck.Command,
 ) productcheck.ProcessResult {
 	backend.commands = append(backend.commands, command)
+	if stage == productcheck.CompatibilityStage {
+		return commandFixtureCompatibility()
+	}
 	if stage != productcheck.BuildStage || len(command.Argv) != 7 || command.Argv[0] != "go" || command.Argv[4] != "-o" {
 		failure := productcheck.Failure{Category: "migration_project_build_error", Code: "project_build_failed"}
 		return productcheck.ProcessResult{Failure: &failure, ExitCode: 1}
@@ -760,7 +763,7 @@ func gdj0055SensitiveChildCleanup(
 		return protocol.Observation{}, err
 	}
 	if !run.report.HasCreatesuperuserFailure || run.report.HasCreatesuperuserResult || run.report.RunnerCalls != 1 ||
-		!run.report.RunnerStdoutTruncated || run.report.DirectChildReaps != 2 ||
+		!run.report.RunnerStdoutTruncated || run.report.DirectChildReaps != 3 ||
 		run.report.GroupSIGINTAttempts < 1 || run.report.GroupSIGKILLAttempts < 1 || !run.report.RawDiagnosticsDiscarded ||
 		evidence.PID == 0 || evidence.DescendantPID == 0 || !evidence.RequestValid {
 		return protocol.Observation{}, fmt.Errorf("sensitive cleanup observation drifted: report=%+v evidence=%+v", run.report, evidence)
@@ -778,12 +781,14 @@ func gdj0055SensitiveChildCleanup(
 	if childProcesses != 0 || secretOccurrences != 0 || len(run.stdout) != 0 || bytes.Contains(run.stderr, []byte(harness.password)) {
 		return protocol.Observation{}, fmt.Errorf("cleanup residue children=%d secrets=%d stdout=%d stderr=%d", childProcesses, secretOccurrences, len(run.stdout), len(run.stderr))
 	}
+	// This contract counts the business/sensitive child; the global report also
+	// counts the build and the separately checked metadata process.
 	return systemStateObservation(
 		contract,
 		protocol.Object(map[string]protocol.Value{
 			"bounded_response":             protocol.Boolean(run.report.RunnerStdoutTruncated),
 			"cancellation":                 protocol.String("process_group_interrupt_then_kill"),
-			"direct_child_reaped":          protocol.Boolean(run.report.DirectChildReaps-run.report.BuildCalls == 1),
+			"direct_child_reaped":          protocol.Boolean(run.report.DirectChildReaps-run.report.BuildCalls-run.report.CompatibilityChecks == 1),
 			"held_pipe_descendant_cleaned": protocol.Boolean(childProcesses == 0),
 			"public_diagnostics_redacted":  protocol.Boolean(run.report.RawDiagnosticsDiscarded && len(run.stdout) == 0),
 		}),
@@ -793,7 +798,7 @@ func gdj0055SensitiveChildCleanup(
 			"secret_artifacts":                   systemStateInt64(secretOccurrences),
 		}),
 		protocol.Object(map[string]protocol.Value{
-			"direct_child_reaps":            systemStateInt(run.report.DirectChildReaps - run.report.BuildCalls),
+			"direct_child_reaps":            systemStateInt(run.report.DirectChildReaps - run.report.BuildCalls - run.report.CompatibilityChecks),
 			"private_response_max_bytes":    systemStateInt(createsuperuserprotocol.MaxResponseBytes),
 			"raw_child_stderr_publications": systemStateInt(systemStateBoolInt(bytes.Contains(run.stderr, []byte(harness.password)))),
 			"secret_occurrences":            systemStateInt64(secretOccurrences),

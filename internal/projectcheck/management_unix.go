@@ -6,13 +6,11 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/internal/gobuild"
 	management "github.com/progresshans/godj/project/command"
-	"github.com/progresshans/godj/project/compatibility"
 )
 
 type ManagementInvocation struct {
@@ -29,10 +27,9 @@ type ManagementInvocation struct {
 
 type ManagementReport struct {
 	RunServerReport
-	CompatibilityChecks int
-	CommandStarted      bool
-	CommandExitCode     int
-	FailureCode         string
+	CommandStarted  bool
+	CommandExitCode int
+	FailureCode     string
 }
 
 func parseManagement(argv []string) (descriptor string, child []string, ok bool) {
@@ -131,34 +128,7 @@ func RunManagement(input ManagementInvocation) ManagementReport {
 		}
 		return finish(code, 1)
 	}
-	// The same private binaries are probed and then used. No project handler
-	// or DB opener is involved in either compatibility probe.
-	for _, binary := range []string{filepath.Join(prepared.command.workspace.root, "godj-project-runner"), prepared.binary} {
-		if terminal := prepared.command.ready(); terminal != nil {
-			return finish(terminal.Code, 1)
-		}
-		report.CompatibilityChecks++
-		probe := input.Backend.Execute(input.Context, input.Interrupt, CompatibilityStage, Command{
-			Dir: prepared.command.selected.rootPath, Argv: []string{binary, compatibility.PrivateArgument}, Env: prepared.command.workspace.environment,
-		})
-		recordProcess(&report.Report, CompatibilityStage, probe)
-		if probe.CleanupFailed {
-			clear(probe.Stdout)
-			return finish("project_cleanup_failed", 1)
-		}
-		if !probe.Started || probe.ExitCode != 0 || probe.Failure != nil || probe.StdoutScalar.Truncated {
-			clear(probe.Stdout)
-			return finish("compatibility_probe_failed", 1)
-		}
-		linked, err := compatibility.Parse(probe.Stdout)
-		clear(probe.Stdout)
-		if err != nil {
-			return finish("compatibility_response_invalid", 1)
-		}
-		if compatibility.Check(compatibility.Current(), linked) != nil {
-			return finish("framework_incompatible", 1)
-		}
-	}
+
 	if terminal := prepared.command.ready(); terminal != nil {
 		return finish(terminal.Code, 1)
 	}

@@ -55,6 +55,9 @@ type migrateScriptedBackend struct {
 func (backend *migrateScriptedBackend) Execute(_ context.Context, _ <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
 	backend.stages = append(backend.stages, stage)
 	backend.commands = append(backend.commands, cloneCommand(command))
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	if stage == BuildStage {
 		return backend.build
 	}
@@ -85,21 +88,21 @@ func TestRunMigrateSuccessUsesSeparateProtocolAndSingleRunner(t *testing.T) {
 		Context: context.Background(), CWD: fixture.cwd, Args: []string{"migrate"}, Environment: fixture.environment,
 		Stdout: &stdout, Stderr: &stderr, Backend: backend,
 	})
-	if report.ExitCode != 0 || report.HasMigrateFailure || !report.HasMigrateResult || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 || report.RunnerStdoutRetainedBytes != len(wire) || report.RunnerStdoutTruncated || report.DirectChildReaps != 2 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
+	if report.ExitCode != 0 || report.HasMigrateFailure || !report.HasMigrateResult || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 || report.RunnerStdoutRetainedBytes != len(wire) || report.RunnerStdoutTruncated || report.DirectChildReaps != 3 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
 		t.Fatalf("migrate success report = %+v", report)
 	}
 	wantOutput := `{"source_count":0,"definition_count":0,"definition_set_digest":"` + migrateprotocol.EmptySetDigest + `"}` + "\n"
 	if stdout.String() != wantOutput || stderr.Len() != 0 {
 		t.Fatalf("migrate public output stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
-	if !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, MigrateRunnerStage}) || len(backend.commands) != 2 {
+	if !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, CompatibilityStage, MigrateRunnerStage}) || len(backend.commands) != 3 {
 		t.Fatalf("migrate stages=%v commands=%d", backend.stages, len(backend.commands))
 	}
 	build := backend.commands[0]
 	if !reflect.DeepEqual(build.Argv[:5], []string{"go", "build", "-buildvcs=false", "-mod=readonly", "-o"}) || build.Argv[len(build.Argv)-1] != "./cmd/site" || build.Dir != fixture.project {
 		t.Fatalf("migrate build command = %+v", build)
 	}
-	runner := backend.commands[1]
+	runner := backend.commands[2]
 	if len(runner.Argv) != 2 || runner.Argv[1] != migrateprotocol.PrivateArgument || runner.Dir != fixture.project || !bytes.Equal(runner.Stdin, migrateprotocol.RequestDocument()) {
 		t.Fatalf("migrate runner command = %+v", runner)
 	}
@@ -194,8 +197,8 @@ func TestRunMigratePlanPublishesCanonicalRowsAndExactRequest(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(backend.commands) != 2 || !bytes.Equal(backend.commands[1].Stdin, wantRequest) {
-		t.Fatalf("private plan request = %q, want %q", backend.commands[1].Stdin, wantRequest)
+	if len(backend.commands) != 3 || !bytes.Equal(backend.commands[2].Stdin, wantRequest) {
+		t.Fatalf("private plan request = %q, want %q", backend.commands[2].Stdin, wantRequest)
 	}
 	rows[0].App = "mutated"
 	if report.MigratePlan[0].App != "authors" {
@@ -346,7 +349,7 @@ func TestRunMigrateExplicitProjectAndLogicalFailureAreSingleAttempt(t *testing.T
 		Args:        []string{"migrate", "--project", filepath.Join(fixture.project, descriptorName)},
 		Environment: fixture.environment, Stdout: &stdout, Stderr: &stderr, Backend: backend,
 	})
-	if report.ExitCode != 3 || !report.HasMigrateFailure || report.HasMigrateResult || report.MigrateFailure != logical || report.BuildCalls != 1 || report.RunnerCalls != 1 || len(backend.stages) != 2 || report.CleanupFailed != 1 || stdout.Len() != 0 || stderr.String() != logical.Category+"/"+logical.Code+"\n" {
+	if report.ExitCode != 3 || !report.HasMigrateFailure || report.HasMigrateResult || report.MigrateFailure != logical || report.BuildCalls != 1 || report.RunnerCalls != 1 || len(backend.stages) != 3 || report.CleanupFailed != 1 || stdout.Len() != 0 || stderr.String() != logical.Category+"/"+logical.Code+"\n" {
 		t.Fatalf("logical migrate failure = %+v stages=%v stdout=%q stderr=%q", report, backend.stages, stdout.String(), stderr.String())
 	}
 }

@@ -1095,7 +1095,7 @@ func migrationSQLRenderingRunProcesses(
 	)
 	wantOutput := migrationSQLRenderingOutput(bodies)
 	if fresh.report.ExitCode != 0 || !fresh.report.HasSQLMigrateResult || fresh.report.HasSQLMigrateFailure ||
-		fresh.report.BuildCalls != 1 || fresh.report.RunnerCalls != 1 || fresh.report.DirectChildReaps != 2 ||
+		fresh.report.BuildCalls != 1 || fresh.report.RunnerCalls != 1 || fresh.report.DirectChildReaps != 3 ||
 		fresh.report.TempCreated != 1 || fresh.report.TempCleanupAttempts != 1 || fresh.report.CleanupFailed != 0 || fresh.report.ResidualTemp != 0 ||
 		fresh.report.UserStdoutWrites != 1 || fresh.report.UserStderrWrites != 0 || fresh.report.PartialStdoutWrites != 0 ||
 		fresh.stdout.String() != wantOutput || fresh.stderr.Len() != 0 {
@@ -1104,7 +1104,7 @@ func migrationSQLRenderingRunProcesses(
 	empty := migrationSQLRenderingRunProcess(ctx, projectFixture, migrationSQLRenderingProcessNormal, emptyTarget.Name, processSources)
 	if empty.report.ExitCode != 0 || !empty.report.HasSQLMigrateResult || empty.report.HasSQLMigrateFailure ||
 		empty.report.SQLMigrateResult.Statements == nil || len(empty.report.SQLMigrateResult.Statements) != 0 ||
-		empty.report.BuildCalls != 1 || empty.report.RunnerCalls != 1 || empty.report.DirectChildReaps != 2 ||
+		empty.report.BuildCalls != 1 || empty.report.RunnerCalls != 1 || empty.report.DirectChildReaps != 3 ||
 		empty.report.TempCreated != 1 || empty.report.TempCleanupAttempts != 1 || empty.report.CleanupFailed != 0 || empty.report.ResidualTemp != 0 ||
 		empty.report.UserStdoutWrites != 0 || empty.report.UserStderrWrites != 0 || empty.report.PartialStdoutWrites != 0 ||
 		empty.stdout.Len() != 0 || empty.stderr.Len() != 0 {
@@ -1168,7 +1168,7 @@ func migrationSQLRenderingRunProcesses(
 	wantFailure := sqlmigrateprotocol.Failure{Category: sqlmigrateprotocol.CategoryProcess, Code: sqlmigrateprotocol.CodeProjectCanceled}
 	if canceled.report.ExitCode != 3 || !canceled.report.HasSQLMigrateFailure || canceled.report.HasSQLMigrateResult ||
 		canceled.report.SQLMigrateFailure != wantFailure || canceled.report.BuildCalls != 1 || canceled.report.RunnerCalls != 1 ||
-		canceled.report.DirectChildReaps != 2 || canceled.report.CleanupFailed != 0 || canceled.report.ResidualTemp != 0 ||
+		canceled.report.DirectChildReaps != 3 || canceled.report.CleanupFailed != 0 || canceled.report.ResidualTemp != 0 ||
 		canceled.report.UserStdoutWrites != 0 || canceled.report.UserStderrWrites != 1 || canceled.stdout.Len() != 0 ||
 		canceled.stderr.String() != sqlmigrateprotocol.CategoryProcess+"/"+sqlmigrateprotocol.CodeProjectCanceled+"\n" {
 		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("canceled SQL migration process = report:%+v stdout:%q stderr:%q", canceled.report, canceled.stdout.String(), canceled.stderr.String())
@@ -1225,6 +1225,7 @@ func migrationSQLRenderingRunProcess(
 	defer cancel()
 	var stdout, stderr bytes.Buffer
 	report := productcheck.RunSQLMigrate(productcheck.SQLMigrateInvocation{
+		Backend: productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
 		Context: phaseContext, CWD: projectFixture.root, Args: []string{"sqlmigrate", "blog", name},
 		Environment: entries, Stdout: &stdout, Stderr: &stderr,
 	})
@@ -1387,6 +1388,7 @@ func newMigrationSQLRenderingActualProject() (migrationCommandProject, error) {
 const migrationSQLRenderingActualRunnerSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
 	"context"
 	"encoding/base64"
 	"os"
@@ -1409,6 +1411,9 @@ const (
 )
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	_ = project.Config{MigrationSQLRenderer: sqlite.NewMigrationSQLRenderer()}
 	_ = project.Config{MigrationSQLRenderer: postgres.NewMigrationSQLRenderer(postgres.MigrationSQLConfig{Schema: "public"})}
 	switch os.Getenv(modeEnvironment) {
@@ -1773,6 +1778,8 @@ func (backend *migrationSQLRenderingProcessBackend) Execute(
 ) productcheck.ProcessResult {
 	backend.calls++
 	switch stage {
+	case productcheck.CompatibilityStage:
+		return commandFixtureCompatibility()
 	case productcheck.BuildStage:
 		return productcheck.ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
 	case productcheck.SQLMigrateRunnerStage:
@@ -1845,7 +1852,7 @@ func migrationSQLRenderingResources(ctx context.Context, contract protocol.Contr
 		!sqlmigrateprotocol.IsLinkedFailure(publication.LinkedDefinitionFailure) ||
 		publication.GlobalFailure != (sqlmigrateprotocol.Failure{Category: sqlmigrateprotocol.CategoryProtocol, Code: sqlmigrateprotocol.CodeInvalidResponse}) ||
 		publication.LinkedRendererCalls != 1 || publication.GlobalBuildCalls != 1 || publication.GlobalRunnerCalls != 1 ||
-		publication.GlobalDirectChildReaps != 2 || publication.GlobalRunnerStderrBytes != len(migrationSQLRenderingProbeChildStderrCanary) ||
+		publication.GlobalDirectChildReaps != 3 || publication.GlobalRunnerStderrBytes != len(migrationSQLRenderingProbeChildStderrCanary) ||
 		publication.GlobalCleanupAttempts != 1 || publication.GlobalCleanupFailures != 0 || publication.GlobalResidualTemp != 0 ||
 		!publication.GlobalRawDiagnosticsDropped || !publication.CredentialObservedByChild || !publication.ValidatedBeforeSQLWrite ||
 		!reflect.DeepEqual(publication.LogicalWriterCalls, wantWriterCalls) {
@@ -2004,7 +2011,7 @@ func migrationSQLRenderingWriteCases(ctx context.Context) ([]protocol.Value, int
 			Stdout: writer, Stderr: &stderr, Backend: backend,
 		})
 		if report.ExitCode != test.wantExit || report.UserStdoutWrites != 1 || report.PartialStdoutWrites != test.wantPartial ||
-			report.UserStderrWrites != 0 || report.HasSQLMigrateFailure != test.wantFailures || backend.calls != 2 || writer.calls != 1 || stderr.Len() != 0 {
+			report.UserStderrWrites != 0 || report.HasSQLMigrateFailure != test.wantFailures || backend.calls != 3 || report.CompatibilityChecks != 1 || writer.calls != 1 || stderr.Len() != 0 {
 			return nil, 0, 0, fmt.Errorf("SQL migration terminal write %s = report:%+v backend:%d writer:%d stderr:%q", test.name, report, backend.calls, writer.calls, stderr.String())
 		}
 		totalAttempts += writer.calls

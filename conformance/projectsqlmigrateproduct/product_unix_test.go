@@ -36,14 +36,14 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		implicitEnvironment := project.environment(implicitState, sqlProductCatalogFull, sqlProductRendererSQLite)
 		implicit := project.run(t, implicitState, implicitEnvironment, "sqlmigrate", "blog", "0002_enrich")
 		sqlProductAssertSuccess(t, implicit, sqlProductEnrichOutput, project.sensitive(implicitState)...)
-		sqlProductAssertMarker(t, implicitState.initMarker, "init")
+		sqlProductAssertMarker(t, implicitState.initMarker, "init", 2)
 		sqlProductAssertMarker(t, implicitState.rendererMarker, "render")
 
 		explicitState := project.state(t, "exact-explicit")
 		explicitEnvironment := project.environment(explicitState, sqlProductCatalogFull, sqlProductRendererSQLite)
 		explicit := project.runExplicit(t, explicitState, explicitEnvironment, "blog", "0002_enrich")
 		sqlProductAssertSuccess(t, explicit, sqlProductEnrichOutput, project.sensitive(explicitState)...)
-		sqlProductAssertMarker(t, explicitState.initMarker, "init")
+		sqlProductAssertMarker(t, explicitState.initMarker, "init", 2)
 		sqlProductAssertMarker(t, explicitState.rendererMarker, "render")
 		if implicit.stdout != explicit.stdout {
 			t.Fatalf("implicit and explicit SQL differ: implicit=%q explicit=%q", implicit.stdout, explicit.stdout)
@@ -53,14 +53,14 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		authorEnvironment := project.environment(authorState, sqlProductCatalogFull, sqlProductRendererSQLite)
 		author := project.runExplicit(t, authorState, authorEnvironment, "authors", "0001_author")
 		sqlProductAssertSuccess(t, author, sqlProductAuthorOutput, project.sensitive(authorState)...)
-		sqlProductAssertMarker(t, authorState.initMarker, "init")
+		sqlProductAssertMarker(t, authorState.initMarker, "init", 2)
 		sqlProductAssertMarker(t, authorState.rendererMarker, "render")
 
 		articleState := project.state(t, "create-article")
 		articleEnvironment := project.environment(articleState, sqlProductCatalogFull, sqlProductRendererSQLite)
 		article := project.runExplicit(t, articleState, articleEnvironment, "blog", "0001_article")
 		sqlProductAssertSuccess(t, article, sqlProductArticleOutput, project.sensitive(articleState)...)
-		sqlProductAssertMarker(t, articleState.initMarker, "init")
+		sqlProductAssertMarker(t, articleState.initMarker, "init", 2)
 		sqlProductAssertMarker(t, articleState.rendererMarker, "render")
 		// Apply the real external output to a populated independent database.
 		// The deleted high ID verifies that the remake retains sequence history.
@@ -109,7 +109,7 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		if len(result.stdout) != 0 {
 			t.Fatalf("literal zero migration stdout bytes = %d, want 0", len(result.stdout))
 		}
-		sqlProductAssertMarker(t, state.initMarker, "init")
+		sqlProductAssertMarker(t, state.initMarker, "init", 2)
 		sqlProductAssertMarker(t, state.rendererMarker, "render")
 	})
 
@@ -118,7 +118,7 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		environment := project.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite)
 		result := project.runExplicit(t, state, environment, "blog", "0002")
 		sqlProductAssertFailure(t, result, 1, "migration_plan_error/target_not_found\n", project.sensitive(state)...)
-		sqlProductAssertMarker(t, state.initMarker, "init")
+		sqlProductAssertMarker(t, state.initMarker, "init", 2)
 		sqlProductAssertMarkerAbsent(t, state.rendererMarker)
 	})
 
@@ -127,7 +127,7 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		environment := project.environment(state, sqlProductCatalogInvalid, sqlProductRendererFail)
 		result := project.runExplicit(t, state, environment, "authors", "0001_author")
 		sqlProductAssertFailure(t, result, 1, "migration_definition_source_error/invalid_definition_document\n", project.sensitive(state)...)
-		sqlProductAssertMarker(t, state.initMarker, "init")
+		sqlProductAssertMarker(t, state.initMarker, "init", 2)
 		sqlProductAssertMarkerAbsent(t, state.rendererMarker)
 	})
 
@@ -136,7 +136,7 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		environment := project.environment(state, sqlProductCatalogFull, sqlProductRendererFail)
 		result := project.runExplicit(t, state, environment, "authors", "0001_author")
 		sqlProductAssertFailure(t, result, 3, "migration_sql_render_error/render_failed\n", project.sensitive(state)...)
-		sqlProductAssertMarker(t, state.initMarker, "init")
+		sqlProductAssertMarker(t, state.initMarker, "init", 2)
 		sqlProductAssertMarker(t, state.rendererMarker, "render")
 	})
 
@@ -145,7 +145,7 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 		environment := project.environment(state, sqlProductCatalogFull, sqlProductRendererNil)
 		result := project.runExplicit(t, state, environment, "authors", "0001_author")
 		sqlProductAssertFailure(t, result, 3, "migration_sql_render_error/renderer_unavailable\n", project.sensitive(state)...)
-		sqlProductAssertMarker(t, state.initMarker, "init")
+		sqlProductAssertMarker(t, state.initMarker, "init", 2)
 		sqlProductAssertMarkerAbsent(t, state.rendererMarker)
 	})
 
@@ -176,7 +176,7 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 			environment := project.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite)
 			result := project.runExplicit(t, state, environment, "blog", "0002_enrich")
 			sqlProductAssertSuccess(t, result, sqlProductEnrichOutput, project.sensitive(state)...)
-			pids[sqlProductAssertMarker(t, state.initMarker, "init")] = struct{}{}
+			pids[sqlProductAssertMarker(t, state.initMarker, "init", 2)] = struct{}{}
 			sqlProductAssertMarker(t, state.rendererMarker, "render")
 		}
 		if len(pids) != repetitions {
@@ -213,7 +213,7 @@ func TestGlobalSQLMigrateExternalSQLiteProduct(t *testing.T) {
 			}
 			project.assertCommandBoundary(t, states[index], results[index])
 			sqlProductAssertSuccess(t, results[index], sqlProductEnrichOutput, project.sensitive(states[index])...)
-			pids[sqlProductAssertMarker(t, states[index].initMarker, "init")] = struct{}{}
+			pids[sqlProductAssertMarker(t, states[index].initMarker, "init", 2)] = struct{}{}
 			sqlProductAssertMarker(t, states[index].rendererMarker, "render")
 		}
 		if len(pids) != parallel {

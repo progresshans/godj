@@ -100,6 +100,7 @@ func RuntimeConfig() (systemstate.IdentityRuntimeConfig, error) {
 const operatorProjectRunnerSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
 	"bytes"
 	"context"
 	"errors"
@@ -164,6 +165,9 @@ func (backend closeFailureBackend) Close() error {
 }
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	if os.Getenv(runnerMarkerEnvironment) == "1" {
 		if err := appendMarker(); err != nil {
 			fatal()
@@ -374,6 +378,7 @@ func New(ctx context.Context, backend systemstate.IdentityBackend) (*web.Applica
 const operatorSiteSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
 	"context"
 	"errors"
 	"fmt"
@@ -393,6 +398,9 @@ import (
 const markerEnvironment = "GODJ_OPERATOR_PRODUCT_MARKER"
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := run(ctx, os.Args[1:], os.Stdout); err != nil {

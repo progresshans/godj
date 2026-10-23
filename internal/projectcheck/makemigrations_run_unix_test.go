@@ -41,6 +41,8 @@ func (backend *makemigrationsRunBackend) Execute(
 		backend.onStage(stage)
 	}
 	switch stage {
+	case CompatibilityStage:
+		return fixtureCompatibilityProcess()
 	case MakemigrationsInventoryStage:
 		document := append([]byte(nil), backend.inventory...)
 		return ProcessResult{
@@ -126,7 +128,7 @@ func TestRunMakemigrationsModesAndExactProcessContract(t *testing.T) {
 					t.Fatalf("normal publication lifecycle = %+v", report)
 				}
 			} else if report.InventoryCalls != 3 || report.RunnerCalls != 1 ||
-				report.IndependentCatalogSnapshots != 3 || report.DirectChildReaps != 5 ||
+				report.IndependentCatalogSnapshots != 3 || report.DirectChildReaps != 6 || report.CompatibilityChecks != 1 ||
 				report.RunnerResponseWrites != 1 || report.WriterLockAcquisitions != 0 ||
 				report.PublicationRenames != 0 || report.PublicationDirectorySyncs != 0 {
 				t.Fatalf("read-only lifecycle = %+v", report)
@@ -582,14 +584,14 @@ func executeMakemigrationsRun(
 func assertMakemigrationsProcessContract(t *testing.T, fixture makemigrationsRunFixture, backend *makemigrationsRunBackend) {
 	t.Helper()
 	wantStages := []ProcessStage{
-		MakemigrationsInventoryStage, BuildStage, MakemigrationsInventoryStage,
+		MakemigrationsInventoryStage, BuildStage, CompatibilityStage, MakemigrationsInventoryStage,
 		MakemigrationsRunnerStage, MakemigrationsInventoryStage,
 	}
 	if !reflect.DeepEqual(backend.stages, wantStages) || len(backend.commands) != len(wantStages) {
 		t.Fatalf("stages=%v commands=%d", backend.stages, len(backend.commands))
 	}
 	wantInventory := []string{"go", "list", "-deps", "-json", "-mod=readonly", "./cmd/site"}
-	for _, index := range []int{0, 2, 4} {
+	for _, index := range []int{0, 3, 5} {
 		command := backend.commands[index]
 		if command.Dir != fixture.root || !reflect.DeepEqual(command.Argv, wantInventory) || len(command.Stdin) != 0 {
 			t.Fatalf("inventory[%d] = %+v", index, command)
@@ -604,7 +606,7 @@ func assertMakemigrationsProcessContract(t *testing.T, fixture makemigrationsRun
 		filepath.Base(build.Argv[5]) != "godj-project-runner" || len(build.Stdin) != 0 {
 		t.Fatalf("build = %+v", build)
 	}
-	runner := backend.commands[3]
+	runner := backend.commands[4]
 	if runner.Dir != fixture.root || !reflect.DeepEqual(runner.Argv, []string{build.Argv[5], writerprotocol.PrivateArgument}) ||
 		!bytes.Equal(runner.Stdin, writerprotocol.RequestDocument()) {
 		t.Fatalf("runner = %+v", runner)

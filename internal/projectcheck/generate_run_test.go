@@ -87,7 +87,7 @@ func TestRunGenerateUsesExactBuildAndPrivateRequestAndZeroizesResponse(t *testin
 			return projectgenerate.CheckReport{}, nil
 		}},
 	})
-	if report.ExitCode != 0 || !report.HasGenerationResult || report.GenerationResult.Status != "clean" || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.DirectChildReaps != 2 || stderr.Len() != 0 {
+	if report.ExitCode != 0 || !report.HasGenerationResult || report.GenerationResult.Status != "clean" || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.DirectChildReaps != 3 || stderr.Len() != 0 {
 		t.Fatalf("report=%+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
 	}
 	for index, value := range responseBacking {
@@ -95,14 +95,14 @@ func TestRunGenerateUsesExactBuildAndPrivateRequestAndZeroizesResponse(t *testin
 			t.Fatalf("response byte %d was not zeroized", index)
 		}
 	}
-	if len(backend.commands) != 2 {
+	if len(backend.commands) != 3 {
 		t.Fatalf("commands=%d", len(backend.commands))
 	}
 	build := backend.commands[0]
 	if !reflect.DeepEqual(build.Argv[:5], []string{"go", "build", "-buildvcs=false", "-mod=readonly", "-o"}) || build.Argv[len(build.Argv)-1] != "./cmd/site" || build.Dir != fixture.project {
 		t.Fatalf("build=%+v", build)
 	}
-	runner := backend.commands[1]
+	runner := backend.commands[2]
 	if runner.Dir != fixture.project || len(runner.Argv) != 2 || runner.Argv[1] != projectgenerateprotocol.PrivateArgument || !bytes.Equal(runner.Stdin, projectgenerateprotocol.RequestDocument()) {
 		t.Fatalf("runner=%+v", runner)
 	}
@@ -366,7 +366,7 @@ func TestRunGenerateCancellationReapsGenerationRunnerAndCleansWorkspace(t *testi
 	cancel()
 	select {
 	case got := <-done:
-		if got.report.ExitCode != 3 || got.report.GenerationFailure != (GenerationFailure{Category: GenerationCategoryProcess, Code: GenerationCodeProjectCanceled}) || got.report.DirectChildReaps != 2 || got.report.GroupSIGINTAttempts != 1 || got.report.GroupSIGKILLAttempts != 1 || got.report.TempCleanupAttempts != 1 || got.report.ResidualTemp != 0 || got.stdout != "" || got.stderr != GenerationCategoryProcess+"/"+GenerationCodeProjectCanceled+"\n" {
+		if got.report.ExitCode != 3 || got.report.GenerationFailure != (GenerationFailure{Category: GenerationCategoryProcess, Code: GenerationCodeProjectCanceled}) || got.report.DirectChildReaps != 3 || got.report.GroupSIGINTAttempts != 1 || got.report.GroupSIGKILLAttempts != 1 || got.report.TempCleanupAttempts != 1 || got.report.ResidualTemp != 0 || got.stdout != "" || got.stderr != GenerationCategoryProcess+"/"+GenerationCodeProjectCanceled+"\n" {
 			t.Fatalf("canceled generation=%+v stdout=%q stderr=%q", got.report, got.stdout, got.stderr)
 		}
 	case <-time.After(ownedProcessGrace + 10*time.Second):

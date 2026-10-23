@@ -101,7 +101,7 @@ func TestPrivateWorkspaceRealModuleDownloadRemainsCleanupWritable(t *testing.T) 
 	if !strings.HasPrefix(values["GOPROXY"], "file://") || !strings.HasSuffix(values["GOPROXY"], ",off") {
 		t.Fatalf("GOPROXY=%q does not expose the safe ambient download cache before offline fallback", values["GOPROXY"])
 	}
-	result := processBackend{}.Execute(context.Background(), nil, BuildStage, Command{
+	result := NativeBackend{}.Execute(context.Background(), nil, BuildStage, Command{
 		Dir:  fixture.project,
 		Argv: []string{"go", "mod", "download", module},
 		Env:  workspace.environment,

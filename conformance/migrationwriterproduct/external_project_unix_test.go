@@ -36,14 +36,15 @@ const (
 )
 
 var externalAllowedGoDjImports = map[string]struct{}{
-	"github.com/progresshans/godj/apps":      {},
-	"github.com/progresshans/godj/codegen":   {},
-	"github.com/progresshans/godj/db/sqlite": {},
-	"github.com/progresshans/godj/project":   {},
-	"github.com/progresshans/godj/query":     {},
-	"github.com/progresshans/godj/schema/ir": {},
-	"github.com/progresshans/godj/orm":       {},
-	"github.com/progresshans/godj/db":        {},
+	"github.com/progresshans/godj/apps":                  {},
+	"github.com/progresshans/godj/codegen":               {},
+	"github.com/progresshans/godj/db/sqlite":             {},
+	"github.com/progresshans/godj/project":               {},
+	"github.com/progresshans/godj/project/compatibility": {},
+	"github.com/progresshans/godj/query":                 {},
+	"github.com/progresshans/godj/schema/ir":             {},
+	"github.com/progresshans/godj/orm":                   {},
+	"github.com/progresshans/godj/db":                    {},
 }
 
 type externalCommandResult struct {
@@ -578,6 +579,7 @@ func strconvUnquote(value string) (string, error) {
 const externalProjectRunnerSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -594,6 +596,9 @@ import (
 const databaseEnvironment = "GODJ_EXTERNAL_SQLITE_DATABASE"
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	if len(os.Args) == 2 && os.Args[1] == "seed" {
 		seed()
 		return

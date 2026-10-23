@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 )
 
@@ -28,7 +29,8 @@ func Run(input Invocation) Report {
 	mapOuter := func(input Failure) Failure { return input }
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report,
 		commandPolicy[Failure]{
-			selection: mapOuter, workspace: mapOuter, process: processFailure,
+			compatibility: func(code string) Failure { return Failure{Category: failurecode.CategoryCompatibility, Code: code} },
+			selection:     mapOuter, workspace: mapOuter, process: processFailure,
 			cleanup: combineProcessCleanup,
 			barrier: func(primary *Failure) *Failure { return barrierFailure(input, primary) },
 		}, commandHooks{})
@@ -115,6 +117,16 @@ func recordProcess(report *Report, stage ProcessStage, process ProcessResult) {
 		report.CleanupFailed = 1
 	}
 	report.RawDiagnosticsDiscarded = true
+	if stage == CompatibilityStage {
+		report.CompatibilityStdoutRetainedBytes = process.StdoutScalar.RetainedBytes
+		report.CompatibilityStdoutTruncated = process.StdoutScalar.Truncated
+		report.CompatibilityStderrRetainedBytes = process.StderrScalar.RetainedBytes
+		report.CompatibilityStderrTruncated = process.StderrScalar.Truncated
+		if process.StdoutScalar.RetainedBytes != 0 || process.StdoutScalar.Truncated {
+			report.CompatibilityResponseWrites++
+		}
+		return
+	}
 	if stage == BuildStage {
 		report.BuildDiagnostic = process.BuildDiagnostic
 		report.BuildStdoutRetainedBytes = process.StdoutScalar.RetainedBytes

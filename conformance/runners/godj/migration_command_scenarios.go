@@ -176,6 +176,9 @@ func (backend *migrationCommandProcessBackend) Execute(
 		Stdin: append([]byte(nil), command.Stdin...),
 	})
 	backend.mu.Unlock()
+	if stage == productcheck.CompatibilityStage {
+		return commandFixtureCompatibility()
+	}
 	if stage == productcheck.BuildStage {
 		return productcheck.ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
 	}
@@ -561,7 +564,7 @@ func migrationCommandSuccess(execution migrationCommandGlobalExecution) error {
 	if execution.global.ExitCode != 0 || !execution.global.HasMigrateResult || execution.global.HasMigrateFailure || len(execution.stdout) == 0 || len(execution.stderr) != 0 {
 		return fmt.Errorf("migration-command success envelope = exit:%d result:%t failure:%t stdout:%d stderr:%d", execution.global.ExitCode, execution.global.HasMigrateResult, execution.global.HasMigrateFailure, len(execution.stdout), len(execution.stderr))
 	}
-	if len(execution.stages) != 2 || execution.stages[0] != productcheck.BuildStage || execution.stages[1] != productcheck.MigrateRunnerStage {
+	if len(execution.stages) != 3 || execution.stages[0] != productcheck.BuildStage || execution.stages[1] != productcheck.CompatibilityStage || execution.stages[2] != productcheck.MigrateRunnerStage {
 		return fmt.Errorf("migration-command stages = %v", execution.stages)
 	}
 	return nil
@@ -574,7 +577,7 @@ func migrationCommandFailure(execution migrationCommandGlobalExecution, category
 	if execution.global.ExitCode == 0 || execution.global.HasMigrateResult || !execution.global.HasMigrateFailure || execution.global.MigrateFailure.Category != category || execution.global.MigrateFailure.Code != code || len(execution.stdout) != 0 || len(execution.stderr) == 0 {
 		return fmt.Errorf("migration-command failure envelope = exit:%d result:%t failure:%+v stdout:%d stderr:%d", execution.global.ExitCode, execution.global.HasMigrateResult, execution.global.MigrateFailure, len(execution.stdout), len(execution.stderr))
 	}
-	if len(execution.stages) != 2 || execution.stages[0] != productcheck.BuildStage || execution.stages[1] != productcheck.MigrateRunnerStage {
+	if len(execution.stages) != 3 || execution.stages[0] != productcheck.BuildStage || execution.stages[1] != productcheck.CompatibilityStage || execution.stages[2] != productcheck.MigrateRunnerStage {
 		return fmt.Errorf("migration-command stages = %v", execution.stages)
 	}
 	return nil
@@ -1742,7 +1745,9 @@ func migrationCommandInterruptCleanup(ctx context.Context, contract protocol.Con
 	sessionCloseCalls := migrationCommandTraceCount(participant.trace, "session_close_complete")
 	backendCloseCalls := migrationCommandTraceCount(participant.trace, "backend_close_complete")
 	signalCancellations := migrationCommandTraceCount(participant.trace, "signal_context_canceled")
-	childReaps := execution.report.DirectChildReaps - execution.report.BuildCalls
+	// This contract counts the business/sensitive child; the global report also
+	// counts the build and the separately checked metadata process.
+	childReaps := execution.report.DirectChildReaps - execution.report.BuildCalls - execution.report.CompatibilityChecks
 	processResidue := boolToInt(!processGroupAbsent)
 	workspaceResidue := execution.report.ResidualTemp
 	wantBegins := []string{"command/" + migrationCommandMiddle}

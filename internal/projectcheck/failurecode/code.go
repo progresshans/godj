@@ -2,6 +2,17 @@
 // category names, command-specific codes, private-wire eligibility and results.
 package failurecode
 
+const CategoryCompatibility = "project_compatibility_error"
+
+// Compatibility failures belong to the global launcher, never to a linked
+// command's private response vocabulary.
+func Compatibility(code string) (int, bool) {
+	if code == "framework_incompatible" || code == "framework_identity_unknown" {
+		return 2, true
+	}
+	return Exact(code, 3, "compatibility_probe_failed", "compatibility_response_invalid")
+}
+
 func Exact(code string, exit int, allowed ...string) (int, bool) {
 	for _, candidate := range allowed {
 		if code == candidate {

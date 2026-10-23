@@ -66,6 +66,43 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 모든 프로젝트 진입점의 호환성 검사와 응답 framing 복구
+
+제품 source `6dec19b9834ed152747dc99f1f8d6ef0ad752883`의
+[CI 39876106534](https://github.com/progresshans/godj/actions/runs/39876106534)에서 새 프로젝트의 resource-free
+`commands` 조회가 `compatibility_response_invalid`로 실패했다. Linux amd64 cgo0 job `120162511934`와 arm64 normal
+job `120162511987` 원본 log SHA-256은 각각 `9d5ee9745ca2750f2e6a9cf0e8dcf026e4c6c1f5d5fee325e20cadfbfd4f9cd6`,
+`51c51f05399b6b3ea4ba9b667c55dbc0a9906f9f674d88946200865562e20f9c`다.
+Checkout `0a2d453c1c27d7628684e0ded90dc192b344d96c`의 tree `c54e95b8c3749ffe8fd1e2084cac83c418697b49`는 제출 source와 같다.
+`gdj0137-6dec19b9-ci-39876106534/source-binding.json` SHA-256은
+`9831f58bc9c149e3d77bb3d90dc7deea30bed1965878e30e91c2c46d583724d8`이다. 전체 CI 성공은 아니다.
+
+같은 archive를 dependency로 사용하는 독립 module의 실제 executable에서 `Serve → Parse → Check`만 재현했다.
+수정 전에는 402-byte 응답의 마지막 LF 때문에 canonical parser가 거부했고, parser 한 파일만 수정한 뒤 같은 호출이 통과했다.
+한 개의 마지막 LF만 허용하며 중복 응답·추가 whitespace·unknown/duplicate key·unknown identity 거부를 유지한다.
+`gdj0137-compatibility-frame-repro-v1/receipt.json` SHA-256은
+`280302a63cd80d476c7cdd279670b11b4aab00ed3abd0b7539153f233b92ff25`다. 이 좁은 재현은 전체 command·DB·platform 검증이 아니다.
+
+공통 검사로 declaration build 직후 모든 project-linked 명령을 보호하고 runserver/management의 별도 runtime도 검사한다.
+초기 사용자 생성은 terminal/credential 입력 전에, startproject는 후보 게시 전에 검사한다. 15초 제한과 기존 bounded
+process/pipe/group owner, root 재확인·출력 제거·정리 우선순위를 연결했다. Probe 호출/응답은 별도 계수이며 총 child reap에는 포함한다.
+명시적 native/test launcher identity를 구분하고 global compatibility failure를 private command 응답으로 허용하지 않는다.
+외부 consumer의 공개 probe 호출, mismatch 시 생성·DB·terminal·server 차단, runtime mismatch, secret-free 오류,
+출력 상한과 자손 회수 검사를 작성했다. SQL 소비자의 package init은 probe와 업무 process 두 번을 모두 관찰하고 회수하도록 갱신했다.
+
+같은 CI의 Linux amd64 normal relation job `120162512615`도 consumer package의 35분 제한으로 중단됐다.
+당시 실행 중인 `TestGeneratedUpdateOrCreate`의 경과는 26초였으며 출력된 진단에는 60,000-byte truncation이 있다.
+원본 log SHA-256은 `07625a77e8fa52aae183df2e1c563d2d784fc75d3b6096fdea78f9c728bb6588`이고,
+`relation-timeout.json` SHA-256은 `61770f52da5d99bde742a06a804dee1956b73d3901a1f961bac8fbc1f2c888a6`이다.
+이 실행은 미완료다. 같은 좌표를 기존 3개 consumer partition과 별도 runtime owner 방식으로 분리했다.
+시간 제한·전체 root/필수 child·DB/race/cgo0/platform 범위를 유지하고 기존 exactly-once 검증을 그대로 적용한다.
+
+로컬은 gofmt, 변경된 19개 관련 package의 최소 compile과 두 CI Python 파일의 구문/출력 matrix만 확인했다.
+새 test 본문·native command 흐름·DB·전체 platform은 로컬에서 실행하지 않았다.
+`gdj0137-common-compatibility-compile-v1/final-source.json`은 Go 66개·Python 2개 hash와 compile 명령/log를 기록하며
+SHA-256은 `89bccbf35a039b4c4a9b36f888f306ac8edc9edbed60239fc12f344e2d0ddee6`이다.
+전체 실행 owner는 현재 source의 원격 CI다. 독립 고정 module 조합·명시적 I/O check·event/logging·reload와 C1 전체 수용은 남아 있다.
+
 ## GDJ-0137 — 앱의 첫 migration 복구와 사용자 명령 연결
 
 `60a30c560b954aebb1bf799c75574a45c419de85`의

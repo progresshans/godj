@@ -5,8 +5,10 @@ package projectcheck
 import (
 	"context"
 	"path/filepath"
+	"time"
 
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	"github.com/progresshans/godj/project/compatibility"
 )
 
 // commandPolicy separates command vocabulary and terminal precedence from the
@@ -15,6 +17,7 @@ import (
 type commandPolicy[F any] struct {
 	selection      func(Failure) F
 	workspace      func(Failure) F
+	compatibility  func(string) F
 	process        func(ProcessStage, ProcessResult) *F
 	barrier        func(*F) *F
 	cleanup        func(*F, bool) *F
@@ -130,6 +133,60 @@ func (command *projectCommand[F]) buildRunner() *F {
 	}
 	if primary := command.build(command.selected.descriptor.packagePath, "godj-project-runner"); primary != nil {
 		return primary
+	}
+	return command.checkCompatibility(filepath.Join(command.workspace.root, "godj-project-runner"))
+}
+
+// Probe the exact private binary that will be executed, in its owned workspace
+// environment. No command request or terminal credentials reach this child.
+// Every attempt is drained, reaped and counted before its response is parsed.
+func (command *projectCommand[F]) checkCompatibility(binary string) *F {
+	if primary := command.ready(); primary != nil {
+		return primary
+	}
+	fail := func(code string) *F {
+		candidate := command.policy.compatibility(code)
+		return command.policy.barrier(&candidate)
+	}
+	tool := command.backend.ToolInfo()
+	if compatibility.Check(tool, tool) != nil {
+		return fail("framework_identity_unknown")
+	}
+	command.report.CompatibilityChecks++
+	probeContext, cancel := context.WithTimeout(command.ctx, 15*time.Second)
+	defer cancel()
+	process := command.backend.Execute(probeContext, command.interrupt, CompatibilityStage, cloneCommand(Command{
+		Dir: command.selected.rootPath, Argv: []string{binary, compatibility.PrivateArgument}, Env: command.workspace.environment,
+	}))
+	recordProcess(command.report, CompatibilityStage, process)
+	defer clear(process.Stdout)
+	if primary := command.policy.cleanup(nil, process.CleanupFailed); primary != nil {
+		return primary
+	}
+	if primary := command.policy.barrier(nil); primary != nil {
+		return primary
+	}
+	if probeContext.Err() != nil {
+		return fail("compatibility_probe_failed")
+	}
+	if process.Failure != nil && process.Failure.Category == protocol.CategoryProcess {
+		switch process.Failure.Code {
+		case protocol.CodeProjectCanceled, protocol.CodeProjectInterrupted, protocol.CodeProjectCleanupFailed:
+			return command.policy.process(CompatibilityStage, process)
+		}
+	}
+	if process.Failure != nil || !process.Started || process.ExitCode != 0 {
+		return fail("compatibility_probe_failed")
+	}
+	if process.StdoutScalar.Truncated {
+		return fail("compatibility_response_invalid")
+	}
+	linked, err := compatibility.Parse(process.Stdout)
+	if err != nil {
+		return fail("compatibility_response_invalid")
+	}
+	if compatibility.Check(tool, linked) != nil {
+		return fail("framework_incompatible")
 	}
 	return command.beforeRunner()
 }

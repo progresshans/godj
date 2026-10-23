@@ -94,6 +94,9 @@ func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string,
 	var primary *RunServerFailure
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
 		commandPolicy[RunServerFailure]{
+			compatibility: func(code string) RunServerFailure {
+				return RunServerFailure{Category: failurecode.CategoryCompatibility, Code: code}
+			},
 			selection: mapRunserverSelectionFailure, workspace: mapRunserverWorkspaceFailure,
 			barrier: func(primary *RunServerFailure) *RunServerFailure { return runserverBarrier(input, primary) },
 			cleanup: combineRunserverCleanup,
@@ -182,6 +185,9 @@ func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string,
 	primary = runserverBarrier(input, primary)
 	primary = combineRunserverCleanup(primary, runtimeBuildResult.CleanupFailed)
 	if primary != nil {
+		return prepared, primary
+	}
+	if primary = command.checkCompatibility(prepared.binary); primary != nil {
 		return prepared, primary
 	}
 	if !verifyRetainedProject(selected) {
@@ -359,6 +365,8 @@ func chooseRunserverResult(report *RunServerReport, result RunServerResult) {
 
 func runserverExitCode(failure RunServerFailure) (int, bool) {
 	switch failure.Category {
+	case failurecode.CategoryCompatibility:
+		return failurecode.Compatibility(failure.Code)
 	case RunServerCategoryCommand:
 		return failurecode.Exact(failure.Code, 2, RunServerCodeInvalidArguments)
 	case RunServerCategorySelection:

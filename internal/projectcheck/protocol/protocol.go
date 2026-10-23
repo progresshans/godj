@@ -213,6 +213,8 @@ func WriteResponse(writer io.Writer, response Response) error {
 // ExitCode returns the exact public exit for a closed taxonomy pair.
 func ExitCode(failure Failure) (int, bool) {
 	switch failure.Category {
+	case failurecode.CategoryCompatibility:
+		return failurecode.Compatibility(failure.Code)
 	case CategoryCommand:
 		return failurecode.Exact(failure.Code, 2, CodeInvalidArguments)
 	case CategorySelection:

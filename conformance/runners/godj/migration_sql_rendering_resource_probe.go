@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
@@ -449,6 +450,7 @@ func migrationSQLRenderingProbeRedactionAndPublication(
 	globalStdout := &migrationSQLRenderingProbeCountingWriter{}
 	globalStderr := &migrationSQLRenderingProbeCountingWriter{}
 	globalReport := productcheck.RunSQLMigrate(productcheck.SQLMigrateInvocation{
+		Backend:     productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
 		Context:     ctx,
 		CWD:         projectFixture.root,
 		Args:        []string{"sqlmigrate", fixture.target.App, fixture.target.Name},
@@ -461,7 +463,7 @@ func migrationSQLRenderingProbeRedactionAndPublication(
 	}
 	if globalReport.ExitCode != 3 || !globalReport.HasSQLMigrateFailure || globalReport.HasSQLMigrateResult ||
 		globalReport.SQLMigrateFailure != wantGlobalFailure || globalReport.BuildCalls != 1 || globalReport.RunnerCalls != 1 ||
-		globalReport.DirectChildReaps != 2 || globalReport.RunnerResponseWrites != 1 ||
+		globalReport.DirectChildReaps != 3 || globalReport.CompatibilityChecks != 1 || globalReport.RunnerResponseWrites != 1 ||
 		globalReport.RunnerStderrRetainedBytes != len(migrationSQLRenderingProbeChildStderrCanary) ||
 		globalReport.TempCleanupAttempts != 1 || globalReport.CleanupFailed != 0 || globalReport.ResidualTemp != 0 ||
 		globalReport.UserStdoutWrites != 0 || globalReport.UserStderrWrites != 1 ||
@@ -532,20 +534,20 @@ func migrationSQLRenderingPrepareGlobalProbeProject(projectFixture migrationComm
 	if err != nil {
 		return errors.New("read migration SQL global probe module authority")
 	}
-	goDirective := ""
-	for _, line := range strings.Split(string(rootModule), "\n") {
-		if strings.HasPrefix(line, "go ") {
-			if goDirective != "" {
-				return errors.New("migration SQL global probe found multiple Go directives")
-			}
-			goDirective = line
-		}
+	const declaration = "module github.com/progresshans/godj\n"
+	if !bytes.HasPrefix(rootModule, []byte(declaration)) || bytes.Count(rootModule, []byte(declaration)) != 1 {
+		return errors.New("migration SQL probe module declaration is unexpected")
 	}
-	if goDirective == "" {
-		return errors.New("migration SQL global probe found no Go directive")
+	moduleDocument := strings.Replace(string(rootModule), declaration, "module example.com/godj-mig137-resource-probe\n", 1)
+	moduleDocument += fmt.Sprintf("\nrequire github.com/progresshans/godj v0.0.0\n\nreplace github.com/progresshans/godj => %s\n", strconv.Quote(filepath.ToSlash(repository)))
+	if err := writeMigrationCommandActualFile(filepath.Join(projectFixture.root, "go.mod"), []byte(moduleDocument)); err != nil {
+		return err
 	}
-	moduleDocument := []byte("module example.com/godj-mig137-resource-probe\n\n" + goDirective + "\n")
-	if err := writeMigrationCommandActualFile(filepath.Join(projectFixture.root, "go.mod"), moduleDocument); err != nil {
+	rootSum, err := os.ReadFile(filepath.Join(repository, "go.sum"))
+	if err != nil {
+		return errors.New("read migration SQL probe module sums")
+	}
+	if err := writeMigrationCommandActualFile(filepath.Join(projectFixture.root, "go.sum"), rootSum); err != nil {
 		return err
 	}
 	if err := writeMigrationCommandActualFile(
@@ -560,11 +562,16 @@ func migrationSQLRenderingPrepareGlobalProbeProject(projectFixture migrationComm
 const migrationSQLRenderingGlobalProbeSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
+ "context"
 	"encoding/base64"
 	"os"
 )
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	expectedCredential := os.Getenv("GODJ_MIG137_EXPECTED_CREDENTIAL")
 	if expectedCredential == "" || os.Getenv("DATABASE_URL") != expectedCredential {
 		os.Exit(11)

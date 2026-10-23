@@ -44,7 +44,7 @@ func TestShowMigrationsOwnedProcessUsesProtocolResponseBound(t *testing.T) {
 		"GODJ_HELPER_STDERR_BYTES": "0",
 		"GODJ_HELPER_EXIT":         "0",
 	})
-	result := processBackend{}.Execute(context.Background(), nil, ShowMigrationsRunnerStage, command)
+	result := NativeBackend{}.Execute(context.Background(), nil, ShowMigrationsRunnerStage, command)
 	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 || result.StdoutScalar.RetainedBytes != showmigrationsprotocol.MaxResponseBytes || !result.StdoutScalar.Truncated || len(result.Stdout) != showmigrationsprotocol.MaxResponseBytes {
 		t.Fatalf("bounded showmigrations process = %+v stdout=%d", result, len(result.Stdout))
 	}
@@ -56,7 +56,7 @@ func TestSQLMigrateOwnedProcessUsesExactProtocolResponseBound(t *testing.T) {
 		"GODJ_HELPER_STDERR_BYTES": "0",
 		"GODJ_HELPER_EXIT":         "0",
 	})
-	result := processBackend{}.Execute(context.Background(), nil, SQLMigrateRunnerStage, command)
+	result := NativeBackend{}.Execute(context.Background(), nil, SQLMigrateRunnerStage, command)
 	if !result.Started || result.ExitCode != 0 || result.DirectReaps != 1 ||
 		result.StdoutScalar.RetainedBytes != sqlmigrateprotocol.MaxResponseBytes ||
 		!result.StdoutScalar.Truncated || len(result.Stdout) != sqlmigrateprotocol.MaxResponseBytes {
@@ -113,7 +113,7 @@ func TestMigrateOwnedProcessEscalatesOnlyAfterGraceAndReaps(t *testing.T) {
 func TestMigrateOwnedProcessAlreadyCanceledDoesNotStart(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	result := processBackend{}.Execute(ctx, nil, MigrateRunnerStage, helperCommand("ignore", nil))
+	result := NativeBackend{}.Execute(ctx, nil, MigrateRunnerStage, helperCommand("ignore", nil))
 	if result.Failure == nil || result.Failure.Code != protocol.CodeProjectCanceled || result.Started || result.DirectReaps != 0 || result.SIGINTAttempts != 0 || result.SIGKILLAttempts != 0 {
 		t.Fatalf("pre-canceled migrate process = %+v", result)
 	}
@@ -239,7 +239,7 @@ func TestShowMigrationsOwnedProcessBoundsDescendantHeldPipesAfterDirectExit(t *t
 	done := make(chan ProcessResult, 1)
 	started := time.Now()
 	go func() {
-		done <- processBackend{}.Execute(context.Background(), nil, ShowMigrationsRunnerStage, command)
+		done <- NativeBackend{}.Execute(context.Background(), nil, ShowMigrationsRunnerStage, command)
 	}()
 	groupPID, descendantPID := migrateHelperProcessPair(t, ready)
 	waitForFile(t, holderReady)

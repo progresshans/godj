@@ -40,7 +40,7 @@ type migrationSQLRenderingArgvProbeEvidence struct {
 	project string
 	output  string
 	success bool
-	stages  [2]string
+	stages  [3]string
 
 	ancestorDirectoriesInspected int
 	descriptorReads              int
@@ -196,8 +196,8 @@ type migrationSQLRenderingArgvProbeBackend struct {
 	wire []byte
 
 	calls        int
-	stages       [2]productcheck.ProcessStage
-	commands     [2]productcheck.Command
+	stages       [3]productcheck.ProcessStage
+	commands     [3]productcheck.Command
 	request      sqlmigrateprotocol.Request
 	requestReads int
 	returnedWire []byte
@@ -220,6 +220,8 @@ func (backend *migrationSQLRenderingArgvProbeBackend) Execute(
 	backend.commands[index] = migrationSQLRenderingCloneArgvProbeCommand(command)
 
 	switch stage {
+	case productcheck.CompatibilityStage:
+		return commandFixtureCompatibility()
 	case productcheck.BuildStage:
 		return productcheck.ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
 	case productcheck.SQLMigrateRunnerStage:
@@ -296,7 +298,7 @@ func migrationSQLRenderingRunArgvProbe(
 		return migrationSQLRenderingArgvProbeEvidence{}, errors.New("migration SQL argv probe left a private workspace")
 	}
 
-	project, err := migrationSQLRenderingDeriveArgvProbeProject(probeCase.args, fixture, backend.commands[1])
+	project, err := migrationSQLRenderingDeriveArgvProbeProject(probeCase.args, fixture, backend.commands[2])
 	if err != nil {
 		return migrationSQLRenderingArgvProbeEvidence{}, err
 	}
@@ -306,7 +308,7 @@ func migrationSQLRenderingRunArgvProbe(
 	observed := migrationSQLRenderingArgvProbeEvidence{
 		caseName: probeCase.caseName, form: probeCase.form, publicArgCount: len(probeCase.args), literalZero: probeCase.literalZero,
 		app: backend.request.App, name: backend.request.Name, project: project,
-		output: stdout.String(), success: true, stages: [2]string{"build", "sqlmigrate_runner"},
+		output: stdout.String(), success: true, stages: [3]string{"build", "compatibility", "sqlmigrate_runner"},
 		ancestorDirectoriesInspected: report.AncestorDirectoriesInspected,
 		descriptorReads:              report.DescriptorReads, buildCalls: report.BuildCalls, runnerCalls: report.RunnerCalls,
 		runnerRequestReads: backend.requestReads, directChildReaps: report.DirectChildReaps,
@@ -334,7 +336,7 @@ func migrationSQLRenderingValidateArgvProbeReport(
 		return errors.New("migration SQL argv probe did not perform the exact project selection")
 	}
 	if report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 ||
-		report.RunnerStdoutRetainedBytes != wireBytes || report.RunnerStdoutTruncated || report.DirectChildReaps != 2 {
+		report.RunnerStdoutRetainedBytes != wireBytes || report.RunnerStdoutTruncated || report.DirectChildReaps != 3 || report.CompatibilityChecks != 1 {
 		return errors.New("migration SQL argv probe did not perform the exact build and runner lifecycle")
 	}
 	if report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
@@ -358,14 +360,15 @@ func migrationSQLRenderingValidateArgvProbeCommands(
 	probeCase migrationSQLRenderingArgvProbeCase,
 	backend *migrationSQLRenderingArgvProbeBackend,
 ) error {
-	if backend.calls != 2 || backend.stages != ([2]productcheck.ProcessStage{
+	if backend.calls != 3 || backend.stages != ([3]productcheck.ProcessStage{
 		productcheck.BuildStage,
+		productcheck.CompatibilityStage,
 		productcheck.SQLMigrateRunnerStage,
 	}) {
 		return errors.New("migration SQL argv probe process stages were not exact")
 	}
 	build := backend.commands[0]
-	runner := backend.commands[1]
+	runner := backend.commands[2]
 	if build.Dir != fixture.project || runner.Dir != fixture.project || len(build.Stdin) != 0 {
 		return errors.New("migration SQL argv probe selected an unexpected project command root")
 	}

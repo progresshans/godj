@@ -179,7 +179,7 @@ func TestMigrationSQLRenderingActualSourceIsOracleBlindAndBoundaryLocked(t *test
 				"sqlmigrateprotocol.EncodeRequest":           1,
 				"sqlmigrateprotocol.EncodeResponse":          1,
 				"sqlmigrateprotocol.ParseResponse":           4,
-				"writeMigrationCommandActualFile":            2,
+				"writeMigrationCommandActualFile":            3,
 			},
 		},
 	}
@@ -299,6 +299,7 @@ func migrationSQLRenderingAssertEmbeddedActualRunner(t *testing.T) {
 		"github.com/progresshans/godj/db/sqlite",
 		"github.com/progresshans/godj/migrations/definition",
 		"github.com/progresshans/godj/project",
+		"github.com/progresshans/godj/project/compatibility",
 		"os",
 		"os/exec",
 		"os/signal",

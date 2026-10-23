@@ -39,6 +39,7 @@ var targetAllowedGoDjImports = map[string]struct{}{
 	"github.com/progresshans/godj/migrations/backend":    {},
 	"github.com/progresshans/godj/migrations/definition": {},
 	"github.com/progresshans/godj/project":               {},
+	"github.com/progresshans/godj/project/compatibility": {},
 	"github.com/progresshans/godj/schema/ir":             {},
 }
 

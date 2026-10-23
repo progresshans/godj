@@ -26,7 +26,12 @@ import (
 
 const ownedProcessGrace = 2 * time.Second
 
-type processBackend struct{}
+// NativeBackend executes owned OS children with an explicit launcher identity.
+// The CLI supplies compatibility.Current(); in-process consumers may supply a
+// fixture identity without altering actual child metadata or global state.
+type NativeBackend struct{ Framework compatibility.Info }
+
+func (backend NativeBackend) ToolInfo() compatibility.Info { return backend.Framework }
 
 type ownedResponseProcessPolicy struct {
 	stdoutMaximum int
@@ -61,7 +66,7 @@ func ownedResponseProcessPolicyForStage(stage ProcessStage) (ownedResponseProces
 	}
 }
 
-func (processBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+func (NativeBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
 	if policy, ok := ownedResponseProcessPolicyForStage(stage); ok {
 		// Migrate and the read-only status child each own a strict response pipe.
 		// Reuse the bounded post-exit process-group owner so a descendant cannot

@@ -161,6 +161,8 @@ func (backend *migrationProjectCheckBackend) Execute(
 	command productcheck.Command,
 ) productcheck.ProcessResult {
 	switch stage {
+	case productcheck.CompatibilityStage:
+		return commandFixtureCompatibility()
 	case productcheck.BuildStage:
 		if backend.inspectBuildSyntax {
 			failed, err := migrationProjectCheckBuildHasSyntaxFailure(command)

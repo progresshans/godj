@@ -4,6 +4,7 @@ package projectcheck
 
 import (
 	"encoding/json"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 )
@@ -26,6 +27,9 @@ func RunMigrate(input MigrateInvocation) MigrateReport {
 
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
 		commandPolicy[MigrateFailure]{
+			compatibility: func(code string) MigrateFailure {
+				return MigrateFailure{Category: failurecode.CategoryCompatibility, Code: code}
+			},
 			selection: mapMigrateOuterFailure, workspace: mapMigrateOuterFailure,
 			process: migrateProcessFailure, cleanup: combineMigrateCleanup,
 			barrier: func(primary *MigrateFailure) *MigrateFailure { return migrateBarrier(input, primary) },

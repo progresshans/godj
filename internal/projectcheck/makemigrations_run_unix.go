@@ -42,6 +42,9 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
 		commandPolicy[MakemigrationsFailure]{
+			compatibility: func(code string) MakemigrationsFailure {
+				return MakemigrationsFailure{Category: failurecode.CategoryCompatibility, Code: code}
+			},
 			selection: mapMakemigrationsSelectionFailure, workspace: mapMakemigrationsWorkspaceFailure,
 			process: makemigrationsProcessFailure, cleanup: combineMakemigrationsCleanup,
 			barrier: func(primary *MakemigrationsFailure) *MakemigrationsFailure {
@@ -77,6 +80,11 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 
 	primary = command.build(selected.descriptor.packagePath, "godj-project-runner")
 	if primary != nil {
+		chooseMakemigrationsFailure(&report, *primary)
+		return finish()
+	}
+
+	if primary = command.checkCompatibility(filepath.Join(workspace.root, "godj-project-runner")); primary != nil {
 		chooseMakemigrationsFailure(&report, *primary)
 		return finish()
 	}
@@ -562,6 +570,8 @@ func chooseMakemigrationsResult(report *MakemigrationsReport, result Makemigrati
 
 func makemigrationsExitCode(failure MakemigrationsFailure) (int, bool) {
 	switch failure.Category {
+	case failurecode.CategoryCompatibility:
+		return failurecode.Compatibility(failure.Code)
 	case MakemigrationsCategoryCommand:
 		return failurecode.Exact(failure.Code, 2, MakemigrationsCodeInvalidArguments)
 	case MakemigrationsCategorySelection:

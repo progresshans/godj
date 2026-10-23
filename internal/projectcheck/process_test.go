@@ -138,11 +138,11 @@ func TestBuildDiagnosticsPreserveCauseWithoutExposingRuntimeOutput(t *testing.T)
 		"GODJ_HELPER_DIAGNOSTIC": "/private/project/main.go:3:4: undefined: MissingSymbol\ngo: password=private-password\n",
 		"API_TOKEN":              "private-password",
 	})
-	build := processBackend{}.Execute(context.Background(), nil, BuildStage, command)
+	build := NativeBackend{}.Execute(context.Background(), nil, BuildStage, command)
 	if build.ExitCode != 7 || build.DirectReaps != 1 || len(build.Stdout) != 0 || !strings.Contains(build.BuildDiagnostic, "undefined: MissingSymbol") || strings.Contains(build.BuildDiagnostic, "/private") || strings.Contains(build.BuildDiagnostic, "private-password") || len(build.BuildDiagnostic) > gobuild.MaxDiagnosticBytes {
 		t.Fatalf("build diagnostic boundary = %+v", build)
 	}
-	runner := processBackend{}.Execute(context.Background(), nil, RunnerStage, command)
+	runner := NativeBackend{}.Execute(context.Background(), nil, RunnerStage, command)
 	if runner.ExitCode != 7 || runner.DirectReaps != 1 || runner.BuildDiagnostic != "" {
 		t.Fatalf("runtime diagnostic became public = %+v", runner)
 	}
@@ -155,7 +155,7 @@ func TestOwnedProcessDrainsBeyondCapsBeforeNonzeroTransport(t *testing.T) {
 		"GODJ_HELPER_STDERR_BYTES": strconv.Itoa(maxDiagnosticBytes + 257),
 		"GODJ_HELPER_EXIT":         "7",
 	})
-	result := processBackend{}.Execute(context.Background(), nil, RunnerStage, command)
+	result := NativeBackend{}.Execute(context.Background(), nil, RunnerStage, command)
 	if !result.Started || result.ExitCode != 7 || result.DirectReaps != 1 || result.StdoutScalar.RetainedBytes != protocol.MaxResponseBytes || !result.StdoutScalar.Truncated || result.StderrScalar.RetainedBytes != maxDiagnosticBytes || !result.StderrScalar.Truncated || len(result.Stdout) != protocol.MaxResponseBytes {
 		t.Fatalf("oversized nonzero process = %+v stdout=%d", result, len(result.Stdout))
 	}
@@ -206,7 +206,7 @@ func TestOwnedProcessAlreadyCanceledDoesNotStart(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			ready := filepath.Join(t.TempDir(), "must-not-start")
 			command := helperCommand("ignore", map[string]string{"GODJ_HELPER_READY": ready})
-			result := processBackend{}.Execute(test.context(), test.interrupt(), RunnerStage, command)
+			result := NativeBackend{}.Execute(test.context(), test.interrupt(), RunnerStage, command)
 			if result.Failure == nil || result.Failure.Code != test.wantCode || result.Started || result.DirectReaps != 0 || result.SIGINTAttempts != 0 || result.SIGKILLAttempts != 0 {
 				t.Fatalf("pre-canceled process = %+v", result)
 			}
@@ -235,7 +235,7 @@ func TestProcessLaunchFailureUsesStageCategoryAndDoesNotClaimReap(t *testing.T) 
 					return ProcessResult{Started: true, ExitCode: 0}
 				}
 				command.Argv = []string{filepath.Join(fixture.project, "missing-executable")}
-				launched = processBackend{}.Execute(ctx, interrupt, stage, command)
+				launched = NativeBackend{}.Execute(ctx, interrupt, stage, command)
 				return launched
 			})
 			var stdout, stderr bytes.Buffer
@@ -243,7 +243,7 @@ func TestProcessLaunchFailureUsesStageCategoryAndDoesNotClaimReap(t *testing.T) 
 			if launched.Started || launched.DirectReaps != 0 || launched.SIGINTAttempts != 0 || launched.SIGKILLAttempts != 0 || launched.ExitCode != -1 {
 				t.Fatalf("launch failure claimed a child lifecycle: %+v", launched)
 			}
-			if report.ExitCode != 3 || !report.HasFailure || report.Failure != test.want || report.HasResult || report.DirectChildReaps != 0 || report.CleanupFailed != 0 || report.ResidualTemp != 0 || stdout.Len() != 0 || !strings.HasPrefix(stderr.String(), test.want.Category+"/"+test.want.Code+"\n") {
+			if report.ExitCode != 3 || !report.HasFailure || report.Failure != test.want || report.HasResult || report.DirectChildReaps != report.CompatibilityChecks || report.CleanupFailed != 0 || report.ResidualTemp != 0 || stdout.Len() != 0 || !strings.HasPrefix(stderr.String(), test.want.Category+"/"+test.want.Code+"\n") {
 				t.Fatalf("stage failure = %+v stdout=%q stderr=%q", report, stdout.String(), stderr.String())
 			}
 		})
@@ -258,7 +258,7 @@ func TestOwnedProcessReadyInterruptWinsConcurrentCancellation(t *testing.T) {
 	interrupt := make(chan struct{})
 	done := make(chan ProcessResult, 1)
 	go func() {
-		done <- processBackend{}.Execute(ctx, interrupt, RunnerStage, helperCommand("ignore", map[string]string{"GODJ_HELPER_READY": ready}))
+		done <- NativeBackend{}.Execute(ctx, interrupt, RunnerStage, helperCommand("ignore", map[string]string{"GODJ_HELPER_READY": ready}))
 	}()
 	waitForFile(t, ready)
 	close(interrupt)
@@ -349,7 +349,7 @@ func TestOwnedProcessCancellationSignalsGroupEscalatesAndReaps(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan ProcessResult, 1)
-	go func() { done <- processBackend{}.Execute(ctx, nil, RunnerStage, command) }()
+	go func() { done <- NativeBackend{}.Execute(ctx, nil, RunnerStage, command) }()
 	waitForFile(t, ready)
 	started := time.Now()
 	cancel()
@@ -368,7 +368,7 @@ func TestOwnedProcessCancelAfterDirectReapClosesDescendantHeldPipes(t *testing.T
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan ProcessResult, 1)
-	go func() { done <- processBackend{}.Execute(ctx, nil, RunnerStage, command) }()
+	go func() { done <- NativeBackend{}.Execute(ctx, nil, RunnerStage, command) }()
 	waitForFile(t, ready)
 	descendantBytes, err := os.ReadFile(ready)
 	if err != nil {

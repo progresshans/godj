@@ -297,6 +297,8 @@ func WriteResponse(writer io.Writer, response Response) error {
 // ExitCode maps only closed public taxonomy values.
 func ExitCode(failure Failure) (int, bool) {
 	switch failure.Category {
+	case failurecode.CategoryCompatibility:
+		return failurecode.Compatibility(failure.Code)
 	case CategoryCommand:
 		return failurecode.Exact(failure.Code, 2, CodeInvalidArguments)
 	case CategorySelection:
@@ -337,7 +339,7 @@ func IsLinkedFailure(failure Failure) bool {
 		return false
 	}
 	switch failure.Category {
-	case CategoryCommand, CategorySelection, CategoryBuild, CategoryProcess:
+	case CategoryCommand, CategorySelection, CategoryBuild, CategoryProcess, failurecode.CategoryCompatibility:
 		return false
 	case CategoryProtocol:
 		return !failure.CleanupFailed && (failure.Code == CodeInvalidRequest || failure.Code == CodeProtocolIncompatible)

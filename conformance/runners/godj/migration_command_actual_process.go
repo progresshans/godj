@@ -95,12 +95,17 @@ func newMigrationCommandActualProject() (migrationCommandProject, error) {
 	mainSource := []byte(`package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
+ "context"
 	"os"
 
 	"github.com/progresshans/godj/conformance/runners/godj/migrationcommandworker"
 )
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	os.Exit(migrationcommandworker.Main())
 }
 `)
@@ -137,6 +142,7 @@ func (project migrationCommandProject) runActual(
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	report := productcheck.RunMigrate(productcheck.MigrateInvocation{
+		Backend:     productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
 		Context:     phaseContext,
 		CWD:         project.root,
 		Args:        []string{"migrate"},
@@ -221,7 +227,7 @@ func migrationCommandActualSuccess(execution migrationCommandActualExecution) er
 	if report.ExitCode != 0 || !report.HasMigrateResult || report.HasMigrateFailure ||
 		marshalErr != nil || !bytes.Equal(execution.stdout, wantStdout) || len(execution.stderr) != 0 ||
 		report.BuildCalls != 1 || report.RunnerCalls != 1 ||
-		report.DirectChildReaps != 2 || report.GroupSIGINTAttempts != 0 ||
+		report.DirectChildReaps != 3 || report.CompatibilityChecks != 1 || report.GroupSIGINTAttempts != 0 ||
 		report.GroupSIGKILLAttempts != 0 || report.TempCreated != 1 ||
 		report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 ||
 		report.RunnerResponseWrites != 1 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 ||
@@ -251,7 +257,7 @@ func migrationCommandActualFailure(
 	if report.ExitCode == 0 || report.HasMigrateResult || !report.HasMigrateFailure ||
 		report.MigrateFailure.Category != category || report.MigrateFailure.Code != code ||
 		len(execution.stdout) != 0 || !bytes.Equal(execution.stderr, wantStderr) ||
-		report.BuildCalls != 1 || report.RunnerCalls != 1 || report.DirectChildReaps != 2 ||
+		report.BuildCalls != 1 || report.RunnerCalls != 1 || report.DirectChildReaps != 3 || report.CompatibilityChecks != 1 ||
 		report.GroupSIGINTAttempts != wantSIGINT || report.GroupSIGKILLAttempts != wantSIGKILL ||
 		report.TempCreated != 1 || report.TempCleanupAttempts != 1 ||
 		report.CleanupFailed != 0 || report.ResidualTemp != 0 ||

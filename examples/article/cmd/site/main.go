@@ -14,6 +14,7 @@ import (
 
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
+	"github.com/progresshans/godj/project/compatibility"
 	projectserver "github.com/progresshans/godj/project/server"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
@@ -57,6 +58,9 @@ func runWithListener(
 	listen listenFunc,
 	openBackend backendOpener,
 ) error {
+	if handled, err := compatibility.Serve(ctx, arguments, stdout); handled {
+		return err
+	}
 	if ctx == nil {
 		return errors.New("article site: nil context")
 	}

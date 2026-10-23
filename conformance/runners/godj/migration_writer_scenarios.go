@@ -184,6 +184,8 @@ func (backend *migrationWriterBackend) Execute(
 	command productcheck.Command,
 ) productcheck.ProcessResult {
 	switch stage {
+	case productcheck.CompatibilityStage:
+		return commandFixtureCompatibility()
 	case productcheck.MakemigrationsInventoryStage:
 		document := append([]byte(nil), backend.project.inventory...)
 		return productcheck.ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: document, StdoutScalar: productcheck.StreamScalar{RetainedBytes: len(document)}}

@@ -60,7 +60,7 @@ func TestGlobalSQLMigrateExternalPhaseDProduct(t *testing.T) {
 		author := project.runExplicit(t, authorState, authorEnvironment, "authors", "0001_author")
 		sqlProductAssertSuccess(t, author, sqlProductPostgresAuthorOutput, project.sensitive(authorState)...)
 		authorAttempts := project.assertNoPostgresConnectionAttempts(t)
-		sqlProductAssertMarker(t, authorState.initMarker, "init")
+		sqlProductAssertMarker(t, authorState.initMarker, "init", 2)
 		sqlProductAssertMarker(t, authorState.rendererMarker, "render")
 
 		enrichState := project.state(t, "postgres-add-fields")
@@ -69,7 +69,7 @@ func TestGlobalSQLMigrateExternalPhaseDProduct(t *testing.T) {
 		enrich := project.runExplicit(t, enrichState, enrichEnvironment, "blog", "0002_enrich")
 		sqlProductAssertSuccess(t, enrich, sqlProductPostgresEnrichOutput, project.sensitive(enrichState)...)
 		enrichAttempts := project.assertNoPostgresConnectionAttempts(t)
-		sqlProductAssertMarker(t, enrichState.initMarker, "init")
+		sqlProductAssertMarker(t, enrichState.initMarker, "init", 2)
 		sqlProductAssertMarker(t, enrichState.rendererMarker, "render")
 		observed := [3]int64{baselineAttempts, authorAttempts, enrichAttempts}
 		if observed != ([3]int64{}) {
@@ -98,7 +98,7 @@ func TestGlobalSQLMigrateExternalPhaseDProduct(t *testing.T) {
 		if len(result.stdout) != 0 {
 			t.Fatalf("interrupted sqlmigrate stdout bytes = %d, want 0", len(result.stdout))
 		}
-		sqlProductAssertMarker(t, state.initMarker, "init")
+		sqlProductAssertMarker(t, state.initMarker, "init", 2)
 		sqlProductAssertMarker(t, state.rendererMarker, "render_wait")
 	})
 
@@ -134,7 +134,7 @@ func TestSQLProductRunnerPipelineExecutionControls(t *testing.T) {
 			state := variant.state(t, "private-refactoring")
 			result := variant.runExplicit(t, state, variant.postgresEnvironment(state), "authors", "0001_author")
 			sqlProductAssertSuccess(t, result, sqlProductPostgresAuthorOutput, variant.sensitive(state)...)
-			sqlProductAssertMarker(t, state.initMarker, "init")
+			sqlProductAssertMarker(t, state.initMarker, "init", 2)
 			sqlProductAssertMarker(t, state.rendererMarker, "render")
 		})
 	})
@@ -156,7 +156,7 @@ func TestSQLProductRunnerPipelineExecutionControls(t *testing.T) {
 					}
 					result := variant.runExplicit(t, state, environment, "authors", "0001_author")
 					sqlProductAssertSuccess(t, result, strings.ReplaceAll(want, "VARCHAR(100)", "VARCHAR(137)"), variant.sensitive(state)...)
-					sqlProductAssertMarker(t, state.initMarker, "init")
+					sqlProductAssertMarker(t, state.initMarker, "init", 2)
 					sqlProductAssertMarker(t, state.rendererMarker, "render")
 				})
 			}
@@ -177,13 +177,13 @@ func TestSQLProductRunnerPipelineExecutionControls(t *testing.T) {
 			state := variant.state(t, "fixed-baseline")
 			result := variant.runExplicit(t, state, variant.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite), "authors", "0001_author")
 			sqlProductAssertSuccess(t, result, sqlProductAuthorOutput, variant.sensitive(state)...)
-			sqlProductAssertMarker(t, state.initMarker, "init")
+			sqlProductAssertMarker(t, state.initMarker, "init", 2)
 			sqlProductAssertMarker(t, state.rendererMarker, "render")
 		})
 		project.withRunnerSource(t, strings.Replace(stub, "MaxLength: 100", "MaxLength: 137", 1), func(variant *sqlProductProject) {
 			state := variant.state(t, "changed-fixed-baseline")
 			result := variant.runExplicit(t, state, variant.environment(state, sqlProductCatalogFull, sqlProductRendererSQLite), "authors", "0001_author")
-			sqlProductAssertMarker(t, state.initMarker, "init")
+			sqlProductAssertMarker(t, state.initMarker, "init", 2)
 			sqlProductAssertMarker(t, state.rendererMarker, "render")
 			// Confirm this is the intended valid-but-stale output, not an
 			// unrelated compile, protocol, renderer or process failure.
@@ -225,7 +225,7 @@ func TestGlobalSQLMigrateExternalOperationGroups(t *testing.T) {
 				} else {
 					sqlProductAssertSuccess(t, result, sqlProductAuthorOutput+extra+";\n", variant.sensitive(state)...)
 				}
-				sqlProductAssertMarker(t, state.initMarker, "init")
+				sqlProductAssertMarker(t, state.initMarker, "init", 2)
 				sqlProductAssertMarker(t, state.rendererMarker, "render")
 			})
 		})
@@ -331,7 +331,7 @@ func (hardcodedRenderer) RenderForwardMigrationSQL(context.Context, backend.Forw
 					want = sqlProductPostgresAuthorOutput
 				}
 				result := variant.runExplicit(t, state, environment, "authors", "0001_author")
-				sqlProductAssertMarker(t, state.initMarker, "init")
+				sqlProductAssertMarker(t, state.initMarker, "init", 2)
 				if result.matchesSuccess(want) {
 					t.Fatal("actual pipeline contract accepted a runner bypass")
 				}

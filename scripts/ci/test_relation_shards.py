@@ -117,6 +117,7 @@ class RelationShardTest(unittest.TestCase):
         self.assertEqual(actual, matrix())
         split = {(runner, 'race') for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm', 'macos-15-intel', 'macos-26')}
         split.update((runner, mode) for runner in ('macos-15-intel', 'macos-26') for mode in ('normal', 'cgo0'))
+        split.add(('ubuntu-24.04', 'normal'))
         seen = {}
         for row in actual['include']:
             coordinate = (row['platform']['runs_on'], row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode'])

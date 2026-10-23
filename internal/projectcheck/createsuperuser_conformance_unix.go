@@ -5,12 +5,14 @@ package projectcheck
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
+	"github.com/progresshans/godj/project/compatibility"
 )
 
 // CreatesuperuserOwnershipConformanceInput is the narrow in-process adapter
@@ -18,6 +20,7 @@ import (
 // implementation. It is internal to this module and is not a product command
 // extension point.
 type CreatesuperuserOwnershipConformanceInput struct {
+	ToolInfo                compatibility.Info
 	Context                 context.Context
 	Username                []byte
 	Password                []byte
@@ -56,7 +59,7 @@ func RunCreatesuperuserOwnershipConformance(
 	defer clear(username)
 	defer clear(password)
 
-	backend := &createsuperuserOwnershipConformanceBackend{}
+	backend := &createsuperuserOwnershipConformanceBackend{info: input.ToolInfo}
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	var privateErr error
@@ -142,7 +145,7 @@ func RunCreatesuperuserOwnershipConformance(
 	if privateErr != nil {
 		return report, fmt.Errorf("createsuperuser ownership conformance: private execution: %w", privateErr)
 	}
-	if backend.calls != 1 || backend.unexpectedStage || !report.HasCreatesuperuserResult ||
+	if backend.calls != 2 || report.CompatibilityChecks != 1 || backend.unexpectedStage || !report.HasCreatesuperuserResult ||
 		report.HasCreatesuperuserFailure || !report.KnownCreated || report.ExitCode != 0 {
 		return report, fmt.Errorf("createsuperuser ownership conformance: global orchestration drifted: %+v", report)
 	}
@@ -155,6 +158,7 @@ func RunCreatesuperuserOwnershipConformance(
 }
 
 type createsuperuserOwnershipConformanceBackend struct {
+	info            compatibility.Info
 	calls           int
 	unexpectedStage bool
 }
@@ -166,8 +170,19 @@ func (backend *createsuperuserOwnershipConformanceBackend) Execute(
 	_ Command,
 ) ProcessResult {
 	backend.calls++
+	if stage == CompatibilityStage {
+		data, err := json.Marshal(backend.info)
+		if err != nil {
+			return ProcessResult{ExitCode: 1}
+		}
+		return ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: data, StdoutScalar: StreamScalar{RetainedBytes: len(data)}}
+	}
 	if stage != BuildStage {
 		backend.unexpectedStage = true
 	}
 	return ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
+}
+
+func (backend *createsuperuserOwnershipConformanceBackend) ToolInfo() compatibility.Info {
+	return backend.info
 }

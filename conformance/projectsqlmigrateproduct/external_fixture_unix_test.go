@@ -54,6 +54,7 @@ var sqlProductAllowedGoDjImports = map[string]struct{}{
 	"github.com/progresshans/godj/migrations/backend":    {},
 	"github.com/progresshans/godj/migrations/definition": {},
 	"github.com/progresshans/godj/project":               {},
+	"github.com/progresshans/godj/project/compatibility": {},
 	"github.com/progresshans/godj/schema/ir":             {},
 }
 
@@ -704,25 +705,38 @@ func sqlProductAssertRedacted(t *testing.T, result sqlProductResult, sensitive .
 	}
 }
 
-func sqlProductAssertMarker(t *testing.T, path, want string) int {
+func sqlProductAssertMarker(t *testing.T, path, want string, count ...int) int {
 	t.Helper()
+	expected := 1
+	if len(count) > 1 {
+		t.Fatal("ambiguous marker count")
+	}
+	if len(count) == 1 {
+		expected = count[0]
+	}
 	document, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	lines := strings.Split(strings.TrimSuffix(string(document), "\n"), "\n")
-	if len(lines) != 1 {
-		t.Fatalf("marker %s has %d lines, want 1", filepath.Base(path), len(lines))
+	if len(lines) != expected {
+		t.Fatalf("marker %s has %d lines, want %d", filepath.Base(path), len(lines), expected)
 	}
-	pidText, event, ok := strings.Cut(lines[0], "\t")
-	pid, parseErr := strconv.Atoi(pidText)
-	if !ok || parseErr != nil || pid <= 1 || event != want {
-		t.Fatalf("marker %s = %q, want one %q event", filepath.Base(path), lines[0], want)
+	seen := make(map[int]bool, expected)
+	last := 0
+	for _, line := range lines {
+		pidText, event, ok := strings.Cut(line, "\t")
+		pid, parseErr := strconv.Atoi(pidText)
+		if !ok || parseErr != nil || pid <= 1 || event != want || seen[pid] {
+			t.Fatalf("marker %s = %q, want distinct %q processes", filepath.Base(path), line, want)
+		}
+		if err := testprocess.WaitAbsent([]int{pid}, 2*time.Second); err != nil {
+			t.Fatalf("project process group was not reaped: %v", err)
+		}
+		seen[pid] = true
+		last = pid
 	}
-	if err := testprocess.WaitAbsent([]int{pid}, 2*time.Second); err != nil {
-		t.Fatalf("project runner process group was not reaped: %v", err)
-	}
-	return pid
+	return last
 }
 
 func sqlProductWaitMarkerEvent(path, want string, done <-chan struct{}, timeout time.Duration) (int, error) {
@@ -880,6 +894,9 @@ func sqlProductAuditRunnerPipeline(document []byte) error {
 			if call == "github.com/progresshans/godj/project.Run" && len(value.Args) == 5 {
 				streams[value.Args[3]] = binding(value.Args[3]) == "os.Stdin"
 				streams[value.Args[4]] = binding(value.Args[4]) == "os.Stdout"
+			}
+			if call == "github.com/progresshans/godj/project/compatibility.Serve" && len(value.Args) == 3 {
+				streams[value.Args[2]] = binding(value.Args[2]) == "os.Stdout"
 			}
 			if call == "os.OpenFile" {
 				// Marker descriptors are write-only; they cannot read oracle files.

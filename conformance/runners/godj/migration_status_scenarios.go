@@ -246,6 +246,8 @@ func (owner *migrationStatusProcessBackend) Execute(
 	command productcheck.Command,
 ) productcheck.ProcessResult {
 	switch stage {
+	case productcheck.CompatibilityStage:
+		return commandFixtureCompatibility()
 	case productcheck.BuildStage:
 		owner.trace.record("build")
 		return productcheck.ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}

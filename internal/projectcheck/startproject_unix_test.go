@@ -135,6 +135,9 @@ func TestStartProjectBuildFailurePreservesExistingFilesAndCleansCandidate(t *tes
 type startProjectBackendFunc func(context.Context, <-chan struct{}, ProcessStage, Command) ProcessResult
 
 func (call startProjectBackendFunc) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	return call(ctx, interrupt, stage, command)
 }
 

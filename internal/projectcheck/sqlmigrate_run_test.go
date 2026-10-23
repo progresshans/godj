@@ -31,6 +31,9 @@ func (backend *sqlMigrateScriptedBackend) Execute(
 ) ProcessResult {
 	backend.stages = append(backend.stages, stage)
 	backend.commands = append(backend.commands, cloneCommand(command))
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	if stage == BuildStage {
 		return backend.build
 	}
@@ -97,7 +100,7 @@ func TestRunSQLMigrateUsesSeparateProtocolAndCanonicalSinglePublication(t *testi
 	if report.ExitCode != 0 || report.HasSQLMigrateFailure || !report.HasSQLMigrateResult ||
 		report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 ||
 		report.RunnerStdoutRetainedBytes != len(wire) || report.RunnerStdoutTruncated ||
-		report.DirectChildReaps != 2 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 ||
+		report.DirectChildReaps != 3 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 ||
 		report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 ||
 		report.ResidualTemp != 0 || !report.RawDiagnosticsDiscarded {
 		t.Fatalf("sqlmigrate success report = %+v", report)
@@ -106,10 +109,10 @@ func TestRunSQLMigrateUsesSeparateProtocolAndCanonicalSinglePublication(t *testi
 	if stdout.String() != want || stderr.Len() != 0 {
 		t.Fatalf("public output stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
-	if !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, SQLMigrateRunnerStage}) || len(backend.commands) != 2 {
+	if !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, CompatibilityStage, SQLMigrateRunnerStage}) || len(backend.commands) != 3 {
 		t.Fatalf("stages=%v commands=%d", backend.stages, len(backend.commands))
 	}
-	runner := backend.commands[1]
+	runner := backend.commands[2]
 	wantRequest, err := sqlmigrateprotocol.EncodeRequest(sqlmigrateprotocol.Request{App: "blog", Name: "0001_article"})
 	if err != nil {
 		t.Fatal(err)

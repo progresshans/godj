@@ -34,8 +34,8 @@ cd ../my-site
 생성된 `README.md`가 모델 선언·Admin/API 노출·DB 설정과 변경 후 명령을 설명한다. 업무 모델을 추가해도 모든 field를
 자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
 Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
-일반 command의 현재 사용은 아래를 따르며, 모든 진입점의 설치 호환성 검사·reload는
-[C1](../work/0137-project-core-startup.md)의 남은 구현이다.
+일반 command의 현재 사용은 아래를 따른다. 모든 프로젝트 명령은 실행 전 호환성 검사를 사용한다.
+독립 고정 module 조합의 실행과 reload는 [C1](../work/0137-project-core-startup.md)에 남아 있다.
 이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
 
 `godj startapp LABEL [DIRECTORY]`는 `modeldef/schema.go`와 등록 안내를 새 디렉터리에 만든다.
@@ -66,7 +66,9 @@ manager로 저장된 그룹 수를 읽는다. 새 명령은 [`project/command`](
 
 Custom command는 실행 사용자의 OS/DB 권한을 사용한다. HTTP의 현재 사용자·인가·CSRF를 암묵적으로 부여하거나 생략하지 않는다.
 명령의 비정상 종료·출력 실패·cleanup 실패는 이미 저장된 데이터의 rollback을 뜻하지 않으며 자동 재시도하지 않는다.
-공통 호환성 진단의 기존 변경/server 명령 적용·고정 module 설치 및 독립 Django 대조는 C1에서 계속한다.
+기존 generate·migration 명령은 선언 runner를, runserver는 선언/HTTP runtime을 같은 기준으로 검사한다.
+초기 사용자 생성은 terminal 확인과 비밀번호 입력 전에 검사를 마친다. Entry point는 설정을 읽기 전에
+`compatibility.Serve`를 호출하며 resource를 package `init`에서 열지 않는다. 고정 module 설치와 독립 Django 대조는 C1에서 계속한다.
 
 ## 모델에서 query까지
 

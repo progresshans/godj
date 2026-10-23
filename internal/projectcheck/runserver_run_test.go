@@ -23,11 +23,20 @@ type runserverSequenceBackend struct {
 	commands []Command
 	stages   []ProcessStage
 	results  []ProcessResult
+	probes   []ProcessResult
 }
 
 func (backend *runserverSequenceBackend) Execute(_ context.Context, _ <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
 	backend.stages = append(backend.stages, stage)
 	backend.commands = append(backend.commands, cloneCommand(command))
+	if stage == CompatibilityStage {
+		if len(backend.probes) > 0 {
+			result := backend.probes[0]
+			backend.probes = backend.probes[1:]
+			return result
+		}
+		return fixtureCompatibilityProcess()
+	}
 	if len(backend.results) == 0 {
 		return ProcessResult{}
 	}
@@ -171,16 +180,16 @@ func TestRunServerUsesOneSelectionTwoPreflightsAndAmbientRuntimeEnvironment(t *t
 			return runserverProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Interrupted: true}
 		}},
 	})
-	if report.ExitCode != 0 || !report.HasRunServerResult || report.HasRunServerFailure || report.RunServerResult.Address != "127.0.0.1:0" || report.BuildCalls != 2 || report.RunnerCalls != 1 || report.RuntimeBuildCalls != 1 || report.RuntimeStartCalls != 1 || report.PreflightChecks != 2 || checks != 2 || report.DirectChildReaps != 4 || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
+	if report.ExitCode != 0 || !report.HasRunServerResult || report.HasRunServerFailure || report.RunServerResult.Address != "127.0.0.1:0" || report.BuildCalls != 2 || report.RunnerCalls != 1 || report.RuntimeBuildCalls != 1 || report.RuntimeStartCalls != 1 || report.PreflightChecks != 2 || checks != 2 || report.DirectChildReaps != 6 || report.CompatibilityChecks != 2 || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
 		t.Fatalf("successful runserver=%+v checks=%d", report, checks)
 	}
 	if stdout.String() != "runtime-ready\n" || stderr.Len() != 0 {
 		t.Fatalf("runtime output stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
-	if len(backend.commands) != 3 || !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, GenerationRunnerStage, BuildStage}) {
+	if len(backend.commands) != 5 || !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, CompatibilityStage, GenerationRunnerStage, BuildStage, CompatibilityStage}) {
 		t.Fatalf("short process stages=%v commands=%+v", backend.stages, backend.commands)
 	}
-	declarationBuild, runner, runtimeBuild := backend.commands[0], backend.commands[1], backend.commands[2]
+	declarationBuild, runner, runtimeBuild := backend.commands[0], backend.commands[2], backend.commands[3]
 	if declarationBuild.Dir != fixture.project || declarationBuild.Argv[len(declarationBuild.Argv)-1] != "./cmd/site" || runtimeBuild.Dir != fixture.project || runtimeBuild.Argv[len(runtimeBuild.Argv)-1] != "./cmd/runtime" {
 		t.Fatalf("build commands declaration=%+v runtime=%+v", declarationBuild, runtimeBuild)
 	}

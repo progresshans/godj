@@ -3,6 +3,7 @@
 package compatibility
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -80,6 +81,13 @@ func Serve(ctx context.Context, argv []string, stdout io.Writer) (handled bool, 
 }
 
 func Parse(document []byte) (Info, error) {
+	// Serve and json.Encoder terminate one canonical object with one LF.
+	// Only that framing byte is optional; arbitrary whitespace and extra
+	// documents still fail the canonical decoder below.
+	if len(document) > MaxBytes {
+		return Info{}, errors.New("compatibility: invalid response")
+	}
+	document = bytes.TrimSuffix(document, []byte{'\n'})
 	if err := wirejson.Scan(document, wirejson.Limits{Bytes: MaxBytes, Containers: 4, Values: 64, ObjectKeys: 32, StringBytes: 1024, KeyBytes: 64, RejectArrays: true, RejectNull: true}); err != nil {
 		return Info{}, errors.New("compatibility: invalid response")
 	}

@@ -7,6 +7,7 @@ import (
 	"io"
 
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	"github.com/progresshans/godj/project/compatibility"
 )
 
 const (
@@ -26,34 +27,40 @@ type Result = protocol.Result
 // Linked loader and discovery observations live in linked.Report and are
 // combined only by the conformance adapter.
 type Report struct {
-	BuildCalls                   int
-	RunnerCalls                  int
-	AncestorDirectoriesInspected int
-	DescriptorReads              int
-	UserStdoutWrites             int
-	UserStderrWrites             int
-	PartialStdoutWrites          int
-	RunnerResponseWrites         int
-	ExitCode                     int
-	HasResult                    bool
-	Result                       Result
-	HasFailure                   bool
-	Failure                      Failure
-	TempCreated                  int
-	TempCleanupAttempts          int
-	CleanupFailed                int
-	ResidualTemp                 int
-	DirectChildReaps             int
-	GroupSIGINTAttempts          int
-	GroupSIGKILLAttempts         int
-	BuildStdoutRetainedBytes     int
-	BuildStdoutTruncated         bool
-	BuildStderrRetainedBytes     int
-	BuildStderrTruncated         bool
-	RunnerStderrRetainedBytes    int
-	RunnerStderrTruncated        bool
-	RawDiagnosticsDiscarded      bool
-	BuildDiagnostic              string
+	CompatibilityChecks              int
+	CompatibilityResponseWrites      int
+	CompatibilityStdoutRetainedBytes int
+	CompatibilityStdoutTruncated     bool
+	CompatibilityStderrRetainedBytes int
+	CompatibilityStderrTruncated     bool
+	BuildCalls                       int
+	RunnerCalls                      int
+	AncestorDirectoriesInspected     int
+	DescriptorReads                  int
+	UserStdoutWrites                 int
+	UserStderrWrites                 int
+	PartialStdoutWrites              int
+	RunnerResponseWrites             int
+	ExitCode                         int
+	HasResult                        bool
+	Result                           Result
+	HasFailure                       bool
+	Failure                          Failure
+	TempCreated                      int
+	TempCleanupAttempts              int
+	CleanupFailed                    int
+	ResidualTemp                     int
+	DirectChildReaps                 int
+	GroupSIGINTAttempts              int
+	GroupSIGKILLAttempts             int
+	BuildStdoutRetainedBytes         int
+	BuildStdoutTruncated             bool
+	BuildStderrRetainedBytes         int
+	BuildStderrTruncated             bool
+	RunnerStderrRetainedBytes        int
+	RunnerStderrTruncated            bool
+	RawDiagnosticsDiscarded          bool
+	BuildDiagnostic                  string
 }
 
 // Invocation is the invocation-local input to the global product kernel.
@@ -122,6 +129,9 @@ type ProcessResult struct {
 // children or an in-process conformance adapter. Global and linked packages do
 // not import one another.
 type Backend interface {
+	// ToolInfo identifies this launcher's framework. The CLI supplies compiler
+	// metadata; in-process adapters must supply their explicit identity.
+	ToolInfo() compatibility.Info
 	Execute(context.Context, <-chan struct{}, ProcessStage, Command) ProcessResult
 }
 

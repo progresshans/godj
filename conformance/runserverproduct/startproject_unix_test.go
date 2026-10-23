@@ -60,6 +60,9 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 	if _, err := os.Lstat(filepath.Join(project, "site.sqlite3")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("startproject performed database I/O", err)
 	}
+	t.Run("compatibility before configuration and data I/O", func(t *testing.T) {
+		exerciseStartupCompatibilityBeforeIO(t, global, project, workspace, environment)
+	})
 	for _, args := range [][]string{{"commands"}, {"help", "count-groups"}, {"check"}} {
 		checked := run(t, project, args...)
 		if checked.ExitCode != 0 || checked.Stderr != "" {

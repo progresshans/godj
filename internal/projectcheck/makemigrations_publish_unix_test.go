@@ -45,6 +45,8 @@ func (backend *liveMakemigrationsBackend) Execute(
 	_ Command,
 ) ProcessResult {
 	switch stage {
+	case CompatibilityStage:
+		return fixtureCompatibilityProcess()
 	case MakemigrationsInventoryStage:
 		document := append([]byte(nil), backend.inventory...)
 		return ProcessResult{

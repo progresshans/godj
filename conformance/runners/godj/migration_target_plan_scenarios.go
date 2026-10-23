@@ -574,6 +574,9 @@ func (owner *migrationTargetPlanProcessOwner) Execute(
 		Dir: command.Dir, Argv: append([]string(nil), command.Argv...), Env: append([]string(nil), command.Env...), Stdin: append([]byte(nil), command.Stdin...),
 	})
 	owner.mu.Unlock()
+	if stage == productcheck.CompatibilityStage {
+		return commandFixtureCompatibility()
+	}
 	if stage == productcheck.BuildStage {
 		return productcheck.ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
 	}
@@ -1531,7 +1534,7 @@ func migrationTargetPlanActualOwnership(
 		overflow.report.RunnerCalls != 1 || overflow.report.RunnerResponseWrites != 1 ||
 		overflow.report.RunnerStdoutRetainedBytes != migrateprotocol.MaxResponseBytes || !overflow.report.RunnerStdoutTruncated ||
 		overflow.report.UserStdoutWrites != 0 || overflow.report.UserStderrWrites != 1 ||
-		overflow.report.DirectChildReaps != 2 || len(overflow.stdout) != 0 ||
+		overflow.report.DirectChildReaps != 3 || len(overflow.stdout) != 0 ||
 		!bytes.Equal(overflow.stderr, []byte(migrateprotocol.CategoryProtocol+"/"+migrateprotocol.CodeInvalidResponse+"\n")) {
 		return migrationTargetPlanActualOwnershipEvidence{}, fmt.Errorf(
 			"target-plan actual response overflow = bytes:%d report:%+v stdout:%d stderr:%q",
@@ -1585,7 +1588,7 @@ func migrationTargetPlanActualOwnership(
 	}
 	if stderrBytes != len(migrationTargetPlanSecret) || stderrDigest != hex.EncodeToString(wantStderrDigest[:]) || stderr.report.ExitCode != 0 ||
 		!stderr.report.HasMigratePlan || stderr.report.HasMigrateResult || stderr.report.HasMigrateFailure ||
-		stderr.report.BuildCalls != 1 || stderr.report.RunnerCalls != 1 || stderr.report.DirectChildReaps != 2 ||
+		stderr.report.BuildCalls != 1 || stderr.report.RunnerCalls != 1 || stderr.report.DirectChildReaps != 3 ||
 		stderr.report.RunnerStdoutRetainedBytes != len(privatePlan) || stderr.report.RunnerStdoutTruncated ||
 		stderr.report.RunnerStderrRetainedBytes != stderrBytes || stderr.report.RunnerStderrTruncated ||
 		!stderr.report.RawDiagnosticsDiscarded || stderr.report.UserStdoutWrites != 1 || stderr.report.UserStderrWrites != 0 ||
@@ -1670,7 +1673,7 @@ func migrationTargetPlanRunActualCancellation(
 	remaining = 0
 	if execution.report.MigrateFailure != (migrateprotocol.Failure{Category: migrateprotocol.CategoryProcess, Code: migrateprotocol.CodeProjectCanceled}) ||
 		!execution.report.HasMigrateFailure || execution.report.HasMigratePlan || execution.report.HasMigrateResult ||
-		execution.report.BuildCalls != 1 || execution.report.RunnerCalls != 1 || execution.report.DirectChildReaps != 2 ||
+		execution.report.BuildCalls != 1 || execution.report.RunnerCalls != 1 || execution.report.DirectChildReaps != 3 ||
 		execution.report.GroupSIGINTAttempts != 1 || execution.report.GroupSIGKILLAttempts != wantSIGKILL ||
 		execution.report.CleanupFailed != 0 || execution.report.ResidualTemp != 0 ||
 		execution.report.UserStdoutWrites != 0 || execution.report.UserStderrWrites != 1 || len(execution.stdout) != 0 ||
@@ -1713,6 +1716,7 @@ func migrationTargetPlanRunActual(
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	report := productcheck.RunMigrate(productcheck.MigrateInvocation{
+		Backend: productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
 		Context: phaseContext, CWD: project.root, Args: []string{"migrate", "--plan"}, Environment: entries,
 		Stdout: &stdout, Stderr: &stderr,
 	})
@@ -1752,6 +1756,8 @@ func migrationTargetPlanActualMarkerField(document []byte) string {
 const migrationTargetPlanActualRunnerSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
+ "context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -1773,6 +1779,9 @@ const (
 )
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	switch os.Getenv(modeEnvironment) {
 	case "cancellation":
 		blockForCancellation("target-plan-cancel", false)
@@ -1980,7 +1989,7 @@ func migrationTargetPlanOwnership(ctx context.Context, contract protocol.Contrac
 		protocol.Object(map[string]protocol.Value{
 			"case": protocol.String("cancellation_cleanup"), "category": protocol.String(actual.cancellation.report.MigrateFailure.Category),
 			"child_started": protocol.Boolean(actual.cancellationRunnerPID > 0 && actual.cancellationChildPID > 0), "cleanup_failed": protocol.Boolean(actual.cancellation.report.CleanupFailed != 0),
-			"code": protocol.String(actual.cancellation.report.MigrateFailure.Code), "direct_reaps": migrationTargetPlanInt(actual.cancellation.report.DirectChildReaps - actual.cancellation.report.BuildCalls),
+			"code": protocol.String(actual.cancellation.report.MigrateFailure.Code), "direct_reaps": migrationTargetPlanInt(actual.cancellation.report.DirectChildReaps - actual.cancellation.report.BuildCalls - actual.cancellation.report.CompatibilityChecks),
 			"mode": protocol.String(string(migrateprotocol.ModePlan)), "partial_response_republished": protocol.Boolean(actual.cancellation.report.UserStdoutWrites != 0),
 			"process_group_terminations": migrationTargetPlanInt(actual.cancellation.report.GroupSIGINTAttempts + actual.cancellation.report.GroupSIGKILLAttempts),
 			"process_groups_remaining":   migrationTargetPlanInt(canceledGroupsRemaining), "public_plan_published": protocol.Boolean(actual.cancellation.report.HasMigratePlan),
@@ -1991,7 +2000,7 @@ func migrationTargetPlanOwnership(ctx context.Context, contract protocol.Contrac
 			"case": protocol.String("partial_output_non_publication"), "category": protocol.String(partial.report.MigrateFailure.Category),
 			"child_started": protocol.Boolean(partial.report.RunnerCalls == 1), "cleanup_failed": protocol.Boolean(partial.report.CleanupFailed != 0),
 			"code": protocol.String(partial.report.MigrateFailure.Code), "complete_private_documents": migrationTargetPlanInt(0),
-			"direct_reaps": migrationTargetPlanInt(partial.report.DirectChildReaps - partial.report.BuildCalls), "mode": protocol.String(string(migrateprotocol.ModePlan)),
+			"direct_reaps": migrationTargetPlanInt(partial.report.DirectChildReaps - partial.report.BuildCalls - partial.report.CompatibilityChecks), "mode": protocol.String(string(migrateprotocol.ModePlan)),
 			"partial_private_chunks": migrationTargetPlanInt(1), "partial_response_republished": protocol.Boolean(partial.report.UserStdoutWrites != 0),
 			"public_plan_published": protocol.Boolean(partial.report.HasMigratePlan),
 		}),
@@ -2060,7 +2069,7 @@ func migrationTargetPlanOwnership(ctx context.Context, contract protocol.Contrac
 		"secret_values_published": migrationTargetPlanInt(rawOccurrences),
 	})
 	metrics := protocol.Object(map[string]protocol.Value{
-		"automatic_retries": migrationTargetPlanInt(0), "cancellation_direct_reaps": migrationTargetPlanInt(actual.cancellation.report.DirectChildReaps - actual.cancellation.report.BuildCalls),
+		"automatic_retries": migrationTargetPlanInt(0), "cancellation_direct_reaps": migrationTargetPlanInt(actual.cancellation.report.DirectChildReaps - actual.cancellation.report.BuildCalls - actual.cancellation.report.CompatibilityChecks),
 		"cancellation_process_group_terminations": migrationTargetPlanInt(actual.cancellation.report.GroupSIGINTAttempts + actual.cancellation.report.GroupSIGKILLAttempts),
 		"legacy_reader_paths":                     migrationTargetPlanInt(0), "ownership_cases": migrationTargetPlanInt(len(ownershipCases)),
 		"partial_responses_republished": migrationTargetPlanInt(0), "raw_secret_occurrences": migrationTargetPlanInt(rawOccurrences),

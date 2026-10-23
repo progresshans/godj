@@ -41,12 +41,12 @@ func TestRunBuildCacheControlNeverLeaksToRuntime(t *testing.T) {
 				runner: ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1, Stdout: wire},
 			}
 			report := Run(Invocation{CWD: fixture.project, Args: []string{"migrations", "check"}, Environment: environment, Backend: backend, Stdout: io.Discard, Stderr: io.Discard})
-			if report.ExitCode != 0 || len(backend.commands) != 2 {
+			if report.ExitCode != 0 || len(backend.commands) != 3 {
 				t.Fatalf("run = %+v", report)
 			}
 			build := environmentValues(backend.commands[0].Env)
-			runner := environmentValues(backend.commands[1].Env)
-			if (build["GOCACHE"] == cache) == cold || runner["GOCACHE"] == cache || !sameOrDescendant(runner["GOCACHE"], filepath.Dir(backend.commands[1].Argv[0])) {
+			runner := environmentValues(backend.commands[2].Env)
+			if (build["GOCACHE"] == cache) == cold || runner["GOCACHE"] == cache || !sameOrDescendant(runner["GOCACHE"], filepath.Dir(backend.commands[2].Argv[0])) {
 				t.Fatalf("cache ownership cold=%v build=%v runner=%v", cold, build, runner)
 			}
 			if _, present := build[gobuild.ColdBuildEnvironment]; present {
@@ -79,6 +79,9 @@ func TestRunPublishesSanitizedBuildCauseInOneWrite(t *testing.T) {
 
 func (backend *scriptedBackend) Execute(_ context.Context, _ <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
 	backend.commands = append(backend.commands, cloneCommand(command))
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	if stage == BuildStage {
 		return backend.build
 	}
@@ -117,14 +120,14 @@ func TestRunSuccessUsesClosedCommandsPrivateEnvironmentAndSinglePublication(t *t
 		Context: context.Background(), CWD: fixture.cwd, Args: []string{"migrations", "check"},
 		Environment: fixture.environment, Stdout: &stdout, Stderr: &stderr, Backend: backend,
 	})
-	if report.ExitCode != 0 || report.HasFailure || !report.HasResult || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 || report.AncestorDirectoriesInspected != 4 || report.DescriptorReads != 1 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 || report.DirectChildReaps != 2 {
+	if report.ExitCode != 0 || report.HasFailure || !report.HasResult || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 || report.AncestorDirectoriesInspected != 4 || report.DescriptorReads != 1 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 || report.DirectChildReaps != 3 {
 		t.Fatalf("success report = %+v", report)
 	}
 	wantOutput := `{"source_count":0,"definition_count":0,"definition_set_digest":"` + protocol.EmptySetDigest + `"}` + "\n"
 	if stdout.String() != wantOutput || stderr.Len() != 0 {
 		t.Fatalf("public output stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
-	if len(backend.commands) != 2 {
+	if len(backend.commands) != 3 {
 		t.Fatalf("commands = %d", len(backend.commands))
 	}
 	build := backend.commands[0]
@@ -132,7 +135,7 @@ func TestRunSuccessUsesClosedCommandsPrivateEnvironmentAndSinglePublication(t *t
 	if !reflect.DeepEqual(build.Argv[:5], wantBuildPrefix) || build.Argv[len(build.Argv)-1] != "./cmd/site" || build.Dir != fixture.project {
 		t.Fatalf("build command = %+v", build)
 	}
-	runner := backend.commands[1]
+	runner := backend.commands[2]
 	if len(runner.Argv) != 2 || runner.Argv[1] != protocol.PrivateArgument || runner.Dir != fixture.project || !bytes.Equal(runner.Stdin, protocol.RequestDocument()) {
 		t.Fatalf("runner command = %+v", runner)
 	}
@@ -321,9 +324,11 @@ func TestRunChecksCancellationImmediatelyBeforeEachStage(t *testing.T) {
 		cancelAt   int
 		wantBuild  int
 		wantRunner int
+		wantProbe  int
 	}{
 		{name: "before build", cancelAt: 4, wantBuild: 0, wantRunner: 0},
-		{name: "before runner", cancelAt: 6, wantBuild: 1, wantRunner: 0},
+		{name: "before metadata", cancelAt: 6, wantBuild: 1, wantRunner: 0},
+		{name: "before runner", cancelAt: 8, wantBuild: 1, wantProbe: 1},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			fixture := newGlobalFixture(t, 0)
@@ -334,7 +339,7 @@ func TestRunChecksCancellationImmediatelyBeforeEachStage(t *testing.T) {
 				Context: ctx, CWD: fixture.project, Args: []string{"migrations", "check"}, Environment: fixture.environment,
 				Stdout: &stdout, Stderr: &stderr, Backend: backend,
 			})
-			if report.ExitCode != 3 || !report.HasFailure || report.Failure.Code != protocol.CodeProjectCanceled || report.BuildCalls != test.wantBuild || report.RunnerCalls != test.wantRunner || len(backend.commands) != test.wantBuild || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 || stdout.Len() != 0 {
+			if report.ExitCode != 3 || !report.HasFailure || report.Failure.Code != protocol.CodeProjectCanceled || report.BuildCalls != test.wantBuild || report.RunnerCalls != test.wantRunner || len(backend.commands) != test.wantBuild+test.wantProbe || report.CompatibilityChecks != test.wantProbe || report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 || stdout.Len() != 0 {
 				t.Fatalf("stage barrier report = %+v commands=%d stdout=%q stderr=%q checks=%d", report, len(backend.commands), stdout.String(), stderr.String(), ctx.checks)
 			}
 		})
@@ -616,6 +621,9 @@ func TestImplicitStableNonRegularDescriptorIsInvalid(t *testing.T) {
 type backendFunc func(context.Context, <-chan struct{}, ProcessStage, Command) ProcessResult
 
 func (function backendFunc) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	return function(ctx, interrupt, stage, command)
 }
 

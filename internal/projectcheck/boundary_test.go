@@ -202,11 +202,14 @@ type actualStageBackend struct {
 }
 
 func (backend *actualStageBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	if stage != backend.stage {
 		return ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
 	}
 	helper := productHelperCommand(command, backend.mode, backend.extra)
-	backend.last = processBackend{}.Execute(ctx, interrupt, stage, helper)
+	backend.last = NativeBackend{}.Execute(ctx, interrupt, stage, helper)
 	return backend.last
 }
 

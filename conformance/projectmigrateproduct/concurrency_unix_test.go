@@ -385,6 +385,7 @@ func fullConcurrencyMarkerInteger(t *testing.T, field, name string) int {
 const fullConcurrencyRunnerSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
 	"context"
 	"errors"
 	"fmt"
@@ -766,6 +767,9 @@ func runMain() int {
 }
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	os.Exit(runMain())
 }
 `

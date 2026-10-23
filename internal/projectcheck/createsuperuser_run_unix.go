@@ -4,6 +4,7 @@ package projectcheck
 
 import (
 	"context"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"io"
 	"os"
 	"path/filepath"
@@ -31,7 +32,7 @@ type createsuperuserRunHooks struct {
 }
 
 // RunCreatesuperuser executes one project-linked explicit operator provision.
-// The generic Backend is used only for the secret-free Go build. Terminal
+// The generic Backend owns the secret-free build and compatibility probe. Terminal
 // credentials are passed exactly once to the separately owned sensitive child;
 // no stage is retried.
 func RunCreatesuperuser(input CreatesuperuserInvocation) CreatesuperuserReport {
@@ -78,6 +79,9 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
 		commandPolicy[CreatesuperuserFailure]{
+			compatibility: func(code string) CreatesuperuserFailure {
+				return CreatesuperuserFailure{Category: failurecode.CategoryCompatibility, Code: code}
+			},
 			selection: mapCreatesuperuserOuterFailure, workspace: mapCreatesuperuserOuterFailure,
 			barrier: func(primary *CreatesuperuserFailure) *CreatesuperuserFailure {
 				return createsuperuserBarrier(input, primary)
@@ -127,8 +131,13 @@ func runCreatesuperuser(input CreatesuperuserInvocation, hooks createsuperuserRu
 		return finish()
 	}
 
+	if primary = command.checkCompatibility(filepath.Join(workspace.root, "godj-project-runner")); primary != nil {
+		chooseCreatesuperuserFailure(&report, *primary)
+		return finish()
+	}
+
 	// The actual terminal is not consulted until one retained project has built
-	// successfully. Verify the retained descriptor immediately before and after
+	// successfully and passed compatibility. Verify the retained descriptor immediately before and after
 	// the complete no-echo interaction.
 	if !command.hooks.verifyProject(selected) {
 		chooseCreatesuperuserFailure(&report, createsuperuserFailure(

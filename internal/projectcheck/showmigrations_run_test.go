@@ -31,6 +31,9 @@ func (backend *showMigrationsScriptedBackend) Execute(
 ) ProcessResult {
 	backend.stages = append(backend.stages, stage)
 	backend.commands = append(backend.commands, cloneCommand(command))
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	if stage == BuildStage {
 		return backend.build
 	}
@@ -64,7 +67,7 @@ func TestRunShowMigrationsUsesSeparateProtocolAndCanonicalText(t *testing.T) {
 	})
 	if report.ExitCode != 0 || report.HasShowMigrationsFailure || !report.HasShowMigrationsResult ||
 		report.BuildCalls != 1 || report.RunnerCalls != 1 || report.RunnerResponseWrites != 1 ||
-		report.DirectChildReaps != 2 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 ||
+		report.DirectChildReaps != 3 || report.UserStdoutWrites != 1 || report.UserStderrWrites != 0 ||
 		report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 ||
 		report.ResidualTemp != 0 || !report.RawDiagnosticsDiscarded {
 		t.Fatalf("showmigrations success report = %+v", report)
@@ -73,10 +76,10 @@ func TestRunShowMigrationsUsesSeparateProtocolAndCanonicalText(t *testing.T) {
 	if stdout.String() != want || stderr.Len() != 0 {
 		t.Fatalf("public output stdout=%q stderr=%q", stdout.String(), stderr.String())
 	}
-	if !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, ShowMigrationsRunnerStage}) || len(backend.commands) != 2 {
+	if !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, CompatibilityStage, ShowMigrationsRunnerStage}) || len(backend.commands) != 3 {
 		t.Fatalf("stages=%v commands=%d", backend.stages, len(backend.commands))
 	}
-	runner := backend.commands[1]
+	runner := backend.commands[2]
 	if len(runner.Argv) != 2 || runner.Argv[1] != showmigrationsprotocol.PrivateArgument ||
 		runner.Dir != fixture.project || !bytes.Equal(runner.Stdin, showmigrationsprotocol.RequestDocument()) {
 		t.Fatalf("runner command = %+v", runner)

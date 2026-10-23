@@ -40,6 +40,7 @@ var externalStatusAllowedImports = map[string]struct{}{
 	"github.com/progresshans/godj/migrations/backend":    {},
 	"github.com/progresshans/godj/migrations/definition": {},
 	"github.com/progresshans/godj/project":               {},
+	"github.com/progresshans/godj/project/compatibility": {},
 	"github.com/progresshans/godj/schema/ir":             {},
 }
 
@@ -383,6 +384,7 @@ func externalStatusEntryNames(entries []os.DirEntry) []string {
 const externalStatusProjectRunnerSource = `package main
 
 import (
+ "github.com/progresshans/godj/project/compatibility"
 	"context"
 	"errors"
 	"fmt"
@@ -407,6 +409,9 @@ const (
 )
 
 func main() {
+ if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+  if err != nil { os.Exit(1) }; return
+ }
 	sources, err := sourcesForCatalog(os.Getenv(catalogEnvironment))
 	if err != nil {
 		fatal()

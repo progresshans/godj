@@ -111,6 +111,7 @@ func gdj0055ProjectProvisionOwnership(
 	var linkedReport linked.CreatesuperuserReport
 	globalReport, err := productcheck.RunCreatesuperuserOwnershipConformance(
 		productcheck.CreatesuperuserOwnershipConformanceInput{
+			ToolInfo: commandFixtureToolInfo(),
 			Context:  ctx,
 			Username: []byte(fixture.config.Username),
 			Password: []byte(fixture.config.Password),

@@ -60,7 +60,14 @@ func TestCompatibilityProbeRejectsMalformedOrAmbiguousDocuments(t *testing.T) {
 	if _, err := Parse(document); err != nil {
 		t.Fatal(err)
 	}
+	framed := append(append([]byte(nil), document...), '\n')
+	if parsed, err := Parse(framed); err != nil || parsed != testInfo() {
+		t.Fatal("single LF metadata frame rejected", err)
+	}
 	for _, input := range [][]byte{
+		append(append([]byte(nil), framed...), '\n'),
+		append(append([]byte(nil), document...), ' '),
+		append([]byte{' '}, document...),
 		append(append([]byte(nil), document...), document...),
 		bytes.Replace(document, []byte(`"format_version":1`), []byte(`"format_version":1,"format_version":1`), 1),
 		bytes.Replace(document, []byte(`"format_version":1`), []byte(`"format_version":1,"private":"secret"`), 1),

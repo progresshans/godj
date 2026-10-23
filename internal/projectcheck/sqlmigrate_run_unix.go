@@ -4,6 +4,7 @@ package projectcheck
 
 import (
 	"errors"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 )
@@ -26,6 +27,9 @@ func RunSQLMigrate(input SQLMigrateInvocation) SQLMigrateReport {
 
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
 		commandPolicy[SQLMigrateFailure]{
+			compatibility: func(code string) SQLMigrateFailure {
+				return SQLMigrateFailure{Category: failurecode.CategoryCompatibility, Code: code}
+			},
 			selection: mapSQLMigrateOuterFailure, workspace: mapSQLMigrateOuterFailure,
 			process: sqlMigrateProcessFailure, cleanup: combineSQLMigrateCleanup,
 			barrier: func(primary *SQLMigrateFailure) *SQLMigrateFailure { return sqlMigrateBarrier(input, primary) },

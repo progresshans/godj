@@ -9,7 +9,7 @@
 ## 다음
 
 1. 새 project/app·사용자 command·check의 공개 흐름과 기존 데이터 변경을 현재 source의 원격 CI에서 확인한다.
-2. 모든 진입점의 호환성 검사·event/logging·reload를 서로 다른 외부 앱에 연결한다.
+2. 독립 고정 module 조합·명시적 I/O check·event/logging·reload를 서로 다른 외부 앱에 연결한다.
 3. C1의 필수 원격 실행·독립 기준·원본을 대조하고 다음 I1의 요구와 전환 조건을 유지한다.
 
 ## 검증 경계

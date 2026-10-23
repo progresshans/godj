@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
+	"github.com/progresshans/godj/project/compatibility"
 )
 
 // Common mechanics stop before command-specific outcome classification. In
@@ -22,7 +23,7 @@ func normalizeCommandInput(ctx context.Context, environment []string, backend Ba
 		ctx = context.Background()
 	}
 	if backend == nil {
-		backend = processBackend{}
+		backend = NativeBackend{Framework: compatibility.Current()}
 	}
 	return ctx, environment, backend
 }

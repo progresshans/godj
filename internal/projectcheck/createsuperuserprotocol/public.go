@@ -74,6 +74,8 @@ func ExitCode(failure Failure) (int, bool) {
 		return 0, false
 	}
 	switch failure.Category {
+	case failurecode.CategoryCompatibility:
+		return failurecode.Compatibility(failure.Code)
 	case CategoryCommand:
 		return failurecode.Exact(failure.Code, 2, CodeInvalidArguments)
 	case CategorySelection:

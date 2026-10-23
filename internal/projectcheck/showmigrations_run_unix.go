@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/progresshans/godj/internal/projectcheck/failurecode"
 	"strconv"
 	"unicode"
 	"unicode/utf8"
@@ -30,6 +31,9 @@ func RunShowMigrations(input ShowMigrationsInvocation) ShowMigrationsReport {
 
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
 		commandPolicy[ShowMigrationsFailure]{
+			compatibility: func(code string) ShowMigrationsFailure {
+				return ShowMigrationsFailure{Category: failurecode.CategoryCompatibility, Code: code}
+			},
 			selection: mapShowMigrationsOuterFailure, workspace: mapShowMigrationsOuterFailure,
 			process: showMigrationsProcessFailure, cleanup: combineShowMigrationsCleanup,
 			barrier: func(primary *ShowMigrationsFailure) *ShowMigrationsFailure {

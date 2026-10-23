@@ -170,9 +170,10 @@ func prepareScaffoldProject(ctx context.Context, candidate string, input StartPr
 	}
 	var calls Report
 	command := newProjectCommand(ctx, input.Interrupt, input.Backend, &calls, commandPolicy[string]{
-		selection: func(Failure) string { return "candidate_selection_failed" },
-		workspace: func(Failure) string { return "build_workspace_failed" },
-		barrier:   barrier,
+		compatibility: func(code string) string { return code },
+		selection:     func(Failure) string { return "candidate_selection_failed" },
+		workspace:     func(Failure) string { return "build_workspace_failed" },
+		barrier:       barrier,
 		process: func(_ ProcessStage, process ProcessResult) *string {
 			if process.Failure == nil && process.Started && process.ExitCode == 0 {
 				return nil
@@ -256,8 +257,14 @@ func prepareScaffoldProject(ctx context.Context, candidate string, input StartPr
 		report.BuildDiagnostic = calls.BuildDiagnostic
 		return failure(*code)
 	}
+	if code := command.checkCompatibility(filepath.Join(command.workspace.root, "godj-scaffold-site")); code != nil {
+		return failure(*code)
+	}
 	if code := command.build("./cmd/commands", "godj-scaffold-commands"); code != nil {
 		report.BuildDiagnostic = calls.BuildDiagnostic
+		return failure(*code)
+	}
+	if code := command.checkCompatibility(filepath.Join(command.workspace.root, "godj-scaffold-commands")); code != nil {
 		return failure(*code)
 	}
 	return generate(true)

@@ -78,10 +78,15 @@ Typed 인자/option을 모두 검증한 뒤 순수 check와 resource open을 수
 handler를 join한 뒤 독립 cleanup context로 닫는다. Callback/출력/cleanup의 실패를 DB rollback으로 해석하지 않는다.
 
 전역 management 경로는 runserver와 같은 선언 snapshot·generated bundle·readonly runtime build·재검사를 사용한다.
-별도의 metadata probe는 설정·앱 초기화·DB 없이 framework build identity와 실제 generator/명령 contract를 조회한다.
+별도의 metadata probe는 main의 설정·앱 callback·DB opener에 진입하기 전에 framework build identity와 실제
+generator/명령 contract를 조회한다. Go package initializer 자체는 각 process에서 실행되므로 resource는 명시적 callback이 소유한다.
 같은 private executable을 조회 후 실행하며 불일치 시 업무 callback에 진입하지 않는다. 고정 module version은 정확히
 비교하고, 명시적 개발 source끼리는 동일 contract를 요구한다. Contract 일치는 source 무결성 증명이 아니다.
-현재 적용된 경로와 기존 명령·독립 설치로의 잔여 연결은 [C1](../../work/0137-project-core-startup.md)에 기록한다.
+모든 프로젝트 명령은 선언 build 직후 이 검사를 수행하고 runserver/management는 별도 runtime도 검사한다.
+초기 사용자 생성은 terminal/secret 입력 전에, startproject는 source 게시 전에 확인한다. Probe의 15초 deadline·
+출력 상한·자손/pipe 회수·root 재검사를 적용하며 global failure를 linked command의 응답으로 받아들이지 않는다.
+프로세스 총 회수 수에 probe를 포함하고 기존 업무 runner의 응답/호출 수와 구분한다. 독립 설치와 환경별 수용은
+[C1](../../work/0137-project-core-startup.md)에 남아 있다.
 
 모델 없는 설치 앱의 identity는 Schema IR/ProjectSpec에 유지한다. 과거 table state에 없던 빈 앱은 migration을 만들지 않는다.
 첫 모델부터 실제 초기 migration을 만든다. 이 규칙으로 기존 nonempty history의 삭제·외부 app의 모델/이력 불일치나

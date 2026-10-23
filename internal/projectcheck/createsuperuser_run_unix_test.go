@@ -36,6 +36,9 @@ func (backend *createsuperuserBuildBackend) Execute(
 	backend.calls++
 	backend.stages = append(backend.stages, stage)
 	backend.commands = append(backend.commands, cloneCommand(command))
+	if stage == CompatibilityStage {
+		return fixtureCompatibilityProcess()
+	}
 	return backend.result
 }
 
@@ -131,6 +134,8 @@ func TestRunCreatesuperuserOrdersBuildTerminalSensitiveOwnerCleanupAndPublicatio
 	backend.before = func(stage ProcessStage, _ Command) {
 		if stage == BuildStage {
 			events = append(events, "build")
+		} else if stage == CompatibilityStage {
+			events = append(events, "compatibility")
 		}
 	}
 	responseBacking := mustCreatesuperuserRunResponse(t, createsuperuserprotocol.Response{OK: true, Created: true})
@@ -236,17 +241,17 @@ func TestRunCreatesuperuserOrdersBuildTerminalSensitiveOwnerCleanupAndPublicatio
 		Backend:     backend,
 	}, hooks)
 	wantEvents := []string{
-		"select", "verify", "workspace", "verify", "build", "verify", "terminal", "verify",
+		"select", "verify", "workspace", "verify", "build", "verify", "compatibility", "verify", "verify", "terminal", "verify",
 		"encode", "runner", "close-project", "cleanup-workspace", "before-public", "stdout-write",
 	}
-	// The backend is the event source for the only generic process invocation.
+	// The backend records both secret-free process stages before terminal input.
 	if len(events) >= 5 && events[4] != "build" {
 		t.Fatalf("unexpected pre-build event sequence: %v", events)
 	}
 	if !reflect.DeepEqual(events, wantEvents) {
 		t.Fatalf("orchestration order = %v, want %v", events, wantEvents)
 	}
-	if backend.calls != 1 || !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage}) || len(backend.commands) != 1 {
+	if backend.calls != 2 || !reflect.DeepEqual(backend.stages, []ProcessStage{BuildStage, CompatibilityStage}) || len(backend.commands) != 2 {
 		t.Fatalf("generic backend calls=%d stages=%v commands=%d", backend.calls, backend.stages, len(backend.commands))
 	}
 	buildCommand := backend.commands[0]
@@ -257,7 +262,7 @@ func TestRunCreatesuperuserOrdersBuildTerminalSensitiveOwnerCleanupAndPublicatio
 	}
 	if runnerCalls != 1 || report.ExitCode != 0 || !report.HasCreatesuperuserResult || report.HasCreatesuperuserFailure ||
 		!report.KnownCreated || report.BuildCalls != 1 || report.RunnerCalls != 1 || report.TerminalChecks != 1 ||
-		report.DirectChildReaps != 2 || report.GroupSIGINTAttempts != 3 || report.GroupSIGKILLAttempts != 4 ||
+		report.DirectChildReaps != 3 || report.CompatibilityChecks != 1 || report.GroupSIGINTAttempts != 3 || report.GroupSIGKILLAttempts != 4 ||
 		report.RunnerResponseWrites != 1 || report.RunnerStdoutRetainedBytes != len(responseBacking) ||
 		report.RunnerStdoutTruncated || report.RunnerStderrRetainedBytes != 11 || report.RunnerStderrTruncated ||
 		report.SensitiveRequestWriteAttempts != 1 || report.SensitiveRequestBytesWritten == 0 ||
@@ -317,8 +322,8 @@ func TestRunCreatesuperuserReverifiesRetainedProjectAroundTerminal(t *testing.T)
 		wantTerminal  int
 		wantClearedIO bool
 	}{
-		{name: "before terminal", failVerifyAt: 3},
-		{name: "after terminal", failVerifyAt: 4, wantTerminal: 1, wantClearedIO: true},
+		{name: "before terminal", failVerifyAt: 5},
+		{name: "after terminal", failVerifyAt: 6, wantTerminal: 1, wantClearedIO: true},
 	} {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
@@ -353,7 +358,7 @@ func TestRunCreatesuperuserReverifiesRetainedProjectAroundTerminal(t *testing.T)
 				Code:     createsuperuserprotocol.CodeProjectSelectionFailed,
 			}
 			if verifyCalls != test.failVerifyAt || terminalCalls != test.wantTerminal || runnerCalls != 0 ||
-				backend.calls != 1 || report.ExitCode != 3 || report.CreatesuperuserFailure != want ||
+				backend.calls != 2 || report.ExitCode != 3 || report.CreatesuperuserFailure != want ||
 				report.BuildCalls != 1 || report.RunnerCalls != 0 || stdout.Len() != 0 ||
 				stderr.String() != want.Category+"/"+want.Code+"\n" {
 				t.Fatalf("%s reverify = %+v verifies=%d terminal=%d runner=%d stdout=%q stderr=%q", test.name, report, verifyCalls, terminalCalls, runnerCalls, stdout.String(), stderr.String())
@@ -854,7 +859,7 @@ func runCreatesuperuserScripted(
 		Context: context.Background(), CWD: fixture.project, Args: []string{"createsuperuser"},
 		Environment: fixture.environment, Stdout: output, Stderr: &stderr, Backend: backend,
 	}, hooks)
-	return report, &stdout, &stderr, backend.calls, runnerCalls
+	return report, &stdout, &stderr, report.BuildCalls, runnerCalls
 }
 
 func mustCreatesuperuserRunResponse(t *testing.T, response createsuperuserprotocol.Response) []byte {

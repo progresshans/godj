@@ -32,6 +32,9 @@ func RunGenerate(input GenerationInvocation) GenerationReport {
 
 	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
 		commandPolicy[GenerationFailure]{
+			compatibility: func(code string) GenerationFailure {
+				return GenerationFailure{Category: failurecode.CategoryCompatibility, Code: code}
+			},
 			selection: mapGenerationSelectionFailure, workspace: mapGenerationWorkspaceFailure,
 			process: generationProcessFailure, cleanup: combineGenerationCleanup,
 			barrier: func(primary *GenerationFailure) *GenerationFailure { return generationBarrier(input, primary) },
@@ -303,6 +306,8 @@ func chooseGenerationResult(report *GenerationReport, result GenerationResult) {
 
 func generationExitCode(failure GenerationFailure) (int, bool) {
 	switch failure.Category {
+	case failurecode.CategoryCompatibility:
+		return failurecode.Compatibility(failure.Code)
 	case GenerationCategoryCommand:
 		return failurecode.Exact(failure.Code, 2, GenerationCodeInvalidArguments)
 	case GenerationCategorySelection:

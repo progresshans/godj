@@ -33,8 +33,8 @@ F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위�
   새 project/app 기본 경로로 연결하되 예제의 도메인 모델을 모든 새 프로젝트에 강제하지 않는다.
 - 명령별 wire version과 생성 ABI는 이미 있다. `godj version`과 공개 `version.Current()`의 실제 module·개발 source·
   replacement 조회를 작성했다. 설치한 전역 도구·linked runtime·생성물의
-  호환성을 조회하는 공통 contract와 management 경로의 실행 전 비교를 작성했다.
-  기존 변경/server 진입점 적용과 독립 설치 조합의 실행은 남아 있다.
+  호환성을 조회하는 공통 contract와 모든 프로젝트 진입점의 실행 전 비교를 작성했다.
+  초기 사용자 입력과 runtime 시작 전 검사, bounded probe 수명과 원본 계수를 연결했다. 독립 설치 조합의 실행은 남아 있다.
 
 ## 하위 요구와 수용 시나리오
 
@@ -124,7 +124,11 @@ migration→초기 사용자→인증/CSRF 저장→재시작, 기존 경로 보
 Go alias는 canonical SQL label과 구분해 underscore/keyword 충돌을 피한다. 현재 source의 실제 원격 실행과 나머지 C1 요구는 남아 있다.
 명령의 명시적 등록·typed 인자/option·목록/help·pure check·invocation resource와 stdin/stdout/stderr/exit를 연결했다.
 Starter와 실제 추가 앱의 generated 모델을 사용하는 명령·저장 후 오류·닫힌 출력·호환성/생성물 불일치 거부 검사를 작성했다.
-Management 경로의 공통 호환성 비교는 구현했으며 기존 명령/server·독립 고정 module·명시적 I/O check의 통합 진단은 남아 있다.
+모든 기존 프로젝트 명령/server와 startproject 후보에 공통 호환성 비교를 연결했다. 실제 command 응답은 같은 private protocol로
+검사하며 probe의 failure category를 linked 응답으로 허용하지 않는다. 독립 고정 module·명시적 I/O check의 통합 진단은 남아 있다.
 CI에서 나타난 빈 앱의 migration state 비교 결함은 같은 source의 실패 흐름에서 재현·수정했다. 빈 앱의 identity를 보존하고
 이력이 없는 빈 앱에는 table migration을 만들지 않는다. 새 command 흐름은 이 좁은 재현에 포함하지 않았으며 원격 검증 대상이다.
+호환성 응답의 종료 LF와 엄격한 canonical JSON 비교가 충돌한 CI 실패는 별도 고정 source 재현에서 수정했다.
+기존 명령의 mismatch·비밀값 입력 전 거부·실제 외부 runner·stdout 상한/자손 회수 검사를 작성했다.
+새 공통 검사와 command 흐름의 전체 실행은 현재 source의 원격 CI에서 확인한다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.
