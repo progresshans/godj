@@ -165,6 +165,26 @@ exit "${GODJ_TEST_GIT_EXIT:-9}"
 
 
 class ExecutionOwnerTests(unittest.TestCase):
+    def test_scaffold_publication_has_one_native_owner(self):
+        from packages import selected
+        from workflow import JOBS
+        package = MODULE + 'internal/projectscaffold'
+        with self.subTest(boundary='partition'):
+            self.assertEqual([package], selected([package], 'platform', JOBS))
+            self.assertEqual([], selected([package], 'core', JOBS))
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / '.github/workflows/ci.yml').read_text().splitlines()
+        assignments = [line.strip() for line in workflow if line.strip().startswith('platform_packages=')]
+        self.assertEqual(1, len(assignments))
+        script = assignments[0] + '\nprintf "%s\\n" "$platform_packages"\n'
+        result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=root,
+                                capture_output=True, text=True, timeout=30)
+        with self.subTest(boundary='native-workflow'):
+            self.assertEqual(0, result.returncode, result.stderr)
+            packages = result.stdout.splitlines()
+            self.assertEqual(1, packages.count(package))
+            self.assertEqual(len(packages), len(set(packages)))
+
     def test_workflow_run_blocks_fit_github_expression_limit(self):
         import re
         root = Path(__file__).resolve().parents[2]
@@ -315,6 +335,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         from workflow import JOBS
         relatives = sorted(RELATION_PACKAGES | set(RELATION_PREFIXES) | PORTABLE_PRODUCTS | {
             'codegen', 'schema/ir', 'internal/projectgenerate', 'conformance/cmd/godjcheck',
+            'project', 'internal/projectcheck', 'internal/projectscaffold',
             'internal/migrationgraph', 'internal/migrationautodetect',
             'api/openapi', 'api/openapi/consumertest',
             'conformance/relationfixture/blog', 'conformance/systemstate/attestation',
@@ -327,10 +348,11 @@ class ExecutionOwnerTests(unittest.TestCase):
             portable = [package for category in ('core', 'integration', 'conformance', 'portable-products')
                         for package in select_packages(packages, category, owners)]
             relation = select_packages(packages, 'relation', owners) if 'relation-product-matrix' in owners else []
+            platform = select_packages(packages, 'platform', owners)
             runserver = [MODULE + 'conformance/runserverproduct'] if 'product-project-check-matrix' in owners else []
             for package in packages:
                 with self.subTest(ci=bool(owners), package=package):
-                    self.assertEqual(1, (portable + relation + runserver).count(package))
+                    self.assertEqual(1, (portable + platform + relation + runserver).count(package))
         # A local invocation without CI owners must retain the complete groups.
         self.assertIn(MODULE + 'db/sqlite', select_packages(packages, 'core'))
         self.assertIn(MODULE + 'conformance/runserverproduct', select_packages(packages, 'portable-products'))

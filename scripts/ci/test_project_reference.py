@@ -9,6 +9,8 @@ from project_reference import (COMMAND_TEST, COORDINATES, EVENT_TEST, PACKAGE, R
                                compare_development, compare_events, decode, digest, document, go_observation,
                                plan, seal, verify_all, verify_seal)
 
+SCAFFOLD_PACKAGE = 'github.com/progresshans/godj/internal/projectscaffold'
+
 
 def reference(name):
     directory = REFERENCES / (name + "_reference")
@@ -84,6 +86,8 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                 target.mkdir(parents=True)
                 self.write_json(target / "source.json", {**self.source, "mode": coordinate[2],
                     "go": {"GOOS": coordinate[0], "GOARCH": coordinate[1], "GOVERSION": "go1.26.5"}})
+                if owner == 'baseline':
+                    self.scaffold_fixture(target)
                 (target / "runserver-required.txt").write_text("\n".join(required) + "\n")
                 self.write_events(target / "runserver-discovery.json", discovery)
                 execution = plan(roots, required, postgres, owner)
@@ -109,6 +113,68 @@ class ProjectReferenceReaderTests(unittest.TestCase):
                     values.append(self.event("pass"))
                     self.write_events(target / ("runserver-" + name + ".json"), values)
                 seal(target)
+
+    def scaffold_fixture(self, target):
+        other = 'github.com/progresshans/godj/project'
+        roots = ['TestSyntheticPublication', 'TestSyntheticCancellation']
+        (target / 'platform-packages.txt').write_text(other + '\n' + SCAFFOLD_PACKAGE + '\n')
+        discovery = ([self.event('start', Package=SCAFFOLD_PACKAGE)] +
+                     [self.event('output', Package=SCAFFOLD_PACKAGE, Output=root + '\n') for root in roots] +
+                     [self.event('output', Package=SCAFFOLD_PACKAGE, Output='ok  \t' + SCAFFOLD_PACKAGE + '\t0.1s\n'),
+                      self.event('pass', Package=SCAFFOLD_PACKAGE)])
+        self.write_events(target / 'scaffold-discovery.json', discovery)
+        execution = [self.event('start', Package=other), self.event('run', Package=other, Test='TestSyntheticRunner'),
+                     self.event('pass', Package=other, Test='TestSyntheticRunner'), self.event('pass', Package=other),
+                     self.event('start', Package=SCAFFOLD_PACKAGE)]
+        for test in [roots[0], roots[1], roots[1] + '/canceled']:
+            execution.extend([self.event('run', Package=SCAFFOLD_PACKAGE, Test=test),
+                              self.event('pass', Package=SCAFFOLD_PACKAGE, Test=test)])
+        execution.append(self.event('pass', Package=SCAFFOLD_PACKAGE))
+        self.write_events(target / 'platform.json', execution)
+
+    def test_native_scaffold_requires_discovery_and_complete_execution(self):
+        self.fixture()
+        target = self.directory / 'baseline/project-check-darwin-amd64-race-2'
+        original = {path.name: path.read_bytes() for path in target.iterdir() if path.name != 'SHA256SUMS'}
+        mutations = ('missing-discovery', 'wrong-discovery-package', 'missing-package-inventory',
+                     'missing-execution', 'missing-root', 'skipped-child', 'duplicate-child',
+                     'truncated-package', 'unexpected-root')
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                for path in target.iterdir(): path.unlink()
+                for name, data in original.items(): (target / name).write_bytes(data)
+                log = target / 'platform.json'
+                values = [json.loads(line) for line in log.read_text().splitlines()]
+                child = 'TestSyntheticCancellation/canceled'
+                if mutation == 'missing-discovery':
+                    (target / 'scaffold-discovery.json').unlink()
+                elif mutation == 'wrong-discovery-package':
+                    path = target / 'scaffold-discovery.json'
+                    path.write_text(path.read_text().replace(SCAFFOLD_PACKAGE, 'github.com/progresshans/godj/project'))
+                elif mutation == 'missing-package-inventory':
+                    (target / 'platform-packages.txt').write_text('github.com/progresshans/godj/project\n')
+                elif mutation == 'missing-execution':
+                    values = [value for value in values if value['Package'] != SCAFFOLD_PACKAGE]
+                elif mutation == 'missing-root':
+                    values = [value for value in values if value.get('Test') != 'TestSyntheticPublication']
+                elif mutation == 'skipped-child':
+                    next(value for value in values if value.get('Test') == child and value['Action'] == 'pass')['Action'] = 'skip'
+                elif mutation == 'duplicate-child':
+                    values[-1:-1] = [self.event('run', Package=SCAFFOLD_PACKAGE, Test=child),
+                                     self.event('pass', Package=SCAFFOLD_PACKAGE, Test=child)]
+                elif mutation == 'truncated-package':
+                    values.pop()
+                else:
+                    values[-1:-1] = [self.event('run', Package=SCAFFOLD_PACKAGE, Test='TestUnexpected'),
+                                     self.event('pass', Package=SCAFFOLD_PACKAGE, Test='TestUnexpected')]
+                self.write_events(log, values)
+                seal(target)
+                with self.assertRaises((ValueError, OSError)):
+                    verify_all(self.directory, self.source)
+        for path in target.iterdir(): path.unlink()
+        for name, data in original.items(): (target / name).write_bytes(data)
+        seal(target)
+        self.assertEqual(12, len(verify_all(self.directory, self.source)['coordinates']))
 
     def test_all_coordinates_bind_complete_consumers_and_independent_sources(self):
         self.fixture()

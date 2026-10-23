@@ -22,6 +22,7 @@ COORDINATES = tuple((system, arch, mode) for system in ("linux", "darwin")
                     for arch in ("amd64", "arm64") for mode in ("normal", "race", "cgo0"))
 COMMAND_TEST = SPECIAL["scaffold"] + "/explicit_app_registration_and_existing_data"
 EVENT_TEST = "TestEventSynchronousReferenceBoundaries"
+SCAFFOLD_PACKAGE = "github.com/progresshans/godj/internal/projectscaffold"
 
 
 def require(condition, detail):
@@ -209,6 +210,23 @@ def verify_native(directory, owner, coordinate, expected_source):
     system, arch, mode = coordinate
     require(source == {**expected_source, "mode": mode, "go": {"GOOS": system, "GOARCH": arch, "GOVERSION": "go1.26.5"}},
             "native evidence belongs to a different source/run/coordinate")
+    if owner == "baseline":
+        packages = (directory / "platform-packages.txt").read_text().splitlines()
+        require(len(packages) == len(set(packages)) and SCAFFOLD_PACKAGE in packages,
+                "native platform inventory omitted or duplicated scaffold publication")
+        roots = discover_roots(directory / "scaffold-discovery.json", SCAFFOLD_PACKAGE)
+        platform_log = directory / "platform.json"
+        inventory = inspect(platform_log)
+        require(not inventory.verify(required=[(SCAFFOLD_PACKAGE, root) for root in roots],
+                                     packages=packages, no_skip_packages={SCAFFOLD_PACKAGE}),
+                "native scaffold publication tests are incomplete or skipped")
+        counts = Counter((event["Test"], event["Action"]) for event in events(platform_log)
+                         if event.get("Package") == SCAFFOLD_PACKAGE and event.get("Test"))
+        require({test for test, action in counts if action == "run" and "/" not in test} == set(roots),
+                "native scaffold execution differs from discovered roots")
+        for test in {test for test, _ in counts}:
+            require(counts[test, "run"] == counts[test, "pass"] == 1,
+                    "native scaffold test or child is missing or duplicated")
     required = ROOT / "scripts/ci/runserver-required.txt"
     require((directory / "runserver-required.txt").read_bytes() == required.read_bytes(), "native required manifest differs")
     execution = plan(discover_roots(directory / "runserver-discovery.json", PACKAGE), required.read_text().splitlines(),

@@ -84,7 +84,7 @@ def group(package):
     # linked runner and outer command still exercise them on every platform.
     if relative in PURE_PROTOCOLS:
         return 'core'
-    if (relative == 'project' or relative == 'conformance/runners/godj'
+    if (relative in ('project', 'internal/projectscaffold', 'conformance/runners/godj')
             or relative.startswith(('cmd/', 'internal/projectcheck'))):
         return 'platform'
     if relative in PRODUCTS:

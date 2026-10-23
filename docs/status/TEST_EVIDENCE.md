@@ -3,6 +3,31 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — Scaffold 게시 검사의 native 실행 소유권
+
+2026-10-23, `7cd12406402aafe800102196335b7655c48bc587`의 C1 수용 조건과 CI 선택을 대조했다.
+`internal/projectscaffold`는 Linux의 `Renameat2`와 Darwin의 `RenameatxNp`로 서로 다른 원자 게시 경계를 사용하지만,
+package 분류가 portable core여서 Linux amd64 작업에만 배정돼 있었다. Native project-check의 명시적 package 목록에도
+없었다. 공개 scaffold의 다른 환경 성공은 기존 경로 보존·실패 정리·준비 취소 join·부모/staging 교체·동시 게시·늦은
+취소의 직접 검사가 그 환경에서 실행됐다는 증거가 아니다.
+
+기존 scaffold package 전체를 platform owner로 옮기고 Linux/macOS amd64/arm64의 normal/race/CGO0 native 목록에
+포함했다. Linux portable owner의 중복 실행은 제거하고 기존 테스트와 실패 조건을 유지한다. 각 native 실행에서 실제
+테스트 바이너리의 root 목록을 발견해 보존하고, source에 묶인 platform package 목록·실행 JSON과 대조한다.
+독립 비교 gate도 scaffold의 모든 발견 root와 실행한 child가 각각 한 번 run/pass했는지 검사하며 누락·skip·중복을 거부한다.
+
+수정 전 선택 검사 두 경계가 실패했고, sealed fixture의 발견 목록 누락·다른 package·package 목록 누락·실행 누락·root
+누락·child skip/중복·잘린 package 완료·예상 밖 root의 9개 부정 대조가 잘못 수용되는 것을 재현했다.
+수정 후 관련 package/원본 reader 검사 22개가 통과했다. 같은 source의 올바른 12좌표 fixture를 수용하는 양성 대조도 유지했다.
+이는 합성 reader 검사다. 로컬 Go 명령은 최소 compile과 현재 root 8개의 이름 발견만 수행했으며 본문을 실행하지 않았다.
+새 source의 12개 native 좌표에서 실제 게시·경합·취소 실행과 전체 C1 수용은 아직 미완료다.
+
+원본·선택 전후·reader 부정 대조·source hash는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-scaffold-native-ownership-v1/comparison.json` — 실행 소유권·누락 증거 전후와 compile/discovery 범위 | `dd3d2e5d5875f4d73acd45545cfbccfcac8790307b79a780a007075fba941c4f` |
+
 ## GDJ-0137 — Scaffold 전체 준비 기한과 같은 source의 원격 대조
 
 2026-10-23, source `38a5be52a20b01d66654b977531ee639ca8bb821`의

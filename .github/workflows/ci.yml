@@ -638,8 +638,10 @@ jobs:
           fi
           python3 scripts/ci/go_test_events.py "$cmd_log" --packages "$evidence_dir/cli-packages.txt"
           # Pure wire packages run in Portable Go; this owner exercises the
-          # real selection, linked runner and OS/process boundaries.
-          platform_packages="$(go list ./project ./internal/projectcheck/... | python3 scripts/ci/packages.py platform)"
+          # real selection, linked runner and OS/process boundaries, including
+          # the platform-specific atomic scaffold publication implementation.
+          go test "${test_flags[@]}" -json -list . ./internal/projectscaffold > "$evidence_dir/scaffold-discovery.json" 2> "$evidence_dir/scaffold-discovery.stderr"
+          platform_packages="$(go list ./project ./internal/projectcheck/... ./internal/projectscaffold | python3 scripts/ci/packages.py platform)"
           printf '%s\n' "$platform_packages" > "$evidence_dir/platform-packages.txt"
           platform_log="$evidence_dir/platform.json"
           platform_stderr="$evidence_dir/platform.stderr"
