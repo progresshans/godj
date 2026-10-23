@@ -13,7 +13,7 @@ import (
 
 func TestModelViewOutputRequiresExactSourceAndLoadedSelection(t *testing.T) {
 	metadata, _ := models.UserObjects.Metadata()
-	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "first_name"})
+	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "first_name", AllowEmpty: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,6 +59,40 @@ func TestModelViewOutputRequiresExactSourceAndLoadedSelection(t *testing.T) {
 	schema, err := serializers.Encode(response.Schema().Value(), serializers.Limits{})
 	if err != nil || strings.Contains(string(schema), "password") || strings.Contains(string(schema), "principal_id") {
 		t.Fatal("hidden field entered output schema", string(schema), err)
+	}
+}
+
+func TestModelViewOutputRequiresLoadedCollectionAndPreservesStoredKeys(t *testing.T) {
+	metadata, _ := models.UserObjects.Metadata()
+	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "groups", ReadOnly: true, AllowEmpty: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := output.New(output.ModelView(models.UserObjects, spec), serializers.Limits{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base, err := models.UserObjects.View(models.NewUserWithID(0), "id")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body, err := response.Encode(t.Context(), base); err == nil || body != nil {
+		t.Fatal("unloaded collection became an empty response")
+	}
+	for _, test := range []struct {
+		keys []int64
+		want string
+	}{
+		{[]int64{7, 0, -17, 7}, `{"id":0,"groups":[7,0,-17,7]}`},
+		{nil, `{"id":0,"groups":[]}`},
+	} {
+		view, err := base.WithCollections(map[string][]int64{"groups": test.keys, "permissions": {999}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if body, err := response.Encode(t.Context(), view); err != nil || string(body) != test.want {
+			t.Fatal("collection output changed stored keys or exposed an unselected field", string(body), err)
+		}
 	}
 }
 

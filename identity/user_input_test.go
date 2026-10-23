@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/auth"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -57,7 +58,7 @@ func TestUserTextLimitsFollowIRAfterPinnedNormalization(t *testing.T) {
 }
 
 func TestUserInputRejectsInvalidAndExcessiveData(t *testing.T) {
-	for _, input := range []UserPatch{UserPatch{}.WithUsername(" bad"), UserPatch{}.WithUsername("bad\x00name"), UserPatch{}.WithEmail("bad\x00email"), UserPatch{}.WithEmail("name@\xff.example"), UserPatch{}.WithFirstName(string([]byte{0xff})), UserPatch{}.WithGroups(-1), UserPatch{}.WithPermissions(make([]int64, auth.MaximumPermissions+1)...), UserPatch{}.WithGroups(make([]int64, MaximumUserGroups+1)...)} {
+	for _, input := range []UserPatch{UserPatch{}.WithUsername(" bad"), UserPatch{}.WithUsername("bad\x00name"), UserPatch{}.WithEmail("bad\x00email"), UserPatch{}.WithEmail("name@\xff.example"), UserPatch{}.WithFirstName(string([]byte{0xff})), UserPatch{}.WithGroups(-1), UserPatch{}.WithPermissions(make([]int64, auth.MaximumPermissions+1)...), UserPatch{}.WithGroups(make([]int64, accountmodel.MaximumAccountGroups+1)...)} {
 		if _, err := input.normalize(); err == nil {
 			t.Fatal("invalid input accepted")
 		} else if fields, rejected := validation.Rejected(err); !rejected || fields.Empty() {

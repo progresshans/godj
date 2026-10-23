@@ -16,11 +16,14 @@ import (
 	"testing"
 	"time"
 
+	"example.com/godj-project-bundle/project"
+
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/endpoint"
 	apiinput "github.com/progresshans/godj/api/input"
 	"github.com/progresshans/godj/api/output"
 	apisession "github.com/progresshans/godj/api/sessionauth"
+	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
@@ -64,8 +67,7 @@ func assertProfileHTTP[M any](t *testing.T, binding accountmodel.Binding[M], edi
 	secret, _ := values[role.Password].String()
 	formSpec, err := formmodel.NewSpecForFields(metadata, editor.Fields())
 	check(err)
-	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: field})
-	check(err)
+	spec := profileJSONSpec(t, metadata, field)
 	body, err := apiinput.NewModel(objects, spec, api.ParserConfig{})
 	check(err)
 	out, err := output.New(output.Named("AccountProfile", output.ModelView(objects, spec)), serializers.Limits{})
@@ -232,7 +234,9 @@ func assertProfileHTTP[M any](t *testing.T, binding accountmodel.Binding[M], edi
 			return web.NewResponse(204, nil, nil)
 		})},
 	}
-	configured, err := settings.New(settings.Definition{ProjectName: "account_profile_consumer"})
+	configured, err := settings.New(settings.Definition{ProjectName: "account_profile_consumer",
+		InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "account"}),
+	})
 	check(err)
 	application, err := web.NewApplication(web.Config{Settings: configured, Routes: routes})
 	check(err)

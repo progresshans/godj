@@ -2,6 +2,7 @@ package orm
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
 
 	"github.com/progresshans/godj/schema/ir"
@@ -80,6 +81,13 @@ type projectBindingSnapshot struct {
 	forward    []RelationMetadata
 	reverse    []ReverseRelationMetadata
 	manyToMany []ir.ManyToManyBinding
+}
+
+// Independent generated factories may normalize the same project separately.
+// Compare the complete immutable source, including host incoming policies;
+// a matching model name, table, Go type or local declaration is insufficient.
+func sameProjectSource(left, right *projectBindingSnapshot) bool {
+	return left != nil && right != nil && (left == right || reflect.DeepEqual(left, right))
 }
 
 type relationBindingCandidate struct {

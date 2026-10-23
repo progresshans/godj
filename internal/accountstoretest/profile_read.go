@@ -107,9 +107,12 @@ func profileReadSelectionAndHistory(t *testing.T, backend Backend, reopen func(*
 	if err != nil || len(all) != 2 || all[0].Sequence() >= all[1].Sequence() || all[1].Sequence() != entries[0].Sequence() {
 		t.Fatal("profile history order", err)
 	}
-	for _, printed := range []string{fmt.Sprintf("%v", current), fmt.Sprintf("%+v", current), fmt.Sprintf("%#v", current), fmt.Sprintf("%#v", current.View())} {
-		if strings.Contains(printed, "private profile") || strings.Contains(printed, f.user.EncodedPassword) || strings.Contains(printed, f.user.PrincipalID) {
-			t.Fatal("profile formatting disclosed data")
+	for _, value := range []any{current, &current, current.View()} {
+		for _, format := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x", "%X", "%d", "%f", "%o", "%p", "%w", "%020d", "%#[1]v"} {
+			printed := fmt.Sprintf(format, value)
+			if strings.Contains(printed, "private profile") || strings.Contains(printed, f.user.EncodedPassword) || strings.Contains(printed, f.user.PrincipalID) {
+				t.Fatal("profile formatting disclosed data", format)
+			}
 		}
 	}
 	encoded, err := json.Marshal(current)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -69,9 +70,12 @@ func TestModelViewOwnsSelectionSourceAndStoredKeyPresence(t *testing.T) {
 	if !reflect.DeepEqual(view.Fields(), []string{"first_name", "last_login"}) {
 		t.Fatal("field selection is mutable")
 	}
-	for _, printed := range []string{fmt.Sprintf("%v", view), fmt.Sprintf("%+v", view), fmt.Sprintf("%#v", &view)} {
-		if strings.Contains(printed, "selected private name") || strings.Contains(printed, "hidden") {
-			t.Fatal("view formatting exposed model data", printed)
+	for _, value := range []any{view, &view} {
+		for _, format := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x", "%X", "%d", "%f", "%o", "%p", "%w", "%020d", "%#[1]v"} {
+			printed := fmt.Sprintf(format, value)
+			if strings.Contains(printed, "selected private name") || strings.Contains(printed, "hidden") {
+				t.Fatal("view formatting exposed model data", format)
+			}
 		}
 	}
 	encoded, err := json.Marshal(view)
@@ -105,5 +109,63 @@ func TestModelViewOwnsSelectionSourceAndStoredKeyPresence(t *testing.T) {
 	}
 	if _, valid := (orm.ModelView[models.User]{}).Model(); valid {
 		t.Fatal("zero view is valid")
+	}
+}
+
+func TestModelViewCollectionsOwnCompleteSelectionsWithoutImplicitValues(t *testing.T) {
+	base, err := models.UserObjects.View(models.NewUserWithID(-17), "username")
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := []int64{8, 0, -17, 8}
+	loaded, err := base.WithCollections(map[string][]int64{"groups": keys, "permissions": nil})
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys[0] = 999
+	if _, present := base.Collection("groups"); present {
+		t.Fatal("new selection changed original view")
+	}
+	selected, present := loaded.Collection("groups")
+	if !present || !slices.Equal(selected, []int64{8, 0, -17, 8}) {
+		t.Fatal("loaded collection keys changed", selected)
+	}
+	selected[0] = 999
+	copy := loaded.Collections()
+	copy["groups"][0], copy["permissions"] = 999, []int64{999}
+	for _, field := range []string{"missing", "username", "id"} {
+		if _, present := loaded.Collection(field); present {
+			t.Fatal("unloaded/scalar field became collection", field)
+		}
+		if invalid, err := loaded.WithCollections(map[string][]int64{field: {1}}); err == nil || invalid.Collections() != nil {
+			t.Fatal("invalid collection retained a view", field)
+		}
+	}
+	model, _ := loaded.Model()
+	for _, field := range model.ManyToMany {
+		selected, present := loaded.ReadCollection(field)
+		if !present || field.Name == "groups" && !slices.Equal(selected, []int64{8, 0, -17, 8}) || field.Name == "permissions" && len(selected) != 0 {
+			t.Fatal("explicit selection or loaded-empty state changed", field.Name)
+		}
+		field.Target.AppLabel = "foreign"
+		if keys, present := loaded.ReadCollection(field); present || keys != nil {
+			t.Fatal("foreign collection declaration accepted")
+		}
+	}
+	replaced, err := loaded.WithCollections(map[string][]int64{"groups": {4}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if keys, _ := loaded.Collection("groups"); !slices.Equal(keys, []int64{8, 0, -17, 8}) {
+		t.Fatal("replacement changed prior observation")
+	}
+	if keys, present := replaced.Collection("permissions"); !present || len(keys) != 0 {
+		t.Fatal("replacement removed another selection")
+	}
+	if len(loaded.Values()) != 1 || !slices.Equal(loaded.Fields(), []string{"username"}) {
+		t.Fatal("collections entered scalar fields")
+	}
+	if invalid, err := (orm.ModelView[models.User]{}).WithCollections(nil); err == nil || invalid.Collections() != nil {
+		t.Fatal("zero view acquired collection state")
 	}
 }

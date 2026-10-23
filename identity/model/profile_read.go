@@ -90,7 +90,8 @@ func (reader *ProfileReader[M]) Fields() []string {
 // Profile contains only explicitly selected view data and operation metadata.
 // No original account row, credential or effective permission set is retained.
 // It is an observation, not authority for another read or write.
-type Profile[M any] struct {
+type Profile[M any] struct{ state *profileData[M] }
+type profileData[M any] struct {
 	view     orm.ModelView[M]
 	id       int64
 	revision int64
@@ -99,9 +100,24 @@ type Profile[M any] struct {
 func (Profile[M]) Format(state fmt.State, _ rune) {
 	_, _ = state.Write([]byte("identity.model.Profile{redacted}"))
 }
-func (profile Profile[M]) ID() int64              { return profile.id }
-func (profile Profile[M]) Revision() int64        { return profile.revision }
-func (profile Profile[M]) View() orm.ModelView[M] { return profile.view }
+func (profile Profile[M]) ID() int64 {
+	if profile.state == nil {
+		return 0
+	}
+	return profile.state.id
+}
+func (profile Profile[M]) Revision() int64 {
+	if profile.state == nil {
+		return 0
+	}
+	return profile.state.revision
+}
+func (profile Profile[M]) View() orm.ModelView[M] {
+	if profile.state == nil {
+		return orm.ModelView[M]{}
+	}
+	return profile.state.view
+}
 
 type ProfilePage[M any] struct {
 	Items []Profile[M]
@@ -241,7 +257,7 @@ func (reader *ProfileReader[M]) project(namespace auth.CredentialDomain, row M, 
 	if !present || !integer {
 		return Profile[M]{}, invalidAccountCredential()
 	}
-	return Profile[M]{view: view, id: id, revision: revision}, nil
+	return Profile[M]{state: &profileData[M]{view: view, id: id, revision: revision}}, nil
 }
 
 type profileReadResult[T any] struct {

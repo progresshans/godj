@@ -56,6 +56,7 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"read_contract_and_cleanup", readContract},
 		{"invalid_stored_grants", invalidGrants},
 		{"permission_bound", permissionBound},
+		{"membership_bound", membershipBound},
 		{"zero_and_negative_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 			nonpositiveKeys(t, backend, storedKey)
 		}},
@@ -491,6 +492,108 @@ func permissionBound(t *testing.T, backend Backend, _ func(*testing.T) Backend) 
 	if err != nil || !found || len(got.Principal().Permissions()) != auth.MaximumPermissions {
 		t.Fatal("exact permission bound rejected", err)
 	}
+}
+
+func membershipBound(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+	f := provision(t, backend, ir.AccountExact)
+	before := profileActor(t, f)
+	reader := profileReader(t, backend, f, auth.PrincipalAuthorizer{}, profileReadConfig())
+	editor, err := project.NewAccountProfileEditor(backend, auth.PrincipalAuthorizer{}, profileConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var overflow models.UserGroupsLink
+	if err := backend.CoordinatedAtomic(t.Context(), func(tx db.Session) error {
+		for index := range accountmodel.MaximumAccountGroups {
+			group, err := models.GroupObjects.Create(t.Context(), tx, models.NewGroupCreate(fmt.Sprintf("membership-%03d", index)))
+			if err != nil {
+				return err
+			}
+			// The effective permission union stays at three. Its bound cannot
+			// stand in for the independent bound on group memberships.
+			if _, err := models.GroupPermissionsLinkObjects.Create(t.Context(), tx, models.NewGroupPermissionsLinkCreate(group.ID, f.grants[1].ID)); err != nil {
+				return err
+			}
+			overflow, err = models.UserGroupsLinkObjects.Create(t.Context(), tx, models.NewUserGroupsLinkCreate(f.user.ID, group.ID))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, lookup := range []struct {
+		name string
+		read func(context.Context, string) (auth.Credential, bool, error)
+		key  string
+	}{{"id", f.store.CredentialByID, f.user.PrincipalID}, {"login", f.store.CredentialByUsername, f.user.Username}} {
+		t.Run(lookup.name, func(t *testing.T) {
+			credential, found, err := lookup.read(t.Context(), lookup.key)
+			if !errors.Is(err, &auth.Error{Code: auth.CodeCredential}) || found || credential.SessionStamp() != "" {
+				t.Fatal("membership overflow published authority", err)
+			}
+		})
+	}
+	t.Run("current_authority", func(t *testing.T) {
+		if err := backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+			current, allowed, err := f.store.AuthorizeIn(t.Context(), scope, before.Principal(), auth.PrincipalAuthorizer{}, "account.direct")
+			if err == nil || allowed || current.ID() != "" {
+				t.Fatal("membership overflow reused previous actor authority", err)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("profile_read", func(t *testing.T) {
+		if profile, err := reader.Get(t.Context(), before.Principal(), f.user.ID); err == nil || profile.Revision() != 0 {
+			t.Fatal("membership overflow published profile", err)
+		}
+	})
+	t.Run("profile_write", func(t *testing.T) {
+		if result, err := editor.Update(t.Context(), before.Principal(), f.user.ID, 1, profileInput(t, map[string]query.Value{"first_name": query.String("must-not-save")})); err == nil || result.Revision != 0 {
+			t.Fatal("membership overflow edited profile", err)
+		}
+		if row := profileRow(t, reopen(t), f.user.ID); row.FirstName != "" || row.Revision != 1 || row.EncodedPassword != f.user.EncodedPassword || len(profileHistory(t, backend, before.Principal(), f.user.ID)) != 0 {
+			t.Fatal("rejected membership state changed durable profile/audit")
+		}
+	})
+	other, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("bounded-admin", "bounded-admin", f.user.EncodedPassword, joined))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(other.ID, f.grants[0].ID)); err != nil {
+		t.Fatal(err)
+	}
+	otherCredential, found, err := f.store.CredentialByID(t.Context(), other.PrincipalID)
+	requireGrants(t, otherCredential, found, err, "account.direct")
+	t.Run("target_read", func(t *testing.T) {
+		if value, err := reader.Get(t.Context(), otherCredential.Principal(), f.user.ID); err == nil || value.Revision() != 0 {
+			t.Fatal("valid actor read overflowing target memberships", err)
+		}
+	})
+	t.Run("target_write", func(t *testing.T) {
+		if result, err := editor.Update(t.Context(), otherCredential.Principal(), f.user.ID, 1, profileInput(t, map[string]query.Value{"first_name": query.String("must-not-save")})); err == nil || result.Revision != 0 {
+			t.Fatal("valid actor edited overflowing target memberships", err)
+		}
+		if row := profileRow(t, reopen(t), f.user.ID); row.FirstName != "" || row.Revision != 1 || len(profileHistory(t, backend, before.Principal(), f.user.ID)) != 0 {
+			t.Fatal("rejected target memberships changed durable state")
+		}
+	})
+	if count, err := models.UserGroupsLinkObjects.Delete(t.Context(), backend, &overflow); err != nil || count != 1 {
+		t.Fatal("remove overflowing membership", err)
+	}
+	t.Run("exact_bound", func(t *testing.T) {
+		credential, found, err := f.store.CredentialByID(t.Context(), f.user.PrincipalID)
+		requireGrants(t, credential, found, err, "account.direct", "account.shared", "account.team")
+		if credential.SessionStamp() != before.SessionStamp() {
+			t.Fatal("membership changes altered credential session stamp")
+		}
+		if value, err := reader.Get(t.Context(), before.Principal(), f.user.ID); err != nil || value.Revision() != 1 {
+			t.Fatal("exact membership bound rejected profile", err)
+		}
+	})
 }
 func nonpositiveKeys(t *testing.T, backend Backend, storedKey StoredKeyFixture) {
 	f := provision(t, backend, ir.AccountExact)

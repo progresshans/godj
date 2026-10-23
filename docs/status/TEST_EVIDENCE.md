@@ -228,6 +228,49 @@ audit 경로를 실행하도록 고쳤다. PostgreSQL ORM의 명시적 생성키
 `gdj0138-profile-read-ci-repair-v1/receipt.json`에 있다
 (SHA-256 `3da4ec99e4eee2f75f22d6fb10a4d61769e40e4c719935f4fb4c26b6950d0999`).
 
+Source `5adcfbcf769c3e46aa0b142044673616f247cbc5`의
+[CI 40028656400](https://github.com/progresshans/godj/actions/runs/40028656400) portable normal/race/CGO0 core는
+선택 출력 검사의 빈 `first_name` default에 명시적인 `AllowEmpty` 정책이 빠져 실패했다. 세 job의 실제 checkout은
+`7dfea91b2f8a176ce9c060bed5a082f555846777`이며 제출 source와 같은 tree다. 원본·source 대조는
+`gdj0138-5adcfbcf-ci-40028656400/portable-failure-source-binding.json`에 있다
+(SHA-256 `b93c4b814dde263fbe1f135f5135afe40ad5b023fdc4167704c3370297a6d163`).
+
+같은 작업트리에서 `ModelView`와 `ModelInput`의 잘못된 `%p` 진단 형식이 선택 값을 출력하는 문제, 동일 권한을
+공유하는 257개 그룹에 속한 계정이 인증·현재 인가·프로필 읽기를 통과하는 문제를 한정 재현했다. 수정 전 원본은
+`gdj0138-catalog-foundation-repro-v1/`의 `model-view-before.jsonl`, `model-input-before.jsonl`,
+`membership-before-v2.jsonl`이며 SHA-256은 각각
+`39f184142c34c2121153b850779b1ed5c36096f155f81820c1ef0c6a2f3663bd`,
+`d335d5430ec06ff6d530a4f833db6fde6ee1eb15c489453c0b129c866d794599`,
+`fec347cd273b8b6cf95efb004b05d832f599b97485c7e54225ec5071a5d2f823`이다.
+처음 한도 재현은 새 private profile 상태 이름의 중복으로 compile에 실패했고 이름을 구분한 다음 본문 실패를 확인했다.
+
+ModelInput·ModelView·Profile의 내부 상태를 불투명한 pointer 뒤로 옮겼다. 파생 입력과 view의 사본 소유권을 유지하고,
+그룹 key/revision을 최대 한도+1까지 읽어 권한 합집합과 독립적으로 그룹 한도를 검사한다. 정확한 256개는 허용한다.
+Actor와 대상의 초과 상태·0 key·stamp 보존·거부 후 재접속 row/audit를 양 DB 필수 목록에 연결했다.
+Catalog 조립에 필요한 명시적 M2M view·Form/API 표현과 전체 host source의 collection/삭제 기능 대조도 추가했다.
+
+최종 제품 23개 변경 source를 고정한 채 영향 8개 package의 최소 compile, 진단/출력 3개 본문, SQLite의 membership
+8개 leaf와 profile read/history 본문을 한정 실행했다. SQLite parent를 포함한 11개 test event는 모두 pass였고
+fail/skip은 없었다. 원본·전후 source hash는 `gdj0138-catalog-foundation-check-v2/receipt.json`에 있다
+(SHA-256 `cab2240af1a9491eaddb2af5b8aa7f76b94bd98075401f4741ba12ee2c82b0ed`).
+새 collection 표현·source 대조 테스트 본문과 PostgreSQL 본문·race·전체 platform은 이 로컬 실행에 포함하지 않았다.
+
+같은 선행 CI의 relation normal shard 1 job `120671760988`에서는 기본 외부 소비자의 같은 빈 default 정책과
+custom/custom-normalized 소비자의 미등록 `account` route namespace가 실패했다. 실제 checkout은 위와 같으며
+원본·source 대조는 `gdj0138-5adcfbcf-ci-40028656400/consumer-failure-source-binding.json`에 있다
+(SHA-256 `a4f2b199c7901e910ba1f97e55f870ffaf5e18ac55107805b09e3bf351da7a0d`).
+소비자는 명시한 JSON 필드에 같은 모델 Form의 Blank 정책을 선택하고 generated 설치 앱 목록에 자신의 route 앱을
+등록하도록 수정했다. 기본·custom·custom-normalized 세 외부 module을 실제 생성·SQLite·TCP HTTP로 한정 재실행했다.
+로그인·CSRF·Form/JSON 조회와 수정·stale/예약 입력 거부·기존 session의 권한 회수/복구·audit와 최종 저장값 검사가
+세 경우 모두 pass였고, 외부 child root와 package의 pass 및 fail/skip 부재를 별도로 대조했다.
+
+추가 변경은 소비자 template 두 개뿐이며 앞선 제품 23개 source는 그대로다. 최종 25개 source와 실행 전후 hash는
+`gdj0138-profile-http-ci-repair-v1/receipt.json`에 있다
+(SHA-256 `46a3f165a5ff01de96a280429465cb1065f82d1e5582211261b4ce7f659cd20f`).
+Child 원본·source 연결 대조는 같은 디렉터리의 `verification.json`이다
+(SHA-256 `2d9203f29c3663b637ed0b1ff0b98980d7dbb562c59065e5287eb070b8fe9d1c`).
+이는 로컬 macOS arm64/Go 1.26.5의 한정 실패 수정 확인이며 새 source 전체 원격 성공이나 PostgreSQL HTTP 수용이 아니다.
+
 I1의 새 조회·단위·HTTP·전체 DB/race/platform 원격 검증은 아직 완료하지 않았다. 관계/파일·role/catalog 관리,
 기존 Directory/Manager 교체와 공통 HTTP/Admin 제품 조립·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/
 receipt, password/reset/session·삭제·restart의 양 DB/HTTP 실행은 남아 있다.

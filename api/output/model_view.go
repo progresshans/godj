@@ -18,6 +18,8 @@ func ModelView[M any](manager orm.Manager[M], spec serializers.Spec) Shape[orm.M
 	}
 	encoder, err := serializers.NewModelEncoder(spec, model, func(view orm.ModelView[M], field ir.Field) (query.Value, bool) {
 		return view.ReadField(field)
+	}, func(view orm.ModelView[M], field ir.ManyToManyField) ([]int64, bool) {
+		return view.ReadCollection(field)
 	})
 	if err != nil {
 		return Shape[orm.ModelView[M]]{node: &node{err: err}}

@@ -189,6 +189,10 @@ func bindPermissionReader[M, G, P any](binding Binding[M], groupDescriptor orm.R
 	}
 	groupMetadata, _ := project.Model(role.Catalog.Group)
 	permissionMetadata, _ := project.Model(role.Catalog.Permission)
+	groupKey, ok := primaryField(groupMetadata)
+	if !ok {
+		return nil, invalidCredentialStore()
+	}
 	groupRevision, ok := namedField(groupMetadata, role.Catalog.GroupRevision)
 	if !ok {
 		return nil, invalidCredentialStore()
@@ -202,20 +206,37 @@ func bindPermissionReader[M, G, P any](binding Binding[M], groupDescriptor orm.R
 		return nil, invalidCredentialStore()
 	}
 	groupObjects, permissionObjects := orm.NewManager[G](groupDescriptor), orm.NewManager[P](permissionDescriptor)
-	groupRevisionField := orm.NewIntegerField[G](groupRevision)
+	groupKeyField, groupRevisionField := orm.NewAutoField[G](groupKey), orm.NewIntegerField[G](groupRevision)
 	codeField, revisionField := orm.NewStringField[P](code), orm.NewIntegerField[P](revision)
 	type grant struct {
 		code     string
 		revision int64
 	}
 	projection := orm.Project2(codeField, revisionField, func(code string, revision int64) grant { return grant{code: code, revision: revision} })
+	// Keep the key in the distinct projection: equal revisions do not collapse
+	// different memberships and thereby hide an overflowing stored set.
+	type membership struct{ key, revision int64 }
+	memberships := orm.Project2(groupKeyField, groupRevisionField, func(key, revision int64) membership { return membership{key, revision} })
 	return func(ctx context.Context, reader db.Queryer, key int64) ([]auth.Permission, error) {
-		invalidGroup, err := groupObjects.Using(reader).Filter(groupMember.Exact(key), groupRevisionField.LessThanOrEqual(0)).Exists(ctx)
+		groups, err := orm.SelectQuery(groupObjects.Using(reader).Filter(groupMember.Exact(key)).OrderBy(groupKeyField.Asc()).Distinct(), memberships)
 		if err != nil {
 			return nil, err
 		}
-		if invalidGroup {
+		groups, err = groups.Limit(MaximumAccountGroups + 1)
+		if err != nil {
+			return nil, err
+		}
+		storedGroups, err := groups.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if len(storedGroups) > MaximumAccountGroups {
 			return nil, invalidAccountCredential()
+		}
+		for _, group := range storedGroups {
+			if group.revision <= 0 {
+				return nil, invalidAccountCredential()
+			}
 		}
 		source := permissionObjects.Using(reader).Filter(orm.Or(directMember.Exact(key), viaGroup.Exact(key))).OrderBy(codeField.Asc()).Distinct()
 		selected, err := orm.SelectQuery(source, projection)

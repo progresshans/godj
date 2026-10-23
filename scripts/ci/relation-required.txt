@@ -2887,6 +2887,15 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/password
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/read_contract_and_cleanup
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/invalid_stored_grants
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/permission_bound
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/id
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/login
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/current_authority
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/profile_read
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/profile_write
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/target_read
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/target_write
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/membership_bound/exact_bound
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/zero_and_negative_keys
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/selected_login_policy
 github.com/progresshans/godj/orm|TestInverseCollectionQueryRetainsDeclarationAndOwner

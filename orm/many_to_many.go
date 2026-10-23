@@ -145,6 +145,20 @@ func (r ManyToMany[O, T, L]) Declaration() (ir.Model, ir.ManyToManyField, error)
 	return ir.Model{}, ir.ManyToManyField{}, relationInvalidPlan("collection declaration is absent from its owner snapshot")
 }
 
+// ValidateSource checks a forward collection capability against the complete
+// project source and explicit owner/field expected by a composing service.
+// It performs no I/O and accepts independently bound identical sources. The
+// same local declaration in another host policy is not interchangeable.
+func (r ManyToMany[O, T, L]) ValidateSource(binding ProjectBinding, owner ir.ModelIdentity, field string) error {
+	if _, _, err := r.Declaration(); err != nil {
+		return err
+	}
+	if r.prefetchOwner.identity != owner || r.prefetchName != field || !sameProjectSource(r.prefetchOwner.snapshot, binding.snapshot) {
+		return relationInvalidPlan("collection capability does not match the required project source and declaration")
+	}
+	return nil
+}
+
 // ManyCollection owns a lazy target QuerySet. A mutation invalidates this
 // handle before and after the attempt, including failures and unknown outcomes.
 // Previously returned QuerySets and independently materialized owners retain

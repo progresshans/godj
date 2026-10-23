@@ -93,7 +93,7 @@ transaction-outcome-unknown 분류를 유지한다. 이미 완료한 전환을 �
 전환을 요구하고, orphan state·잘못된 migration·corruption·읽기 종료 실패를 public-only 성공으로 바꾸지 않는다.
 이 현재 startup 결정은 SYS-028의 GoDj 결정 관찰과 연결하며, legacy OpenExisting의 policy 검증은 SYS-027에 계속 남는다.
 
-Credential·Account·인증기·Directory·전환 receipt는 내부 상태를 불투명한 pointer 뒤에 둔다. Formatter가 일반 진단 형식을 가리고,
+Credential·Account·ModelInput·선택 ModelView/Profile·인증기·Directory·전환 receipt는 내부 상태를 불투명한 pointer 뒤에 둔다. Formatter가 일반 진단 형식을 가리고,
 Formatter보다 먼저 처리되는 잘못된 `%p`/`%w`의 reflection fallback도 비밀 필드에 도달하지 않는다.
 사용자가 명시적으로 선택한 Profile JSON에는 공개 계정 정보만 포함되며 비밀번호 해시·stamp는 나오지 않는다.
 
@@ -846,7 +846,10 @@ unknown write의 rollback을 확정하지 않고 원래 write fence와 작업 �
 
 한 번의 읽기는 저장된 domain·계정 행·직접 권한·소속 그룹을 통한 권한을 같은 snapshot에서 관측한다.
 권한은 선언된 M2M을 따르는 typed query와 scalar projection으로 읽고 정렬·중복 제거한다. 선택 계정의 권한을
-256개보다 많이 발견하면 잘라서 반환하지 않는다. 잘못된 계정·소속 그룹·권한 revision과 비정규 권한 code도 거부한다.
+256개보다 많이 발견하면 잘라서 반환하지 않는다. 소속 그룹 집합도 공통 `MaximumAccountGroups`의 256개 한도를
+따른다. 그룹 key와 revision을 함께 최대 257개 읽으므로 같은 권한이나 같은 revision을 가진 여러 그룹을 하나로
+세지 않는다. 그룹 입력·저장 집합·유효 권한 합집합은 독립된 제한이며 초과한 현재 계정이나 관리 대상을 거부한다.
+잘못된 계정·소속 그룹·권한 revision과 비정규 권한 code도 거부한다.
 명시적으로 저장한 0/음수 account key를 허용하며, 다른 계정이나 미할당 catalog 항목을 대신 읽지 않는다.
 계정·query 결과·권한의 전역 cache는 없고 이전 Principal의 detached 권한은 다음 관측과 독립적이다.
 

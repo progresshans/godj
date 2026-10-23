@@ -15,6 +15,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/settings/database"
 )
@@ -65,10 +66,7 @@ func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding 
 	if err != nil || strings.Contains(string(output), desired) || strings.Contains(string(output), role.Password) || strings.Contains(string(output), actor.ID()) {
 		t.Fatal("profile result exposed model values", err)
 	}
-	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: field})
-	if err != nil {
-		t.Fatal(err)
-	}
+	spec := profileJSONSpec(t, metadata, field)
 	body, err := apiinput.NewModel(objects, spec, api.ParserConfig{})
 	if err != nil {
 		t.Fatal(err)
@@ -135,4 +133,23 @@ func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding 
 		t.Fatal("typed profile read audit differs", err)
 	}
 	assertProfileHTTP(t, binding, editor, reader, authenticator, actor, row, field, desired, revoke)
+}
+
+// This consumer deliberately uses the model form's blank policy for its one
+// exposed JSON field. An empty default is valid only when Blank permits it;
+// the custom model's required profile field keeps its nonempty policy.
+func profileJSONSpec(t *testing.T, model ir.Model, name string) serializers.Spec {
+	t.Helper()
+	for _, field := range model.Fields {
+		if field.Name != name {
+			continue
+		}
+		spec, err := serializers.FromModel(model, serializers.ModelField{Name: name, AllowEmpty: field.Blank})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return spec
+	}
+	t.Fatal("selected profile field is absent from its model")
+	return serializers.Spec{}
 }

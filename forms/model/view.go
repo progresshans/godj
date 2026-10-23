@@ -24,6 +24,8 @@ func InitialView[M any](manager orm.Manager[M], spec forms.Spec, view orm.ModelV
 	}
 	return InitialValues(model, spec, view, func(value orm.ModelView[M], field ir.Field) (query.Value, bool) {
 		return value.ReadField(field)
+	}, func(value orm.ModelView[M], field ir.ManyToManyField) ([]int64, bool) {
+		return value.ReadCollection(field)
 	})
 }
 
@@ -33,8 +35,7 @@ func InitialView[M any](manager orm.Manager[M], spec forms.Spec, view orm.ModelV
 // their defaults/empty values never impersonate current stored data. Model
 // clean/validators must check presence for fields outside this view. Final
 // current-state validation and writes still belong to the authorized writer.
-// A collection requires its own complete current selection and is not loaded
-// by this scalar adapter.
+// A selected collection must have been loaded explicitly into the view.
 func BindView[M any](ctx context.Context, manager orm.Manager[M], spec forms.Spec, data forms.Data, view orm.ModelView[M], postClean PostClean) (BoundForm, error) {
 	if _, err := InitialView(manager, spec, view); err != nil {
 		return BoundForm{}, err
@@ -47,6 +48,9 @@ func BindView[M any](ctx context.Context, manager orm.Manager[M], spec forms.Spe
 			return BoundForm{}, &Error{Path: "initial." + name, Code: "type_mismatch"}
 		}
 		initial[name] = value
+	}
+	for name, keys := range view.Collections() {
+		initial[name] = forms.Integers(keys...)
 	}
 	key, present := view.PrimaryKey()
 	if !present {

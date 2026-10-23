@@ -3,6 +3,7 @@ package orm_test
 import (
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
+	identitymodels "github.com/progresshans/godj/identity/models"
 	"testing"
 
 	"github.com/progresshans/godj/orm"
@@ -39,6 +40,58 @@ func TestManyToManyBindingOwnsColumnlessAndAutomaticStorageMetadata(t *testing.T
 	}
 	if got, err := orm.BindProject(input); err == nil || len(got.ManyToManyRelations()) != 0 {
 		t.Fatal("failed binding published partial result")
+	}
+}
+
+func TestManyToManyCapabilityRequiresCompleteHostSource(t *testing.T) {
+	collections, err := project.BindCollections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding, err := project.Bind()
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, field, err := collections.ModelsTicketLabels.Declaration()
+	if err != nil || field.Through == nil {
+		t.Fatal("missing fixture declaration", err)
+	}
+	identity := ir.ModelIdentity{AppLabel: models.GoDjRelationSchema().AppLabel, ModelName: owner.Name}
+	if err := collections.ModelsTicketLabels.ValidateSource(binding, identity, field.Name); err != nil {
+		t.Fatal("independently bound identical source rejected", err)
+	}
+	// The original owner declaration is unchanged. The host now protects a
+	// physical through row, so its policy must govern collection replacement.
+	host := ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "host", Models: []ir.Model{{Name: "link_guard", GoName: "LinkGuard", Fields: []ir.Field{{
+		Name: "link", GoName: "LinkID", Kind: ir.FieldForeignKey,
+		Relation: &ir.ForeignKeyRelation{Target: field.Through.Model, Cardinality: ir.RelationManyToOne, Reverse: ir.ReverseRelation{Disabled: true}, OnDelete: ir.DeleteProtect},
+	}}}}}
+	withHost, err := orm.BindProject(models.GoDjRelationSchema(), identitymodels.GoDjRelationSchema(), host)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current, found := withHost.Model(identity); !found || !current.Equal(owner) {
+		t.Fatal("negative control changed owner model")
+	}
+	for _, test := range []struct {
+		source orm.ProjectBinding
+		owner  ir.ModelIdentity
+		field  string
+	}{
+		{orm.ProjectBinding{}, identity, field.Name},
+		{withHost, identity, field.Name},
+		{binding, field.Target, field.Name},
+		{binding, identity, "missing"},
+	} {
+		if err := collections.ModelsTicketLabels.ValidateSource(test.source, test.owner, test.field); err == nil {
+			t.Fatal("foreign/unbound collection source admitted")
+		}
+	}
+	if err := collections.ModelsLabelTickets.ValidateSource(binding, field.Target, "tickets"); err == nil {
+		t.Fatal("reverse accessor became a forward field capability")
+	}
+	if err := (orm.ManyToMany[models.Ticket, models.Label, models.TicketLabel]{}).ValidateSource(binding, identity, field.Name); err == nil {
+		t.Fatal("zero collection became a capability")
 	}
 }
 
