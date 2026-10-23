@@ -29,7 +29,29 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-const migrationCommandActualTimeout = 90 * time.Second
+const (
+	migrationCommandActualBuildTimeout = 5 * time.Minute
+	migrationCommandActualTimeout      = 90 * time.Second
+)
+
+type migrationCommandActualLimits struct {
+	build     time.Duration
+	execution time.Duration
+}
+
+func defaultMigrationCommandActualLimits() migrationCommandActualLimits {
+	return migrationCommandActualLimits{build: migrationCommandActualBuildTimeout, execution: migrationCommandActualTimeout}
+}
+
+func (limits migrationCommandActualLimits) total() time.Duration {
+	// The compatibility probe retains the product's tighter deadline. The
+	// outer bound also covers preparation and cleanup between child stages.
+	return limits.build + 2*limits.execution
+}
+
+func (limits migrationCommandActualLimits) context(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, limits.total())
+}
 
 type migrationCommandActualExecution struct {
 	report      productcheck.MigrateReport
@@ -54,10 +76,24 @@ type migrationCommandActualPhase struct {
 
 type migrationCommandActualBackend struct {
 	productcheck.NativeBackend
+	limits migrationCommandActualLimits
 	phases []migrationCommandActualPhase
 }
 
+func newMigrationCommandActualBackend() *migrationCommandActualBackend {
+	return &migrationCommandActualBackend{
+		NativeBackend: productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
+		limits:        defaultMigrationCommandActualLimits(),
+	}
+}
+
 func (backend *migrationCommandActualBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage productcheck.ProcessStage, command productcheck.Command) productcheck.ProcessResult {
+	limit := backend.limits.execution
+	if stage == productcheck.BuildStage {
+		limit = backend.limits.build
+	}
+	ctx, cancel := context.WithTimeout(ctx, limit)
+	defer cancel()
 	started := time.Now()
 	deadline, bounded := ctx.Deadline()
 	phase := migrationCommandActualPhase{Stage: stage, Bounded: bounded}
@@ -172,11 +208,11 @@ func (project migrationCommandProject) runActual(
 	interrupt <-chan struct{},
 ) migrationCommandActualExecution {
 	environment := project.actualEnvironment(mode, database, secret)
-	phaseContext, cancel := context.WithTimeout(ctx, migrationCommandActualTimeout)
+	backend := newMigrationCommandActualBackend()
+	phaseContext, cancel := backend.limits.context(ctx)
 	defer cancel()
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
-	backend := &migrationCommandActualBackend{NativeBackend: productcheck.NativeBackend{Framework: commandFixtureToolInfo()}}
 	report := productcheck.RunMigrate(productcheck.MigrateInvocation{
 		Backend:     backend,
 		Context:     phaseContext,
@@ -599,8 +635,8 @@ func migrationCommandActualDigestText(digest [sha256.Size]byte) string {
 	return hex.EncodeToString(digest[:])
 }
 
-func migrationCommandWaitForActualMarker(ctx context.Context, directory, prefix string) (int, error) {
-	timer := time.NewTimer(migrationCommandActualTimeout)
+func migrationCommandWaitForActualMarker(ctx context.Context, directory, prefix string, timeout time.Duration) (int, error) {
+	timer := time.NewTimer(timeout)
 	defer timer.Stop()
 	ticker := time.NewTicker(5 * time.Millisecond)
 	defer ticker.Stop()

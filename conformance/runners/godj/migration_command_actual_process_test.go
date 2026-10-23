@@ -28,7 +28,7 @@ func TestMigrationCommandActualFailureDiagnosticsKeepCancellationAndDiscardPriva
 			}
 			defer cancel()
 			const secret = "migration-command-diagnostic-private-canary"
-			backend := &migrationCommandActualBackend{}
+			backend := newMigrationCommandActualBackend()
 			result := backend.Execute(ctx, nil, productcheck.BuildStage, productcheck.Command{
 				Dir: secret, Argv: []string{secret}, Env: []string{"SECRET=" + secret}, Stdin: []byte(secret),
 			})

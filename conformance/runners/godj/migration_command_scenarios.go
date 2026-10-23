@@ -1695,22 +1695,29 @@ func migrationCommandInterruptCleanup(ctx context.Context, contract protocol.Con
 		return protocol.Observation{}, fmt.Errorf("seed migration-command interrupt prefix: %w", err)
 	}
 	interrupt := make(chan struct{})
+	runnerContext, cancelRunner := context.WithCancel(ctx)
 	completed := make(chan migrationCommandActualExecution, 1)
-	go func() {
-		completed <- project.runActual(ctx, migrationcommandworker.ModeInterrupt, databasePath, "", interrupt)
+	joined := false
+	defer func() {
+		cancelRunner()
+		if !joined {
+			<-completed
+		}
 	}()
-	childPID, err := migrationCommandWaitForActualMarker(ctx, project.trace, "interrupt-ready")
+	go func() {
+		execution := project.runActual(runnerContext, migrationcommandworker.ModeInterrupt, databasePath, "", interrupt)
+		cancelRunner()
+		completed <- execution
+	}()
+	limits := defaultMigrationCommandActualLimits()
+	childPID, err := migrationCommandWaitForActualMarker(runnerContext, project.trace, "interrupt-ready", limits.total())
 	if err != nil {
 		return protocol.Observation{}, err
 	}
 	interruptedAt := time.Now()
 	close(interrupt)
-	var execution migrationCommandActualExecution
-	select {
-	case execution = <-completed:
-	case <-ctx.Done():
-		return protocol.Observation{}, ctx.Err()
-	}
+	execution := <-completed
+	joined = true
 	graceElapsed := time.Since(interruptedAt)
 	if err := migrationCommandActualFailure(execution, migrateprotocol.CategoryProcess, migrateprotocol.CodeProjectInterrupted, 1, 0); err != nil {
 		return protocol.Observation{}, err

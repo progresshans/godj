@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
@@ -1513,7 +1512,7 @@ func migrationTargetPlanActualOwnership(
 	evidence.forcedGroupsRemaining = forcedRemaining
 
 	overflow := migrationTargetPlanRunActual(ctx, project, migrationTargetPlanActualOverflowMode, "", "")
-	overflowPID, err := migrationCommandWaitForActualMarker(ctx, project.trace, "target-plan-overflow")
+	overflowPID, err := migrationCommandWaitForActualMarker(ctx, project.trace, "target-plan-overflow", migrationCommandActualTimeout)
 	if err != nil {
 		return migrationTargetPlanActualOwnershipEvidence{}, err
 	}
@@ -1558,7 +1557,7 @@ func migrationTargetPlanActualOwnership(
 		base64.StdEncoding.EncodeToString(privatePlan),
 		migrationTargetPlanSecret,
 	)
-	stderrPID, err := migrationCommandWaitForActualMarker(ctx, project.trace, "target-plan-stderr")
+	stderrPID, err := migrationCommandWaitForActualMarker(ctx, project.trace, "target-plan-stderr", migrationCommandActualTimeout)
 	if err != nil {
 		return migrationTargetPlanActualOwnershipEvidence{}, err
 	}
@@ -1615,26 +1614,31 @@ func migrationTargetPlanRunActualCancellation(
 	markerPrefix string,
 	wantSIGKILL int,
 ) (migrationTargetPlanActualExecution, int, int, int, error) {
-	phaseContext, cancelPhase := context.WithTimeout(ctx, migrationCommandActualTimeout)
+	limits := defaultMigrationCommandActualLimits()
+	phaseContext, cancelPhase := limits.context(ctx)
 	defer cancelPhase()
 	runnerContext, cancelRunner := context.WithCancel(phaseContext)
 	done := make(chan migrationTargetPlanActualExecution, 1)
+	joined := false
+	defer func() {
+		cancelRunner()
+		if !joined {
+			<-done
+		}
+	}()
 	go func() {
-		done <- migrationTargetPlanRunActual(runnerContext, project, mode, "", "")
+		execution := migrationTargetPlanRunActual(runnerContext, project, mode, "", "")
+		cancelRunner()
+		done <- execution
 	}()
 	abort := func(primary error) (migrationTargetPlanActualExecution, int, int, int, error) {
 		cancelRunner()
-		cleanupTimer := time.NewTimer(30 * time.Second)
-		defer cleanupTimer.Stop()
-		select {
-		case <-done:
-		case <-cleanupTimer.C:
-			primary = errors.Join(primary, errors.New("target-plan cancellation cleanup timed out"))
-		}
+		<-done
+		joined = true
 		return migrationTargetPlanActualExecution{}, 0, 0, 0, primary
 	}
 
-	runnerPID, err := migrationCommandWaitForActualMarker(phaseContext, project.trace, markerPrefix+"-ready")
+	runnerPID, err := migrationCommandWaitForActualMarker(runnerContext, project.trace, markerPrefix+"-ready", limits.total())
 	if err != nil {
 		return abort(err)
 	}
@@ -1660,12 +1664,8 @@ func migrationTargetPlanRunActualCancellation(
 	}
 
 	cancelRunner()
-	var execution migrationTargetPlanActualExecution
-	select {
-	case execution = <-done:
-	case <-phaseContext.Done():
-		return migrationTargetPlanActualExecution{}, 0, 0, 0, phaseContext.Err()
-	}
+	execution := <-done
+	joined = true
 	remaining := 1
 	if err := migrationCommandWaitForProcessGroupAbsent(phaseContext, runnerPID); err != nil {
 		return migrationTargetPlanActualExecution{}, 0, 0, remaining, err
@@ -1691,7 +1691,8 @@ func migrationTargetPlanRunActual(
 	project migrationCommandProject,
 	mode, response, secret string,
 ) migrationTargetPlanActualExecution {
-	phaseContext, cancelPhase := context.WithTimeout(ctx, migrationCommandActualTimeout)
+	backend := newMigrationCommandActualBackend()
+	phaseContext, cancelPhase := backend.limits.context(ctx)
 	defer cancelPhase()
 	environment := migrationCommandActualEnvironment(os.Environ())
 	environment[migrationTargetPlanActualModeEnvironment] = mode
@@ -1716,7 +1717,7 @@ func migrationTargetPlanRunActual(
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	report := productcheck.RunMigrate(productcheck.MigrateInvocation{
-		Backend: productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
+		Backend: backend,
 		Context: phaseContext, CWD: project.root, Args: []string{"migrate", "--plan"}, Environment: entries,
 		Stdout: &stdout, Stderr: &stderr,
 	})

@@ -3,6 +3,39 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 실제 race 컴파일과 migration 관측 기한 분리
+
+2026-10-23, source `40342160f57c29aad7f9ed075addbab5f3793485`의
+[CI 39948719262](https://github.com/progresshans/godj/actions/runs/39948719262)에서 MIG-089 실패 원인을 확인했다.
+빌드는 89.8989초에 exit 0으로 끝났지만 전체 90초 기한에서 호환성 확인에 99.86ms만 남았다.
+그 자식은 deadline으로 종료됐고 migration runner는 시작되지 않았다. 이전 source에서 미확정이었던 실패는
+새 단계 진단으로 관측기의 컴파일·실행 예산 공유 문제로 좁혔다.
+
+실제 OS 자식을 사용하는 짧은 기한 재현에서 준비와 실행의 예산 공유가 실패했고, 더 짧은 부모 기한을 따르는 부정 검사는
+통과했다. 관측기의 build는 5분, 후속 실행은 각 90초로 분리했다. 제품의 호환성 확인 15초와 부모의 더 짧은 기한을
+그대로 따른다. 준비·단계 사이 작업의 바깥 한도는 8분이며 suite의 기존 기한도 유지한다. 이는 conformance adapter의
+관측 예산이며 공개 제품 명령의 timeout·종료 grace·프로토콜·oracle·race 계측을 변경한 것이 아니다.
+비동기 시작 표시 대기 실패/취소도 실행 소유자를 cancel·join한 뒤 fixture를 정리한다.
+
+수정 후 로컬 Darwin arm64 `-race`의 준비/실행 분리·실행 timeout 회수·부모 deadline·진단 비밀값 경계 6개 root/child가
+통과했다. 기존 실패 루트 `TestRunGDJ0049MigrationCommandWritesTwelveActuals`의 12개 관측과 고정 oracle 대조도 통과했다.
+함께 변경한 MIG-128의 실제 취소·강제 process group 회수·응답 상한·비밀값 검사도 선택 실행해 통과했다.
+전체 로컬 suite는 실행하지 않았다. 새 source의 원격 cold/race 및 전체 C1 검증은 남아 있다.
+
+수정 전 `40342160`의 Linux 두 architecture race reload는 실제 CLI·runner·서버 metadata와 Notes·Article 필수 실행을
+통과했다. 수집한 reload 7개·baseline 3개와 Python 3.14.3 원본 중 완전한 Linux 3개 좌표는 개발 공통 결과 8개·명시적 차이
+1개·event 공통 결과 6개가 독립 기준과 일치했다. Python은 405개 중 고정 Darwin profile 담당 4개를 별도 실행에 맡겼고,
+baseline의 PostgreSQL 두 skip도 별도 DB 담당 작업의 실행을 대신하지 않는다. 이 부분 대조는 전체 12개 좌표나 새 수정의 PASS가 아니다.
+별도 Helpdesk PostgreSQL race owner는 필수 778개와 실제 root/child 849개를 대조했고 skip은 없었다.
+
+원본·source hash·전후 재현은 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-40342160-ci-39948719262/runtime-and-migration-failure.json` — 원격 단계 실패·실제 race와 PostgreSQL 원본 연결 | `2e303be572519f3f88d01afac6cad57840a55c1e05ec31fc24e2bb7211646314` |
+| `gdj0137-40342160-ci-39948719262/partial-reference-before-phase-budget-fix.json` — native/Python 원본과 Linux 3개 좌표 부분 대조 | `1f8fcdd7b305dc1db29ed127d17d4ef89226084fff44aa8c2468b4dad0eac8a0` |
+| `gdj0137-migration-phase-budget-repro-v1/comparison.json` — 실제 자식 전후·12개 관측·MIG-128과 수정 source | `75b7eab582a1ac1eee081c9bef25c4ba01f504c3be87ed9cba008f3dbc3a2502` |
+
 ## GDJ-0137 — Portable race의 migration 실행 전 실패 조사
 
 2026-10-23, source `2bc0db76e539ff76e50bc24ce419464d745e1b94`의

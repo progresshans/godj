@@ -1131,7 +1131,7 @@ func migrationSQLRenderingRunProcesses(
 		}
 		return primary
 	}
-	runnerPID, err := migrationCommandWaitForActualMarker(phaseContext, projectFixture.trace, "sql-render-cancel-ready")
+	runnerPID, err := migrationCommandWaitForActualMarker(phaseContext, projectFixture.trace, "sql-render-cancel-ready", migrationCommandActualTimeout)
 	if err != nil {
 		return migrationSQLRenderingProcessEvidence{}, abort(err)
 	}
