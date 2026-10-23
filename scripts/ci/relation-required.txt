@@ -3236,8 +3236,6 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/session_
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/session_login_failures/unknown_rollback
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/session_login_failures/write_failure
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/session_optional_last_login
-
-# Selected account role writes and deactivation.
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/role_authority_and_domain
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/role_bounds
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/role_commit_failures

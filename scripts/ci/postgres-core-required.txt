@@ -4609,8 +4609,6 @@ github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/sess
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/session_login_failures/unknown_rollback
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/session_login_failures/write_failure
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/session_optional_last_login
-
-# Selected account role writes and deactivation.
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/role_authority_and_domain
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/role_bounds
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/role_commit_failures

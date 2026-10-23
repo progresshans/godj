@@ -446,6 +446,20 @@ compile receipt와 같고, 선행 compile 이후의 두 harness/필수 목록 �
 경로는 위와 같은 저장소 밖 검증 보관소 아래다. 이 한정 재현·compile은 I1-01~08 완료 판정이 아니다.
 새 push의 전체 CI와 실제 checkout·필수 실행·원본 대조는 후속 실행에서 확인한다.
 
+### 필수 실행 목록 형식 수정
+
+Source `2fb64a93069f961e76994d0e543bd711e73970a9`의 [CI 40041826153](https://github.com/progresshans/godj/actions/runs/40041826153)에서
+새 필수 목록에 추가한 빈 줄과 설명 주석 때문에 PostgreSQL 실행 계획이 `invalid PostgreSQL sentinel`로 중단됐고,
+CI 도구 검사도 21개 오류를 보고했다. 실제 checkout `4589ee62178fb40d70ddeaec1f65455a6c76d7f0`의 tree는
+`ee133bb2cceedbda26c183d935d0e5df415a0416`로 제출 source와 같다. 원본 세 job 로그와 Git 객체는
+`gdj0138-2fb64a93-ci-40041826153/`에 보존했다. 앞선 목록 대조는 유효 항목 수/hash만 확인했고 엄격한 파일 형식을
+검사하지 못했다. 이 실패는 PostgreSQL 제품 테스트가 실행됐다는 근거가 아니다.
+
+두 목록의 새 빈 줄/주석만 제거했다. 모든 테스트 요구와 각 DB의 새 33개 역할 parent/child는 그대로다. 확인된 실패의
+12개 Python 검사 root를 로컬 재현한 뒤 수정 후 모두 통과했다. Parser나 필수 실행 조건을 완화하지 않았다.
+명령·전후 목록 hash·제거한 비테스트 행은 `gdj0138-role-required-format-repro-v1/receipt.json`에 있다
+(SHA-256 `9e71311328e26ed41690f4890c1ac3a3e566a9bae44008e113453b3b2565f571`). 새 source의 전체 CI 결과는 별도 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
