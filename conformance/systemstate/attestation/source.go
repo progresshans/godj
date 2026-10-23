@@ -57,6 +57,7 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"account/",
 	"timezone/",
 	"internal/zonerules/",
 	"uploads/",

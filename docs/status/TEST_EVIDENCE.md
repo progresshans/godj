@@ -127,6 +127,20 @@ hash가 같았고 외부 consumer template도 현행 파일과 같았다. 원본
 (SHA-256 `01f03f5aee0f842c7e4d266b4e98e72db3dbebf0bb55d6d96c6eba0c77f5b272`).
 이 단계에서 새 DB/단위/외부 소비자 테스트 본문·race·전체 platform은 로컬에서 실행하지 않았다.
 
+Source `502cc018f11fd660ae94f75cb829da237025c4d7`의
+[CI 40012148301](https://github.com/progresshans/godj/actions/runs/40012148301) normal/CGO0 portable conformance에서
+두 native dependency 검사가 이동한 `account/domain`의 Go 소스 6개와 models 디렉터리 symlink 경계를 놓친 것을
+확인했다. 실제 checkout `98ab3a10e31a0427709dd0d69e7f13b6d2d2fea9`의 tree가 제출 source와 같았다.
+원본은 `gdj0138-502cc018-ci-40012148301/failure-120615758297.log`와 `failure-120615758517.log`다
+(SHA-256 `6134fa3d173b0e676da152917a4a2d869b526c1952cc3bcd7aab089b1a391769`,
+`ee79b4ae6547ab50f504312d5d961e9a93ac014668d58dc83112a89e61b649b5`).
+
+깨끗한 같은 source에서 두 실패를 로컬 재현한 뒤 두 product source 목록에 `account/`를 추가했다. 여섯 파일 각각의
+내용 변경과 account ancestor/models 디렉터리 symlink 거부 검사를 보완했으며, 수정 뒤 관련 여섯 root·230개 child가
+skip 없이 통과했다. 원본·수정 전후 네 파일 hash는 `gdj0138-account-source-prefix-repro-v1/receipt.json`에 있다
+(SHA-256 `a44461c2e67f10940936a59bbf823b165ae625fbc82bd6176672ca89ffa1b6d1`).
+이 한정 회귀는 공통 계정 저장소의 DB/race·전체 platform 실행을 대신하지 않는다.
+
 I1의 공통 credential 조회는 원격 실행 확인이 필요하다. 관리 runtime, Form/Admin/API·첫 사용자 명령, 저장 도메인에 결합한 채운 DB의 명시적 모델 전환,
 password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
 

@@ -75,6 +75,12 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
 		"account/domain/migrations/godj_account_domain_0001_initial.godj.json",
+		"account/domain/domain.go",
+		"account/domain/migrations.go",
+		"account/domain/models/zz_godj_generated.go",
+		"account/domain/models/zz_godj_relation.go",
+		"account/domain/models/zz_godj_relation_object.go",
+		"account/domain/models/zz_godj_relation_projection.go",
 		"timezone/zone.go",
 		"internal/zonerules/catalog.go",
 		"internal/zonerules/zoneinfo.zip",
@@ -273,6 +279,8 @@ func TestComputeSourceBindingRejectsDirectorySymlinkThatCanHideOwnedSource(t *te
 		linkPath string
 		filePath string
 	}{
+		{name: "account namespace", linkPath: "account", filePath: "domain/domain.go"},
+		{name: "account models", linkPath: "account/domain/models", filePath: "zz_godj_generated.go"},
 		{name: "URL normalization", linkPath: "internal/urlinput", filePath: "url.go"},
 		{name: "compatibility metadata", linkPath: "project/compatibility", filePath: "compatibility.go"},
 		{name: "runtime diagnostic logging", linkPath: "internal/diagnosticlog", filePath: "log.go"},
