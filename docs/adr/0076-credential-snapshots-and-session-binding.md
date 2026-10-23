@@ -855,3 +855,19 @@ Hash·dummy 검증·encoded profile 검사는 DB snapshot 밖에서 실행하고
 
 이 저장소는 credential 관측 경계다. Typed profile 관리·인가된 catalog 변경·첫 계정 명령·session/reset/audit
 write fence·채운 DB mapping은 같은 binding에 연결해야 하며 GDJ-0138에서 계속 추적한다.
+
+
+공통 저장소의 `AuthorizeIn`은 이미 인증된 Principal을 live borrowed snapshot/write scope에 전달받는다.
+현재 저장 domain이 claim과 일치하는지 먼저 확인하므로, 다른 세대 또는 domain 없는 actor의 같은 ID를 새 계정으로
+조회하지 않는다. 이어 같은 scope에서 현재 active·role·직접/그룹 권한을 다시 읽고 모든 필수 권한을 확인한다.
+Authorizer에는 이 현재 Principal만 전달하며 저장 grant를 늘릴 수 없는 deny overlay로 사용한다.
+
+확정 거부만 anonymous Principal·false·nil로 반환한다. 잘못된 선택 역할, I/O, 만료 scope, 취소, overlay 오류는
+Principal 없이 error로 반환하며 다른 권한의 대안으로 넘어갈 수 없다. Required permission은 정규·비중복·한도 내의
+비어 있지 않은 conjunction이어야 한다. Root backend와 만료된 handle은 거부하며 callback 뒤에도 scope와 취소를 확인한다.
+이 API는 transaction이나 password 작업을 시작하지 않는다. Overlay는 owner를 재진입하거나 scope를 변경하면 안 된다.
+
+반환 Principal은 해당 scope의 잠정 관측이며 다음 쓰기에 재사용하는 권한 증표가 아니다. 관리 owner는 같은 scope에서
+대상 revision·typed 입력·관계·session/audit를 처리하고 commit 또는 read cleanup이 확인된 뒤에만 결과를 게시한다.
+기본/사용자 정의 소비자의 허용된 typed profile 변경은 이 경계를 사용하는 예이며, 이를 전체 프로필 validation이나
+관리 API 연결의 완료로 보지 않는다. 기존 기본 Directory/Manager의 교체와 공개 관리 소비자는 GDJ-0138에 남아 있다.

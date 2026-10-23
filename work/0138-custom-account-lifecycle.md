@@ -69,6 +69,11 @@ catalog·typed profile·첫 계정 명령·명시적 전환을 함께 완성하�
 저장소와 선택된 Exact/NFKC 인증 정책을 사용한다. 독립 domain 생성 root는 기본 계정 root와 겹치지 않는
 `account/domain`으로 옮겼고 migration의 DB 의미는 유지한다. 작성한 양 DB·외부 소비자 검사의 원격 실행은 별도 확인 대상이다.
 
+공통 저장소의 `AuthorizeIn`도 작성했다. 기존 인증 claim의 domain을 현재 저장 값과 먼저 대조하고, 같은 borrowed scope의
+현재 active/role/grant와 deny overlay를 확인한다. 실제 기본·사용자 정의 모델 소비자에 허용된 typed profile 변경을 연결하고,
+양 DB에는 회수된 grant·이전 domain·inactive actor 거부, 허용 후 rollback, 만료 scope와 overlay 오류 검사를 추가했다.
+이것은 최종 관리 작업이 사용할 인가 경계이며 기존 Manager의 typed 입력·revision·session/audit 연결을 완료한 것은 아니다.
+
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
 3. 공개 명령·Form/Admin/API·password/reset·host 삭제·restart 소비자와 실패 검사를 완성한다.

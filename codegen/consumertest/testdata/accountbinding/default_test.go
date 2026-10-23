@@ -9,6 +9,7 @@ import (
 	"example.com/godj-project-bundle/models"
 	"example.com/godj-project-bundle/project"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 )
 
 func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
@@ -83,6 +84,27 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	normalized, err := authenticator.Authenticate(t.Context(), "ａｌｉｃｅ", accountPasswordText)
 	if !errors.Is(err, auth.ErrInvalidCredentials) || normalized.SessionStamp() != "" {
 		t.Fatal("exact login policy normalized input", err)
+	}
+	actor, err := authenticator.Authenticate(t.Context(), "alice", accountPasswordText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := backend.CoordinatedAtomic(t.Context(), func(tx db.Session) error {
+		current, allowed, err := store.AuthorizeIn(t.Context(), tx, actor.Principal(), auth.PrincipalAuthorizer{}, "account.team")
+		if err != nil {
+			return err
+		}
+		if !allowed || current.ID() != "user-1" {
+			return errors.New("current account could not authorize a typed profile mutation")
+		}
+		_, err = models.UserObjects.Patch(t.Context(), tx, row, models.UserPatch{}.WithFirstName("Updated Alice").WithRevision(2))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	edited, present, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(row.ID)).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
+	if err != nil || !present || edited.FirstName != "Updated Alice" || edited.Revision != 2 {
+		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
 	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {

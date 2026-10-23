@@ -10,6 +10,7 @@ import (
 	"example.com/godj-project-bundle/project"
 	"example.com/godj-project-bundle/tickets"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -109,6 +110,27 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		}
 	} else if !errors.Is(err, auth.ErrInvalidCredentials) || normalized.SessionStamp() != "" {
 		t.Fatal("exact custom policy normalized input", err)
+	}
+	actor, err := authenticator.Authenticate(t.Context(), "member@example.test", accountPasswordText)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := backend.CoordinatedAtomic(t.Context(), func(tx db.Session) error {
+		current, allowed, err := store.AuthorizeIn(t.Context(), tx, actor.Principal(), auth.PrincipalAuthorizer{}, "account.team")
+		if err != nil {
+			return err
+		}
+		if !allowed || current.ID() != "member-1" {
+			return errors.New("current account could not authorize a typed profile mutation")
+		}
+		_, err = people.MemberObjects.Patch(t.Context(), tx, row, people.MemberPatch{}.WithRegion("JP").WithVersion(2))
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	edited, present, err := people.MemberObjects.Using(backend).Filter(people.MemberFields.ID.Exact(row.ID)).OrderBy(people.MemberFields.ID.Asc()).First(t.Context())
+	if err != nil || !present || edited.Region != "JP" || edited.Version != 2 {
+		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
 	credential := assertStoredAccount(t, backend, binding, authenticator, "member@example.test", "member-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {

@@ -141,6 +141,28 @@ skip 없이 통과했다. 원본·수정 전후 네 파일 hash는 `gdj0138-acco
 (SHA-256 `a44461c2e67f10940936a59bbf823b165ae625fbc82bd6176672ca89ffa1b6d1`).
 이 한정 회귀는 공통 계정 저장소의 DB/race·전체 platform 실행을 대신하지 않는다.
 
+수정 source `1f3cad75dfc2f598a2f890a054421e34235ccaf9`의
+[CI 40013923843](https://github.com/progresshans/godj/actions/runs/40013923843) normal/CGO0 conformance 작업은 성공했다.
+실제 checkout `297bf8150e08152049c20adb2b4efa6d3e5fcaaf`의 tree와 부모 source를 대조했으며 원본은
+`gdj0138-1f3cad75-ci-40013923843/source-binding.json`에 연결했다
+(SHA-256 `795f07cee865208984fe0843a18a1aba7ecc264933985b146d65ec4709d31b52`).
+이 결과는 해당 두 작업의 확인이며 전체 source의 완료 판정은 아니다.
+
+같은 borrowed scope에서 관리 actor의 현재 domain·active/role/grant·deny overlay를 확인하는 `AuthorizeIn`을 작성했다.
+이전 domain 또는 domain 없는 동일 ID의 actor는 계정 ID 조회 전에 거부한다. 확정 거부와 overlay/I/O/취소 실패를
+구분하고 root backend·만료 scope·잘못된 권한 요구를 거부한다. 기본/별도 모델 소비자는 생성 저장소를 통해 권한을
+확인한 같은 native write scope에서 FirstName/Region과 revision을 typed patch로 변경한다.
+
+양 DB에는 권한 회수 후 오래된 Principal의 쓰기 거부와 durable 상태 보존, 허용 후 후속 실패의 rollback,
+새 domain에서 기존 actor/동일 ID 재사용 거부와 새 actor의 허용, inactive 전환, overlay 오류/취소/거부 및 만료 scope
+검사를 작성했다. 0/음수 저장 key의 인가도 추가했다. 이 검사는 공개 관리 API 전체와 session/audit 통합을 대신하지 않는다.
+
+새 영향 package와 기본/사용자 정의 외부 module의 최소 compile은 모두 exit 0이었다. 최종 source 9개 파일의 hash가
+실행 전후 같았고 테스트 본문은 실행하지 않았다. 원본·환경·source hash는 검증 보관소의
+`gdj0138-account-authority-compile-v1/receipt.json`에 있다
+(SHA-256 `c806bf1a1c96dafbf22c5bc9da4637633299f1487a6fb8caa92d414e850419e6`).
+새 인가·typed mutation 테스트 본문과 DB/race/전체 platform은 원격 확인 대상이다.
+
 I1의 공통 credential 조회는 원격 실행 확인이 필요하다. 관리 runtime, Form/Admin/API·첫 사용자 명령, 저장 도메인에 결합한 채운 DB의 명시적 모델 전환,
 password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
 

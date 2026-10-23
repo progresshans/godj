@@ -4272,3 +4272,5 @@ github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/inva
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/permission_bound
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/zero_and_negative_keys
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/selected_login_policy
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/authoritative_actor
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/authorization_scope_and_errors

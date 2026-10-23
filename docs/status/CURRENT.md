@@ -3,7 +3,7 @@
 - 갱신: 2026-10-24
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [C1 / GDJ-0137 Project/Core](../../work/0137-project-core-startup.md)를 구현 중이다.
-- 병행: [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)의 계정 역할·도메인 이력·공통 credential 조회를
+- 병행: [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)의 계정 역할·도메인 이력·공통 credential 조회와 scope 내 인가를
   별도 작업트리에서 구현 중이다. C1의 전체 원격 검증과 I1의 새 실행 검증은 구분한다.
 - 최근 제품 완료 범위: [F1 / GDJ-0136 Form/Admin 일반화](../../work/0136-form-admin-generalization.md).
   같은 source의 전체 CI·원본 대조와 선행 A1/Q1/G-ORM 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.

@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"reflect"
@@ -115,6 +116,14 @@ func (store *CredentialStore[M]) lookupIn(ctx context.Context, reader db.Queryer
 	if err != nil {
 		return auth.Credential{}, false, err
 	}
+	return store.credentialInDomain(ctx, reader, predicate, ownership.Generation())
+}
+
+// The caller obtained generation from the selected role in this SAME scope.
+// This split lets authorization reject an old-domain actor before looking up
+// its ID without repeating the domain observation or opening another snapshot.
+func (store *CredentialStore[M]) credentialInDomain(ctx context.Context, reader db.Queryer, predicate orm.Predicate[M], generation [sha256.Size]byte) (auth.Credential, bool, error) {
+	binding := store.state.binding
 	row, present, err := binding.state.objects.Using(reader).Filter(predicate).OrderBy(store.state.key.Asc()).First(ctx)
 	if err != nil || !present {
 		return auth.Credential{}, false, err
@@ -128,7 +137,7 @@ func (store *CredentialStore[M]) lookupIn(ctx context.Context, reader db.Queryer
 	if err != nil {
 		return auth.Credential{}, false, err
 	}
-	credential, err := binding.PrepareCredential(ownership.Generation(), row, permissions)
+	credential, err := binding.PrepareCredential(generation, row, permissions)
 	if err != nil {
 		return auth.Credential{}, false, err
 	}

@@ -10,6 +10,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/query"
 )
 
 type untouchedAccountBackend struct{ calls int }
@@ -80,4 +81,63 @@ func TestCredentialStoreRejectsUnownedConfigurationBeforeIO(t *testing.T) {
 	if backend.calls != 0 {
 		t.Fatal("configuration or input validation performed I/O")
 	}
+}
+
+type authorityInputScope struct{ reads int }
+
+func (scope *authorityInputScope) Query(context.Context, query.Plan) (db.Rows, error) {
+	scope.reads++
+	return nil, errors.New("unexpected authorization read")
+}
+func (scope *authorityInputScope) ValidateSession(ctx context.Context) error { return ctx.Err() }
+
+func TestAccountAuthorityRejectsInvalidScopeAndRequirementsBeforeRead(t *testing.T) {
+	binding, err := accountmodel.Bind(modeldef.AccountRole(), models.UserDescriptor{}, models.GoDjRelationSchema())
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &untouchedAccountBackend{}
+	store, err := accountmodel.NewCredentialStore(backend, binding, models.GroupDescriptor{}, models.PermissionDescriptor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := &authorityInputScope{}
+	for _, required := range [][]auth.Permission{{""}, {"BAD permission"}, {"account.read", "account.read"}, make([]auth.Permission, auth.MaximumPermissions+1)} {
+		current, allowed, err := store.AuthorizeIn(t.Context(), scope, auth.Anonymous(), auth.PrincipalAuthorizer{}, required[0], required[1:]...)
+		if err == nil || allowed || current.ID() != "" {
+			t.Fatal("invalid required permissions admitted")
+		}
+	}
+	for _, reader := range []db.Queryer{nil, (*authorityInputScope)(nil), failedAuthorityReader{}} {
+		current, allowed, err := store.AuthorizeIn(t.Context(), reader, auth.Anonymous(), auth.PrincipalAuthorizer{}, "account.read")
+		if err == nil || allowed || current.ID() != "" {
+			t.Fatal("unowned reader admitted")
+		}
+	}
+	for _, overlay := range []auth.Authorizer{nil, (*auth.PrincipalAuthorizer)(nil)} {
+		current, allowed, err := store.AuthorizeIn(t.Context(), scope, auth.Anonymous(), overlay, "account.read")
+		if err == nil || allowed || current.ID() != "" {
+			t.Fatal("nil overlay admitted")
+		}
+	}
+	if current, allowed, err := store.AuthorizeIn(nil, scope, auth.Anonymous(), auth.PrincipalAuthorizer{}, "account.read"); err == nil || allowed || current.ID() != "" {
+		t.Fatal("nil context admitted")
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	if current, allowed, err := store.AuthorizeIn(ctx, scope, auth.Anonymous(), auth.PrincipalAuthorizer{}, "account.read"); !errors.Is(err, context.Canceled) || allowed || current.ID() != "" {
+		t.Fatal("canceled context admitted", err)
+	}
+	if current, allowed, err := store.AuthorizeIn(t.Context(), scope, auth.Anonymous(), auth.PrincipalAuthorizer{}, "account.read"); err != nil || allowed || current.ID() != "" {
+		t.Fatal("anonymous actor was not definitely denied", err)
+	}
+	if scope.reads != 0 || backend.calls != 0 {
+		t.Fatal("invalid or anonymous authority made database reads")
+	}
+}
+
+type failedAuthorityReader struct{}
+
+func (failedAuthorityReader) Query(context.Context, query.Plan) (db.Rows, error) {
+	return nil, errors.New("unowned reader")
 }

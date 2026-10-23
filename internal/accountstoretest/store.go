@@ -50,6 +50,8 @@ func Run(t *testing.T, open Open) {
 		{"permission_bound", permissionBound},
 		{"zero_and_negative_keys", nonpositiveKeys},
 		{"selected_login_policy", loginPolicy},
+		{"authoritative_actor", authoritativeActor},
+		{"authorization_scope_and_errors", authorizationScopeAndErrors},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
@@ -481,6 +483,18 @@ func nonpositiveKeys(t *testing.T, backend Backend, _ func(*testing.T) Backend) 
 		}
 		got, found, err := f.store.CredentialByID(t.Context(), user.PrincipalID)
 		requireGrants(t, got, found, err, "account.direct")
+		if err := backend.CoordinatedAtomic(t.Context(), func(tx db.Session) error {
+			current, allowed, err := f.store.AuthorizeIn(t.Context(), tx, got.Principal(), auth.PrincipalAuthorizer{}, "account.direct")
+			if err != nil {
+				return err
+			}
+			if !allowed || current.ID() != user.PrincipalID {
+				return errors.New("present nonpositive key lost authority")
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 func loginPolicy(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
