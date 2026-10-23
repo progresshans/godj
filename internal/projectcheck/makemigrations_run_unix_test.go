@@ -236,25 +236,44 @@ func TestRunMakemigrationsFailsClosedOnSnapshotAndInPlaceDrift(t *testing.T) {
 
 	t.Run("retained project root rebounds after baseline", func(t *testing.T) {
 		t.Parallel()
-		fixture := newMakemigrationsRunFixture(t, false)
-		wire := encodeMakemigrationsRunResponse(t, fixture.snapshot)
-		moved := fixture.root + "-retained"
-		backend := &makemigrationsRunBackend{
-			t: t, inventory: fixture.inventory, runnerWire: wire,
-			onStage: func(stage ProcessStage) {
-				if stage != BuildStage {
-					return
+		for _, test := range []struct {
+			name   string
+			stage  ProcessStage
+			probes int
+		}{{"before metadata", BuildStage, 0}, {"after metadata", CompatibilityStage, 1}} {
+			t.Run(test.name, func(t *testing.T) {
+				fixture := newMakemigrationsRunFixture(t, false)
+				wire := encodeMakemigrationsRunResponse(t, fixture.snapshot)
+				before := generationTreeSnapshot(t, fixture.root)
+				moved := fixture.root + "-retained"
+				backend := &makemigrationsRunBackend{
+					t: t, inventory: fixture.inventory, runnerWire: wire,
+					onStage: func(stage ProcessStage) {
+						if stage != test.stage {
+							return
+						}
+						if err := os.Rename(fixture.root, moved); err != nil {
+							t.Fatal(err)
+						}
+						if err := os.Mkdir(fixture.root, 0o700); err != nil {
+							t.Fatal(err)
+						}
+					},
 				}
-				if err := os.Rename(fixture.root, moved); err != nil {
-					t.Fatal(err)
+				report, stdout, stderr := executeMakemigrationsRun(t, fixture, []string{"makemigrations", "--dry-run"}, backend, workspaceHooks{})
+				assertMakemigrationsSourceConflict(t, report, stdout, stderr, 1, 0, 0)
+				if report.CompatibilityChecks != test.probes || report.DirectChildReaps != 2+test.probes || report.WriterLockAcquisitions != 0 || report.PublicationRenames != 0 || report.PublishedCandidates != 0 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 {
+					t.Fatalf("root replacement reached metadata/publication or leaked ownership: %+v", report)
 				}
-				if err := os.Mkdir(fixture.root, 0o700); err != nil {
-					t.Fatal(err)
+				if !reflect.DeepEqual(before, generationTreeSnapshot(t, moved)) {
+					t.Fatal("root replacement changed the retained source")
 				}
-			},
+				entries, err := os.ReadDir(fixture.root)
+				if err != nil || len(entries) != 0 {
+					t.Fatal("root replacement received files", err)
+				}
+			})
 		}
-		report, stdout, stderr := executeMakemigrationsRun(t, fixture, []string{"makemigrations", "--dry-run"}, backend, workspaceHooks{})
-		assertMakemigrationsSourceConflict(t, report, stdout, stderr, 1, 0, 0)
 	})
 
 	t.Run("build input changes in place after build", func(t *testing.T) {

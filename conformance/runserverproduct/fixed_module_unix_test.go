@@ -112,6 +112,7 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 	for _, args := range [][]string{{"generate", "--check"}, {"migrations", "check"}, {"check"}, {"commands"}, {"migrate"}, {"showmigrations"}} {
 		mustRun(tools[0], project, args...)
 	}
+	assertStartedDatabaseCheckPreservesTree(t, tools[0], project, workspace, environment)
 	sql := mustRun(tools[0], project, "sqlmigrate", "godj_identity", "0001_initial")
 	if !strings.Contains(sql.Stdout, "CREATE TABLE") {
 		t.Fatal("fixed module SQL command produced no schema")

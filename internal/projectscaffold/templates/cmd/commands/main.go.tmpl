@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
@@ -35,6 +36,10 @@ func main() {
 func run(ctx context.Context) error {
 	environment, err := settings.NewEnvironment(os.Environ())
 	if err != nil {
+		var invalid *settings.Error
+		if errors.As(err, &invalid) && invalid != nil {
+			return &command.CheckError{Field: invalid.Field, Cause: err}
+		}
 		return err
 	}
 	registry, err := commands.Registry(environment)

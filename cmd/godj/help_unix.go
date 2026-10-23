@@ -24,7 +24,7 @@ func runHelp(ctx context.Context, args []string, stdout, stderr io.Writer, inter
 		"sqlmigrate APP NAME [--project PATH]",
 		"createsuperuser [--project PATH]",
 		"runserver [--listen ADDRESS] [--project PATH]",
-		"check [--project PATH]",
+		"check [--project PATH] [--list | --resource NAME ...]",
 		"commands [--project PATH]",
 		"command [--project PATH] NAME [ARGUMENTS]",
 		"help [--project PATH] [NAME]",

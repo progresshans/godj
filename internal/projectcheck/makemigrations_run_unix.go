@@ -84,7 +84,10 @@ func RunMakemigrations(input MakemigrationsInvocation) MakemigrationsReport {
 		return finish()
 	}
 
-	if primary = command.checkCompatibility(filepath.Join(workspace.root, "godj-project-runner")); primary != nil {
+	// Root identity is part of the captured source. A replacement during this
+	// probe is therefore a source conflict, while compatibility/process failures
+	// retain their own diagnostics and cleanup precedence.
+	if primary = normalizeMakemigrationsCASFailure(command.checkCompatibility(filepath.Join(workspace.root, "godj-project-runner"))); primary != nil {
 		chooseMakemigrationsFailure(&report, *primary)
 		return finish()
 	}
@@ -513,7 +516,7 @@ func makemigrationsSourceConflict() MakemigrationsFailure {
 }
 
 func normalizeMakemigrationsCASFailure(primary *MakemigrationsFailure) *MakemigrationsFailure {
-	if primary == nil || primary.Category == MakemigrationsCategoryProcess || primary.Category == MakemigrationsCategoryInternal {
+	if primary == nil || primary.Category == MakemigrationsCategoryProcess || primary.Category == MakemigrationsCategoryInternal || primary.Category == failurecode.CategoryCompatibility {
 		return primary
 	}
 	candidate := makemigrationsSourceConflict()

@@ -62,6 +62,20 @@ func parseManagement(argv []string) (descriptor string, child []string, ok bool)
 		if len(args) == 0 {
 			return descriptor, []string{"check"}, true
 		}
+		if len(args) == 1 && args[0] == "--list" {
+			return descriptor, []string{"check", "--list"}, true
+		}
+		if len(args)%2 != 0 || len(args) > management.MaxArguments {
+			return "", nil, false
+		}
+		seen := make(map[string]bool, len(args)/2)
+		for i := 0; i < len(args); i += 2 {
+			if args[i] != "--resource" || !managementName(args[i+1]) || seen[args[i+1]] {
+				return "", nil, false
+			}
+			seen[args[i+1]] = true
+		}
+		return descriptor, append([]string{"check"}, args...), true
 	case "help":
 		if len(args) == 1 && managementName(args[0]) {
 			return descriptor, []string{"help", args[0]}, true

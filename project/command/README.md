@@ -43,6 +43,8 @@ godj help
 godj commands
 godj help count-groups
 godj check
+godj check --list
+godj check --resource database
 godj command count-groups
 godj command --project ../other/godj.toml count-groups
 ```
@@ -55,10 +57,35 @@ forward stdout/stderr, preserve the child exit and reap owned processes.
 The selected runtime package must be a real project directory distinct from the
 declaration entrypoint. Existing source and database content are not auto-repaired.
 
-List/help execute no registry checks or business callbacks. `check` runs only the
-registered pure configuration check, after source/bundle validation. Resource
-opening is an explicit command action; automatic migrations and account creation
-are never part of it. Commands use the operator's OS/database access. HTTP
+List/help execute no registry checks or business callbacks. Plain `check` runs
+the registered pure configuration check after source/bundle validation.
+`Config.ResourceChecks` declares named optional checks with `Name`, `AppLabel`,
+`Summary` and `Run(context.Context) error`. Names are unique and app owners must
+be installed. The registry copies declarations; `ResourceDescriptions` returns
+sorted metadata without callbacks. `check --list` displays that inventory without
+running pure checks or opening resources.
+
+Select I/O explicitly with `check --resource database`; repeat `--resource NAME`
+to select more checks. `CheckResources(ctx, names...)` is the equivalent Go API.
+Every name and duplicate is validated before any callback. Pure checks run first,
+then selected checks in request order. Failure/cancellation stops later checks,
+and each started callback is joined through its cleanup, including panic/Goexit.
+`Run` owns its resources and must close them before returning. Ordinary commands
+never run optional resource checks automatically.
+
+The starter's `database` check reads the existing SQLite file or validates the
+configured PostgreSQL connection/profile/schema through
+[`database.Check`](../../settings/database/README.md). It never creates a missing
+database, applies migrations or repairs schema. Application model/history drift
+remains a separate migration concern. `CheckError{Field, Cause}` lets project code
+explicitly expose a public configuration field; diagnostics validate the field's
+bounded identifier/index syntax and never format `Cause`. Use values and paths
+only in private application state, never as field names or check descriptions.
+
+Unknown checks or invalid selections exit 2; failed checks exit 1. Diagnostics
+identify the failing check and any explicit field while retaining causes for
+`errors.Is`/`errors.As`. No check retries or runs a business callback afterward.
+Commands use the operator's OS/database access. HTTP
 authentication, authorization and CSRF remain in the Web application.
 
 Django's [custom management commands](https://docs.djangoproject.com/en/6.1/howto/custom-management-commands/)

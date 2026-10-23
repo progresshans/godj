@@ -25,7 +25,7 @@ import (
 
 const PrivateArgument = "__godj_compatibility_v1"
 const MaxBytes = 16 << 10
-const CommandVersion uint64 = 1
+const CommandVersion uint64 = 2
 
 type Contract struct {
 	Schema          int    `json:"schema"`

@@ -66,6 +66,52 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 선택적 I/O check와 PostgreSQL starter 소비자 작성
+
+제품 source `369a3e4fca4f23ffcdd07bdb2c5669fefaf87b4f`의
+[CI 39884661531](https://github.com/progresshans/godj/actions/runs/39884661531)에서 Linux amd64 normal와 macOS arm64
+normal의 CLI package는 통과했다. 다음 internal/projectcheck 단계는 baseline 뒤 root 교체를 `source_conflict` 대신
+`project_selection_failed`로 반환해 실패했다. 두 원본 log를 확인했고 Linux artifact `12472670426`의 모든 member
+checksum을 검증했다. Checkout `bf9c71b1353e5bcda948dddec9782c0b8850e6e1`의 tree
+`4eb6968bff526950bd793036be1a656091a66a21`는 제출 source와 같다.
+`gdj0137-369a3e4f-ci-39884661531/source-binding.json` SHA-256은
+`d9d9339381274a3ff42c096ba3281777ff8c3b95975875257902d0fa4b2e2372`다.
+이 artifact는 이후 fixed-module/runserver 실행에 도달하지 않았고 전체 CI 성공이 아니다.
+
+같은 archive의 기존 root 교체 case에서 실패를 재현했다. Baseline 이후 compatibility probe의 root 재검사를
+writer의 source-conflict 분류에 연결하되, 실제 compatibility·process·cleanup 실패는 원래 분류를 유지했다.
+Metadata 전후의 두 위치에서 실제 디렉터리를 rename해 source 보존·미게시·정리 계수를 확인한 좁은 수정 재현이 통과했다.
+이 재현의 child/backend는 scripted fixture이며 실제 OS child 회수나 DB 실행 증거로 계산하지 않는다.
+`gdj0137-root-rebind-repro-v1/receipt.json` SHA-256은
+`445847ceb1993e9012d987ab30b55ee138c909a54c6aaedbd2936ca577f2cd76`다.
+
+새 `ResourceCheck` 등록·조회와 `check --list`/`check --resource NAME`, 직접 `CheckResources`를 작성했다.
+전체 선택과 중복/unknown 이름을 먼저 검사하고 pure check 후 선택한 I/O를 순서대로 실행한다. 실패·취소는 다음 검사를
+막으며 시작한 callback의 defer/정리를 join한다. 기본 command에 I/O check를 자동 추가하지 않는다.
+명시적인 `CheckError`가 안전한 public field만 표시하고 raw cause는 `errors.Is`/`errors.As`에 남긴다.
+이 management 의미를 공통 contract version 2에 반영했다. Generated source ABI를 임의 변경하지 않았다.
+
+`database.Check`는 SQLite 기존 파일의 읽기 전용 연결/catalog 조회 또는 PostgreSQL의 기존 연결/profile/schema
+검사와 종료만 수행한다. 파일·schema·migration을 만들거나 repair하지 않는다. SQLite의 임의 초기화 SQL·memory·모호한
+DSN은 실행 전에 명시적으로 거부한다. Nil/canceled context, 잘못된 파일, parameter/URI/상대경로·symlink 부모 해석,
+취소 후 다시 읽기, secret 비노출과 callback의 실패/Goexit/경합 검사를 작성했다. 실제 본문 실행은 원격 대상이다.
+
+Starter와 추가 모델 앱, 고정 module 소비자에 선택한 DB 검사와 설정 field 진단을 연결했다. 새 PostgreSQL starter root는
+빈/누락 schema와 물리 catalog·row digest·sequence 보존, 명시적 migration/초기 사용자, 인증 저장·재시작 및 physical
+session 종료를 검증하도록 작성했다. PostgreSQL 필수 목록에 추가했고 normal/race/cgo0의 소유권 점검 결과 4,256개
+항목이 각 mode에서 정확히 한 owner에 배정된다. 이 정적 배정 결과는 실제 PostgreSQL 성공이 아니다.
+
+변경한 여덟 package는 `-run '^$' -exec=/usr/bin/true` 최소 compile만 통과했다.
+`gdj0137-resource-check-compile-v1/receipt.json` SHA-256은
+`97fcafca18d4406f4f64c4758d196eeec71c7a40bc425b338571614878ea94cb`다.
+Driver의 leading `?` 파일명 해석을 맞춘 뒤 SQLite package만 추가 compile했다. `sqlite-final.json` SHA-256은
+`83100de8a7bb0466cb701bfbd3c003da6a5cf416fb60099b923797c9c4e4c49d`다.
+새 native 본문·DB I/O·race·platform은 로컬에서 실행하지 않았다. PostgreSQL 배정과 두 Go template의 문법 점검
+`static-inspection.json` SHA-256은 `ae9e026242c9813841c4562ea484b5135de5180739c2d134b9970881e784b9ed`다.
+최종 Go 19개·template 3개·필수 목록의 `final-source.json` SHA-256은
+`ae69e125b1da7274bcb2db4d28f89f6971b18b30bf27ec498f025028f4a24903`다. Template README는 뒤이은 문구 변경이다.
+전체 원격 실행과 원본 대조, event/logging·reload·독립 기준과 C1 전체 수용은 미완료다.
+
 ## GDJ-0137 — VCS source 식별 복구와 고정 module 설치 소비자 작성
 
 제품 source `b1beee4c7e330996108f4dbe4b4cbc7690c0ccbd`의

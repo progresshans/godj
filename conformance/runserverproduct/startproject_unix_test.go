@@ -75,6 +75,9 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 	if _, err := os.Lstat(filepath.Join(project, "site.sqlite3")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("list, help or pure check opened the database", err)
 	}
+	t.Run("explicit checks preserve an unopened database", func(t *testing.T) {
+		exerciseStartedChecksBeforeDatabase(t, global, project, workspace, environment)
+	})
 	before := snapshotRunserverProjectTree(t, project)
 	conflict := run(t, parent, "startproject", "example.com/other", "new-site", "--framework-source", repository)
 	if conflict.ExitCode != 1 || conflict.Stdout != "" || conflict.Stderr != "startproject_error/destination_exists\n" || !reflect.DeepEqual(before, snapshotRunserverProjectTree(t, project)) {
@@ -86,6 +89,7 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 			t.Fatalf("public command %s failed: %d %s", args[0], result.ExitCode, result.Stderr)
 		}
 	}
+	assertStartedDatabaseCheckPreservesTree(t, global, project, workspace, environment)
 	descriptor := filepath.Join(project, "godj.toml")
 	address := reserveRunserverLoopbackAddress(t, "")
 	runGlobalProjectServer(t, global, project, descriptor, address, environment, "site listening on http://", nil, func(address string) error {
@@ -117,6 +121,7 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 	if counted.ExitCode != 0 || counted.Stdout != "1\n" || counted.Stderr != "" {
 		t.Fatalf("generated-model management command: %d %q %q", counted.ExitCode, counted.Stdout, counted.Stderr)
 	}
+	assertStartedDatabaseCheckPreservesTree(t, global, project, workspace, environment)
 	after := snapshotRunserverProjectTree(t, project)
 	for name, original := range before {
 		if strings.HasSuffix(name, ".go") || name == "go.mod" || name == "go.sum" || name == "godj.toml" || name == ".godj/generated-manifest.json" {

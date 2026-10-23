@@ -73,21 +73,25 @@ type Definition struct {
 type Config struct {
 	Apps     apps.Registry
 	Commands []Definition
-	// Check is a pure configuration check. Resource checks belong to explicit
-	// commands. It is called after argument validation and before Handle.
+	// Check is pure configuration validation, called after argument validation
+	// and before Handle or an explicitly selected resource check.
 	Check func(context.Context) error
+	// ResourceChecks run only when selected by CheckResources or check --resource.
+	ResourceChecks []ResourceCheck
 }
 
 type Registry struct {
-	definitions []Definition
-	byName      map[string]int
-	check       func(context.Context) error
+	definitions    []Definition
+	byName         map[string]int
+	check          func(context.Context) error
+	resources      []ResourceCheck
+	resourceByName map[string]int
 }
 
 // New snapshots declarations and rejects ambiguity instead of overriding an
 // earlier app or a built-in command. No callbacks execute during construction.
 func New(config Config) (Registry, error) {
-	if len(config.Commands) > MaxCommands {
+	if len(config.Commands) > MaxCommands || len(config.ResourceChecks) > MaxCommands {
 		return Registry{}, failed("invalid_definition")
 	}
 	r := Registry{byName: make(map[string]int), check: config.Check}
@@ -114,6 +118,9 @@ func New(config Config) (Registry, error) {
 	sort.Slice(r.definitions, func(i, j int) bool { return r.definitions[i].Name < r.definitions[j].Name })
 	for i, d := range r.definitions {
 		r.byName[d.Name] = i
+	}
+	if err := r.setResourceChecks(config.Apps, config.ResourceChecks); err != nil {
+		return Registry{}, err
 	}
 	return r, nil
 }
@@ -282,7 +289,7 @@ func ExitCode(err error) int {
 	var failure *Error
 	if errors.As(err, &failure) && failure != nil {
 		switch failure.Code {
-		case "unknown_command", "invalid_arguments", "invalid_invocation", "invalid_definition", "duplicate_command", "uninstalled_app":
+		case "unknown_command", "unknown_check", "invalid_arguments", "invalid_invocation", "invalid_definition", "duplicate_command", "duplicate_check", "uninstalled_app":
 			return 2
 		}
 	}
@@ -298,9 +305,27 @@ func Diagnostic(err error) string {
 	var failure *Error
 	if errors.As(err, &failure) && failure != nil {
 		switch failure.Code {
-		case "unknown_command", "invalid_arguments", "invalid_invocation", "invalid_definition", "duplicate_command", "uninstalled_app", "check_failed", "canceled", "output_failed", "execution_failed", "resource_open_failed", "resource_close_failed", "invalid_resource", "callback_aborted":
+		case "check_failed", "resource_check_failed":
+			result := "command_error/" + failure.Code
+			var resource *resourceCheckFailure
+			if errors.As(err, &resource) && resource != nil && validName(resource.name) {
+				result += "/" + resource.name
+			}
+			var configuration *CheckError
+			if errors.As(err, &configuration) && configuration != nil && validCheckField(configuration.Field) {
+				result += "/" + configuration.Field
+			}
+			return result
+		case "unknown_command", "unknown_check", "invalid_arguments", "invalid_invocation", "invalid_definition", "duplicate_command", "duplicate_check", "uninstalled_app", "canceled", "output_failed", "execution_failed", "resource_open_failed", "resource_close_failed", "invalid_resource", "callback_aborted":
 			return "command_error/" + failure.Code
 		}
+	}
+	var configuration *CheckError
+	if errors.As(err, &configuration) && configuration != nil {
+		if validCheckField(configuration.Field) {
+			return "command_error/check_failed/" + configuration.Field
+		}
+		return "command_error/check_failed"
 	}
 	return "command_error/execution_failed"
 }

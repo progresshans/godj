@@ -15,6 +15,7 @@ godj generate --check
 godj check
 godj migrations check
 godj migrate
+godj check --resource database
 godj createsuperuser
 godj runserver
 ```
@@ -105,7 +106,15 @@ exit code and never automatically retries a failed action.
 
 `commands` and custom `help` open no database. `check` validates declaration,
 generated source, command registration and the project's pure configuration
-check. Commands execute with the operator's OS/database permissions; they do not
+check. `check --list` lists optional resource checks. `check --resource database`
+reads the existing database and closes its connection; a missing database/schema
+fails without creating or migrating it. SQLite uses read-only mode and rejects
+memory databases and arbitrary initialization SQL. This check is not a migration
+status or whole-database integrity test. Register additional named
+`command.ResourceCheck` entries explicitly and repeat `--resource NAME` to select
+them. All selections are validated before I/O; a failed check stops later checks.
+Configuration diagnostics identify public field names and omit their values.
+Commands execute with the operator's OS/database permissions; they do not
 implicitly impersonate an HTTP user. A command error, output error or cleanup
 failure does not prove that prior database writes rolled back.
 

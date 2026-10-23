@@ -57,7 +57,11 @@ Generated model package와 선언 package는 분리하며 Admin/API 노출과 �
 Starter의 `internal/commands/commands.go`는 `count-groups`를 등록한다. 같은 설정으로 DB를 열고 generated Group
 manager로 저장된 그룹 수를 읽는다. 새 명령은 [`project/command`](../project/command/README.md)의 명시적
 등록과 typed 인자/option, invocation별 resource opener/cleanup을 사용한다. 목록·help는 callback이나 DB를 실행하지 않는다.
-`godj check`는 선언·생성물·등록과 프로젝트의 순수 configuration check를 수행한다. Resource I/O는 별도 명령에서 명시한다.
+`godj check`는 선언·생성물·등록과 프로젝트의 순수 configuration check를 수행한다.
+`godj check --list`로 선택 가능한 I/O 검사를 보고, `godj check --resource database`로 기존 DB의 연결/읽기를 확인한다.
+추가 검사는 `command.ResourceCheck`로 등록하며 `--resource NAME`을 반복해 선택한다. 모든 선택을 먼저 검증하고,
+순수 설정이나 앞선 검사가 실패하면 이후 I/O를 실행하지 않는다. DB·schema 생성과 migration은 검사에서 수행하지 않는다.
+`CheckError`는 설정 field 이름을 명시적으로 표시하고 raw cause와 값은 진단에 포함하지 않는다.
 
 `godj.toml`의 `commands_package`는 선언 runner와 다른 디렉터리를 선택한다. 명령 runtime은 generated 모델을 import할 수 있다.
 전역 CLI는 선언 snapshot과 bundle을 검사하고 readonly runtime build 후 같은 bundle을 재확인한다.

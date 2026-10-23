@@ -50,6 +50,27 @@ Root certificate를 명시하지 않은 검증 모드는 Go의 시스템 신뢰 
 반환하므로 기존 명령의 정의 로딩·대상 검증이 먼저 이루어질 수 있다. Zero Config로 backend를 열 수는 없다.
 `Open`은 nil/canceled context를 I/O 전에 거부하며, 열린 resource를 Config 안에 보관하지 않는다.
 
+## 명시적인 읽기 검사
+
+`Check(ctx, config)`는 선택한 DB에 실제 I/O를 수행하고 연결을 닫는다. 설정 constructor나 기본 `godj check`가
+이를 자동 호출하지 않는다. Starter에서는 `godj check --resource database`로 선택한다. 누락된 SQLite 파일이나
+PostgreSQL schema를 만들지 않고 migration·repair·계정 생성도 수행하지 않는다.
+
+SQLite는 기존 일반 파일을 `mode=ro`로 열어 연결의 foreign-key 설정과 schema catalog 읽기를 확인한다.
+일반 파일명과 `file:` URI, `mode=ro/rw/rwc`, `cache=private/shared`, 0~2147483647의 canonical `_busy_timeout`만
+지원한다. `mode=rw/rwc`도 검사 연결은 읽기 전용이다. 경로의 symlink 뒤 `..`를 문자열 정리로 제거하지 않는다.
+Memory DB, 임의 `_pragma` 초기화 SQL, custom VFS·immutable/nolock와 다른 DSN 옵션은 열기 전에 명시적으로 거부한다.
+Main DB가 읽기 전용이어도 초기화 SQL은 다른 writable DB를 attach할 수 있으므로 검사가 이를 재실행하지 않는다.
+동시 SQLite 사용 시의 lock/WAL sidecar 동작은 backend에 따르며, 이 검사가 다른 writer의 변경까지 막지는 않는다.
+
+PostgreSQL은 `Open`과 같은 credential·TLS·세션 profile·schema 존재 검사를 사용하고 즉시 닫는다.
+Backend의 세션 설정 외에 DDL·업무 DML을 실행하지 않는다. 두 backend 모두 현재 연결/읽기 검증이며, 전체 파일의
+integrity 검사·모델과 실제 table의 일치·적용된 migration 상태나 모든 업무 table 권한을 증명하지 않는다.
+프로젝트의 다른 resource 검사는 `command.ResourceCheck`로 명시적으로 등록한다.
+
+SQLite URI의 기준은 공식 [URI filename과 읽기 전용 mode](https://www.sqlite.org/uri.html)다. DSN의 초기화 SQL은
+현재 고정 driver가 소유하므로 모호하거나 안전하게 재실행할 수 없는 설정을 조용히 생략하지 않는다.
+
 `fmt` 출력과 JSON에는 접속 값을 넣지 않는다. 오류는 field/key와 고정된 사유를 제공하며 raw driver error를
 보관하지 않는다. 값 getter는 backend 연결에 필요한 명시적 접근이며 로그/HTTP 응답에 사용하지 않는다.
 

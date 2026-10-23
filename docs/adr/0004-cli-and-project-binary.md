@@ -77,6 +77,13 @@ Python import 구조를 복제하지 않는다. 고정 source의 독립 실행 �
 Typed 인자/option을 모두 검증한 뒤 순수 check와 resource open을 수행한다. Command resource는 invocation이 소유하고,
 handler를 join한 뒤 독립 cleanup context로 닫는다. Callback/출력/cleanup의 실패를 DB rollback으로 해석하지 않는다.
 
+순수 설정 check와 명시적으로 선택하는 resource check를 구분한다. 선택한 이름을 전부 검증한 뒤 pure check와
+I/O callback을 순서대로 실행하고, 실패하면 이후 검사를 중단한다. Callback이 연 resource와 하위 작업은 반환 전에
+정리하며 취소·panic·Goexit에도 join한다. 기본 DB check는 기존 SQLite 파일의 읽기 또는 PostgreSQL 연결/profile/schema
+검사와 종료만 수행한다. 임의 SQLite 초기화 SQL을 다시 실행하거나 누락된 DB·schema/migration을 자동으로 만들지 않는다.
+Public field 진단은 명시적인 `CheckError`로 전달하며 raw cause·credential을 출력하지 않는다. 새 check 선택 의미는
+공통 management contract version에 포함해 이전 runtime과 조합하면 실행 전에 거부한다.
+
 전역 management 경로는 runserver와 같은 선언 snapshot·generated bundle·readonly runtime build·재검사를 사용한다.
 별도의 metadata probe는 main의 설정·앱 callback·DB opener에 진입하기 전에 framework build identity와 실제
 generator/명령 contract를 조회한다. Go package initializer 자체는 각 process에서 실행되므로 resource는 명시적 callback이 소유한다.

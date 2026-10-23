@@ -16,6 +16,8 @@ func TestManagementArgumentsSeparateSelectionFromBusinessValues(t *testing.T) {
 	}{
 		{[]string{"commands"}, "", []string{"list"}},
 		{[]string{"check", "--project", "../site/godj.toml"}, "../site/godj.toml", []string{"check"}},
+		{[]string{"check", "--list"}, "", []string{"check", "--list"}},
+		{[]string{"check", "--project", "../site/godj.toml", "--resource", "database", "--resource", "storage"}, "../site/godj.toml", []string{"check", "--resource", "database", "--resource", "storage"}},
 		{[]string{"help", "--project", "site.toml", "count"}, "site.toml", []string{"help", "count"}},
 		{[]string{"command", "--project", "site.toml", "send", "--project", "business-value"}, "site.toml", []string{"run", "send", "--project", "business-value"}},
 	} {
@@ -28,7 +30,7 @@ func TestManagementArgumentsSeparateSelectionFromBusinessValues(t *testing.T) {
 }
 
 func TestManagementRejectsMalformedInputBeforeFilesystemOrBackend(t *testing.T) {
-	for _, args := range [][]string{nil, {"commands", "private-extra"}, {"check", "--database"}, {"command"}, {"command", "--project"}, {"command", "--project", "", "send"}, {"command", "__private"}, {"help", "invalid/name"}, {"help", "send", "extra"}} {
+	for _, args := range [][]string{nil, {"commands", "private-extra"}, {"check", "--database"}, {"check", "--resource"}, {"check", "--resource", "private/name"}, {"check", "--resource", "database", "--resource", "database"}, {"check", "--list", "--resource", "database"}, {"command"}, {"command", "--project"}, {"command", "--project", "", "send"}, {"command", "__private"}, {"help", "invalid/name"}, {"help", "send", "extra"}} {
 		backend := &scriptedBackend{}
 		var stdout, stderr bytes.Buffer
 		report := RunManagement(ManagementInvocation{Context: t.Context(), CWD: "/missing/private/project", Args: args, Environment: []string{"PRIVATE=secret"}, Stdout: &stdout, Stderr: &stderr, Backend: backend})

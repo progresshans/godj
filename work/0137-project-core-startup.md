@@ -28,7 +28,8 @@ F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위�
   새 명령은 이 의미를 재사용하고 private file format·publish 절차를 임의 복제하지 않는다.
 - 현재 `runserver`는 선언 build와 bundle 검사 후 별도 runtime을 build하고 다시 검사한다.
   loopback 실행·종료·자손 회수 경계가 있다. 일반 command는 별도 runtime package·명시적 등록으로 연결했으며
-  같은 source/bundle 준비 경계를 재사용한다. Watch/reload는 남아 있다.
+  같은 source/bundle 준비 경계를 재사용한다. 순수 check와 명시적으로 선택한 resource check·field 진단을 작성했다.
+  Watch/reload는 남아 있다.
 - Article는 DB·identity·Form/Admin/API의 실제 소비자다. 현재 이를 복사해 시작하는 수동 조립을
   새 project/app 기본 경로로 연결하되 예제의 도메인 모델을 모든 새 프로젝트에 강제하지 않는다.
 - 명령별 wire version과 생성 ABI는 이미 있다. `godj version`과 공개 `version.Current()`의 실제 module·개발 source·
@@ -126,7 +127,7 @@ Go alias는 canonical SQL label과 구분해 underscore/keyword 충돌을 피한
 명령의 명시적 등록·typed 인자/option·목록/help·pure check·invocation resource와 stdin/stdout/stderr/exit를 연결했다.
 Starter와 실제 추가 앱의 generated 모델을 사용하는 명령·저장 후 오류·닫힌 출력·호환성/생성물 불일치 거부 검사를 작성했다.
 모든 기존 프로젝트 명령/server와 startproject 후보에 공통 호환성 비교를 연결했다. 실제 command 응답은 같은 private protocol로
-검사하며 probe의 failure category를 linked 응답으로 허용하지 않는다. 독립 고정 module·명시적 I/O check의 통합 진단은 남아 있다.
+검사하며 probe의 failure category를 linked 응답으로 허용하지 않는다. 독립 고정 module·명시적 I/O check의 환경별 검증은 남아 있다.
 CI에서 나타난 빈 앱의 migration state 비교 결함은 같은 source의 실패 흐름에서 재현·수정했다. 빈 앱의 identity를 보존하고
 이력이 없는 빈 앱에는 table migration을 만들지 않는다. 새 command 흐름은 이 좁은 재현에 포함하지 않았으며 원격 검증 대상이다.
 호환성 응답의 종료 LF와 엄격한 canonical JSON 비교가 충돌한 CI 실패는 별도 고정 source 재현에서 수정했다.
@@ -138,4 +139,9 @@ system-state source binding에 연결했다. 고정 module 소비자는 실제 �
 인증 저장/재시작·명시적 dependency 변경·잘못된 도구의 I/O 전 거부를 원격 CI에서 실행한다. 두 version은 같은
 전체 source로 만든 test proxy fixture이며 배포 release나 일반 upgrade 정책의 증거로 사용하지 않는다.
 Project-check owner는 성공/실패 모두 원본 Go event·stderr·필수 목록·source/환경 binding과 checksum을 보존한다.
+`check --list`/`check --resource NAME`과 직접 Go API의 선택 검증·순수 검사 우선·callback 수명·public field 진단을 작성했다.
+Starter와 추가 앱에 기존 DB 읽기 검사를 연결했다. SQLite 파일 미생성·불일치 설정·위험 DSN·취소와 PostgreSQL의
+빈/누락 schema 보존·실제 migration/operator·인증 저장/재시작·세션 종료·물리 catalog/row/sequence 보존 검사를 작성했다.
+새 DB/native 본문은 현재 source의 원격 CI 대상이다. Metadata 검사 전후의 project root 교체는 기존 writer의
+source-conflict 의미를 유지하도록 별도 좁은 재현에서 수정했다. I/O check가 전체 DB integrity나 schema drift를 대신하지 않는다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

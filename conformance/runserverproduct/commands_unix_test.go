@@ -37,6 +37,7 @@ func exerciseStartedAppCommands(t *testing.T, global, project, workspace string,
 		}
 	}
 	assertStartedCommandRows(t, project, workspace, environment, 2, "")
+	assertStartedDatabaseCheckPreservesTree(t, global, project, workspace, environment)
 	created := run("command", "add-note", "created by command", "--summary", "shared model field")
 	if created.ExitCode != 0 || created.Stdout != "note-created\n" || created.Stderr != "" {
 		t.Fatal("custom generated command failed", created.ExitCode, created.Stderr)
@@ -61,6 +62,7 @@ func exerciseStartedAppCommands(t *testing.T, global, project, workspace string,
 		t.Fatal("closed output was reported as success", failed.ExitCode, failed.Stderr)
 	}
 	assertStartedCommandRows(t, project, workspace, environment, 5, "saved before output error")
+	assertStartedDatabaseCheckPreservesTree(t, global, project, workspace, environment)
 	// A genuine child probe with a mismatching contract must fail before its
 	// resource-opening/command branch. This is a protocol negative control,
 	// not evidence for independent fixed-module installation.
@@ -164,7 +166,9 @@ import (
 func Registry(environment settings.Environment) (command.Registry, error) {
  installed, err := apps.New(project.InstalledApps()); if err != nil { return command.Registry{}, err }
  selected, selectionErr := config.Database(environment)
- return command.New(command.Config{Apps: installed, Check: func(context.Context) error { return selectionErr }, Commands: []command.Definition{{
+ return command.New(command.Config{Apps: installed, Check: func(context.Context) error { return configurationError(selectionErr) },
+ ResourceChecks: []command.ResourceCheck{{Name:"database", AppLabel:"line_items", Summary:"Read the existing application database", Run:func(ctx context.Context) error { return configurationError(database.Check(ctx, selected)) }}},
+ Commands: []command.Definition{{
   Name: "add-note", AppLabel: "line_items", Summary: "Create a note in the current project database",
   Arguments: []command.Argument{{Name:"title", Help:"note title", Kind:command.String, Required:true}},
   Options: []command.Option{{Name:"summary", Help:"optional summary", Kind:command.String}, {Name:"fail-after-write", Help:"exercise post-commit failure", Kind:command.Boolean}},
@@ -181,5 +185,10 @@ func Registry(environment settings.Environment) (command.Registry, error) {
    return err
   }),
  }}})
+}
+func configurationError(err error) error {
+ var invalid *database.Error
+ if errors.As(err, &invalid) && invalid != nil { return &command.CheckError{Field:invalid.Field, Cause:err} }
+ return err
 }
 `

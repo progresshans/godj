@@ -10,7 +10,8 @@ import (
 )
 
 // Serve is a runtime command entrypoint. list/help are resource-free; check
-// performs pure project checks. run parses argv before invoking a handler.
+// performs pure checks unless resource names are explicitly selected. run parses
+// argv before invoking a handler.
 // Call compatibility.Serve before constructing project configuration as well.
 func (r Registry) Serve(ctx context.Context, argv []string, streams Streams) error {
 	if handled, err := compatibility.Serve(ctx, argv, streams.Stdout); handled {
@@ -46,8 +47,8 @@ func (r Registry) Serve(ctx context.Context, argv []string, streams Streams) err
 		}
 		return writeHelp(streams.Stdout, output.String())
 	}
-	if len(args) == 1 && args[0] == "check" {
-		return r.Check(ctx)
+	if len(args) >= 1 && args[0] == "check" {
+		return r.serveCheck(ctx, args[1:], streams)
 	}
 	if len(args) >= 2 && args[0] == "run" {
 		if len(args) == 3 && args[2] == "--help" {
