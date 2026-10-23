@@ -27,6 +27,11 @@ import (
 // Give preparation its own bounded compiler budget. HTTP exercises, shutdown
 // grace, cancellation, process-tree absence and output limits remain separate.
 const runserverPreparationTimeout = 5 * time.Minute
+
+// A new project resolves its module, generates and checks its bundle, and
+// compiles both server and command runtimes before publication. Those cold
+// builds share one CLI invocation, so they need a separate aggregate budget.
+const runserverScaffoldTimeout = 10 * time.Minute
 const maximumRunserverGoAudit = 64 << 10
 
 type runserverGoAuditRecord struct {
@@ -36,18 +41,20 @@ type runserverGoAuditRecord struct {
 	BuildWorkspace     string    `json:"build_workspace,omitempty"`
 }
 
-// Keep the same command/process budgets while retaining the last actual Go
-// invocation when scaffold setup fails before the first HTTP runtime exists.
+// Retain the last actual Go invocation when scaffold setup fails before the
+// first HTTP runtime exists. Other commands retain their original budget.
 func runProjectCLI(t *testing.T, directory string, environment []string, global string, args ...string) testprocess.CommandResult {
 	t.Helper()
+	limits := testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}
 	if len(args) > 0 && args[0] == "startproject" {
+		limits.Timeout = runserverScaffoldTimeout
 		environment, _ = runserverGoAuditEnvironment(t, environment)
 		started := time.Now()
 		defer func() {
 			t.Logf("startproject preparation: %s", runserverPreparationProgress(environment, started, time.Now()))
 		}()
 	}
-	return testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, environment, global, args...)
+	return testprocess.Run(t, limits, directory, environment, global, args...)
 }
 
 func ensureRunserverGoAuditEnvironment(t *testing.T, environment []string) []string {

@@ -148,7 +148,7 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 		if err := reader.Close(); err != nil {
 			t.Fatal(err)
 		}
-		failed := testprocess.RunWithStdout(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput},
+		failed := testprocess.RunWithStdout(t, testprocess.CommandLimits{Timeout: runserverScaffoldTimeout, Output: maximumRunserverOutput},
 			parent, environment, writer,
 			global, "startproject", "example.com/output-failed-site", "output-failed", "--framework-source", repository)
 		assertRunserverWorkspaceEmpty(t, workspace)

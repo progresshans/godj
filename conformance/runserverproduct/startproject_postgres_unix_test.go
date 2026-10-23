@@ -61,7 +61,7 @@ func TestGlobalStartProjectPostgresResourceChecksAndAuthenticatedRestart(t *test
 	project := filepath.Join(root, "site")
 	run := func(directory string, env []string, args ...string) testprocess.CommandResult {
 		t.Helper()
-		result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, env, global, args...)
+		result := runProjectCLI(t, directory, env, global, args...)
 		assertRunserverWorkspaceEmpty(t, workspace)
 		assertRunserverPostgresOutputSecretFree(t, selectedURL, result.Stdout, result.Stderr)
 		assertStartedPostgresConnectionsClosed(t, admin, applicationName)

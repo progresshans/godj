@@ -3,6 +3,44 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — Scaffold 전체 준비 기한과 같은 source의 원격 대조
+
+2026-10-23, source `38a5be52a20b01d66654b977531ee639ca8bb821`의
+[CI 39953192733](https://github.com/progresshans/godj/actions/runs/39953192733)에서 이전 MIG-089 실패를 포함한
+Portable Go race/conformance가 통과했다. Normal·race·CGO0 owner는 각각 26개 package·567개 실행·6개 skip을
+검사한 집계를 남겼다. 성공한 portable owner의 로그에는 개별 test event 원본이 보존되지 않으므로 그 집계와
+실제 checkout의 source 연결까지를 확인한 결과다.
+
+같은 CI의 macOS amd64 race reload는 Notes의 초기 `startproject`가 5분 0.115초에 외부 관측기의 기한으로 종료됐다.
+Go 호출 시작은 10회였고 마지막 `candidate_compile` 시작은 종료 1분 31.422초 전이다. Notes의 HTTP·reload 단계는
+시작되지 않았다. 시작 기록만으로 마지막 컴파일의 완료 여부나 compiler deadlock·제품 데이터 경합을 확정하지 않는다.
+이 source의 Article reload root와 3개 child는 같은 작업에서 통과했지만 작업 전체는 실패다.
+
+프로젝트 생성은 module 준비, 생성·검사와 server/command runtime 빌드를 한 invocation에서 수행한다. 외부 관측기의
+`startproject` 전체 준비 한도를 10분으로 분리하고 일반·고정 module·PostgreSQL·게시 후 출력 실패 소비자에 적용했다.
+다른 명령과 서버 준비의 기존 5분, 제품의 호환성 확인 15초, HTTP·종료·자손 회수·출력 상한·race 계측은 유지한다.
+로컬에서는 gofmt와 `go test -run '^$' -count=1 ./conformance/runserverproduct`의 compile만 확인했다.
+macOS amd64 race 실패의 로컬 재현과 새 준비 한도의 원격 완료 검증은 하지 않았다. 새 source의 전체 C1 실행은 남아 있다.
+
+수정 전 `38a5be52`의 성공 원본은 reload 8개 좌표와 baseline 4개 좌표, 독립 Python 3.14.3을 대조했다.
+완전한 Linux normal/CGO0 4개 좌표에서 개발 공통 결과 8개·명시적 차이 1개·event 공통 결과 6개가 일치했다.
+Baseline의 PostgreSQL 두 skip은 별도 DB owner가 맡으며, PostgreSQL race process owner는 필수 11개·실제 root/child
+22개의 실행을 skip 없이 확인했다. 여기에는 Article와 새 starter의 실제 migration·초기 사용자·인증 저장/재시작,
+없는 schema 보존·물리 연결 종료·catalog/row/sequence 보존이 포함된다. Normal/CGO0 DB 전체의 수용은 별도다.
+Helpdesk browser 236개와 Admin inline·upload·choice·collection browser 125개 관측은 fixture/probe source,
+모든 원본 member hash와 실제 DB·파일·정리 결과를 대조했다. 이는 새 수정이나 전체 native matrix의 PASS가 아니다.
+
+원본과 receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-38a5be52-ci-39953192733/scaffold-preparation-timeout.json` — macOS race 초기 준비 실패와 source·원본 | `03c096dd39b1124ea32d92e953edca157c03518870941ec721cda054d1fa80d7` |
+| `gdj0137-38a5be52-ci-39953192733/migration-phase-budget-remote-verification.json` — 세 portable conformance owner와 기존 race 실패 해소 | `9e66506bf5c11fb8b5a28ecf02bbb7154ba402f0def79cab38dc79ed57a5688c` |
+| `gdj0137-38a5be52-ci-39953192733/partial-reference-at-scaffold-timeout.json` — Linux 4개 좌표의 독립 기준 부분 대조 | `a1268aaebb9aafdedc13492250c7a5789852de4e16da019a4cc72aa14cf352c6` |
+| `gdj0137-38a5be52-ci-39953192733/postgres-race-processes-verification.json` — PostgreSQL race process·새 앱 실제 실행 | `b34786b60db0c891f3882a98fe7a958274c90458d713ec190ad135cc41802245` |
+| `gdj0137-38a5be52-ci-39953192733/browser-native-verification.json` — browser 원본과 DB·파일·정리 대조 | `2aea527c619f457b19c09c5822cdb08f551a84c370b6fc9a36a0d06b26a5dc18` |
+| `gdj0137-scaffold-preparation-budget-v1/compile.json` — 준비 한도 변경의 source hash와 최소 compile | `1eb653d76d46936b0f78e2b8a13494bc4ad60ffb9d48145befd7b61ee65a2137` |
+
 ## GDJ-0137 — 실제 race 컴파일과 migration 관측 기한 분리
 
 2026-10-23, source `40342160f57c29aad7f9ed075addbab5f3793485`의
