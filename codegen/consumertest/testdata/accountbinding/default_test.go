@@ -24,10 +24,7 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	joined := time.Date(2026, time.October, 24, 0, 0, 0, 0, time.UTC)
-	row, err := objects.Create(t.Context(), backend, models.NewUserCreate("user-1", "alice", encoded, joined).WithFirstName("Alice"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	row := createBoundAccount(t, backend, binding, models.NewUserCreate("user-1", "alice", encoded, joined).WithFirstName("Alice"))
 	found, exists, err := objects.Using(backend).Filter(models.UserFields.Username.Exact("alice")).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
 	if err != nil || !exists || found.ID != row.ID || found.FirstName != "Alice" || !found.DateJoined.Equal(joined) {
 		t.Fatal("default binding did not use its declared typed model", err)

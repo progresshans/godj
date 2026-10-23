@@ -40,10 +40,7 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err := objects.Create(t.Context(), backend, people.NewMemberCreate("member-1", "member@example.test", encoded, "KR"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	row := createBoundAccount(t, backend, binding, people.NewMemberCreate("member-1", "member@example.test", encoded, "KR"))
 	found, exists, err := objects.Using(backend).Filter(people.MemberFields.Contact.Exact("member@example.test")).OrderBy(people.MemberFields.ID.Asc()).First(t.Context())
 	if err != nil || !exists || found.ID != row.ID || found.Region != "KR" || found.Subject != "member-1" || !found.Enabled || found.Version != 1 {
 		t.Fatal("selected typed account failed to preserve its model fields", err)

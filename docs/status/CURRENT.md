@@ -3,7 +3,7 @@
 - 갱신: 2026-10-24
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [C1 / GDJ-0137 Project/Core](../../work/0137-project-core-startup.md)를 구현 중이다.
-- 병행: [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)의 계정 역할·생성 binding을
+- 병행: [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)의 계정 역할·도메인 이력·생성 binding을
   별도 작업트리에서 구현 중이다. C1의 전체 원격 검증과 I1의 새 실행 검증은 구분한다.
 - 최근 제품 완료 범위: [F1 / GDJ-0136 Form/Admin 일반화](../../work/0136-form-admin-generalization.md).
   같은 source의 전체 CI·원본 대조와 선행 A1/Q1/G-ORM 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
@@ -14,6 +14,7 @@
 2. Scaffold·독립 설치의 누적 검증 기한과 원자 게시·경합 검사의 macOS 실행을 새 source의 원격 CI에서 확인한다.
 3. 독립 Python 관측의 완전한 JSON 게시와 전역 CLI·선언 runner·runtime의 실제 race 계측을 확인하고, 12개 native 원본을 대조한다.
 4. C1의 필수 원격 실행·독립 기준·원본을 대조하고 다음 I1의 요구와 전환 조건을 유지한다.
+5. I1의 저장 도메인 검사를 공통 계정/권한 runtime·typed profile·첫 계정 명령과 명시적 모델 전환에 연결한다.
 
 ## 검증 경계
 

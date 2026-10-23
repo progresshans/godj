@@ -802,5 +802,26 @@ Username·현재 role/grant의 행 값만 바뀌면 같은 도메인의 stamp를
 revision·저장 key의 존재를 검사한다. 명시적으로 저장한 0/음수 AutoField key를 미저장 값과 혼동하지 않는다.
 이 순수 준비 단계는 I/O·해싱·정규화·profile validation·권한 관계 조회나 durable domain 검증을 수행하지 않는다.
 
-도메인 행·전환 receipt의 저장, startup 및 매 snapshot/write에서의 검증, 기존 Directory/Manager의 연결은
-GDJ-0138의 후속 구현이다. 이 API만 추가한 상태를 기존 identity runtime의 모델 전환 보호 완료로 표시하지 않는다.
+독립 `godj_account_domain` 앱은 계정 타입에 FK를 두지 않는 추가 전용 전환 이력을 소유한다. Schema IR에서 생성한
+모델과 독립 초기 migration을 사용하며 기본 User와 옛 system migration에 의존하지 않는다. 이미 적용한 identity/system
+migration bytes를 수정하지 않는다. Sequence·operation ID·generation은 각각 unique이며 이전 receipt의 FK는 PROTECT다.
+첫 기록은 predecessor가 없고 이후 기록은 직전 sequence를 가리킨다. 현재 조회는 최신 두 기록의 이 연결과 필드 형식을
+검사한다. 임의 SQL writer의 역사 삭제·변조까지 방어하는 저장소 무결성 증명으로 표현하지 않는다.
+
+`domain.Prepare`는 선택 역할과 전환 근거의 SHA-256에 새 256-bit operation ID·generation을 결합한다. 준비는
+인가나 mapping 실행 증거가 아니다. `InitializeIn`/`TransitionIn`은 호출자가 소유하는 native coordinated transaction에
+참여하며 commit하지 않는다. 초기화는 비어 있는 domain 이력을 요구하고, 전환은 예상 receipt 전체를 현재 이력과 비교한다.
+이미 기록한 operation ID의 재실행은 stale 오류이며 과거 receipt를 새 작업의 성공으로 반환하지 않는다. 다른 모델과
+이전 모델로의 복귀 모두 새 generation을 갖는다. 순서가 timestamp에 의존하지 않도록 sequence를 사용하고 시각은 UTC microsecond로 저장한다.
+
+호스트는 같은 transaction에서 최초 계정 생성 또는 검증한 mapping, source retirement, session/reset 정책과 audit를
+처리해야 한다. 중간 실패는 함께 rollback하며 반환된 receipt는 commit 전 잠정 값이다. Commit/rollback unknown은
+자동 재시도하지 않는다. 보존한 operation ID로 `Lookup`하면 이미 supersede된 기록도 확인할 수 있다. 기록 부재만으로
+unknown write의 rollback을 확정하지 않고 원래 write fence와 작업 상태를 함께 조정한다. 근거 digest의 원문과 mapping의
+실행·대조는 상위 전환 작업이 소유한다. 이 API만으로 임의로 채운 DB의 전환을 승인하지 않는다.
+
+`RequireIn`과 generated binding의 `RequireDomainIn`은 계정 조회와 같은 stable snapshot/write handle에서 선택 역할을
+확인한다. `RequirePrincipalDomainIn`은 그 세대로 actor를 검사한 후 현재 ID/권한을 읽게 하는 경계이며 active·permission
+판단을 대신하지 않는다. `Read`/`Lookup`은 정확히 한 snapshot callback과 cleanup이 성공한 뒤에만 값을 게시한다.
+이전에 얻은 receipt를 현재 권한 cache로 쓰지 않는다. 기존 Directory/Manager·startup·첫 계정 명령·Form/Admin/API와
+채운 DB의 명시적 mapping 연결은 GDJ-0138에 남아 있으며, 이 기반을 전체 모델 전환 보호 완료로 표시하지 않는다.

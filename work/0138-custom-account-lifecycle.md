@@ -53,8 +53,15 @@
 
 계정 역할 fingerprint·소유권 세대에 묶인 credential 준비와 Principal의 도메인 보존을 추가했다.
 기본/별도 모델의 SQLite 행에서 공통 StoredAuthenticator를 사용하는 소비자와, 비밀번호 검증 중 도메인 변경·
-기존 HTTP 세션 거부 검사를 작성했다. 소비자 adapter의 세대 변경은 테스트 입력이며 durable domain 저장의 구현이 아니다.
-기존 Directory/Manager에 이 도메인 검증을 연결하고 권한·profile·전환 저장을 함께 완성하는 작업은 계속 남아 있다.
+기존 HTTP 세션 거부 검사를 작성했다. 독립 `godj_account_domain` 앱의 generated model·migration과 추가 전용 이력,
+현재 역할/이전 receipt 비교, 새로운 세대·operation ID, 작업 ID 재조회도 작성했다. 이 앱은 기본 User를 설치하지 않는다.
+Binding은 같은 DB scope에서 저장 도메인과 actor 도메인을 검사한다. 기본/별도 모델 소비자는 typed 계정 생성과
+도메인 초기화의 원자 rollback, 실제 저장 세대 변경 뒤 credential/actor 거부를 검사하도록 연결했다.
+양 DB의 경합·이력·snapshot·재접속·unknown 결과 조회 검사를 원격 필수 목록에 추가했다. 작성과 최소 compile은 실제 실행 PASS가 아니다.
+
+이력 API는 서버 내부 transaction 구성 경계다. 채운 계정의 mapping 실행·인가·session/reset 폐기·audit를 대신하지 않으며,
+빌린 write scope에서 받은 receipt는 commit 확인 전까지 잠정 값이다. 기존 Directory/Manager에 도메인 검증을 연결하고
+catalog·typed profile·첫 계정 명령·명시적 전환을 함께 완성하는 작업은 계속 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

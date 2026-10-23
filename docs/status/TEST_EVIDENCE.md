@@ -65,8 +65,33 @@ Source `28aeed1f8519b1c8d19fdbf9a9c9af7a328cc2ef`의
 (SHA-256 `e3f14b96be37f5cd502dab85b20f86406b520f86368664e7ecb5f38d74914d73`).
 새 source의 전체 환경·필수 실행과 독립 관측 대조는 원격 CI에서 확인한다.
 
-I1의 공통 credential/관리 runtime, Form/Admin/API·첫 사용자 명령, durable account domain과 채운 DB의 명시적
-모델 전환, password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
+이어서 기본 User 없이 설치할 수 있는 `godj_account_domain` 선언·generated model·독립 초기 migration과
+추가 전용 소유권 이력을 작성했다. 공개 `generate`는 13개 파일과 snapshot
+`62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e`를 게시했고,
+`makemigrations`는 dependency 없는 초기 정의를 생성했다
+(SHA-256 `6bdff6751bd48ea56848e095f9740025bb9be01342c021f23be7d45f3d57afd3`).
+처음 migration root 디렉터리가 없던 discovery 오류는 디렉터리를 만든 뒤 다시 실행해 해결했다. 기존 identity/system
+정의 bytes는 바꾸지 않았다. 생성 명령 성공은 실제 DB migration 실행의 성공이 아니다.
+
+이력은 current role·직전 sequence/receipt와 고유 operation ID·generation을 검증한다. Binding의 같은-scope 조회와
+actor 도메인 검사도 작성했다. 기본/별도 계정 소비자의 수동 세대 입력을 실제 DB 기록으로 교체했으며, typed 계정 생성과
+도메인 초기화의 동시 rollback, 세대 변경 뒤 오래된/도메인 없는 actor와 session stamp 거부, 다른 저장 role 거부를
+검사하도록 구성했다. 소비자 adapter는 권한 catalog·관리·전환 mapping 전체 runtime을 대신하지 않는다.
+
+SQLite/PostgreSQL 공유 검사는 초기화 rollback, 전환 이력·재접속, 경합, coherent snapshot, callback/cleanup,
+만료 scope, 잘못된 이력, unknown 결과 재조회를 각각 작성했다. 두 DB root와 여덟 child씩을 원격 필수 목록에 넣고
+generated drift·독립 migration/선언 대조 및 입력 검사를 추가했다. Unknown 테스트의 acknowledgement 오류는 실제
+native commit/rollback 뒤 주입하며, 이것을 실제 네트워크 단절 실험이라고 표현하지 않는다.
+
+로컬에서는 영향 package와 기본/사용자 정의 외부 module의 `go test -run '^$'` 최소 compile을 확인했다. 초기 검사에서
+`LoadedDefinitionSet`을 slice처럼 사용한 테스트 compile 오류를 공개 `Definitions()` 호출로 수정했다. 최종 세 명령은
+모두 exit 0이며 실행 전후 source hash가 같았다. 원본·환경·source 연결은 검증 보관소의
+`gdj0138-durable-domain-compile-v1/final/receipt.json`에 있다
+(SHA-256 `a6c2f2f214103a1a3617c819ab75ba86ca65cb3bd2dbae8fb71bcbc26987f8e6`).
+새 테스트 본문, 이력의 실제 DB/경합·외부 소비자 실행, 전체 generated drift와 platform은 아직 원격 확인 대상이다.
+
+I1의 공통 credential/관리 runtime, Form/Admin/API·첫 사용자 명령, 저장 도메인에 결합한 채운 DB의 명시적 모델 전환,
+password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
