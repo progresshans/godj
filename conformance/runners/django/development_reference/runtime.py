@@ -171,12 +171,54 @@ class Response:
         return json.loads(self.body)
 
 
+class _CompleteHeaderReader:
+    def __init__(self, stream):
+        self.stream = stream
+
+    def readline(self, limit=-1):
+        value = self.stream.readline(limit)
+        if not value:
+            # HTTP's header parser otherwise accepts EOF in place of the
+            # terminating empty line. A killed reload child can then look like
+            # a complete 200 response with no Content-Length and no JSON body.
+            raise http.client.IncompleteRead(b"")
+        return value
+
+    def __getattr__(self, name):
+        return getattr(self.stream, name)
+
+
+class _CompleteHTTPResponse(http.client.HTTPResponse):
+    def begin(self):
+        if self.headers is not None:
+            return
+        stream = self.fp
+        guarded = _CompleteHeaderReader(stream)
+        self.fp = guarded
+        try:
+            super().begin()
+        finally:
+            # Only status/header parsing requires the final empty line. EOF
+            # remains a valid delimiter for a complete close-delimited body.
+            if self.fp is guarded:
+                self.fp = stream
+
+
+class _CompleteHTTPConnection(http.client.HTTPConnection):
+    response_class = _CompleteHTTPResponse
+
+
+class _CompleteHTTPHandler(urllib.request.HTTPHandler):
+    def http_open(self, request):
+        return self.do_open(_CompleteHTTPConnection, request)
+
+
 class Client:
     def __init__(self, address):
         self.base = "http://" + address
         self.jar = http.cookiejar.CookieJar()
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
-                                                 urllib.request.HTTPCookieProcessor(self.jar), NoRedirect())
+                                                 _CompleteHTTPHandler(), urllib.request.HTTPCookieProcessor(self.jar), NoRedirect())
 
     def request(self, method, path, data=None, headers=None):
         request = urllib.request.Request(self.base + path, data=data, method=method,
@@ -185,7 +227,7 @@ class Client:
             response = self.opener.open(request, timeout=2)
         except urllib.error.HTTPError as error:
             response = error
-        except (urllib.error.URLError, TimeoutError, ConnectionError):
+        except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ConnectionError):
             return Response(0, b"")
         try:
             with response:

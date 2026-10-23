@@ -33,8 +33,53 @@ CLI의 두 선택 child만 한정 실행해 통과했다. 새 계정 binding과 
 한정 수정 검사의 원본은 `generation-regressions-after.jsonl`이다
 (SHA-256 `896ec741f039fbb609f08bf48c863a209a764a9f1223bc288f8c5c5ba0bb0258`).
 
+그 뒤 계정 역할 fingerprint·소유권 세대로 구분하는 credential과 Principal의 도메인 보존을 작성했다.
+새 준비 API는 실제 typed 행의 역할·IR 문자열 한도·revision·저장 key 존재를 확인하며 0/음수 key의 명시적 존재를 유지한다.
+도메인을 지우거나 다른 도메인으로 actor를 덮는 생성, password 검증 중 도메인 변경, 동일 ID/hash의 기존 HTTP 세션 거부,
+잘못된 행/권한·진단 비노출 검사를 추가했다. 기본 User와 별도 Member 소비자는 실제 SQLite snapshot과 PBKDF2를 통해
+공통 StoredAuthenticator를 사용하도록 확장했다. 이 소비자의 세대 값은 수동 테스트 입력이며 durable 전환의 증거가 아니다.
+
+먼저 네 영향 package 및 별도로 생성한 기본/사용자 정의 두 외부 module의 `go test -run '^$'` compile을 확인했다.
+외부 module은 `GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`로 consumer 테스트 소스까지 컴파일했다. 이 단계는 본문 실행이 아니다.
+원본·source hash는 검증 보관소의
+`gdj0138-credential-domain-compile-v1/receipt.json`에 있으며 SHA-256은
+`a59189223e3eab2d214e80f6f68c6e84a37f74f000da2d88e07d0aeaeace7969`다.
+
+Source `28aeed1f8519b1c8d19fdbf9a9c9af7a328cc2ef`의
+[CI 39999668325](https://github.com/progresshans/godj/actions/runs/39999668325) Linux normal/CGO0 생성 소비자에서
+`First`에 필수 ordering이 빠져 기본/사용자 정의 두 child가 `unordered_query`로 실패했다. 실제 checkout
+`4a1cbca4e93972fabce8e059c76567d5e7fc0e92`에 연결한 원본을 확인하고 기존 ORM 계약에 맞게 소비자를 수정했다.
+로컬의 현재 framework와 정확한 `28aeed1f` 소비자 템플릿으로 두 실패를 재현했고, 수정·확장된 두 child만 다시 실행해
+실제 SQLite snapshot·PBKDF2·세대 변경의 credential 거부까지 통과했다. 이 한정 실행은 이전 framework 전체 재실행이 아니다.
+`gdj0138-account-ordering-repro-v1/receipt.json` SHA-256은
+`dee22a710d8bb44881ce322bc7c8db279c5d1665e318f485d4494008fae5ab2c`다.
+
+같은 CI의 Python 3.12.13은 delayed-watch 관측 중 JSONDecodeError로 실패했다. 원격 HTTP 원본은 없어 정확한 수신
+경계는 확정하지 않았다. 로컬 실제 TCP에서 헤더의 마지막 빈 줄 전에 EOF가 와도 200으로 반환하는 경로를 재현했다.
+헤더 EOF를 전송 중단으로 처리하며 완전한 close-delimited/100 응답, 잘린 body와 완전히 수신된 잘못된 JSON의
+기존 구분을 유지하도록 보완했다. 같은 4개 framing 검사는 수정 전 한 root의 세 subcase가 실패했고 수정 후 통과했다.
+전체 Django observer·다른 Python 버전과 새 Go 단위/HTTP 세션·race 본문은 로컬에서 실행하지 않았다.
+`gdj0138-python-header-eof-v1/comparison.json` SHA-256은
+`0dcd3312febd16d1c7072862eec96c8ac34dba206875befab563bb6f6e091dad`다.
+세 원격 실패 원본은 `gdj0138-28aeed1f-ci-39999668325/initial-consumer-reference-failures.json`에 연결했다
+(SHA-256 `e3f14b96be37f5cd502dab85b20f86406b520f86368664e7ecb5f38d74914d73`).
+새 source의 전체 환경·필수 실행과 독립 관측 대조는 원격 CI에서 확인한다.
+
 I1의 공통 credential/관리 runtime, Form/Admin/API·첫 사용자 명령, durable account domain과 채운 DB의 명시적
 모델 전환, password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
+
+## GDJ-0137 — macOS arm64 runtime 작업 제한
+
+Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
+[CI 39980342796](https://github.com/progresshans/godj/actions/runs/39980342796) attempt 1에서
+`Relation product (macos-26, cgo0, runtime)` 작업 `120506548950`가 45분 작업 제한으로 취소됐다.
+실제 checkout `c899f30121bf0a9c5a77210701ecb3550ea40310`, 원본 job log와 GitHub annotation을 대조했다.
+정리 시 compiler와 sqlite.test process가 종료됐지만 특정 테스트 결함이나 필수 실행 완료는 확인되지 않았다.
+최종 실행 검증과 clean worktree 단계도 완료되지 않았다. 같은 source의 다른 작업은 계속 진행하며 이 좌표는 재검증 대상이다.
+
+원본·판정은 검증 보관소의 `gdj0137-b19aeedd-ci-39980342796/cancelled-runtime-evidence.json`에 보존했다
+(SHA-256 `06dbefe006c29f2536f6b6e4176fda44b6b450f24da45976fc3d0c83a0924d24`).
+이미 완료한 C1의 12개 native 독립 관측 대조와 이 공통 runtime 작업, I1의 새 source 검증을 구분한다.
 
 ## GDJ-0137 — 독립 관측 JSON과 unittest 진행 출력의 분리
 
