@@ -90,6 +90,21 @@ native commit/rollback 뒤 주입하며, 이것을 실제 네트워크 단절 �
 (SHA-256 `a6c2f2f214103a1a3617c819ab75ba86ca65cb3bd2dbae8fb71bcbc26987f8e6`).
 새 테스트 본문, 이력의 실제 DB/경합·외부 소비자 실행, 전체 generated drift와 platform은 아직 원격 확인 대상이다.
 
+Source `235c401efa81085255391cc38458df25e0522429`의
+[CI 40007792197](https://github.com/progresshans/godj/actions/runs/40007792197) normal/CGO0 portable conformance에서
+두 attestation의 `TestSourceBindingOwnsNativeProductDependencies`가 새 domain migration JSON의 소스 소유권 누락으로
+실패했다. 실제 checkout `486943c7d087be78592a4230b20209f76729b991`의 tree가 제출 source와 같음을 확인했다.
+원본은 `gdj0138-235c401e-ci-40007792197/failure-120600850124.log`와 `failure-120600850386.log`다
+(SHA-256 `f51340020a422b879eb26d2fcd20f5a70e09fb7e585f0d8d7aad9e22f3da799a`,
+`6e5671dccbd41a4a257536fe06e7cd4c7fa5013b271570234f4a563da3a10cbf`).
+
+실제 내장 migration을 양쪽 소스 목록에 포함하고 해당 파일 변경이 capture를 stale로 만드는 검사를 추가했다.
+현재 작업트리에서 같은 두 실패를 재현했고, 수정 뒤 의존성 검사 두 root와 소스 변경 검사 두 root·191개 child가
+skip 없이 통과했다. 진행 중인 공통 조회 엔진 코드가 있는 로컬 작업트리의 한정 검사이며 원격 source 전체 재실행은 아니다.
+원본·네 수정 파일 hash는 `gdj0138-domain-source-binding-repro-v1/receipt.json`에 있다
+(SHA-256 `2b36e2af0d556dce9bfbe27a0f62526f8fd520d681fe7c26dda5ac99c61a58dc`).
+Native capture와 전체 환경의 새 실행 결과는 원격 CI에서 확인한다.
+
 I1의 공통 credential/관리 runtime, Form/Admin/API·첫 사용자 명령, 저장 도메인에 결합한 채운 DB의 명시적 모델 전환,
 password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
 

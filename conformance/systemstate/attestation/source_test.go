@@ -74,6 +74,7 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
+		"identity/domain/migrations/godj_account_domain_0001_initial.godj.json",
 		"timezone/zone.go",
 		"internal/zonerules/catalog.go",
 		"internal/zonerules/zoneinfo.zip",
