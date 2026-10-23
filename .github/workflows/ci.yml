@@ -1126,13 +1126,20 @@ jobs:
           print("Compatibility runtime:", platform.python_version(), "SQLite", sqlite3.sqlite_version)
           PY
 
+      - name: Initialize Python project-reference evidence
+        id: python-reference
+        env:
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_PYTHON: ${{ matrix.python_version }}
+        run: python3 scripts/ci/project_reference.py initialize-python "$RUNNER_TEMP/python-reference-evidence"
+
       - name: Run exact portable Python suite
         env:
           COMPAT_PYTHON: ${{ steps.python.outputs.python-path }}
           EXPECTED_PYTHON: ${{ matrix.python_version }}
         run: |
           set -o pipefail
-          log="$RUNNER_TEMP/python-compatibility-tests.txt"
+          log="$RUNNER_TEMP/python-reference-evidence/python-tests.txt"
           uv run --no-project --isolated --python "$COMPAT_PYTHON" \
             --with Django==6.1 --with djangorestframework==3.18.0 --with asgiref==3.12.1 --with sqlparse==0.5.5 \
             python -m scripts.ci.python_tests --profile compatibility 2>&1 | tee "$log"
@@ -1164,10 +1171,67 @@ jobs:
           assert digest == "9f16d52cdfe19db5fc1a2222fb04b01500c673ca45d48de7ea7d7245b0eb453c", digest
           PY
 
+      - name: Seal Python project-reference evidence
+        if: always() && steps.python-reference.outcome == 'success'
+        run: python3 scripts/ci/project_reference.py seal "$RUNNER_TEMP/python-reference-evidence"
+
+      - name: Publish Python project-reference evidence
+        if: always() && steps.python-reference.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: python-project-reference-${{ matrix.python_version }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/python-reference-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Require a clean worktree
         run: |
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
+
+  project-reference-comparison:
+    needs: [validation-plan, python-compatibility-matrix, product-project-check-matrix, product-reload-matrix]
+    name: Compare independent project and event observations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download this run's pinned Python observations
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: python-project-reference-3.14.3-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/project-comparison/python
+
+      - name: Download this run's native baseline observations
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: project-check-*-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/project-comparison/baseline
+
+      - name: Download this run's native reload observations
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: project-reload-*-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/project-comparison/reload
+
+      - name: Compare all 12 complete native coordinates
+        env:
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: >
+          python3 scripts/ci/project_reference.py verify "$RUNNER_TEMP/project-comparison"
+          --output "$RUNNER_TEMP/project-reference-comparison.json"
+
+      - name: Publish project-reference comparison
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: project-reference-comparison-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/project-reference-comparison.json
+          if-no-files-found: error
+          retention-days: 90
 
   # The race/core budget includes the pinned service build and serial process tests.
   # Per-package deadlines and every required sentinel remain unchanged.
@@ -1592,6 +1656,7 @@ jobs:
       - product-reload-matrix
       - command-product-matrix
       - python-compatibility-matrix
+      - project-reference-comparison
       - postgresql-product
     runs-on: ubuntu-24.04
     timeout-minutes: 5

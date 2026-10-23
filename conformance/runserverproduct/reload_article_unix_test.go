@@ -116,6 +116,8 @@ func (p *reloadProcess) articleMarker(t *testing.T, marker string) {
 }
 
 func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *testing.T) {
+	observer := newDevelopmentObserver(t, "article")
+	inputs := observer.inputs
 	repository := runserverRepositoryRoot(t)
 	global := buildGlobalGodj(t, repository)
 	project := prepareCopiedRunserverArticleProject(t, repository, false)
@@ -172,17 +174,23 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		return strings.Replace(string(template), "</body>", "<p>"+marker+"</p>\n</body>", 1)
 	}
 	writeReloadFile(t, project, templateName, versionTemplate("reload-article-one"))
-	p := startReloadProcess(t, global, project, environment, "article site listening on http://")
+	p := startReloadProcess(t, global, project, environment, "article site listening on http://", true)
 	p.articleMarker(t, "reload-article-one")
 	sensitive := []string{adminPassword}
 	admin := newReloadArticleClient(t, p, adminName, adminPassword, &sensitive)
 	if got := admin.request(t, "GET", "/api/articles/", "", "", false); got.status != 200 {
 		t.Fatal("initial admin admission", got.status)
 	}
-	if got := admin.request(t, "POST", "/api/articles/", `{"title":"committed before reload","published":true,"summary":"durable"}`, "", false); got.status != 403 {
-		t.Fatal("CSRF-less write admitted", got.status)
+	articleInput, err := json.Marshal(map[string]any{"title": inputs.Article.Title, "published": true, "summary": "durable"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	created := admin.request(t, "POST", "/api/articles/", `{"title":"committed before reload","published":true,"summary":"durable"}`, "", true)
+	csrf := admin.request(t, "POST", "/api/articles/", string(articleInput), "", false)
+	if csrf.status != 403 {
+		t.Fatal("CSRF-less write admitted", csrf.status)
+	}
+	observer.record(t, "csrf", map[string]any{"status": csrf.status})
+	created := admin.request(t, "POST", "/api/articles/", string(articleInput), "", true)
 	var article struct{ ID int64 }
 	if created.status != 201 || json.Unmarshal(created.body, &article) != nil || article.ID <= 0 {
 		t.Fatal("initial Article write", created.status)
@@ -227,13 +235,18 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		}
 		permissionID = permission.ID
 	}
-	groupJSON := `{"name":"Reload readers","permissions":[` + strconv.FormatInt(permissionID, 10) + `]}`
+	groupInput, err := json.Marshal(map[string]any{"name": inputs.Article.Group, "permissions": []int64{permissionID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	groupJSON := string(groupInput)
 	groupResponse := admin.request(t, "POST", "/api/identity/groups/", groupJSON, "", true)
 	var group struct {
 		ID, Revision int64
 		Permissions  []int64
+		Name         string
 	}
-	if groupResponse.status != 201 || json.Unmarshal(groupResponse.body, &group) != nil || group.ID <= 0 || group.Revision != 1 || len(group.Permissions) != 1 || group.Permissions[0] != permissionID {
+	if groupResponse.status != 201 || json.Unmarshal(groupResponse.body, &group) != nil || group.ID <= 0 || group.Revision != 1 || group.Name != inputs.Article.Group || len(group.Permissions) != 1 || group.Permissions[0] != permissionID {
 		t.Fatal("group relation creation", groupResponse.status)
 	}
 	const readerPassword = "Reader-72p!sV9-secret"
@@ -274,7 +287,8 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		writeReloadFile(t, project, templateName, versionTemplate("reload-article-two"))
 		p.articleMarker(t, "reload-article-two")
 		got := reader.request(t, "GET", "/api/articles/"+strconv.FormatInt(article.ID, 10)+"/", "", "", false)
-		if got.status != 200 || !bytes.Contains(got.body, []byte("committed before reload")) {
+		var stored struct{ Title string }
+		if got.status != 200 || json.Unmarshal(got.body, &stored) != nil || stored.Title != inputs.Article.Title {
 			t.Fatal("new runtime lost session or durable Article", got.status)
 		}
 		detail := admin.request(t, "GET", "/api/identity/users/"+strconv.FormatInt(user.ID, 10)+"/", "", "", false)
@@ -282,6 +296,8 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		if detail.status != 200 || json.Unmarshal(detail.body, &current) != nil || len(current.Groups) != 1 || current.Groups[0] != group.ID {
 			t.Fatal("reload changed membership", detail.status)
 		}
+		observer.record(t, "session_relation", map[string]any{"status": got.status,
+			"member_present": current.Groups[0] == group.ID && group.Name == inputs.Article.Group, "stored_title": stored.Title})
 		if got := reader.request(t, "POST", "/api/articles/", `{"title":"still forbidden","published":true}`, "", true); got.status != 403 {
 			t.Fatal("reload broadened permission", got.status)
 		}
@@ -295,13 +311,15 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		if removed.status != 200 || removed.header.Get("Revision") != "2" {
 			t.Fatal("relation revision update", removed.status)
 		}
-		if got := reader.request(t, "GET", "/api/articles/", "", "", false); got.status != 403 {
-			t.Fatal("session retained revoked group authority", got.status)
+		revoked := reader.request(t, "GET", "/api/articles/", "", "", false)
+		if revoked.status != 403 {
+			t.Fatal("session retained revoked group authority", revoked.status)
 		}
 		writeReloadFile(t, project, templateName, versionTemplate("reload-article-three"))
 		p.articleMarker(t, "reload-article-three")
-		if got := reader.request(t, "GET", "/api/articles/", "", "", false); got.status != 403 {
-			t.Fatal("new runtime restored revoked authority", got.status)
+		afterReload := reader.request(t, "GET", "/api/articles/", "", "", false)
+		if afterReload.status != 403 {
+			t.Fatal("new runtime restored revoked authority", afterReload.status)
 		}
 		// The default development app uses a process-local CSRF signing key.
 		// Its persistent login survives reload; an old form token must not.
@@ -317,11 +335,14 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		if got := admin.request(t, "PATCH", path, groupJSON, "2", true); got.status != 200 || got.header.Get("Revision") != "3" {
 			t.Fatal("current relation revision failed", got.status)
 		}
-		if got := reader.request(t, "GET", "/api/articles/", "", "", false); got.status != 200 {
-			t.Fatal("current restored grant unavailable", got.status)
+		restored := reader.request(t, "GET", "/api/articles/", "", "", false)
+		if restored.status != 200 {
+			t.Fatal("current restored grant unavailable", restored.status)
 		}
+		observer.record(t, "current_permission", map[string]any{"revoked": revoked.status, "after_reload": afterReload.status, "restored": restored.status})
 	})
 	p.stop(t, syscall.SIGINT)
 	assertRunserverWorkspaceEmpty(t, workspace)
 	assertRunserverOutputExcludesSensitiveValues(t, p.stdout.String(), p.stderr.String(), &sensitive)
+	observer.publish(t)
 }

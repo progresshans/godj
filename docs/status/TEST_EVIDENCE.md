@@ -3,6 +3,47 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 독립 개발 관측과 같은 실행의 원본 비교 작성
+
+2026-10-23, 선행 source `352fe6dc5a6dd6c5382535730460fca83d740c6c`는
+[CI 39913595594](https://github.com/progresshans/godj/actions/runs/39913595594)에 제출했다. 이 실행이 진행되는 동안
+고정 Django와 Go의 실제 개발 흐름을 독립 관측하는 코드를 작성했다. 아직 새 관측·비교 본문을 실행하지 않았으므로
+이 항목은 parity/Verified나 C1 완료 근거가 아니다.
+
+Django observer는 임시 프로젝트와 두 앱을 공개 `startproject`/`startapp`으로 생성하고 `AppConfig.ready`의
+순서·모델 접근, 설정 check의 DB 미생성, 명시적 migration·초기 사용자·로그인·HTTP를 관측한다. 실제 source 변경과
+실패, nullable field 추가 전 DB schema 보존, 명시적 migration 후 기존/새 row, `--noreload`와 재시작, 기존 session의
+group membership·현재 권한·CSRF, command 오류 전 확정된 저장을 기록한다. Go나 예상 결과를 읽지 않는다.
+선택한 15개 installed module의 192,225 bytes를 고정 upstream commit
+`fe0a859f537d4238cf49fca39073513206f83122`의 bytes와 대조해 source inventory를 작성했다.
+이는 전체 wheel identity나 실제 동작 검증이 아니다. 두 hash seed·source 변조·실제 HTTP 응답 변조 부정 검사를 작성했다.
+
+Go의 기존 Notes·Article·scaffold command 소비자는 같은 입력 hash를 읽고 실제 응답·PID 변화·DB 값·HTTP 상태를
+각 owner의 원 JSON에 기록한다. Notes에는 단일 실행에서 source를 수정해도 Go build/inventory가 시작되지 않는
+감사와 명시적 재시작 phase를 추가했다. 필수 manifest에 새 child를 넣었으며 기존 drain·늦은 후보·자손·부모 종료·
+권한·CSRF·revision 검사를 유지한다. `source_failure`의 이전 정상 앱 유지 차이는 [DEV-0027](../DEVIATIONS.md)에
+한 입력과 두 닫힌 값으로만 기록했으며 실제 독립 대조는 미완료다.
+
+Python compatibility owner는 성공/실패 원 log와 source/run/attempt·checksum을 보존한다. 새 필수
+`project-reference-comparison` job은 같은 실행의 Python 3.14.3 원본과 12개 native baseline/reload artifact를 읽는다.
+Member checksum·동일 source/tree/run/attempt·실제 runtime·전체 binary discovery/owner·필수 phase와 관측의 정확히
+한 번 성공을 다시 검사한다. 개발 결과 8개와 event 호출/해제 6개를 정확히 비교하고 source 실패 차이만 별도로 검사한다.
+원본을 재실행하지 않는다. 누락/skip/중복/잘린 결과·다른 source·변조 결과·허용 범위를 넓힌 차이를 거부하는 reader
+검사를 작성했다. 이 필수 job은 전체 CI 집계와 operator/system-state의 실행 정책 source binding에도 연결했다.
+
+로컬에서는 새 본문을 실행하지 않았다. 영향 Go package 3개를 `-run '^$' -exec=/usr/bin/true`로 compile했고,
+Python source/template 14개 AST, workflow의 필수 job 목록과 Bash block 64개 구문, Markdown 링크 242개 문서를 확인했다.
+Receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/gdj0137-development-reference-compile-v1/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `compile.json` — 본문 미실행 최소 compile | `17662d91a3d5750b456cc07bb71c0dcff6889b5b6bddc35e249a9bf157940358` |
+| `static.json` — AST/workflow/shell/문서 검사 | `a5814e9b476b92f553ed5c7d20e8434354904a2c88d42defc6777cbe92df4e13` |
+| `source.json` — 문서 외 26개 source와 Go 환경 | `cf3bdad582ba3e0a7f1288d112ad6fef6b49906d80c165dce172fafad9774a93` |
+
+새 독립 observer·native 추가 phase·원본 비교기·reader 부정 검사의 실제 실행은 다음 전체 CI 대상이다.
+선행 SQLite/retirement 변경의 전체 영향, Mac Intel 시간 초과, C1 전체 수용과 후속 카탈로그 요구는 계속 남아 있다.
+
 ## GDJ-0137 — 미적용 SQLite 컬럼과 reload 종료·인증 검사 정정
 
 2026-10-23, source `6fbbd9ac92afa318de5bb001f1af79cdf0583b5b`의

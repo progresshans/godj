@@ -99,6 +99,10 @@ C2는 일반 Web 경로·static/media 등의 잔여 기능을 맡는다. 이 구
 [앱 초기화](https://docs.djangoproject.com/en/6.1/ref/applications/),
 [signal 전달](https://docs.djangoproject.com/en/6.1/topics/signals/)이다. 실제 관측기는 기존 profile의 고정 source를 사용한다.
 Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관측 입력과 지원 정책을 구분해 기록한다.
+독립 [개발 관측기](../conformance/runners/django/development_reference/)는 실제 공개 생성 명령·두 앱 초기화·SQLite·HTTP로
+reload/명시적 migration/현재 권한/명령 durable 결과를 기록한다. Notes·Article·scaffold command의 같은 입력에 대한
+실제 Go 결과와 event 관측을 같은 CI source·원본 checksum에 묶어 12개 native 좌표에서 대조한다.
+작성된 비교기의 성공은 해당 원격 실행이 완료된 뒤 판단하며, `--no-reload`는 편집 후 Go 실행이 시작되지 않는 감사도 갖는다.
 
 ## 완료 조건
 

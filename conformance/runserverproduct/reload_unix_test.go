@@ -33,10 +33,13 @@ type reloadProcess struct {
 	stopped bool
 }
 
-func startReloadProcess(t *testing.T, global, project string, environment []string, prefix string) *reloadProcess {
+func startReloadProcess(t *testing.T, global, project string, environment []string, prefix string, reload bool) *reloadProcess {
 	t.Helper()
 	p := &reloadProcess{stdout: testprocess.NewReadinessBuffer(maximumRunserverOutput, prefix), stderr: testprocess.NewBuffer(maximumRunserverOutput), done: make(chan struct{})}
 	p.command = exec.Command(global, "runserver", "--project", filepath.Join(project, "godj.toml"), "--addr", "127.0.0.1:0")
+	if !reload {
+		p.command.Args = append(p.command.Args, "--no-reload")
+	}
 	p.command.Dir, p.command.Env = project, append([]string(nil), environment...)
 	p.command.Stdout, p.command.Stderr = p.stdout, p.stderr
 	p.command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -211,6 +214,8 @@ func (p *reloadProcess) save(title, summary, mode string) (reloadNotesState, int
 }
 
 func TestGlobalReloadPreservesActiveNotesAndDrainsCommittedWrites(t *testing.T) {
+	observer := newDevelopmentObserver(t, "notes")
+	inputs := observer.inputs
 	repository := runserverRepositoryRoot(t)
 	global := buildGlobalGodj(t, repository)
 	parent, err := filepath.EvalSymlinks(t.TempDir())
@@ -238,9 +243,10 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 	}
 	writeStartedAppSource(t, project, "cmd/site/main.go", reloadNotesProgram(false))
 	writeStartedAppSource(t, project, "internal/revision/revision.go", reloadRevisionSource)
-	writeReloadFile(t, project, "internal/revision/version.txt", "v1")
-	p := startReloadProcess(t, global, project, environment, "notes site listening on http://")
-	first := p.notes(t, "v1")
+	writeReloadFile(t, project, "internal/revision/version.txt", inputs.Versions.Initial)
+	p := startReloadProcess(t, global, project, environment, "notes site listening on http://", true)
+	first := p.notes(t, inputs.Versions.Initial)
+	initialAddress := p.address
 	runPhase := func(name string, action func(*testing.T)) {
 		t.Helper()
 		if !t.Run(name, action) {
@@ -250,10 +256,10 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 	if len(first.Notes) != 0 {
 		t.Fatal("fresh notes app has rows")
 	}
-	if state, status, err := p.save("before reload", "", ""); err != nil || status != 201 || state.Version != "v1" || len(state.Notes) != 1 {
+	if state, status, err := p.save(inputs.Notes.Before, "", ""); err != nil || status != 201 || state.Version != inputs.Versions.Initial || len(state.Notes) != 1 {
 		t.Fatal("initial write", state, status, err)
 	}
-	if current := p.notes(t, "v1"); current.PID != first.PID {
+	if current := p.notes(t, inputs.Versions.Initial); current.PID != first.PID {
 		t.Fatal("ordinary DB writes caused a rebuild")
 	}
 
@@ -261,9 +267,11 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 		before := strings.Count(p.stderr.String(), "project_runserver_reload_rejected/project_runtime_build_failed\n")
 		writeReloadFile(t, project, "internal/revision/revision.go", "package revision\nfunc Current() string { return missingReloadVersion }\n")
 		p.rejected(t, "project_runtime_build_failed", before)
-		if current := p.notes(t, "v1"); current.PID != first.PID || len(current.Notes) != 1 {
+		current := p.notes(t, inputs.Versions.Initial)
+		if current.PID != first.PID || len(current.Notes) != 1 {
 			t.Fatal("failed build replaced live app", current)
 		}
+		observer.record(t, "source_failure", map[string]any{"previous_still_serving": current.PID == first.PID})
 	})
 	runPhase("failed-startup-and-descendant-are-reaped", func(t *testing.T) {
 		before := strings.Count(p.stderr.String(), "project_runserver_reload_rejected/project_runtime_readiness_failed\n")
@@ -278,7 +286,7 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 		if err != nil || pid <= 1 || syscall.Kill(pid, 0) == nil {
 			t.Fatal("failed candidate left a descendant", pid, err)
 		}
-		if current := p.notes(t, "v1"); current.PID != first.PID || len(current.Notes) != 1 {
+		if current := p.notes(t, inputs.Versions.Initial); current.PID != first.PID || len(current.Notes) != 1 {
 			t.Fatal("failed startup replaced live app", current)
 		}
 	})
@@ -287,14 +295,18 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 		writeReloadFile(t, project, "internal/revision/version.txt", "wait-late")
 		pid := awaitReloadMarkerPID(t, p, control, "waiting-wait-late")
 		p.track(t)
-		writeReloadFile(t, project, "internal/revision/version.txt", "v2")
-		second = p.notes(t, "v2")
+		writeReloadFile(t, project, "internal/revision/version.txt", inputs.Versions.Changed)
+		second = p.notes(t, inputs.Versions.Changed)
 		if second.PID == pid || second.PID == first.PID || len(second.Notes) != 1 {
 			t.Fatal("late candidate was published", second)
 		}
 		p.await(t, "discarded startup cleanup", func() bool {
 			_, err := os.Stat(filepath.Join(control, "stopped-"+strconv.Itoa(pid)))
 			return err == nil && syscall.Kill(pid, 0) != nil
+		})
+		observer.record(t, "source_reload", map[string]any{
+			"address_unchanged": p.address == initialAddress, "process_changed": first.PID != second.PID,
+			"version": second.Version, "stored_title": observedNote(t, second, inputs.Notes.Before)["title"],
 		})
 	})
 	runPhase("old-request-commits-during-new-generation", func(t *testing.T) {
@@ -322,7 +334,7 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 		}
 		select {
 		case result := <-savedResult:
-			if result.err != nil || result.status != 201 || result.state.Version != "v2" || len(result.state.Notes) != 2 {
+			if result.err != nil || result.status != 201 || result.state.Version != inputs.Versions.Changed || len(result.state.Notes) != 2 {
 				t.Fatal("draining write", result)
 			}
 		case <-time.After(10 * time.Second):
@@ -357,18 +369,21 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 			t.Fatal("unmigrated runtime replaced old app")
 		}
 		reloadCLI(t, global, project, environment, "migrate")
-		writeReloadFile(t, project, "internal/revision/version.txt", "v4")
-		current := p.notes(t, "v4")
+		writeReloadFile(t, project, "internal/revision/version.txt", inputs.Versions.Field)
+		current := p.notes(t, inputs.Versions.Field)
 		if len(current.Notes) != 2 || current.Notes[0].Summary != nil || current.Notes[1].Summary != nil {
 			t.Fatal("field addition changed existing rows", current)
 		}
-		state, status, err := p.save("after schema change", "new summary", "")
-		if err != nil || status != 201 || len(state.Notes) != 3 || state.Notes[2].Summary == nil || *state.Notes[2].Summary != "new summary" {
+		state, status, err := p.save(inputs.Notes.After, inputs.Notes.Summary, "")
+		if err != nil || status != 201 || len(state.Notes) != 3 || state.Notes[2].Summary == nil || *state.Notes[2].Summary != inputs.Notes.Summary {
 			t.Fatal("new field write", state, status, err)
 		}
+		observer.record(t, "field_change", map[string]any{
+			"previous": observedNote(t, current, inputs.Notes.Before), "created": observedNote(t, state, inputs.Notes.After),
+		})
 	})
 	runPhase("parent-termination-joins-active-and-preparing-apps", func(t *testing.T) {
-		current := p.notes(t, "v4")
+		current := p.notes(t, inputs.Versions.Field)
 		writeReloadFile(t, project, "internal/revision/version.txt", "wait-shutdown")
 		pending := awaitReloadMarkerPID(t, p, control, "waiting-wait-shutdown")
 		p.track(t)
@@ -383,13 +398,47 @@ func Applications() []schema.Definition { return []schema.Definition{{AppLabel: 
 	if strings.Contains(p.stdout.String()+p.stderr.String(), "private-reload-startup-marker") {
 		t.Fatal("private startup cause was published")
 	}
-	writeReloadFile(t, project, "internal/revision/version.txt", "v4")
-	restarted := startReloadProcess(t, global, project, environment, "notes site listening on http://")
-	if current := restarted.notes(t, "v4"); len(current.Notes) != 3 || current.Notes[0].Title != "before reload" || current.Notes[1].Title != "during drain" || current.Notes[2].Title != "after schema change" {
-		t.Fatal("fresh process lost durable writes", current)
-	}
-	restarted.stop(t, syscall.SIGINT)
-	assertRunserverWorkspaceEmpty(t, workspace)
+	runPhase("no-reload-requires-explicit-restart", func(t *testing.T) {
+		writeReloadFile(t, project, "internal/revision/version.txt", inputs.Versions.Field)
+		audited, auditPath := runserverGoAuditEnvironment(t, environment)
+		single := startReloadProcess(t, global, project, audited, "notes site listening on http://", false)
+		loaded := single.notes(t, inputs.Versions.Field)
+		if len(loaded.Notes) != 3 || loaded.Notes[0].Title != inputs.Notes.Before || loaded.Notes[1].Title != "during drain" || loaded.Notes[2].Title != inputs.Notes.After {
+			t.Fatal("fresh process lost durable writes", loaded)
+		}
+		before, err := os.ReadFile(auditPath)
+		if err != nil || len(before) == 0 {
+			t.Fatal("single-run build audit missing", err)
+		}
+		writeReloadFile(t, project, "internal/revision/version.txt", inputs.Versions.Edited)
+		// Wait beyond two watch intervals. The audit checks that no build or
+		// source inventory even began; a slow rebuild cannot masquerade as no reload.
+		select {
+		case <-single.done:
+			t.Fatal("single-run server exited after a source edit")
+		case <-time.After(2500 * time.Millisecond):
+		}
+		unchanged := single.notes(t, inputs.Versions.Field)
+		after, err := os.ReadFile(auditPath)
+		if err != nil || !bytes.Equal(before, after) || unchanged.PID != loaded.PID {
+			t.Fatal("--no-reload started a replacement or observed source", err)
+		}
+		observer.record(t, "no_reload", map[string]any{"process_unchanged": unchanged.PID == loaded.PID, "version": unchanged.Version})
+		single.stop(t, syscall.SIGINT)
+		assertRunserverWorkspaceEmpty(t, workspace)
+		restarted := startReloadProcess(t, global, project, environment, "notes site listening on http://", false)
+		current := restarted.notes(t, inputs.Versions.Edited)
+		if current.PID == loaded.PID || len(current.Notes) != 3 {
+			t.Fatal("explicit restart lost its process or rows", current)
+		}
+		observer.record(t, "explicit_restart", map[string]any{
+			"process_changed": current.PID != loaded.PID, "version": current.Version,
+			"previous": observedNote(t, current, inputs.Notes.Before), "created": observedNote(t, current, inputs.Notes.After),
+		})
+		restarted.stop(t, syscall.SIGINT)
+		assertRunserverWorkspaceEmpty(t, workspace)
+	})
+	observer.publish(t)
 }
 
 func awaitReloadMarkerPID(t *testing.T, process *reloadProcess, directory, name string) int {

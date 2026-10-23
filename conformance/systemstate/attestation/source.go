@@ -31,6 +31,8 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/ci/workflow.py":                                               {},
 	"scripts/ci/relation_shards.py":                                        {},
 	"scripts/ci/runserver_tests.py":                                        {},
+	"scripts/ci/runserver-required.txt":                                    {},
+	"scripts/ci/project_reference.py":                                      {},
 	"scripts/ci/python_tests.py":                                           {},
 	"scripts/ci/relation-required.txt":                                     {},
 	"scripts/ci/compile-required.txt":                                      {},

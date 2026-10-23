@@ -17,6 +17,7 @@ import (
 
 func exerciseStartedAppCommands(t *testing.T, global, project, workspace string, environment []string) {
 	t.Helper()
+	observer := newDevelopmentObserver(t, "command")
 	run := func(args ...string) testprocess.CommandResult {
 		t.Helper()
 		result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, project, environment, global, args...)
@@ -48,11 +49,12 @@ func exerciseStartedAppCommands(t *testing.T, global, project, workspace string,
 	}
 	assertStartedCommandLogs(t, created.Stderr)
 	assertStartedCommandRows(t, project, workspace, environment, 3, "created by command")
-	failed := run("command", "add-note", "saved before command error", "--fail-after-write")
+	failed := run("command", "add-note", observer.inputs.Command.SavedTitle, "--fail-after-write")
 	if failed.ExitCode != 1 || failed.Stdout != "" || failed.Stderr != "command_error/execution_failed\n" {
 		t.Fatal("callback error lost command exit or exposed cause", failed.ExitCode, failed.Stderr)
 	}
-	assertStartedCommandRows(t, project, workspace, environment, 4, "saved before command error")
+	stored := assertStartedCommandRows(t, project, workspace, environment, 4, observer.inputs.Command.SavedTitle)
+	observer.record(t, "command_failure", map[string]any{"exit_code": failed.ExitCode, "saved_title": stored})
 	reader, writer, err := os.Pipe()
 	if err != nil {
 		t.Fatal(err)
@@ -120,13 +122,15 @@ func main() {
 		t.Fatal(err)
 	}
 	assertStartedCommandRows(t, project, workspace, environment, 5, "saved before output error")
+	observer.publish(t)
 }
 
-func assertStartedCommandRows(t *testing.T, project, workspace string, environment []string, expected int, title string) {
+func assertStartedCommandRows(t *testing.T, project, workspace string, environment []string, expected int, title string) string {
 	t.Helper()
 	source := fmt.Sprintf(`package main
 import (
  "context"
+ "encoding/json"
  "errors"
  "fmt"
  "os"
@@ -145,14 +149,21 @@ func run() (result error) {
  rows, err := models.NoteObjects.Using(backend).All(ctx)
  if err != nil || len(rows) != %d { return errors.New("stored row count changed") }
  found := %q == ""
- for _, row := range rows { if row.Title == %q { found = true } }
+ observed := ""
+ for _, row := range rows { if row.Title == %q { found = true; observed = row.Title } }
  if !found { return errors.New("confirmed command write missing") }
- fmt.Println("command-data-preserved")
- return nil
+ return json.NewEncoder(os.Stdout).Encode(struct{Title string}{observed})
 }
 `, expected, title, title)
 	writeStartedAppSource(t, project, "cmd/appcheck/main.go", source)
-	runStartedAppProgram(t, project, workspace, environment, "command-data-preserved\n")
+	result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 3 * time.Minute, Output: maximumRunserverOutput},
+		project, environment, "go", "run", "-mod=readonly", "./cmd/appcheck")
+	assertRunserverWorkspaceEmpty(t, workspace)
+	var observed struct{ Title string }
+	if result.ExitCode != 0 || result.Stderr != "" || json.Unmarshal([]byte(result.Stdout), &observed) != nil || observed.Title != title {
+		t.Fatal("public command data observation failed", result.ExitCode, result.Stderr)
+	}
+	return observed.Title
 }
 
 const startedAppCommandSource = `package commands

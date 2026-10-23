@@ -16,6 +16,7 @@ JOBS = frozenset({
     'product-reload-matrix',
     'command-product-matrix',
     'python-compatibility-matrix',
+    'project-reference-comparison',
     'postgresql-product',
 })
 COMMAND_PRODUCTS = frozenset({'operator', 'targeted'})

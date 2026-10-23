@@ -59,8 +59,13 @@ Go audit는 시작 시각을 기록하고 준비 진단은 고정 phase 이름·
 Runserver의 기존 흐름과 reload 흐름은 별도 native CI owner가 같은 전체 binary discovery를 사용한다. 필수 manifest의
 root/child와 이후 추가된 root 모두 정확히 한 owner에서 실행해야 한다. PostgreSQL 전용 root는 별도 DB owner가 맡으며
 그 밖의 skip·누락·중복·잘린 결과는 실패다. 두 owner는 성공/실패 원 JSON과 source·환경·checksum을 artifact로 보존한다.
-단일 모델 reload는 처리 중인 저장·필드 추가·실패 후보·연속 수정·부모 종료를, 관계 앱은 같은 세션·관계·현재 권한과
-CSRF/revision을 실제 public CLI/HTTP로 검증한다. 실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.
+단일 모델 reload는 처리 중인 저장·필드 추가·실패 후보·연속 수정·부모 종료와 `--no-reload`의 명시적 재시작을,
+관계 앱은 같은 세션·관계·현재 권한과 CSRF/revision을 실제 public CLI/HTTP로 검증한다.
+실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.
+필수 `project-reference-comparison`은 같은 실행의 고정 Python 관측과 12개 native 좌표의 원본을 다시 읽어 대조한다.
+Source/tree/run/attempt·member checksum·전체 discovery/필수 phase·관측 owner와 입력 hash가 모두 일치해야 한다.
+개발 결과 8개와 event 호출/해제 6개는 정확히 일치해야 하며, source 실패의 이전 앱 유지 차이만 닫힌 값으로 허용한다.
+제품/관측 suite를 재실행하지 않고 성공한 원본을 읽으며 누락·skip·중복·truncation·다른 source는 실패다.
 SYS-003 등의 단일 worker 준비는 cold 의존성 컴파일을 포함해 최대 5분을 허용하고, 실제 worker 동작은 별도의
 90초 제한을 유지한다. 빌드 실패는 context 취소·deadline을 보존하고 원문 process 오류 대신 안전한 분류와 정제된
 compiler 진단을 표시한다. 이 준비 예산은 실제 시나리오의 결과·비밀값·재시작 검사를 생략하지 않는다.

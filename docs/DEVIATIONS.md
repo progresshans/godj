@@ -44,6 +44,26 @@
 
 ## 원장
 
+## DEV-0027 — 실패한 개발 서버 후보와 이전 앱의 유지
+
+- 상태: 구현됨; 독립 Django 관측과 현재 source의 전체 비교는 미완료
+- 날짜: 2026-10-23
+- 범위: [개발 관측 입력](../conformance/runners/django/development_reference/input.json)의 `source_failure` 한 사례
+- 기준: Django 6.1 commit `fe0a859f537d4238cf49fca39073513206f83122`의 공개 `runserver`
+- 관련: [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md), [C1](../work/0137-project-core-startup.md), [Evidence](status/TEST_EVIDENCE.md)
+
+GoDj는 변경된 source의 build·generated bundle·startup·시작 후 source 검사를 통과한 후보만 게시한다.
+실패한 후보를 준비하는 동안 이전 정상 앱은 계속 요청을 받는다. 고정 Django의 autoreload는 새 Python child가
+수정된 모듈을 import하는 경로를 독립 관측하며, 잘못된 source 뒤 이전 process의 HTTP 응답 유지 여부를 비교한다.
+수용한 차이는 이 한 입력에서 GoDj의 `previous_still_serving=true`, Django의 `false`뿐이다.
+다른 값·입력·DB 효과를 포괄적으로 면제하지 않으며 실제 결과가 다르면 관측과 구현을 다시 확인한다.
+
+이 결정은 컴파일과 후보 준비가 필요한 Go에서 동작하던 앱을 build 실패 때문에 중단하지 않기 위한 것이다.
+먼저 기존 앱을 종료하는 대안은 선택하지 않았다. 모델·DB·migration 저장 형식은 바꾸지 않고, 후보 실패가 생성·migration을
+자동 수행하지 않게 한다. 이미 받은 요청의 저장과 resource 정리는 Go의 native process/DB 검사로 별도 확인한다.
+이전 앱과 호환되지 않는 migration의 운영 안전성이나 임의의 source 오류에서 DB schema 호환성까지 보장하지 않는다.
+Upstream reload 동작이나 GoDj의 게시 정책이 바뀌면 해당 입력·비교기·ADR을 함께 재검토한다.
+
 ## DEV-0026 — 명명 조회의 예약 이름과 식별자 경계
 
 - 상태: 구현됨; 독립 비교·환경별 검증은 진행 중이며 parity나 Verified로 계산하지 않음
