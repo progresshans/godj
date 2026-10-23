@@ -3,6 +3,39 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 관측 정정의 원격 부분 대조와 scaffold 준비 진단
+
+2026-10-23, source `6ee1cdffb4a19c37b51b82ddd4f42df7d6bfddab`의
+[CI 39923115954](https://github.com/progresshans/godj/actions/runs/39923115954)에서 Python 3.14.3 job `120313501506`이
+전체 suite와 all-scenario digest를 통과했다. 원 log의 `PYTHON_SUITE_VERIFIED tests=403 skips=4`와 독립 개발/event 관측을
+확인했다. 4개 skip은 별도 exact profile의 담당 검사이며 이 결과만으로 그 실행을 대신하지 않는다.
+새 failed-child 감시 지연 회귀와 실제 HTTP 응답 변조 부정 검사도 이 suite에서 실행됐다.
+
+같은 실행의 Linux amd64/arm64 normal/race/CGO0 reload 6개 artifact와 Python artifact를 내려받아 member checksum,
+source/run/attempt·필수 root/child·실행 owner를 대조했다. 실제 checkout `2e637eb8aa11b2aa48c8dc2d1f1f387dc500d190`의
+GitHub tree `83c95bf5ab5bd70087a422d82e2fe637bba3077c`는 위 PR source와 같다. 새 reader로 Notes/Article의 분할 출력도
+읽고 좌표별 공통 결과 7개 및 닫힌 source 실패 차이 1개를 같은 CI의 Django 관측과 대조했다. 전체 CI와
+baseline command/event·macOS를 포함한 필수 비교는 아직 완료되지 않았다.
+
+앞선 `0396f35f`의 Mac Intel normal artifact `12487024095`도 checksum과 동일 source를 확인했다. Article root와 3개
+child는 통과했지만 Notes는 최초 `startproject`에서 시간 초과됐다. 원 log에는 어느 Go 호출에서 중단됐는지가 없었다.
+새 프로젝트·고정 module·Notes의 `startproject`에 기존 syscall-exec Go audit를 연결했다. 성공/실패 시 고정 phase·
+명령 시작 수·경과 시간을 기록하며 private 경로·인자·환경 값은 출력하지 않는다. Candidate inventory/compile와
+module tidy·command runtime build의 진단을 추가하고 기존 비밀값 비노출 검사에 이 경로를 포함했다.
+명령 5분·출력·process 회수 조건과 필수 실행 목록은 유지했다. 이 추가는 시간 초과 원인이나 해결의 증거가 아니다.
+
+로컬은 gofmt와 `go test -run '^$' -exec=/usr/bin/true ./conformance/runserverproduct`의 최소 compile만 확인했다.
+추가한 진단 검사의 본문과 실제 scaffold 감사는 다음 전체 원격 CI 대상이다. Source와 원본 receipt는 저장소 밖
+`~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-6ee1cdff-ci-39923115954/python-and-linux-reload.json` — 같은 실행의 부분 독립 대조 | `092b220c39cd4f369cb2d9221d26c7380f24dc5d9f57cfe548adcaa4e298befd` |
+| `gdj0137-0396f35f-ci-39918711984/mac-intel-reload-failure.json` — Notes 실패와 Article 성공 원본 | `505caa270f8aff63eb49f359485dcda692acbace57beae958c8db9c4047c79b9` |
+| `gdj0137-scaffold-progress-v1/compile.json` — 변경 Go 4개 hash·본문 미실행 compile | `15ee26c086f80f12e5491e252a442b4010d02501eee894c245899b2d124ddd7e` |
+
+Mac Intel 준비 시간 초과, 새 source의 전체 원격 비교·DB·race·platform과 C1 수용은 미완료다.
+
 ## GDJ-0137 — 독립 관측의 감시 시작과 분할 Go 출력 정정
 
 2026-10-23, source `0396f35f70363db10e5988976f40d1beada1df83`의

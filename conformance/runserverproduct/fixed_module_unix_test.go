@@ -93,7 +93,7 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 	project := filepath.Join(root, "site")
 	run := func(binary, directory string, args ...string) testprocess.CommandResult {
 		t.Helper()
-		result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, environment, binary, args...)
+		result := runProjectCLI(t, directory, environment, binary, args...)
 		assertRunserverWorkspaceEmpty(t, workspace)
 		return result
 	}

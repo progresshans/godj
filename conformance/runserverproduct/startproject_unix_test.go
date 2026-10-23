@@ -39,7 +39,7 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 	environment := testenv.Sorted(values)
 	run := func(t *testing.T, directory string, args ...string) testprocess.CommandResult {
 		t.Helper()
-		result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, environment, global, args...)
+		result := runProjectCLI(t, directory, environment, global, args...)
 		assertRunserverWorkspaceEmpty(t, workspace)
 		return result
 	}

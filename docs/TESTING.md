@@ -56,6 +56,9 @@ Operator fixture의 module 준비·global build·generated project 검증은 com
 Runserver의 readiness 전 준비에는 declaration/runtime 두 readonly 빌드와 생성물 검사가 포함되므로 별도 5분 예산을 둔다.
 Go audit는 시작 시각을 기록하고 준비 진단은 고정 phase 이름·명령 시작 수·경과 시간만 표시한다. 시작 기록을 완료로
 간주하지 않으며 private 경로·환경 값·child 출력을 진단에 복사하지 않는다. HTTP·shutdown·자손 회수 제한은 별개다.
+새 프로젝트·고정 module·Notes의 최초 `startproject`도 같은 Go audit를 사용한다. 실패 전에 HTTP runtime이 없더라도
+bootstrap 의존성·candidate inventory/compile·module tidy·declaration/runtime build 중 마지막 시작 단계를 남긴다.
+이 진단은 기존 5분 명령·출력·process 회수 제한에서 동작하며 compiler 완료나 시간 초과 원인의 확정을 뜻하지 않는다.
 Runserver의 기존 흐름과 reload 흐름은 별도 native CI owner가 같은 전체 binary discovery를 사용한다. 필수 manifest의
 root/child와 이후 추가된 root 모두 정확히 한 owner에서 실행해야 한다. PostgreSQL 전용 root는 별도 DB owner가 맡으며
 그 밖의 skip·누락·중복·잘린 결과는 실패다. 두 owner는 성공/실패 원 JSON과 source·환경·checksum을 artifact로 보존한다.

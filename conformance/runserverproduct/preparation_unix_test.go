@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/internal/testenv"
 )
 
@@ -29,6 +30,20 @@ type runserverGoAuditRecord struct {
 	StartedAt          time.Time `json:"started_at"`
 	CandidateWorkspace string    `json:"candidate_workspace,omitempty"`
 	BuildWorkspace     string    `json:"build_workspace,omitempty"`
+}
+
+// Keep the same command/process budgets while retaining the last actual Go
+// invocation when scaffold setup fails before the first HTTP runtime exists.
+func runProjectCLI(t *testing.T, directory string, environment []string, global string, args ...string) testprocess.CommandResult {
+	t.Helper()
+	if len(args) > 0 && args[0] == "startproject" {
+		environment, _ = runserverGoAuditEnvironment(t, environment)
+		started := time.Now()
+		defer func() {
+			t.Logf("startproject preparation: %s", runserverPreparationProgress(environment, started, time.Now()))
+		}()
+	}
+	return testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, environment, global, args...)
 }
 
 func TestRunserverGoAuditConfinesTelemetryAndRequiresPairedMetadata(t *testing.T) {
@@ -226,12 +241,22 @@ func runserverPreparationProgress(environment []string, started, now time.Time) 
 			lastPhase = "private_telemetry_init"
 		case reflect.DeepEqual(arguments, []string{"list", "-mod=readonly", "-find", "-json", "github.com/progresshans/godj/identity/models"}):
 			lastPhase = "identity_metadata"
+		case reflect.DeepEqual(arguments, []string{"list", "-mod=mod", "-deps", "./cmd/projectrunner"}) && record.BuildWorkspace != "":
+			lastPhase = "scaffold_dependencies"
+		case reflect.DeepEqual(arguments, []string{"mod", "tidy"}) && record.BuildWorkspace != "":
+			lastPhase = "module_tidy"
+		case len(arguments) > 1 && arguments[0] == "list" && record.CandidateWorkspace != "":
+			lastPhase = "candidate_inventory"
+		case len(arguments) > 1 && arguments[0] == "test" && arguments[1] == "-c" && record.CandidateWorkspace != "":
+			lastPhase = "candidate_compile"
 		case len(arguments) == 6 && arguments[0] == "build" && arguments[1] == "-buildvcs=false" && arguments[2] == "-mod=readonly" && arguments[3] == "-o" && filepath.IsAbs(arguments[4]):
 			switch arguments[5] {
 			case "./cmd/projectrunner":
 				lastPhase = "declaration_build"
 			case "./cmd/site":
 				lastPhase = "runtime_build"
+			case "./cmd/commands":
+				lastPhase = "command_runtime_build"
 			default:
 				return prefix + " go_audit=invalid"
 			}
@@ -271,6 +296,31 @@ func TestRunserverPreparationDiagnosticsExcludeArgumentsAndDistinguishUnavailabl
 	want := "elapsed=7s go_commands_started=4 last_go_phase=runtime_build last_go_started_ago=2s"
 	if got := runserverPreparationProgress(environment, started, now); got != want || strings.Contains(got, secret) {
 		t.Fatal("diagnostic leaked arguments or invented phase completion", got)
+	}
+	var scaffold []byte
+	for index, arguments := range [][]string{
+		{"list", "-mod=mod", "-deps", "./cmd/projectrunner"},
+		{"build", "-buildvcs=false", "-mod=readonly", "-o", filepath.Join(t.TempDir(), secret), "./cmd/projectrunner"},
+		{"telemetry", "off"},
+		{"list", "-m", "-json", "-buildvcs=false", "-mod=readonly"},
+		{"list", "-json", "-buildvcs=false", "-mod=readonly", "-overlay=" + secret, "./..."},
+		{"test", "-c", "-overlay=" + secret, "-o", filepath.Join(t.TempDir(), secret), "example.com/" + secret},
+		{"mod", "tidy"},
+		{"build", "-buildvcs=false", "-mod=readonly", "-o", filepath.Join(t.TempDir(), secret), "./cmd/commands"},
+	} {
+		record := runserverGoAuditRecord{Arguments: arguments, StartedAt: started.Add(time.Duration(index) * time.Second), CandidateWorkspace: secret, BuildWorkspace: secret}
+		line, err := json.Marshal(record)
+		if err != nil {
+			t.Fatal(err)
+		}
+		scaffold = append(append(scaffold, line...), '\n')
+	}
+	if err := os.WriteFile(path, scaffold, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	want = "elapsed=20s go_commands_started=8 last_go_phase=command_runtime_build last_go_started_ago=13s"
+	if got := runserverPreparationProgress(environment, started, started.Add(20*time.Second)); got != want || strings.Contains(got, secret) {
+		t.Fatal("scaffold progress leaked private source or omitted an actual command", got)
 	}
 	for _, payload := range [][]byte{[]byte("{" + secret), []byte(`{"arguments":["` + secret + `"],"started_at":"2026-10-15T00:00:01Z"}`), []byte(`{"arguments":[],"started_at":"0001-01-01T00:00:00Z"}`)} {
 		if err := os.WriteFile(path, payload, 0o600); err != nil {

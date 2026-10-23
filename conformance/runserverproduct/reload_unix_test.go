@@ -133,7 +133,7 @@ func (p *reloadProcess) stop(t *testing.T, signal syscall.Signal) {
 
 func reloadCLI(t *testing.T, global, project string, environment []string, args ...string) testprocess.CommandResult {
 	t.Helper()
-	result := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, project, environment, global, args...)
+	result := runProjectCLI(t, project, environment, global, args...)
 	if result.ExitCode != 0 || result.Stderr != "" {
 		t.Fatalf("reload fixture %s: exit=%d stderr=%s", args[0], result.ExitCode, result.Stderr)
 	}
