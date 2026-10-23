@@ -69,9 +69,10 @@ typed unique 검증·강제 update·audit를 같은 native coordinated transacti
 append와 정확한 domain별 bounded history, 수정/audit 실패의 원자 rollback, stale/회수/domain 변경·대상 손상·
 validation·unknown 결과·revision 경합 검사를 양 DB 필수 목록에 연결했다. 명시적으로 존재하는 0/음수 계정 key도 유지한다.
 
-최종 source의 최소 compile과 생성 manifest를 확인했고, 공개 생성에서 발견한 protocol 상한 실패를 한정 재현·수정했다.
-새 profile/audit·단위·DB·외부 소비자 본문과 race/전체 platform 실행은 원격 확인 대상이다. 상세와 이전 source의
-실패/수정 결과는 TEST_EVIDENCE에만 둔다. 작성과 compile을 I1-01~08의 제품 수용으로 계산하지 않는다.
+최소 compile과 생성 manifest, 확인된 실패의 한정 재현·수정을 수행했다. 기본/사용자 정의 외부 생성 소비자의
+실제 SQLite·HTTP profile/catalog/session 흐름도 한정 확인했다. 현재 source의 전체 필수 단위·DB·race/platform 수용은
+원격 확인 대상이다. 상세와 이전 source의 실패/수정 결과는 TEST_EVIDENCE에만 둔다.
+작성·compile이나 한정 실행을 I1-01~08 전체의 제품 수용으로 계산하지 않는다.
 
 생성 `ProfileReader[M]`는 현재 인가·domain·선택 프로필 조회/목록/이력을 같은 native snapshot에서 처리한다.
 `ModelView[M]`는 전체 모델 행 없이 선택한 값과 모델 source를 보관하며 공통 Form/API 출력이 같은 source와
@@ -92,8 +93,20 @@ audit의 원자성, 0/음수 key·뒤 batch 실패·동시 확장·권한 회수
 
 추가 계정/catalog 행을 CASCADE/SET_NULL로 바꾸는 host graph는 아직 필요한 revision·session 수명 조정이 없어
 시작 시 명시적으로 거부한다. 이 조정은 I1-06에서 완성해야 하며 일반 host 참조의 삭제 지원으로 대체하지 않는다.
+
+독립 `godj_sessions` migration·typed DB Store와 선택 계정의 `SessionStore[M]`/생성 팩토리를 작성했다.
+현재 durable domain과 세션은 같은 snapshot/fence에서 처리하고 역사 namespace를 승계하지 않는다. Typed LoginRecorder와
+정확한 manager의 LoginPersistence는 현재 credential·권한·admission 재검사, 선택적인 LastLogin과 세션 교체를 원자적으로
+묶는다. 현재 domain의 특정 principal 폐기는 같은 borrowed scope에서 제공한다. 기존 systemstate migration/digest와
+canonical payload는 유지하며 이 저장 기능이 기존 데이터 이행·인가·계정 관리 owner를 대신하지 않는다.
+
+Namespace/전체 용량·batch rollback·scope/cleanup/unknown·동시 생성·domain snapshot·login 재검사와 재접속을 양 DB
+필수 검사에 추가했다. 외부 기본/사용자 정의 HTTP 소비자는 memory Store를 이 DB Store와 LoginPersistence로 교체하여
+실제 cookie의 저장 행·선택 LastLogin을 대조하도록 확장했다. 새 본문 실행과 이전 catalog CI 실패의 한정 수정 재현은
+서로 구분하며 TEST_EVIDENCE에 기록한다.
+
 관계/파일·계정 역할 편집과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
-첫 계정 명령·password/reset/session·host 삭제·audit 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
+첫 계정 명령·password/reset과 세션 폐기 조립·host 삭제·audit/session 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

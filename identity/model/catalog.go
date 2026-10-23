@@ -99,7 +99,7 @@ type catalogModelState[M any] struct {
 }
 type catalogScope struct {
 	reader    db.SnapshotReader
-	writer    db.CoordinatedAtomic
+	writer    db.CoordinatedRelationAtomic
 	authorize func(context.Context, db.Queryer, auth.Principal, []auth.Permission) (auth.Principal, bool, error)
 	now       func() time.Time
 }
@@ -145,7 +145,7 @@ func NewCatalog[M, G, P, L any](store *CredentialStore[M], groups orm.RelationOb
 	if nilModelValue(overlay) || !zeroModelDescriptor(groups) || !zeroModelDescriptor(permissions) {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
-	writer, ok := store.state.backend.(db.CoordinatedAtomic)
+	writer, ok := store.state.backend.(db.CoordinatedRelationAtomic)
 	if !ok || nilModelValue(writer) {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}

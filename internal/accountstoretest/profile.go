@@ -279,6 +279,25 @@ type profileFaultBackend struct {
 }
 
 func (backend *profileFaultBackend) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
+	return backend.runAtomic(ctx, callback, backend.Backend.CoordinatedAtomic)
+}
+
+func (backend *profileFaultBackend) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	return backend.runAtomic(ctx, func(scope db.Session) error {
+		if scope == nil {
+			return callback(nil)
+		}
+		relation, ok := scope.(db.RelationSession)
+		if !ok {
+			return callback(nil)
+		}
+		return callback(relation)
+	}, func(ctx context.Context, write func(db.Session) error) error {
+		return backend.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error { return write(scope) })
+	})
+}
+
+func (backend *profileFaultBackend) runAtomic(ctx context.Context, callback func(db.Session) error, invoke func(context.Context, func(db.Session) error) error) error {
 	backend.calls++
 	if backend.mode == "skipped" {
 		return nil
@@ -292,7 +311,7 @@ func (backend *profileFaultBackend) CoordinatedAtomic(ctx context.Context, callb
 		ownerContext, cleanup = context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
 		defer cleanup()
 	}
-	err := backend.Backend.CoordinatedAtomic(ownerContext, func(session db.Session) error {
+	err := invoke(ownerContext, func(session db.Session) error {
 		if backend.mode == "nil_session" {
 			return callback(nil)
 		}

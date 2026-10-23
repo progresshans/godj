@@ -32,6 +32,7 @@ import (
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 	websession "github.com/progresshans/godj/web/sessionauth"
@@ -41,7 +42,7 @@ import (
 // cookie/session resolution, CSRF, ModelForm and typed JSON input/output with
 // either generated account type. The tiny application owns its HTML and its
 // revision control; it never receives an account row from ProfileReader.
-func assertProfileHTTP[M any](t *testing.T, binding accountmodel.Binding[M], editor *accountmodel.ProfileEditor[M], reader *accountmodel.ProfileReader[M], authenticator *accountmodel.Authenticator[M], actor auth.Principal, row M, field, desired string, revoke func(bool) error) {
+func assertProfileHTTP[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], editor *accountmodel.ProfileEditor[M], reader *accountmodel.ProfileReader[M], authenticator *accountmodel.Authenticator[M], sessionStore *accountmodel.SessionStore[M], actor auth.Principal, row M, field, desired string, revoke func(bool) error) {
 	t.Helper()
 	check := func(err error) {
 		t.Helper()
@@ -73,12 +74,13 @@ func assertProfileHTTP[M any](t *testing.T, binding accountmodel.Binding[M], edi
 	out, err := output.New(output.Named("AccountProfile", output.ModelView(objects, spec)), serializers.Limits{})
 	check(err)
 	empty := output.NoContent()
-	memory, err := sessions.NewMemoryStore(16)
+	manager, err := sessions.NewManager(sessionStore, sessions.Config{})
 	check(err)
-	manager, err := sessions.NewManager(memory, sessions.Config{})
+	loginOwner, err := sessionStore.LoginPersistence(manager)
 	check(err)
 	runtime, err := websession.New(websession.Config{Sessions: manager, Authenticator: authenticator, Authorizer: auth.PrincipalAuthorizer{},
-		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
+		LoginPersistence: loginOwner,
+		SessionCookie:    websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
 		LoginPath: "/login/", FallbackPath: "/profile/", AllowedNextPaths: []string{"/profile/", "/api/profile/"}})
 	check(err)
 	adapter, err := apisession.New(runtime)
@@ -286,6 +288,45 @@ func assertProfileHTTP[M any](t *testing.T, binding accountmodel.Binding[M], edi
 	status, _, _ = send("POST", "/login/", "application/x-www-form-urlencoded", loginData.Encode(), "", "", "")
 	if status != 204 {
 		t.Fatal("real account password login failed", status)
+	}
+	serverURL, err := url.Parse(server.URL)
+	check(err)
+	var browserID sessions.ID
+	for _, cookie := range jar.Cookies(serverURL) {
+		if cookie.Name == websession.DefaultSessionCookieName {
+			browserID, err = sessions.ParseID(cookie.Value)
+			check(err)
+		}
+	}
+	durable, present, err := sessionStore.Load(t.Context(), browserID)
+	check(err)
+	if !present {
+		t.Fatal("HTTP login cookie has no durable selected-account session")
+	}
+	if subject, _ := durable.Value(auth.SessionPrincipalIDKey); subject != actor.ID() {
+		t.Fatal("HTTP session bound another account")
+	}
+	var observed M
+	present = false
+	for _, primary := range metadata.Fields {
+		if !primary.PrimaryKey {
+			continue
+		}
+		keyField := orm.NewAutoField[M](primary)
+		observed, present, err = objects.Using(backend).Filter(keyField.Exact(id)).OrderBy(keyField.Asc()).First(t.Context())
+		check(err)
+		break
+	}
+	if !present {
+		t.Fatal("HTTP login lost selected account")
+	}
+	observedValues, err := objects.ModelValues(observed)
+	check(err)
+	if revision, _ := observedValues[role.Revision].Integer(); revision != 3 || !observedValues[role.Password].Equal(values[role.Password]) {
+		t.Fatal("HTTP login changed management revision/password")
+	}
+	if role.LastLogin != "" && observedValues[role.LastLogin].IsNull() {
+		t.Fatal("HTTP login omitted selected LastLogin observation")
 	}
 	status, headers, markup := send("GET", "/profile/", "", "", "", "", "")
 	if status != 200 || !strings.Contains(markup, `name="`+field+`" value="`+desired+` JSON"`) || !strings.Contains(markup, `name="_profile_revision" value="3"`) {

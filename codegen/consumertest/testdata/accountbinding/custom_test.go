@@ -15,6 +15,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -129,7 +130,11 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertProfileEditor(t, backend, binding, editor, reader, authenticator, actor.Principal(), row, "region", "JP", func(revoked bool) error {
+	sessionStore, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertProfileEditor(t, backend, binding, editor, reader, authenticator, sessionStore, actor.Principal(), row, "region", "JP", func(revoked bool) error {
 		if revoked {
 			count, err := access.TeamGrantsLinkObjects.Delete(t.Context(), backend, &teamGrant)
 			if err == nil && count != 1 {

@@ -9,9 +9,10 @@ import (
 	_godjaccountmodel "github.com/progresshans/godj/identity/model"
 	identity "github.com/progresshans/godj/identity/models"
 	ir "github.com/progresshans/godj/schema/ir"
+	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v5"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v6"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -39,6 +40,15 @@ func NewAccountCredentialStore(backend _godjaccountdb.SnapshotReader) (*_godjacc
 		return nil, err
 	}
 	return _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
+}
+
+// NewAccountSessionStore binds every session operation to the selected durable domain and the same native database owner.
+func NewAccountSessionStore(backend _godjaccountsessiondb.Backend, config _godjaccountsessiondb.Config) (*_godjaccountmodel.SessionStore[identity.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewSessionStore(store, config)
 }
 
 // NewAccountAuthenticator applies the selected login policy and the shared current-credential verifier.
@@ -93,4 +103,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_262a9ef629f392b59534929e3a6452793b585a099eea0dddb06db8e6e3418170
+var _ goDjProjectSnapshot_b4726eaeeb6927153b7831379653952160280c01608c6dffc98eace34e34eb44

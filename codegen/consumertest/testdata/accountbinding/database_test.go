@@ -18,6 +18,7 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/settings/database"
 )
 
@@ -38,6 +39,7 @@ func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 	})
 	sources := domain.MigrationSources()
 	sources = append(sources, accountaudit.MigrationSources()...)
+	sources = append(sources, sessiondb.MigrationSources()...)
 	var previous *migrations.MigrationKey
 	for _, app := range schemas {
 		migration := migrations.Migration{App: app.AppLabel, Name: "0001_initial"}

@@ -10,6 +10,7 @@ import (
 	"example.com/godj-project-bundle/project"
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
 func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
@@ -99,7 +100,11 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertProfileEditor(t, backend, binding, editor, reader, authenticator, actor.Principal(), row, "first_name", "Updated Alice", func(revoked bool) error {
+	sessionStore, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertProfileEditor(t, backend, binding, editor, reader, authenticator, sessionStore, actor.Principal(), row, "first_name", "Updated Alice", func(revoked bool) error {
 		if revoked {
 			count, err := models.GroupPermissionsLinkObjects.Delete(t.Context(), backend, &teamGrant)
 			if err == nil && count != 1 {

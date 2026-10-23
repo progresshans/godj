@@ -862,4 +862,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_4314884d9777f9d6dbb54b3a2ebd8611ef27ac512af8a43deff8e7f46852f5a5
+var _ goDjProjectSnapshot_6d0598e7d1925c778c3174386838a7c25eef7ee1d24ca4c41939611bfb50d22f

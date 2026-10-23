@@ -23,7 +23,7 @@ import (
 // Both independent generated account types use the real Form/JSON ModelInput
 // transfer and the generated profile service factory. No hand-written SQL,
 // default User copy, direct row patch or custom authorization adapter is used.
-func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], editor *accountmodel.ProfileEditor[M], reader *accountmodel.ProfileReader[M], authenticator *accountmodel.Authenticator[M], actor auth.Principal, row M, field, desired string, revoke func(bool) error) {
+func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], editor *accountmodel.ProfileEditor[M], reader *accountmodel.ProfileReader[M], authenticator *accountmodel.Authenticator[M], sessionStore *accountmodel.SessionStore[M], actor auth.Principal, row M, field, desired string, revoke func(bool) error) {
 	t.Helper()
 	objects, err := binding.Objects()
 	if err != nil {
@@ -132,7 +132,7 @@ func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding 
 	if err != nil || len(entries) != 2 || entries[0].ActorID() != actor.ID() || entries[1].ActorID() != actor.ID() || !reflect.DeepEqual(entries[0].ChangedFields(), []string{field}) || !reflect.DeepEqual(entries[1].ChangedFields(), []string{field}) {
 		t.Fatal("typed profile read audit differs", err)
 	}
-	assertProfileHTTP(t, binding, editor, reader, authenticator, actor, row, field, desired, revoke)
+	assertProfileHTTP(t, backend, binding, editor, reader, authenticator, sessionStore, actor, row, field, desired, revoke)
 }
 
 // This consumer deliberately uses the model form's blank policy for its one

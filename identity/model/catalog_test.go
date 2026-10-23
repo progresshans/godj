@@ -10,6 +10,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	hostproject "github.com/progresshans/godj/conformance/identityfixture/project"
+	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/identity/models"
@@ -18,6 +19,13 @@ import (
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
+
+type untouchedCatalogBackend struct{ untouchedProfileBackend }
+
+func (backend *untouchedCatalogBackend) CoordinatedAtomicRelation(context.Context, func(db.RelationSession) error) error {
+	backend.writes++
+	return errors.New("unexecuted native relation transaction")
+}
 
 func unitCatalogConfig() accountmodel.CatalogConfig[models.Group, models.Permission] {
 	return accountmodel.CatalogConfig[models.Group, models.Permission]{
@@ -31,7 +39,7 @@ func TestAccountCatalogCompositionAndInputRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := &untouchedProfileBackend{}
+	backend := &untouchedCatalogBackend{}
 	store, err := accountmodel.NewCredentialStore(backend, binding, models.GroupDescriptor{}, models.PermissionDescriptor{})
 	if err != nil {
 		t.Fatal(err)
@@ -115,6 +123,13 @@ func TestAccountCatalogCompositionAndInputRejectBeforeIO(t *testing.T) {
 	}
 	if catalog, err := accountmodel.NewCatalog(readOnly, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, auth.PrincipalAuthorizer{}, unitCatalogConfig()); err == nil || catalog != nil {
 		t.Fatal("unfenced catalog backend admitted")
+	}
+	narrow, err := accountmodel.NewCredentialStore(&untouchedProfileBackend{}, binding, models.GroupDescriptor{}, models.PermissionDescriptor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog, err := accountmodel.NewCatalog(narrow, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, auth.PrincipalAuthorizer{}, unitCatalogConfig()); err == nil || catalog != nil {
+		t.Fatal("ordinary coordinated writer substituted for native relation owner")
 	}
 	for _, overlay := range []auth.Authorizer{nil, (*auth.PrincipalAuthorizer)(nil)} {
 		if catalog, err := accountmodel.NewCatalog(store, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, unitCatalogConfig()); err == nil || catalog != nil {

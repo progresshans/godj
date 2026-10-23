@@ -49,6 +49,7 @@ generate-check:
 	go run ./cmd/godj generate --check --project ./identity/godj.toml
 	go run ./cmd/godj generate --check --project ./account/domain/godj.toml
 	go run ./cmd/godj generate --check --project ./account/audit/godj.toml
+	go run ./cmd/godj generate --check --project ./sessions/database/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/identityfixture/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/helpdesk/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/article/godj.toml

@@ -941,7 +941,8 @@ Key·revision·NonEditable·파일·FK와 선택한 그룹 권한 이외의 M2M�
 분리된 실제 모델을 전달하며 생성 때 current는 nil이다. 쓰기·scope 보관·중첩 transaction·외부 부작용을 허용하는 callback이 아니다.
 
 현재 actor/domain, 최신 대상과 expected revision, scalar·관계·unique·custom validation, 저장과 값 없는 audit는 같은
-native coordinated transaction에서 처리한다. 생성 revision은 1이고 수정은 실제 변경 때만 증가한다. No-op도 현재 인가와
+native coordinated relation transaction에서 처리한다. `CoordinatedRelationAtomicResult`로 관계 삭제와 conflict insert 기능을
+같은 scope에 보존하며 일반 쓰기 scope로 대체하지 않는다. 생성 revision은 1이고 수정은 실제 변경 때만 증가한다. No-op도 현재 인가와
 대상 무결성을 확인한다. 결과는 확정된 ID·revision·변경 필드 또는 삭제 건수뿐이다. Profile과 같은 공통 결과 경계에서
 cleanup/unknown 원인을 보존하며 실패 결과 게시와 자동 재시도를 막는다.
 
@@ -959,6 +960,46 @@ Group의 revision을 증가시킨다. 간접 회원의 revision이나 credential
 수정하는 host graph는 시작 시 `unsupported` 원인을 보존하여 거부한다. 이 경우 필요한 추가 owner revision·계정 session과 삭제
 수명 조정은 I1-06의 미완료 구현이다. 단순한 identity-only 삭제로 대체하거나 이 제한을 전체 host 삭제 완료로 계산하지 않는다.
 공통 Admin/HTTP 조립·역할 편집과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
+
+## 선택 계정 도메인의 독립 DB 세션과 로그인
+
+`sessions/database`는 기본 User·기존 operator schema 없이 설치하는 `godj_sessions` 앱과 초기 migration을 소유한다.
+Namespace·bearer digest·기존 canonical v1 payload를 생성 ORM으로 저장하고 원문 bearer는 저장하지 않는다.
+Digest에는 별도의 버전 구분자·namespace·bearer를 포함한다. 기존 systemstate digest·migration·wire bytes를 재해석하거나
+새 테이블로 자동 복사하지 않는다. 설치·채운 DB 이행·역사 세션 폐기는 명시적인 별도 작업이다.
+
+`Database.Store(namespace)`는 인가가 없는 서버 저장 기능이다. Namespace는 UTF-8/NUL/길이 제한을 받으며 요청 입력으로
+인증 namespace를 선택하는 API가 아니다. 기본 전체 용량은 4,096개, 설정 상한은 65,536개이며 모든 namespace를 합쳐
+검사한다. 포화 시 전체 payload를 검증한 뒤 만료된 가장 작은 storage key 한 개만 회수한다. 활성 다른 domain을 지우지
+않는다. Metadata inventory와 256개 keyset payload batch를 사용하고 잘못된 key·digest·payload·초과 용량은 거부한다.
+`Inspect`는 한 snapshot에서 전체 inventory/payload를 검증하며 설치나 정리를 수행하지 않는다.
+
+기본 Store 연산은 자체 native snapshot/write fence를 사용한다. `LoadIn`은 live read/write scope를 빌리며,
+`InSession`은 이미 조정된 write scope에서만 임시 Store를 만든다. Root owner·만료 scope·중첩 binding을 거부하고
+scope 안에서 중첩 transaction을 열지 않는다. `DeleteMatching`은 해당 namespace의 모든 payload를 검사한 뒤 정확한
+서버 값에 일치하는 행을 지운다. 보존할 ID도 검증 대상이며 뒤 batch 오류는 앞선 삭제와 함께 rollback되어야 한다.
+`DeleteAll`은 명시한 namespace만 폐기한다. Borrowed 결과는 바깥 owner가 확정하기 전까지 잠정 값이다.
+
+생성 `NewAccountSessionStore`와 `identity/model.SessionStore[M]`는 credential reader의 같은 backend에서 매 연산의
+현재 durable role/generation을 읽고 `CredentialDomain.Identifier()`로 namespace를 결정한다. Domain과 세션 조회는
+같은 native snapshot이고 쓰기도 같은 fence에 속한다. Domain을 전환하면 동일 ID/hash/bearer의 역사 세션을 읽거나
+새 세션으로 승격하지 않는다. `RevokeIn`은 현재 domain의 특정 principal 세션을 같은 write scope에서 폐기하는 서버 기능이며,
+호출자가 계정 변경의 현재 인가·revision·audit를 먼저 소유해야 한다. 과거 domain의 정리나 전환 승인 기능은 아니다.
+
+`SessionStore.LoginPersistence(manager)`는 정확히 그 Store를 사용하는 manager만 받는다. Manager가 time/entropy를
+DB 밖에서 준비하고, 공통 typed `LoginRecorder[M]`가 같은 scope의 현재 domain·계정·active·stamp·권한과 Admit를 다시
+확인한다. 선택적인 LastLogin 필드만 강제 update하고 계정 revision·password·role·grant·audit는 바꾸지 않는다.
+Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replacement, LastLogin은 함께 확정하거나 rollback한다.
+기존 record의 만료/없음도 실패한 로그인과 별개로 삭제를 commit하지 않는다. 일반 Authenticate/Resolve/Access/logout은
+이 관측 필드를 갱신하지 않는다.
+
+한 번의 callback과 확정 commit 뒤에만 credential/record를 게시한다. 원인 없는 확정 collision만 entropy 재시도가 가능하고,
+확정된 동일 admission sentinel만 일반 인증 거부로 돌려준다. Cleanup·취소·callback 소유권 위반·unknown 결과에 포함된
+거부는 storage failure와 원인 연결을 유지한다. `Manager.Load`도 AccessPolicy의 오류를 그대로 반환받은 경우에만 일반
+policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거부로 축소하지 않는다.
+
+이 구성은 선택 계정의 password change/reset·역할 편집·계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement를
+자동 완성하지 않는다. 해당 쓰기 owner와 공개 Admin/HTTP 제품 조립, 양 DB의 독립 HTTP/process 재시작 수용은 I1에 남는다.
 
 ## 도메인에 묶인 계정 감사 기록
 

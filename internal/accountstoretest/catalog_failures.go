@@ -22,8 +22,17 @@ import (
 // erased it would fail before the write under test and miss rollback defects.
 type catalogFaultSession struct {
 	db.RelationSession
-	mode  string
-	fault error
+	conflict db.ConflictInserter
+	mode     string
+	fault    error
+}
+
+func (session *catalogFaultSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+	inserted, err := session.conflict.InsertOnConflict(ctx, plan)
+	if err == nil && session.mode == "collection_failure" && plan.Table() == "godj_identity_group_permissions" {
+		return false, session.fault
+	}
+	return inserted, err
 }
 
 func (session *catalogFaultSession) ValidateSession(ctx context.Context) error {
@@ -54,7 +63,11 @@ func catalogFaultOwner(t *testing.T, backend Backend, mode string, fault error, 
 			if !valid {
 				t.Fatal("native coordinated scope erased relation writes")
 			}
-			return &catalogFaultSession{RelationSession: relation, mode: mode, fault: fault}
+			conflict, valid := scope.(db.ConflictInserter)
+			if !valid {
+				t.Fatal("native relation scope erased conflict inserts")
+			}
+			return &catalogFaultSession{RelationSession: relation, conflict: conflict, mode: mode, fault: fault}
 		}
 	}
 	return owner

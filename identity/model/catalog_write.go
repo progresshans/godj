@@ -56,7 +56,7 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 	if create {
 		required, action = state.permissions.add, admin.ActionAdd
 	}
-	return managementWrite(ctx, state.shared.writer, func(work context.Context, scope db.Session) (CatalogChange, error) {
+	return managementRelationWrite(ctx, state.shared.writer, func(work context.Context, scope db.RelationSession) (CatalogChange, error) {
 		currentActor, allowed, err := state.shared.authorize(work, scope, actor, required)
 		if err != nil {
 			return CatalogChange{}, err
@@ -244,7 +244,7 @@ func (resource CatalogResource[M]) Delete(ctx context.Context, actor auth.Princi
 		return CatalogDeletion{}, managementError(CodeInvalidInput, nil)
 	}
 	state := resource.state
-	return managementWrite(ctx, state.shared.writer, func(work context.Context, scope db.Session) (CatalogDeletion, error) {
+	return managementRelationWrite(ctx, state.shared.writer, func(work context.Context, scope db.RelationSession) (CatalogDeletion, error) {
 		current, allowed, err := state.shared.authorize(work, scope, actor, state.permissions.delete)
 		if err != nil {
 			return CatalogDeletion{}, err

@@ -27,7 +27,9 @@ func NewAccessPolicy(idleTimeout time.Duration, limits Limits, clock func() time
 }
 
 // Apply validates the current authoritative record before sampling the clock
-// or deriving any mutation. Stores must propagate its error without writing.
+// or deriving any mutation. Stores must not write after a failure. They may
+// return the exact error only after confirmed completion without another
+// failure; wrapping/joining a cleanup or storage error keeps storage authority.
 func (policy AccessPolicy) Apply(id ID, current Record) (Record, AccessStatus, error) {
 	if policy.clock == nil || policy.idleTimeout <= 0 {
 		return Record{}, AccessMissing, &accessPolicyError{&Error{Code: CodeInvalidConfig, Field: "access_policy", Detail: "access policy is uninitialized"}}

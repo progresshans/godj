@@ -27,11 +27,13 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
 type Backend interface {
 	db.Session
 	db.CoordinatedAtomic
+	db.CoordinatedRelationAtomic
 	db.SnapshotReader
 	mb.RevisionFencedBackend
 }
@@ -89,11 +91,19 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"catalog_host_graph", catalogHostGraph},
 		{"catalog_commit_failures", catalogCommitFailures},
 		{"catalog_relation_rollback", catalogRelationRollback},
+		{"session_login_and_domain", sessionLoginAndDomain},
+		{"session_login_failures", sessionLoginFailures},
+		{"session_credential_recheck", sessionCredentialRecheck},
+		{"session_optional_last_login", sessionOptionalLastLogin},
+		{"session_domain_snapshot", sessionDomainSnapshot},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
+			if strings.HasPrefix(test.name, "session_") {
+				sources = append(sources, sessiondb.MigrationSources()...)
+			}
 			loaded, _, err := definition.Load(sources...)
 			if err != nil {
 				t.Fatal(err)

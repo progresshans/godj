@@ -45,6 +45,16 @@ func RelationAtomicResult[T any](ctx context.Context, backend RelationAtomic, ru
 	return atomicResult(ctx, backend.AtomicRelation, run)
 }
 
+// CoordinatedRelationAtomicResult retains relation mutation capability while
+// sharing the same fence, one-callback and confirmed-publication contract.
+func CoordinatedRelationAtomicResult[T any](ctx context.Context, backend CoordinatedRelationAtomic, run func(context.Context, RelationSession) (T, error)) (T, error) {
+	if nilValue(backend) {
+		var zero T
+		return zero, atomicConfigError("coordinated relation transaction owner is nil")
+	}
+	return atomicResult(ctx, backend.CoordinatedAtomicRelation, run)
+}
+
 func atomicResult[T any, S Session](ctx context.Context, invoke func(context.Context, func(S) error) error, run func(context.Context, S) (T, error)) (T, error) {
 	var zero T
 	if nilValue(ctx) || run == nil {

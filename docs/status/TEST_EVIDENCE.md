@@ -315,6 +315,78 @@ unknown/취소 결과를 검사하도록 작성했다. Unknown은 native commit/
 공통 HTTP/Admin 제품 조립·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/receipt,
 password/reset/session·삭제·restart의 양 DB/HTTP 실행은 남아 있다.
 
+### 도메인별 DB 세션·typed 로그인과 catalog native scope 수정
+
+Source `2aa0286df242498193f91579df0f096f7f70ce4e`의
+[CI 40035240223](https://github.com/progresshans/godj/actions/runs/40035240223)에서 Linux amd64 normal/CGO0와 arm64 race의
+catalog native/독립 생성 소비자 작업 여섯 개가 실패했다. 실제 checkout
+`6d5eae39fa70dc19b16bc5c8083c082808bf3f6e`의 tree `035aedfe0a220e3eb8926c714f50680a6095ebc4`와 두 부모를 대조했다.
+Catalog가 일반 coordinated scope를 사용하여 SQLite의 관계 mutation 기능을 받지 못했다. 관계 transaction과
+`CoordinatedRelationAtomicResult`를 사용하도록 수정하고, 오류 주입 wrapper도 실제 native conflict insert를 보존했다.
+기존 narrow writer로 Catalog를 구성하는 경우는 I/O 전에 거부한다.
+
+로컬에서 `catalog_crud`의 실제 실패를 재현했다. 최초 시도는 새 session helper의 unused import 때문에 compile 단계에서
+실패했으며 본문 재현과 구분해 보존했다. 수정 뒤 CI에서 실패했던 여덟 native catalog 경로를 한정 실행해 43 pass와
+세 leaf 실패를 확인했다. 남은 세 실패는 wrapper의 conflict insert 기능 누락으로 의도한 오류 지점에 도달하지 못한
+것이었다. 이를 보완한 `catalog_relation_rollback` 재실행은 네 leaf와 두 parent, 총 6 pass·fail/skip 0이었다.
+이 한정 source의 SQLite 수정 재현을 최종 source 전체나 PostgreSQL/race 성공으로 옮기지 않는다.
+
+| 원본 또는 receipt | SHA-256 |
+|---|---|
+| `gdj0138-2aa0286d-ci-40035240223/catalog-failures.json` — 여섯 실패 job/checkout/원본 | `4b2697ee4f5222676153ee5d0e4f84a5a78aae9efc49d211fe29fc86b6057263` |
+| `gdj0138-catalog-native-scope-repro-v1/before-v2-receipt.json` — 실제 CRUD 실패 | `4e6d988f7c74dbee37e61a5613fa0afd24c3e22451b363759c1adcb84883056b` |
+| `gdj0138-catalog-native-scope-repro-v1/after-receipt.json` — 첫 수정과 남은 wrapper 실패 | `0624b0361e13756fa2e5f3887ca94b01159922101d169287f37f402853d8a56e` |
+| `gdj0138-catalog-native-scope-repro-v1/after-v2-receipt.json` — 관계 rollback 재검사 | `150537b5be257fe71bd632309e4edd573864ed9b22e6c8ac1abd33dbe32abdcf` |
+
+독립 `godj_sessions` 앱·migration과 `sessions/database`의 bounded typed Store를 작성했다. Namespace별 bearer digest,
+같은-scope load/create/access/rotate/replace/delete, 전체 용량과 만료 회수, namespace 안의 정확한 값별 폐기,
+256개 batch와 뒤 실패의 rollback, inventory 검증을 제공한다. 기존 v1 payload를 내부 공통 codec으로 추출하고 기존
+systemstate digest/migration은 유지했다. 두 native capture의 source 소유권에 새 dependency와 migration을 연결했다.
+
+선택 계정의 `SessionStore[M]`와 생성 `NewAccountSessionStore`는 durable domain과 세션을 같은 native scope에서 읽는다.
+Typed `LoginRecorder[M]`와 정확한 manager의 `LoginPersistence`는 현재 domain·credential·active·stamp·권한/admission을
+재검사하고 선택적인 LastLogin과 세션 publication을 원자적으로 처리한다. 현재 domain의 principal 세션 폐기는
+borrowed write scope로 제공한다. 이 기능 자체는 계정 변경 인가나 역사 domain retirement를 수행하지 않는다.
+
+SQLite/PostgreSQL 필수 목록에 각각 102개 parent/child를 추가했다. 독립 세션 migration, 동일 bearer의 namespace 격리,
+용량·만료·회전/교체·재접속, 257번째 payload 손상과 앞선 삭제 rollback, query/close/취소/callback/unknown 결과,
+동시 capacity, 현재 계정 재검사·optional timestamp·domain 전환과 안정된 snapshot을 검사하도록 작성했다.
+Native acknowledgement 오류 주입은 실제 commit/rollback 뒤 실행하며 네트워크 단절 실험으로 표현하지 않는다.
+새 DB suite와 단위 검사 본문은 로컬에서 실행하지 않았으며 원격 확인 대상이다.
+
+`Manager.Load`가 wrapped/joined AccessPolicy 오류를 정상 policy 거부로 축소하는 별도 결함도 재현했다. 기존 direct
+control은 유지하고 wrapper·cleanup·unknown·cancel 네 경우의 실패를 고쳤다. 최종 포맷 뒤 같은 root와 다섯 leaf는
+6 pass·fail/skip 0이었다. 이 결과는 Manager 오류 분류의 한정 확인이며 새 DB failure suite의 실행을 대신하지 않는다.
+공통 rowset은 조기 query/scan 실패·short scan·취소에도 iteration/close 원인을 보존하도록 작성했다.
+
+Account generator ABI v6로 11개 프로젝트를 공개 재생성하고 155개 manifest 소유 파일의 현재 hash를 대조했다.
+새 초기 migration SHA-256은 `f79c9b548b5b71439bfa4b91d2f28700e0b6fc5394bd86a395de4636a189223c`이며
+이전 identity/domain/audit/system migration bytes는 바꾸지 않았다. 재생성 receipt
+`gdj0138-session-domain-generate-v1/receipt.json`의 SHA-256은
+`b79e5eb3733c75044e649b083c851dd35eda3020ac65936a855f00ee36863e7a`다.
+
+Darwin arm64에서 영향 11개 package의 `go test -run '^$'`가 통과했다. 기존 catalog host migration fixture에 세션 앱을
+불필요하게 설치하지 않도록 새 session case에서만 설치하게 정리한 뒤 native 두 package만 다시 compile했다.
+Source hash는 각 명령 전후 같았고 두 compile 사이의 변경은 `internal/accountstoretest/store.go` 한 파일뿐이다.
+
+기존 CI에서 실패한 외부 생성 소비자 root도 한정 재실행했다. 기본·custom·custom normalized 세 독립 module과 parent,
+총 4 pass·fail/skip 0이며 실제 SQLite·TCP HTTP·CSRF·cookie의 durable session·선택 LastLogin, Form/JSON profile과
+catalog CRUD/인가/이력을 실행했다. 이 소비자는 memory Store 대신 새 generated DB Store와 LoginPersistence를 사용한다.
+그 뒤 native helper의 설치 조건만 바뀌었으며 외부 소비자는 해당 helper를 import하지 않는다.
+독립 PostgreSQL HTTP·process restart·새 native 전체 suite와 race/platform 수용은 이 결과에 포함되지 않는다.
+
+| 최종 로컬 근거 | SHA-256 |
+|---|---|
+| `gdj0138-session-domain-compile-v1/receipt.json` — 영향 11 package 최소 compile | `2b50b6103aaf9a4bc87f1fae42e72953dd15bb4ba9a94f31f4256300130bcdfe` |
+| `gdj0138-session-domain-compile-v2/receipt.json` — native 두 package compile·Manager 재현 | `de86ce6bc8a2f5097f0013facf6d7f987f953f198d981d357059ddd7a0273b88` |
+| `gdj0138-catalog-external-session-repro-v1/receipt.json` — 세 실제 외부 소비자 | `3b97dac81f2be8dfbffb88b2b8f27b2bdf8104da11c670809e892838fbfab460` |
+| `gdj0138-session-domain-publication-v1/verification.json` — 최종 216 source·manifest·선언 범위 대조 | `7a96a90331c93843b8dd45bec651c652fae0f6aef2724f140db4f8589520840f` |
+
+기존 고정 모델 Directory/Manager 교체, 역할/관계/파일 편집·공통 Admin/HTTP 제품 조립·첫 계정 명령,
+password/reset과 폐기 조립·추가 host 삭제 수명·설치/startup·채운 DB mapping/retirement/receipt·restart와
+고정 Django 공유 의미/전체 환경의 원본 대조는 I1의 잔여 요구다. 새 push의 전체 원격 CI로 현재 source를 확인하며
+위 한정 로컬 결과나 이전 source의 부분 성공으로 I1-01~08 완료를 선언하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

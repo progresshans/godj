@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v5"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v6"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -60,7 +60,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	}
 	for _, app := range input.apps {
 		switch app.Package.ImportPath {
-		case "context", "github.com/progresshans/godj/auth", "github.com/progresshans/godj/db", "github.com/progresshans/godj/identity/model", "github.com/progresshans/godj/schema/ir":
+		case "context", "github.com/progresshans/godj/auth", "github.com/progresshans/godj/db", "github.com/progresshans/godj/identity/model", "github.com/progresshans/godj/schema/ir", "github.com/progresshans/godj/sessions/database":
 			return nil, fmt.Errorf("project account import path conflicts with framework binding")
 		}
 	}
@@ -72,6 +72,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\t_godjaccountauth \"github.com/progresshans/godj/auth\"")
 	fmt.Fprintln(&output, "\t_godjaccountdb \"github.com/progresshans/godj/db\"")
 	fmt.Fprintln(&output, "\t_godjaccountmodel \"github.com/progresshans/godj/identity/model\"")
+	fmt.Fprintln(&output, "\t_godjaccountsessiondb \"github.com/progresshans/godj/sessions/database\"")
 	fmt.Fprintln(&output, "\tir \"github.com/progresshans/godj/schema/ir\"")
 	for _, app := range input.apps {
 		fmt.Fprintf(&output, "\t%s %s\n", app.Alias, strconv.Quote(app.Package.ImportPath))
@@ -119,6 +120,12 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewCredentialStore(backend, binding, %s.%sDescriptor{}, %s.%sDescriptor{})\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountSessionStore binds every session operation to the selected durable domain and the same native database owner.")
+	fmt.Fprintf(&output, "func NewAccountSessionStore(backend _godjaccountsessiondb.Backend, config _godjaccountsessiondb.Config) (*_godjaccountmodel.SessionStore[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\tstore, err := NewAccountCredentialStore(backend)")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewSessionStore(store, config)")
 	fmt.Fprintln(&output, "}")
 	fmt.Fprintln(&output, "\n// NewAccountAuthenticator applies the selected login policy and the shared current-credential verifier.")
 	fmt.Fprintf(&output, "func NewAccountAuthenticator(ctx _godjaccountcontext.Context, backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher) (*_godjaccountmodel.Authenticator[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName)

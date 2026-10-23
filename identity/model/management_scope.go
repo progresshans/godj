@@ -48,31 +48,48 @@ func managementSnapshot[T any](ctx context.Context, backend db.SnapshotReader, a
 // ordinary management/validation result. Cleanup failures and native unknown
 // outcomes must never turn into renderable input errors or automatic retries.
 func managementWrite[T any](ctx context.Context, backend db.CoordinatedAtomic, write func(context.Context, db.Session) (T, error)) (T, error) {
-	var zero T
 	var mu sync.Mutex
 	var callbackFailure error
 	result, err := db.CoordinatedAtomicResult(ctx, backend, func(work context.Context, scope db.Session) (value T, failure error) {
 		defer func() { mu.Lock(); callbackFailure = failure; mu.Unlock() }()
 		return write(work, scope)
 	})
-	if err == nil {
-		return result, nil
-	}
 	mu.Lock()
 	callback := callbackFailure
 	mu.Unlock()
+	return managementCompletion(result, err, callback)
+}
+
+func managementRelationWrite[T any](ctx context.Context, backend db.CoordinatedRelationAtomic, write func(context.Context, db.RelationSession) (T, error)) (T, error) {
+	var mu sync.Mutex
+	var callbackFailure error
+	result, err := db.CoordinatedRelationAtomicResult(ctx, backend, func(work context.Context, scope db.RelationSession) (value T, failure error) {
+		defer func() { mu.Lock(); callbackFailure = failure; mu.Unlock() }()
+		return write(work, scope)
+	})
+	mu.Lock()
+	callback := callbackFailure
+	mu.Unlock()
+	return managementCompletion(result, err, callback)
+}
+
+func managementCompletion[T any](result T, err, callback error) (T, error) {
+	var zero T
+	if err == nil {
+		return result, nil
+	}
 	for _, code := range []string{query.CodeCommitOutcomeUnknown, query.CodeTransactionOutcomeUnknown} {
 		if errors.Is(err, &query.Error{Code: code}) {
 			return zero, managementError(CodeOutcomeUnknown, err)
 		}
 	}
-	if err == callback {
-		if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
-			return zero, validation.Reject(diagnostics, nil)
-		}
-		if classified, ok := err.(*Error); ok {
-			return zero, classified
-		}
+	// Compare only recognized pointer errors. A host error may contain a slice
+	// and is not necessarily comparable as an arbitrary error interface.
+	if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil && err == callback {
+		return zero, validation.Reject(diagnostics, nil)
+	}
+	if classified, ok := err.(*Error); ok && err == callback {
+		return zero, classified
 	}
 	return zero, managementError(CodePersistence, err)
 }
