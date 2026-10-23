@@ -3,6 +3,48 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 독립 관측의 감시 시작과 분할 Go 출력 정정
+
+2026-10-23, source `0396f35f70363db10e5988976f40d1beada1df83`의
+[CI 39918711984](https://github.com/progresshans/godj/actions/runs/39918711984)에서 Linux amd64/arm64의 normal/race/CGO0
+reload 6개 작업이 완료됐다. 각 artifact의 모든 member checksum·필수 root/child·실행 owner를 대조했다.
+실제 checkout `84a53863fa08cd1cb9f5e19af766c80b97a70e3e`의 GitHub tree
+`3a849ea99f3a09b3cf911996701929107e7bb3ca`도 위 PR source와 같다. 전체 CI 성공은 아니다.
+
+이 원본을 읽던 비교기는 Notes의 JSON 관측이 1,024 bytes와 후속 Output event로 나뉘자 첫 조각에서 실패했다.
+동일 package/test의 출력 조각만 완전한 줄로 복원하도록 고쳤다. 중간에 다른 test가 출력해도 섞지 않으며
+중복·누락·종료 경계를 넘는 조각·잘린 JSON/줄·1 MiB 초과를 거부한다. 수정 뒤 같은 6개 원본의 Notes/Article 관측
+12개를 읽었다. 로컬 실패 조사에서 얻은 Django 결과와 좌표별 공통 결과 7개 및 닫힌 source 실패 차이 1개를 대조했다.
+이는 같은 CI의 Python·command/event·macOS를 포함한 필수 전체 비교를 대신하지 않는다. 새 reader 회귀 본문은 원격 대상이다.
+
+같은 CI의 Python 3.12.13/3.13.15/3.14.3/3.14.7과 exact Darwin arm64 실행은 모두 문법 오류 복구 뒤
+`HTTP generation v2: observation timed out`로 실패했다. 네 Python artifact의 checksum·source/run/attempt와
+Darwin job source·원 log를 확인했다. 단순 로컬 재현은 Darwin arm64와 별도 Linux arm64 컨테이너에서 두 hash seed가
+각각 통과했고 같은 9개 관측을 반환해 CI 실패를 재현하지 못했다. 이후 실패한 child의 공개 logging sink를 지연시켜
+첫 파일 감시 snapshot 전에 수정을 복구하자 같은 v2 시간 초과가 재현됐다.
+
+Observer의 authored logging handler가 고정 Django의 debug 메시지에서 편집 파일·PID·mtime을 기록하도록 연결했다.
+정상 HTTP·문법 오류·모델 변경 뒤 해당 child가 현재 파일 시각을 감시한 것을 확인한 후 다음 편집을 수행한다.
+고정 2.2초의 정상 startup 대기를 이 관측으로 대체했으며 Django의 reloader나 private 상태를 수정하지 않는다.
+같은 지연 probe는 수정 전 exit 1, 수정 뒤 exit 0이었고 실제 9개 결과·고정 reference source는 유지됐다.
+대기 제한을 늘리지 않았다. 새 지연 회귀 테스트 본문과 전체 reference suite는 원격 CI에서 실행한다.
+
+수동 Article 조립과 현재 공통 경로의 책임 변화를 개발 흐름에 기록했다. 이는 코드·안내 비교이며 개발 시간 측정이 아니다.
+로컬은 위 기존 실패 재현과 원본 reader 대조, Python/template AST 및 문서 링크·diff 검사만 수행했다.
+Receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-0396f35f-ci-39918711984/python-failures-complete.json` | `3070132b9e9b4ed32dcd36878cbcbf08be8509475e4b93de450bdd8cf7a6886d` |
+| `gdj0137-0396f35f-ci-39918711984/fragmented-reader-before.json` | `30afe9af16dd34c13dec6d9e06aca1c565b468434661e6dad2d2c284d13c8274` |
+| `gdj0137-0396f35f-ci-39918711984/fragmented-reader-after.json` | `a11b4f258f4d1628e85950bf69a0019da01bf2bc342f189f473c0dec39f23c27` |
+| `gdj0137-django-development-repro-v1/repair-comparison.json` — 지연 전후·초기 비재현 receipt 포함 | `8bf2c8587fefa07b26788bf9ab6f07a772a2933d190896df058595fac8d8a6ae` |
+| `gdj0137-django-development-repro-v1/source-and-static.json` — Python/template 6개 AST·242개 문서 링크·diff | `7a2f3c8c320d8c73e9aaf922fc6acdf12081919d108964e3a2877f56abf1ce1f` |
+
+Mac Intel normal reload는 앞선 cache 전달 정정 뒤에도 최초 `startproject`의 5분 제한으로 실패했다(root 312.77초).
+같은 CI의 job `120299063924` 원 log SHA-256은 `91ed5ce2ec50d9086dff8ffc21ceaa24a702c113b96a8ea438266e1c5e4baef5`다.
+수정된 관측·reader의 전체 원격 실행, 이 시간 초과의 원인·해결과 같은 source의 C1 전체 수용은 미완료다.
+
 ## GDJ-0137 — scaffold 중첩 generation의 compiler cache 전달
 
 2026-10-23, Mac Intel 준비 시간 초과를 좁히면서 source `79cd8752177d18e9e0154ebcccd6f5742f86b962`의

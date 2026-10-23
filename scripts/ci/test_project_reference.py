@@ -171,6 +171,35 @@ class ProjectReferenceReaderTests(unittest.TestCase):
         changed["cases"][0]["calls"] = [["different_receiver", 1]]
         with self.assertRaises(ValueError): compare_events(self.event_reference, changed)
 
+    def test_fragmented_go_output_retains_one_test_and_complete_bounded_lines(self):
+        path = self.directory / "fragmented.json"
+        test, marker = SPECIAL["reload-notes"], "GODJ_DEVELOPMENT_OBSERVATION"
+        observed = copy.deepcopy(self.consumers["notes"])
+        observed["cases"][0]["observed"] = {"message": "여러 조각의 관측 " * 50}
+        line = "    consumer.go:42: " + marker + " " + json.dumps(observed, ensure_ascii=False) + "\n"
+        before = [self.event("start"), self.event("run", Test=test)]
+        after = [self.event("pass", Test=test), self.event("pass")]
+        other = self.event("output", Test=SPECIAL["reload-article"], Output=marker + ' {"unrelated":true}\n')
+        for width in (1, 17, 1024):
+            with self.subTest(width=width):
+                fragments = [self.event("output", Test=test, Output=line[offset:offset + width])
+                             for offset in range(0, len(line), width)]
+                fragments.insert(len(fragments) // 2, other)
+                self.write_events(path, before + fragments + after)
+                self.assertEqual(go_observation(path, test, marker), observed)
+
+        for mutation in ("missing-newline", "truncated-json", "wrong-test-fragment", "duplicate", "oversized"):
+            with self.subTest(mutation=mutation):
+                parts = [line[:100], line[100:]]
+                if mutation == "missing-newline": parts[-1] = parts[-1][:-1]
+                elif mutation == "truncated-json": parts[-1] = parts[-1][:-16] + "\n"
+                elif mutation == "duplicate": parts.append(line)
+                elif mutation == "oversized": parts = ["x" * (1 << 19)] * 3
+                fragments = [self.event("output", Test=test, Output=part) for part in parts]
+                if mutation == "wrong-test-fragment": fragments[-1]["Test"] = SPECIAL["reload-article"]
+                self.write_events(path, before + fragments + after)
+                with self.assertRaises(ValueError): go_observation(path, test, marker)
+
     def test_unsealed_or_changed_evidence_and_duplicate_json_keys_are_rejected(self):
         (self.directory / "source.json").write_text("{}\n")
         seal(self.directory)

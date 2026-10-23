@@ -9,7 +9,7 @@
 ## 다음
 
 1. Reload·event/logging·scaffold·독립 고정 module과 PostgreSQL 기본 앱 흐름을 현재 source의 원격 CI에서 확인한다.
-2. 새 독립 Django 관측과 12개 native 원본 비교를 실행하고 SQLite 누락 컬럼·퇴역 join 정정 및 Mac Intel 시간 초과를 확인한다.
+2. 독립 Django 관측의 감시 준비 동기화와 분할 Go 출력 비교 정정을 검증하고, 12개 native 원본 및 Mac Intel 시간 초과를 확인한다.
 3. C1의 필수 원격 실행·독립 기준·원본을 대조하고 다음 I1의 요구와 전환 조건을 유지한다.
 
 ## 검증 경계

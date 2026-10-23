@@ -106,6 +106,29 @@ Sink 오류·panic·Goexit는 확정된 저장이나 command 결과를 바꾸지
 해제/닫고 callback drain이 성공한 뒤 그 resource를 해제한다. 전역 registry·자동 retry·durable 전달은 제공하지 않는다.
 공통 Django 의미와 Go의 typed/context/lifetime 차이 및 실제 검증 여부는 C1과 TEST_EVIDENCE를 따른다.
 
+## 새 프로젝트의 조립과 변경 책임
+
+C1 이전 source `680b6cd2`의 [Article 진입점](https://github.com/progresshans/godj/blob/680b6cd297c731a15f0e4aee5da924bbc92f07f9/examples/article/cmd/site/main.go)과
+[DB 구성](https://github.com/progresshans/godj/blob/680b6cd297c731a15f0e4aee5da924bbc92f07f9/examples/article/databaseconfig/config.go)을
+현재 공개 package·[starter](../internal/projectscaffold/templates/README.md.tmpl)와 대조한 책임 변화다.
+아래는 코드와 생성 안내의 비교이며 개발 시간이나 성능을 측정한 결과는 아니다.
+
+| 작업 | C1 이전의 프로젝트 조립 | 현재 공통 경로와 프로젝트가 지정할 부분 |
+|---|---|---|
+| 빈 프로젝트 시작 | Module·프로젝트 설정·선언 runner·generated runtime·identity 연결을 직접 구성했다. | `startproject`가 기본 구성을 생성·compile한 후보를 게시한다. 프로젝트는 dependency와 대상 경로, DB·identity 정책을 선택한다. |
+| 앱과 첫 모델 추가 | 선언과 `ProjectSpec` 배치, Web/Admin의 앱 목록을 직접 맞췄다. | `startapp`이 빈 선언과 등록 안내를 만들고 generator가 `InstalledApps()`를 제공한다. 프로젝트는 `Applications()`에 명시적으로 등록하고 모델·노출 field·권한을 선언한다. |
+| 환경과 DB 선택 | Article이 환경 parsing·상충 검사·DB 종류·SQL renderer·backend opener를 소유했다. | `settings.Environment`와 `settings/database`가 snapshot·검사·backend 연결을 제공한다. 환경 이름·기본값·명시적 override 정책은 프로젝트가 정한다. |
+| HTTP 시작과 종료 | Article 진입점이 listener·한 번 닫기·ready 출력·server·DB cleanup을 직접 연결했다. | `project/server.Run`·`Serve`가 시작·ready·요청 drain·cleanup을 연결한다. 프로젝트는 `Start`에서 앱과 resource를 구성하고 `Stop`을 반환한다. 앱 간 dependency가 있으면 `apps.Start`로 명시한다. |
+| 업무 명령 추가 | Generated 모델을 사용하는 별도 executable과 인자·출력·resource 수명을 직접 구성해야 했다. | `project/command` 등록·typed 인자·`Using`으로 global CLI에 연결한다. 프로젝트가 업무 callback·검사·resource와 operator 권한을 정하고 확정된 저장 후 오류의 의미를 유지한다. |
+| 저장된 데이터가 있는 필드 변경 | 선언·생성·명시적 migration 뒤 실행 process를 다시 시작했다. | 같은 선언·생성·migration 절차를 유지하며 기본 `runserver`가 성공한 후보만 교체한다. 프로젝트가 migration을 검토·적용하고 필요한 schema/resource를 startup에서 확인한다. |
+| 로그와 process 내부 알림 | 프로젝트마다 실행 식별·sink·callback 등록과 종료를 조립해야 했다. | Starter의 opt-in logger와 `events.New[T]`를 사용한다. 프로젝트는 sink·receiver·등록 해제와 drain을 소유하고 저장 결과와 후속 알림 오류를 구분한다. |
+
+Notes 소비자는 starter에서 단일 모델을 추가해 기존 row를 유지하며 nullable field를 확장한다. Article 소비자는
+별도 관계 모델 앱에서 저장된 로그인·그룹 membership·현재 권한을 변경하고 reload 뒤 다시 읽는다.
+두 소비자가 공유하는 것은 source 준비·호환성·process 교체와 공개 resource 수명이다. 도메인 모델과 HTTP 노출 정책은
+각 프로젝트가 소유한다. 실제 실행 범위와 실패·독립 Django 대조 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록하며,
+이 책임 비교만으로 C1 전체 수용이나 사용성 검증 완료를 뜻하지 않는다.
+
 ## 모델에서 query까지
 
 [modeldef/schema.go](../examples/article/modeldef/schema.go)는 선언만 소유하고 generated model을 import하지 않는다.

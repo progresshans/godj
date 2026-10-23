@@ -90,11 +90,12 @@ class Project:
         self.inputs = inputs
         self.environment = clean_environment()
         self.environment["DEVELOPMENT_REFERENCE_READY_LOG"] = str(root / "ready.jsonl")
+        self.environment["DEVELOPMENT_REFERENCE_WATCH_LOG"] = str(root / "watch.jsonl")
         self.environment["DEVELOPMENT_REFERENCE_READER_PASSWORD"] = "Reader-72p!sV9-secret"
         self.next_edit_ns = 0
         self.child = None
         self.autoreload = False
-        self.observed_pids = set()
+        self.watched_pids = set()
 
     def command(self, *args, expected=0):
         return run_command([sys.executable, "manage.py", *args, "--no-color"], self.root, self.environment,
@@ -180,13 +181,40 @@ class Project:
             return value if value["version"] == version else None
 
         value = eventually(self.child, "HTTP generation " + version, attempt)
-        if self.autoreload and value["pid"] not in self.observed_pids:
-            # HTTP may bind while the polling thread is still learning newly
-            # imported URL modules. Let two public polling intervals elapse
-            # before the next authored edit; do not instrument Django internals.
-            time.sleep(2.2)
-            self.observed_pids.add(value["pid"])
+        if self.autoreload:
+            self.ready_for_edit(value["pid"])
         return value
+
+    def watch_ready(self, relative, pid=None):
+        mtime = (self.root / relative).stat().st_mtime
+
+        def attempt():
+            path = self.root / "watch.jsonl"
+            if not path.exists():
+                return None
+            data = path.read_bytes()
+            require(len(data) <= 1 << 20, "file watch observations exceed their bound")
+            if not data.endswith(b"\n"):
+                return None
+            matches = [record for line in data.splitlines() if
+                       (record := json.loads(line))["file"] == relative and record["mtime"] == mtime
+                       and (pid is None or record["pid"] == pid)]
+            require(len(matches) <= 1, "file watch observation is duplicated")
+            if not matches:
+                return None
+            require(type(matches[0]["pid"]) is int and matches[0]["pid"] > 1, "file watch process identity is absent")
+            return matches[0]["pid"]
+
+        return eventually(self.child, "file watch " + relative, attempt)
+
+    def ready_for_edit(self, pid):
+        if pid not in self.watched_pids:
+            # HTTP or a SyntaxError can be reported before the replacement's
+            # first filesystem snapshot. Its source-bound debug log confirms
+            # that this PID has observed the exact current file timestamps.
+            self.watch_ready("notes/revision.py", pid)
+            self.watch_ready("notes/models.py", pid)
+            self.watched_pids.add(pid)
 
     def ready_records(self):
         data = (self.root / "ready.jsonl").read_bytes()
@@ -226,6 +254,7 @@ def observe():
             errors_before = project.child.output("stderr").count(b"SyntaxError")
             project.write("notes/revision.py", "def invalid_revision(:\n")
             eventually(project.child, "invalid source import", lambda: True if project.child.output("stderr").count(b"SyntaxError") > errors_before else None)
+            require(project.watch_ready("notes/revision.py") != first["pid"], "invalid source did not reach a replacement process")
             unavailable = client.request("GET", "/state/")
             observed["source_failure"] = {"previous_still_serving": unavailable.status == 200 and unavailable.json().get("pid") == first["pid"]}
             project.version(inputs["versions"]["changed"])
@@ -261,9 +290,9 @@ def observe():
                 if pid == before_model_edit["pid"]:
                     return None
                 records = [entry for entry in project.ready_records() if entry["pid"] == pid and entry["app"] == "notes"]
-                return True if len(records) == 1 and "summary" in records[0]["model_fields"] else None
+                return pid if len(records) == 1 and "summary" in records[0]["model_fields"] else None
 
-            eventually(project.child, "loaded changed model without migration", model_loaded)
+            project.ready_for_edit(eventually(project.child, "loaded changed model without migration", model_loaded))
             # A model edit does not migrate stored schema. The public command
             # observes the native column list before explicit migration.
             _, columns = project.domain("columns")

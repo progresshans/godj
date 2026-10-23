@@ -112,14 +112,29 @@ def go_observation(path, test, marker):
     inventory = inspect(path)
     require(not inventory.verify(required=[(PACKAGE, test)], packages=[PACKAGE]), "reference consumer did not complete successfully")
     lifecycle, found = Counter(), []
+    pending = ""
     for event in events(path):
         if event.get("Package") != PACKAGE or event.get("Test") != test:
             continue
         if event["Action"] in ("run", "pass", "skip", "fail"):
             lifecycle[event["Action"]] += 1
-        if marker + " " in event.get("Output", ""):
-            require(event["Action"] == "output", "reference data outside output event")
-            found.append(decode(event["Output"].split(marker + " ", 1)[1]))
+            require(not pending, "reference output line crosses a test lifecycle boundary")
+        output = event.get("Output", "")
+        if event["Action"] != "output":
+            require(marker + " " not in output, "reference data outside output event")
+            continue
+        # test2json splits long lines into several Output events, including
+        # inside the marker or JSON. Reassemble only this exact test's stream;
+        # an interleaved test must never complete or contribute an observation.
+        lines = (pending + output).split("\n")
+        pending = lines.pop()
+        require(all(len(line.encode("utf-8")) <= 1 << 20 for line in [*lines, pending]),
+                "oversized reference output line")
+        for line in lines:
+            if marker + " " in line:
+                found.append(decode(line.split(marker + " ", 1)[1]))
+                require(len(found) == 1, "duplicate consumer observation")
+    require(not pending, "reference output line is incomplete")
     require(lifecycle == {"run": 1, "pass": 1} and len(found) == 1, "missing, duplicate or skipped consumer observation")
     return found[0]
 

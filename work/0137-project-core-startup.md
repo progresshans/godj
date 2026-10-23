@@ -103,6 +103,8 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 reload/명시적 migration/현재 권한/명령 durable 결과를 기록한다. Notes·Article·scaffold command의 같은 입력에 대한
 실제 Go 결과와 event 관측을 같은 CI source·원본 checksum에 묶어 12개 native 좌표에서 대조한다.
 작성된 비교기의 성공은 해당 원격 실행이 완료된 뒤 판단하며, `--no-reload`는 편집 후 Go 실행이 시작되지 않는 감사도 갖는다.
+수동 Article 조립과 현재 starter·공개 package의 책임 변화는 [개발 흐름](../docs/DEVELOPER_EXPERIENCE.md#새-프로젝트의-조립과-변경-책임)에
+기록한다. 코드·안내의 비교와 실제 소비자 실행, 개발 시간 측정을 구분한다.
 
 ## 완료 조건
 

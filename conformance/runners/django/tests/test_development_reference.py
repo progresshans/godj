@@ -86,6 +86,34 @@ class DevelopmentReferenceTests(unittest.TestCase):
             error = run_observer(mutation=mutation, expected=1)
             self.assertIn(b"unexpected runtime version", error)
 
+    def test_repair_waits_for_failed_child_file_watch(self):
+        # Delay only the authored logging sink in the failed replacement. The
+        # real reloader and HTTP server remain unchanged. Repairing immediately
+        # after SyntaxError used to become this child's first-seen baseline.
+        handler = """
+import time
+class DelayedWatch(WatchObservation):
+    def __init__(self):
+        super().__init__()
+        self.delayed = False
+        self.invalid = 'def invalid_revision' in (Path(__file__).resolve().parent.parent / 'notes/revision.py').read_text()
+    def emit(self, record):
+        if self.invalid and not self.delayed and record.msg == 'Apps ready_event triggered. Sending autoreload_started signal.':
+            self.delayed = True
+            time.sleep(3)
+        super().emit(record)
+"""
+        mutation = ("original_fixture = reference.fixture\n"
+                    "def delayed_fixture(name):\n"
+                    "    source = original_fixture(name)\n"
+                    "    if name == 'lifecycle':\n"
+                    "        source += " + repr(handler) + "\n"
+                    "    if name == 'settings':\n"
+                    "        source = source.replace('projectsite.lifecycle.WatchObservation', 'projectsite.lifecycle.DelayedWatch')\n"
+                    "    return source\n"
+                    "reference.fixture = delayed_fixture\n")
+        self.assertEqual(run_observer(mutation=mutation), self.outputs[0])
+
     def test_wrong_source_digest_or_omitted_module_is_rejected(self):
         identity = reference.verify_source()
         with tempfile.TemporaryDirectory() as directory:
