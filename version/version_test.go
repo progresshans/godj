@@ -23,8 +23,10 @@ func TestFrameworkIdentityUsesTheEffectiveModuleAndOwnVCS(t *testing.T) {
 	}{
 		{"main checkout", true, debug.Module{Path: Module, Version: "(devel)"},
 			Info{Origin: Development, Revision: "f00d1234", Modified: true}},
-		{"installed command", true, debug.Module{Path: Module, Version: "v1.2.3"},
-			Info{Origin: ModuleVersion, Version: "v1.2.3", Revision: "f00d1234", Modified: true}},
+		{"versioned checkout", true, debug.Module{Path: Module, Version: "v1.2.3"},
+			Info{Origin: Development, Version: "v1.2.3", Revision: "f00d1234", Modified: true}},
+		{"pseudo-versioned checkout", true, debug.Module{Path: Module, Version: "v0.0.0-20261022123456-abcdef123456+dirty"},
+			Info{Origin: Development, Version: "v0.0.0-20261022123456-abcdef123456+dirty", Revision: "f00d1234", Modified: true}},
 		{"dependency", false, debug.Module{Path: Module, Version: "v0.0.0-20261022123456-abcdef123456"},
 			Info{Origin: ModuleVersion, Version: "v0.0.0-20261022123456-abcdef123456"}},
 		{"workspace dependency", false, debug.Module{Path: Module, Version: "(devel)"},
@@ -61,6 +63,19 @@ func TestFrameworkIdentityUsesTheEffectiveModuleAndOwnVCS(t *testing.T) {
 				t.Fatal("returned value retained build metadata ownership")
 			}
 		})
+	}
+}
+
+func TestMainModuleVersionDistinguishesSourceAndFixedInstallation(t *testing.T) {
+	for _, release := range []string{"v1.2.3", "v0.0.0-20261022123456-abcdef123456"} {
+		build := &debug.BuildInfo{Main: debug.Module{Path: Module, Version: release}}
+		if got := fromBuildInfo(build); got.Origin != ModuleVersion || got.Version != release || got.Revision != "" || got.Modified {
+			t.Fatalf("fixed installation identity = %+v", got)
+		}
+		build.Settings = []debug.BuildSetting{{Key: "vcs", Value: "git"}, {Key: "vcs.revision", Value: "abcdef123456"}, {Key: "vcs.modified", Value: "false"}}
+		if got := fromBuildInfo(build); got.Origin != Development || got.Version != release || got.Revision != "abcdef123456" || got.Modified {
+			t.Fatalf("clean checkout misidentified as fixed installation = %+v", got)
+		}
 	}
 }
 

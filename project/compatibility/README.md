@@ -16,6 +16,8 @@ permitted as the frame terminator; other noncanonical whitespace is rejected.
 must also match exactly. Two explicitly identified development/local-replacement
 builds may agree on contracts; their source bytes are not thereby attested equal.
 Unknown identities and mixed development/fixed-module pairs are rejected.
+VCS-stamped main modules remain development builds even when Go records a tag or
+pseudo-version. That display version does not select or attest a fixed dependency.
 Display-only version reporting remains in [`version`](../../version/README.md).
 
 All project-linked global commands probe the declaration executable immediately
@@ -44,7 +46,11 @@ source bytes, current generated files or stored database state. Native conforman
 adapters use an explicit fixture launcher identity; independently installed tool
 and runtime identities require real module/binary acceptance.
 
-C1 still owns independently installed fixed-module combinations and whole-platform
-acceptance. Existing private command response validation remains active and never
+C1's fixed-module consumer packages the complete source into two private proxy
+versions, installs separate global tools, and builds projects without replacements.
+It exercises authenticated storage, explicit dependency changes and incompatible
+tool rejection before I/O. These are test versions, not published releases or a
+general upgrade-policy claim. Whole-platform execution and raw evidence remain
+in the C1 acceptance work. Private command response validation remains active and never
 accepts a global compatibility failure from a linked operation. See
 [GDJ-0137](../../work/0137-project-core-startup.md).

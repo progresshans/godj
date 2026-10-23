@@ -39,6 +39,10 @@ func runVersion(ctx context.Context, args []string, stdout, stderr io.Writer, in
 		switch current.Origin {
 		case version.ModuleVersion:
 			label = current.Version
+		case version.Development:
+			if current.Version != "" {
+				label += " " + current.Version
+			}
 		case version.LocalReplacement:
 			label = "local replacement"
 		case version.ModuleReplacement:

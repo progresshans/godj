@@ -562,6 +562,35 @@ jobs:
           test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
           test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
 
+      - name: Initialize project-check evidence
+        id: project-evidence
+        env:
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          GODJ_TEST_MODE: ${{ matrix.mode }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          directory = pathlib.Path(os.environ['RUNNER_TEMP']) / 'project-check-evidence'
+          directory.mkdir()
+          def read(*args):
+              return subprocess.check_output(args, text=True).strip()
+          source = {
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'event': os.environ['GITHUB_EVENT_NAME'],
+              'event_head': os.environ['GODJ_SOURCE_HEAD'],
+              'checkout': read('git', 'rev-parse', 'HEAD'),
+              'tree': read('git', 'rev-parse', 'HEAD^{tree}'),
+              'status': read('git', 'status', '--porcelain=v1'),
+              'mode': os.environ['GODJ_TEST_MODE'],
+              'go': json.loads(read('go', 'env', '-json', 'GOVERSION', 'GOOS', 'GOARCH')),
+          }
+          if source['status']:
+              raise SystemExit('project-check source is dirty before execution')
+          (directory / 'source.json').write_text(json.dumps(source, sort_keys=True) + '\n')
+          PY
+
       - name: Prewarm project scaffold dependencies
         timeout-minutes: 3
         run: go mod download all
@@ -572,7 +601,8 @@ jobs:
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
-          cmd_test_flags=(-timeout="${{ matrix.platform.cmd_test_timeout }}" -count=1)
+          evidence_dir="$RUNNER_TEMP/project-check-evidence"
+          cmd_test_flags=(-timeout="${{ matrix.platform.cmd_test_timeout }}" -json -count=1)
           test_flags=(-timeout=20m -count=1)
           json_flags=(-timeout=15m -json -count=1)
           case "$mode" in
@@ -597,46 +627,65 @@ jobs:
           # cumulative package budget; project/internal and the conformance
           # runner retain their independent 20-minute package budgets. The
           # operator product has its own OS/mode matrix below.
-          go test "${cmd_test_flags[@]}" ./cmd/godj
+          cmd_log="$evidence_dir/cli.json"
+          cmd_stderr="$evidence_dir/cli.stderr"
+          go list ./cmd/godj > "$evidence_dir/cli-packages.txt"
+          status=0
+          go test "${cmd_test_flags[@]}" ./cmd/godj > "$cmd_log" 2> "$cmd_stderr" || status=$?
+          if [ "$status" -ne 0 ]; then
+            python3 scripts/ci/go_test_events.py "$cmd_log" --diagnostics --stderr "$cmd_stderr" || true
+            exit "$status"
+          fi
+          python3 scripts/ci/go_test_events.py "$cmd_log" --packages "$evidence_dir/cli-packages.txt"
           # Pure wire packages run in Portable Go; this owner exercises the
           # real selection, linked runner and OS/process boundaries.
           platform_packages="$(go list ./project ./internal/projectcheck/... | python3 scripts/ci/packages.py platform)"
-          go test "${test_flags[@]}" $platform_packages
+          printf '%s\n' "$platform_packages" > "$evidence_dir/platform-packages.txt"
+          platform_log="$evidence_dir/platform.json"
+          platform_stderr="$evidence_dir/platform.stderr"
+          status=0
+          go test "${test_flags[@]}" -json $platform_packages > "$platform_log" 2> "$platform_stderr" || status=$?
+          if [ "$status" -ne 0 ]; then
+            python3 scripts/ci/go_test_events.py "$platform_log" --diagnostics --stderr "$platform_stderr" || true
+            exit "$status"
+          fi
+          python3 scripts/ci/go_test_events.py "$platform_log" --packages "$evidence_dir/platform-packages.txt"
           # This complete runner execution also owns relation sentinels.
           # Missing/skipped execution must fail.
-          runner_log="$RUNNER_TEMP/conformance-runner-${mode}.json"
-          runner_stderr="$RUNNER_TEMP/conformance-runner.stderr"
+          runner_log="$evidence_dir/conformance-runner.json"
+          runner_stderr="$evidence_dir/conformance-runner.stderr"
           status=0
           go test "${test_flags[@]}" -json ./conformance/runners/godj > "$runner_log" 2> "$runner_stderr" || status=$?
           if [ "$status" -ne 0 ]; then
             python3 scripts/ci/go_test_events.py "$runner_log" --diagnostics --stderr "$runner_stderr" || true
             exit "$status"
           fi
-          runner_required="$RUNNER_TEMP/conformance-runner-required.txt"
+          runner_required="$evidence_dir/conformance-runner-required.txt"
           awk -F'|' '$1 == "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$runner_required"
           python3 scripts/ci/go_test_events.py "$runner_log" --required "$runner_required" --no-skips
 
-          runserver_log="$RUNNER_TEMP/runserver-product-${mode}.json"
-          stderr_log="$RUNNER_TEMP/product.stderr"
-          status=0
-          go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" 2> "$stderr_log" || status=$?
-          if [ "$status" -ne 0 ]; then
-            python3 scripts/ci/go_test_events.py "$runserver_log" --diagnostics --stderr "$stderr_log" || true
-            exit "$status"
-          fi
+          runserver_log="$evidence_dir/runserver-product.json"
+          stderr_log="$evidence_dir/runserver-product.stderr"
           runserver_package="github.com/progresshans/godj/conformance/runserverproduct"
           runserver_required=(
             "TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime"
+            "TestGlobalFixedModuleInstallationCompatibility"
             "TestGlobalRunserverArticleSQLiteDevelopmentLoop"
             "TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI"
             "TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime"
             "TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup"
             "TestRunserverPreparationDiagnosticsExcludeArgumentsAndDistinguishUnavailableAudit"
           )
-          required="$RUNNER_TEMP/runserver-required.txt"
+          required="$evidence_dir/runserver-required.txt"
           for test_name in "${runserver_required[@]}"; do
             printf '%s|%s\n' "$runserver_package" "$test_name"
           done > "$required"
+          status=0
+          go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" 2> "$stderr_log" || status=$?
+          if [ "$status" -ne 0 ]; then
+            python3 scripts/ci/go_test_events.py "$runserver_log" --diagnostics --stderr "$stderr_log" || true
+            exit "$status"
+          fi
           python3 scripts/ci/go_test_events.py "$runserver_log" --required "$required"
 
           if [ "$mode" = "normal" ] && [ "$PORTABLE_COVERED" != true ]; then
@@ -649,17 +698,44 @@ jobs:
         env:
           GODJ_COLD_BUILD: "1"
         run: |
-          log="$RUNNER_TEMP/cold-cli.json"
-          stderr_log="$RUNNER_TEMP/cold-cli.stderr"
+          log="$RUNNER_TEMP/project-check-evidence/cold-cli.json"
+          stderr_log="$RUNNER_TEMP/project-check-evidence/cold-cli.stderr"
           status=0
           go test -json -count=1 -timeout=5m -run '^TestActualGodjMigrationCheckProcess$/^implicit_success$' ./cmd/godj > "$log" 2> "$stderr_log" || status=$?
           if [ "$status" -ne 0 ]; then
             python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true
             exit "$status"
           fi
-          required="$RUNNER_TEMP/cold-cli-required.txt"
+          required="$RUNNER_TEMP/project-check-evidence/cold-cli-required.txt"
           printf '%s\n' 'github.com/progresshans/godj/cmd/godj|TestActualGodjMigrationCheckProcess/implicit_success' > "$required"
           python3 scripts/ci/go_test_events.py "$log" --required "$required" --no-skips
+
+      - name: Seal project-check evidence
+        if: always() && steps.project-evidence.outcome == 'success'
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib
+          directory = pathlib.Path(os.environ['RUNNER_TEMP']) / 'project-check-evidence'
+          entries = []
+          for path in sorted(directory.iterdir()):
+              if path.is_symlink() or not path.is_file():
+                  raise SystemExit('irregular project-check evidence')
+              digest = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1 << 20), b''):
+                      digest.update(chunk)
+              entries.append(f'{digest.hexdigest()}  {path.name}\n')
+          (directory / 'SHA256SUMS').write_text(''.join(entries))
+          PY
+
+      - name: Publish project-check evidence
+        if: always() && steps.project-evidence.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: project-check-${{ matrix.platform.expected_goos }}-${{ matrix.platform.expected_goarch }}-${{ matrix.mode }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/project-check-evidence/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Require a clean worktree
         run: |

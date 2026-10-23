@@ -38,6 +38,18 @@ func TestCompatibilityChecksEveryContractAndEffectiveVersion(t *testing.T) {
 	if Check(tool, linked) != nil {
 		t.Fatal("explicit development contracts differ")
 	}
+	// VCS-derived versions describe a checkout, including clean tagged source;
+	// they cannot turn a development tool into a fixed module installation.
+	for _, sourceVersion := range []string{"v0.1.0", "v0.0.0-20261022123456-abcdef123456+dirty"} {
+		tool.Framework.Version, tool.Framework.Revision = sourceVersion, "abcdef123456"
+		if Check(tool, linked) != nil {
+			t.Fatal("VCS version rejected an explicit development dependency")
+		}
+		encoded, err := json.Marshal(tool)
+		if parsed, parseErr := Parse(encoded); err != nil || parseErr != nil || parsed != tool {
+			t.Fatal("source version metadata did not round trip", err, parseErr)
+		}
+	}
 	linked.Framework = version.Info{Module: version.Module, Origin: version.ModuleVersion, Version: "v0.1.0"}
 	if Check(tool, linked) == nil {
 		t.Fatal("mixed development and fixed versions accepted")

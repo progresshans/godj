@@ -150,7 +150,7 @@ func valid(info Info) bool {
 	}
 	switch f.Origin {
 	case version.Development:
-		return f.Version == "" && f.RequestedVersion == "" && f.ReplacementModule == ""
+		return (f.Version == "" || versionToken(f.Version)) && f.RequestedVersion == "" && f.ReplacementModule == ""
 	case version.LocalReplacement:
 		return f.Version == "" && f.ReplacementModule == "" && f.Revision == "" && !f.Modified
 	case version.ModuleVersion:

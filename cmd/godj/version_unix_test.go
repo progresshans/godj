@@ -85,7 +85,7 @@ func TestActualGodjVersionNeedsNoProjectOrGoToolAtRuntime(t *testing.T) {
 		FormatVersion int          `json:"format_version"`
 		Framework     version.Info `json:"framework"`
 	}
-	wantOrigin, wantVersion := version.ModuleVersion, compiled.Main.Version
+	wantOrigin, wantVersion := version.Development, compiled.Main.Version
 	if wantVersion == "" || wantVersion == "(devel)" {
 		wantOrigin, wantVersion = version.Development, ""
 	}
@@ -106,9 +106,9 @@ func TestActualGodjVersionNeedsNoProjectOrGoToolAtRuntime(t *testing.T) {
 		t.Fatalf("tool VCS identity differs from compiler: %+v", document.Framework)
 	}
 	plain := versionCommand(t, root, runtimeEnvironment, binary, "version")
-	wantLabel := wantVersion
-	if wantLabel == "" {
-		wantLabel = string(wantOrigin)
+	wantLabel := string(wantOrigin)
+	if wantVersion != "" {
+		wantLabel += " " + wantVersion
 	}
 	if !strings.HasPrefix(string(plain), "godj "+wantLabel+" "+revision) {
 		t.Fatalf("plain version = %q", plain)

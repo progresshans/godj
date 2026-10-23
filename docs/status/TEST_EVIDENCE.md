@@ -66,6 +66,45 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — VCS source 식별 복구와 고정 module 설치 소비자 작성
+
+제품 source `b1beee4c7e330996108f4dbe4b4cbc7690c0ccbd`의
+[CI 39882351805](https://github.com/progresshans/godj/actions/runs/39882351805)에서 기본 프로젝트 명령이
+`framework_incompatible`로 거부됐다. Linux amd64 cgo0·arm64 normal와 macOS amd64 race의 원본을 확인했다.
+Checkout `f0de722b8311e1b217a74fa8fc7efeb74e834a2d`의 tree `3216e3e1eeaefa8bd308a425ab3746419b985f31`는 제출 source와 같다.
+원본 다섯 개에는 Portable Go normal/cgo0의 native dependency source binding 실패도 포함한다.
+`gdj0137-b1beee4c-ci-39882351805/source-binding.json` SHA-256은
+`c27c7d14cd620e4cf896fb9d4fb4d1870a0aeb6c4f53463edf08409afaeb312b`다. 이 실행은 전체 성공이 아니다.
+
+로컬 worktree의 executable에는 VCS stamp가 없어 같은 명령이 통과했다. 이를 CI 재현 성공으로 사용하지 않고,
+같은 source archive에 별도 Git 이력을 만든 checkout에서 실제 CLI를 build했다. Go가 기록한 pseudo-version이
+`module`로 분류되어 local replacement와 충돌하며 기존 `migrations check/implicit_success`가 실패했다.
+Version 식별·호환성 parser·표시의 세 파일만 바꾼 뒤 같은 흐름이 통과했다. VCS stamp가 있는 main module은
+`development`로 구분하고 기록된 version/revision은 진단용으로 보존한다. 고정 module의 path/version 비교와
+contract 비교를 제거하지 않았다. 새 unit case와 독립 설치 수용 본문은 이 좁은 재현에서 실행하지 않았다.
+
+같은 archive에서 native dependency audit도 실패를 재현했다. `project/compatibility`가 가져온 generator·protocol·
+version·declaration의 source prefix를 추가한 뒤 기존 audit가 통과했다. 추가/변경과 directory symlink의 negative
+검사를 작성했으며 기존 제외·상한·checksum/source 일치 조건은 유지했다.
+`gdj0137-vcs-identity-repro-v1/receipt.json` SHA-256은
+`db15b17ac73fc64c40d42e1a4e67307b3d771f0179a4f34861196dbbaa4de1cf`다.
+이는 darwin/arm64 Go 1.26.5의 두 실패 경로 재현/수정 확인이며 DB·고정 설치·전체 환경 검증이 아니다.
+
+새 `TestGlobalFixedModuleInstallationCompatibility`는 tracked 전체 module에서 nested module을 제외한 test proxy를
+만들고 두 version을 별도 GOBIN/GOMODCACHE에 실제 설치한다. 도구와 세 linked executable의 compiler metadata,
+replacement 없는 scaffold, generate/check/migration/SQL/TTY, 인증 Admin/API 저장과 재시작, 명시적인 dependency 변경,
+반대 version 도구의 명령 다섯 개 거부 및 source/DB 보존을 확인하도록 작성했다. 두 version은 같은 source의
+fixture이며 공개 release나 일반 upgrade 정책을 뜻하지 않는다. Race 좌표의 실제 executable 계측도 검사한다.
+이 root를 12개 project-check 좌표의 필수 실행 목록에 넣었고 CLI·platform·runner·runserver·cold 실행 원본을
+source/환경·checksum과 함께 성공/실패 모두 artifact로 보존하도록 작성했다. 실행 누락을 성공으로 계산하지 않는다.
+
+Go 다섯 package의 `-run '^$' -exec=/usr/bin/true` 최소 compile만 통과했다. 제품 test 본문·fixed-module 소비자는 실행하지 않았다.
+`gdj0137-fixed-module-compile-v1/receipt.json` SHA-256은
+`bff7ab48e6c4197e801ee8be660795cc3743fdf744b3d0685c8881215133a053`이다.
+Workflow YAML·Bash 문법과 embedded Python AST 검사 receipt `workflow-syntax.json` SHA-256은
+`54253fd0186e00495d2bec38027c4ead35f37fddbed765a71a8eb9f250aa2919`다. CI job 실행을 대신하지 않는다.
+현재 source의 전체 원격 실행·원본 대조, 명시적 I/O check·event/logging·reload와 C1 전체 수용은 남아 있다.
+
 ## GDJ-0137 — 모든 프로젝트 진입점의 호환성 검사와 응답 framing 복구
 
 제품 source `6dec19b9834ed152747dc99f1f8d6ef0ad752883`의

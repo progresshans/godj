@@ -22,8 +22,9 @@ const (
 	ModuleReplacement Origin = "module_replacement"
 )
 
-// Info is a caller-owned value. Version identifies the effective module, and
-// RequestedVersion is populated only for replacements. ReplacementModule is
+// Info is a caller-owned value. Version records the compiler's module version;
+// a Development version may be inferred from a source checkout and is not a
+// fixed dependency identity. RequestedVersion is populated only for replacements. ReplacementModule is
 // populated only for a versioned module replacement; local paths are omitted.
 // Revision and Modified describe GoDj only when it is the main module. Build
 // settings from a consuming project's main module never identify a dependency.
@@ -98,13 +99,24 @@ func fromBuildInfo(build *debug.BuildInfo) Info {
 	if main && result.Origin != Unknown {
 		// A dependency, including a workspace module, has no independently
 		// stamped VCS revision in debug.BuildInfo. Do not borrow the app's.
+		sourceBuild := false
 		for _, setting := range build.Settings {
 			switch setting.Key {
+			case "vcs":
+				sourceBuild = true
 			case "vcs.revision":
+				sourceBuild = true
 				result.Revision = token(setting.Value)
 			case "vcs.modified":
+				sourceBuild = true
 				result.Modified = setting.Value == "true"
 			}
+		}
+		// Go can assign a tag or pseudo-version to a local main module. Its
+		// VCS stamp distinguishes that source build from a versioned module
+		// installation. Keep the version for display, not dependency selection.
+		if sourceBuild {
+			result.Origin = Development
 		}
 	}
 	return result

@@ -14,6 +14,7 @@
 설정을 만든다. 대상의 부모 디렉터리는 있어야 하고 대상 이름은 없어야 한다. 기존 빈 디렉터리도 덮어쓰지 않는다.
 고정 module에서 설치한 도구는 그 version을 사용하며 `--framework-version VERSION`으로 명시할 수도 있다.
 개발 checkout은 `--framework-source PATH`로 선택한다. 설치 도구의 위치나 현재 폴더에서 dependency를 추측하지 않는다.
+Compiler가 checkout에 기록한 tag/pseudo-version도 개발 source의 진단 정보이며 자동 dependency 선택에 사용하지 않는다.
 
 README에서 만든 도구를 사용해 저장소 루트에서 실행하는 개발 예시는 다음과 같다.
 

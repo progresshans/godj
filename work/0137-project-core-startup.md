@@ -34,7 +34,8 @@ F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위�
 - 명령별 wire version과 생성 ABI는 이미 있다. `godj version`과 공개 `version.Current()`의 실제 module·개발 source·
   replacement 조회를 작성했다. 설치한 전역 도구·linked runtime·생성물의
   호환성을 조회하는 공통 contract와 모든 프로젝트 진입점의 실행 전 비교를 작성했다.
-  초기 사용자 입력과 runtime 시작 전 검사, bounded probe 수명과 원본 계수를 연결했다. 독립 설치 조합의 실행은 남아 있다.
+  초기 사용자 입력과 runtime 시작 전 검사, bounded probe 수명과 원본 계수를 연결했다. 전체 module을 두 고정 fixture
+  version으로 독립 설치하는 정상/불일치 소비자를 작성했으며 실제 환경별 실행은 남아 있다.
 
 ## 하위 요구와 수용 시나리오
 
@@ -114,7 +115,7 @@ App lifecycle의 의존 순서·실패 rollback·취소/비정상 callback 종�
 분리 재현과 수정 확인은 실행 증거에 있다. 서버·앱·DB를 묶는 공통 owner와 Article 연결, 외부 generated 모델의
 요청 drain 중 저장·worker/DB 역순 정리·재시작 소비자를 작성했으며 실제 원격 검증은 남아 있다.
 전역 도구와 외부 runtime의 build metadata 조회를 작성했다. 고정 version과 로컬 replacement/workspace의 실제
-소비자 검증 및 C1-05의 실행 전 호환성 검사·generated ABI 연결은 남아 있다.
+소비자와 C1-05의 실행 전 호환성 검사·generated ABI를 연결했다. 전체 검증은 현재 source에서 확인한다.
 `startproject`에 명시한 dependency·새 디렉터리·기존 generator와 readonly runtime compile을 연결했다.
 기본 identity/Admin/API·SQLite 설정과 선언/노출 정책의 수정 위치를 담은 안내를 생성한다. 실제 CLI의 빈 앱 생성→
 migration→초기 사용자→인증/CSRF 저장→재시작, 기존 경로 보존과 게시 후 출력 실패 검사를 원격 CI에 연결했다.
@@ -131,4 +132,10 @@ CI에서 나타난 빈 앱의 migration state 비교 결함은 같은 source의 
 호환성 응답의 종료 LF와 엄격한 canonical JSON 비교가 충돌한 CI 실패는 별도 고정 source 재현에서 수정했다.
 기존 명령의 mismatch·비밀값 입력 전 거부·실제 외부 runner·stdout 상한/자손 회수 검사를 작성했다.
 새 공통 검사와 command 흐름의 전체 실행은 현재 source의 원격 CI에서 확인한다.
+VCS에서 추론한 main module version을 고정 설치로 오인하는 실패를 별도 Git checkout에서 재현·수정했다.
+진단용 version은 보존하고 개발 source로 구분한다. 새 metadata 경로의 전체 native dependency와 symlink 검사를
+system-state source binding에 연결했다. 고정 module 소비자는 실제 별도 `go install`·replacement 없는 scaffold·
+인증 저장/재시작·명시적 dependency 변경·잘못된 도구의 I/O 전 거부를 원격 CI에서 실행한다. 두 version은 같은
+전체 source로 만든 test proxy fixture이며 배포 release나 일반 upgrade 정책의 증거로 사용하지 않는다.
+Project-check owner는 성공/실패 모두 원본 Go event·stderr·필수 목록·source/환경 binding과 checksum을 보존한다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

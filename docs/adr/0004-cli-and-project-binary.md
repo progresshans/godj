@@ -82,6 +82,8 @@ handler를 join한 뒤 독립 cleanup context로 닫는다. Callback/출력/clea
 generator/명령 contract를 조회한다. Go package initializer 자체는 각 process에서 실행되므로 resource는 명시적 callback이 소유한다.
 같은 private executable을 조회 후 실행하며 불일치 시 업무 callback에 진입하지 않는다. 고정 module version은 정확히
 비교하고, 명시적 개발 source끼리는 동일 contract를 요구한다. Contract 일치는 source 무결성 증명이 아니다.
+Go가 checkout의 tag/pseudo-version을 기록하더라도 main module에 VCS stamp가 있으면 개발 source로 분류한다.
+Version·revision은 진단용으로 보존하며 그 version을 scaffold의 고정 dependency로 자동 선택하지 않는다.
 모든 프로젝트 명령은 선언 build 직후 이 검사를 수행하고 runserver/management는 별도 runtime도 검사한다.
 초기 사용자 생성은 terminal/secret 입력 전에, startproject는 source 게시 전에 확인한다. Probe의 15초 deadline·
 출력 상한·자손/pipe 회수·root 재검사를 적용하며 global failure를 linked command의 응답으로 받아들이지 않는다.
