@@ -3,6 +3,41 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 독립 관측 JSON과 unittest 진행 출력의 분리
+
+2026-10-24, source `c0e8d3d34abf7a3698fe49f1c51f72aa8e7a993b`의
+[CI 39972834722](https://github.com/progresshans/godj/actions/runs/39972834722)에서 완료된 Python 호환성 작업의
+원본을 재검사했다. Python 3.12.13·3.13.15는 event 관측 JSON 뒤에 unittest의 `ok`가 붙어 현재의 엄격한
+JSON 판독기가 `Extra data`로 거부했다. 각 작업의 테스트·시나리오 digest 단계 성공과 관측 원본의 사용 가능성은 별개다.
+같은 source의 3.14.3·3.14.7 원본에서는 두 관측 JSON을 읽을 수 있었다. Archive digest·seal·실제 checkout
+`eea2b4624d12afb2faee5d18cbeaa5042b3dd364`와 tree `38eebedb9c316aafbaa6fa5728ca4f1823cce081`을 대조했다.
+
+Development와 event의 관측 출력은 기본 buffering을 사용해 unittest의 stderr 진행 출력과 섞일 수 있었다.
+두 producer가 JSON과 줄바꿈을 출력한 뒤 즉시 flush하도록 수정했다. 새 회귀 검사는 실제 출력 경로를 buffered sink로
+실행해 반환 시점에 완전한 JSON 줄이 이미 전달됐는지 확인한다. 입력·관측 결과와 JSON 판독기의 엄격한 조건은 유지한다.
+
+로컬 Python 3.14.3에서 같은 source의 sealed 관측값을 입력으로 두 출력 검사를 한정 실행했다. 수정 전에는 두 검사 모두
+buffer에 남은 출력을 검출했고 수정 후에는 모두 통과했다. 이 재현은 관측 출력 메서드만 실행했으며 Django의 실제
+HTTP·reload·signal 관측 본문과 Go 제품 테스트를 다시 실행하지 않았다. 네 Python 버전에서 새 출력과 전체 native·DB
+실행이 완료되는지는 새 source의 원격 검증 대상이다.
+
+수정 전 C1의 부분 결과로 Linux amd64 normal·arm64 normal/CGO0 세 좌표는 같은 CI의 고정 Django 6.1·Python 3.14.3 관측과
+개발 공통 결과 8개·명시적 차이 1개·event 공통 결과 6개가 일치했다. 별도 Darwin profile이 맡는 Python 검사 4개는
+당시 미실행이었다. Linux reload 6개와 Darwin arm64 CGO0 reload, PostgreSQL race process의 필수 root/child 22개도
+완료 원본과 실제 binary 계측을 확인했다. Helpdesk 236개·Admin 125개 browser 관측은 실제 DB·파일·정리 결과를 대조했다.
+이 부분 결과를 새 수정이나 전체 C1의 PASS로 옮기지 않는다.
+
+원본과 receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-python-observation-framing-v1/remote-failures.json` — 네 Python 원본의 엄격한 재검사와 두 거부 | `dfba5cd3361ec7f1f39f5795ef4ee38429fc2b25bfa93403c2e20ec2d342b707` |
+| `gdj0137-python-observation-framing-v1/comparison.json` — 같은 두 출력 검사와 입력의 실패·수정 대조 | `c56518bdb1b54c45f760e6aba522ad56fafaedbd4cd4168152aaa7efc90370e9` |
+| `gdj0137-c0e8d3d3-ci-39972834722/project-reference-partial-3-coordinates.json` — 세 native 좌표의 독립 부분 대조 | `3f69266192d68166f755f6bdf1fb1b4327aca4ef9feb7e69fd223bbff4d0fc59` |
+| `gdj0137-c0e8d3d3-ci-39972834722/native-collection-152021Z.json` — scaffold·reload·Python 원본 | `045f9b9e1c1566393b6eff92fd2cd8904b99296e1c1d2816e7562dbd12aa5a8a` |
+| `gdj0137-c0e8d3d3-ci-39972834722/postgres-collection-150617Z.json` — PostgreSQL race의 실제 실행과 계측 | `dc00e99a15b2e4085ab43b40d2ef3929624b5fac885f333a2242c5241445e379` |
+| `gdj0137-c0e8d3d3-ci-39972834722/browser-artifact-inspection.json` — browser 원본과 실제 DB·파일 결과 | `1d2b2a7a401a444ad2254123ba5987341ef4d4f82aa30f7d8354396dfe5175be` |
+
 ## GDJ-0137 — 전체 scaffold·독립 설치 흐름의 누적 검증 예산
 
 2026-10-23, source `db05a77fb6ef759cc9694cb27bfc1d1ec213ac86`의

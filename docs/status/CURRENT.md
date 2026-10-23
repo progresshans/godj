@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-10-23
+- 갱신: 2026-10-24
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [C1 / GDJ-0137 Project/Core](../../work/0137-project-core-startup.md)를 구현 중이다.
 - 최근 제품 완료 범위: [F1 / GDJ-0136 Form/Admin 일반화](../../work/0136-form-admin-generalization.md).
@@ -10,7 +10,7 @@
 
 1. Reload 게시·종료 수명과 독립 HTTP 관측 보완, scaffold·고정 module·PostgreSQL 기본 앱 흐름을 현재 source의 원격 CI에서 확인한다.
 2. Scaffold·독립 설치의 누적 검증 기한과 원자 게시·경합 검사의 macOS 실행을 새 source의 원격 CI에서 확인한다.
-3. 전역 CLI·선언 runner·runtime의 실제 race 계측을 확인하고, 독립 Django 관측과 12개 native 원본을 대조한다.
+3. 독립 Python 관측의 완전한 JSON 게시와 전역 CLI·선언 runner·runtime의 실제 race 계측을 확인하고, 12개 native 원본을 대조한다.
 4. C1의 필수 원격 실행·독립 기준·원본을 대조하고 다음 I1의 요구와 전환 조건을 유지한다.
 
 ## 검증 경계

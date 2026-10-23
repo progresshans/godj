@@ -1,5 +1,7 @@
 """Public Django project/command/reload observations; native Go owners are separate."""
 import copy
+from contextlib import redirect_stdout
+import io
 import json
 import os
 from pathlib import Path
@@ -39,7 +41,20 @@ class DevelopmentReferenceTests(unittest.TestCase):
         self.assertEqual([case["name"] for case in self.outputs[0]["cases"]],
                          [case["name"] for case in inputs["cases"]])
         self.assertEqual(set(self.cases), reference.CASES)
-        print("DJANGO_DEVELOPMENT_OBSERVATION " + json.dumps(self.outputs[0], sort_keys=True))
+        print("DJANGO_DEVELOPMENT_OBSERVATION " + json.dumps(self.outputs[0], sort_keys=True), flush=True)
+
+    def test_observation_is_complete_before_unittest_progress(self):
+        # CI merges buffered stdout and unittest's stderr. The complete record
+        # must reach the shared sink before the runner writes its next status.
+        with io.BytesIO() as raw:
+            with io.TextIOWrapper(io.BufferedWriter(raw, buffer_size=4096), encoding="utf-8") as output:
+                with redirect_stdout(output):
+                    self.test_complete_source_bound_and_hashseed_independent_observations()
+                record = raw.getvalue()
+                prefix = b"DJANGO_DEVELOPMENT_OBSERVATION "
+                self.assertTrue(record.endswith(b"\n"), "observation remains buffered after the test returns")
+                self.assertTrue(record.startswith(prefix))
+                self.assertEqual(json.loads(record[len(prefix):]), self.outputs[0])
 
     def test_public_scaffold_app_order_and_command_durable_result(self):
         bootstrap = self.outputs[0]["bootstrap"]

@@ -1,5 +1,7 @@
 """Independent native signal observations; Go product execution is separate."""
 import copy
+from contextlib import redirect_stdout
+import io
 import json
 import os
 from pathlib import Path
@@ -35,7 +37,19 @@ class EventReferenceTests(unittest.TestCase):
         self.assertEqual([case['name'] for case in self.outputs[0]['cases']], [case['name'] for case in inputs['cases']])
         self.assertEqual(len(self.cases), 9)
         # Retain native results in each CI profile's raw log, not only a pass.
-        print('DJANGO_EVENT_OBSERVATION '+json.dumps(self.outputs[0], sort_keys=True))
+        print('DJANGO_EVENT_OBSERVATION '+json.dumps(self.outputs[0], sort_keys=True), flush=True)
+
+    def test_observation_is_complete_before_unittest_progress(self):
+        # A status written to stderr must not split the buffered JSON line.
+        with io.BytesIO() as raw:
+            with io.TextIOWrapper(io.BufferedWriter(raw, buffer_size=4096), encoding="utf-8") as output:
+                with redirect_stdout(output):
+                    self.test_complete_source_bound_and_hashseed_independent_observations()
+                record = raw.getvalue()
+                prefix = b"DJANGO_EVENT_OBSERVATION "
+                self.assertTrue(record.endswith(b"\n"), "observation remains buffered after the test returns")
+                self.assertTrue(record.startswith(prefix))
+                self.assertEqual(json.loads(record[len(prefix):]), self.outputs[0])
 
     def test_registration_failure_robust_and_nested_public_results(self):
         self.assertEqual(self.cases['registration_order']['calls'], [['alpha',1],['beta',1],['gamma',1]])
