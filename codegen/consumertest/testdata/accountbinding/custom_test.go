@@ -35,16 +35,22 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal("binding omitted the host's account relation")
 	}
 	backend := accountDatabase(t, access.GoDjRelationSchema(), people.GoDjRelationSchema(), tickets.GoDjRelationSchema())
+	hasher, encoded := accountPassword(t)
 	objects, err := binding.Objects()
 	if err != nil {
 		t.Fatal(err)
 	}
-	row, err := objects.Create(t.Context(), backend, people.NewMemberCreate("member-1", "member@example.test", "!", "KR"))
+	row, err := objects.Create(t.Context(), backend, people.NewMemberCreate("member-1", "member@example.test", encoded, "KR"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	found, exists, err := objects.Using(backend).Filter(people.MemberFields.Contact.Exact("member@example.test")).First(t.Context())
+	found, exists, err := objects.Using(backend).Filter(people.MemberFields.Contact.Exact("member@example.test")).OrderBy(people.MemberFields.ID.Asc()).First(t.Context())
 	if err != nil || !exists || found.ID != row.ID || found.Region != "KR" || found.Subject != "member-1" || !found.Enabled || found.Version != 1 {
 		t.Fatal("selected typed account failed to preserve its model fields", err)
+	}
+	credential := assertStoredAccount(t, &storedAccount[people.Member]{backend: backend, binding: binding,
+		byLogin: people.MemberFields.Contact.Exact, byPrincipal: people.MemberFields.Subject.Exact, order: people.MemberFields.ID.Asc()}, hasher, "member@example.test", "member-1")
+	if credential.Principal().Staff() || credential.Principal().Superuser() {
+		t.Fatal("custom account constants and renamed role fields were not respected")
 	}
 }

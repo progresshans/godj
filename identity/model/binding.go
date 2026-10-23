@@ -4,6 +4,8 @@
 package model
 
 import (
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -19,10 +21,12 @@ import (
 type Binding[M any] struct{ state *bindingState[M] }
 
 type bindingState[M any] struct {
-	role    ir.AccountRole
-	project orm.ProjectBinding
-	model   orm.BoundModel[M]
-	objects orm.Manager[M]
+	role             ir.AccountRole
+	roleFingerprint  [sha256.Size]byte
+	credentialFields map[string]ir.Field
+	project          orm.ProjectBinding
+	model            orm.BoundModel[M]
+	objects          orm.Manager[M]
 }
 
 // Bind is normally called by a generated project BindAccount function. The
@@ -52,8 +56,23 @@ func Bind[M any](role ir.AccountRole, descriptor orm.RelationObjectDescriptor[M]
 	if err != nil {
 		return Binding[M]{}, fmt.Errorf("identity model binding: %w", err)
 	}
+	encodedRole, err := json.Marshal(normalized)
+	if err != nil {
+		return Binding[M]{}, fmt.Errorf("identity model binding: %w", err)
+	}
+	metadata, exists := project.Model(normalized.Model)
+	if !exists {
+		return Binding[M]{}, errors.New("identity model binding: account model is missing from the project")
+	}
+	fields := make(map[string]ir.Field, 3)
+	for _, field := range metadata.Fields {
+		if field.Name == normalized.PrincipalID || field.Name == normalized.Login || field.Name == normalized.Password {
+			fields[field.Name] = field.Clone()
+		}
+	}
 	return Binding[M]{state: &bindingState[M]{
 		role: normalized, project: project, model: account, objects: orm.NewManager[M](descriptor),
+		roleFingerprint: sha256.Sum256(append([]byte("godj.account-role.v1\x00"), encodedRole...)), credentialFields: fields,
 	}}, nil
 }
 

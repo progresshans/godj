@@ -51,6 +51,11 @@
 검사를 원격 실행 대상으로 추가했다. 기존 identity 인증/관리 runtime의 custom model 연결과 durable domain/전환은
 아직 남아 있다. 이 생성 기반을 I1-01~08의 완료로 계산하지 않는다. 실행 상세는 TEST_EVIDENCE를 따른다.
 
+계정 역할 fingerprint·소유권 세대에 묶인 credential 준비와 Principal의 도메인 보존을 추가했다.
+기본/별도 모델의 SQLite 행에서 공통 StoredAuthenticator를 사용하는 소비자와, 비밀번호 검증 중 도메인 변경·
+기존 HTTP 세션 거부 검사를 작성했다. 소비자 adapter의 세대 변경은 테스트 입력이며 durable domain 저장의 구현이 아니다.
+기존 Directory/Manager에 이 도메인 검증을 연결하고 권한·profile·전환 저장을 함께 완성하는 작업은 계속 남아 있다.
+
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
 3. 공개 명령·Form/Admin/API·password/reset·host 삭제·restart 소비자와 실패 검사를 완성한다.

@@ -781,3 +781,26 @@ Email과 login은 같은 unique field를 사용할 수 있다. Boolean 역할은
 사용자 정의 모델을 인증 runtime에 연결할 때는 저장된 domain과 선택을 확인하고, 모델 또는 identity 정책 변경은
 명시적 mapping·receipt·session/reset 정책을 갖춘 전환으로 처리해야 한다. 그 runtime·이행·Form/API·실제 환경의
 완성 여부는 GDJ-0138과 TEST_EVIDENCE에서 따로 추적한다.
+
+## 계정 도메인을 구분하는 credential과 actor
+
+`auth.NewCredentialForDomain`은 명시적인 `CredentialDomain`을 session stamp의 v2 입력에 포함한다.
+같은 principal ID·encoded password여도 다른 도메인이나 도메인이 없는 credential의 stamp를 받아들이지 않는다.
+Username·현재 role/grant의 행 값만 바뀌면 같은 도메인의 stamp를 유지한다. 새 생성 API가 입력받는 도메인은
+비밀값이나 인증 수단이 아니라 소유권 식별자이며, 구성만으로 저장 상태의 일치나 계정 전환을 승인하지 않는다.
+기존 독립 memory/legacy 인증의 도메인 없는 constructor와 의도된 operator adoption은 별도 계약을 유지한다.
+
+도메인은 credential이 반환하는 Principal에도 보존한다. 이미 묶인 Principal로 credential을 만들 때 도메인을
+지우거나 다른 도메인으로 덮지 못한다. 관리 writer는 현재 저장 도메인과 `MatchesPrincipal`을 대조한 뒤 같은 ID의
+현재 권한을 읽어야 한다. 세션 검사만으로 인증과 최종 write 사이의 모델 전환 경합을 막았다고 보지 않는다.
+이 일치 검사는 active·staff·permission·Authorizer의 현재 판단을 대신하지 않는다.
+
+프로젝트 binding은 정규화된 계정 역할의 fingerprint와 32-byte 소유권 세대로 도메인을 유도한다.
+일반 profile 필드 추가는 계정 소유권 변경이 아니며 schema/migration 검증을 별도로 유지한다. 계정 선택·필드 역할·
+상수 보안 정책의 변경은 fingerprint를 바꾼다. 명시적 전환은 새 세대를 저장해야 하며 이전 모델로 돌아갈 때도 재사용하지 않는다.
+`PrepareCredential`은 실제 generated descriptor의 typed 행과 완전한 권한 snapshot에서 필드 역할·IR 문자열 한도·
+revision·저장 key의 존재를 검사한다. 명시적으로 저장한 0/음수 AutoField key를 미저장 값과 혼동하지 않는다.
+이 순수 준비 단계는 I/O·해싱·정규화·profile validation·권한 관계 조회나 durable domain 검증을 수행하지 않는다.
+
+도메인 행·전환 receipt의 저장, startup 및 매 snapshot/write에서의 검증, 기존 Directory/Manager의 연결은
+GDJ-0138의 후속 구현이다. 이 API만 추가한 상태를 기존 identity runtime의 모델 전환 보호 완료로 표시하지 않는다.
