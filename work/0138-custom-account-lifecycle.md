@@ -1,10 +1,11 @@
 # GDJ-0138: 사용자 정의 계정과 계정 수명
 
-- 상태: I1 구현 시작 — C1 원격 검증과 분리한 작업트리에서 준비
+- 상태: I1 구현 중 — C1 수용 확인 후 주 작업 전환
+- 구현: [PR #8](https://github.com/progresshans/godj/pull/8)의 `codex/custom-account-lifecycle` 작업트리
 - 시작: 2026-10-24
 - 출발 source: `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`
-- 선행: A1·F1의 완료 근거는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
-  C1의 같은 source 전체 원격 검증은 아직 미완료이며 이 문서로 완료 처리하지 않는다.
+- 선행: A1·F1·C1의 완료 근거는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
+  C1 source의 완료를 새 I1 코드의 원격 실행 PASS로 사용하지 않는다.
 - 근거: [전체 실행 계획 I1](../docs/EXECUTION_PLAN.md),
   [credential과 session](../docs/adr/0076-credential-snapshots-and-session-binding.md),
   [재사용 앱과 host 관계 소유권](../docs/adr/0077-reusable-app-models-and-host-relation-ownership.md),
@@ -46,51 +47,34 @@
 
 ## 진행과 검증
 
-계정 역할 IR과 기본 선언, 프로젝트 wire·사본·digest·생성 snapshot, 전체 host 그래프에 결합한 typed `BindAccount`를
-작성했다. 기본 User와 별도 Member·catalog·host FK 소비자의 실제 SQLite 읽기/쓰기 및 다른 정책의 생성 파일 혼합 거부
-검사를 원격 실행 대상으로 추가했다. 기존 identity 인증/관리 runtime의 custom model 연결과 durable domain/전환은
-아직 남아 있다. 이 생성 기반을 I1-01~08의 완료로 계산하지 않는다. 실행 상세는 TEST_EVIDENCE를 따른다.
+계정 역할 IR·프로젝트 wire·source digest·생성 snapshot과 typed `BindAccount`를 구현했다. 선택적인 서버 생성 시각과
+login/인증/email의 명시적 정규화 정책을 같은 역할 fingerprint에 포함한다. 기본 User와 별도 Member·catalog·host FK
+모델이 전체 host 관계 그래프에 묶이며, 기본 모델의 숨은 행이나 수동 SQL adapter를 요구하지 않는다.
 
-계정 역할 fingerprint·소유권 세대에 묶인 credential 준비와 Principal의 도메인 보존을 추가했다.
-기본/별도 모델의 SQLite 행에서 공통 StoredAuthenticator를 사용하는 소비자와, 비밀번호 검증 중 도메인 변경·
-기존 HTTP 세션 거부 검사를 작성했다. 독립 `godj_account_domain` 앱의 generated model·migration과 추가 전용 이력,
-현재 역할/이전 receipt 비교, 새로운 세대·operation ID, 작업 ID 재조회도 작성했다. 이 앱은 기본 User를 설치하지 않는다.
-Binding은 같은 DB scope에서 저장 도메인과 actor 도메인을 검사한다. 기본/별도 모델 소비자는 typed 계정 생성과
-도메인 초기화의 원자 rollback, 실제 저장 세대 변경 뒤 credential/actor 거부를 검사하도록 연결했다.
-양 DB의 경합·이력·snapshot·재접속·unknown 결과 조회 검사를 원격 필수 목록에 추가했다. 작성과 최소 compile은 실제 실행 PASS가 아니다.
+독립 `godj_account_domain` 앱은 추가 전용 소유권 이력·직전 receipt·새 세대/operation ID와 작업 조회를 제공한다.
+같은 DB scope의 현재 역할과 actor domain을 검사한다. 초기화·전환 receipt는 commit 전 잠정 값이며 이 API만으로
+채운 DB의 mapping/retirement·session/reset 정책을 수행하거나 전환을 승인하지 않는다.
 
-이력 API는 서버 내부 transaction 구성 경계다. 채운 계정의 mapping 실행·인가·session/reset 폐기·audit를 대신하지 않으며,
-빌린 write scope에서 받은 receipt는 commit 확인 전까지 잠정 값이다. 기존 Directory/Manager에 도메인 검증을 연결하고
-catalog·typed profile·첫 계정 명령·명시적 전환을 함께 완성하는 작업은 계속 남아 있다.
+생성 팩토리와 공통 `CredentialStore`가 선택 계정·domain·직접/그룹 권한을 한 native snapshot에서 읽는다.
+공개 reverse accessor가 없는 custom catalog도 forward M2M과 공통 Query AST를 사용한다. 인증은 선택한 입력 정책,
+해싱 한도와 검증 뒤 현재 credential/domain/active/권한 재검사를 유지한다. `AuthorizeIn`은 오래된 domain을 먼저
+거부하고 같은 borrowed scope의 현재 actor와 deny overlay를 확인한다.
 
-생성 팩토리가 선택한 계정·Group·Permission descriptor를 공통 저장소에 묶도록 작성했다. 계정·domain·직접/그룹
-권한을 한 snapshot에서 읽고 permission 한도·revision·종료 실패를 확인한다. 역방향 accessor를 숨긴 custom catalog도
-선언된 forward M2M을 기준으로 같은 ORM AST를 사용한다. 소비자의 임시 credential adapter는 제거했으며 실제 생성
-저장소와 선택된 Exact/NFKC 인증 정책을 사용한다. 독립 domain 생성 root는 기본 계정 root와 겹치지 않는
-`account/domain`으로 옮겼고 migration의 DB 의미는 유지한다. 작성한 양 DB·외부 소비자 검사의 원격 실행은 별도 확인 대상이다.
-
-공통 저장소의 `AuthorizeIn`도 작성했다. 기존 인증 claim의 domain을 현재 저장 값과 먼저 대조하고, 같은 borrowed scope의
-현재 active/role/grant와 deny overlay를 확인한다. 실제 기본·사용자 정의 모델 소비자에 허용된 typed profile 변경을 연결하고,
-양 DB에는 회수된 grant·이전 domain·inactive actor 거부, 허용 후 rollback, 만료 scope와 overlay 오류 검사를 추가했다.
-이 인가 경계를 사용하는 typed profile owner를 아래와 같이 연결했으며 기존 Manager 전체의 교체는 남아 있다.
-
-공통 `ProfileEditor[M]`와 생성 팩토리가 명시한 scalar profile 필드의 Form/JSON 입력을 받아 현재 권한·대상 revision·
-typed unique 검증·수정·audit를 같은 native coordinated transaction에서 처리하도록 작성했다. 실제 변경만 revision과
-audit를 추가하고 no-op도 현재 domain·권한·대상 무결성을 확인한다. 서버 소유 필드·권한·관계·파일은 이 입력에서
-거부한다. 기본/사용자 정의 외부 소비자는 ModelForm과 API body binding으로 실제 typed 입력을 준비한다.
-
-서버 생성 시각의 선택 역할과 독립적인 email 저장 정규화 정책을 IR·wire·fingerprint·생성기에 연결했다. 기본 계정은
-Unicode 16 email domain 정규화를 사용하고 custom 모델은 Exact를 선택할 수 있다. Login과 email이 같은 필드는
-두 명시 정책을 순서대로 적용한다. 정책을 바꾸면서 이전 domain을 그대로 사용하는 것은 거부한다.
+공통 `ProfileEditor[M]`와 생성 팩토리는 명시한 scalar profile 필드의 Form/JSON 입력을 받아 현재 권한·target revision·
+typed unique 검증·강제 update·audit를 같은 native coordinated transaction에서 처리한다. 실제 변경만 revision과
+감사를 추가하고 no-op도 현재 권한·대상 무결성을 확인한다. Credential·서버 시각·role·관계·파일 입력은 거부한다.
+기본/사용자 정의 외부 소비자는 ModelForm과 API body binding으로 실제 typed 입력을 준비한다.
 
 독립 `godj_account_audit` 앱과 초기 migration은 기본 User 없이 domain별 감사 기록을 저장한다. 현재 actor를 사용한
-append와 정확한 domain별 bounded history, 수정/audit 실패의 원자 rollback, stale/회수/도메인 전환·대상 손상·
-validation·unknown 결과·동시 revision 검사를 양 DB 필수 목록에 추가했다. 0/음수 계정 key의 event/history도 검사한다.
-최종 최소 compile과 생성 manifest 확인은 마쳤으며 새 profile/audit 테스트 본문·DB/race의 실행은 원격 확인 대상이다.
+append와 정확한 domain별 bounded history, 수정/audit 실패의 원자 rollback, stale/회수/domain 변경·대상 손상·
+validation·unknown 결과·revision 경합 검사를 양 DB 필수 목록에 연결했다. 명시적으로 존재하는 0/음수 계정 key도 유지한다.
 
-Scalar profile 조회 서비스, 관계·파일 편집, role/catalog 관리와 기존 Directory/Manager 교체, 공통 HTTP/Admin 경로,
+최종 source의 최소 compile과 생성 manifest를 확인했고, 공개 생성에서 발견한 protocol 상한 실패를 한정 재현·수정했다.
+새 profile/audit·단위·DB·외부 소비자 본문과 race/전체 platform 실행은 원격 확인 대상이다. 상세와 이전 source의
+실패/수정 결과는 TEST_EVIDENCE에만 둔다. 작성과 compile을 I1-01~08의 제품 수용으로 계산하지 않는다.
+
+Scalar profile 조회, 관계/파일·role/catalog 관리와 기존 Directory/Manager 교체, 공통 HTTP/Admin 경로,
 첫 계정 명령·password/reset/session·host 삭제·audit 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
-Form/API 입력 소비자의 작성이나 이 scalar 변경을 I1 전체 수용 완료로 계산하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
@@ -102,5 +86,5 @@ Form/API 입력 소비자의 작성이나 이 scalar 변경을 I1 전체 수용 
 - [ ] 같은 source의 필수 원격 실행과 원본·독립 기준을 대조한다.
 - [ ] 장기 계약·Matrix·Evidence·CURRENT에 구현과 환경별 확인 및 남은 범위를 반영한다.
 
-이 작업트리의 시작·설계·compile은 custom account의 실제 동작 증거가 아니다. C1의 주 작업 완료와 전환은
-C1의 같은 source 전체 결과를 통합할 때 판단한다.
+C1의 수용 완료와 I1의 새 source 검증을 구분한다. I1은 위 요구 전체의 실제 소비자·실패 경로와 환경별 근거를
+확인한 뒤 완료를 판단한다.

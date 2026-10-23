@@ -210,6 +210,70 @@ Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
 (SHA-256 `06dbefe006c29f2536f6b6e4176fda44b6b450f24da45976fc3d0c83a0924d24`).
 이미 완료한 C1의 12개 native 독립 관측 대조와 이 공통 runtime 작업, I1의 새 source 검증을 구분한다.
 
+## GDJ-0137 — Project/Core 전체 원격 검증과 I1 전환
+
+2026-10-24, source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
+[CI 39980342796](https://github.com/progresshans/godj/actions/runs/39980342796)와 C1-01~08의 수용 근거를 대조했다.
+최종 attempt 2의 109개 작업은 모두 성공했다. 첫 실행의 성공한 107개 작업은 실행 시각·결과를 그대로 유지했고,
+시간 제한으로 취소된 macOS arm64 CGO0 runtime과 최종 집계만 같은 source에서 다시 실행했다. 109개 전체를
+두 번 실행한 것으로 집계하지 않으며 원래 시간 초과 결과도 보존한다.
+
+실제 PR checkout `c899f30121bf0a9c5a77210701ecb3550ea40310`은 제출 source를 parent로 갖고,
+tree `a591d402c25c70c3278ed1ec82930c8d0705e49a`가 source와 같다. 재실행 job `120628140986`의 실제 checkout도
+같았다. 이 job은 49개 package·필수 sentinel 2,652개에 대해 runner의 엄격한 Go event 검증에서
+run/pass 각각 9,059개·skip 0을 보고했고 clean worktree 검사도 완료했다. 이 좌표의 개별 Go event JSON은 별도
+업로드되지 않아 source에 결합한 runner 검증과 원본 job log를 근거로 삼았다. 최종 job `120642377129`는
+10개 전체 CI owner의 성공을 확인했다.
+
+Linux/macOS × amd64/arm64 × normal/race/CGO0의 12개 native 좌표에서 baseline과 reload의 봉인된 원본을 대조했다.
+Scaffold package의 실제 발견 root·필수 child와 게시 경합/실패·취소 검사를 확인하고, 전역 CLI·독립 설치·선언 runner·
+runtime의 실제 OS/CPU/CGO/race metadata를 대조했다. 각 좌표의 Notes·Article·scaffold command는 같은 실행의
+고정 Django 6.1·Python 3.14.3 관측과 개발 공통 결과 8개, 명시적인 native 차이 1개, event 공통 결과 6개에서 일치했다.
+Hosted 비교 결과와 로컬 원본 판독의 JSON 내용도 같았다. 이 원본 판독은 제품 테스트를 로컬에서 재실행한 것이 아니다.
+
+| 요구 | 확인한 실제 소비자와 경계 |
+|---|---|
+| C1-01 | 빈 프로젝트·앱 선언부터 생성/migration/인증 runtime까지의 공개 bootstrap, 앱 추가·기존 데이터 보존과 원자 게시·경합·취소/기존 경로 보존 |
+| C1-02 | settings/environment의 불변·격리·secret 진단과 SQLite/실제 PostgreSQL의 resource check, 누락/잘못된 설정·기존 catalog/row/sequence 보존 |
+| C1-03 | apps/events/server의 순서·dependency·실패 역순 정리·동시/중첩 호출·취소·해제/callback drain과 외부 HTTP/DB 종료 |
+| C1-04 | 공개 CLI의 목록/help·typed 인자·custom command·resource check, 현재 generated 모델/DB·인가·저장 후 callback/출력 실패의 확정 결과 |
+| C1-05 | 전체 module을 실제 `go install`한 두 고정 fixture version의 독립 설치, 개발 source 구분과 도구/runtime/생성 ABI 불일치의 입력/I/O 전 거부 |
+| C1-06 | Notes·인증/관계 Article의 같은 주소 reload, 실패 build/startup·늦은 후보·자손 회수·기존 요청 commit/drain·명시적 migration·no-reload/재시작 |
+| C1-07 | 명시적 logger/event 소비자의 정상·오류·취소·resource 종료, 비밀값 없는 진단과 receiver/sink 실패 뒤 확정 DB 결과 보존 |
+| C1-08 | Scaffold·고정 설치·Notes·Article의 생성/앱 추가·기존 데이터·필드/권한 변경과 독립 관측, 문서의 수동 조립 대비 소유권/책임 대조 |
+
+PostgreSQL 17.10의 normal·CGO0 core는 각각 7,241개 run/pass, race process는 22개 run/pass이며 skip은 없다.
+두 실제 C1 root `TestGlobalStartProjectPostgresResourceChecksAndAuthenticatedRestart`와
+`TestGlobalRunserverArticlePostgresDevelopmentLoop`의 DB·HTTP·restart와 실제 binary metadata를 대조했다.
+Native baseline에서 별도 PostgreSQL owner로 배정한 두 검사는 이 원본에서 실행 여부를 확인했다.
+공통 C1 package 8개의 normal/race/CGO0 실행과 도구 검사도 해당 source의 원본 로그에 연결했다.
+
+Python 3.12.13·3.13.15·3.14.3·3.14.7의 실제 407개 검사와 관측 JSON을 확인했다. 각 호환성 실행의 별도 profile
+검사 4개는 정확한 Darwin arm64 profile의 407개·skip 0 실행에서 확인했다. 두 JSON 출력 회귀와 모든 시나리오의
+semantic digest도 성공했다. 현재 PostgreSQL capture producer 두 개, 생성 bundle 일곱 개의 drift와
+26개 Go conformance suite를 source·producer·실제 checkout에 대조했다.
+
+같은 source의 Helpdesk browser 관측 236개와 Admin inline/upload/choice/collection 관측 125개는 archive/member hash,
+현재 fixture source·실제 DB/파일·후속 native 검사·정리 결과를 다시 판독해 일치함을 확인했다. Browser 이미지는
+checksum을 대조한 것이며 새로운 화면 검토를 수행했다고 표현하지 않는다. 고정 module 두 version은 test proxy
+fixture이며 출시·운영 업그레이드의 증거가 아니다. 조립 책임은 비교했으나 개발 시간/성능 수치는 측정하지 않았다.
+
+원본은 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/gdj0137-b19aeedd-ci-39980342796/`에 보존한다.
+`c1-completion-audit.json`은 요구별 실행 owner, 두 attempt의 구분과 아래 판독/원본 hash를 묶는다
+(SHA-256 `66a1ae148cf99268450181d0dba54cb2d6526814e2f5fd61bfd274b5a20d7ec8`).
+
+| 근거 | SHA-256 |
+|---|---|
+| `attempt-2-terminal-jobs.json` — 최종 109개 작업 | `6be9808e28b938d89043dc853eef956cf1ae9df9f652fe4a384b1b3da77d98cc` |
+| `attempt-2-runtime-job.log` — 같은 source의 시간 초과 좌표 재실행 | `7e812c763ef62ec4e3f3368088963e776be0d385bf86bf86eca88c837364bb17` |
+| `project-reference-comparison.json` — 12개 native 좌표의 독립 대조 | `f3210af790d0b3b5186ec75d3cccf417d9a499131b7dfb0dba7791c1fc09d094` |
+| `postgres-collection-latest.json` — starter/Article의 실제 PostgreSQL owner | `75affe3d0e6d28990b6f2b97e763fbc6492d4e4780a083b491d27dd4e1c002f6` |
+| `browser-artifact-inspection.json` — browser·DB·파일·정리 원본 대조 | `39a6952df294b44e34db94947bc107fe3a59e7c4880cf464f9e62d56deebfa77` |
+
+C1-01~08의 제품 수용을 완료하고 주 작업을 [I1](../../work/0138-custom-account-lifecycle.md)으로 전환한다.
+I1의 새 계정 역할·domain·credential/profile/audit 코드와 전체 환경 검증은 이 source에 포함되지 않는다.
+O1의 운영/향후 릴리스 정책, C2의 Web/static/media, R2의 durable event와 나머지 전체 카탈로그 요구는 그대로 남는다.
+
 ## GDJ-0137 — 독립 관측 JSON과 unittest 진행 출력의 분리
 
 2026-10-24, source `c0e8d3d34abf7a3698fe49f1c51f72aa8e7a993b`의
