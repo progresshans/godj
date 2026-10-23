@@ -179,6 +179,30 @@ func startRunserverCandidate(input RunServerInvocation, candidate *runserverCand
 	}
 }
 
+func publishRunserverCandidate(ctx context.Context, active, candidate *runserverCandidate) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Once sent, a control command can already have changed the child's
+	// admission state. Retain its acknowledgment before handling invocation
+	// cancellation. Each exchange still has runserverReadyTimeout's deadline.
+	publication := context.WithoutCancel(ctx)
+	if active != nil {
+		if err := active.process.exchange(publication, runservercontrol.Retire, runservercontrol.Retired); err != nil {
+			return err
+		}
+		active.retired = true
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := candidate.process.exchange(publication, runservercontrol.Activate, runservercontrol.Active); err != nil {
+		return err
+	}
+	candidate.report.ReloadPublished = 1
+	return nil
+}
+
 // Finish every candidate before starting another. There can be one active and
 // one prepared generation; rapid source changes coalesce while a canceled build
 // or retired runtime is being joined. Cleanup is never an unowned background job.
@@ -357,20 +381,14 @@ func runReloadingServer(input RunServerInvocation, arguments runserverArguments)
 			// This is the publication fence. The old process keeps accepting
 			// until every candidate startup/source check has succeeded. Retire
 			// acknowledges listener close, while its existing requests still run.
-			if active != nil {
-				if err := active.process.exchange(ctx, runservercontrol.Retire, runservercontrol.Retired); err != nil {
-					_ = finishRunserverCandidate(candidate, &report)
+			if err := publishRunserverCandidate(ctx, active, candidate); err != nil {
+				if finishRunserverCandidate(candidate, &report) {
+					primary = pointerRunserverFailure(runserverCleanupFailure())
+				} else {
 					primary = pointerRunserverFailure(RunServerFailure{Category: RunServerCategoryRuntime, Code: RunServerCodeRuntimeControlFailed})
-					continue
 				}
-				active.retired = true
-			}
-			if err := candidate.process.exchange(ctx, runservercontrol.Activate, runservercontrol.Active); err != nil {
-				_ = finishRunserverCandidate(candidate, &report)
-				primary = pointerRunserverFailure(RunServerFailure{Category: RunServerCategoryRuntime, Code: RunServerCodeRuntimeControlFailed})
 				continue
 			}
-			candidate.report.ReloadPublished = 1
 			old := active
 			active = candidate
 			source, observed, observeFailed = candidate.prepared.source, candidate.prepared.source.digest, false

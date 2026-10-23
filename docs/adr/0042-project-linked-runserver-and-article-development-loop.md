@@ -109,6 +109,10 @@ Journal이 사라져도 snapshot이 달라지므로 이전 후보를 승인할 �
 사용하지 않습니다. 정상 후보가 준비되면 기존 listener의 닫힘을 확인한 뒤 새 후보를 활성화합니다. 같은 주소를 유지하고
 TCP proxy를 추가하지 않으므로 request의 client identity/authority를 다시 작성하지 않습니다.
 
+이미 전송한 Retire·Activate는 각 제어 교환의 기존 30초 기한 안에서 확인 응답을 받습니다. Invocation 취소가 그 연결을
+먼저 닫아 자식의 실제 admission 상태를 잃지 않게 합니다. Retire 확인 뒤 취소가 있으면 새 앱을 활성화하지 않고,
+Activate 확인 중 취소가 들어오면 확인된 게시를 기록한 뒤 종료합니다. 후보 정리 실패는 정상 취소로 덮지 않습니다.
+
 기존 앱은 이미 받은 HTTP 요청을 처리하고 앱 context·DB를 마지막에 정리합니다. 동시에 활성 runtime 하나와 준비 후보
 하나만 소유하며 이전 후보/퇴역 앱의 종료·process group 회수·workspace 정리를 join한 다음 후속 build를 시작합니다.
 Retire를 확인한 앱은 정상 exit를 grace 동안 먼저 기다립니다. 종료 직전 signal handler가 복원된 앱에 불필요한 SIGINT를

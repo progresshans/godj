@@ -3,6 +3,30 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 게시 확인 응답과 취소의 경계
+
+2026-10-23, source `2bc0db76e539ff76e50bc24ce419464d745e1b94`의
+[CI 39944451085](https://github.com/progresshans/godj/actions/runs/39944451085)에서 Linux arm64 race의 Notes·Article 필수
+root/child 12개와 실제 CLI·runner·서버 계측을 대조했다. 앞선 Article 종료 오류는 이 좌표에서 재발하지 않았다.
+같은 source의 Linux normal/CGO0 reload 4개와 일부 baseline 원본도 확인했으며 전체 CI 성공은 아니다.
+실제 checkout `30a8a1135a57c0d80ec173eb299e1e27d42abf67`의 tree
+`a3d91f58ea87bbea0bc36e78c6c56ac19552be3d`를 위 source와 대조했다.
+
+후속 수명 검토에서 Retire·Activate를 전송한 뒤 invocation 취소가 제어 연결을 닫아 확인 응답과 전환 상태를 잃는 경로를
+실제 control pipe로 재현했다. 게시 단계만 별도 함수로 옮긴 변경 전 동작에서 두 취소 재현은 실패했고, 시작 전 취소와
+잘못된 확인 응답의 거부는 통과했다. 이미 전송한 제어 명령의 확인은 기존 30초 기한으로 마치고, Retire 확인 뒤의 취소는
+다음 activation을 막도록 변경했다. Activate 확인은 실제 게시로 기록한 뒤 감독자가 종료한다. 후보 정리 실패도 보존한다.
+
+로컬 Darwin arm64의 수정 후 `-race` 실행은 네 게시 경계와 연결된 retired/active/비협력 자식 종료 검사를 통과했다.
+원본은 root/child 12개를 포함하며 skip은 없다. 새 게시 검사는 제어 교환의 재현이고 전체 공개 HTTP 흐름의 실행 증거는 아니다.
+새 source의 필수 native·DB·독립 비교·전체 CI와 C1 수용은 남아 있다. 원본과 source hash는 저장소 밖
+`~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-2bc0db76-ci-39944451085/linux-arm64-race-and-native.json` — 이전 source의 실제 race와 부분 원본 | `8a547af72f6ad8e8a87c618ba4618b802219ce2ec6823dfc4f010b55fee50999` |
+| `gdj0137-publication-cancel-repro-v1/comparison.json` — 게시 취소 전후·부정 검사·종료 경계와 source hash | `d491b0cd64864014deeb54bbd3d51a62efcdb6fa6dd0679969754d8c7fc98009` |
+
 ## GDJ-0137 — 교체된 runtime의 종료 소유권과 독립 HTTP 관측 보완
 
 2026-10-23, source `34505c7821ce6a5cf122b29ea7acf114599ee96f`의
