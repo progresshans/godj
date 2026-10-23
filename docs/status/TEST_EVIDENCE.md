@@ -20,6 +20,19 @@ typed 함수를 생성했고, 나머지는 계정 선택 없이 현재 companion
 새 생성물의 실제 소비자·동시성·DB/HTTP·전체 환경 성공은 별개다. 이 변경의 영향 테스트·generated drift·외부 소비자와
 전체 CI는 새 source의 원격 실행 대상이다. 선행 C1의 `b19aeedd` 실행 결과를 새 I1 코드의 PASS로 사용하지 않는다.
 
+첫 source `e5ea902317e2df0268aed86e7511b857b1ebdd7a`의
+[CI 39997847929](https://github.com/progresshans/godj/actions/runs/39997847929)는 새 account companion에 맞지 않는
+CLI·Article의 기존 파일 수/목록과 Admin browser fixture의 누락된 생성물 때문에 실패했다. 실제 checkout
+`15cc29ea0e0a83f5614ed60a29ce5459417e22a2`의 tree가 제출 source와 같음을 확인하고 원본 로그를 보존했다.
+Admin fixture를 공개 생성 명령으로 갱신하고 CLI·Article·checker의 기대 목록을 수정했다. 로컬에서는 해당 네 root와
+CLI의 두 선택 child만 한정 실행해 통과했다. 새 계정 binding과 기본/별도 모델 소비자는 relation CI의 필수 실행 목록에
+추가했다. 이 수정의 전체 환경·새 계정 소비자 실행 결과는 다음 source의 원격 CI에서 확인한다.
+
+실패 원본·진단은 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/gdj0138-e5ea9023-foundation/`의
+`generation-failure-diagnosis.json`에 보존했다(SHA-256 `660767c05405a4f1a8e8ba3ba20378c2cde5e2e80a1ab3e04e692169d52837cc`).
+한정 수정 검사의 원본은 `generation-regressions-after.jsonl`이다
+(SHA-256 `896ec741f039fbb609f08bf48c863a209a764a9f1223bc288f8c5c5ba0bb0258`).
+
 I1의 공통 credential/관리 runtime, Form/Admin/API·첫 사용자 명령, durable account domain과 채운 DB의 명시적
 모델 전환, password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
 

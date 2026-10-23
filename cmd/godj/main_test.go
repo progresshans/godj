@@ -207,7 +207,7 @@ func TestActualGodjGenerateProcess(t *testing.T) {
 		result := fixture.run(t, fixture.nested, map[string]string{
 			"GOPROXY": "off", "GODJ_E2E_INIT_MARKER": initMarker, "GODJ_E2E_TESTMAIN_MARKER": testMainMarker,
 		}, "generate")
-		if result.exit != 0 || result.stderr != "" || !strings.Contains(result.stdout, `"status":"generated"`) || !strings.Contains(result.stdout, `"file_count":16`) {
+		if result.exit != 0 || result.stderr != "" || !strings.Contains(result.stdout, `"status":"generated"`) || !strings.Contains(result.stdout, `"file_count":17`) {
 			t.Fatalf("generate=%+v", result)
 		}
 		for _, marker := range []string{initMarker, testMainMarker} {
@@ -222,7 +222,7 @@ func TestActualGodjGenerateProcess(t *testing.T) {
 
 	t.Run("explicit clean check", func(t *testing.T) {
 		result := fixture.run(t, fixture.universe, map[string]string{"GOPROXY": "off"}, "generate", "--check", "--project", filepath.Join(fixture.project, "godj.toml"))
-		if result.exit != 0 || result.stderr != "" || !strings.Contains(result.stdout, `"status":"clean"`) || !strings.Contains(result.stdout, `"file_count":16`) {
+		if result.exit != 0 || result.stderr != "" || !strings.Contains(result.stdout, `"status":"clean"`) || !strings.Contains(result.stdout, `"file_count":17`) {
 			t.Fatalf("clean check=%+v", result)
 		}
 	})
