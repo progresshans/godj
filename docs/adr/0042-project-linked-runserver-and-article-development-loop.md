@@ -113,6 +113,8 @@ TCP proxy를 추가하지 않으므로 request의 client identity/authority를 �
 하나만 소유하며 이전 후보/퇴역 앱의 종료·process group 회수·workspace 정리를 join한 다음 후속 build를 시작합니다.
 Retire를 확인한 앱은 정상 exit를 grace 동안 먼저 기다립니다. 종료 직전 signal handler가 복원된 앱에 불필요한 SIGINT를
 다시 보내지 않으며, grace를 넘기면 기존 취소·group 회수 경계를 적용합니다.
+준비·제어 교환의 context와 장기 runtime의 종료 수명은 분리합니다. 전역 interrupt나 부모 context 취소는 준비를 중단하고,
+감독자가 각 runtime을 직접 join합니다. 이미 Retire한 앱의 정상 종료 대기를 우회해 같은 취소를 다시 전달하지 않습니다.
 소스가 다시 바뀌면 준비 중 후보를 취소하고 최신 변경을 모읍니다. Build/startup/source 검사 실패는 기존 정상 앱을 유지하고
 닫힌 rejection code를 출력합니다. 최초 시작 실패와 게시 이후의 process/stream/cleanup 실패는 명시적 전체 실패입니다.
 

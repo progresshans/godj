@@ -72,7 +72,7 @@ func RunStartApp(input StartAppInvocation) StartAppReport {
 	if !filepath.IsAbs(destination) {
 		destination = filepath.Join(cwd, destination)
 	}
-	ctx, join := scaffoldCommandContext(input.Context, input.Interrupt)
+	ctx, join := commandInterruptContext(input.Context, input.Interrupt)
 	defer join()
 	publication, err := projectscaffold.PublishApp(ctx, destination, projectscaffold.App{Label: input.Args[1]})
 	report.Publication = publication

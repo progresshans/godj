@@ -80,17 +80,25 @@ func newManagedRunserver(ctx context.Context, input RunServerInvocation, prepare
 		_ = listenerFile.Close()
 		return nil, errors.Join(err, closeErr)
 	}
-	lifetime, cancel := context.WithCancel(ctx)
-	process := &managedRunserver{control: control, cancel: cancel, grace: input.runtime.grace, done: make(chan struct{})}
 	command := Command{Dir: prepared.command.selected.rootPath,
 		Argv: []string{prepared.binary, "serve", "--listen", listener.Addr().String(), runservercontrol.Argument},
 		Env:  gobuild.RuntimeEnvironment(input.Environment)}
+	input.Context = ctx
+	return startManagedRunserverProcess(input, command, control, []*os.File{listenerFile, childFile}), nil
+}
+
+func startManagedRunserverProcess(input RunServerInvocation, command Command, control net.Conn, extraFiles []*os.File) *managedRunserver {
+	// The reload owner interrupts preparation and then explicitly joins every
+	// process. Parent cancellation must not signal an already retired child
+	// after it restored its default signal handler but before it exits.
+	lifetime, cancel := context.WithCancel(context.WithoutCancel(input.Context))
+	process := &managedRunserver{control: control, cancel: cancel, grace: input.runtime.grace, done: make(chan struct{})}
 	go func() {
-		process.result = executeStreamingProcessWithFiles(lifetime, input.Interrupt, command, nil, input.Stdout, input.Stderr, input.runtime.grace, []*os.File{listenerFile, childFile})
+		process.result = executeStreamingProcessWithFiles(lifetime, nil, command, nil, input.Stdout, input.Stderr, input.runtime.grace, extraFiles)
 		_ = control.Close()
 		close(process.done)
 	}()
-	return process, nil
+	return process
 }
 
 func (process *managedRunserver) exchange(ctx context.Context, send, expect string) error {
@@ -207,8 +215,8 @@ func runReloadingServer(input RunServerInvocation, arguments runserverArguments)
 	var outputMu sync.Mutex
 	input.Stdout = synchronizedRunserverWriter{mu: &outputMu, writer: input.Stdout}
 	input.Stderr = synchronizedRunserverWriter{mu: &outputMu, writer: input.Stderr}
-	ctx, cancel := context.WithCancel(input.Context)
-	defer cancel()
+	ctx, join := commandInterruptContext(input.Context, input.Interrupt)
+	defer join()
 	input.Context = ctx
 	// Retain the listener across all generations. A child receives a duplicate
 	// descriptor, so no TCP proxy changes request authority or client identity.

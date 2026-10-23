@@ -11,6 +11,23 @@ import (
 	"github.com/progresshans/godj/project/compatibility"
 )
 
+// commandInterruptContext bridges the operator interrupt to preparation and
+// publication. Its join always stops the watcher. A long-lived runtime may own
+// a separate lifetime so cancellation cannot bypass its retirement/cleanup.
+func commandInterruptContext(ctx context.Context, interrupt <-chan struct{}) (context.Context, func()) {
+	ctx, cancel := context.WithCancel(ctx)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		select {
+		case <-interrupt:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
+	return ctx, func() { cancel(); <-done }
+}
+
 // commandPolicy separates command vocabulary and terminal precedence from the
 // shared resource/process lifetime. In particular, no barrier runs implicitly
 // after response parsing or publication.

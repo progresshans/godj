@@ -14,22 +14,6 @@ func scaffoldPath(value string) bool {
 	return value != "" && len(value) <= 4096 && !strings.HasPrefix(value, "-") && !strings.ContainsAny(value, "\x00\r\n")
 }
 
-// scaffoldCommandContext bridges the process interrupt to the filesystem
-// publication context and returns a join, not an abandoned signal goroutine.
-func scaffoldCommandContext(ctx context.Context, interrupt <-chan struct{}) (context.Context, func()) {
-	ctx, cancel := context.WithCancel(ctx)
-	done := make(chan struct{})
-	go func() {
-		defer close(done)
-		select {
-		case <-interrupt:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-	return ctx, func() { cancel(); <-done }
-}
-
 func scaffoldFailure(ctx context.Context, interrupt <-chan struct{}, publication projectscaffold.Result, err error) (string, int) {
 	code, exit := "publication_failed", 1
 	var stage *projectscaffold.Error

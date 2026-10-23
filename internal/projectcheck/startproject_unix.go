@@ -130,7 +130,7 @@ func RunStartProject(input StartProjectInvocation) StartProjectReport {
 		}
 		arguments.project.FrameworkSource = physical
 	}
-	ctx, join := scaffoldCommandContext(input.Context, input.Interrupt)
+	ctx, join := commandInterruptContext(input.Context, input.Interrupt)
 	defer join()
 	publication, err := projectscaffold.PublishProject(ctx, arguments.destination, arguments.project, func(ctx context.Context, candidate string) error {
 		return prepareScaffoldProject(ctx, candidate, input, &report)
