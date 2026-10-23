@@ -64,6 +64,11 @@ Helpdesk Category는 기존처럼 읽기 전용이다. Ticket의 numeric no-op, 
 명시적 candidate 준비 정책이다. bulk는 전 후보 검증과 native batch·일관된 scope·동일 transaction을 계속 소유한다.
 파일 upload를 일반 scalar 입력으로 바꾸거나 관계·inline·audit 실패를 부분 성공으로 처리하지 않는다.
 
+선택 계정의 `CatalogResource[M]`도 실제 생성 타입의 `Manager`·`ModelInput`·`ModelView`를 같은 Form/JSON 경계에
+연결한다. 이름을 바꾼 custom Group/Permission의 추가 scalar 필드는 별도 DTO에 복사하지 않는다. 순수 metadata와
+선택 view를 전달해도 현재 인가·relation source·expected revision·audit는 catalog owner의 native scope에서 재검사한다.
+이 typed 소비자의 작성·compile과 공통 Admin/HTTP 제품 조립 및 실제 환경의 실행 완료는 구분한다.
+
 ## 검증 경계
 
 설계 채택과 제품 실행 PASS는 구분한다. 현재 로컬에서는 포맷·최소 compile만 확인하며 새 동작의 실행 검증은

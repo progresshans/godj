@@ -28,9 +28,13 @@ func TestSQLiteAccountCredentialStore(t *testing.T) {
 			t.Fatal(err)
 		}
 		return first, open
-	}, func(t *testing.T, store accountstoretest.Backend, from, to int64) {
+	}, func(t *testing.T, store accountstoretest.Backend, model string, from, to int64) {
 		t.Helper()
-		result, err := store.(*Backend).database.ExecContext(t.Context(), "UPDATE godj_identity_user SET id=? WHERE id=?", to, from)
+		table, known := map[string]string{"user": "godj_identity_user", "group": "godj_identity_group", "permission": "godj_identity_permission"}[model]
+		if !known {
+			t.Fatal("unknown stored key fixture model")
+		}
+		result, err := store.(*Backend).database.ExecContext(t.Context(), "UPDATE "+table+" SET id=? WHERE id=?", to, from)
 		if err != nil {
 			t.Fatal("prepare stored account key fixture", err)
 		}

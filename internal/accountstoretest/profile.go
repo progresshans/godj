@@ -275,6 +275,7 @@ type profileFaultBackend struct {
 	cancel      context.CancelFunc
 	calls       int
 	nativeError error
+	decorate    func(db.Session) db.Session
 }
 
 func (backend *profileFaultBackend) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
@@ -297,6 +298,9 @@ func (backend *profileFaultBackend) CoordinatedAtomic(ctx context.Context, callb
 		}
 		if backend.mode == "root_session" {
 			return callback(backend.Backend)
+		}
+		if backend.decorate != nil {
+			session = backend.decorate(session)
 		}
 		if backend.mode == "audit_failure" || backend.mode == "write_failure" {
 			session = &profileFaultSession{Session: session, mode: backend.mode, fault: backend.fault}

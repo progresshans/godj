@@ -64,7 +64,7 @@ func TestModelViewOutputRequiresExactSourceAndLoadedSelection(t *testing.T) {
 
 func TestModelViewOutputRequiresLoadedCollectionAndPreservesStoredKeys(t *testing.T) {
 	metadata, _ := models.UserObjects.Metadata()
-	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "groups", ReadOnly: true, AllowEmpty: true})
+	spec, err := serializers.FromModel(metadata, serializers.ModelField{Name: "id"}, serializers.ModelField{Name: "groups", ReadOnly: true})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -494,4 +494,4 @@ func eventMetadata() ir.Model {
 
 type GoDjAppPart0_b7f116c310b31d04c3ef4468d2afc774b06a6ed401dc5595fea37cd8713ecae6 struct{}
 
-type GoDjProjectSnapshot_4fa70fa4c2908f47da21f70e8d700cce495846859f7c4e22fb9c86a14dd84448 struct{}
+type GoDjProjectSnapshot_4314884d9777f9d6dbb54b3a2ebd8611ef27ac512af8a43deff8e7f46852f5a5 struct{}

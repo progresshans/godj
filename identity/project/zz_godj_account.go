@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v4"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v5"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -68,4 +68,29 @@ func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _god
 	return _godjaccountmodel.NewProfileReader(store, overlay, config)
 }
 
-var _ goDjProjectSnapshot_860f174067d8413f79d2b9e299b3b5d123bbefc2eefc1ce26e100fe65ff7fbd5
+// NewAccountCatalog composes current account authority with the selected catalog and complete host relation policies.
+func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.CatalogConfig[identity.Group, identity.Permission]) (*_godjaccountmodel.Catalog[identity.Group, identity.Permission], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	store, err := _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
+}
+
+var _ goDjProjectSnapshot_262a9ef629f392b59534929e3a6452793b585a099eea0dddb06db8e6e3418170

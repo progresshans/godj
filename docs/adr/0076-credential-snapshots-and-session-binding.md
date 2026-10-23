@@ -927,6 +927,39 @@ not-found도 snapshot 종료가 성공해야 반환한다. 종료 실패·취소
 count·이력을 모두 버리고 비공개 원인을 보존한 persistence 오류를 반환한다. 새 읽기에서 취소를 확정 write의
 성공으로 해석하거나 unknown commit으로 보고하지 않는다.
 
+## 선택 계정의 typed Group·Permission 관리
+
+생성 `NewAccountCatalog`와 `identity/model.Catalog[G, P]`는 선택 계정의 현재 권한을 실제 Group·Permission 타입의
+CRUD에 연결한다. `Groups()`와 `Permissions()`의 `CatalogResource[M]`는 각각 명시적 읽기·쓰기 필드, view/add/change/delete와
+추가 권한을 소유한다. 조회는 확정된 view 거부에서만 change를 검사하고 추가 권한은 두 경로 모두 필요하다.
+Metadata용 `Manager()`는 Form/API 선언에 쓰는 순수 typed source이며 backend나 관리 권한을 포함하지 않는다.
+
+기본 name/code 역할은 쓰기 목록에 필요하고 추가 scalar 필드는 실제 생성 타입과 IR default·unique 검증을 사용한다.
+Key·revision·NonEditable·파일·FK와 선택한 그룹 권한 이외의 M2M은 쓰기에서 제외한다. 읽기 필드는 자동으로 늘어나지 않는다.
+`ModelInput[M]`의 전체 모델 source·target 존재와 허용 필드를 I/O 전에 검사하고, Form/JSON의 생략·NULL·명시적 빈 집합을
+보존한다. Group permission의 raw 개수는 중복 제거 전 256개로 제한한다. Custom validator에는 같은 borrowed scope의
+분리된 실제 모델을 전달하며 생성 때 current는 nil이다. 쓰기·scope 보관·중첩 transaction·외부 부작용을 허용하는 callback이 아니다.
+
+현재 actor/domain, 최신 대상과 expected revision, scalar·관계·unique·custom validation, 저장과 값 없는 audit는 같은
+native coordinated transaction에서 처리한다. 생성 revision은 1이고 수정은 실제 변경 때만 증가한다. No-op도 현재 인가와
+대상 무결성을 확인한다. 결과는 확정된 ID·revision·변경 필드 또는 삭제 건수뿐이다. Profile과 같은 공통 결과 경계에서
+cleanup/unknown 원인을 보존하며 실패 결과 게시와 자동 재시도를 막는다.
+
+권한 확장은 선택 계정의 모든 해당 회원을 256개 keyset batch로 읽어 현재 상태와 제안된 유효 권한 합집합을 확인한다.
+첫 page는 ID 하한을 두지 않아 명시적으로 저장된 0/음수 회원을 포함한다. 직접 grant·다른 그룹·새 grant를 합친 256개 한도는
+서로 다른 그룹의 동시 변경에도 같은 fence로 보호한다. Group 삭제는 직접 회원, Permission 삭제는 직접 할당 계정과 소유
+Group의 revision을 증가시킨다. 간접 회원의 revision이나 credential/hash/session stamp를 변경하는 작업으로 확대하지 않는다.
+
+상세 조회는 출력에서 collection을 제외했더라도 저장된 전체 그룹 grant의 무결성을 검사한다. 명시한 collection만 선택
+`ModelView`에 넣으며 로드한 빈 집합과 미로드를 구분한다. 목록은 같은 snapshot의 count와 최대 100개 scalar page이고
+행마다 grant를 읽지 않는다. 이력은 현재 domain의 존재하는 대상에 한정한다. 읽기 종료 실패에는 선택 값·page·이력이 없다.
+
+전체 host source의 collection과 삭제 기능을 생성 단계와 runtime 시작 시 함께 확인한다. 일반 host CASCADE/PROTECT/SET_NULL과
+직접 owner revision·audit는 한 transaction에 속한다. 현재 추가적인 계정/Group/Permission 행을 CASCADE로 지우거나 SET_NULL로
+수정하는 host graph는 시작 시 `unsupported` 원인을 보존하여 거부한다. 이 경우 필요한 추가 owner revision·계정 session과 삭제
+수명 조정은 I1-06의 미완료 구현이다. 단순한 identity-only 삭제로 대체하거나 이 제한을 전체 host 삭제 완료로 계산하지 않는다.
+공통 Admin/HTTP 조립·역할 편집과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
+
 ## 도메인에 묶인 계정 감사 기록
 
 독립 `godj_account_audit` 앱은 domain·actor ID·model·object ID·action·변경 필드 이름·서버 시각을 저장한다.

@@ -260,12 +260,6 @@ func (reader *ProfileReader[M]) project(namespace auth.CredentialDomain, row M, 
 	return Profile[M]{state: &profileData[M]{view: view, id: id, revision: revision}}, nil
 }
 
-type profileReadResult[T any] struct {
-	value   T
-	allowed bool
-	present bool
-}
-
 func profileSnapshot[M, T any](ctx context.Context, reader *ProfileReader[M], actor auth.Principal, read func(context.Context, db.Queryer, auth.CredentialDomain) (T, bool, error)) (T, error) {
 	var zero T
 	if reader == nil || reader.state == nil {
@@ -281,26 +275,11 @@ func profileSnapshot[M, T any](ctx context.Context, reader *ProfileReader[M], ac
 		return zero, managementError(CodePermission, nil)
 	}
 	state := reader.state
-	result, err := db.ReadSnapshotResult(ctx, state.store.state.backend, func(work context.Context, scope db.Queryer) (profileReadResult[T], error) {
+	return managementSnapshot(ctx, state.store.state.backend, func(work context.Context, scope db.Queryer) (auth.Principal, bool, error) {
 		current, allowed, err := state.store.AuthorizeIn(work, scope, actor, state.overlay, state.view[0], state.view[1:]...)
 		if err == nil && !allowed && len(state.change) != 0 {
 			current, allowed, err = state.store.AuthorizeIn(work, scope, actor, state.overlay, state.change[0], state.change[1:]...)
 		}
-		if err != nil || !allowed {
-			return profileReadResult[T]{}, err
-		}
-		namespace, _ := current.CredentialDomain()
-		value, present, err := read(work, scope, namespace)
-		return profileReadResult[T]{value: value, allowed: true, present: present}, err
-	})
-	if err != nil {
-		return zero, managementError(CodePersistence, err)
-	}
-	if !result.allowed {
-		return zero, managementError(CodePermission, nil)
-	}
-	if !result.present {
-		return zero, managementError(CodeNotFound, nil)
-	}
-	return result.value, nil
+		return current, allowed, err
+	}, read)
 }

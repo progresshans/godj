@@ -40,7 +40,7 @@ type Open func(*testing.T) (Backend, func(*testing.T) Backend)
 // StoredKeyFixture changes a newly created, unreferenced fixture row's key.
 // It establishes existing database state; it does not claim that a backend
 // implements explicit generated-key insertion or sequence reconciliation.
-type StoredKeyFixture func(*testing.T, Backend, int64, int64)
+type StoredKeyFixture func(*testing.T, Backend, string, int64, int64)
 
 func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 	if storedKey == nil {
@@ -74,6 +74,21 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"profile_read_failures", profileReadFailures},
 		{"profile_read_coherent_page", profileReadCoherentPage},
 		{"profile_read_target_integrity", profileReadTargetIntegrity},
+		{"catalog_crud", catalogCRUD},
+		{"catalog_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+			catalogNonpositiveKeys(t, backend, storedKey)
+		}},
+		{"catalog_affected_batches", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+			catalogAffectedBatches(t, backend, reopen, storedKey)
+		}},
+		{"catalog_authority_and_domain", catalogAuthorityAndDomain},
+		{"catalog_operation_policies", catalogOperationPolicies},
+		{"catalog_target_integrity", catalogTargetIntegrity},
+		{"catalog_read_failures", catalogReadFailures},
+		{"catalog_concurrent_writes", catalogConcurrentWrites},
+		{"catalog_host_graph", catalogHostGraph},
+		{"catalog_commit_failures", catalogCommitFailures},
+		{"catalog_relation_rollback", catalogRelationRollback},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
@@ -106,11 +121,12 @@ type fixture struct {
 	ownership domain.Receipt
 }
 
-func provision(t *testing.T, backend Backend, normalization ir.AccountNormalization) *fixture {
+func provision(t *testing.T, backend Backend, normalization ir.AccountNormalization, additional ...ir.Schema) *fixture {
 	t.Helper()
 	role := modeldef.AccountRole()
 	role.AuthenticateNormalization = normalization
-	binding, err := accountmodel.Bind(role, models.UserDescriptor{}, models.GoDjRelationSchema())
+	schemas := append([]ir.Schema{models.GoDjRelationSchema()}, additional...)
+	binding, err := accountmodel.Bind(role, models.UserDescriptor{}, schemas...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -607,7 +623,7 @@ func nonpositiveKeys(t *testing.T, backend Backend, storedKey StoredKeyFixture) 
 		if err != nil {
 			t.Fatal(err)
 		}
-		storedKey(t, backend, user.ID, key)
+		storedKey(t, backend, "user", user.ID, key)
 		(models.UserDescriptor{}).SetPrimaryKey(&user, key)
 		if _, err := models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(key, f.grants[0].ID)); err != nil {
 			t.Fatal(err)

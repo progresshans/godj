@@ -12,9 +12,11 @@ func CustomAccount() (ir.AccountRole, []ir.Schema, error) {
 	catalog, err := schema.Build(schema.Definition{AppLabel: "access", Models: []schema.Model{
 		{Name: "grant", GoName: "Grant", Fields: []schema.Field{
 			schema.CharField("key", "Key", 128, schema.Unique()), schema.CharField("title", "Title", 255), schema.IntegerField("version", "Version", schema.Default(int64(1))),
+			schema.TextField("description", "Description", schema.Blank(), schema.Default("")),
 		}},
 		{Name: "team", GoName: "Team", Fields: []schema.Field{
 			schema.CharField("title", "Title", 150, schema.Unique()), schema.IntegerField("version", "Version", schema.Default(int64(1))),
+			schema.IntegerField("priority", "Priority", schema.Default(int64(1))),
 		}, ManyToMany: []schema.ManyToManyField{
 			schema.ManyToMany("grants", "Grants", schema.Target("access", "grant"), schema.NoReverse()),
 		}},

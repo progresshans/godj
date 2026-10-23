@@ -2,6 +2,6 @@
 
 package project
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v4"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v5"
 
-var _ goDjProjectSnapshot_a91594c7df1ae22d564dab0b8d8ee0d2545f217f57aedfc197346fbd8963d829
+var _ goDjProjectSnapshot_409874dd9d88458b4780f250b539579aaede261fad141f246068aa4b818e651d

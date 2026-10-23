@@ -7,7 +7,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -161,10 +160,7 @@ func (editor *ProfileEditor[M]) Update(ctx context.Context, actor auth.Principal
 		return ProfileChange{}, err
 	}
 	state := editor.state
-	var mu sync.Mutex
-	var callbackFailure error
-	result, err := db.CoordinatedAtomicResult(ctx, state.backend, func(work context.Context, session db.Session) (value ProfileChange, failure error) {
-		defer func() { mu.Lock(); callbackFailure = failure; mu.Unlock() }()
+	return managementWrite(ctx, state.backend, func(work context.Context, session db.Session) (ProfileChange, error) {
 		currentActor, allowed, err := state.store.AuthorizeIn(work, session, actor, state.overlay, state.required[0], state.required[1:]...)
 		if err != nil {
 			return ProfileChange{}, err
@@ -205,26 +201,6 @@ func (editor *ProfileEditor[M]) Update(ctx context.Context, actor auth.Principal
 		}
 		return ProfileChange{ID: id, Revision: revision, ChangedFields: changed}, nil
 	})
-	mu.Lock()
-	callback := callbackFailure
-	mu.Unlock()
-	if err == nil {
-		return result, nil
-	}
-	for _, code := range []string{query.CodeCommitOutcomeUnknown, query.CodeTransactionOutcomeUnknown} {
-		if errors.Is(err, &query.Error{Code: code}) {
-			return ProfileChange{}, managementError(CodeOutcomeUnknown, err)
-		}
-	}
-	if err == callback {
-		if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
-			return ProfileChange{}, validation.Reject(diagnostics, nil)
-		}
-		if classified, ok := err.(*Error); ok {
-			return ProfileChange{}, classified
-		}
-	}
-	return ProfileChange{}, managementError(CodePersistence, err)
 }
 
 func (editor *ProfileEditor[M]) beforeUpdate(ctx context.Context, session db.Session, namespace auth.CredentialDomain, revision int64, current, candidate *M) error {

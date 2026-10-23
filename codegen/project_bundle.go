@@ -121,7 +121,7 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 			return generateProjectBridge(input.project.PackageName, bridgePackages)
 		}},
 		{filename: "zz_godj_account.go", render: func() ([]byte, error) {
-			return generateProjectAccount(input)
+			return generateProjectAccount(input, plan)
 		}},
 		{filename: "zz_godj_relation_query.go", render: func() ([]byte, error) {
 			return generateProjectRelationQuery(input.project.PackageName, plan)

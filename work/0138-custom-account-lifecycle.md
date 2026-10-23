@@ -81,9 +81,18 @@ stale/예약 필드 거부·기존 세션의 권한 회수/복구를 실행하�
 
 Catalog 조립의 기반으로 선택 ModelView의 M2M·Form/API 표현과 전체 host source에 대한 collection/삭제 기능 검사를
 추가했다. ModelInput/ModelView 진단 형식의 선택 값 노출과 소속 그룹 256개 한도 누락을 재현해 보완했고, actor와 target의 현재 상태를
-확인하는 양 DB 필수 검사에 연결했다. 이 기반은 catalog CRUD·역할 변경의 구현 완료를 의미하지 않는다.
+확인하는 양 DB 필수 검사에 연결했다. 이 기반만으로 catalog CRUD·역할 변경의 구현 완료를 의미하지 않는다.
 
-관계/파일·role/catalog 관리와 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
+이어서 공통 `Catalog[G, P]`와 생성 `NewAccountCatalog`를 작성했다. 실제 typed Group/Permission의 현재 인가·조회·
+목록·생성·수정·삭제·현재 domain 이력과 명시적 노출 정책을 연결한다. 추가 scalar 필드는 같은 ModelForm/JSON·IR
+준비를 사용하고, 권한 확장은 모든 해당 회원의 유효 합집합을 검사한다. 직접 owner revision·전체 host 관계 삭제·
+audit의 원자성, 0/음수 key·뒤 batch 실패·동시 확장·권한 회수와 unknown 결과 검사를 양 DB 필수 목록에 추가했다.
+별도 모델·NoReverse·추가 정수/텍스트 필드를 가진 외부 생성 소비자도 같은 팩토리를 사용하도록 확장했다.
+작성·생성·compile과 이 새 본문의 환경별 실행은 구분하며 결과는 TEST_EVIDENCE에 둔다.
+
+추가 계정/catalog 행을 CASCADE/SET_NULL로 바꾸는 host graph는 아직 필요한 revision·session 수명 조정이 없어
+시작 시 명시적으로 거부한다. 이 조정은 I1-06에서 완성해야 하며 일반 host 참조의 삭제 지원으로 대체하지 않는다.
+관계/파일·계정 역할 편집과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·password/reset/session·host 삭제·audit 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

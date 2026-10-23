@@ -271,9 +271,49 @@ Child 원본·source 연결 대조는 같은 디렉터리의 `verification.json`
 (SHA-256 `2d9203f29c3663b637ed0b1ff0b98980d7dbb562c59065e5287eb070b8fe9d1c`).
 이는 로컬 macOS arm64/Go 1.26.5의 한정 실패 수정 확인이며 새 source 전체 원격 성공이나 PostgreSQL HTTP 수용이 아니다.
 
-I1의 새 조회·단위·HTTP·전체 DB/race/platform 원격 검증은 아직 완료하지 않았다. 관계/파일·role/catalog 관리,
-기존 Directory/Manager 교체와 공통 HTTP/Admin 제품 조립·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/
-receipt, password/reset/session·삭제·restart의 양 DB/HTTP 실행은 남아 있다.
+Source `d393e884d687a8f9a4ae4f2679b5eff30d9f8979`의
+[CI 40031625534](https://github.com/progresshans/godj/actions/runs/40031625534) portable core 세 좌표에서 새 projection
+테스트의 두 기대가 실패했다. Collection에 string 전용 `AllowEmpty` 옵션을 주었고, ModelMultipleChoice 결과를
+선택지 순서가 아닌 제출 순서로 기대했다. 실제 checkout `c048d87105b6c4cbbbbe527f72caca385c6cdc28`의 tree는 제출
+source와 같았다. 원본 세 로그·checkout 대조는 `gdj0138-d393e884-ci-40031625534/source-binding.json`에 있다
+(SHA-256 `5fff3b93e23b03485dacb73dbf81f6118da718eaac857459b3141494776efac8`).
+
+두 실패를 로컬에서 같은 이름으로 재현한 뒤 collection의 잘못된 옵션을 제거하고 Form 검사를 실제 회원 교체와
+선택지 순서 확인으로 고쳤다. 제품 Form/output adapter는 바꾸지 않았다. 동일한 두 root·네 leaf의 한정 재실행은
+6 pass, fail/skip 0이며 `gdj0138-catalog-projection-ci-repair-v1/after-receipt.json`이 네 source의 전후 동일성을 기록한다
+(SHA-256 `79d95c871718fa9bb0f6cb4d2db25fd3f740d4ec5888987da285d41d6ea55f7f`). 이 결과에 새 Catalog 본문은 포함하지 않는다.
+
+공통 `Catalog[G, P]`와 생성 `NewAccountCatalog`를 작성했다. 현재 계정/domain·독립 operation 권한, 명시적 읽기/쓰기
+필드, typed scalar/M2M 입력, 현재 대상·revision·unique/custom validation, 전체 source의 삭제 기능과 audit를 연결했다.
+그룹 권한 확장은 모든 해당 계정을 256개씩 읽어 제안된 유효 합집합을 검사하고 직접 collection owner의 revision을
+삭제와 함께 갱신한다. Profile과 Catalog는 같은 snapshot 종료·write outcome 경계를 사용한다.
+
+SQLite/PostgreSQL의 필수 목록에 각각 145개 새 Catalog parent/child 실행을 선언했다. 실제 CRUD·권한별 독립 거부·
+회수/inactive/domain 교체·선택 값과 이력의 오류 시 폐기·저장 손상/권한 초과·0/음수 key·257번째 회원의 실패와
+rollback·같은 revision 및 서로 다른 그룹의 동시 권한 확장·host PROTECT/SET_NULL/CASCADE·audit/관계 저장 실패·
+unknown/취소 결과를 검사하도록 작성했다. Unknown은 native commit/rollback 뒤 acknowledgement 오류를 주입하며
+실제 네트워크 단절 실험으로 표현하지 않는다. 필수 목록의 선언·compile을 해당 본문의 실행 성공으로 세지 않는다.
+
+독립 기본/커스텀 생성 소비자는 Form create·선택 view의 Form edit·partial JSON/명시적 grant clear·출력·stale/no-op·
+현재 이력·삭제에 같은 팩토리를 사용한다. 커스텀 catalog는 NoReverse와 추가 정수/텍스트 필드 및 실제 typed validator를
+포함한다. Account generator ABI를 v5로 바꾸고 공개 명령으로 10개 프로젝트·142개 manifest 소유 파일을 갱신했다.
+생성 receipt는 `gdj0138-catalog-generate-v1/receipt.json`이다
+(SHA-256 `47caac23051c42d494380facbc6fefda3e653b53e657a07b3778e1f46e8ab735`). 기존 migration 정의는 변경하지 않았다.
+
+로컬 최소 compile에서 새 테스트의 M2M `SourceID` 필드명과 `InstanceForm.BoundForm()` 전달 오류를 수정했다.
+제품·생성기·Form/output 다섯 package의 첫 compile, 수정한 native DB 두 package와 consumer parent의 compile 및
+새로 생성한 기본/커스텀 외부 module의 `go test -run '^$'`가 통과했다. 실패 뒤 바뀐 테스트 두 파일만을 구분하고
+최종 185개 source·10개 manifest·앞선 projection 재현의 source를 대조한 기록은
+`gdj0138-catalog-publication-v1/verification.json`에 있다
+(SHA-256 `b774cad4943ba2d0a8871564926839eb369eb2c90f36ae6b71d2732b2878f372`). 최종 외부 compile receipt는
+`gdj0138-catalog-compile-v3/receipt.json`이다
+(SHA-256 `9f42e1c5320fb1b323a867aa3a447f414ef9bcdc961cb82e48ac5e3ed85bbd36`).
+
+새 Catalog 단위·native DB·생성 소비자의 실행 본문, PostgreSQL HTTP와 전체 race/platform 수용은 새 source의 원격
+확인 대상이다. 추가 계정/catalog 행을 CASCADE/SET_NULL로 바꾸는 host graph는 필요한 수명 조정이 아직 없어
+시작 시 명시적으로 거부하며 I1-06에서 완성해야 한다. 관계/파일·계정 역할 편집, 기존 Directory/Manager 교체와
+공통 HTTP/Admin 제품 조립·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/receipt,
+password/reset/session·삭제·restart의 양 DB/HTTP 실행은 남아 있다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

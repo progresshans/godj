@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -10,9 +11,11 @@ import (
 	"example.com/godj-project-bundle/project"
 	"example.com/godj-project-bundle/tickets"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/validation"
 )
 
 func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
@@ -152,6 +155,27 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil || !present || edited.Region != "JP JSON" || edited.Version != 6 || edited.Subject != row.Subject || edited.Secret != row.Secret || edited.Contact != "member@EXAMPLE.TEST" || !edited.Enabled || edited.Root {
 		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
+	catalogConfig := catalogConsumerConfig[access.Team, access.Grant](role, "priority", "description")
+	catalogConfig.Group.Validate = func(_ context.Context, _ db.Queryer, current *access.Team, candidate access.Team) (validation.Errors, error) {
+		if candidate.Priority < 1 {
+			return validation.NewErrors(validation.New("priority", "positive")), nil
+		}
+		if current != nil && current.ID != candidate.ID {
+			return validation.Errors{}, errors.New("typed custom catalog changed identity")
+		}
+		return validation.Errors{}, nil
+	}
+	catalogConfig.Permission.Validate = func(_ context.Context, _ db.Queryer, _ *access.Grant, candidate access.Grant) (validation.Errors, error) {
+		if candidate.Description == "" {
+			return validation.NewErrors(validation.New("description", "required")), nil
+		}
+		return validation.Errors{}, nil
+	}
+	catalog, err := project.NewAccountCatalog(backend, auth.PrincipalAuthorizer{}, catalogConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertCatalogConsumer(t, catalog, actor.Principal(), role, "priority", "description")
 	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("custom account constants and renamed role fields were not respected")

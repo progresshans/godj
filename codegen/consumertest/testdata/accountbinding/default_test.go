@@ -114,6 +114,11 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if err != nil || !present || edited.FirstName != "Updated Alice JSON" || edited.Revision != 5 || edited.PrincipalID != row.PrincipalID || edited.EncodedPassword != row.EncodedPassword || !edited.DateJoined.Equal(row.DateJoined) {
 		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
+	catalog, err := project.NewAccountCatalog(backend, auth.PrincipalAuthorizer{}, catalogConsumerConfig[models.Group, models.Permission](role, "", ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertCatalogConsumer(t, catalog, actor.Principal(), role, "", "")
 	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("default account unexpectedly changed its stored roles")

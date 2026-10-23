@@ -16,10 +16,14 @@ func TestPostgresAccountCredentialStore(t *testing.T) {
 			return backend
 		}
 		return open(t), open
-	}, func(t *testing.T, store accountstoretest.Backend, from, to int64) {
+	}, func(t *testing.T, store accountstoretest.Backend, model string, from, to int64) {
 		t.Helper()
 		backend := store.(*Backend)
-		table, err := quoteTable(backend.schema, "godj_identity_user")
+		name, known := map[string]string{"user": "godj_identity_user", "group": "godj_identity_group", "permission": "godj_identity_permission"}[model]
+		if !known {
+			t.Fatal("unknown stored key fixture model")
+		}
+		table, err := quoteTable(backend.schema, name)
 		if err != nil {
 			t.Fatal(err)
 		}

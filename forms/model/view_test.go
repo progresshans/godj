@@ -100,7 +100,7 @@ func TestModelViewFormCollectionsPreserveLoadedStateAndExplicitEditIntent(t *tes
 				t.Fatal(err)
 			}
 			if mode != "excluded" {
-				spec, err = spec.WithModelChoices("groups", forms.Choice{Value: forms.Integer(7), Label: "Seven"}, forms.Choice{Value: forms.Integer(0), Label: "Zero"})
+				spec, err = spec.WithModelChoices("groups", forms.Choice{Value: forms.Integer(7), Label: "Seven"}, forms.Choice{Value: forms.Integer(0), Label: "Zero"}, forms.Choice{Value: forms.Integer(9), Label: "Nine"})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -115,7 +115,9 @@ func TestModelViewFormCollectionsPreserveLoadedStateAndExplicitEditIntent(t *tes
 					t.Fatal("loaded collection lost initial keys")
 				}
 			}
-			data := map[string][]string{"first_name": {"updated"}, "groups": {"0", "7"}}
+			// Replace one membership. Model choices return unique keys in the
+			// configured choice order, independently of submission order.
+			data := map[string][]string{"first_name": {"updated"}, "groups": {"9", "0"}}
 			if mode == "clear" {
 				delete(data, "groups")
 			}
@@ -149,7 +151,7 @@ func TestModelViewFormCollectionsPreserveLoadedStateAndExplicitEditIntent(t *tes
 				t.Fatal("collection form lost stored zero target")
 			}
 			keys, present := input.Collection("groups")
-			if mode == "excluded" && present || mode != "excluded" && !present || mode == "clear" && len(keys) != 0 || mode == "selected" && !slices.Equal(keys, []int64{0, 7}) {
+			if mode == "excluded" && present || mode != "excluded" && !present || mode == "clear" && len(keys) != 0 || mode == "selected" && !slices.Equal(keys, []int64{0, 9}) {
 				t.Fatal("selected/clear/excluded collection intent changed", keys, present)
 			}
 			if _, present := input.Collection("permissions"); present {
