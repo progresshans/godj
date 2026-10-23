@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 교체된 runtime의 종료 소유권과 독립 HTTP 관측 보완
+
+2026-10-23, source `34505c7821ce6a5cf122b29ea7acf114599ee96f`의
+[CI 39940225255](https://github.com/progresshans/godj/actions/runs/39940225255)에서 Linux amd64/arm64 race의 실제 CLI·선언 runner·
+서버 바이너리 계측을 확인했다. Notes는 완료했지만 Article은 3개 child 검사 뒤 종료 단계에서 `project_cleanup_failed`로 실패했다.
+두 원본에 데이터 경합 보고는 없었다. Artifact member checksum·필수 실행·source/run/attempt와 checkout
+`48b4a3a7b50a7306d0d6c14ee224bf06a14af0da`의 tree `7de3667c358f53d9f85d305b1c2ca4e28e5ddd18`를 위 source와 대조했다.
+같은 source의 Linux normal/CGO0 reload 4개 좌표는 완료했지만 이 부분 결과는 전체 CI 성공이 아니다.
+
+Retire 이후 signal handler가 복원되고 정상 exit를 기다리는 자식에 전역 interrupt 또는 부모 context 취소가 다시
+SIGINT를 전달하는 경로를 실제 프로세스로 재현했다. 준비·제어 context의 취소와 장기 runtime의 종료 수명을 분리하고,
+감독자가 기존 grace 안에서 retired/active 프로세스를 직접 join하도록 변경했다. 공유 interrupt-context watcher는 항상 join한다.
+Race 계측·준비/종료 시간 제한·실패 후보와 자손 회수·게시된 앱의 cleanup 오류 거부는 유지한다.
+
+로컬 Darwin arm64에서 원본 source의 같은 공개 Article `-race` 흐름도 종료 오류로 실패했고, Go 6개 파일 변경을 넣은
+독립 source에서는 root와 3개 child, 실제 race 바이너리 3개·현재 권한·CSRF·workspace/프로세스 정리를 통과했다.
+별도의 좁은 race 검사는 retired 대기·active 취소·비협력 자식 강제 회수를 확인했다. 전체 로컬 suite는 실행하지 않았다.
+
+같은 CI의 Python 3.14.7은 failed-child watch 지연 검사 중 HTTP generation을 읽다가 `JSONDecodeError`로 실패했다.
+실제 TCP에서 Content-Length보다 짧은 본문을 반환하자 bounded `read(amount)`가 불완전한 200 응답을 그대로 전달하는
+경로를 재현했다. 독립 reader는 이 경우 transport 중단으로 재시도하고, 완전하게 받은 잘못된 JSON은 계속 거부한다.
+원래 CI는 해당 응답의 본문/길이를 보존하지 않았으므로 그 실패의 정확한 transport 원인은 추론으로 남긴다.
+Python 3.14.7에서 두 HTTP 회귀 검사와 기존 실패 검사 하나를 선택 실행했다. 후자는 고정 Django 6.1의 두 hash-seed 관측과
+지연 관측을 포함해 통과했다. Python 전체 suite와 새 source의 원격 재현은 별도다.
+
+새 source의 필수 12개 native 좌표·독립 비교·DB·전체 CI와 C1 수용은 미완료다.
+원본과 receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-34505c78-ci-39940225255/failure-and-partial-execution.json` — 원격 실패·실제 계측·source와 부분 원본 | `1ec3ceb8ab9cfaba0540af67e73ee7f8b768927e74eea93229bd1894639d0e27` |
+| `gdj0137-retired-interrupt-repro-v1/comparison.json` — 공개 Article 전후·종료 경계 재현·변경 Go hash | `6a0f4ce14c115a6d19538dfb7bc13753d5996d4a35292e5c3ddeeef0bdd5e3d7` |
+| `gdj0137-development-http-repro-v1/comparison.json` — 잘린 HTTP 전후·완전한 JSON 거부·기존 Python 실패 검사 | `59271aaf8cadf4c9d2dc5cb87b291e074351912d78064db554bbde7d833a3a6f` |
+
 ## GDJ-0137 — 자식 빌드의 race 계측 전달과 증거 범위 정정
 
 2026-10-23, source `c8fd33a3777403c57a04a9961480ed3c760326d9`의

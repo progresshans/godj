@@ -189,9 +189,24 @@ class Client:
             return Response(0, b"")
         try:
             with response:
+                length = None
+                if method != "HEAD" and response.status >= 200 and response.status not in (204, 304):
+                    declared = response.headers.get_all("Content-Length", [])
+                    if declared:
+                        if len(declared) != 1 or not declared[0].isascii() or not declared[0].isdecimal():
+                            raise RuntimeError("observer HTTP response length is invalid")
+                        length = int(declared[0])
+                        if length > OUTPUT_LIMIT:
+                            raise RuntimeError("observer HTTP response exceeds its bound")
                 body = response.read(OUTPUT_LIMIT + 1)
                 if len(body) > OUTPUT_LIMIT:
                     raise RuntimeError("observer HTTP response exceeds its bound")
+                # A bounded read(amount) can return early EOF without raising
+                # IncompleteRead when reload stops a child after HTTP headers.
+                # Retry that transport interruption; a fully framed malformed
+                # JSON response still fails in Response.json().
+                if length is not None and len(body) != length:
+                    return Response(0, b"")
                 return Response(response.status, body)
         except (http.client.HTTPException, TimeoutError, ConnectionError):
             return Response(0, b"")
