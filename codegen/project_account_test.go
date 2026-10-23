@@ -34,6 +34,7 @@ func TestAccountSelectionOwnsGeneratedBindingAndProjectSnapshot(t *testing.T) {
 		"identity.UserDescriptor{}", "identity.GoDjRelationSchema()", "Constant: &_staff", "_staff := false",
 		"func NewAccountCredentialStore(", "func NewAccountAuthenticator(",
 		"func NewAccountSessionStore(", "_godjaccountmodel.NewSessionStore(store, config)",
+		"func NewAccountRoleEditor(", "_godjaccountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config)",
 		"func NewAccountCatalog(", "BindCollectionsIn(source)", "BindRelationDeleters()",
 		"identity.GroupDescriptor{}", "identity.PermissionDescriptor{}",
 	} {

@@ -14,11 +14,13 @@ import (
 
 const MaximumProfilePageSize = 100
 
-// ProfileReadConfig explicitly selects readable scalar fields. Principal
+// ProfileReadConfig explicitly selects readable scalar fields and the role's
+// direct group/permission collections for detail reads. Principal
 // identity and encoded passwords cannot be selected. Server-owned timestamps,
 // revision, role flags or the row key are not exposed automatically: they may
 // be selected deliberately under this read policy and remain non-writable in
-// ProfileEditor. File and collection representations have separate policies.
+// ProfileEditor. Files and other collections have separate policies. List
+// returns only ListFields and performs no per-row membership queries.
 //
 // Reads require ViewPermission or, when configured, ChangePermission, together
 // with all AdditionalPermissions. Only a definite denial permits the change
@@ -32,10 +34,12 @@ type ProfileReadConfig struct {
 
 type ProfileReader[M any] struct{ state *profileReadState[M] }
 type profileReadState[M any] struct {
-	store        *CredentialStore[M]
-	overlay      auth.Authorizer
-	fields       []string
-	view, change []auth.Permission
+	store               *CredentialStore[M]
+	overlay             auth.Authorizer
+	fields              []string
+	listFields          []string
+	groups, permissions bool
+	view, change        []auth.Permission
 }
 
 func (ProfileReader[M]) Format(state fmt.State, _ rune) {
@@ -64,20 +68,29 @@ func NewProfileReader[M any](store *CredentialStore[M], overlay auth.Authorizer,
 		}
 	}
 	metadata, err := store.state.binding.state.objects.Metadata()
-	if err != nil || len(config.Fields) > len(metadata.Fields) {
+	if err != nil || len(config.Fields) > len(metadata.Fields)+2 {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	role := store.state.binding.state.role
+	var listFields []string
 	selected := make(map[string]bool, len(config.Fields))
 	for _, name := range config.Fields {
+		if selected[name] {
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
+		if name == role.Groups || name == role.Permissions {
+			selected[name] = true
+			continue
+		}
 		field, found := namedField(metadata, name)
 		if !found || selected[name] || name == role.Password || name == role.PrincipalID || field.Kind.IsFile() {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 		selected[name] = true
+		listFields = append(listFields, name)
 	}
 	return &ProfileReader[M]{state: &profileReadState[M]{store: store, overlay: overlay,
-		fields: slices.Clone(config.Fields), view: view, change: change}}, nil
+		fields: slices.Clone(config.Fields), listFields: listFields, groups: selected[role.Groups], permissions: selected[role.Permissions], view: view, change: change}}, nil
 }
 
 func (reader *ProfileReader[M]) Fields() []string {
@@ -85,6 +98,15 @@ func (reader *ProfileReader[M]) Fields() []string {
 		return nil
 	}
 	return slices.Clone(reader.state.fields)
+}
+
+// ListFields omits collections; detail Get exposes only explicitly selected
+// memberships, and no implicit credential or full model row.
+func (reader *ProfileReader[M]) ListFields() []string {
+	if reader == nil || reader.state == nil {
+		return nil
+	}
+	return slices.Clone(reader.state.listFields)
 }
 
 // Profile contains only explicitly selected view data and operation metadata.
@@ -133,11 +155,29 @@ func (reader *ProfileReader[M]) Get(ctx context.Context, actor auth.Principal, i
 		if err != nil || !present {
 			return Profile[M]{}, present, err
 		}
-		permissions, err := reader.state.store.state.permissions(work, scope, id)
+		var permissions []auth.Permission
+		var memberships accountMemberships
+		if reader.state.groups || reader.state.permissions {
+			memberships, err = reader.state.store.state.relations.memberships(work, scope, id)
+			permissions = memberships.grants
+		} else {
+			permissions, err = reader.state.store.state.permissions(work, scope, id)
+		}
 		if err != nil {
 			return Profile[M]{}, false, err
 		}
 		profile, err := reader.project(namespace, row, permissions)
+		if err == nil && (reader.state.groups || reader.state.permissions) {
+			role := reader.state.store.state.binding.state.role
+			collections := make(map[string][]int64, 2)
+			if reader.state.groups {
+				collections[role.Groups] = memberships.groups
+			}
+			if reader.state.permissions {
+				collections[role.Permissions] = memberships.direct
+			}
+			profile.state.view, err = profile.state.view.WithCollections(collections)
+		}
 		return profile, true, err
 	})
 }
@@ -248,7 +288,7 @@ func (reader *ProfileReader[M]) project(namespace auth.CredentialDomain, row M, 
 	if !ok || revision <= 0 {
 		return Profile[M]{}, invalidAccountCredential()
 	}
-	view, err := binding.state.objects.View(row, reader.state.fields...)
+	view, err := binding.state.objects.View(row, reader.state.listFields...)
 	if err != nil {
 		return Profile[M]{}, err
 	}

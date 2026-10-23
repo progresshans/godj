@@ -181,6 +181,19 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertCatalogConsumer(t, catalog, actor.Principal(), role, "priority", "description")
+	roleEditor, err := project.NewAccountRoleEditor(sessionStore, auth.PrincipalAuthorizer{}, accountmodel.RoleConfig[people.Member]{Fields: roleConsumerFields(role), ChangePermission: "account.team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roleReader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: roleConsumerFields(role), ViewPermission: "account.team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roleTarget, err := people.MemberObjects.Create(t.Context(), backend, people.NewMemberCreate("role-target", "role-target@example.test", encoded, "NZ"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "member@EXAMPLE.TEST", roleTarget, team.ID, grants[0].ID)
 	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("custom account constants and renamed role fields were not respected")

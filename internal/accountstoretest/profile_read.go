@@ -385,6 +385,7 @@ func profileReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 						return err
 					})
 					config := profileReadConfig()
+					config.Fields = append(config.Fields, "groups", "permissions")
 					if mode == "denial_cleanup" {
 						config.ViewPermission = "account.absent"
 					}
@@ -398,7 +399,7 @@ func profileReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					case "get":
 						value, failure := reader.Get(ctx, actor, id)
 						err = failure
-						if value.Revision() != 0 || value.View().Values() != nil {
+						if value.Revision() != 0 || value.View().Values() != nil || value.View().Collections() != nil {
 							t.Fatal("failed read retained profile")
 						}
 					case "list":

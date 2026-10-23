@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v6"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v7"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -41,10 +41,18 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	if err != nil {
 		return nil, err
 	}
-	var groupCollection, groupDelete, permissionDelete string
+	var groupCollection, accountGroups, accountPermissions, groupDelete, permissionDelete string
 	for _, relation := range collections {
 		if !relation.reverse && relation.owner.identity == role.Catalog.Group && relation.target.identity == role.Catalog.Permission && relation.name == role.Catalog.GroupPermissions {
 			groupCollection = relation.surface
+		}
+		if !relation.reverse && relation.owner.identity == role.Model {
+			if relation.target.identity == role.Catalog.Group && relation.name == role.Groups {
+				accountGroups = relation.surface
+			}
+			if relation.target.identity == role.Catalog.Permission && relation.name == role.Permissions {
+				accountPermissions = relation.surface
+			}
 		}
 	}
 	for _, policy := range deletes {
@@ -55,7 +63,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 			permissionDelete = policy.surface
 		}
 	}
-	if groupCollection == "" || groupDelete == "" || permissionDelete == "" {
+	if groupCollection == "" || accountGroups == "" || accountPermissions == "" || groupDelete == "" || permissionDelete == "" {
 		return nil, fmt.Errorf("project account catalog relation capabilities are unresolved")
 	}
 	for _, app := range input.apps {
@@ -138,6 +146,16 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tstore, err := NewAccountCredentialStore(backend)")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewProfileEditor(store, overlay, config)")
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountRoleEditor uses the existing session owner for current roles, memberships, audit and deactivation.")
+	fmt.Fprintf(&output, "func NewAccountRoleEditor(sessions *_godjaccountmodel.SessionStore[%s.%s], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RoleConfig[%s.%s]) (*_godjaccountmodel.RoleEditor[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tsource, err := binding.Project()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tcollections, err := BindCollectionsIn(source)")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewRoleEditor(sessions, binding, collections.%s, collections.%s, overlay, config)\n", accountGroups, accountPermissions)
 	fmt.Fprintln(&output, "}")
 	fmt.Fprintln(&output, "\n// NewAccountProfileReader binds current account authority, selected profile data and domain history to one snapshot owner.")
 	fmt.Fprintf(&output, "func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileReadConfig) (*_godjaccountmodel.ProfileReader[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName)

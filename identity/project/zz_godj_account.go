@@ -12,7 +12,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v6"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v7"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -69,6 +69,23 @@ func NewAccountProfileEditor(backend _godjaccountdb.SnapshotReader, overlay _god
 	return _godjaccountmodel.NewProfileEditor(store, overlay, config)
 }
 
+// NewAccountRoleEditor uses the existing session owner for current roles, memberships, audit and deactivation.
+func NewAccountRoleEditor(sessions *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RoleConfig[identity.User]) (*_godjaccountmodel.RoleEditor[identity.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config)
+}
+
 // NewAccountProfileReader binds current account authority, selected profile data and domain history to one snapshot owner.
 func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileReadConfig) (*_godjaccountmodel.ProfileReader[identity.User], error) {
 	store, err := NewAccountCredentialStore(backend)
@@ -103,4 +120,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_b4726eaeeb6927153b7831379653952160280c01608c6dffc98eace34e34eb44
+var _ goDjProjectSnapshot_8fed566a20d93c7fa5a441ffded12d6415db872815903b3c22a5dc441c00f57c

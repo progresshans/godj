@@ -105,7 +105,14 @@ Namespace/전체 용량·batch rollback·scope/cleanup/unknown·동시 생성·d
 실제 cookie의 저장 행·선택 LastLogin을 대조하도록 확장했다. 새 본문 실행과 이전 catalog CI 실패의 한정 수정 재현은
 서로 구분하며 TEST_EVIDENCE에 기록한다.
 
-관계/파일·계정 역할 편집과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
+같은 SessionStore를 받는 생성 `NewAccountRoleEditor`와 typed `RoleEditor[M]`를 작성했다. 명시한 active/staff/superuser와
+직접 그룹/권한만 수정하며, 현재 인가·revision·현재/제안 소속과 유효 합집합의 한도·감사·활성→비활성 세션 폐기를
+하나의 native relation transaction에 묶는다. 상세 조회는 선택한 소속을 제공하고 목록은 scalar만 읽는다.
+역할 source 혼합·상수 역할·부정 입력과 양 DB의 생명주기·선택/한도·실패/rollback·경합 검사를 추가했다.
+기본/renamed/NoReverse 소비자의 실제 HTTP Form·JSON 역할 수정과 대상 브라우저 세션 폐기 검사도 작성했다.
+작성·compile과 이 새 본문의 실제 환경별 실행은 TEST_EVIDENCE에서 구분한다.
+
+프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·password/reset과 세션 폐기 조립·host 삭제·audit/session 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

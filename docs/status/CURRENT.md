@@ -9,8 +9,8 @@
 
 ## 다음
 
-1. I1의 인가·typed profile/catalog/audit·도메인별 DB session/login과 생성 Form/JSON/HTTP 소비자를 새 source의 원격 CI에서 확인한다.
-2. 관계/파일·계정 역할 편집, 추가 수명 효과가 있는 host 삭제와 공통 Admin/HTTP 제품 조립·첫 계정 명령을 같은 binding에 연결한다.
+1. I1의 인가·typed profile/catalog/역할 편집·audit·도메인별 DB session/login과 생성 Form/JSON/HTTP 소비자를 새 source의 원격 CI에서 확인한다.
+2. 프로필 관계/파일·추가 수명 효과가 있는 host 삭제와 공통 Admin/HTTP 제품 조립·첫 계정 명령을 같은 binding에 연결한다.
 3. Password/reset과 세션 폐기 조립·계정 삭제·채운 DB의 명시적 모델 전환과 startup/restart를 실제 소비자에서 완성한다.
 
 ## 검증 경계

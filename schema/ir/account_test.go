@@ -3,6 +3,7 @@ package ir_test
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/progresshans/godj/schema"
@@ -56,6 +57,27 @@ func TestAccountRoleConstantsAreExplicitAndDetached(t *testing.T) {
 	*clone.Superuser.Constant = true
 	if !*normalized.Active.Constant || *normalized.Staff.Constant || *normalized.Superuser.Constant {
 		t.Fatal("clone retained role constant ownership")
+	}
+}
+
+func TestAccountRoleLastLoginIsOptionalWithoutInferringExistingFields(t *testing.T) {
+	for _, remove := range []bool{false, true} {
+		role, schemas := customAccountRole(t)
+		name := role.LastLogin
+		role.LastLogin = ""
+		if remove {
+			schemas[0].Models[0].Fields = slices.DeleteFunc(schemas[0].Models[0].Fields, func(field ir.Field) bool { return field.Name == name })
+		}
+		normalized, err := ir.NormalizeAccountRole(role, schemas...)
+		if err != nil || normalized.LastLogin != "" {
+			t.Fatal("optional login role inferred or required", err)
+		}
+		if remove {
+			role.LastLogin = name
+			if _, err := ir.NormalizeAccountRole(role, schemas...); err == nil {
+				t.Fatal("explicit missing login role accepted")
+			}
+		}
 	}
 }
 

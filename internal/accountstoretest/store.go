@@ -96,12 +96,23 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"session_credential_recheck", sessionCredentialRecheck},
 		{"session_optional_last_login", sessionOptionalLastLogin},
 		{"session_domain_snapshot", sessionDomainSnapshot},
+		{"role_edit_and_deactivation", roleEditAndDeactivation},
+		{"role_authority_and_domain", roleAuthorityAndDomain},
+		{"role_bounds", roleBounds},
+		{"role_target_integrity", roleTargetIntegrity},
+		{"role_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+			roleNonpositiveKeys(t, backend, storedKey)
+		}},
+		{"role_commit_failures", roleCommitFailures},
+		{"role_concurrent_revision", roleConcurrentRevision},
+		{"role_concurrent_catalog_expansion", roleConcurrentCatalogExpansion},
+		{"role_deactivation_versus_login", roleDeactivationVersusLogin},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
-			if strings.HasPrefix(test.name, "session_") {
+			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") {
 				sources = append(sources, sessiondb.MigrationSources()...)
 			}
 			loaded, _, err := definition.Load(sources...)

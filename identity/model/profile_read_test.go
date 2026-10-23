@@ -23,7 +23,7 @@ func TestAccountProfileReadPolicyAndInputRejectBeforeIO(t *testing.T) {
 		t.Fatal(err)
 	}
 	config := accountmodel.ProfileReadConfig{Fields: []string{"first_name", "date_joined"}, ViewPermission: "account.view", ChangePermission: "account.change"}
-	for _, fields := range [][]string{nil, {"first_name", "first_name"}, {"encoded_password"}, {"principal_id"}, {"groups"}, {"missing"}} {
+	for _, fields := range [][]string{nil, {"first_name", "first_name"}, {"encoded_password"}, {"principal_id"}, {"groups", "groups"}, {"missing"}} {
 		invalid := config
 		invalid.Fields = fields
 		if reader, err := accountmodel.NewProfileReader(store, auth.PrincipalAuthorizer{}, invalid); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) || reader != nil {
@@ -46,6 +46,10 @@ func TestAccountProfileReadPolicyAndInputRejectBeforeIO(t *testing.T) {
 	}
 	if reader, err := accountmodel.NewProfileReader[models.User](nil, auth.PrincipalAuthorizer{}, config); err == nil || reader != nil {
 		t.Fatal("nil account store accepted")
+	}
+	selected, err := accountmodel.NewProfileReader(store, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: []string{"groups", "permissions"}, ViewPermission: "account.view"})
+	if err != nil || len(selected.ListFields()) != 0 || !reflect.DeepEqual(selected.Fields(), []string{"groups", "permissions"}) {
+		t.Fatal("explicit collection-only detail selection", err)
 	}
 	reader, err := accountmodel.NewProfileReader(store, auth.PrincipalAuthorizer{}, config)
 	if err != nil {

@@ -268,9 +268,48 @@ func advanceCatalogRevision[M any](ctx context.Context, scope db.Session, object
 // Refuse such composition before I/O until those owners can be coordinated;
 // never silently execute a partial lifecycle or use an identity-only policy.
 func validateCatalogDeleteTopology(project orm.ProjectBinding, role ir.AccountRole) error {
+	roots := []ir.ModelIdentity{role.Catalog.Group, role.Catalog.Permission}
+	for _, relation := range project.ManyToManyRelations() {
+		if relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions {
+			if relation.Through.Model == role.Model || relation.Through.Model == role.Catalog.Group || relation.Through.Model == role.Catalog.Permission {
+				return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "catalog membership storage requires another account or catalog lifecycle owner"}
+			}
+			roots = append(roots, relation.Through.Model)
+		}
+	}
+	return validateAccountDeleteRoots(project, role, roots)
+}
+
+// SetKeys may delete an explicit through row even when its endpoint FKs use
+// PROTECT. Inspect that root directly; endpoint deletion reachability alone
+// cannot prove that collection replacement preserves other account owners.
+func validateRoleDeleteTopology(project orm.ProjectBinding, role ir.AccountRole, fields []string) error {
+	var roots []ir.ModelIdentity
+	for _, relation := range project.ManyToManyRelations() {
+		if relation.Source == role.Model && (relation.Field == role.Groups || relation.Field == role.Permissions) && slices.Contains(fields, relation.Field) {
+			root := relation.Through.Model
+			if root == role.Model || root == role.Catalog.Group || root == role.Catalog.Permission {
+				return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "account membership storage requires another account or catalog lifecycle owner"}
+			}
+			roots = append(roots, root)
+		}
+	}
+	expected := 0
+	for _, field := range []string{role.Groups, role.Permissions} {
+		if slices.Contains(fields, field) {
+			expected++
+		}
+	}
+	if len(roots) != expected {
+		return managementError(CodeInvalidConfig, nil)
+	}
+	return validateAccountDeleteRoots(project, role, roots)
+}
+
+func validateAccountDeleteRoots(project orm.ProjectBinding, role ir.AccountRole, roots []ir.ModelIdentity) error {
 	critical := map[ir.ModelIdentity]bool{role.Model: true, role.Catalog.Group: true, role.Catalog.Permission: true}
 	relations := project.ForwardRelations()
-	for _, root := range []ir.ModelIdentity{role.Catalog.Group, role.Catalog.Permission} {
+	for _, root := range roots {
 		pending, visited := []ir.ModelIdentity{root}, make(map[ir.ModelIdentity]bool)
 		for len(pending) != 0 {
 			current := pending[0]
@@ -284,7 +323,7 @@ func validateCatalogDeleteTopology(project orm.ProjectBinding, role ir.AccountRo
 					continue
 				}
 				if critical[relation.Source] {
-					return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "catalog deletion requires lifecycle coordination for additional account or catalog row effects"}
+					return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "relation deletion requires lifecycle coordination for additional account or catalog row effects"}
 				}
 				if relation.OnDelete == ir.DeleteCascade {
 					pending = append(pending, relation.Source)

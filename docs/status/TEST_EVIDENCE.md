@@ -387,6 +387,65 @@ password/reset과 폐기 조립·추가 host 삭제 수명·설치/startup·채�
 고정 Django 공유 의미/전체 환경의 원본 대조는 I1의 잔여 요구다. 새 push의 전체 원격 CI로 현재 source를 확인하며
 위 한정 로컬 결과나 이전 source의 부분 성공으로 I1-01~08 완료를 선언하지 않는다.
 
+### 선택 계정 역할·소속 편집과 비활성화 세션 폐기
+
+`349186ad0a5f455f0d2e31c9e59abb65f162cee2`에서 이어진 작업본에 `RoleEditor[M]`와 생성 팩토리를 작성했다.
+같은 SessionStore의 현재 인가/domain·target revision·scalar flag·그룹/직접 권한·유효 합집합·audit·비활성화 세션 폐기를
+native coordinated relation transaction으로 묶는다. 선택 상세는 소속 ID를 제공하고 목록은 scalar만 읽는다.
+Explicit through의 endpoint가 PROTECT여도 직접적인 collection 삭제의 critical host 효과를 별도로 검사한다.
+추가 계정/catalog owner의 수명 조정은 아직 I1-06에 남으며 guard를 해당 구현의 완료로 계산하지 않는다.
+
+양 DB 필수 목록에 각각 33개 parent/child 선언을 추가했다. Omission/clear/no-op·현재 인가/추가 권한/domain·한도와
+저장 손상·0/음수 key·재접속·두 collection/session/audit 이후 rollback·18개 완료/실패 경계·같은 revision 경합과
+Catalog 확장 경합·비활성화/로그인 경합을 다룬다. 기존 profile read 종료 실패 검사는 소속을 선택한 상세에도 적용했다.
+기본 계정·renamed/NoReverse custom·정규화 custom·LastLogin 필드 자체가 없는 custom의 외부 생성 소비자를 작성했다.
+실제 TCP Form/JSON 수정·선택 출력·stale/예약 필드/잘못된 choice 거부와 별도 대상 브라우저 세션 폐기를 검사하도록
+연결했다. 이 테스트 본문은 아래 compile 과정에서 실행하지 않았다. 외부 HTTP DB는 SQLite이며 독립 PostgreSQL HTTP
+전체 수용의 대체 근거가 아니다. 첫 계정 명령·password/reset·host 삭제·공통 Admin/HTTP 조립·전환/restart는 남는다.
+
+기준 source의 [CI 40039320106](https://github.com/progresshans/godj/actions/runs/40039320106)에서 core의 rowset 종료
+기대 불일치와 SQLite의 선택적 LastLogin binding 실패를 확인했다. 실제 checkout
+`6820c575dd5a6c81a3dba9973976c14bd92cc83b`의 tree `807c7a41385b76809a6c7543e427bc21f66b5432`는 기준 source와 같고
+부모는 `57a2654e3df64df855781630f2fff0e102c12917` / `349186ad0a5f455f0d2e31c9e59abb65f162cee2`다.
+관측 시 106개 job 중 35 success / 5 failure / 26 active / 40 queued였다. 전체 PASS가 아니다. 다섯 원본 로그·checkout과
+분류는 `gdj0138-349186ad-ci-40039320106/failures.json`에 있다
+(SHA-256 `e00f437d4653e23c777a174cc1fccc62a4a85158f2ba2b50cab8558342a8e4a0`).
+
+Rowset의 쿼리 오류에서도 iteration/close 원인을 함께 보존하는 현재 계약에 맞춰 기존 검사를 보강했다.
+수정 전 같은 두 root의 실패를 재현했고, 수정 뒤 34개 root/child가 fail/skip 없이 통과했다. LastLogin을 비워도 IR이
+필수 참조로 요구하던 제품 결함은 역할 구현 중인 작업본에서 같은 native child로 재현했다. 선택했을 때만 nullable
+DateTime을 검증하도록 수정한 뒤 해당 SQLite root/child 2개가 fail/skip 없이 통과했다. 첫 한정 실행은 새 native fixture의
+`UpdateFieldNames` generic 인자 누락으로 compile에 실패했으며, 이를 고친 다음 실제 binding 실패와 수정 결과를 대조했다.
+이 실행들을 기준 source 전체 또는 새 역할 본문 전체의 PASS로 표현하지 않는다.
+
+Account generator ABI v7로 공개 `godj generate`를 11개 프로젝트에서 실행했다. 실행 전후 비생성 Go source가 같았다.
+그 뒤 optional LastLogin IR 수정과 추가 회귀 fixture를 작성했다. 최종 제출 상태에서 11개 manifest의 155개 파일 hash,
+account ABI와 177개 변경 Go 파일의 gofmt를 확인했고 기존 migration JSON은 바꾸지 않았다. 전체 generated drift 실행은
+새 source의 원격 CI 대상이다.
+
+Darwin arm64에서 `identity/model`, `schema/ir`, `codegen`, `codegen/consumertest`, `db/postgres`의 `go test -run '^$'`가
+통과했다. SQLite package compile은 위 한정 재현에 포함됐다. 생성한 외부 module 네 변형도 consumer 테스트 소스까지
+`go test -run '^$'`로 compile했다. 이때 저장소 밖 Go overlay로 외부 생성 harness의 자식 명령에만 `-run '^$'`를 넣고
+본문 실행 assertion을 제외했다. 저장소/CI의 원래 harness는 변경 없이 전체 본문을 실행하며, overlay 실행은 compile
+증거로만 사용한다. 새 variant 추가 뒤에는 그 variant만 추가 compile했다. 최종 190개 비문서 변경 파일은 마지막
+compile receipt와 같고, 선행 compile 이후의 두 harness/필수 목록 변경도 연결했다. 새 native role·HTTP 본문·PG·race·
+전체 platform/cold-build 성공은 아직 원격 확인 대상이다.
+
+| 원본·실행 범위 | Receipt SHA-256 |
+|---|---|
+| `gdj0138-rowset-cleanup-repro-v1/before-receipt.json` — 수정 전 한정 실패 | `01458dcc93674801b32dd8a433c12da994b1ec3f223b6552c3522767ccb85d80` |
+| `gdj0138-rowset-cleanup-repro-v1/after-receipt.json` — 수정 후 34 PASS | `4a79672ebd10cf0ca6bf36e51fc3a5c8aeee17510b6ae2572b18114b6a6eaa2c` |
+| `gdj0138-optional-login-repro-v1/before-v2-receipt.json` — 실제 optional-role 실패 | `3ebfabb3687dd6c0e1c4f1fced2ae20f6f7910302eeff4dd338d4c3436470c0b` |
+| `gdj0138-optional-login-repro-v1/after-receipt.json` — 수정 후 SQLite 2 PASS | `14fdaee0cb1806fed6b189757144e435b42618e45b4d08689841927efa40e8b7` |
+| `gdj0138-role-editor-generate-v1/receipt.json` — 11개 공개 생성 명령 | `69b1bcb4b531c82998f97c157dc61c458b0f735da2d235c7a106065f5fef6b95` |
+| `gdj0138-role-editor-compile-v1/receipt.json` — 영향 5 package 최소 compile | `07c7da93a32b845920ca40e3217c104fe46a41ae6f28176541cd9623d41e79d2` |
+| `gdj0138-role-external-compile-v1/receipt.json` — 외부 세 module 최소 compile | `e20c61cdaf1878bb66e0d4394b2cb12618d3c4c7d452c691995e871430b0a860` |
+| `gdj0138-role-external-compile-v2/receipt.json` — LastLogin 없는 외부 module 최소 compile | `a03d0bfc6232fe32493751eb63f29ef44f68f3b04ee270916ed1957cc8bb42c0` |
+| `gdj0138-role-editor-publication-v1/verification.json` — 최종 source/manifest/필수 선언 대조 | `5f0f6d79ae4a651ec8366cfa8b1dddc9f85e8ae252d8d6d1769747c41f0a2427` |
+
+경로는 위와 같은 저장소 밖 검증 보관소 아래다. 이 한정 재현·compile은 I1-01~08 완료 판정이 아니다.
+새 push의 전체 CI와 실제 checkout·필수 실행·원본 대조는 후속 실행에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

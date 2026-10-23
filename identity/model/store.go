@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -25,6 +24,7 @@ type credentialStoreState[M any] struct {
 	login, principal orm.StringField[M]
 	key              orm.AutoField[M]
 	permissions      func(context.Context, db.Queryer, int64) ([]auth.Permission, error)
+	relations        *accountRelationReader
 }
 
 func (CredentialStore[M]) Format(state fmt.State, _ rune) {
@@ -39,7 +39,7 @@ func NewCredentialStore[M, G, P any](backend db.SnapshotReader, binding Binding[
 	if nilModelValue(backend) || binding.state == nil {
 		return nil, invalidCredentialStore()
 	}
-	load, err := bindPermissionReader(binding, groups, permissions)
+	load, err := bindAccountRelations(binding, groups, permissions)
 	if err != nil {
 		return nil, &auth.Error{Code: auth.CodeInvalidConfig, Detail: "account permission catalog binding failed", Cause: err}
 	}
@@ -55,7 +55,7 @@ func NewCredentialStore[M, G, P any](backend db.SnapshotReader, binding Binding[
 		backend: backend, binding: binding,
 		login:     orm.NewStringField[M](binding.state.credentialFields[binding.state.role.Login]),
 		principal: orm.NewStringField[M](binding.state.credentialFields[binding.state.role.PrincipalID]),
-		key:       orm.NewAutoField[M](key), permissions: load,
+		key:       orm.NewAutoField[M](key), permissions: load.permissions, relations: load,
 	}}, nil
 }
 
@@ -144,129 +144,8 @@ func (store *CredentialStore[M]) credentialInDomain(ctx context.Context, reader 
 	return credential, true, nil
 }
 
-func bindPermissionReader[M, G, P any](binding Binding[M], groupDescriptor orm.RelationObjectDescriptor[G], permissionDescriptor orm.RelationObjectDescriptor[P]) (func(context.Context, db.Queryer, int64) ([]auth.Permission, error), error) {
-	if !zeroModelDescriptor(groupDescriptor) || !zeroModelDescriptor(permissionDescriptor) {
-		return nil, invalidCredentialStore()
-	}
-	project, role := binding.state.project, binding.state.role
-	group, err := orm.BindModel(project, role.Catalog.Group, groupDescriptor)
-	if err != nil {
-		return nil, err
-	}
-	permission, err := orm.BindModel(project, role.Catalog.Permission, permissionDescriptor)
-	if err != nil {
-		return nil, err
-	}
-	accountMetadata, _ := project.Model(role.Model)
-	accountKey, valid := primaryField(accountMetadata)
-	if !valid {
-		return nil, invalidCredentialStore()
-	}
-	memberKey := orm.NewAutoField[M](accountKey)
-	direct, err := orm.BindInverseManyToManyQuery(binding.state.model, role.Permissions, permission)
-	if err != nil {
-		return nil, err
-	}
-	directMember, err := direct.Integer(memberKey)
-	if err != nil {
-		return nil, err
-	}
-	members, err := orm.BindInverseManyToManyQuery(binding.state.model, role.Groups, group)
-	if err != nil {
-		return nil, err
-	}
-	groupMember, err := members.Integer(memberKey)
-	if err != nil {
-		return nil, err
-	}
-	groupGrants, err := orm.BindInverseManyToManyQuery(group, role.Catalog.GroupPermissions, permission)
-	if err != nil {
-		return nil, err
-	}
-	viaGroup, err := orm.ChainRelations(groupGrants, members).Integer(memberKey)
-	if err != nil {
-		return nil, err
-	}
-	groupMetadata, _ := project.Model(role.Catalog.Group)
-	permissionMetadata, _ := project.Model(role.Catalog.Permission)
-	groupKey, ok := primaryField(groupMetadata)
-	if !ok {
-		return nil, invalidCredentialStore()
-	}
-	groupRevision, ok := namedField(groupMetadata, role.Catalog.GroupRevision)
-	if !ok {
-		return nil, invalidCredentialStore()
-	}
-	code, ok := namedField(permissionMetadata, role.Catalog.PermissionCode)
-	if !ok {
-		return nil, invalidCredentialStore()
-	}
-	revision, ok := namedField(permissionMetadata, role.Catalog.PermissionRevision)
-	if !ok {
-		return nil, invalidCredentialStore()
-	}
-	groupObjects, permissionObjects := orm.NewManager[G](groupDescriptor), orm.NewManager[P](permissionDescriptor)
-	groupKeyField, groupRevisionField := orm.NewAutoField[G](groupKey), orm.NewIntegerField[G](groupRevision)
-	codeField, revisionField := orm.NewStringField[P](code), orm.NewIntegerField[P](revision)
-	type grant struct {
-		code     string
-		revision int64
-	}
-	projection := orm.Project2(codeField, revisionField, func(code string, revision int64) grant { return grant{code: code, revision: revision} })
-	// Keep the key in the distinct projection: equal revisions do not collapse
-	// different memberships and thereby hide an overflowing stored set.
-	type membership struct{ key, revision int64 }
-	memberships := orm.Project2(groupKeyField, groupRevisionField, func(key, revision int64) membership { return membership{key, revision} })
-	return func(ctx context.Context, reader db.Queryer, key int64) ([]auth.Permission, error) {
-		groups, err := orm.SelectQuery(groupObjects.Using(reader).Filter(groupMember.Exact(key)).OrderBy(groupKeyField.Asc()).Distinct(), memberships)
-		if err != nil {
-			return nil, err
-		}
-		groups, err = groups.Limit(MaximumAccountGroups + 1)
-		if err != nil {
-			return nil, err
-		}
-		storedGroups, err := groups.All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if len(storedGroups) > MaximumAccountGroups {
-			return nil, invalidAccountCredential()
-		}
-		for _, group := range storedGroups {
-			if group.revision <= 0 {
-				return nil, invalidAccountCredential()
-			}
-		}
-		source := permissionObjects.Using(reader).Filter(orm.Or(directMember.Exact(key), viaGroup.Exact(key))).OrderBy(codeField.Asc()).Distinct()
-		selected, err := orm.SelectQuery(source, projection)
-		if err != nil {
-			return nil, err
-		}
-		selected, err = selected.Limit(auth.MaximumPermissions + 1)
-		if err != nil {
-			return nil, err
-		}
-		rows, err := selected.All(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if len(rows) > auth.MaximumPermissions {
-			return nil, invalidAccountCredential()
-		}
-		result := make([]auth.Permission, len(rows))
-		for i, row := range rows {
-			if row.revision <= 0 || !utf8.ValidString(row.code) || code.MaxLength > 0 && utf8.RuneCountInString(row.code) > code.MaxLength {
-				return nil, invalidAccountCredential()
-			}
-			result[i] = auth.Permission(row.code)
-		}
-		return result, nil
-	}, nil
-}
-
 func (store *CredentialStore[M]) valid() error {
-	if store == nil || store.state == nil || store.state.binding.state == nil || nilModelValue(store.state.backend) || store.state.permissions == nil {
+	if store == nil || store.state == nil || store.state.binding.state == nil || nilModelValue(store.state.backend) || store.state.permissions == nil || store.state.relations == nil {
 		return invalidCredentialStore()
 	}
 	return nil

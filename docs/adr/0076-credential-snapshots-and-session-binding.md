@@ -913,7 +913,10 @@ Commit/rollback unknown은 자동 재시도하지 않는다. 확정 commit 뒤 �
 감사 이력을 소유한다. `ProfileReadConfig`의 명시적 필드만 `ModelView[M]`에 담으며 원 계정 행·hash·principal
 identity·권한 집합을 보관하지 않는다. Password와 principal identity는 선택 자체를 거부한다. Key·revision·서버
 시각·role 값은 읽기 정책에서 의도적으로 선택할 수 있지만 자동 노출하지 않는다. 이것이 ProfileEditor의 쓰기
-금지를 해제하지 않는다. File·M2M 표현과 과거 domain 조회는 각각 별도의 정책이 필요하다.
+금지를 해제하지 않는다. 선택 계정 역할의 Groups/Permissions만 명시적으로 상세 조회에 넣을 수 있으며,
+`Fields`는 전체 선택을, `ListFields`는 scalar 선택만 반환한다. 그룹과 직접 권한의 ID는 실제 source에 묶이고
+빈 집합과 미로드를 구분한다. Collection만 선택한 상세도 유효하며 scalar 값은 노출하지 않는다.
+File·그 밖의 M2M 표현과 과거 domain 조회는 각각 별도의 정책이 필요하다.
 
 View permission 또는 명시한 change permission 중 하나와 모든 추가 권한이 필요하다. 현재 actor·domain·실제
 권한을 같은 native snapshot에서 읽으며, 확정된 view 거부에서만 change 대안을 검사한다. 조회/overlay 오류는
@@ -959,7 +962,31 @@ Group의 revision을 증가시킨다. 간접 회원의 revision이나 credential
 직접 owner revision·audit는 한 transaction에 속한다. 현재 추가적인 계정/Group/Permission 행을 CASCADE로 지우거나 SET_NULL로
 수정하는 host graph는 시작 시 `unsupported` 원인을 보존하여 거부한다. 이 경우 필요한 추가 owner revision·계정 session과 삭제
 수명 조정은 I1-06의 미완료 구현이다. 단순한 identity-only 삭제로 대체하거나 이 제한을 전체 host 삭제 완료로 계산하지 않는다.
-공통 Admin/HTTP 조립·역할 편집과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
+공통 Admin/HTTP 조립과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
+
+## 선택 계정의 역할과 직접 소속 편집
+
+생성 `NewAccountRoleEditor`는 기존 `SessionStore[M]`를 받아 같은 계정 binding·backend·현재 domain의 session 정책을
+사용한다. `RoleConfig.Fields`로 active/staff/superuser의 실제 editable 필드와 Groups/Permissions를 명시한다.
+상수 역할에는 입력 필드가 없고 credential·principal identity·revision·서버 시각·프로필·임의 관계는 거부한다.
+생성 factory의 예상 role fingerprint와 실제 collection의 완전한 host source가 세션 owner와 맞아야 한다.
+
+`Update`는 현재 change 권한과 추가 권한·deny overlay, 대상의 현재 revision/credential/소속 무결성을 먼저 확인한다.
+생략한 소속은 유지하고 명시한 빈 집합은 지운다. 정렬/중복 제거 전 원 입력을 256개로 제한하며 현재와 제안 그룹 수,
+직접 권한 수와 그룹/직접 권한의 유효 합집합을 각각 검증한다. 비활성 후보도 한도를 우회하지 않는다. Typed validator는
+분리된 현재/후보 모델과 사본을 반환하는 제안 소속을 받으며 callback 뒤 scope 수명과 취소를 재검사한다.
+
+Scalar·두 collection·실제 변경의 revision 증가·domain audit는 같은 native coordinated relation transaction에 속한다.
+권한과 flag 변경은 principal/hash/session stamp를 바꾸지 않는다. Active가 true에서 false로 바뀔 때만 같은 scope에서
+현재 domain의 대상 principal 세션을 모두 폐기하며 다른 계정·익명·역사 domain의 세션은 유지한다. 재활성화는 삭제한
+세션을 되살리지 않는다. LoginPersistence도 같은 DB fence와 현재 active 재검사를 사용하므로 동시 로그인이 비활성화 뒤
+세션을 남길 수 없다. No-op도 현재 권한/무결성/validation을 확인하고 revision·감사는 늘리지 않는다.
+
+반환값은 확정된 ID·revision·변경 필드와 폐기 수뿐이다. 후속 relation/session/audit 실패는 앞선 변경과 함께 rollback하고,
+unknown 결과는 공개 값을 버리고 자동 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 되돌리지 않는다.
+Collection의 실제 through 행을 지우는 경로도 전체 host 삭제 정책에 묶는다. Endpoint FK가 PROTECT여도 직접적인 through
+삭제는 별도로 검사한다. 추가 계정/catalog의 수명 조정이 필요한 CASCADE/SET_NULL은 composition 단계에서 거부하며
+그 조정의 완성은 I1-06에 남는다. 해당 소속을 입력에 선택하지 않은 scalar 역할 편집에는 이 삭제 경로를 요구하지 않는다.
 
 ## 선택 계정 도메인의 독립 DB 세션과 로그인
 
@@ -988,7 +1015,8 @@ scope 안에서 중첩 transaction을 열지 않는다. `DeleteMatching`은 해�
 
 `SessionStore.LoginPersistence(manager)`는 정확히 그 Store를 사용하는 manager만 받는다. Manager가 time/entropy를
 DB 밖에서 준비하고, 공통 typed `LoginRecorder[M]`가 같은 scope의 현재 domain·계정·active·stamp·권한과 Admit를 다시
-확인한다. 선택적인 LastLogin 필드만 강제 update하고 계정 revision·password·role·grant·audit는 바꾸지 않는다.
+확인한다. LastLogin은 IR에서 선택 항목이며 비어 있으면 같은 이름의 기존 열도 암묵적으로 갱신하지 않는다.
+지정했을 때만 nullable DateTime 역할을 검사하고 강제 update하며 계정 revision·password·role·grant·audit는 바꾸지 않는다.
 Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replacement, LastLogin은 함께 확정하거나 rollback한다.
 기존 record의 만료/없음도 실패한 로그인과 별개로 삭제를 commit하지 않는다. 일반 Authenticate/Resolve/Access/logout은
 이 관측 필드를 갱신하지 않는다.
@@ -998,7 +1026,7 @@ Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replac
 거부는 storage failure와 원인 연결을 유지한다. `Manager.Load`도 AccessPolicy의 오류를 그대로 반환받은 경우에만 일반
 policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거부로 축소하지 않는다.
 
-이 구성은 선택 계정의 password change/reset·역할 편집·계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement를
+이 구성은 선택 계정의 password change/reset·계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement를
 자동 완성하지 않는다. 해당 쓰기 owner와 공개 Admin/HTTP 제품 조립, 양 DB의 독립 HTTP/process 재시작 수용은 I1에 남는다.
 
 ## 도메인에 묶인 계정 감사 기록

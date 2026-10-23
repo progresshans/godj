@@ -124,6 +124,19 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertCatalogConsumer(t, catalog, actor.Principal(), role, "", "")
+	roleEditor, err := project.NewAccountRoleEditor(sessionStore, auth.PrincipalAuthorizer{}, accountmodel.RoleConfig[models.User]{Fields: roleConsumerFields(role), ChangePermission: "account.team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roleReader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: roleConsumerFields(role), ViewPermission: "account.team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roleTarget, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("role-target", "role-target", encoded, joined))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "alice", roleTarget, team.ID, grants[0].ID)
 	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("default account unexpectedly changed its stored roles")

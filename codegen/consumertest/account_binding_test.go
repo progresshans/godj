@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	_ "embed"
+	"slices"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
@@ -31,8 +32,11 @@ var accountBindingProfileHTTPConsumer []byte
 //go:embed testdata/accountbinding/catalog_test.go
 var accountBindingCatalogConsumer []byte
 
+//go:embed testdata/accountbinding/roles_test.go
+var accountBindingRoleConsumer []byte
+
 func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing.T) {
-	for _, variant := range []struct{ custom, normalized bool }{{}, {custom: true}, {custom: true, normalized: true}} {
+	for _, variant := range []struct{ custom, normalized, noLastLogin bool }{{}, {custom: true}, {custom: true, normalized: true}, {custom: true, noLastLogin: true}} {
 		custom := variant.custom
 		name, source, required := "default", defaultAccountBindingConsumer, "TestDefaultAccountBindingOwnsTypedRows"
 		if custom {
@@ -41,10 +45,28 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 		if variant.normalized {
 			name = "custom_normalized"
 		}
+		if variant.noLastLogin {
+			name = "custom_without_last_login"
+		}
 		t.Run(name, func(t *testing.T) {
 			spec := accountBindingConsumerSpec(t, custom)
 			if variant.normalized {
 				spec.Account.AuthenticateNormalization = ir.AccountUnicode16NFKC
+			}
+			if variant.noLastLogin {
+				field := spec.Account.LastLogin
+				for i := range spec.Apps {
+					if spec.Apps[i].Schema.AppLabel != spec.Account.Model.AppLabel {
+						continue
+					}
+					for j := range spec.Apps[i].Schema.Models {
+						model := &spec.Apps[i].Schema.Models[j]
+						if model.Name == spec.Account.Model.ModelName {
+							model.Fields = slices.DeleteFunc(model.Fields, func(candidate ir.Field) bool { return candidate.Name == field })
+						}
+					}
+				}
+				spec.Account.LastLogin = ""
 			}
 			bundle, err := codegen.GenerateProject(spec)
 			if err != nil {
@@ -56,6 +78,7 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/profile_test.go", accountBindingProfileConsumer)
 			writeGeneratedTestFile(t, root, "consumer/profile_http_test.go", accountBindingProfileHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/catalog_test.go", accountBindingCatalogConsumer)
+			writeGeneratedTestFile(t, root, "consumer/roles_test.go", accountBindingRoleConsumer)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			assertGeneratedConsumerTests(t, output, required)
 			t.Logf("account binding child events (sha256=%x):\n%s", sha256.Sum256(output), output)

@@ -59,7 +59,9 @@ type AccountRole struct {
 	Login       string        `json:"login"`
 	Password    string        `json:"password"`
 	Revision    string        `json:"revision"`
-	LastLogin   string        `json:"last_login"`
+	// LastLogin optionally selects a server-owned nullable login timestamp.
+	// An empty selection never infers a role from an existing model field.
+	LastLogin string `json:"last_login"`
 	// CreatedAt optionally identifies a server-owned creation timestamp. It is
 	// never inferred from field names and is excluded from profile input.
 	CreatedAt                 string               `json:"created_at,omitempty"`
@@ -196,7 +198,6 @@ func normalizeAccountFields(role AccountRole, model Model) error {
 		{role.Login, "login", FieldChar, false, true},
 		{role.Password, "password", FieldText, false, false},
 		{role.Revision, "revision", FieldInteger, false, false},
-		{role.LastLogin, "last_login", FieldDateTime, true, false},
 	} {
 		if _, err := accountRoleField(model, item.name, "account."+item.path, item.kind, item.nullable, item.unique); err != nil {
 			return err
@@ -206,14 +207,22 @@ func normalizeAccountFields(role AccountRole, model Model) error {
 		}
 		seen[item.name] = item.path
 	}
-	if role.CreatedAt != "" {
-		if _, err := accountRoleField(model, role.CreatedAt, "account.created_at", FieldDateTime, false, false); err != nil {
+	for _, item := range []struct {
+		name, path string
+		nullable   bool
+	}{
+		{role.LastLogin, "last_login", true}, {role.CreatedAt, "created_at", false},
+	} {
+		if item.name == "" {
+			continue
+		}
+		if _, err := accountRoleField(model, item.name, "account."+item.path, FieldDateTime, item.nullable, false); err != nil {
 			return err
 		}
-		if previous, exists := seen[role.CreatedAt]; exists {
-			return validation("account.created_at", "duplicate_field_role", previous)
+		if previous, exists := seen[item.name]; exists {
+			return validation("account."+item.path, "duplicate_field_role", previous)
 		}
-		seen[role.CreatedAt] = "created_at"
+		seen[item.name] = item.path
 	}
 	if role.Email != "" {
 		field, err := accountRoleField(model, role.Email, "account.email", FieldChar, false, false)
