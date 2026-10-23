@@ -3,6 +3,277 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0138 — 계정 역할의 프로젝트 선언과 typed 생성 binding
+
+2026-10-24, `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`에서 분리한 I1 작업트리에서 계정 역할 IR·기본 선언,
+프로젝트 wire·사본·digest·생성 snapshot과 `identity/model.Binding[M]`을 작성했다. 계정 선택과 상수 역할의 소유권,
+실제 모델/필드/권한 관계, wire의 열린 shape·NULL·중복·한도, 역할 변경의 source identity와 혼합 생성물 거부 검사를
+추가했다. 기본 User와 별도 Member·catalog·host FK를 생성하고 실제 SQLite 행을 사용하는 외부 소비자도 작성했다.
+
+로컬은 gofmt와 diff 검사, 변경한 IR·model binding·codegen·wire·generate/migration protocol·snapshot 및
+생성된 기본 `identity/project`의 `go test -run '^$'` compile만 확인했다. 처음 IR fixture의 M2M 선언에 필요한
+reverse 인자가 없던 compile 오류를 고친 뒤 통과했다. 테스트 본문, 새로운 외부 module의 생성/DB 실행과 혼합 정책
+compile 거부 검사는 이 로컬 확인에서 실행하지 않았다.
+
+공개 `godj generate`로 기존 일곱 프로젝트의 생성물을 새 ABI에 맞춰 갱신했다. 기본 identity는 선택한 계정의
+typed 함수를 생성했고, 나머지는 계정 선택 없이 현재 companion/source marker를 갖는다. 게시 명령 성공과
+새 생성물의 실제 소비자·동시성·DB/HTTP·전체 환경 성공은 별개다. 이 변경의 영향 테스트·generated drift·외부 소비자와
+전체 CI는 새 source의 원격 실행 대상이다. 선행 C1의 `b19aeedd` 실행 결과를 새 I1 코드의 PASS로 사용하지 않는다.
+
+첫 source `e5ea902317e2df0268aed86e7511b857b1ebdd7a`의
+[CI 39997847929](https://github.com/progresshans/godj/actions/runs/39997847929)는 새 account companion에 맞지 않는
+CLI·Article의 기존 파일 수/목록과 Admin browser fixture의 누락된 생성물 때문에 실패했다. 실제 checkout
+`15cc29ea0e0a83f5614ed60a29ce5459417e22a2`의 tree가 제출 source와 같음을 확인하고 원본 로그를 보존했다.
+Admin fixture를 공개 생성 명령으로 갱신하고 CLI·Article·checker의 기대 목록을 수정했다. 로컬에서는 해당 네 root와
+CLI의 두 선택 child만 한정 실행해 통과했다. 새 계정 binding과 기본/별도 모델 소비자는 relation CI의 필수 실행 목록에
+추가했다. 이 수정의 전체 환경·새 계정 소비자 실행 결과는 다음 source의 원격 CI에서 확인한다.
+
+실패 원본·진단은 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/gdj0138-e5ea9023-foundation/`의
+`generation-failure-diagnosis.json`에 보존했다(SHA-256 `660767c05405a4f1a8e8ba3ba20378c2cde5e2e80a1ab3e04e692169d52837cc`).
+한정 수정 검사의 원본은 `generation-regressions-after.jsonl`이다
+(SHA-256 `896ec741f039fbb609f08bf48c863a209a764a9f1223bc288f8c5c5ba0bb0258`).
+
+그 뒤 계정 역할 fingerprint·소유권 세대로 구분하는 credential과 Principal의 도메인 보존을 작성했다.
+새 준비 API는 실제 typed 행의 역할·IR 문자열 한도·revision·저장 key 존재를 확인하며 0/음수 key의 명시적 존재를 유지한다.
+도메인을 지우거나 다른 도메인으로 actor를 덮는 생성, password 검증 중 도메인 변경, 동일 ID/hash의 기존 HTTP 세션 거부,
+잘못된 행/권한·진단 비노출 검사를 추가했다. 기본 User와 별도 Member 소비자는 실제 SQLite snapshot과 PBKDF2를 통해
+공통 StoredAuthenticator를 사용하도록 확장했다. 이 소비자의 세대 값은 수동 테스트 입력이며 durable 전환의 증거가 아니다.
+
+먼저 네 영향 package 및 별도로 생성한 기본/사용자 정의 두 외부 module의 `go test -run '^$'` compile을 확인했다.
+외부 module은 `GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`로 consumer 테스트 소스까지 컴파일했다. 이 단계는 본문 실행이 아니다.
+원본·source hash는 검증 보관소의
+`gdj0138-credential-domain-compile-v1/receipt.json`에 있으며 SHA-256은
+`a59189223e3eab2d214e80f6f68c6e84a37f74f000da2d88e07d0aeaeace7969`다.
+
+Source `28aeed1f8519b1c8d19fdbf9a9c9af7a328cc2ef`의
+[CI 39999668325](https://github.com/progresshans/godj/actions/runs/39999668325) Linux normal/CGO0 생성 소비자에서
+`First`에 필수 ordering이 빠져 기본/사용자 정의 두 child가 `unordered_query`로 실패했다. 실제 checkout
+`4a1cbca4e93972fabce8e059c76567d5e7fc0e92`에 연결한 원본을 확인하고 기존 ORM 계약에 맞게 소비자를 수정했다.
+로컬의 현재 framework와 정확한 `28aeed1f` 소비자 템플릿으로 두 실패를 재현했고, 수정·확장된 두 child만 다시 실행해
+실제 SQLite snapshot·PBKDF2·세대 변경의 credential 거부까지 통과했다. 이 한정 실행은 이전 framework 전체 재실행이 아니다.
+`gdj0138-account-ordering-repro-v1/receipt.json` SHA-256은
+`dee22a710d8bb44881ce322bc7c8db279c5d1665e318f485d4494008fae5ab2c`다.
+
+같은 CI의 Python 3.12.13은 delayed-watch 관측 중 JSONDecodeError로 실패했다. 원격 HTTP 원본은 없어 정확한 수신
+경계는 확정하지 않았다. 로컬 실제 TCP에서 헤더의 마지막 빈 줄 전에 EOF가 와도 200으로 반환하는 경로를 재현했다.
+헤더 EOF를 전송 중단으로 처리하며 완전한 close-delimited/100 응답, 잘린 body와 완전히 수신된 잘못된 JSON의
+기존 구분을 유지하도록 보완했다. 같은 4개 framing 검사는 수정 전 한 root의 세 subcase가 실패했고 수정 후 통과했다.
+전체 Django observer·다른 Python 버전과 새 Go 단위/HTTP 세션·race 본문은 로컬에서 실행하지 않았다.
+`gdj0138-python-header-eof-v1/comparison.json` SHA-256은
+`0dcd3312febd16d1c7072862eec96c8ac34dba206875befab563bb6f6e091dad`다.
+세 원격 실패 원본은 `gdj0138-28aeed1f-ci-39999668325/initial-consumer-reference-failures.json`에 연결했다
+(SHA-256 `e3f14b96be37f5cd502dab85b20f86406b520f86368664e7ecb5f38d74914d73`).
+새 source의 전체 환경·필수 실행과 독립 관측 대조는 원격 CI에서 확인한다.
+
+이어서 기본 User 없이 설치할 수 있는 `godj_account_domain` 선언·generated model·독립 초기 migration과
+추가 전용 소유권 이력을 작성했다. 공개 `generate`는 13개 파일과 snapshot
+`62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e`를 게시했고,
+`makemigrations`는 dependency 없는 초기 정의를 생성했다
+(SHA-256 `6bdff6751bd48ea56848e095f9740025bb9be01342c021f23be7d45f3d57afd3`).
+처음 migration root 디렉터리가 없던 discovery 오류는 디렉터리를 만든 뒤 다시 실행해 해결했다. 기존 identity/system
+정의 bytes는 바꾸지 않았다. 생성 명령 성공은 실제 DB migration 실행의 성공이 아니다.
+
+이력은 current role·직전 sequence/receipt와 고유 operation ID·generation을 검증한다. Binding의 같은-scope 조회와
+actor 도메인 검사도 작성했다. 기본/별도 계정 소비자의 수동 세대 입력을 실제 DB 기록으로 교체했으며, typed 계정 생성과
+도메인 초기화의 동시 rollback, 세대 변경 뒤 오래된/도메인 없는 actor와 session stamp 거부, 다른 저장 role 거부를
+검사하도록 구성했다. 소비자 adapter는 권한 catalog·관리·전환 mapping 전체 runtime을 대신하지 않는다.
+
+SQLite/PostgreSQL 공유 검사는 초기화 rollback, 전환 이력·재접속, 경합, coherent snapshot, callback/cleanup,
+만료 scope, 잘못된 이력, unknown 결과 재조회를 각각 작성했다. 두 DB root와 여덟 child씩을 원격 필수 목록에 넣고
+generated drift·독립 migration/선언 대조 및 입력 검사를 추가했다. Unknown 테스트의 acknowledgement 오류는 실제
+native commit/rollback 뒤 주입하며, 이것을 실제 네트워크 단절 실험이라고 표현하지 않는다.
+
+로컬에서는 영향 package와 기본/사용자 정의 외부 module의 `go test -run '^$'` 최소 compile을 확인했다. 초기 검사에서
+`LoadedDefinitionSet`을 slice처럼 사용한 테스트 compile 오류를 공개 `Definitions()` 호출로 수정했다. 최종 세 명령은
+모두 exit 0이며 실행 전후 source hash가 같았다. 원본·환경·source 연결은 검증 보관소의
+`gdj0138-durable-domain-compile-v1/final/receipt.json`에 있다
+(SHA-256 `a6c2f2f214103a1a3617c819ab75ba86ca65cb3bd2dbae8fb71bcbc26987f8e6`).
+새 테스트 본문, 이력의 실제 DB/경합·외부 소비자 실행, 전체 generated drift와 platform은 아직 원격 확인 대상이다.
+
+Source `235c401efa81085255391cc38458df25e0522429`의
+[CI 40007792197](https://github.com/progresshans/godj/actions/runs/40007792197) normal/CGO0 portable conformance에서
+두 attestation의 `TestSourceBindingOwnsNativeProductDependencies`가 새 domain migration JSON의 소스 소유권 누락으로
+실패했다. 실제 checkout `486943c7d087be78592a4230b20209f76729b991`의 tree가 제출 source와 같음을 확인했다.
+원본은 `gdj0138-235c401e-ci-40007792197/failure-120600850124.log`와 `failure-120600850386.log`다
+(SHA-256 `f51340020a422b879eb26d2fcd20f5a70e09fb7e585f0d8d7aad9e22f3da799a`,
+`6e5671dccbd41a4a257536fe06e7cd4c7fa5013b271570234f4a563da3a10cbf`).
+
+실제 내장 migration을 양쪽 소스 목록에 포함하고 해당 파일 변경이 capture를 stale로 만드는 검사를 추가했다.
+현재 작업트리에서 같은 두 실패를 재현했고, 수정 뒤 의존성 검사 두 root와 소스 변경 검사 두 root·191개 child가
+skip 없이 통과했다. 진행 중인 공통 조회 엔진 코드가 있는 로컬 작업트리의 한정 검사이며 원격 source 전체 재실행은 아니다.
+원본·네 수정 파일 hash는 `gdj0138-domain-source-binding-repro-v1/receipt.json`에 있다
+(SHA-256 `2b36e2af0d556dce9bfbe27a0f62526f8fd520d681fe7c26dda5ac99c61a58dc`).
+Native capture와 전체 환경의 새 실행 결과는 원격 CI에서 확인한다.
+
+공통 `identity/model.CredentialStore`와 생성 `NewAccountCredentialStore`/`NewAccountAuthenticator`를 작성했다.
+계정·domain·직접/그룹 권한을 같은 native snapshot에서 읽으며, 그룹·권한 descriptor도 선택 프로젝트에 묶는다.
+NoReverse 관계는 선언된 forward M2M의 역방향 Query AST를 사용한다. 새 기본/별도 모델 소비자는 임시 credential
+adapter 없이 이 저장소와 generated factory를 호출하며 Exact/NFKC 선택도 구분한다.
+
+양 DB의 권한 합집합·회수/재접속·동시 커밋 사이 snapshot 일관성·password 검증 뒤 권한/세대 재확인·callback와
+cleanup 오류·손상된 revision/code·256개 경계·0/음수 key·입력 정규화 검사를 작성해 원격 필수 목록에 추가했다.
+외부 custom 소비자는 공개 reverse accessor가 없는 catalog를 사용한다. 이 테스트 작성은 본문 실행 PASS가 아니다.
+
+재생성에서 domain 프로젝트가 기본 identity 생성 root 안에 중첩되어 13개 unowned generated entry를 발견했다.
+독립 root를 `account/domain`으로 옮기고 imports·두 attestation·CI 실행 소유권을 함께 갱신했다. 기존 domain migration
+JSON bytes는 그대로다. 아홉 프로젝트를 공개 `godj generate`로 다시 게시하고 각 manifest의 129개 파일 hash를 대조했다.
+중간 로컬 disk 부족으로 한 candidate compile이 실패했으며 Go build cache 정리 후 공개 명령을 다시 완료했다.
+생성 검증이나 원자 게시 조건을 완화하지 않았다.
+
+영향 package와 기본/사용자 정의 두 외부 module의 `go test -run '^$'` 최소 compile은 최종 source에서 exit 0이었다.
+처음 native helper의 존재하지 않는 credential getter 사용을 Principal 검사로 수정했다. 최종 compile 전후 170개 source
+hash가 같았고 외부 consumer template도 현행 파일과 같았다. 원본·환경·manifest와 source hash는 검증 보관소
+`gdj0138-common-account-store-compile-v1/receipt.json`에 있다
+(SHA-256 `01f03f5aee0f842c7e4d266b4e98e72db3dbebf0bb55d6d96c6eba0c77f5b272`).
+이 단계에서 새 DB/단위/외부 소비자 테스트 본문·race·전체 platform은 로컬에서 실행하지 않았다.
+
+Source `502cc018f11fd660ae94f75cb829da237025c4d7`의
+[CI 40012148301](https://github.com/progresshans/godj/actions/runs/40012148301) normal/CGO0 portable conformance에서
+두 native dependency 검사가 이동한 `account/domain`의 Go 소스 6개와 models 디렉터리 symlink 경계를 놓친 것을
+확인했다. 실제 checkout `98ab3a10e31a0427709dd0d69e7f13b6d2d2fea9`의 tree가 제출 source와 같았다.
+원본은 `gdj0138-502cc018-ci-40012148301/failure-120615758297.log`와 `failure-120615758517.log`다
+(SHA-256 `6134fa3d173b0e676da152917a4a2d869b526c1952cc3bcd7aab089b1a391769`,
+`ee79b4ae6547ab50f504312d5d961e9a93ac014668d58dc83112a89e61b649b5`).
+
+깨끗한 같은 source에서 두 실패를 로컬 재현한 뒤 두 product source 목록에 `account/`를 추가했다. 여섯 파일 각각의
+내용 변경과 account ancestor/models 디렉터리 symlink 거부 검사를 보완했으며, 수정 뒤 관련 여섯 root·230개 child가
+skip 없이 통과했다. 원본·수정 전후 네 파일 hash는 `gdj0138-account-source-prefix-repro-v1/receipt.json`에 있다
+(SHA-256 `a44461c2e67f10940936a59bbf823b165ae625fbc82bd6176672ca89ffa1b6d1`).
+이 한정 회귀는 공통 계정 저장소의 DB/race·전체 platform 실행을 대신하지 않는다.
+
+수정 source `1f3cad75dfc2f598a2f890a054421e34235ccaf9`의
+[CI 40013923843](https://github.com/progresshans/godj/actions/runs/40013923843) normal/CGO0 conformance 작업은 성공했다.
+실제 checkout `297bf8150e08152049c20adb2b4efa6d3e5fcaaf`의 tree와 부모 source를 대조했으며 원본은
+`gdj0138-1f3cad75-ci-40013923843/source-binding.json`에 연결했다
+(SHA-256 `795f07cee865208984fe0843a18a1aba7ecc264933985b146d65ec4709d31b52`).
+이 결과는 해당 두 작업의 확인이며 전체 source의 완료 판정은 아니다.
+
+같은 borrowed scope에서 관리 actor의 현재 domain·active/role/grant·deny overlay를 확인하는 `AuthorizeIn`을 작성했다.
+이전 domain 또는 domain 없는 동일 ID의 actor는 계정 ID 조회 전에 거부한다. 확정 거부와 overlay/I/O/취소 실패를
+구분하고 root backend·만료 scope·잘못된 권한 요구를 거부한다. 기본/별도 모델 소비자는 생성 저장소를 통해 권한을
+확인한 같은 native write scope에서 FirstName/Region과 revision을 typed patch로 변경한다.
+
+양 DB에는 권한 회수 후 오래된 Principal의 쓰기 거부와 durable 상태 보존, 허용 후 후속 실패의 rollback,
+새 domain에서 기존 actor/동일 ID 재사용 거부와 새 actor의 허용, inactive 전환, overlay 오류/취소/거부 및 만료 scope
+검사를 작성했다. 0/음수 저장 key의 인가도 추가했다. 이 검사는 공개 관리 API 전체와 session/audit 통합을 대신하지 않는다.
+
+새 영향 package와 기본/사용자 정의 외부 module의 최소 compile은 모두 exit 0이었다. 최종 source 9개 파일의 hash가
+실행 전후 같았고 테스트 본문은 실행하지 않았다. 원본·환경·source hash는 검증 보관소의
+`gdj0138-account-authority-compile-v1/receipt.json`에 있다
+(SHA-256 `c806bf1a1c96dafbf22c5bc9da4637633299f1487a6fb8caa92d414e850419e6`).
+새 인가·typed mutation 테스트 본문과 DB/race/전체 platform은 원격 확인 대상이다.
+
+선택 계정의 `ProfileEditor[M]`와 generated factory, 현재 권한·target revision·typed CRUD·domain-qualified audit를
+하나의 coordinated transaction에 연결했다. 기본/별도 모델 소비자는 실제 ModelForm과 API input binding으로 scalar
+수정·누락/no-op·stale·예약 필드 거부를 준비한다. 양 DB에는 실제 저장/rollback·권한 회수·domain 변경·대상 손상·
+unique/validation·15개 commit 실패 경계·두 owner의 revision 경합 검사를 추가했다. Unknown acknowledgement는
+실제 native commit/rollback 뒤 오류를 주입하며 네트워크 장애 실험으로 집계하지 않는다.
+
+독립 `godj_account_audit`의 modeldef·generated binding·초기 migration을 추가했다. Migration SHA-256은
+`c36b7068c13b14aaf7d6098f1d4d36b1a0fd4bc418f058f42bc1d987b50343d1`이며 기존 적용 migration bytes는 바꾸지 않았다.
+Domain별 bounded history·재접속·snapshot·잘못된 row/scope·audit 저장 실패를 검사하도록 작성하고 양 DB의 필수
+실행 목록에 포함했다. 기존 Admin/system audit의 양수 object ID 가정을 제거하고 0/음수 key의 실제 event/history
+검사로 대체했다. Event sequence의 양수 조건은 유지한다. 새 앱의 생성 root·CI package·attestation source도 연결했다.
+
+IR의 선택적인 서버 생성 시각과 명시적 email 저장 정책을 추가했다. 기본 Unicode 16 email domain 정규화와 custom
+Exact, 동일 login/email 필드의 순차 적용·정책 변경 뒤 이전 domain 거부를 소비자와 DB 검사에 연결했다.
+Account role의 JSON member가 17개가 되면서 기존 generic scanner 상한 16을 넘는 공개 생성 실패가 발생했다.
+Generate/migration의 실제 account protocol 왕복에서 재현하고, 선언된 Field shape의 최대 18개를 공통 고정 상한으로
+사용하도록 수정했다. Unknown·duplicate·kind·aggregate 한도는 유지한다. 두 protocol 왕복·두 정확한 상한/+1 검사·
+세 wire root를 한정 실행해 7개 root가 fail/skip 없이 통과했다. 원본·전후 source는
+`gdj0138-account-profile-wire-repro-v1/receipt.json`에 연결했다
+(SHA-256 `bfe32cb947a3e6b1501cf64f3a8c723faa3467e03b4fb62ed95b7091d3bcadf5`).
+이 실행은 확인된 protocol 실패의 재현과 수정 검사이며 profile/audit 제품 본문 실행을 대신하지 않는다.
+
+공개 생성 명령으로 열 개 프로젝트를 갱신했으며 manifest의 142개 파일 hash를 대조했다. 최종 source에서 영향
+14개 package와 따로 생성한 기본/사용자 정의 두 외부 module의 `go test -run '^$'` 최소 compile은 모두 exit 0이다.
+외부 module은 현행 Form/API profile 소비자 템플릿과 같으며 `GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`로 컴파일했다.
+실행 전후 203개 source hash가 같았다. 원본·환경·생성 manifest는
+`gdj0138-account-profile-compile-v2/receipt.json`에 있다
+(SHA-256 `316ed7d2313e49a80eeefcc20ffc65dbc0c95cb47ee57c82434df6c455cdd396`).
+새 profile/audit·IR·Admin/system audit 테스트 본문과 DB/race·전체 platform은 이 로컬 compile에서 실행하지 않았다.
+
+I1의 공통 credential·인가·profile/audit는 원격 실행 확인이 필요하다. Scalar profile 조회, 관계/파일·role/catalog 관리,
+기존 Directory/Manager 교체와 공개 HTTP/Admin 경로·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/receipt,
+password/reset/session·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
+
+## GDJ-0137 — macOS arm64 runtime 작업 제한
+
+Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
+[CI 39980342796](https://github.com/progresshans/godj/actions/runs/39980342796) attempt 1에서
+`Relation product (macos-26, cgo0, runtime)` 작업 `120506548950`가 45분 작업 제한으로 취소됐다.
+실제 checkout `c899f30121bf0a9c5a77210701ecb3550ea40310`, 원본 job log와 GitHub annotation을 대조했다.
+정리 시 compiler와 sqlite.test process가 종료됐지만 특정 테스트 결함이나 필수 실행 완료는 확인되지 않았다.
+최종 실행 검증과 clean worktree 단계도 완료되지 않았다. 같은 source의 다른 작업은 계속 진행하며 이 좌표는 재검증 대상이다.
+
+원본·판정은 검증 보관소의 `gdj0137-b19aeedd-ci-39980342796/cancelled-runtime-evidence.json`에 보존했다
+(SHA-256 `06dbefe006c29f2536f6b6e4176fda44b6b450f24da45976fc3d0c83a0924d24`).
+이미 완료한 C1의 12개 native 독립 관측 대조와 이 공통 runtime 작업, I1의 새 source 검증을 구분한다.
+
+## GDJ-0137 — Project/Core 전체 원격 검증과 I1 전환
+
+2026-10-24, source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
+[CI 39980342796](https://github.com/progresshans/godj/actions/runs/39980342796)와 C1-01~08의 수용 근거를 대조했다.
+최종 attempt 2의 109개 작업은 모두 성공했다. 첫 실행의 성공한 107개 작업은 실행 시각·결과를 그대로 유지했고,
+시간 제한으로 취소된 macOS arm64 CGO0 runtime과 최종 집계만 같은 source에서 다시 실행했다. 109개 전체를
+두 번 실행한 것으로 집계하지 않으며 원래 시간 초과 결과도 보존한다.
+
+실제 PR checkout `c899f30121bf0a9c5a77210701ecb3550ea40310`은 제출 source를 parent로 갖고,
+tree `a591d402c25c70c3278ed1ec82930c8d0705e49a`가 source와 같다. 재실행 job `120628140986`의 실제 checkout도
+같았다. 이 job은 49개 package·필수 sentinel 2,652개에 대해 runner의 엄격한 Go event 검증에서
+run/pass 각각 9,059개·skip 0을 보고했고 clean worktree 검사도 완료했다. 이 좌표의 개별 Go event JSON은 별도
+업로드되지 않아 source에 결합한 runner 검증과 원본 job log를 근거로 삼았다. 최종 job `120642377129`는
+10개 전체 CI owner의 성공을 확인했다.
+
+Linux/macOS × amd64/arm64 × normal/race/CGO0의 12개 native 좌표에서 baseline과 reload의 봉인된 원본을 대조했다.
+Scaffold package의 실제 발견 root·필수 child와 게시 경합/실패·취소 검사를 확인하고, 전역 CLI·독립 설치·선언 runner·
+runtime의 실제 OS/CPU/CGO/race metadata를 대조했다. 각 좌표의 Notes·Article·scaffold command는 같은 실행의
+고정 Django 6.1·Python 3.14.3 관측과 개발 공통 결과 8개, 명시적인 native 차이 1개, event 공통 결과 6개에서 일치했다.
+Hosted 비교 결과와 로컬 원본 판독의 JSON 내용도 같았다. 이 원본 판독은 제품 테스트를 로컬에서 재실행한 것이 아니다.
+
+| 요구 | 확인한 실제 소비자와 경계 |
+|---|---|
+| C1-01 | 빈 프로젝트·앱 선언부터 생성/migration/인증 runtime까지의 공개 bootstrap, 앱 추가·기존 데이터 보존과 원자 게시·경합·취소/기존 경로 보존 |
+| C1-02 | settings/environment의 불변·격리·secret 진단과 SQLite/실제 PostgreSQL의 resource check, 누락/잘못된 설정·기존 catalog/row/sequence 보존 |
+| C1-03 | apps/events/server의 순서·dependency·실패 역순 정리·동시/중첩 호출·취소·해제/callback drain과 외부 HTTP/DB 종료 |
+| C1-04 | 공개 CLI의 목록/help·typed 인자·custom command·resource check, 현재 generated 모델/DB·인가·저장 후 callback/출력 실패의 확정 결과 |
+| C1-05 | 전체 module을 실제 `go install`한 두 고정 fixture version의 독립 설치, 개발 source 구분과 도구/runtime/생성 ABI 불일치의 입력/I/O 전 거부 |
+| C1-06 | Notes·인증/관계 Article의 같은 주소 reload, 실패 build/startup·늦은 후보·자손 회수·기존 요청 commit/drain·명시적 migration·no-reload/재시작 |
+| C1-07 | 명시적 logger/event 소비자의 정상·오류·취소·resource 종료, 비밀값 없는 진단과 receiver/sink 실패 뒤 확정 DB 결과 보존 |
+| C1-08 | Scaffold·고정 설치·Notes·Article의 생성/앱 추가·기존 데이터·필드/권한 변경과 독립 관측, 문서의 수동 조립 대비 소유권/책임 대조 |
+
+PostgreSQL 17.10의 normal·CGO0 core는 각각 7,241개 run/pass, race process는 22개 run/pass이며 skip은 없다.
+두 실제 C1 root `TestGlobalStartProjectPostgresResourceChecksAndAuthenticatedRestart`와
+`TestGlobalRunserverArticlePostgresDevelopmentLoop`의 DB·HTTP·restart와 실제 binary metadata를 대조했다.
+Native baseline에서 별도 PostgreSQL owner로 배정한 두 검사는 이 원본에서 실행 여부를 확인했다.
+공통 C1 package 8개의 normal/race/CGO0 실행과 도구 검사도 해당 source의 원본 로그에 연결했다.
+
+Python 3.12.13·3.13.15·3.14.3·3.14.7의 실제 407개 검사와 관측 JSON을 확인했다. 각 호환성 실행의 별도 profile
+검사 4개는 정확한 Darwin arm64 profile의 407개·skip 0 실행에서 확인했다. 두 JSON 출력 회귀와 모든 시나리오의
+semantic digest도 성공했다. 현재 PostgreSQL capture producer 두 개, 생성 bundle 일곱 개의 drift와
+26개 Go conformance suite를 source·producer·실제 checkout에 대조했다.
+
+같은 source의 Helpdesk browser 관측 236개와 Admin inline/upload/choice/collection 관측 125개는 archive/member hash,
+현재 fixture source·실제 DB/파일·후속 native 검사·정리 결과를 다시 판독해 일치함을 확인했다. Browser 이미지는
+checksum을 대조한 것이며 새로운 화면 검토를 수행했다고 표현하지 않는다. 고정 module 두 version은 test proxy
+fixture이며 출시·운영 업그레이드의 증거가 아니다. 조립 책임은 비교했으나 개발 시간/성능 수치는 측정하지 않았다.
+
+원본은 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/gdj0137-b19aeedd-ci-39980342796/`에 보존한다.
+`c1-completion-audit.json`은 요구별 실행 owner, 두 attempt의 구분과 아래 판독/원본 hash를 묶는다
+(SHA-256 `66a1ae148cf99268450181d0dba54cb2d6526814e2f5fd61bfd274b5a20d7ec8`).
+
+| 근거 | SHA-256 |
+|---|---|
+| `attempt-2-terminal-jobs.json` — 최종 109개 작업 | `6be9808e28b938d89043dc853eef956cf1ae9df9f652fe4a384b1b3da77d98cc` |
+| `attempt-2-runtime-job.log` — 같은 source의 시간 초과 좌표 재실행 | `7e812c763ef62ec4e3f3368088963e776be0d385bf86bf86eca88c837364bb17` |
+| `project-reference-comparison.json` — 12개 native 좌표의 독립 대조 | `f3210af790d0b3b5186ec75d3cccf417d9a499131b7dfb0dba7791c1fc09d094` |
+| `postgres-collection-latest.json` — starter/Article의 실제 PostgreSQL owner | `75affe3d0e6d28990b6f2b97e763fbc6492d4e4780a083b491d27dd4e1c002f6` |
+| `browser-artifact-inspection.json` — browser·DB·파일·정리 원본 대조 | `39a6952df294b44e34db94947bc107fe3a59e7c4880cf464f9e62d56deebfa77` |
+
+C1-01~08의 제품 수용을 완료하고 주 작업을 [I1](../../work/0138-custom-account-lifecycle.md)으로 전환한다.
+I1의 새 계정 역할·domain·credential/profile/audit 코드와 전체 환경 검증은 이 source에 포함되지 않는다.
+O1의 운영/향후 릴리스 정책, C2의 Web/static/media, R2의 durable event와 나머지 전체 카탈로그 요구는 그대로 남는다.
+
 ## GDJ-0137 — 독립 관측 JSON과 unittest 진행 출력의 분리
 
 2026-10-24, source `c0e8d3d34abf7a3698fe49f1c51f72aa8e7a993b`의

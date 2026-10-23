@@ -1,8 +1,9 @@
 # GDJ-0137: Project/Core와 새 앱의 기본 개발 흐름
 
-- 상태: C1 구현 중 — F1 전체 검증과 원본 대조 완료 후 주 작업 전환
+- 상태: 완료 — C1-01~08의 같은 source 필수 원격 실행과 원본 대조 완료
 - 시작: 2026-10-23
-- 현재 기반: `680b6cd297c731a15f0e4aee5da924bbc92f07f9`; 이 source의 F1 전체 검증을 완료했으며 C1 변경은 별도로 검증한다.
+- 완료: 2026-10-24
+- 제품 source: `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`; 환경별 결과와 수용 대조는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
 - 근거: [전체 실행 계획 C1](../docs/EXECUTION_PLAN.md), [개발 기준](../docs/DEVELOPMENT_CRITERIA.md),
   [CLI와 프로젝트](../docs/ARCHITECTURE.md#cli와-프로젝트), [개발 흐름](../docs/DEVELOPER_EXPERIENCE.md),
   [전역 도구와 프로젝트](../docs/adr/0004-cli-and-project-binary.md),
@@ -11,35 +12,25 @@
 
 빈 디렉터리에서 공개 명령으로 프로젝트와 앱을 시작하고, 같은 모델·설정·권한 경계를 유지한 채
 생성·migration·초기 사용자·관리 화면·업무 명령·재시작과 수정 후 reload를 수행할 수 있게 한다.
-F1의 검증 대기 동안 독립 요구와 기반을 작성했다. 같은 source의 필수 실행·원본 대조를 확인해 주 작업을 전환했다.
-F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위는 별도로 유지한다.
+선행 F1과 C1의 제품 검증을 완료했으며 주 작업은 [I1 사용자 정의 계정](0138-custom-account-lifecycle.md)으로 전환했다.
+C1의 완료는 I1과 전체 카탈로그의 남은 기능을 지원으로 바꾸지 않는다.
 
-## 현재 출발점
+## 구현
 
-- `settings.New`는 프로젝트 이름·설치 앱·storage alias의 불변 snapshot을 만든다. `settings.Environment`와
-  `settings/database`는 공통 환경 snapshot·DB 선택·opener를 제공하며 예제는 환경 key/기본값 정책만 소유한다.
-  `apps.Registry`는 선언 순서의 identity 목록이다. `apps.Start`의 명시적 dependency·callback·역순 정리를 작성했으며
-  실제 외부 소비자와 전체 원격 실행은 검증 중이다.
-- `project/server.Run`에 Start/Listen/Ready·요청 drain·앱 cleanup을 연결하고 Article이 이를 사용하도록 작성했다.
-  Startup 취소와 준비 완료 뒤 앱 context의 수명을 구분하며 새 외부 generated/SQLite/HTTP 소비자의 원격 실행은 남아 있다.
-- 전역 `godj`는 project 선택과 build/process를 소유한다. 선언만 import하는 `project.Run`은
-  generate·migration·초기 사용자 protocol을 실행하고, generated package를 import하는 Web runtime은 별도다.
-- `generate`는 canonical IR과 generator ABI를 snapshot하며 기존 bundle을 보존하는 게시·복구 경계가 있다.
-  새 명령은 이 의미를 재사용하고 private file format·publish 절차를 임의 복제하지 않는다.
-- 현재 `runserver`는 선언 build와 bundle 검사 후 별도 runtime을 build하고 다시 검사한다.
-  loopback 실행·종료·자손 회수 경계가 있다. 일반 command는 별도 runtime package·명시적 등록으로 연결했으며
-  같은 source/bundle 준비 경계를 재사용한다. 순수 check와 명시적으로 선택한 resource check·field 진단을 작성했다.
-  기본 watch/reload와 공개 `project/server.Serve` 연결을 작성했다. 새 후보의 source/build/startup 검사 뒤 같은
-  listener에서 교체하고 기존 요청 drain·실패 후보/자손 회수를 연결했으며 전체 원격 실행은 남아 있다.
-- 앱 소유 typed event와 명시적 slog logger를 command·app·server에 연결했다. 저장 후 receiver 오류·sink 실패와
-  확정된 DB 결과를 분리하는 외부 생성/HTTP 소비자, 독립 Django 관측과 Go 수명 검사를 작성했으며 원격 실행은 남아 있다.
-- Article는 DB·identity·Form/Admin/API의 실제 소비자다. 현재 이를 복사해 시작하는 수동 조립을
-  새 project/app 기본 경로로 연결하되 예제의 도메인 모델을 모든 새 프로젝트에 강제하지 않는다.
-- 명령별 wire version과 생성 ABI는 이미 있다. `godj version`과 공개 `version.Current()`의 실제 module·개발 source·
-  replacement 조회를 작성했다. 설치한 전역 도구·linked runtime·생성물의
-  호환성을 조회하는 공통 contract와 모든 프로젝트 진입점의 실행 전 비교를 작성했다.
-  초기 사용자 입력과 runtime 시작 전 검사, bounded probe 수명과 원본 계수를 연결했다. 전체 module을 두 고정 fixture
-  version으로 독립 설치하는 정상/불일치 소비자를 작성했으며 실제 환경별 실행은 남아 있다.
+- `settings.Environment`와 `settings/database`가 불변 설정·DB 선택·opener를 제공한다. 앱은 설정 key/default 정책을
+  소유하며 `apps.Start`가 명시적 dependency·시작과 역순 정리를 담당한다.
+- `startproject`/`startapp`은 앱 선언·module·기본 runtime과 등록 안내를 원자적으로 게시한다. 기존 대상과 source
+  충돌·취소에서 부분 프로젝트를 성공으로 반환하지 않는다. 초기 선언 runner는 generated import 없이 시작한다.
+- 프로젝트는 management command·typed 인자·resource check와 logger를 명시한다. 전역 CLI가 build·호환성 검사·
+  protocol·process 수명을 소유하며, 순수 check와 명시적으로 선택한 DB I/O를 구분한다.
+- 도구·linked runtime·생성 ABI의 실제 metadata를 실행 전에 대조한다. 개발 checkout/replacement와 고정 module
+  설치를 구분하며 잘못된 조합으로 비밀 입력이나 업무 I/O를 시작하지 않는다.
+- `project/server.Run`/`Serve`와 `runserver`는 source/bundle·build·startup이 확인된 후보를 같은 listener에 게시한다.
+  실패 후보는 기존 앱을 유지하고 현재 요청의 저장과 drain 뒤 앱·DB·자손을 정리한다. 준비 취소와 runtime 수명을 분리한다.
+- 명시적 event는 등록 순서·중첩/동시 전달·해제 admission·callback drain을 소유한다. 기본 slog 진단은 비밀값을
+  포함하지 않으며 저장 후 receiver/sink 실패를 이미 확정된 DB 작업의 재시도 승인으로 바꾸지 않는다.
+- Scaffold·고정 module 설치·Notes·Article의 실제 공개 소비자가 앱 추가, 기존 데이터와 필드/권한 변경,
+  인증된 Admin/API·custom command·실패 복구와 restart를 사용한다. DB와 플랫폼별 검증은 TEST_EVIDENCE에 둔다.
 
 ## 하위 요구와 수용 시나리오
 
@@ -79,84 +70,28 @@ Process 내부 event는 durable queue나 다중 process 전달을 제공하지 �
 O1은 운영 배포·키 분배·백업/복구·관측/성능과 향후 지원 릴리스의 upgrade 정책을 맡는다.
 C2는 일반 Web 경로·static/media 등의 잔여 기능을 맡는다. 이 구분은 C1의 실제 기본 앱 흐름과 진단 책임을 줄이지 않는다.
 
-## 구현과 검증 순서
-
-1. Scaffold가 생성할 실제 외부 앱의 공개 조립을 정하고, 필요한 settings·lifecycle·command 경계를 함께 구현한다.
-   API 이름을 먼저 고정해 비어 있는 추상 계층만 추가하지 않는다.
-2. 설치/호환성 진단, 기존 generator/migration/operator와 새 기본 runtime을 같은 CLI 흐름에 연결한다.
-   처음 생성과 기존 데이터가 있는 앱 확장 모두에서 source·resource 소유권을 확인한다.
-3. 실행 후보의 build·readiness·게시·drain이 분리된 reload와 logging/event를 실제 소비자에 연결한다.
-4. 제품·생성기·소비자·실패 검사를 묶어 작성하고 gofmt·최소 compile 뒤 push한다. DB·브라우저·race·process·
-   외부 설치·전체 platform/cold-build는 원격 CI owner에서 실행하고 같은 source 원본을 대조한다.
+## 독립 기준과 개발 흐름
 
 고정 Django의 프로젝트/app 생성·management command·app 초기화·signal의 관찰 가능한 의미는
 [호환성 기준](../docs/COMPATIBILITY.md)에 따라 독립 관측한다. Python import/weakref/내부 autoreloader 구조는
 구현 목표가 아니다. Go의 typed 등록·resource 수명·source 게시·process 교체는 별도 native 실패/경합 검사로 확인한다.
-성능이나 개발 시간 단축은 실제 측정한 경우에만 기록한다. 파일 수나 최소 compile을 사용성/기능 완료로 계산하지 않는다.
 
-외부 의미를 확인할 공식 문서는 Django 6.1의 [프로젝트/app 명령](https://docs.djangoproject.com/en/6.1/ref/django-admin/),
-[사용자 command](https://docs.djangoproject.com/en/6.1/howto/custom-management-commands/),
-[앱 초기화](https://docs.djangoproject.com/en/6.1/ref/applications/),
-[signal 전달](https://docs.djangoproject.com/en/6.1/topics/signals/)이다. 실제 관측기는 기존 profile의 고정 source를 사용한다.
-Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관측 입력과 지원 정책을 구분해 기록한다.
 독립 [개발 관측기](../conformance/runners/django/development_reference/)는 실제 공개 생성 명령·두 앱 초기화·SQLite·HTTP로
-reload/명시적 migration/현재 권한/명령 durable 결과를 기록한다. Notes·Article·scaffold command의 같은 입력에 대한
-실제 Go 결과와 event 관측을 같은 CI source·원본 checksum에 묶어 12개 native 좌표에서 대조한다.
-작성된 비교기의 성공은 해당 원격 실행이 완료된 뒤 판단하며, `--no-reload`는 편집 후 Go 실행이 시작되지 않는 감사도 갖는다.
-수동 Article 조립과 현재 starter·공개 package의 책임 변화는 [개발 흐름](../docs/DEVELOPER_EXPERIENCE.md#새-프로젝트의-조립과-변경-책임)에
-기록한다. 코드·안내의 비교와 실제 소비자 실행, 개발 시간 측정을 구분한다.
+reload/명시적 migration/현재 권한/명령 durable 결과를 기록한다. Notes·Article·scaffold command와 event의 실제
+Go 결과를 같은 CI source·원본 checksum에 묶어 대조했다. 고정 module의 두 version은 전체 source로 만든 test proxy
+fixture이며 배포 릴리스나 일반 upgrade 정책의 증거가 아니다.
+
+수동 Article 조립과 starter·공개 package의 책임 변화는 [개발 흐름](../docs/DEVELOPER_EXPERIENCE.md#새-프로젝트의-조립과-변경-책임)에
+기록한다. 공개 소비자의 동일 변경과 조립 책임을 비교했으며 개발 시간 단축이나 성능 수치는 측정하지 않았다.
 
 ## 완료 조건
 
 - [x] F1 전체 검증 완료와 C1 주 작업 전환을 확인한다.
-- [ ] C1-01~05를 빈 디렉터리와 독립 설치/외부 module에서 실제 사용한다.
-- [ ] C1-06~07의 기존 데이터·reload·event/logging·process 실패 경계를 검증한다. 코드와 두 외부 앱 소비자는 작성했다.
-- [ ] C1-08의 서로 다른 앱과 동일 변경·오용/실패·독립 기준을 대조한다.
-- [ ] 같은 source의 전체 필수 CI 원본과 현행 문서를 대조하고 다음 I1의 요구·경계를 유지한다.
+- [x] C1-01~05를 빈 디렉터리와 독립 설치/외부 module에서 실제 사용한다.
+- [x] C1-06~07의 기존 데이터·reload·event/logging·process 실패 경계를 검증한다.
+- [x] C1-08의 서로 다른 앱과 동일 변경·오용/실패·독립 기준을 대조한다.
+- [x] 같은 source의 전체 필수 CI 원본과 현행 문서를 대조하고 I1의 요구·경계를 유지한다.
 
-공통 `settings.Environment`를 Article 진입점에 연결했고, IR과 생성기는 모델 없는 앱의 identity·snapshot을
-유지하도록 확장했다. 생성된 `InstalledApps`를 Article Web/Admin 설정에 연결해 수동 앱 이름·label 반복을 제거했다.
-값 보존·환경 격리·동시 읽기·secret 비노출과 빈/외부/관계 앱·첫 모델 추가·혼합 생성물 거부 검사를 작성했다.
-새 소비자의 실제 실행은 원격 CI 대상이다. 다음 구현은 이 기반을 사용하는 scaffold와 프로젝트 resource/command 조립이다.
-공통 DB 선택·SQL renderer·opener와 Article 연결을 작성했다. PostgreSQL의 URL identity·TLS file 소유권과
-ambient `PG*`/기본 credential 파일 차단도 작성했다. 실제 독립 프로젝트·pool 재연결과 현재 source의 원격 검증은 남아 있다.
-App lifecycle의 의존 순서·실패 rollback·취소/비정상 callback 종료·재진입과 외부 generated 모델/SQLite 소비자도 작성했다.
-공통 서버 조립 전에 강제 연결 종료 후에도 남은 handler/stream 정리를 기다리는 경계를 보완했다. 실제 세 실패 경로의
-분리 재현과 수정 확인은 실행 증거에 있다. 서버·앱·DB를 묶는 공통 owner와 Article 연결, 외부 generated 모델의
-요청 drain 중 저장·worker/DB 역순 정리·재시작 소비자를 작성했으며 실제 원격 검증은 남아 있다.
-전역 도구와 외부 runtime의 build metadata 조회를 작성했다. 고정 version과 로컬 replacement/workspace의 실제
-소비자와 C1-05의 실행 전 호환성 검사·generated ABI를 연결했다. 전체 검증은 현재 source에서 확인한다.
-`startproject`에 명시한 dependency·새 디렉터리·기존 generator와 readonly runtime compile을 연결했다.
-기본 identity/Admin/API·SQLite 설정과 선언/노출 정책의 수정 위치를 담은 안내를 생성한다. 실제 CLI의 빈 앱 생성→
-migration→초기 사용자→인증/CSRF 저장→재시작, 기존 경로 보존과 게시 후 출력 실패 검사를 원격 CI에 연결했다.
-현재 대상 이름은 없어야 하며 기존 빈 디렉터리도 거부한다.
-`startapp`의 앱 선언·등록 안내 생성과 명시적 프로젝트 설치를 연결했다. 새 앱은 implicit init 등록을 사용하지 않는다.
-외부 소비자에 빈 앱 등록→첫 모델→기존 데이터가 있는 nullable field 추가·migration→기존 identity 재시작 검사를 작성했다.
-Go alias는 canonical SQL label과 구분해 underscore/keyword 충돌을 피한다. 현재 source의 실제 원격 실행과 나머지 C1 요구는 남아 있다.
-명령의 명시적 등록·typed 인자/option·목록/help·pure check·invocation resource와 stdin/stdout/stderr/exit를 연결했다.
-Starter와 실제 추가 앱의 generated 모델을 사용하는 명령·저장 후 오류·닫힌 출력·호환성/생성물 불일치 거부 검사를 작성했다.
-모든 기존 프로젝트 명령/server와 startproject 후보에 공통 호환성 비교를 연결했다. 실제 command 응답은 같은 private protocol로
-검사하며 probe의 failure category를 linked 응답으로 허용하지 않는다. 독립 고정 module·명시적 I/O check의 환경별 검증은 남아 있다.
-CI에서 나타난 빈 앱의 migration state 비교 결함은 같은 source의 실패 흐름에서 재현·수정했다. 빈 앱의 identity를 보존하고
-이력이 없는 빈 앱에는 table migration을 만들지 않는다. 새 command 흐름은 이 좁은 재현에 포함하지 않았으며 원격 검증 대상이다.
-호환성 응답의 종료 LF와 엄격한 canonical JSON 비교가 충돌한 CI 실패는 별도 고정 source 재현에서 수정했다.
-기존 명령의 mismatch·비밀값 입력 전 거부·실제 외부 runner·stdout 상한/자손 회수 검사를 작성했다.
-새 공통 검사와 command 흐름의 전체 실행은 현재 source의 원격 CI에서 확인한다.
-VCS에서 추론한 main module version을 고정 설치로 오인하는 실패를 별도 Git checkout에서 재현·수정했다.
-진단용 version은 보존하고 개발 source로 구분한다. 새 metadata 경로의 전체 native dependency와 symlink 검사를
-system-state source binding에 연결했다. 고정 module 소비자는 실제 별도 `go install`·replacement 없는 scaffold·
-인증 저장/재시작·명시적 dependency 변경·잘못된 도구의 I/O 전 거부를 원격 CI에서 실행한다. 두 version은 같은
-전체 source로 만든 test proxy fixture이며 배포 release나 일반 upgrade 정책의 증거로 사용하지 않는다.
-Project-check owner는 성공/실패 모두 원본 Go event·stderr·필수 목록·source/환경 binding과 checksum을 보존한다.
-`check --list`/`check --resource NAME`과 직접 Go API의 선택 검증·순수 검사 우선·callback 수명·public field 진단을 작성했다.
-Starter와 추가 앱에 기존 DB 읽기 검사를 연결했다. SQLite 파일 미생성·불일치 설정·위험 DSN·취소와 PostgreSQL의
-빈/누락 schema 보존·실제 migration/operator·인증 저장/재시작·세션 종료·물리 catalog/row/sequence 보존 검사를 작성했다.
-새 DB/native 본문은 현재 source의 원격 CI 대상이다. Metadata 검사 전후의 project root 교체는 기존 writer의
-source-conflict 의미를 유지하도록 별도 좁은 재현에서 수정했다. I/O check가 전체 DB integrity나 schema drift를 대신하지 않는다.
-실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.
-
-Event는 등록 순서 snapshot·첫 실패 중단/robust 전달·해제 admission·동시/중첩 호출과 callback drain을 소유한다.
-기본 로그는 caller의 slog sink에 닫힌 관측과 별도 취소 flag만 전달한다. Starter에 opt-in JSON·invocation ID를 연결하고,
-실제 저장 후 알림·로그 오류/비정상 종료·인증 서버 재시작과 비밀값 비노출 검사를 작성했다. 새 테스트 본문은 원격 CI 대상이다.
-누적 실행 예산에 걸린 native 서버 패키지는 discovery에 바인딩한 세 묶음으로 나누며 기존 필수 root·child와 DB owner를
-유지한다. 작업 제출은 선행 변경을 포함한 통합 PR #1에 이어 간다. Reload·서로 다른 앱 변경 흐름과 C1 전체 수용은 남아 있다.
+실행 source·재실행의 원래 실패·필수 목록·별도 owner의 검사와 원본 hash는
+[TEST_EVIDENCE의 C1 수용 기록](../docs/status/TEST_EVIDENCE.md#gdj-0137--projectcore-전체-원격-검증과-i1-전환)에 있다.
+운영 배포·추가 Web 기능·durable event와 사용자 정의 계정은 각 후속 묶음에 유지한다.

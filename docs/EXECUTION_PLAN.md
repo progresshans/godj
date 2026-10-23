@@ -78,8 +78,8 @@ GDJ-0134의 이전 미커밋 작업 사본은 계획 수립 시 원래 경로에
 
 | ID | 카탈로그 영역 | 확인한 기존 기반 | 남은 범위 또는 추가 대조가 필요한 범위 | 완료 책임 |
 |---|---|---|---|---|
-| C01 | Project/Core | settings·app registry, check, generate, migration/operator/runserver CLI | 새 프로젝트/app 생성, 사용자 command, 기본 구성과 lifecycle 확장, logging·signal/event, 버전·배포 도구 연결 | C1, O1 |
-| C02 | Web | request/response·middleware·오류·int64/str 경로와 reverse, streaming·파일 조건/Range·upload | namespace/converter 확장, static/media의 개발·운영 경로, reload, HTTP 확장과 관측/종료의 일반 구성 | C1, C2, O1 |
+| C01 | Project/Core | settings·app lifecycle, project/app scaffold, check·사용자 command, generate·migration·초기 사용자·runserver/reload, 설치 호환성·기본 logging·동기 event; C1 완료 근거는 TEST_EVIDENCE | 운영 환경의 설정·진단·배포 도구와 향후 지원 릴리스의 upgrade 정책 | C1, O1 |
+| C02 | Web | request/response·middleware·오류·int64/str 경로와 reverse, streaming·파일 조건/Range·upload, C1의 개발 reload·요청 drain·종료 | namespace/converter 확장, static/media의 개발·운영 경로, HTTP 확장과 운영 관측/종료의 일반 구성 | C1, C2, O1 |
 | C03 | Schema/Model | 정규화 IR, generated type/FieldSet/codec, 모델별 Go method, 현재 metadata | custom field/options/default/validator 확장, 모델 구성·상속 요구의 Go 표현, introspection과 더 넓은 key/관계 의미 | S1, S2, M2 |
 | C04 | Fields | Auto/Integer/Float/Decimal/Boolean, Char/Text/Slug/Email/URL/UUID, Date/DateTime/Time/Duration, Binary/JSON, File/Image, choices의 현재 단면 | 기존 타입의 미지원 연산·default/constraint 조합, backend array/range/generated field, spatial 타입의 전 계층 연결 | Q2, Q3, S1, S2, G1 |
 | C05 | Relation | FK/OneToOne/ManyToMany, forward/reverse manager, eager/prefetch, 할당·삭제와 유한 graph | AutoField 이외 target·relation-as-PK, 남은 cyclic/cross-app 조합, collection 값 projection/정렬·표현식과 관계 UI | S1, Q2, Q3, F1 |
