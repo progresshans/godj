@@ -26,6 +26,7 @@ import (
 const (
 	maxCandidateListBytes       = 64 << 20
 	maxCandidateDiagnosticBytes = 1 << 20
+	maxCandidateCompileArgs     = 32 << 10
 )
 
 type candidateFile struct {
@@ -217,21 +218,32 @@ func (verifier *goCandidateVerifier) compileOverlay(ctx context.Context, replace
 	if len(packages) == 0 {
 		return fmt.Errorf("%w: overlay project contains no Go packages", ErrCandidateVerification)
 	}
-	for index, importPath := range packages {
+	for first := 0; first < len(packages); {
 		if err := ctx.Err(); err != nil {
 			return fmt.Errorf("%w: %w", ErrCandidateVerification, err)
 		}
-		outputPath := filepath.Join(workspace.output, fmt.Sprintf("%06d.test", index))
+		// Share one compiler graph across a bounded group of packages. Keep an
+		// unusually long single import path in its own invocation, as before.
+		end, argumentBytes := first+1, len(packages[first])+1
+		for end < len(packages) && argumentBytes+len(packages[end])+1 <= maxCandidateCompileArgs {
+			argumentBytes += len(packages[end]) + 1
+			end++
+		}
 		arguments := []string{
 			"test", "-c", "-vet=off", "-buildvcs=false", "-mod=readonly", "-overlay=" + overlayPath,
-			"-o", outputPath, importPath,
+			"-o", os.DevNull,
 		}
+		// Go still builds and links every test binary with -c -o /dev/null,
+		// without running init, TestMain or tests. The null output also avoids
+		// filename collisions between unrelated packages with the same name.
+		arguments = append(arguments, packages[first:end]...)
 		output, runErr := runCandidateCommand(ctx, verifier.projectRoot, workspace.environment, maxCandidateDiagnosticBytes, "go", arguments...)
 		if runErr != nil {
-			return fmt.Errorf("%w: compile package %q: %w", ErrCandidateVerification, importPath, &gobuild.Error{
+			return fmt.Errorf("%w: compile candidate packages: %w", ErrCandidateVerification, &gobuild.Error{
 				Cause: runErr, Diagnostic: gobuild.Summary(nil, []byte(output), workspace.environment),
 			})
 		}
+		first = end
 	}
 	return nil
 }
@@ -271,7 +283,6 @@ func validateOverlayTarget(projectRoot, relative string) (string, error) {
 
 type candidateWorkspace struct {
 	root        string
-	output      string
 	environment []string
 }
 
@@ -297,7 +308,7 @@ func createCandidateWorkspace(ctx context.Context, projectRoot string) (candidat
 	fail := func(cause error) (candidateWorkspace, error) {
 		return candidateWorkspace{}, errors.Join(cause, os.RemoveAll(root))
 	}
-	directories := []string{"output", "tmp", "gotmp", "gocache", "home", "xdg-config", "xdg-cache", "gopath", "gomodcache"}
+	directories := []string{"tmp", "gotmp", "gocache", "home", "xdg-config", "xdg-cache", "gopath", "gomodcache"}
 	for _, name := range directories {
 		if err := os.Mkdir(filepath.Join(root, name), 0o700); err != nil {
 			return fail(fmt.Errorf("create candidate workspace directory: %w", err))
@@ -314,7 +325,7 @@ func createCandidateWorkspace(ctx context.Context, projectRoot string) (candidat
 			Cause: err, Diagnostic: gobuild.Summary(nil, []byte(output), environment),
 		}))
 	}
-	return candidateWorkspace{root: root, output: filepath.Join(root, "output"), environment: environment}, nil
+	return candidateWorkspace{root: root, environment: environment}, nil
 }
 
 func candidateCommandEnvironment(projectRoot, workspace string, ambient []string) []string {

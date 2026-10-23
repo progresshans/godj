@@ -74,6 +74,9 @@ SYS-003 등의 단일 worker 준비는 cold 의존성 컴파일을 포함해 최
 compiler 진단을 표시한다. 이 준비 예산은 실제 시나리오의 결과·비밀값·재시작 검사를 생략하지 않는다.
 생성기의 byte/schema 단위 검사는 `codegen`, 생성된 별도 Go module의 compile·runtime·잘못된 조합 거부는
 `codegen/consumertest`가 소유한다. 후자는 integration과 relation platform 범위에서 실행하며 `make quick`에는 포함하지 않는다.
+게시 전 candidate 검증은 발견한 package와 manifest의 새 package를 모두 정렬해 제한된 인자 크기로 묶어 compile한다.
+`go test -c -o /dev/null`로 각 test binary의 compile/link를 유지하고 init·TestMain·test 본문은 실행하지 않는다.
+서로 다른 디렉터리의 동명 package와 마지막 test package의 타입 오류도 검사하며 실패하면 정상 생성물을 보존한다.
 생성 module의 자식 Go 명령은 `-trimpath`를 사용한다. 각 fixture의 writable 임시 디렉터리와 실행 위치는 계속 분리하면서,
 컴파일 결과에 포함되는 임시 절대경로가 동일 소스의 cache key를 매번 바꾸지 않게 한다. 기본 GOCACHE를 공유하며 별도 cache나
 고정 workspace를 매 실행마다 만들지 않는다. 새 compiler 설정의 첫 빌드는 별도 cache를 만들 수 있지만 이후 동일 입력은 재사용한다.

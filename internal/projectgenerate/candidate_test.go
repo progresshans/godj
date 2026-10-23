@@ -57,6 +57,7 @@ var _ = project.GoDjProjectRelationFacadeGeneratorVersion
 			markerRoot := t.TempDir()
 			initMarker := filepath.Join(markerRoot, "init-ran")
 			testMainMarker := filepath.Join(markerRoot, "testmain-ran")
+			testMarker := filepath.Join(markerRoot, "test-ran")
 			writeProjectGenerateTestFile(t, projectRoot, "hooks/hooks.go", []byte(fmt.Sprintf(`package hooks
 
 import "os"
@@ -74,7 +75,20 @@ func TestMain(m *testing.M) {
 	_ = os.WriteFile(%q, []byte("ran"), 0600)
 	os.Exit(m.Run())
 }
-`, testMainMarker)), 0o644)
+
+func TestCandidateMustNotRun(t *testing.T) {
+	_ = os.WriteFile(%q, []byte("ran"), 0600)
+}
+`, testMainMarker, testMarker)), 0o644)
+			// Both packages would otherwise produce models.test. Their test
+			// packages must compile and link without executing either binary.
+			for _, directory := range []string{"alpha/models", "omega/models"} {
+				writeProjectGenerateTestFile(t, projectRoot, directory+"/model.go", []byte("package models\nconst Value = 1\n"), 0o644)
+				writeProjectGenerateTestFile(t, projectRoot, directory+"/model_test.go", []byte(`package models
+import "testing"
+func TestMustOnlyCompile(t *testing.T) { panic("candidate executed a package test") }
+`), 0o644)
+			}
 
 			if !nested {
 				writeRetiredProjectGenerateManifestAndFile(t, projectRoot, bundle)
@@ -93,7 +107,7 @@ func TestMain(m *testing.M) {
 			if strings.Join(before, "\n") != strings.Join(after, "\n") {
 				t.Fatalf("Verify mutated project tree\nbefore=%v\nafter=%v", before, after)
 			}
-			for _, marker := range []string{initMarker, testMainMarker} {
+			for _, marker := range []string{initMarker, testMainMarker, testMarker} {
 				if _, err := os.Lstat(marker); !errors.Is(err, os.ErrNotExist) {
 					t.Fatalf("compile-only verifier executed user code and created %s", marker)
 				}
@@ -129,6 +143,24 @@ var _ = project.SymbolThatDoesNotExist
 	}
 	if after := snapshotProjectGenerateTestTree(t, root); strings.Join(before, "\n") != strings.Join(after, "\n") {
 		t.Fatal("failed consumer verification mutated project")
+	}
+	writeProjectGenerateTestFile(t, root, "consumer/consumer.go", []byte(`package consumer
+import project "example.com/godj-project-bundle/project"
+var _ = project.GoDjProjectRelationFacadeGeneratorVersion
+`), 0o644)
+	// A valid early package must not hide a type error in a later test package.
+	writeProjectGenerateTestFile(t, root, "zz_late/models/model.go", []byte("package models\nconst Value = 1\n"), 0o644)
+	writeProjectGenerateTestFile(t, root, "zz_late/models/model_test.go", []byte(`package models_test
+import "testing"
+var invalid int = "late test package must be compiled"
+func TestInvalid(t *testing.T) {}
+`), 0o644)
+	before = snapshotProjectGenerateTestTree(t, root)
+	if err := verifier.Verify(context.Background(), stage); !errors.Is(err, ErrCandidateVerification) {
+		t.Fatalf("Verify(late broken test package) error = %v", err)
+	}
+	if after := snapshotProjectGenerateTestTree(t, root); strings.Join(before, "\n") != strings.Join(after, "\n") {
+		t.Fatal("late test-package failure mutated project")
 	}
 
 	file := bundle.Files()[0]

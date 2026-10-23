@@ -3,6 +3,38 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 후보 package compile 묶음과 scaffold 원본 대조
+
+2026-10-23, source `d2367f8f662886cefc4b95441955d882881dff8a`의
+[CI 39926060459](https://github.com/progresshans/godj/actions/runs/39926060459)에서 Mac Intel normal Notes는
+최초 `startproject`의 5분 제한으로 실패했다. 원본에는 22번째 Go 명령이 `identity_metadata`이고 시작한 지 537ms라고
+기록됐다. 마지막 명령에서 5분 동안 멈춘 것은 아니며 각 준비 단계의 누적 시간과 compiler 비용은 이 진단만으로 확정하지 않는다.
+같은 CI의 Intel CGO0는 Notes·Article의 필수 root/child와 실제 관측을 통과했고 최초 생성은 2분 8.745초·30개 Go 호출이었다.
+두 artifact의 모든 member checksum과 source/run/attempt를 대조했다. 실제 checkout
+`8508310c1cdee3dc7f9504b15ba9c900148749dd`의 GitHub tree `5ebd52888e9f0bca0a7350e697a29e588cc64366`는 위 source와 같다.
+이 부분 결과는 전체 CI나 C1 완료를 뜻하지 않는다.
+
+게시 전 candidate 검증은 발견한 package와 manifest의 새 package를 정렬한 뒤 인자 크기 32 KiB 이내로 묶어
+`go test -c -o /dev/null`로 compile/link하도록 변경했다. 단일 큰 경로는 기존처럼 독립 호출한다. 고정 Go 1.26.5의
+null 출력 경로는 여러 test binary를 compile/link하고 init·TestMain·test 본문을 실행하지 않는다. Package 목록·readonly
+overlay·context·private workspace와 실패 시 기존 생성물 보존은 유지한다. 동명 package와 마지막 외부 test package의 타입 오류,
+사용자 코드 비실행 검사를 기존 회귀에 추가했다. 이 새 회귀 본문은 원격 CI에서 실행한다.
+
+로컬 Darwin arm64에서 기존 실패 경로인 공개 `startproject`를 변경 전후 한 번씩 관측했다. 같은 9개 compile 대상의
+호출이 9회에서 1회, 전체 Go 호출이 30회에서 22회가 됐다. 실제 Go 명령은 모두 exit 0이었고 게시한 29개 파일의
+내용 hash·권한과 정상 종료 후 임시 workspace 정리가 같았다. 순차 실행의 cache 상태가 다르므로 일반 성능이나
+Mac Intel 시간 초과 해결의 증거로 쓰지 않는다. Gofmt와 `go test -run '^$' -exec=/usr/bin/true ./internal/projectgenerate`의
+최소 compile만 별도로 확인했다. 새 source의 필수 원격 실행·독립 대조·DB·race·platform과 C1 수용은 미완료다.
+
+Receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-d2367f8f-ci-39926060459/mac-intel-normal-failure.json` — 원본 실패·source·seal | `44c2795b8d339c96cfd649b4b297c719995ce28b9bb04a3329c8ba0c80a5b8ee` |
+| `gdj0137-d2367f8f-ci-39926060459/mac-intel-cgo0-progress.json` — 필수 실행·실제 관측 | `9a58af0cddbfc3156dac5d4057ace7d2a5827721f31ce7b744273713c8097beb` |
+| `gdj0137-candidate-batch-repro-v1/comparison.json` — 전후 receipt·동일 대상·파일 대조 | `31a212d74a4521fecf52b794e0cd6b7721008af8999c0dddc3993b520594ce27` |
+| `gdj0137-candidate-batch-repro-v1/compile.json` — 변경 Go 2개 hash·본문 미실행 compile | `8336ef68589e549fad5713fdebd3f356fef509f26c8b7b11dd4fc92704e59a55` |
+
 ## GDJ-0137 — 관측 정정의 원격 부분 대조와 scaffold 준비 진단
 
 2026-10-23, source `6ee1cdffb4a19c37b51b82ddd4f42df7d6bfddab`의
