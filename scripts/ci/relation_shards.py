@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 import re
 
-from go_test_events import events, inspect
+from go_test_events import discover_roots, events, inspect
 
 
 CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
@@ -44,33 +44,6 @@ def matrix():
                     'test_timeout': '70m' if darwin_race else '35m',
                 })
     return {'include': rows}
-
-
-def discover(path):
-    roots, benchmarks = [], []
-    lifecycle = []
-    footer = re.compile(r'ok\s+' + re.escape(CONSUMER) + r'\s+\d+(?:\.\d+)?s')
-    for event in events(path):
-        if event.get('Package') != CONSUMER or event.get('Test'):
-            raise ValueError('discovery must describe only the consumer test binary')
-        action = event['Action']
-        if action in ('start', 'pass'):
-            lifecycle.append(action)
-        elif action == 'output' and lifecycle == ['start']:
-            for line in event.get('Output', '').splitlines():
-                if re.fullmatch(r'(?:Test|Example|Fuzz)[A-Za-z0-9_]*', line):
-                    roots.append(line)
-                elif re.fullmatch(r'Benchmark[A-Za-z0-9_]*', line):
-                    benchmarks.append(line)
-                elif not footer.fullmatch(line):
-                    raise ValueError('unexpected consumer discovery output: ' + line)
-        else:
-            raise ValueError('consumer discovery failed or was not a listing')
-    if lifecycle != ['start', 'pass'] or not roots:
-        raise ValueError('consumer discovery did not complete or contains no runnable roots')
-    if len(roots + benchmarks) != len(set(roots + benchmarks)):
-        raise ValueError('consumer discovery contains duplicate names')
-    return sorted(roots)
 
 
 def partition(roots, shard, count):
@@ -169,7 +142,7 @@ def main():
             command.add_argument('--log', required=True)
     args = parser.parse_args()
     try:
-        roots = discover(args.discovery)
+        roots = discover_roots(args.discovery, CONSUMER)
         if args.action == 'plan':
             result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards)
             destination = Path(args.output_dir)

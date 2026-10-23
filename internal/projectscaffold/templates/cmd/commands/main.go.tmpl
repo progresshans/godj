@@ -9,6 +9,7 @@ import (
 	"syscall"
 
 	"[[.Module]]/internal/commands"
+	"[[.Module]]/internal/config"
 	"github.com/progresshans/godj/project/command"
 	"github.com/progresshans/godj/project/compatibility"
 	"github.com/progresshans/godj/settings"
@@ -42,7 +43,15 @@ func run(ctx context.Context) error {
 		}
 		return err
 	}
-	registry, err := commands.Registry(environment)
+	logger, err := config.Logger(environment, os.Stderr, "commands")
+	if err != nil {
+		var invalid *settings.Error
+		if errors.As(err, &invalid) && invalid != nil {
+			return &command.CheckError{Field: invalid.Field, Cause: err}
+		}
+		return err
+	}
+	registry, err := commands.Registry(environment, logger)
 	if err != nil {
 		return err
 	}

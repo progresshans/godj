@@ -3,6 +3,7 @@
 package runserverproduct_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 func exerciseStartedAppCommands(t *testing.T, global, project, workspace string, environment []string) {
@@ -38,10 +40,13 @@ func exerciseStartedAppCommands(t *testing.T, global, project, workspace string,
 	}
 	assertStartedCommandRows(t, project, workspace, environment, 2, "")
 	assertStartedDatabaseCheckPreservesTree(t, global, project, workspace, environment)
-	created := run("command", "add-note", "created by command", "--summary", "shared model field")
-	if created.ExitCode != 0 || created.Stdout != "note-created\n" || created.Stderr != "" {
+	loggedEnvironment := testenv.With(environment, map[string]string{"GODJ_LOG_LEVEL": "info"})
+	created := testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, project, loggedEnvironment, global, "command", "add-note", "created by command", "--summary", "shared model field")
+	assertRunserverWorkspaceEmpty(t, workspace)
+	if created.ExitCode != 0 || created.Stdout != "note-created\n" {
 		t.Fatal("custom generated command failed", created.ExitCode, created.Stderr)
 	}
+	assertStartedCommandLogs(t, created.Stderr)
 	assertStartedCommandRows(t, project, workspace, environment, 3, "created by command")
 	failed := run("command", "add-note", "saved before command error", "--fail-after-write")
 	if failed.ExitCode != 1 || failed.Stdout != "" || failed.Stderr != "command_error/execution_failed\n" {
@@ -155,7 +160,9 @@ import (
  "context"
  "errors"
  "fmt"
+ "log/slog"
  "github.com/progresshans/godj/apps"
+ "github.com/progresshans/godj/events"
  "github.com/progresshans/godj/project/command"
  "github.com/progresshans/godj/settings"
  "github.com/progresshans/godj/settings/database"
@@ -163,25 +170,40 @@ import (
  "example.com/started-site/project"
  "example.com/started-site/apps/line_items/models"
 )
-func Registry(environment settings.Environment) (command.Registry, error) {
+type noteSaved struct { ID int64 }
+type resources struct { backend database.Backend; saved *events.Event[noteSaved] }
+func Registry(environment settings.Environment, logger *slog.Logger) (command.Registry, error) {
  installed, err := apps.New(project.InstalledApps()); if err != nil { return command.Registry{}, err }
  selected, selectionErr := config.Database(environment)
- return command.New(command.Config{Apps: installed, Check: func(context.Context) error { return configurationError(selectionErr) },
+ return command.New(command.Config{Apps: installed, Logger:logger, Check: func(context.Context) error { return configurationError(selectionErr) },
  ResourceChecks: []command.ResourceCheck{{Name:"database", AppLabel:"line_items", Summary:"Read the existing application database", Run:func(ctx context.Context) error { return configurationError(database.Check(ctx, selected)) }}},
  Commands: []command.Definition{{
   Name: "add-note", AppLabel: "line_items", Summary: "Create a note in the current project database",
   Arguments: []command.Argument{{Name:"title", Help:"note title", Kind:command.String, Required:true}},
   Options: []command.Option{{Name:"summary", Help:"optional summary", Kind:command.String}, {Name:"fail-after-write", Help:"exercise post-commit failure", Kind:command.Boolean}},
-  Handle: command.Using(func(ctx context.Context) (command.Resource[database.Backend], error) {
-   backend, err := database.Open(ctx, selected); if err != nil { return command.Resource[database.Backend]{}, err }
-   return command.Resource[database.Backend]{Value:backend, Close:func(context.Context) error { return backend.Close() }}, nil
-  }, func(ctx context.Context, backend database.Backend, args command.Values, output command.Streams) error {
+  Handle: command.Using(func(ctx context.Context) (command.Resource[resources], error) {
+   backend, err := database.Open(ctx, selected); if err != nil { return command.Resource[resources]{}, err }
+   saved, err := events.New[noteSaved](events.Config{Name:"notes.saved", Logger:logger})
+   if err != nil { return command.Resource[resources]{}, errors.Join(err,backend.Close()) }
+   owned := command.Resource[resources]{Value:resources{backend,saved}, Close:func(cleanup context.Context) error { saved.Close(); return errors.Join(saved.Wait(cleanup), backend.Close()) }}
+   _, err = saved.Subscribe("verify-stored",func(ctx context.Context, event noteSaved) error {
+    rows, err := models.NoteObjects.Using(backend).All(ctx); if err != nil { return err }
+    for _, row := range rows { if row.ID == event.ID { return nil } }
+    return errors.New("committed event row not visible")
+   })
+   if err != nil { return owned,err }
+   _, err = saved.Subscribe("optional-notifier",func(context.Context,noteSaved) error { return errors.New("private-notification-credential") })
+   return owned,err
+  }, func(ctx context.Context, resource resources, args command.Values, output command.Streams) error {
    title, _ := args.String("title")
    create := models.NewNoteCreate(title)
    if summary, provided := args.String("summary"); provided { create = create.WithSummary(summary) }
-   if _, err := models.NoteObjects.Create(ctx, backend, create); err != nil { return err }
+   created, err := models.NoteObjects.Create(ctx, resource.backend, create); if err != nil { return err }
+   // These are optional notifications after the confirmed write. Receiver
+   // failures are observable in the supplied logger and do not undo the save.
+   _, _ = resource.saved.SendRobust(ctx,noteSaved{ID:created.ID})
    if fail, _ := args.Boolean("fail-after-write"); fail { return errors.New("private-database-detail") }
-   _, err := fmt.Fprintln(output.Stdout, "note-created")
+   _, err = fmt.Fprintln(output.Stdout, "note-created")
    return err
   }),
  }}})
@@ -192,3 +214,70 @@ func configurationError(err error) error {
  return err
 }
 `
+
+func assertStartedCommandLogs(t *testing.T, output string) {
+	t.Helper()
+	for _, secret := range []string{"created by command", "shared model field", "private-notification-credential", "password", "postgres://"} {
+		if strings.Contains(output, secret) {
+			t.Fatal("runtime log contains private input")
+		}
+	}
+	var invocation string
+	var records []string
+	parsed, invocation := parseStartedLogs(t, output, "commands")
+	if invocation == "" {
+		t.Fatal("missing command invocation")
+	}
+	for _, record := range parsed {
+		name, _ := record["name"].(string)
+		records = append(records, fmt.Sprint(record["component"])+"/"+fmt.Sprint(record["action"])+"/"+name+"/"+fmt.Sprint(record["outcome"]))
+	}
+	want := []string{"command/check//completed", "command/open_resource//completed", "event/receive/verify-stored/completed", "event/receive/optional-notifier/failed", "event/send/notes.saved/completed", "command/close_resource//completed", "command/execute/add-note/completed"}
+	if strings.Join(records, "\n") != strings.Join(want, "\n") {
+		t.Fatal("closed event/command observations differ", records)
+	}
+}
+
+func parseStartedLogs(t *testing.T, output, runtime string) ([]map[string]any, string) {
+	t.Helper()
+	var invocation string
+	var records []map[string]any
+	for _, line := range strings.Split(strings.TrimSuffix(output, "\n"), "\n") {
+		var record map[string]any
+		if json.Unmarshal([]byte(line), &record) != nil || record["project"] != "example.com/started-site" || record["runtime"] != runtime || record["msg"] != "godj" {
+			t.Fatal("missing structured project/runtime log", line)
+		}
+		id, _ := record["invocation"].(string)
+		if len(id) != 32 || invocation != "" && invocation != id {
+			t.Fatal("invocation identity changed")
+		}
+		invocation = id
+		records = append(records, record)
+	}
+	return records, invocation
+}
+
+func assertStartedServerLogs(t *testing.T, output string) string {
+	t.Helper()
+	parsed, invocation := parseStartedLogs(t, output, "site")
+	want := []string{"start", "ready", "drain", "stop", "run"}
+	if len(parsed) != len(want) {
+		t.Fatal("server logging lifecycle is incomplete", len(parsed))
+	}
+	for i, record := range parsed {
+		if record["component"] != "server" || record["action"] != want[i] || record["outcome"] != "completed" {
+			t.Fatal("server logging order/outcome differs", record)
+		}
+		if record["canceled"] != (want[i] == "drain" || want[i] == "run") {
+			t.Fatal("server cancellation observation differs", record)
+		}
+		for key := range record {
+			switch key {
+			case "time", "level", "msg", "project", "runtime", "invocation", "component", "action", "outcome", "canceled":
+			default:
+				t.Fatal("server log contains an undeclared field", key)
+			}
+		}
+	}
+	return invocation
+}

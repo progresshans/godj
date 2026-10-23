@@ -8,6 +8,7 @@ import (
 
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/internal/callback"
+	"github.com/progresshans/godj/internal/diagnosticlog"
 )
 
 // ResourceCheck declares an optional I/O check. Run owns and closes every
@@ -143,6 +144,7 @@ func (r Registry) CheckResources(ctx context.Context, names ...string) error {
 			return failed("canceled", err)
 		}
 		_, err := callback.Invoke(func() (struct{}, error) { return struct{}{}, check.Run(ctx) }, failed("callback_aborted"))
+		diagnosticlog.End(ctx, r.logger, "command", "check_resource", check.Name, err)
 		if err != nil {
 			return failed("resource_check_failed", &resourceCheckFailure{name: check.Name, cause: err})
 		}

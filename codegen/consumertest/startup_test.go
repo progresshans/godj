@@ -15,11 +15,15 @@ var startupConsumerSource []byte
 //go:embed testdata/startup/server_test.go
 var startupServerConsumerSource []byte
 
+//go:embed testdata/startup/command_test.go
+var startupCommandConsumerSource []byte
+
 func TestGeneratedAppsOwnOrderedStartupAndCleanup(t *testing.T) {
 	root := writeStartupConsumerModule(t)
 	output, err := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-v", "./...").CombinedOutput()
 	if err != nil || !bytes.Contains(output, []byte("--- PASS: TestInstalledAppsOwnLiveResourcesAndPreserveData")) ||
-		!bytes.Contains(output, []byte("--- PASS: TestProjectServerOwnsGeneratedAppsThroughRequestDrain")) {
+		!bytes.Contains(output, []byte("--- PASS: TestProjectServerOwnsGeneratedAppsThroughRequestDrain")) ||
+		!bytes.Contains(output, []byte("--- PASS: TestGeneratedCommandCommitSurvivesEveryLoggerFailure")) {
 		t.Fatalf("external app startup consumer did not execute: %v\n%s", err, output)
 	}
 	t.Logf("external app startup and HTTP lifetime execution:\n%s", output)
@@ -43,5 +47,6 @@ func writeStartupConsumerModule(t *testing.T) string {
 	root := writeProjectBundleModule(t, bundle)
 	writeGeneratedTestFile(t, root, "consumer/startup_test.go", startupConsumerSource)
 	writeGeneratedTestFile(t, root, "consumer/server_test.go", startupServerConsumerSource)
+	writeGeneratedTestFile(t, root, "consumer/command_test.go", startupCommandConsumerSource)
 	return root
 }

@@ -664,8 +664,6 @@ jobs:
           awk -F'|' '$1 == "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$runner_required"
           python3 scripts/ci/go_test_events.py "$runner_log" --required "$runner_required" --no-skips
 
-          runserver_log="$evidence_dir/runserver-product.json"
-          stderr_log="$evidence_dir/runserver-product.stderr"
           runserver_package="github.com/progresshans/godj/conformance/runserverproduct"
           runserver_required=(
             "TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime"
@@ -680,13 +678,26 @@ jobs:
           for test_name in "${runserver_required[@]}"; do
             printf '%s|%s\n' "$runserver_package" "$test_name"
           done > "$required"
-          status=0
-          go test "${json_flags[@]}" ./conformance/runserverproduct > "$runserver_log" 2> "$stderr_log" || status=$?
-          if [ "$status" -ne 0 ]; then
-            python3 scripts/ci/go_test_events.py "$runserver_log" --diagnostics --stderr "$stderr_log" || true
-            exit "$status"
-          fi
-          python3 scripts/ci/go_test_events.py "$runserver_log" --required "$required"
+          # Native scaffold + two independent go installations exhaust a
+          # cumulative 15m package budget. Keep that budget for each complete
+          # flow and discover/inventory every root, including future additions.
+          discovery="$evidence_dir/runserver-discovery.json"
+          go test "${json_flags[@]}" -list . ./conformance/runserverproduct > "$discovery" 2> "$evidence_dir/runserver-discovery.stderr"
+          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir")
+          python3 scripts/ci/runserver_tests.py plan "${plan_args[@]}"
+          runserver_status=0
+          for batch in runtime scaffold fixed-module; do
+            runserver_log="$evidence_dir/runserver-${batch}.json"
+            stderr_log="$evidence_dir/runserver-${batch}.stderr"
+            status=0
+            go test "${json_flags[@]}" -run "$(cat "$evidence_dir/runserver-${batch}-run.txt")" ./conformance/runserverproduct > "$runserver_log" 2> "$stderr_log" || status=$?
+            if [ "$status" -ne 0 ]; then
+              python3 scripts/ci/go_test_events.py "$runserver_log" --diagnostics --stderr "$stderr_log" || true
+              runserver_status=1
+            fi
+          done
+          python3 scripts/ci/runserver_tests.py verify "${plan_args[@]}"
+          test "$runserver_status" = 0
 
           if [ "$mode" = "normal" ] && [ "$PORTABLE_COVERED" != true ]; then
             go vet ./cmd/godj $platform_packages

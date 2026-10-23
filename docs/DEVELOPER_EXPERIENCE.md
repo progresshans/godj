@@ -36,7 +36,7 @@ cd ../my-site
 자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
 Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
 일반 command의 현재 사용은 아래를 따른다. 모든 프로젝트 명령은 실행 전 호환성 검사를 사용한다.
-독립 고정 module 조합의 실행과 reload는 [C1](../work/0137-project-core-startup.md)에 남아 있다.
+독립 고정 module 조합의 전체 환경 검증과 reload는 [C1](../work/0137-project-core-startup.md)에 남아 있다.
 이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
 
 `godj startapp LABEL [DIRECTORY]`는 `modeldef/schema.go`와 등록 안내를 새 디렉터리에 만든다.
@@ -74,6 +74,19 @@ Custom command는 실행 사용자의 OS/DB 권한을 사용한다. HTTP의 현�
 기존 generate·migration 명령은 선언 runner를, runserver는 선언/HTTP runtime을 같은 기준으로 검사한다.
 초기 사용자 생성은 terminal 확인과 비밀번호 입력 전에 검사를 마친다. Entry point는 설정을 읽기 전에
 `compatibility.Serve`를 호출하며 resource를 package `init`에서 열지 않는다. 고정 module 설치와 독립 Django 대조는 C1에서 계속한다.
+
+## 이벤트와 기본 로그
+
+생성된 command/server는 `GODJ_LOG_LEVEL=info`로 JSON 진단을 stderr에 기록한다. `debug`, `warn`, `error`, `off`도
+지원하며 미설정은 로그를 만들지 않는다. 프로젝트·runtime·invocation ID와 닫힌 동작/결과·취소 여부를 기록한다.
+`internal/config/config.go`에서 sink와 추가 속성을 명시한다. 인자·비밀번호·요청 본문·private protocol·error 원문은
+자동 기록하지 않는다. 라이브러리의 apps/command/server/events에는 caller가 소유한 `*slog.Logger`를 직접 전달한다.
+Sink 오류·panic·Goexit는 확정된 저장이나 command 결과를 바꾸지 않으며, handler와 cleanup은 반환까지 기다린다.
+
+[`events.New[T]`](../events/README.md)는 명시적 등록과 순서 있는 process 내부 알림이다. `Send`는 첫 오류에서 멈추고
+`SendRobust`는 receiver별 오류를 모아 계속한다. 확정된 저장 후 선택적 알림 실패와 DB 결과를 구분한다. 종료 시 등록을
+해제/닫고 callback drain이 성공한 뒤 그 resource를 해제한다. 전역 registry·자동 retry·durable 전달은 제공하지 않는다.
+공통 Django 의미와 Go의 typed/context/lifetime 차이 및 실제 검증 여부는 C1과 TEST_EVIDENCE를 따른다.
 
 ## 모델에서 query까지
 

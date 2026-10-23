@@ -41,6 +41,32 @@ def events(path):
             yield value
 
 
+def discover_roots(path, package):
+    roots, benchmarks = [], []
+    lifecycle = []
+    footer = re.compile(r'ok\s+' + re.escape(package) + r'\s+\d+(?:\.\d+)?s')
+    for event in events(path):
+        if event.get('Package') != package or event.get('Test'):
+            raise ValueError('discovery must describe only the package test binary')
+        action = event['Action']
+        if action in ('start', 'pass'):
+            lifecycle.append(action)
+        elif action == 'output' and lifecycle == ['start']:
+            for line in event.get('Output', '').splitlines():
+                if re.fullmatch(r'(?:Test|Example|Fuzz)[A-Za-z0-9_]*', line):
+                    roots.append(line)
+                elif re.fullmatch(r'Benchmark[A-Za-z0-9_]*', line):
+                    benchmarks.append(line)
+                elif not footer.fullmatch(line):
+                    raise ValueError('unexpected package discovery output: ' + line)
+        else:
+            raise ValueError('package discovery failed or was not a listing')
+    if lifecycle != ['start', 'pass'] or not roots:
+        raise ValueError('package discovery did not complete or contains no runnable roots')
+    if len(roots + benchmarks) != len(set(roots + benchmarks)):
+        raise ValueError('package discovery contains duplicate names')
+    return sorted(roots)
+
 @dataclass
 class Inventory:
     runs: set = field(default_factory=set)

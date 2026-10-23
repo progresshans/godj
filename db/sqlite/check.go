@@ -37,6 +37,12 @@ func Check(ctx context.Context, dataSourceName string) (resultErr error) {
 	}
 	backend, err := Open(ctx, dsn)
 	if err != nil {
+		// The driver may finish its busy wait with SQLITE_BUSY after the
+		// context was canceled. Open has already closed its failed connection;
+		// retain the check's cancellation semantics at this earlier I/O stage.
+		if canceled := ctx.Err(); canceled != nil {
+			return canceled
+		}
 		return err
 	}
 	defer func() { resultErr = errors.Join(resultErr, backend.Close()) }()

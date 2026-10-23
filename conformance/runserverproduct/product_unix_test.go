@@ -532,7 +532,7 @@ func runGlobalProjectServer(
 	readinessPrefix string,
 	sensitiveValues *[]string,
 	exercise func(string) error,
-) {
+) string {
 	t.Helper()
 	if exercise == nil {
 		t.Fatal("global runserver exercise is nil")
@@ -613,13 +613,17 @@ func runGlobalProjectServer(
 	if stdout.Truncated() || stderr.Truncated() {
 		t.Fatal("global runserver exceeded output limit")
 	}
-	if stderr.String() != "" {
+	var invocation string
+	if testenv.Map(environment)["GODJ_LOG_LEVEL"] == "info" {
+		invocation = assertStartedServerLogs(t, stderr.String())
+	} else if stderr.String() != "" {
 		t.Fatalf("global runserver stderr bytes = %d, want 0", len(stderr.String()))
 	}
 	readinessLine := readinessPrefix + address + "\n"
 	if output := stdout.String(); strings.Count(output, readinessLine) != 1 || output != readinessLine {
 		t.Fatalf("global runserver stdout bytes = %d, want exact readiness bytes = %d", len(output), len(readinessLine))
 	}
+	return invocation
 }
 
 func assertRunserverOutputExcludesSensitiveValues(
@@ -878,6 +882,7 @@ func runserverEnvironment(t *testing.T, databasePath, workspaceBase string) []st
 	delete(values, articlePostgresSchemaEnv)
 	delete(values, articleAdminUsernameEnv)
 	delete(values, articleAdminPasswordEnv)
+	delete(values, "GODJ_LOG_LEVEL")
 	values["TMPDIR"] = workspaceBase
 	if strings.TrimSpace(values["HOME"]) == "" {
 		home, err := os.UserHomeDir()

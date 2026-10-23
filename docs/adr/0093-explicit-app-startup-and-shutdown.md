@@ -38,5 +38,22 @@ caller 취소를 전달하고, Ready 이후에는 caller 취소로 HTTP drain을
 오류를 숨기지 않는다. 이 분리는 새 runtime의 source 게시나 reload의 성공을 의미하지 않는다.
 
 외부 생성 소비자는 model-free storage app과 실제 모델 app의 의존성, 명시적 사전 migration, worker/DB 수명과 실패 후
-기존 데이터 보존을 사용한다. App lifecycle 작성은 C1의 scaffold·command·event/logging·reload 완료를 대신하지 않는다.
+기존 데이터 보존을 사용한다. App lifecycle 작성은 C1 전체 수용이나 reload 완료를 대신하지 않는다.
 설계·구현과 환경별 실행 결과는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 구분한다.
+
+Process 내부 이벤트는 앱이 소유하는 typed `events.Event[T]`로 조립한다. 전역 signal registry나 숨은 background queue를
+두지 않는다. 등록 순서 snapshot에서 동기 전달하고 일반 오류는 첫 실패 중단/결과 수집 후 계속 전달을 구분한다.
+등록 해제는 아직 시작하지 않은 callback의 admission을 막고, 완료 대기는 별도 Wait로 둔다. 이를 통해 callback 안의
+자기 해제는 막히지 않으면서 resource owner가 종료를 확인할 수 있다. 취소된 Wait는 정리 완료가 아니며 live callback의
+resource를 닫을 권한을 주지 않는다. Callback은 자체 작업을 join하고 caller는 성공한 drain 뒤에만 resource를 해제한다.
+
+같은 event의 동시 Send는 receiver에 동시에 진입할 수 있으며 payload는 Go 대입으로 전달한다. Mutable 참조의 동기화는
+caller가 소유한다. Callback context의 활성 frame을 따라 자기/상위 대기를 명시적 오류로 막고, 완료 frame은 그 판단에서
+제외한다. Django의 weak reference·sender object identity·중복 UID 묵시적 무시는 복제하지 않는다. 현재 snapshot에서의
+disconnect 의미 차이는 [독립 기준](../../conformance/runners/django/event_reference/README.md)에 공개한다.
+
+Logging은 caller가 명시적으로 전달한 표준 `*slog.Logger`와 그 sink를 사용한다. Framework는 닫힌 동작/결과·등록 이름과
+취소 여부만 기록하며 error 원문·인자·credential·payload를 자동 기록하지 않는다. Logger 추가 속성과 sink의 안전성/수명은
+caller 책임이다. Handler도 callback 경계에서 join하되 반환 오류·panic·Goexit를 업무 결과에 합치지 않는다. 이미 확정된
+저장 결과를 로그 전송 실패로 재시도 가능 실패로 만들지 않기 때문이다. 반환하지 않는 handler의 지연을 강제로 해결하거나
+운영 audit의 내구성을 보장하지 않는다. Durable event·배포 관측 정책은 R2/O1에 남는다.

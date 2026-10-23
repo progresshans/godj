@@ -57,7 +57,12 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	if err != nil {
 		return err
 	}
+	logger, err := config.Logger(environment, os.Stderr, "site")
+	if err != nil {
+		return err
+	}
 	return projectserver.Run(ctx, projectserver.Config{
+		Logger: logger,
 		Start: func(startup context.Context) (projectserver.Runtime, error) {
 			backend, err := database.Open(startup, selected)
 			if err != nil {

@@ -88,6 +88,22 @@ identify the failing check and any explicit field while retaining causes for
 Commands use the operator's OS/database access. HTTP
 authentication, authorization and CSRF remain in the Web application.
 
+`Config.Logger` accepts a caller-owned `*slog.Logger`; nil disables logging.
+Add project/invocation attributes with `With`. Framework observations contain
+closed component/action/outcome, registered names and an independent cancellation
+flag. Arguments, output, configuration values and arbitrary errors are omitted.
+Checks, resource open/close and command completion use this same logger.
+Sink errors, panic and Goexit do not change `Result` or the business error;
+handlers and their defers are joined. The caller owns sink lifetime/concurrency
+and must ensure its handler returns. Recursive logging with its supplied context
+is suppressed. These logs are operational diagnostics, not a durable audit log.
+
+The generated entrypoints enable JSON logs to their explicit stderr sink with
+`GODJ_LOG_LEVEL=debug|info|warn|error`; absent or `off` disables them. Empty/invalid
+values fail before resources open. Each process invocation receives a separate
+ID and project/runtime attributes. Optional post-commit notifications can use
+[`events`](../../events/README.md) while preserving the confirmed write result.
+
 Django's [custom management commands](https://docs.djangoproject.com/en/6.1/howto/custom-management-commands/)
 inform argument/help/output and model-using command behavior. GoDj uses explicit
 registration and rejects duplicate/reserved names instead of Django's ordered

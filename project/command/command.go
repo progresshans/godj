@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"sort"
 	"sync"
 	"time"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/internal/callback"
+	"github.com/progresshans/godj/internal/diagnosticlog"
 )
 
 const (
@@ -73,6 +75,10 @@ type Definition struct {
 type Config struct {
 	Apps     apps.Registry
 	Commands []Definition
+	// Logger is optional and caller-owned. Use With to identify the project and
+	// invocation. Logs omit arguments, output and error causes. Sink errors,
+	// panic and Goexit never alter Completed, OutputFailed or the command error.
+	Logger *slog.Logger
 	// Check is pure configuration validation, called after argument validation
 	// and before Handle or an explicitly selected resource check.
 	Check func(context.Context) error
@@ -86,6 +92,7 @@ type Registry struct {
 	check          func(context.Context) error
 	resources      []ResourceCheck
 	resourceByName map[string]int
+	logger         *slog.Logger
 }
 
 // New snapshots declarations and rejects ambiguity instead of overriding an
@@ -94,7 +101,7 @@ func New(config Config) (Registry, error) {
 	if len(config.Commands) > MaxCommands || len(config.ResourceChecks) > MaxCommands {
 		return Registry{}, failed("invalid_definition")
 	}
-	r := Registry{byName: make(map[string]int), check: config.Check}
+	r := Registry{byName: make(map[string]int), check: config.Check, logger: config.Logger}
 	for _, input := range config.Commands {
 		if !validName(input.Name) || Reserved(input.Name) || input.Handle == nil || !validText(input.Summary, 2048) {
 			return Registry{}, failed("invalid_definition")
@@ -138,10 +145,11 @@ func (r Registry) Descriptions() []Definition {
 }
 
 // Check validates project configuration only. It never invokes a command.
-func (r Registry) Check(ctx context.Context) error {
+func (r Registry) Check(ctx context.Context) (result error) {
 	if ctx == nil || r.byName == nil {
 		return failed("invalid_invocation")
 	}
+	defer func() { diagnosticlog.End(ctx, r.logger, "command", "check", "", result) }()
 	if err := ctx.Err(); err != nil {
 		return failed("canceled", err)
 	}
@@ -168,8 +176,7 @@ type Result struct {
 // Execute validates every input before Check/Handle. Callbacks are joined even
 // after cancellation, panic or Goexit. They must finish all owned work before
 // returning; the framework never retries a command or infers its DB outcome.
-func (r Registry) Execute(ctx context.Context, name string, argv []string, streams Streams) (Result, error) {
-	result := Result{}
+func (r Registry) Execute(ctx context.Context, name string, argv []string, streams Streams) (result Result, err error) {
 	if ctx == nil || r.byName == nil || streams.Stdin == nil || streams.Stdout == nil || streams.Stderr == nil {
 		return result, failed("invalid_invocation")
 	}
@@ -178,6 +185,8 @@ func (r Registry) Execute(ctx context.Context, name string, argv []string, strea
 		return result, failed("unknown_command")
 	}
 	definition := r.definitions[index]
+	ctx = diagnosticlog.WithLogger(ctx, r.logger)
+	defer func() { diagnosticlog.End(ctx, r.logger, "command", "execute", definition.Name, err) }()
 	values, err := parse(definition, argv)
 	if err != nil {
 		return result, err
@@ -250,6 +259,7 @@ func Using[T any](open func(context.Context) (Resource[T], error), handle func(c
 			return failed("invalid_definition")
 		}
 		resource, openErr := callback.Invoke(func() (Resource[T], error) { return open(ctx) }, failed("callback_aborted"))
+		diagnosticlog.End(ctx, diagnosticlog.Logger(ctx), "command", "open_resource", "", openErr)
 		if resource.Close == nil {
 			if openErr != nil {
 				return failed("resource_open_failed", openErr)
@@ -267,6 +277,7 @@ func Using[T any](open func(context.Context) (Resource[T], error), handle func(c
 		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 		defer cancel()
 		_, closeErr := callback.Invoke(func() (struct{}, error) { return struct{}{}, resource.Close(cleanup) }, failed("callback_aborted"))
+		diagnosticlog.End(cleanup, diagnosticlog.Logger(ctx), "command", "close_resource", "", closeErr)
 		if openErr != nil {
 			return failed("resource_open_failed", openErr, closeErr)
 		}

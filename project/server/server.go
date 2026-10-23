@@ -7,12 +7,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net"
 	"reflect"
 	"sync"
 	"time"
 
 	"github.com/progresshans/godj/internal/callback"
+	"github.com/progresshans/godj/internal/diagnosticlog"
 	"github.com/progresshans/godj/web"
 )
 
@@ -40,6 +42,10 @@ type ListenerInfo struct {
 // Ready publishes the bound address before HTTP serving starts and must not
 // synchronously wait for an HTTP request to that listener.
 type Config struct {
+	// Logger is optional and caller-owned. Add project/invocation attributes
+	// with Logger.With. No address, request, secret or error cause is logged.
+	// Sink errors and abnormal handler exits do not change the server result.
+	Logger *slog.Logger
 	Start  func(context.Context) (Runtime, error)
 	Listen func(context.Context) (net.Listener, error)
 	Ready  func(context.Context, ListenerInfo) error
@@ -73,6 +79,7 @@ func Run(ctx context.Context, config Config) (result error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	defer func() { diagnosticlog.End(ctx, config.Logger, "server", "run", "", result) }()
 	if config.CleanupTimeout == 0 {
 		config.CleanupTimeout = 10 * time.Second
 	}
@@ -105,13 +112,16 @@ func Run(ctx context.Context, config Config) (result error) {
 		if runtime.Stop != nil {
 			cleanupContext, cancelCleanup := context.WithTimeout(context.WithoutCancel(ctx), config.CleanupTimeout)
 			defer cancelCleanup()
-			if _, err := callback.Invoke(func() (struct{}, error) { return struct{}{}, runtime.Stop(cleanupContext) }, failure(CodeCallbackAborted, nil)); err != nil {
+			_, err := callback.Invoke(func() (struct{}, error) { return struct{}{}, runtime.Stop(cleanupContext) }, failure(CodeCallbackAborted, nil))
+			diagnosticlog.End(cleanupContext, config.Logger, "server", "stop", "", err)
+			if err != nil {
 				result = errors.Join(result, failure(CodeStopFailed, err))
 			}
 		}
 	}()
 	var err error
 	runtime, err = callback.Invoke(func() (Runtime, error) { return config.Start(applicationContext) }, failure(CodeCallbackAborted, nil))
+	diagnosticlog.End(applicationContext, config.Logger, "server", "start", "", err)
 	if err != nil {
 		return startupFailure(ctx, CodeStartFailed, err)
 	}
@@ -151,9 +161,11 @@ func Run(ctx context.Context, config Config) (result error) {
 	// this detach before the first HTTP request, but cannot cancel app workers
 	// during the drain of an admitted request.
 	detach()
+	diagnosticlog.Emit(applicationContext, config.Logger, "server", "ready", "", "completed")
 	if ctx.Err() != nil {
 		return nil
 	}
+	defer func() { diagnosticlog.End(ctx, config.Logger, "server", "drain", "", result) }()
 	if err := httpServer.Serve(ctx, listener); err != nil {
 		// Cancellation may arrive between the preceding check and Serve's
 		// startup check. Errors from an actual drain keep their own causes.

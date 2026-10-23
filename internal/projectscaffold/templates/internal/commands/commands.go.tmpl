@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"[[.Module]]/internal/config"
 	"[[.Module]]/project"
@@ -16,13 +17,14 @@ import (
 	"github.com/progresshans/godj/settings/database"
 )
 
-func Registry(environment settings.Environment) (command.Registry, error) {
+func Registry(environment settings.Environment, logger *slog.Logger) (command.Registry, error) {
 	installed, err := apps.New(project.InstalledApps())
 	if err != nil {
 		return command.Registry{}, err
 	}
 	selected, selectionErr := config.Database(environment)
 	return command.New(command.Config{
+		Logger: logger,
 		Apps:  installed,
 		Check: func(context.Context) error { return configurationError(selectionErr) },
 		ResourceChecks: []command.ResourceCheck{{

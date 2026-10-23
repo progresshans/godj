@@ -38,6 +38,8 @@ func exerciseStartedChecksBeforeDatabase(t *testing.T, global, project, workspac
 		field  string
 	}{
 		{map[string]string{"GODJ_SQLITE_DATABASE": ""}, "GODJ_SQLITE_DATABASE"},
+		{map[string]string{"GODJ_LOG_LEVEL": ""}, "GODJ_LOG_LEVEL"},
+		{map[string]string{"GODJ_LOG_LEVEL": "private-level-value"}, "GODJ_LOG_LEVEL"},
 		{map[string]string{"GODJ_POSTGRES_SCHEMA": "private-schema-value"}, "GODJ_POSTGRES_URL"},
 		{map[string]string{"GODJ_SQLITE_DATABASE": "private-path-value", "GODJ_POSTGRES_URL": "postgres://private-user:private-password@localhost/private-db", "GODJ_POSTGRES_SCHEMA": "private_schema"}, "database"},
 	} {

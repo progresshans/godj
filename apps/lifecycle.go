@@ -3,10 +3,12 @@ package apps
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/progresshans/godj/internal/callback"
+	"github.com/progresshans/godj/internal/diagnosticlog"
 )
 
 // Stop releases an app's resources. The callback must honor its context and
@@ -25,6 +27,10 @@ type Startup struct {
 
 type StartupConfig struct {
 	Hooks []Startup
+	// Logger and its sink are caller-owned; nil disables framework logging.
+	// Add project/invocation attributes with Logger.With. Logs omit callback
+	// errors and configuration values. Sink failure never changes the result.
+	Logger *slog.Logger
 	// RollbackTimeout bounds cooperative startup-failure cleanup independently
 	// of startup cancellation. Zero selects ten seconds; negative is invalid.
 	RollbackTimeout time.Duration
@@ -41,6 +47,7 @@ type Lifecycle struct {
 	stops       []appStop
 	order       []Config
 	shutdownErr error
+	logger      *slog.Logger
 }
 
 type appStop struct {
@@ -56,13 +63,14 @@ type startupStep struct {
 // Among currently ready apps, declaration order wins. Callbacks run serially;
 // each callback goroutine is joined even on cancellation, panic or Goexit.
 // Cancellation is cooperative and never abandons a callback with live resources.
-func Start(ctx context.Context, registry Registry, config StartupConfig) (*Lifecycle, error) {
+func Start(ctx context.Context, registry Registry, config StartupConfig) (_ *Lifecycle, result error) {
 	if ctx == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "context", Detail: "context is nil"}
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	defer func() { diagnosticlog.End(ctx, config.Logger, "apps", "start", "", result) }()
 	if config.RollbackTimeout < 0 {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "rollback_timeout", Detail: "rollback timeout is negative"}
 	}
@@ -75,7 +83,7 @@ func Start(ctx context.Context, registry Registry, config StartupConfig) (*Lifec
 		return nil, err
 	}
 	lifetimeContext, cancel := context.WithCancel(ctx)
-	lifetime := &Lifecycle{done: make(chan struct{}), cancel: cancel}
+	lifetime := &Lifecycle{done: make(chan struct{}), cancel: cancel, logger: config.Logger}
 	rollback := func(cause error) (*Lifecycle, error) {
 		canceled := ctx.Err()
 		cleanupContext, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), rollbackTimeout)
@@ -99,6 +107,7 @@ func Start(ctx context.Context, registry Registry, config StartupConfig) (*Lifec
 		}
 		if step.hook.Start != nil {
 			stop, err := invokeStartup(lifetimeContext, step.app, step.hook.Start)
+			diagnosticlog.End(lifetimeContext, config.Logger, "apps", "start_app", step.app.Label, err)
 			if stop != nil {
 				lifetime.stops = append(lifetime.stops, appStop{label: step.app.Label, stop: stop})
 			}
@@ -149,7 +158,9 @@ func (l *Lifecycle) Shutdown(ctx context.Context) error {
 	var failures []error
 	for index := len(l.stops) - 1; index >= 0; index-- {
 		entry := l.stops[index]
-		if err := invokeStop(ctx, entry.label, entry.stop); err != nil {
+		err := invokeStop(ctx, entry.label, entry.stop)
+		diagnosticlog.End(ctx, l.logger, "apps", "stop_app", entry.label, err)
+		if err != nil {
 			failures = append(failures, &Error{Code: CodeShutdownFailed, Field: "shutdown", AppLabel: entry.label, Detail: "app shutdown callback failed", causes: []error{err}})
 		}
 	}
@@ -157,6 +168,7 @@ func (l *Lifecycle) Shutdown(ctx context.Context) error {
 	if len(failures) != 0 {
 		result = &Error{Code: CodeShutdownFailed, Field: "shutdown", Detail: "one or more app shutdown callbacks failed", causes: failures}
 	}
+	diagnosticlog.End(ctx, l.logger, "apps", "stop", "", result)
 	l.mu.Lock()
 	l.shutdownErr = result
 	l.phase = 2

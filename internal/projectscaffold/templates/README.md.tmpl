@@ -118,6 +118,24 @@ Commands execute with the operator's OS/database permissions; they do not
 implicitly impersonate an HTTP user. A command error, output error or cleanup
 failure does not prove that prior database writes rolled back.
 
+## Operational logging and local events
+
+Set `GODJ_LOG_LEVEL=info` to send structured JSON diagnostics to stderr for the
+server and management runtime. `debug`, `warn`, `error` and `off` are also accepted;
+an absent variable disables logging. Configure the explicit sink and fields in
+`internal/config/config.go`. Records identify this project, runtime and invocation
+and describe startup, checks, resource closure and command completion. A restart
+gets a new invocation ID. Arguments, request bodies, credentials and raw errors
+are not automatically recorded. Sink failure does not turn a confirmed write
+into a failed command; these diagnostics are not a durable audit trail.
+
+For optional in-process notifications, create `events.New[T]` in application
+code and explicitly subscribe receivers. `Send` stops on a receiver error;
+`SendRobust` returns receiver errors while continuing. Preserve confirmed DB
+results when observing post-commit notification failures. On shutdown, close or
+unsubscribe, then successfully drain callbacks before closing their resources.
+There is no global registry, automatic retry or durable/cross-process delivery.
+
 ## Creation failures
 
 `startproject` publishes only to a new directory whose parent already exists.

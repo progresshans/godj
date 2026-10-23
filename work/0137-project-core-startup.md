@@ -30,6 +30,8 @@ F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위�
   loopback 실행·종료·자손 회수 경계가 있다. 일반 command는 별도 runtime package·명시적 등록으로 연결했으며
   같은 source/bundle 준비 경계를 재사용한다. 순수 check와 명시적으로 선택한 resource check·field 진단을 작성했다.
   Watch/reload는 남아 있다.
+- 앱 소유 typed event와 명시적 slog logger를 command·app·server에 연결했다. 저장 후 receiver 오류·sink 실패와
+  확정된 DB 결과를 분리하는 외부 생성/HTTP 소비자, 독립 Django 관측과 Go 수명 검사를 작성했으며 원격 실행은 남아 있다.
 - Article는 DB·identity·Form/Admin/API의 실제 소비자다. 현재 이를 복사해 시작하는 수동 조립을
   새 project/app 기본 경로로 연결하되 예제의 도메인 모델을 모든 새 프로젝트에 강제하지 않는다.
 - 명령별 wire version과 생성 ABI는 이미 있다. `godj version`과 공개 `version.Current()`의 실제 module·개발 source·
@@ -145,3 +147,9 @@ Starter와 추가 앱에 기존 DB 읽기 검사를 연결했다. SQLite 파일 
 새 DB/native 본문은 현재 source의 원격 CI 대상이다. Metadata 검사 전후의 project root 교체는 기존 writer의
 source-conflict 의미를 유지하도록 별도 좁은 재현에서 수정했다. I/O check가 전체 DB integrity나 schema drift를 대신하지 않는다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.
+
+Event는 등록 순서 snapshot·첫 실패 중단/robust 전달·해제 admission·동시/중첩 호출과 callback drain을 소유한다.
+기본 로그는 caller의 slog sink에 닫힌 관측과 별도 취소 flag만 전달한다. Starter에 opt-in JSON·invocation ID를 연결하고,
+실제 저장 후 알림·로그 오류/비정상 종료·인증 서버 재시작과 비밀값 비노출 검사를 작성했다. 새 테스트 본문은 원격 CI 대상이다.
+누적 실행 예산에 걸린 native 서버 패키지는 discovery에 바인딩한 세 묶음으로 나누며 기존 필수 root·child와 DB owner를
+유지한다. 작업 제출은 선행 변경을 포함한 통합 PR #1에 이어 간다. Reload·서로 다른 앱 변경 흐름과 C1 전체 수용은 남아 있다.

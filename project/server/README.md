@@ -49,3 +49,8 @@ HTTP drain 기한이 지나면 연결을 강제로 닫지만, `web.Server`가 ha
 Listener close는 net/http와 최종 owner 사이에서 한 번만 실행한다. Listener 정리가 실패해도 Stop을 시도한다.
 시작/serving 오류와 cleanup 오류를 함께 보존하고, 이미 확정된 application 결과를 자동으로 재시도하지 않는다.
 기본 오류·fmt·JSON은 callback 원문과 resource 내부를 출력하지 않는다. 상세 cause는 명시적인 `errors.Is/As`로 검사한다.
+
+`Config.Logger`는 caller가 선택한 `*slog.Logger`다. Start·ready·HTTP drain·Stop·전체 Run의 닫힌 결과와 context의
+취소 여부를 기록하며 주소·요청·credential·callback 원문은 넣지 않는다. `Logger.With`로 프로젝트/실행 ID를 붙인다.
+로그는 별도 goroutine에 맡겨두지 않고 handler 반환을 기다린다. Sink 오류·panic·Goexit는 원래 결과를 바꾸지 않으며
+nil은 아무 로그도 만들지 않는다. Handler의 추가 정보·concurrency·출력 resource의 수명은 caller가 소유한다.

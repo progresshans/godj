@@ -3,6 +3,58 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 동기 event·명시적 logging 작성과 통합 PR 복원
+
+2026-10-23, 제품 source `8e7e79883ad829de6504a991c0d0fb961608f580`의
+[CI 39888279784](https://github.com/progresshans/godj/actions/runs/39888279784)에서 SQLite 취소 검사가 실패했다.
+Linux amd64 normal와 arm64 race 원본은 연결/Ping 중 취소 뒤 driver의 `SQLITE_BUSY`가 노출됨을 보여 준다.
+같은 source archive의 기존 테스트에서 실패를 재현하고, 연결 실패 때 caller context 취소를 정규화하는 제품 코드만
+수정한 뒤 같은 테스트가 통과했다. Driver 내부 wait의 즉시 중단을 보장한다는 뜻은 아니다.
+`gdj0137-sqlite-check-cancel-repro-v1/receipt.json` SHA-256은
+`3705ae1241d9e8a4790072cbf619f241c1db810bf5392222d37f76539d56a23a`다.
+
+같은 실행의 여러 project-check 좌표는 native server package의 누적 15분 제한으로 종료됐다. 개별 새 흐름의
+assertion 실패와 구분한다. Linux arm64 cgo0 job `120202080154`는 package 898.752초로 완료했으며,
+scaffold·고정 module 설치·인증 재시작을 포함한 root 10개가 성공하고 PostgreSQL owner의 root 두 개만 skip했다.
+Artifact `12474373049`의 모든 member checksum을 확인했다. Checkout `b2ec50991ad40b7b19ac31ef146b6f3e6daa7d52`의
+tree `7f94be851008a23327d4c310c909db7efd2cc6cd`는 위 source와 같다.
+`gdj0137-8e7e7988-ci-39888279784/source-binding-linux-arm64-cgo0.json` SHA-256은
+`40d04d0a8771aa87f48da355539ca04b4527d59f9ca239160aecd8777ae73bdc`다. 이는 이전 source의 해당 좌표 증거이며 전체 성공이 아니다.
+
+기존 12개 project-check 좌표와 각 package의 15분 제한을 유지하면서 server 실행을 runtime·scaffold·fixed-module의
+세 묶음으로 나눴다. 실제 binary discovery의 모든 root가 정확히 한 묶음에서 실행·종료되어야 하고 필수 child도
+통과해야 한다. PostgreSQL manifest의 root 외 skip, 누락·중복·다른 owner·잘린 결과는 실패다. 해당 부정 검사는
+원격 CI 도구 owner에서 실행한다. 실행 분할은 검증 범위를 줄이거나 기존 실패를 성공으로 바꾸지 않는다.
+
+새 typed `events.Event[T]`에 등록 순서 snapshot, fail-fast/robust 전달, 해제 후 admission 차단, callback drain과
+중첩/동시 호출을 작성했다. Payload와 receiver capture는 caller 소유이고 숨은 queue·global registry는 없다.
+`Wait`의 취소는 callback 종료를 뜻하지 않으며 실제 종료 확인 전 의존 resource를 해제하지 않는다.
+명시적인 slog logger를 app·server·command·event에 연결하고 caller sink의 오류·panic·Goexit를 join하며
+확정된 제품 결과를 보존한다. 닫힌 진단 필드만 전달하고 업무 인자·payload·raw cause를 기본 로그에 포함하지 않는다.
+Starter의 opt-in JSON logging은 프로젝트·runtime·invocation을 구분한다. 실제 모델 저장 뒤 알림 실패, 로그 실패,
+요청 drain과 DB 역순 종료, 인증 서버 재시작과 비밀값 비노출 소비자를 작성했다. 새 본문은 아직 실행하지 않았다.
+
+독립 고정 Django signal 관측기는 공통 여섯 입력과 명시적 정책 차이 세 입력을 실행하도록 작성했다. Pinned source의
+세 파일 SHA-256을 upstream bytes와 대조했으며 원 관측·source 검증·mutation/hash-seed 검사는 Python CI가 소유한다.
+Go의 공통 여섯 관측은 같은 입력 hash와 callback 결과를 출력한다. 실제 두 관측 결과 비교는 미완료다.
+
+로컬에서는 열 package의 `-run '^$' -exec=/usr/bin/true` 최소 compile, 이후 변경된 event와 server consumer의
+추가 compile만 통과했다. `gdj0137-events-logging-compile-v1/`의 receipt SHA-256은 다음과 같다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `receipt.json` | `5e69c31e70fe8c836594c19ddba1d1825ee8dd750f90f6d25fccb0f2eb82a9a8` |
+| `events-final.json` | `a68e77726a2b738e488af6ce6a7b38363e912827f853f4778d48b857308edcbe` |
+| `runserver-final.json` | `3d0c94a92f503395b9ce874071092e4195fc23bed07a2f08a93478eef192b4a8` |
+| `static-final.json` | `4f79f1d3c1d390476d572db4d5405b82888f7e96f58f3bc15e0570fdf7ab4ad0` |
+| `final-source.json` | `65a61c9c699931ce05a5e03358e28eb154d0c7dce22788a7fb8d3bdbcb670a29` |
+
+Static receipt는 Python 7개 AST·JSON 2개·workflow YAML과 run block 55개의 구문 검사다. 최종 source receipt는
+제품·테스트·template·workflow 34개 파일을 묶는다. Gofmt와 diff 검사를 통과했으며 새 test 본문·DB·race·process·
+전체 platform은 로컬에서 실행하지 않았다. 전체 실행과 원본 대조, reload·서로 다른 앱의 변경 흐름과 C1 수용은 남아 있다.
+선행 커밋과 현재 변경은 원래 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 모아 제출하며,
+분리됐던 PR의 검증 기록·브랜치·커밋 이력은 보존한다. 이 정리는 main merge나 제품 완료를 뜻하지 않는다.
+
 ## GDJ-0136 — F1 전체 검증 완료와 C1 전환
 
 제품 source `680b6cd297c731a15f0e4aee5da924bbc92f07f9`의

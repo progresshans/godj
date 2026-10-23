@@ -50,3 +50,9 @@ project/server owner가 결정한다. 종료 중 recursive/concurrent Shutdown�
 storage 앱이 SQLite를 열고, 의존 앱이 생성된 모델과 worker를 사용한다. 종료·부분 startup 실패 뒤 worker/DB 회수와
 기존 데이터 보존을 검사하도록 작성했다. 같은 source의 실제 실행 여부는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
 이 API가 migration·계정 생성·durable event 전달을 암묵적으로 수행하지 않는다.
+
+`StartupConfig.Logger`에 caller가 소유한 `*slog.Logger`를 전달하면 앱별 start/stop과 전체 결과를 기록한다.
+Project/invocation은 `Logger.With`로 구분하며 nil은 로그를 만들지 않는다. Callback 원문·설정 값은 기록하지 않고
+sink 실패·panic·Goexit가 startup/shutdown 결과를 바꾸지 않는다. Handler도 종료까지 기다리므로 caller가 반환 시간과
+sink 수명을 소유한다. Process 내부 알림은 앱이 [`events.Event`](../events/README.md)를 만들고 등록/해제한다.
+Stop은 receiver가 모두 끝난 것을 확인한 뒤 그 receiver가 사용하는 resource를 닫아야 한다.

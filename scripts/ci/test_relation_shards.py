@@ -8,7 +8,8 @@ import sys
 import tempfile
 import unittest
 
-from relation_shards import CONSUMER, discover, matrix, partition, plan, verify
+from go_test_events import discover_roots
+from relation_shards import CONSUMER, matrix, partition, plan, verify
 
 
 class RelationShardTest(unittest.TestCase):
@@ -39,7 +40,7 @@ class RelationShardTest(unittest.TestCase):
         return result + [self.event('pass')]
 
     def test_discovery_uses_complete_binary_listing_and_ignores_only_benchmarks(self):
-        self.assertEqual(discover(self.discovery), sorted(self.roots))
+        self.assertEqual(discover_roots(self.discovery, CONSUMER), sorted(self.roots))
         listing = self.listing(self.roots)
         invalid = [listing[:-1], listing + [self.event('pass')], self.listing([]),
                    self.listing(self.roots + [self.roots[0]]), self.listing(['unexpected']),
@@ -48,7 +49,7 @@ class RelationShardTest(unittest.TestCase):
                    [{**event, 'Package': 'unowned'} for event in listing]]
         for values in invalid:
             with self.subTest(values=values), self.assertRaises(ValueError):
-                discover(self.write('invalid.json', values))
+                discover_roots(self.write('invalid.json', values), CONSUMER)
 
     def test_all_roots_and_required_children_have_exactly_one_owner(self):
         runtime = 'github.com/progresshans/godj/orm'

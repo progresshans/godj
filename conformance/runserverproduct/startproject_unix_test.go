@@ -109,12 +109,18 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 	const username, password = "starter-admin", "Scaffold-Admin-734!private"
 	provisionRunserverOperator(t, global, project, descriptor, environment, username, password)
 	assertRunserverWorkspaceEmpty(t, workspace)
+	loggedRuntime := testenv.With(environment, map[string]string{"GODJ_LOG_LEVEL": "info"})
+	var previousInvocation string
 	for attempt := range 2 {
 		address = reserveRunserverLoopbackAddress(t, address)
 		sensitive := []string{password}
-		runGlobalProjectServer(t, global, project, descriptor, address, environment, "site listening on http://", &sensitive, func(address string) error {
+		invocation := runGlobalProjectServer(t, global, project, descriptor, address, loggedRuntime, "site listening on http://", &sensitive, func(address string) error {
 			return exerciseStartedIdentity(address, username, password, attempt == 0, &sensitive)
 		})
+		if invocation == "" || invocation == previousInvocation {
+			t.Fatal("server restart reused logging invocation identity")
+		}
+		previousInvocation = invocation
 		assertRunserverWorkspaceEmpty(t, workspace)
 	}
 	counted := run(t, project, "command", "count-groups")

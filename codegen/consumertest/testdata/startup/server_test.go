@@ -1,13 +1,16 @@
 package consumer
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,6 +19,7 @@ import (
 	"example.com/godj-project-bundle/notes"
 	"example.com/godj-project-bundle/project"
 	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/events"
 	projectserver "github.com/progresshans/godj/project/server"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/settings"
@@ -33,6 +37,15 @@ func TestProjectServerOwnsGeneratedAppsThroughRequestDrain(t *testing.T) {
 		t.Fatal(err)
 	}
 	prepareDatabase(t, selected)
+	var logOutput bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logOutput, nil)).With("project", "served-project", "invocation", "runtime-1")
+	type savedNote struct{ ID int64 }
+	saved, err := events.New[savedNote](events.Config{Name: "notes.saved", Logger: logger})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer saved.Close()
+	var observedID atomic.Int64
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	ready, entered := make(chan string, 1), make(chan struct{})
@@ -57,16 +70,42 @@ func TestProjectServerOwnsGeneratedAppsThroughRequestDrain(t *testing.T) {
 	go func() {
 		defer close(done)
 		result <- projectserver.Run(ctx, projectserver.Config{
-			HTTP: web.ServerOptions{ShutdownTimeout: 5 * time.Second},
+			Logger: logger,
+			HTTP:   web.ServerOptions{ShutdownTimeout: 5 * time.Second},
 			Start: func(startup context.Context) (projectserver.Runtime, error) {
-				lifecycle, err := apps.Start(startup, configured.Apps(), apps.StartupConfig{Hooks: []apps.Startup{
+				lifecycle, err := apps.Start(startup, configured.Apps(), apps.StartupConfig{Logger: logger, Hooks: []apps.Startup{
 					{Label: "notes", DependsOn: []string{"_storage"}, Start: func(lifetime context.Context, _ apps.Config) (apps.Stop, error) {
 						appContext = lifetime
 						ownedBackend := backend
+						_, err := saved.Subscribe("verify-stored", func(ctx context.Context, event savedNote) error {
+							rows, err := notes.NoteObjects.Using(ownedBackend).All(ctx)
+							if err != nil {
+								return err
+							}
+							for _, row := range rows {
+								if row.ID == event.ID {
+									observedID.Store(row.ID)
+									return nil
+								}
+							}
+							return errors.New("saved event arrived before stored row")
+						})
+						if err != nil {
+							return nil, err
+						}
+						_, err = saved.Subscribe("optional-notifier", func(context.Context, savedNote) error { return errors.New("private-notification-credential") })
+						if err != nil {
+							saved.Close()
+							return nil, err
+						}
 						workerDone := make(chan struct{})
 						workers.Add(1)
 						go func() { defer close(workerDone); defer workers.Add(-1); <-lifetime.Done() }()
 						return func(cleanup context.Context) error {
+							saved.Close()
+							if err := saved.Wait(cleanup); err != nil {
+								return err
+							}
 							select {
 							case <-workerDone:
 							case <-cleanup.Done():
@@ -109,9 +148,13 @@ func TestProjectServerOwnsGeneratedAppsThroughRequestDrain(t *testing.T) {
 						if appContext.Err() != nil || workers.Load() != 1 {
 							return web.Response{}, errors.New("app stopped during request")
 						}
-						if _, err := notes.NoteObjects.Create(request.Context(), backend, notes.NewNoteCreate("written during drain")); err != nil {
+						created, err := notes.NoteObjects.Create(request.Context(), backend, notes.NewNoteCreate("written during drain"))
+						if err != nil {
 							return web.Response{}, err
 						}
+						// Optional process notifications do not change the confirmed
+						// DB write or turn it into a retryable HTTP failure.
+						_, _ = saved.SendRobust(request.Context(), savedNote{ID: created.ID})
 						return web.NewResponse(http.StatusCreated, nil, []byte("created"))
 					},
 				}}})
@@ -203,6 +246,26 @@ func TestProjectServerOwnsGeneratedAppsThroughRequestDrain(t *testing.T) {
 	rows, err := notes.NoteObjects.Using(reopened).All(t.Context())
 	if err != nil || len(rows) != 1 || rows[0].ID <= 0 || rows[0].Title != "written during drain" {
 		t.Fatal("server shutdown lost the generated model write", err)
+	}
+	if observedID.Load() != rows[0].ID {
+		t.Fatal("event receiver did not observe the stored row")
+	}
+	if _, err := saved.Send(t.Context(), savedNote{ID: rows[0].ID}); err == nil {
+		t.Fatal("shutdown retained a receiver")
+	}
+	log := logOutput.String()
+	for _, secret := range []string{"written during drain", "private-notification-credential", "http://", "served.sqlite3"} {
+		if strings.Contains(log, secret) {
+			t.Fatal("operational log exposed request or configuration data")
+		}
+	}
+	for _, action := range []string{"start_app", "receive", "ready", "drain", "stop_app", "stop", "run"} {
+		if !strings.Contains(log, `"action":"`+action+`"`) {
+			t.Fatal("missing lifecycle observation", action)
+		}
+	}
+	if !strings.Contains(log, `"name":"optional-notifier"`) || !strings.Contains(log, `"outcome":"failed"`) {
+		t.Fatal("receiver failure was not observed")
 	}
 }
 
