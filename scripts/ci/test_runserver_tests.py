@@ -1,9 +1,12 @@
 from collections import Counter
 import copy
 import json
+import os
 from pathlib import Path
 import re
+import subprocess
 import tempfile
+import textwrap
 import unittest
 
 from go_test_events import discover_roots
@@ -113,6 +116,66 @@ class RunserverExecutionTests(unittest.TestCase):
             [self.event('start'), self.event('output', Output='TestExisting\n', Package='wrong'), self.event('pass')],
         ):
             with self.assertRaises(ValueError): discover_roots(self.write('bad.json',bad),PACKAGE)
+
+    def test_native_workflow_flow_budgets_preserve_instrumentation_and_failures(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / '.github/workflows/ci.yml').read_text()
+        section = workflow.split('  product-project-check-matrix:', 1)[1].split('  product-reload-matrix:', 1)[0]
+        matrix = section.split('        platform:', 1)[1].split('        mode:', 1)[0]
+        platforms = re.findall(r'          - runs_on: "([^"]+)"(.*?)(?=          - runs_on:|\Z)', matrix, re.S)
+        self.assertEqual(4, len(platforms))
+        initialization = section[section.index('          cmd_test_flags='):section.index('          # These package groups')]
+        loop = section[section.index('          runserver_status=0'):section.index('          if [ "$mode" = "normal" ]')]
+        # Retain the former allowance for setup and the other package suites
+        # when extending both complete generation/installation flows. The old
+        # Intel job also expired before its last flow could finish.
+        prior_jobs = {'ubuntu-24.04': (45, 55, 45), 'ubuntu-24.04-arm': (40, 50, 40),
+                      'macos-15-intel': (55, 65, 55), 'macos-26': (45, 55, 45)}
+        for platform, fields in platforms:
+            expected_minutes = 40 if platform == 'macos-15-intel' else 25
+            cmd_timeout = re.search(r'cmd_test_timeout: "([^"]+)"', fields).group(1)
+            configured = re.search(r'flow_test_timeout: "([^"]+)"', fields)
+            flow_timeout = configured.group(1) if configured else '15m'
+            jobs = {mode: int(value) for mode, value in re.findall(r'(normal|race|cgo0): (\d+)', fields)}
+            setup = initialization.replace('${{ matrix.platform.cmd_test_timeout }}', cmd_timeout)
+            body = textwrap.dedent(setup + loop).replace('${{ matrix.platform.flow_test_timeout }}', flow_timeout)
+            for index, mode in enumerate(('normal', 'race', 'cgo0')):
+                for fail_scaffold in ('0', '1'):
+                    with self.subTest(platform=platform, mode=mode, fail_scaffold=fail_scaffold):
+                        calls = self.root / 'calls'
+                        calls.write_bytes(b'')
+                        for batch, pattern in [('runtime', '^TestRuntime$'), ('scaffold', '^TestScaffold$'),
+                                               ('fixed-module', '^TestFixedModule$')]:
+                            (self.root / ('runserver-' + batch + '-run.txt')).write_text(pattern + '\n')
+                        script = '''set -euo pipefail
+plan_args=(--owner baseline)
+go() {
+  printf '%s\\0' "$CGO_ENABLED" "$@" >> "$GODJ_TEST_GO_CALLS"
+  printf '\\n' >> "$GODJ_TEST_GO_CALLS"
+  if [ "$GODJ_TEST_FAIL_SCAFFOLD" = 1 ] && [[ "$*" == *TestScaffold* ]]; then return 7; fi
+}
+python3() { return 0; }
+''' + body
+                        environment = dict(os.environ, mode=mode, evidence_dir=str(self.root), CGO_ENABLED='1',
+                                           GODJ_TEST_GO_CALLS=str(calls), GODJ_TEST_FAIL_SCAFFOLD=fail_scaffold)
+                        result = subprocess.run(['bash', '-c', script], cwd=root, env=environment,
+                                                capture_output=True, text=True, timeout=10)
+                        self.assertEqual('', result.stderr)
+                        self.assertEqual(fail_scaffold == '0', result.returncode == 0, result.stderr)
+                        invocations = [line.rstrip(b'\0').decode().split('\0') for line in calls.read_bytes().splitlines()]
+                        self.assertEqual(3, len(invocations), 'a failed flow must not suppress the other evidence owners')
+                        for batch, invocation in zip(('runtime', 'scaffold', 'fixed-module'), invocations):
+                            cgo, *arguments = invocation
+                            self.assertEqual('0' if mode == 'cgo0' else '1', cgo)
+                            self.assertEqual(['test'], arguments[:1])
+                            self.assertEqual(['./conformance/runserverproduct'], arguments[-1:])
+                            self.assertEqual(1, arguments.count('-json'))
+                            self.assertEqual(1, arguments.count('-count=1'))
+                            self.assertEqual(int(mode == 'race'), arguments.count('-race'))
+                            expected = '15m' if batch == 'runtime' else str(expected_minutes) + 'm'
+                            self.assertEqual(['-timeout=' + expected], [arg for arg in arguments if arg.startswith('-timeout=')])
+                        self.assertGreaterEqual(jobs[mode], prior_jobs[platform][index] + 2 * (expected_minutes - 15),
+                                                'the job must retain its allowance outside the two complete flows')
 
 
 if __name__ == '__main__':

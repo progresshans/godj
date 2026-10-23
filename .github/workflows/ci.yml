@@ -524,22 +524,26 @@ jobs:
             expected_goos: "linux"
             expected_goarch: "amd64"
             cmd_test_timeout: "20m"
-            timeout_minutes: {normal: 45, race: 55, cgo0: 45}
+            flow_test_timeout: "25m"
+            timeout_minutes: {normal: 65, race: 75, cgo0: 65}
           - runs_on: "ubuntu-24.04-arm"
             expected_goos: "linux"
             expected_goarch: "arm64"
             cmd_test_timeout: "20m"
-            timeout_minutes: {normal: 40, race: 50, cgo0: 40}
+            flow_test_timeout: "25m"
+            timeout_minutes: {normal: 60, race: 70, cgo0: 60}
           - runs_on: "macos-15-intel"
             expected_goos: "darwin"
             expected_goarch: "amd64"
             cmd_test_timeout: "30m"
-            timeout_minutes: {normal: 55, race: 65, cgo0: 55}
+            flow_test_timeout: "40m"
+            timeout_minutes: {normal: 105, race: 115, cgo0: 105}
           - runs_on: "macos-26"
             expected_goos: "darwin"
             expected_goarch: "arm64"
             cmd_test_timeout: "20m"
-            timeout_minutes: {normal: 45, race: 55, cgo0: 45}
+            flow_test_timeout: "25m"
+            timeout_minutes: {normal: 65, race: 75, cgo0: 65}
         mode: [normal, race, cgo0]
 
     steps:
@@ -604,7 +608,7 @@ jobs:
           evidence_dir="$RUNNER_TEMP/project-check-evidence"
           cmd_test_flags=(-timeout="${{ matrix.platform.cmd_test_timeout }}" -json -count=1)
           test_flags=(-timeout=20m -count=1)
-          json_flags=(-timeout=15m -json -count=1)
+          json_flags=(-json -count=1)
           case "$mode" in
             normal)
               ;;
@@ -668,19 +672,24 @@ jobs:
 
           required="$evidence_dir/runserver-required.txt"
           cp scripts/ci/runserver-required.txt "$required"
-          # Native scaffold + two independent go installations exhaust a
-          # cumulative 15m package budget. Keep that budget for each complete
-          # flow and discover/inventory every root, including future additions.
+          # Scaffold and fixed-module flows include repeated generation,
+          # migration and independent process builds. Give each complete flow
+          # its own cumulative budget, separate from runtime and the commands'
+          # preparation/cleanup limits. Discover/inventory every root.
           discovery="$evidence_dir/runserver-discovery.json"
-          go test "${json_flags[@]}" -list . ./conformance/runserverproduct > "$discovery" 2> "$evidence_dir/runserver-discovery.stderr"
+          go test "${json_flags[@]}" -timeout=15m -list . ./conformance/runserverproduct > "$discovery" 2> "$evidence_dir/runserver-discovery.stderr"
           plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir" --owner baseline)
           python3 scripts/ci/runserver_tests.py plan "${plan_args[@]}"
           runserver_status=0
           for batch in runtime scaffold fixed-module; do
+            batch_timeout=15m
+            case "$batch" in
+              scaffold|fixed-module) batch_timeout="${{ matrix.platform.flow_test_timeout }}" ;;
+            esac
             runserver_log="$evidence_dir/runserver-${batch}.json"
             stderr_log="$evidence_dir/runserver-${batch}.stderr"
             status=0
-            go test "${json_flags[@]}" -run "$(cat "$evidence_dir/runserver-${batch}-run.txt")" ./conformance/runserverproduct > "$runserver_log" 2> "$stderr_log" || status=$?
+            go test "${json_flags[@]}" -timeout="$batch_timeout" -run "$(cat "$evidence_dir/runserver-${batch}-run.txt")" ./conformance/runserverproduct > "$runserver_log" 2> "$stderr_log" || status=$?
             if [ "$status" -ne 0 ]; then
               python3 scripts/ci/go_test_events.py "$runserver_log" --diagnostics --stderr "$stderr_log" || true
               runserver_status=1

@@ -3,6 +3,47 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 전체 scaffold·독립 설치 흐름의 누적 검증 예산
+
+2026-10-23, source `db05a77fb6ef759cc9694cb27bfc1d1ec213ac86`의
+[CI 39961752244](https://github.com/progresshans/godj/actions/runs/39961752244)에서 macOS arm64 race의 공개 scaffold가
+Go test의 누적 15분 제한으로 종료됐다. 앱 등록·기존 데이터 검사는 489.48초에 통과했고, 마지막 게시 후 출력 실패
+검사는 시작 39.72초 뒤 중단돼 완료 결과가 없다. 같은 작업의 독립 고정 module 설치는 883.895초에 통과했다.
+Linux amd64 race의 scaffold도 883.512초로 기존 한도에 근접했다. 이 시간은 전체 흐름의 관측값이며 제품 성능 기준이 아니다.
+
+macOS amd64 normal도 앱 등록·기존 데이터 검사 중 같은 15분 제한에 걸렸다. 뒤이은 독립 설치가 끝나기 전에 전체
+작업의 55분 제한으로 취소됐으며 GitHub annotation과 원본에 이를 확인했다. 중단된 단계의 정상 완료나 cleanup은
+확인되지 않았다. 원본의 실제 checkout `5656ab8405479b25beccb5797d27d91e22aa4466`과 tree
+`5bc86b6e2d8fca2208a5d1ec7e192dadd554a5dc`를 제출 source에 연결했다.
+
+Scaffold와 독립 설치의 완전한 흐름마다 누적 25분, macOS amd64는 40분을 배정했다. 두 흐름의 증가분에 맞춰 전체
+CI 작업 예산도 각각 20분·50분 늘려 다른 준비·검사에 남아 있던 여유를 유지한다. 일반 runtime 묶음과 발견 명령은
+기존 15분을 사용한다. 제품 코드, 개별 준비·호환성·HTTP·종료/자손 회수 기한과 필수 실행·실패 조건은 바꾸지 않았다.
+
+실제 workflow shell의 12개 환경·성공/실패 24개 조합을 Go 기록 stub으로 실행했다. 수정 전에는 모든 조합에서
+긴 흐름에도 15분이 전달됐고, 수정 후 실제 timeout·race/CGO·count/JSON 인자와 실패 뒤 나머지 묶음 실행·최종 실패를
+확인했다. 전체 작업 예산의 증가분도 검사한다. 관련 CI 도구 27개 검사가 통과했으며 이는 합성 제어 검사다.
+로컬 Go 제품 테스트 본문은 실행하지 않았다. 새 예산에서 중단됐던 native 흐름이 완료되는지는 새 source의 원격 검증 대상이다.
+
+수정 전 source의 Linux 6개 좌표는 개발 공통 결과 8개·명시적 차이 1개·event 공통 결과 6개가 독립 Django 기준과
+일치했다. Linux 6개와 macOS arm64 normal/CGO0 baseline은 새 scaffold 발견 root 8개와 child 12개의 실제 run/pass를
+확인했다. PostgreSQL normal/CGO0 owner는 필수 4,256개와 실제 7,241개, race process owner는 필수 11개와 실제 22개를
+각각 skip 없이 완료했다. 세 모드 모두 Article·starter의 실제 DB/인증/재시작과 실행 바이너리 metadata를 확인했다.
+독립 Python 3.14.3의 405개 중 별도 profile 담당 skip 4개는 같은 source의 Darwin 405개·skip 0 실행에서 확인했다.
+Helpdesk 236개·Admin 125개 browser 관측은 원본·source·DB 결과를 대조했다. 이 부분 결과는 전체 C1이나 새 수정의 PASS가 아니다.
+
+원본과 receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-db05a77f-ci-39961752244/baseline-cumulative-budget-failures.json` — 두 macOS 실패와 source·단계별 원본 | `fb7c4755a89c29daf117f79fed4da3290880a38f9847203b5bec1f2e46e9f830` |
+| `gdj0137-baseline-flow-budget-v1/comparison.json` — workflow 전후 인자·실패 제어와 27개 도구 검사 | `ac8f8dcd043214e9fc2790687e2e7e905bebf9927f79408c430f3f0b7b341a42` |
+| `gdj0137-db05a77f-ci-39961752244/project-reference-partial-6-coordinates.json` — Linux 6개 좌표의 독립 부분 대조 | `359808258da35e1bd0818479976104abc80b0ada2be67f8e2f8b533e71a9a8c1` |
+| `gdj0137-db05a77f-ci-39961752244/native-collection-143525Z.json` — source에 묶인 native scaffold·process 원본 | `3e4b85ea319903db51673cd6f475d9fb3f799beb9e9ace10edff90527f62d146` |
+| `gdj0137-db05a77f-ci-39961752244/postgres-collection-141948Z.json` — PostgreSQL 세 모드의 필수 실행과 실제 계측 | `72166082791aa9af58837add89830dd20e262a94175d7db718894357c9f8ec9e` |
+| `gdj0137-db05a77f-ci-39961752244/exact-darwin-python-profile-execution.json` — 별도 profile 담당 4개를 포함한 405개 실행 | `f04ec9d58d040d24a107cd5290e72725c4ceb8d2223c9ac44eba65799bb0b4cb` |
+| `gdj0137-db05a77f-ci-39961752244/browser-artifact-inspection.json` — browser 원본과 실제 DB·파일 결과 | `16d50594b66cb910e5c37f400af7ddce3215d6b7a58035004b21d1e2cd141c1c` |
+
 ## GDJ-0137 — Scaffold 게시 검사의 native 실행 소유권
 
 2026-10-23, `7cd12406402aafe800102196335b7655c48bc587`의 C1 수용 조건과 CI 선택을 대조했다.
