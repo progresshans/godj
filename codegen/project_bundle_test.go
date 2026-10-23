@@ -20,7 +20,7 @@ func TestProjectBundleCanonicalRosterAndContentHashes(t *testing.T) {
 		t.Fatalf("GenerateProject() error = %v", err)
 	}
 	files := bundle.Files()
-	if got, want := len(files), 16; got != want {
+	if got, want := len(files), 17; got != want {
 		t.Fatalf("len(Files()) = %d, want %d", got, want)
 	}
 	wantPaths := []string{
@@ -32,6 +32,7 @@ func TestProjectBundleCanonicalRosterAndContentHashes(t *testing.T) {
 		"blog/zz_godj_relation.go",
 		"blog/zz_godj_relation_object.go",
 		"blog/zz_godj_relation_projection.go",
+		"project/zz_godj_account.go",
 		"project/zz_godj_bindings.go",
 		"project/zz_godj_relation_delete.go",
 		"project/zz_godj_relation_facade.go",
@@ -112,8 +113,8 @@ func TestGenerateProjectSupportsEmptyAppUniverse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateProject(empty) error = %v", err)
 	}
-	if got := len(bundle.Files()); got != 8 {
-		t.Fatalf("len(Files()) = %d, want 8 project files", got)
+	if got := len(bundle.Files()); got != 9 {
+		t.Fatalf("len(Files()) = %d, want 9 project files", got)
 	}
 }
 

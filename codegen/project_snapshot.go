@@ -16,7 +16,7 @@ import (
 
 const (
 	projectBundleGeneratorVersion    = "godj-codegen-project-bundle-v1"
-	maxProjectApps                   = 8192
+	maxProjectApps                   = projectspec.MaxApps
 	maxProjectGeneratedFiles         = 65536
 	maxProjectGeneratorABIEntries    = 64
 	maxProjectWireStringBytes        = 4096
@@ -25,7 +25,7 @@ const (
 	maxProjectManifestBytes          = 16 << 20
 	maxProjectGeneratedSourceBytes   = 64 << 20
 	projectGeneratedFilesPerApp      = 4
-	projectGeneratedProjectFileCount = 8
+	projectGeneratedProjectFileCount = 9
 )
 
 type projectGeneratorABI struct {
@@ -43,6 +43,7 @@ type projectPackageDocument struct {
 type normalizedProjectSpec struct {
 	project PackageSpec
 	apps    []preparedProjectApp
+	account *ir.AccountRole
 }
 
 type preparedProjectApp struct {
@@ -64,6 +65,7 @@ type projectSnapshotDocument struct {
 	GeneratorABI  []projectGeneratorABI  `json:"generator_abi"`
 	Project       projectPackageDocument `json:"project"`
 	Apps          []projectSnapshotApp   `json:"apps"`
+	Account       *ir.AccountRole        `json:"account,omitempty"`
 }
 
 func projectGeneratorABIRoster() []projectGeneratorABI {
@@ -74,6 +76,7 @@ func projectGeneratorABIRoster() []projectGeneratorABI {
 		{Role: "app.relation_object", Filename: "zz_godj_relation_object.go", Version: RelationObjectGeneratorVersion},
 		{Role: "app.relation_projection", Filename: "zz_godj_relation_projection.go", Version: RelationProjectionGeneratorVersion},
 		{Role: "project.bindings", Filename: "zz_godj_bindings.go", Version: ProjectBindingGeneratorVersion},
+		{Role: "project.account", Filename: "zz_godj_account.go", Version: ProjectAccountGeneratorVersion},
 		{Role: "project.relation_query", Filename: "zz_godj_relation_query.go", Version: ProjectRelationQueryGeneratorVersion},
 		{Role: "project.relation_object", Filename: "zz_godj_relation_object.go", Version: ProjectRelationObjectGeneratorVersion},
 		{Role: "project.relation_reverse", Filename: "zz_godj_relation_reverse.go", Version: ProjectRelationReverseGeneratorVersion},
@@ -88,16 +91,15 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 	if err := validateProjectAppCount(len(input.Apps)); err != nil {
 		return normalizedProjectSpec{}, err
 	}
-	if err := validateProjectGeneratedFileCount(
-		len(input.Apps)*projectGeneratedFilesPerApp + projectGeneratedProjectFileCount,
-	); err != nil {
+	fileCount := len(input.Apps)*projectGeneratedFilesPerApp + projectGeneratedProjectFileCount
+	if err := validateProjectGeneratedFileCount(fileCount); err != nil {
 		return normalizedProjectSpec{}, err
 	}
 	schemas := make([]ir.Schema, len(input.Apps))
 	for index := range input.Apps {
 		schemas[index] = input.Apps[index].Schema
 	}
-	if err := projectspec.ValidateSchemas(schemas); err != nil {
+	if err := projectspec.ValidateProjectResources(schemas, input.Account); err != nil {
 		return normalizedProjectSpec{}, err
 	}
 	if err := validateManyToManyProject(schemas); err != nil {
@@ -180,7 +182,15 @@ func normalizeProjectSpec(input ProjectSpec) (normalizedProjectSpec, error) {
 		appLabels[app.schema.AppLabel] = struct{}{}
 	}
 
-	return normalizedProjectSpec{project: project, apps: apps}, nil
+	var account *ir.AccountRole
+	if input.Account != nil {
+		value, err := ir.NormalizeAccountRole(*input.Account, schemas...)
+		if err != nil {
+			return normalizedProjectSpec{}, err
+		}
+		account = &value
+	}
+	return normalizedProjectSpec{project: project, apps: apps, account: account}, nil
 }
 
 func normalizeProjectPackage(owner string, input PackageSpec, external bool) (PackageSpec, error) {
@@ -255,6 +265,7 @@ func projectSnapshotWithABI(
 		GeneratorABI:  append([]projectGeneratorABI(nil), abi...),
 		Project:       projectPackageDocumentFromSpec(input.project),
 		Apps:          make([]projectSnapshotApp, len(input.apps)),
+		Account:       input.account,
 	}
 	for index, app := range input.apps {
 		document.Apps[index] = projectSnapshotApp{

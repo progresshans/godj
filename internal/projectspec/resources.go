@@ -10,6 +10,7 @@ import (
 )
 
 const (
+	MaxApps              = 8_192
 	MaxModelsPerApp      = 2_048
 	MaxFieldsPerModel    = 2_048
 	MaxAggregateFields   = 262_144

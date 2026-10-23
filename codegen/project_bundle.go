@@ -87,7 +87,7 @@ func GenerateProject(input ProjectSpec) (GeneratedBundle, error) {
 }
 
 func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, error) {
-	result := make([]projectRenderedFile, 0, len(input.apps)*4+8)
+	result := make([]projectRenderedFile, 0, len(input.apps)*4+projectGeneratedProjectFileCount)
 	bridgePackages := make([]BridgePackage, len(input.apps))
 	relationPackages := make([]normalizedRelationPackage, len(input.apps))
 
@@ -119,6 +119,9 @@ func renderProjectBundle(input normalizedProjectSpec) ([]projectRenderedFile, er
 	}{
 		{filename: "zz_godj_bindings.go", render: func() ([]byte, error) {
 			return generateProjectBridge(input.project.PackageName, bridgePackages)
+		}},
+		{filename: "zz_godj_account.go", render: func() ([]byte, error) {
+			return generateProjectAccount(input)
 		}},
 		{filename: "zz_godj_relation_query.go", render: func() ([]byte, error) {
 			return generateProjectRelationQuery(input.project.PackageName, plan)
@@ -186,6 +189,7 @@ func validateProjectOutputRoster(input normalizedProjectSpec) error {
 	}
 	for _, filename := range []string{
 		"zz_godj_bindings.go",
+		"zz_godj_account.go",
 		"zz_godj_relation_query.go",
 		"zz_godj_relation_object.go",
 		"zz_godj_relation_reverse.go",

@@ -19,6 +19,7 @@ import (
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/internal/migrationautodetect"
 	"github.com/progresshans/godj/internal/projectmigration/protocol"
+	"github.com/progresshans/godj/internal/projectwire"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
@@ -376,12 +377,7 @@ func validateWriterRoot(root string) error {
 }
 
 func cloneProjectSpec(input codegen.ProjectSpec) codegen.ProjectSpec {
-	cloned := codegen.ProjectSpec{Project: input.Project, Apps: make([]codegen.AppSpec, len(input.Apps))}
-	for index := range input.Apps {
-		cloned.Apps[index] = input.Apps[index]
-		cloned.Apps[index].Schema = input.Apps[index].Schema.Clone()
-	}
-	return cloned
+	return projectwire.Clone(input)
 }
 
 func desiredState(spec codegen.ProjectSpec) (migrations.ProjectState, error) {

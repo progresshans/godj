@@ -3,6 +3,26 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0138 — 계정 역할의 프로젝트 선언과 typed 생성 binding
+
+2026-10-24, `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`에서 분리한 I1 작업트리에서 계정 역할 IR·기본 선언,
+프로젝트 wire·사본·digest·생성 snapshot과 `identity/model.Binding[M]`을 작성했다. 계정 선택과 상수 역할의 소유권,
+실제 모델/필드/권한 관계, wire의 열린 shape·NULL·중복·한도, 역할 변경의 source identity와 혼합 생성물 거부 검사를
+추가했다. 기본 User와 별도 Member·catalog·host FK를 생성하고 실제 SQLite 행을 사용하는 외부 소비자도 작성했다.
+
+로컬은 gofmt와 diff 검사, 변경한 IR·model binding·codegen·wire·generate/migration protocol·snapshot 및
+생성된 기본 `identity/project`의 `go test -run '^$'` compile만 확인했다. 처음 IR fixture의 M2M 선언에 필요한
+reverse 인자가 없던 compile 오류를 고친 뒤 통과했다. 테스트 본문, 새로운 외부 module의 생성/DB 실행과 혼합 정책
+compile 거부 검사는 이 로컬 확인에서 실행하지 않았다.
+
+공개 `godj generate`로 기존 일곱 프로젝트의 생성물을 새 ABI에 맞춰 갱신했다. 기본 identity는 선택한 계정의
+typed 함수를 생성했고, 나머지는 계정 선택 없이 현재 companion/source marker를 갖는다. 게시 명령 성공과
+새 생성물의 실제 소비자·동시성·DB/HTTP·전체 환경 성공은 별개다. 이 변경의 영향 테스트·generated drift·외부 소비자와
+전체 CI는 새 source의 원격 실행 대상이다. 선행 C1의 `b19aeedd` 실행 결과를 새 I1 코드의 PASS로 사용하지 않는다.
+
+I1의 공통 credential/관리 runtime, Form/Admin/API·첫 사용자 명령, durable account domain과 채운 DB의 명시적
+모델 전환, password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
+
 ## GDJ-0137 — 독립 관측 JSON과 unittest 진행 출력의 분리
 
 2026-10-24, source `c0e8d3d34abf7a3698fe49f1c51f72aa8e7a993b`의

@@ -757,3 +757,27 @@ JSON으로 끝내며 부모가 별도 native runtime에서 password/revision/ses
 
 Form/API의 양 DB 재접속은 별도 연결/runtime의 재개 검증이다. 별도 server process restart, 운영 mail provider와 Hosted 전체
 검증을 이 로컬 소비자 결과에서 추론하지 않는다. 실행 상세는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 둔다.
+
+## 프로젝트가 소유하는 계정 역할과 생성 binding
+
+[GDJ-0138](../../work/0138-custom-account-lifecycle.md)의 계정 선택은 `codegen.ProjectSpec.Account`에 놓는
+`ir.AccountRole`이다. 설치한 model·logical field·M2M의 실제 IR에 principal/login/password/revision/last_login,
+active/staff/superuser와 permission catalog 역할을 대조한다. 기본 User도 같은 선언을 사용한다.
+Email과 login은 같은 unique field를 사용할 수 있다. Boolean 역할은 저장된 필드 또는 명시적인 상수 중 하나이며,
+상수의 false·true와 미선택은 구분한다. 저장할 login과 인증 입력의 정규화 정책은 각각 명시한다.
+기본 계정의 저장 NFKC와 정확한 입력 조회를 하나의 암묵적 규칙으로 합치지 않는다.
+
+계정 역할은 프로젝트 source identity이며 model의 물리 DDL history가 아니다. 역할 변경은 생성 snapshot과
+프로젝트 명령 digest를 바꾸지만 이미 적용한 migration 정의를 고쳐 쓰지 않는다. Private wire와 사본은 역할과
+상수의 소유권을 유지하며, 닫힌 JSON shape·문자열·aggregate node 한도를 decode/clone 전에 검사한다.
+
+계정을 선택한 프로젝트의 `BindAccount`는 생성된 실제 모델 타입, descriptor와 전체 host 관계 그래프를
+`identity/model.Binding[M]`에 묶는다. 개별 필드를 SQL이나 reflection으로 다시 해석하지 않는다. Profile의
+추가 관계와 외부 앱도 이 그래프에 포함한다. 앱 설치만으로 계정이 암묵적으로 선택되지 않는다. 선택이 없는
+프로젝트도 현재 생성 roster와 source marker를 유지하며, typed account 함수는 선택한 프로젝트에만 생긴다.
+
+이 binding은 모델 설정과 타입의 일치를 확인한다. 인증·인가·계정 생성·저장된 domain 전환의 승인이 아니다.
+일반 typed ORM 접근 권한과 identity runtime의 현재 권한·credential·revision·session/audit fence를 구분한다.
+사용자 정의 모델을 인증 runtime에 연결할 때는 저장된 domain과 선택을 확인하고, 모델 또는 identity 정책 변경은
+명시적 mapping·receipt·session/reset 정책을 갖춘 전환으로 처리해야 한다. 그 runtime·이행·Form/API·실제 환경의
+완성 여부는 GDJ-0138과 TEST_EVIDENCE에서 따로 추적한다.

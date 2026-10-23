@@ -28,7 +28,13 @@ func Measure(sizer *wirejson.Sizer, spec Spec) bool {
 			return false
 		}
 	}
-	return sizer.Literal(`]}`)
+	if !sizer.Literal(`]`) {
+		return false
+	}
+	if spec.Account != nil && (!sizer.Literal(`,"account":`) || !measureAccountRole(sizer, *spec.Account)) {
+		return false
+	}
+	return sizer.Literal(`}`)
 }
 
 func measurePackage(sizer *wirejson.Sizer, pkg Package) bool {

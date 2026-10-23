@@ -294,8 +294,8 @@ func TestProjectSnapshotChangesWithSchemaLayoutAndGeneratorABIInputs(t *testing.
 			t.Fatalf("snapshot input change %d did not change digest", index)
 		}
 	}
-	if got := len(projectGeneratorABIRoster()); got != 13 {
-		t.Fatalf("len(projectGeneratorABIRoster()) = %d, want 13", got)
+	if got := len(projectGeneratorABIRoster()); got != 14 {
+		t.Fatalf("len(projectGeneratorABIRoster()) = %d, want 14", got)
 	}
 	for index, entry := range projectGeneratorABIRoster() {
 		t.Run(entry.Role, func(t *testing.T) {

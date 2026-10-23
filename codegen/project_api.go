@@ -45,6 +45,10 @@ type AppSpec struct {
 type ProjectSpec struct {
 	Project PackageSpec
 	Apps    []AppSpec
+	// Account selects one normalized account role from the installed schemas.
+	// It is generation/source identity, not permission to provision or switch
+	// the persisted account domain. Nil selects no account adapter.
+	Account *ir.AccountRole
 }
 
 // GeneratedFile is one immutable Go-source member of a GeneratedBundle.
