@@ -36,6 +36,41 @@ type migrationCommandActualExecution struct {
 	stdout      []byte
 	stderr      []byte
 	environment []string
+	phases      []migrationCommandActualPhase
+}
+
+// Phase diagnostics belong only to failed native observations. They never
+// enter the oracle result or retain command arguments, environment or output.
+type migrationCommandActualPhase struct {
+	Stage            productcheck.ProcessStage
+	Elapsed          time.Duration
+	Remaining        time.Duration
+	Bounded          bool
+	Canceled         bool
+	DeadlineExceeded bool
+	Started          bool
+	ExitCode         int
+}
+
+type migrationCommandActualBackend struct {
+	productcheck.NativeBackend
+	phases []migrationCommandActualPhase
+}
+
+func (backend *migrationCommandActualBackend) Execute(ctx context.Context, interrupt <-chan struct{}, stage productcheck.ProcessStage, command productcheck.Command) productcheck.ProcessResult {
+	started := time.Now()
+	deadline, bounded := ctx.Deadline()
+	phase := migrationCommandActualPhase{Stage: stage, Bounded: bounded}
+	if bounded {
+		phase.Remaining = time.Until(deadline)
+	}
+	result := backend.NativeBackend.Execute(ctx, interrupt, stage, command)
+	phase.Elapsed = time.Since(started)
+	phase.Canceled = errors.Is(ctx.Err(), context.Canceled)
+	phase.DeadlineExceeded = errors.Is(ctx.Err(), context.DeadlineExceeded)
+	phase.Started, phase.ExitCode = result.Started, result.ExitCode
+	backend.phases = append(backend.phases, phase)
+	return result
 }
 
 type migrationCommandActualParticipant struct {
@@ -141,8 +176,9 @@ func (project migrationCommandProject) runActual(
 	defer cancel()
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
+	backend := &migrationCommandActualBackend{NativeBackend: productcheck.NativeBackend{Framework: commandFixtureToolInfo()}}
 	report := productcheck.RunMigrate(productcheck.MigrateInvocation{
-		Backend:     productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
+		Backend:     backend,
 		Context:     phaseContext,
 		CWD:         project.root,
 		Args:        []string{"migrate"},
@@ -156,6 +192,7 @@ func (project migrationCommandProject) runActual(
 		stdout:      append([]byte(nil), stdout.Bytes()...),
 		stderr:      append([]byte(nil), stderr.Bytes()...),
 		environment: append([]string(nil), environment...),
+		phases:      append([]migrationCommandActualPhase(nil), backend.phases...),
 	}
 }
 
@@ -234,11 +271,11 @@ func migrationCommandActualSuccess(execution migrationCommandActualExecution) er
 		report.PartialStdoutWrites != 0 || report.RunnerStderrRetainedBytes != controlBytes ||
 		report.RunnerStderrTruncated || !report.RawDiagnosticsDiscarded {
 		return fmt.Errorf(
-			"migration-command actual success = exit:%d result:%t failure:%t stdout:%d stderr:%d build:%d runner:%d reaps:%d sigint:%d sigkill:%d temp:%d/%d cleanup:%d residue:%d",
-			report.ExitCode, report.HasMigrateResult, report.HasMigrateFailure,
-			len(execution.stdout), len(execution.stderr), report.BuildCalls, report.RunnerCalls,
+			"migration-command actual success = exit:%d result:%t failure:%t/%+v stdout:%d stderr:%d build:%d compatibility:%d runner:%d reaps:%d sigint:%d sigkill:%d temp:%d/%d cleanup:%d residue:%d phases:%+v",
+			report.ExitCode, report.HasMigrateResult, report.HasMigrateFailure, report.MigrateFailure,
+			len(execution.stdout), len(execution.stderr), report.BuildCalls, report.CompatibilityChecks, report.RunnerCalls,
 			report.DirectChildReaps, report.GroupSIGINTAttempts, report.GroupSIGKILLAttempts,
-			report.TempCreated, report.TempCleanupAttempts, report.CleanupFailed, report.ResidualTemp,
+			report.TempCreated, report.TempCleanupAttempts, report.CleanupFailed, report.ResidualTemp, execution.phases,
 		)
 	}
 	return nil
@@ -265,12 +302,12 @@ func migrationCommandActualFailure(
 		report.PartialStdoutWrites != 0 || report.RunnerStderrRetainedBytes != controlBytes ||
 		report.RunnerStderrTruncated || !report.RawDiagnosticsDiscarded {
 		return fmt.Errorf(
-			"migration-command actual failure = exit:%d result:%t failure:%+v stdout:%d stderr:%d build:%d runner:%d reaps:%d sigint:%d/%d sigkill:%d/%d temp:%d/%d cleanup:%d residue:%d",
+			"migration-command actual failure = exit:%d result:%t failure:%+v stdout:%d stderr:%d build:%d runner:%d reaps:%d sigint:%d/%d sigkill:%d/%d temp:%d/%d cleanup:%d residue:%d phases:%+v",
 			report.ExitCode, report.HasMigrateResult, report.MigrateFailure,
 			len(execution.stdout), len(execution.stderr), report.BuildCalls, report.RunnerCalls,
 			report.DirectChildReaps, report.GroupSIGINTAttempts, wantSIGINT,
 			report.GroupSIGKILLAttempts, wantSIGKILL, report.TempCreated, report.TempCleanupAttempts,
-			report.CleanupFailed, report.ResidualTemp,
+			report.CleanupFailed, report.ResidualTemp, execution.phases,
 		)
 	}
 	return nil

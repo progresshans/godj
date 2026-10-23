@@ -9,8 +9,9 @@
 ## 다음
 
 1. Reload 게시·종료 수명과 독립 HTTP 관측 보완, scaffold·고정 module·PostgreSQL 기본 앱 흐름을 현재 source의 원격 CI에서 확인한다.
-2. 전역 CLI·선언 runner·runtime의 실제 race 계측을 확인하고, 독립 Django 관측과 12개 native 원본을 대조한다.
-3. C1의 필수 원격 실행·독립 기준·원본을 대조하고 다음 I1의 요구와 전환 조건을 유지한다.
+2. Portable race의 MIG-089 실행 전 실패를 보강한 단계 진단으로 확인한다. 로컬 cold-cache 재현에서는 통과했으며 원격 원인은 미확정이다.
+3. 전역 CLI·선언 runner·runtime의 실제 race 계측을 확인하고, 독립 Django 관측과 12개 native 원본을 대조한다.
+4. C1의 필수 원격 실행·독립 기준·원본을 대조하고 다음 I1의 요구와 전환 조건을 유지한다.
 
 ## 검증 경계
 

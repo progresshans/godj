@@ -3,6 +3,30 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — Portable race의 migration 실행 전 실패 조사
+
+2026-10-23, source `2bc0db76e539ff76e50bc24ce419464d745e1b94`의
+[CI 39944451085](https://github.com/progresshans/godj/actions/runs/39944451085)에서 Portable Go race/conformance가 실패했다.
+`TestRunGDJ0049MigrationCommandWritesTwelveActuals`는 MIG-089의 seed에서 91.02초 뒤 실패했다.
+Build 1회·자식 회수 2회·SIGINT 1회이며 migration runner는 0회다. 원본에는 실패 코드와 단계별 시간이 없어
+90초 command 기한에 이른 정확한 원인을 확정하지 않았다. DB migration 자체의 실패로 분류하지 않는다.
+
+같은 base source를 별도 checkout으로 만들고 기존 MIG-089 시나리오만 Darwin arm64 `-race`로 실행했다.
+하위 빌드에 새 외부 cache와 `GOMAXPROCS=2`를 사용하고 실제 native 실행에 단계별 관측만 추가했다.
+첫 build 45.25초·호환성 확인 1.61초·runner 1.12초 뒤 seed와 새 자식의 no-op·실제 SQLite 보존 검사가 통과했다.
+전체 테스트 본문은 55.75초다. 이는 원격 cache/기계의 재현이나 성능 비교가 아니며 Hosted 실패는 재현하지 못했다.
+
+관측 adapter에 실패 시 단계별 시간·시작 시 남은 기한·취소/기한 초과·자식 시작/exit와 공개 실패 코드를 추가했다.
+Native 실행, 기존 90초 기한·제품의 15초 호환성 기한, race 계측과 oracle 조건은 유지한다.
+로컬의 좁은 `-race` 검사는 취소/기한 초과의 실제 native 결과와 argv·환경·입력/출력 canary 비노출을 확인했다.
+Root/child 3개가 통과했고 skip은 없다. 새 진단을 포함한 실제 원격 MIG-089와 전체 C1 검증은 남아 있다.
+
+원본·실패 로그·재현 source·진단 source hash는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-migration-race-budget-repro-v1/comparison.json` — 원격 실패·로컬 미재현·진단 경계 | `36cefa0760d331c00566a4c4434dee945372703b5a65ca0f31303b887637423b` |
+
 ## GDJ-0137 — 게시 확인 응답과 취소의 경계
 
 2026-10-23, source `2bc0db76e539ff76e50bc24ce419464d745e1b94`의
