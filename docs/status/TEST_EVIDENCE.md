@@ -3,6 +3,50 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 미적용 SQLite 컬럼과 reload 종료·인증 검사 정정
+
+2026-10-23, source `6fbbd9ac92afa318de5bb001f1af79cdf0583b5b`의
+[CI 39909851210](https://github.com/progresshans/godj/actions/runs/39909851210)에서 Notes의 미적용 nullable field 후보와
+Article의 권한 목록 검사가 실패했다. Linux amd64/arm64 normal/race/CGO0 및 Mac Intel normal의 실패 로그를 보존했다.
+Linux amd64 normal artifact `12481834940`의 13개 member checksum과 실제 checkout
+`368bbbdc34fe9e0b7c6fe99d4c5bd61c09b555c0`의 GitHub tree를 대조했다. Tree
+`0c23fb1ef7ca43ffbce3efcebc505fa7c06f33b0`는 위 PR source와 같다. 전체 CI는 완료되지 않았다.
+
+Notes 실패를 실제 SQLite 공개 backend/query 경로로 좁혔다. 기존 `title`만 있는 table에 `summary`를 조회하자
+`SELECT "title", "summary" FROM "note"`가 오류 대신 문자열 `summary`를 반환했다. SQLite의
+[double-quoted string fallback](https://www.sqlite.org/quirks.html#dblquote)이 미적용 필드를 가렸다.
+Driver의 연결 전 `_dqs=0`을 backend가 강제하도록 바꾸니 같은 재현이 missing-column 오류를 반환했다.
+나머지 DSN bytes·옵션 순서를 보존하고 caller의 중복 `_dqs`가 정책을 해제하지 못하게 했다.
+Pool 증가·교체·재개방, DML/DDL·read-only·temporary/memory·foreign key 보존 검사는 작성했으며 원격 CI 대상이다.
+
+로컬 Darwin arm64/Go 1.26.5에서 기존 Notes 실패 root를 다시 실행해 6개 child와 마지막 fresh restart가 통과했다
+(root 175.49초). 이 재현은 이후 retirement join 변경 전 source이므로 최종 source 전체 성공으로 옮기지 않는다.
+Linux arm64의 cleanup 실패와 관련하여 정상 퇴역 뒤 무조건 보내던 취소 신호 경로도 보완했다. 이미 Retire를 확인한
+process는 grace 동안 자연 종료를 먼저 기다린다. 정상 exit 직전의 default signal handler와 추가 SIGINT가 경합하는
+상황 및 협력하지 않는 process의 bounded kill/reap 검사를 작성했다. 이 새 process 검사의 본문은 원격에서 실행한다.
+
+Article fixture는 실제 identity API의 `items/count/offset/limit`을 읽도록 고쳤다. 이전에는 다른 페이지 형식으로
+읽어 이미 존재하는 권한을 중복 생성했다. 그 다음 로컬 재현에서는 재시작 전 CSRF token이 정상적으로 403으로
+거부되어 revision 검사까지 도달하지 못했다. 이전 token의 명시적 거부→기존 session의 안전한 GET으로 새 token
+조회→stale revision 412→현재 revision 저장과 현재 권한 복원을 모두 검사하도록 정정했다. 수정 후 같은 Article root와
+3개 child가 통과했다(root 60.07초). 기본 process-local CSRF key나 현재 권한·revision 보호를 약화하지 않았다.
+
+Receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-6fbbd9ac-ci-39909851210/source-and-failures.json` | `71a045aae60ef6efade0d7b9f64a7fa0ccffe433e2042a8169331edb56e6dcc3` |
+| `gdj0137-sqlite-missing-column-repro-v1/before.json` | `1e941ecd70d6abc5ee12269fdcb161df04847dcd4fae586ccb9f6956e4918e12` |
+| `gdj0137-sqlite-missing-column-repro-v1/after.json` | `b503e501164bc390e07b1803af65cd794fd2a30096899956258e529d14e76cd6` |
+| `gdj0137-reload-repro-v2/after.json` — Notes 통과, Article의 CSRF 선행 거부 확인 | `2a225c84b2c15fb86911116635a5902fc558b73bac83d8c51996c12a7e40b380` |
+| `gdj0137-reload-repro-v2/article-after-csrf.json` — Article 정정 후 통과 | `b4d4a2d2e8a77aa2f508e11d14ca291746e523144bc52c02f8be15c909bd0a8b` |
+| `gdj0137-reload-repro-v2/compile.json` — 3개 영향 package, 본문 미실행 | `86d34bb36518a3250a601ed7b7b6c3659bbab4553aaeb667a48ef36c81a8192f` |
+| `gdj0137-reload-repro-v2/source.json` — 문서 외 8개 source와 Go 환경 | `1b6e4e7100081dc781b75f1746fc1b754c89ecf94b8426f164f3ecdcdd5ad2d8` |
+
+최소 compile은 `-run '^$' -exec=/usr/bin/true`이며 새 테스트 본문을 실행하지 않았다. Gofmt·diff·문서 링크를 확인했다.
+Mac Intel normal의 startproject 5분 제한, 이전 Mac Intel command/scaffold 시간 초과, 새 SQLite 정책의 전체 DB/ORM 영향과
+최종 source의 native/race/platform·독립 Django 대조·C1 수용은 미완료다.
+
 ## GDJ-0137 — 첫 reload CI의 외부 앱·감사 연결 정정
 
 2026-10-23, source `f812c113cb5c5e19e7486d5336038935935c68c4`의

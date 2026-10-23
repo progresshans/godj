@@ -6,7 +6,28 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
+	"strings"
 )
+
+// Every physical connection must reject an unresolved quoted identifier. The
+// driver's DQS option is applied before any DSN PRAGMA or prepared statement.
+// Put the backend-owned option first: the driver reads the first value, so a
+// caller's duplicate _dqs option cannot weaken this query-integrity boundary.
+// Preserve all other query bytes and their order for the driver's own parser.
+func strictSQLiteDSN(dsn string) string {
+	if position := strings.IndexByte(dsn, '?'); position > 0 {
+		return dsn[:position+1] + "_dqs=0&" + dsn[position+1:]
+	} else if position == 0 {
+		// The driver treats a leading '?' as a literal filename, not options.
+		return "file:" + url.PathEscape(dsn) + "?_dqs=0"
+	}
+	if dsn == "" {
+		// SQLite's empty URI filename retains its private temporary DB meaning.
+		return "file:?_dqs=0"
+	}
+	return dsn + "?_dqs=0"
+}
 
 // foreignKeyConnector initializes each physical connection, including pool
 // growth, replacement and a reopened database. It wraps the registered driver's

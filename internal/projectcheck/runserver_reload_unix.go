@@ -36,6 +36,7 @@ func (writer synchronizedRunserverWriter) Write(data []byte) (int, error) {
 type managedRunserver struct {
 	control net.Conn
 	cancel  context.CancelFunc
+	grace   time.Duration
 	done    chan struct{}
 	result  runserverProcessResult // published by close(done)
 }
@@ -46,6 +47,7 @@ type runserverCandidate struct {
 	report   RunServerReport
 	failure  *RunServerFailure
 	cancel   context.CancelFunc
+	retired  bool
 }
 
 func newManagedRunserver(ctx context.Context, input RunServerInvocation, prepared preparedProjectRuntime, listener *net.TCPListener) (*managedRunserver, error) {
@@ -79,7 +81,7 @@ func newManagedRunserver(ctx context.Context, input RunServerInvocation, prepare
 		return nil, errors.Join(err, closeErr)
 	}
 	lifetime, cancel := context.WithCancel(ctx)
-	process := &managedRunserver{control: control, cancel: cancel, done: make(chan struct{})}
+	process := &managedRunserver{control: control, cancel: cancel, grace: input.runtime.grace, done: make(chan struct{})}
 	command := Command{Dir: prepared.command.selected.rootPath,
 		Argv: []string{prepared.binary, "serve", "--listen", listener.Addr().String(), runservercontrol.Argument},
 		Env:  gobuild.RuntimeEnvironment(input.Environment)}
@@ -119,8 +121,23 @@ func (process *managedRunserver) exchange(ctx context.Context, send, expect stri
 	return err
 }
 
-func (process *managedRunserver) stop() runserverProcessResult {
-	process.cancel()
+func (process *managedRunserver) stop(retired bool) runserverProcessResult {
+	defer process.cancel()
+	if retired {
+		// Retire already asked the child to drain and exit. An extra SIGINT
+		// can hit after signal.NotifyContext has restored the default handler
+		// but before the OS has reported normal exit. Join that cooperative
+		// shutdown first; use cancellation only if its owned grace expires.
+		timer := time.NewTimer(process.grace)
+		select {
+		case <-process.done:
+		case <-timer.C:
+			process.cancel()
+		}
+		timer.Stop()
+	} else {
+		process.cancel()
+	}
 	<-process.done
 	_ = process.control.Close()
 	return process.result
@@ -161,10 +178,10 @@ func finishRunserverCandidate(candidate *runserverCandidate, report *RunServerRe
 	if candidate == nil {
 		return false
 	}
-	candidate.cancel()
+	defer candidate.cancel()
 	failed := false
 	if candidate.process != nil {
-		result := candidate.process.stop()
+		result := candidate.process.stop(candidate.retired)
 		recordRunserverProcess(&candidate.report, result)
 		failed = result.CleanupFailed || result.StdoutError != nil || result.StderrError != nil
 		// A canceled candidate may fail startup. A published generation must
@@ -338,6 +355,7 @@ func runReloadingServer(input RunServerInvocation, arguments runserverArguments)
 					primary = pointerRunserverFailure(RunServerFailure{Category: RunServerCategoryRuntime, Code: RunServerCodeRuntimeControlFailed})
 					continue
 				}
+				active.retired = true
 			}
 			if err := candidate.process.exchange(ctx, runservercontrol.Activate, runservercontrol.Active); err != nil {
 				_ = finishRunserverCandidate(candidate, &report)

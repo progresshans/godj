@@ -111,6 +111,8 @@ TCP proxy를 추가하지 않으므로 request의 client identity/authority를 �
 
 기존 앱은 이미 받은 HTTP 요청을 처리하고 앱 context·DB를 마지막에 정리합니다. 동시에 활성 runtime 하나와 준비 후보
 하나만 소유하며 이전 후보/퇴역 앱의 종료·process group 회수·workspace 정리를 join한 다음 후속 build를 시작합니다.
+Retire를 확인한 앱은 정상 exit를 grace 동안 먼저 기다립니다. 종료 직전 signal handler가 복원된 앱에 불필요한 SIGINT를
+다시 보내지 않으며, grace를 넘기면 기존 취소·group 회수 경계를 적용합니다.
 소스가 다시 바뀌면 준비 중 후보를 취소하고 최신 변경을 모읍니다. Build/startup/source 검사 실패는 기존 정상 앱을 유지하고
 닫힌 rejection code를 출력합니다. 최초 시작 실패와 게시 이후의 process/stream/cleanup 실패는 명시적 전체 실패입니다.
 
@@ -122,6 +124,10 @@ daemon 자손의 완전한 소유권은 보장하지 않습니다.
 환경은 최초 invocation의 snapshot입니다. Migration은 명시적 명령이고 DB 쓰기는 rebuild를 유발하지 않으므로, migration을
 마친 뒤 실패 후보를 다시 준비하려면 source를 저장하거나 서버를 재시작합니다. Startup의 schema/resource 검사는 프로젝트가
 소유합니다. 이전 앱과 호환되지 않는 migration의 운영 안전성은 자동 reload가 제공하는 보장이 아닙니다.
+SQLite backend는 모든 물리 연결에서 double-quoted string fallback을 끕니다. 아직 적용하지 않은 필드의 quoted column이
+문자열 상수로 반환되어 잘못된 startup 검사를 통과하지 않게 하며, schema 변경 명령은 여전히 명시적입니다.
+기본 Article 앱의 로그인 session은 DB에 유지되지만 CSRF 서명 key는 process에 속합니다. Reload 후 이전 token은 거부하고
+새 안전한 요청으로 token을 받은 다음 쓰기를 수행합니다. 여러 process에서 key를 공유하는 정책은 별도의 명시적 구성을 사용합니다.
 
 ## 결과
 

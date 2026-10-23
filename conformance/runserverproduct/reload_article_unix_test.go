@@ -188,30 +188,35 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		t.Fatal("initial Article write", created.status)
 	}
 	permissionID := int64(0)
-	next := "/api/identity/permissions/"
-	for pages := 0; next != ""; pages++ {
-		if pages >= 20 || !strings.HasPrefix(next, "/api/identity/permissions/") {
-			t.Fatal("invalid permission page continuation")
+	for offset, pages := 0, 0; ; pages++ {
+		if pages >= 20 {
+			t.Fatal("permission inventory exceeded its bound")
 		}
-		page := admin.request(t, "GET", next, "", "", false)
+		page := admin.request(t, "GET", "/api/identity/permissions/?limit=100&offset="+strconv.Itoa(offset), "", "", false)
 		var values struct {
-			Next    *string `json:"next"`
-			Results []struct {
+			Count         *int
+			Offset, Limit int
+			Items         []struct {
 				ID   int64
 				Code string
-			} `json:"results"`
+			}
 		}
-		if page.status != 200 || json.Unmarshal(page.body, &values) != nil {
+		if page.status != 200 || json.Unmarshal(page.body, &values) != nil || values.Count == nil ||
+			values.Offset != offset || values.Limit != 100 || values.Items == nil ||
+			len(values.Items) > values.Limit || *values.Count < offset+len(values.Items) {
 			t.Fatal("permission page", page.status)
 		}
-		for _, value := range values.Results {
+		for _, value := range values.Items {
 			if value.Code == "godj_conformance.view_article" {
 				permissionID = value.ID
 			}
 		}
-		next = ""
-		if values.Next != nil {
-			next = *values.Next
+		offset += len(values.Items)
+		if offset == *values.Count {
+			break
+		}
+		if len(values.Items) == 0 {
+			t.Fatal("permission page did not advance")
 		}
 	}
 	if permissionID == 0 {
@@ -298,8 +303,16 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		if got := reader.request(t, "GET", "/api/articles/", "", "", false); got.status != 403 {
 			t.Fatal("new runtime restored revoked authority", got.status)
 		}
+		// The default development app uses a process-local CSRF signing key.
+		// Its persistent login survives reload; an old form token must not.
+		if got := admin.request(t, "PATCH", path, groupJSON, "1", true); got.status != http.StatusForbidden || !bytes.Contains(got.body, []byte(`"csrf_rejected"`)) {
+			t.Fatal("new runtime admitted a previous-process CSRF token", got.status)
+		}
+		if got := admin.request(t, "GET", path, "", "", false); got.status != http.StatusOK || got.header.Get(websessionauth.DefaultCSRFHeader) == "" {
+			t.Fatal("persistent session could not refresh its CSRF token", got.status)
+		}
 		if got := admin.request(t, "PATCH", path, groupJSON, "1", true); got.status != http.StatusPreconditionFailed {
-			t.Fatal("stale relation revision was accepted", got.status)
+			t.Fatal("stale relation revision was not rejected by its precondition", got.status)
 		}
 		if got := admin.request(t, "PATCH", path, groupJSON, "2", true); got.status != 200 || got.header.Get("Revision") != "3" {
 			t.Fatal("current relation revision failed", got.status)

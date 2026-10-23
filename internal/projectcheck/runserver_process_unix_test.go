@@ -45,6 +45,19 @@ func TestRunserverProcessHelper(t *testing.T) {
 		<-interrupt
 		_, _ = io.WriteString(os.Stdout, "runtime-stopped\n")
 		os.Exit(0)
+	case "retired-exit":
+		// Model the interval after app cleanup and signal-handler restoration,
+		// before normal process exit has become observable to the supervisor.
+		signal.Reset(os.Interrupt)
+		if err := publishRunserverProcessReady(strconv.Itoa(os.Getpid())); err != nil {
+			os.Exit(92)
+		}
+		for {
+			if _, err := os.Stat(os.Getenv("GODJ_RUNSERVER_PROCESS_RELEASE")); err == nil {
+				os.Exit(0)
+			}
+			time.Sleep(time.Millisecond)
+		}
 	case "stream-failure":
 		signal.Ignore(os.Interrupt)
 		if err := publishRunserverProcessReady(strconv.Itoa(os.Getpid())); err != nil {

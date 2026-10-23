@@ -37,7 +37,7 @@ func Open(ctx context.Context, dataSourceName string) (*Backend, error) {
 	if err := errors.Join(jsonPathRegistrationError, jsonKeysRegistrationError, jsonComparisonRegistrationError, jsonSortRegistrationError, jsonTextRegistrationError, scalarExpressionRegistrationError, numericAggregateRegistrationError); err != nil {
 		return nil, fmt.Errorf("register SQLite functions: %w", err)
 	}
-	connector, err := modernsqlite.NewConnector(dataSourceName)
+	connector, err := modernsqlite.NewConnector(strictSQLiteDSN(dataSourceName))
 	if err != nil {
 		return nil, fmt.Errorf("open SQLite database: %w", err)
 	}

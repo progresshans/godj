@@ -89,6 +89,9 @@ Typed selector는 model/field/value type을 compile time에 연결한다. 동적
 AST의 생성자는 caller 입력을 복사하고 private 불변 저장소는 파생 plan끼리 공유한다. Mutable accessor 결과는 복사한다.
 `WithConditions`와 `WithWhere`는 잘못된 값·source membership·expression budget을 구성 시점에 오류로 반환한다.
 Parameter binding과 identifier quoting은 backend compiler가 소유한다.
+SQLite는 연결 생성 시 driver의 `_dqs=0`을 강제하여 미존재 quoted column을 문자열로 해석하지 않는다.
+이 정책은 pool의 새 연결·교체·재개방과 DML/DDL에 적용하며 caller의 DSN 옵션으로 해제할 수 없다.
+따라서 적용하지 않은 모델 필드 조회는 저장된 값처럼 보이는 가짜 결과 대신 실제 DB 오류를 반환한다.
 Root scalar의 typed `In`과 dynamic `__in`은 빈 목록·NULL member를 보존한 같은 AST를 사용한다. Nullable negation의 NULL 의미를
 양 compiler가 유지하며, 확실히 빈 source도 전체 plan 검증을 마친 뒤에만 I/O를 생략한다. 빈 COUNT는 0, MIN/MAX는 NULL이고
 synthetic cursor는 query와 transaction lifetime에 묶인다. [목록 조회의 의미](adr/0062-scalar-membership-and-empty-query-execution.md)를 따른다.
