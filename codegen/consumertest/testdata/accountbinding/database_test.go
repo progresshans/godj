@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -36,6 +37,7 @@ func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 		}
 	})
 	sources := domain.MigrationSources()
+	sources = append(sources, accountaudit.MigrationSources()...)
 	var previous *migrations.MigrationKey
 	for _, app := range schemas {
 		migration := migrations.Migration{App: app.AppLabel, Name: "0001_initial"}

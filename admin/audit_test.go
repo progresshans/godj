@@ -47,7 +47,6 @@ func TestPrepareEventRejectsInvalidOrSecretShapedFields(t *testing.T) {
 		{name: "control actor", actor: "user\nsecret", model: "app.article", id: 1, action: admin.ActionAdd},
 		{name: "invalid UTF-8 actor", actor: string([]byte{0xff}), model: "app.article", id: 1, action: admin.ActionAdd},
 		{name: "invalid model", actor: "user", model: "app/article", id: 1, action: admin.ActionAdd},
-		{name: "invalid id", actor: "user", model: "app.article", action: admin.ActionAdd},
 		{name: "invalid action", actor: "user", model: "app.article", id: 1, action: "unknown"},
 		{name: "duplicate field", actor: "user", model: "app.article", id: 1, action: admin.ActionChange, fields: []string{"title", "title"}},
 		{name: "invalid label", actor: "user", model: "app.article", id: 1, action: admin.ActionAdd, label: "bad\x01label"},
@@ -72,8 +71,8 @@ func TestPreparedEventTemplateAttachesConfirmedCreateKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PrepareEventTemplate() error = %v", err)
 	}
-	if _, ok := template.ForObject(0); ok {
-		t.Fatal("ForObject(0) ok = true")
+	if _, ok := (admin.PreparedEventTemplate{}).ForObject(0); ok {
+		t.Fatal("zero template accepted")
 	}
 	event, ok := template.ForObject(42)
 	if !ok {
@@ -86,6 +85,30 @@ func TestPreparedEventTemplateAttachesConfirmedCreateKey(t *testing.T) {
 	entry, ok := log.Append(event)
 	if !ok || entry.ObjectID != 42 || entry.Action != admin.ActionAdd {
 		t.Fatalf("Append() = %#v, %v", entry, ok)
+	}
+}
+
+func TestAuditLogDistinguishesPresentIntegerKeysFromInvalidEvents(t *testing.T) {
+	log, err := admin.NewAuditLog(3)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []int64{0, -17, 1} {
+		event := mustEvent(t, "operator", key, admin.ActionChange, []string{"title"})
+		if entry, ok := log.Append(event); !ok || entry.ObjectID != key {
+			t.Fatal("present key rejected", key, ok)
+		}
+	}
+	for _, key := range []int64{0, -17, 1} {
+		if entries := log.ForObject("godj_conformance.article", key); len(entries) != 1 || entries[0].ObjectID != key {
+			t.Fatal("history conflated object keys", key, entries)
+		}
+		if entries, err := log.ForObjectLimited(t.Context(), "godj_conformance.article", key, 1); err != nil || len(entries) != 1 || entries[0].ObjectID != key {
+			t.Fatal("bounded history conflated object keys", key, entries, err)
+		}
+	}
+	if _, ok := log.Append(admin.PreparedEvent{}); ok || log.Len() != 3 {
+		t.Fatal("invalid event was accepted")
 	}
 }
 

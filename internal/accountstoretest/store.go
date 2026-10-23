@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -52,10 +53,17 @@ func Run(t *testing.T, open Open) {
 		{"selected_login_policy", loginPolicy},
 		{"authoritative_actor", authoritativeActor},
 		{"authorization_scope_and_errors", authorizationScopeAndErrors},
+		{"profile_scalar_edit", profileScalarEdit},
+		{"profile_write_normalization", profileWriteNormalization},
+		{"profile_target_integrity", profileTargetIntegrity},
+		{"profile_domain_and_revocation", profileDomainAndRevocation},
+		{"profile_commit_failures", profileCommitFailures},
+		{"profile_concurrent_revision", profileConcurrentRevision},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
+			sources = append(sources, accountaudit.MigrationSources()...)
 			loaded, _, err := definition.Load(sources...)
 			if err != nil {
 				t.Fatal(err)
@@ -472,6 +480,10 @@ func permissionBound(t *testing.T, backend Backend, _ func(*testing.T) Backend) 
 }
 func nonpositiveKeys(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
+	editor, err := project.NewAccountProfileEditor(backend, auth.PrincipalAuthorizer{}, profileConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, key := range []int64{0, -17} {
 		user := models.User{PrincipalID: fmt.Sprintf("key-%d", key), Username: fmt.Sprintf("key-%d", key), EncodedPassword: f.user.EncodedPassword, DateJoined: joined, Active: true, Revision: 1}
 		(models.UserDescriptor{}).SetPrimaryKey(&user, key)
@@ -494,6 +506,13 @@ func nonpositiveKeys(t *testing.T, backend Backend, _ func(*testing.T) Backend) 
 			return nil
 		}); err != nil {
 			t.Fatal(err)
+		}
+		change, err := editor.Update(t.Context(), got.Principal(), key, 1, profileInput(t, map[string]query.Value{"first_name": query.String("signed-key-profile")}))
+		if err != nil || change.ID != key || change.Revision != 2 {
+			t.Fatal("present signed key profile edit failed", key, change, err)
+		}
+		if actual := profileRow(t, backend, key); actual.FirstName != "signed-key-profile" || actual.Revision != 2 || len(profileHistory(t, backend, got.Principal(), key)) != 1 {
+			t.Fatal("signed profile/audit state missing", key)
 		}
 	}
 }

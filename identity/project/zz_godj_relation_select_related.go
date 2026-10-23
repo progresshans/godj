@@ -736,4 +736,4 @@ func (_factory IdentityUserPermissionsLinkObjectFactory) FromSelected(_selected 
 	return _object, nil
 }
 
-var _ goDjProjectSnapshot_cfce7b744ea4bafcfb7a048977b3d25e7df948990100c4fd1609ef97dc328d9a
+var _ goDjProjectSnapshot_c3f5999a7c0d7f9b894d8225bde720b46108b101a9df5f4af25ec0d17160b70d

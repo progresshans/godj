@@ -24,6 +24,17 @@ func AtomicResult[T any](ctx context.Context, backend Atomic, run func(context.C
 	return atomicResult(ctx, backend.Atomic, run)
 }
 
+// CoordinatedAtomicResult uses the backend's database coordination fence with
+// AtomicResult's single-callback, confirmed-commit and no-retry publication
+// contract. It never falls back to an unfenced Atomic implementation.
+func CoordinatedAtomicResult[T any](ctx context.Context, backend CoordinatedAtomic, run func(context.Context, Session) (T, error)) (T, error) {
+	if nilValue(backend) {
+		var zero T
+		return zero, atomicConfigError("coordinated transaction owner is nil")
+	}
+	return atomicResult(ctx, backend.CoordinatedAtomic, run)
+}
+
 // RelationAtomicResult preserves the relation-session capability while using
 // the same prepared-result and callback-ownership contract as AtomicResult.
 func RelationAtomicResult[T any](ctx context.Context, backend RelationAtomic, run func(context.Context, RelationSession) (T, error)) (T, error) {

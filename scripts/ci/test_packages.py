@@ -12,6 +12,7 @@ class PackagePartitionTests(unittest.TestCase):
         for relative, expected in {
             'orm': 'core', 'db/sqlite': 'core', 'codegen': 'core',
             'account/domain': 'core', 'account/domain/models': 'core',
+            'account/audit': 'core', 'account/audit/models': 'core',
             'internal/testschema': 'core', 'codegen/consumertest': 'integration',
             'api/openapi': 'core', 'api/openapi/consumertest': 'integration',
             'api/openapi/consumertest/helpers': 'integration',

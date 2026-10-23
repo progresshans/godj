@@ -36,9 +36,9 @@ func parseAccountRole(decoder *json.Decoder, budget *specBudget) error {
 		"model", "principal_id", "login", "password", "revision", "last_login", "active", "staff", "superuser",
 		"groups", "permissions", "write_login_normalization", "authenticate_normalization", "catalog",
 	}, map[string]func() error{
-		"model": identity, "principal_id": text, "login": text, "password": text, "revision": text, "last_login": text, "email": text,
+		"model": identity, "principal_id": text, "login": text, "password": text, "revision": text, "last_login": text, "created_at": text, "email": text,
 		"active": boolean, "staff": boolean, "superuser": boolean, "groups": text, "permissions": text,
-		"write_login_normalization": text, "authenticate_normalization": text,
+		"write_login_normalization": text, "authenticate_normalization": text, "write_email_normalization": text,
 		"catalog": func() error {
 			return wirejson.Object(decoder, []string{
 				"group", "group_name", "group_revision", "group_permissions", "permission", "permission_code", "permission_name", "permission_revision",
@@ -51,6 +51,9 @@ func parseAccountRole(decoder *json.Decoder, budget *specBudget) error {
 }
 
 func measureAccountRole(sizer *wirejson.Sizer, role ir.AccountRole) bool {
+	emailPolicy := func() bool {
+		return role.WriteEmailNormalization == "" || sizer.Literal(`,"write_email_normalization":`) && sizer.String(string(role.WriteEmailNormalization))
+	}
 	identity := func(value ir.ModelIdentity) bool {
 		return sizer.Literal(`{"app_label":`) && sizer.String(value.AppLabel) &&
 			sizer.Literal(`,"model_name":`) && sizer.String(value.ModelName) && sizer.Literal(`}`)
@@ -80,6 +83,9 @@ func measureAccountRole(sizer *wirejson.Sizer, role ir.AccountRole) bool {
 		!sizer.Literal(`,"last_login":`) || !sizer.String(role.LastLogin) {
 		return false
 	}
+	if role.CreatedAt != "" && (!sizer.Literal(`,"created_at":`) || !sizer.String(role.CreatedAt)) {
+		return false
+	}
 	if role.Email != "" && (!sizer.Literal(`,"email":`) || !sizer.String(role.Email)) {
 		return false
 	}
@@ -90,6 +96,7 @@ func measureAccountRole(sizer *wirejson.Sizer, role ir.AccountRole) bool {
 		sizer.Literal(`,"permissions":`) && sizer.String(role.Permissions) &&
 		sizer.Literal(`,"write_login_normalization":`) && sizer.String(string(role.WriteLoginNormalization)) &&
 		sizer.Literal(`,"authenticate_normalization":`) && sizer.String(string(role.AuthenticateNormalization)) &&
+		emailPolicy() &&
 		sizer.Literal(`,"catalog":{"group":`) && identity(role.Catalog.Group) &&
 		sizer.Literal(`,"group_name":`) && sizer.String(role.Catalog.GroupName) &&
 		sizer.Literal(`,"group_revision":`) && sizer.String(role.Catalog.GroupRevision) &&

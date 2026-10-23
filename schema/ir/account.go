@@ -5,14 +5,15 @@ import (
 	"slices"
 )
 
-// AccountNormalization names a pinned login transformation. Writing a login
-// and authenticating an entered login are separate policies: neither a field
-// name nor EmailField silently selects case folding or normalization.
+// AccountNormalization names a pinned account text transformation. Login,
+// authentication and email roles each validate their supported policies;
+// neither a field name nor EmailField silently selects normalization.
 type AccountNormalization string
 
 const (
-	AccountExact         AccountNormalization = "exact"
-	AccountUnicode16NFKC AccountNormalization = "unicode16_nfkc"
+	AccountExact                AccountNormalization = "exact"
+	AccountUnicode16NFKC        AccountNormalization = "unicode16_nfkc"
+	AccountUnicode16EmailDomain AccountNormalization = "unicode16_email_domain"
 )
 
 // AccountBoolean selects either a stored Boolean field or an explicit constant.
@@ -53,12 +54,15 @@ type AccountCatalog struct {
 // existing accounts. Runtime startup must also verify the persisted account
 // domain and transition policy. A valid role alone cannot authorize I/O.
 type AccountRole struct {
-	Model                     ModelIdentity        `json:"model"`
-	PrincipalID               string               `json:"principal_id"`
-	Login                     string               `json:"login"`
-	Password                  string               `json:"password"`
-	Revision                  string               `json:"revision"`
-	LastLogin                 string               `json:"last_login"`
+	Model       ModelIdentity `json:"model"`
+	PrincipalID string        `json:"principal_id"`
+	Login       string        `json:"login"`
+	Password    string        `json:"password"`
+	Revision    string        `json:"revision"`
+	LastLogin   string        `json:"last_login"`
+	// CreatedAt optionally identifies a server-owned creation timestamp. It is
+	// never inferred from field names and is excluded from profile input.
+	CreatedAt                 string               `json:"created_at,omitempty"`
 	Email                     string               `json:"email,omitempty"`
 	Active                    AccountBoolean       `json:"active"`
 	Staff                     AccountBoolean       `json:"staff"`
@@ -67,6 +71,7 @@ type AccountRole struct {
 	Permissions               string               `json:"permissions"`
 	WriteLoginNormalization   AccountNormalization `json:"write_login_normalization"`
 	AuthenticateNormalization AccountNormalization `json:"authenticate_normalization"`
+	WriteEmailNormalization   AccountNormalization `json:"write_email_normalization,omitempty"`
 	Catalog                   AccountCatalog       `json:"catalog"`
 }
 
@@ -93,6 +98,10 @@ func NormalizeAccountRole(input AccountRole, schemas ...Schema) (AccountRole, er
 		if policy.value != AccountExact && policy.value != AccountUnicode16NFKC {
 			return AccountRole{}, validation("account."+policy.path, "unsupported_normalization", string(policy.value))
 		}
+	}
+	if role.Email == "" && role.WriteEmailNormalization != "" || role.Email != "" &&
+		role.WriteEmailNormalization != AccountExact && role.WriteEmailNormalization != AccountUnicode16EmailDomain {
+		return AccountRole{}, validation("account.write_email_normalization", "unsupported_normalization", string(role.WriteEmailNormalization))
 	}
 	normalized := make([]Schema, len(schemas))
 	models := make(map[ModelIdentity]Model)
@@ -196,6 +205,15 @@ func normalizeAccountFields(role AccountRole, model Model) error {
 			return validation("account."+item.path, "duplicate_field_role", previous)
 		}
 		seen[item.name] = item.path
+	}
+	if role.CreatedAt != "" {
+		if _, err := accountRoleField(model, role.CreatedAt, "account.created_at", FieldDateTime, false, false); err != nil {
+			return err
+		}
+		if previous, exists := seen[role.CreatedAt]; exists {
+			return validation("account.created_at", "duplicate_field_role", previous)
+		}
+		seen[role.CreatedAt] = "created_at"
 	}
 	if role.Email != "" {
 		field, err := accountRoleField(model, role.Email, "account.email", FieldChar, false, false)

@@ -19,6 +19,12 @@ func TestAccountWireOwnsSelectionConstantsAndExactEscapedBudget(t *testing.T) {
 	for _, email := range []string{"", "email<\u2028한글>"} {
 		role := modeldef.AccountRole()
 		role.Email = email
+		role.CreatedAt = email // Exercise both omitted and escaped optional values.
+		if email == "" {
+			role.WriteEmailNormalization = ""
+		} else {
+			role.WriteEmailNormalization = ir.AccountNormalization(email)
+		}
 		staff := false
 		role.Staff = ir.AccountBoolean{Constant: &staff}
 		input := codegen.ProjectSpec{Apps: []codegen.AppSpec{}, Account: &role}
@@ -84,6 +90,9 @@ func TestAccountWireRejectsOpenShapesAndExhaustedNodeBudget(t *testing.T) {
 		`null`, `[]`, `{}`, strings.Replace(valid, `"login":"username",`, ``, 1),
 		strings.Replace(valid, `"login":"username"`, `"login":null`, 1),
 		strings.Replace(valid, `"login":"username"`, `"login":"username","login":"email"`, 1),
+		strings.Replace(valid, `"created_at":"date_joined"`, `"created_at":null`, 1),
+		strings.Replace(valid, `"created_at":"date_joined"`, `"created_at":"date_joined","created_at":"other"`, 1),
+		strings.Replace(valid, `"write_email_normalization":"unicode16_email_domain"`, `"write_email_normalization":null`, 1),
 		strings.Replace(valid, `"login":"username"`, `"login":"`+strings.Repeat("x", projectspec.MaxSchemaStringBytes+1)+`"`, 1),
 		strings.Replace(valid, `"constant":false`, `"constant":null`, 1),
 		strings.Replace(valid, `"constant":false`, `"constant":"false"`, 1),
@@ -117,5 +126,10 @@ func TestAccountWireValidationRetainsSchemaAndResourceChecks(t *testing.T) {
 	var resource *projectspec.ResourceError
 	if err := Validate(input); !errors.As(err, &resource) || resource.Path != "account.login" {
 		t.Fatal("account strings were not bounded before normalization", err)
+	}
+	role.Login = "username"
+	role.CreatedAt = strings.Repeat("x", projectspec.MaxSchemaStringBytes+1)
+	if err := Validate(input); !errors.As(err, &resource) || resource.Path != "account.created_at" {
+		t.Fatal("server timestamp was not bounded before normalization", err)
 	}
 }

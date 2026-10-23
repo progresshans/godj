@@ -137,6 +137,7 @@ var embeddedAssetPrefixes = []string{
 }
 
 var migrationDataPrefixes = []string{
+	"account/audit/migrations/",
 	"account/domain/migrations/",
 	"examples/article/migrations/",
 	"examples/article/testdata/postgres/",

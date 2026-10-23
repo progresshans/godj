@@ -3842,4 +3842,4 @@ func (_object *ParentsRootLabelsObject) RootObject(_ctx context.Context) (*Paren
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_a4cd8767af82bad200d314b41030030e680feb07b794920631be10953a8d8dd4
+var _ goDjProjectSnapshot_cdf486b7330b525dd7d1b8758e1dac4e052dd34a58035a7d8a759c9dfa7a75e8

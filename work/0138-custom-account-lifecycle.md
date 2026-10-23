@@ -72,7 +72,25 @@ catalog·typed profile·첫 계정 명령·명시적 전환을 함께 완성하�
 공통 저장소의 `AuthorizeIn`도 작성했다. 기존 인증 claim의 domain을 현재 저장 값과 먼저 대조하고, 같은 borrowed scope의
 현재 active/role/grant와 deny overlay를 확인한다. 실제 기본·사용자 정의 모델 소비자에 허용된 typed profile 변경을 연결하고,
 양 DB에는 회수된 grant·이전 domain·inactive actor 거부, 허용 후 rollback, 만료 scope와 overlay 오류 검사를 추가했다.
-이것은 최종 관리 작업이 사용할 인가 경계이며 기존 Manager의 typed 입력·revision·session/audit 연결을 완료한 것은 아니다.
+이 인가 경계를 사용하는 typed profile owner를 아래와 같이 연결했으며 기존 Manager 전체의 교체는 남아 있다.
+
+공통 `ProfileEditor[M]`와 생성 팩토리가 명시한 scalar profile 필드의 Form/JSON 입력을 받아 현재 권한·대상 revision·
+typed unique 검증·수정·audit를 같은 native coordinated transaction에서 처리하도록 작성했다. 실제 변경만 revision과
+audit를 추가하고 no-op도 현재 domain·권한·대상 무결성을 확인한다. 서버 소유 필드·권한·관계·파일은 이 입력에서
+거부한다. 기본/사용자 정의 외부 소비자는 ModelForm과 API body binding으로 실제 typed 입력을 준비한다.
+
+서버 생성 시각의 선택 역할과 독립적인 email 저장 정규화 정책을 IR·wire·fingerprint·생성기에 연결했다. 기본 계정은
+Unicode 16 email domain 정규화를 사용하고 custom 모델은 Exact를 선택할 수 있다. Login과 email이 같은 필드는
+두 명시 정책을 순서대로 적용한다. 정책을 바꾸면서 이전 domain을 그대로 사용하는 것은 거부한다.
+
+독립 `godj_account_audit` 앱과 초기 migration은 기본 User 없이 domain별 감사 기록을 저장한다. 현재 actor를 사용한
+append와 정확한 domain별 bounded history, 수정/audit 실패의 원자 rollback, stale/회수/도메인 전환·대상 손상·
+validation·unknown 결과·동시 revision 검사를 양 DB 필수 목록에 추가했다. 0/음수 계정 key의 event/history도 검사한다.
+최종 최소 compile과 생성 manifest 확인은 마쳤으며 새 profile/audit 테스트 본문·DB/race의 실행은 원격 확인 대상이다.
+
+Scalar profile 조회 서비스, 관계·파일 편집, role/catalog 관리와 기존 Directory/Manager 교체, 공통 HTTP/Admin 경로,
+첫 계정 명령·password/reset/session·host 삭제·audit 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
+Form/API 입력 소비자의 작성이나 이 scalar 변경을 I1 전체 수용 완료로 계산하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

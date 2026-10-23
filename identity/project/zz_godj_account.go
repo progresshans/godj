@@ -11,18 +11,18 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v2"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v3"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
 func BindAccount() (_godjaccountmodel.Binding[identity.User], error) {
 	return _godjaccountmodel.Bind[identity.User](ir.AccountRole{
 		Model:       ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
-		PrincipalID: "principal_id", Login: "username", Password: "encoded_password", Revision: "revision", LastLogin: "last_login", Email: "email",
+		PrincipalID: "principal_id", Login: "username", Password: "encoded_password", Revision: "revision", LastLogin: "last_login", CreatedAt: "date_joined", Email: "email",
 		Active:    ir.AccountBoolean{Field: "active"},
 		Staff:     ir.AccountBoolean{Field: "staff"},
 		Superuser: ir.AccountBoolean{Field: "superuser"},
-		Groups:    "groups", Permissions: "permissions", WriteLoginNormalization: "unicode16_nfkc", AuthenticateNormalization: "exact",
+		Groups:    "groups", Permissions: "permissions", WriteLoginNormalization: "unicode16_nfkc", AuthenticateNormalization: "exact", WriteEmailNormalization: "unicode16_email_domain",
 		Catalog: ir.AccountCatalog{
 			Group: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"}, GroupName: "name", GroupRevision: "revision", GroupPermissions: "permissions",
 			Permission: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}, PermissionCode: "code", PermissionName: "name", PermissionRevision: "revision",
@@ -50,4 +50,13 @@ func NewAccountAuthenticator(ctx _godjaccountcontext.Context, backend _godjaccou
 	return _godjaccountmodel.NewAuthenticator(ctx, store, hasher)
 }
 
-var _ goDjProjectSnapshot_cfce7b744ea4bafcfb7a048977b3d25e7df948990100c4fd1609ef97dc328d9a
+// NewAccountProfileEditor shares one backend owner for current authorization, profile writes and account audit.
+func NewAccountProfileEditor(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileConfig[identity.User]) (*_godjaccountmodel.ProfileEditor[identity.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewProfileEditor(store, overlay, config)
+}
+
+var _ goDjProjectSnapshot_c3f5999a7c0d7f9b894d8225bde720b46108b101a9df5f4af25ec0d17160b70d

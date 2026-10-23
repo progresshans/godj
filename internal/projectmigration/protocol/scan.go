@@ -7,12 +7,13 @@ import (
 	"errors"
 	"io"
 
+	"github.com/progresshans/godj/internal/projectwire"
 	"github.com/progresshans/godj/internal/wirejson"
 	"github.com/progresshans/godj/migrations/definition"
 )
 
 const (
-	maximumObjectMembers = 16
+	maximumObjectMembers = projectwire.MaxObjectMembers
 	maximumJSONValues    = 4_000_000
 )
 

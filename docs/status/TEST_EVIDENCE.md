@@ -163,8 +163,39 @@ skip 없이 통과했다. 원본·수정 전후 네 파일 hash는 `gdj0138-acco
 (SHA-256 `c806bf1a1c96dafbf22c5bc9da4637633299f1487a6fb8caa92d414e850419e6`).
 새 인가·typed mutation 테스트 본문과 DB/race/전체 platform은 원격 확인 대상이다.
 
-I1의 공통 credential 조회는 원격 실행 확인이 필요하다. 관리 runtime, Form/Admin/API·첫 사용자 명령, 저장 도메인에 결합한 채운 DB의 명시적 모델 전환,
-password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
+선택 계정의 `ProfileEditor[M]`와 generated factory, 현재 권한·target revision·typed CRUD·domain-qualified audit를
+하나의 coordinated transaction에 연결했다. 기본/별도 모델 소비자는 실제 ModelForm과 API input binding으로 scalar
+수정·누락/no-op·stale·예약 필드 거부를 준비한다. 양 DB에는 실제 저장/rollback·권한 회수·domain 변경·대상 손상·
+unique/validation·15개 commit 실패 경계·두 owner의 revision 경합 검사를 추가했다. Unknown acknowledgement는
+실제 native commit/rollback 뒤 오류를 주입하며 네트워크 장애 실험으로 집계하지 않는다.
+
+독립 `godj_account_audit`의 modeldef·generated binding·초기 migration을 추가했다. Migration SHA-256은
+`c36b7068c13b14aaf7d6098f1d4d36b1a0fd4bc418f058f42bc1d987b50343d1`이며 기존 적용 migration bytes는 바꾸지 않았다.
+Domain별 bounded history·재접속·snapshot·잘못된 row/scope·audit 저장 실패를 검사하도록 작성하고 양 DB의 필수
+실행 목록에 포함했다. 기존 Admin/system audit의 양수 object ID 가정을 제거하고 0/음수 key의 실제 event/history
+검사로 대체했다. Event sequence의 양수 조건은 유지한다. 새 앱의 생성 root·CI package·attestation source도 연결했다.
+
+IR의 선택적인 서버 생성 시각과 명시적 email 저장 정책을 추가했다. 기본 Unicode 16 email domain 정규화와 custom
+Exact, 동일 login/email 필드의 순차 적용·정책 변경 뒤 이전 domain 거부를 소비자와 DB 검사에 연결했다.
+Account role의 JSON member가 17개가 되면서 기존 generic scanner 상한 16을 넘는 공개 생성 실패가 발생했다.
+Generate/migration의 실제 account protocol 왕복에서 재현하고, 선언된 Field shape의 최대 18개를 공통 고정 상한으로
+사용하도록 수정했다. Unknown·duplicate·kind·aggregate 한도는 유지한다. 두 protocol 왕복·두 정확한 상한/+1 검사·
+세 wire root를 한정 실행해 7개 root가 fail/skip 없이 통과했다. 원본·전후 source는
+`gdj0138-account-profile-wire-repro-v1/receipt.json`에 연결했다
+(SHA-256 `bfe32cb947a3e6b1501cf64f3a8c723faa3467e03b4fb62ed95b7091d3bcadf5`).
+이 실행은 확인된 protocol 실패의 재현과 수정 검사이며 profile/audit 제품 본문 실행을 대신하지 않는다.
+
+공개 생성 명령으로 열 개 프로젝트를 갱신했으며 manifest의 142개 파일 hash를 대조했다. 최종 source에서 영향
+14개 package와 따로 생성한 기본/사용자 정의 두 외부 module의 `go test -run '^$'` 최소 compile은 모두 exit 0이다.
+외부 module은 현행 Form/API profile 소비자 템플릿과 같으며 `GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`로 컴파일했다.
+실행 전후 203개 source hash가 같았다. 원본·환경·생성 manifest는
+`gdj0138-account-profile-compile-v2/receipt.json`에 있다
+(SHA-256 `316ed7d2313e49a80eeefcc20ffc65dbc0c95cb47ee57c82434df6c455cdd396`).
+새 profile/audit·IR·Admin/system audit 테스트 본문과 DB/race·전체 platform은 이 로컬 compile에서 실행하지 않았다.
+
+I1의 공통 credential·인가·profile/audit는 원격 실행 확인이 필요하다. Scalar profile 조회, 관계/파일·role/catalog 관리,
+기존 Directory/Manager 교체와 공개 HTTP/Admin 경로·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/receipt,
+password/reset/session·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

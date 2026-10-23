@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/identity/modeldef"
@@ -26,6 +27,16 @@ func TestProjectAccountPolicyOwnsSourceDigestWithoutRewritingSchema(t *testing.T
 	normalized, err := NormalizeProjectSpec(input)
 	if err != nil || normalized.Account == nil || *normalized.Account.Staff.Constant {
 		t.Fatal("migration source lost selected account policy", err)
+	}
+	result := validResult(t)
+	result.ProjectSpec, result.ProjectSpecDigest = normalized, before
+	document, err := EncodeResponse(Response{OK: true, Result: result})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, failure, failed := ParseResponse(document, true)
+	if failed || failure != (Failure{}) || !decoded.OK || !reflect.DeepEqual(decoded.Result.ProjectSpec.Account, normalized.Account) {
+		t.Fatal("account creation/email roles did not cross the full migration response", failure)
 	}
 	staff = true
 	if *normalized.Account.Staff.Constant {

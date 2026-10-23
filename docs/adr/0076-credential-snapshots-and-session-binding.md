@@ -766,6 +766,14 @@ active/staff/superuser와 permission catalog 역할을 대조한다. 기본 User
 Email과 login은 같은 unique field를 사용할 수 있다. Boolean 역할은 저장된 필드 또는 명시적인 상수 중 하나이며,
 상수의 false·true와 미선택은 구분한다. 저장할 login과 인증 입력의 정규화 정책은 각각 명시한다.
 기본 계정의 저장 NFKC와 정확한 입력 조회를 하나의 암묵적 규칙으로 합치지 않는다.
+선택적인 `CreatedAt`은 nullable이 아닌 DateTime의 서버 생성 시각을 가리키며 기본 계정은 `date_joined`를 선택한다.
+사용자 정의 모델은 이 역할을 생략할 수 있고 이름으로 추론하지 않는다.
+
+Email 역할에는 저장 정책 `exact` 또는 `unicode16_email_domain`을 명시한다. 후자는 변환 전 UTF-8·NUL·byte 한도를
+검사한 뒤 고정 Unicode 16 공백 처리와 마지막 `@` 뒤 domain의 전체 소문자 변환을 사용하며 local part는 보존한다.
+Email이 없으면 이 정책도 없다. Login과 email이 같은 필드면 login 변환 뒤 email 변환을 적용하고 결과 한도를 다시 검사한다.
+어느 정책도 암묵적인 대소문자 무시 조회나 unique 비교를 만들지 않는다. 두 저장 정책 모두 계정 역할 fingerprint에
+포함되므로 정책 변경 시 기존 저장 domain을 그대로 사용할 수 없다.
 
 계정 역할은 프로젝트 source identity이며 model의 물리 DDL history가 아니다. 역할 변경은 생성 snapshot과
 프로젝트 명령 digest를 바꾸지만 이미 적용한 migration 정의를 고쳐 쓰지 않는다. Private wire와 사본은 역할과
@@ -869,5 +877,47 @@ Principal 없이 error로 반환하며 다른 권한의 대안으로 넘어갈 �
 
 반환 Principal은 해당 scope의 잠정 관측이며 다음 쓰기에 재사용하는 권한 증표가 아니다. 관리 owner는 같은 scope에서
 대상 revision·typed 입력·관계·session/audit를 처리하고 commit 또는 read cleanup이 확인된 뒤에만 결과를 게시한다.
-기본/사용자 정의 소비자의 허용된 typed profile 변경은 이 경계를 사용하는 예이며, 이를 전체 프로필 validation이나
-관리 API 연결의 완료로 보지 않는다. 기존 기본 Directory/Manager의 교체와 공개 관리 소비자는 GDJ-0138에 남아 있다.
+아래 typed profile owner는 이 경계에서 실제 수정과 audit를 묶는다. 기존 기본 Directory/Manager의 교체와 공개
+관리 소비자 전체의 연결은 GDJ-0138에 남아 있다.
+
+## 선택 계정의 typed profile 수정
+
+생성 `NewAccountProfileEditor`와 공통 `identity/model.ProfileEditor[M]`은 선택한 모델의 scalar profile 수정을 소유한다.
+서버가 명시한 field 목록만 허용하며 새 필드를 자동 노출하지 않는다. Password·principal identity·revision·선택한
+서버 시각·active/staff/superuser·권한 관계와 NonEditable 필드는 입력에서 제외한다. FK·M2M·파일도 이 scalar owner에
+넣지 않으며 해당 편집의 관계·파일 수명 정책은 별도 구현한다. 생성·삭제와 role/catalog 변경도 별도 작업이다.
+
+입력은 Form/JSON의 cleaning을 거친 `orm.ModelInput[M]`이다. 준비 단계에서 현재 모델 source·허용 필드·기존 target
+binding과 collection 의도를 확인한다. 이 owner는 transport parsing을 반복하지 않는다. 쓰기 전 고정 login/email
+정규화와 IR 문자열 한도를 검사하며, 필요하면 typed `ProfileValidator`가 같은 scope에서 현재 애플리케이션 정책을
+확인한다. Validator에는 분리된 현재/후보 모델 값을 전달한다. 빌린 reader를 보관하거나 중첩 transaction·쓰기·외부
+부작용을 일으킬 수 없으며 callback 뒤 취소·scope 수명을 다시 검사한다. 구성과 callback은 동시 호출에 안전해야 한다.
+
+`Update`는 같은 native coordinated transaction에서 현재 domain·actor 권한·deny overlay를 확인하고 대상 행을 새로
+읽는다. 대상의 expected revision과 credential·실제 권한 관계 무결성도 검사한 뒤 typed CRUD의 unique 검증과 강제
+update를 사용한다. 사라진 행을 insert로 대체하지 않는다. 실제 값이 바뀔 때만 revision을 증가시키고 domain에 묶인
+audit를 추가한다. No-op도 현재 권한·대상·revision 검사를 생략하지 않으며 revision/audit는 추가하지 않는다.
+
+`db.CoordinatedAtomicResult`는 조정 없는 Atomic으로 대체하지 않으며 정확히 한 callback과 확정 commit 뒤에만
+ID·revision·변경 필드 이름을 반환한다. 원본 계정·hash·principal identity는 결과에 없다. 일반 오류는 private cause를
+포함한 진단 문자열을 숨기되 `errors.Is`/`As` 연결을 유지한다. 직접 발생한 원인 없는 validation 거부만 확정 rollback
+뒤 renderable 결과로 돌려주고 cleanup 실패나 unknown outcome으로 덮인 거부를 정상 입력 오류로 축소하지 않는다.
+Commit/rollback unknown은 자동 재시도하지 않는다. 확정 commit 뒤 도착한 취소는 성공을 되돌리지 않는다.
+
+## 도메인에 묶인 계정 감사 기록
+
+독립 `godj_account_audit` 앱은 domain·actor ID·model·object ID·action·변경 필드 이름·서버 시각을 저장한다.
+기본 User나 domain/system migration에 의존하는 FK가 없으며 modeldef·generated model·초기 migration을 자체 root에서
+소유한다. 호스트가 이 앱의 migration과 설치를 명시한다. 기존 적용 migration의 bytes를 고쳐 의존성을 끼워 넣지 않는다.
+원본 필드 값·display label·credential/session 비밀값은 기록하지 않는다. 계정의 명시적으로 존재하는 0/음수 integer
+key도 지원하며, 감사 event 자체의 순번은 양수다. 공통 Admin event도 객체 key의 부호를 존재 여부로 사용하지 않는다.
+
+`Prepare`는 owner가 현재 권한을 확인한 domain-bound actor와 서버 시각으로 event를 준비한다. 준비된 event 자체는
+권한 증표가 아니다. `AppendIn`은 live borrowed write scope에서 생성된 ORM으로 저장하며 commit·중첩 transaction·
+자동 재시도·정리를 하지 않는다. 반환 Entry는 외부 owner의 commit 확인 전까지 잠정 값이다. 시각은 UTC microsecond로
+정규화한다. profile 수정·revision·감사 기록 중 어느 단계가 실패해도 owner가 함께 rollback한다.
+
+`HistoryIn`은 명시한 domain/model/object에 대해 최대 100개의 최신 기록을 선택하고 event 순서대로 반환한다.
+역사 조회 인가는 호출자가 같은 scope에서 소유한다. 현재 domain을 자동 선택하거나 서로 다른 세대를 섞지 않으므로,
+이전 세대의 같은 model/ID 기록이 새 계정 이력으로 이어지지 않는다. 잘못된 row·canonical JSON·시각·순서는 거부하고
+종료 실패를 성공으로 바꾸지 않는다. 이 저장소는 임의 SQL writer의 역사 삭제·변조까지 막는 증명이 아니다.

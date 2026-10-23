@@ -9,10 +9,11 @@ func AccountRole() ir.AccountRole {
 	return ir.AccountRole{
 		Model:       ir.ModelIdentity{AppLabel: AppLabel, ModelName: "user"},
 		PrincipalID: "principal_id", Login: "username", Password: "encoded_password",
-		Revision: "revision", LastLogin: "last_login", Email: "email",
+		Revision: "revision", LastLogin: "last_login", CreatedAt: "date_joined", Email: "email",
 		Active: ir.AccountBoolean{Field: "active"}, Staff: ir.AccountBoolean{Field: "staff"}, Superuser: ir.AccountBoolean{Field: "superuser"},
 		Groups: "groups", Permissions: "permissions",
 		WriteLoginNormalization: ir.AccountUnicode16NFKC, AuthenticateNormalization: ir.AccountExact,
+		WriteEmailNormalization: ir.AccountUnicode16EmailDomain,
 		Catalog: ir.AccountCatalog{
 			Group:     ir.ModelIdentity{AppLabel: AppLabel, ModelName: "group"},
 			GroupName: "name", GroupRevision: "revision", GroupPermissions: "permissions",

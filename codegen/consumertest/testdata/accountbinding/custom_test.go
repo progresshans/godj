@@ -10,7 +10,8 @@ import (
 	"example.com/godj-project-bundle/project"
 	"example.com/godj-project-bundle/tickets"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/db"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -20,7 +21,7 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	role, err := binding.Role()
-	if err != nil || role.Model != (ir.ModelIdentity{AppLabel: "people", ModelName: "member"}) || role.Login != "contact" || role.Email != "contact" || role.Staff.Constant == nil || *role.Staff.Constant {
+	if err != nil || role.Model != (ir.ModelIdentity{AppLabel: "people", ModelName: "member"}) || role.Login != "contact" || role.Email != "contact" || role.Staff.Constant == nil || *role.Staff.Constant || role.CreatedAt != "" || role.WriteEmailNormalization != ir.AccountExact {
 		t.Fatal("custom account selection was replaced by defaults", err)
 	}
 	*role.Staff.Constant = true
@@ -115,24 +116,27 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := backend.CoordinatedAtomic(t.Context(), func(tx db.Session) error {
-		current, allowed, err := store.AuthorizeIn(t.Context(), tx, actor.Principal(), auth.PrincipalAuthorizer{}, "account.team")
-		if err != nil {
-			return err
-		}
-		if !allowed || current.ID() != "member-1" {
-			return errors.New("current account could not authorize a typed profile mutation")
-		}
-		_, err = people.MemberObjects.Patch(t.Context(), tx, row, people.MemberPatch{}.WithRegion("JP").WithVersion(2))
-		return err
-	}); err != nil {
+	editor, err := project.NewAccountProfileEditor(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileConfig[people.Member]{Fields: []string{"region"}, ChangePermission: "account.team"})
+	if err != nil {
 		t.Fatal(err)
 	}
+	assertProfileEditor(t, backend, binding, editor, actor.Principal(), row, "region", "JP")
+	contactEditor, err := project.NewAccountProfileEditor(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileConfig[people.Member]{Fields: []string{"contact"}, ChangePermission: "account.team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	contact, err := objects.Input(map[string]query.Value{"contact": query.String("ｍｅｍｂｅｒ@EXAMPLE.TEST")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := contactEditor.Update(t.Context(), actor.Principal(), row.ID, 3, contact); err != nil || changed.Revision != 4 {
+		t.Fatal("custom shared login/email policy", changed, err)
+	}
 	edited, present, err := people.MemberObjects.Using(backend).Filter(people.MemberFields.ID.Exact(row.ID)).OrderBy(people.MemberFields.ID.Asc()).First(t.Context())
-	if err != nil || !present || edited.Region != "JP" || edited.Version != 2 {
+	if err != nil || !present || edited.Region != "JP JSON" || edited.Version != 4 || edited.Subject != row.Subject || edited.Secret != row.Secret || edited.Contact != "member@EXAMPLE.TEST" || !edited.Enabled || edited.Root {
 		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
-	credential := assertStoredAccount(t, backend, binding, authenticator, "member@example.test", "member-1")
+	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("custom account constants and renamed role fields were not respected")
 	}

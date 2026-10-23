@@ -74,6 +74,13 @@ func TestComputeSourceBindingStalesOnOwnedAddRemoveMutationAndMode(t *testing.T)
 
 func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.T) {
 	paths := []string{
+		"account/audit/migrations/godj_account_audit_0001_initial.godj.json",
+		"account/audit/audit.go",
+		"account/audit/migrations.go",
+		"account/audit/models/zz_godj_generated.go",
+		"account/audit/models/zz_godj_relation.go",
+		"account/audit/models/zz_godj_relation_object.go",
+		"account/audit/models/zz_godj_relation_projection.go",
 		"account/domain/migrations/godj_account_domain_0001_initial.godj.json",
 		"account/domain/domain.go",
 		"account/domain/migrations.go",

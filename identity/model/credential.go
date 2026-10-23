@@ -48,6 +48,11 @@ func (binding Binding[M]) PrepareCredential(generation [sha256.Size]byte, row M,
 	if err != nil {
 		return auth.Credential{}, err
 	}
+	return binding.prepareCredentialForDomain(domain, row, permissions)
+}
+
+// domain was verified in the caller's scope, or derived by PrepareCredential.
+func (binding Binding[M]) prepareCredentialForDomain(domain auth.CredentialDomain, row M, permissions []auth.Permission) (auth.Credential, error) {
 	key, present, err := binding.state.objects.PrimaryKey(row)
 	_, integer := key.Integer()
 	if err != nil || !present || !integer {

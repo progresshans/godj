@@ -154,7 +154,7 @@ func (row *persistedAuditRow) scan(rows db.Rows) error {
 
 func (row persistedAuditRow) entry() (admin.AuditEntry, error) {
 	objectID, err := strconv.ParseInt(row.objectID, 10, 64)
-	if row.id <= 0 || err != nil || objectID <= 0 || strconv.FormatInt(objectID, 10) != row.objectID ||
+	if row.id <= 0 || err != nil || strconv.FormatInt(objectID, 10) != row.objectID ||
 		len(row.actorID) > auditActorIDMaxLength || len(row.model) > auditModelMaxLength ||
 		len(row.objectID) > auditObjectIDMaxLength || len(row.action) > auditActionMaxLength ||
 		len(row.changedFields) > auditChangedFieldsMaxLength || len(row.displayLabel) > auditDisplayLabelMaxLength {

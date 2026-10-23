@@ -38,6 +38,7 @@ func TestProjectAccountSelectionSurvivesCanonicalProtocolAndOwnsConstants(t *tes
 		bytes.Replace(document, []byte(`"constant":false`), []byte(`"constant":null`), 1),
 		bytes.Replace(document, []byte(`"constant":false`), []byte(`"field":"staff","constant":false`), 1),
 		bytes.Replace(document, []byte(`"login":"username"`), []byte(`"login":"encoded_password"`), 1),
+		bytes.Replace(document, []byte(`"write_email_normalization":"unicode16_email_domain"`), []byte(`"write_email_normalization":"unicode16_email_domain","unexpected":true`), 1),
 	} {
 		if _, _, rejected := ParseResponse(invalid, true); !rejected {
 			t.Fatal("malformed or unbound selected account accepted")

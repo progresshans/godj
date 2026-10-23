@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v2"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v3"
 
 func generateProjectAccount(input normalizedProjectSpec) ([]byte, error) {
 	if input.account == nil {
@@ -66,7 +66,7 @@ func generateProjectAccount(input normalizedProjectSpec) ([]byte, error) {
 	}
 	fmt.Fprintf(&output, "\treturn _godjaccountmodel.Bind[%s.%s](ir.AccountRole{\n", accountApp.Alias, accountModel.GoName)
 	fmt.Fprintf(&output, "\t\tModel: ir.ModelIdentity{AppLabel: %q, ModelName: %q},\n", role.Model.AppLabel, role.Model.ModelName)
-	fmt.Fprintf(&output, "\t\tPrincipalID: %q, Login: %q, Password: %q, Revision: %q, LastLogin: %q, Email: %q,\n", role.PrincipalID, role.Login, role.Password, role.Revision, role.LastLogin, role.Email)
+	fmt.Fprintf(&output, "\t\tPrincipalID: %q, Login: %q, Password: %q, Revision: %q, LastLogin: %q, CreatedAt: %q, Email: %q,\n", role.PrincipalID, role.Login, role.Password, role.Revision, role.LastLogin, role.CreatedAt, role.Email)
 	for _, item := range []struct {
 		name string
 		role ir.AccountBoolean
@@ -78,7 +78,7 @@ func generateProjectAccount(input normalizedProjectSpec) ([]byte, error) {
 			fmt.Fprintf(&output, "\t\t%s: ir.AccountBoolean{Constant: &_%s},\n", item.name, variable)
 		}
 	}
-	fmt.Fprintf(&output, "\t\tGroups: %q, Permissions: %q, WriteLoginNormalization: %q, AuthenticateNormalization: %q,\n", role.Groups, role.Permissions, role.WriteLoginNormalization, role.AuthenticateNormalization)
+	fmt.Fprintf(&output, "\t\tGroups: %q, Permissions: %q, WriteLoginNormalization: %q, AuthenticateNormalization: %q, WriteEmailNormalization: %q,\n", role.Groups, role.Permissions, role.WriteLoginNormalization, role.AuthenticateNormalization, role.WriteEmailNormalization)
 	fmt.Fprintln(&output, "\t\tCatalog: ir.AccountCatalog{")
 	fmt.Fprintf(&output, "\t\t\tGroup: ir.ModelIdentity{AppLabel: %q, ModelName: %q}, GroupName: %q, GroupRevision: %q, GroupPermissions: %q,\n", role.Catalog.Group.AppLabel, role.Catalog.Group.ModelName, role.Catalog.GroupName, role.Catalog.GroupRevision, role.Catalog.GroupPermissions)
 	fmt.Fprintf(&output, "\t\t\tPermission: ir.ModelIdentity{AppLabel: %q, ModelName: %q}, PermissionCode: %q, PermissionName: %q, PermissionRevision: %q,\n", role.Catalog.Permission.AppLabel, role.Catalog.Permission.ModelName, role.Catalog.PermissionCode, role.Catalog.PermissionName, role.Catalog.PermissionRevision)
@@ -100,6 +100,12 @@ func generateProjectAccount(input normalizedProjectSpec) ([]byte, error) {
 	fmt.Fprintln(&output, "\tstore, err := NewAccountCredentialStore(backend)")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewAuthenticator(ctx, store, hasher)")
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountProfileEditor shares one backend owner for current authorization, profile writes and account audit.")
+	fmt.Fprintf(&output, "func NewAccountProfileEditor(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileConfig[%s.%s]) (*_godjaccountmodel.ProfileEditor[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\tstore, err := NewAccountCredentialStore(backend)")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewProfileEditor(store, overlay, config)")
 	fmt.Fprintln(&output, "}")
 	return output.Bytes(), nil
 }

@@ -71,6 +71,9 @@ func TestAccountRoleRejectsAmbiguousAndForeignSecurityBindings(t *testing.T) {
 		{"foreign principal field", func(r *ir.AccountRole, _ []ir.Schema) { r.PrincipalID = "principal_id" }, "account.principal_id", "unresolved_field"},
 		{"shared principal and login", func(r *ir.AccountRole, _ []ir.Schema) { r.PrincipalID = r.Login }, "account.login", "duplicate_field_role"},
 		{"missing write policy", func(r *ir.AccountRole, _ []ir.Schema) { r.WriteLoginNormalization = "" }, "account.write_login_normalization", "unsupported_normalization"},
+		{"missing email policy", func(r *ir.AccountRole, _ []ir.Schema) { r.WriteEmailNormalization = "" }, "account.write_email_normalization", "unsupported_normalization"},
+		{"unknown email policy", func(r *ir.AccountRole, _ []ir.Schema) { r.WriteEmailNormalization = ir.AccountUnicode16NFKC }, "account.write_email_normalization", "unsupported_normalization"},
+		{"email policy without role", func(r *ir.AccountRole, _ []ir.Schema) { r.Email = "" }, "account.write_email_normalization", "unsupported_normalization"},
 		{"implicit email case folding", func(r *ir.AccountRole, _ []ir.Schema) { r.AuthenticateNormalization = "email" }, "account.authenticate_normalization", "unsupported_normalization"},
 		{"missing constant", func(r *ir.AccountRole, _ []ir.Schema) { r.Staff = ir.AccountBoolean{} }, "account.staff", "invalid_boolean_role"},
 		{"field plus constant", func(r *ir.AccountRole, _ []ir.Schema) { value := false; r.Staff.Constant = &value }, "account.staff", "invalid_boolean_role"},
@@ -125,6 +128,31 @@ func TestAccountRoleUsesDeclaredUniqueConstraintAndDetectsRename(t *testing.T) {
 	}
 }
 
+func TestAccountRoleCreationTimestampIsExplicitAndSourceBound(t *testing.T) {
+	role, schemas := customAccountRole(t)
+	// A custom account need not have a creation timestamp. If it declares one,
+	// the role owns the exact server field instead of discovering a name.
+	schemas[0].Models[0].Fields = append(schemas[0].Models[0].Fields, ir.Field{
+		Name: "registered", GoName: "Registered", Column: "registered_at", Kind: ir.FieldDateTime,
+	})
+	role.CreatedAt = "registered"
+	got, err := ir.NormalizeAccountRole(role, schemas...)
+	if err != nil || got.CreatedAt != "registered" {
+		t.Fatal("explicit creation role lost", err)
+	}
+	for _, bad := range []string{"unknown", role.Login, role.LastLogin} {
+		role.CreatedAt = bad
+		if _, err := ir.NormalizeAccountRole(role, schemas...); err == nil {
+			t.Fatal("invalid server timestamp accepted", bad)
+		}
+	}
+	role.CreatedAt = "registered"
+	schemas[0].Models[0].Fields[len(schemas[0].Models[0].Fields)-1].Nullable = true
+	if _, err := ir.NormalizeAccountRole(role, schemas...); err == nil {
+		t.Fatal("nullable creation timestamp accepted")
+	}
+}
+
 func customAccountRole(t *testing.T) (ir.AccountRole, []ir.Schema) {
 	t.Helper()
 	account, err := schema.Build(schema.Definition{AppLabel: "people", Models: []schema.Model{{
@@ -164,6 +192,7 @@ func customAccountRole(t *testing.T) (ir.AccountRole, []ir.Schema) {
 		Revision: "version", LastLogin: "seen", Email: "contact",
 		Active: ir.AccountBoolean{Field: "enabled"}, Staff: ir.AccountBoolean{Field: "operator"}, Superuser: ir.AccountBoolean{Field: "root"},
 		Groups: "teams", Permissions: "grants", WriteLoginNormalization: ir.AccountUnicode16NFKC, AuthenticateNormalization: ir.AccountExact,
+		WriteEmailNormalization: ir.AccountExact,
 		Catalog: ir.AccountCatalog{
 			Group: schema.Target("access", "team"), GroupName: "title", GroupRevision: "version", GroupPermissions: "grants",
 			Permission: schema.Target("access", "grant"), PermissionCode: "key", PermissionName: "title", PermissionRevision: "version",

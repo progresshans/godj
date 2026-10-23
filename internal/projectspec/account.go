@@ -31,10 +31,11 @@ func ValidateAccountRoleResources(role *ir.AccountRole) error {
 	for _, item := range []struct{ path, value string }{
 		{"model.app_label", role.Model.AppLabel}, {"model.model_name", role.Model.ModelName},
 		{"principal_id", role.PrincipalID}, {"login", role.Login}, {"password", role.Password},
-		{"revision", role.Revision}, {"last_login", role.LastLogin}, {"email", role.Email},
+		{"revision", role.Revision}, {"last_login", role.LastLogin}, {"created_at", role.CreatedAt}, {"email", role.Email},
 		{"active.field", role.Active.Field}, {"staff.field", role.Staff.Field}, {"superuser.field", role.Superuser.Field},
 		{"groups", role.Groups}, {"permissions", role.Permissions},
 		{"write_login_normalization", string(role.WriteLoginNormalization)}, {"authenticate_normalization", string(role.AuthenticateNormalization)},
+		{"write_email_normalization", string(role.WriteEmailNormalization)},
 		{"catalog.group.app_label", role.Catalog.Group.AppLabel}, {"catalog.group.model_name", role.Catalog.Group.ModelName},
 		{"catalog.group_name", role.Catalog.GroupName}, {"catalog.group_revision", role.Catalog.GroupRevision}, {"catalog.group_permissions", role.Catalog.GroupPermissions},
 		{"catalog.permission.app_label", role.Catalog.Permission.AppLabel}, {"catalog.permission.model_name", role.Catalog.Permission.ModelName},

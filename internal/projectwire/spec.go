@@ -13,6 +13,12 @@ import (
 
 const MaxApps = projectspec.MaxApps
 
+// MaxObjectMembers is the fixed structural preflight ceiling for the closed
+// ProjectSpec graph. Field declares 18 possible members; AccountRole declares
+// 17 including optional creation/email policy. Scan still rejects unknown and
+// duplicate members and applies the kind-specific schema/resource checks.
+const MaxObjectMembers = 18
+
 // Snapshot and Clone detach caller data. View is a synchronous borrowed schema
 // view used only for bounded preflight. Declaration transfers wire-owned schema
 // storage to a declaration; callers retain one owner of that storage.

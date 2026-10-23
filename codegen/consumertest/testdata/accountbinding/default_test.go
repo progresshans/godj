@@ -9,7 +9,7 @@ import (
 	"example.com/godj-project-bundle/models"
 	"example.com/godj-project-bundle/project"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/db"
+	accountmodel "github.com/progresshans/godj/identity/model"
 )
 
 func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
@@ -18,7 +18,7 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	role, err := binding.Role()
-	if err != nil || role.Model.AppLabel != "godj_identity" || role.Model.ModelName != "user" || role.Login != "username" || role.Staff.Field != "staff" || role.Staff.Constant != nil {
+	if err != nil || role.Model.AppLabel != "godj_identity" || role.Model.ModelName != "user" || role.Login != "username" || role.Staff.Field != "staff" || role.Staff.Constant != nil || role.CreatedAt != "date_joined" || role.WriteEmailNormalization != "unicode16_email_domain" {
 		t.Fatal("built-in model was not explicitly bound", err)
 	}
 	backend := accountDatabase(t, models.GoDjRelationSchema())
@@ -89,21 +89,13 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := backend.CoordinatedAtomic(t.Context(), func(tx db.Session) error {
-		current, allowed, err := store.AuthorizeIn(t.Context(), tx, actor.Principal(), auth.PrincipalAuthorizer{}, "account.team")
-		if err != nil {
-			return err
-		}
-		if !allowed || current.ID() != "user-1" {
-			return errors.New("current account could not authorize a typed profile mutation")
-		}
-		_, err = models.UserObjects.Patch(t.Context(), tx, row, models.UserPatch{}.WithFirstName("Updated Alice").WithRevision(2))
-		return err
-	}); err != nil {
+	editor, err := project.NewAccountProfileEditor(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileConfig[models.User]{Fields: []string{"first_name"}, ChangePermission: "account.team"})
+	if err != nil {
 		t.Fatal(err)
 	}
+	assertProfileEditor(t, backend, binding, editor, actor.Principal(), row, "first_name", "Updated Alice")
 	edited, present, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(row.ID)).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
-	if err != nil || !present || edited.FirstName != "Updated Alice" || edited.Revision != 2 {
+	if err != nil || !present || edited.FirstName != "Updated Alice JSON" || edited.Revision != 3 || edited.PrincipalID != row.PrincipalID || edited.EncodedPassword != row.EncodedPassword || !edited.DateJoined.Equal(row.DateJoined) {
 		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
 	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")

@@ -13,6 +13,7 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"account/audit/migrations/godj_account_audit_0001_initial.godj.json":   {},
 	"account/domain/migrations/godj_account_domain_0001_initial.godj.json": {},
 	"internal/zonerules/zoneinfo.zip":                                      {},
 	"internal/zonerules/source.json":                                       {},
