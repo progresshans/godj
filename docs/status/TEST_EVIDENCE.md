@@ -3,6 +3,40 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 자식 빌드의 race 계측 전달과 증거 범위 정정
+
+2026-10-23, source `c8fd33a3777403c57a04a9961480ed3c760326d9`의
+[CI 39931498698](https://github.com/progresshans/godj/actions/runs/39931498698)에서 Mac Intel normal reload는
+최초 `startproject`를 2분 59.352초·22개 Go 호출로 완료했다. Notes root와 7개 child, Article root와 3개 child의
+실제 완료·member checksum·source/run/attempt를 대조했다. 기존 5분 제한을 유지한 이 실행의 성공이며 일반 성능 수치는 아니다.
+Linux 6개 좌표의 baseline/reload 원본과 같은 CI의 Django 관측은 개발 공통 결과 8개·event 6개 및 닫힌 source 실패 차이를
+대조했다. Python 3.14.3 suite의 403개 테스트 중 유보된 4개는 exact Darwin owner에서 실제 실행됐으며, 그 owner는
+403개 skip 0·27개 locked oracle domain과 reference 파일 보존 검사를 통과했다. Admin·Helpdesk browser의 원본 probe,
+현재 fixture source·전체 member hash와 native 저장/rollback·파일 참조·정리 결과도 확인했다. Screenshot은 hash만 대조했다.
+
+이어 compiler 경로를 검토하면서 C1 race 검증의 공백을 발견했다. 일반 소비자의 전역 CLI 빌드는 offline profile에서
+GOFLAGS를 비웠고, private runner/candidate/runtime 환경도 도구의 계측과 관계없이 `-modcacherw`만 사용했다.
+따라서 이전 C1 race 작업의 성공은 부모 테스트의 계측과 실행한 외부 동작을 확인하지만, 전역 CLI가 준비한 자식 전체의
+race 계측 PASS로 해석하지 않는다. 독립 설치의 일부 바이너리 metadata 검사만으로 이 경로의 누락을 대신할 수 없다.
+
+도구의 race build tag를 고정된 compile-time 값으로 읽고, caller가 소유하는 private Go flags에 계측을 전달하도록 변경했다.
+호스트의 임의 GOFLAGS 차단·readonly module·private workspace·cache·실패 cleanup 경계는 유지한다.
+소비자의 전역 CLI 빌드에도 같은 계측을 전달하고, 실제 CLI/독립 설치 바이너리와 최초 ready 시점의 선언 runner·서버 파일에서
+OS·architecture·명시한 CGO·race metadata를 검사한다. 빠진 자식 계측은 부모 job의 성공으로 가려지지 않아야 한다.
+
+로컬은 변경 Go 13개를 gofmt하고 `go test -race -run '^$' -exec=/usr/bin/true`로 `internal/gobuild`,
+`internal/projectcheck`, `internal/projectgenerate`, `conformance/runserverproduct`를 최소 compile했다. 테스트 본문은 실행하지 않았다.
+새 계측 전달과 실제 바이너리 검사의 원격 실행, 모든 native 좌표의 독립 비교·DB·전체 CI와 C1 수용은 미완료다.
+원본과 receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-c8fd33a3-ci-39931498698/mac-intel-normal-reload-complete.json` — 일반 모드의 전체 reload 원본 | `acd2878fdf787f19ac2fa31aaeecb8652e880818c9a93f495bbee12b871886e6` |
+| `gdj0137-c8fd33a3-ci-39931498698/linux-comparison-and-mac-arm-reload.json` — 원본 실행과 의미 대조; 자식 race 계측은 위 정정 적용 | `05e0b5ff0cbfd60f6e98bd42fdd57aa6d37d222d47ac976a667a1459df3c643b` |
+| `gdj0137-c8fd33a3-ci-39931498698/python-exact-profile.json` — 유보 검사 4개·exact suite와 oracle | `02b2b7b95e5140d868ab3f708b54668b37c02f1c4ec871d63e63731d92dded61` |
+| `gdj0137-c8fd33a3-ci-39931498698/browser-source-and-native.json` — 실제 probe와 저장 상태·정리 | `20b065d54a37c376caf9d8e00508914b049e9d7cbb2b14dc7a0933334eae783d` |
+| `gdj0137-race-coordinate-v1/compile.json` — 변경 source hash·본문 미실행 race compile | `0dfcd427dc7522e9e986a1f62375b5a95effeefe7033391d6ade09d6c6834b3b` |
+
 ## GDJ-0137 — 후보 package compile 묶음과 scaffold 원본 대조
 
 2026-10-23, source `d2367f8f662886cefc4b95441955d882881dff8a`의

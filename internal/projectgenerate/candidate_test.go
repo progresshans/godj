@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/gobuild"
 )
 
 func TestGoCandidateVerifierCompilesVirtualNewPackagesWithoutExecutingUserCode(t *testing.T) {
@@ -228,7 +229,7 @@ func TestCandidateCommandEnvironmentSanitizesGoControlsAndUsesExternalPaths(t *t
 		key, value, _ := strings.Cut(entry, "=")
 		values[key] = value
 	}
-	for key, want := range map[string]string{"GOFLAGS": "-modcacherw", "GOWORK": "off", "GOTOOLCHAIN": "local", "GOENV": "off"} {
+	for key, want := range map[string]string{"GOFLAGS": gobuild.InstrumentationFlags("-modcacherw"), "GOWORK": "off", "GOTOOLCHAIN": "local", "GOENV": "off"} {
 		if values[key] != want {
 			t.Fatalf("%s = %q, want %q", key, values[key], want)
 		}

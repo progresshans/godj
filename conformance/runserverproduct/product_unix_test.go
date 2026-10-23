@@ -27,6 +27,7 @@ import (
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
@@ -499,10 +500,11 @@ func buildGlobalGodj(t *testing.T, repository string) string {
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "build", "-buildvcs=false", "-mod=readonly", "-o", binary, "./cmd/godj")
 	command.Dir = repository
-	command.Env = testenv.OfflineGo(os.Environ(), "")
+	command.Env = testenv.OfflineGo(os.Environ(), gobuild.InstrumentationFlags(""))
 	if output, err := command.CombinedOutput(); err != nil {
 		t.Fatalf("build global godj: %v\n%s", err, output)
 	}
+	assertRunserverBuildCoordinate(t, binary)
 	return binary
 }
 
@@ -543,6 +545,7 @@ func runGlobalProjectServer(
 	if exercise == nil {
 		t.Fatal("global runserver exercise is nil")
 	}
+	environment = ensureRunserverGoAuditEnvironment(t, environment)
 	stdout := testprocess.NewReadinessBuffer(maximumRunserverOutput, readinessPrefix)
 	stderr := testprocess.NewBuffer(maximumRunserverOutput)
 	command := exec.Command(
@@ -592,6 +595,7 @@ func runGlobalProjectServer(
 		if err != nil || len(groups) < 2 {
 			t.Fatalf("capture global/runtime process groups = %v, error=%v", groups, err)
 		}
+		assertRunserverLinkedBuildCoordinates(t, environment)
 	case waitErr := <-waited:
 		finished = true
 		assertRunserverOutputExcludesSensitiveValues(t, stdout.String(), stderr.String(), sensitiveValues)
@@ -897,7 +901,7 @@ func runserverEnvironment(t *testing.T, databasePath, workspaceBase string) []st
 		}
 		values["HOME"] = home
 	}
-	return testenv.OfflineGo(testenv.Sorted(values), "")
+	return testenv.OfflineGo(testenv.Sorted(values), gobuild.InstrumentationFlags(""))
 }
 
 func runserverGoAuditEnvironment(t *testing.T, input []string) ([]string, string) {

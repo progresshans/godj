@@ -4,18 +4,22 @@ package runserverproduct_test
 
 import (
 	"bytes"
+	"debug/buildinfo"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
 )
 
@@ -44,6 +48,81 @@ func runProjectCLI(t *testing.T, directory string, environment []string, global 
 		}()
 	}
 	return testprocess.Run(t, testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}, directory, environment, global, args...)
+}
+
+func ensureRunserverGoAuditEnvironment(t *testing.T, environment []string) []string {
+	t.Helper()
+	values := testenv.Map(environment)
+	if values[runserverGoAuditModeEnv] == "1" && values[runserverGoAuditLogEnv] != "" && values[runserverGoAuditRealEnv] != "" {
+		return append([]string(nil), environment...)
+	}
+	environment, _ = runserverGoAuditEnvironment(t, environment)
+	return environment
+}
+
+// Inspect the real output, not just an intended compiler argument. A process
+// test built with -race must not silently exercise an uninstrumented child.
+func assertRunserverBuildCoordinate(t *testing.T, binary string) *debug.BuildInfo {
+	t.Helper()
+	info, err := buildinfo.ReadFile(binary)
+	if err != nil {
+		t.Fatal("native executable has no readable Go build identity")
+	}
+	settings := make(map[string]string, len(info.Settings))
+	for _, setting := range info.Settings {
+		settings[setting.Key] = setting.Value
+	}
+	race := settings["-race"] == "true"
+	if settings["GOOS"] != runtime.GOOS || settings["GOARCH"] != runtime.GOARCH || race != gobuild.RaceEnabled {
+		t.Fatal("native executable lost the parent OS, architecture or race coordinate")
+	}
+	if expected := os.Getenv("CGO_ENABLED"); expected != "" && settings["CGO_ENABLED"] != expected {
+		t.Fatal("native executable lost the explicit CGO coordinate")
+	}
+	t.Logf("native executable coordinate: goos=%s goarch=%s cgo=%s race=%t", settings["GOOS"], settings["GOARCH"], settings["CGO_ENABLED"], race)
+	return info
+}
+
+// Initial readiness has one live declaration/runtime workspace. Earlier
+// invocations may appear in the same audit, but their removed outputs cannot
+// stand in for the two executables that currently serve this project.
+func assertRunserverLinkedBuildCoordinates(t *testing.T, environment []string) {
+	t.Helper()
+	file, err := os.Open(testenv.Map(environment)[runserverGoAuditLogEnv])
+	if err != nil {
+		t.Fatal("ready runtime has no Go build audit")
+	}
+	document, readErr := io.ReadAll(io.LimitReader(file, maximumRunserverGoAudit+1))
+	closeErr := file.Close()
+	if readErr != nil || closeErr != nil || len(document) > maximumRunserverGoAudit {
+		t.Fatal("ready runtime Go build audit is unreadable or oversized")
+	}
+	found := map[string]int{"./cmd/projectrunner": 0, "./cmd/site": 0}
+	for _, line := range bytes.Split(bytes.TrimSpace(document), []byte{'\n'}) {
+		var record runserverGoAuditRecord
+		if json.Unmarshal(line, &record) != nil {
+			t.Fatal("ready runtime Go build audit is invalid")
+		}
+		arguments := record.Arguments
+		if len(arguments) != 6 || arguments[0] != "build" || arguments[3] != "-o" {
+			continue
+		}
+		if _, wanted := found[arguments[5]]; !wanted {
+			continue
+		}
+		info, err := os.Stat(arguments[4])
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil || !info.Mode().IsRegular() {
+			t.Fatal("ready runtime build output is not a regular executable")
+		}
+		assertRunserverBuildCoordinate(t, arguments[4])
+		found[arguments[5]]++
+	}
+	if found["./cmd/projectrunner"] != 1 || found["./cmd/site"] != 1 {
+		t.Fatal("ready runtime did not retain exactly one declaration and server executable")
+	}
 }
 
 func TestRunserverGoAuditConfinesTelemetryAndRequiresPairedMetadata(t *testing.T) {

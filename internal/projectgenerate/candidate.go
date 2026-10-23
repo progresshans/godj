@@ -344,7 +344,7 @@ func candidateCommandEnvironment(projectRoot, workspace string, ambient []string
 	} {
 		delete(values, key)
 	}
-	values["GOFLAGS"] = "-modcacherw"
+	values["GOFLAGS"] = gobuild.InstrumentationFlags("-modcacherw")
 	values["GOWORK"] = "off"
 	values["GOTOOLCHAIN"] = "local"
 	values["GOENV"] = "off"

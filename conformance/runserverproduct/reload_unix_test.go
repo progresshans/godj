@@ -35,6 +35,7 @@ type reloadProcess struct {
 
 func startReloadProcess(t *testing.T, global, project string, environment []string, prefix string, reload bool) *reloadProcess {
 	t.Helper()
+	environment = ensureRunserverGoAuditEnvironment(t, environment)
 	p := &reloadProcess{stdout: testprocess.NewReadinessBuffer(maximumRunserverOutput, prefix), stderr: testprocess.NewBuffer(maximumRunserverOutput), done: make(chan struct{})}
 	p.command = exec.Command(global, "runserver", "--project", filepath.Join(project, "godj.toml"), "--addr", "127.0.0.1:0")
 	if !reload {
@@ -64,6 +65,7 @@ func startReloadProcess(t *testing.T, global, project string, environment []stri
 			t.Fatal(err)
 		}
 		p.track(t)
+		assertRunserverLinkedBuildCoordinates(t, environment)
 	case <-p.done:
 		t.Fatalf("reload startup exited: %v stdout_bytes=%d stderr=%s", p.err, len(p.stdout.String()), p.stderr.String())
 	case <-time.After(runserverPreparationTimeout):

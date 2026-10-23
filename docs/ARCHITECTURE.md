@@ -228,6 +228,8 @@ Startup 취소는 앱 context에 전달하지만 준비 완료 뒤에는 HTTP �
 소유자를 하나로 둔다. 성공 결과는 strict bounded protocol로 검증한 뒤 게시한다. Child/build의 실패 원인을 보존하되
 credential·사용자 secret·원문 private path를 공개 오류에 붙이지 않는다. Build 실패만 category/code 뒤에 제한된 sanitized 원인을 추가한다.
 공통 빌드 도구는 dependency/compiler cache를 재사용하며 runtime의 private workspace·환경과 분리한다. 자세한 실행 범위는 [TESTING](TESTING.md)에 있다.
+Private Go 빌드의 race 계측은 실행 중인 도구의 compile-time build tag를 따른다. 호스트의 임의 GOFLAGS를
+복원하지 않으며, 계측한 CLI가 선언 runner·candidate·runtime을 준비할 때 같은 계측을 유지한다.
 
 `internal/wirejson`은 strict lexical/구조 검사와 bounded read를, `internal/projectwire`는 ProjectSpec·Schema IR의 wire 표현과
 크기 계산을 소유한다. Envelope·숫자/배열/깊이 budget·오류 우선순위·overflow 후 drain 정책은 각 protocol이 선택한다.

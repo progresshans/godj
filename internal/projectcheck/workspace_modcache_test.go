@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
 )
 
@@ -92,8 +93,8 @@ func TestPrivateWorkspaceRealModuleDownloadRemainsCleanupWritable(t *testing.T) 
 	}
 	workspaceRoot := workspace.root
 	values := environmentValues(workspace.environment)
-	if values["GOFLAGS"] != "-modcacherw" {
-		t.Fatalf("GOFLAGS=%q, want exact -modcacherw", values["GOFLAGS"])
+	if values["GOFLAGS"] != gobuild.InstrumentationFlags("-modcacherw") {
+		t.Fatal("private Go flags lost the executable's instrumentation or accepted ambient flags")
 	}
 	if values["GOMODCACHE"] != filepath.Join(workspaceRoot, "gomodcache") {
 		t.Fatalf("GOMODCACHE=%q is not private", values["GOMODCACHE"])

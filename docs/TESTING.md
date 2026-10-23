@@ -62,6 +62,9 @@ bootstrap 의존성·candidate inventory/compile·module tidy·declaration/runti
 Runserver의 기존 흐름과 reload 흐름은 별도 native CI owner가 같은 전체 binary discovery를 사용한다. 필수 manifest의
 root/child와 이후 추가된 root 모두 정확히 한 owner에서 실행해야 한다. PostgreSQL 전용 root는 별도 DB owner가 맡으며
 그 밖의 skip·누락·중복·잘린 결과는 실패다. 두 owner는 성공/실패 원 JSON과 source·환경·checksum을 artifact로 보존한다.
+전역 CLI와 자식 Go 빌드는 부모의 race build tag를 전달한다. Private 빌드는 도구 자체의 계측을 따르며 host GOFLAGS는 계속 차단한다.
+실제 전역 CLI·독립 설치 바이너리와 최초 ready 시점의 선언 runner·서버 파일에서 Go build metadata를 읽어
+OS·architecture·명시한 CGO와 race를 대조한다. 부모 테스트의 `-race` 성공만으로 자식 runtime의 계측을 대신하지 않는다.
 단일 모델 reload는 처리 중인 저장·필드 추가·실패 후보·연속 수정·부모 종료와 `--no-reload`의 명시적 재시작을,
 관계 앱은 같은 세션·관계·현재 권한과 CSRF/revision을 실제 public CLI/HTTP로 검증한다.
 실행 범위는 [공유 manifest](../scripts/ci/runserver-required.txt)에 둔다.

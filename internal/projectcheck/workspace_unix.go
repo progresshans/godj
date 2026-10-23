@@ -161,7 +161,7 @@ func createPrivateWorkspaceWithHooks(project retainedProject, ambient []string, 
 	child["GOWORK"] = "off"
 	child["GOTOOLCHAIN"] = "local"
 	child["GOENV"] = "off"
-	child["GOFLAGS"] = "-modcacherw"
+	child["GOFLAGS"] = gobuild.InstrumentationFlags("-modcacherw")
 	child["GOCACHEPROG"] = ""
 	for key, relative := range privatePaths {
 		child[key] = filepath.Join(physicalRoot, relative)

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
 	"os"
 	"os/exec"
@@ -169,6 +170,7 @@ func runGlobalPostgresArticleServerOnce(
 	databaseURL string,
 ) string {
 	t.Helper()
+	environment = ensureRunserverGoAuditEnvironment(t, environment)
 	stdout := testprocess.NewReadinessBuffer(maximumRunserverOutput, articleReadinessPrefix)
 	stderr := testprocess.NewBuffer(maximumRunserverOutput)
 	command := exec.Command(
@@ -218,6 +220,7 @@ func runGlobalPostgresArticleServerOnce(
 		if err != nil || len(groups) < 2 {
 			t.Fatalf("capture global/PostgreSQL runtime process groups = %v, error=%v", groups, err)
 		}
+		assertRunserverLinkedBuildCoordinates(t, environment)
 	case waitErr := <-waited:
 		finished = true
 		assertRunserverPostgresOutputSecretFree(t, databaseURL, stdout.String(), stderr.String())
@@ -273,7 +276,7 @@ func runserverPostgresEnvironment(t *testing.T, databaseURL, schema, workspaceBa
 		}
 		values["HOME"] = home
 	}
-	return testenv.OfflineGo(testenv.Sorted(values), "")
+	return testenv.OfflineGo(testenv.Sorted(values), gobuild.InstrumentationFlags(""))
 }
 
 func assertRunserverPostgresEnvironment(t *testing.T, environment []string, databaseURL, schema string) {

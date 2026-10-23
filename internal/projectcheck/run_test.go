@@ -148,7 +148,7 @@ func TestRunSuccessUsesClosedCommandsPrivateEnvironmentAndSinglePublication(t *t
 			t.Fatalf("private directory %s remained: %v", environment[key], err)
 		}
 	}
-	if environment["GOWORK"] != "off" || environment["GOTOOLCHAIN"] != "local" || environment["GOENV"] != "off" || environment["GOFLAGS"] != "-modcacherw" || environment["GOCACHEPROG"] != "" || environment["NETRC"] != "/explicit/netrc" || environment["GOTELEMETRY"] != "ambient" {
+	if environment["GOWORK"] != "off" || environment["GOTOOLCHAIN"] != "local" || environment["GOENV"] != "off" || environment["GOFLAGS"] != gobuild.InstrumentationFlags("-modcacherw") || environment["GOCACHEPROG"] != "" || environment["NETRC"] != "/explicit/netrc" || environment["GOTELEMETRY"] != "ambient" {
 		t.Fatalf("child environment = %#v", environment)
 	}
 	if report.TempCreated != 1 || report.TempCleanupAttempts != 1 || report.CleanupFailed != 0 || report.ResidualTemp != 0 || !report.RawDiagnosticsDiscarded {

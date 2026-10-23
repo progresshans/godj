@@ -5,7 +5,6 @@ package runserverproduct_test
 import (
 	"archive/zip"
 	"crypto/sha256"
-	"debug/buildinfo"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -14,13 +13,13 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime/debug"
 	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/progresshans/godj/conformance/internal/testprocess"
+	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/project/compatibility"
 	"github.com/progresshans/godj/version"
@@ -63,10 +62,7 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 	}
 	fixedModuleWrite(t, filepath.Join(proxy, filepath.FromSlash(version.Module), "@v/list"), []byte(strings.Join(versions, "\n")+"\n"))
 	fileURL := func(path string) string { return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String() }
-	flags := "-modcacherw"
-	if fixedModuleRaceBuild() {
-		flags += " -race"
-	}
+	flags := gobuild.InstrumentationFlags("-modcacherw")
 	environment = testenv.With(environment, map[string]string{
 		"GOPROXY":    fileURL(proxy) + "," + fileURL(filepath.Join(caches.GOMODCACHE, "cache", "download")),
 		"GOMODCACHE": filepath.Join(root, "module-cache"), "GOCACHE": caches.GOCACHE,
@@ -206,19 +202,7 @@ func fixedModuleProjectDependency(t *testing.T, project, repository, release str
 
 func fixedModuleBuildIdentity(t *testing.T, binary, release string, main bool) {
 	t.Helper()
-	info, err := buildinfo.ReadFile(binary)
-	if err != nil {
-		t.Fatal(err)
-	}
-	race := false
-	for _, setting := range info.Settings {
-		if setting.Key == "-race" {
-			race = setting.Value == "true"
-		}
-	}
-	if race != fixedModuleRaceBuild() {
-		t.Fatal("installed or linked executable lost the native race coordinate")
-	}
+	info := assertRunserverBuildCoordinate(t, binary)
 	if main {
 		if info.Main.Path != version.Module || info.Main.Version != release || info.Main.Replace != nil {
 			t.Fatal("tool was not installed from the versioned module", info.Main)
@@ -335,17 +319,4 @@ func fixedModuleWrite(t *testing.T, path string, data []byte) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-}
-
-func fixedModuleRaceBuild() bool {
-	info, ok := debug.ReadBuildInfo()
-	if !ok {
-		return false
-	}
-	for _, setting := range info.Settings {
-		if setting.Key == "-race" {
-			return setting.Value == "true"
-		}
-	}
-	return false
 }

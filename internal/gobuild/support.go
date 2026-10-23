@@ -25,6 +25,16 @@ const (
 	maxDiagnosticLines   = 24
 )
 
+// InstrumentationFlags keeps child compilation in the current executable's
+// race coordinate. The input is a caller-owned flag list, never host GOFLAGS.
+// Private build owners still choose their module/workspace/cache policies.
+func InstrumentationFlags(flags string) string {
+	if RaceEnabled {
+		return strings.TrimSpace(flags + " -race")
+	}
+	return flags
+}
+
 // Environment reuses an existing, owner-writable Go build cache outside the
 // project. All other settings, including private HOME/TMP/GOMODCACHE, remain
 // owned by the caller. -trimpath permits dependency compilation reuse across
