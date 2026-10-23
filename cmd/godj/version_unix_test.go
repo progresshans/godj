@@ -76,6 +76,10 @@ func TestActualGodjVersionNeedsNoProjectOrGoToolAtRuntime(t *testing.T) {
 	// the installed tool's own version, even when run inside a project.
 	versionWrite(t, filepath.Join(root, "godj.toml"), []byte("invalid private descriptor"))
 	runtimeEnvironment := testenv.With(environment, map[string]string{"PATH": root, "GODJ_PRIVATE_TOKEN": "secret-marker"})
+	help := versionCommand(t, root, runtimeEnvironment, binary, "help")
+	if !bytes.Contains(help, []byte("godj command")) || bytes.Contains(help, []byte("secret-marker")) {
+		t.Fatal("standalone help omitted command or leaked environment")
+	}
 	output := versionCommand(t, root, runtimeEnvironment, binary, "version", "--json")
 	var document struct {
 		FormatVersion int          `json:"format_version"`

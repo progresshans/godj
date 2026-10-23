@@ -66,6 +66,40 @@ source·권한·read-only 부정 대조와 전후 수동 조립 비교도 source
 이 결과로 A1-01~06을 완료하고 주 작업을 F1으로 전환한다. Q1의 후속 ORM 기능이나 F1·전체 카탈로그의
 남은 요구를 완료 처리하지 않는다. F1의 별도 변경은 해당 source에서 계속 검증한다.
 
+## GDJ-0137 — 앱의 첫 migration 복구와 사용자 명령 연결
+
+`60a30c560b954aebb1bf799c75574a45c419de85`의
+[CI 39872895557](https://github.com/progresshans/godj/actions/runs/39872895557)에서 앱 추가 leaf의
+`makemigrations`가 `migration_autodetect_error/invalid_generated_plan`으로 실패했다.
+Linux amd64 cgo0 job `120152019175`와 arm64 normal job `120152019233`의 원본 log SHA-256은 각각
+`1a05add61cd2fc8b4c5e0e4a258f3b288d1ee6182192c29bd34a70fe26c74c15`,
+`ba0855084742abf8077a7bd722b7f5a4032777616230e4b3ab228d794d7227e5`다.
+Checkout `1800bd6f7b1952c4bc3ac3808143386dea8343dc`의 tree `d737acf2ce1703b55e7656f926fbfc49a77030a5`는 제출 source와 같다.
+`gdj0137-60a30c56-ci-39872895557/source-binding.json` SHA-256은
+`a39b5460b540c506410a8eaf2105e405ec2da7911e3f3d1f663939c156bf2a14`다. 이 run은 전체 PASS가 아니다.
+
+고정 archive에서 실패한 root와 앱 추가 leaf만 선택해 같은 오류를 재현했다. 빈 앱의 선언 identity와 table operation이 없는
+historical state를 비교하는 조건을 수정했다. 선언/managed app은 유지하며, 과거 state에 없고 모델도 없는 앱에 migration을
+만들지 않는다. 기존 nonempty history 삭제·예상 밖 state·외부 앱의 첫 모델에 필요한 이력 검사는 유지한다.
+두 제품 파일만 바꾼 archive에서 같은 선택 실행이 통과했다. 빈 앱 등록→첫 모델 생성·migration·저장→nullable field 변경·
+기존 데이터 보존→identity runtime 재시작을 실제 실행했다. 새 사용자 명령 구현은 이 재현에 포함하지 않았다.
+
+`gdj0137-startapp-repro-v1/before-receipt.json` SHA-256은
+`2e785cad64deff3704e72f8fea4024a67014eeb15e4f446e0e56d5a62545fa13`,
+`after-receipt.json`은 `2e61dbed427a40b751263f6e40bf3cde166fed71f9a773b1a69c9bf7995c199a`다.
+수정 후 native run/pass는 선택한 root·leaf 2/2, skip/fail 0/0이다. 재현에 쓴 두 파일은 이번 제품 파일과 byte가 같다.
+원래 실패·진단용 pure snapshot 실패와 수정 후 raw event/log를 보존했다.
+
+이번 변경은 별도 command runtime, 명시적 등록/typed 인자, 목록/help/pure check, invocation resource와 출력/exit를 연결한다.
+기존 runtime 준비 코드를 공유하고 declaration/command executable의 framework contract를 조회·비교한다.
+Starter와 추가 앱에 generated 모델 command·잘못된 인자·저장 후 오류·닫힌 출력·호환성 및 stale bundle 거부 검사를 작성했다.
+기존 필수 startproject root에서 실행하도록 연결했으며 원격 전체 CI가 실제 실행 owner다.
+
+로컬은 gofmt·10개 관련 package의 최소 compile만 수행했다. 새 command test 본문과 template에서 생성한 command 실행은
+로컬에서 수행하지 않았다. `gdj0137-commands-compile-v1/final-source.json`은 변경 Go/template 35개의 hash와 compile 명령/log를
+기록하며 SHA-256은 `7807ea94b3431872311351c2efbcad5d8c8bb27607f914504f779be42098e8d7`다.
+일반 command의 실제 환경별 실행, 모든 기존 진입점의 호환성, 독립 고정 module, event/logging, reload와 C1 전체 수용은 미완료다.
+
 ## GDJ-0137 — 빈 앱 게시 검증과 startapp 연결
 
 `5607df5a`의 [CI 39868556273](https://github.com/progresshans/godj/actions/runs/39868556273)에서 새 startproject root가 실패했다.

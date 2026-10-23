@@ -68,3 +68,21 @@ Starter의 `Applications()`에서 새 선언 package를 import하고 `Definition
 이 생성/등록 구분은 Django의 [startapp](https://docs.djangoproject.com/en/6.1/ref/django-admin/#startapp)과
 [설치 목록 편집](https://docs.djangoproject.com/en/6.1/intro/tutorial02/#activating-models)의 외부 흐름을 참고한다.
 Python import 구조를 복제하지 않는다. 고정 source의 독립 실행 비교와 C1 전체 수용은 해당 작업에 남는다.
+
+## 사용자 명령과 호환성 조회
+
+사용자 명령은 `commands_package`로 선택한 별도 executable에 명시적으로 등록한다. Generated model import가
+선언 runner의 bootstrap을 막지 않게 하며, 전역 CLI는 업무 package를 직접 import하지 않는다. 이름 중복·reserved 이름·
+미설치 앱 소유자는 거부한다. Django의 순서에 의한 command override는 이 명시적 등록 정책으로 대체한다.
+Typed 인자/option을 모두 검증한 뒤 순수 check와 resource open을 수행한다. Command resource는 invocation이 소유하고,
+handler를 join한 뒤 독립 cleanup context로 닫는다. Callback/출력/cleanup의 실패를 DB rollback으로 해석하지 않는다.
+
+전역 management 경로는 runserver와 같은 선언 snapshot·generated bundle·readonly runtime build·재검사를 사용한다.
+별도의 metadata probe는 설정·앱 초기화·DB 없이 framework build identity와 실제 generator/명령 contract를 조회한다.
+같은 private executable을 조회 후 실행하며 불일치 시 업무 callback에 진입하지 않는다. 고정 module version은 정확히
+비교하고, 명시적 개발 source끼리는 동일 contract를 요구한다. Contract 일치는 source 무결성 증명이 아니다.
+현재 적용된 경로와 기존 명령·독립 설치로의 잔여 연결은 [C1](../../work/0137-project-core-startup.md)에 기록한다.
+
+모델 없는 설치 앱의 identity는 Schema IR/ProjectSpec에 유지한다. 과거 table state에 없던 빈 앱은 migration을 만들지 않는다.
+첫 모델부터 실제 초기 migration을 만든다. 이 규칙으로 기존 nonempty history의 삭제·외부 app의 모델/이력 불일치나
+예상 밖 state를 허용하지 않는다. 생성 snapshot과 storage history는 서로 다른 책임을 갖는다.

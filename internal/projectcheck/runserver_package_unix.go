@@ -9,12 +9,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// validateRunserverPackageBoundary closes Go command pattern/file-list
+// validateRuntimePackageBoundary closes Go command pattern/file-list
 // interpretations and requires declaration and runtime to resolve through real
 // project-root directories with different filesystem identities.
-func validateRunserverPackageBoundary(project retainedProject) bool {
+func validateRuntimePackageBoundary(project retainedProject, packagePath string) bool {
 	declaration, declarationOK := retainedRunserverPackageDirectory(project.root, project.descriptor.packagePath)
-	runtime, runtimeOK := retainedRunserverPackageDirectory(project.root, project.descriptor.runserverPackagePath)
+	runtime, runtimeOK := retainedRunserverPackageDirectory(project.root, packagePath)
 	return declarationOK && runtimeOK && !sameIdentity(declaration, runtime)
 }
 

@@ -71,7 +71,7 @@ func TestScaffoldRenderingOwnsDeterministicEditableSource(t *testing.T) {
 			t.Fatal("rendered source shares backing storage across calls")
 		}
 	}
-	for _, name := range []string{"README.md", "go.mod", "godj.toml", "modeldef/apps.go", "cmd/projectrunner/main.go", "cmd/site/main.go", "internal/site/models.go"} {
+	for _, name := range []string{"README.md", "go.mod", "godj.toml", "modeldef/apps.go", "cmd/projectrunner/main.go", "cmd/site/main.go", "cmd/commands/main.go", "internal/commands/commands.go", "internal/site/models.go"} {
 		if !names[name] {
 			t.Fatal("missing developer entrypoint", name)
 		}

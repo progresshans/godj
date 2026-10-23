@@ -18,6 +18,7 @@ type projectDescriptor struct {
 	formatVersion        uint16
 	packagePath          string
 	runserverPackagePath string
+	commandsPackagePath  string
 }
 
 func parseArguments(argv []string) (commandArguments, *Failure) {
@@ -57,7 +58,7 @@ func parseProjectDescriptor(document []byte) (projectDescriptor, *Failure) {
 		}
 		semantic = append(semantic, line)
 	}
-	if (len(semantic) != 3 && len(semantic) != 4) || strings.Trim(semantic[1], " \t") != "[project]" {
+	if len(semantic) < 3 || len(semantic) > 5 || strings.Trim(semantic[1], " \t") != "[project]" {
 		return invalid()
 	}
 	versionText, ok := descriptorAssignment(semantic[0], "format_version")
@@ -76,14 +77,25 @@ func parseProjectDescriptor(document []byte) (projectDescriptor, *Failure) {
 	if !validProjectPackage(packageValue) {
 		return invalid()
 	}
-	runserverPackageValue := ""
-	if len(semantic) == 4 {
-		runserverPackageText, ok := descriptorAssignment(semantic[3], "runserver_package")
-		if !ok || len(runserverPackageText) < 2 || runserverPackageText[0] != '"' || runserverPackageText[len(runserverPackageText)-1] != '"' {
-			return invalid()
+	capabilities := make(map[string]string)
+	for _, line := range semantic[3:] {
+		found := false
+		for _, key := range []string{"runserver_package", "commands_package"} {
+			value, ok := descriptorAssignment(line, key)
+			if !ok {
+				continue
+			}
+			if found || capabilities[key] != "" || len(value) < 2 || value[0] != '"' || value[len(value)-1] != '"' {
+				return invalid()
+			}
+			value = value[1 : len(value)-1]
+			if !validProjectPackage(value) || value == packageValue {
+				return invalid()
+			}
+			capabilities[key] = value
+			found = true
 		}
-		runserverPackageValue = runserverPackageText[1 : len(runserverPackageText)-1]
-		if !validProjectPackage(runserverPackageValue) || runserverPackageValue == packageValue {
+		if !found {
 			return invalid()
 		}
 	}
@@ -94,7 +106,8 @@ func parseProjectDescriptor(document []byte) (projectDescriptor, *Failure) {
 	return projectDescriptor{
 		formatVersion:        uint16(version),
 		packagePath:          packageValue,
-		runserverPackagePath: runserverPackageValue,
+		runserverPackagePath: capabilities["runserver_package"],
+		commandsPackagePath:  capabilities["commands_package"],
 	}, nil
 }
 

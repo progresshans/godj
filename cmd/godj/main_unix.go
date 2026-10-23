@@ -38,6 +38,18 @@ func execute(
 	stdout, stderr io.Writer,
 	interrupt <-chan struct{},
 ) int {
+	if len(args) > 0 && (args[0] == "commands" || args[0] == "command" || args[0] == "check" || args[0] == "help" || args[0] == "--help") {
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
+		if handled, exit := runHelp(ctx, args, stdout, stderr, interrupt); handled {
+			return exit
+		}
+		return projectcheck.RunManagement(projectcheck.ManagementInvocation{
+			Context: ctx, CWD: cwd, Args: args, Environment: environment, Stdin: stdin,
+			Stdout: stdout, Stderr: stderr, Interrupt: interrupt,
+		}).ExitCode
+	}
 	if len(args) != 0 && (args[0] == "startproject" || args[0] == "startapp") {
 		brokenPipe := make(chan os.Signal, 1)
 		signal.Notify(brokenPipe, syscall.SIGPIPE)

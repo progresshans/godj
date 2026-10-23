@@ -24,6 +24,7 @@ import (
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
 	"github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/project/compatibility"
 	"github.com/progresshans/godj/systemstate"
 )
 
@@ -111,6 +112,9 @@ func Run(
 	stdin io.Reader,
 	stdout io.Writer,
 ) error {
+	if handled, err := compatibility.Serve(ctx, argv, stdout); handled {
+		return err
+	}
 	return run(ctx, config, argv, stdin, stdout, migrateSignalContext)
 }
 

@@ -68,6 +68,12 @@ const (
 // direct child exactly once. stdout and stderr must be prompt, non-blocking
 // writers; this is true for the CLI's files and its bounded test writers.
 func executeRunserverProcess(ctx context.Context, interrupt <-chan struct{}, command Command, stdout, stderr io.Writer, grace time.Duration) runserverProcessResult {
+	return executeStreamingProcess(ctx, interrupt, command, nil, stdout, stderr, grace)
+}
+
+// stdin remains owned by the caller. A file can be inherited without an extra
+// copy goroutine whose blocked Read could outlive the child process.
+func executeStreamingProcess(ctx context.Context, interrupt <-chan struct{}, command Command, stdin *os.File, stdout, stderr io.Writer, grace time.Duration) runserverProcessResult {
 	result := runserverProcessResult{ExitCode: -1}
 	if ctx == nil {
 		ctx = context.Background()
@@ -85,6 +91,7 @@ func executeRunserverProcess(ctx context.Context, interrupt <-chan struct{}, com
 	child := exec.Command(command.Argv[0], command.Argv[1:]...)
 	child.Dir = command.Dir
 	child.Env = append([]string(nil), command.Env...)
+	child.Stdin = stdin
 	child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	stdoutReader, stdoutWriter, err := os.Pipe()

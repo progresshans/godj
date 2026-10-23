@@ -256,5 +256,9 @@ func prepareScaffoldProject(ctx context.Context, candidate string, input StartPr
 		report.BuildDiagnostic = calls.BuildDiagnostic
 		return failure(*code)
 	}
+	if code := command.build("./cmd/commands", "godj-scaffold-commands"); code != nil {
+		report.BuildDiagnostic = calls.BuildDiagnostic
+		return failure(*code)
+	}
 	return generate(true)
 }

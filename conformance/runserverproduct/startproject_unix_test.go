@@ -60,6 +60,18 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 	if _, err := os.Lstat(filepath.Join(project, "site.sqlite3")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatal("startproject performed database I/O", err)
 	}
+	for _, args := range [][]string{{"commands"}, {"help", "count-groups"}, {"check"}} {
+		checked := run(t, project, args...)
+		if checked.ExitCode != 0 || checked.Stderr != "" {
+			t.Fatalf("resource-free %s: %d %s", args[0], checked.ExitCode, checked.Stderr)
+		}
+		if args[0] != "check" && !strings.Contains(checked.Stdout, "count-groups") {
+			t.Fatal("command help omitted declared action")
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(project, "site.sqlite3")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("list, help or pure check opened the database", err)
+	}
 	before := snapshotRunserverProjectTree(t, project)
 	conflict := run(t, parent, "startproject", "example.com/other", "new-site", "--framework-source", repository)
 	if conflict.ExitCode != 1 || conflict.Stdout != "" || conflict.Stderr != "startproject_error/destination_exists\n" || !reflect.DeepEqual(before, snapshotRunserverProjectTree(t, project)) {
@@ -97,6 +109,10 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 			return exerciseStartedIdentity(address, username, password, attempt == 0, &sensitive)
 		})
 		assertRunserverWorkspaceEmpty(t, workspace)
+	}
+	counted := run(t, project, "command", "count-groups")
+	if counted.ExitCode != 0 || counted.Stdout != "1\n" || counted.Stderr != "" {
+		t.Fatalf("generated-model management command: %d %q %q", counted.ExitCode, counted.Stdout, counted.Stderr)
 	}
 	after := snapshotRunserverProjectTree(t, project)
 	for name, original := range before {

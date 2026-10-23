@@ -83,6 +83,7 @@ const (
 	MakemigrationsRunnerStage
 	ShowMigrationsRunnerStage
 	SQLMigrateRunnerStage
+	CompatibilityStage
 )
 
 // Command is a fully separated argv invocation. It is never interpreted by a

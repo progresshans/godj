@@ -1,0 +1,48 @@
+// Package commands owns explicit local management actions. These run with the
+// operator's OS/database access; HTTP authorization remains in the Web layer.
+package commands
+
+import (
+	"context"
+	"fmt"
+
+	"[[.Module]]/internal/config"
+	"[[.Module]]/project"
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/project/command"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+)
+
+func Registry(environment settings.Environment) (command.Registry, error) {
+	installed, err := apps.New(project.InstalledApps())
+	if err != nil {
+		return command.Registry{}, err
+	}
+	selected, selectionErr := config.Database(environment)
+	return command.New(command.Config{
+		Apps:  installed,
+		Check: func(context.Context) error { return selectionErr },
+		Commands: []command.Definition{{
+			Name: "count-groups", AppLabel: "godj_identity", Summary: "Count stored identity groups",
+			Handle: command.Using(
+				func(ctx context.Context) (command.Resource[database.Backend], error) {
+					backend, err := database.Open(ctx, selected)
+					if err != nil {
+						return command.Resource[database.Backend]{}, err
+					}
+					return command.Resource[database.Backend]{Value: backend, Close: func(context.Context) error { return backend.Close() }}, nil
+				},
+				func(ctx context.Context, backend database.Backend, _ command.Values, output command.Streams) error {
+					count, err := models.GroupObjects.Using(backend).Count(ctx)
+					if err != nil {
+						return err
+					}
+					_, err = fmt.Fprintln(output.Stdout, count)
+					return err
+				},
+			),
+		}},
+	})
+}

@@ -92,6 +92,7 @@ func main() {
 	}
 	writeStartedAppSource(t, project, "cmd/appcheck/main.go", startedAppProgram(true))
 	runStartedAppProgram(t, project, workspace, environment, "existing-model-preserved\n")
+	exerciseStartedAppCommands(t, global, project, workspace, environment)
 	address := reserveRunserverLoopbackAddress(t, "")
 	sensitive := []string{password}
 	runGlobalProjectServer(t, global, project, filepath.Join(project, "godj.toml"), address, environment,

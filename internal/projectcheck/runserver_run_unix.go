@@ -35,31 +35,9 @@ func RunServer(input RunServerInvocation) RunServerReport {
 		return report
 	}
 
-	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
-		commandPolicy[RunServerFailure]{
-			selection: mapRunserverSelectionFailure, workspace: mapRunserverWorkspaceFailure,
-			barrier: func(primary *RunServerFailure) *RunServerFailure { return runserverBarrier(input, primary) },
-			cleanup: combineRunserverCleanup,
-			process: func(stage ProcessStage, process ProcessResult) *RunServerFailure {
-				if stage == BuildStage {
-					return runserverShortProcessFailure(process, RunServerCategoryBuild, RunServerCodeProjectBuildFailed)
-				}
-				return runserverShortProcessFailure(process, projectgenerateprotocol.CategoryProtocol, projectgenerateprotocol.CodeRunnerFailed)
-			},
-			afterSelection: func(selected retainedProject) *RunServerFailure {
-				if selected.descriptor.runserverPackagePath == "" {
-					candidate := RunServerFailure{Category: RunServerCategoryConfiguration, Code: RunServerCodeNotConfigured}
-					return &candidate
-				}
-				if !validateRunserverPackageBoundary(selected) {
-					candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeInvalidProjectDescriptor}
-					return &candidate
-				}
-				return nil
-			},
-		}, commandHooks{})
+	prepared, primary := prepareProjectRuntime(input, arguments.explicitDescriptor, runtimeServer, &report)
 	finish := func(outcome *RunServerFailure, result *RunServerResult) RunServerReport {
-		if command.close() {
+		if prepared.command.close() {
 			outcome = combineRunserverCleanup(outcome, true)
 		}
 		if outcome != nil {
@@ -72,11 +50,77 @@ func RunServer(input RunServerInvocation) RunServerReport {
 		publishRunserver(input, &report)
 		return report
 	}
-	if primary = command.open(input.CWD, arguments.explicitDescriptor, input.Environment, input.workspace); primary != nil {
+	if primary != nil {
 		return finish(primary, nil)
 	}
-	if primary = command.buildRunner(); primary != nil {
+	report.RuntimeStartCalls++
+	live := input.runtime.execute(input.Context, input.Interrupt, Command{
+		Dir:  prepared.command.selected.rootPath,
+		Argv: []string{prepared.binary, "serve", "--listen", arguments.address},
+		Env:  gobuild.RuntimeEnvironment(input.Environment),
+	}, input.Stdout, input.Stderr, input.runtime.grace)
+	recordRunserverProcess(&report, live)
+	primary = classifyRunserverProcess(live)
+	if primary != nil {
 		return finish(primary, nil)
+	}
+	result := RunServerResult{Address: arguments.address}
+	return finish(nil, &result)
+}
+
+// The same declaration snapshot, generated-bundle check and readonly runtime
+// build protect development servers and management commands. The caller owns
+// cleanup even when preparation returns a failure.
+type runtimeTarget uint8
+
+const (
+	runtimeServer runtimeTarget = iota
+	runtimeCommands
+)
+
+func (t runtimeTarget) packagePath(d projectDescriptor) string {
+	if t == runtimeCommands {
+		return d.commandsPackagePath
+	}
+	return d.runserverPackagePath
+}
+
+type preparedProjectRuntime struct {
+	command *projectCommand[RunServerFailure]
+	binary  string
+}
+
+func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string, target runtimeTarget, report *RunServerReport) (preparedProjectRuntime, *RunServerFailure) {
+	var primary *RunServerFailure
+	command := newProjectCommand(input.Context, input.Interrupt, input.Backend, &report.Report,
+		commandPolicy[RunServerFailure]{
+			selection: mapRunserverSelectionFailure, workspace: mapRunserverWorkspaceFailure,
+			barrier: func(primary *RunServerFailure) *RunServerFailure { return runserverBarrier(input, primary) },
+			cleanup: combineRunserverCleanup,
+			process: func(stage ProcessStage, process ProcessResult) *RunServerFailure {
+				if stage == BuildStage {
+					return runserverShortProcessFailure(process, RunServerCategoryBuild, RunServerCodeProjectBuildFailed)
+				}
+				return runserverShortProcessFailure(process, projectgenerateprotocol.CategoryProtocol, projectgenerateprotocol.CodeRunnerFailed)
+			},
+			afterSelection: func(selected retainedProject) *RunServerFailure {
+				if target.packagePath(selected.descriptor) == "" {
+					candidate := RunServerFailure{Category: RunServerCategoryConfiguration, Code: RunServerCodeNotConfigured}
+					return &candidate
+				}
+				if !validateRuntimePackageBoundary(selected, target.packagePath(selected.descriptor)) {
+					candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeInvalidProjectDescriptor}
+					return &candidate
+				}
+				return nil
+			},
+		}, commandHooks{})
+	prepared := preparedProjectRuntime{command: command}
+	if primary = command.open(input.CWD, explicitDescriptor, input.Environment, input.workspace); primary != nil {
+		return prepared, primary
+	}
+	if primary = command.buildRunner(); primary != nil {
+		return prepared, primary
 	}
 	selected, workspace := command.selected, command.workspace
 	runner := command.run(GenerationRunnerStage, projectgenerateprotocol.PrivateArgument, projectgenerateprotocol.RequestDocument())
@@ -88,86 +132,74 @@ func RunServer(input RunServerInvocation) RunServerReport {
 		})
 	primary = runserverBarrier(input, primary)
 	if primary != nil {
-		return finish(primary, nil)
+		return prepared, primary
 	}
 	if !response.OK {
 		candidate := RunServerFailure{Category: response.Failure.Category, Code: response.Failure.Code}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
 	if !verifyRetainedProject(selected) {
 		candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeProjectSelectionFailed}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
 	if terminal := runserverBarrier(input, nil); terminal != nil {
-		return finish(terminal, nil)
+		return prepared, terminal
 	}
 
 	bundle, err := input.generation.generate(response.ProjectSpec)
 	if err != nil {
 		candidate := RunServerFailure{Category: RunServerCategoryGeneration, Code: RunServerCodeProjectGenerateFailed}
 		if terminal := runserverBarrier(input, &candidate); terminal != nil {
-			return finish(terminal, nil)
+			return prepared, terminal
 		}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
 	if !verifyRetainedProject(selected) {
 		candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeProjectSelectionFailed}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
 	root, err := input.generation.sealRoot(selected.rootPath, uint64(selected.rootIdentity.Dev), uint64(selected.rootIdentity.Ino))
 	if err != nil {
 		candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeProjectSelectionFailed}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
-	if checkFailure := checkRunserverBundle(input, root, bundle, &report); checkFailure != nil {
-		return finish(checkFailure, nil)
+	if checkFailure := checkRunserverBundle(input, root, bundle, report); checkFailure != nil {
+		return prepared, checkFailure
 	}
 
 	if terminal := runserverBarrier(input, nil); terminal != nil {
-		return finish(terminal, nil)
+		return prepared, terminal
 	}
 	if !verifyRetainedProject(selected) {
 		candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeProjectSelectionFailed}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
-	runtimeBinary := filepath.Join(workspace.root, "godj-project-server")
+	prepared.binary = filepath.Join(workspace.root, "godj-project-server")
 	report.RuntimeBuildCalls++
 	runtimeBuildResult := buildProjectPackage(input.Context, input.Interrupt, input.Backend, selected, workspace,
-		selected.descriptor.runserverPackagePath, "godj-project-server", &report.Report)
+		target.packagePath(selected.descriptor), "godj-project-server", &report.Report)
 	primary = runserverShortProcessFailure(runtimeBuildResult, RunServerCategoryBuild, RunServerCodeRuntimeBuildFailed)
 	primary = runserverBarrier(input, primary)
 	primary = combineRunserverCleanup(primary, runtimeBuildResult.CleanupFailed)
 	if primary != nil {
-		return finish(primary, nil)
+		return prepared, primary
 	}
 	if !verifyRetainedProject(selected) {
 		candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeProjectSelectionFailed}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
-	if checkFailure := checkRunserverBundle(input, root, bundle, &report); checkFailure != nil {
-		return finish(checkFailure, nil)
+	if checkFailure := checkRunserverBundle(input, root, bundle, report); checkFailure != nil {
+		return prepared, checkFailure
 	}
 	if terminal := runserverBarrier(input, nil); terminal != nil {
-		return finish(terminal, nil)
+		return prepared, terminal
 	}
 	if !verifyRetainedProject(selected) {
 		candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeProjectSelectionFailed}
-		return finish(&candidate, nil)
+		return prepared, &candidate
 	}
 
-	report.RuntimeStartCalls++
-	live := input.runtime.execute(input.Context, input.Interrupt, Command{
-		Dir:  selected.rootPath,
-		Argv: []string{runtimeBinary, "serve", "--listen", arguments.address},
-		Env:  gobuild.RuntimeEnvironment(input.Environment),
-	}, input.Stdout, input.Stderr, input.runtime.grace)
-	recordRunserverProcess(&report, live)
-	primary = classifyRunserverProcess(live)
-	if primary != nil {
-		return finish(primary, nil)
-	}
-	result := RunServerResult{Address: arguments.address}
-	return finish(nil, &result)
+	return prepared, nil
 }
 
 func checkRunserverBundle(input RunServerInvocation, root projectgenerate.ProjectRoot, bundle codegen.GeneratedBundle, report *RunServerReport) *RunServerFailure {

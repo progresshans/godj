@@ -460,6 +460,12 @@ func expectedProjectState(current, desired migrations.ProjectState, managed map[
 	}
 	for _, app := range desired.Apps() {
 		schema, _ := desired.Schema(app)
+		// An installed app without models has no historical table operation.
+		// Keep its declaration/managed identity, but do not invent an empty
+		// migration merely to add an otherwise absent app to storage history.
+		if _, existed := current.Schema(app); !existed && len(schema.Models) == 0 {
+			continue
+		}
 		schemas = append(schemas, schema)
 	}
 	return migrations.NewProjectState(schemas...)

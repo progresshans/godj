@@ -20,6 +20,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	projectgenerateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	projectmigrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
+	"github.com/progresshans/godj/project/compatibility"
 	"golang.org/x/sys/unix"
 )
 
@@ -35,6 +36,8 @@ type ownedResponseProcessPolicy struct {
 
 func ownedResponseProcessPolicyForStage(stage ProcessStage) (ownedResponseProcessPolicy, bool) {
 	switch stage {
+	case CompatibilityStage:
+		return ownedResponseProcessPolicy{stdoutMaximum: compatibility.MaxBytes, stderrMaximum: maxDiagnosticBytes, grace: ownedProcessGrace}, true
 	case MigrateRunnerStage:
 		return ownedResponseProcessPolicy{
 			stdoutMaximum: migrateprotocol.MaxResponseBytes,

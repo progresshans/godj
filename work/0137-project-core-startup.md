@@ -27,12 +27,14 @@ F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위�
 - `generate`는 canonical IR과 generator ABI를 snapshot하며 기존 bundle을 보존하는 게시·복구 경계가 있다.
   새 명령은 이 의미를 재사용하고 private file format·publish 절차를 임의 복제하지 않는다.
 - 현재 `runserver`는 선언 build와 bundle 검사 후 별도 runtime을 build하고 다시 검사한다.
-  loopback 실행·종료·자손 회수 경계는 있지만 watch/reload와 일반 project command 등록은 없다.
+  loopback 실행·종료·자손 회수 경계가 있다. 일반 command는 별도 runtime package·명시적 등록으로 연결했으며
+  같은 source/bundle 준비 경계를 재사용한다. Watch/reload는 남아 있다.
 - Article는 DB·identity·Form/Admin/API의 실제 소비자다. 현재 이를 복사해 시작하는 수동 조립을
   새 project/app 기본 경로로 연결하되 예제의 도메인 모델을 모든 새 프로젝트에 강제하지 않는다.
 - 명령별 wire version과 생성 ABI는 이미 있다. `godj version`과 공개 `version.Current()`의 실제 module·개발 source·
   replacement 조회를 작성했다. 설치한 전역 도구·linked runtime·생성물의
-  호환성을 사용자 관점에서 진단하는 공통 경계는 아직 없다.
+  호환성을 조회하는 공통 contract와 management 경로의 실행 전 비교를 작성했다.
+  기존 변경/server 진입점 적용과 독립 설치 조합의 실행은 남아 있다.
 
 ## 하위 요구와 수용 시나리오
 
@@ -120,4 +122,9 @@ migration→초기 사용자→인증/CSRF 저장→재시작, 기존 경로 보
 `startapp`의 앱 선언·등록 안내 생성과 명시적 프로젝트 설치를 연결했다. 새 앱은 implicit init 등록을 사용하지 않는다.
 외부 소비자에 빈 앱 등록→첫 모델→기존 데이터가 있는 nullable field 추가·migration→기존 identity 재시작 검사를 작성했다.
 Go alias는 canonical SQL label과 구분해 underscore/keyword 충돌을 피한다. 현재 source의 실제 원격 실행과 나머지 C1 요구는 남아 있다.
+명령의 명시적 등록·typed 인자/option·목록/help·pure check·invocation resource와 stdin/stdout/stderr/exit를 연결했다.
+Starter와 실제 추가 앱의 generated 모델을 사용하는 명령·저장 후 오류·닫힌 출력·호환성/생성물 불일치 거부 검사를 작성했다.
+Management 경로의 공통 호환성 비교는 구현했으며 기존 명령/server·독립 고정 module·명시적 I/O check의 통합 진단은 남아 있다.
+CI에서 나타난 빈 앱의 migration state 비교 결함은 같은 source의 실패 흐름에서 재현·수정했다. 빈 앱의 identity를 보존하고
+이력이 없는 빈 앱에는 table migration을 만들지 않는다. 새 command 흐름은 이 좁은 재현에 포함하지 않았으며 원격 검증 대상이다.
 실행 상세와 미검증 범위는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)에 둔다. C1 전체 구현·검증 완료는 아니다.

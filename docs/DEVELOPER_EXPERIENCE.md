@@ -34,7 +34,8 @@ cd ../my-site
 생성된 `README.md`가 모델 선언·Admin/API 노출·DB 설정과 변경 후 명령을 설명한다. 업무 모델을 추가해도 모든 field를
 자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
 Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
-일반 command·설치 호환성 검사·reload는 [C1](../work/0137-project-core-startup.md)의 남은 구현이다.
+일반 command의 현재 사용은 아래를 따르며, 모든 진입점의 설치 호환성 검사·reload는
+[C1](../work/0137-project-core-startup.md)의 남은 구현이다.
 이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
 
 `godj startapp LABEL [DIRECTORY]`는 `modeldef/schema.go`와 등록 안내를 새 디렉터리에 만든다.
@@ -45,6 +46,27 @@ Starter project에서는 `godj startapp line_items apps/line_items` 뒤 새 `mod
 `modeldef/apps.go`의 `Applications()`에 그 `Definition()`을 추가한다. 기존 앱 정의를 보존한다.
 이후 `generate`와 명시적 migration을 사용한다. 새 앱은 빈 상태로 등록할 수 있고 나중에 첫 모델을 추가한다.
 Generated model package와 선언 package는 분리하며 Admin/API 노출과 권한은 프로젝트가 명시한다.
+
+## 사용자 관리 명령과 check
+
+`godj commands`는 프로젝트 명령 목록을, `godj help NAME`은 인자/option 안내를 표시한다.
+`godj command NAME [ARGUMENTS]`로 실행한다. 다른 프로젝트는 NAME 앞의 `--project PATH`로 선택한다.
+전역 built-in 도움말은 `godj help`이며 프로젝트나 Go executable 없이 표시할 수 있다.
+
+Starter의 `internal/commands/commands.go`는 `count-groups`를 등록한다. 같은 설정으로 DB를 열고 generated Group
+manager로 저장된 그룹 수를 읽는다. 새 명령은 [`project/command`](../project/command/README.md)의 명시적
+등록과 typed 인자/option, invocation별 resource opener/cleanup을 사용한다. 목록·help는 callback이나 DB를 실행하지 않는다.
+`godj check`는 선언·생성물·등록과 프로젝트의 순수 configuration check를 수행한다. Resource I/O는 별도 명령에서 명시한다.
+
+`godj.toml`의 `commands_package`는 선언 runner와 다른 디렉터리를 선택한다. 명령 runtime은 generated 모델을 import할 수 있다.
+전역 CLI는 선언 snapshot과 bundle을 검사하고 readonly runtime build 후 같은 bundle을 재확인한다.
+두 linked executable의 [호환성 정보](../project/compatibility/README.md)를 비교한 뒤에만 명령을 실행한다.
+고정 module은 실제 path/version과 contract가 같아야 하며 명시적인 개발 source는 동일 contract를 요구한다.
+이 확인은 source byte 일치나 DB schema 검증을 대신하지 않는다.
+
+Custom command는 실행 사용자의 OS/DB 권한을 사용한다. HTTP의 현재 사용자·인가·CSRF를 암묵적으로 부여하거나 생략하지 않는다.
+명령의 비정상 종료·출력 실패·cleanup 실패는 이미 저장된 데이터의 rollback을 뜻하지 않으며 자동 재시도하지 않는다.
+공통 호환성 진단의 기존 변경/server 명령 적용·고정 module 설치 및 독립 Django 대조는 C1에서 계속한다.
 
 ## 모델에서 query까지
 

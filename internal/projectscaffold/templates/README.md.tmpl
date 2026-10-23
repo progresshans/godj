@@ -12,6 +12,7 @@ Run these commands from this directory:
 
 ```sh
 godj generate --check
+godj check
 godj migrations check
 godj migrate
 godj createsuperuser
@@ -85,6 +86,29 @@ for migration, account provisioning and the server. Do not commit credentials.
 available checkout or an explicit published module version.
 [[else]]The framework dependency is pinned to `[[.FrameworkVersion]]` in `go.mod`.
 [[end]]
+## Management commands
+
+```sh
+godj help
+godj commands
+godj help count-groups
+godj command count-groups
+```
+
+Register commands in `internal/commands/commands.go`. The separate `cmd/commands`
+entrypoint can import generated models; keep the declaration runner independent
+of those imports. Define typed arguments/options, then use `command.Using` to
+open the same configured database for one command and close it afterward.
+The global command compares linked framework contracts and validates generated
+source before entering a command. It preserves the command's stdout/stderr and
+exit code and never automatically retries a failed action.
+
+`commands` and custom `help` open no database. `check` validates declaration,
+generated source, command registration and the project's pure configuration
+check. Commands execute with the operator's OS/database permissions; they do not
+implicitly impersonate an HTTP user. A command error, output error or cleanup
+failure does not prove that prior database writes rolled back.
+
 ## Creation failures
 
 `startproject` publishes only to a new directory whose parent already exists.

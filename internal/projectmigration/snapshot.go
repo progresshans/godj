@@ -256,6 +256,9 @@ func BuildSnapshot(request Request) (Snapshot, error) {
 		}
 		actual, present := current.Schema(app.Schema.AppLabel)
 		expected, _ := desired.Schema(app.Schema.AppLabel)
+		if !present && len(expected.Models) == 0 {
+			continue // A model-free imported app does not need table history.
+		}
 		if !present || !reflect.DeepEqual(actual, expected) {
 			return Snapshot{}, snapshotError(CategoryCatalog, CodeInvalidCatalog, errors.New("imported app declaration differs from its supplied historical state"))
 		}
@@ -571,6 +574,11 @@ func verifyFinalState(
 		}
 		expected, expectedExists := expectedState.Schema(app)
 		got, gotExists := actual.Schema(app)
+		if _, owned := managed[app]; owned && expectedExists && !gotExists && len(expected.Models) == 0 {
+			if _, historical := current.Schema(app); !historical {
+				continue // No tables before or after; app identity remains in ProjectSpec.
+			}
+		}
 		if expectedExists != gotExists || (expectedExists && !reflect.DeepEqual(expected, got)) {
 			return errors.New("latest reconstructed state differs from the managed desired state")
 		}
