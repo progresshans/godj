@@ -127,7 +127,7 @@ func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string,
 		return prepared, primary
 	}
 	if input.sourceFence && target == runtimeServer {
-		prepared.source, primary = captureRunserverSource(input, command, report)
+		prepared.source, primary = captureRunserverSource(input, command, report, true)
 		if primary != nil {
 			return prepared, primary
 		}
@@ -216,7 +216,7 @@ func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string,
 	}
 
 	if prepared.source != nil {
-		current, sourceFailure := captureRunserverSource(input, command, report)
+		current, sourceFailure := captureRunserverSource(input, command, report, false)
 		if sourceFailure != nil {
 			return prepared, sourceFailure
 		}

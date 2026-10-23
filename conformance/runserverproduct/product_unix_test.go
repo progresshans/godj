@@ -63,7 +63,7 @@ func runAuditedGoCommand() int {
 	if realGo == "" || logPath == "" {
 		return 95
 	}
-	payload, err := json.Marshal(runserverGoAuditRecord{Arguments: os.Args[1:], StartedAt: time.Now().UTC(), CandidateWorkspace: runserverCandidateWorkspace(os.Environ())})
+	payload, err := json.Marshal(runserverGoAuditRecord{Arguments: os.Args[1:], StartedAt: time.Now().UTC(), CandidateWorkspace: runserverCandidateWorkspace(os.Environ()), BuildWorkspace: runserverBuildWorkspace(os.Environ())})
 	if err != nil {
 		return 96
 	}
@@ -201,7 +201,7 @@ func TestGlobalRunserverArticleSQLiteDevelopmentLoop(t *testing.T) {
 func TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime(t *testing.T) {
 	repository := runserverRepositoryRoot(t)
 	globalBinary := buildGlobalGodj(t, repository)
-	base := prepareCopiedRunserverArticleProject(t, repository)
+	base := prepareCopiedRunserverArticleProject(t, repository, true)
 	address := reserveRunserverLoopbackAddress(t, "")
 	tests := []struct {
 		name   string
@@ -249,7 +249,7 @@ func TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			projectRoot := filepath.Join(t.TempDir(), "article")
-			copyRunserverTree(t, base, projectRoot)
+			copyRunserverTree(t, base, projectRoot, true)
 			test.mutate(t, projectRoot)
 			databasePath := filepath.Join(t.TempDir(), "must-not-exist.sqlite3")
 			workspaceBase := filepath.Join(t.TempDir(), "runserver-workspaces")
@@ -318,10 +318,10 @@ func runStaleCopiedArticle(
 	}
 }
 
-func prepareCopiedRunserverArticleProject(t *testing.T, repository string) string {
+func prepareCopiedRunserverArticleProject(t *testing.T, repository string, includeTests bool) string {
 	t.Helper()
 	root := filepath.Join(t.TempDir(), "article-base")
-	copyRunserverTree(t, filepath.Join(repository, "examples", "article"), root)
+	copyRunserverTree(t, filepath.Join(repository, "examples", "article"), root, includeTests)
 	const copiedModule = "example.com/godj-runserver-fixture"
 	rewriteCopiedRunserverInternalImports(t, root, copiedModule)
 	rootModule, err := os.ReadFile(filepath.Join(repository, "go.mod"))
@@ -390,11 +390,17 @@ func rewriteCopiedRunserverInternalImports(t *testing.T, root, module string) {
 	}
 }
 
-func copyRunserverTree(t *testing.T, source, destination string) {
+func copyRunserverTree(t *testing.T, source, destination string, includeTests bool) {
 	t.Helper()
 	err := filepath.WalkDir(source, func(path string, entry os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
+		}
+		if !includeTests && !entry.IsDir() && strings.HasSuffix(entry.Name(), "_test.go") {
+			// Framework tests retain their existing repository CI owner. An
+			// independent application's copied sources do not include that
+			// harness, which may legitimately import framework-internal tools.
+			return nil
 		}
 		relative, err := filepath.Rel(source, path)
 		if err != nil {
@@ -965,7 +971,7 @@ func validateRunserverGoBuildAudit(payload []byte, wantPackages []string) error 
 		}
 		arguments := record.Arguments
 		if reflect.DeepEqual(arguments, []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}) {
-			workspace := record.CandidateWorkspace
+			workspace := record.BuildWorkspace
 			if pending != "" || workspace == "" || inventories[workspace] == 0 && buildWorkspaces[workspace] != 0 || inventories[workspace] == 1 && buildWorkspaces[workspace] != 2 || inventories[workspace] > 1 {
 				return fmt.Errorf("runserver Go audit %d: unordered source inventory", index)
 			}
@@ -989,7 +995,7 @@ func validateRunserverGoBuildAudit(payload []byte, wantPackages []string) error 
 			pending = ""
 			continue
 		}
-		if pending != "" || buildIndex >= len(wantPackages) || len(arguments) != 6 || arguments[0] != "build" || arguments[1] != "-buildvcs=false" || arguments[2] != "-mod=readonly" || arguments[3] != "-o" || !filepath.IsAbs(arguments[4]) || arguments[5] != wantPackages[buildIndex] {
+		if pending != "" || buildIndex >= len(wantPackages) || len(arguments) != 6 || arguments[0] != "build" || arguments[1] != "-buildvcs=false" || arguments[2] != "-mod=readonly" || arguments[3] != "-o" || !filepath.IsAbs(arguments[4]) || arguments[5] != wantPackages[buildIndex] || record.BuildWorkspace != filepath.Dir(arguments[4]) {
 			return fmt.Errorf("runserver Go command audit %d: expected the next exact readonly binary build", index)
 		}
 		buildIndex++

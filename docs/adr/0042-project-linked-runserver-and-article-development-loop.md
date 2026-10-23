@@ -101,6 +101,8 @@ DB/settings를 project-owned environment에서 열고 global CLI는 build/proces
 관측합니다. 파일 mtime만 비교하지 않으며 새 compiler 파일·embed match·없던 로컬 package의 생성도 감지합니다.
 고정 module과 toolchain의 내용은 Go의 소유권을 유지합니다. Symlink/교체된 root·열린 generation journal은 거부하며
 정규화한 최초 root identity를 다른 project로 자동 교체하지 않습니다. 테스트 파일과 일반 DB 저장은 감시 입력이 아닙니다.
+최초 source snapshot은 열린 journal을 hash에 기록하고 기존 generated-bundle preflight가 그 원인을 진단하게 합니다.
+Journal이 사라져도 snapshot이 달라지므로 이전 후보를 승인할 수 없으며, 후속 source 검사와 실제 게시는 journal을 거부합니다.
 
 부모가 한 TCP listener를 유지합니다. 새 후보는 복제 descriptor를 받아 Start·Ready와 HTTP accept 준비를 끝낸 뒤
 상속된 private socket에 준비 완료를 알리고 대기합니다. 부모는 시작 후에도 source를 검사하며 stdout은 제어 입력으로

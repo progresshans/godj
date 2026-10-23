@@ -43,7 +43,7 @@ type runserverSourcePackage struct {
 
 var errRunserverSource = errors.New("projectcheck: development source is unavailable or changed")
 
-func captureRunserverSource(input RunServerInvocation, command *projectCommand[RunServerFailure], report *RunServerReport) (*runserverSource, *RunServerFailure) {
+func captureRunserverSource(input RunServerInvocation, command *projectCommand[RunServerFailure], report *RunServerReport, beforeBundleCheck bool) (*runserverSource, *RunServerFailure) {
 	selected, workspace := command.selected, command.workspace
 	if !verifyRetainedProject(selected) {
 		return nil, runserverSourceFailure(RunServerCodeSourceChanged)
@@ -68,7 +68,7 @@ func captureRunserverSource(input RunServerInvocation, command *projectCommand[R
 	}
 	source, err := planRunserverSource(selected, process.Stdout)
 	if err == nil {
-		source.digest, err = source.observe(input.Context)
+		source.digest, err = source.observePreparation(input.Context, beforeBundleCheck)
 	}
 	if err != nil {
 		return source, runserverSourceFailure(RunServerCodeSourceInventoryFailed)
@@ -190,6 +190,14 @@ func planRunserverSource(selected retainedProject, document []byte) (*runserverS
 }
 
 func (source *runserverSource) observe(ctx context.Context) ([sha256.Size]byte, error) {
+	return source.observePreparation(ctx, false)
+}
+
+// The first snapshot records a pending publication so the existing bundle
+// preflight can diagnose it. Only that preflight may accept a clean bundle;
+// later snapshots/publication reject any journal. Removing a journal changes
+// the digest, so the earlier pending snapshot cannot authorize a new runtime.
+func (source *runserverSource) observePreparation(ctx context.Context, beforeBundleCheck bool) ([sha256.Size]byte, error) {
 	var zero [sha256.Size]byte
 	if source == nil || ctx == nil || ctx.Err() != nil {
 		return zero, errRunserverSource
@@ -205,10 +213,12 @@ func (source *runserverSource) observe(ctx context.Context) ([sha256.Size]byte, 
 	// A publication journal can appear without changing a source file yet.
 	// It is a source barrier in its own right, including after candidate startup.
 	transactions, transactionErr := openMakemigrationsRetainedRelative(root, ".godj/transactions", true, defaultMakemigrationsBuildInputLimits())
+	pendingPublication := false
 	if transactionErr == nil {
 		entries, readErr := transactions.ReadDir(1)
 		closeErr := transactions.Close()
-		if len(entries) != 0 || readErr != nil && !errors.Is(readErr, io.EOF) || closeErr != nil {
+		pendingPublication = len(entries) != 0
+		if pendingPublication && !beforeBundleCheck || readErr != nil && !errors.Is(readErr, io.EOF) || closeErr != nil {
 			return zero, errRunserverSource
 		}
 	} else if !errors.Is(transactionErr, errMakemigrationsBuildInputMissing) {
@@ -241,6 +251,11 @@ func (source *runserverSource) observe(ctx context.Context) ([sha256.Size]byte, 
 		_, _ = hash.Write(value)
 	}
 	frame(source.graph)
+	if pendingPublication {
+		frame([]byte("pending-publication"))
+	} else {
+		frame(nil)
+	}
 	filesystem, _, err := openRetainedDirectory(string(filepath.Separator))
 	if err != nil {
 		return zero, errRunserverSource

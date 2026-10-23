@@ -205,3 +205,26 @@ func TestRunserverSourceInventoryRequiresBothEntrypointsAndBoundModules(t *testi
 		}
 	}
 }
+
+func TestRunserverPendingPublicationSnapshotCannotAuthorizeCleanRuntime(t *testing.T) {
+	selected, packages, _ := sourceFixture(t)
+	plan := sourcePlan(t, selected, packages)
+	journal := filepath.Join(selected.rootPath, ".godj", "transactions", "pending")
+	if err := os.MkdirAll(journal, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	pending, err := plan.observePreparation(t.Context(), true)
+	if err != nil || pending == plan.digest {
+		t.Fatal("initial journal is not retained for the bundle preflight", err)
+	}
+	if _, err := plan.observe(t.Context()); err == nil {
+		t.Fatal("pending publication passed the later source fence")
+	}
+	if err := os.Remove(journal); err != nil {
+		t.Fatal(err)
+	}
+	cleared, err := plan.observe(t.Context())
+	if err != nil || cleared == pending || cleared != plan.digest {
+		t.Fatal("pending snapshot authorized a different publication state", err)
+	}
+}

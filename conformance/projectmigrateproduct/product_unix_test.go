@@ -251,7 +251,7 @@ func assertGlobalArticleServerRejectsUnmigratedState(
 	// causes remain available to the in-process site application tests; the
 	// process boundary retains refusal, no implicit migration and restart checks.
 	const wantStderr = "article site failed: project server: start_failed\n" +
-		"project_runserver_runtime_error/project_runtime_exited\n"
+		"project_runserver_runtime_error/project_runtime_readiness_failed\n"
 	if result.ExitCode != 3 || result.Stdout != "" || result.Stderr != wantStderr ||
 		result.StdoutTruncated || result.StderrTruncated {
 		t.Fatalf(

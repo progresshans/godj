@@ -5,6 +5,9 @@ package runserverproduct_test
 import (
 	"bytes"
 	"encoding/json"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -115,7 +118,7 @@ func (p *reloadProcess) articleMarker(t *testing.T, marker string) {
 func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *testing.T) {
 	repository := runserverRepositoryRoot(t)
 	global := buildGlobalGodj(t, repository)
-	project := prepareCopiedRunserverArticleProject(t, repository)
+	project := prepareCopiedRunserverArticleProject(t, repository, false)
 	const module = "example.com/godj-runserver-fixture"
 	// This is a separate module with its own declarations, generated bundle,
 	// routes and templates. Only public framework imports remain external.
@@ -130,8 +133,22 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		if err != nil {
 			return err
 		}
+		parsed, err := parser.ParseFile(token.NewFileSet(), name, data, parser.PackageClauseOnly|parser.ParseComments)
+		if err != nil {
+			return err
+		}
+		// Rebase authored declarations and consumers. The public generator
+		// owns replacement of its existing files and validates their prior
+		// bytes/modes; editing those files would correctly reject publication.
+		if ast.IsGenerated(parsed) {
+			return nil
+		}
+		info, err := entry.Info()
+		if err != nil {
+			return err
+		}
 		data = bytes.ReplaceAll(data, []byte("github.com/progresshans/godj/examples/article/"), []byte(module+"/"))
-		return os.WriteFile(name, data, 0o600)
+		return os.WriteFile(name, data, info.Mode().Perm())
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -3,6 +3,53 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 첫 reload CI의 외부 앱·감사 연결 정정
+
+2026-10-23, source `f812c113cb5c5e19e7486d5336038935935c68c4`의
+[CI 39907071370](https://github.com/progresshans/godj/actions/runs/39907071370)에서 새 native reload 앱의 초기 준비가 실패했다.
+Notes fixture가 `Limit`의 `(QuerySet, error)`를 한 값으로 사용했고, Article fixture가 기존 생성 파일의 bytes/mode를
+직접 바꾸어 generator의 prior-file 검증에 걸렸다. Notes의 오류 반환을 처리하고 Article의 authored source만 rebase한다.
+생성 파일은 보존한 채 공개 `generate`가 교체하며 제품의 게시 보호를 완화하지 않았다.
+
+Article의 좁은 재현은 처음에 HOME 아래 TMPDIR를 사용해 준비 단계에서 거부됐다. 올바른 system temporary directory로
+다시 실행해 원래 게시 실패를 재현했다. 생성 파일 보존 후에는 복사된 framework 테스트의 private import가 검출됐다.
+독립 앱 복사에는 앱 source를 포함하고 저장소 내부 테스트는 포함하지 않도록 정리하니 공개 generation이 통과했다.
+원래 `examples/article`의 제품·테스트는 변경하지 않았으며 기존 integration/DB owner에서 계속 실행한다.
+이 확인은 Article reload·인증·권한의 전체 실행 성공이 아니다.
+
+같은 CI의 operator fixture는 새 supervised 인자를 받지 못해 startup에 실패했다. 공개 `project/server.Serve`에
+앱/DB 수명을 연결한 뒤 기존 SQLite durable lifecycle의 동일 실패 재현이 통과했다. PG와 전체 platform 확인은 원격에 남는다.
+미적용 migration 검사의 기대는 게시 전 startup 실패를 나타내는 `project_runtime_readiness_failed`로 정정했다.
+실제 미적용 DB 거부→명시적 migrate→기존 데이터 재시작의 기존 실패 subcase도 통과했다.
+
+PostgreSQL race core-process owner는 source inventory를 generation candidate의 metadata workspace로 오인해 거부했다.
+실제 declaration/runtime workspace와 metadata workspace를 별도로 기록하고 각 경로·private 환경·순서를 검사하도록
+감사를 정정했다. 기존 telemetry 제한과 source 전후 일치 검사는 유지한다. SQLite의 기존 start/stop subcase에서
+실제 두 source inventory와 readonly build·HTTP·정리 감사를 통과했다. PostgreSQL 자체의 후속 실행은 아직 미완료다.
+
+추가로 중단된 generation journal이 기존 bundle 진단 대신 generic source 오류로 보고되는 실패를 재현했다.
+최초 snapshot은 pending 상태를 hash에 포함하고 기존 bundle preflight에 진단을 맡긴다. 후속 source 검사와 실제
+게시는 journal을 거부하며 journal이 사라진 snapshot도 이전 hash로 승인하지 않는다. 같은 interrupted-publication
+subcase가 수정 후 통과했다. 새 hash 경계의 부정 검사는 작성했고 원격 CI가 실행한다.
+
+아래 receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `gdj0137-f812c113-ci-39907071370/source-and-initial-failures.json` | `cf2294b0200d9bd129d1c62ed454ec44311b80c03d4486a84a0ecdb342df3fbc` |
+| `gdj0137-article-rebase-repro-v1/physical-temp-receipt.json` — 게시 실패와 다음 private import 실패 | `9637874934f8fbfcb48c7c765daad820aba1105c5792f375f64908835c4c00ee` |
+| `gdj0137-article-rebase-repro-v1/app-only-receipt.json` — 공개 generation 성공 | `13bdfbab26ed4cb145c28d0dea1f739a9eceea15a120f8ca4fdc61bd46c4cb38` |
+| `gdj0137-operator-serve-repro-v1/after.json` — 기존 SQLite operator 재현 통과 | `308c6062cdfe3d00087dc176119571733fe9bf5afa9bd87bff5bc62c357a5633` |
+| `gdj0137-reload-journal-repro-v1/after.json` — 기존 journal 거부 재현 통과 | `5a3d43211ac0354670cf2a435a4292d612dc1a3f39a531bce57c665ba93be5f9` |
+| `gdj0137-reload-ci-fixes-v1/audit.json` — 실제 source/build 감사 통과 | `55b8863e6ad374fda3ceafc881296ff2273eb226ce02463507d1a32b57959f59` |
+| `gdj0137-reload-ci-fixes-v1/migration.json` — 기존 migration/restart 재현 통과 | `27e943e40636c3bf8b566aa0daecce531580dff6f1e89536e41e8fea51ec6959` |
+| `gdj0137-reload-ci-fixes-v1/source.json` — 문서 외 9개 변경 source·로컬 Go 환경 | `267aca7969e303a4dbded13d70705d7935bee8e48392c52b49a4fd77df94ec9c` |
+
+CI artifact `12481805314`의 모든 member checksum과 실제 checkout `deb4414526c0c86dcd154c346dd4048d8e7e2b8e`의
+GitHub tree를 대조했다. Tree `76c0c5a0a283feac2a844f711a99e6ce841976a5`는 `f812c113`과 같다.
+로컬은 위 기존 실패의 좁은 재현, 변경한 내부 test package의 최소 compile, gofmt·diff·문서 링크만 확인했다.
+새 Notes/Article 전체 reload·DB/race/platform, 이전 Mac Intel 시간 초과, 독립 관측 대조와 C1 수용은 여전히 미완료다.
+
 ## GDJ-0137 — 후보를 검사하는 reload와 두 외부 앱 검증 작성
 
 2026-10-23, source `f08474a8c2f85ab170cad41fd00998f489ddd256`의

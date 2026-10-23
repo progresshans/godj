@@ -28,6 +28,7 @@ type runserverGoAuditRecord struct {
 	Arguments          []string  `json:"arguments"`
 	StartedAt          time.Time `json:"started_at"`
 	CandidateWorkspace string    `json:"candidate_workspace,omitempty"`
+	BuildWorkspace     string    `json:"build_workspace,omitempty"`
 }
 
 func TestRunserverGoAuditConfinesTelemetryAndRequiresPairedMetadata(t *testing.T) {
@@ -52,11 +53,28 @@ func TestRunserverGoAuditConfinesTelemetryAndRequiresPairedMetadata(t *testing.T
 		})
 	}
 	now := time.Now().UTC()
+	buildRoot, err := os.MkdirTemp(t.TempDir(), "godj-projectcheck-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	buildEnvironment := map[string]string{"GOENV": "off", "GOWORK": "off", "GOTOOLCHAIN": "local"}
+	for key, suffix := range map[string]string{"HOME": "home", "XDG_CONFIG_HOME": "xdg-config", "XDG_CACHE_HOME": "xdg-cache", "TMPDIR": "tmp", "GOTMPDIR": "gotmp", "TEST_TELEMETRY_DIR": "telemetry"} {
+		buildEnvironment[key] = filepath.Join(buildRoot, suffix)
+	}
+	if runserverBuildWorkspace(testenv.Sorted(buildEnvironment)) != buildRoot || runserverCandidateWorkspace(testenv.Sorted(buildEnvironment)) != "" || runserverBuildWorkspace(testenv.Sorted(values)) != "" {
+		t.Fatal("declaration/runtime build ownership and candidate metadata ownership were mixed")
+	}
+	for key := range buildEnvironment {
+		changed := testenv.With(testenv.Sorted(buildEnvironment), map[string]string{key: "foreign"})
+		if runserverBuildWorkspace(changed) != "" {
+			t.Fatal("unowned build environment accepted", key)
+		}
+	}
 	records := []runserverGoAuditRecord{
-		{Arguments: []string{"build", "-buildvcs=false", "-mod=readonly", "-o", filepath.Join(root, "runner"), "./cmd/projectrunner"}, StartedAt: now},
+		{Arguments: []string{"build", "-buildvcs=false", "-mod=readonly", "-o", filepath.Join(buildRoot, "runner"), "./cmd/projectrunner"}, StartedAt: now, BuildWorkspace: buildRoot},
 		{Arguments: []string{"telemetry", "off"}, StartedAt: now, CandidateWorkspace: root},
 		{Arguments: []string{"list", "-mod=readonly", "-find", "-json", "github.com/progresshans/godj/identity/models"}, StartedAt: now, CandidateWorkspace: root},
-		{Arguments: []string{"build", "-buildvcs=false", "-mod=readonly", "-o", filepath.Join(root, "site"), "./cmd/site"}, StartedAt: now},
+		{Arguments: []string{"build", "-buildvcs=false", "-mod=readonly", "-o", filepath.Join(buildRoot, "site"), "./cmd/site"}, StartedAt: now, BuildWorkspace: buildRoot},
 	}
 	encode := func(records []runserverGoAuditRecord) []byte {
 		var out []byte
@@ -97,13 +115,14 @@ func TestRunserverGoAuditConfinesTelemetryAndRequiresPairedMetadata(t *testing.T
 			v[3].Arguments = []string{"test", "./..."}
 			return v
 		},
+		func(v []runserverGoAuditRecord) []runserverGoAuditRecord { v[0].BuildWorkspace = ""; return v },
 	}
 	for index, mutate := range mutations {
 		if err := validateRunserverGoBuildAudit(encode(mutate(slices.Clone(records))), want); err == nil {
 			t.Fatalf("invalid command sequence %d accepted", index)
 		}
 	}
-	inventory := runserverGoAuditRecord{Arguments: []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}, StartedAt: now, CandidateWorkspace: root}
+	inventory := runserverGoAuditRecord{Arguments: []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}, StartedAt: now, BuildWorkspace: buildRoot}
 	watch := append(append([]runserverGoAuditRecord{inventory}, records...), inventory)
 	if err := validateRunserverGoBuildAudit(encode(watch), want); err != nil {
 		t.Fatal("watch source fences rejected", err)
@@ -112,7 +131,7 @@ func TestRunserverGoAuditConfinesTelemetryAndRequiresPairedMetadata(t *testing.T
 		"missing-before": func(v []runserverGoAuditRecord) []runserverGoAuditRecord { return v[1:] },
 		"missing-after":  func(v []runserverGoAuditRecord) []runserverGoAuditRecord { return v[:len(v)-1] },
 		"different-owner": func(v []runserverGoAuditRecord) []runserverGoAuditRecord {
-			v[0].CandidateWorkspace += "-foreign"
+			v[0].BuildWorkspace += "-foreign"
 			return v
 		},
 		"wrong-input": func(v []runserverGoAuditRecord) []runserverGoAuditRecord {
@@ -156,6 +175,26 @@ func runserverCandidateWorkspace(environment []string) string {
 	return root
 }
 
+// Source inventory and executable builds use the retained project's workspace,
+// not the separate generation candidate used by external-model metadata queries.
+func runserverBuildWorkspace(environment []string) string {
+	values := testenv.Map(environment)
+	root := filepath.Dir(values["HOME"])
+	if !filepath.IsAbs(root) || !strings.HasPrefix(filepath.Base(root), "godj-projectcheck-") || values["GOENV"] != "off" || values["GOWORK"] != "off" || values["GOTOOLCHAIN"] != "local" {
+		return ""
+	}
+	for key, suffix := range map[string]string{"HOME": "home", "XDG_CONFIG_HOME": "xdg-config", "XDG_CACHE_HOME": "xdg-cache", "TMPDIR": "tmp", "GOTMPDIR": "gotmp", "TEST_TELEMETRY_DIR": "telemetry"} {
+		if values[key] != filepath.Join(root, suffix) {
+			return ""
+		}
+	}
+	info, err := os.Lstat(root)
+	if err != nil || !info.IsDir() || info.Mode().Perm() != 0o700 {
+		return ""
+	}
+	return root
+}
+
 // Report only fixed phase names and elapsed time. Audit arguments include
 // private workspace paths; neither those values nor arbitrary child output
 // belong in a readiness failure diagnostic. A start record is not completion.
@@ -181,7 +220,7 @@ func runserverPreparationProgress(environment []string, started, now time.Time) 
 		}
 		arguments := record.Arguments
 		switch {
-		case reflect.DeepEqual(arguments, []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}) && record.CandidateWorkspace != "":
+		case reflect.DeepEqual(arguments, []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}) && record.BuildWorkspace != "":
 			lastPhase = "source_inventory"
 		case reflect.DeepEqual(arguments, []string{"telemetry", "off"}) && record.CandidateWorkspace != "":
 			lastPhase = "private_telemetry_init"

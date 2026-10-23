@@ -481,7 +481,8 @@ func run(ctx context.Context) error {
    defer func(){ if !returned { _ = runtime.Stop(context.WithoutCancel(start)) } }()
    // This app's startup read prepares the concrete model view. A schema
    // change that has not been explicitly migrated cannot become ready.
-   if _, err := models.NoteObjects.Using(backend).Limit(1).All(start); err != nil { returned=true; return runtime,err }
+   startupRows, err := models.NoteObjects.Using(backend).Limit(1); if err != nil { returned=true; return runtime,err }
+   if _, err := startupRows.All(start); err != nil { returned=true; return runtime,err }
    if version=="spawn-leak" {
     child:=exec.Command(os.Args[0],"leaked-worker"); child.Env=os.Environ(); child.Stdout=os.Stdout; child.Stderr=os.Stderr
     if err:=child.Start();err!=nil {returned=true;return runtime,err}

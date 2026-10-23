@@ -383,16 +383,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"example.com/godj-operator-product/application"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
+	projectserver "github.com/progresshans/godj/project/server"
 	"github.com/progresshans/godj/settings/database"
-	"github.com/progresshans/godj/web"
 )
 
 const markerEnvironment = "GODJ_OPERATOR_PRODUCT_MARKER"
@@ -409,50 +407,30 @@ func main() {
 	}
 }
 
-func run(ctx context.Context, arguments []string, stdout io.Writer) (resultErr error) {
-	if ctx == nil || len(arguments) != 3 || arguments[0] != "serve" || arguments[1] != "--listen" {
-		return errors.New("invalid external operator site invocation")
-	}
-	address := strings.TrimSpace(arguments[2])
-	host, _, err := net.SplitHostPort(address)
-	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
-		return errors.New("external operator site requires loopback")
-	}
-	if err := appendMarker(); err != nil {
-		return err
-	}
+func run(ctx context.Context, arguments []string, stdout io.Writer) error {
 	selected, err := databaseconfig.FromEnvironment(os.LookupEnv)
 	if err != nil {
 		return errors.New("database configuration")
 	}
-	backend, err := database.Open(ctx, selected)
-	if err != nil {
-		return errors.New("database open")
-	}
-	defer func() { resultErr = errors.Join(resultErr, backend.Close()) }()
-	app, err := application.New(ctx, backend)
-	if err != nil {
-		return errors.New("application composition")
-	}
-	listener, err := net.Listen("tcp", address)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = listener.Close() }()
-	server, err := web.NewServer(app, web.ServerOptions{})
-	if err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintf(stdout, "external operator site listening on http://%s\n", listener.Addr()); err != nil {
-		return err
-	}
-	if err := server.Serve(ctx, listener); err != nil {
-		if contextErr := ctx.Err(); contextErr != nil && errors.Is(err, contextErr) {
-			return nil
-		}
-		return err
-	}
-	return nil
+	return projectserver.Serve(ctx, arguments, projectserver.Config{
+		Start: func(start context.Context) (projectserver.Runtime, error) {
+			if err := appendMarker(); err != nil { return projectserver.Runtime{}, err }
+			backend, err := database.Open(start, selected)
+			if err != nil { return projectserver.Runtime{}, errors.New("database open") }
+			runtime := projectserver.Runtime{Stop: func(context.Context) error { return backend.Close() }}
+			transferred := false
+			defer func() { if !transferred { _ = runtime.Stop(context.WithoutCancel(start)) } }()
+			runtime.Application, err = application.New(start, backend)
+			transferred = true
+			return runtime, err
+		},
+		Ready: func(_ context.Context, info projectserver.ListenerInfo) error {
+			message := "external operator site listening on http://" + info.Address + "\n"
+			n, err := io.WriteString(stdout, message)
+			if err == nil && n != len(message) { return io.ErrShortWrite }
+			return err
+		},
+	})
 }
 
 func appendMarker() error {
