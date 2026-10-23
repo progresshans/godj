@@ -5,8 +5,8 @@ import "context"
 // SnapshotReader executes callback once against one stable database read
 // snapshot. All reads after the first observation see that same committed
 // state, including when another connection changes rows between queries.
-// The borrowed Queryer exposes no mutation or transaction capability and
-// expires when callback returns. Callers must finish using rows in callback.
+// The borrowed Queryer implements SessionValidator, exposes no mutation or
+// transaction capability and expires when callback returns. Callers must finish using rows in callback.
 // Callbacks use only that handle; opening another transaction on the same
 // backend may wait for resources or admission owned by the current snapshot.
 //

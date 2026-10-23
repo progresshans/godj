@@ -19,6 +19,14 @@ explicit zero를 구분한다. `forms/model.PrepareInput`은 모델 clean을 다
 폼의 초기 primary-key binding도 유지한다. 새 객체의 NULL key와 present zero key를 혼동하지 않으며 다른 객체로
 binding을 교체할 수 없다. 원래 값의 사본은 최신 권한이나 revision 증거가 아니다.
 
+`orm.ModelView[M]`은 명시적으로 선택한 scalar 값·완전한 모델 source·별도의 key 존재 여부를 소유한다.
+원 모델 행이나 선택하지 않은 값을 보관하지 않으며, 입력 정책으로 저장된 값을 정규화하거나 현재 default로
+대체하지 않는다. `Manager.View` 자체는 I/O나 인가를 수행하지 않는다. 읽기 owner가 현재 권한과 scope를 확인한다.
+`forms/model.InitialView`와 `BindView`는 같은 모델 source와 선택 값의 실제 존재를 검사한다. Form candidate에는
+명시적으로 읽은 값과 key만 남기므로 model clean/validator는 제외된 필드의 존재 여부를 확인해야 한다. 최종 쓰기
+검증은 권한을 다시 확인한 최신 전체 모델에서 수행한다. `api/output.ModelView`도 serializer의 명시적 allowlist와
+완전한 source를 대조한다. 선택 값이 없으면 출력 실패이며 숨은 값이나 zero/default를 출력에 채우지 않는다.
+
 `orm.PreparedModel`은 새 객체의 전체 IR default와 현재 객체의 제외 열 보존을 공통으로 담당한다. 현재 모델·입력·반환
 모델은 각자 소유하고, 선택 열 UPDATE와 no-op, ForceInsert, 생성 key 보존을 기존 ORM 저장 경로에 연결한다.
 폼의 파일 게시·collection saver는 이 scalar 준비 위의 별도 단계로 남긴다. Migration default도 동일한 순수
@@ -32,6 +40,11 @@ IR scalar 변환을 사용하되 각 backend의 backfill 및 schema editor 책�
 `db.AtomicResult`와 `RelationAtomicResult`는 단 한 번 합류한 callback과 확정 commit 뒤에만 결과를 반환한다.
 출력 준비·감사를 같은 callback에 넣는다. callback 생략·중복·늦은 실행·오류 삼킴·미완료와 불확실한 commit은
 정상 성공이나 재시도로 바꾸지 않는다. 확정 commit 이후의 취소는 이미 성공한 write를 실패로 뒤집지 않는다.
+
+`db.ReadSnapshotResult`는 live validator가 있는 빌린 읽기 전용 scope에서 단 한 번 합류한 callback과 성공한
+snapshot 종료를 확인한 뒤 결과를 반환한다. root backend·쓰기/transaction capability와 callback 생략·중복·
+오류 삼킴·미완료는 결과를 게시하지 않는다. 읽기에서는 종료 중 취소도 결과를 버린다. 쓰기 commit unknown으로
+해석하거나 자동 재시도하지 않는다.
 
 ## 애플리케이션의 차이
 

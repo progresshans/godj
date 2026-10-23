@@ -193,9 +193,44 @@ Generate/migration의 실제 account protocol 왕복에서 재현하고, 선언�
 (SHA-256 `316ed7d2313e49a80eeefcc20ffc65dbc0c95cb47ee57c82434df6c455cdd396`).
 새 profile/audit·IR·Admin/system audit 테스트 본문과 DB/race·전체 platform은 이 로컬 compile에서 실행하지 않았다.
 
-I1의 공통 credential·인가·profile/audit는 원격 실행 확인이 필요하다. Scalar profile 조회, 관계/파일·role/catalog 관리,
-기존 Directory/Manager 교체와 공개 HTTP/Admin 경로·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/receipt,
-password/reset/session·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
+선택 프로필의 조회·목록·현재 domain 이력을 `ProfileReader[M]`와 생성 factory에 연결했다. 같은 native snapshot에서
+현재 인가·대상과 count/page를 관찰하고, callback·scope·종료·취소 실패에서는 데이터를 게시하지 않는다.
+`ModelView[M]`는 명시한 scalar와 완전한 모델 source만 보관하며 Form initial/typed input과 JSON 출력이 동일한
+source·실제 로드 여부를 확인한다. 기본/사용자 정의·정규화 변형의 외부 소비자는 실제 TCP HTTP에서 password login,
+session·CSRF, Form/JSON 수정·선택 출력, no-op·stale·예약 필드, 로그인한 세션의 권한 회수/복구를 확인하도록 작성했다.
+이 외부 HTTP 소비자의 DB는 SQLite이며 PostgreSQL 독립 HTTP 소비자 완료 근거로 사용하지 않는다.
+
+양 DB 필수 실행 목록에 조회 선택·이력·권한/domain·target 무결성·일관된 page와 35개 operation별 종료/실패 검사를
+연결했다. 0/음수 stored key와 명시적인 서버 필드 읽기, 추가 권한의 conjunction 및 오류 시 대안 인가 금지도 다룬다.
+공통 snapshot 결과 경계·Form/API 출력의 새 단위 검사는 기존 portable owner에서 전체 package로 실행한다.
+생성 ABI v4의 공개 생성은 열 개 project에서 성공했고 142개 manifest 파일 hash를 대조했다. 로컬의 새 테스트에서
+IR `Column`을 잘못 참조한 compile 오류를 수정했다. 최종 제품 source의 영향 8개 package와 따로 생성한 기본/사용자
+정의 두 module의 `go test -run '^$'`는 통과했다. 해당 실행 전후 174개 source hash가 같았다. 원본은
+`gdj0138-profile-read-compile-v3/receipt.json`에 있다
+(SHA-256 `bf4ece9ffc97da75440b5c14c85f64d8edbf43be1beaa5e19f3dc03df67403a5`).
+이 compile에서 새 단위·HTTP·DB 테스트 본문은 실행하지 않았다.
+
+선행 source `3d71ed7c28f7867f820856cb24a70804625326c4`의
+[CI 40022484428](https://github.com/progresshans/godj/actions/runs/40022484428)에서 PostgreSQL cgo0 core job
+`120651837376`이 실패했다. 실제 checkout은 `13e0b7efd10c17f55c82c941b1ee97f297a64213`이다.
+`zero_and_negative_keys`가 미지원 명시적 생성키 INSERT로 fixture를 준비했고, `cancel_before_commit`는 native rollback
+미확정 결과도 일반 persistence 오류로 기대했다. 원본 log SHA-256은
+`9a18bec54d952363117592f887912a06cc1e3027e6cee5d241771e14440fecd7`이다.
+
+저장 key 검사는 생성된 정상 행의 아직 참조되지 않은 key를 native fixture로 설정한 뒤 production credential/profile/
+audit 경로를 실행하도록 고쳤다. PostgreSQL ORM의 명시적 생성키 INSERT나 sequence reconciliation 지원을 주장하지
+않는다. 취소 검사는 native owner의 원인과 outcome 분류를 그대로 보존하는지 확인하고, 별도의 live owner가 rollback을
+확정하는 control도 추가했다. 결과 비게시·재시도 없음·재접속 후 row/audit 불변 조건은 계속 검사한다.
+이 보정 뒤 PostgreSQL 테스트의 최소 compile과 SQLite의 stored key·native-context 취소·확정 rollback 취소 세 본문을
+한정 실행했다. 필수 parent 2개와 leaf 3개가 모두 pass였고 fail/skip은 없었다. 로컬 PostgreSQL target은 구성되지
+않아 해당 DB의 본문 재실행은 원격 CI 대상이다. 변경은 native fixture/검사 4개와 필수 목록 2개이며, 앞서 compile한
+제품 코드·외부 소비자는 같은 bytes다. 최종 177개 source의 실행 전후 hash와 선행 compile 연결은
+`gdj0138-profile-read-ci-repair-v1/receipt.json`에 있다
+(SHA-256 `3da4ec99e4eee2f75f22d6fb10a4d61769e40e4c719935f4fb4c26b6950d0999`).
+
+I1의 새 조회·단위·HTTP·전체 DB/race/platform 원격 검증은 아직 완료하지 않았다. 관계/파일·role/catalog 관리,
+기존 Directory/Manager 교체와 공통 HTTP/Admin 제품 조립·첫 사용자 명령·audit 설치/startup·채운 DB mapping/retirement/
+receipt, password/reset/session·삭제·restart의 양 DB/HTTP 실행은 남아 있다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

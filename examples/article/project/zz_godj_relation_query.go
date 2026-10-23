@@ -509,4 +509,4 @@ func BindRelations() (Relations, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_68078bde293874220f952ab355417c9889d0be7a843777593c660b1659efc405
+var _ goDjProjectSnapshot_5bc33e2d86c862a3624db8652e71d637d0c1b055e187862b72f495f709006905

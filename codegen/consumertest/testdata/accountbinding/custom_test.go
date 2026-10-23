@@ -76,8 +76,10 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if _, err := people.MemberTeamsLinkObjects.Create(t.Context(), backend, people.NewMemberTeamsLinkCreate(row.ID, team.ID)); err != nil {
 		t.Fatal(err)
 	}
+	var teamGrant access.TeamGrantsLink
 	for _, grant := range grants[1:] {
-		if _, err := access.TeamGrantsLinkObjects.Create(t.Context(), backend, access.NewTeamGrantsLinkCreate(team.ID, grant.ID)); err != nil {
+		teamGrant, err = access.TeamGrantsLinkObjects.Create(t.Context(), backend, access.NewTeamGrantsLinkCreate(team.ID, grant.ID))
+		if err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -120,7 +122,21 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertProfileEditor(t, backend, binding, editor, actor.Principal(), row, "region", "JP")
+	reader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: []string{"region"}, ViewPermission: "account.view", ChangePermission: "account.team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertProfileEditor(t, backend, binding, editor, reader, authenticator, actor.Principal(), row, "region", "JP", func(revoked bool) error {
+		if revoked {
+			count, err := access.TeamGrantsLinkObjects.Delete(t.Context(), backend, &teamGrant)
+			if err == nil && count != 1 {
+				return errors.New("group grant revocation did not delete one link")
+			}
+			return err
+		}
+		teamGrant, err = access.TeamGrantsLinkObjects.Create(t.Context(), backend, access.NewTeamGrantsLinkCreate(team.ID, grants[2].ID))
+		return err
+	})
 	contactEditor, err := project.NewAccountProfileEditor(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileConfig[people.Member]{Fields: []string{"contact"}, ChangePermission: "account.team"})
 	if err != nil {
 		t.Fatal(err)
@@ -129,11 +145,11 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if changed, err := contactEditor.Update(t.Context(), actor.Principal(), row.ID, 3, contact); err != nil || changed.Revision != 4 {
+	if changed, err := contactEditor.Update(t.Context(), actor.Principal(), row.ID, 5, contact); err != nil || changed.Revision != 6 {
 		t.Fatal("custom shared login/email policy", changed, err)
 	}
 	edited, present, err := people.MemberObjects.Using(backend).Filter(people.MemberFields.ID.Exact(row.ID)).OrderBy(people.MemberFields.ID.Asc()).First(t.Context())
-	if err != nil || !present || edited.Region != "JP JSON" || edited.Version != 4 || edited.Subject != row.Subject || edited.Secret != row.Secret || edited.Contact != "member@EXAMPLE.TEST" || !edited.Enabled || edited.Root {
+	if err != nil || !present || edited.Region != "JP JSON" || edited.Version != 6 || edited.Subject != row.Subject || edited.Secret != row.Secret || edited.Contact != "member@EXAMPLE.TEST" || !edited.Enabled || edited.Root {
 		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
 	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1")

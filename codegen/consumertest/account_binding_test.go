@@ -25,6 +25,9 @@ var accountBindingDatabaseConsumer []byte
 //go:embed testdata/accountbinding/profile_test.go
 var accountBindingProfileConsumer []byte
 
+//go:embed testdata/accountbinding/profile_http_test.go
+var accountBindingProfileHTTPConsumer []byte
+
 func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing.T) {
 	for _, variant := range []struct{ custom, normalized bool }{{}, {custom: true}, {custom: true, normalized: true}} {
 		custom := variant.custom
@@ -48,6 +51,7 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/account_test.go", source)
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/profile_test.go", accountBindingProfileConsumer)
+			writeGeneratedTestFile(t, root, "consumer/profile_http_test.go", accountBindingProfileHTTPConsumer)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			assertGeneratedConsumerTests(t, output, required)
 			t.Logf("account binding child events (sha256=%x):\n%s", sha256.Sum256(output), output)

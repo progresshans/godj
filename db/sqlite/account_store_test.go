@@ -28,5 +28,14 @@ func TestSQLiteAccountCredentialStore(t *testing.T) {
 			t.Fatal(err)
 		}
 		return first, open
+	}, func(t *testing.T, store accountstoretest.Backend, from, to int64) {
+		t.Helper()
+		result, err := store.(*Backend).database.ExecContext(t.Context(), "UPDATE godj_identity_user SET id=? WHERE id=?", to, from)
+		if err != nil {
+			t.Fatal("prepare stored account key fixture", err)
+		}
+		if count, err := result.RowsAffected(); err != nil || count != 1 {
+			t.Fatal("stored account key fixture did not affect one row", count, err)
+		}
 	})
 }

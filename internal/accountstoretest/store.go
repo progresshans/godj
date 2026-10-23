@@ -25,7 +25,6 @@ import (
 	"github.com/progresshans/godj/migrations"
 	mb "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -38,7 +37,15 @@ type Backend interface {
 }
 type Open func(*testing.T) (Backend, func(*testing.T) Backend)
 
-func Run(t *testing.T, open Open) {
+// StoredKeyFixture changes a newly created, unreferenced fixture row's key.
+// It establishes existing database state; it does not claim that a backend
+// implements explicit generated-key insertion or sequence reconciliation.
+type StoredKeyFixture func(*testing.T, Backend, int64, int64)
+
+func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
+	if storedKey == nil {
+		t.Fatal("stored account key fixture is required")
+	}
 	for _, test := range []struct {
 		name string
 		run  func(*testing.T, Backend, func(*testing.T) Backend)
@@ -49,7 +56,9 @@ func Run(t *testing.T, open Open) {
 		{"read_contract_and_cleanup", readContract},
 		{"invalid_stored_grants", invalidGrants},
 		{"permission_bound", permissionBound},
-		{"zero_and_negative_keys", nonpositiveKeys},
+		{"zero_and_negative_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+			nonpositiveKeys(t, backend, storedKey)
+		}},
 		{"selected_login_policy", loginPolicy},
 		{"authoritative_actor", authoritativeActor},
 		{"authorization_scope_and_errors", authorizationScopeAndErrors},
@@ -59,6 +68,11 @@ func Run(t *testing.T, open Open) {
 		{"profile_domain_and_revocation", profileDomainAndRevocation},
 		{"profile_commit_failures", profileCommitFailures},
 		{"profile_concurrent_revision", profileConcurrentRevision},
+		{"profile_read_selection_and_history", profileReadSelectionAndHistory},
+		{"profile_read_authority_and_domain", profileReadAuthorityAndDomain},
+		{"profile_read_failures", profileReadFailures},
+		{"profile_read_coherent_page", profileReadCoherentPage},
+		{"profile_read_target_integrity", profileReadTargetIntegrity},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
@@ -478,18 +492,20 @@ func permissionBound(t *testing.T, backend Backend, _ func(*testing.T) Backend) 
 		t.Fatal("exact permission bound rejected", err)
 	}
 }
-func nonpositiveKeys(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+func nonpositiveKeys(t *testing.T, backend Backend, storedKey StoredKeyFixture) {
 	f := provision(t, backend, ir.AccountExact)
+	reader := profileReader(t, backend, f, auth.PrincipalAuthorizer{}, profileReadConfig())
 	editor, err := project.NewAccountProfileEditor(backend, auth.PrincipalAuthorizer{}, profileConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, key := range []int64{0, -17} {
-		user := models.User{PrincipalID: fmt.Sprintf("key-%d", key), Username: fmt.Sprintf("key-%d", key), EncodedPassword: f.user.EncodedPassword, DateJoined: joined, Active: true, Revision: 1}
-		(models.UserDescriptor{}).SetPrimaryKey(&user, key)
-		if err := models.UserObjects.Save(t.Context(), backend, &user, orm.ForceInsert[models.User]()); err != nil {
+		user, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate(fmt.Sprintf("key-%d", key), fmt.Sprintf("key-%d", key), f.user.EncodedPassword, joined))
+		if err != nil {
 			t.Fatal(err)
 		}
+		storedKey(t, backend, user.ID, key)
+		(models.UserDescriptor{}).SetPrimaryKey(&user, key)
 		if _, err := models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(key, f.grants[0].ID)); err != nil {
 			t.Fatal(err)
 		}
@@ -514,6 +530,21 @@ func nonpositiveKeys(t *testing.T, backend Backend, _ func(*testing.T) Backend) 
 		if actual := profileRow(t, backend, key); actual.FirstName != "signed-key-profile" || actual.Revision != 2 || len(profileHistory(t, backend, got.Principal(), key)) != 1 {
 			t.Fatal("signed profile/audit state missing", key)
 		}
+		profile, err := reader.Get(t.Context(), got.Principal(), key)
+		if err != nil {
+			t.Fatal("stored signed profile key was treated as absent", key, err)
+		}
+		requireReadProfile(t, profile, key, 2, "signed-key-profile")
+		if stored, present := profile.View().PrimaryKey(); !present || !stored.Equal(query.Integer(key)) {
+			t.Fatal("view lost stored signed key", key)
+		}
+		if entries, err := reader.History(t.Context(), got.Principal(), key, 100); err != nil || len(entries) != 1 || entries[0].ObjectID() != key {
+			t.Fatal("signed key read history", key, err)
+		}
+	}
+	page, err := reader.List(t.Context(), profileActor(t, f).Principal(), 0, 100)
+	if err != nil || len(page.Items) != 3 || page.Items[0].ID() != -17 || page.Items[1].ID() != 0 {
+		t.Fatal("signed profile keys lost their stored ordering", err)
 	}
 }
 func loginPolicy(t *testing.T, backend Backend, _ func(*testing.T) Backend) {

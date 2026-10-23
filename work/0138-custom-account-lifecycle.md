@@ -73,7 +73,13 @@ validation·unknown 결과·revision 경합 검사를 양 DB 필수 목록에 �
 새 profile/audit·단위·DB·외부 소비자 본문과 race/전체 platform 실행은 원격 확인 대상이다. 상세와 이전 source의
 실패/수정 결과는 TEST_EVIDENCE에만 둔다. 작성과 compile을 I1-01~08의 제품 수용으로 계산하지 않는다.
 
-Scalar profile 조회, 관계/파일·role/catalog 관리와 기존 Directory/Manager 교체, 공통 HTTP/Admin 경로,
+생성 `ProfileReader[M]`는 현재 인가·domain·선택 프로필 조회/목록/이력을 같은 native snapshot에서 처리한다.
+`ModelView[M]`는 전체 모델 행 없이 선택한 값과 모델 source를 보관하며 공통 Form/API 출력이 같은 source와
+로드 여부를 검사한다. 종료 실패·권한 회수·domain 변경·대상 손상·일관된 count/page·0/음수 key를 양 DB 필수
+검사에 연결했다. 기본/사용자 정의·정규화 변형의 외부 소비자는 실제 HTTP 로그인·CSRF·Form/JSON 수정·조회와
+stale/예약 필드 거부·기존 세션의 권한 회수/복구를 실행하도록 작성했다. 이 소비자의 DB는 SQLite이며 PostgreSQL의 독립 HTTP 소비자는 남아 있다.
+
+관계/파일·role/catalog 관리와 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·password/reset/session·host 삭제·audit 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

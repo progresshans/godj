@@ -270,10 +270,11 @@ func profileWriteNormalization(t *testing.T, backend Backend, reopen func(*testi
 
 type profileFaultBackend struct {
 	Backend
-	mode   string
-	fault  error
-	cancel context.CancelFunc
-	calls  int
+	mode        string
+	fault       error
+	cancel      context.CancelFunc
+	calls       int
+	nativeError error
 }
 
 func (backend *profileFaultBackend) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
@@ -281,7 +282,16 @@ func (backend *profileFaultBackend) CoordinatedAtomic(ctx context.Context, callb
 	if backend.mode == "skipped" {
 		return nil
 	}
-	err := backend.Backend.CoordinatedAtomic(ctx, func(session db.Session) error {
+	ownerContext := ctx
+	if backend.mode == "cancel_confirmed_rollback" {
+		// Keep the native owner alive to observe an acknowledged rollback of
+		// canceled work. The separate native-context case retains the real
+		// driver's race between cancellation and rollback acknowledgement.
+		var cleanup context.CancelFunc
+		ownerContext, cleanup = context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cleanup()
+	}
+	err := backend.Backend.CoordinatedAtomic(ownerContext, func(session db.Session) error {
 		if backend.mode == "nil_session" {
 			return callback(nil)
 		}
@@ -301,11 +311,15 @@ func (backend *profileFaultBackend) CoordinatedAtomic(ctx context.Context, callb
 		if backend.mode == "unknown_rollback" {
 			return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
 		}
-		if backend.mode == "cancel_before_commit" {
+		if backend.mode == "cancel_before_commit" || backend.mode == "cancel_confirmed_rollback" {
 			backend.cancel()
+			if backend.mode == "cancel_confirmed_rollback" {
+				return ctx.Err()
+			}
 		}
 		return nil
 	})
+	backend.nativeError = err
 	if backend.mode == "swallowed_rejection" {
 		return nil
 	}
@@ -351,7 +365,7 @@ func (session *profileFaultSession) Update(ctx context.Context, plan query.Updat
 func profileCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	credential := profileActor(t, f)
-	for _, mode := range []string{"skipped", "nil_session", "root_session", "audit_failure", "write_failure", "repeated", "validator_rejection", "validator_failure", "swallowed_rejection", "cleanup_failure", "invalid_clock", "cancel_before_commit", "unknown_rollback", "unknown_commit", "post_commit_cancel"} {
+	for _, mode := range []string{"skipped", "nil_session", "root_session", "audit_failure", "write_failure", "repeated", "validator_rejection", "validator_failure", "swallowed_rejection", "cleanup_failure", "invalid_clock", "cancel_before_commit", "cancel_confirmed_rollback", "unknown_rollback", "unknown_commit", "post_commit_cancel"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
@@ -400,6 +414,18 @@ func profileCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T
 					code := accountmodel.CodePersistence
 					if mode == "skipped" || mode == "repeated" || mode == "swallowed_rejection" || mode == "unknown_commit" || mode == "unknown_rollback" {
 						code = accountmodel.CodeOutcomeUnknown
+					}
+					if mode == "cancel_before_commit" || mode == "cancel_confirmed_rollback" {
+						if !errors.Is(err, context.Canceled) || owner.nativeError == nil || !errors.Is(err, owner.nativeError) {
+							t.Fatal("canceled profile lost the native owner's cause", err)
+						}
+						uncertain := errors.Is(owner.nativeError, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) || errors.Is(owner.nativeError, &query.Error{Code: query.CodeCommitOutcomeUnknown})
+						if mode == "cancel_confirmed_rollback" && uncertain {
+							t.Fatal("independent owner did not acknowledge cancellation rollback", owner.nativeError)
+						}
+						if uncertain {
+							code = accountmodel.CodeOutcomeUnknown
+						}
 					}
 					requireProfileCode(t, err, code)
 				}

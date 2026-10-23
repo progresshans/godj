@@ -7,11 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/api"
 	apiinput "github.com/progresshans/godj/api/input"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
 	accountmodel "github.com/progresshans/godj/identity/model"
@@ -24,7 +22,7 @@ import (
 // Both independent generated account types use the real Form/JSON ModelInput
 // transfer and the generated profile service factory. No hand-written SQL,
 // default User copy, direct row patch or custom authorization adapter is used.
-func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], editor *accountmodel.ProfileEditor[M], actor auth.Principal, row M, field, desired string) {
+func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], editor *accountmodel.ProfileEditor[M], reader *accountmodel.ProfileReader[M], authenticator *accountmodel.Authenticator[M], actor auth.Principal, row M, field, desired string, revoke func(bool) error) {
 	t.Helper()
 	objects, err := binding.Objects()
 	if err != nil {
@@ -47,11 +45,15 @@ func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding 
 	if err != nil {
 		t.Fatal(err)
 	}
-	bound, err := formmodel.BindInstance(t.Context(), objects, form, forms.NewData(map[string][]string{field: {"  " + desired + "  "}}), &row, formmodel.PostClean{})
+	profile, err := reader.Get(t.Context(), actor, id)
+	if err != nil || profile.Revision() != 1 {
+		t.Fatal("generated profile reader", err)
+	}
+	bound, err := formmodel.BindView(t.Context(), objects, form, forms.NewData(map[string][]string{field: {"  " + desired + "  "}}), profile.View(), formmodel.PostClean{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	prepared, err := formmodel.PrepareInput(objects, bound.BoundForm())
+	prepared, err := formmodel.PrepareInput(objects, bound)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -128,17 +130,9 @@ func assertProfileEditor[M any](t *testing.T, backend database.Backend, binding 
 	if err == nil {
 		t.Fatal("prepared form lost immutable target", wrong)
 	}
-	namespace, _ := actor.CredentialDomain()
-	if err := backend.ReadSnapshot(t.Context(), func(reader db.Queryer) error {
-		entries, err := accountaudit.HistoryIn(t.Context(), reader, namespace, role.Model.AppLabel+"."+role.Model.ModelName, id, 100)
-		if err != nil {
-			return err
-		}
-		if len(entries) != 2 || entries[0].ActorID() != actor.ID() || entries[1].ActorID() != actor.ID() || !reflect.DeepEqual(entries[0].ChangedFields(), []string{field}) || !reflect.DeepEqual(entries[1].ChangedFields(), []string{field}) {
-			return errors.New("typed profile audit differs")
-		}
-		return nil
-	}); err != nil {
-		t.Fatal(err)
+	entries, err := reader.History(t.Context(), actor, id, 100)
+	if err != nil || len(entries) != 2 || entries[0].ActorID() != actor.ID() || entries[1].ActorID() != actor.ID() || !reflect.DeepEqual(entries[0].ChangedFields(), []string{field}) || !reflect.DeepEqual(entries[1].ChangedFields(), []string{field}) {
+		t.Fatal("typed profile read audit differs", err)
 	}
+	assertProfileHTTP(t, binding, editor, reader, authenticator, actor, row, field, desired, revoke)
 }

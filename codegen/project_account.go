@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v3"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v4"
 
 func generateProjectAccount(input normalizedProjectSpec) ([]byte, error) {
 	if input.account == nil {
@@ -106,6 +106,12 @@ func generateProjectAccount(input normalizedProjectSpec) ([]byte, error) {
 	fmt.Fprintln(&output, "\tstore, err := NewAccountCredentialStore(backend)")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewProfileEditor(store, overlay, config)")
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountProfileReader binds current account authority, selected profile data and domain history to one snapshot owner.")
+	fmt.Fprintf(&output, "func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileReadConfig) (*_godjaccountmodel.ProfileReader[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\tstore, err := NewAccountCredentialStore(backend)")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewProfileReader(store, overlay, config)")
 	fmt.Fprintln(&output, "}")
 	return output.Bytes(), nil
 }

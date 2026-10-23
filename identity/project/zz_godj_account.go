@@ -11,7 +11,7 @@ import (
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v3"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v4"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -59,4 +59,13 @@ func NewAccountProfileEditor(backend _godjaccountdb.SnapshotReader, overlay _god
 	return _godjaccountmodel.NewProfileEditor(store, overlay, config)
 }
 
-var _ goDjProjectSnapshot_c3f5999a7c0d7f9b894d8225bde720b46108b101a9df5f4af25ec0d17160b70d
+// NewAccountProfileReader binds current account authority, selected profile data and domain history to one snapshot owner.
+func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileReadConfig) (*_godjaccountmodel.ProfileReader[identity.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewProfileReader(store, overlay, config)
+}
+
+var _ goDjProjectSnapshot_860f174067d8413f79d2b9e299b3b5d123bbefc2eefc1ce26e100fe65ff7fbd5

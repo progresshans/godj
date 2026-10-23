@@ -904,6 +904,26 @@ ID·revision·변경 필드 이름을 반환한다. 원본 계정·hash·princip
 뒤 renderable 결과로 돌려주고 cleanup 실패나 unknown outcome으로 덮인 거부를 정상 입력 오류로 축소하지 않는다.
 Commit/rollback unknown은 자동 재시도하지 않는다. 확정 commit 뒤 도착한 취소는 성공을 되돌리지 않는다.
 
+## 선택한 프로필 조회와 현재 이력
+
+생성 `NewAccountProfileReader`와 `identity/model.ProfileReader[M]`는 선택한 모델의 scalar 조회·목록·현재 domain
+감사 이력을 소유한다. `ProfileReadConfig`의 명시적 필드만 `ModelView[M]`에 담으며 원 계정 행·hash·principal
+identity·권한 집합을 보관하지 않는다. Password와 principal identity는 선택 자체를 거부한다. Key·revision·서버
+시각·role 값은 읽기 정책에서 의도적으로 선택할 수 있지만 자동 노출하지 않는다. 이것이 ProfileEditor의 쓰기
+금지를 해제하지 않는다. File·M2M 표현과 과거 domain 조회는 각각 별도의 정책이 필요하다.
+
+View permission 또는 명시한 change permission 중 하나와 모든 추가 권한이 필요하다. 현재 actor·domain·실제
+권한을 같은 native snapshot에서 읽으며, 확정된 view 거부에서만 change 대안을 검사한다. 조회/overlay 오류는
+대안 인가나 일반 permission denial로 바꾸지 않는다. `Get`과 `History`는 대상의 실제 key·credential·권한 관계
+무결성을 확인한다. `List`는 같은 snapshot의 count와 기본키 순서의 제한된 page를 읽는다. 대상별 권한 집합을
+반환하지 않으므로 N+1 권한 조회는 하지 않고 scalar credential 상태를 확인한다. 존재하는 0/음수 key도 유지한다.
+
+`Profile`의 ID·revision은 후속 작업을 준비하는 관측 값이다. 다음 조회나 수정은 이를 권한 증표로 사용하지 않는다.
+`History`는 현재 domain으로만 기록을 선택하므로 이전 세대의 같은 모델/ID 기록을 물려받지 않는다. 확정 거부와
+not-found도 snapshot 종료가 성공해야 반환한다. 종료 실패·취소·scope/callback 소유권 위반에서는 선택 데이터·
+count·이력을 모두 버리고 비공개 원인을 보존한 persistence 오류를 반환한다. 새 읽기에서 취소를 확정 write의
+성공으로 해석하거나 unknown commit으로 보고하지 않는다.
+
 ## 도메인에 묶인 계정 감사 기록
 
 독립 `godj_account_audit` 앱은 domain·actor ID·model·object ID·action·변경 필드 이름·서버 시각을 저장한다.

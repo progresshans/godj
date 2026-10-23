@@ -59,8 +59,10 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if _, err := models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(row.ID, team.ID)); err != nil {
 		t.Fatal(err)
 	}
+	var teamGrant models.GroupPermissionsLink
 	for _, grant := range grants[1:] {
-		if _, err := models.GroupPermissionsLinkObjects.Create(t.Context(), backend, models.NewGroupPermissionsLinkCreate(team.ID, grant.ID)); err != nil {
+		teamGrant, err = models.GroupPermissionsLinkObjects.Create(t.Context(), backend, models.NewGroupPermissionsLinkCreate(team.ID, grant.ID))
+		if err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -93,9 +95,23 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertProfileEditor(t, backend, binding, editor, actor.Principal(), row, "first_name", "Updated Alice")
+	reader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: []string{"first_name"}, ViewPermission: "account.view", ChangePermission: "account.team"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertProfileEditor(t, backend, binding, editor, reader, authenticator, actor.Principal(), row, "first_name", "Updated Alice", func(revoked bool) error {
+		if revoked {
+			count, err := models.GroupPermissionsLinkObjects.Delete(t.Context(), backend, &teamGrant)
+			if err == nil && count != 1 {
+				return errors.New("group grant revocation did not delete one link")
+			}
+			return err
+		}
+		teamGrant, err = models.GroupPermissionsLinkObjects.Create(t.Context(), backend, models.NewGroupPermissionsLinkCreate(team.ID, grants[2].ID))
+		return err
+	})
 	edited, present, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(row.ID)).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
-	if err != nil || !present || edited.FirstName != "Updated Alice JSON" || edited.Revision != 3 || edited.PrincipalID != row.PrincipalID || edited.EncodedPassword != row.EncodedPassword || !edited.DateJoined.Equal(row.DateJoined) {
+	if err != nil || !present || edited.FirstName != "Updated Alice JSON" || edited.Revision != 5 || edited.PrincipalID != row.PrincipalID || edited.EncodedPassword != row.EncodedPassword || !edited.DateJoined.Equal(row.DateJoined) {
 		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
 	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")
