@@ -97,6 +97,7 @@ var productSourcePrefixes = []string{
 	"internal/gobuild/",
 	"internal/callback/",
 	"internal/diagnosticlog/",
+	"internal/runservercontrol/",
 	"internal/projectwire/",
 	"internal/wirejson/",
 	"admin/",

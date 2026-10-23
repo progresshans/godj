@@ -12,10 +12,15 @@ const defaultRunserverAddress = "127.0.0.1:8000"
 type runserverArguments struct {
 	explicitDescriptor string
 	address            string
+	noReload           bool
 }
 
 func parseRunserverArguments(argv []string) (runserverArguments, bool) {
 	arguments := runserverArguments{address: defaultRunserverAddress}
+	if len(argv) > 1 && argv[len(argv)-1] == "--no-reload" {
+		arguments.noReload = true
+		argv = argv[:len(argv)-1]
+	}
 	switch {
 	case len(argv) == 1 && argv[0] == "runserver":
 		return arguments, true

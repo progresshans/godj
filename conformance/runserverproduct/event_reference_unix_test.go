@@ -1,4 +1,6 @@
-package events_test
+//go:build darwin || linux
+
+package runserverproduct_test
 
 import (
 	"context"
@@ -18,7 +20,7 @@ import (
 // is call order, stop/continue and removal; Python return values/exceptions and
 // native-only differences are explicitly outside this projection.
 func TestEventSynchronousReferenceBoundaries(t *testing.T) {
-	payload, err := os.ReadFile("../conformance/runners/django/event_reference/input.json")
+	payload, err := os.ReadFile("../runners/django/event_reference/input.json")
 	if err != nil {
 		t.Fatal(err)
 	}

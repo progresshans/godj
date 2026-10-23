@@ -66,7 +66,7 @@ func TestRunServerRequiresOptionalRuntimeCapabilityBeforeWorkspace(t *testing.T)
 	fixture := newGlobalFixture(t, 0)
 	var stdout, stderr bytes.Buffer
 	report := RunServer(RunServerInvocation{
-		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment,
+		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment,
 		Stdout: &stdout, Stderr: &stderr,
 		Backend: backendFunc(func(context.Context, <-chan struct{}, ProcessStage, Command) ProcessResult {
 			t.Fatal("backend called without runserver_package")
@@ -111,7 +111,7 @@ func TestRunServerRequiresDistinctRealPackageDirectoriesBeforeWorkspace(t *testi
 			}
 			var stdout, stderr bytes.Buffer
 			report := RunServer(RunServerInvocation{
-				Context: context.Background(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment,
+				Context: context.Background(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment,
 				Stdout: &stdout, Stderr: &stderr,
 				Backend: backendFunc(func(context.Context, <-chan struct{}, ProcessStage, Command) ProcessResult {
 					t.Fatal("backend called for aliased runserver packages")
@@ -165,7 +165,7 @@ func TestRunServerUsesOneSelectionTwoPreflightsAndAmbientRuntimeEnvironment(t *t
 	var stdout, stderr bytes.Buffer
 	report := RunServer(RunServerInvocation{
 		Context: context.Background(), CWD: fixture.cwd,
-		Args:        []string{"runserver", "--project", filepath.Join(fixture.project, descriptorName), "--addr", "127.0.0.1:0"},
+		Args:        []string{"runserver", "--project", filepath.Join(fixture.project, descriptorName), "--addr", "127.0.0.1:0", "--no-reload"},
 		Environment: append(append([]string(nil), fixture.environment...), "GODJ_COLD_BUILD=1"), Stdout: &stdout, Stderr: &stderr, Backend: backend,
 		generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {
 			checks++
@@ -219,7 +219,7 @@ func TestRunServerStaleBundleStopsBeforeRuntimeBuildAndPreservesProject(t *testi
 	runtimeCalls := 0
 	var stdout, stderr bytes.Buffer
 	report := RunServer(RunServerInvocation{
-		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment,
+		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment,
 		Stdout: &stdout, Stderr: &stderr, Backend: backend,
 		generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {
 			return projectgenerate.CheckReport{Drifts: []projectgenerate.Drift{{Path: "generated/example.go", Kind: projectgenerate.DriftMissing}}}, projectgenerate.ErrGeneratedDrift
@@ -248,7 +248,7 @@ func TestRunServerSecondPreflightStopsRuntimeAfterReadonlyBuild(t *testing.T) {
 	}}
 	checks := 0
 	report := RunServer(RunServerInvocation{
-		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment,
+		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment,
 		Stdout: io.Discard, Stderr: io.Discard, Backend: backend,
 		generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {
 			checks++
@@ -279,7 +279,7 @@ func TestRunServerRuntimeBuildFailureStopsBeforeRuntimeAndPreservesProject(t *te
 	}}
 	var stdout, stderr bytes.Buffer
 	report := RunServer(RunServerInvocation{
-		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment,
+		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment,
 		Stdout: &stdout, Stderr: &stderr, Backend: backend,
 		generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {
 			return projectgenerate.CheckReport{}, nil
@@ -348,7 +348,7 @@ func TestRunServerPublishesClosedRuntimeOutcomes(t *testing.T) {
 			backend := successfulRunserverSequenceBackend(t)
 			var stdout, stderr bytes.Buffer
 			report := RunServer(RunServerInvocation{
-				Context: context.Background(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment,
+				Context: context.Background(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment,
 				Stdout: &stdout, Stderr: &stderr, Backend: backend,
 				generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {
 					return projectgenerate.CheckReport{}, nil
@@ -385,7 +385,7 @@ func TestRunServerWorkspaceCleanupFailureOverridesCleanRuntime(t *testing.T) {
 	backend := successfulRunserverSequenceBackend(t)
 	var stderr bytes.Buffer
 	report := RunServer(RunServerInvocation{
-		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment,
+		Context: context.Background(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment,
 		Stdout: io.Discard, Stderr: &stderr, Backend: backend,
 		workspace: workspaceHooks{afterRootCreated: func(_ string, base *os.File) { _ = base.Close() }},
 		generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {

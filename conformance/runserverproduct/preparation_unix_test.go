@@ -103,6 +103,31 @@ func TestRunserverGoAuditConfinesTelemetryAndRequiresPairedMetadata(t *testing.T
 			t.Fatalf("invalid command sequence %d accepted", index)
 		}
 	}
+	inventory := runserverGoAuditRecord{Arguments: []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}, StartedAt: now, CandidateWorkspace: root}
+	watch := append(append([]runserverGoAuditRecord{inventory}, records...), inventory)
+	if err := validateRunserverGoBuildAudit(encode(watch), want); err != nil {
+		t.Fatal("watch source fences rejected", err)
+	}
+	for name, mutate := range map[string]func([]runserverGoAuditRecord) []runserverGoAuditRecord{
+		"missing-before": func(v []runserverGoAuditRecord) []runserverGoAuditRecord { return v[1:] },
+		"missing-after":  func(v []runserverGoAuditRecord) []runserverGoAuditRecord { return v[:len(v)-1] },
+		"different-owner": func(v []runserverGoAuditRecord) []runserverGoAuditRecord {
+			v[0].CandidateWorkspace += "-foreign"
+			return v
+		},
+		"wrong-input": func(v []runserverGoAuditRecord) []runserverGoAuditRecord {
+			v[0].Arguments = []string{"list", "./..."}
+			return v
+		},
+		"late-before": func(v []runserverGoAuditRecord) []runserverGoAuditRecord { v[0], v[1] = v[1], v[0]; return v },
+		"extra-fence": func(v []runserverGoAuditRecord) []runserverGoAuditRecord { return append(v, inventory) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := validateRunserverGoBuildAudit(encode(mutate(slices.Clone(watch))), want); err == nil {
+				t.Fatal("unowned or incomplete source fence accepted")
+			}
+		})
+	}
 }
 
 // Record only a workspace whose current environment confines telemetry mode
@@ -156,6 +181,8 @@ func runserverPreparationProgress(environment []string, started, now time.Time) 
 		}
 		arguments := record.Arguments
 		switch {
+		case reflect.DeepEqual(arguments, []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}) && record.CandidateWorkspace != "":
+			lastPhase = "source_inventory"
 		case reflect.DeepEqual(arguments, []string{"telemetry", "off"}) && record.CandidateWorkspace != "":
 			lastPhase = "private_telemetry_init"
 		case reflect.DeepEqual(arguments, []string{"list", "-mod=readonly", "-find", "-json", "github.com/progresshans/godj/identity/models"}):

@@ -18,6 +18,7 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	generateprotocol "github.com/progresshans/godj/internal/projectgenerate/protocol"
 	migrationprotocol "github.com/progresshans/godj/internal/projectmigration/protocol"
+	"github.com/progresshans/godj/internal/runservercontrol"
 	"github.com/progresshans/godj/internal/wirejson"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/version"
@@ -39,6 +40,7 @@ type Contract struct {
 	SQLMigrate      uint64 `json:"sqlmigrate"`
 	CreateSuperuser uint64 `json:"createsuperuser"`
 	Commands        uint64 `json:"commands"`
+	Runserver       uint64 `json:"runserver"`
 }
 
 type Info struct {
@@ -52,7 +54,7 @@ func Current() Info {
 		Schema: ir.CurrentFormatVersion, Bundle: codegen.ProjectBundleFormatVersion, Generator: codegen.ProjectGeneratorABI(),
 		MigrationCheck: protocol.Version, Generate: generateprotocol.Version, MakeMigrations: migrationprotocol.Version,
 		Migrate: migrateprotocol.Version, ShowMigrations: showmigrationsprotocol.Version, SQLMigrate: sqlmigrateprotocol.Version,
-		CreateSuperuser: createsuperuserprotocol.Version, Commands: CommandVersion,
+		CreateSuperuser: createsuperuserprotocol.Version, Commands: CommandVersion, Runserver: runservercontrol.Version,
 	}}
 }
 
@@ -134,7 +136,7 @@ func valid(info Info) bool {
 	if len(info.Contract.Generator) != 64 || strings.Trim(info.Contract.Generator, "0123456789abcdef") != "" {
 		return false
 	}
-	for _, v := range []uint64{info.Contract.MigrationCheck, info.Contract.Generate, info.Contract.MakeMigrations, info.Contract.Migrate, info.Contract.ShowMigrations, info.Contract.SQLMigrate, info.Contract.CreateSuperuser, info.Contract.Commands} {
+	for _, v := range []uint64{info.Contract.MigrationCheck, info.Contract.Generate, info.Contract.MakeMigrations, info.Contract.Migrate, info.Contract.ShowMigrations, info.Contract.SQLMigrate, info.Contract.CreateSuperuser, info.Contract.Commands, info.Contract.Runserver} {
 		if v == 0 || v > 65535 {
 			return false
 		}

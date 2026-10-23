@@ -1,7 +1,8 @@
 # Linked framework compatibility
 
 `Current()` reports the effective framework identity from Go build metadata and
-the exact Schema IR, project-bundle, generator-roster and private-command
+the exact Schema IR, project-bundle, generator-roster, private-command and
+development-server control
 contracts compiled into the executable. The generator token hashes the same
 roster used in project snapshots and manifests. It is not a source integrity hash.
 

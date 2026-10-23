@@ -34,6 +34,11 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"internal/diagnosticlog/log.go",
+		"internal/runservercontrol/protocol.go",
+		"events/event.go",
+		"scripts/ci/runserver_tests.py",
+		"scripts/ci/runserver-required.txt",
 		"timezone/zone.go",
 		"internal/zonerules/catalog.go",
 		"internal/zonerules/zoneinfo.zip",
@@ -204,6 +209,13 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceFixturesAndOrdinaryTests
 
 func TestSourceScopeOwnsSYS029ProducerConsumerAndPolicyPaths(t *testing.T) {
 	tests := map[string]bool{
+		"internal/diagnosticlog/log.go":                                            true,
+		"internal/diagnosticlog/log_test.go":                                       false,
+		"internal/runservercontrol/protocol.go":                                    true,
+		"internal/runservercontrol/protocol_test.go":                               false,
+		"events/event.go":                                                          true,
+		"scripts/ci/runserver_tests.py":                                            true,
+		"scripts/ci/runserver-required.txt":                                        true,
 		"timezone/zone.go":                                                         true,
 		"timezone/zone_test.go":                                                    false,
 		"internal/zonerules/catalog.go":                                            true,
@@ -281,6 +293,8 @@ func TestComputeSourceBindingRejectsDirectorySymlinkThatCanHideOwnedSource(t *te
 		linkPath string
 		filePath string
 	}{
+		{name: "runtime logging", linkPath: "internal/diagnosticlog", filePath: "log.go"},
+		{name: "development control", linkPath: "internal/runservercontrol", filePath: "protocol.go"},
 		{name: "URL normalization", linkPath: "internal/urlinput", filePath: "url.go"},
 		{name: "product", linkPath: "systemstate", filePath: "runtime.go"},
 		{name: "producer harness", linkPath: "conformance/projectoperatorproduct", filePath: "product_unix_test.go"},

@@ -17,9 +17,12 @@ native tests. No DB transaction or durable-delivery claim is made by this observ
 The Python suite runs two hash seeds, checks the complete case/source inventory,
 and changes the public send method to verify that observations follow actual
 dispatch. Its raw CI log includes `DJANGO_EVENT_OBSERVATION`. Go's
-`TestEventSynchronousReferenceBoundaries` uses the same input hash and emits the
+[`TestEventSynchronousReferenceBoundaries`](../../../runserverproduct/event_reference_unix_test.go)
+uses the same input hash and emits the
 six shared call/removal projections as `GODJ_EVENT_OBSERVATION`; it never reads
-the Python output. Compare those receipts only from their actual CI executions.
+the Python output. The baseline project-check owner preserves its raw JSON on
+all 12 native OS/architecture/mode coordinates. Compare those receipts only from
+their actual CI executions.
 
 Run through the repository's locked Python environment:
 

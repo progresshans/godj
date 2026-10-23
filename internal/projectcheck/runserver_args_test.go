@@ -19,8 +19,12 @@ func TestRunserverArgumentsAreClosed(t *testing.T) {
 	}
 	for _, test := range tests {
 		actual, ok := parseRunserverArguments(test.argv)
-		if !ok || actual.explicitDescriptor != test.descriptor || actual.address != test.address {
+		if !ok || actual.noReload || actual.explicitDescriptor != test.descriptor || actual.address != test.address {
 			t.Fatalf("parseRunserverArguments(%q) = %+v, %t", test.argv, actual, ok)
+		}
+		oneShot, ok := parseRunserverArguments(append(append([]string(nil), test.argv...), "--no-reload"))
+		if !ok || !oneShot.noReload || oneShot.explicitDescriptor != actual.explicitDescriptor || oneShot.address != actual.address {
+			t.Fatal("explicit one-shot arguments", oneShot, ok)
 		}
 	}
 
@@ -29,6 +33,8 @@ func TestRunserverArgumentsAreClosed(t *testing.T) {
 		{},
 		{"runserver", ""},
 		{"runserver", "extra"},
+		{"runserver", "--no-reload", "--no-reload"},
+		{"runserver", "--no-reload", "--addr", "127.0.0.1:8000"},
 		{"runserver", "--project"},
 		{"runserver", "--project", ""},
 		{"runserver", "--project=godj.toml"},

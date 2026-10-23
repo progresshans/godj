@@ -88,7 +88,7 @@ func (NativeBackend) Execute(ctx context.Context, interrupt <-chan struct{}, sta
 	} else if stage == GenerationRunnerStage {
 		stdoutMaximum = projectgenerateprotocol.MaxResponseBytes
 		retainStdout = true
-	} else if stage == MakemigrationsInventoryStage {
+	} else if stage == MakemigrationsInventoryStage || stage == RunserverInventoryStage {
 		stdoutMaximum = int(defaultMakemigrationsBuildInputLimits().goListBytes)
 		retainStdout = true
 	} else if stage == MakemigrationsRunnerStage {

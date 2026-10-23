@@ -125,7 +125,7 @@ func TestEveryGlobalCommandRejectsIncompatibleDeclarationBeforeInvocation(t *tes
 					t.Fatal("operator I/O preceded compatibility", r)
 				}
 			case "runserver":
-				r := RunServer(RunServerInvocation{Context: t.Context(), CWD: fixture.root, Args: []string{name}, Environment: fixture.environment, Backend: b, Stdout: &out, Stderr: &diag, runtime: runserverRuntimeHooks{execute: func(context.Context, <-chan struct{}, Command, io.Writer, io.Writer, time.Duration) runserverProcessResult {
+				r := RunServer(RunServerInvocation{Context: t.Context(), CWD: fixture.root, Args: []string{name, "--no-reload"}, Environment: fixture.environment, Backend: b, Stdout: &out, Stderr: &diag, runtime: runserverRuntimeHooks{execute: func(context.Context, <-chan struct{}, Command, io.Writer, io.Writer, time.Duration) runserverProcessResult {
 					t.Error("incompatible server started")
 					return runserverProcessResult{}
 				}}})
@@ -278,7 +278,7 @@ func TestRuntimeCompatibilityFailurePrecedesServerStart(t *testing.T) {
 	}
 	var out, diag bytes.Buffer
 	before := generationTreeSnapshot(t, fixture.project)
-	report := RunServer(RunServerInvocation{Context: t.Context(), CWD: fixture.project, Args: []string{"runserver"}, Environment: fixture.environment, Backend: b, Stdout: &out, Stderr: &diag,
+	report := RunServer(RunServerInvocation{Context: t.Context(), CWD: fixture.project, Args: []string{"runserver", "--no-reload"}, Environment: fixture.environment, Backend: b, Stdout: &out, Stderr: &diag,
 		generation: generationHooks{check: func(context.Context, projectgenerate.ProjectRoot, codegen.GeneratedBundle) (projectgenerate.CheckReport, error) {
 			return projectgenerate.CheckReport{}, nil
 		}},

@@ -28,10 +28,10 @@ def matrix():
     rows = []
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
-            # macOS and Linux/amd64 normal exhaust package budgets through
+            # macOS and Linux/amd64 exhaust package budgets through
             # cumulative generated builds. Keep the budgets and partition every
             # discovered root, including all required children.
-            split = mode == 'race' or goos == 'darwin' or (runner == 'ubuntu-24.04' and mode == 'normal')
+            split = mode == 'race' or goos == 'darwin' or runner == 'ubuntu-24.04'
             count = 3 if split else 1
             darwin_race = goos == 'darwin' and mode == 'race'
             # Shard 0 owns the non-consumer packages so their runtime does not

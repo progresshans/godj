@@ -29,7 +29,8 @@ F1의 검증된 작업트리를 보존하고, 새 C1 변경의 미실행 범위�
 - 현재 `runserver`는 선언 build와 bundle 검사 후 별도 runtime을 build하고 다시 검사한다.
   loopback 실행·종료·자손 회수 경계가 있다. 일반 command는 별도 runtime package·명시적 등록으로 연결했으며
   같은 source/bundle 준비 경계를 재사용한다. 순수 check와 명시적으로 선택한 resource check·field 진단을 작성했다.
-  Watch/reload는 남아 있다.
+  기본 watch/reload와 공개 `project/server.Serve` 연결을 작성했다. 새 후보의 source/build/startup 검사 뒤 같은
+  listener에서 교체하고 기존 요청 drain·실패 후보/자손 회수를 연결했으며 전체 원격 실행은 남아 있다.
 - 앱 소유 typed event와 명시적 slog logger를 command·app·server에 연결했다. 저장 후 receiver 오류·sink 실패와
   확정된 DB 결과를 분리하는 외부 생성/HTTP 소비자, 독립 Django 관측과 Go 수명 검사를 작성했으며 원격 실행은 남아 있다.
 - Article는 DB·identity·Form/Admin/API의 실제 소비자다. 현재 이를 복사해 시작하는 수동 조립을
@@ -103,7 +104,7 @@ Go의 command 충돌·handler 소유권·취소·종료가 다른 부분은 관�
 
 - [x] F1 전체 검증 완료와 C1 주 작업 전환을 확인한다.
 - [ ] C1-01~05를 빈 디렉터리와 독립 설치/외부 module에서 실제 사용한다.
-- [ ] C1-06~07의 기존 데이터·reload·event/logging·process 실패 경계를 연결하고 검증한다.
+- [ ] C1-06~07의 기존 데이터·reload·event/logging·process 실패 경계를 검증한다. 코드와 두 외부 앱 소비자는 작성했다.
 - [ ] C1-08의 서로 다른 앱과 동일 변경·오용/실패·독립 기준을 대조한다.
 - [ ] 같은 source의 전체 필수 CI 원본과 현행 문서를 대조하고 다음 I1의 요구·경계를 유지한다.
 

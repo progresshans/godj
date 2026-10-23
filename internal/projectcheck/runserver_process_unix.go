@@ -74,7 +74,25 @@ func executeRunserverProcess(ctx context.Context, interrupt <-chan struct{}, com
 // stdin remains owned by the caller. A file can be inherited without an extra
 // copy goroutine whose blocked Read could outlive the child process.
 func executeStreamingProcess(ctx context.Context, interrupt <-chan struct{}, command Command, stdin *os.File, stdout, stderr io.Writer, grace time.Duration) runserverProcessResult {
-	result := runserverProcessResult{ExitCode: -1}
+	return executeStreamingProcessWithFiles(ctx, interrupt, command, stdin, stdout, stderr, grace, nil)
+}
+
+// extraFiles ownership transfers to this call. Parent copies are closed after
+// Start (or on every earlier failure), so a dead child cannot leave a control
+// socket held open by its supervisor's own inherited-file copy.
+func executeStreamingProcessWithFiles(ctx context.Context, interrupt <-chan struct{}, command Command, stdin *os.File, stdout, stderr io.Writer, grace time.Duration, extraFiles []*os.File) (result runserverProcessResult) {
+	result = runserverProcessResult{ExitCode: -1}
+	closeFiles := func() {
+		for _, file := range extraFiles {
+			if file != nil {
+				if err := file.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+					recordRunserverCleanupFailure(&result, err)
+				}
+			}
+		}
+		extraFiles = nil
+	}
+	defer closeFiles()
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -92,6 +110,7 @@ func executeStreamingProcess(ctx context.Context, interrupt <-chan struct{}, com
 	child.Dir = command.Dir
 	child.Env = append([]string(nil), command.Env...)
 	child.Stdin = stdin
+	child.ExtraFiles = append([]*os.File(nil), extraFiles...)
 	child.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	stdoutReader, stdoutWriter, err := os.Pipe()
@@ -126,6 +145,7 @@ func executeStreamingProcess(ctx context.Context, interrupt <-chan struct{}, com
 		return result
 	}
 	result.Started = true
+	closeFiles()
 	if closeErr := stdoutWriter.Close(); closeErr != nil && !errors.Is(closeErr, os.ErrClosed) {
 		recordRunserverCleanupFailure(&result, closeErr)
 	}

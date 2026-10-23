@@ -34,6 +34,9 @@ func RunServer(input RunServerInvocation) RunServerReport {
 		publishRunserver(input, &report)
 		return report
 	}
+	if !arguments.noReload {
+		return runReloadingServer(input, arguments)
+	}
 
 	prepared, primary := prepareProjectRuntime(input, arguments.explicitDescriptor, runtimeServer, &report)
 	finish := func(outcome *RunServerFailure, result *RunServerResult) RunServerReport {
@@ -88,6 +91,7 @@ func (t runtimeTarget) packagePath(d projectDescriptor) string {
 type preparedProjectRuntime struct {
 	command *projectCommand[RunServerFailure]
 	binary  string
+	source  *runserverSource
 }
 
 func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string, target runtimeTarget, report *RunServerReport) (preparedProjectRuntime, *RunServerFailure) {
@@ -121,6 +125,12 @@ func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string,
 	prepared := preparedProjectRuntime{command: command}
 	if primary = command.open(input.CWD, explicitDescriptor, input.Environment, input.workspace); primary != nil {
 		return prepared, primary
+	}
+	if input.sourceFence && target == runtimeServer {
+		prepared.source, primary = captureRunserverSource(input, command, report)
+		if primary != nil {
+			return prepared, primary
+		}
 	}
 	if primary = command.buildRunner(); primary != nil {
 		return prepared, primary
@@ -205,6 +215,19 @@ func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string,
 		return prepared, &candidate
 	}
 
+	if prepared.source != nil {
+		current, sourceFailure := captureRunserverSource(input, command, report)
+		if sourceFailure != nil {
+			return prepared, sourceFailure
+		}
+		if !current.complete {
+			return prepared, runserverSourceFailure(RunServerCodeSourceInventoryFailed)
+		}
+		if current.digest != prepared.source.digest {
+			return prepared, runserverSourceFailure(RunServerCodeSourceChanged)
+		}
+		prepared.source = current
+	}
 	return prepared, nil
 }
 
@@ -375,7 +398,7 @@ func runserverExitCode(failure RunServerFailure) (int, bool) {
 		return failurecode.Exact(failure.Code, 2, RunServerCodeNotConfigured)
 	case RunServerCategoryBuild:
 		return failurecode.Exact(failure.Code, 3, RunServerCodeProjectTemporaryStorageFailed,
-			RunServerCodeProjectBuildFailed, RunServerCodeRuntimeBuildFailed)
+			RunServerCodeProjectBuildFailed, RunServerCodeRuntimeBuildFailed, RunServerCodeSourceInventoryFailed, RunServerCodeSourceChanged)
 	case projectgenerateprotocol.CategoryProtocol:
 		return failurecode.Exact(failure.Code, 3, projectgenerateprotocol.CodeInvalidRequest, projectgenerateprotocol.CodeInvalidResponse,
 			projectgenerateprotocol.CodeRunnerFailed, projectgenerateprotocol.CodeProtocolIncompatible)
@@ -386,7 +409,7 @@ func runserverExitCode(failure RunServerFailure) (int, bool) {
 			RunServerCodeGeneratedBundleStale, RunServerCodeProjectCheckFailed)
 	case RunServerCategoryRuntime:
 		return failurecode.Exact(failure.Code, 3, RunServerCodeRuntimeStartFailed,
-			RunServerCodeRuntimeExited, RunServerCodeRuntimeStreamFailed)
+			RunServerCodeRuntimeExited, RunServerCodeRuntimeStreamFailed, RunServerCodeRuntimeControlFailed, RunServerCodeRuntimeReadinessFailed, RunServerCodeListenerFailed)
 	case RunServerCategoryProcess:
 		return failurecode.Process(failure.Code)
 	case RunServerCategoryInternal:

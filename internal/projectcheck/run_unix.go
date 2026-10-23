@@ -117,6 +117,9 @@ func recordProcess(report *Report, stage ProcessStage, process ProcessResult) {
 		report.CleanupFailed = 1
 	}
 	report.RawDiagnosticsDiscarded = true
+	if stage == RunserverInventoryStage {
+		return
+	}
 	if stage == CompatibilityStage {
 		report.CompatibilityStdoutRetainedBytes = process.StdoutScalar.RetainedBytes
 		report.CompatibilityStdoutTruncated = process.StdoutScalar.Truncated

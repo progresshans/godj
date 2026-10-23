@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Run complete discovered server roots in separate cumulative test budgets.
 
-Existing runtime, project scaffold and fixed-module installation each retain the
-15-minute package budget. All roots and children have exactly one batch owner;
-only the PostgreSQL manifest's roots may skip here, with mandatory DB owners.
+Every native coordinate executes the baseline and reload owners. Each complete
+flow has its own cumulative package budget. All discovered roots and children
+have exactly one owner; only the PostgreSQL manifest's roots may skip here, with
+mandatory DB owners.
 """
 import argparse
 from collections import Counter
@@ -18,11 +19,19 @@ PACKAGE = 'github.com/progresshans/godj/conformance/runserverproduct'
 SPECIAL = {
     'scaffold': 'TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime',
     'fixed-module': 'TestGlobalFixedModuleInstallationCompatibility',
+    'reload-notes': 'TestGlobalReloadPreservesActiveNotesAndDrainsCommittedWrites',
+    'reload-article': 'TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions',
 }
 BATCHES = ('runtime', *SPECIAL)
+OWNERS = {'baseline': ('runtime', 'scaffold', 'fixed-module'),
+          'reload': ('reload-notes', 'reload-article')}
 
 
-def plan(roots, required, postgres):
+def plan(roots, required, postgres, owner='all'):
+    if owner != 'all' and owner not in OWNERS:
+        raise ValueError('unknown server execution owner')
+    if Counter(name for names in OWNERS.values() for name in names) != Counter(BATCHES):
+        raise ValueError('server batches do not have exactly one workflow owner')
     if not roots or len(roots) != len(set(roots)) or not set(SPECIAL.values()) <= set(roots):
         raise ValueError('server root discovery is empty, duplicated or missing a mandatory flow')
     if not required or len(required) != len(set(required)):
@@ -55,7 +64,10 @@ def plan(roots, required, postgres):
         }
     if Counter(root for batch in batches.values() for root in batch['roots']) != Counter(roots):
         raise ValueError('server roots do not have exactly one execution owner')
-    return {'package': PACKAGE, 'discovered_roots': len(roots),
+    if owner != 'all':
+        batches = {name: batches[name] for name in OWNERS[owner]}
+    return {'package': PACKAGE, 'owner': owner, 'discovered_roots': len(roots),
+            'owned_roots': sum(len(batch['roots']) for batch in batches.values()),
             'discovery_sha256': hashlib.sha256(('\n'.join(sorted(roots))+'\n').encode()).hexdigest(),
             'batches': batches}
 
@@ -84,9 +96,9 @@ def verify(directory, execution):
         if errors:
             raise ValueError(name + ': ' + '; '.join(errors))
         total += len(expected)
-    if total != execution['discovered_roots']:
-        raise ValueError('server execution did not cover the full discovery')
-    return {'verified_roots': total, 'batches': list(execution['batches']),
+    if total != execution['owned_roots']:
+        raise ValueError('server execution did not cover its full ownership')
+    return {'owner': execution['owner'], 'verified_roots': total, 'batches': list(execution['batches']),
             'discovery_sha256': execution['discovery_sha256']}
 
 
@@ -97,10 +109,11 @@ def main():
     parser.add_argument('--required', required=True)
     parser.add_argument('--postgres', required=True)
     parser.add_argument('--directory', required=True)
+    parser.add_argument('--owner', choices=('all', *OWNERS), default='all')
     args = parser.parse_args()
     try:
         execution = plan(discover_roots(args.discovery, PACKAGE), Path(args.required).read_text().splitlines(),
-                         Path(args.postgres).read_text().splitlines())
+                         Path(args.postgres).read_text().splitlines(), args.owner)
         directory = Path(args.directory)
         if args.action == 'plan':
             (directory / 'runserver-batches.json').write_text(json.dumps(execution, sort_keys=True) + '\n')

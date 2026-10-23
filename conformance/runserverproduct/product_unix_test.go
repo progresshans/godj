@@ -931,6 +931,24 @@ func assertRunserverGoBuildAudit(t *testing.T, logPath string, wantPackages []st
 	if err := validateRunserverGoBuildAudit(payload, wantPackages); err != nil {
 		t.Fatal(err)
 	}
+	// These native invocations exercise default reload. Each complete runtime
+	// has both inventories; a stale-bundle rejection stops after the first.
+	wantInventory := 0
+	for _, target := range wantPackages {
+		if target == "./cmd/projectrunner" || target == "./cmd/site" {
+			wantInventory++
+		}
+	}
+	actualInventory := 0
+	for _, line := range bytes.Split(bytes.TrimSpace(payload), []byte{'\n'}) {
+		var record runserverGoAuditRecord
+		if json.Unmarshal(line, &record) == nil && len(record.Arguments) > 1 && record.Arguments[0] == "list" && record.Arguments[1] == "-deps" {
+			actualInventory++
+		}
+	}
+	if actualInventory != wantInventory {
+		t.Fatalf("source inventory calls=%d want=%d", actualInventory, wantInventory)
+	}
 }
 
 func validateRunserverGoBuildAudit(payload []byte, wantPackages []string) error {
@@ -938,12 +956,22 @@ func validateRunserverGoBuildAudit(payload []byte, wantPackages []string) error 
 	buildIndex := 0
 	pending := ""
 	workspaces := map[string]bool{}
+	inventories := map[string]int{}
+	buildWorkspaces := map[string]int{}
 	for index, line := range lines {
 		var record runserverGoAuditRecord
 		if err := json.Unmarshal(line, &record); err != nil || record.StartedAt.IsZero() {
 			return fmt.Errorf("invalid runserver Go command audit %d", index)
 		}
 		arguments := record.Arguments
+		if reflect.DeepEqual(arguments, []string{"list", "-deps", "-e", "-json", "-mod=readonly", "./cmd/projectrunner", "./cmd/site"}) {
+			workspace := record.CandidateWorkspace
+			if pending != "" || workspace == "" || inventories[workspace] == 0 && buildWorkspaces[workspace] != 0 || inventories[workspace] == 1 && buildWorkspaces[workspace] != 2 || inventories[workspace] > 1 {
+				return fmt.Errorf("runserver Go audit %d: unordered source inventory", index)
+			}
+			inventories[workspace]++
+			continue
+		}
 		// A fresh private telemetry initialization must immediately precede
 		// the one supported external-model query in the same workspace.
 		if reflect.DeepEqual(arguments, []string{"telemetry", "off"}) {
@@ -965,9 +993,15 @@ func validateRunserverGoBuildAudit(payload []byte, wantPackages []string) error 
 			return fmt.Errorf("runserver Go command audit %d: expected the next exact readonly binary build", index)
 		}
 		buildIndex++
+		buildWorkspaces[filepath.Dir(arguments[4])]++
 	}
 	if pending != "" || buildIndex != len(wantPackages) {
 		return fmt.Errorf("runserver Go command sequence incomplete: builds=%d want=%d", buildIndex, len(wantPackages))
+	}
+	for workspace, count := range inventories {
+		if count != buildWorkspaces[workspace] {
+			return errors.New("source inventory and completed binary builds differ")
+		}
 	}
 	return nil
 }

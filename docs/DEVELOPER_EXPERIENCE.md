@@ -36,7 +36,7 @@ cd ../my-site
 자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
 Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
 일반 command의 현재 사용은 아래를 따른다. 모든 프로젝트 명령은 실행 전 호환성 검사를 사용한다.
-독립 고정 module 조합의 전체 환경 검증과 reload는 [C1](../work/0137-project-core-startup.md)에 남아 있다.
+독립 고정 module 조합과 reload의 전체 환경 검증은 [C1](../work/0137-project-core-startup.md)에 남아 있다.
 이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
 
 `godj startapp LABEL [DIRECTORY]`는 `modeldef/schema.go`와 등록 안내를 새 디렉터리에 만든다.
@@ -47,6 +47,24 @@ Starter project에서는 `godj startapp line_items apps/line_items` 뒤 새 `mod
 `modeldef/apps.go`의 `Applications()`에 그 `Definition()`을 추가한다. 기존 앱 정의를 보존한다.
 이후 `generate`와 명시적 migration을 사용한다. 새 앱은 빈 상태로 등록할 수 있고 나중에 첫 모델을 추가한다.
 Generated model package와 선언 package는 분리하며 Admin/API 노출과 권한은 프로젝트가 명시한다.
+
+## 수정과 개발 서버 교체
+
+`godj runserver [--project PATH] [--addr 127.0.0.1:8000] [--no-reload]`는 기본적으로 소스 변경을 감시한다.
+Go 소스·embed 자산·module 선언·생성 manifest와 사용 중인 로컬 replacement를 검사한다. 환경은 최초 invocation의
+snapshot이므로 환경 변수를 바꾸려면 서버를 다시 시작한다. `--no-reload`는 한 번 build한 앱만 실행한다.
+
+수정한 후보의 선언/생성물 검사·build·호환성·앱 시작이 성공하고 소스가 그대로일 때 같은 주소에서 교체한다.
+기존 요청은 이전 앱에서 마저 처리한다. 실패한 수정은 stderr의 `project_runserver_reload_rejected/CODE`로 표시하며
+기존 정상 앱을 유지한다. 연속 수정 중 오래된 후보는 게시하지 않고 정리한 뒤 최신 소스를 준비한다.
+
+모델 변경 뒤에는 `generate`, `makemigrations`, migration 검토, `migrate`를 직접 실행한다. Watch는 DB·계정·권한을
+수정하지 않는다. Migration을 마친 뒤 소스 변경을 저장하거나 서버를 다시 시작해 실패했던 후보를 다시 준비한다.
+DB 파일의 일반 저장은 rebuild를 유발하지 않는다. 앱은 현재 schema·설정·필수 resource를 Start에서 검사해야 한다.
+개발 서버 교체는 이전 앱과 호환되지 않는 DB migration을 자동으로 안전하게 만들지 않는다.
+
+앱의 공개 연결은 [`project/server.Serve`](../project/server/README.md)를 따른다. 두 외부 앱에서 처리 중인 저장,
+실패 후보·연속 수정·종료와 기존 로그인·관계·현재 권한을 확인하는 실행 범위는 C1과 TEST_EVIDENCE에 유지한다.
 
 ## 사용자 관리 명령과 check
 

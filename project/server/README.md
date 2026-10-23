@@ -35,6 +35,21 @@ DB가 dependency 앱 소유라면 handler와 다른 앱의 정리가 끝난 뒤 
 - `Start`, `Listen`, `Ready`, `Stop`은 callback 종료까지 기다린다. Panic 값은 버리고 Goexit도 명시적인 callback 오류로 보고한다.
 - `Ready`의 성공은 bound address의 게시를 뜻한다. 외부 접근성이나 deployment 검증이 아니다. 이후 취소는 정상 종료이며 serving/cleanup 오류가 있으면 실패로 반환한다.
 
+## 전역 개발 서버와 연결
+
+`server.Serve(ctx, os.Args[1:], Config{Start: openApplication, Ready: reportListener})`는
+`serve --listen ADDRESS`를 처리한다. `Listen`은 지정하지 않으며 주소는 literal loopback이어야 한다.
+인자가 `serve`뿐이면 `127.0.0.1:8000`을 사용한다. Starter와 Article은 이 공개 진입점을 사용한다.
+
+전역 `godj runserver`는 listener를 소유하고 각 후보에게 복제한 descriptor와 별도 제어 socket을 전달한다.
+Serve는 상속된 두 resource와 주소를 앱 시작 전에 검사한다. `Start`·`Ready`가 성공하고 HTTP 서버가
+accept를 준비한 다음에도 전역 도구의 활성화 전에는 요청을 받지 않는다. 이 모드의 `Ready`는 앱 준비 관측이며,
+실제 요청 게시 확인은 별도 제어 채널이 맡는다. stdout·stderr는 제어 메시지로 해석하지 않는다.
+
+교체할 때 기존 listener의 닫힘을 먼저 확인하고 새 후보의 요청 수신을 허용한다. 기존 앱은 이미 받은 요청을
+처리한 뒤 Stop을 호출한다. 제어 채널 종료·잘못된 순서·operator 취소도 같은 HTTP drain과 resource 정리를 거친다.
+전역 도구가 관리하는 process 종료·강제 회수는 [ADR-0042](../../docs/adr/0042-project-linked-runserver-and-article-development-loop.md)를 따른다.
+
 ## 취소와 종료
 
 Startup의 application context는 caller의 값과 취소 cause를 전달한다. Context deadline 자체를 영구 앱 수명에 복사하지 않고

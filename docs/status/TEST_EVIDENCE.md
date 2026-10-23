@@ -3,6 +3,62 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — 후보를 검사하는 reload와 두 외부 앱 검증 작성
+
+2026-10-23, source `f08474a8c2f85ab170cad41fd00998f489ddd256`의
+[CI 39893479814](https://github.com/progresshans/godj/actions/runs/39893479814)에서 operator source binding이
+실제 native dependency `internal/diagnosticlog`를 빠뜨린 실패를 확인했다. 같은 source archive에서
+`TestSourceBindingOwnsNativeProductDependencies`의 실패를 재현했고, 그 prefix만 추가한 뒤 같은 검사가 통과했다.
+`gdj0137-operator-log-binding-repro-v1/receipt.json` SHA-256은
+`1148655b4e23df260c2c8ce0e2656e9d942d245dd8d3ef00b8e1225c9ed1b6e5`다. 새 control/event dependency와 CI manifest도
+현재 소스 목록에 포함했다. 이 후속 목록과 부정 검사의 실제 실행은 새 CI 대상이다.
+
+같은 이전 실행의 Linux amd64 CGO0 relation job `120218438832`는 consumer package의 누적 35분 제한으로 종료했다.
+개별 root를 지우거나 시간 제한을 늘리지 않고 이 좌표에도 기존 3개 consumer partition과 runtime owner를 적용했다.
+Mac Intel normal job `120218438491`은 초기 `Username:` 출력 전 PTY timeout이며 원 transcript는 비어 있었다.
+CGO0/race job `120218438498`/`120218438532`는 scaffold/fixed-module의 15분 package 또는 개별 5분 준비 제한으로
+실패했다. 이 세 좌표의 근본 원인은 아직 확정하지 않았으며 이번 변경의 해결/PASS로 계산하지 않는다.
+위 macOS normal artifact의 모든 member checksum과 실제 checkout `987ffc9540539d0ceba94b19253281a4e9b3fc36`의
+GitHub tree를 대조했다. Tree `8a7b63ea8b12feb3247edfbc81955d2140fb42cd`는 `f08474a8`과 같았다.
+`gdj0137-f08474a8-ci-39893479814/source-and-failures.json` SHA-256은
+`8edafd75070025a32a7b724f3e95ad31fe009f9c44a9d000811c768d7144998a`다. 05:37 UTC 관측의 실패 7개와
+아직 완료되지 않은 나머지 실행을 보존했으며 전체 성공이 아니다.
+
+후속 구현은 `runserver`의 기본 source watch와 `--no-reload`, 공개 `project/server.Serve`, inherited listener/control
+channel이다. 선언·generated bundle·module/로컬 dependency 입력·runtime build·startup과 시작 후 source를 검사한 후보만
+같은 주소에서 활성화한다. 기존 요청은 이전 앱에서 drain하고 DB/app Stop을 뒤에 실행한다. 연속 수정은 오래된 후보를
+취소하며 실패 후보와 자손·workspace를 join한다. 환경 snapshot은 유지하고 watch가 migration·계정·권한을 변경하지 않는다.
+새 private control contract를 공통 호환성 조회에 포함했으며 원본 생성 ABI나 저장된 migration format을 바꾸지 않았다.
+
+두 독립 외부 앱의 공개 CLI/HTTP 소비자를 작성했다. Notes 앱은 빌드 실패·시작 실패와 살아남는 자손·늦은 후보 취소,
+처리 중인 저장의 교체 후 commit, 기존 row가 있는 nullable field 추가와 명시적 migration, 준비 중 부모 종료와 재시작을
+검사한다. Article 앱은 embed template 실패/변경 전후 같은 로그인 세션·저장된 Article·M2M 그룹 membership·현재 권한을
+검사하고 CSRF 거부와 stale/current revision을 유지한다. 공개 package만 사용하며 GoDj 내부 protocol을 외부 앱에서 import하지 않는다.
+
+두 root는 새 필수 reload matrix의 Linux/macOS amd64/arm64 × normal/race/CGO0에서 각각 별도 package 실행을 갖는다.
+기존 runtime/scaffold/fixed-module owner와 같은 전체 binary discovery/필수 manifest를 사용하고 모든 root/필수 child의
+정확히 한 번 실행·종료를 요구한다. 누락·skip·잘린 결과·잘못된 owner를 거부하고 원 JSON·source/환경·checksum을 보존한다.
+새 flow는 각 25분의 누적 제한을 가지며 개별 build/HTTP/종료 제한은 유지한다. 이전 실패의 성공 간주나 테스트 축소가 아니다.
+
+`f08474a8`의 Python 3.13.15 raw log에는 독립 Django signal 관측 9개가 기록됐다. 공통 6개 Go 관측은 stdout을 보존하는
+native server owner로 옮겼다. 두 실제 관측의 대조와 reload의 독립 기준은 아직 미완료다.
+
+로컬에서는 새 본문을 실행하지 않았다. 최초 최소 compile의 fixture 호출 인자 오류를 수정하고 9개 package를
+`-run '^$' -exec=/usr/bin/true`로 compile했다. 후속 audit test/template 변경은 server consumer와 scaffold의 같은 최소
+compile로 확인했다. Notes 두 변형·revision·starter main의 Go 구문/format, Python 5개 AST, workflow YAML과 shell
+61개 block, 현행 Markdown 241개 링크와 diff를 검사했다. `gdj0137-reload-compile-v1/` receipt는 다음과 같다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `core.json` — 최초 compile 실패 | `c37b2922a37e47beb473971425733f9bf45a4c8da7785101082d595b45ae605d` |
+| `core-final.json` — 9 package compile | `64cf159b13e32dd5057dfbe8dd29e388cf26be535c3b1fd3cda6e5621cabc993` |
+| `consumer-final.json` — 후속 2 package compile | `db1add2c2c690a11f09ad05d9a792a98a01ee17edc54900b0f1b6a265af01b85` |
+| `static.json` — 구문·문서 검사 | `4ee6548bbb4759f9b08a1d1fdca7454c40e2a8667cb99b2caf01d801e9242de2` |
+| `final-source.json` — 문서 외 41개 변경 source와 fixture 구문 입력 | `9b7154330c07a7e010becb9995bf72709c3523654dd75acd16ef1b2535ebbfb0` |
+
+최소 compile과 구문 검사는 실제 앱 실행·DB·race·process·전체 platform PASS가 아니다. 현재 source의 전체 원격 실행,
+이전 실패 확인·원본 대조·독립 기준·C1 전체 수용은 남아 있다. 모든 변경은 통합 PR #1에서 이어 간다.
+
 ## GDJ-0137 — 동기 event·명시적 logging 작성과 통합 PR 복원
 
 2026-10-23, 제품 source `8e7e79883ad829de6504a991c0d0fb961608f580`의

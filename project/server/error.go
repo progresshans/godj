@@ -13,6 +13,7 @@ const (
 	CodeStopFailed          Code = "stop_failed"
 	CodeListenerCloseFailed Code = "listener_close_failed"
 	CodeCallbackAborted     Code = "callback_aborted"
+	CodeControlFailed       Code = "control_failed"
 )
 
 // Error exposes a closed startup/cleanup stage. Explicit errors.Is/As may

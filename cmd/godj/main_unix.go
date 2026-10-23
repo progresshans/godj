@@ -92,6 +92,9 @@ func execute(
 		return report.ExitCode
 	}
 	if len(args) != 0 && args[0] == "runserver" {
+		brokenPipe := make(chan os.Signal, 1)
+		signal.Notify(brokenPipe, syscall.SIGPIPE)
+		defer signal.Stop(brokenPipe)
 		report := projectcheck.RunServer(projectcheck.RunServerInvocation{
 			Context:     ctx,
 			CWD:         cwd,

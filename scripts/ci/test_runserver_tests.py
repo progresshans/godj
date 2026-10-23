@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 from go_test_events import discover_roots
-from runserver_tests import BATCHES, PACKAGE, SPECIAL, plan, verify
+from runserver_tests import BATCHES, OWNERS, PACKAGE, SPECIAL, plan, verify
 
 
 class RunserverExecutionTests(unittest.TestCase):
@@ -78,6 +78,23 @@ class RunserverExecutionTests(unittest.TestCase):
                         if event.get('Test') == 'TestExisting/child' and event['Action'] == 'pass': event['Action'] = 'skip'
                 if mutation == 'missing-batch': logs['fixed-module'] = []
                 with self.assertRaises(ValueError): self.verify_logs(logs)
+
+    def test_workflow_owners_partition_full_discovery_and_reject_misowned_execution(self):
+        plans = [plan(self.roots, self.required, self.postgres, owner) for owner in OWNERS]
+        self.assertEqual(Counter(name for execution in plans for name in execution['batches']), Counter(BATCHES))
+        self.assertEqual(Counter(root for execution in plans for batch in execution['batches'].values()
+                                 for root in batch['roots']), Counter(self.roots))
+        self.assertEqual({execution['discovery_sha256'] for execution in plans}, {self.execution['discovery_sha256']})
+        for execution in plans:
+            self.execution = execution
+            logs = self.logs()
+            result = self.verify_logs(logs)
+            self.assertEqual(result['verified_roots'], execution['owned_roots'])
+            name = next(iter(execution['batches']))
+            wrong = next(root for root in self.roots if root not in execution['batches'][name]['roots'])
+            logs[name][1:1] = [self.event('run', Test=wrong), self.event('pass', Test=wrong)]
+            with self.assertRaises(ValueError): self.verify_logs(logs)
+        with self.assertRaises(ValueError): plan(self.roots, self.required, self.postgres, 'unknown')
 
     def test_discovery_and_owner_manifest_fail_closed(self):
         for roots, required, postgres in (

@@ -664,26 +664,14 @@ jobs:
           awk -F'|' '$1 == "github.com/progresshans/godj/conformance/runners/godj"' scripts/ci/relation-required.txt > "$runner_required"
           python3 scripts/ci/go_test_events.py "$runner_log" --required "$runner_required" --no-skips
 
-          runserver_package="github.com/progresshans/godj/conformance/runserverproduct"
-          runserver_required=(
-            "TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime"
-            "TestGlobalFixedModuleInstallationCompatibility"
-            "TestGlobalRunserverArticleSQLiteDevelopmentLoop"
-            "TestGlobalRunserverPublishesAuthenticatedArticleAdminAndAPI"
-            "TestGlobalRunserverRejectsStaleCopiedArticleBeforeRuntime"
-            "TestRunserverHarnessForcedCleanupIncludesSeparateDescendantGroup"
-            "TestRunserverPreparationDiagnosticsExcludeArgumentsAndDistinguishUnavailableAudit"
-          )
           required="$evidence_dir/runserver-required.txt"
-          for test_name in "${runserver_required[@]}"; do
-            printf '%s|%s\n' "$runserver_package" "$test_name"
-          done > "$required"
+          cp scripts/ci/runserver-required.txt "$required"
           # Native scaffold + two independent go installations exhaust a
           # cumulative 15m package budget. Keep that budget for each complete
           # flow and discover/inventory every root, including future additions.
           discovery="$evidence_dir/runserver-discovery.json"
           go test "${json_flags[@]}" -list . ./conformance/runserverproduct > "$discovery" 2> "$evidence_dir/runserver-discovery.stderr"
-          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir")
+          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir" --owner baseline)
           python3 scripts/ci/runserver_tests.py plan "${plan_args[@]}"
           runserver_status=0
           for batch in runtime scaffold fixed-module; do
@@ -745,6 +733,150 @@ jobs:
         with:
           name: project-check-${{ matrix.platform.expected_goos }}-${{ matrix.platform.expected_goarch }}-${{ matrix.mode }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/project-check-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Require a clean worktree
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+
+  product-reload-matrix:
+    needs: validation-plan
+    name: Product reload (${{ matrix.platform.runs_on }}, ${{ matrix.mode }})
+    runs-on: ${{ matrix.platform.runs_on }}
+    timeout-minutes: 65
+    env:
+      LC_ALL: C
+      TZ: UTC
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - runs_on: "ubuntu-24.04"
+            expected_goos: "linux"
+            expected_goarch: "amd64"
+          - runs_on: "ubuntu-24.04-arm"
+            expected_goos: "linux"
+            expected_goarch: "arm64"
+          - runs_on: "macos-15-intel"
+            expected_goos: "darwin"
+            expected_goarch: "amd64"
+          - runs_on: "macos-26"
+            expected_goos: "darwin"
+            expected_goarch: "arm64"
+        mode: [normal, race, cgo0]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+          cache: true
+
+      - name: Assert runner coordinate
+        run: |
+          go version
+          go env GOOS GOARCH
+          test "$(go env GOOS)" = "${{ matrix.platform.expected_goos }}"
+          test "$(go env GOARCH)" = "${{ matrix.platform.expected_goarch }}"
+
+      - name: Initialize project-reload evidence
+        id: reload-evidence
+        env:
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          GODJ_TEST_MODE: ${{ matrix.mode }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          directory = pathlib.Path(os.environ['RUNNER_TEMP']) / 'project-reload-evidence'
+          directory.mkdir()
+          def read(*args):
+              return subprocess.check_output(args, text=True).strip()
+          source = {
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'run_id': os.environ['GITHUB_RUN_ID'],
+              'run_attempt': os.environ['GITHUB_RUN_ATTEMPT'],
+              'event': os.environ['GITHUB_EVENT_NAME'],
+              'event_head': os.environ['GODJ_SOURCE_HEAD'],
+              'checkout': read('git', 'rev-parse', 'HEAD'),
+              'tree': read('git', 'rev-parse', 'HEAD^{tree}'),
+              'status': read('git', 'status', '--porcelain=v1'),
+              'mode': os.environ['GODJ_TEST_MODE'],
+              'go': json.loads(read('go', 'env', '-json', 'GOVERSION', 'GOOS', 'GOARCH')),
+          }
+          if source['status']:
+              raise SystemExit('project-reload source is dirty before execution')
+          (directory / 'source.json').write_text(json.dumps(source, sort_keys=True) + '\n')
+          PY
+
+      - name: Prewarm external app dependencies
+        timeout-minutes: 3
+        run: go mod download all
+
+      - name: Run and inventory complete reload flows
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/project-reload-evidence"
+          # Each flow includes repeated build, startup, persistence and shutdown
+          # boundaries. Give each its own bounded 25m package execution.
+          flags=(-timeout=25m -json -count=1)
+          case "${{ matrix.mode }}" in
+            normal) ;;
+            race) flags+=(-race) ;;
+            cgo0) export CGO_ENABLED=0 ;;
+            *) exit 1 ;;
+          esac
+          required="$evidence_dir/runserver-required.txt"
+          cp scripts/ci/runserver-required.txt "$required"
+          discovery="$evidence_dir/runserver-discovery.json"
+          go test "${flags[@]}" -list . ./conformance/runserverproduct > "$discovery" 2> "$evidence_dir/runserver-discovery.stderr"
+          plan_args=(--discovery "$discovery" --required "$required" --postgres scripts/ci/postgres-core-required.txt --directory "$evidence_dir" --owner reload)
+          python3 scripts/ci/runserver_tests.py plan "${plan_args[@]}"
+          runserver_status=0
+          for batch in reload-notes reload-article; do
+            log="$evidence_dir/runserver-${batch}.json"
+            stderr_log="$evidence_dir/runserver-${batch}.stderr"
+            status=0
+            go test "${flags[@]}" -run "$(cat "$evidence_dir/runserver-${batch}-run.txt")" ./conformance/runserverproduct > "$log" 2> "$stderr_log" || status=$?
+            if [ "$status" -ne 0 ]; then
+              python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true
+              runserver_status=1
+            fi
+          done
+          python3 scripts/ci/runserver_tests.py verify "${plan_args[@]}"
+          test "$runserver_status" = 0
+
+      - name: Seal project-reload evidence
+        if: always() && steps.reload-evidence.outcome == 'success'
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib
+          directory = pathlib.Path(os.environ['RUNNER_TEMP']) / 'project-reload-evidence'
+          entries = []
+          for path in sorted(directory.iterdir()):
+              if path.is_symlink() or not path.is_file():
+                  raise SystemExit('irregular project-reload evidence')
+              digest = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1 << 20), b''):
+                      digest.update(chunk)
+              entries.append(f'{digest.hexdigest()}  {path.name}\n')
+          (directory / 'SHA256SUMS').write_text(''.join(entries))
+          PY
+
+      - name: Publish project-reload evidence
+        if: always() && steps.reload-evidence.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: project-reload-${{ matrix.platform.expected_goos }}-${{ matrix.platform.expected_goarch }}-${{ matrix.mode }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/project-reload-evidence/
           if-no-files-found: error
           retention-days: 14
 
@@ -1457,6 +1589,7 @@ jobs:
       - exact-darwin-validation
       - relation-product-matrix
       - product-project-check-matrix
+      - product-reload-matrix
       - command-product-matrix
       - python-compatibility-matrix
       - postgresql-product

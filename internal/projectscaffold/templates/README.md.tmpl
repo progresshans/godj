@@ -49,10 +49,21 @@ separate production entrypoint.
 - Keep generated Go source, `go.mod`, `go.sum`, migrations and
   `.godj/generated-manifest.json` with the project source.
 
+`godj runserver` watches source, embedded assets, module declarations, generated
+manifests and used local replacements. It keeps the same address and activates a
+candidate only after source checks, compilation and application startup succeed.
+Already admitted requests finish in the old application before its resources
+close. A rejected candidate leaves the current app running and reports
+`project_runserver_reload_rejected/CODE` on stderr. Use `godj runserver --no-reload`
+for a single build without watching. Restart to change environment variables.
+
 After changing a model, run `godj generate`, `godj makemigrations`, inspect the
-new migration, then run `godj migrate`. Stop and restart `godj runserver` to load
-the changes. Generation and server startup do not apply migrations or change
-stored account permissions automatically.
+new migration, then run `godj migrate`. Save a source change or restart the server
+after migration to retry a rejected candidate. Ordinary database writes do not
+trigger rebuilds. Generation and server startup do not apply migrations or change
+stored account permissions automatically. Check required schema and resources in
+application startup; reload does not make incompatible database migrations safe
+for the still-running application.
 
 ## Add an app
 

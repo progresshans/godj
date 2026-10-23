@@ -70,6 +70,14 @@ func runWithListener(
 	if openBackend == nil || listen == nil {
 		return errors.New("article site: nil resource opener")
 	}
+	// The shared development entry point owns the optional supervisor argument.
+	// Article only parses its own direct-serve database flag; external copies do
+	// not import an internal control protocol or interpret inherited descriptors.
+	developmentArgs := arguments
+	supervised := len(arguments) == 4 && arguments[0] == "serve" && arguments[1] == "--listen"
+	if supervised {
+		arguments = arguments[:3]
+	}
 	config, err := parseServeConfig(arguments, stderr)
 	if err != nil {
 		return err
@@ -82,7 +90,7 @@ func runWithListener(
 	if err != nil {
 		return err
 	}
-	return projectserver.Run(ctx, projectserver.Config{
+	serverConfig := projectserver.Config{
 		Start: func(startContext context.Context) (projectserver.Runtime, error) {
 			backend, err := openBackend(startContext, selected)
 			var runtime projectserver.Runtime
@@ -115,7 +123,12 @@ func runWithListener(
 			}
 			return err
 		},
-	})
+	}
+	if supervised {
+		serverConfig.Listen = nil
+		return projectserver.Serve(ctx, developmentArgs, serverConfig)
+	}
+	return projectserver.Run(ctx, serverConfig)
 }
 
 func applicationForServe(

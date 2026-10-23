@@ -8,8 +8,8 @@
 
 ## 다음
 
-1. Event/logging·scaffold·독립 고정 module과 PostgreSQL 기본 앱 흐름을 현재 source의 원격 CI에서 확인한다.
-2. Reload를 서로 다른 외부 앱에 연결하고 독립 기준을 대조한다.
+1. Reload·event/logging·scaffold·독립 고정 module과 PostgreSQL 기본 앱 흐름을 현재 source의 원격 CI에서 확인한다.
+2. 두 외부 앱의 reload 실행과 독립 기준을 대조하고 이전 CI의 소스 목록·시간 초과 실패를 확인한다.
 3. C1의 필수 원격 실행·독립 기준·원본을 대조하고 다음 I1의 요구와 전환 조건을 유지한다.
 
 ## 검증 경계

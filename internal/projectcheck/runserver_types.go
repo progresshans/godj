@@ -47,6 +47,11 @@ const (
 	RunServerCodeProjectInterrupted            = "project_interrupted"
 	RunServerCodeProjectCleanupFailed          = "project_cleanup_failed"
 	RunServerCodeProjectInternalError          = "project_internal_error"
+	RunServerCodeSourceInventoryFailed         = "project_source_inventory_failed"
+	RunServerCodeSourceChanged                 = "project_source_changed"
+	RunServerCodeRuntimeControlFailed          = "project_runtime_control_failed"
+	RunServerCodeRuntimeReadinessFailed        = "project_runtime_readiness_failed"
+	RunServerCodeListenerFailed                = "project_listener_failed"
 )
 
 // RunServerResult records the selected public address after the runtime child
@@ -60,14 +65,18 @@ type RunServerResult struct {
 // runserver-specific preflight and live-child lifecycle.
 type RunServerReport struct {
 	Report
-	RuntimeBuildCalls   int
-	RuntimeStartCalls   int
-	PreflightChecks     int
-	GeneratedDriftCount int
-	HasRunServerResult  bool
-	RunServerResult     RunServerResult
-	HasRunServerFailure bool
-	RunServerFailure    RunServerFailure
+	RuntimeBuildCalls    int
+	RuntimeStartCalls    int
+	PreflightChecks      int
+	GeneratedDriftCount  int
+	SourceInventoryCalls int
+	ReloadAttempts       int
+	ReloadPublished      int
+	ReloadRejected       int
+	HasRunServerResult   bool
+	RunServerResult      RunServerResult
+	HasRunServerFailure  bool
+	RunServerFailure     RunServerFailure
 }
 
 // RunServerInvocation is snapshotted before argument validation performs any
@@ -85,9 +94,12 @@ type RunServerInvocation struct {
 	workspace   workspaceHooks
 	generation  generationHooks
 	runtime     runserverRuntimeHooks
+	sourceFence bool
 }
 
-const defaultRunserverGrace = 7 * time.Second
+// Default HTTP drain (5s) and cooperative application cleanup (10s) fit inside
+// the process owner's grace. An uncooperative process is still force-reaped.
+const defaultRunserverGrace = 20 * time.Second
 
 type runserverRuntimeHooks struct {
 	execute func(context.Context, <-chan struct{}, Command, io.Writer, io.Writer, time.Duration) runserverProcessResult

@@ -216,6 +216,10 @@ HTTP server는 graceful shutdown 기한 뒤 연결을 강제로 닫은 경우에
 [`project/server`](../project/server/README.md)는 프로젝트의 Start/Listen/Ready와 HTTP drain·Stop을 한 invocation에서 조정한다.
 Startup 취소는 앱 context에 전달하지만 준비 완료 뒤에는 HTTP 요청의 drain이 끝나야 앱 context를 취소한다.
 프로젝트가 설정·backend·인가 정책을 소유하며 공통 server가 migration이나 resource를 추측해 생성하지 않는다.
+`project/server.Serve`는 전역 개발 서버가 넘긴 listener/control channel을 검증하고 후보의 준비와 요청 수신을 분리한다.
+기본 `runserver` watch는 source·bundle·build·startup을 확인한 후보를 같은 주소에 게시하며, 기존 요청의 drain과
+실패 후보·자손·workspace 회수를 join한다. `--no-reload`는 단일 실행이다. 환경 변경·DB migration·계정 변경은 명시적인
+사용자 작업으로 남긴다. 자세한 수명과 제한은 [ADR-0042](adr/0042-project-linked-runserver-and-article-development-loop.md)를 따른다.
 
 잘못된 argv와 descriptor는 불필요한 build/init/I/O 전에 거부한다. 실제 child 실행은 timeout·cancel·signal·stdout/stderr·reap의
 소유자를 하나로 둔다. 성공 결과는 strict bounded protocol로 검증한 뒤 게시한다. Child/build의 실패 원인을 보존하되

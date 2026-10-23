@@ -20,6 +20,7 @@ func TestCompatibilityChecksEveryContractAndEffectiveVersion(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, mutate := range []func(*Info){
+		func(i *Info) { i.Contract.Runserver++ }, func(i *Info) { i.Contract.Runserver = 0 },
 		func(i *Info) { i.Contract.Schema++ }, func(i *Info) { i.Contract.Bundle++ }, func(i *Info) {
 			i.Contract.Generator = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 		},

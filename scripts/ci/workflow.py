@@ -13,6 +13,7 @@ JOBS = frozenset({
     'exact-darwin-validation',
     'relation-product-matrix',
     'product-project-check-matrix',
+    'product-reload-matrix',
     'command-product-matrix',
     'python-compatibility-matrix',
     'postgresql-product',
