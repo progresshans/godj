@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/account/domain"
+	"github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity/domain"
-	"github.com/progresshans/godj/identity/domain/models"
 	accounts "github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/migrations"
 	mb "github.com/progresshans/godj/migrations/backend"

@@ -32,6 +32,8 @@ func TestAccountSelectionOwnsGeneratedBindingAndProjectSnapshot(t *testing.T) {
 	for _, required := range []string{
 		"func BindAccount() (_godjaccountmodel.Binding[identity.User], error)",
 		"identity.UserDescriptor{}", "identity.GoDjRelationSchema()", "Constant: &_staff", "_staff := false",
+		"func NewAccountCredentialStore(", "func NewAccountAuthenticator(",
+		"identity.GroupDescriptor{}", "identity.PermissionDescriptor{}",
 	} {
 		if !bytes.Contains(source, []byte(required)) {
 			t.Fatalf("generated account binding is missing %q", required)

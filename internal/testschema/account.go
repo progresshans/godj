@@ -16,7 +16,7 @@ func CustomAccount() (ir.AccountRole, []ir.Schema, error) {
 		{Name: "team", GoName: "Team", Fields: []schema.Field{
 			schema.CharField("title", "Title", 150, schema.Unique()), schema.IntegerField("version", "Version", schema.Default(int64(1))),
 		}, ManyToMany: []schema.ManyToManyField{
-			schema.ManyToMany("grants", "Grants", schema.Target("access", "grant"), schema.RelatedName("teams")),
+			schema.ManyToMany("grants", "Grants", schema.Target("access", "grant"), schema.NoReverse()),
 		}},
 	}})
 	if err != nil {
@@ -33,8 +33,8 @@ func CustomAccount() (ir.AccountRole, []ir.Schema, error) {
 			schema.BooleanField("root", "Root", schema.Default(false)),
 			schema.CharField("region", "Region", 24),
 		}, ManyToMany: []schema.ManyToManyField{
-			schema.ManyToMany("teams", "Teams", schema.Target("access", "team"), schema.RelatedName("members")),
-			schema.ManyToMany("grants", "Grants", schema.Target("access", "grant"), schema.RelatedName("members")),
+			schema.ManyToMany("teams", "Teams", schema.Target("access", "team"), schema.NoReverse()),
+			schema.ManyToMany("grants", "Grants", schema.Target("access", "grant"), schema.NoReverse()),
 		},
 	}}})
 	if err != nil {

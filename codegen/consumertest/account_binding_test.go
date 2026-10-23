@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/internal/testschema"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 //go:embed testdata/accountbinding/custom_test.go
@@ -22,13 +23,20 @@ var defaultAccountBindingConsumer []byte
 var accountBindingDatabaseConsumer []byte
 
 func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing.T) {
-	for _, custom := range []bool{false, true} {
+	for _, variant := range []struct{ custom, normalized bool }{{}, {custom: true}, {custom: true, normalized: true}} {
+		custom := variant.custom
 		name, source, required := "default", defaultAccountBindingConsumer, "TestDefaultAccountBindingOwnsTypedRows"
 		if custom {
 			name, source, required = "custom", customAccountBindingConsumer, "TestCustomAccountBindingOwnsTypedRowsAndHostGraph"
 		}
+		if variant.normalized {
+			name = "custom_normalized"
+		}
 		t.Run(name, func(t *testing.T) {
 			spec := accountBindingConsumerSpec(t, custom)
+			if variant.normalized {
+				spec.Account.AuthenticateNormalization = ir.AccountUnicode16NFKC
+			}
 			bundle, err := codegen.GenerateProject(spec)
 			if err != nil {
 				t.Fatal(err)

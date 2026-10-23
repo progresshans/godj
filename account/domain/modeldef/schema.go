@@ -34,7 +34,7 @@ func AppSpec() (codegen.AppSpec, error) {
 	}
 	return codegen.AppSpec{
 		Alias: "accountdomain", External: true, Schema: definition,
-		Package: codegen.PackageSpec{PackageName: "models", ImportPath: "github.com/progresshans/godj/identity/domain/models"},
+		Package: codegen.PackageSpec{PackageName: "models", ImportPath: "github.com/progresshans/godj/account/domain/models"},
 	}, nil
 }
 
@@ -52,7 +52,7 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	app.External = false
 	app.Package.Directory = "models"
 	return codegen.ProjectSpec{
-		Project: codegen.PackageSpec{PackageName: "project", ImportPath: "github.com/progresshans/godj/identity/domain/project", Directory: "project"},
+		Project: codegen.PackageSpec{PackageName: "project", ImportPath: "github.com/progresshans/godj/account/domain/project", Directory: "project"},
 		Apps:    []codegen.AppSpec{app},
 	}, nil
 }

@@ -150,4 +150,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_d628335754eb26580873cf194c5d70f2aa3b8a6f82877a7805593cf166808668
+var _ goDjProjectSnapshot_5eb31dbb870446d8345388637a43d6b271acd2ed726a00cb4f8459dc4527183a

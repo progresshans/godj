@@ -11,6 +11,7 @@ class PackagePartitionTests(unittest.TestCase):
     def test_slow_process_and_conformance_have_separate_owners(self):
         for relative, expected in {
             'orm': 'core', 'db/sqlite': 'core', 'codegen': 'core',
+            'account/domain': 'core', 'account/domain/models': 'core',
             'internal/testschema': 'core', 'codegen/consumertest': 'integration',
             'api/openapi': 'core', 'api/openapi/consumertest': 'integration',
             'api/openapi/consumertest/helpers': 'integration',

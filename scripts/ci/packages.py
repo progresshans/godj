@@ -36,7 +36,7 @@ RELATION_PACKAGES = {
     'conformance/internal/protocol', 'internal/compiletest',
 }
 RELATION_PREFIXES = (
-    'identity', 'conformance/identityfixture',
+    'identity', 'account/domain', 'conformance/identityfixture',
     'conformance/cascadefixture',
     'conformance/onetoonefixture',
     'conformance/relationfixture', 'conformance/relationproduct',

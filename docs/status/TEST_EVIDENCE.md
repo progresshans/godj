@@ -105,7 +105,29 @@ skip 없이 통과했다. 진행 중인 공통 조회 엔진 코드가 있는 �
 (SHA-256 `2b36e2af0d556dce9bfbe27a0f62526f8fd520d681fe7c26dda5ac99c61a58dc`).
 Native capture와 전체 환경의 새 실행 결과는 원격 CI에서 확인한다.
 
-I1의 공통 credential/관리 runtime, Form/Admin/API·첫 사용자 명령, 저장 도메인에 결합한 채운 DB의 명시적 모델 전환,
+공통 `identity/model.CredentialStore`와 생성 `NewAccountCredentialStore`/`NewAccountAuthenticator`를 작성했다.
+계정·domain·직접/그룹 권한을 같은 native snapshot에서 읽으며, 그룹·권한 descriptor도 선택 프로젝트에 묶는다.
+NoReverse 관계는 선언된 forward M2M의 역방향 Query AST를 사용한다. 새 기본/별도 모델 소비자는 임시 credential
+adapter 없이 이 저장소와 generated factory를 호출하며 Exact/NFKC 선택도 구분한다.
+
+양 DB의 권한 합집합·회수/재접속·동시 커밋 사이 snapshot 일관성·password 검증 뒤 권한/세대 재확인·callback와
+cleanup 오류·손상된 revision/code·256개 경계·0/음수 key·입력 정규화 검사를 작성해 원격 필수 목록에 추가했다.
+외부 custom 소비자는 공개 reverse accessor가 없는 catalog를 사용한다. 이 테스트 작성은 본문 실행 PASS가 아니다.
+
+재생성에서 domain 프로젝트가 기본 identity 생성 root 안에 중첩되어 13개 unowned generated entry를 발견했다.
+독립 root를 `account/domain`으로 옮기고 imports·두 attestation·CI 실행 소유권을 함께 갱신했다. 기존 domain migration
+JSON bytes는 그대로다. 아홉 프로젝트를 공개 `godj generate`로 다시 게시하고 각 manifest의 129개 파일 hash를 대조했다.
+중간 로컬 disk 부족으로 한 candidate compile이 실패했으며 Go build cache 정리 후 공개 명령을 다시 완료했다.
+생성 검증이나 원자 게시 조건을 완화하지 않았다.
+
+영향 package와 기본/사용자 정의 두 외부 module의 `go test -run '^$'` 최소 compile은 최종 source에서 exit 0이었다.
+처음 native helper의 존재하지 않는 credential getter 사용을 Principal 검사로 수정했다. 최종 compile 전후 170개 source
+hash가 같았고 외부 consumer template도 현행 파일과 같았다. 원본·환경·manifest와 source hash는 검증 보관소
+`gdj0138-common-account-store-compile-v1/receipt.json`에 있다
+(SHA-256 `01f03f5aee0f842c7e4d266b4e98e72db3dbebf0bb55d6d96c6eba0c77f5b272`).
+이 단계에서 새 DB/단위/외부 소비자 테스트 본문·race·전체 platform은 로컬에서 실행하지 않았다.
+
+I1의 공통 credential 조회는 원격 실행 확인이 필요하다. 관리 runtime, Form/Admin/API·첫 사용자 명령, 저장 도메인에 결합한 채운 DB의 명시적 모델 전환,
 password/reset/session·권한·삭제·restart의 양 DB/HTTP 실행은 아직 미완료다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한

@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/account/domain"
+	"github.com/progresshans/godj/account/domain/modeldef"
 	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/identity/domain"
-	"github.com/progresshans/godj/identity/domain/modeldef"
 	"github.com/progresshans/godj/internal/projectgenerate"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"

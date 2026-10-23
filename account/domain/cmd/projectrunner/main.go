@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/progresshans/godj/identity/domain/modeldef"
+	"github.com/progresshans/godj/account/domain/modeldef"
 	"github.com/progresshans/godj/project"
 )
 

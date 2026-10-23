@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity/domain"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
@@ -134,57 +134,22 @@ func accountPassword(t *testing.T) (*auth.PBKDF2, string) {
 	return hasher, encoded
 }
 
-// This consumer adapter exercises the generated account binding and durable
-// domain in one real snapshot. It does not implement the management runtime or
-// permission/catalog loading; these rows have no effective permissions.
-type storedAccount[M any] struct {
-	backend     database.Backend
-	binding     accountmodel.Binding[M]
-	byLogin     func(string) orm.Predicate[M]
-	byPrincipal func(string) orm.Predicate[M]
-	order       orm.Ordering[M]
-	reading     bool
+// Track the lifetime of the real native snapshot without replacing any account
+// or permission loading. The generated factory supplies the production store.
+type trackedSnapshots struct {
+	backend db.SnapshotReader
+	reading bool
 }
 
-func (store *storedAccount[M]) CredentialByUsername(ctx context.Context, value string) (auth.Credential, bool, error) {
-	return store.read(ctx, store.byLogin(value))
-}
-
-func (store *storedAccount[M]) CredentialByID(ctx context.Context, value string) (auth.Credential, bool, error) {
-	return store.read(ctx, store.byPrincipal(value))
-}
-
-func (store *storedAccount[M]) read(ctx context.Context, predicate orm.Predicate[M]) (auth.Credential, bool, error) {
-	objects, err := store.binding.Objects()
-	if err != nil {
-		return auth.Credential{}, false, err
-	}
-	var result auth.Credential
-	var found bool
-	calls := 0
-	err = store.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-		calls++
-		if calls != 1 || store.reading {
-			return errors.New("account consumer violated its read scope")
+func (scope *trackedSnapshots) ReadSnapshot(ctx context.Context, observe func(db.Queryer) error) error {
+	return scope.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+		if scope.reading {
+			return errors.New("overlapping consumer snapshot")
 		}
-		store.reading = true
-		defer func() { store.reading = false }()
-		ownership, err := store.binding.RequireDomainIn(ctx, reader)
-		if err != nil {
-			return err
-		}
-		row, present, err := objects.Using(reader).Filter(predicate).OrderBy(store.order).First(ctx)
-		if err != nil || !present {
-			return err
-		}
-		result, err = store.binding.PrepareCredential(ownership.Generation(), row, nil)
-		found = err == nil
-		return err
+		scope.reading = true
+		defer func() { scope.reading = false }()
+		return observe(reader)
 	})
-	if err != nil || calls != 1 {
-		return auth.Credential{}, false, errors.Join(err, errors.New("account credential snapshot did not complete"))
-	}
-	return result, found, nil
 }
 
 type outsideSnapshotHasher struct {
@@ -213,18 +178,14 @@ func (hasher outsideSnapshotHasher) ValidateEncoded(encoded string) error {
 	return hasher.inner.ValidateEncoded(encoded)
 }
 
-func assertStoredAccount[M any](t *testing.T, store *storedAccount[M], hasher auth.PasswordHasher, login, principalID string) auth.Credential {
+func assertStoredAccount[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], authenticator *accountmodel.Authenticator[M], login, principalID string) auth.Credential {
 	t.Helper()
-	fingerprint, err := store.binding.RoleFingerprint()
+	fingerprint, err := binding.RoleFingerprint()
 	if err != nil {
 		t.Fatal(err)
 	}
 	digest := sha256.Sum256([]byte("account binding consumer domain declaration"))
-	ownership, err := domain.Read(t.Context(), store.backend, fingerprint)
-	if err != nil {
-		t.Fatal(err)
-	}
-	authenticator, err := auth.NewStoredAuthenticator(t.Context(), store, outsideSnapshotHasher{hasher, &store.reading})
+	ownership, err := domain.Read(t.Context(), backend, fingerprint)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -236,8 +197,8 @@ func assertStoredAccount[M any](t *testing.T, store *storedAccount[M], hasher au
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
-		_, err := store.binding.RequirePrincipalDomainIn(t.Context(), transaction, unscoped)
+	if err := backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
+		_, err := binding.RequirePrincipalDomainIn(t.Context(), transaction, unscoped)
 		return err
 	}); !errors.Is(err, &auth.Error{Code: auth.CodeCredential}) {
 		t.Fatal("unscoped actor inherited a stored account by ID", err)
@@ -249,8 +210,8 @@ func assertStoredAccount[M any](t *testing.T, store *storedAccount[M], hasher au
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
-		_, err := store.binding.RequirePrincipalDomainIn(t.Context(), transaction, before.Principal())
+	if err := backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
+		_, err := binding.RequirePrincipalDomainIn(t.Context(), transaction, before.Principal())
 		if err != nil {
 			return err
 		}
@@ -259,8 +220,8 @@ func assertStoredAccount[M any](t *testing.T, store *storedAccount[M], hasher au
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
-		_, err := store.binding.RequirePrincipalDomainIn(t.Context(), transaction, before.Principal())
+	if err := backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
+		_, err := binding.RequirePrincipalDomainIn(t.Context(), transaction, before.Principal())
 		return err
 	}); !errors.Is(err, &auth.Error{Code: auth.CodeCredential}) {
 		t.Fatal("old-domain actor resolved by the same account ID", err)
@@ -273,8 +234,8 @@ func assertStoredAccount[M any](t *testing.T, store *storedAccount[M], hasher au
 	if err != nil || !fresh.MatchesSessionStamp(after.SessionStamp()) {
 		t.Fatal("new ownership generation could not authenticate independently", err)
 	}
-	if err := store.backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
-		_, err := store.binding.RequirePrincipalDomainIn(t.Context(), transaction, fresh.Principal())
+	if err := backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
+		_, err := binding.RequirePrincipalDomainIn(t.Context(), transaction, fresh.Principal())
 		return err
 	}); err != nil {
 		t.Fatal("current-domain actor could not be rechecked", err)
@@ -284,7 +245,7 @@ func assertStoredAccount[M any](t *testing.T, store *storedAccount[M], hasher au
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := store.backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
+	if err := backend.CoordinatedAtomic(t.Context(), func(transaction db.Session) error {
 		_, err := domain.TransitionIn(t.Context(), transaction, ownership, change, time.Now())
 		return err
 	}); err != nil {

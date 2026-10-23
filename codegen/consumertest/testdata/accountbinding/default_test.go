@@ -1,11 +1,14 @@
 package consumer
 
 import (
+	"errors"
+	"reflect"
 	"testing"
 	"time"
 
 	"example.com/godj-project-bundle/models"
 	"example.com/godj-project-bundle/project"
+	"github.com/progresshans/godj/auth"
 )
 
 func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
@@ -29,8 +32,59 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if err != nil || !exists || found.ID != row.ID || found.FirstName != "Alice" || !found.DateJoined.Equal(joined) {
 		t.Fatal("default binding did not use its declared typed model", err)
 	}
-	credential := assertStoredAccount(t, &storedAccount[models.User]{backend: backend, binding: binding,
-		byLogin: models.UserFields.Username.Exact, byPrincipal: models.UserFields.PrincipalID.Exact, order: models.UserFields.ID.Asc()}, hasher, "alice", "user-1")
+	// Direct, group-only and overlapping grants must form one bounded set.
+	store, err := project.NewAccountCredentialStore(backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	grants := make([]models.Permission, 3)
+	for i, code := range []string{"account.direct", "account.shared", "account.team"} {
+		grants[i], err = models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate(code, code))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	team, err := models.GroupObjects.Create(t.Context(), backend, models.NewGroupCreate("operators"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	direct, err := models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(row.ID, grants[0].ID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(row.ID, grants[1].ID)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(row.ID, team.ID)); err != nil {
+		t.Fatal(err)
+	}
+	for _, grant := range grants[1:] {
+		if _, err := models.GroupPermissionsLinkObjects.Create(t.Context(), backend, models.NewGroupPermissionsLinkCreate(team.ID, grant.ID)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	before, foundAccount, err := store.CredentialByUsername(t.Context(), "alice")
+	expected := []auth.Permission{"account.direct", "account.shared", "account.team"}
+	if err != nil || !foundAccount || !reflect.DeepEqual(before.Principal().Permissions(), expected) {
+		t.Fatal("effective permission union", err)
+	}
+	if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), backend, &direct); err != nil || count != 1 {
+		t.Fatal("direct permission removal", err)
+	}
+	after, foundAccount, err := store.CredentialByID(t.Context(), "user-1")
+	if err != nil || !foundAccount || !reflect.DeepEqual(after.Principal().Permissions(), expected[1:]) || !reflect.DeepEqual(before.Principal().Permissions(), expected) {
+		t.Fatal("fresh permissions or detached snapshot", err)
+	}
+	scope := &trackedSnapshots{backend: backend}
+	authenticator, err := project.NewAccountAuthenticator(t.Context(), scope, outsideSnapshotHasher{hasher, &scope.reading})
+	if err != nil {
+		t.Fatal(err)
+	}
+	normalized, err := authenticator.Authenticate(t.Context(), "ａｌｉｃｅ", accountPasswordText)
+	if !errors.Is(err, auth.ErrInvalidCredentials) || normalized.SessionStamp() != "" {
+		t.Fatal("exact login policy normalized input", err)
+	}
+	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("default account unexpectedly changed its stored roles")
 	}

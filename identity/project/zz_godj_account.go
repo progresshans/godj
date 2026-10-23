@@ -3,12 +3,15 @@
 package project
 
 import (
+	_godjaccountcontext "context"
+	_godjaccountauth "github.com/progresshans/godj/auth"
+	_godjaccountdb "github.com/progresshans/godj/db"
 	_godjaccountmodel "github.com/progresshans/godj/identity/model"
 	identity "github.com/progresshans/godj/identity/models"
 	ir "github.com/progresshans/godj/schema/ir"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v1"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v2"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -29,4 +32,22 @@ func BindAccount() (_godjaccountmodel.Binding[identity.User], error) {
 	)
 }
 
-var _ goDjProjectSnapshot_b8007e646758d8f6e842b43d505f5d5e090fecaba2bf03c724ddc5cc374690c5
+// NewAccountCredentialStore reads the selected typed account and effective permissions in one snapshot.
+func NewAccountCredentialStore(backend _godjaccountdb.SnapshotReader) (*_godjaccountmodel.CredentialStore[identity.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
+}
+
+// NewAccountAuthenticator applies the selected login policy and the shared current-credential verifier.
+func NewAccountAuthenticator(ctx _godjaccountcontext.Context, backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher) (*_godjaccountmodel.Authenticator[identity.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewAuthenticator(ctx, store, hasher)
+}
+
+var _ goDjProjectSnapshot_cfce7b744ea4bafcfb7a048977b3d25e7df948990100c4fd1609ef97dc328d9a

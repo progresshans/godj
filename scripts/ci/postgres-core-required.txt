@@ -4263,3 +4263,12 @@ github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/read
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/expired_scope
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/invalid_history
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/unknown_outcome_reconciliation
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/permission_union_and_freshness
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/coherent_snapshot
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/password_recheck
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/read_contract_and_cleanup
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/invalid_stored_grants
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/permission_bound
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/zero_and_negative_keys
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/selected_login_policy

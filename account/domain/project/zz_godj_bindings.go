@@ -3,8 +3,8 @@
 package project
 
 import (
+	accountdomain "github.com/progresshans/godj/account/domain/models"
 	_godjapps "github.com/progresshans/godj/apps"
-	accountdomain "github.com/progresshans/godj/identity/domain/models"
 	"github.com/progresshans/godj/orm"
 )
 
@@ -14,7 +14,7 @@ const GoDjProjectBindingGeneratorVersion = "godj-codegen-rel-project-v2"
 // It includes apps without models and does not run lifecycle hooks or open resources.
 func InstalledApps() []_godjapps.Config {
 	return []_godjapps.Config{
-		{Name: "github.com/progresshans/godj/identity/domain/models", Label: accountdomain.GoDjRelationSchema().AppLabel},
+		{Name: "github.com/progresshans/godj/account/domain/models", Label: accountdomain.GoDjRelationSchema().AppLabel},
 	}
 }
 
@@ -24,7 +24,7 @@ func Bind() (orm.ProjectBinding, error) {
 	)
 }
 
-type goDjProjectSnapshot_62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e struct{}
+type goDjProjectSnapshot_1db3795c6317876455efdb58cdfc1a03e8055c774ef0dcb36580a278abb3f246 struct{}
 
-var _ goDjProjectSnapshot_62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e
-var _ accountdomain.GoDjProjectSnapshot_62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e
+var _ goDjProjectSnapshot_1db3795c6317876455efdb58cdfc1a03e8055c774ef0dcb36580a278abb3f246
+var _ accountdomain.GoDjProjectSnapshot_1db3795c6317876455efdb58cdfc1a03e8055c774ef0dcb36580a278abb3f246

@@ -63,6 +63,12 @@ Binding은 같은 DB scope에서 저장 도메인과 actor 도메인을 검사�
 빌린 write scope에서 받은 receipt는 commit 확인 전까지 잠정 값이다. 기존 Directory/Manager에 도메인 검증을 연결하고
 catalog·typed profile·첫 계정 명령·명시적 전환을 함께 완성하는 작업은 계속 남아 있다.
 
+생성 팩토리가 선택한 계정·Group·Permission descriptor를 공통 저장소에 묶도록 작성했다. 계정·domain·직접/그룹
+권한을 한 snapshot에서 읽고 permission 한도·revision·종료 실패를 확인한다. 역방향 accessor를 숨긴 custom catalog도
+선언된 forward M2M을 기준으로 같은 ORM AST를 사용한다. 소비자의 임시 credential adapter는 제거했으며 실제 생성
+저장소와 선택된 Exact/NFKC 인증 정책을 사용한다. 독립 domain 생성 root는 기본 계정 root와 겹치지 않는
+`account/domain`으로 옮겼고 migration의 DB 의미는 유지한다. 작성한 양 DB·외부 소비자 검사의 원격 실행은 별도 확인 대상이다.
+
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
 3. 공개 명령·Form/Admin/API·password/reset·host 삭제·restart 소비자와 실패 검사를 완성한다.

@@ -47,7 +47,7 @@ generate-check:
 	python3 internal/unicode16/generate.py --check
 	python3 -m unittest discover -s internal/unicode16 -p 'test_*.py'
 	go run ./cmd/godj generate --check --project ./identity/godj.toml
-	go run ./cmd/godj generate --check --project ./identity/domain/godj.toml
+	go run ./cmd/godj generate --check --project ./account/domain/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/identityfixture/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/helpdesk/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/article/godj.toml

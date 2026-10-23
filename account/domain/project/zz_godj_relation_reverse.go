@@ -3,8 +3,8 @@
 package project
 
 import (
+	accountdomain "github.com/progresshans/godj/account/domain/models"
 	db "github.com/progresshans/godj/db"
-	accountdomain "github.com/progresshans/godj/identity/domain/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
 	ir "github.com/progresshans/godj/schema/ir"
@@ -110,4 +110,4 @@ func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e
+var _ goDjProjectSnapshot_1db3795c6317876455efdb58cdfc1a03e8055c774ef0dcb36580a278abb3f246

@@ -3,9 +3,9 @@ package model
 import (
 	"context"
 
+	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity/domain"
 )
 
 // RequireDomainIn verifies this generated binding's exact role in the caller's

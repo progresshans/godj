@@ -16,8 +16,8 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity/domain/models"
 )
 
 var (

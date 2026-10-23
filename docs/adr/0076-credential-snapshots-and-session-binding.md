@@ -802,7 +802,9 @@ Username·현재 role/grant의 행 값만 바뀌면 같은 도메인의 stamp를
 revision·저장 key의 존재를 검사한다. 명시적으로 저장한 0/음수 AutoField key를 미저장 값과 혼동하지 않는다.
 이 순수 준비 단계는 I/O·해싱·정규화·profile validation·권한 관계 조회나 durable domain 검증을 수행하지 않는다.
 
-독립 `godj_account_domain` 앱은 계정 타입에 FK를 두지 않는 추가 전용 전환 이력을 소유한다. Schema IR에서 생성한
+독립 `godj_account_domain` 앱은 계정 타입에 FK를 두지 않는 추가 전용 전환 이력을 소유한다.
+선언·생성 root는 `account/domain`이며 기본 계정의 `identity` 생성 root 안에 중첩하지 않는다. 각 프로젝트는 자기
+manifest의 파일만 게시하며 다른 프로젝트의 generated 파일을 소유하거나 무시하는 예외를 추가하지 않는다. Schema IR에서 생성한
 모델과 독립 초기 migration을 사용하며 기본 User와 옛 system migration에 의존하지 않는다. 이미 적용한 identity/system
 migration bytes를 수정하지 않는다. Sequence·operation ID·generation은 각각 unique이며 이전 receipt의 FK는 PROTECT다.
 첫 기록은 predecessor가 없고 이후 기록은 직전 sequence를 가리킨다. 현재 조회는 최신 두 기록의 이 연결과 필드 형식을
@@ -825,3 +827,31 @@ unknown write의 rollback을 확정하지 않고 원래 write fence와 작업 �
 판단을 대신하지 않는다. `Read`/`Lookup`은 정확히 한 snapshot callback과 cleanup이 성공한 뒤에만 값을 게시한다.
 이전에 얻은 receipt를 현재 권한 cache로 쓰지 않는다. 기존 Directory/Manager·startup·첫 계정 명령·Form/Admin/API와
 채운 DB의 명시적 mapping 연결은 GDJ-0138에 남아 있으며, 이 기반을 전체 모델 전환 보호 완료로 표시하지 않는다.
+
+
+## 선택 계정과 권한을 읽는 공통 저장소
+
+생성 프로젝트의 `NewAccountCredentialStore`는 선택한 실제 계정·Group·Permission descriptor를
+`identity/model.NewCredentialStore`에 묶는다. caller가 SQL이나 권한 loader를 다시 작성하지 않으며, 기본 User와
+이름·필드·catalog가 다른 모델에 같은 runtime을 사용한다. Backend는 native `ReadSnapshot`을 제공해야 한다.
+구성은 I/O 없이 같은 project owner와 정확한 IR 역할을 검사한다.
+
+한 번의 읽기는 저장된 domain·계정 행·직접 권한·소속 그룹을 통한 권한을 같은 snapshot에서 관측한다.
+권한은 선언된 M2M을 따르는 typed query와 scalar projection으로 읽고 정렬·중복 제거한다. 선택 계정의 권한을
+256개보다 많이 발견하면 잘라서 반환하지 않는다. 잘못된 계정·소속 그룹·권한 revision과 비정규 권한 code도 거부한다.
+명시적으로 저장한 0/음수 account key를 허용하며, 다른 계정이나 미할당 catalog 항목을 대신 읽지 않는다.
+계정·query 결과·권한의 전역 cache는 없고 이전 Principal의 detached 권한은 다음 관측과 독립적이다.
+
+`orm.BindInverseManyToManyQuery`는 명시적인 forward collection owner와 target을 받아 그 선언을 역방향으로 조회한다.
+공개 reverse accessor가 없는 관계도 같은 physical hop·Query AST를 사용한다. 이는 reverse namespace나 mutation
+권한을 만들지 않으며 다른 project snapshot·모델·필드와 섞지 못한다. Runtime이 역방향 이름을 추측하지 않는다.
+
+`CredentialByUsername`은 canonical login을 정확히 조회한다. 생성 `NewAccountAuthenticator`와 공통
+`identity/model.Authenticator`가 선택된 인증 입력 정책을 적용한다. Unicode 16 NFKC 선택 시 입력의 원래 byte/UTF-8
+한도를 먼저 확인하고 변환 뒤에도 공통 인증 한도를 적용한다. Exact 정책이나 대소문자를 암묵적으로 바꾸지 않는다.
+Hash·dummy 검증·encoded profile 검사는 DB snapshot 밖에서 실행하고, 기존 StoredAuthenticator가 검증 뒤 현재
+도메인·credential·active와 권한을 새 snapshot에서 다시 읽는다. 한 번의 callback 및 read cleanup·취소 확인이
+성공하기 전에 credential을 게시하지 않으며 저장 오류의 private cause는 진단 문자열에 노출하지 않는다.
+
+이 저장소는 credential 관측 경계다. Typed profile 관리·인가된 catalog 변경·첫 계정 명령·session/reset/audit
+write fence·채운 DB mapping은 같은 binding에 연결해야 하며 GDJ-0138에서 계속 추적한다.

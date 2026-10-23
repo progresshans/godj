@@ -4,8 +4,8 @@ package project
 
 import (
 	context "context"
+	accountdomain "github.com/progresshans/godj/account/domain/models"
 	db "github.com/progresshans/godj/db"
-	accountdomain "github.com/progresshans/godj/identity/domain/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
 	ir "github.com/progresshans/godj/schema/ir"
@@ -14,7 +14,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
-const GoDjProjectRelationFacadeInputSHA256 = "0f51c07473bae2437649786e35f83008faabfe51fbf5845849db5277fe97d042"
+const GoDjProjectRelationFacadeInputSHA256 = "e14f0b6e1d7393eadad1a4c4f08f15263bdabea298e81904a9d1cd935e14da27"
 
 type Backend interface {
 	db.Queryer
@@ -2286,4 +2286,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e
+var _ goDjProjectSnapshot_1db3795c6317876455efdb58cdfc1a03e8055c774ef0dcb36580a278abb3f246

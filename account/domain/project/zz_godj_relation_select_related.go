@@ -4,7 +4,7 @@ package project
 
 import (
 	context "context"
-	accountdomain "github.com/progresshans/godj/identity/domain/models"
+	accountdomain "github.com/progresshans/godj/account/domain/models"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
 	strings "strings"
@@ -271,4 +271,4 @@ func (_object *AccountdomainTransitionObject) PreviousObject(_ctx context.Contex
 	return _target, true, nil
 }
 
-var _ goDjProjectSnapshot_62c423eb8e320e3998a6268843f445668cdebced5f8e85e33d78ef1461db825e
+var _ goDjProjectSnapshot_1db3795c6317876455efdb58cdfc1a03e8055c774ef0dcb36580a278abb3f246
