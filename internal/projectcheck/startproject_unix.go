@@ -228,7 +228,11 @@ func prepareScaffoldProject(ctx context.Context, candidate string, input StartPr
 			arguments = append(arguments, "--check")
 		}
 		generated := RunGenerate(GenerationInvocation{
-			Context: ctx, CWD: candidate, Args: arguments, Environment: command.workspace.environment,
+			// Retain the cache policy already selected for this preparation.
+			// The nested command still creates its own private HOME/module/temp
+			// roots. A cold invocation retains this outer private cache instead
+			// of acquiring the caller's reusable one.
+			Context: ctx, CWD: candidate, Args: arguments, Environment: command.workspace.buildEnvironment,
 			Stdout: io.Discard, Stderr: io.Discard, Interrupt: input.Interrupt, Backend: input.Backend,
 		})
 		if generated.BuildDiagnostic != "" {

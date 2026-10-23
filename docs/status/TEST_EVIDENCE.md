@@ -3,6 +3,37 @@
 현재 변경의 실행 결과는 이 파일에 한 번만 기록한다. 설계 채택, 코드 존재, 특정 환경에서의 검증은 서로 다른 상태다.
 미실행·비대상·환경 실패를 PASS로 표현하지 않으며 다른 source의 성공을 현재 실행 결과로 옮기지 않는다.
 
+## GDJ-0137 — scaffold 중첩 generation의 compiler cache 전달
+
+2026-10-23, Mac Intel 준비 시간 초과를 좁히면서 source `79cd8752177d18e9e0154ebcccd6f5742f86b962`의
+실제 `startproject` Go 호출을 별도 wrapper로 관측했다. Darwin arm64/Go 1.26.5에서 재사용 가능한 외부 캐시를 명시했지만
+중첩 generation의 두 declaration build만 외부 준비의 빈 private cache를 사용했다. 다른 compiler 호출은 이미 선택한
+외부 캐시를 사용했다. 중첩 호출에 준비가 선택한 build 환경을 전달하도록 수정했다. 하위 명령은 자신의 HOME/module/temp를
+계속 만들며 cold·재사용 불가 캐시는 외부 준비의 private cache 안에서만 재사용한다.
+
+수정 전후의 좁은 공개 명령 실행은 모두 exit 0·stderr 0·잔여 workspace 0이었다. 같은 30개 Go 호출이 전부 실행됐고,
+수정 뒤 두 declaration build도 선택한 캐시를 사용했다. 각각 45.64초/21.18초였으나 순차 로컬 관측이며 cache warming이
+다르므로 일반 성능 수치나 Mac Intel 시간 초과 해결 증거로 쓰지 않는다. Cold/reusable/missing/group-writable 선택,
+명령·private resource 분리와 실패 cleanup·기존 caller cache 보존 검사를 작성했고 본문 실행은 원격 CI에 남겼다.
+
+같은 이전 source의 [CI 39916643040](https://github.com/progresshans/godj/actions/runs/39916643040)에서도 Mac Intel normal
+Notes root가 최초 `startproject`의 5분 제한으로 실패했다. Artifact `12484934440`의 13개 member checksum과 실제 checkout
+`a700a7df333357d54d2f90e6ab5815a55230edec`의 tree를 대조했다. Tree `7c5094d6a50a7d267de363425893d5b885883605`는
+`79cd8752`와 같다. `gdj0137-79cd8752-ci-39916643040/source-and-failure.json`의 SHA-256은
+`c870de28aa3276a26fb0dba50aa1906bdc22cbdce16062dfbae6782fa5cb4b36`이다. 이 실패가 위 캐시 전달만으로 해결되는지는 새 CI에서 확인한다.
+
+Receipt는 저장소 밖 `~/Documents/Codex/2026-10-05/godj-verification/gdj0137-scaffold-cache-repro-v1/`에 보존했다.
+
+| Receipt | SHA-256 |
+|---|---|
+| `before.json` — 기존 source의 실제 명령·30개 Go 호출 | `c497765c866326d6061a4ff67d58ea1469b0bbe2d8d041802c7e50291ce62ec2` |
+| `after.json` — 수정 후 같은 공개 명령·30개 Go 호출 | `02f02eb6735c09e856a4798fc4c3666f202fb26c2b4ed1914765980d19117d09` |
+| `compile-final.json` — 내부 package 최소 compile, 본문 미실행 | `081b5c17c95294f349c923b7fe7a680e0941274cbbb21e08fbb73e18b26ba929` |
+| `source.json` — 두 변경 source와 raw audit checksum | `af1250a875f89101030ffada34dca28a78af7697cc88074083a4ac1b9ea11372` |
+
+명령/HTTP/종료 timeout과 원격 실행 범위는 바꾸지 않았다. 이전 source의 부분 CI 결과는 최종 source의 성공이 아니며,
+새 독립 Django/Go 비교와 Mac Intel·전체 native/race/DB 검증 및 C1 수용은 계속 미완료다.
+
 ## GDJ-0137 — 독립 개발 관측과 같은 실행의 원본 비교 작성
 
 2026-10-23, 선행 source `352fe6dc5a6dd6c5382535730460fca83d740c6c`는

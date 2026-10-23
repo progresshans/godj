@@ -164,6 +164,80 @@ func TestStartProjectNestedGenerationCleanupFailurePrecedesCancellation(t *testi
 	assertStartProjectCandidateAbsent(t, fixture.project)
 }
 
+func TestStartProjectNestedGenerationKeepsSelectedCacheAndPrivateResources(t *testing.T) {
+	for _, mode := range []string{"reusable", "cold", "group-writable", "missing"} {
+		t.Run(mode, func(t *testing.T) {
+			fixture := newGlobalFixture(t, 0)
+			cache, err := filepath.EvalSymlinks(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Chmod(cache, 0o700); err != nil {
+				t.Fatal(err)
+			}
+			marker := filepath.Join(cache, "preexisting-entry")
+			if err := os.WriteFile(marker, []byte("retained"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			selected := cache
+			environment := append([]string(nil), fixture.environment...)
+			switch mode {
+			case "cold":
+				environment = append(environment, "GODJ_COLD_BUILD=1")
+			case "group-writable":
+				if err := os.Chmod(cache, 0o770); err != nil {
+					t.Fatal(err)
+				}
+			case "missing":
+				selected = filepath.Join(cache, "absent")
+			}
+			environment = append(environment, "GOCACHE="+selected)
+			var commands []Command
+			backend := startProjectBackendFunc(func(_ context.Context, _ <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
+				if stage != BuildStage {
+					t.Fatal("unexpected project runtime before failing declaration build")
+				}
+				commands = append(commands, cloneCommand(command))
+				if len(commands) == 1 {
+					return ProcessResult{Started: true, ExitCode: 0, DirectReaps: 1}
+				}
+				return ProcessResult{Started: true, ExitCode: 1, DirectReaps: 1}
+			})
+			report := RunStartProject(StartProjectInvocation{Context: t.Context(), CWD: fixture.project,
+				Args:        []string{"startproject", "example.com/site", "target", "--framework-version", "v0.1.0"},
+				Environment: environment, Stdout: io.Discard, Stderr: io.Discard, Backend: backend})
+			if report.ExitCode != 1 || report.FailureCode != "candidate_generation_failed" || report.Publication.Published || len(commands) != 2 ||
+				commands[0].Argv[1] != "list" || commands[1].Argv[1] != "build" {
+				t.Fatal("nested declaration build was skipped or published", report)
+			}
+			outer, nested := environmentValues(commands[0].Env), environmentValues(commands[1].Env)
+			if outer["GOCACHE"] == "" || nested["GOCACHE"] != outer["GOCACHE"] ||
+				(outer["GOCACHE"] == selected) != (mode == "reusable") {
+				t.Fatal("nested command lost or widened the selected compiler cache policy")
+			}
+			for _, key := range []string{"HOME", "TMPDIR", "GOTMPDIR", "GOMODCACHE"} {
+				if outer[key] == "" || nested[key] == "" || outer[key] == nested[key] {
+					t.Fatal("nested private resource was reused", key)
+				}
+				for _, path := range []string{outer[key], nested[key]} {
+					if _, err := os.Lstat(path); !errors.Is(err, os.ErrNotExist) {
+						t.Fatal("nested private resource survived", key, err)
+					}
+				}
+			}
+			if mode != "reusable" {
+				if _, err := os.Lstat(outer["GOCACHE"]); !errors.Is(err, os.ErrNotExist) {
+					t.Fatal("private compiler cache survived", err)
+				}
+			}
+			if data, err := os.ReadFile(marker); err != nil || string(data) != "retained" {
+				t.Fatal("caller cache was changed", err)
+			}
+			assertStartProjectCandidateAbsent(t, fixture.project)
+		})
+	}
+}
+
 func TestStartProjectCancellationJoinsPreparationBeforeRemovingSources(t *testing.T) {
 	fixture := newGlobalFixture(t, 0)
 	ctx, cancel := context.WithCancel(t.Context())

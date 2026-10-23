@@ -74,6 +74,9 @@ compiler 진단을 표시한다. 이 준비 예산은 실제 시나리오의 결
 생성 module의 자식 Go 명령은 `-trimpath`를 사용한다. 각 fixture의 writable 임시 디렉터리와 실행 위치는 계속 분리하면서,
 컴파일 결과에 포함되는 임시 절대경로가 동일 소스의 cache key를 매번 바꾸지 않게 한다. 기본 GOCACHE를 공유하며 별도 cache나
 고정 workspace를 매 실행마다 만들지 않는다. 새 compiler 설정의 첫 빌드는 별도 cache를 만들 수 있지만 이후 동일 입력은 재사용한다.
+Scaffold의 중첩 generation에도 해당 준비가 이미 선택한 compiler cache를 전달한다. 하위 명령의 HOME/module/temp는
+별도로 만들고 정리하며, cold-build는 invocation의 private cache를 유지한다. 공유 가능한 캐시가 있어도 모든 Go 호출과
+후보/생성물 검사는 실행하며, compiler의 결과 재사용을 command 성공이나 현재 source 검사의 생략으로 바꾸지 않는다.
 다른 디렉터리의 동일 source가 같은 BuildID/Export 파일을 사용하는지, source 변경이 새 결과를 만들고 원래 module을 건드리지
 않는지 검사한다. 모듈 밖 실행 marker로 동일 명령을 반복해도 test body가 실제 실행됨을 별도로 확인한다.
 이 설정은 `codegen/consumertest`의 자식에 한정하며 실제 경로를 검증하는 CLI/process profile에 암묵적으로 확대하지 않는다.
