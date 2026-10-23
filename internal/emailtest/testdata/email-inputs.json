@@ -1,0 +1,98 @@
+[
+  {
+    "name": "missing",
+    "value": null
+  },
+  {
+    "name": "empty",
+    "value": ""
+  },
+  {
+    "name": "spaces",
+    "value": " \t\n"
+  },
+  {
+    "name": "python_space",
+    "value": "\u001cUser@Example.COM\u001f"
+  },
+  {
+    "name": "ordinary",
+    "value": "User@Example.COM"
+  },
+  {
+    "name": "localhost",
+    "value": "member@localhost"
+  },
+  {
+    "name": "upper_localhost",
+    "value": "member@LOCALHOST"
+  },
+  {
+    "name": "idn",
+    "value": "member@도메인.한국"
+  },
+  {
+    "name": "unicode_local",
+    "value": "사용자@example.com"
+  },
+  {
+    "name": "quoted",
+    "value": "\"a b\"@example.com"
+  },
+  {
+    "name": "ipv4",
+    "value": "user@[127.0.0.1]"
+  },
+  {
+    "name": "ipv6",
+    "value": "user@[::1]"
+  },
+  {
+    "name": "trailing_dot",
+    "value": "user@example.com."
+  },
+  {
+    "name": "consecutive_local_dots",
+    "value": "first..last@example.com"
+  },
+  {
+    "name": "display_name",
+    "value": "Someone <user@example.com>"
+  },
+  {
+    "name": "nul",
+    "value": "user\u0000@example.com"
+  },
+  {
+    "name": "quoted_nul",
+    "value": "\"user\u0000\"@example.com"
+  },
+  {
+    "name": "valid_254",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+  },
+  {
+    "name": "valid_255",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+  },
+  {
+    "name": "valid_320",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+  },
+  {
+    "name": "over_320",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+  },
+  {
+    "name": "invalid_long_nul",
+    "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\u0000"
+  },
+  {
+    "name": "bare_at",
+    "value": "@"
+  },
+  {
+    "name": "bounded_form_length",
+    "value": "long-local@example.com"
+  }
+]

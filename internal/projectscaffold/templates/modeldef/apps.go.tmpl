@@ -1,0 +1,12 @@
+package modeldef
+
+import "github.com/progresshans/godj/schema"
+
+// Applications is the declaration source for project-owned apps. Define
+// models here, then run godj generate and godj makemigrations explicitly.
+// Generated model packages are outputs and must not be imported here.
+func Applications() []schema.Definition {
+	return []schema.Definition{
+		{AppLabel: "site"},
+	}
+}

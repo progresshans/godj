@@ -1,0 +1,558 @@
+// Command browser is an isolated local Admin UI fixture, not a deployed server.
+// It creates and removes its own SQLite database. Synthetic logins use
+// editor, noadd, readonly or viewer with password demo-password.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"syscall"
+	"time"
+
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/db/sqlite"
+	"github.com/progresshans/godj/examples/helpdesk"
+	"github.com/progresshans/godj/examples/helpdesk/models"
+	"github.com/progresshans/godj/examples/helpdesk/project"
+	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/sessions"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/validation"
+	"github.com/progresshans/godj/web"
+	"github.com/progresshans/godj/web/sessionauth"
+)
+
+func main() {
+	if err := run(); err != nil {
+		log.Fatal(err)
+	}
+}
+func run() (runErr error) {
+	mode := os.Getenv("GODJ_ADMIN_BROWSER_MODE")
+	if mode == "collections" {
+		return runCollectionFixture()
+	}
+	if mode == "choices" {
+		return runChoiceFixture()
+	}
+	if mode != "" && mode != "inline" && mode != "uploads" {
+		return errors.New("invalid Admin browser fixture mode")
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	directory, err := os.MkdirTemp("", "godj-inline-browser-")
+	if err != nil {
+		return err
+	}
+	defer func() { runErr = errors.Join(runErr, os.RemoveAll(directory)) }()
+	backend, err := sqlite.Open(ctx, "file:"+filepath.Join(directory, "fixture.sqlite3")+"?_busy_timeout=5000")
+	if err != nil {
+		return err
+	}
+	defer func() { runErr = errors.Join(runErr, backend.Close()) }()
+	sources, _, err := definition.Load(helpdesk.MigrationSources()...)
+	if err != nil {
+		return err
+	}
+	if _, err = (migrations.Executor{Backend: backend}).Migrate(ctx, sources, migrations.LatestLifecycleRequest()); err != nil {
+		return err
+	}
+	category, err := models.CategoryObjects.Create(ctx, backend, models.NewCategoryCreate("Browser category"))
+	if err != nil {
+		return err
+	}
+	originalLabel, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Original __prefix__", category.ID))
+	if err != nil {
+		return err
+	}
+	originalTicket, err := models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Existing ticket", category.ID))
+	if err != nil {
+		return err
+	}
+	configured, err := settings.New(settings.Definition{ProjectName: "inline_browser", InstalledApps: helpdesk.InstalledApps()})
+	if err != nil {
+		return err
+	}
+	builder := admin.NewBuilder(configured.Apps())
+	binding, err := project.Bind()
+	if err != nil {
+		return err
+	}
+	relations, err := project.BindRelations()
+	if err != nil {
+		return err
+	}
+	deleters, err := project.BindRelationDeleters()
+	if err != nil {
+		return err
+	}
+	loadLabels := func(ctx context.Context, q db.Queryer, id int64) ([]models.Label, error) {
+		rows, err := models.LabelObjects.Using(q).Filter(relations.ModelsLabel.Category.ID.Exact(id)).OrderBy(models.LabelFields.ID.Asc()).Limit(5)
+		if err != nil {
+			return nil, err
+		}
+		return rows.All(ctx)
+	}
+	loadTickets := func(ctx context.Context, q db.Queryer, id int64) ([]models.Ticket, error) {
+		rows, err := models.TicketObjects.Using(q).Filter(relations.ModelsTicket.Category.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).Limit(4)
+		if err != nil {
+			return nil, err
+		}
+		return rows.All(ctx)
+	}
+	labels, err := newInline(binding, models.LabelObjects, "labels", []string{"name"}, 0, 4, backend, loadLabels)
+	if err != nil {
+		return err
+	}
+	tickets, err := newInline(binding, models.TicketObjects, "tickets", []string{"subject", "closed"}, 1, 3, backend, loadTickets)
+	if err != nil {
+		return err
+	}
+	parentSpec, err := formmodel.NewSpecForFields(models.CategoryDescriptor{}.Metadata(), []string{"name"})
+	if err != nil {
+		return err
+	}
+	projector, err := admin.NewModelProjector(models.CategoryDescriptor{}.Metadata(), models.CategoryDescriptor{}.WriteFieldValue, "id", "name")
+	if err != nil {
+		return err
+	}
+	save := func(ctx context.Context, actor auth.Principal, id int64, bound formmodel.BoundForm, input admin.InlineSubmission) (models.Category, []string, error) {
+		var parent models.Category
+		var changed []string
+		err := backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+			permission := auth.Permission("helpdesk.add_category")
+			if id != 0 {
+				permission = "helpdesk.change_category"
+			}
+			if !actor.Has(permission) {
+				return admin.NewOperationError(admin.OperationDenied, nil)
+			}
+			if id != 0 {
+				current, found, err := models.CategoryObjects.Using(session).Filter(models.CategoryFields.ID.Exact(id)).OrderBy(models.CategoryFields.ID.Asc()).First(ctx)
+				if err != nil {
+					return err
+				}
+				if !found {
+					return admin.ErrObjectNotFound
+				}
+				parent = current
+			}
+			// The pending or saved parent is bound before assigning a new key.
+			before := parent
+			prepared, err := formmodel.PrepareInstance(models.CategoryObjects, bound, &parent)
+			if err != nil {
+				return err
+			}
+			parent, err = prepared.Model()
+			if err != nil {
+				return err
+			}
+			if id == 0 || parent.Name != before.Name {
+				if err = prepared.Save(ctx, session, &parent); err != nil {
+					return err
+				}
+				changed = append(changed, "name")
+			}
+			for index, save := range []func() (bool, error){
+				func() (bool, error) {
+					return saveRows(ctx, session, actor, labels, before, parent, "labels", input, loadLabels, deleters.ModelsLabel.DeleteInSession)
+				},
+				func() (bool, error) {
+					return saveRows(ctx, session, actor, tickets, before, parent, "tickets", input, loadTickets, deleters.ModelsTicket.DeleteInSession)
+				},
+			} {
+				any, err := save()
+				if err != nil {
+					return err
+				}
+				if any {
+					changed = append(changed, []string{"labels", "tickets"}[index])
+				}
+			}
+			return nil
+		})
+		return parent, changed, err
+	}
+	err = admin.RegisterModel(builder, admin.ModelConfig[models.Category]{AppLabel: "helpdesk", Slug: "categories", Model: models.CategoryDescriptor{}.Metadata(), FormFields: []string{"name"}, ListFields: []string{"id", "name"}, Inlines: []admin.Inline{labels.View(), tickets.View()}, Permissions: permissions("category"),
+		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Category], error) {
+			rows := models.CategoryObjects.Using(backend).OrderBy(models.CategoryFields.ID.Asc())
+			total, err := rows.Count(ctx)
+			if err != nil {
+				return admin.Page[models.Category]{}, err
+			}
+			rows, err = rows.Offset(request.Offset)
+			if err != nil {
+				return admin.Page[models.Category]{}, err
+			}
+			rows, err = rows.Limit(request.Limit)
+			if err != nil {
+				return admin.Page[models.Category]{}, err
+			}
+			items, err := rows.All(ctx)
+			return admin.Page[models.Category]{Items: items, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+		},
+		Get: func(ctx context.Context, _ auth.Principal, id int64) (models.Category, bool, error) {
+			return models.CategoryObjects.Using(backend).Filter(models.CategoryFields.ID.Exact(id)).OrderBy(models.CategoryFields.ID.Asc()).First(ctx)
+		},
+		Snapshot: func(value models.Category) (admin.Object, error) {
+			return projector.Project(value, value.ID, value.Name)
+		},
+		Initial: func(value models.Category) (map[string]forms.Value, error) {
+			return formmodel.InitialValues(models.CategoryDescriptor{}.Metadata(), parentSpec, value, models.CategoryDescriptor{}.WriteFieldValue)
+		},
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, input admin.InlineSubmission) (models.Category, error) {
+			value, _, err := save(ctx, p, 0, bound, input)
+			return value, err
+		},
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, input admin.InlineSubmission) (models.Category, []string, error) {
+			return save(ctx, p, m.ID, bound, input)
+		},
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (models.Category, error) {
+			return models.Category{}, admin.NewOperationError(admin.OperationDenied, nil)
+		},
+	})
+	if err != nil {
+		return err
+	}
+	registry, err := builder.Build()
+	if err != nil {
+		return err
+	}
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10000})
+	if err != nil {
+		return err
+	}
+	password, err := hasher.Hash(ctx, "demo-password")
+	if err != nil {
+		return err
+	}
+	var credentials []auth.Credential
+	for _, role := range []string{"editor", "noadd", "readonly", "viewer"} {
+		grants := []auth.Permission{"helpdesk.view_category"}
+		if role != "viewer" {
+			grants = append(grants, "helpdesk.add_category", "helpdesk.change_category")
+		}
+		for _, child := range []string{"labels", "tickets"} {
+			grants = append(grants, auth.Permission("helpdesk.view_"+child))
+			if role == "editor" || role == "noadd" {
+				grants = append(grants, auth.Permission("helpdesk.change_"+child), auth.Permission("helpdesk.delete_"+child))
+			}
+			if role == "editor" {
+				grants = append(grants, auth.Permission("helpdesk.add_"+child))
+			}
+		}
+		principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: role, Active: true, Staff: true, Permissions: grants})
+		if err != nil {
+			return err
+		}
+		credential, err := auth.NewCredential(role, password, principal)
+		if err != nil {
+			return err
+		}
+		credentials = append(credentials, credential)
+	}
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	if err != nil {
+		return err
+	}
+	memory, err := sessions.NewMemoryStore(64)
+	if err != nil {
+		return err
+	}
+	manager, err := sessions.NewManager(memory, sessions.Config{})
+	if err != nil {
+		return err
+	}
+	allowed, err := admin.SiteAllowedNextPaths(registry, "/admin")
+	if err != nil {
+		return err
+	}
+	authentication, err := sessionauth.New(sessionauth.Config{Sessions: manager, Authenticator: authenticator, Authorizer: auth.PrincipalAuthorizer{}, SessionCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowed})
+	if err != nil {
+		return err
+	}
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "helpdesk", Registry: registry, Auth: authentication})
+	if err != nil {
+		return err
+	}
+	app, err := web.NewApplication(web.Config{Settings: configured, Routes: site.Routes(), Logger: slog.New(slog.NewTextHandler(os.Stderr, nil))})
+	if err != nil {
+		return err
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return err
+	}
+	server := &http.Server{Handler: app, ReadHeaderTimeout: 5 * time.Second}
+	result := make(chan error, 1)
+	go func() { result <- server.Serve(listener) }()
+	fmt.Printf("http://%s/admin/categories/change/?id=%d\n", listener.Addr(), category.ID)
+	fmt.Printf("fixture_pid=%d\n", os.Getpid())
+	select {
+	case err := <-result:
+		return err
+	case <-ctx.Done():
+		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdown); err != nil {
+			return err
+		}
+		select {
+		case err := <-result:
+			if !errors.Is(err, http.ErrServerClosed) {
+				return err
+			}
+		case <-shutdown.Done():
+			return shutdown.Err()
+		}
+		if mode != "" {
+			return recordNativeState(shutdown, backend, category, originalLabel, originalTicket)
+		}
+		return nil
+	}
+}
+
+func recordNativeState(ctx context.Context, reader db.Queryer, category models.Category, label models.Label, ticket models.Ticket) error {
+	categoryQuery, err := models.CategoryObjects.Using(reader).OrderBy(models.CategoryFields.ID.Asc()).Limit(101)
+	if err != nil {
+		return err
+	}
+	categories, err := categoryQuery.All(ctx)
+	if err != nil {
+		return err
+	}
+	labelQuery, err := models.LabelObjects.Using(reader).OrderBy(models.LabelFields.ID.Asc()).Limit(101)
+	if err != nil {
+		return err
+	}
+	labels, err := labelQuery.All(ctx)
+	if err != nil {
+		return err
+	}
+	ticketQuery, err := models.TicketObjects.Using(reader).OrderBy(models.TicketFields.ID.Asc()).Limit(101)
+	if err != nil {
+		return err
+	}
+	tickets, err := ticketQuery.All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(categories) < 1 || len(categories) > 100 || len(labels) < 1 || len(labels) > 100 || len(tickets) < 1 || len(tickets) > 100 {
+		return errors.New("fixture native state outside its complete row budget")
+	}
+	for _, same := range []func() (bool, error){
+		func() (bool, error) { return unchangedStored(models.CategoryObjects, category, categories[0]) },
+		func() (bool, error) { return unchangedStored(models.LabelObjects, label, labels[0]) },
+		func() (bool, error) { return unchangedStored(models.TicketObjects, ticket, tickets[0]) },
+	} {
+		unchanged, err := same()
+		if err != nil {
+			return err
+		}
+		if !unchanged {
+			return errors.New("browser changed a preexisting fixture row")
+		}
+	}
+	state := struct {
+		InitialRowsUnchanged bool             `json:"initial_rows_unchanged"`
+		Categories           []map[string]any `json:"categories"`
+		Labels               []map[string]any `json:"labels"`
+		Tickets              []map[string]any `json:"tickets"`
+		Links                int64            `json:"links"`
+		Reports              int64            `json:"reports"`
+	}{InitialRowsUnchanged: true}
+	for _, value := range categories {
+		state.Categories = append(state.Categories, map[string]any{"id": value.ID, "name": value.Name})
+	}
+	for _, value := range labels {
+		state.Labels = append(state.Labels, map[string]any{"id": value.ID, "category": value.CategoryID, "name": value.Name})
+	}
+	for _, value := range tickets {
+		state.Tickets = append(state.Tickets, map[string]any{"id": value.ID, "category": value.CategoryID, "subject": value.Subject, "closed": value.Closed})
+	}
+	state.Links, err = models.TicketLabelObjects.Using(reader).Count(ctx)
+	if err != nil {
+		return err
+	}
+	state.Reports, err = models.ServiceReportObjects.Using(reader).Count(ctx)
+	if err != nil {
+		return err
+	}
+	return json.NewEncoder(os.Stdout).Encode(state)
+}
+
+func unchangedStored[M any](manager orm.Manager[M], before, after M) (bool, error) {
+	left, err := manager.ModelValues(before)
+	if err != nil {
+		return false, err
+	}
+	right, err := manager.ModelValues(after)
+	if err != nil {
+		return false, err
+	}
+	if len(left) != len(right) {
+		return false, nil
+	}
+	for name, value := range left {
+		current, found := right[name]
+		if !found || !value.Equal(current) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func permissions(model string) admin.Permissions {
+	return admin.Permissions{View: auth.Permission("helpdesk.view_" + model), Add: auth.Permission("helpdesk.add_" + model), Change: auth.Permission("helpdesk.change_" + model), Delete: auth.Permission("helpdesk.delete_" + model)}
+}
+func policy(prefix string, extra, maximum int) forms.SetConfig {
+	c := forms.DefaultSetConfig()
+	c.Prefix = prefix
+	c.ExtraForms = extra
+	if prefix == "tickets" {
+		c.ExtraForms = 0
+		c.MinForms = 2
+		c.ValidateMin = true
+	}
+	c.MaxForms = maximum
+	c.AbsoluteMax = maximum + 1
+	c.ValidateMax = true
+	c.CanDelete = true
+	return c
+}
+func newInline[C any](binding orm.ProjectBinding, manager orm.Manager[C], prefix string, fields []string, extra, maximum int, reader db.Queryer, load func(context.Context, db.Queryer, int64) ([]C, error)) (admin.ModelInline[models.Category, C], error) {
+	definition, err := browserFormDefinition(prefix, fields)
+	if err != nil {
+		return admin.ModelInline[models.Category, C]{}, err
+	}
+	return admin.NewInline(admin.InlineConfig[models.Category, C]{Project: binding, Parent: models.CategoryObjects, Child: manager, ParentWithID: models.NewCategoryWithID, ForeignKey: "category", Label: prefix, Form: admin.FormConfig{Definition: definition}, Set: policy(prefix, extra, maximum), Permissions: permissions(prefix), Load: func(ctx context.Context, _ auth.Principal, id int64) (admin.InlineSnapshot[C], error) {
+		current, err := load(ctx, reader, id)
+		if err == nil && len(current) > maximum {
+			err = errors.New("fixture cohort overflow")
+		}
+		return admin.InlineSnapshot[C]{Current: current}, err
+	}})
+}
+
+func saveRows[C any](ctx context.Context, session db.RelationSession, actor auth.Principal, inline admin.ModelInline[models.Category, C], before, parent models.Category, prefix string, input admin.InlineSubmission, load func(context.Context, db.Queryer, int64) ([]C, error), remove func(context.Context, db.RelationSession, C) (int64, error)) (bool, error) {
+	bound, present, err := inline.BindCurrent(ctx, actor, input, func(work context.Context, access admin.InlineAccess) (admin.InlineCurrent[models.Category, C], error) {
+		current := admin.InlineCurrent[models.Category, C]{Parent: before}
+		if before.ID != 0 && (access.View || access.Change) {
+			var err error
+			current.Children.Current, err = load(work, session, before.ID)
+			if err != nil {
+				return current, err
+			}
+		}
+		return current, nil
+	})
+	if err != nil || !present {
+		return false, err
+	}
+	set, access := bound.Set(), bound.Access()
+	if !set.Valid() {
+		return false, admin.RejectInline(prefix, -1, validation.NewErrors(validation.New(validation.NonField, "stale_inline")), nil)
+	}
+	prepared, err := set.PrepareWithParent(parent)
+	if err != nil {
+		return false, err
+	}
+	changed := false
+	for _, deleted := range prepared.Deleted() {
+		if !access.Delete || !actor.Has(permissions(prefix).Delete) {
+			return false, admin.NewOperationError(admin.OperationDenied, nil)
+		}
+		value, err := deleted.Model()
+		if err != nil {
+			return false, err
+		}
+		if _, err = remove(ctx, session, value); err != nil {
+			return false, err
+		}
+		changed = true
+	}
+	for _, row := range prepared.Rows() {
+		if err := validateLabelUpload(ctx, prefix, row.Index(), row.Prepared().Input()); err != nil {
+			return false, err
+		}
+		if row.Existing() && len(row.Changed()) == 0 {
+			continue
+		}
+		if row.Existing() && (!access.Change || !actor.Has(permissions(prefix).Change)) || !row.Existing() && (!access.Add || !actor.Has(permissions(prefix).Add)) {
+			return false, admin.NewOperationError(admin.OperationDenied, nil)
+		}
+		value, err := row.Model()
+		if err != nil {
+			return false, err
+		}
+		if err = row.Prepared().Save(ctx, session, &value); err != nil {
+			return false, err
+		}
+		changed = true
+	}
+	return changed, nil
+}
+
+// This fixture consumes an upload command; it does not claim to store files.
+// The file must contain the label name. A mismatch proves that content reached
+// the transactional consumer and exercises rollback plus browser reselection.
+func browserFormDefinition(prefix string, fields []string) (formmodel.Definition, error) {
+	definition := formmodel.Definition{Fields: fields}
+	if prefix == "labels" {
+		field, err := forms.FileField("document", forms.WithRequired(false), forms.WithLabel("Verify label file"))
+		if err != nil {
+			return definition, err
+		}
+		definition.ExtraFields = []forms.Field{field}
+	}
+	return definition, nil
+}
+
+func validateLabelUpload(ctx context.Context, prefix string, index int, input forms.Values) error {
+	if prefix != "labels" {
+		return nil
+	}
+	value, present := input.File("document")
+	if !present {
+		return nil
+	}
+	file, received := value.Upload()
+	if !received {
+		return nil
+	}
+	reject := func() error {
+		return admin.RejectInline(prefix, index, validation.NewErrors(validation.New("document", "file_mismatch")), nil)
+	}
+	if file.Size() > 1024 {
+		return reject()
+	}
+	reader, err := file.Open(ctx)
+	if err != nil {
+		return err
+	}
+	content, readErr := io.ReadAll(reader)
+	if err = errors.Join(readErr, reader.Close()); err != nil {
+		return err
+	}
+	name, _ := input.String("name")
+	if string(content) != name {
+		return reject()
+	}
+	return nil
+}

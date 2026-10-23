@@ -1,0 +1,63 @@
+// Package commands owns explicit local management actions. These run with the
+// operator's OS/database access; HTTP authorization remains in the Web layer.
+package commands
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+
+	"[[.Module]]/internal/config"
+	"[[.Module]]/project"
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/project/command"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+)
+
+func Registry(environment settings.Environment, logger *slog.Logger) (command.Registry, error) {
+	installed, err := apps.New(project.InstalledApps())
+	if err != nil {
+		return command.Registry{}, err
+	}
+	selected, selectionErr := config.Database(environment)
+	return command.New(command.Config{
+		Logger: logger,
+		Apps:  installed,
+		Check: func(context.Context) error { return configurationError(selectionErr) },
+		ResourceChecks: []command.ResourceCheck{{
+			Name: "database", Summary: "Read the existing database connection and schema catalog",
+			Run: func(ctx context.Context) error { return configurationError(database.Check(ctx, selected)) },
+		}},
+		Commands: []command.Definition{{
+			Name: "count-groups", AppLabel: "godj_identity", Summary: "Count stored identity groups",
+			Handle: command.Using(
+				func(ctx context.Context) (command.Resource[database.Backend], error) {
+					backend, err := database.Open(ctx, selected)
+					if err != nil {
+						return command.Resource[database.Backend]{}, err
+					}
+					return command.Resource[database.Backend]{Value: backend, Close: func(context.Context) error { return backend.Close() }}, nil
+				},
+				func(ctx context.Context, backend database.Backend, _ command.Values, output command.Streams) error {
+					count, err := models.GroupObjects.Using(backend).Count(ctx)
+					if err != nil {
+						return err
+					}
+					_, err = fmt.Fprintln(output.Stdout, count)
+					return err
+				},
+			),
+		}},
+	})
+}
+
+func configurationError(err error) error {
+	var invalid *database.Error
+	if errors.As(err, &invalid) && invalid != nil {
+		return &command.CheckError{Field: invalid.Field, Cause: err}
+	}
+	return err
+}

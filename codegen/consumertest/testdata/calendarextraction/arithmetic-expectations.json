@@ -1,0 +1,7340 @@
+{
+  "kind": "calendar-arithmetic-expectations-v1",
+  "input_sha256": "07109685c8450d64e30fa583eeca9e10d11bbab2a225af5d5f39ad0e31ce3763",
+  "basis": "Literal expectations constructed with Python standard-library date/datetime/timedelta and Fraction; no GoDj or Django execution. They are assertions, not observed evidence.",
+  "cases": [
+    {
+      "name": "arith_date_add",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2021-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "b",
+          "value": "2000-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "c",
+          "value": "2019-12-30T01:00:00.000001Z"
+        },
+        {
+          "code": "d",
+          "value": "2000-02-29T01:00:00.000001Z"
+        },
+        {
+          "code": "e",
+          "value": "1900-03-01T01:00:00.000001Z"
+        },
+        {
+          "code": "f",
+          "value": "2400-02-29T01:00:00.000001Z"
+        },
+        {
+          "code": "g",
+          "value": "0001-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "h",
+          "value": "9999-12-31T01:00:00.000001Z"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "2021-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "k",
+          "value": "2024-03-03T01:00:00.000001Z"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T00:00:00.000000Z"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "str",
+              "value": "2019-12-30"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "str",
+              "value": "2000-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "str",
+              "value": "1900-03-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "str",
+              "value": "2400-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "str",
+              "value": "0001-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "str",
+              "value": "2024-03-03"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T01:00:00.000001"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T01:00:00.000001"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T01:00:00.000001"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T01:00:00.000001"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T01:00:00.000001"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T01:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T01:00:00.000001"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T01:00:00.000001"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T01:00:00.000001"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T01:00:00.000001"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "datetime",
+              "value": "2019-12-30T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-02-29T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "datetime",
+              "value": "1900-03-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "datetime",
+              "value": "2400-02-29T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "datetime",
+              "value": "0001-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-31T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "datetime",
+              "value": "2024-03-03T01:00:00.000001",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_date_reverse",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2021-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "b",
+          "value": "2000-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "c",
+          "value": "2019-12-30T01:00:00.000001Z"
+        },
+        {
+          "code": "d",
+          "value": "2000-02-29T01:00:00.000001Z"
+        },
+        {
+          "code": "e",
+          "value": "1900-03-01T01:00:00.000001Z"
+        },
+        {
+          "code": "f",
+          "value": "2400-02-29T01:00:00.000001Z"
+        },
+        {
+          "code": "g",
+          "value": "0001-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "h",
+          "value": "9999-12-31T01:00:00.000001Z"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "2021-01-01T01:00:00.000001Z"
+        },
+        {
+          "code": "k",
+          "value": "2024-03-03T01:00:00.000001Z"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T00:00:00.000000Z"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "str",
+              "value": "2019-12-30"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "str",
+              "value": "2000-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "str",
+              "value": "1900-03-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "str",
+              "value": "2400-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "str",
+              "value": "0001-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "str",
+              "value": "2024-03-03"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T01:00:00.000001"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T01:00:00.000001"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T01:00:00.000001"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T01:00:00.000001"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T01:00:00.000001"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T01:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T01:00:00.000001"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T01:00:00.000001"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T01:00:00.000001"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T01:00:00.000001"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "datetime",
+              "value": "2019-12-30T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-02-29T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "datetime",
+              "value": "1900-03-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "datetime",
+              "value": "2400-02-29T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "datetime",
+              "value": "0001-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-31T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "datetime",
+              "value": "2024-03-03T01:00:00.000001",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_date_subtract",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2020-12-31T22:59:59.999999Z"
+        },
+        {
+          "code": "b",
+          "value": "1999-12-31T22:59:59.999999Z"
+        },
+        {
+          "code": "c",
+          "value": "2019-12-29T22:59:59.999999Z"
+        },
+        {
+          "code": "d",
+          "value": "2000-02-28T22:59:59.999999Z"
+        },
+        {
+          "code": "e",
+          "value": "1900-02-28T22:59:59.999999Z"
+        },
+        {
+          "code": "f",
+          "value": "2400-02-28T22:59:59.999999Z"
+        },
+        {
+          "code": "h",
+          "value": "9999-12-30T22:59:59.999999Z"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "2020-12-31T22:59:59.999999Z"
+        },
+        {
+          "code": "k",
+          "value": "2024-03-02T22:59:59.999999Z"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T00:00:00.000000Z"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "str",
+              "value": "2019-12-30"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "str",
+              "value": "2000-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "str",
+              "value": "1900-03-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "str",
+              "value": "2400-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "str",
+              "value": "2024-03-03"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2020-12-31T22:59:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "1999-12-31T22:59:59.999999"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-29T22:59:59.999999"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-28T22:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": "1900-02-28T22:59:59.999999"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-28T22:59:59.999999"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-30T22:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2020-12-31T22:59:59.999999"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-02T22:59:59.999999"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2020-12-31T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "datetime",
+              "value": "1999-12-31T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "datetime",
+              "value": "2019-12-29T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-02-28T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "datetime",
+              "value": "1900-02-28T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "datetime",
+              "value": "2400-02-28T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-30T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2020-12-31T22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "datetime",
+              "value": "2024-03-02T22:59:59.999999",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_date_difference",
+      "fields": {
+        "value": "DurationField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "7671 00:00:00"
+        },
+        {
+          "code": "b",
+          "value": "00:00:00"
+        },
+        {
+          "code": "c",
+          "value": "7303 00:00:00"
+        },
+        {
+          "code": "d",
+          "value": "59 00:00:00"
+        },
+        {
+          "code": "e",
+          "value": "-36465 00:00:00"
+        },
+        {
+          "code": "f",
+          "value": "146156 00:00:00"
+        },
+        {
+          "code": "g",
+          "value": "-730119 00:00:00"
+        },
+        {
+          "code": "h",
+          "value": "2921939 00:00:00"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "7671 00:00:00"
+        },
+        {
+          "code": "k",
+          "value": "8828 00:00:00"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "7671 00:00:00"
+          },
+          {
+            "code": "b",
+            "value": "00:00:00"
+          },
+          {
+            "code": "c",
+            "value": "7303 00:00:00"
+          },
+          {
+            "code": "d",
+            "value": "59 00:00:00"
+          },
+          {
+            "code": "e",
+            "value": "-36465 00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "146156 00:00:00"
+          },
+          {
+            "code": "g",
+            "value": "-730119 00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "2921939 00:00:00"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "7671 00:00:00"
+          },
+          {
+            "code": "k",
+            "value": "8828 00:00:00"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "int",
+              "value": 662774400000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "int",
+              "value": 630979200000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "int",
+              "value": 5097600000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "int",
+              "value": -3150576000000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "int",
+              "value": 12627878400000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "int",
+              "value": -63082281600000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "int",
+              "value": 252455529600000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "int",
+              "value": 662774400000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "int",
+              "value": 762739200000000
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "7671 00:00:00"
+          },
+          {
+            "code": "b",
+            "value": "00:00:00"
+          },
+          {
+            "code": "c",
+            "value": "7303 00:00:00"
+          },
+          {
+            "code": "d",
+            "value": "59 00:00:00"
+          },
+          {
+            "code": "e",
+            "value": "-36465 00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "146156 00:00:00"
+          },
+          {
+            "code": "g",
+            "value": "-730119 00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "2921939 00:00:00"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "7671 00:00:00"
+          },
+          {
+            "code": "k",
+            "value": "8828 00:00:00"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "timedelta",
+              "days": 7671,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "timedelta",
+              "days": 7303,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "timedelta",
+              "days": 59,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "timedelta",
+              "days": -36465,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "timedelta",
+              "days": 146156,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "timedelta",
+              "days": -730119,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "timedelta",
+              "days": 2921939,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "timedelta",
+              "days": 7671,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "timedelta",
+              "days": 8828,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_date_instant_difference",
+      "fields": {
+        "value": "DurationField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "00:29:00.000001"
+        },
+        {
+          "code": "b",
+          "value": "-7672 23:30:00"
+        },
+        {
+          "code": "c",
+          "value": "-1 11:25:03.999999"
+        },
+        {
+          "code": "d",
+          "value": "-1 00:00:00.000001"
+        },
+        {
+          "code": "e",
+          "value": "00:00:00"
+        },
+        {
+          "code": "f",
+          "value": "-1 23:59:59.999999"
+        },
+        {
+          "code": "g",
+          "value": "00:00:00"
+        },
+        {
+          "code": "h",
+          "value": "-1 00:00:00.000001"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "-1 23:29:59.999999"
+        },
+        {
+          "code": "k",
+          "value": null
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "00:00:00.000001"
+          },
+          {
+            "code": "b",
+            "value": "-1 23:59:59.999979"
+          },
+          {
+            "code": "c",
+            "value": "00:00:00"
+          },
+          {
+            "code": "d",
+            "value": "00:00:00"
+          },
+          {
+            "code": "e",
+            "value": "00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "00:00:00"
+          },
+          {
+            "code": "g",
+            "value": "00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "00:00:00"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "00:00:00"
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "int",
+              "value": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "int",
+              "value": -21
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "00:29:00.000001"
+          },
+          {
+            "code": "b",
+            "value": "-7672 23:30:00"
+          },
+          {
+            "code": "c",
+            "value": "-1 11:25:03.999999"
+          },
+          {
+            "code": "d",
+            "value": "-1 00:00:00.000001"
+          },
+          {
+            "code": "e",
+            "value": "00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "-1 23:59:59.999999"
+          },
+          {
+            "code": "g",
+            "value": "00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "-1 00:00:00.000001"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "-1 23:29:59.999999"
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 1740,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "timedelta",
+              "days": -7672,
+              "seconds": 84600,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 41103,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 0,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 86399,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 0,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 84599,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_instant_date_difference",
+      "fields": {
+        "value": "DurationField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "-1 23:30:59.999999"
+        },
+        {
+          "code": "b",
+          "value": "7671 00:30:00"
+        },
+        {
+          "code": "c",
+          "value": "12:34:56.000001"
+        },
+        {
+          "code": "d",
+          "value": "23:59:59.999999"
+        },
+        {
+          "code": "e",
+          "value": "00:00:00"
+        },
+        {
+          "code": "f",
+          "value": "00:00:00.000001"
+        },
+        {
+          "code": "g",
+          "value": "00:00:00"
+        },
+        {
+          "code": "h",
+          "value": "23:59:59.999999"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "00:30:00.000001"
+        },
+        {
+          "code": "k",
+          "value": null
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "-1 23:59:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "00:00:00.000021"
+          },
+          {
+            "code": "c",
+            "value": "00:00:00"
+          },
+          {
+            "code": "d",
+            "value": "00:00:00"
+          },
+          {
+            "code": "e",
+            "value": "00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "00:00:00"
+          },
+          {
+            "code": "g",
+            "value": "00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "00:00:00"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "00:00:00"
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "int",
+              "value": -1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "int",
+              "value": 21
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "-1 23:30:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "7671 00:30:00"
+          },
+          {
+            "code": "c",
+            "value": "12:34:56.000001"
+          },
+          {
+            "code": "d",
+            "value": "23:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": "00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "00:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "23:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "00:30:00.000001"
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 84659,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "timedelta",
+              "days": 7671,
+              "seconds": 1800,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 45296,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 86399,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 0,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 0,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 86399,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 1800,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_time_add",
+      "fields": {
+        "value": "TimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "01:00:00"
+        },
+        {
+          "code": "b",
+          "value": "01:00:00.000001"
+        },
+        {
+          "code": "c",
+          "value": "13:34:56.000002"
+        },
+        {
+          "code": "d",
+          "value": "01:00:00"
+        },
+        {
+          "code": "e",
+          "value": "01:00:00.000001"
+        },
+        {
+          "code": "f",
+          "value": "01:00:00.000002"
+        },
+        {
+          "code": "g",
+          "value": "01:00:00.000001"
+        },
+        {
+          "code": "h",
+          "value": "01:00:00"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "01:30:00.000002"
+        },
+        {
+          "code": "k",
+          "value": "01:00:00.000001"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": null
+          },
+          {
+            "code": "c",
+            "value": null
+          },
+          {
+            "code": "d",
+            "value": null
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": null
+          },
+          {
+            "code": "g",
+            "value": null
+          },
+          {
+            "code": "h",
+            "value": null
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": null
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "01:00:00"
+          },
+          {
+            "code": "b",
+            "value": "01:00:00.000001"
+          },
+          {
+            "code": "c",
+            "value": "13:34:56.000002"
+          },
+          {
+            "code": "d",
+            "value": "01:00:00"
+          },
+          {
+            "code": "e",
+            "value": "01:00:00.000001"
+          },
+          {
+            "code": "f",
+            "value": "01:00:00.000002"
+          },
+          {
+            "code": "g",
+            "value": "01:00:00.000001"
+          },
+          {
+            "code": "h",
+            "value": "01:00:00"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "01:30:00.000002"
+          },
+          {
+            "code": "k",
+            "value": "01:00:00.000001"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "time",
+              "value": "13:34:56.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "time",
+              "value": "01:30:00.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_time_reverse",
+      "fields": {
+        "value": "TimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "01:00:00"
+        },
+        {
+          "code": "b",
+          "value": "01:00:00.000001"
+        },
+        {
+          "code": "c",
+          "value": "13:34:56.000002"
+        },
+        {
+          "code": "d",
+          "value": "01:00:00"
+        },
+        {
+          "code": "e",
+          "value": "01:00:00.000001"
+        },
+        {
+          "code": "f",
+          "value": "01:00:00.000002"
+        },
+        {
+          "code": "g",
+          "value": "01:00:00.000001"
+        },
+        {
+          "code": "h",
+          "value": "01:00:00"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "01:30:00.000002"
+        },
+        {
+          "code": "k",
+          "value": "01:00:00.000001"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": null
+          },
+          {
+            "code": "c",
+            "value": null
+          },
+          {
+            "code": "d",
+            "value": null
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": null
+          },
+          {
+            "code": "g",
+            "value": null
+          },
+          {
+            "code": "h",
+            "value": null
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": null
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "01:00:00"
+          },
+          {
+            "code": "b",
+            "value": "01:00:00.000001"
+          },
+          {
+            "code": "c",
+            "value": "13:34:56.000002"
+          },
+          {
+            "code": "d",
+            "value": "01:00:00"
+          },
+          {
+            "code": "e",
+            "value": "01:00:00.000001"
+          },
+          {
+            "code": "f",
+            "value": "01:00:00.000002"
+          },
+          {
+            "code": "g",
+            "value": "01:00:00.000001"
+          },
+          {
+            "code": "h",
+            "value": "01:00:00"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "01:30:00.000002"
+          },
+          {
+            "code": "k",
+            "value": "01:00:00.000001"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "time",
+              "value": "13:34:56.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "time",
+              "value": "01:30:00.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_time_subtract",
+      "fields": {
+        "value": "TimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "22:59:59.999998"
+        },
+        {
+          "code": "b",
+          "value": "22:59:59.999999"
+        },
+        {
+          "code": "c",
+          "value": "11:34:56"
+        },
+        {
+          "code": "d",
+          "value": "22:59:59.999998"
+        },
+        {
+          "code": "e",
+          "value": "22:59:59.999999"
+        },
+        {
+          "code": "f",
+          "value": "23:00:00"
+        },
+        {
+          "code": "g",
+          "value": "22:59:59.999999"
+        },
+        {
+          "code": "h",
+          "value": "22:59:59.999998"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "23:30:00"
+        },
+        {
+          "code": "k",
+          "value": "22:59:59.999999"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": null
+          },
+          {
+            "code": "c",
+            "value": null
+          },
+          {
+            "code": "d",
+            "value": null
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": null
+          },
+          {
+            "code": "g",
+            "value": null
+          },
+          {
+            "code": "h",
+            "value": null
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": null
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "22:59:59.999998"
+          },
+          {
+            "code": "b",
+            "value": "22:59:59.999999"
+          },
+          {
+            "code": "c",
+            "value": "11:34:56"
+          },
+          {
+            "code": "d",
+            "value": "22:59:59.999998"
+          },
+          {
+            "code": "e",
+            "value": "22:59:59.999999"
+          },
+          {
+            "code": "f",
+            "value": "23:00:00"
+          },
+          {
+            "code": "g",
+            "value": "22:59:59.999999"
+          },
+          {
+            "code": "h",
+            "value": "22:59:59.999998"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "23:30:00"
+          },
+          {
+            "code": "k",
+            "value": "22:59:59.999999"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999998",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "time",
+              "value": "11:34:56.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999998",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "time",
+              "value": "23:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999998",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "time",
+              "value": "23:30:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999999",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_time_difference",
+      "fields": {
+        "value": "DurationField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "11:59:59.999999"
+        },
+        {
+          "code": "b",
+          "value": "-1 12:00:00"
+        },
+        {
+          "code": "c",
+          "value": "00:34:56.000001"
+        },
+        {
+          "code": "d",
+          "value": "11:59:59.999999"
+        },
+        {
+          "code": "e",
+          "value": "-1 12:00:00"
+        },
+        {
+          "code": "f",
+          "value": "-1 12:00:00.000001"
+        },
+        {
+          "code": "g",
+          "value": "-1 12:00:00"
+        },
+        {
+          "code": "h",
+          "value": "11:59:59.999999"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "-1 12:30:00.000001"
+        },
+        {
+          "code": "k",
+          "value": "-1 12:00:00"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "11:59:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "-1 12:00:00"
+          },
+          {
+            "code": "c",
+            "value": "00:34:56.000001"
+          },
+          {
+            "code": "d",
+            "value": "11:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": "-1 12:00:00"
+          },
+          {
+            "code": "f",
+            "value": "-1 12:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "-1 12:00:00"
+          },
+          {
+            "code": "h",
+            "value": "11:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "-1 12:30:00.000001"
+          },
+          {
+            "code": "k",
+            "value": "-1 12:00:00"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "int",
+              "value": 43199999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "int",
+              "value": -43200000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "int",
+              "value": 2096000001
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "int",
+              "value": 43199999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "int",
+              "value": -43200000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "int",
+              "value": -43199999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "int",
+              "value": -43200000000
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "int",
+              "value": 43199999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "int",
+              "value": -41399999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "int",
+              "value": -43200000000
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "11:59:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "-1 12:00:00"
+          },
+          {
+            "code": "c",
+            "value": "00:34:56.000001"
+          },
+          {
+            "code": "d",
+            "value": "11:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": "-1 12:00:00"
+          },
+          {
+            "code": "f",
+            "value": "-1 12:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "-1 12:00:00"
+          },
+          {
+            "code": "h",
+            "value": "11:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "-1 12:30:00.000001"
+          },
+          {
+            "code": "k",
+            "value": "-1 12:00:00"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 43199,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 43200,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 2096,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 43199,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 43200,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 43200,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 43200,
+              "microseconds": 0
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 43199,
+              "microseconds": 999999
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 45000,
+              "microseconds": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "timedelta",
+              "days": -1,
+              "seconds": 43200,
+              "microseconds": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_composed_start",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2021-01-01T23:59:59.999999Z"
+        },
+        {
+          "code": "b",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "c",
+          "value": "2019-12-30T12:34:56.000001Z"
+        },
+        {
+          "code": "d",
+          "value": "2000-02-29T23:59:59.999999Z"
+        },
+        {
+          "code": "e",
+          "value": "1900-03-01T00:00:00.000000Z"
+        },
+        {
+          "code": "f",
+          "value": "2400-02-29T00:00:00.000001Z"
+        },
+        {
+          "code": "g",
+          "value": "0001-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "h",
+          "value": "9999-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "2021-01-01T00:30:00.000001Z"
+        },
+        {
+          "code": "k",
+          "value": "2024-03-03T00:00:00.000000Z"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T00:00:00.000000Z"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "str",
+              "value": "2019-12-30"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "str",
+              "value": "2000-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "str",
+              "value": "1900-03-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "str",
+              "value": "2400-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "str",
+              "value": "0001-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "str",
+              "value": "2024-03-03"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T23:59:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T12:34:56.000001"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T23:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T00:00:00.000000"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T00:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T00:00:00.000000"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T23:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:30:00.000001"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T00:00:00.000000"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "datetime",
+              "value": "2019-12-30T12:34:56.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-02-29T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "datetime",
+              "value": "1900-03-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "datetime",
+              "value": "2400-02-29T00:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "datetime",
+              "value": "0001-01-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T00:30:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "datetime",
+              "value": "2024-03-03T00:00:00.000000",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_filter_start",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2021-01-01T23:59:59.999999Z"
+        },
+        {
+          "code": "j",
+          "value": "2021-01-01T00:30:00.000001Z"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T23:59:59.999999"
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:30:00.000001"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T00:30:00.000001",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_related_start",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2020-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "b",
+          "value": "2020-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "c",
+          "value": "2020-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "d",
+          "value": "2020-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "e",
+          "value": null
+        },
+        {
+          "code": "f",
+          "value": "9999-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "g",
+          "value": "9999-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "h",
+          "value": "9999-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "2020-12-31T23:59:59.999999Z"
+        },
+        {
+          "code": "k",
+          "value": null
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2020-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "b",
+            "value": "2020-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2020-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2020-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "g",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2020-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "str",
+              "value": "2020-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "str",
+              "value": "2020-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "str",
+              "value": "2020-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "str",
+              "value": "2020-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2020-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2020-12-31T23:59:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "2020-12-31T23:59:59.999999"
+          },
+          {
+            "code": "c",
+            "value": "2020-12-31T23:59:59.999999"
+          },
+          {
+            "code": "d",
+            "value": "2020-12-31T23:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": "9999-12-31T23:59:59.999999"
+          },
+          {
+            "code": "g",
+            "value": "9999-12-31T23:59:59.999999"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T23:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2020-12-31T23:59:59.999999"
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2020-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "datetime",
+              "value": "2020-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "datetime",
+              "value": "2020-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "datetime",
+              "value": "2020-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2020-12-31T23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_collection_start",
+      "fields": {
+        "first": "DateTimeField",
+        "last": "DateTimeField",
+        "count": "IntegerField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "empty",
+          "first": "1900-03-01T00:00:00.000000Z",
+          "last": null,
+          "count": 1
+        },
+        {
+          "code": "future",
+          "first": "0001-01-01T00:00:00.000000Z",
+          "last": "2400-02-29T00:00:00.000001Z",
+          "count": 3
+        },
+        {
+          "code": "north",
+          "first": "2000-01-01T00:00:00.000000Z",
+          "last": "2021-01-01T23:59:59.999999Z",
+          "count": 5
+        },
+        {
+          "code": "unused",
+          "first": null,
+          "last": null,
+          "count": 0
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "empty",
+            "first": "1900-03-01T00:00:00.000000Z",
+            "last": null,
+            "count": 1
+          },
+          {
+            "code": "future",
+            "first": "0001-01-01T00:00:00.000000Z",
+            "last": "2400-02-29T00:00:00.000000Z",
+            "count": 3
+          },
+          {
+            "code": "north",
+            "first": "2000-01-01T00:00:00.000000Z",
+            "last": "2021-01-01T00:00:00.000000Z",
+            "count": 5
+          },
+          {
+            "code": "unused",
+            "first": null,
+            "last": null,
+            "count": 0
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "empty"
+            },
+            {
+              "type": "str",
+              "value": "1900-03-01"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            },
+            {
+              "type": "int",
+              "value": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "future"
+            },
+            {
+              "type": "str",
+              "value": "0001-01-01"
+            },
+            {
+              "type": "str",
+              "value": "2400-02-29"
+            },
+            {
+              "type": "int",
+              "value": 3
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "north"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            },
+            {
+              "type": "int",
+              "value": 5
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "unused"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "empty",
+            "first": "1900-03-01T00:00:00.000000",
+            "last": null,
+            "count": 1
+          },
+          {
+            "code": "future",
+            "first": "0001-01-01T00:00:00.000000",
+            "last": "2400-02-29T00:00:00.000001",
+            "count": 3
+          },
+          {
+            "code": "north",
+            "first": "2000-01-01T00:00:00.000000",
+            "last": "2021-01-01T23:59:59.999999",
+            "count": 5
+          },
+          {
+            "code": "unused",
+            "first": null,
+            "last": null,
+            "count": 0
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "empty"
+            },
+            {
+              "type": "datetime",
+              "value": "1900-03-01T00:00:00.000000",
+              "aware": false
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            },
+            {
+              "type": "int",
+              "value": 1
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "future"
+            },
+            {
+              "type": "datetime",
+              "value": "0001-01-01T00:00:00.000000",
+              "aware": false
+            },
+            {
+              "type": "datetime",
+              "value": "2400-02-29T00:00:00.000001",
+              "aware": false
+            },
+            {
+              "type": "int",
+              "value": 3
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "north"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000",
+              "aware": false
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T23:59:59.999999",
+              "aware": false
+            },
+            {
+              "type": "int",
+              "value": 5
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "unused"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            },
+            {
+              "type": "int",
+              "value": 0
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_aggregate_difference",
+      "fields": {
+        "first": "DurationField",
+        "last": "DurationField",
+        "total": "DurationField"
+      },
+      "godj_error": false,
+      "godj": {
+        "first": "00:00:00",
+        "last": "2921939 00:00:00",
+        "total": "2 13:04:56.000001"
+      },
+      "sqlite": {
+        "result": {
+          "first": "00:00:00",
+          "last": "2921939 00:00:00",
+          "total": "2 13:04:56.000001"
+        },
+        "native_rows": [
+          [
+            {
+              "type": "int",
+              "value": 0
+            },
+            {
+              "type": "int",
+              "value": 252455529600000000
+            },
+            {
+              "type": "int",
+              "value": 219896000001
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": {
+          "first": "00:00:00",
+          "last": "2921939 00:00:00",
+          "total": "2 13:04:56.000001"
+        },
+        "native_rows": [
+          [
+            {
+              "type": "timedelta",
+              "days": 0,
+              "seconds": 0,
+              "microseconds": 0
+            },
+            {
+              "type": "timedelta",
+              "days": 2921939,
+              "seconds": 0,
+              "microseconds": 0
+            },
+            {
+              "type": "timedelta",
+              "days": 2,
+              "seconds": 47096,
+              "microseconds": 1
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_case_time",
+      "fields": {
+        "value": "TimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "01:00:00"
+        },
+        {
+          "code": "b",
+          "value": "22:59:59.999999"
+        },
+        {
+          "code": "c",
+          "value": "13:34:56.000002"
+        },
+        {
+          "code": "d",
+          "value": "01:00:00"
+        },
+        {
+          "code": "e",
+          "value": "22:59:59.999999"
+        },
+        {
+          "code": "f",
+          "value": "01:00:00.000002"
+        },
+        {
+          "code": "g",
+          "value": "01:00:00.000001"
+        },
+        {
+          "code": "h",
+          "value": "22:59:59.999998"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "01:30:00.000002"
+        },
+        {
+          "code": "k",
+          "value": "01:00:00.000001"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": null
+          },
+          {
+            "code": "c",
+            "value": null
+          },
+          {
+            "code": "d",
+            "value": null
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": null
+          },
+          {
+            "code": "g",
+            "value": null
+          },
+          {
+            "code": "h",
+            "value": null
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": null
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "01:00:00"
+          },
+          {
+            "code": "b",
+            "value": "22:59:59.999999"
+          },
+          {
+            "code": "c",
+            "value": "13:34:56.000002"
+          },
+          {
+            "code": "d",
+            "value": "01:00:00"
+          },
+          {
+            "code": "e",
+            "value": "22:59:59.999999"
+          },
+          {
+            "code": "f",
+            "value": "01:00:00.000002"
+          },
+          {
+            "code": "g",
+            "value": "01:00:00.000001"
+          },
+          {
+            "code": "h",
+            "value": "22:59:59.999998"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "01:30:00.000002"
+          },
+          {
+            "code": "k",
+            "value": "01:00:00.000001"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "time",
+              "value": "13:34:56.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "time",
+              "value": "22:59:59.999998",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "time",
+              "value": "01:30:00.000002",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "time",
+              "value": "01:00:00.000001",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_date_fraction",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2021-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "b",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "c",
+          "value": "2019-12-30T00:00:00.000000Z"
+        },
+        {
+          "code": "d",
+          "value": "2000-02-29T00:00:00.000000Z"
+        },
+        {
+          "code": "e",
+          "value": "1900-03-01T00:00:00.000000Z"
+        },
+        {
+          "code": "f",
+          "value": "2400-02-29T00:00:00.000000Z"
+        },
+        {
+          "code": "g",
+          "value": "0001-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "h",
+          "value": "9999-12-31T00:00:00.000000Z"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "2021-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "k",
+          "value": "2024-03-03T00:00:00.000000Z"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": null
+          },
+          {
+            "code": "c",
+            "value": null
+          },
+          {
+            "code": "d",
+            "value": null
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": null
+          },
+          {
+            "code": "g",
+            "value": null
+          },
+          {
+            "code": "h",
+            "value": null
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": null
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2021-01-01T00:00:00.000000"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T00:00:00.000000"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T00:00:00.000000"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T00:00:00.000000"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T00:00:00.000000"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T00:00:00.000000"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T00:00:00.000000"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:00:00.000000"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T00:00:00.000000"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "datetime",
+              "value": "2019-12-30T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-02-29T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "datetime",
+              "value": "1900-03-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "datetime",
+              "value": "2400-02-29T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "datetime",
+              "value": "0001-01-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "datetime",
+              "value": "9999-12-31T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2021-01-01T00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "datetime",
+              "value": "2024-03-03T00:00:00.000000",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_time_fraction",
+      "fields": {
+        "value": "TimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "00:00:00"
+        },
+        {
+          "code": "b",
+          "value": "00:00:00"
+        },
+        {
+          "code": "c",
+          "value": "12:34:56.000002"
+        },
+        {
+          "code": "d",
+          "value": "00:00:00"
+        },
+        {
+          "code": "e",
+          "value": "00:00:00"
+        },
+        {
+          "code": "f",
+          "value": "00:00:00.000002"
+        },
+        {
+          "code": "g",
+          "value": "00:00:00"
+        },
+        {
+          "code": "h",
+          "value": "00:00:00"
+        },
+        {
+          "code": "i",
+          "value": null
+        },
+        {
+          "code": "j",
+          "value": "00:30:00.000002"
+        },
+        {
+          "code": "k",
+          "value": "00:00:00"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": null
+          },
+          {
+            "code": "c",
+            "value": null
+          },
+          {
+            "code": "d",
+            "value": null
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": null
+          },
+          {
+            "code": "g",
+            "value": null
+          },
+          {
+            "code": "h",
+            "value": null
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": null
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "23:59:59.999999"
+          },
+          {
+            "code": "b",
+            "value": "00:00:00"
+          },
+          {
+            "code": "c",
+            "value": "12:34:56.000001"
+          },
+          {
+            "code": "d",
+            "value": "23:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": "00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "00:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "23:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "00:30:00.000001"
+          },
+          {
+            "code": "k",
+            "value": "00:00:00"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "time",
+              "value": "23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "time",
+              "value": "12:34:56.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "time",
+              "value": "23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "time",
+              "value": "23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "time",
+              "value": "00:30:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_invalid_date_storage",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": true,
+      "godj": null,
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2019-12-30T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2000-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": "1900-03-01T00:00:00.000000Z"
+          },
+          {
+            "code": "f",
+            "value": "2400-02-29T00:00:00.000000Z"
+          },
+          {
+            "code": "g",
+            "value": "0001-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "9999-12-31T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "2021-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": "2024-03-03T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "str",
+              "value": "2019-12-30"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "str",
+              "value": "2000-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "str",
+              "value": "1900-03-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "str",
+              "value": "2400-02-29"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "str",
+              "value": "0001-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "str",
+              "value": "9999-12-31"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2021-01-01"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "str",
+              "value": "2024-03-03"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "error": {
+          "type": "DataError",
+          "stage": "conversion",
+          "sqlstate": "",
+          "native_stage": "native_fetch"
+        }
+      }
+    },
+    {
+      "name": "arith_clock_24_storage",
+      "fields": {
+        "value": "TimeField"
+      },
+      "godj_error": true,
+      "godj": null,
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": null
+          },
+          {
+            "code": "b",
+            "value": null
+          },
+          {
+            "code": "c",
+            "value": null
+          },
+          {
+            "code": "d",
+            "value": null
+          },
+          {
+            "code": "e",
+            "value": null
+          },
+          {
+            "code": "f",
+            "value": null
+          },
+          {
+            "code": "g",
+            "value": null
+          },
+          {
+            "code": "h",
+            "value": null
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": null
+          },
+          {
+            "code": "k",
+            "value": null
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "00:00:00"
+          },
+          {
+            "code": "b",
+            "value": "00:00:00"
+          },
+          {
+            "code": "c",
+            "value": "12:34:56.000001"
+          },
+          {
+            "code": "d",
+            "value": "23:59:59.999999"
+          },
+          {
+            "code": "e",
+            "value": "00:00:00"
+          },
+          {
+            "code": "f",
+            "value": "00:00:00.000001"
+          },
+          {
+            "code": "g",
+            "value": "00:00:00"
+          },
+          {
+            "code": "h",
+            "value": "23:59:59.999999"
+          },
+          {
+            "code": "i",
+            "value": null
+          },
+          {
+            "code": "j",
+            "value": "00:30:00.000001"
+          },
+          {
+            "code": "k",
+            "value": "00:00:00"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "time",
+              "value": "12:34:56.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "time",
+              "value": "23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "time",
+              "value": "23:59:59.999999",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "NoneType",
+              "value": null
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "time",
+              "value": "00:30:00.000001",
+              "aware": false
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "time",
+              "value": "00:00:00.000000",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_unselected_corrupt_date",
+      "fields": {
+        "value": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": [
+        {
+          "code": "a",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "b",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "c",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "d",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "e",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "f",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "g",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "h",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "i",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "j",
+          "value": "2000-01-01T00:00:00.000000Z"
+        },
+        {
+          "code": "k",
+          "value": "2000-01-01T00:00:00.000000Z"
+        }
+      ],
+      "sqlite": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "f",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "g",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "j",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": "2000-01-01T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "str",
+              "value": "2000-01-01 00:00:00"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": [
+          {
+            "code": "a",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "b",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "c",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "d",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "e",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "f",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "g",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "h",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "i",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "j",
+            "value": "2000-01-01T00:00:00.000000Z"
+          },
+          {
+            "code": "k",
+            "value": "2000-01-01T00:00:00.000000Z"
+          }
+        ],
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "a"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "b"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "c"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "d"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "e"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "f"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "g"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "h"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "i"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "j"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ],
+          [
+            {
+              "type": "str",
+              "value": "k"
+            },
+            {
+              "type": "datetime",
+              "value": "2000-01-01T00:00:00.000000+00:00",
+              "aware": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "arith_filtered_corrupt_date",
+      "fields": {
+        "first": "DateTimeField"
+      },
+      "godj_error": false,
+      "godj": {
+        "first": "0001-01-01T01:00:00.000001Z"
+      },
+      "sqlite": {
+        "result": {
+          "first": "0001-01-01T00:00:00.000000Z"
+        },
+        "native_rows": [
+          [
+            {
+              "type": "str",
+              "value": "0001-01-01"
+            }
+          ]
+        ]
+      },
+      "postgres": {
+        "result": {
+          "first": "0001-01-01T01:00:00.000001"
+        },
+        "native_rows": [
+          [
+            {
+              "type": "datetime",
+              "value": "0001-01-01T01:00:00.000001",
+              "aware": false
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "name": "update_arithmetic_calendar",
+      "fields": null,
+      "godj_error": false,
+      "godj": {
+        "changed": 11,
+        "rows": [
+          {
+            "code": "a",
+            "at": "2021-01-01T23:59:59.999999Z",
+            "day": "2021-01-01",
+            "wall": "00:00:00",
+            "part": 10
+          },
+          {
+            "code": "b",
+            "at": "2000-01-01T00:00:00.000000Z",
+            "day": "2000-01-01",
+            "wall": "00:00:00.000001",
+            "part": 11
+          },
+          {
+            "code": "c",
+            "at": "2019-12-30T12:34:56.000001Z",
+            "day": "2019-12-30",
+            "wall": "12:34:56.000002",
+            "part": 12
+          },
+          {
+            "code": "d",
+            "at": "2000-02-29T23:59:59.999999Z",
+            "day": "2000-02-29",
+            "wall": "00:00:00",
+            "part": 13
+          },
+          {
+            "code": "e",
+            "at": "1900-03-01T00:00:00.000000Z",
+            "day": "1900-03-01",
+            "wall": "00:00:00.000001",
+            "part": 14
+          },
+          {
+            "code": "f",
+            "at": "2400-02-29T00:00:00.000001Z",
+            "day": "2400-02-29",
+            "wall": "00:00:00.000002",
+            "part": 15
+          },
+          {
+            "code": "g",
+            "at": "0001-01-01T00:00:00.000000Z",
+            "day": "0001-01-01",
+            "wall": "00:00:00.000001",
+            "part": 16
+          },
+          {
+            "code": "h",
+            "at": "9999-12-31T23:59:59.999999Z",
+            "day": "9999-12-31",
+            "wall": "00:00:00",
+            "part": 17
+          },
+          {
+            "code": "i",
+            "at": null,
+            "day": null,
+            "wall": null,
+            "part": 18
+          },
+          {
+            "code": "j",
+            "at": "2021-01-01T00:30:00.000001Z",
+            "day": "2021-01-01",
+            "wall": "00:30:00.000002",
+            "part": 19
+          },
+          {
+            "code": "k",
+            "at": "2024-03-03T00:00:00.000000Z",
+            "day": "2024-03-03",
+            "wall": "00:00:00.000001",
+            "part": 20
+          }
+        ]
+      },
+      "sqlite": {
+        "result": {
+          "changed": 11,
+          "rows": [
+            {
+              "code": "a",
+              "at": "2021-01-01T00:00:00.000000Z",
+              "day": "2021-01-01",
+              "wall": null,
+              "part": 10
+            },
+            {
+              "code": "b",
+              "at": "2000-01-01T00:00:00.000000Z",
+              "day": "2000-01-01",
+              "wall": null,
+              "part": 11
+            },
+            {
+              "code": "c",
+              "at": "2019-12-30T00:00:00.000000Z",
+              "day": "2019-12-30",
+              "wall": null,
+              "part": 12
+            },
+            {
+              "code": "d",
+              "at": "2000-02-29T00:00:00.000000Z",
+              "day": "2000-02-29",
+              "wall": null,
+              "part": 13
+            },
+            {
+              "code": "e",
+              "at": "1900-03-01T00:00:00.000000Z",
+              "day": "1900-03-01",
+              "wall": null,
+              "part": 14
+            },
+            {
+              "code": "f",
+              "at": "2400-02-29T00:00:00.000000Z",
+              "day": "2400-02-29",
+              "wall": null,
+              "part": 15
+            },
+            {
+              "code": "g",
+              "at": "0001-01-01T00:00:00.000000Z",
+              "day": "0001-01-01",
+              "wall": null,
+              "part": 16
+            },
+            {
+              "code": "h",
+              "at": "9999-12-31T00:00:00.000000Z",
+              "day": "9999-12-31",
+              "wall": null,
+              "part": 17
+            },
+            {
+              "code": "i",
+              "at": null,
+              "day": null,
+              "wall": null,
+              "part": 18
+            },
+            {
+              "code": "j",
+              "at": "2021-01-01T00:00:00.000000Z",
+              "day": "2021-01-01",
+              "wall": null,
+              "part": 19
+            },
+            {
+              "code": "k",
+              "at": "2024-03-03T00:00:00.000000Z",
+              "day": "2024-03-03",
+              "wall": null,
+              "part": 20
+            }
+          ]
+        }
+      },
+      "postgres": {
+        "result": {
+          "changed": 11,
+          "rows": [
+            {
+              "code": "a",
+              "at": "2021-01-01T23:59:59.999999Z",
+              "day": "2021-01-01",
+              "wall": "00:00:00",
+              "part": 10
+            },
+            {
+              "code": "b",
+              "at": "2000-01-01T00:00:00.000000Z",
+              "day": "2000-01-01",
+              "wall": "00:00:00.000001",
+              "part": 11
+            },
+            {
+              "code": "c",
+              "at": "2019-12-30T12:34:56.000001Z",
+              "day": "2019-12-30",
+              "wall": "12:34:56.000002",
+              "part": 12
+            },
+            {
+              "code": "d",
+              "at": "2000-02-29T23:59:59.999999Z",
+              "day": "2000-02-29",
+              "wall": "00:00:00",
+              "part": 13
+            },
+            {
+              "code": "e",
+              "at": "1900-03-01T00:00:00.000000Z",
+              "day": "1900-03-01",
+              "wall": "00:00:00.000001",
+              "part": 14
+            },
+            {
+              "code": "f",
+              "at": "2400-02-29T00:00:00.000001Z",
+              "day": "2400-02-29",
+              "wall": "00:00:00.000002",
+              "part": 15
+            },
+            {
+              "code": "g",
+              "at": "0001-01-01T00:00:00.000000Z",
+              "day": "0001-01-01",
+              "wall": "00:00:00.000001",
+              "part": 16
+            },
+            {
+              "code": "h",
+              "at": "9999-12-31T23:59:59.999999Z",
+              "day": "9999-12-31",
+              "wall": "00:00:00",
+              "part": 17
+            },
+            {
+              "code": "i",
+              "at": null,
+              "day": null,
+              "wall": null,
+              "part": 18
+            },
+            {
+              "code": "j",
+              "at": "2021-01-01T00:30:00.000001Z",
+              "day": "2021-01-01",
+              "wall": "00:30:00.000002",
+              "part": 19
+            },
+            {
+              "code": "k",
+              "at": "2024-03-03T00:00:00.000000Z",
+              "day": "2024-03-03",
+              "wall": "00:00:00.000001",
+              "part": 20
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -17,6 +17,7 @@ from django.db.migrations.loader import MigrationLoader
 from django.db.migrations.migration import Migration
 from django.db.migrations.recorder import MigrationRecorder
 
+from .migration_observation import Dependency, NodeKey, graph_facts, key_value, key_values
 from .normalizer import normalize
 from .scenarios import configure_django
 
@@ -24,20 +25,10 @@ from .scenarios import configure_django
 configure_django()
 
 
-NodeKey = tuple[str, str]
 Target = tuple[str, str | None]
-Dependency = tuple[NodeKey, NodeKey]
 
 _DDL_KINDS = frozenset({"ALTER", "CREATE", "DROP", "TRUNCATE"})
 _WRITE_KINDS = frozenset({"DELETE", "INSERT", "REPLACE", "UPDATE"})
-
-
-def _key_value(key: tuple[str, str | None]) -> dict[str, str | None]:
-    return {"app": key[0], "name": key[1]}
-
-
-def _key_values(keys: Sequence[tuple[str, str | None]]) -> list[dict[str, Any]]:
-    return [_key_value(key) for key in keys]
 
 
 def _migration_key(migration: Migration) -> NodeKey:
@@ -140,7 +131,7 @@ def _database_snapshot() -> dict[str, Any]:
     recorder_present = recorder.has_table()
     applied = sorted(recorder.applied_migrations()) if recorder_present else []
     return {
-        "applied_migrations": _key_values(applied),
+        "applied_migrations": key_values(applied),
         "managed_schema_inventory": _schema_inventory(
             excluding=frozenset({recorder.Migration._meta.db_table})
         ),
@@ -217,23 +208,10 @@ def _executor(loader: MigrationLoader) -> MigrationExecutor:
     return executor
 
 
-def _graph_facts(
-    nodes: Sequence[NodeKey],
-    dependencies: Sequence[Dependency],
-) -> dict[str, Any]:
-    return {
-        "dependencies": [
-            {"child": _key_value(child), "parent": _key_value(parent)}
-            for child, parent in sorted(dependencies)
-        ],
-        "nodes": _key_values(sorted(nodes)),
-    }
-
-
 def _plan_value(plan: Sequence[tuple[Migration, bool]]) -> list[dict[str, Any]]:
     return [
         {
-            **_key_value(_migration_key(migration)),
+            **key_value(_migration_key(migration)),
             "direction": "backward" if backwards else "forward",
         }
         for migration, backwards in plan
@@ -287,10 +265,10 @@ def _plan_case(
         _assert_zero_mutation(mutation)
         return (
             {
-                "applied": _key_values(sorted(applied)),
+                "applied": key_values(sorted(applied)),
                 "name": name,
                 "plan": _plan_value(plan),
-                "targets": _key_values(targets),
+                "targets": key_values(targets),
             },
             {"after": after, "before": before, "name": name},
             {"name": name, **mutation},
@@ -418,8 +396,8 @@ def missing_target(contract_id: str) -> dict[str, Any]:
             after=after,
             statements=statements,
             facts={
-                "graph": _graph_facts(nodes, dependencies),
-                "request": {"applied": [], "targets": _key_values([target])},
+                "graph": graph_facts(nodes, dependencies),
+                "request": {"applied": [], "targets": key_values([target])},
             },
         )
 
@@ -540,9 +518,9 @@ def inconsistent_history(contract_id: str) -> dict[str, Any]:
             after=after,
             statements=statements,
             facts={
-                "graph": _graph_facts(nodes, dependencies),
+                "graph": graph_facts(nodes, dependencies),
                 "request": {
-                    "applied": _key_values(sorted(applied)),
+                    "applied": key_values(sorted(applied)),
                     "operation": "validate_history_before_planning",
                 },
             },
@@ -572,7 +550,7 @@ def missing_dependency(contract_id: str) -> dict[str, Any]:
             after=after,
             statements=statements,
             facts={
-                "graph": _graph_facts(nodes, dependencies),
+                "graph": graph_facts(nodes, dependencies),
                 "request": {"operation": "build_graph"},
             },
         )
@@ -599,7 +577,7 @@ def dependency_cycle(contract_id: str) -> dict[str, Any]:
             after=after,
             statements=statements,
             facts={
-                "graph": _graph_facts(nodes, dependencies),
+                "graph": graph_facts(nodes, dependencies),
                 "request": {"operation": "build_graph"},
             },
         )

@@ -45,7 +45,8 @@ func openEmptyArticleDatabase(ctx context.Context, contractID string) (*sqlite.B
   "id" INTEGER NOT NULL PRIMARY KEY,
   "title" VARCHAR(200) NOT NULL,
   "published" BOOLEAN NOT NULL,
-  "summary" VARCHAR(200) NULL
+  "summary" VARCHAR(200) NULL,
+  "slug" VARCHAR(50) NULL UNIQUE
 )`
 	if _, err := backend.ExecContext(ctx, statement); err != nil {
 		closeErr := backend.Close()

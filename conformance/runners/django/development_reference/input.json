@@ -1,0 +1,18 @@
+{
+  "kind": "project-development-inputs-v1",
+  "notes": {"before": "before reload", "after": "after schema change", "summary": "new summary"},
+  "article": {"title": "committed before reload", "group": "Reload readers"},
+  "command": {"saved_title": "saved before command error"},
+  "versions": {"initial": "v1", "changed": "v2", "field": "v4", "edited": "v5"},
+  "cases": [
+    {"name": "source_reload", "owner": "notes", "comparison": "shared", "reason": "An edit changes the serving process and response at the same address while preserving committed data."},
+    {"name": "source_failure", "owner": "notes", "comparison": "native_difference", "reason": "GoDj prepares a compiled candidate before replacing its last working application; Django's replacement child imports the edited Python source."},
+    {"name": "field_change", "owner": "notes", "comparison": "shared_boundary", "reason": "Explicit migration preserves the old row with a null added field and permits a value on a new row."},
+    {"name": "no_reload", "owner": "notes", "comparison": "shared", "reason": "An explicit single-run server keeps its loaded code until restart."},
+    {"name": "explicit_restart", "owner": "notes", "comparison": "shared_boundary", "reason": "A fresh process reads edited code and previously committed values."},
+    {"name": "session_relation", "owner": "article", "comparison": "shared_boundary", "reason": "The same authenticated client retains access to committed domain data and group membership across a source reload."},
+    {"name": "current_permission", "owner": "article", "comparison": "shared_boundary", "reason": "Each new request observes revocation and restoration of the current group grant, including after reload."},
+    {"name": "csrf", "owner": "article", "comparison": "shared_boundary", "reason": "An authenticated unsafe request without a CSRF token is rejected."},
+    {"name": "command_failure", "owner": "command", "comparison": "shared_boundary", "reason": "A command error after a confirmed save does not roll back that earlier save."}
+  ]
+}

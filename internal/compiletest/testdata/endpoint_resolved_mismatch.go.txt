@@ -1,0 +1,12 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/web"
+)
+
+type row struct{ Value int64 }
+type other struct{ Value int64 }
+
+var invalid endpoint.Input[row] = endpoint.Resolve(endpoint.PathInt64("id"), func(_ *web.Request, _ auth.Principal, id int64) (other, error) { return other{Value: id}, nil })

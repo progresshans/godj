@@ -1,0 +1,5 @@
+package consumer
+
+import "github.com/progresshans/godj/api/output"
+
+var _ output.Output[string] = output.NoContent()

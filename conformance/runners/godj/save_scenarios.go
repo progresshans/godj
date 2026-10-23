@@ -87,7 +87,7 @@ func modelSaveLoadedAllFields(ctx context.Context, contractID string) (protocol.
 		if err != nil {
 			return protocol.Observation{}, err
 		}
-		if _, err := models.ArticleObjects.Update(
+		if _, err := models.ArticleObjects.Patch(
 			ctx,
 			backend,
 			created,
@@ -119,7 +119,7 @@ func modelSaveUpdateFieldsNamed(ctx context.Context, contractID string) (protoco
 		if err != nil {
 			return protocol.Observation{}, err
 		}
-		if _, err := models.ArticleObjects.Update(
+		if _, err := models.ArticleObjects.Patch(
 			ctx,
 			backend,
 			created,

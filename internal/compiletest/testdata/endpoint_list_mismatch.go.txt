@@ -1,0 +1,8 @@
+package consumer
+import (
+    "github.com/progresshans/godj/api/endpoint"
+    "github.com/progresshans/godj/api/input"
+)
+type row struct{}
+var scalar endpoint.Input[row]
+var _ endpoint.Input[row] = endpoint.JSONListBody(scalar, input.ListConfig{MaxItems: 1}, "")

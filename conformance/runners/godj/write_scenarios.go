@@ -93,7 +93,7 @@ func modelPartialUpdateOmitted(ctx context.Context, contractID string) (protocol
 		memoryOnlySummary := "Memory only"
 		created.Published = true
 		created.Summary = &memoryOnlySummary
-		if _, err := models.ArticleObjects.Update(ctx, backend, created, models.ArticlePatch{}.WithTitle("After")); err != nil {
+		if _, err := models.ArticleObjects.Patch(ctx, backend, created, models.ArticlePatch{}.WithTitle("After")); err != nil {
 			return protocol.Observation{}, err
 		}
 		persisted, err := models.ArticleObjects.Using(backend).
@@ -120,7 +120,7 @@ func modelPartialUpdateExplicitNull(ctx context.Context, contractID string) (pro
 		if err != nil {
 			return protocol.Observation{}, err
 		}
-		updated, err := models.ArticleObjects.Update(ctx, backend, created, models.ArticlePatch{}.WithSummaryNull())
+		updated, err := models.ArticleObjects.Patch(ctx, backend, created, models.ArticlePatch{}.WithSummaryNull())
 		if err != nil {
 			return protocol.Observation{}, err
 		}
@@ -221,7 +221,7 @@ func transactionAtomicRollback(ctx context.Context, contractID string) (protocol
 			return protocol.Observation{}, err
 		}
 		atomicErr := backend.Atomic(ctx, func(session db.Session) error {
-			if _, err := models.ArticleObjects.Update(
+			if _, err := models.ArticleObjects.Patch(
 				ctx,
 				session,
 				sentinel,

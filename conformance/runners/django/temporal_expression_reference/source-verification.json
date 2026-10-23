@@ -1,0 +1,143 @@
+{
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "kind": "independent-temporal-expression-inputs-v1",
+  "license": "BSD-3-Clause",
+  "source_verification": "Listed installed modules must be byte-equal to pinned upstream; no whole-wheel digest claim. Runtime identity is recorded per observation.",
+  "sources": {
+    "db/backends/base/features.py": {
+      "bytes": 18414,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/base/features.py",
+      "sha256": "5b8d5210974420af7b6f9120fab05be36489247f6657c7e45dbe1818412c31f8"
+    },
+    "db/backends/base/operations.py": {
+      "bytes": 34378,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/base/operations.py",
+      "sha256": "1fe091964e3633c6ed2dfdf45cd785083a01c69e7e32dabdb5c0c55f06e90b99"
+    },
+    "db/backends/postgresql/base.py": {
+      "bytes": 23829,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/postgresql/base.py",
+      "sha256": "6bed565f8e0a9b969cd3fb973ef8c5c14a0eb0c4151c77f99ae3f0faf5226fa6"
+    },
+    "db/backends/postgresql/features.py": {
+      "bytes": 7108,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/postgresql/features.py",
+      "sha256": "46d66ede02eb3ad06a8aedd46d389632353e67a9bf29a1ea24c47161ee3afbaa"
+    },
+    "db/backends/postgresql/operations.py": {
+      "bytes": 15521,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/postgresql/operations.py",
+      "sha256": "49cde1854e7cee24f376fff3b2647c8ff315b854e96224241154ec167cb345ef"
+    },
+    "db/backends/sqlite3/_functions.py": {
+      "bytes": 15731,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/sqlite3/_functions.py",
+      "sha256": "af42d8e7af692d23a56be5359826055028bccd37440c28af628e96c64813bd4e"
+    },
+    "db/backends/sqlite3/base.py": {
+      "bytes": 15095,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/sqlite3/base.py",
+      "sha256": "b3222792e267daa3dc5bd56904b2021d273b7badf80dc3f9785e5a8c295b2655"
+    },
+    "db/backends/sqlite3/features.py": {
+      "bytes": 7198,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/sqlite3/features.py",
+      "sha256": "37720bdebb28f92b814b009de8e43cde0948319f382040ee88708bbf3fb64b77"
+    },
+    "db/backends/sqlite3/operations.py": {
+      "bytes": 15892,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/sqlite3/operations.py",
+      "sha256": "3c4a8181a63d08f1da9b1b07b030b819b8afac7c95b9c3d978c2c7b20344f9cd"
+    },
+    "db/backends/utils.py": {
+      "bytes": 11137,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/utils.py",
+      "sha256": "c05c9055f56cd40c51e3cc9021543e965d6c0bd194782c5d3fe69abd82f496bb"
+    },
+    "db/models/aggregates.py": {
+      "bytes": 15427,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/aggregates.py",
+      "sha256": "5306e824e61be06dc20c1d322586f84697f9ecec7064b33405235feae5441eb1"
+    },
+    "db/models/expressions.py": {
+      "bytes": 77894,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/expressions.py",
+      "sha256": "5e2cd9d23b08da0ff7cfedab7f20164bce1f0ab61de9947a7219d2a14d344971"
+    },
+    "db/models/fields/__init__.py": {
+      "bytes": 103134,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/__init__.py",
+      "sha256": "744392031020fc9599ec341132f8c793a8c0ce1e3981b4b304d3b3fcccb8535f"
+    },
+    "db/models/fields/related.py": {
+      "bytes": 83508,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related.py",
+      "sha256": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3"
+    },
+    "db/models/fields/related_descriptors.py": {
+      "bytes": 69743,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_descriptors.py",
+      "sha256": "9b8ff28fb6c66b034b98b39e6242c720584d539851c8203db8363d069bf54d9c"
+    },
+    "db/models/fields/related_lookups.py": {
+      "bytes": 6094,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/related_lookups.py",
+      "sha256": "5ec3a444aa0e8228e1acf29df24208e9cd3e4aa05e528bac2d380286ee5d8240"
+    },
+    "db/models/fields/reverse_related.py": {
+      "bytes": 12624,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/reverse_related.py",
+      "sha256": "fcb8b2f9e2ed9729a27922358661011aaa3cd6f962b0990455e49dc5bc6e4434"
+    },
+    "db/models/functions/mixins.py": {
+      "bytes": 2382,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/functions/mixins.py",
+      "sha256": "52aa47632177dc948459876081ecd3b5692b3243ca1447d6e9e9c892e8f381a4"
+    },
+    "db/models/lookups.py": {
+      "bytes": 28689,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/lookups.py",
+      "sha256": "9dfcbe99d086a154f2363c6d6332de88adc84d5b850a36b722e612174a15d713"
+    },
+    "db/models/query.py": {
+      "bytes": 118105,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query.py",
+      "sha256": "5e86af673328a1d6800342f4bec9d4e2352b7919bebef349d98962d67569eae6"
+    },
+    "db/models/query_utils.py": {
+      "bytes": 20366,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query_utils.py",
+      "sha256": "c9c672bcb9711400674b90554c8415f0f5b3d6ed498f3d592ab8562d676bf923"
+    },
+    "db/models/sql/compiler.py": {
+      "bytes": 96047,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/compiler.py",
+      "sha256": "38e5ed0147669e8085f00b02646e5b7436ece76f6bb399bef4acd4ae9f07feb4"
+    },
+    "db/models/sql/datastructures.py": {
+      "bytes": 7279,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/datastructures.py",
+      "sha256": "2bca04f33c1de63b6198b4120a09afc0e95fa3a2b516281f3fadc7055e423b2f"
+    },
+    "db/models/sql/query.py": {
+      "bytes": 123905,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/query.py",
+      "sha256": "dc599140baef8c28a832279007873f8dfd42c5b8aa0d4451c95aae2076425a01"
+    },
+    "utils/dateparse.py": {
+      "bytes": 5414,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/utils/dateparse.py",
+      "sha256": "ea50d8b5821e8be805f6b4bde14481c14232d8b60dd713508921873eb44f2ade"
+    },
+    "utils/duration.py": {
+      "bytes": 1230,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/utils/duration.py",
+      "sha256": "1cae44dfa17518674f7210aa1ec9a5a1886b1d7fc1cb2213bce1f2bb1b449521"
+    },
+    "utils/timezone.py": {
+      "bytes": 7291,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/utils/timezone.py",
+      "sha256": "ceaad7cc041ee1856e38f16519e6a59e844672c83b2f401f9b451ef1d27a086d"
+    }
+  }
+}

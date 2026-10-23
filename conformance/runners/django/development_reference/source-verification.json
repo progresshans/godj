@@ -1,0 +1,83 @@
+{
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "kind": "django-development-source-verification-v1",
+  "license": "BSD-3-Clause",
+  "source_verification": "Each selected installed module must equal pinned upstream bytes; this is not a whole-wheel identity.",
+  "sources": {
+    "apps/config.py": {
+      "bytes": 11482,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/apps/config.py",
+      "sha256": "d59871b783abc119ce9ac4ff07f06eac89b3de88bcdf7d13246d2b451279f1b4"
+    },
+    "apps/registry.py": {
+      "bytes": 17707,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/apps/registry.py",
+      "sha256": "ec931677450952aad787249d5582cc3fe0cb0bdb2a9a7ee7fdd817c4263a0d66"
+    },
+    "contrib/auth/backends.py": {
+      "bytes": 12899,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/contrib/auth/backends.py",
+      "sha256": "dbe0f9db060459c7e016d41d16a2a327872d74931a876cb4e014424875bf5da1"
+    },
+    "contrib/auth/middleware.py": {
+      "bytes": 11826,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/contrib/auth/middleware.py",
+      "sha256": "5502a70b948119d2d5d5dd6608bf7a68199db8bbe15f08f15c4364858dffc7f7"
+    },
+    "contrib/auth/views.py": {
+      "bytes": 13870,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/contrib/auth/views.py",
+      "sha256": "5030f1da37f4d17dcf9301d99633d2880d057b62dc574c3f9d27823c5be9a1e9"
+    },
+    "contrib/sessions/middleware.py": {
+      "bytes": 3755,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/contrib/sessions/middleware.py",
+      "sha256": "6d9f1882e11d2e6e37f04e4b793b98f67707d897544ec46736355dcf8d838e77"
+    },
+    "core/management/__init__.py": {
+      "bytes": 17413,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/core/management/__init__.py",
+      "sha256": "f28795803973bc8c491ccb2ced1f8000b2e61196f6374bd4051c5f6b3ea4fc2b"
+    },
+    "core/management/base.py": {
+      "bytes": 25059,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/core/management/base.py",
+      "sha256": "6a97f5cf7c8f6bc23275074d926cb47d4912be1601688b1cd16ed1c35738a962"
+    },
+    "core/management/commands/runserver.py": {
+      "bytes": 7560,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/core/management/commands/runserver.py",
+      "sha256": "5cd5bebe2702f420792acfc6cf0f5ad34a5ee60b8314474aaadf725b76616dc2"
+    },
+    "core/management/commands/startapp.py": {
+      "bytes": 503,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/core/management/commands/startapp.py",
+      "sha256": "0e196585a7f5ab710a567c812e127d42c59fe899a302d62754baee1ec98c95c4"
+    },
+    "core/management/commands/startproject.py": {
+      "bytes": 809,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/core/management/commands/startproject.py",
+      "sha256": "a1b43f247034bd99512f0a633af548318762bc1b4e6b5c30f4c2849812f1065e"
+    },
+    "core/management/templates.py": {
+      "bytes": 15494,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/core/management/templates.py",
+      "sha256": "28eb1ae97be8a01d47e944912028c2c46facf7a860515b8afe81e1309d4a4dcc"
+    },
+    "core/servers/basehttp.py": {
+      "bytes": 9776,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/core/servers/basehttp.py",
+      "sha256": "aae42b603c5267476cff0c2e1688124cee370551d3bc26aadbbf213306965d01"
+    },
+    "db/migrations/executor.py": {
+      "bytes": 19029,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/migrations/executor.py",
+      "sha256": "a41c86b8bb744c3b70128ff1f321dd373d5acd96ca46cd3513adc44c975ca26a"
+    },
+    "utils/autoreload.py": {
+      "bytes": 25043,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/utils/autoreload.py",
+      "sha256": "993ebf655deb5ecd58528a0eafa190172ca0607a038ea79d89ad6fcde8d8005c"
+    }
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "backend": "sqlite",
+  "database_version": "3.50.4",
+  "django": "6.1",
+  "observations": {
+    "boolean_false": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "date": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "datetime": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "decimal": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "duration": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "empty_text": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "float": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "integer": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "integer_min": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "json": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "nullable_default": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "null"
+    },
+    "quoted_text": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "time": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    },
+    "uuid": {
+      "links_preserved": true,
+      "matched_rows": 2,
+      "next_id": 3,
+      "persistent_default": false,
+      "raw_missing": "rejected"
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "base_schema": "9dc62b1585e378fdd490e66b0dac7b87cd7bf323f8a2fee392d2b48368bc22fe",
+    "field_operations": "76c0f9945ad2f0c3e1df559e5b6a8bfa1c00c2049f6448342792ad2ea505ac73",
+    "postgres_schema": "78617b2c44c17f3404ebadd2db5148cb63d87e078dcc7798155b9cfb932099dc",
+    "sqlite_schema": "85b1c0c726e9e38f4be1169aa146473d4116efc4f7094c9c936a468dd109e1bf"
+  }
+}

@@ -1,0 +1,160 @@
+# [[.Module]]
+
+This project contains an empty `site` app and GoDj's identity app. The declaration
+runner, generated model bundle, database configuration and HTTP application are
+ready to extend. `startproject` has generated and compiled the project; database
+migrations and the initial account are explicit operations.
+
+## Run locally
+
+Use the `godj` executable that created this project, with Go 1.26.5 in PATH.
+Run these commands from this directory:
+
+```sh
+godj generate --check
+godj check
+godj migrations check
+godj migrate
+godj check --resource database
+godj createsuperuser
+godj runserver
+```
+
+`createsuperuser` prompts for the first administrator's username and password on
+the terminal. Open `http://127.0.0.1:8000/admin/` and sign in. The application also
+provides the identity JSON API at `/api/identity/`; unsafe requests require the
+authenticated session and its masked CSRF token. The OpenAPI document at
+`/api/identity/openapi.json` requires identity model permissions.
+
+The default database is `site.sqlite3`. Apply migrations before serving. Without
+an initial account, the migrated application serves only its public home page.
+After provisioning, restarting loads the stored identity and permissions without
+requiring the password again.
+
+The supplied server accepts literal loopback addresses only. Its session cookies
+allow local HTTP. Review the deployment, TLS and cookie policy before creating a
+separate production entrypoint.
+
+## Change the application
+
+- Select app definitions in `modeldef/apps.go`. Define models there or import
+  the app's declaration package; neither imports generated model code.
+- `modeldef/project.go` binds each app to `apps/<label>/models` and creates the
+  generated project binding in `project/`.
+- Edit `internal/config/config.go` for database and identity policy. It reads an
+  explicit environment snapshot and opens no resources.
+- Add Admin resources and authenticated API routes in `internal/site/models.go`.
+  Choose exposed fields and permissions explicitly; adding a model does not
+  automatically publish its fields as HTTP input.
+- Keep generated Go source, `go.mod`, `go.sum`, migrations and
+  `.godj/generated-manifest.json` with the project source.
+
+`godj runserver` watches source, embedded assets, module declarations, generated
+manifests and used local replacements. It keeps the same address and activates a
+candidate only after source checks, compilation and application startup succeed.
+Already admitted requests finish in the old application before its resources
+close. A rejected candidate leaves the current app running and reports
+`project_runserver_reload_rejected/CODE` on stderr. Use `godj runserver --no-reload`
+for a single build without watching. Restart to change environment variables.
+
+After changing a model, run `godj generate`, `godj makemigrations`, inspect the
+new migration, then run `godj migrate`. Save a source change or restart the server
+after migration to retry a rejected candidate. Ordinary database writes do not
+trigger rebuilds. Generation and server startup do not apply migrations or change
+stored account permissions automatically. Check required schema and resources in
+application startup; reload does not make incompatible database migrations safe
+for the still-running application.
+
+## Add an app
+
+```sh
+godj startapp line_items apps/line_items
+```
+
+In `modeldef/apps.go`, import the declaration package:
+
+```go
+lineitemsdef "[[.Module]]/apps/line_items/modeldef"
+```
+
+Add `lineitemsdef.Definition()` to the returned `[]schema.Definition`, preserving
+the existing definitions. Then run `godj generate`. The empty app has a stable
+identity and no tables. Add its models in `apps/line_items/modeldef/schema.go`,
+generate again, and create/review/apply migrations as described above.
+
+App creation and installation are separate: `startapp` writes a new directory
+and reports `installed: false`. The project's explicit declaration selects the
+installed apps. It does not rewrite the existing declaration, generated bundle,
+database or HTTP permissions. App labels use the canonical lowercase schema
+namespace; the starter derives distinct Go aliases for underscores and keywords.
+
+To select another SQLite database, set `GODJ_SQLITE_DATABASE`. To select
+PostgreSQL, unset that variable and set `GODJ_POSTGRES_URL` and
+`GODJ_POSTGRES_SCHEMA` to a database/schema you own. Use the same configuration
+for migration, account provisioning and the server. Do not commit credentials.
+
+[[if .FrameworkSource]]This project uses an explicitly selected local framework checkout through the
+`replace` entry in `go.mod`. Moving or sharing the project requires choosing an
+available checkout or an explicit published module version.
+[[else]]The framework dependency is pinned to `[[.FrameworkVersion]]` in `go.mod`.
+[[end]]
+## Management commands
+
+```sh
+godj help
+godj commands
+godj help count-groups
+godj command count-groups
+```
+
+Register commands in `internal/commands/commands.go`. The separate `cmd/commands`
+entrypoint can import generated models; keep the declaration runner independent
+of those imports. Define typed arguments/options, then use `command.Using` to
+open the same configured database for one command and close it afterward.
+The global command compares linked framework contracts and validates generated
+source before entering a command. It preserves the command's stdout/stderr and
+exit code and never automatically retries a failed action.
+
+`commands` and custom `help` open no database. `check` validates declaration,
+generated source, command registration and the project's pure configuration
+check. `check --list` lists optional resource checks. `check --resource database`
+reads the existing database and closes its connection; a missing database/schema
+fails without creating or migrating it. SQLite uses read-only mode and rejects
+memory databases and arbitrary initialization SQL. This check is not a migration
+status or whole-database integrity test. Register additional named
+`command.ResourceCheck` entries explicitly and repeat `--resource NAME` to select
+them. All selections are validated before I/O; a failed check stops later checks.
+Configuration diagnostics identify public field names and omit their values.
+Commands execute with the operator's OS/database permissions; they do not
+implicitly impersonate an HTTP user. A command error, output error or cleanup
+failure does not prove that prior database writes rolled back.
+
+## Operational logging and local events
+
+Set `GODJ_LOG_LEVEL=info` to send structured JSON diagnostics to stderr for the
+server and management runtime. `debug`, `warn`, `error` and `off` are also accepted;
+an absent variable disables logging. Configure the explicit sink and fields in
+`internal/config/config.go`. Records identify this project, runtime and invocation
+and describe startup, checks, resource closure and command completion. A restart
+gets a new invocation ID. Arguments, request bodies, credentials and raw errors
+are not automatically recorded. Sink failure does not turn a confirmed write
+into a failed command; these diagnostics are not a durable audit trail.
+
+For optional in-process notifications, create `events.New[T]` in application
+code and explicitly subscribe receivers. `Send` stops on a receiver error;
+`SendRobust` returns receiver errors while continuing. Preserve confirmed DB
+results when observing post-commit notification failures. On shutdown, close or
+unsubscribe, then successfully drain callbacks before closing their resources.
+There is no global registry, automatic retry or durable/cross-process delivery.
+
+## Creation failures
+
+`startproject` publishes only to a new directory whose parent already exists.
+It rejects existing files, directories and symbolic links. A failed candidate
+build or generation leaves the destination absent and removes its owned staging
+directory. Dependency resolution may need network access to the configured Go
+module proxy.
+
+A `published_...` error means the directory was already created; inspect it
+before retrying. A durability or cleanup error does not mean creation was rolled
+back. Errors requiring staging recovery leave the owned work for inspection.

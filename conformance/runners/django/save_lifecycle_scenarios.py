@@ -8,6 +8,7 @@ from typing import Any
 from django.db import IntegrityError, connection, transaction
 
 from .normalizer import PrimaryKey, normalize
+from .sql_observation import capture_statements
 from .scenarios import Article, _database_state
 from .write_migration_scenarios import empty_article_database
 
@@ -37,21 +38,6 @@ def _statement_kind(sql: str) -> str:
         if rendered.startswith(prefix):
             return kind
     return rendered.split(None, 1)[0] if rendered else "EMPTY"
-
-
-def _capture(operation: Callable[[], Any]) -> tuple[Any, dict[str, Any]]:
-    statements: list[str] = []
-
-    def wrapper(execute, sql, params, many, context):
-        statements.append(_statement_kind(sql))
-        return execute(sql, params, many, context)
-
-    with connection.execute_wrapper(wrapper):
-        result = operation()
-    return result, {
-        "query_count": len(statements),
-        "statement_kinds": statements,
-    }
 
 
 def _observed(
@@ -124,7 +110,7 @@ def model_save_new_auto_pk(contract_id: str) -> dict[str, Any]:
     with empty_article_database():
         article = Article(title="New save", published=True, summary="Created")
         before = _instance_state(article)
-        _, metrics = _capture(article.save)
+        _, metrics = capture_statements(connection, article.save, classify=_statement_kind)
         return _observed(
             contract_id,
             phase="commit",
@@ -146,7 +132,7 @@ def model_save_loaded_all_fields(contract_id: str) -> dict[str, Any]:
             summary="Concurrent database value",
         )
         loaded.title = "After default save"
-        _, metrics = _capture(loaded.save)
+        _, metrics = capture_statements(connection, loaded.save, classify=_statement_kind)
         return _observed(
             contract_id,
             phase="commit",
@@ -170,7 +156,7 @@ def model_save_update_fields_named(contract_id: str) -> dict[str, Any]:
         loaded.title = "Only title persists"
         loaded.published = True
         loaded.summary = "Memory only"
-        _, metrics = _capture(lambda: loaded.save(update_fields=["title"]))
+        _, metrics = capture_statements(connection, lambda: loaded.save(update_fields=["title"]), classify=_statement_kind)
         return _observed(
             contract_id,
             phase="commit",
@@ -189,7 +175,7 @@ def model_save_update_fields_empty(contract_id: str) -> dict[str, Any]:
         loaded.title = "Memory only"
         loaded.published = True
         loaded.summary = "Also memory only"
-        _, metrics = _capture(lambda: loaded.save(update_fields=[]))
+        _, metrics = capture_statements(connection, lambda: loaded.save(update_fields=[]), classify=_statement_kind)
         return _observed(
             contract_id,
             phase="evaluation",
@@ -269,7 +255,7 @@ def model_save_explicit_pk_existing(contract_id: str) -> dict[str, Any]:
     with empty_article_database():
         Article.objects.create(id=41, title="Existing")
         article = Article(id=41, title="Updated existing", published=True)
-        _, metrics = _capture(article.save)
+        _, metrics = capture_statements(connection, article.save, classify=_statement_kind)
         return _observed(
             contract_id,
             phase="commit",
@@ -285,7 +271,7 @@ def model_save_explicit_pk_missing(contract_id: str) -> dict[str, Any]:
             title="Inserted missing",
             summary="Fallback insert",
         )
-        _, metrics = _capture(article.save)
+        _, metrics = capture_statements(connection, article.save, classify=_statement_kind)
         return _observed(
             contract_id,
             phase="commit",
