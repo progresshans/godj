@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/models"
 	helpdesk "github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/orm"
@@ -158,5 +159,79 @@ func TestPreparedModelSaveRetainsGeneratedIdentityAndTerminalErrors(t *testing.T
 	}
 	if err := (orm.PreparedModel[models.Article]{}).Save(t.Context(), backend, &value); err == nil {
 		t.Fatal("zero prepared model wrote storage")
+	}
+}
+
+type stagedUniqueDescriptor struct{ models.ArticleDescriptor }
+
+func (stagedUniqueDescriptor) Metadata() ir.Model {
+	model := (models.ArticleDescriptor{}).Metadata()
+	for i := range model.Fields {
+		model.Fields[i].Unique = model.Fields[i].Name == "title" || model.Fields[i].Name == "summary"
+	}
+	model.UniqueConstraints = []ir.UniqueConstraint{
+		{Name: "summary_published", Fields: []string{"summary", "published"}},
+		{Name: "title_published", Fields: []string{"title", "published"}},
+	}
+	return model
+}
+
+func TestPreparedUniqueExclusionDefersWholeConstraintsUntilServerValueExists(t *testing.T) {
+	manager := orm.NewManager[models.Article](stagedUniqueDescriptor{})
+	prepared, err := manager.PrepareValues(nil, map[string]query.Value{"title": query.String("candidate"), "summary": query.String("unavailable-server-value")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := prepared.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var plans []query.Plan
+	reader := uniqueQuery(func(_ context.Context, plan query.Plan) (db.Rows, error) {
+		plans = append(plans, plan)
+		return &uniqueRows{exists: true}, nil
+	})
+	excluded := []string{"summary"}
+	diagnostics, err := prepared.ValidateUniqueExcluding(t.Context(), reader, row, excluded...)
+	if err != nil || len(plans) != 2 || diagnostics.Len() != 2 {
+		t.Fatal("excluded scalar or tuple was queried", err, len(plans), diagnostics.All())
+	}
+	for _, plan := range plans {
+		for _, condition := range plan.Conditions() {
+			if condition.Field().Name() == "summary" {
+				t.Fatal("server placeholder leaked into uniqueness query")
+			}
+		}
+	}
+	if excluded[0] != "summary" {
+		t.Fatal("caller exclusions mutated")
+	}
+	for _, names := range [][]string{{"missing"}, {"summary", "summary"}, {""}} {
+		plans = nil
+		diagnostics, err := prepared.ValidateUniqueExcluding(t.Context(), reader, row, names...)
+		if err == nil || !diagnostics.Empty() || len(plans) != 0 {
+			t.Fatal("invalid exclusions performed I/O")
+		}
+	}
+	plans = nil
+	row.Summary = new("actual-server-value")
+	diagnostics, err = prepared.ValidateUnique(t.Context(), reader, row)
+	if err != nil || len(plans) != 4 || diagnostics.Len() != 4 {
+		t.Fatal("final full check omitted deferred constraints", err, len(plans))
+	}
+	seen := 0
+	for _, plan := range plans {
+		for _, condition := range plan.Conditions() {
+			if condition.Field().Name() == "summary" {
+				text, valid := condition.Value().String()
+				if !valid || text != "actual-server-value" {
+					t.Fatal("final check reused placeholder")
+				}
+				seen++
+			}
+		}
+	}
+	if seen != 2 {
+		t.Fatal("final field and tuple not checked")
 	}
 }

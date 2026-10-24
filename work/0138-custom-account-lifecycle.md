@@ -112,6 +112,14 @@ Namespace/전체 용량·batch rollback·scope/cleanup/unknown·동시 생성·d
 기본/renamed/NoReverse 소비자의 실제 HTTP Form·JSON 역할 수정과 대상 브라우저 세션 폐기 검사도 작성했다.
 작성·compile과 이 새 본문의 실제 환경별 실행은 TEST_EVIDENCE에서 구분한다.
 
+생성 `NewAccountCreator`와 공통 `Creator[M]`를 작성했다. 필수 scalar profile·IR default·정규화·서버 identity/revision/시각,
+현재 add+change/추가 권한·소속/합집합·unique·typed/password policy의 사전 검사와 DB 밖 한 번의 hash를 연결한다.
+하나의 creator·actor·domain에 묶인 준비 결과는 한 번만 저장 시도하며, 최종 재검사·행/소속/audit를 같은 native scope에서
+확정한다. 해시 전에는 해당 필드를 포함한 unique만 미루고, 실제 hash를 넣은 최종 후보는 전체 제약을 검사한다.
+명시적 unusable·raw 한도·권한/정책/선택 변경·0/음수 선택 key·실패/cleanup/unknown·중복 생성 경합을 양 DB 필수 목록에
+추가했다. 기본/별도 Member의 실제 TCP Form·JSON 생성, 필수 region·예약 입력 거부·생성된 credential 로그인 소비자도
+작성했다. 최소 compile과 실제 실행 범위는 TEST_EVIDENCE에서 구분한다. 첫 계정 명령이나 공통 설치 완료는 아니다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·password/reset과 세션 폐기 조립·host 삭제·audit/session 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
 

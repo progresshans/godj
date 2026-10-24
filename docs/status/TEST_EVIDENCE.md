@@ -460,6 +460,55 @@ CI 도구 검사도 21개 오류를 보고했다. 실제 checkout `4589ee62178fb
 명령·전후 목록 hash·제거한 비테스트 행은 `gdj0138-role-required-format-repro-v1/receipt.json`에 있다
 (SHA-256 `9e71311328e26ed41690f4890c1ac3a3e566a9bae44008e113453b3b2565f571`). 새 source의 전체 CI 결과는 별도 확인한다.
 
+### 선택 계정 생성·사전 해시 검사와 최종 원자 저장
+
+`880626ea042a88c952071cff98292fa622d8b656`에서 이어진 작업본에 `Creator[M]`·생성 `NewAccountCreator`를 작성했다.
+실제 필수 scalar profile·IR default·로그인/email 정규화·서버 principal/revision/선택 시각, 현재 add+change·추가 권한과
+관계/합집합·unique·typed/password policy를 연결한다. 준비 객체는 owner·actor·domain에 묶이며 한 번의 DB 밖 hash 후
+한 번의 commit 시도만 허용한다. 최종 fence에서 전체 검증과 실제 hash의 unique를 다시 검사하고 행·두 소속·audit를 묶는다.
+`PreparedModel.ValidateUniqueExcluding`은 아직 없는 password 필드가 포함된 전체 제약만 사전 검사에서 미루며,
+최종 native 제약이나 전체 unique 검사를 제거하지 않는다. 생성과 ProfileEditor는 같은 명시적 정규화 구현을 사용한다.
+
+양 DB 필수 목록에 각각 64개 parent/child를 추가했다. 생성/default/정규화·현재 권한/추가 grant·준비 뒤 선택/정책/중복 변경,
+해시/encoded 실패·명시적 unusable·현재 domain과 한 번의 시도·소속/유효 권한 한도·0/음수 선택 key·실제 insert/소속/audit 뒤
+rollback과 cleanup/unknown/취소·같은 login/준비 객체의 동시 저장을 검사하도록 작성했다. 새 ORM 제외 제약과 composition
+검사도 추가했다. 이 새 테스트 본문은 로컬에서 실행하지 않았으며 양 DB/race/process/platform 실행은 새 CI 확인 대상이다.
+
+외부 생성 앱의 기본·renamed/NoReverse custom·정규화 custom·LastLogin 필드 자체가 없는 custom 네 변형에 실제 TCP
+Form/JSON 생성·필수 region·예약 입력/선택/중복/빈 password 거부·감사·새 credential의 HTTP 로그인을 작성했다.
+소비자는 실제 typed ModelForm과 JSON ModelInput을 사용하고 raw password를 별도 command 입력으로 넘긴다.
+이 HTTP 본문도 아래 compile에서 실행하지 않았다. DB는 SQLite이며 독립 PostgreSQL HTTP나 브라우저 전체 수용 근거가 아니다.
+
+앞선 [CI 40042227384](https://github.com/progresshans/godj/actions/runs/40042227384)의 SQLite runtime job `120716174649`에서
+기존 `role_nonpositive_keys` fixture가 `user/group/permission` 대신 table 이름을 받아 실행 전 실패했다. 실제 checkout
+`eb5392d549c9835f9f8d7c5e63803aec24e44b29`의 tree는 `77fb5f6e88d69c4f23cc047564669855b8ab69c1`로 기준 source와 같다.
+부모는 `57a2654e3df64df855781630f2fff0e102c12917` / `880626ea042a88c952071cff98292fa622d8b656`다.
+원본 로그와 Git 객체는 `gdj0138-880626ea-ci-40042227384/`에 보존했다. 해당 로그 SHA-256은
+`a54d11b9eaaad6440dd3f9f4ae33e7f65fcd77a51d7ed65892b9035d64c32c69`다. 이 실패를 로컬에서 같은 단일 사례로 재현한 뒤
+호출 이름을 수정했고 root+child 2 PASS, fail/skip 0을 확인했다. 테스트 위험이나 필수 목록을 삭제하지 않았다.
+이 로컬 결과는 역할 사례에만 해당하며 새 생성 본문의 실행 근거가 아니다.
+
+Account generator ABI v8로 11개 프로젝트를 공개 재생성했으며 현재 155개 manifest 소유 파일의 hash와 ABI를 대조했다.
+기존 migration bytes는 변경하지 않았다. Darwin arm64의 영향 5 package(`identity/model`, `orm`, `codegen`,
+`codegen/consumertest`, `db/postgres`) 최소 compile과 실제 외부 생성 module 네 변형의 consumer compile이 통과했다.
+SQLite package compile은 위 한정 실패 재현에 포함됐다. 초기 최소 compile의 새 helper 미사용 import는 제거한 뒤 확인했다.
+외부 module은 저장소 밖 Go overlay로 자식 명령만 `-run '^$'`로 바꾼 compile 전용 실행이다. 저장소와 CI의 원래 harness는
+전체 본문 및 실행 assertion을 유지한다. 최종 191개 비문서 변경 파일은 두 compile receipt의 source와 같으며 각 명령 전후
+source hash도 동일하다. 목록 형식은 빈 줄/주석 없이 모든 행을 검사했고 각 DB의 새 64개 선언을 정확한 test root로 대조했다.
+
+| 실행·대조 범위 | Receipt SHA-256 |
+|---|---|
+| `gdj0138-role-signed-key-repro-v1/before-receipt.json` — 수정 전 같은 fixture 실패 | `aefd3f85225f71ed87a2b31d9a9f7ea39a6ed0a145d19333f433bf08ca2b58d2` |
+| `gdj0138-role-signed-key-repro-v1/after-receipt.json` — 수정 후 SQLite 2 PASS | `7b8365b63702ce6fb6fb6b20d9c82fde19354ed60897fc779cff44382e9afa3d` |
+| `gdj0138-creation-generate-v1/receipt.json` — 11개 공개 생성 명령 | `a1a296fc36227a462038d8897157b14a523b7807ce0f21268fed31affdd4f0df` |
+| `gdj0138-creation-compile-v1/receipt.json` — 영향 5 package 최소 compile | `19eb78ded864d2b3efc9fdbc0e10c75fdac7420ea3d90332f7ade3cd5b10d29a` |
+| `gdj0138-creation-external-compile-v1/receipt.json` — 외부 네 module 최소 compile | `c5859e89b157db158387019fd0d0a7e2dc3821dd2684cbee81eb5b4d71f297fd` |
+| `gdj0138-creation-publication-v1/verification.json` — 최종 source/manifest/필수 선언 대조 | `56a17507c0e887780f0b65789cc72dc059ea27709c87ee38fe0242991bdfa5f3` |
+
+경로는 위 저장소 밖 검증 보관소 아래다. 최초 domain·공개 첫 계정 명령/추가 profile prompt·공통 Admin/HTTP 설치,
+password/reset·profile 관계/파일·host/계정 삭제·채운 DB 전환/receipt/restart와 고정 Django 공유 의미 및 전체 환경 대조는
+I1 잔여 요구로 유지한다. 작성·compile·위 단일 실패 수정으로 I1-01~08 전체 완료를 선언하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

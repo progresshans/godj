@@ -161,4 +161,4 @@ func (AuditDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[
 
 type GoDjAppPart2_5a8833a17d94e7ae0abc20c9be6e98a8d55d3e2d8caccefc05e8a1624a6b0cf6 struct{}
 
-var _ GoDjProjectSnapshot_98d858f5feb2507abf34fa0cfd151819935d7037e677acf27588398edb6a7859
+var _ GoDjProjectSnapshot_35f59bb10d62ceea415205443294fc4106513ec733cb482cb886b26c7a48dba6

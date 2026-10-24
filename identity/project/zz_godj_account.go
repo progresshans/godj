@@ -12,7 +12,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v7"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v8"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -69,6 +69,27 @@ func NewAccountProfileEditor(backend _godjaccountdb.SnapshotReader, overlay _god
 	return _godjaccountmodel.NewProfileEditor(store, overlay, config)
 }
 
+// NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.
+func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[identity.User]) (*_godjaccountmodel.Creator[identity.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	store, err := _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewCreator(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, hasher, config)
+}
+
 // NewAccountRoleEditor uses the existing session owner for current roles, memberships, audit and deactivation.
 func NewAccountRoleEditor(sessions *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RoleConfig[identity.User]) (*_godjaccountmodel.RoleEditor[identity.User], error) {
 	binding, err := BindAccount()
@@ -120,4 +141,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_8fed566a20d93c7fa5a441ffded12d6415db872815903b3c22a5dc441c00f57c
+var _ goDjProjectSnapshot_14a6638c8f3902d09eb05ef781715e72c824986c4871b38a970d1ea85c5427ad

@@ -137,6 +137,12 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "alice", roleTarget, team.ID, grants[0].ID)
+	creationConfig := creationConsumerConfig[models.User](role, "first_name")
+	creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, creationConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAccountCreationHTTP(t, backend, binding, creator, authenticator, sessionStore, actor.Principal(), "alice", "first_name", team.ID, grants[0].ID)
 	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("default account unexpectedly changed its stored roles")

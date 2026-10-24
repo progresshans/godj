@@ -26,4 +26,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	return RelationDeleters{}, nil
 }
 
-var _ goDjProjectSnapshot_00be76ca8ae7c8ffe1956940824971469f31ae12d6522e6fea3f7b5023457944
+var _ goDjProjectSnapshot_8351b3c332172cfe9cc2cd3c3961a92d37e2701729dc7dc42c50d25c018ecd23

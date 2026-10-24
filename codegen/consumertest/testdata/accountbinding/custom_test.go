@@ -194,6 +194,23 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "member@EXAMPLE.TEST", roleTarget, team.ID, grants[0].ID)
+	creationConfig := creationConsumerConfig[people.Member](role, "region")
+	creationConfig.Validate = func(_ context.Context, _ db.Queryer, candidate people.Member, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+		if candidate.Region != "NZ" || candidate.Secret != "" {
+			return validation.NewErrors(validation.New("region", "custom_policy")), nil
+		}
+		return validation.Errors{}, nil
+	}
+	missingProfile := creationConfig
+	missingProfile.Fields = []string{role.Login, role.Groups, role.Permissions}
+	if creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, missingProfile); creator != nil || err == nil {
+		t.Fatal("required custom profile field was silently omitted")
+	}
+	creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, creationConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertAccountCreationHTTP(t, backend, binding, creator, authenticator, sessionStore, actor.Principal(), "member@EXAMPLE.TEST", "region", team.ID, grants[0].ID)
 	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1")
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("custom account constants and renamed role fields were not respected")

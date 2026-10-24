@@ -96,6 +96,17 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"session_credential_recheck", sessionCredentialRecheck},
 		{"session_optional_last_login", sessionOptionalLastLogin},
 		{"session_domain_snapshot", sessionDomainSnapshot},
+		{"creation_lifecycle", creationLifecycle},
+		{"creation_preflight_and_recheck", creationPreflightAndRecheck},
+		{"creation_hasher_failures", creationHasherFailures},
+		{"creation_commit_failures", creationCommitFailures},
+		{"creation_read_failures", creationReadFailures},
+		{"creation_concurrent_writes", creationConcurrentWrites},
+		{"creation_domain_binding", creationDomainBinding},
+		{"creation_bounds", creationBounds},
+		{"creation_nonpositive_choices", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+			creationNonpositiveChoices(t, backend, storedKey)
+		}},
 		{"role_edit_and_deactivation", roleEditAndDeactivation},
 		{"role_authority_and_domain", roleAuthorityAndDomain},
 		{"role_bounds", roleBounds},

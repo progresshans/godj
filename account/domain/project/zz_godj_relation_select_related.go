@@ -271,4 +271,4 @@ func (_object *AccountdomainTransitionObject) PreviousObject(_ctx context.Contex
 	return _target, true, nil
 }
 
-var _ goDjProjectSnapshot_20334ce00312268fa056d9dd066526d1f08f94b38661571fcc23fd42f4cb1477
+var _ goDjProjectSnapshot_d7cb5613338849174f0eaf931902af528129f19525b99d4380ccb8e9a079edbc

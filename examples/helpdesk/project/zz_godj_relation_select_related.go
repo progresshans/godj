@@ -1764,4 +1764,4 @@ func (_object *ModelsTicketLabelObject) TicketObject(_ctx context.Context) (*Mod
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_03f6d1410a637972764790689678a40366ed20c060b3a4d97681b925381c6fc1
+var _ goDjProjectSnapshot_cf9697573b647a421b1159b06c7cc37dd37a2a8c72f2519dbffd0a797583519d

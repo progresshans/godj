@@ -146,6 +146,15 @@ func (prepared PreparedModel[M]) Changes(value M) ([]string, error) {
 // values. The check is advisory, must run after current authorization, and
 // never replaces native uniqueness enforcement at Save.
 func (prepared PreparedModel[M]) ValidateUnique(ctx context.Context, backend db.Queryer, instance M) (validation.Errors, error) {
+	return prepared.ValidateUniqueExcluding(ctx, backend, instance)
+}
+
+// ValidateUniqueExcluding postpones each unique field or whole constraint
+// containing an excluded scalar field. This supports staged preparation when
+// a server-owned value is not available yet. Names must be distinct, declared
+// scalar fields; invalid names fail before I/O. The caller must later validate
+// the complete candidate and retain native uniqueness enforcement at Save.
+func (prepared PreparedModel[M]) ValidateUniqueExcluding(ctx context.Context, backend db.Queryer, instance M, fields ...string) (validation.Errors, error) {
 	changed, err := prepared.Changes(instance)
 	if err != nil {
 		return validation.Errors{}, err
@@ -153,6 +162,13 @@ func (prepared PreparedModel[M]) ValidateUnique(ctx context.Context, backend db.
 	descriptor, model, err := prepared.manager.writeConfiguration(ctx, backend)
 	if err != nil {
 		return validation.Errors{}, err
+	}
+	excluded := make(map[string]bool, len(fields))
+	for _, name := range fields {
+		if _, found := model.byName[name]; !found || excluded[name] {
+			return validation.Errors{}, invalidModelValue(name, "excluded uniqueness field is unknown or repeated")
+		}
+		excluded[name] = true
 	}
 	value := descriptor.CloneWriteModel(instance)
 	values, err := prepared.manager.ModelValues(value)
@@ -168,7 +184,7 @@ func (prepared PreparedModel[M]) ValidateUnique(ctx context.Context, backend db.
 	if !present {
 		mutation = NewCreateMutation(value, model.metadata.DBTable, assignments)
 	}
-	return validateUniqueMutation(ctx, backend, preparedWrite[M]{descriptor: descriptor, model: model, mutation: mutation, key: key})
+	return validateUniqueMutationExcluding(ctx, backend, preparedWrite[M]{descriptor: descriptor, model: model, mutation: mutation, key: key}, excluded)
 }
 
 // Save writes only actual changes to a keyed row, without INSERT fallback if

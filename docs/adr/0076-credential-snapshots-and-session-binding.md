@@ -964,6 +964,42 @@ Group의 revision을 증가시킨다. 간접 회원의 revision이나 credential
 수명 조정은 I1-06의 미완료 구현이다. 단순한 identity-only 삭제로 대체하거나 이 제한을 전체 host 삭제 완료로 계산하지 않는다.
 공통 Admin/HTTP 조립과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
 
+## 선택 계정의 typed 생성과 해시 준비
+
+생성 `NewAccountCreator`와 `identity/model.Creator[M]`는 기존 credential store와 같은 전체 host source·역할 정책·
+실제 account Groups/Permissions capability를 사용한다. `CreationConfig.Fields`는 login·scalar profile·editable role flag와
+직접 소속을 명시한다. Principal identity·encoded password·revision·선택된 서버 시각과 임의 FK/파일 입력은 받지 않는다.
+새 필수 profile을 쓰기 목록에서 빠뜨려 초기 값이 필수 NULL/빈 문자열로 남으면 구성 시 거부한다. 나머지 생략 값은
+Schema IR default를 사용한다. 전송 계층은 먼저 실제 ModelForm/JSON cleaning을 수행하고 서비스에 `ModelInput[M]`을 넘긴다.
+
+`Prepare`는 원 입력의 password byte 한도(기본 1024, 설정 가능 1..4096)와 소속 개수(중복 제거 전 각각 256), 모델 source·
+선택 필드·unsaved target intent를 확인한다. ProfileEditor와 동일한 명시적 login/email write 정규화를 사용한다. Principal ID는
+서버 source이며 기본값은 256비트 난수의 `user-`/hex 문자열이다. Revision은 1, 선택 CreatedAt은 서버 UTC microsecond,
+선택 LastLogin은 NULL로 시작한다. 실제 typed 추가 필드와 상수 역할을 기본 User 모양으로 바꾸지 않는다.
+
+현재 domain·add **및** change·추가 권한·deny overlay, 관계 선택과 저장된 catalog revision/code·유효 합집합·unique와
+application/password policy를 한 native snapshot에서 검증한다. 해시가 아직 없는 사전 검사에서는 `PreparedModel.ValidateUniqueExcluding`
+으로 password 필드와 그 필드를 포함한 **전체** 제약만 미룬다. 미지정·중복 제외 이름은 I/O 전에 거부하며, 임시 hash 값으로
+다른 계정과 충돌시키지 않는다. 선택적인 생성 IExact 중복 정책은 write/authentication 정규화와 별개의 명시적 설정이다.
+
+Snapshot 종료 성공 뒤 DB 밖에서 한 번만 hash하고 encoded profile·credential usability·저장 길이를 검증한다. Hasher의 직접적이고
+원인이 없는 password input 오류만 일반 입력 거부로 반환한다. 취소·wrapped error·entropy·잘못된 해시는 원인을 비공개로 보존한다.
+`PrepareUnusable`은 별도 명시적 진입점이며 hasher/strength policy를 호출하지 않는다. 빈 raw password는 이 경로를 선택하지 않는다.
+
+`PreparedCreation[M]`은 비공개 모델·비밀번호를 보유하며 해당 creator pointer와 actor ID **및 domain**에 묶인다. 값 복사도 하나의
+commit 시도를 공유한다. 다른 owner/actor/domain 또는 진입 전 취소는 시도를 소비하지 않는다. `Commit`은 현재 권한·선택지·전체
+unique(실제 hash 포함)와 typed/password policy를 native write fence 안에서 다시 검사한다. Callback은 별도 모델 사본을 받고
+password 필드는 비워 전달하며, 소속 getter도 사본을 반환한다. Callback은 reader를 보관/변경/재진입하거나 외부 효과를 내지 않는다.
+
+Force insert·두 membership·현재 domain의 값 없는 audit를 같은 relation transaction으로 확정한다. 공개 결과에는 ID·revision·
+변경 필드만 있고 implicit profile 조회 권한은 없다. Cleanup/rollback/unknown 실패는 결과를 버리고 자동 재시도하지 않는다.
+확정 commit 뒤 취소는 성공을 지우지 않는다. 시도를 가져올 때 공개 준비 객체의 비밀 참조를 해제하고 실제 callback 소유의
+지역 값으로 넘겨, 잘못된 backend가 callback 종료 전에 반환해도 cleanup과 callback의 데이터 경합을 만들지 않는다.
+Go 문자열 메모리의 강제 소거를 보장하는 API는 아니다. 준비 결과를 포기하면 참조를 버린다.
+
+이 owner는 이미 설치된 현재 domain의 인가된 생성 경로다. 최초 domain 초기화/adoption, 공개 `createsuperuser`와 추가 profile prompt,
+공통 Admin/HTTP 설치와 password/reset owner는 별도 I1 요구로 남는다. 외부 소비자의 전송 조립만으로 이 명령/설치를 완료 처리하지 않는다.
+
 ## 선택 계정의 역할과 직접 소속 편집
 
 생성 `NewAccountRoleEditor`는 기존 `SessionStore[M]`를 받아 같은 계정 binding·backend·현재 domain의 session 정책을

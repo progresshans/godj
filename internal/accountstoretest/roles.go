@@ -436,17 +436,17 @@ func roleNonpositiveKeys(t *testing.T, backend Backend, fixtureKey StoredKeyFixt
 	reader := roleReader(t, backend)
 	for _, key := range []int64{0, -7} {
 		target := roleTarget(t, backend, f, fmt.Sprintf("role-key-%d", key))
-		fixtureKey(t, backend, "godj_identity_user", target.ID, key)
+		fixtureKey(t, backend, "user", target.ID, key)
 		group, err := models.GroupObjects.Create(t.Context(), backend, models.NewGroupCreate(fmt.Sprintf("role-key-%d", key)))
 		if err != nil {
 			t.Fatal(err)
 		}
-		fixtureKey(t, backend, "godj_identity_group", group.ID, key)
+		fixtureKey(t, backend, "group", group.ID, key)
 		permission, err := models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate(fmt.Sprintf("role.key%d", key), "Signed role key"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		fixtureKey(t, backend, "godj_identity_permission", permission.ID, key)
+		fixtureKey(t, backend, "permission", permission.ID, key)
 		input := roleInput(t, map[string]query.Value{"staff": query.Boolean(true)}, map[string][]int64{"groups": {key}, "permissions": {key}})
 		input, err = input.WithTargetKey(query.Integer(key))
 		if err != nil {

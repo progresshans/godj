@@ -1566,4 +1566,4 @@ func (_object *HelpdeskTicketLabelObject) TicketObject(_ctx context.Context) (*H
 	return _target, nil
 }
 
-var _ goDjProjectSnapshot_98d858f5feb2507abf34fa0cfd151819935d7037e677acf27588398edb6a7859
+var _ goDjProjectSnapshot_35f59bb10d62ceea415205443294fc4106513ec733cb482cb886b26c7a48dba6

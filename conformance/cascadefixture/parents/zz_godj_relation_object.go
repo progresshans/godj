@@ -255,4 +255,4 @@ func (input RootLabelsCreate) BuildManyToManyCreate(source, target ir.Field, sou
 
 type GoDjAppPart2_1d0e13b4483d01ac5d344fa821ef7880f63a228b0682d6f2a1c3a446c2e0ae0d struct{}
 
-var _ GoDjProjectSnapshot_04006a18d611c5d62a8223bfaa1a84c5a6ea922f3c2258782ab1f14d383ec393
+var _ GoDjProjectSnapshot_100dc450db89e1dce4157e1bb76c9206f6a296811ce91f5bcd1590c03912841e

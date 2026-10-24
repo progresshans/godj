@@ -58,6 +58,12 @@ func (binding Binding[M]) prepareCredentialForDomain(domain auth.CredentialDomai
 	if err != nil || !present || !integer {
 		return auth.Credential{}, invalidAccountCredential()
 	}
+	return binding.prepareCandidateCredential(domain, row, permissions)
+}
+
+// Creation validates the same credential fields before it has a stored key.
+// This private result is never published as an authenticated or persisted row.
+func (binding Binding[M]) prepareCandidateCredential(domain auth.CredentialDomain, row M, permissions []auth.Permission) (auth.Credential, error) {
 	values, err := binding.state.objects.ModelValues(row)
 	if err != nil {
 		return auth.Credential{}, invalidAccountCredential()
