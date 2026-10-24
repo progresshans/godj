@@ -194,6 +194,10 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "member@EXAMPLE.TEST", roleTarget, team.ID, grants[0].ID)
+	firstConfig := accountmodel.FirstAccountConfig[people.Member]{CreationPolicy: accountmodel.CreationPolicy[people.Member]{Fields: []string{role.Login, "region"}}, EvidenceSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+	if owner, err := project.NewFirstAccount(backend, hasher, firstConfig); owner != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) {
+		t.Fatal("constant staff=false was silently accepted by createsuperuser capability", err)
+	}
 	creationConfig := creationConsumerConfig[people.Member](role, "region")
 	creationConfig.Validate = func(_ context.Context, _ db.Queryer, candidate people.Member, _ accountmodel.RoleMemberships) (validation.Errors, error) {
 		if candidate.Region != "NZ" || candidate.Secret != "" {

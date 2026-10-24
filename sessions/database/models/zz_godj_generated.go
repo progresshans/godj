@@ -296,4 +296,4 @@ func sessionMetadata() ir.Model {
 
 type GoDjAppPart0_d87b6f6ca229634a2c0d020873bee6da32d2d218ddcf985df1b41661cc3561c2 struct{}
 
-type GoDjProjectSnapshot_8351b3c332172cfe9cc2cd3c3961a92d37e2701729dc7dc42c50d25c018ecd23 struct{}
+type GoDjProjectSnapshot_54d250dfbe428534016116dcc218b85d69666f73ea5ca41c1f161e89b9d3de9f struct{}

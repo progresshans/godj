@@ -4,13 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sync/atomic"
 	"time"
 
-	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -32,18 +31,15 @@ type CreationValidator[M any] func(context.Context, db.Queryer, M, RoleMembershi
 // material or publish external effects. It runs before hashing and at commit.
 type CreationPasswordValidator[M any] func(context.Context, string, M) (validation.Errors, error)
 
-// CreationConfig explicitly selects login, scalar profile, editable role flags
+// CreationPolicy explicitly selects login, scalar profile, editable role flags
 // and group/direct-permission collections. Model defaults apply to omitted
 // fields. Principal ID, encoded password, revision and selected timestamps are
 // server-owned. Inputs must already have passed their Form/JSON cleaning policy.
-// Add AND change permission are required, as are all Additional permissions.
 // All callbacks must be safe for concurrent use.
-type CreationConfig[M any] struct {
-	Fields                          []string
-	AddPermission, ChangePermission auth.Permission
-	AdditionalPermissions           []auth.Permission
-	Validate                        CreationValidator[M]
-	ValidatePassword                CreationPasswordValidator[M]
+type CreationPolicy[M any] struct {
+	Fields           []string
+	Validate         CreationValidator[M]
+	ValidatePassword CreationPasswordValidator[M]
 	// MaxPasswordBytes defaults to 1024; the supported bound is 1..4096. The
 	// hasher can impose a stricter limit. Empty input never means unusable.
 	MaxPasswordBytes int
@@ -54,6 +50,14 @@ type CreationConfig[M any] struct {
 	// PrincipalID is a server-side source, never client input. Nil uses 256 bits
 	// of system randomness as "user-" plus hexadecimal (69 characters).
 	PrincipalID func(context.Context) (string, error)
+}
+
+// CreationConfig combines model/password policy with current actor authority.
+// Add AND change permission are required, as are all Additional permissions.
+type CreationConfig[M any] struct {
+	CreationPolicy[M]
+	AddPermission, ChangePermission auth.Permission
+	AdditionalPermissions           []auth.Permission
 }
 
 // Creator owns authorized creation using the selected model and native DB.
@@ -69,7 +73,9 @@ type creationState[M any] struct {
 	fields                      []string
 	allowed                     map[string]bool
 	required                    []auth.Permission
-	config                      CreationConfig[M]
+	config                      CreationPolicy[M]
+	forced                      map[string]query.Value
+	auditFields                 []string
 	saveGroups, savePermissions func(context.Context, db.Session, M, []int64) error
 }
 
@@ -81,10 +87,27 @@ func (Creator[M]) Format(state fmt.State, _ rune) {
 // role and both actual collection capabilities must match the credential
 // store's complete source. Construction performs no I/O or password work.
 func NewCreator[M, G, P, GL, PL any](store *CredentialStore[M], expected Binding[M], groups orm.ManyToMany[M, G, GL], permissions orm.ManyToMany[M, P, PL], overlay auth.Authorizer, hasher auth.PasswordHasher, config CreationConfig[M]) (*Creator[M], error) {
+	if nilModelValue(overlay) {
+		return nil, managementError(CodeInvalidConfig, nil)
+	}
+	required, err := auth.RequiredPermissions(config.AddPermission, append([]auth.Permission{config.ChangePermission}, config.AdditionalPermissions...)...)
+	if err != nil {
+		return nil, managementError(CodeInvalidConfig, err)
+	}
+
+	state, err := newCreationState(store, expected, groups, permissions, hasher, config.CreationPolicy, nil)
+	if err != nil {
+		return nil, err
+	}
+	state.overlay, state.required = overlay, required
+	return &Creator[M]{state: state}, nil
+}
+
+func newCreationState[M, G, P, GL, PL any](store *CredentialStore[M], expected Binding[M], groups orm.ManyToMany[M, G, GL], permissions orm.ManyToMany[M, P, PL], hasher auth.PasswordHasher, config CreationPolicy[M], forced map[string]query.Value) (*creationState[M], error) {
 	if err := store.valid(); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
-	if expected.state == nil || nilModelValue(overlay) || nilModelValue(hasher) || len(config.Fields) == 0 || len(config.Fields) >= admin.MaximumChangedFields {
+	if expected.state == nil || nilModelValue(hasher) || len(config.Fields) == 0 || len(config.Fields) >= admin.MaximumChangedFields {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
 	backend, ok := store.state.backend.(db.CoordinatedRelationAtomic)
@@ -101,15 +124,14 @@ func NewCreator[M, G, P, GL, PL any](store *CredentialStore[M], expected Binding
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
-	required, err := auth.RequiredPermissions(config.AddPermission, append([]auth.Permission{config.ChangePermission}, config.AdditionalPermissions...)...)
-	if err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
-	}
 	metadata, err := binding.state.objects.Metadata()
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	protected := map[string]bool{role.PrincipalID: true, role.Password: true, role.Revision: true, role.LastLogin: true, role.CreatedAt: true}
+	for name := range forced {
+		protected[name] = true
+	}
 	allowed := make(map[string]bool, len(config.Fields))
 	for _, name := range config.Fields {
 		if name == "" || allowed[name] || protected[name] {
@@ -143,7 +165,14 @@ func NewCreator[M, G, P, GL, PL any](store *CredentialStore[M], expected Binding
 		}
 	}
 	fields := slices.Clone(config.Fields)
-	if _, err := admin.PrepareEventTemplate("creation-startup", role.Model.AppLabel+"."+role.Model.ModelName, admin.ActionAdd, append(slices.Clone(fields), role.Password), ""); err != nil {
+	auditFields := slices.Clone(fields)
+	for _, field := range metadata.Fields {
+		if _, present := forced[field.Name]; present {
+			auditFields = append(auditFields, field.Name)
+		}
+	}
+	auditFields = append(auditFields, role.Password)
+	if _, err := admin.PrepareEventTemplate("creation-startup", role.Model.AppLabel+"."+role.Model.ModelName, admin.ActionAdd, auditFields, ""); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	if config.MaxPasswordBytes == 0 {
@@ -161,8 +190,8 @@ func NewCreator[M, G, P, GL, PL any](store *CredentialStore[M], expected Binding
 		}
 		config.PrincipalID = newAccountPrincipalID
 	}
-	config.Fields, config.AdditionalPermissions = nil, nil
-	state := &creationState[M]{store: store, backend: backend, overlay: overlay, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, required: required, config: config}
+	config.Fields = nil
+	state := &creationState[M]{store: store, backend: backend, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, config: config, forced: maps.Clone(forced), auditFields: auditFields}
 	state.saveGroups = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
 		collection, err := groups.InSession(scope, row)
 		if err != nil {
@@ -177,7 +206,7 @@ func NewCreator[M, G, P, GL, PL any](store *CredentialStore[M], expected Binding
 		}
 		return collection.SetKeys(ctx, keys)
 	}
-	return &Creator[M]{state: state}, nil
+	return state, nil
 }
 
 func newAccountPrincipalID(ctx context.Context) (string, error) {
@@ -207,15 +236,18 @@ func (creator *Creator[M]) Manager() orm.Manager[M] {
 
 type PreparedCreation[M any] struct{ state *preparedCreation[M] }
 type preparedCreation[M any] struct {
-	owner               *Creator[M]
-	actorID             string
-	domain              auth.CredentialDomain
+	owner     *Creator[M]
+	actorID   string
+	domain    auth.CredentialDomain
+	input     *creationCandidate[M]
+	attempted atomic.Bool
+}
+type creationCandidate[M any] struct {
 	prepared            orm.PreparedModel[M]
 	row                 M
 	groups, permissions []int64
 	raw                 string
 	unusable            bool
-	attempted           atomic.Bool
 }
 
 func (PreparedCreation[M]) Format(state fmt.State, _ rune) {
@@ -265,49 +297,25 @@ func (creator *Creator[M]) prepare(ctx context.Context, actor auth.Principal, in
 			return PreparedCreation[M]{}, profileInputError("password", "max_length")
 		}
 	}
-	candidate, err := creator.prepareInput(ctx, input)
+	candidate, err := state.prepareInput(ctx, input)
 	if err != nil {
 		return PreparedCreation[M]{}, err
 	}
-	candidate.owner, candidate.actorID, candidate.raw, candidate.unusable = creator, actor.ID(), raw, unusable
-	candidate.domain, _ = actor.CredentialDomain()
-	if _, err := state.store.state.binding.prepareCandidateCredential(candidate.domain, candidate.row, nil); err != nil {
+	candidate.raw, candidate.unusable = raw, unusable
+	namespace, _ := actor.CredentialDomain()
+	if _, err := state.store.state.binding.prepareCandidateCredential(namespace, candidate.row, nil); err != nil {
 		return PreparedCreation[M]{}, managementError(CodeInvalidConfig, err)
 	}
-	type observation struct{ rejection error }
-	observed, err := db.ReadSnapshotResult(ctx, state.store.state.backend, func(work context.Context, scope db.Queryer) (observation, error) {
-		_, failure := state.preflight(work, scope, actor, candidate, false)
-		if _, rejected := validation.Rejected(failure); rejected && errors.Unwrap(failure) == nil {
-			return observation{failure}, nil
-		}
-		if classified, ok := failure.(*Error); ok && classified.Code == CodePermission && classified.Unwrap() == nil {
-			return observation{failure}, nil
-		}
-		return observation{}, failure
-	})
-	if err != nil {
-		return PreparedCreation[M]{}, managementError(CodePersistence, err)
-	}
-	if observed.rejection != nil {
-		return PreparedCreation[M]{}, observed.rejection
-	}
-	encoded, err := state.encode(ctx, raw, unusable)
-	if err != nil {
+	if err := creationSnapshot(ctx, state.store.state.backend, func(work context.Context, scope db.Queryer) error {
+		_, err := state.preflight(work, scope, actor, candidate, false)
+		return err
+	}); err != nil {
 		return PreparedCreation[M]{}, err
 	}
-	binding := state.store.state.binding
-	candidate.row, err = binding.state.objects.ApplyValues(candidate.row, map[string]query.Value{binding.state.role.Password: query.String(encoded)})
-	if err != nil {
-		return PreparedCreation[M]{}, managementError(CodeInvalidConfig, err)
+	if err := state.encodeCandidate(ctx, namespace, candidate); err != nil {
+		return PreparedCreation[M]{}, err
 	}
-	credential, err := binding.prepareCandidateCredential(candidate.domain, candidate.row, nil)
-	if err != nil || credential.HasUsablePassword() == unusable {
-		return PreparedCreation[M]{}, managementError(CodeInvalidConfig, err)
-	}
-	if err := ctx.Err(); err != nil {
-		return PreparedCreation[M]{}, managementError(CodeInvalidInput, err)
-	}
-	return PreparedCreation[M]{state: candidate}, nil
+	return PreparedCreation[M]{state: &preparedCreation[M]{owner: creator, actorID: actor.ID(), domain: namespace, input: candidate}}, nil
 }
 
 // Creation publishes only confirmed metadata, without granting profile access.
@@ -338,53 +346,22 @@ func (creator *Creator[M]) Commit(ctx context.Context, actor auth.Principal, pre
 	// Transfer private material to this attempt before entering a host scope.
 	// Even an invalid backend that returns before its callback finishes cannot
 	// race cleanup of a row/raw string still in use by that callback.
-	attempt := &preparedCreation[M]{prepared: candidate.prepared, row: candidate.row, groups: candidate.groups, permissions: candidate.permissions, raw: candidate.raw, unusable: candidate.unusable}
-	candidate.raw = ""
-	var zero M
-	candidate.row, candidate.prepared = zero, orm.PreparedModel[M]{}
-	candidate.groups, candidate.permissions = nil, nil
-	candidate = attempt
+	input := candidate.input
+	candidate.input = nil
 	state := creator.state
 	return managementRelationWrite(ctx, state.backend, func(work context.Context, scope db.RelationSession) (Creation, error) {
-		currentActor, err := state.preflight(work, scope, actor, candidate, true)
+		currentActor, err := state.preflight(work, scope, actor, input, true)
 		if err != nil {
-			return Creation{}, err
-		}
-		row, err := creator.Manager().ApplyValues(candidate.row, nil)
-		if err != nil {
-			return Creation{}, err
-		}
-		if err := candidate.prepared.Save(work, scope, &row); err != nil {
 			return Creation{}, err
 		}
 		namespace, _ := currentActor.CredentialDomain()
-		if _, err := state.store.state.binding.prepareCredentialForDomain(namespace, row, nil); err != nil {
-			return Creation{}, err
-		}
-		if len(candidate.groups) != 0 {
-			if err := state.saveGroups(work, scope, row, candidate.groups); err != nil {
-				return Creation{}, err
-			}
-		}
-		if len(candidate.permissions) != 0 {
-			if err := state.savePermissions(work, scope, row, candidate.permissions); err != nil {
-				return Creation{}, err
-			}
-		}
-		key, present, err := creator.Manager().PrimaryKey(row)
-		id, integer := key.Integer()
-		if err != nil || !present || !integer {
-			return Creation{}, invalidAccountCredential()
-		}
-		role := state.store.state.binding.state.role
-		fields := append(slices.Clone(state.fields), role.Password)
-		event, err := accountaudit.Prepare(currentActor, role.Model.AppLabel+"."+role.Model.ModelName, id, admin.ActionAdd, fields, state.config.Now())
+		_, result, err := state.insertIn(work, scope, namespace, input)
 		if err != nil {
 			return Creation{}, err
 		}
-		if _, err := accountaudit.AppendIn(work, scope, event); err != nil {
+		if err := state.auditIn(work, scope, currentActor, result); err != nil {
 			return Creation{}, err
 		}
-		return Creation{ID: id, Revision: 1, ChangedFields: fields}, nil
+		return result, nil
 	})
 }

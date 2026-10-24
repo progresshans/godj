@@ -94,8 +94,17 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"session_login_and_domain", sessionLoginAndDomain},
 		{"session_login_failures", sessionLoginFailures},
 		{"session_credential_recheck", sessionCredentialRecheck},
+		{"session_revoked_previous", sessionRevokedPrevious},
 		{"session_optional_last_login", sessionOptionalLastLogin},
 		{"session_domain_snapshot", sessionDomainSnapshot},
+		{"first_account_lifecycle", firstAccountLifecycle},
+		{"first_account_nonfresh", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+			firstAccountNonfresh(t, backend, reopen, storedKey)
+		}},
+		{"first_account_commit_failures", firstAccountCommitFailures},
+		{"first_account_unknown_commit", firstAccountUnknownCommit},
+		{"first_account_read_failures", firstAccountReadFailures},
+		{"first_account_concurrent", firstAccountConcurrent},
 		{"creation_lifecycle", creationLifecycle},
 		{"creation_preflight_and_recheck", creationPreflightAndRecheck},
 		{"creation_hasher_failures", creationHasherFailures},
@@ -123,7 +132,7 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
-			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") {
+			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || test.name == "first_account_lifecycle" {
 				sources = append(sources, sessiondb.MigrationSources()...)
 			}
 			loaded, _, err := definition.Load(sources...)

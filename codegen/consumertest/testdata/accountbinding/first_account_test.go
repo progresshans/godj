@@ -1,0 +1,236 @@
+package consumer
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+	"time"
+
+	"example.com/godj-project-bundle/project"
+	accountaudit "github.com/progresshans/godj/account/audit"
+	"github.com/progresshans/godj/account/domain"
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/sessions"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+	"github.com/progresshans/godj/web"
+	websession "github.com/progresshans/godj/web/sessionauth"
+)
+
+func firstConsumerConfig[M any](role ir.AccountRole, profile string) accountmodel.FirstAccountConfig[M] {
+	digest := sha256.Sum256([]byte("independent generated first-account declaration " + role.Model.AppLabel + "." + role.Model.ModelName))
+	return accountmodel.FirstAccountConfig[M]{CreationPolicy: accountmodel.CreationPolicy[M]{Fields: []string{role.Login, profile}}, EvidenceSHA256: hex.EncodeToString(digest[:])}
+}
+
+func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], owner *accountmodel.FirstAccount[M], hasher auth.PasswordHasher, store *accountmodel.CredentialStore[M], sessionStore *accountmodel.SessionStore[M], profileField string) M {
+	t.Helper()
+	check := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	objects := owner.Manager()
+	metadata, err := objects.Metadata()
+	check(err)
+	role, err := binding.Role()
+	check(err)
+	form, err := formmodel.NewSpecForFields(metadata, owner.Fields())
+	check(err)
+	data := forms.NewData(map[string][]string{role.Login: {"first@example.test"}, profileField: {"  NZ  "}})
+	bound, err := formmodel.BindInstance(t.Context(), objects, form, data, nil, formmodel.PostClean{})
+	check(err)
+	input, err := formmodel.PrepareInput(objects, bound.BoundForm())
+	check(err)
+	for _, field := range metadata.Fields {
+		if field.Name == profileField && !field.Blank && field.Default == nil {
+			missing, err := formmodel.BindInstance(t.Context(), objects, form, forms.NewData(map[string][]string{role.Login: {"missing@example.test"}}), nil, formmodel.PostClean{})
+			check(err)
+			if missing.BoundForm().Form().Valid() || missing.BoundForm().Form().Errors().ByField(validation.Field(profileField)).Empty() {
+				t.Fatal("required custom first profile disappeared")
+			}
+		}
+	}
+	operation := sha256.Sum256([]byte("parent-owned generated first-account operation"))
+	operationID := hex.EncodeToString(operation[:])
+	pending, err := owner.PrepareOperation(t.Context(), operationID, input, accountPasswordText)
+	check(err)
+	if count, err := objects.Using(backend).Count(t.Context()); err != nil || count != 0 {
+		t.Fatal("first preparation wrote a row", err)
+	}
+	result, err := owner.Commit(t.Context(), pending)
+	check(err)
+	if result.Account.Revision != 1 || result.Ownership.Sequence() != 1 || result.Ownership.OperationID() != operationID {
+		t.Fatal("first receipt missing")
+	}
+	key := orm.NewAutoField[M](metadata.Fields[0])
+	for _, field := range metadata.Fields {
+		if field.PrimaryKey {
+			key = orm.NewAutoField[M](field)
+		}
+	}
+	row, present, err := objects.Using(backend).Filter(key.Exact(result.Account.ID)).OrderBy(key.Asc()).First(t.Context())
+	check(err)
+	if !present {
+		t.Fatal("typed first row missing")
+	}
+	values, err := objects.ModelValues(row)
+	check(err)
+	if value, _ := values[profileField].String(); value != "NZ" {
+		t.Fatal("first profile/default/cleaning mismatch")
+	}
+	principal, _ := values[role.PrincipalID].String()
+	if principal == "" {
+		t.Fatal("first principal not generated")
+	}
+	if role.LastLogin != "" && !values[role.LastLogin].IsNull() {
+		t.Fatal("bootstrap implicitly logged in")
+	}
+	authenticator, err := accountmodel.NewAuthenticator(t.Context(), store, hasher)
+	check(err)
+	credential, err := authenticator.Authenticate(t.Context(), "first@example.test", accountPasswordText)
+	check(err)
+	actor := credential.Principal()
+	if !actor.Active() || !actor.Staff() || !actor.Superuser() || actor.ID() != principal {
+		t.Fatal("first command role meaning changed")
+	}
+	namespace, _ := actor.CredentialDomain()
+	var entries []accountaudit.Entry
+	check(backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+		var err error
+		entries, err = accountaudit.HistoryIn(t.Context(), scope, namespace, role.Model.AppLabel+"."+role.Model.ModelName, result.Account.ID, 100)
+		return err
+	}))
+	if len(entries) != 1 || entries[0].ActorID() != principal {
+		t.Fatal("first audit actor lost selected domain")
+	}
+	receipt, err := domain.Lookup(t.Context(), backend, operationID)
+	check(err)
+	if receipt.Generation() != result.Ownership.Generation() {
+		t.Fatal("first operation receipt changed")
+	}
+	if _, err := owner.Prepare(t.Context(), input, accountPasswordText); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeNotFresh}) {
+		t.Fatal("first operation implicitly adopted existing state", err)
+	}
+	assertFirstLoginHTTP(t, sessionStore, authenticator)
+	return row
+}
+
+func assertFirstLoginHTTP[M any](t *testing.T, store *accountmodel.SessionStore[M], authenticator *accountmodel.Authenticator[M]) {
+	t.Helper()
+	check := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	manager, err := sessions.NewManager(store, sessions.Config{})
+	check(err)
+	owner, err := store.LoginPersistence(manager)
+	check(err)
+	runtime, err := websession.New(websession.Config{Sessions: manager, Authenticator: authenticator, Authorizer: auth.PrincipalAuthorizer{}, LoginPersistence: owner,
+		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/login/", FallbackPath: "/manage/", AllowedNextPaths: []string{"/manage/"}})
+	check(err)
+	routes := []web.Route{
+		{Name: "first:csrf", Method: "GET", Path: "/login/", Handler: func(request *web.Request) (web.Response, error) {
+			token, err := runtime.CSRFToken(request)
+			if err != nil {
+				return web.Response{}, err
+			}
+			response, err := web.HTML(200, []byte(token.Value()))
+			if err != nil {
+				return web.Response{}, err
+			}
+			return token.Apply(response)
+		}},
+		{Name: "first:login", Method: "POST", Path: "/login/", Handler: func(request *web.Request) (web.Response, error) {
+			raw := request.HTTP()
+			if err := raw.ParseForm(); err != nil {
+				return web.HTML(400, []byte("Invalid form"))
+			}
+			if err := runtime.VerifyCSRF(request, raw.PostForm["csrfmiddlewaretoken"]); err != nil {
+				return web.HTML(403, []byte("CSRF rejected"))
+			}
+			result, err := runtime.Login(request, raw.PostForm.Get("username"), raw.PostForm.Get("password"))
+			if err != nil {
+				return web.Response{}, err
+			}
+			response, err := web.NewResponse(204, nil, nil)
+			if err != nil {
+				return web.Response{}, err
+			}
+			return result.Apply(response)
+		}},
+		{Name: "first:manage", Method: "GET", Path: "/manage/", Handler: runtime.Require("bootstrap.manage", func(_ *web.Request, actor auth.Principal) (web.Response, error) {
+			if !actor.Staff() || !actor.Superuser() {
+				return web.HTML(403, []byte("Invalid first role"))
+			}
+			return web.HTML(200, []byte("First account authenticated"))
+		})},
+	}
+	config, err := settings.New(settings.Definition{ProjectName: "first_account_consumer", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "first"})})
+	check(err)
+	app, err := web.NewApplication(web.Config{Settings: config, Routes: routes})
+	check(err)
+	server := httptest.NewServer(app)
+	t.Cleanup(server.Close)
+	jar, err := cookiejar.New(nil)
+	check(err)
+	client := &http.Client{Jar: jar, Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	send := func(method, path, body string) (int, string) {
+		request, err := http.NewRequestWithContext(t.Context(), method, server.URL+path, strings.NewReader(body))
+		check(err)
+		if method == "POST" {
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		}
+		response, err := client.Do(request)
+		check(err)
+		data, err := io.ReadAll(response.Body)
+		check(err)
+		check(response.Body.Close())
+		return response.StatusCode, string(data)
+	}
+	status, token := send("GET", "/login/", "")
+	if status != 200 || len(token) != 128 {
+		t.Fatal("first HTTP CSRF", status)
+	}
+	data := url.Values{"username": {"first@example.test"}, "password": {accountPasswordText}, "csrfmiddlewaretoken": {token}}
+	status, _ = send("POST", "/login/", data.Encode())
+	if status != 204 {
+		t.Fatal("first HTTP login", status)
+	}
+	status, _ = send("GET", "/manage/", "")
+	if status != 200 {
+		t.Fatal("first account lost HTTP superuser role", status)
+	}
+	location, err := url.Parse(server.URL)
+	check(err)
+	found := false
+	for _, cookie := range jar.Cookies(location) {
+		if cookie.Name == websession.DefaultSessionCookieName {
+			id, err := sessions.ParseID(cookie.Value)
+			check(err)
+			record, present, err := store.Load(t.Context(), id)
+			check(err)
+			found = present && record.ID() == id
+		}
+	}
+	if !found {
+		t.Fatal("first login did not persist selected DB session")
+	}
+}

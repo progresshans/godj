@@ -87,3 +87,25 @@ func TestAccountDomainPreparationRejectsInvalidInputs(t *testing.T) {
 		t.Fatal("nil lookup backend accepted", err)
 	}
 }
+
+func TestPreparedOperationRetainsCallerIdentityWithoutReusingGeneration(t *testing.T) {
+	operation := strings.Repeat("a", 64)
+	role, evidence := strings.Repeat("b", 64), strings.Repeat("c", 64)
+	first, err := domain.PrepareOperation(t.Context(), operation, role, evidence)
+	if err != nil || first.OperationID() != operation || first.Generation() == ([32]byte{}) {
+		t.Fatal("operation identity lost", err)
+	}
+	second, err := domain.PrepareOperation(t.Context(), operation, role, evidence)
+	if err != nil || second.OperationID() != operation || second.Generation() == first.Generation() {
+		t.Fatal("preparation recovered or reused a generation", err)
+	}
+	for _, bad := range []string{"", strings.Repeat("0", 64), strings.Repeat("A", 64), strings.Repeat("a", 63)} {
+		result, err := domain.PrepareOperation(t.Context(), bad, role, evidence)
+		if !errors.Is(err, domain.ErrInvalid) || result.OperationID() != "" || result.Generation() != ([32]byte{}) {
+			t.Fatal("invalid caller operation admitted", err)
+		}
+	}
+	if (domain.Change{}).Generation() != ([32]byte{}) {
+		t.Fatal("zero change has generation")
+	}
+}

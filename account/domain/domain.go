@@ -45,6 +45,21 @@ type changeState struct {
 // Both arguments are nonzero lowercase SHA-256 hex strings. This function does
 // no database I/O, mapping, authentication or permission checks.
 func Prepare(ctx context.Context, roleFingerprint, evidenceSHA256 string) (Change, error) {
+	return prepare(ctx, "", roleFingerprint, evidenceSHA256)
+}
+
+// PrepareOperation retains a caller-created operation ID for process-boundary
+// reconciliation. It still creates a fresh generation and performs no lookup,
+// retry or adoption. Reusing an operation does not recover its earlier Change;
+// after an uncertain write, reconcile the exact receipt and fence first.
+func PrepareOperation(ctx context.Context, operationID, roleFingerprint, evidenceSHA256 string) (Change, error) {
+	if _, ok := digest(operationID); !ok {
+		return Change{}, ErrInvalid
+	}
+	return prepare(ctx, operationID, roleFingerprint, evidenceSHA256)
+}
+
+func prepare(ctx context.Context, operationID, roleFingerprint, evidenceSHA256 string) (Change, error) {
 	if err := checkContext(ctx); err != nil {
 		return Change{}, err
 	}
@@ -61,6 +76,9 @@ func Prepare(ctx context.Context, roleFingerprint, evidenceSHA256 string) (Chang
 	var generation [sha256.Size]byte
 	copy(generation[:], entropy[sha256.Size:])
 	operation := hex.EncodeToString(entropy[:sha256.Size])
+	if operationID != "" {
+		operation = operationID
+	}
 	if generation == ([sha256.Size]byte{}) {
 		return Change{}, ErrInvalid
 	}
@@ -78,6 +96,15 @@ func (change Change) OperationID() string {
 		return ""
 	}
 	return change.state.operationID
+}
+
+// Generation is public ownership metadata. Before commit it is only a
+// candidate namespace, never current ownership or authentication authority.
+func (change Change) Generation() [sha256.Size]byte {
+	if change.state == nil {
+		return [sha256.Size]byte{}
+	}
+	return change.state.generation
 }
 
 // Receipt is a detached observation. Receipts returned inside a borrowed write

@@ -16,6 +16,7 @@ const (
 	CodeConflict       ErrorCode = "revision_conflict"
 	CodePersistence    ErrorCode = "persistence_failure"
 	CodeOutcomeUnknown ErrorCode = "outcome_unknown"
+	CodeNotFresh       ErrorCode = "account_domain_not_fresh"
 )
 
 type Error struct {

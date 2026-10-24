@@ -90,4 +90,4 @@ func (_scan *transitionProjectionScan) Decode() (Transition, query.Value, orm.Pr
 
 type GoDjAppPart3_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
 
-var _ GoDjProjectSnapshot_d7cb5613338849174f0eaf931902af528129f19525b99d4380ccb8e9a079edbc
+var _ GoDjProjectSnapshot_ff880f4a731bf6e45c5244e7d2e0da34fd25d6233541bbec1be6394be4470d92

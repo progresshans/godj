@@ -24,7 +24,7 @@ import (
 )
 
 func creationConfig() accountmodel.CreationConfig[models.User] {
-	return accountmodel.CreationConfig[models.User]{Fields: []string{"username", "first_name", "last_name", "email", "active", "staff", "superuser", "groups", "permissions"}, AddPermission: "account.direct", ChangePermission: "account.team", Now: func() time.Time { return joined }}
+	return accountmodel.CreationConfig[models.User]{CreationPolicy: accountmodel.CreationPolicy[models.User]{Fields: []string{"username", "first_name", "last_name", "email", "active", "staff", "superuser", "groups", "permissions"}, Now: func() time.Time { return joined }}, AddPermission: "account.direct", ChangePermission: "account.team"}
 }
 func creationInput(t *testing.T, login string) orm.ModelInput[models.User] {
 	t.Helper()

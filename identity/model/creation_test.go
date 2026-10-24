@@ -44,7 +44,7 @@ func TestAccountCreationCompositionAndInputRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := accountmodel.CreationConfig[models.User]{Fields: []string{"username", "first_name", "email", "active", "groups", "permissions"}, AddPermission: "account.add", ChangePermission: "account.change"}
+	config := accountmodel.CreationConfig[models.User]{CreationPolicy: accountmodel.CreationPolicy[models.User]{Fields: []string{"username", "first_name", "email", "active", "groups", "permissions"}}, AddPermission: "account.add", ChangePermission: "account.change"}
 	build := func(c accountmodel.CreationConfig[models.User]) (*accountmodel.Creator[models.User], error) {
 		return accountmodel.NewCreator(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, hasher, c)
 	}

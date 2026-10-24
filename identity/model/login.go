@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -28,77 +29,104 @@ func NewLoginRecorder[M any](store *CredentialStore[M]) (*LoginRecorder[M], erro
 	return &LoginRecorder[M]{store}, nil
 }
 func (recorder *LoginRecorder[M]) RecordIn(ctx context.Context, scope db.Session, login auth.SessionLogin) (auth.Credential, error) {
+	observed, err := recorder.observeIn(ctx, scope, login)
+	if err != nil {
+		return auth.Credential{}, err
+	}
+	if err := recorder.recordIn(ctx, scope, observed, login.At); err != nil {
+		return auth.Credential{}, err
+	}
+	return observed.credential, nil
+}
+
+type accountLoginObservation[M any] struct {
+	row        M
+	credential auth.Credential
+}
+
+// observeIn authorizes the current credential before any session mutation.
+// A deactivation can have already revoked the old session; its absence must
+// not hide the confirmed credential rejection. The observation stays inside
+// the same write fence until session publication and last-login are coupled.
+func (recorder *LoginRecorder[M]) observeIn(ctx context.Context, scope db.Session, login auth.SessionLogin) (accountLoginObservation[M], error) {
+	var zero accountLoginObservation[M]
 	if recorder == nil || recorder.credentials == nil {
-		return auth.Credential{}, invalidCredentialStore()
+		return zero, invalidCredentialStore()
 	}
 	if err := validateAccountSessionScope(ctx, scope); err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	if err := login.Validate(); err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	store := recorder.credentials
 	binding := store.state.binding
 	ownership, err := binding.RequireDomainIn(ctx, scope)
 	if err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	namespace, err := binding.CredentialDomain(ownership.Generation())
 	if err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	if !namespace.MatchesPrincipal(login.Credential.Principal()) {
-		return auth.Credential{}, auth.ErrInvalidCredentials
+		return zero, auth.ErrInvalidCredentials
 	}
 	objects := binding.state.objects
 	row, present, err := objects.Using(scope).Filter(store.state.principal.Exact(login.Credential.Principal().ID())).OrderBy(store.state.key.Asc()).First(ctx)
 	if err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	if !present {
-		return auth.Credential{}, auth.ErrInvalidCredentials
+		return zero, auth.ErrInvalidCredentials
 	}
 	key, present, err := objects.PrimaryKey(row)
 	id, integer := key.Integer()
 	if err != nil || !present || !integer {
-		return auth.Credential{}, invalidAccountCredential()
+		return zero, invalidAccountCredential()
 	}
 	permissions, err := store.state.permissions(ctx, scope, id)
 	if err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	current, err := binding.prepareCredentialForDomain(namespace, row, permissions)
 	if err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	if !current.Principal().Authenticated() || !current.MatchesSessionStamp(login.Credential.SessionStamp()) {
-		return auth.Credential{}, auth.ErrInvalidCredentials
+		return zero, auth.ErrInvalidCredentials
 	}
 	if err := login.Admit(ctx, current.Principal()); err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
 	if err := validateAccountSessionScope(ctx, scope); err != nil {
-		return auth.Credential{}, err
+		return zero, err
 	}
+	return accountLoginObservation[M]{row, current}, nil
+}
+
+func (recorder *LoginRecorder[M]) recordIn(ctx context.Context, scope db.Session, observed accountLoginObservation[M], at time.Time) error {
+	if err := validateAccountSessionScope(ctx, scope); err != nil {
+		return err
+	}
+	binding := recorder.credentials.state.binding
+	objects := binding.state.objects
 	if field := binding.state.role.LastLogin; field != "" {
-		instant, err := temporal.Canonical(login.At)
+		instant, err := temporal.Canonical(at)
 		if err != nil {
-			return auth.Credential{}, err
+			return err
 		}
-		updated, err := objects.ApplyValues(row, map[string]query.Value{field: query.DateTime(instant)})
+		updated, err := objects.ApplyValues(observed.row, map[string]query.Value{field: query.DateTime(instant)})
 		if err != nil {
-			return auth.Credential{}, err
+			return err
 		}
 		// Explicit update_fields must fail if the observed account disappeared;
 		// it cannot fall back to INSERT or write another management field.
 		if err := objects.Save(ctx, scope, &updated, orm.UpdateFieldNames[M](field)); err != nil {
-			return auth.Credential{}, err
+			return err
 		}
 	}
-	if err := validateAccountSessionScope(ctx, scope); err != nil {
-		return auth.Credential{}, err
-	}
-	return current, nil
+	return validateAccountSessionScope(ctx, scope)
 }
 
 type accountLoginPersistence[M any] struct {
@@ -215,15 +243,18 @@ func (*accountLoginStore[M]) Delete(context.Context, sessions.ID) error {
 }
 func (store *accountLoginStore[M]) write(ctx context.Context, mutate func(context.Context, *sessiondb.Store) (accountSessionRecord, error)) (accountSessionRecord, error) {
 	result, err := accountSessionWrite(ctx, store.SessionStore, func(work context.Context, scope db.Session, scoped *sessiondb.Store) (accountLoginPublication, error) {
+		observed, err := store.owner.recorder.observeIn(work, scope, store.login)
+		if err != nil {
+			return accountLoginPublication{}, err
+		}
 		record, err := mutate(work, scoped)
 		if err != nil || !record.present {
 			return accountLoginPublication{}, err
 		}
-		current, err := store.owner.recorder.RecordIn(work, scope, store.login)
-		if err != nil {
+		if err := store.owner.recorder.recordIn(work, scope, observed, store.login.At); err != nil {
 			return accountLoginPublication{}, err
 		}
-		return accountLoginPublication{record.record, true, current}, nil
+		return accountLoginPublication{record.record, true, observed.credential}, nil
 	})
 	if err != nil {
 		// Only accountSessionWrite's exact confirmed rejection can be this

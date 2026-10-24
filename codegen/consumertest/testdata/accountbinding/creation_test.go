@@ -35,7 +35,7 @@ import (
 )
 
 func creationConsumerConfig[M any](role ir.AccountRole, profile string) accountmodel.CreationConfig[M] {
-	return accountmodel.CreationConfig[M]{Fields: []string{role.Login, profile, role.Groups, role.Permissions}, AddPermission: "account.shared", ChangePermission: "account.team"}
+	return accountmodel.CreationConfig[M]{CreationPolicy: accountmodel.CreationPolicy[M]{Fields: []string{role.Login, profile, role.Groups, role.Permissions}}, AddPermission: "account.shared", ChangePermission: "account.team"}
 }
 
 // A generated default/custom creator consumes the same real ModelForm and JSON
@@ -63,7 +63,16 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	check(err)
 	fields := make([]serializers.ModelField, 0, len(creator.Fields()))
 	for _, name := range creator.Fields() {
-		fields = append(fields, serializers.ModelField{Name: name})
+		selection := serializers.ModelField{Name: name}
+		for _, field := range metadata.Fields {
+			if field.Name == name {
+				switch field.Kind {
+				case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText:
+					selection.AllowEmpty = field.Blank
+				}
+			}
+		}
+		fields = append(fields, selection)
 	}
 	spec, err := serializers.FromModel(metadata, fields...)
 	check(err)

@@ -32,6 +32,15 @@ var accountBindingProfileHTTPConsumer []byte
 //go:embed testdata/accountbinding/catalog_test.go
 var accountBindingCatalogConsumer []byte
 
+//go:embed testdata/accountbinding/first_account_test.go
+var firstAccountCommonConsumer []byte
+
+//go:embed testdata/accountbinding/first_default_test.go
+var firstAccountDefaultConsumer []byte
+
+//go:embed testdata/accountbinding/first_custom_test.go
+var firstAccountCustomConsumer []byte
+
 //go:embed testdata/accountbinding/creation_test.go
 var accountBindingCreationConsumer []byte
 
@@ -138,4 +147,45 @@ func accountBindingConsumerSpec(t *testing.T, custom bool) codegen.ProjectSpec {
 		spec.Apps = append(spec.Apps, codegen.AppSpec{Alias: label, Package: codegen.PackageSpec{PackageName: label, ImportPath: module + "/" + label, Directory: label}, Schema: definition})
 	}
 	return spec
+}
+
+func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
+	for _, variant := range []struct {
+		name                string
+		custom, noLastLogin bool
+	}{{name: "default"}, {name: "custom", custom: true}, {name: "custom_without_last_login", custom: true, noLastLogin: true}} {
+		t.Run(variant.name, func(t *testing.T) {
+			spec := accountBindingConsumerSpec(t, variant.custom)
+			source := firstAccountDefaultConsumer
+			if variant.custom {
+				*spec.Account.Staff.Constant = true
+				source = firstAccountCustomConsumer
+			}
+			if variant.noLastLogin {
+				name := spec.Account.LastLogin
+				for i := range spec.Apps {
+					if spec.Apps[i].Schema.AppLabel == spec.Account.Model.AppLabel {
+						for j := range spec.Apps[i].Schema.Models {
+							model := &spec.Apps[i].Schema.Models[j]
+							if model.Name == spec.Account.Model.ModelName {
+								model.Fields = slices.DeleteFunc(model.Fields, func(field ir.Field) bool { return field.Name == name })
+							}
+						}
+					}
+				}
+				spec.Account.LastLogin = ""
+			}
+			bundle, err := codegen.GenerateProject(spec)
+			if err != nil {
+				t.Fatal(err)
+			}
+			root := writeProjectBundleModule(t, bundle)
+			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
+			writeGeneratedTestFile(t, root, "consumer/first_account_test.go", firstAccountCommonConsumer)
+			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
+			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
+			assertGeneratedConsumerTests(t, output, "TestGeneratedFirstAccountBootstrap")
+			t.Logf("first-account child events (sha256=%x):\n%s", sha256.Sum256(output), output)
+		})
+	}
 }

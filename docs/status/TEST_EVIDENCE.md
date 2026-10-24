@@ -509,6 +509,74 @@ source hash도 동일하다. 목록 형식은 빈 줄/주석 없이 모든 행�
 password/reset·profile 관계/파일·host/계정 삭제·채운 DB 전환/receipt/restart와 고정 Django 공유 의미 및 전체 환경 대조는
 I1 잔여 요구로 유지한다. 작성·compile·위 단일 실패 수정으로 I1-01~08 전체 완료를 선언하지 않는다.
 
+### 최초 계정의 domain·행·소속·감사 원자 생성
+
+`a232ba82317b749978a08b68702af9155eadf55c`에서 이어진 작업본에 `FirstAccount[M]`와 생성 `NewFirstAccount`를 작성했다.
+일반 인가된 생성과 공통 `CreationPolicy`·typed profile/default·validation·해시 준비를 사용하며, 최초 owner는
+active/staff/superuser를 서버에서 true로 고정한다. 상수 false 역할은 구성 시 거부한다. Domain history와 선택 계정 행의
+정확한 부재를 사전/최종 scope에서 확인하고 domain 초기화·행·두 소속·첫 audit를 같은 native transaction에 묶는다.
+상위 process의 operation ID 보존, 한 번의 시도, 확정 결과만 게시하는 receipt 경계를 작성했다. 공개 명령은 아직 전환하지 않았다.
+
+양 DB 필수 목록에 각각 34개 최초 계정 parent/child를 추가했다. 기존 0/음수 key·같은/다른 role history 거부, 한 번의 hash와
+scope 소유권·현재 typed/password policy, domain/account/소속/audit의 실제 저장 뒤 rollback, cleanup/unknown/cancel과
+독립 연결의 동시 초기화를 검사한다. 기본·필수 region이 있는 custom·LastLogin 필드 없는 custom의 외부 생성 module도
+작성했다. 실제 ModelForm 입력·typed 행·첫 audit/receipt·새 credential의 TCP/CSRF/DB-session 로그인을 검사하는 SQLite
+소비자이며, 세 변형과 root를 relation 필수 목록에 연결했다. 이 새 최초 계정 테스트 본문은 로컬에서 실행하지 않았다.
+
+초기 로컬 최소 compile은 디스크 공간 부족으로 중단됐다. 같은 시점 공개 생성은 다섯 root 뒤 helpdesk candidate 검증에
+실패했다. 재생성 가능한 Go build cache를 정리한 뒤 실제 여유 공간 98.0GB를 확인했고 잔여 여섯 공개 생성 명령을 완료했다.
+최종 11개 manifest의 155개 소유 파일 hash와 account ABI v9를 대조했으며 기존 migration bytes는 바꾸지 않았다.
+영향 5 package(`account/domain`, `identity/model`, `codegen`, `codegen/consumertest`, `db/postgres`)의 최소 compile과
+실제 외부 module 7개(기존 생성 소비자 4개·최초 계정 3개)의 compile이 통과했다. 외부 확인은 저장소 밖 Go overlay로
+자식 명령만 `-run '^$'`로 바꾼 compile 전용 실행이다. 저장소/CI harness는 전체 본문과 필수 완료 assertion을 유지한다.
+최종 비문서 변경 193개는 두 compile receipt의 source와 같고 각각 실행 전후 source hash도 동일하다.
+
+### 비활성화와 로그인 순서·기본 생성 소비자의 CI 실패 수정
+
+앞선 [CI 40043833349](https://github.com/progresshans/godj/actions/runs/40043833349)의 Linux CGO0 runtime job `120721306274`는
+`role_deactivation_versus_login`에서 실패했다. 비활성화가 기존 세션을 먼저 폐기하면 로그인은 credential을 재검사하기 전에
+세션 없음으로 끝났고 정상 credential 거부가 storage failure가 됐다. 현재 credential/admission 관찰을 세션 변경보다 먼저
+수행하되 같은 write fence에서 세션·LastLogin을 확정하도록 수정했다. Collision에는 LastLogin을 쓰지 않으며 cleanup/unknown
+실패는 일반 거부로 바꾸지 않는다. 유효한 credential의 세션 누락은 저장 실패로 남긴다.
+
+로컬에서 이 순서를 고정한 비활성/유효 credential 두 대조가 수정 전 실패했고, 수정 후 두 대조와 기존 경합을 포함한
+5개 parent/child가 통과했다. 이 순서 변경의 기존 login/domain·credential 재검사·LastLogin 생략·실패/rollback/unknown
+22개 parent/child도 한정 실행해 fail/skip 0을 확인했다. 새 대조 3개 parent/child는 양 DB 필수 목록에 추가했다.
+이 결과는 Darwin arm64 CGO0의 해당 SQLite 검사 범위이며 전체 DB/race/platform 성공으로 확대하지 않는다.
+
+같은 CI의 CGO0 shard job `120721306202`는 기본 생성 소비자의 `first_name` serializer 구성에서 실패했다.
+빈 문자열 default가 있는 모델 필드에 전송 계층의 명시적 빈 값 허용을 빠뜨린 소비자 오류다. 같은 default child에서
+실패를 재현한 뒤 선택 문자열 필드의 IR `Blank`를 반영했다. 수정 후 같은 child의 실제 SQLite·HTTP·typed Form/JSON 생성과
+기존 profile/catalog/역할·새 credential 로그인까지 완료했다. 외부 child의 필수 root 완료 원본도 대조했으며 serializer의
+검증 조건이나 필수 custom profile 의미를 완화하지 않았다. 이 실행에는 새 최초 계정 body가 포함되지 않는다.
+
+두 원격 job의 실제 checkout은 `23997bc69379674f34289de2d4d9bd8864b51a95`이며 tree
+`228aaa0f47bfdac6d0a4e72cd4eba446e95339cf`는 제출 `a232ba82`와 같다. 원본과 Git 객체는
+`gdj0138-a232ba82-ci-40043833349/`에 보존했다. 각 job 로그 SHA-256은
+`7c85887807136524f0199df9a22d61c41aa3dc171df2fe57e9834d6928b73584` /
+`020da713d8230cbfdf9e0143e09d53accd4fb151408eadbb37461edf4b370147`다.
+현재 framework의 최초 계정 작업을 포함한 로컬 source에서 한정 재현했으며 이전 원격 tree 전체 재실행은 아니다.
+같은 checkout의 Linux normal job `120721306249`와 `120721306381`도 각각 같은 두 오류로 실패했다.
+원본은 같은 폴더에 보존했고 SHA-256은 `2d61a92a11f825270d15f2b9843ed18177ca6bab90cddbc4ec22f863344a215b` /
+`63f280912486ee9b0ccd704ec9327364e3ceb634715978bcfdb2b8c3611b3058`다. 이전 실행의 다른 진행/대기 작업을 완료로 세지 않는다.
+
+| 실행·대조 범위 | Receipt SHA-256 |
+|---|---|
+| `gdj0138-login-revocation-repro-v1/before.json` — 순서 고정 대조 실패 | `8ce05267d8f1a2e1cebbcb3dffec83dbe6a4bf1a6bbba078ef52470545f51f76` |
+| `gdj0138-login-revocation-repro-v1/after.json` — 수정 후 5 PASS | `bd91ea93cc1690989e90144a882efbde1e1396271ea8b29cd2472a9a0fde3e68` |
+| `gdj0138-login-revocation-repro-v1/impact.json` — 기존 영향 22 PASS | `244a874057a3ffba54188c84b60a90dcddb12db24c19e33c4e0ca8c7e0d18855` |
+| `gdj0138-creation-default-repro-v1/before.json` — 기본 생성 소비자 실패 | `bca8f4b7a44d7d6f4a2100864079ffb7b4db3fff3ea78b47a42422e129240e21` |
+| `gdj0138-creation-default-repro-v1/after.json` — 같은 SQLite/HTTP 소비자 완료 | `1af3e5018812c2c2daa7d5915c4b73680077f0a5be2023094ae738b18495c4b5` |
+| `gdj0138-first-account-generate-v1/receipt.json` — 앞선 5개 생성 성공 및 중간 실패 | `97a43ddbf8cff3f8e0054b13b5164b68a8f994bb1edb310bb4f1d0c089f3b14a` |
+| `gdj0138-first-account-generate-v2/receipt.json` — 잔여 6개 공개 생성 성공 | `d12a60408907bf2708df3674b2b4a78390f215de1fc347b8d50c800c4e410372` |
+| `gdj0138-first-account-compile-v2/receipt.json` — 영향 5 package 최소 compile | `9f00f0753b4d3ad6d08409911be14447086dd2bf99d6f67757c1f7fd8e77bb9e` |
+| `gdj0138-first-account-external-compile-v1/receipt.json` — 외부 7 module 최소 compile | `115965f1396ffca96d797affc06ad0544ee061e142072851855c89328ff67186` |
+| `gdj0138-first-account-publication-v1/verification.json` — 최종 source/manifest/필수 선언 대조 | `ac3a2bbf6ec3ce5511486552f218cd27c6b7898f6a285d03a0526f9dfd079946` |
+
+경로는 위와 같은 저장소 밖 검증 보관소 아래다. 공개 첫 계정 명령/추가 profile prompt·공통 Admin/HTTP 설치,
+password/reset·profile 관계/파일·host/계정 삭제·채운 DB 전환/receipt/restart와 고정 Django 공유 의미 및 전체 환경 대조는
+I1 잔여 요구다. 새 source의 최초 계정 본문·DB/race/process/platform과 전체 필수 CI 수용은 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

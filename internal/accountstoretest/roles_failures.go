@@ -36,7 +36,7 @@ func (scope *roleFaultScope) after(table string, err error) error {
 		return err
 	}
 	scope.effects[table]++
-	wanted := map[string]string{"write_failure": "godj_identity_user", "group_failure": "godj_identity_user_groups", "direct_failure": "godj_identity_user_permissions", "session_failure": "godj_sessions_session", "audit_failure": "godj_account_audit_event"}
+	wanted := map[string]string{"domain_failure": "godj_account_domain_transition", "write_failure": "godj_identity_user", "group_failure": "godj_identity_user_groups", "direct_failure": "godj_identity_user_permissions", "session_failure": "godj_sessions_session", "audit_failure": "godj_account_audit_event"}
 	if table == wanted[scope.mode] {
 		return scope.fault
 	}

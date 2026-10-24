@@ -12,7 +12,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v8"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v9"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -90,6 +90,27 @@ func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCreator(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, hasher, config)
 }
 
+// NewFirstAccount prepares privileged provisioning of a fresh selected account domain.
+func NewFirstAccount(backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.FirstAccountConfig[identity.User]) (*_godjaccountmodel.FirstAccount[identity.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	store, err := _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewFirstAccount(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, hasher, config)
+}
+
 // NewAccountRoleEditor uses the existing session owner for current roles, memberships, audit and deactivation.
 func NewAccountRoleEditor(sessions *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RoleConfig[identity.User]) (*_godjaccountmodel.RoleEditor[identity.User], error) {
 	binding, err := BindAccount()
@@ -141,4 +162,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_14a6638c8f3902d09eb05ef781715e72c824986c4871b38a970d1ea85c5427ad
+var _ goDjProjectSnapshot_149ddb2406d407da3e14065c53cccd6d6668183fc6f29e4b2edee7c3742642e2

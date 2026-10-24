@@ -967,7 +967,7 @@ Group의 revision을 증가시킨다. 간접 회원의 revision이나 credential
 ## 선택 계정의 typed 생성과 해시 준비
 
 생성 `NewAccountCreator`와 `identity/model.Creator[M]`는 기존 credential store와 같은 전체 host source·역할 정책·
-실제 account Groups/Permissions capability를 사용한다. `CreationConfig.Fields`는 login·scalar profile·editable role flag와
+실제 account Groups/Permissions capability를 사용한다. `CreationPolicy.Fields`는 login·scalar profile·editable role flag와
 직접 소속을 명시한다. Principal identity·encoded password·revision·선택된 서버 시각과 임의 FK/파일 입력은 받지 않는다.
 새 필수 profile을 쓰기 목록에서 빠뜨려 초기 값이 필수 NULL/빈 문자열로 남으면 구성 시 거부한다. 나머지 생략 값은
 Schema IR default를 사용한다. 전송 계층은 먼저 실제 ModelForm/JSON cleaning을 수행하고 서비스에 `ModelInput[M]`을 넘긴다.
@@ -997,8 +997,35 @@ Force insert·두 membership·현재 domain의 값 없는 audit를 같은 relati
 지역 값으로 넘겨, 잘못된 backend가 callback 종료 전에 반환해도 cleanup과 callback의 데이터 경합을 만들지 않는다.
 Go 문자열 메모리의 강제 소거를 보장하는 API는 아니다. 준비 결과를 포기하면 참조를 버린다.
 
-이 owner는 이미 설치된 현재 domain의 인가된 생성 경로다. 최초 domain 초기화/adoption, 공개 `createsuperuser`와 추가 profile prompt,
-공통 Admin/HTTP 설치와 password/reset owner는 별도 I1 요구로 남는다. 외부 소비자의 전송 조립만으로 이 명령/설치를 완료 처리하지 않는다.
+`CreationConfig`는 공통 `CreationPolicy`에 add/change·추가 권한을 결합한다. 이 owner는 이미 설치된 현재 domain의
+인가된 생성 경로이며, 최초 domain 초기화는 아래의 별도 operator owner가 담당한다. 공개 `createsuperuser`와 추가 profile
+prompt·공통 Admin/HTTP 설치·password/reset owner는 별도 I1 요구다. 외부 소비자의 전송 조립만으로 명령/설치를 완료 처리하지 않는다.
+
+## 선택 계정의 최초 소유권과 계정 생성
+
+생성 `NewFirstAccount`와 `FirstAccount[M]`는 명시적으로 조립하는 privileged operator 기능이다. 일반 사용자 인가의
+우회 경로로 공개하지 않는다. 동일한 `CreationPolicy`·typed 필수 profile/default·정규화·unique·password policy·해시 준비와
+실제 account Groups/Permissions 기능을 재사용하되 add/change 권한이나 임시 actor를 조작해 생성 권한을 만들지 않는다.
+Active·staff·superuser는 서버가 모두 true로 고정한다. 해당 역할이 상수 false면 I/O 전에 구성 오류로 거부하며,
+상수 true는 허용한다. 실제 boolean 필드는 입력으로 받지 않고 강제 값으로 준비하며 감사의 변경 필드에 포함한다.
+
+`Prepare`와 최종 native write scope 양쪽에서 domain history와 선택 계정의 모든 행이 비어 있는지 확인한다.
+정상 조회가 반환한 정확한 `ErrUninitialized`만 초기화 가능 상태다. 같은 sentinel을 포함한 저장/종료 오류는 초기화 허가가
+아니며 기존 같은/다른 role history, 0/음수 key를 포함한 기존 계정도 거부한다. 기존 행 adoption·이력 초기화·모델 전환은 하지 않는다.
+
+호스트가 지정한 canonical 비밀값 없는 declaration digest와 새 generation·operation ID는 DB 밖에서 준비한다.
+`PrepareOperation`은 상위 process가 먼저 보관한 operation ID를 받지만 매번 새 generation을 만들며 자동 조회·재시도·복구를
+의미하지 않는다. `Change.Generation()`은 잠정 namespace metadata일 뿐 current domain이나 인증 권한이 아니다.
+비밀번호는 필수이고 usable credential이어야 한다. DB 밖 해시가 끝난 준비 객체의 복사본은 모두 한 번의 저장 시도를 공유한다.
+
+`Commit`은 fresh-state 및 실제 hash를 포함한 최종 검증, domain 초기화, typed account insert·소속 저장·첫 audit를
+하나의 coordinated relation transaction에 묶는다. 처음 생성한 domain-bound active/staff/superuser가 첫 감사의 actor다.
+확정된 계정 metadata와 ownership receipt만 게시하며 실패/unknown 결과에는 잠정 계정이나 receipt가 없다.
+준비 객체의 operation ID는 시도 뒤에도 남는다. Unknown 뒤에는 그 receipt와 write fence를 명시적으로 대조해야 하며,
+조회에서 receipt가 없다는 사실만으로 rollback을 확정하거나 같은 입력을 자동 재실행하지 않는다.
+
+이 기능은 fresh domain의 typed 저장 owner다. 공개 명령의 필수 profile prompt·비밀 입력 process·설치/startup과 기존 데이터의
+mapping/retirement·password/reset·공통 Admin/HTTP 조립 및 독립 양 DB 수용은 I1의 남은 작업이다.
 
 ## 선택 계정의 역할과 직접 소속 편집
 
@@ -1051,7 +1078,9 @@ scope 안에서 중첩 transaction을 열지 않는다. `DeleteMatching`은 해�
 
 `SessionStore.LoginPersistence(manager)`는 정확히 그 Store를 사용하는 manager만 받는다. Manager가 time/entropy를
 DB 밖에서 준비하고, 공통 typed `LoginRecorder[M]`가 같은 scope의 현재 domain·계정·active·stamp·권한과 Admit를 다시
-확인한다. LastLogin은 IR에서 선택 항목이며 비어 있으면 같은 이름의 기존 열도 암묵적으로 갱신하지 않는다.
+확인한다. 이 관찰은 세션 변경보다 먼저 수행해 비활성화가 기존 세션을 폐기한 경우에도 현재 credential의 거부를 확인한다.
+유효한 credential의 세션 누락은 저장 실패로 유지한다. 세션 생성 collision에는 LastLogin을 쓰지 않고 확정된 변경만 시각과
+함께 게시한다. LastLogin은 IR에서 선택 항목이며 비어 있으면 같은 이름의 기존 열도 암묵적으로 갱신하지 않는다.
 지정했을 때만 nullable DateTime 역할을 검사하고 강제 update하며 계정 revision·password·role·grant·audit는 바꾸지 않는다.
 Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replacement, LastLogin은 함께 확정하거나 rollback한다.
 기존 record의 만료/없음도 실패한 로그인과 별개로 삭제를 commit하지 않는다. 일반 Authenticate/Resolve/Access/logout은
