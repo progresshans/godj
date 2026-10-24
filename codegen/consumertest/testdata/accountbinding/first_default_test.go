@@ -8,6 +8,22 @@ import (
 )
 
 func TestGeneratedFirstAccountBootstrap(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		profile firstProfileInput
+	}{
+		{"trimmed", firstProfileInput{present: true, text: "  NZ  ", expected: "NZ"}},
+		{"omitted_default", firstProfileInput{expected: "NZ"}},
+		{"explicit_empty", firstProfileInput{present: true, expected: ""}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			firstDefaultAccount(t, test.profile)
+		})
+	}
+}
+
+func firstDefaultAccount(t *testing.T, profile firstProfileInput) {
+	t.Helper()
 	binding, err := project.BindAccount()
 	if err != nil {
 		t.Fatal(err)
@@ -18,7 +34,7 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 	}
 	backend := accountDatabase(t, models.GoDjRelationSchema())
 	hasher, _ := accountPassword(t)
-	owner, err := project.NewFirstAccount(backend, hasher, firstConsumerConfig[models.User](role, "first_name"))
+	definition, err := project.NewFirstAccountDefinition(hasher, firstConsumerConfig[models.User](role, "first_name"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,8 +46,8 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := assertFirstAccountConsumer(t, backend, binding, owner, hasher, store, sessions, "first_name")
-	if row.FirstName != "NZ" || !row.Staff || !row.Superuser {
+	row := assertFirstAccountConsumer(t, backend, binding, definition, hasher, store, sessions, "first_name", profile)
+	if row.FirstName != profile.expected || !row.Staff || !row.Superuser {
 		t.Fatal("first default typed fields lost")
 	}
 }

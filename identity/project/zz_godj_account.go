@@ -12,7 +12,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v9"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v10"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -92,23 +92,29 @@ func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 
 // NewFirstAccount prepares privileged provisioning of a fresh selected account domain.
 func NewFirstAccount(backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.FirstAccountConfig[identity.User]) (*_godjaccountmodel.FirstAccount[identity.User], error) {
-	binding, err := BindAccount()
+	definition, err := NewFirstAccountDefinition(hasher, config)
 	if err != nil {
 		return nil, err
 	}
-	store, err := _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
+	return definition.Bind(backend)
+}
+
+// NewFirstAccountDefinition validates the typed operator declaration without opening a database.
+func NewFirstAccountDefinition(hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.FirstAccountConfig[identity.User]) (_godjaccountmodel.FirstAccountDefinition[identity.User], error) {
+	var zero _godjaccountmodel.FirstAccountDefinition[identity.User]
+	binding, err := BindAccount()
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
 	source, err := binding.Project()
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
 	collections, err := BindCollectionsIn(source)
 	if err != nil {
-		return nil, err
+		return zero, err
 	}
-	return _godjaccountmodel.NewFirstAccount(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, hasher, config)
+	return _godjaccountmodel.NewFirstAccountDefinition(binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, hasher, config)
 }
 
 // NewAccountRoleEditor uses the existing session owner for current roles, memberships, audit and deactivation.
@@ -162,4 +168,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_149ddb2406d407da3e14065c53cccd6d6668183fc6f29e4b2edee7c3742642e2
+var _ goDjProjectSnapshot_56bc7b3bce2c6b460d6eda8fd1854c8f5d646eb8370129e58926815c6c3d0394

@@ -54,4 +54,4 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 
 type GoDjAppPart3_dca907b807c13d6e2b50fc5f4fd0856d1098e449726e5fccf74fe29cfad422b7 struct{}
 
-var _ GoDjProjectSnapshot_06f8786107411f139466c4e64343d37401befc9cd650cce43ecd76c40b593fa8
+var _ GoDjProjectSnapshot_50103e341f62480494b58b720ffc26d3b5897d8f854564d387598e18cb8a1ceb

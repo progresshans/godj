@@ -2399,4 +2399,4 @@ func reviewMetadata() ir.Model {
 
 type GoDjAppPart0_a4c53adb16934b25c97ccf795708445120c8f8071103a96da1669d19eef9079a struct{}
 
-type GoDjProjectSnapshot_06f8786107411f139466c4e64343d37401befc9cd650cce43ecd76c40b593fa8 struct{}
+type GoDjProjectSnapshot_50103e341f62480494b58b720ffc26d3b5897d8f854564d387598e18cb8a1ceb struct{}

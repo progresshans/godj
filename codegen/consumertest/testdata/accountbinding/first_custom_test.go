@@ -34,7 +34,7 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 		}
 		return validation.Errors{}, nil
 	}
-	owner, err := project.NewFirstAccount(backend, hasher, config)
+	definition, err := project.NewFirstAccountDefinition(hasher, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,7 +46,7 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := assertFirstAccountConsumer(t, backend, binding, owner, hasher, store, sessions, "region")
+	row := assertFirstAccountConsumer(t, backend, binding, definition, hasher, store, sessions, "region", firstProfileInput{present: true, text: "NZ", expected: "NZ"})
 	if row.Region != "NZ" || !row.Enabled || !row.Root || row.Contact != "first@example.test" {
 		t.Fatal("first custom typed fields lost")
 	}

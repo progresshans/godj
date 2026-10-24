@@ -1027,6 +1027,36 @@ Active·staff·superuser는 서버가 모두 true로 고정한다. 해당 역할
 이 기능은 fresh domain의 typed 저장 owner다. 공개 명령의 필수 profile prompt·비밀 입력 process·설치/startup과 기존 데이터의
 mapping/retirement·password/reset·공통 Admin/HTTP 조립 및 독립 양 DB 수용은 I1의 남은 작업이다.
 
+### DB 연결 전 선언과 명령 입력 준비
+
+생성 `NewFirstAccountDefinition`은 실제 계정·Group/Permission descriptor, 전체 host 관계 source와 typed 생성 정책을
+DB 없이 검증한다. `FirstAccountDefinition[M]`은 필드와 불변 source를 소유하며 `Bind`가 실제 snapshot/native write
+backend를 받은 뒤 독립적인 최초 생성 owner를 만든다. 선언을 읽기 위한 가짜 backend·임시 actor·숨은 기본 User는 없다.
+기존 생성 `NewFirstAccount`도 이 선언과 `Bind`를 합성한다. 일반 생성과 같은 내부 정책 검사를 사용한다.
+
+`ProjectBinding.SourceSHA256()`은 정규화된 전체 모델과 incoming/forward/reverse/M2M 정책을 식별한다.
+독립 binding과 schema 입력 순서가 달라도 같은 source는 같은 digest를 갖는다. 이 metadata digest는 인증이나 capability가
+아니며 실제 typed 기능의 완전한 `ValidateSource` 검사를 대체하지 않는다. 선언 fingerprint는 이 source와 account role,
+선택 필드·password 한도·대소문자 생성 정책·호스트의 `EvidenceSHA256`을 묶는다. Go closure의 실제 동작을 주소로
+해시하거나 검증했다고 주장하지 않는다. 호스트는 callback 정책이 바뀌면 그에 해당하는 evidence도 갱신한다.
+
+`project/firstaccount.Command`는 생성 선언에서 실제 ModelForm을 만들어 DB 연결 전 입력을 준비한다. Description은
+login을 첫 필드로, 나머지를 IR 선언 순서로 제공하며 필수/nullable/default 여부·scalar kind·정적인 선택값과 한도를
+보존한다. 값은 선택값의 정확한 Form 표현이며 문자열 trim과 구분한다. Description은 복사본이고 제출 profile이나
+password를 포함하지 않는다. 최대 31개 필드·각 4,096 bytes·총 입력 65,536 bytes, 필드당 256개 선택값과 description
+65,536 bytes의 한도를 적용한다. 이 전송 상한은 모델의 더 좁은 validation을 대신하지 않는다.
+
+입력은 같은 description fingerprint와 정확한 필드 순서를 요구한다. 생략과 명시적인 빈 문자열을 구분하고 실제
+`BindInstance`/`PrepareInput`을 거쳐 typed 입력을 보존한다. 임의 `map[string]any`나 기본 User DTO로 바꾸지 않는다.
+선택한 관계·파일의 입력/조회 수명은 아직 구현하지 않았으며 구성 시 명시적으로 거부한다. 필수 profile을 조용히 빼지 않는다.
+준비 객체는 하나의 Command에 속하며 복사본도 한 번의 실행 시도를 공유한다. `Clear`는 아직 시작하지 않은 준비만
+포기하고 진행 중인 typed 입력을 변경하지 않는다. 실패 원인의 보존과 진단 비노출을 함께 유지한다.
+
+Command는 명시적인 opener를 한 번 호출하되 실제 자원과 오류를 함께 반환할 수 있다. 호출한 process가 그 자원을
+정확히 한 번 닫고, 확정된 생성 결과와 뒤따른 close/응답 오류를 구분한다. 준비·실행은 암묵적으로 연결하거나 닫거나
+재시도하지 않는다. `Provision`은 상위 process가 보관한 operation ID와 실제 backend로 최초 owner를 호출한다.
+공개 터미널·비밀 프레임·runner·설치/startup의 연결은 별도 남은 구현이며 이 Command만으로 CLI 수용을 주장하지 않는다.
+
 ## 선택 계정의 역할과 직접 소속 편집
 
 생성 `NewAccountRoleEditor`는 기존 `SessionStore[M]`를 받아 같은 계정 binding·backend·현재 domain의 session 정책을

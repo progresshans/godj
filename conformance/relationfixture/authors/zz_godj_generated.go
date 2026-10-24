@@ -200,4 +200,4 @@ func authorMetadata() ir.Model {
 
 type GoDjAppPart0_4203e017d5b0f7610fbb5b3010a4abe1295a934558d640e88f81297e8c2d38b1 struct{}
 
-type GoDjProjectSnapshot_24c76f7824399c924ba7b60590c48de31e2a6875c725a654c0c3db7d47f04dab struct{}
+type GoDjProjectSnapshot_7a114febc10d63845bce5980bd0dbc6a522b4837c80a0956695f1287560e7254 struct{}

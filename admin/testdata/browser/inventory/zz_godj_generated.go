@@ -1049,4 +1049,4 @@ func auditMetadata() ir.Model {
 
 type GoDjAppPart0_5a8833a17d94e7ae0abc20c9be6e98a8d55d3e2d8caccefc05e8a1624a6b0cf6 struct{}
 
-type GoDjProjectSnapshot_75c1ffb113190d07fc661a002f5c1117d4fb44e3a1ebe69bcdffc2659580be23 struct{}
+type GoDjProjectSnapshot_bcf36af0ce7287d78f0ecfeb6ba0173fab0b0f05eb6a89c8cd56e8f0caf18093 struct{}

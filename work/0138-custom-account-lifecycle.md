@@ -128,6 +128,14 @@ Fresh-only·0/음수 기존 key·재사용/경합·실제 저장 뒤 rollback/un
 필수 custom profile의 생성·HTTP login 외부 SQLite 소비자도 추가했다. 본문 실행·최소 compile·원격 확인은
 TEST_EVIDENCE에서 구분한다. 공개 명령의 전환은 남아 있다.
 
+DB 연결 전 검사를 위해 생성 `NewFirstAccountDefinition`과 typed 선언/실제 backend binding을 분리했다.
+전체 host source·역할·정적인 정책과 명시적 callback evidence를 식별하며 가짜 backend를 만들지 않는다.
+`project/firstaccount.Command`는 같은 ModelForm의 실제 scalar 필드·선택값·필수/default 의미로 입력을 준비한다.
+생략/명시적 빈 값·한도·source 혼합·취소·한 번의 시도와 acquired resource의 소유권을 검사하고, 실제 최초 owner에 연결한다.
+외부 기본/custom 소비자는 이 경로를 통해 생성·receipt/audit·HTTP/DB-session을 검사하도록 바꿨다.
+선택 필드의 기본값·빈 값·문자열 정리와 custom 정확한 선택값도 포함한다. 생성·최소 compile과 본문 실행은
+TEST_EVIDENCE에서 구분한다. 터미널/프로세스의 공개 명령 연결과 scaffold runtime 전환은 아직 완료하지 않았다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·password/reset과 세션 폐기 조립·host 삭제·audit/session 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
 

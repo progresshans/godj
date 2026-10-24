@@ -161,6 +161,22 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 				*spec.Account.Staff.Constant = true
 				source = firstAccountCustomConsumer
 			}
+			for i := range spec.Apps {
+				for j := range spec.Apps[i].Schema.Models {
+					model := &spec.Apps[i].Schema.Models[j]
+					if spec.Apps[i].Schema.AppLabel != spec.Account.Model.AppLabel || model.Name != spec.Account.Model.ModelName {
+						continue
+					}
+					for k := range model.Fields {
+						field := &model.Fields[k]
+						if variant.custom && field.Name == "region" {
+							field.Choices = []ir.Choice{{Value: ir.Scalar{Kind: ir.ScalarString, String: "NZ"}, Label: "New Zealand"}, {Value: ir.Scalar{Kind: ir.ScalarString, String: "KR"}, Label: "South Korea"}}
+						} else if !variant.custom && field.Name == "first_name" {
+							field.Default = &ir.Scalar{Kind: ir.ScalarString, String: "NZ"}
+						}
+					}
+				}
+			}
 			if variant.noLastLogin {
 				name := spec.Account.LastLogin
 				for i := range spec.Apps {
@@ -184,7 +200,13 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/first_account_test.go", firstAccountCommonConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
-			assertGeneratedConsumerTests(t, output, "TestGeneratedFirstAccountBootstrap")
+			required := []string{"TestGeneratedFirstAccountBootstrap"}
+			if !variant.custom {
+				for _, name := range []string{"trimmed", "omitted_default", "explicit_empty"} {
+					required = append(required, "TestGeneratedFirstAccountBootstrap/"+name)
+				}
+			}
+			assertGeneratedConsumerTests(t, output, required...)
 			t.Logf("first-account child events (sha256=%x):\n%s", sha256.Sum256(output), output)
 		})
 	}

@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ import (
 	formmodel "github.com/progresshans/godj/forms/model"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/project/firstaccount"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
@@ -37,7 +40,12 @@ func firstConsumerConfig[M any](role ir.AccountRole, profile string) accountmode
 	return accountmodel.FirstAccountConfig[M]{CreationPolicy: accountmodel.CreationPolicy[M]{Fields: []string{role.Login, profile}}, EvidenceSHA256: hex.EncodeToString(digest[:])}
 }
 
-func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], owner *accountmodel.FirstAccount[M], hasher auth.PasswordHasher, store *accountmodel.CredentialStore[M], sessionStore *accountmodel.SessionStore[M], profileField string) M {
+type firstProfileInput struct {
+	present        bool
+	text, expected string
+}
+
+func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], definition accountmodel.FirstAccountDefinition[M], hasher auth.PasswordHasher, store *accountmodel.CredentialStore[M], sessionStore *accountmodel.SessionStore[M], profileField string, profile firstProfileInput) M {
 	t.Helper()
 	check := func(err error) {
 		t.Helper()
@@ -45,14 +53,20 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 			t.Fatal(err)
 		}
 	}
-	objects := owner.Manager()
+	owner, err := definition.Bind(backend)
+	check(err)
+	objects := definition.Manager()
 	metadata, err := objects.Metadata()
 	check(err)
 	role, err := binding.Role()
 	check(err)
 	form, err := formmodel.NewSpecForFields(metadata, owner.Fields())
 	check(err)
-	data := forms.NewData(map[string][]string{role.Login: {"first@example.test"}, profileField: {"  NZ  "}})
+	raw := map[string][]string{role.Login: {"first@example.test"}}
+	if profile.present {
+		raw[profileField] = []string{profile.text}
+	}
+	data := forms.NewData(raw)
 	bound, err := formmodel.BindInstance(t.Context(), objects, form, data, nil, formmodel.PostClean{})
 	check(err)
 	input, err := formmodel.PrepareInput(objects, bound.BoundForm())
@@ -68,12 +82,67 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 	}
 	operation := sha256.Sum256([]byte("parent-owned generated first-account operation"))
 	operationID := hex.EncodeToString(operation[:])
-	pending, err := owner.PrepareOperation(t.Context(), operationID, input, accountPasswordText)
+	opens := 0
+	command, err := firstaccount.New(definition, func(context.Context) (firstaccount.Backend, error) { opens++; return backend, nil })
 	check(err)
+	description, err := command.Description()
+	check(err)
+	check(firstaccount.ValidateDescription(description))
+	if description.Login != role.Login || description.Model != role.Model.AppLabel+"."+role.Model.ModelName || len(description.Fields) != len(definition.Fields()) {
+		t.Fatal("command description substituted a default account shape")
+	}
+	commandValues := make([]firstaccount.Value, len(description.Fields))
+	for i, field := range description.Fields {
+		text, present := data.Get(field.Name)
+		if present && len(text) != 1 {
+			t.Fatal("command did not describe the actual form input")
+		}
+		commandValues[i] = firstaccount.Value{Name: field.Name, Present: present}
+		if present {
+			commandValues[i].Text = []byte(text[0])
+		}
+		if field.Name == profileField && !profile.present && !field.HasDefault {
+			t.Fatal("command description lost the declared default")
+		}
+	}
+	for i, field := range description.Fields {
+		if field.Name == profileField && len(field.Choices) != 0 {
+			if len(field.Choices) != 2 || field.Choices[0].Value != "NZ" || field.Choices[0].Label != "New Zealand" {
+				t.Fatal("command description lost typed profile choices")
+			}
+			bad := slices.Clone(commandValues)
+			bad[i].Text = []byte("  NZ  ")
+			_, err := command.Prepare(t.Context(), description.Fingerprint, bad)
+			if failures, rejected := validation.Rejected(err); !rejected || failures.ByField(validation.Field(profileField)).Empty() {
+				t.Fatal("command normalized exact model choice input", err)
+			}
+		}
+		if field.Name == profileField && field.Required && !field.HasDefault {
+			missing := slices.Clone(commandValues)
+			missing[i].Present, missing[i].Text = false, nil
+			_, err := command.Prepare(t.Context(), description.Fingerprint, missing)
+			if failures, rejected := validation.Rejected(err); !rejected || failures.ByField(validation.Field(profileField)).Empty() {
+				t.Fatal("command lost required custom profile validation", err)
+			}
+		}
+	}
+	pending, err := command.Prepare(t.Context(), description.Fingerprint, commandValues)
+	check(err)
+	for _, value := range commandValues {
+		clear(value.Text)
+	}
+	if opens != 0 {
+		t.Fatal("model form description/cleaning opened a database")
+	}
 	if count, err := objects.Using(backend).Count(t.Context()); err != nil || count != 0 {
 		t.Fatal("first preparation wrote a row", err)
 	}
-	result, err := owner.Commit(t.Context(), pending)
+	opened, err := command.Open(t.Context())
+	check(err)
+	if opened != backend || opens != 1 {
+		t.Fatal("command did not use the explicit backend owner")
+	}
+	result, err := command.Provision(t.Context(), opened, operationID, pending, accountPasswordText)
 	check(err)
 	if result.Account.Revision != 1 || result.Ownership.Sequence() != 1 || result.Ownership.OperationID() != operationID {
 		t.Fatal("first receipt missing")
@@ -91,7 +160,7 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 	}
 	values, err := objects.ModelValues(row)
 	check(err)
-	if value, _ := values[profileField].String(); value != "NZ" {
+	if value, _ := values[profileField].String(); value != profile.expected {
 		t.Fatal("first profile/default/cleaning mismatch")
 	}
 	principal, _ := values[role.PrincipalID].String()

@@ -577,6 +577,57 @@ scope 소유권·현재 typed/password policy, domain/account/소속/audit의 �
 password/reset·profile 관계/파일·host/계정 삭제·채운 DB 전환/receipt/restart와 고정 Django 공유 의미 및 전체 환경 대조는
 I1 잔여 요구다. 새 source의 최초 계정 본문·DB/race/process/platform과 전체 필수 CI 수용은 원격 확인 대상이다.
 
+### 최초 계정의 순수 선언과 typed 명령 준비
+
+`7c93df86144808c582a0dd21617a6920dfbdef16`에서 이어진 작업본은 `FirstAccountDefinition[M]`과 생성
+`NewFirstAccountDefinition`을 추가했다. 실제 계정/catalog/collection과 전체 host source·역할·생성 정책을 DB 없이
+검사하고, 실제 backend를 받는 `Bind`에서 독립 owner를 만든다. Source·정적인 정책과 명시적 callback evidence를
+식별하며 가짜 backend나 임시 권한을 만들지 않는다. 생성 `NewFirstAccount`도 같은 선언을 사용한다.
+
+`project/firstaccount.Command`는 실제 typed ModelForm으로 description과 입력을 준비하고 첫 계정 owner에 연결한다.
+선택 필드·scalar kind·필수/default/nullable·정적 선택값, login 우선 순서·byte/count 한도를 전달한다. 입력은 같은
+fingerprint와 정확한 필드 순서, 생략/명시적 빈 값의 구분을 유지한다. 잘못된 값·오래된 description은 DB 연결 전에
+거부하며 한 owner·한 시도와 취소/포기 수명을 검사한다. Opener의 실제 자원과 오류를 함께 보존하고 오류 표시는
+닫힌 code로 제한한다. Backend acquisition/close와 확정 결과 게시의 process 소유권은 유지한다.
+
+단위 검사에는 전체 host 정책 digest·독립 binding·caller mutation, 순수 선언의 무 I/O/해시/ID 생성,
+description/source 혼합·잘못된 필드/UTF-8/NUL/한도·필수 validation·비공개 입력/오류 진단·취소·동시 한 번의 시도와
+resource-with-error·nil/typed-nil/non-native backend의 소유권을 추가했다. 새 package는 Portable Go core의 normal/race/CGO0
+대상이고, identity/model·orm은 기존 relation owner가 맡는다. 원격 전체 suite의 실행 소유자를 바꾸거나 검사를 삭제하지 않았다.
+
+기본/custom/LastLogin 없는 custom의 실제 외부 생성 소비자는 생성 선언→description→ModelForm 입력 준비→명시적
+open→최초 생성 경로를 사용하도록 확장했다. 기본 모델은 선택 profile의 공백 정리·비어 있지 않은 default의 입력 생략·
+명시적 빈 문자열을 각각 독립 DB에서 검사한다. Custom은 필수 region과 두 정적 선택값을 선언하고 정확하지 않은 선택
+문자열을 거부한다. 실제 typed 행·flags·receipt/audit와 기존 TCP/CSRF/DB-session 로그인 검사를 유지한다.
+외부 child 완료 검사는 새 기본 세 case까지 요구하며 fail/skip/잘린 출력을 성공으로 인정하지 않는다.
+이 새 단위 및 consumer 본문은 로컬에서 실행하지 않았다.
+
+공개 `generate`를 11개 root에서 실행해 account ABI v10의 manifest와 155개 소유 파일을 갱신했다.
+기존 migration은 바꾸지 않았다. 생성 명령 11개가 모두 exit 0이고 실행 전후 generator 입력의 hash가 같았다.
+원본은 같은 검증 보관소의 `gdj0138-first-command-generate-v1/receipt.json`이며 SHA-256은
+`80c68b5576fc86d3454a68aa2fb2400c875b2f1191591ed738cd182e0d77e93a`다.
+
+로컬에서는 영향 7 package의 `go test -run '^$'`와 실제 생성된 외부 module 7개의 최소 compile을 확인했다.
+외부 compile은 저장소 밖 overlay에서 두 child 명령에만 `-run '^$'`를 추가하고 본문 완료 assertion을 제거한 harness다.
+원본·overlay·각 child의 JSON 원본을 보존했으며 실제 child package 7개가 본문 실행 없이 종료했음을 별도로 대조했다.
+저장소의 CI harness는 원래 본문과 완료 assertion을 유지한다. 외부 wrapper의 PASS를 기능/DB 실행 PASS로 계산하지 않는다.
+두 compile은 exit 0이고 현재 3,979개 비 Markdown 입력과 각 실행 전후 hash가 모두 같다. 11개 manifest의 155개 파일,
+변경 Go 171개의 gofmt·기존 migration 보존과 기존 필수 실행 목록 무삭제도 확인했다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-first-command-compile-v1/receipt.json` — 영향 7 package 최소 compile | `ce3133b2e3d012ace34ddde5fc6b28d99561ab0422fbaca1ad131abba403bbe2` |
+| `gdj0138-first-command-external-compile-v1/receipt.json` — 실제 외부 7 module 최소 compile | `fc06784a2ee5ae51dbf0a40c0340be5c4bfb8d9c0bd27b2f2d39e13173844c21` |
+| `gdj0138-first-command-publication-v1/verification.json` — 최종 source/생성물/실행 소유권 대조 | `04d3a1615ae40910429aff0663ef5ee92290d44178adaadfbae09bdfeadb0d8b` |
+
+새 단위·default/choice/자원 수명·실제 DB/HTTP 본문과 전체 DB/race/process/platform 수용은 새 source의 원격 확인 대상이다.
+
+이 Command를 공개 터미널·민감한 process frame·runner·scaffold runtime에 연결하는 구현은 남아 있다.
+현재 공개 `createsuperuser`는 기존 경로를 사용한다. 선언 전용 projectrunner는 최초 생성 전에 generated package에
+의존할 수 없으며 실제 runtime 진입점과 설치/인증 경로를 함께 전환해야 한다. 이 기반이나 외부 소비자를 공개 CLI
+수용으로 계산하지 않는다. 관계/파일·공통 Admin/HTTP·password/reset·host 삭제·채운 DB 전환과 I1-01~08 전체 수용은
+기존 잔여 범위에 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

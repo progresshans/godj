@@ -44,19 +44,9 @@ func NewFirstAccount[M, G, P, GL, PL any](store *CredentialStore[M], expected Bi
 	if err := store.valid(); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
-	if !validFirstAccountDigest(config.EvidenceSHA256) {
-		return nil, managementError(CodeInvalidConfig, nil)
-	}
-	role := store.state.binding.state.role
-	forced := map[string]query.Value{}
-	for _, flag := range []ir.AccountBoolean{role.Active, role.Staff, role.Superuser} {
-		if flag.Constant != nil {
-			if !*flag.Constant {
-				return nil, managementError(CodeInvalidConfig, nil)
-			}
-		} else {
-			forced[flag.Field] = query.Boolean(true)
-		}
+	forced, err := firstAccountForced(store.state.binding, config.EvidenceSHA256)
+	if err != nil {
+		return nil, err
 	}
 	state, err := newCreationState(store, expected, groups, permissions, hasher, config.CreationPolicy, forced)
 	if err != nil {
@@ -67,6 +57,24 @@ func NewFirstAccount[M, G, P, GL, PL any](store *CredentialStore[M], expected Bi
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	return &FirstAccount[M]{state: &firstAccountState[M]{creation: state, fingerprint: fingerprint, evidence: config.EvidenceSHA256}}, nil
+}
+
+func firstAccountForced[M any](binding Binding[M], evidence string) (map[string]query.Value, error) {
+	if binding.state == nil || !validFirstAccountDigest(evidence) {
+		return nil, managementError(CodeInvalidConfig, nil)
+	}
+	role := binding.state.role
+	forced := map[string]query.Value{}
+	for _, flag := range []ir.AccountBoolean{role.Active, role.Staff, role.Superuser} {
+		if flag.Constant != nil {
+			if !*flag.Constant {
+				return nil, managementError(CodeInvalidConfig, nil)
+			}
+		} else {
+			forced[flag.Field] = query.Boolean(true)
+		}
+	}
+	return forced, nil
 }
 func validFirstAccountDigest(value string) bool {
 	if len(value) != 64 {

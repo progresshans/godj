@@ -65,14 +65,19 @@ type CreationConfig[M any] struct {
 // requires its separate operator policy.
 type Creator[M any] struct{ state *creationState[M] }
 type creationState[M any] struct {
-	store                       *CredentialStore[M]
-	backend                     db.CoordinatedRelationAtomic
-	overlay                     auth.Authorizer
+	*creationDefinition[M]
+	store    *CredentialStore[M]
+	backend  db.CoordinatedRelationAtomic
+	overlay  auth.Authorizer
+	required []auth.Permission
+}
+
+type creationDefinition[M any] struct {
+	binding                     Binding[M]
 	hasher                      auth.PasswordHasher
 	metadata                    ir.Model
 	fields                      []string
 	allowed                     map[string]bool
-	required                    []auth.Permission
 	config                      CreationPolicy[M]
 	forced                      map[string]query.Value
 	auditFields                 []string
@@ -116,6 +121,17 @@ func newCreationState[M, G, P, GL, PL any](store *CredentialStore[M], expected B
 	}
 	binding := store.state.binding
 	if binding.state.roleFingerprint != expected.state.roleFingerprint {
+		return nil, managementError(CodeInvalidConfig, nil)
+	}
+	definition, err := prepareCreationDefinition(binding, groups, permissions, hasher, config, forced)
+	if err != nil {
+		return nil, err
+	}
+	return &creationState[M]{creationDefinition: definition, store: store, backend: backend}, nil
+}
+
+func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups orm.ManyToMany[M, G, GL], permissions orm.ManyToMany[M, P, PL], hasher auth.PasswordHasher, config CreationPolicy[M], forced map[string]query.Value) (*creationDefinition[M], error) {
+	if binding.state == nil || nilModelValue(hasher) || len(config.Fields) == 0 || len(config.Fields) >= admin.MaximumChangedFields {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
 	role, project := binding.state.role, binding.state.project
@@ -191,7 +207,7 @@ func newCreationState[M, G, P, GL, PL any](store *CredentialStore[M], expected B
 		config.PrincipalID = newAccountPrincipalID
 	}
 	config.Fields = nil
-	state := &creationState[M]{store: store, backend: backend, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, config: config, forced: maps.Clone(forced), auditFields: auditFields}
+	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, config: config, forced: maps.Clone(forced), auditFields: auditFields}
 	state.saveGroups = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
 		collection, err := groups.InSession(scope, row)
 		if err != nil {

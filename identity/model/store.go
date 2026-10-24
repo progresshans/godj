@@ -36,27 +36,43 @@ func (CredentialStore[M]) Format(state fmt.State, _ rune) {
 // assumptions, caller-written SQL or separately supplied permission loader are
 // involved. Construction checks configuration without performing I/O.
 func NewCredentialStore[M, G, P any](backend db.SnapshotReader, binding Binding[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P]) (*CredentialStore[M], error) {
-	if nilModelValue(backend) || binding.state == nil {
+	if nilModelValue(backend) {
 		return nil, invalidCredentialStore()
+	}
+	state, err := prepareCredentialStore(binding, groups, permissions)
+	if err != nil {
+		return nil, err
+	}
+	state.backend = backend
+	return &CredentialStore[M]{state: &state}, nil
+}
+
+// A declaration may be inspected before a command acquires a database. Keep
+// its typed/source validation separate from a live store; no unbound store or
+// placeholder backend is exposed to callers.
+func prepareCredentialStore[M, G, P any](binding Binding[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P]) (credentialStoreState[M], error) {
+	var zero credentialStoreState[M]
+	if binding.state == nil {
+		return zero, invalidCredentialStore()
 	}
 	load, err := bindAccountRelations(binding, groups, permissions)
 	if err != nil {
-		return nil, &auth.Error{Code: auth.CodeInvalidConfig, Detail: "account permission catalog binding failed", Cause: err}
+		return zero, &auth.Error{Code: auth.CodeInvalidConfig, Detail: "account permission catalog binding failed", Cause: err}
 	}
 	metadata, exists := binding.state.project.Model(binding.state.role.Model)
 	if !exists {
-		return nil, invalidCredentialStore()
+		return zero, invalidCredentialStore()
 	}
 	key, exists := primaryField(metadata)
 	if !exists {
-		return nil, invalidCredentialStore()
+		return zero, invalidCredentialStore()
 	}
-	return &CredentialStore[M]{state: &credentialStoreState[M]{
-		backend: backend, binding: binding,
+	return credentialStoreState[M]{
+		binding:   binding,
 		login:     orm.NewStringField[M](binding.state.credentialFields[binding.state.role.Login]),
 		principal: orm.NewStringField[M](binding.state.credentialFields[binding.state.role.PrincipalID]),
 		key:       orm.NewAutoField[M](key), permissions: load.permissions, relations: load,
-	}}, nil
+	}, nil
 }
 
 // CredentialByUsername looks up an exact canonical login. NewAuthenticator

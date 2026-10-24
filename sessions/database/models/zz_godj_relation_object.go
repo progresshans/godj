@@ -22,4 +22,4 @@ func (SessionDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorag
 
 type GoDjAppPart2_d87b6f6ca229634a2c0d020873bee6da32d2d218ddcf985df1b41661cc3561c2 struct{}
 
-var _ GoDjProjectSnapshot_54d250dfbe428534016116dcc218b85d69666f73ea5ca41c1f161e89b9d3de9f
+var _ GoDjProjectSnapshot_7583af2485ed7aa050851a033114f93265118c7b54ba4948130ef9413e27bda6
