@@ -137,6 +137,10 @@ func normalizeProjectSpec(input codegen.ProjectSpec) (codegen.ProjectSpec, error
 		Project: input.Project,
 		Apps:    make([]codegen.AppSpec, len(input.Apps)),
 	}
+	if input.Account != nil {
+		value := input.Account.Clone()
+		normalized.Account = &value
+	}
 	for index := range input.Apps {
 		app := input.Apps[index]
 		schema, err := ir.Normalize(app.Schema)

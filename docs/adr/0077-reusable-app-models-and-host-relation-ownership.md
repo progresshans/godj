@@ -17,6 +17,17 @@ Directory는 비워 둔다. Schema IR은 호스트의 전체 관계 해석에 �
 호스트는 모든 app을 포함한 query·facade·prefetch·delete binding을 생성한다. 호스트에서 User를 향해 추가한 FK의
 CASCADE·PROTECT까지 호스트 graph가 소유하므로 라이브러리의 별도 project binding을 전체 호스트 삭제기로 대신 사용하지 않는다.
 
+공통 서비스가 typed collection·삭제 기능을 조합할 때는 `ManyToMany.ValidateSource`와
+`RelationDeleter.ValidateSource`로 기대한 전체 프로젝트 source와 owner/field 또는 target을 시작 시 대조한다.
+별도로 정규화한 동일 source는 허용하지만 동일 Go 타입·table·로컬 모델 선언만으로는 충분하지 않다.
+호스트가 through 행에 추가한 PROTECT처럼 기존 owner 모델을 바꾸지 않는 정책도 source 차이로 거부한다.
+이 순수 검사는 I/O나 인가를 수행하지 않으며 실제 변경에는 현재 권한과 native transaction이 여전히 필요하다.
+
+선택 계정의 catalog 팩토리는 같은 binding에서 실제 Group/Permission descriptor·그룹 권한 collection과 전체 host 삭제
+정책을 조합한다. 공개 reverse accessor가 없어도 선언한 forward M2M과 bound Query AST로 회원·grant를 조회한다.
+삭제 graph가 추가 계정/catalog 행의 수명까지 바꾸는 경우에는 단순 관계 삭제 이상의 revision·session 조정이 필요하다.
+현재 이 조합은 시작 시 명시적으로 거부하며, 완전한 수명 조정은 [GDJ-0138 I1-06](../../work/0138-custom-account-lifecycle.md)에 남긴다.
+
 외부 app에는 호스트가 생성·삭제하는 파일 roster가 없다. Manifest, runner wire, bounded scan/size와 snapshot hash에
 External을 보존한다. 검사기는 격리한 Go module 환경의 `go list -find`로 dependency를 찾아 읽는다.
 현재 네 companion과 marker, handwritten raw-model의 예약 메서드 충돌을 검사하고 생성 파일도 변경 전후 fingerprint에 포함한다.

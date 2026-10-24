@@ -30,7 +30,15 @@ func TestCredentialAndAuthenticatorsHideSecretsAcrossDiagnosticVerbs(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	values := []any{credential, &credential, memory, *memory, stored, *stored}
+	domain, err := auth.NewCredentialDomain(strings.Repeat("12", 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scoped, err := auth.NewCredentialForDomain(domain, "diagnostic-user", marker, principal)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := []any{credential, &credential, scoped, &scoped, memory, *memory, stored, *stored}
 	for _, value := range values {
 		for _, format := range []string{"%v", "%+v", "%#v", "%s", "%q", "%x", "%X", "%d", "%f", "%o", "%p", "%w", "%020d", "%#[1]v"} {
 			rendered := fmt.Sprintf(format, value)

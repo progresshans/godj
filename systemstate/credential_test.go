@@ -137,15 +137,15 @@ func TestProvisionOperatorConfigJSONCannotPopulateSecretFields(t *testing.T) {
 
 func TestReadCredentialRowsClosesRowsReturnedWithPrimaryError(t *testing.T) {
 	primary := errors.New("credential query primary failure")
-	rows := &credentialFaultRows{closeErr: errors.New("credential rows close failure")}
+	rows := &credentialFaultRows{iterationErr: errors.New("credential rows iteration failure"), closeErr: errors.New("credential rows close failure")}
 	result, err := readCredentialRows(context.Background(), credentialFaultQueryer{rows: rows, err: primary})
 	if result != nil || !errors.Is(err, &Error{Code: CodeSchemaUnavailable, Field: credentialTableName}) ||
-		!errors.Is(err, primary) {
+		!errors.Is(err, primary) || !errors.Is(err, rows.iterationErr) || !errors.Is(err, rows.closeErr) {
 		t.Fatalf("readCredentialRows(rows+error) = (%v, %#v)", result, err)
 	}
-	if rows.closeCalls != 1 || rows.nextCalls != 0 || rows.scanCalls != 0 || rows.errCalls != 0 {
+	if rows.closeCalls != 1 || rows.nextCalls != 0 || rows.scanCalls != 0 || rows.errCalls != 1 {
 		t.Fatalf(
-			"rows+error calls = close %d/next %d/scan %d/err %d, want 1/0/0/0",
+			"rows+error calls = close %d/next %d/scan %d/err %d, want 1/0/0/1",
 			rows.closeCalls, rows.nextCalls, rows.scanCalls, rows.errCalls,
 		)
 	}
@@ -259,14 +259,14 @@ func TestSystemStateQueryAcquisitionRejectsTypedNilRowsAndClosesRowsWithError(t 
 
 			t.Run("rows plus primary error", func(t *testing.T) {
 				primary := errors.New("rows query primary failure")
-				rows := &credentialFaultRows{closeErr: errors.New("rows close failure")}
+				rows := &credentialFaultRows{iterationErr: errors.New("rows iteration failure"), closeErr: errors.New("rows close failure")}
 				err := test.run(context.Background(), credentialFaultQueryer{rows: rows, err: primary})
-				if err == nil || !errors.Is(err, primary) {
-					t.Fatalf("rows+error lost primary error: %#v", err)
+				if !errors.Is(err, primary) || !errors.Is(err, rows.iterationErr) || !errors.Is(err, rows.closeErr) {
+					t.Fatalf("rows+error lost query or cleanup error: %#v", err)
 				}
-				if rows.closeCalls != 1 || rows.nextCalls != 0 || rows.scanCalls != 0 || rows.errCalls != 0 {
+				if rows.closeCalls != 1 || rows.nextCalls != 0 || rows.scanCalls != 0 || rows.errCalls != 1 {
 					t.Fatalf(
-						"rows+error calls = close %d/next %d/scan %d/err %d, want 1/0/0/0",
+						"rows+error calls = close %d/next %d/scan %d/err %d, want 1/0/0/1",
 						rows.closeCalls, rows.nextCalls, rows.scanCalls, rows.errCalls,
 					)
 				}
@@ -306,11 +306,12 @@ func (queryer credentialFaultQueryer) Query(context.Context, query.Plan) (db.Row
 }
 
 type credentialFaultRows struct {
-	closeErr   error
-	closeCalls int
-	nextCalls  int
-	scanCalls  int
-	errCalls   int
+	iterationErr error
+	closeErr     error
+	closeCalls   int
+	nextCalls    int
+	scanCalls    int
+	errCalls     int
 }
 
 func (rows *credentialFaultRows) Next() bool {
@@ -334,7 +335,7 @@ func (rows *credentialFaultRows) Err() error {
 		panic("typed-nil credential rows Err must not be called")
 	}
 	rows.errCalls++
-	return nil
+	return rows.iterationErr
 }
 
 func (rows *credentialFaultRows) Close() error {

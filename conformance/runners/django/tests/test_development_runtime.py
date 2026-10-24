@@ -11,6 +11,9 @@ class DevelopmentHTTPTests(unittest.TestCase):
     def request(self, body, declared_length):
         response = (b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
                     b"Connection: close\r\nContent-Length: " + str(declared_length).encode() + b"\r\n\r\n" + body)
+        return self.raw_response(response)
+
+    def raw_response(self, response):
         errors = []
 
         class Handler(socketserver.BaseRequestHandler):
@@ -54,6 +57,28 @@ class DevelopmentHTTPTests(unittest.TestCase):
         for body in (b"", b"not-json"):
             with self.subTest(body=body):
                 response = self.request(body, len(body))
+                self.assertEqual(response.status, 200)
+                with self.assertRaises(json.JSONDecodeError):
+                    response.json()
+
+    def test_incomplete_headers_cannot_be_a_successful_observation(self):
+        status = b"HTTP/1.1 200 OK\r\n"
+        for partial in (status, status + b"Content-Type: application/json\r\n",
+                        status + b"Content-Length: 0\r\n", status + b"Content-Length: 22"):
+            with self.subTest(partial=partial):
+                response = self.raw_response(partial)
+                self.assertEqual((response.status, response.body), (0, b""))
+
+    def test_complete_close_delimited_and_interim_responses_keep_their_content(self):
+        headers = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n"
+        for prefix in (b"", b"HTTP/1.1 100 Continue\r\n\r\n"):
+            with self.subTest(prefix=prefix):
+                response = self.raw_response(prefix + headers + b'{"version":"v2","pid":7}')
+                self.assertEqual(response.status, 200)
+                self.assertEqual(response.json(), {"version": "v2", "pid": 7})
+        for body in (b"", b"not-json"):
+            with self.subTest(body=body):
+                response = self.raw_response(headers + body)
                 self.assertEqual(response.status, 200)
                 with self.assertRaises(json.JSONDecodeError):
                     response.json()

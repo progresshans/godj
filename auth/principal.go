@@ -60,6 +60,7 @@ type Principal struct {
 	superuser   bool
 	permissions []Permission
 	permission  map[Permission]struct{}
+	domain      CredentialDomain
 }
 
 func NewPrincipal(config PrincipalConfig) (Principal, error) {
@@ -91,8 +92,14 @@ func (p Principal) Active() bool        { return p.active && p.id != "" }
 func (p Principal) Staff() bool         { return p.staff && p.id != "" }
 func (p Principal) Superuser() bool     { return p.superuser && p.id != "" }
 func (p Principal) Authenticated() bool { return p.Active() }
-func (p Principal) String() string      { return "auth.Principal{redacted}" }
-func (p Principal) GoString() string    { return "auth.Principal{redacted}" }
+
+// CredentialDomain identifies the credential observation that supplied this
+// principal. NewPrincipal and Anonymous are unbound; only an explicitly scoped
+// credential binds a principal. Presence alone is not current authorization.
+func (p Principal) CredentialDomain() (CredentialDomain, bool) { return p.domain, p.domain.valid }
+
+func (p Principal) String() string   { return "auth.Principal{redacted}" }
+func (p Principal) GoString() string { return "auth.Principal{redacted}" }
 
 // Permissions returns a detached declaration-order snapshot of explicit
 // grants. A superuser's implicit grants are not a materialized catalog.

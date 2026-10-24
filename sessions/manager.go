@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
-	"errors"
 	"io"
 	"reflect"
 	"sync"
@@ -151,8 +150,9 @@ func (m *Manager) Load(ctx context.Context, id ID) (Record, bool, error) {
 	}
 	touched, status, err := m.store.Access(ctx, id, m.accessPolicy)
 	if err != nil {
-		var policyError *accessPolicyError
-		if errors.As(err, &policyError) {
+		// Only the store's exact policy refusal has this authority. A wrapped
+		// cause may accompany failed cleanup or an unknown transaction outcome.
+		if policyError, direct := err.(*accessPolicyError); direct && policyError != nil {
 			return Record{}, false, policyError.cause
 		}
 		return Record{}, false, storeFailure("access", err)

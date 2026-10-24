@@ -24,7 +24,21 @@ type RelationDeleter[M any] struct {
 // connection or deleting rows. Hosts can reject missing policies at startup.
 func (d RelationDeleter[M]) ValidateBinding() error { return d.state.validate() }
 
+// ValidateSource additionally requires the composing service's complete
+// project source and target identity. A library-only or another host's delete
+// policy cannot replace this source even when target metadata is identical.
+func (d RelationDeleter[M]) ValidateSource(binding ProjectBinding, target ir.ModelIdentity) error {
+	if err := d.ValidateBinding(); err != nil {
+		return err
+	}
+	if d.state.target != target || !sameProjectSource(d.state.snapshot, binding.snapshot) {
+		return relationInvalidPlan("relation deleter does not match the required project source and target")
+	}
+	return nil
+}
+
 type relationDeleteState[M any] struct {
+	snapshot    *projectBindingSnapshot
 	descriptor  WriteDescriptor[M]
 	target      ir.ModelIdentity
 	targetModel ir.Model
@@ -86,6 +100,7 @@ func BindRelationDeleter[M any](
 	}
 
 	state := relationDeleteState[M]{
+		snapshot:    binding.snapshot,
 		descriptor:  descriptor,
 		target:      identity,
 		targetModel: targetModel.Clone(),
@@ -180,7 +195,7 @@ func (d RelationDeleter[M]) DeleteInSession(ctx context.Context, session db.Rela
 }
 
 func (state relationDeleteState[M]) validate() error {
-	if !state.valid || interfaceIsNil(state.descriptor) || !immutableZeroStateValue(state.descriptor) {
+	if !state.valid || state.snapshot == nil || interfaceIsNil(state.descriptor) || !immutableZeroStateValue(state.descriptor) {
 		return relationInvalidPlan("relation deleter is unbound")
 	}
 	if _, ok := relationDeleteTargetKey(state.targetModel); !ok ||

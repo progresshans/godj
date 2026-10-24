@@ -34,6 +34,24 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"account/audit/migrations/godj_account_audit_0001_initial.godj.json",
+		"sessions/database/migrations/godj_sessions_0001_initial.godj.json",
+		"sessions/database/store.go",
+		"internal/sessionwire/codec.go",
+		"internal/rowset/scan.go",
+		"account/audit/audit.go",
+		"account/audit/migrations.go",
+		"account/audit/models/zz_godj_generated.go",
+		"account/audit/models/zz_godj_relation.go",
+		"account/audit/models/zz_godj_relation_object.go",
+		"account/audit/models/zz_godj_relation_projection.go",
+		"account/domain/migrations/godj_account_domain_0001_initial.godj.json",
+		"account/domain/domain.go",
+		"account/domain/migrations.go",
+		"account/domain/models/zz_godj_generated.go",
+		"account/domain/models/zz_godj_relation.go",
+		"account/domain/models/zz_godj_relation_object.go",
+		"account/domain/models/zz_godj_relation_projection.go",
 		"internal/diagnosticlog/log.go",
 		"internal/runservercontrol/protocol.go",
 		"events/event.go",
@@ -295,6 +313,8 @@ func TestComputeSourceBindingRejectsDirectorySymlinkThatCanHideOwnedSource(t *te
 		linkPath string
 		filePath string
 	}{
+		{name: "account namespace", linkPath: "account", filePath: "domain/domain.go"},
+		{name: "account models", linkPath: "account/domain/models", filePath: "zz_godj_generated.go"},
 		{name: "runtime logging", linkPath: "internal/diagnosticlog", filePath: "log.go"},
 		{name: "development control", linkPath: "internal/runservercontrol", filePath: "protocol.go"},
 		{name: "URL normalization", linkPath: "internal/urlinput", filePath: "url.go"},

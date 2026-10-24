@@ -273,6 +273,44 @@ func relationDeleteTestBinding(t *testing.T) ProjectBinding {
 	return binding
 }
 
+func TestRelationDeleterCapabilityRequiresCompleteHostSource(t *testing.T) {
+	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	binding := relationDeleteTestBinding(t)
+	deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
+	if err := deleter.ValidateSource(binding, target); err != nil {
+		t.Fatal("independently bound identical delete source rejected", err)
+	}
+	authors, blog := relationDeleteTestSchemas()
+	reordered, err := BindProject(blog, authors)
+	if err != nil || deleter.ValidateSource(reordered, target) != nil {
+		t.Fatal("source schema order changed capability", err)
+	}
+	blog.Models[0].Fields[2].Relation.OnDelete = ir.DeleteCascade
+	changed, err := BindProject(authors, blog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current, _ := changed.Model(target); !current.Equal(relationDeleteTestAuthorModel()) {
+		t.Fatal("negative control changed target metadata")
+	}
+	authors, blog = relationDeleteTestSchemas()
+	extra, err := BindProject(authors, blog, ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "another", Models: []ir.Model{{Name: "unrelated", GoName: "Unrelated"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range []ProjectBinding{{}, changed, extra} {
+		if err := deleter.ValidateSource(candidate, target); err == nil {
+			t.Fatal("foreign/unbound complete delete source accepted")
+		}
+	}
+	if err := deleter.ValidateSource(binding, ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}); err == nil {
+		t.Fatal("different target accepted")
+	}
+	if err := (RelationDeleter[relationDeleteTestAuthor]{}).ValidateSource(binding, target); err == nil {
+		t.Fatal("zero deleter became a capability")
+	}
+}
+
 func relationDeleteTestActualFingerprint(t *testing.T, binding ProjectBinding) string {
 	t.Helper()
 	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}

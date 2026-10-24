@@ -49,7 +49,8 @@ func (event PreparedEvent) ActorID() string { return event.actorID }
 // Model returns the validated dotted model identity captured by this event.
 func (event PreparedEvent) Model() string { return event.model }
 
-// ObjectID returns the confirmed positive object primary key.
+// ObjectID returns the confirmed integer object primary key. Zero and negative
+// keys are distinct persisted identities; validity belongs to event preparation.
 func (event PreparedEvent) ObjectID() int64 { return event.objectID }
 
 // Action returns the closed semantic action captured by this event.
@@ -83,9 +84,6 @@ func PrepareEvent(actorID, model string, objectID int64, action Action, changedF
 	template, err := PrepareEventTemplate(actorID, model, action, changedFields, displayLabel)
 	if err != nil {
 		return PreparedEvent{}, err
-	}
-	if objectID <= 0 {
-		return PreparedEvent{}, fmt.Errorf("admin audit: object id must be positive")
 	}
 	event, _ := template.ForObject(objectID)
 	return event, nil
@@ -130,10 +128,10 @@ func PrepareEventTemplate(actorID, model string, action Action, changedFields []
 	}, nil
 }
 
-// ForObject attaches a confirmed positive primary key. False is possible only
-// for a backend contract violation and does not inspect user-controlled data.
+// ForObject attaches a confirmed integer primary key. The zero template is
+// invalid, independently of the key; a caller must establish key presence.
 func (template PreparedEventTemplate) ForObject(objectID int64) (PreparedEvent, bool) {
-	if template.actorID == "" || template.model == "" || objectID <= 0 {
+	if template.actorID == "" || template.model == "" {
 		return PreparedEvent{}, false
 	}
 	return PreparedEvent{
@@ -204,7 +202,7 @@ func (log *AuditLog) Valid() bool {
 // Append publishes one prevalidated event. Callers invoke it only after a
 // confirmed database commit. Commit-outcome-unknown must not call Append.
 func (log *AuditLog) Append(event PreparedEvent) (AuditEntry, bool) {
-	if !log.Valid() || event.actorID == "" || event.model == "" || event.objectID <= 0 {
+	if !log.Valid() || event.actorID == "" || event.model == "" {
 		return AuditEntry{}, false
 	}
 	state := log.state
@@ -236,7 +234,7 @@ func (log *AuditLog) All() []AuditEntry {
 }
 
 func (log *AuditLog) ForObject(model string, objectID int64) []AuditEntry {
-	if !validDottedIdentifier(model, MaximumModelBytes) || objectID <= 0 {
+	if !validDottedIdentifier(model, MaximumModelBytes) {
 		return nil
 	}
 	return log.selectEntries(model, objectID)
@@ -280,7 +278,7 @@ func (log *AuditLog) ForObjectLimited(ctx context.Context, model string, objectI
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if !log.Valid() || !validDottedIdentifier(model, MaximumModelBytes) || objectID <= 0 || limit < 1 || limit > MaximumHistoryEntries {
+	if !log.Valid() || !validDottedIdentifier(model, MaximumModelBytes) || limit < 1 || limit > MaximumHistoryEntries {
 		return nil, fmt.Errorf("admin audit: limited object history request is invalid")
 	}
 	state := log.state

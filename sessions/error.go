@@ -1,4 +1,5 @@
-// Package sessions owns bounded, process-local server-side session state.
+// Package sessions owns bounded server-side session records, policies and
+// managers. Memory and independently migrated database stores provide storage.
 package sessions
 
 import "fmt"

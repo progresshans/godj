@@ -121,7 +121,7 @@ func TestCredentialChangesInvalidateExistingHTTPSessions(t *testing.T) {
 			reference[mode] = row
 		}
 	}
-	for _, name := range []string{"password", "rehash", "permissions", "username", "inactive", "wrong_identity", "zero_credential", "resolution_error"} {
+	for _, name := range []string{"password", "rehash", "domain", "permissions", "username", "inactive", "wrong_identity", "zero_credential", "resolution_error"} {
 		t.Run(name, func(t *testing.T) {
 			hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
 			if err != nil {
@@ -132,6 +132,16 @@ func TestCredentialChangesInvalidateExistingHTTPSessions(t *testing.T) {
 				t.Fatal(err)
 			}
 			initial := credentialForSessionTest(t, "member", "alice", encoded, true, "article.article.view")
+			if name == "domain" {
+				domain, err := auth.NewCredentialDomain(strings.Repeat("12", 32))
+				if err != nil {
+					t.Fatal(err)
+				}
+				initial, err = auth.NewCredentialForDomain(domain, "alice", encoded, initial.Principal())
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
 			provider := &replaceableAuthenticator{current: memoryCredentials(t, hasher, initial)}
 			h := newCredentialHarness(t, provider)
 			defer h.Close()
@@ -164,6 +174,20 @@ func TestCredentialChangesInvalidateExistingHTTPSessions(t *testing.T) {
 			case "permissions":
 				provider.set(memoryCredentials(t, hasher, credentialForSessionTest(t, "member", "alice", encoded, true)))
 				wantStatus, wantStored = http.StatusForbidden, true
+			case "domain":
+				domain, err := auth.NewCredentialDomain(strings.Repeat("34", 32))
+				if err != nil {
+					t.Fatal(err)
+				}
+				principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "member", Active: true, Permissions: []auth.Permission{"article.article.view"}})
+				if err != nil {
+					t.Fatal(err)
+				}
+				replacement, err := auth.NewCredentialForDomain(domain, "alice", encoded, principal)
+				if err != nil {
+					t.Fatal(err)
+				}
+				provider.set(memoryCredentials(t, hasher, replacement))
 			case "username":
 				provider.set(memoryCredentials(t, hasher, credentialForSessionTest(t, "member", "renamed", encoded, true, "article.article.view")))
 				wantStatus, wantStored = http.StatusOK, true
@@ -200,9 +224,9 @@ func TestCredentialChangesInvalidateExistingHTTPSessions(t *testing.T) {
 			if !initial.Principal().Has("article.article.view") {
 				t.Fatal("previously admitted principal snapshot changed")
 			}
-			if name == "password" || name == "rehash" {
+			if name == "password" || name == "rehash" || name == "domain" {
 				password := "replacement password"
-				if name == "rehash" {
+				if name == "rehash" || name == "domain" {
 					password = "first password"
 				}
 				newID := loginCredentialSession(t, h, "alice", password)

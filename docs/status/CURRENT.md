@@ -9,9 +9,9 @@
 
 ## 다음
 
-1. I1의 계정 역할·domain·credential 조회·현재 인가·typed profile/audit를 새 source의 원격 CI에서 확인한다.
-2. Profile 조회·관계/파일·role/catalog 관리와 공통 Form/Admin/API·첫 계정 명령을 같은 binding에 연결한다.
-3. Password/reset/session·계정 삭제·채운 DB의 명시적 모델 전환과 startup/restart를 실제 소비자에서 완성한다.
+1. I1의 DB 연결 전 선언·typed 명령 입력과 최초 계정·관리·DB session/login 소비자를 새 source의 원격 CI에서 확인한다.
+2. 준비한 최초 계정 Command를 공개 터미널/프로세스에 연결하고 scaffold runtime·공통 Admin/HTTP 제품 조립을 완성한다.
+3. Password/reset과 세션 폐기·프로필 관계/파일·host/계정 삭제·채운 DB 모델 전환과 startup/restart를 실제 소비자에서 완성한다.
 
 ## 검증 경계
 

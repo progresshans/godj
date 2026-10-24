@@ -47,6 +47,9 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"internal/sessionwire/",
+	"internal/rowset/",
+	"account/",
 	"timezone/",
 	"internal/zonerules/",
 	"uploads/",
@@ -136,6 +139,9 @@ var embeddedAssetPrefixes = []string{
 }
 
 var migrationDataPrefixes = []string{
+	"sessions/database/migrations/",
+	"account/audit/migrations/",
+	"account/domain/migrations/",
 	"examples/article/migrations/",
 	"examples/article/testdata/postgres/",
 	"systemstate/testdata/",

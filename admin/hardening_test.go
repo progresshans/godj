@@ -137,7 +137,6 @@ func TestAuditLogForObjectLimitedReturnsNewestAscendingAndValidatesRequest(t *te
 	}{
 		{name: "nil context", model: "godj_conformance.article", id: 1, limit: 1, target: log},
 		{name: "invalid model", ctx: context.Background(), model: "bad/model", id: 1, limit: 1, target: log},
-		{name: "invalid object", ctx: context.Background(), model: "godj_conformance.article", id: 0, limit: 1, target: log},
 		{name: "zero limit", ctx: context.Background(), model: "godj_conformance.article", id: 1, target: log},
 		{name: "over limit", ctx: context.Background(), model: "godj_conformance.article", id: 1, limit: MaximumHistoryEntries + 1, target: log},
 		{name: "nil log", ctx: context.Background(), model: "godj_conformance.article", id: 1, limit: 1},

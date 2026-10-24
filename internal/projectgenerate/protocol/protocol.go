@@ -227,7 +227,7 @@ func invalidResponse() (Response, Failure, bool) {
 }
 
 func isZeroSpec(spec codegen.ProjectSpec) bool {
-	return spec.Project == (codegen.PackageSpec{}) && len(spec.Apps) == 0
+	return spec.Project == (codegen.PackageSpec{}) && len(spec.Apps) == 0 && spec.Account == nil
 }
 
 func validateDocumentSize(size, maximum int) error {

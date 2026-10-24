@@ -77,8 +77,10 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	}
 	app.External = false
 	app.Package.Directory = "models"
+	account := AccountRole()
 	return codegen.ProjectSpec{
 		Project: codegen.PackageSpec{PackageName: "project", ImportPath: "github.com/progresshans/godj/identity/project", Directory: "project"},
 		Apps:    []codegen.AppSpec{app},
+		Account: &account,
 	}, nil
 }

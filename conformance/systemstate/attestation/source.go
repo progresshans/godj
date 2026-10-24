@@ -13,6 +13,9 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"sessions/database/migrations/godj_sessions_0001_initial.godj.json":    {},
+	"account/audit/migrations/godj_account_audit_0001_initial.godj.json":   {},
+	"account/domain/migrations/godj_account_domain_0001_initial.godj.json": {},
 	"internal/zonerules/zoneinfo.zip":                                      {},
 	"internal/zonerules/source.json":                                       {},
 	"admin/site_assets/choices.js":                                         {},
@@ -56,6 +59,9 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"internal/sessionwire/",
+	"internal/rowset/",
+	"account/",
 	"timezone/",
 	"internal/zonerules/",
 	"uploads/",

@@ -1,0 +1,53 @@
+package consumer
+
+import (
+	"example.com/godj-project-bundle/models"
+	"example.com/godj-project-bundle/project"
+	sessiondb "github.com/progresshans/godj/sessions/database"
+	"testing"
+)
+
+func TestGeneratedFirstAccountBootstrap(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		profile firstProfileInput
+	}{
+		{"trimmed", firstProfileInput{present: true, text: "  NZ  ", expected: "NZ"}},
+		{"omitted_default", firstProfileInput{expected: "NZ"}},
+		{"explicit_empty", firstProfileInput{present: true, expected: ""}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			firstDefaultAccount(t, test.profile)
+		})
+	}
+}
+
+func firstDefaultAccount(t *testing.T, profile firstProfileInput) {
+	t.Helper()
+	binding, err := project.BindAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	role, err := binding.Role()
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := accountDatabase(t, models.GoDjRelationSchema())
+	hasher, _ := accountPassword(t)
+	definition, err := project.NewFirstAccountDefinition(hasher, firstConsumerConfig[models.User](role, "first_name"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := project.NewAccountCredentialStore(backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row := assertFirstAccountConsumer(t, backend, binding, definition, hasher, store, sessions, "first_name", profile)
+	if row.FirstName != profile.expected || !row.Staff || !row.Superuser {
+		t.Fatal("first default typed fields lost")
+	}
+}

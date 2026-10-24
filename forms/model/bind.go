@@ -16,8 +16,10 @@ import (
 
 // Validator checks the model candidate after selected model fields have been
 // validated. Unlike a form cross-validator, it also sees default/initial values
-// of fields whose input failed cleaning or was excluded from the form. It must
-// be pure and safe for concurrent use; database checks remain explicit.
+// of fields whose input failed cleaning or was excluded from the form. A
+// BindView candidate contains only explicitly loaded fields and the key;
+// validators must check presence before using other current values. It must be
+// pure and safe for concurrent use; database checks remain explicit.
 type Validator interface {
 	ValidateModel(forms.Values) validation.Errors
 }

@@ -93,7 +93,7 @@ transaction-outcome-unknown 분류를 유지한다. 이미 완료한 전환을 �
 전환을 요구하고, orphan state·잘못된 migration·corruption·읽기 종료 실패를 public-only 성공으로 바꾸지 않는다.
 이 현재 startup 결정은 SYS-028의 GoDj 결정 관찰과 연결하며, legacy OpenExisting의 policy 검증은 SYS-027에 계속 남는다.
 
-Credential·Account·인증기·Directory·전환 receipt는 내부 상태를 불투명한 pointer 뒤에 둔다. Formatter가 일반 진단 형식을 가리고,
+Credential·Account·ModelInput·선택 ModelView/Profile·인증기·Directory·전환 receipt는 내부 상태를 불투명한 pointer 뒤에 둔다. Formatter가 일반 진단 형식을 가리고,
 Formatter보다 먼저 처리되는 잘못된 `%p`/`%w`의 reflection fallback도 비밀 필드에 도달하지 않는다.
 사용자가 명시적으로 선택한 Profile JSON에는 공개 계정 정보만 포함되며 비밀번호 해시·stamp는 나오지 않는다.
 
@@ -757,3 +757,387 @@ JSON으로 끝내며 부모가 별도 native runtime에서 password/revision/ses
 
 Form/API의 양 DB 재접속은 별도 연결/runtime의 재개 검증이다. 별도 server process restart, 운영 mail provider와 Hosted 전체
 검증을 이 로컬 소비자 결과에서 추론하지 않는다. 실행 상세는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)에 둔다.
+
+## 프로젝트가 소유하는 계정 역할과 생성 binding
+
+[GDJ-0138](../../work/0138-custom-account-lifecycle.md)의 계정 선택은 `codegen.ProjectSpec.Account`에 놓는
+`ir.AccountRole`이다. 설치한 model·logical field·M2M의 실제 IR에 principal/login/password/revision/last_login,
+active/staff/superuser와 permission catalog 역할을 대조한다. 기본 User도 같은 선언을 사용한다.
+Email과 login은 같은 unique field를 사용할 수 있다. Boolean 역할은 저장된 필드 또는 명시적인 상수 중 하나이며,
+상수의 false·true와 미선택은 구분한다. 저장할 login과 인증 입력의 정규화 정책은 각각 명시한다.
+기본 계정의 저장 NFKC와 정확한 입력 조회를 하나의 암묵적 규칙으로 합치지 않는다.
+선택적인 `CreatedAt`은 nullable이 아닌 DateTime의 서버 생성 시각을 가리키며 기본 계정은 `date_joined`를 선택한다.
+사용자 정의 모델은 이 역할을 생략할 수 있고 이름으로 추론하지 않는다.
+
+Email 역할에는 저장 정책 `exact` 또는 `unicode16_email_domain`을 명시한다. 후자는 변환 전 UTF-8·NUL·byte 한도를
+검사한 뒤 고정 Unicode 16 공백 처리와 마지막 `@` 뒤 domain의 전체 소문자 변환을 사용하며 local part는 보존한다.
+Email이 없으면 이 정책도 없다. Login과 email이 같은 필드면 login 변환 뒤 email 변환을 적용하고 결과 한도를 다시 검사한다.
+어느 정책도 암묵적인 대소문자 무시 조회나 unique 비교를 만들지 않는다. 두 저장 정책 모두 계정 역할 fingerprint에
+포함되므로 정책 변경 시 기존 저장 domain을 그대로 사용할 수 없다.
+
+계정 역할은 프로젝트 source identity이며 model의 물리 DDL history가 아니다. 역할 변경은 생성 snapshot과
+프로젝트 명령 digest를 바꾸지만 이미 적용한 migration 정의를 고쳐 쓰지 않는다. Private wire와 사본은 역할과
+상수의 소유권을 유지하며, 닫힌 JSON shape·문자열·aggregate node 한도를 decode/clone 전에 검사한다.
+
+계정을 선택한 프로젝트의 `BindAccount`는 생성된 실제 모델 타입, descriptor와 전체 host 관계 그래프를
+`identity/model.Binding[M]`에 묶는다. 개별 필드를 SQL이나 reflection으로 다시 해석하지 않는다. Profile의
+추가 관계와 외부 앱도 이 그래프에 포함한다. 앱 설치만으로 계정이 암묵적으로 선택되지 않는다. 선택이 없는
+프로젝트도 현재 생성 roster와 source marker를 유지하며, typed account 함수는 선택한 프로젝트에만 생긴다.
+
+이 binding은 모델 설정과 타입의 일치를 확인한다. 인증·인가·계정 생성·저장된 domain 전환의 승인이 아니다.
+일반 typed ORM 접근 권한과 identity runtime의 현재 권한·credential·revision·session/audit fence를 구분한다.
+사용자 정의 모델을 인증 runtime에 연결할 때는 저장된 domain과 선택을 확인하고, 모델 또는 identity 정책 변경은
+명시적 mapping·receipt·session/reset 정책을 갖춘 전환으로 처리해야 한다. 그 runtime·이행·Form/API·실제 환경의
+완성 여부는 GDJ-0138과 TEST_EVIDENCE에서 따로 추적한다.
+
+## 계정 도메인을 구분하는 credential과 actor
+
+`auth.NewCredentialForDomain`은 명시적인 `CredentialDomain`을 session stamp의 v2 입력에 포함한다.
+같은 principal ID·encoded password여도 다른 도메인이나 도메인이 없는 credential의 stamp를 받아들이지 않는다.
+Username·현재 role/grant의 행 값만 바뀌면 같은 도메인의 stamp를 유지한다. 새 생성 API가 입력받는 도메인은
+비밀값이나 인증 수단이 아니라 소유권 식별자이며, 구성만으로 저장 상태의 일치나 계정 전환을 승인하지 않는다.
+기존 독립 memory/legacy 인증의 도메인 없는 constructor와 의도된 operator adoption은 별도 계약을 유지한다.
+
+도메인은 credential이 반환하는 Principal에도 보존한다. 이미 묶인 Principal로 credential을 만들 때 도메인을
+지우거나 다른 도메인으로 덮지 못한다. 관리 writer는 현재 저장 도메인과 `MatchesPrincipal`을 대조한 뒤 같은 ID의
+현재 권한을 읽어야 한다. 세션 검사만으로 인증과 최종 write 사이의 모델 전환 경합을 막았다고 보지 않는다.
+이 일치 검사는 active·staff·permission·Authorizer의 현재 판단을 대신하지 않는다.
+
+프로젝트 binding은 정규화된 계정 역할의 fingerprint와 32-byte 소유권 세대로 도메인을 유도한다.
+일반 profile 필드 추가는 계정 소유권 변경이 아니며 schema/migration 검증을 별도로 유지한다. 계정 선택·필드 역할·
+상수 보안 정책의 변경은 fingerprint를 바꾼다. 명시적 전환은 새 세대를 저장해야 하며 이전 모델로 돌아갈 때도 재사용하지 않는다.
+`PrepareCredential`은 실제 generated descriptor의 typed 행과 완전한 권한 snapshot에서 필드 역할·IR 문자열 한도·
+revision·저장 key의 존재를 검사한다. 명시적으로 저장한 0/음수 AutoField key를 미저장 값과 혼동하지 않는다.
+이 순수 준비 단계는 I/O·해싱·정규화·profile validation·권한 관계 조회나 durable domain 검증을 수행하지 않는다.
+
+독립 `godj_account_domain` 앱은 계정 타입에 FK를 두지 않는 추가 전용 전환 이력을 소유한다.
+선언·생성 root는 `account/domain`이며 기본 계정의 `identity` 생성 root 안에 중첩하지 않는다. 각 프로젝트는 자기
+manifest의 파일만 게시하며 다른 프로젝트의 generated 파일을 소유하거나 무시하는 예외를 추가하지 않는다. Schema IR에서 생성한
+모델과 독립 초기 migration을 사용하며 기본 User와 옛 system migration에 의존하지 않는다. 이미 적용한 identity/system
+migration bytes를 수정하지 않는다. Sequence·operation ID·generation은 각각 unique이며 이전 receipt의 FK는 PROTECT다.
+첫 기록은 predecessor가 없고 이후 기록은 직전 sequence를 가리킨다. 현재 조회는 최신 두 기록의 이 연결과 필드 형식을
+검사한다. 임의 SQL writer의 역사 삭제·변조까지 방어하는 저장소 무결성 증명으로 표현하지 않는다.
+
+`domain.Prepare`는 선택 역할과 전환 근거의 SHA-256에 새 256-bit operation ID·generation을 결합한다. 준비는
+인가나 mapping 실행 증거가 아니다. `InitializeIn`/`TransitionIn`은 호출자가 소유하는 native coordinated transaction에
+참여하며 commit하지 않는다. 초기화는 비어 있는 domain 이력을 요구하고, 전환은 예상 receipt 전체를 현재 이력과 비교한다.
+이미 기록한 operation ID의 재실행은 stale 오류이며 과거 receipt를 새 작업의 성공으로 반환하지 않는다. 다른 모델과
+이전 모델로의 복귀 모두 새 generation을 갖는다. 순서가 timestamp에 의존하지 않도록 sequence를 사용하고 시각은 UTC microsecond로 저장한다.
+
+호스트는 같은 transaction에서 최초 계정 생성 또는 검증한 mapping, source retirement, session/reset 정책과 audit를
+처리해야 한다. 중간 실패는 함께 rollback하며 반환된 receipt는 commit 전 잠정 값이다. Commit/rollback unknown은
+자동 재시도하지 않는다. 보존한 operation ID로 `Lookup`하면 이미 supersede된 기록도 확인할 수 있다. 기록 부재만으로
+unknown write의 rollback을 확정하지 않고 원래 write fence와 작업 상태를 함께 조정한다. 근거 digest의 원문과 mapping의
+실행·대조는 상위 전환 작업이 소유한다. 이 API만으로 임의로 채운 DB의 전환을 승인하지 않는다.
+
+`RequireIn`과 generated binding의 `RequireDomainIn`은 계정 조회와 같은 stable snapshot/write handle에서 선택 역할을
+확인한다. `RequirePrincipalDomainIn`은 그 세대로 actor를 검사한 후 현재 ID/권한을 읽게 하는 경계이며 active·permission
+판단을 대신하지 않는다. `Read`/`Lookup`은 정확히 한 snapshot callback과 cleanup이 성공한 뒤에만 값을 게시한다.
+이전에 얻은 receipt를 현재 권한 cache로 쓰지 않는다. 기존 Directory/Manager·startup·첫 계정 명령·Form/Admin/API와
+채운 DB의 명시적 mapping 연결은 GDJ-0138에 남아 있으며, 이 기반을 전체 모델 전환 보호 완료로 표시하지 않는다.
+
+
+## 선택 계정과 권한을 읽는 공통 저장소
+
+생성 프로젝트의 `NewAccountCredentialStore`는 선택한 실제 계정·Group·Permission descriptor를
+`identity/model.NewCredentialStore`에 묶는다. caller가 SQL이나 권한 loader를 다시 작성하지 않으며, 기본 User와
+이름·필드·catalog가 다른 모델에 같은 runtime을 사용한다. Backend는 native `ReadSnapshot`을 제공해야 한다.
+구성은 I/O 없이 같은 project owner와 정확한 IR 역할을 검사한다.
+
+한 번의 읽기는 저장된 domain·계정 행·직접 권한·소속 그룹을 통한 권한을 같은 snapshot에서 관측한다.
+권한은 선언된 M2M을 따르는 typed query와 scalar projection으로 읽고 정렬·중복 제거한다. 선택 계정의 권한을
+256개보다 많이 발견하면 잘라서 반환하지 않는다. 소속 그룹 집합도 공통 `MaximumAccountGroups`의 256개 한도를
+따른다. 그룹 key와 revision을 함께 최대 257개 읽으므로 같은 권한이나 같은 revision을 가진 여러 그룹을 하나로
+세지 않는다. 그룹 입력·저장 집합·유효 권한 합집합은 독립된 제한이며 초과한 현재 계정이나 관리 대상을 거부한다.
+잘못된 계정·소속 그룹·권한 revision과 비정규 권한 code도 거부한다.
+명시적으로 저장한 0/음수 account key를 허용하며, 다른 계정이나 미할당 catalog 항목을 대신 읽지 않는다.
+계정·query 결과·권한의 전역 cache는 없고 이전 Principal의 detached 권한은 다음 관측과 독립적이다.
+
+`orm.BindInverseManyToManyQuery`는 명시적인 forward collection owner와 target을 받아 그 선언을 역방향으로 조회한다.
+공개 reverse accessor가 없는 관계도 같은 physical hop·Query AST를 사용한다. 이는 reverse namespace나 mutation
+권한을 만들지 않으며 다른 project snapshot·모델·필드와 섞지 못한다. Runtime이 역방향 이름을 추측하지 않는다.
+
+`CredentialByUsername`은 canonical login을 정확히 조회한다. 생성 `NewAccountAuthenticator`와 공통
+`identity/model.Authenticator`가 선택된 인증 입력 정책을 적용한다. Unicode 16 NFKC 선택 시 입력의 원래 byte/UTF-8
+한도를 먼저 확인하고 변환 뒤에도 공통 인증 한도를 적용한다. Exact 정책이나 대소문자를 암묵적으로 바꾸지 않는다.
+Hash·dummy 검증·encoded profile 검사는 DB snapshot 밖에서 실행하고, 기존 StoredAuthenticator가 검증 뒤 현재
+도메인·credential·active와 권한을 새 snapshot에서 다시 읽는다. 한 번의 callback 및 read cleanup·취소 확인이
+성공하기 전에 credential을 게시하지 않으며 저장 오류의 private cause는 진단 문자열에 노출하지 않는다.
+
+이 저장소는 credential 관측 경계다. Typed profile 관리·인가된 catalog 변경·첫 계정 명령·session/reset/audit
+write fence·채운 DB mapping은 같은 binding에 연결해야 하며 GDJ-0138에서 계속 추적한다.
+
+
+공통 저장소의 `AuthorizeIn`은 이미 인증된 Principal을 live borrowed snapshot/write scope에 전달받는다.
+현재 저장 domain이 claim과 일치하는지 먼저 확인하므로, 다른 세대 또는 domain 없는 actor의 같은 ID를 새 계정으로
+조회하지 않는다. 이어 같은 scope에서 현재 active·role·직접/그룹 권한을 다시 읽고 모든 필수 권한을 확인한다.
+Authorizer에는 이 현재 Principal만 전달하며 저장 grant를 늘릴 수 없는 deny overlay로 사용한다.
+
+확정 거부만 anonymous Principal·false·nil로 반환한다. 잘못된 선택 역할, I/O, 만료 scope, 취소, overlay 오류는
+Principal 없이 error로 반환하며 다른 권한의 대안으로 넘어갈 수 없다. Required permission은 정규·비중복·한도 내의
+비어 있지 않은 conjunction이어야 한다. Root backend와 만료된 handle은 거부하며 callback 뒤에도 scope와 취소를 확인한다.
+이 API는 transaction이나 password 작업을 시작하지 않는다. Overlay는 owner를 재진입하거나 scope를 변경하면 안 된다.
+
+반환 Principal은 해당 scope의 잠정 관측이며 다음 쓰기에 재사용하는 권한 증표가 아니다. 관리 owner는 같은 scope에서
+대상 revision·typed 입력·관계·session/audit를 처리하고 commit 또는 read cleanup이 확인된 뒤에만 결과를 게시한다.
+아래 typed profile owner는 이 경계에서 실제 수정과 audit를 묶는다. 기존 기본 Directory/Manager의 교체와 공개
+관리 소비자 전체의 연결은 GDJ-0138에 남아 있다.
+
+## 선택 계정의 typed profile 수정
+
+생성 `NewAccountProfileEditor`와 공통 `identity/model.ProfileEditor[M]`은 선택한 모델의 scalar profile 수정을 소유한다.
+서버가 명시한 field 목록만 허용하며 새 필드를 자동 노출하지 않는다. Password·principal identity·revision·선택한
+서버 시각·active/staff/superuser·권한 관계와 NonEditable 필드는 입력에서 제외한다. FK·M2M·파일도 이 scalar owner에
+넣지 않으며 해당 편집의 관계·파일 수명 정책은 별도 구현한다. 생성·삭제와 role/catalog 변경도 별도 작업이다.
+
+입력은 Form/JSON의 cleaning을 거친 `orm.ModelInput[M]`이다. 준비 단계에서 현재 모델 source·허용 필드·기존 target
+binding과 collection 의도를 확인한다. 이 owner는 transport parsing을 반복하지 않는다. 쓰기 전 고정 login/email
+정규화와 IR 문자열 한도를 검사하며, 필요하면 typed `ProfileValidator`가 같은 scope에서 현재 애플리케이션 정책을
+확인한다. Validator에는 분리된 현재/후보 모델 값을 전달한다. 빌린 reader를 보관하거나 중첩 transaction·쓰기·외부
+부작용을 일으킬 수 없으며 callback 뒤 취소·scope 수명을 다시 검사한다. 구성과 callback은 동시 호출에 안전해야 한다.
+
+`Update`는 같은 native coordinated transaction에서 현재 domain·actor 권한·deny overlay를 확인하고 대상 행을 새로
+읽는다. 대상의 expected revision과 credential·실제 권한 관계 무결성도 검사한 뒤 typed CRUD의 unique 검증과 강제
+update를 사용한다. 사라진 행을 insert로 대체하지 않는다. 실제 값이 바뀔 때만 revision을 증가시키고 domain에 묶인
+audit를 추가한다. No-op도 현재 권한·대상·revision 검사를 생략하지 않으며 revision/audit는 추가하지 않는다.
+
+`db.CoordinatedAtomicResult`는 조정 없는 Atomic으로 대체하지 않으며 정확히 한 callback과 확정 commit 뒤에만
+ID·revision·변경 필드 이름을 반환한다. 원본 계정·hash·principal identity는 결과에 없다. 일반 오류는 private cause를
+포함한 진단 문자열을 숨기되 `errors.Is`/`As` 연결을 유지한다. 직접 발생한 원인 없는 validation 거부만 확정 rollback
+뒤 renderable 결과로 돌려주고 cleanup 실패나 unknown outcome으로 덮인 거부를 정상 입력 오류로 축소하지 않는다.
+Commit/rollback unknown은 자동 재시도하지 않는다. 확정 commit 뒤 도착한 취소는 성공을 되돌리지 않는다.
+
+## 선택한 프로필 조회와 현재 이력
+
+생성 `NewAccountProfileReader`와 `identity/model.ProfileReader[M]`는 선택한 모델의 scalar 조회·목록·현재 domain
+감사 이력을 소유한다. `ProfileReadConfig`의 명시적 필드만 `ModelView[M]`에 담으며 원 계정 행·hash·principal
+identity·권한 집합을 보관하지 않는다. Password와 principal identity는 선택 자체를 거부한다. Key·revision·서버
+시각·role 값은 읽기 정책에서 의도적으로 선택할 수 있지만 자동 노출하지 않는다. 이것이 ProfileEditor의 쓰기
+금지를 해제하지 않는다. 선택 계정 역할의 Groups/Permissions만 명시적으로 상세 조회에 넣을 수 있으며,
+`Fields`는 전체 선택을, `ListFields`는 scalar 선택만 반환한다. 그룹과 직접 권한의 ID는 실제 source에 묶이고
+빈 집합과 미로드를 구분한다. Collection만 선택한 상세도 유효하며 scalar 값은 노출하지 않는다.
+File·그 밖의 M2M 표현과 과거 domain 조회는 각각 별도의 정책이 필요하다.
+
+View permission 또는 명시한 change permission 중 하나와 모든 추가 권한이 필요하다. 현재 actor·domain·실제
+권한을 같은 native snapshot에서 읽으며, 확정된 view 거부에서만 change 대안을 검사한다. 조회/overlay 오류는
+대안 인가나 일반 permission denial로 바꾸지 않는다. `Get`과 `History`는 대상의 실제 key·credential·권한 관계
+무결성을 확인한다. `List`는 같은 snapshot의 count와 기본키 순서의 제한된 page를 읽는다. 대상별 권한 집합을
+반환하지 않으므로 N+1 권한 조회는 하지 않고 scalar credential 상태를 확인한다. 존재하는 0/음수 key도 유지한다.
+
+`Profile`의 ID·revision은 후속 작업을 준비하는 관측 값이다. 다음 조회나 수정은 이를 권한 증표로 사용하지 않는다.
+`History`는 현재 domain으로만 기록을 선택하므로 이전 세대의 같은 모델/ID 기록을 물려받지 않는다. 확정 거부와
+not-found도 snapshot 종료가 성공해야 반환한다. 종료 실패·취소·scope/callback 소유권 위반에서는 선택 데이터·
+count·이력을 모두 버리고 비공개 원인을 보존한 persistence 오류를 반환한다. 새 읽기에서 취소를 확정 write의
+성공으로 해석하거나 unknown commit으로 보고하지 않는다.
+
+## 선택 계정의 typed Group·Permission 관리
+
+생성 `NewAccountCatalog`와 `identity/model.Catalog[G, P]`는 선택 계정의 현재 권한을 실제 Group·Permission 타입의
+CRUD에 연결한다. `Groups()`와 `Permissions()`의 `CatalogResource[M]`는 각각 명시적 읽기·쓰기 필드, view/add/change/delete와
+추가 권한을 소유한다. 조회는 확정된 view 거부에서만 change를 검사하고 추가 권한은 두 경로 모두 필요하다.
+Metadata용 `Manager()`는 Form/API 선언에 쓰는 순수 typed source이며 backend나 관리 권한을 포함하지 않는다.
+
+기본 name/code 역할은 쓰기 목록에 필요하고 추가 scalar 필드는 실제 생성 타입과 IR default·unique 검증을 사용한다.
+Key·revision·NonEditable·파일·FK와 선택한 그룹 권한 이외의 M2M은 쓰기에서 제외한다. 읽기 필드는 자동으로 늘어나지 않는다.
+`ModelInput[M]`의 전체 모델 source·target 존재와 허용 필드를 I/O 전에 검사하고, Form/JSON의 생략·NULL·명시적 빈 집합을
+보존한다. Group permission의 raw 개수는 중복 제거 전 256개로 제한한다. Custom validator에는 같은 borrowed scope의
+분리된 실제 모델을 전달하며 생성 때 current는 nil이다. 쓰기·scope 보관·중첩 transaction·외부 부작용을 허용하는 callback이 아니다.
+
+현재 actor/domain, 최신 대상과 expected revision, scalar·관계·unique·custom validation, 저장과 값 없는 audit는 같은
+native coordinated relation transaction에서 처리한다. `CoordinatedRelationAtomicResult`로 관계 삭제와 conflict insert 기능을
+같은 scope에 보존하며 일반 쓰기 scope로 대체하지 않는다. 생성 revision은 1이고 수정은 실제 변경 때만 증가한다. No-op도 현재 인가와
+대상 무결성을 확인한다. 결과는 확정된 ID·revision·변경 필드 또는 삭제 건수뿐이다. Profile과 같은 공통 결과 경계에서
+cleanup/unknown 원인을 보존하며 실패 결과 게시와 자동 재시도를 막는다.
+
+권한 확장은 선택 계정의 모든 해당 회원을 256개 keyset batch로 읽어 현재 상태와 제안된 유효 권한 합집합을 확인한다.
+첫 page는 ID 하한을 두지 않아 명시적으로 저장된 0/음수 회원을 포함한다. 직접 grant·다른 그룹·새 grant를 합친 256개 한도는
+서로 다른 그룹의 동시 변경에도 같은 fence로 보호한다. Group 삭제는 직접 회원, Permission 삭제는 직접 할당 계정과 소유
+Group의 revision을 증가시킨다. 간접 회원의 revision이나 credential/hash/session stamp를 변경하는 작업으로 확대하지 않는다.
+
+상세 조회는 출력에서 collection을 제외했더라도 저장된 전체 그룹 grant의 무결성을 검사한다. 명시한 collection만 선택
+`ModelView`에 넣으며 로드한 빈 집합과 미로드를 구분한다. 목록은 같은 snapshot의 count와 최대 100개 scalar page이고
+행마다 grant를 읽지 않는다. 이력은 현재 domain의 존재하는 대상에 한정한다. 읽기 종료 실패에는 선택 값·page·이력이 없다.
+
+전체 host source의 collection과 삭제 기능을 생성 단계와 runtime 시작 시 함께 확인한다. 일반 host CASCADE/PROTECT/SET_NULL과
+직접 owner revision·audit는 한 transaction에 속한다. 현재 추가적인 계정/Group/Permission 행을 CASCADE로 지우거나 SET_NULL로
+수정하는 host graph는 시작 시 `unsupported` 원인을 보존하여 거부한다. 이 경우 필요한 추가 owner revision·계정 session과 삭제
+수명 조정은 I1-06의 미완료 구현이다. 단순한 identity-only 삭제로 대체하거나 이 제한을 전체 host 삭제 완료로 계산하지 않는다.
+공통 Admin/HTTP 조립과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
+
+## 선택 계정의 typed 생성과 해시 준비
+
+생성 `NewAccountCreator`와 `identity/model.Creator[M]`는 기존 credential store와 같은 전체 host source·역할 정책·
+실제 account Groups/Permissions capability를 사용한다. `CreationPolicy.Fields`는 login·scalar profile·editable role flag와
+직접 소속을 명시한다. Principal identity·encoded password·revision·선택된 서버 시각과 임의 FK/파일 입력은 받지 않는다.
+새 필수 profile을 쓰기 목록에서 빠뜨려 초기 값이 필수 NULL/빈 문자열로 남으면 구성 시 거부한다. 나머지 생략 값은
+Schema IR default를 사용한다. 전송 계층은 먼저 실제 ModelForm/JSON cleaning을 수행하고 서비스에 `ModelInput[M]`을 넘긴다.
+
+`Prepare`는 원 입력의 password byte 한도(기본 1024, 설정 가능 1..4096)와 소속 개수(중복 제거 전 각각 256), 모델 source·
+선택 필드·unsaved target intent를 확인한다. ProfileEditor와 동일한 명시적 login/email write 정규화를 사용한다. Principal ID는
+서버 source이며 기본값은 256비트 난수의 `user-`/hex 문자열이다. Revision은 1, 선택 CreatedAt은 서버 UTC microsecond,
+선택 LastLogin은 NULL로 시작한다. 실제 typed 추가 필드와 상수 역할을 기본 User 모양으로 바꾸지 않는다.
+
+현재 domain·add **및** change·추가 권한·deny overlay, 관계 선택과 저장된 catalog revision/code·유효 합집합·unique와
+application/password policy를 한 native snapshot에서 검증한다. 해시가 아직 없는 사전 검사에서는 `PreparedModel.ValidateUniqueExcluding`
+으로 password 필드와 그 필드를 포함한 **전체** 제약만 미룬다. 미지정·중복 제외 이름은 I/O 전에 거부하며, 임시 hash 값으로
+다른 계정과 충돌시키지 않는다. 선택적인 생성 IExact 중복 정책은 write/authentication 정규화와 별개의 명시적 설정이다.
+
+Snapshot 종료 성공 뒤 DB 밖에서 한 번만 hash하고 encoded profile·credential usability·저장 길이를 검증한다. Hasher의 직접적이고
+원인이 없는 password input 오류만 일반 입력 거부로 반환한다. 취소·wrapped error·entropy·잘못된 해시는 원인을 비공개로 보존한다.
+`PrepareUnusable`은 별도 명시적 진입점이며 hasher/strength policy를 호출하지 않는다. 빈 raw password는 이 경로를 선택하지 않는다.
+
+`PreparedCreation[M]`은 비공개 모델·비밀번호를 보유하며 해당 creator pointer와 actor ID **및 domain**에 묶인다. 값 복사도 하나의
+commit 시도를 공유한다. 다른 owner/actor/domain 또는 진입 전 취소는 시도를 소비하지 않는다. `Commit`은 현재 권한·선택지·전체
+unique(실제 hash 포함)와 typed/password policy를 native write fence 안에서 다시 검사한다. Callback은 별도 모델 사본을 받고
+password 필드는 비워 전달하며, 소속 getter도 사본을 반환한다. Callback은 reader를 보관/변경/재진입하거나 외부 효과를 내지 않는다.
+
+Force insert·두 membership·현재 domain의 값 없는 audit를 같은 relation transaction으로 확정한다. 공개 결과에는 ID·revision·
+변경 필드만 있고 implicit profile 조회 권한은 없다. Cleanup/rollback/unknown 실패는 결과를 버리고 자동 재시도하지 않는다.
+확정 commit 뒤 취소는 성공을 지우지 않는다. 시도를 가져올 때 공개 준비 객체의 비밀 참조를 해제하고 실제 callback 소유의
+지역 값으로 넘겨, 잘못된 backend가 callback 종료 전에 반환해도 cleanup과 callback의 데이터 경합을 만들지 않는다.
+Go 문자열 메모리의 강제 소거를 보장하는 API는 아니다. 준비 결과를 포기하면 참조를 버린다.
+
+`CreationConfig`는 공통 `CreationPolicy`에 add/change·추가 권한을 결합한다. 이 owner는 이미 설치된 현재 domain의
+인가된 생성 경로이며, 최초 domain 초기화는 아래의 별도 operator owner가 담당한다. 공개 `createsuperuser`와 추가 profile
+prompt·공통 Admin/HTTP 설치·password/reset owner는 별도 I1 요구다. 외부 소비자의 전송 조립만으로 명령/설치를 완료 처리하지 않는다.
+
+## 선택 계정의 최초 소유권과 계정 생성
+
+생성 `NewFirstAccount`와 `FirstAccount[M]`는 명시적으로 조립하는 privileged operator 기능이다. 일반 사용자 인가의
+우회 경로로 공개하지 않는다. 동일한 `CreationPolicy`·typed 필수 profile/default·정규화·unique·password policy·해시 준비와
+실제 account Groups/Permissions 기능을 재사용하되 add/change 권한이나 임시 actor를 조작해 생성 권한을 만들지 않는다.
+Active·staff·superuser는 서버가 모두 true로 고정한다. 해당 역할이 상수 false면 I/O 전에 구성 오류로 거부하며,
+상수 true는 허용한다. 실제 boolean 필드는 입력으로 받지 않고 강제 값으로 준비하며 감사의 변경 필드에 포함한다.
+
+`Prepare`와 최종 native write scope 양쪽에서 domain history와 선택 계정의 모든 행이 비어 있는지 확인한다.
+정상 조회가 반환한 정확한 `ErrUninitialized`만 초기화 가능 상태다. 같은 sentinel을 포함한 저장/종료 오류는 초기화 허가가
+아니며 기존 같은/다른 role history, 0/음수 key를 포함한 기존 계정도 거부한다. 기존 행 adoption·이력 초기화·모델 전환은 하지 않는다.
+
+호스트가 지정한 canonical 비밀값 없는 declaration digest와 새 generation·operation ID는 DB 밖에서 준비한다.
+`PrepareOperation`은 상위 process가 먼저 보관한 operation ID를 받지만 매번 새 generation을 만들며 자동 조회·재시도·복구를
+의미하지 않는다. `Change.Generation()`은 잠정 namespace metadata일 뿐 current domain이나 인증 권한이 아니다.
+비밀번호는 필수이고 usable credential이어야 한다. DB 밖 해시가 끝난 준비 객체의 복사본은 모두 한 번의 저장 시도를 공유한다.
+
+`Commit`은 fresh-state 및 실제 hash를 포함한 최종 검증, domain 초기화, typed account insert·소속 저장·첫 audit를
+하나의 coordinated relation transaction에 묶는다. 처음 생성한 domain-bound active/staff/superuser가 첫 감사의 actor다.
+확정된 계정 metadata와 ownership receipt만 게시하며 실패/unknown 결과에는 잠정 계정이나 receipt가 없다.
+준비 객체의 operation ID는 시도 뒤에도 남는다. Unknown 뒤에는 그 receipt와 write fence를 명시적으로 대조해야 하며,
+조회에서 receipt가 없다는 사실만으로 rollback을 확정하거나 같은 입력을 자동 재실행하지 않는다.
+
+이 기능은 fresh domain의 typed 저장 owner다. 공개 명령의 필수 profile prompt·비밀 입력 process·설치/startup과 기존 데이터의
+mapping/retirement·password/reset·공통 Admin/HTTP 조립 및 독립 양 DB 수용은 I1의 남은 작업이다.
+
+### DB 연결 전 선언과 명령 입력 준비
+
+생성 `NewFirstAccountDefinition`은 실제 계정·Group/Permission descriptor, 전체 host 관계 source와 typed 생성 정책을
+DB 없이 검증한다. `FirstAccountDefinition[M]`은 필드와 불변 source를 소유하며 `Bind`가 실제 snapshot/native write
+backend를 받은 뒤 독립적인 최초 생성 owner를 만든다. 선언을 읽기 위한 가짜 backend·임시 actor·숨은 기본 User는 없다.
+기존 생성 `NewFirstAccount`도 이 선언과 `Bind`를 합성한다. 일반 생성과 같은 내부 정책 검사를 사용한다.
+
+`ProjectBinding.SourceSHA256()`은 정규화된 전체 모델과 incoming/forward/reverse/M2M 정책을 식별한다.
+독립 binding과 schema 입력 순서가 달라도 같은 source는 같은 digest를 갖는다. 이 metadata digest는 인증이나 capability가
+아니며 실제 typed 기능의 완전한 `ValidateSource` 검사를 대체하지 않는다. 선언 fingerprint는 이 source와 account role,
+선택 필드·password 한도·대소문자 생성 정책·호스트의 `EvidenceSHA256`을 묶는다. Go closure의 실제 동작을 주소로
+해시하거나 검증했다고 주장하지 않는다. 호스트는 callback 정책이 바뀌면 그에 해당하는 evidence도 갱신한다.
+
+`project/firstaccount.Command`는 생성 선언에서 실제 ModelForm을 만들어 DB 연결 전 입력을 준비한다. Description은
+login을 첫 필드로, 나머지를 IR 선언 순서로 제공하며 필수/nullable/default 여부·scalar kind·정적인 선택값과 한도를
+보존한다. 값은 선택값의 정확한 Form 표현이며 문자열 trim과 구분한다. Description은 복사본이고 제출 profile이나
+password를 포함하지 않는다. 최대 31개 필드·각 4,096 bytes·총 입력 65,536 bytes, 필드당 256개 선택값과 description
+65,536 bytes의 한도를 적용한다. 이 전송 상한은 모델의 더 좁은 validation을 대신하지 않는다.
+
+입력은 같은 description fingerprint와 정확한 필드 순서를 요구한다. 생략과 명시적인 빈 문자열을 구분하고 실제
+`BindInstance`/`PrepareInput`을 거쳐 typed 입력을 보존한다. 임의 `map[string]any`나 기본 User DTO로 바꾸지 않는다.
+선택한 관계·파일의 입력/조회 수명은 아직 구현하지 않았으며 구성 시 명시적으로 거부한다. 필수 profile을 조용히 빼지 않는다.
+준비 객체는 하나의 Command에 속하며 복사본도 한 번의 실행 시도를 공유한다. `Clear`는 아직 시작하지 않은 준비만
+포기하고 진행 중인 typed 입력을 변경하지 않는다. 실패 원인의 보존과 진단 비노출을 함께 유지한다.
+
+Command는 명시적인 opener를 한 번 호출하되 실제 자원과 오류를 함께 반환할 수 있다. 호출한 process가 그 자원을
+정확히 한 번 닫고, 확정된 생성 결과와 뒤따른 close/응답 오류를 구분한다. 준비·실행은 암묵적으로 연결하거나 닫거나
+재시도하지 않는다. `Provision`은 상위 process가 보관한 operation ID와 실제 backend로 최초 owner를 호출한다.
+공개 터미널·비밀 프레임·runner·설치/startup의 연결은 별도 남은 구현이며 이 Command만으로 CLI 수용을 주장하지 않는다.
+
+## 선택 계정의 역할과 직접 소속 편집
+
+생성 `NewAccountRoleEditor`는 기존 `SessionStore[M]`를 받아 같은 계정 binding·backend·현재 domain의 session 정책을
+사용한다. `RoleConfig.Fields`로 active/staff/superuser의 실제 editable 필드와 Groups/Permissions를 명시한다.
+상수 역할에는 입력 필드가 없고 credential·principal identity·revision·서버 시각·프로필·임의 관계는 거부한다.
+생성 factory의 예상 role fingerprint와 실제 collection의 완전한 host source가 세션 owner와 맞아야 한다.
+
+`Update`는 현재 change 권한과 추가 권한·deny overlay, 대상의 현재 revision/credential/소속 무결성을 먼저 확인한다.
+생략한 소속은 유지하고 명시한 빈 집합은 지운다. 정렬/중복 제거 전 원 입력을 256개로 제한하며 현재와 제안 그룹 수,
+직접 권한 수와 그룹/직접 권한의 유효 합집합을 각각 검증한다. 비활성 후보도 한도를 우회하지 않는다. Typed validator는
+분리된 현재/후보 모델과 사본을 반환하는 제안 소속을 받으며 callback 뒤 scope 수명과 취소를 재검사한다.
+
+Scalar·두 collection·실제 변경의 revision 증가·domain audit는 같은 native coordinated relation transaction에 속한다.
+권한과 flag 변경은 principal/hash/session stamp를 바꾸지 않는다. Active가 true에서 false로 바뀔 때만 같은 scope에서
+현재 domain의 대상 principal 세션을 모두 폐기하며 다른 계정·익명·역사 domain의 세션은 유지한다. 재활성화는 삭제한
+세션을 되살리지 않는다. LoginPersistence도 같은 DB fence와 현재 active 재검사를 사용하므로 동시 로그인이 비활성화 뒤
+세션을 남길 수 없다. No-op도 현재 권한/무결성/validation을 확인하고 revision·감사는 늘리지 않는다.
+
+반환값은 확정된 ID·revision·변경 필드와 폐기 수뿐이다. 후속 relation/session/audit 실패는 앞선 변경과 함께 rollback하고,
+unknown 결과는 공개 값을 버리고 자동 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 되돌리지 않는다.
+Collection의 실제 through 행을 지우는 경로도 전체 host 삭제 정책에 묶는다. Endpoint FK가 PROTECT여도 직접적인 through
+삭제는 별도로 검사한다. 추가 계정/catalog의 수명 조정이 필요한 CASCADE/SET_NULL은 composition 단계에서 거부하며
+그 조정의 완성은 I1-06에 남는다. 해당 소속을 입력에 선택하지 않은 scalar 역할 편집에는 이 삭제 경로를 요구하지 않는다.
+
+## 선택 계정 도메인의 독립 DB 세션과 로그인
+
+`sessions/database`는 기본 User·기존 operator schema 없이 설치하는 `godj_sessions` 앱과 초기 migration을 소유한다.
+Namespace·bearer digest·기존 canonical v1 payload를 생성 ORM으로 저장하고 원문 bearer는 저장하지 않는다.
+Digest에는 별도의 버전 구분자·namespace·bearer를 포함한다. 기존 systemstate digest·migration·wire bytes를 재해석하거나
+새 테이블로 자동 복사하지 않는다. 설치·채운 DB 이행·역사 세션 폐기는 명시적인 별도 작업이다.
+
+`Database.Store(namespace)`는 인가가 없는 서버 저장 기능이다. Namespace는 UTF-8/NUL/길이 제한을 받으며 요청 입력으로
+인증 namespace를 선택하는 API가 아니다. 기본 전체 용량은 4,096개, 설정 상한은 65,536개이며 모든 namespace를 합쳐
+검사한다. 포화 시 전체 payload를 검증한 뒤 만료된 가장 작은 storage key 한 개만 회수한다. 활성 다른 domain을 지우지
+않는다. Metadata inventory와 256개 keyset payload batch를 사용하고 잘못된 key·digest·payload·초과 용량은 거부한다.
+`Inspect`는 한 snapshot에서 전체 inventory/payload를 검증하며 설치나 정리를 수행하지 않는다.
+
+기본 Store 연산은 자체 native snapshot/write fence를 사용한다. `LoadIn`은 live read/write scope를 빌리며,
+`InSession`은 이미 조정된 write scope에서만 임시 Store를 만든다. Root owner·만료 scope·중첩 binding을 거부하고
+scope 안에서 중첩 transaction을 열지 않는다. `DeleteMatching`은 해당 namespace의 모든 payload를 검사한 뒤 정확한
+서버 값에 일치하는 행을 지운다. 보존할 ID도 검증 대상이며 뒤 batch 오류는 앞선 삭제와 함께 rollback되어야 한다.
+`DeleteAll`은 명시한 namespace만 폐기한다. Borrowed 결과는 바깥 owner가 확정하기 전까지 잠정 값이다.
+
+생성 `NewAccountSessionStore`와 `identity/model.SessionStore[M]`는 credential reader의 같은 backend에서 매 연산의
+현재 durable role/generation을 읽고 `CredentialDomain.Identifier()`로 namespace를 결정한다. Domain과 세션 조회는
+같은 native snapshot이고 쓰기도 같은 fence에 속한다. Domain을 전환하면 동일 ID/hash/bearer의 역사 세션을 읽거나
+새 세션으로 승격하지 않는다. `RevokeIn`은 현재 domain의 특정 principal 세션을 같은 write scope에서 폐기하는 서버 기능이며,
+호출자가 계정 변경의 현재 인가·revision·audit를 먼저 소유해야 한다. 과거 domain의 정리나 전환 승인 기능은 아니다.
+
+`SessionStore.LoginPersistence(manager)`는 정확히 그 Store를 사용하는 manager만 받는다. Manager가 time/entropy를
+DB 밖에서 준비하고, 공통 typed `LoginRecorder[M]`가 같은 scope의 현재 domain·계정·active·stamp·권한과 Admit를 다시
+확인한다. 이 관찰은 세션 변경보다 먼저 수행해 비활성화가 기존 세션을 폐기한 경우에도 현재 credential의 거부를 확인한다.
+유효한 credential의 세션 누락은 저장 실패로 유지한다. 세션 생성 collision에는 LastLogin을 쓰지 않고 확정된 변경만 시각과
+함께 게시한다. LastLogin은 IR에서 선택 항목이며 비어 있으면 같은 이름의 기존 열도 암묵적으로 갱신하지 않는다.
+지정했을 때만 nullable DateTime 역할을 검사하고 강제 update하며 계정 revision·password·role·grant·audit는 바꾸지 않는다.
+Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replacement, LastLogin은 함께 확정하거나 rollback한다.
+기존 record의 만료/없음도 실패한 로그인과 별개로 삭제를 commit하지 않는다. 일반 Authenticate/Resolve/Access/logout은
+이 관측 필드를 갱신하지 않는다.
+
+한 번의 callback과 확정 commit 뒤에만 credential/record를 게시한다. 원인 없는 확정 collision만 entropy 재시도가 가능하고,
+확정된 동일 admission sentinel만 일반 인증 거부로 돌려준다. Cleanup·취소·callback 소유권 위반·unknown 결과에 포함된
+거부는 storage failure와 원인 연결을 유지한다. `Manager.Load`도 AccessPolicy의 오류를 그대로 반환받은 경우에만 일반
+policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거부로 축소하지 않는다.
+
+이 구성은 선택 계정의 password change/reset·계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement를
+자동 완성하지 않는다. 해당 쓰기 owner와 공개 Admin/HTTP 제품 조립, 양 DB의 독립 HTTP/process 재시작 수용은 I1에 남는다.
+
+## 도메인에 묶인 계정 감사 기록
+
+독립 `godj_account_audit` 앱은 domain·actor ID·model·object ID·action·변경 필드 이름·서버 시각을 저장한다.
+기본 User나 domain/system migration에 의존하는 FK가 없으며 modeldef·generated model·초기 migration을 자체 root에서
+소유한다. 호스트가 이 앱의 migration과 설치를 명시한다. 기존 적용 migration의 bytes를 고쳐 의존성을 끼워 넣지 않는다.
+원본 필드 값·display label·credential/session 비밀값은 기록하지 않는다. 계정의 명시적으로 존재하는 0/음수 integer
+key도 지원하며, 감사 event 자체의 순번은 양수다. 공통 Admin event도 객체 key의 부호를 존재 여부로 사용하지 않는다.
+
+`Prepare`는 owner가 현재 권한을 확인한 domain-bound actor와 서버 시각으로 event를 준비한다. 준비된 event 자체는
+권한 증표가 아니다. `AppendIn`은 live borrowed write scope에서 생성된 ORM으로 저장하며 commit·중첩 transaction·
+자동 재시도·정리를 하지 않는다. 반환 Entry는 외부 owner의 commit 확인 전까지 잠정 값이다. 시각은 UTC microsecond로
+정규화한다. profile 수정·revision·감사 기록 중 어느 단계가 실패해도 owner가 함께 rollback한다.
+
+`HistoryIn`은 명시한 domain/model/object에 대해 최대 100개의 최신 기록을 선택하고 event 순서대로 반환한다.
+역사 조회 인가는 호출자가 같은 scope에서 소유한다. 현재 domain을 자동 선택하거나 서로 다른 세대를 섞지 않으므로,
+이전 세대의 같은 model/ID 기록이 새 계정 이력으로 이어지지 않는다. 잘못된 row·canonical JSON·시각·순서는 거부하고
+종료 실패를 성공으로 바꾸지 않는다. 이 저장소는 임의 SQL writer의 역사 삭제·변조까지 막는 증명이 아니다.

@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/internal/wirejson"
 )
 
-const maximumObjectMembers = 16
+const maximumObjectMembers = projectwire.MaxObjectMembers
 
 func preflightResponse(document []byte) (string, uint64, error) {
 	if err := scanJSONDocument(document, MaxResponseBytes); err != nil {
