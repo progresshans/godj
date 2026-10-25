@@ -3,17 +3,14 @@ package model
 import (
 	"cmp"
 	"context"
-	"math"
 	"slices"
 	"time"
 
-	accountaudit "github.com/progresshans/godj/account/audit"
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
-	"github.com/progresshans/godj/sessions"
 )
 
 // DeletionPermissions covers direct row effects on one selected model. A
@@ -23,6 +20,13 @@ import (
 type DeletionPermissions struct {
 	Delete, Change auth.Permission
 	Additional     []auth.Permission
+}
+
+// RelatedRowPermissions authorizes additional selected-model effects of an
+// account edit. An omitted operation grants no authority for that effect.
+// The edited root continues to require the editor's complete change policy.
+type RelatedRowPermissions struct {
+	Account, Group, Permission DeletionPermissions
 }
 
 // AccountDeleteConfig explicitly declares authority for all three selected
@@ -41,11 +45,15 @@ type deletionTouch struct {
 	key                deletionKey
 	deleted, direct    bool
 	nulls, collections []string
+	fields             []string
+	root               bool
+	created            bool
 }
 type deletionStored struct {
 	revision    int64
 	principalID string
 	advance     func(context.Context, db.Session) error
+	future      func(context.Context, db.Session, auth.CredentialDomain, *lifecycleProjection, *deletionTouch, map[string]query.Value) (lifecycleVerifier, error)
 }
 type deletionModel struct {
 	metadata       ir.Model
@@ -61,6 +69,10 @@ type deletionLifecycle[M any] struct {
 }
 
 func newDeletionLifecycle[M, G, P any](sessionStore *SessionStore[M], expected Binding[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P], overlay auth.Authorizer, config AccountDeleteConfig) (*deletionLifecycle[M], error) {
+	return newLifecycle(sessionStore, expected, groups, permissions, overlay, config, true)
+}
+
+func newLifecycle[M, G, P any](sessionStore *SessionStore[M], expected Binding[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P], overlay auth.Authorizer, config AccountDeleteConfig, requireAll bool) (*deletionLifecycle[M], error) {
 	if sessionStore == nil || sessionStore.state == nil || expected.state == nil || nilModelValue(overlay) {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
@@ -102,11 +114,11 @@ func newDeletionLifecycle[M, G, P any](sessionStore *SessionStore[M], expected B
 		if !present {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
-		remove, err := auth.RequiredPermissions(declaration.policy.Delete, declaration.policy.Additional...)
+		remove, err := lifecycleRequiredPermissions(declaration.policy.Delete, declaration.policy.Additional, requireAll)
 		if err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
-		change, err := auth.RequiredPermissions(declaration.policy.Change, declaration.policy.Additional...)
+		change, err := lifecycleRequiredPermissions(declaration.policy.Change, declaration.policy.Additional, requireAll)
 		if err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
@@ -116,8 +128,10 @@ func newDeletionLifecycle[M, G, P any](sessionStore *SessionStore[M], expected B
 	}
 	slices.Sort(allPermissions)
 	allPermissions = slices.Compact(allPermissions)
-	if _, err := auth.RequiredPermissions(allPermissions[0], allPermissions[1:]...); err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
+	if len(allPermissions) != 0 {
+		if _, err := auth.RequiredPermissions(allPermissions[0], allPermissions[1:]...); err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
 	}
 	state.memberships, err = bindDeletionMemberships(project, role)
 	if err != nil {
@@ -139,6 +153,7 @@ func newDeletionLifecycle[M, G, P any](sessionStore *SessionStore[M], expected B
 		}
 		stored, err := prepareDeletionStored(binding.state.objects, row, id, role.Revision)
 		stored.principalID = credential.Principal().ID()
+		stored.future = accountLifecycleFuture(store, row, id, membership)
 		return stored, err
 	}
 	state.models[role.Model] = account
@@ -173,7 +188,9 @@ func newDeletionLifecycle[M, G, P any](sessionStore *SessionStore[M], expected B
 		if _, err := prepareDeletionStored(permissionObjects, row, id, role.Catalog.PermissionRevision); err != nil {
 			return deletionStored{}, err
 		}
-		return inspectPermission(row)
+		stored, err := inspectPermission(row)
+		stored.future = permissionLifecycleFuture(permissionObjects, permissionModel.metadata, row, id, role)
+		return stored, err
 	}
 	groupModel.load = func(ctx context.Context, scope db.Session, _ auth.CredentialDomain, id int64) (deletionStored, error) {
 		row, err := groupObjects.Using(scope).Filter(orm.NewAutoField[G](groupKey).Exact(id)).Get(ctx)
@@ -204,7 +221,14 @@ func newDeletionLifecycle[M, G, P any](sessionStore *SessionStore[M], expected B
 			}
 			previous = id
 		}
-		return prepareDeletionStored(groupObjects, row, id, role.Catalog.GroupRevision)
+		stored, err := prepareDeletionStored(groupObjects, row, id, role.Catalog.GroupRevision)
+		keys := make([]int64, len(rows))
+		for index, grant := range rows {
+			value, _, _ := permissionObjects.PrimaryKey(grant)
+			keys[index], _ = value.Integer()
+		}
+		stored.future = groupLifecycleFuture(groupObjects, permissionObjects, groupModel.metadata, permissionModel.metadata, permissionGroup, row, id, keys, role)
+		return stored, err
 	}
 	state.models[role.Catalog.Group], state.models[role.Catalog.Permission] = groupModel, permissionModel
 	return state, nil
@@ -227,115 +251,6 @@ func prepareDeletionStored[M any](objects orm.Manager[M], row M, id int64, revis
 	return deletionStored{revision: revision, advance: func(ctx context.Context, scope db.Session) error {
 		return advanceCatalogRevision(ctx, scope, objects, row, revisionName)
 	}}, nil
-}
-
-// apply runs once after the relation collector has completed every PROTECT
-// check and closed all rowsets. It validates the complete lifecycle union
-// before any companion write; the collector alone changes relation topology.
-func (state *deletionLifecycle[M]) apply(ctx context.Context, scope db.RelationSession, actor auth.Principal, effects orm.RelationDeleteEffects) (int, error) {
-	rows := effects.Rows()
-	touches := make(map[deletionKey]*deletionTouch)
-	var required []auth.Permission
-	for _, effect := range rows {
-		model, critical := state.models[effect.Model]
-		if !critical {
-			continue
-		}
-		touch := &deletionTouch{key: deletionKey{effect.Model, effect.Key}, deleted: effect.Deleted, direct: true, nulls: effect.NullFields}
-		for _, name := range touch.nulls {
-			field, found := namedField(model.metadata, name)
-			if !found || !field.Nullable || field.Relation == nil || field.Relation.OnDelete != ir.DeleteSetNull {
-				return 0, managementError(CodePersistence, nil)
-			}
-		}
-		touches[touch.key] = touch
-		if effect.Deleted {
-			required = append(required, model.remove...)
-		} else {
-			required = append(required, model.change...)
-		}
-	}
-	if len(required) == 0 {
-		return 0, managementError(CodePersistence, nil)
-	}
-	slices.Sort(required)
-	required = slices.Compact(required)
-	current, allowed, err := state.sessions.state.credentials.AuthorizeIn(ctx, scope, actor, state.overlay, required[0], required[1:]...)
-	if err != nil {
-		return 0, err
-	}
-	if !allowed {
-		return 0, managementError(CodePermission, nil)
-	}
-	domain, bound := current.CredentialDomain()
-	if !bound {
-		return 0, managementError(CodePersistence, nil)
-	}
-	for _, membership := range state.memberships {
-		if err := membership.collect(ctx, scope, rows, touches); err != nil {
-			return 0, err
-		}
-	}
-	ordered := make([]*deletionTouch, 0, len(touches))
-	for _, touch := range touches {
-		ordered = append(ordered, touch)
-	}
-	slices.SortFunc(ordered, func(a, b *deletionTouch) int { return compareDeletionKeys(a.key, b.key) })
-	stored := make([]deletionStored, len(ordered))
-	principals := make(map[string]bool)
-	events := make([]accountaudit.Event, 0, len(ordered))
-	now := state.now()
-	for index, touch := range ordered {
-		row, err := state.models[touch.key.model].load(ctx, scope, domain, touch.key.id)
-		if err != nil {
-			return 0, err
-		}
-		if !touch.deleted && row.revision == math.MaxInt64 {
-			return 0, managementError(CodePersistence, nil)
-		}
-		if touch.deleted && row.principalID != "" {
-			if principals[row.principalID] {
-				return 0, managementError(CodePersistence, nil)
-			}
-			principals[row.principalID] = true
-		}
-		stored[index] = row
-		if touch.direct {
-			action, fields := admin.ActionDelete, []string(nil)
-			if !touch.deleted {
-				action = admin.ActionChange
-				fields = append(slices.Clone(touch.nulls), touch.collections...)
-				slices.Sort(fields)
-				fields = slices.Compact(fields)
-			}
-			event, err := accountaudit.Prepare(current, touch.key.model.AppLabel+"."+touch.key.model.ModelName, touch.key.id, action, fields, now)
-			if err != nil {
-				return 0, err
-			}
-			events = append(events, event)
-		}
-	}
-	revoked := 0
-	for index, touch := range ordered {
-		row := stored[index]
-		if !touch.deleted {
-			if err := row.advance(ctx, scope); err != nil {
-				return 0, err
-			}
-		} else if row.principalID != "" {
-			count, err := state.sessions.RevokeIn(ctx, scope, row.principalID, sessions.ID{})
-			if err != nil {
-				return 0, err
-			}
-			revoked += count
-		}
-	}
-	for _, event := range events {
-		if _, err := accountaudit.AppendIn(ctx, scope, event); err != nil {
-			return 0, err
-		}
-	}
-	return revoked, nil
 }
 
 func compareDeletionKeys(a, b deletionKey) int {

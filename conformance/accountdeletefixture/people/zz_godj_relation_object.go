@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "8b136ffc9c391735dc4e23d195a77feb6ca6be4e21660930d2767016f17f4fb4"
+const GoDjRelationObjectSchemaSHA256 = "7ccbd781a71d408e8f94f62c766de08ae6057005edbf72a95c1b4fccd1a3b809"
 
 var _ orm.RelationObjectDescriptor[Member] = MemberDescriptor{}
 
@@ -20,6 +20,10 @@ func (MemberDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDes
 
 func (MemberDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Member], bool) {
 	switch {
+	case reflect.DeepEqual(field, (memberMembershipIDRelationStorage{}).Field()):
+		return memberMembershipIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (memberNullableMembershipIDRelationStorage{}).Field()):
+		return memberNullableMembershipIDRelationStorage{}, true
 	case reflect.DeepEqual(field, (memberLeaderIDRelationStorage{}).Field()):
 		return memberLeaderIDRelationStorage{}, true
 	case reflect.DeepEqual(field, (memberReviewerIDRelationStorage{}).Field()):
@@ -31,6 +35,60 @@ func (MemberDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage
 	default:
 		return nil, false
 	}
+}
+
+type memberMembershipIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Member] = memberMembershipIDRelationStorage{}
+
+func (memberMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "membership",
+		GoName:   "MembershipID",
+		Column:   "membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (memberMembershipIDRelationStorage) Value(value Member) (query.Value, bool) {
+	if value.MembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.MembershipID), true
+}
+
+type memberNullableMembershipIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Member] = memberNullableMembershipIDRelationStorage{}
+
+func (memberNullableMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "nullable_membership",
+		GoName:   "NullableMembershipID",
+		Column:   "nullable_membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	}
+}
+
+func (memberNullableMembershipIDRelationStorage) Value(value Member) (query.Value, bool) {
+	if value.NullableMembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.NullableMembershipID), true
 }
 
 type memberLeaderIDRelationStorage struct{}
@@ -158,6 +216,16 @@ func (input MemberCreate) BuildManyToManyCreate(source, target ir.Field, sourceK
 			key = targetKey
 		}
 		switch {
+		case reflect.DeepEqual(field, (memberMembershipIDRelationStorage{}).Field()):
+			if _, state := input.membershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithMembershipID(key)
+		case reflect.DeepEqual(field, (memberNullableMembershipIDRelationStorage{}).Field()):
+			if _, state := input.nullableMembershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithNullableMembershipID(key)
 		case reflect.DeepEqual(field, (memberLeaderIDRelationStorage{}).Field()):
 			if _, state := input.leaderID.Get(); state != orm.NullableChangeUnset {
 				return invalid()
@@ -284,6 +352,6 @@ func (input MemberGrantsLinkCreate) BuildManyToManyCreate(source, target ir.Fiel
 	return input.BuildCreate()
 }
 
-type GoDjAppPart2_8cd2398715d3bb754ce73d9625abdc2fef5cd634ee9e48e4afa38ebf8bcb7bbd struct{}
+type GoDjAppPart2_de3d33afc5b22cb7560f7b19d73e7792c578f5a02dce131437bb07e42e083cae struct{}
 
-var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

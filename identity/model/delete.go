@@ -102,12 +102,20 @@ func (deleter *AccountDeleter[M]) Delete(ctx context.Context, actor auth.Princip
 			return AccountDeletion{}, managementError(CodeConflict, nil)
 		}
 		revoked := 0
+		var plan *lifecyclePlan[M]
 		count, err := state.policy.DeleteWithEffectsInSession(work, scope, rows[0], func(ctx context.Context, effects orm.RelationDeleteEffects) error {
 			var err error
-			revoked, err = state.lifecycle.apply(ctx, scope, current, effects)
+			plan, err = state.lifecycle.prepare(ctx, scope, current, effects, nil, nil)
+			if err != nil {
+				return err
+			}
+			revoked, err = plan.apply(ctx, scope)
 			return err
 		})
 		if err != nil {
+			return AccountDeletion{}, err
+		}
+		if err := plan.verify(work, scope); err != nil {
 			return AccountDeletion{}, err
 		}
 		return AccountDeletion{ID: id, Revision: revision, DeletedRows: count, RevokedSessions: revoked}, nil

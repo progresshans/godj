@@ -21,15 +21,16 @@ class PortableOwnerTests(unittest.TestCase):
 import json, os, pathlib, sys
 module = 'github.com/progresshans/godj/'
 scenario = os.environ['GODJ_FAKE_GO_SCENARIO']
+required = [line.split('|', 1) for line in pathlib.Path(os.environ['GODJ_FAKE_GO_REQUIRED']).read_text().splitlines()]
 if sys.argv[1:] == ['list', './...']:
     packages = [module + name for name in ('admin', 'auth', 'db/postgres', 'orm', 'conformance/cmd/godjcheck')]
+    packages = list(dict.fromkeys(packages + [owner for owner, _ in required]))
     if scenario == 'no_owner': packages = [module + 'auth']
     if scenario == 'duplicate_discovery': packages.append(packages[0])
     print('\\n'.join(packages))
     sys.exit(7 if scenario == 'discovery_failure' else 0)
 if len(sys.argv) < 2 or sys.argv[1] != 'test': sys.exit(99)
 pathlib.Path(os.environ['GODJ_FAKE_GO_INVOCATION']).write_text(json.dumps({'argv': sys.argv[1:], 'cgo': os.environ.get('CGO_ENABLED')}))
-required = [line.split('|', 1) for line in pathlib.Path(os.environ['GODJ_FAKE_GO_REQUIRED']).read_text().splitlines()]
 packages = [arg for arg in sys.argv[2:] if arg.startswith(module)]
 def emit(action, package, test=None):
     value = {'Action': action, 'Package': package}

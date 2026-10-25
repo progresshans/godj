@@ -219,19 +219,32 @@ NULL 변경도 수집한 정확한 key/FK에 한정하고 전체 집합을 batch
 생성 ABI v15와 기존 소비자를 전환했다. 별도 custom 모델·명시적 through·교차 host graph를 생성하고 양 DB의 전체 durable
 비교·거부·뒤 쓰기 실패·unknown·독립 connection 경합·0/음수 key·257개 owner 검사를 작성했다. 일곱 외부 생성 변형에는
 실제 HTTP login·CSRF·stale/추가 권한/host 보호 거부·삭제·두 대상 브라우저 폐기 소비자를 추가했다.
-최소 compile·작성과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다. Collection 교체의 전체 효과 통합과 공통 Admin/HTTP 등록은 남아 있다.
+최소 compile·작성과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다. 공통 Admin/HTTP 등록은 남아 있다.
 
 여러 collection을 한 번에 조정하기 위해 typed `SetKeysChange`와 같은 session의 `PrepareCollectionChangesInSession`을 작성했다.
 공통 source·전체 root 합집합·공유 cascade/NULL과 최종 생존 링크를 먼저 확인하고, typed 삽입과 모든 최종 collection 조건을
-한 번 실행한다. 복사본의 재실행·scope 만료·뒤 실패는 성공으로 게시하지 않는다. 계정/그룹 편집의 최종 후보·권한·revision·
-session·audit 조립은 이 기반을 사용해 이어서 구현하며 기존 critical through 조합의 거부를 아직 제거하지 않았다.
+한 번 실행한다. 복사본의 재실행·scope 만료·뒤 실패는 성공으로 게시하지 않는다.
 새 native 소비자는 여러 타입의 생성 factory와 독립 DB connection에서 공유 자손·교차 cascade·중복 링크·0/음수 key·실제 뒤
 쓰기 실패와 전체 snapshot을 대조하도록 작성했다. CI가 드러낸 explicit-through migration 순환 분리 오류도 수정했다.
 다른 계정 domain으로 전환하는 소비자 검사는 선택 모델의 HTTP 삭제 검증 뒤에 실행하며, PostgreSQL의 기존 signed key
 삭제 검사는 별도 native fixture로 준비한다. 한정 재현·최소 compile·새 본문 실행은 TEST_EVIDENCE에 구분한다.
 
+계정 편집과 catalog 생성/수정/삭제를 같은 전체 수명 owner로 연결했다. 전체 collection 의도·연쇄 삭제/NULL·typed 삽입을
+합쳐 현재 및 최종 typed 상태·실제 distinct 소속·직접/간접 유효 권한 한도를 확인한다. 직접 효과별 권한과 root 전체 change
+정책, 한 번의 owner revision·direct audit·삭제/비활성 계정 session 폐기, 최종 내부 재조회가 하나의 fence에 속한다.
+편집 root가 삭제되면 conflict이고, 생성의 provisional row나 새 링크 상태가 추가 권한을 만들어 주지 않는다. 일반 through의
+incoming critical 효과를 시작 시 일괄 거부하던 경계는 이 조정으로 대체했다. 선택 계정/catalog 자체가 through인 저장에는
+별도의 identity 생성 owner가 필요하므로 해당 생성 조립은 여전히 남아 있다.
+
+새 native 소비자는 실제 Member/Team/Grant와 explicit/자동 through에서 root·추가 계정/catalog의 겹친 cascade/NULL,
+보존 링크 재생성·중복 링크·0/음수 key·자기 비활성화·최종 256/257개 경계, 전체 snapshot rollback과 뒤 batch/마지막 root
+쓰기/최종 읽기·unknown을 대조하도록 작성했다. Catalog 생성 후 링크를 만드는 native-session 주입도 같은 transaction의
+권한 고정·validator 거부와 실제 row/session/audit를 확인한다. Backend trigger DDL 자체를 시험했다는 의미는 아니다.
+이전 CI의 fake package discovery, 저장 key fixture와 잘못된 owner callback의 outcome 기대도 보정했다.
+새 본문 실행·전체 원격 검증을 제품 코드와 최소 compile 완료로 대신하지 않는다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
-첫 계정 명령·통합 runtime·collection 교체의 연쇄 수명·audit/session 설치/startup·채운 DB
+첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

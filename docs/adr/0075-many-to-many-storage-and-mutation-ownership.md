@@ -171,9 +171,12 @@ Callback의 정상 오류 identity와 취소/만료 원인을 보존하며, 뒤�
 단일 `ManyCollection`의 add/remove/clear/set도 같은 준비·실행을 사용하고 기존 cache 무효화·native conflict·unknown 소유권을 유지한다.
 직접 factory로 준비한 batch가 이미 읽힌 별도 handle의 cache를 전역 갱신하지는 않는다.
 
-이 공통 실행은 계정 수명 권한을 부여하지 않는다. 선택 계정/그룹 편집 owner가 제안된 scalar·소속과 연쇄 효과를 하나의 최종
-후보로 검사하고 revision·session·audit를 합치는 조립은 [GDJ-0138](../../work/0138-custom-account-lifecycle.md)의 남은 범위다.
-그 조립 전에는 관련 critical through topology의 시작 거부를 유지한다. 작성·최소 compile·환경별 본문 실행은 TEST_EVIDENCE로 구분한다.
+이 공통 실행은 계정 수명 권한을 부여하지 않는다. 선택 계정/그룹 편집 owner는 전체 효과와 typed 삽입을 사용하여 최종 scalar·
+서로 다른 소속·유효 권한을 검증하고 revision·session·audit를 같은 transaction에 합친다. 간접 영향만 받는 계정도 최종 한도를
+확인하며 실제 직접 소속이 그대로이면 revision을 늘리지 않는다. 상세한 권한과 결과 계약은
+[선택 계정 수명](0076-credential-snapshots-and-session-binding.md)을 따른다. Through 모델 자체가 선택 계정/catalog인 저장은
+별도의 identity 생성 owner가 필요하며 generic through default가 그 권한을 대신하지 않는다. 해당 생성 조립은
+[GDJ-0138](../../work/0138-custom-account-lifecycle.md)에 남는다. 작성·최소 compile·환경별 본문 실행은 TEST_EVIDENCE로 구분한다.
 
 ## 직접 컬렉션 prefetch
 

@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "045e5c2590fddd44dbe5b09463582b96a2e80af922ad3f67af70c011ceef77f9"
+const GoDjRelationObjectSchemaSHA256 = "af7108c231b2ee3f93c845078b8e6a1e6e2adeea690e8564b333c893208404f1"
 
 var _ orm.RelationObjectDescriptor[Grant] = GrantDescriptor{}
 
@@ -20,6 +20,10 @@ func (GrantDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDesc
 
 func (GrantDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Grant], bool) {
 	switch {
+	case reflect.DeepEqual(field, (grantMembershipIDRelationStorage{}).Field()):
+		return grantMembershipIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (grantNullableMembershipIDRelationStorage{}).Field()):
+		return grantNullableMembershipIDRelationStorage{}, true
 	case reflect.DeepEqual(field, (grantIssuerIDRelationStorage{}).Field()):
 		return grantIssuerIDRelationStorage{}, true
 	case reflect.DeepEqual(field, (grantTeamIDRelationStorage{}).Field()):
@@ -29,6 +33,60 @@ func (GrantDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[
 	default:
 		return nil, false
 	}
+}
+
+type grantMembershipIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Grant] = grantMembershipIDRelationStorage{}
+
+func (grantMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "membership",
+		GoName:   "MembershipID",
+		Column:   "membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (grantMembershipIDRelationStorage) Value(value Grant) (query.Value, bool) {
+	if value.MembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.MembershipID), true
+}
+
+type grantNullableMembershipIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Grant] = grantNullableMembershipIDRelationStorage{}
+
+func (grantNullableMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "nullable_membership",
+		GoName:   "NullableMembershipID",
+		Column:   "nullable_membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	}
+}
+
+func (grantNullableMembershipIDRelationStorage) Value(value Grant) (query.Value, bool) {
+	if value.NullableMembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.NullableMembershipID), true
 }
 
 type grantIssuerIDRelationStorage struct{}
@@ -129,6 +187,16 @@ func (input GrantCreate) BuildManyToManyCreate(source, target ir.Field, sourceKe
 			key = targetKey
 		}
 		switch {
+		case reflect.DeepEqual(field, (grantMembershipIDRelationStorage{}).Field()):
+			if _, state := input.membershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithMembershipID(key)
+		case reflect.DeepEqual(field, (grantNullableMembershipIDRelationStorage{}).Field()):
+			if _, state := input.nullableMembershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithNullableMembershipID(key)
 		case reflect.DeepEqual(field, (grantIssuerIDRelationStorage{}).Field()):
 			if _, state := input.issuerID.Get(); state != orm.NullableChangeUnset {
 				return invalid()
@@ -159,6 +227,10 @@ func (TeamDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescr
 
 func (TeamDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Team], bool) {
 	switch {
+	case reflect.DeepEqual(field, (teamMembershipIDRelationStorage{}).Field()):
+		return teamMembershipIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (teamNullableMembershipIDRelationStorage{}).Field()):
+		return teamNullableMembershipIDRelationStorage{}, true
 	case reflect.DeepEqual(field, (teamCreatorIDRelationStorage{}).Field()):
 		return teamCreatorIDRelationStorage{}, true
 	case reflect.DeepEqual(field, (teamReviewerIDRelationStorage{}).Field()):
@@ -166,6 +238,60 @@ func (TeamDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[T
 	default:
 		return nil, false
 	}
+}
+
+type teamMembershipIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Team] = teamMembershipIDRelationStorage{}
+
+func (teamMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "membership",
+		GoName:   "MembershipID",
+		Column:   "membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (teamMembershipIDRelationStorage) Value(value Team) (query.Value, bool) {
+	if value.MembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.MembershipID), true
+}
+
+type teamNullableMembershipIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Team] = teamNullableMembershipIDRelationStorage{}
+
+func (teamNullableMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "nullable_membership",
+		GoName:   "NullableMembershipID",
+		Column:   "nullable_membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	}
+}
+
+func (teamNullableMembershipIDRelationStorage) Value(value Team) (query.Value, bool) {
+	if value.NullableMembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.NullableMembershipID), true
 }
 
 type teamCreatorIDRelationStorage struct{}
@@ -239,6 +365,16 @@ func (input TeamCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey
 			key = targetKey
 		}
 		switch {
+		case reflect.DeepEqual(field, (teamMembershipIDRelationStorage{}).Field()):
+			if _, state := input.membershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithMembershipID(key)
+		case reflect.DeepEqual(field, (teamNullableMembershipIDRelationStorage{}).Field()):
+			if _, state := input.nullableMembershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithNullableMembershipID(key)
 		case reflect.DeepEqual(field, (teamCreatorIDRelationStorage{}).Field()):
 			if _, state := input.creatorID.Get(); state != orm.NullableChangeUnset {
 				return invalid()
@@ -256,6 +392,6 @@ func (input TeamCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey
 	return input.BuildCreate()
 }
 
-type GoDjAppPart2_f7a1ced9b428e7bd1c68c29104270bc77aac7808220294f80710cc99d1da39c9 struct{}
+type GoDjAppPart2_4ef2ff5ead1bac645b388e339a48db6096fca4c4be87399b65ad0a5726b0c704 struct{}
 
-var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

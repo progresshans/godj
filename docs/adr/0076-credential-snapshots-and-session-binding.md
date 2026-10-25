@@ -1007,12 +1007,11 @@ credential/hash/session stamp를 변경하는 작업으로 확대하지 않는�
 전체 host source의 collection과 삭제 기능을 생성 단계와 runtime 시작 시 함께 확인한다. Catalog 행 삭제는 아래의 공통
 선택 계정 수명 owner로 추가 계정/Group/Permission의 CASCADE·SET_NULL과 session·revision·audit를 조정한다.
 `CatalogConfig.AccountPermissions`는 직접 영향을 받는 선택 계정의 delete/change·추가 권한이다. Group/Permission에는 각
-resource의 기존 권한을 사용한다. Catalog 삭제가 계정도 지우면 반환값의 `RevokedSessions`에 같은 domain의 실제 폐기 수를 담는다.
-Group grant collection 교체는 여러 관계 변경을 하나의 수명 조정으로 합치는 작업이 남아 있다. 해당 through 삭제가 추가
-계정/catalog 행을 바꾸는 조합은 시작 시 `unsupported` 원인을 보존하여 거부한다. Endpoint 삭제 지원으로 이 경계를 감추지 않는다.
-다른 선택 소속의 through 행을 연쇄 삭제하거나 endpoint를 NULL로 만드는 경우도 직접 owner의 revision에 영향을 주므로 같은
-미완료 경계에 속한다. 소속과 무관한 payload만 NULL로 바꾸는 효과는 이 거부에 포함하지 않는다. Catalog의 해당 검사는
-Group grant가 실제 WriteFields에 포함된 경우에 적용하며, 읽기나 전체 수명 owner가 처리하는 행 삭제를 함께 차단하지 않는다.
+resource의 기존 권한을 사용한다. Catalog 생성/수정/삭제가 계정도 지우면 반환값의 `RevokedSessions`에 같은 domain의 실제 폐기 수를 담는다.
+Group grant 교체는 아래의 공통 전체 수명 조정을 사용한다. Incoming CASCADE/SET_NULL이 추가 계정/catalog이나 다른 소속의
+through를 바꾸는 조합도 전체 최종 상태로 검사한다. Through 모델 자체가 선택 계정/Group/Permission이면 새 링크 생성에도
+별도의 identity 생성 owner가 필요하므로 해당 collection을 쓰기로 노출할 때 `unsupported`로 거부한다. 이 저장/생성 조립은
+잔여 요구이며 읽기나 기존 전체 수명 owner의 행 삭제를 함께 차단하지 않는다.
 공통 Admin/HTTP 조립과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
 
 ## 선택 계정과 catalog 삭제의 전체 수명 조정
@@ -1045,7 +1044,34 @@ callback은 revision만 수정하고 수집한 topology를 변경하지 않는�
 
 조회/정리·인가·revision·session·audit·뒤 관계 DML 실패는 하나의 transaction에서 rollback한다. Callback의 정상적인 거부는 scope가
 유효할 때 원래 오류 identity를 보존하고, 취소/만료가 겹치면 이를 함께 유지한다. Unknown/cleanup에는 성공값을 게시하거나 자동 재시도하지
-않는다. 계정/그룹의 collection 교체 전체를 합치는 조정, 공개 계정 Admin/HTTP 조립과 통합 restart 수용은 I1의 잔여 요구다.
+않는다. 공개 계정 Admin/HTTP 조립과 통합 restart 수용은 I1의 잔여 요구다.
+
+## Collection 편집의 전체 최종 상태와 생성 효과
+
+`AccountEditor.Update`의 모든 명시적 collection과 catalog Group grant 교체는 하나의 `PrepareCollectionChangesInSession`에
+모인다. 현재 선택과 같아 보이는 입력도 준비에 포함하여 다른 collection의 cascade로 사라질 보존 링크를 다시 삽입할 수 있게 한다.
+공통 수명 owner는 전체 삭제/NULL과 typed 삽입 값을 합쳐 각 owner의 삭제 전/후 distinct target 집합을 계산한다. 현재 모든
+계정 credential·소속/유효 권한·catalog scalar/revision과 최종 typed 후보·소속/권한 한도를 모두 검사한다. 그룹 grant만 바뀌는
+간접 회원도 완전한 keyset 순회로 확인하지만 그 계정의 직접 소속이 같으면 revision과 별도 audit를 늘리지 않는다. 최종적으로
+삭제될 권한을 중간 합집합에 남겨 정상적인 256개 후보를 거부하지 않으며, 반대로 간접 회원의 최종 257개 확장도 허용하지 않는다.
+
+편집 root가 자기 의도의 cascade로 삭제되는 경우에는 `conflict`로 전체를 거부한다. Root의 scalar·NULL·실제 collection 변경을
+한 번 합쳐 revision과 audit를 만들고, 다른 직접 선택 모델 효과는 각각 명시한 delete/change 및 추가 권한을 요구한다.
+`AccountEditConfig.RelatedPermissions`에서 생략한 operation은 그 효과를 허용하지 않는다. Root 자체의 NULL은 editor의 전체
+change 정책에 포함된다. 기본 인가와 deny overlay를 모두 적용하고, 삭제되는 계정과 비활성화되는 root의 현재 domain session을
+같이 폐기한다. 다른 계정·익명·과거 domain session은 보존한다.
+
+Typed validator는 분리된 현재 값과 전체 NULL·다음 revision을 반영한 최종 후보를 받으며 계정 validator는 최종 소속 사본도 받는다.
+이는 임의 `full_clean` 실행을 추가하는 의미가 아니다. 수집한 graph의 실행과 동반 revision/session/audit 뒤 root의 실제 최종 unique
+검증과 typed 저장을 수행한다. 최종 내부 재조회는 모든 관련 typed scalar·revision·소속·유효 grant, 삭제 행 부재를 검사하며,
+편집자의 자기 비활성화·권한 상실·cascade 뒤 새 public view 권한을 요구하지 않는다. Unique 또는 최종 재조회 실패도 앞선 모든 DML을
+rollback한다. PK/FK topology는 공통 collector/collection engine이 소유하며 callback이 별도 변경하지 않는다.
+
+Catalog 생성은 먼저 같은 transaction에서 provisional INSERT로 generated key를 얻고, 그 뒤의 실제 링크 상태를 수집한다.
+최종 root revision은 1이고 add audit는 한 번이다. Validator의 current는 nil이며 candidate에는 실제 key와 최종 NULL이 있다.
+준비·인가·validation·쓰기/읽기 거부는 이 provisional row와 뒤 효과를 모두 rollback한다. 생성 전 같은 fence에서 확인한 actor의
+권한을 효과 인가에도 사용하며, INSERT에 따른 DB 상태 변경으로 새로 얻은 grant를 추가 효과 권한으로 사용하지 않는다. Domain과
+deny overlay는 같은 scope에서 계속 확인한다. 이 생성 의미와 별도의 선택 모델-as-through identity 생성 지원은 구분한다.
 
 ## 선택 계정의 typed 생성과 해시 준비
 
@@ -1182,7 +1208,7 @@ Credential·principal identity·revision·선택 서버 시각·파일·다른 �
 revision/credential/소속 무결성을 먼저 확인한다. Scalar만 또는 collection만 보냈어도 같은 권한 정책을 적용한다.
 생략한 소속은 유지하고 명시한 빈 집합은 지운다. 정렬/중복 제거 전 원 입력을 256개로 제한하며 현재와 제안 그룹 수,
 직접 권한 수와 그룹/직접 권한의 유효 합집합을 각각 검증한다. 비활성 후보도 한도를 우회하지 않는다. Typed validator는
-분리된 현재 모델과 프로필·역할을 함께 반영한 후보, 사본을 반환하는 제안 소속을 받는다. Callback 뒤 scope 수명과
+분리된 현재 모델과 프로필·역할·수집된 NULL·다음 revision을 함께 반영한 최종 후보, 사본을 반환하는 최종 소속을 받는다. Callback 뒤 scope 수명과
 취소를 재검사하고 typed 모델의 unique 검증을 같은 scope에서 수행한다.
 
 프로필·역할 scalar와 두 collection·한 번의 revision 증가·전체 변경 필드의 한 audit는 같은 native coordinated
@@ -1195,8 +1221,9 @@ relation transaction에 속한다. 모델/정책 거부가 프로필 또는 역�
 반환값은 확정된 ID·revision·변경 필드와 폐기 수뿐이다. 후속 relation/session/audit 실패는 앞선 변경과 함께 rollback하고,
 unknown 결과는 공개 값을 버리고 자동 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 되돌리지 않는다.
 Collection의 실제 through 행을 지우는 경로도 전체 host 삭제 정책에 묶는다. Endpoint FK가 PROTECT여도 직접적인 through
-삭제는 별도로 검사한다. 추가 계정/catalog의 수명 조정이 필요한 CASCADE/SET_NULL은 composition 단계에서 거부하며
-그 조정의 완성은 I1-06에 남는다. 해당 소속을 입력에 선택하지 않은 scalar 역할 편집에는 이 삭제 경로를 요구하지 않는다.
+삭제는 별도로 검사한다. 추가 계정/catalog과 다른 through의 CASCADE/SET_NULL은 위 전체 수명 조정에서 처리한다.
+Through 자체가 선택 계정/catalog인 저장의 identity 생성 조립은 남아 있으며 해당 collection을 편집 구성에 선택할 때 거부한다.
+해당 소속을 노출하지 않은 scalar 역할 편집에는 이 생성 경로를 요구하지 않는다.
 
 ## 선택 계정 도메인의 독립 DB 세션과 로그인
 

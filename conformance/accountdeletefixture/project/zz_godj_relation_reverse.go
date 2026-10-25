@@ -195,7 +195,7 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	if len(_binding.ManyToManyRelations()) != 3 {
 		return Collections{}, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "generated collection set does not match project binding"}
 	}
-	_relation0, _err := orm.BindManyToMany(_model1, "grants", _model0, _model2, "824a8b6f867752504f27a7444f43bda8ee1bfc146b1fe133af0c19d8fc3caf4d")
+	_relation0, _err := orm.BindManyToMany(_model1, "grants", _model0, _model2, "4b36b4eccef32eeb64c0e5006079aa66a106354c3697ed52851797cc589442fd")
 	if _err != nil {
 		return Collections{}, _err
 	}
@@ -203,7 +203,7 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	if _err != nil {
 		return Collections{}, _err
 	}
-	_relation2, _err := orm.BindManyToMany(_model4, "teams", _model1, _model3, "9eb462d0b8059a19b9cb17a7a3986bd6deabbc890ab3f6f678d8b0eb4eb5a597")
+	_relation2, _err := orm.BindManyToMany(_model4, "teams", _model1, _model3, "c8a7bf4a9f5f7a640447efe05b17d170d205b727afd78ef1c5ac74be34ccc338")
 	if _err != nil {
 		return Collections{}, _err
 	}
@@ -215,4 +215,4 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ goDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

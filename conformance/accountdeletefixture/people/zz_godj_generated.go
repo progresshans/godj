@@ -12,7 +12,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v3"
-const GoDjSchemaSHA256 = "8b136ffc9c391735dc4e23d195a77feb6ca6be4e21660930d2767016f17f4fb4"
+const GoDjSchemaSHA256 = "7ccbd781a71d408e8f94f62c766de08ae6057005edbf72a95c1b4fccd1a3b809"
 
 type Member struct {
 	ID                    int64
@@ -24,6 +24,8 @@ type Member struct {
 	Enabled               bool
 	Root                  bool
 	Region                string
+	MembershipID          *int64
+	NullableMembershipID  *int64
 	LeaderID              *int64
 	ReviewerID            *int64
 	SponsorID             *int64
@@ -44,16 +46,26 @@ func (MemberDescriptor) Metadata() ir.Model {
 func (MemberDescriptor) Scan(row db.Row) (Member, error) {
 	var value Member
 	var scanSeen orm.NullableDateTimeScanner
+	var scanMembershipID sql.NullInt64
+	var scanNullableMembershipID sql.NullInt64
 	var scanLeaderID sql.NullInt64
 	var scanReviewerID sql.NullInt64
 	var scanSponsorID sql.NullInt64
 	var scanGrantRefID sql.NullInt64
-	if err := row.Scan(&value.ID, &value.Subject, &value.Contact, &value.Secret, &value.Version, &scanSeen, &value.Enabled, &value.Root, &value.Region, &scanLeaderID, &scanReviewerID, &scanSponsorID, &scanGrantRefID); err != nil {
+	if err := row.Scan(&value.ID, &value.Subject, &value.Contact, &value.Secret, &value.Version, &scanSeen, &value.Enabled, &value.Root, &value.Region, &scanMembershipID, &scanNullableMembershipID, &scanLeaderID, &scanReviewerID, &scanSponsorID, &scanGrantRefID); err != nil {
 		return Member{}, err
 	}
 	if scanSeen.Valid {
 		scanned := scanSeen.Time
 		value.Seen = &scanned
+	}
+	if scanMembershipID.Valid {
+		scanned := scanMembershipID.Int64
+		value.MembershipID = &scanned
+	}
+	if scanNullableMembershipID.Valid {
+		scanned := scanNullableMembershipID.Int64
+		value.NullableMembershipID = &scanned
 	}
 	if scanLeaderID.Valid {
 		scanned := scanLeaderID.Int64
@@ -94,6 +106,14 @@ func (MemberDescriptor) CloneModel(value Member) Member {
 	if value.Seen != nil {
 		clonedSeen := *value.Seen
 		clone.Seen = &clonedSeen
+	}
+	if value.MembershipID != nil {
+		clonedMembershipID := *value.MembershipID
+		clone.MembershipID = &clonedMembershipID
+	}
+	if value.NullableMembershipID != nil {
+		clonedNullableMembershipID := *value.NullableMembershipID
+		clone.NullableMembershipID = &clonedNullableMembershipID
 	}
 	if value.LeaderID != nil {
 		clonedLeaderID := *value.LeaderID
@@ -141,6 +161,16 @@ func (MemberDescriptor) WriteFieldValue(value Member, field ir.Field) (query.Val
 		return query.Boolean(value.Root), true
 	case "region":
 		return query.String(value.Region), true
+	case "membership":
+		if value.MembershipID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.MembershipID), true
+	case "nullable_membership":
+		if value.NullableMembershipID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.NullableMembershipID), true
 	case "leader":
 		if value.LeaderID == nil {
 			return query.Null(), true
@@ -231,6 +261,28 @@ func (MemberDescriptor) SetFieldValue(value *Member, field ir.Field, input query
 		}
 		value.Region = assigned
 		return true
+	case "membership":
+		if input.IsNull() {
+			value.MembershipID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.MembershipID = &assigned
+		return true
+	case "nullable_membership":
+		if input.IsNull() {
+			value.NullableMembershipID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.NullableMembershipID = &assigned
+		return true
 	case "leader":
 		if input.IsNull() {
 			value.LeaderID = nil
@@ -281,37 +333,41 @@ func (MemberDescriptor) SetFieldValue(value *Member, field ir.Field, input query
 }
 
 type MemberFieldSet struct {
-	ID         orm.AutoField[Member]
-	Subject    orm.StringField[Member]
-	Contact    orm.StringField[Member]
-	Secret     orm.StringField[Member]
-	Version    orm.IntegerField[Member]
-	Seen       orm.NullableDateTimeField[Member]
-	Enabled    orm.BooleanField[Member]
-	Root       orm.BooleanField[Member]
-	Region     orm.StringField[Member]
-	LeaderID   orm.NullableForeignKeyField[Member]
-	ReviewerID orm.NullableForeignKeyField[Member]
-	SponsorID  orm.NullableForeignKeyField[Member]
-	GrantRefID orm.NullableForeignKeyField[Member]
+	ID                   orm.AutoField[Member]
+	Subject              orm.StringField[Member]
+	Contact              orm.StringField[Member]
+	Secret               orm.StringField[Member]
+	Version              orm.IntegerField[Member]
+	Seen                 orm.NullableDateTimeField[Member]
+	Enabled              orm.BooleanField[Member]
+	Root                 orm.BooleanField[Member]
+	Region               orm.StringField[Member]
+	MembershipID         orm.NullableForeignKeyField[Member]
+	NullableMembershipID orm.NullableForeignKeyField[Member]
+	LeaderID             orm.NullableForeignKeyField[Member]
+	ReviewerID           orm.NullableForeignKeyField[Member]
+	SponsorID            orm.NullableForeignKeyField[Member]
+	GrantRefID           orm.NullableForeignKeyField[Member]
 }
 
 var MemberFields = func() MemberFieldSet {
 	metadata := memberMetadata()
 	return MemberFieldSet{
-		ID:         orm.NewAutoField[Member](metadata.Fields[0]),
-		Subject:    orm.NewStringField[Member](metadata.Fields[1]),
-		Contact:    orm.NewStringField[Member](metadata.Fields[2]),
-		Secret:     orm.NewStringField[Member](metadata.Fields[3]),
-		Version:    orm.NewIntegerField[Member](metadata.Fields[4]),
-		Seen:       orm.NewNullableDateTimeField[Member](metadata.Fields[5]),
-		Enabled:    orm.NewBooleanField[Member](metadata.Fields[6]),
-		Root:       orm.NewBooleanField[Member](metadata.Fields[7]),
-		Region:     orm.NewStringField[Member](metadata.Fields[8]),
-		LeaderID:   orm.NewNullableForeignKeyField[Member](metadata.Fields[9]),
-		ReviewerID: orm.NewNullableForeignKeyField[Member](metadata.Fields[10]),
-		SponsorID:  orm.NewNullableForeignKeyField[Member](metadata.Fields[11]),
-		GrantRefID: orm.NewNullableForeignKeyField[Member](metadata.Fields[12]),
+		ID:                   orm.NewAutoField[Member](metadata.Fields[0]),
+		Subject:              orm.NewStringField[Member](metadata.Fields[1]),
+		Contact:              orm.NewStringField[Member](metadata.Fields[2]),
+		Secret:               orm.NewStringField[Member](metadata.Fields[3]),
+		Version:              orm.NewIntegerField[Member](metadata.Fields[4]),
+		Seen:                 orm.NewNullableDateTimeField[Member](metadata.Fields[5]),
+		Enabled:              orm.NewBooleanField[Member](metadata.Fields[6]),
+		Root:                 orm.NewBooleanField[Member](metadata.Fields[7]),
+		Region:               orm.NewStringField[Member](metadata.Fields[8]),
+		MembershipID:         orm.NewNullableForeignKeyField[Member](metadata.Fields[9]),
+		NullableMembershipID: orm.NewNullableForeignKeyField[Member](metadata.Fields[10]),
+		LeaderID:             orm.NewNullableForeignKeyField[Member](metadata.Fields[11]),
+		ReviewerID:           orm.NewNullableForeignKeyField[Member](metadata.Fields[12]),
+		SponsorID:            orm.NewNullableForeignKeyField[Member](metadata.Fields[13]),
+		GrantRefID:           orm.NewNullableForeignKeyField[Member](metadata.Fields[14]),
 	}
 }()
 
@@ -338,18 +394,20 @@ func MemberForceUpdate() orm.SaveOption[Member] {
 }
 
 type MemberCreate struct {
-	subject    orm.Change[string]
-	contact    orm.Change[string]
-	secret     orm.Change[string]
-	version    orm.Change[int64]
-	seen       orm.NullableChange[_godjtime.Time]
-	enabled    orm.Change[bool]
-	root       orm.Change[bool]
-	region     orm.Change[string]
-	leaderID   orm.NullableChange[int64]
-	reviewerID orm.NullableChange[int64]
-	sponsorID  orm.NullableChange[int64]
-	grantRefID orm.NullableChange[int64]
+	subject              orm.Change[string]
+	contact              orm.Change[string]
+	secret               orm.Change[string]
+	version              orm.Change[int64]
+	seen                 orm.NullableChange[_godjtime.Time]
+	enabled              orm.Change[bool]
+	root                 orm.Change[bool]
+	region               orm.Change[string]
+	membershipID         orm.NullableChange[int64]
+	nullableMembershipID orm.NullableChange[int64]
+	leaderID             orm.NullableChange[int64]
+	reviewerID           orm.NullableChange[int64]
+	sponsorID            orm.NullableChange[int64]
+	grantRefID           orm.NullableChange[int64]
 }
 
 func NewMemberCreate(subject string, contact string, secret string, region string) MemberCreate {
@@ -406,6 +464,26 @@ func (input MemberCreate) WithRegion(value string) MemberCreate {
 	return input
 }
 
+func (input MemberCreate) WithMembershipID(value int64) MemberCreate {
+	input.membershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input MemberCreate) WithMembershipIDNull() MemberCreate {
+	input.membershipID = orm.SetNull[int64]()
+	return input
+}
+
+func (input MemberCreate) WithNullableMembershipID(value int64) MemberCreate {
+	input.nullableMembershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input MemberCreate) WithNullableMembershipIDNull() MemberCreate {
+	input.nullableMembershipID = orm.SetNull[int64]()
+	return input
+}
+
 func (input MemberCreate) WithLeaderID(value int64) MemberCreate {
 	input.leaderID = orm.SetNullable(value)
 	return input
@@ -448,7 +526,7 @@ func (input MemberCreate) WithGrantRefIDNull() MemberCreate {
 
 func (input MemberCreate) BuildCreate() orm.Mutation[Member] {
 	var value Member
-	assignments := make([]query.Assignment, 0, 12)
+	assignments := make([]query.Assignment, 0, 14)
 	changedSubject, changedSubjectSet := input.subject.Get()
 	if !changedSubjectSet {
 		return orm.InvalidMutation[Member](&query.Error{
@@ -536,6 +614,46 @@ func (input MemberCreate) BuildCreate() orm.Mutation[Member] {
 	}
 	value.Region = changedRegion
 	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("region", "region", query.FieldString, false), query.String(changedRegion)))
+	changedMembershipID, changedMembershipIDState := input.membershipID.Get()
+	switch changedMembershipIDState {
+	case orm.NullableChangeUnset:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedMembershipID := changedMembershipID
+		value.MembershipID = &storedMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Integer(changedMembershipID)))
+	case orm.NullableChangeNull:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Member](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedNullableMembershipID, changedNullableMembershipIDState := input.nullableMembershipID.Get()
+	switch changedNullableMembershipIDState {
+	case orm.NullableChangeUnset:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedNullableMembershipID := changedNullableMembershipID
+		value.NullableMembershipID = &storedNullableMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Integer(changedNullableMembershipID)))
+	case orm.NullableChangeNull:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Member](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "nullable_membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	changedLeaderID, changedLeaderIDState := input.leaderID.Get()
 	switch changedLeaderIDState {
 	case orm.NullableChangeUnset:
@@ -620,18 +738,20 @@ func (input MemberCreate) BuildCreate() orm.Mutation[Member] {
 }
 
 type MemberPatch struct {
-	subject    orm.Change[string]
-	contact    orm.Change[string]
-	secret     orm.Change[string]
-	version    orm.Change[int64]
-	seen       orm.NullableChange[_godjtime.Time]
-	enabled    orm.Change[bool]
-	root       orm.Change[bool]
-	region     orm.Change[string]
-	leaderID   orm.NullableChange[int64]
-	reviewerID orm.NullableChange[int64]
-	sponsorID  orm.NullableChange[int64]
-	grantRefID orm.NullableChange[int64]
+	subject              orm.Change[string]
+	contact              orm.Change[string]
+	secret               orm.Change[string]
+	version              orm.Change[int64]
+	seen                 orm.NullableChange[_godjtime.Time]
+	enabled              orm.Change[bool]
+	root                 orm.Change[bool]
+	region               orm.Change[string]
+	membershipID         orm.NullableChange[int64]
+	nullableMembershipID orm.NullableChange[int64]
+	leaderID             orm.NullableChange[int64]
+	reviewerID           orm.NullableChange[int64]
+	sponsorID            orm.NullableChange[int64]
+	grantRefID           orm.NullableChange[int64]
 }
 
 func (input MemberPatch) WithSubject(value string) MemberPatch {
@@ -679,6 +799,26 @@ func (input MemberPatch) WithRegion(value string) MemberPatch {
 	return input
 }
 
+func (input MemberPatch) WithMembershipID(value int64) MemberPatch {
+	input.membershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input MemberPatch) WithMembershipIDNull() MemberPatch {
+	input.membershipID = orm.SetNull[int64]()
+	return input
+}
+
+func (input MemberPatch) WithNullableMembershipID(value int64) MemberPatch {
+	input.nullableMembershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input MemberPatch) WithNullableMembershipIDNull() MemberPatch {
+	input.nullableMembershipID = orm.SetNull[int64]()
+	return input
+}
+
 func (input MemberPatch) WithLeaderID(value int64) MemberPatch {
 	input.leaderID = orm.SetNullable(value)
 	return input
@@ -721,7 +861,7 @@ func (input MemberPatch) WithGrantRefIDNull() MemberPatch {
 
 func (input MemberPatch) BuildPatch(current Member) orm.Mutation[Member] {
 	value := current
-	assignments := make([]query.Assignment, 0, 12)
+	assignments := make([]query.Assignment, 0, 14)
 	if changedSubject, ok := input.subject.Get(); ok {
 		value.Subject = changedSubject
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("subject", "subject", query.FieldString, false), query.String(changedSubject)))
@@ -772,6 +912,42 @@ func (input MemberPatch) BuildPatch(current Member) orm.Mutation[Member] {
 	if changedRegion, ok := input.region.Get(); ok {
 		value.Region = changedRegion
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("region", "region", query.FieldString, false), query.String(changedRegion)))
+	}
+	changedMembershipID, changedMembershipIDState := input.membershipID.Get()
+	switch changedMembershipIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedMembershipID := changedMembershipID
+		value.MembershipID = &storedMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Integer(changedMembershipID)))
+	case orm.NullableChangeNull:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Member](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedNullableMembershipID, changedNullableMembershipIDState := input.nullableMembershipID.Get()
+	switch changedNullableMembershipIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedNullableMembershipID := changedNullableMembershipID
+		value.NullableMembershipID = &storedNullableMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Integer(changedNullableMembershipID)))
+	case orm.NullableChangeNull:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Member](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "nullable_membership",
+			Detail:   "unknown nullable change state",
+		})
 	}
 	changedLeaderID, changedLeaderIDState := input.leaderID.Get()
 	switch changedLeaderIDState {
@@ -918,6 +1094,32 @@ func memberMetadata() ir.Model {
 				Column:    "region",
 				Kind:      ir.FieldChar,
 				MaxLength: 24,
+			},
+			{
+				Name:     "membership",
+				GoName:   "MembershipID",
+				Column:   "membership_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Disabled: true},
+					OnDelete:    ir.DeleteCascade,
+				},
+			},
+			{
+				Name:     "nullable_membership",
+				GoName:   "NullableMembershipID",
+				Column:   "nullable_membership_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Disabled: true},
+					OnDelete:    ir.DeleteSetNull,
+				},
 			},
 			{
 				Name:     "leader",
@@ -1225,6 +1427,6 @@ func memberGrantsLinkMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_8cd2398715d3bb754ce73d9625abdc2fef5cd634ee9e48e4afa38ebf8bcb7bbd struct{}
+type GoDjAppPart0_de3d33afc5b22cb7560f7b19d73e7792c578f5a02dce131437bb07e42e083cae struct{}
 
-type GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7 struct{}
+type GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d struct{}

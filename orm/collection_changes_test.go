@@ -47,10 +47,7 @@ func TestCollectionChangeCompositionRejectsInvalidOwnershipBeforeIO(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	owner, err := models.UserObjects.ApplyValues(models.User{}, map[string]query.Value{"id": query.Integer(0)})
-	if err != nil {
-		t.Fatal(err)
-	}
+	owner := models.NewUserWithID(0)
 	change, err := collections.IdentityUserGroups.SetKeysChange(owner, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -118,10 +115,7 @@ func TestPreparedCollectionChangesAreBoundOneAttemptAndPreserveCallbackFailure(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	owner, err := models.UserObjects.ApplyValues(models.User{}, map[string]query.Value{"id": query.Integer(-7)})
-	if err != nil {
-		t.Fatal(err)
-	}
+	owner := models.NewUserWithID(-7)
 	change, err := collections.IdentityUserGroups.SetKeysChange(owner, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -200,14 +194,8 @@ func TestPreparedCollectionChangesCoalesceOverlappingForwardReverseInserts(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	user, err := models.UserObjects.ApplyValues(models.User{}, map[string]query.Value{"id": query.Integer(0)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	group, err := models.GroupObjects.ApplyValues(models.Group{}, map[string]query.Value{"id": query.Integer(-7)})
-	if err != nil {
-		t.Fatal(err)
-	}
+	user := models.NewUserWithID(0)
+	group := models.NewGroupWithID(-7)
 	forward, err := collections.IdentityUserGroups.SetKeysChange(user, []int64{group.ID})
 	if err != nil {
 		t.Fatal(err)

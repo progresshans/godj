@@ -30,6 +30,12 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	for i := range schemas {
 		for j := range schemas[i].Models {
 			model := &schemas[i].Models[j]
+			identity := ir.ModelIdentity{AppLabel: schemas[i].AppLabel, ModelName: model.Name}
+			if identity == role.Model || identity == role.Catalog.Group || identity == role.Catalog.Permission {
+				model.Fields = append(model.Fields,
+					fk("membership", "MembershipID", schema.Target("links", "membership"), ir.DeleteCascade),
+					fk("nullable_membership", "NullableMembershipID", schema.Target("links", "membership"), ir.DeleteSetNull))
+			}
 			switch (ir.ModelIdentity{AppLabel: schemas[i].AppLabel, ModelName: model.Name}) {
 			case role.Model:
 				model.Fields = append(model.Fields, fk("leader", "LeaderID", role.Model, ir.DeleteCascade), fk("reviewer", "ReviewerID", role.Model, ir.DeleteSetNull),

@@ -64,6 +64,18 @@ func (_factory AccessGrantObjectFactory) SelectIssuer(_children ...orm.RelatedSe
 func (_query AccessGrantSelectRelatedQuery) WithIssuer(_children ...orm.RelatedSelection[people.Member]) AccessGrantSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectIssuer(_children...))
 }
+func (_factory AccessGrantObjectFactory) SelectMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[access.Grant, links.Membership] {
+	return orm.SelectNullableForward(_factory.membership).WithChildren(_children...)
+}
+func (_query AccessGrantSelectRelatedQuery) WithMembership(_children ...orm.RelatedSelection[links.Membership]) AccessGrantSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectMembership(_children...))
+}
+func (_factory AccessGrantObjectFactory) SelectNullableMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[access.Grant, links.Membership] {
+	return orm.SelectNullableForward(_factory.nullableMembership).WithChildren(_children...)
+}
+func (_query AccessGrantSelectRelatedQuery) WithNullableMembership(_children ...orm.RelatedSelection[links.Membership]) AccessGrantSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectNullableMembership(_children...))
+}
 func (_factory AccessGrantObjectFactory) SelectReviewer(_children ...orm.RelatedSelection[people.Member]) orm.RelatedSelect[access.Grant, people.Member] {
 	return orm.SelectNullableForward(_factory.reviewer).WithChildren(_children...)
 }
@@ -99,6 +111,32 @@ func (_factory AccessGrantObjectFactory) selectionInputs(_paths []string) ([]orm
 					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
 				}
 				_children, _err := _factory._projectSelections.PeopleMember.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "membership":
+			_selection := _factory.SelectMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "nullable_membership":
+			_selection := _factory.SelectNullableMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
 				if _err != nil {
 					return nil, _err
 				}
@@ -290,6 +328,24 @@ func (_factory AccessGrantObjectFactory) FromSelected(_selected *orm.RelatedSele
 		}
 		_object.issuer = _related
 	}
+	if _has, _err := _selected.HasSelection("membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.membership = _related
+	}
+	if _has, _err := _selected.HasSelection("nullable_membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectNullableMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.nullableMembership = _related
+	}
 	if _has, _err := _selected.HasSelection("reviewer"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -329,6 +385,54 @@ func (_object *AccessGrantObject) IssuerObject(_ctx context.Context) (*PeopleMem
 		_target, _err = _object.factory._projectSelections.PeopleMember.FromSelected(_graph)
 	} else {
 		_target, _err = _object.factory._projectSelections.PeopleMember.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *AccessGrantObject) MembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.Membership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.membership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *AccessGrantObject) NullableMembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.NullableMembership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.nullableMembership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
 	}
 	if _err != nil {
 		return nil, false, _err
@@ -413,6 +517,18 @@ func (_factory AccessTeamObjectFactory) SelectCreator(_children ...orm.RelatedSe
 func (_query AccessTeamSelectRelatedQuery) WithCreator(_children ...orm.RelatedSelection[people.Member]) AccessTeamSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectCreator(_children...))
 }
+func (_factory AccessTeamObjectFactory) SelectMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[access.Team, links.Membership] {
+	return orm.SelectNullableForward(_factory.membership).WithChildren(_children...)
+}
+func (_query AccessTeamSelectRelatedQuery) WithMembership(_children ...orm.RelatedSelection[links.Membership]) AccessTeamSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectMembership(_children...))
+}
+func (_factory AccessTeamObjectFactory) SelectNullableMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[access.Team, links.Membership] {
+	return orm.SelectNullableForward(_factory.nullableMembership).WithChildren(_children...)
+}
+func (_query AccessTeamSelectRelatedQuery) WithNullableMembership(_children ...orm.RelatedSelection[links.Membership]) AccessTeamSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectNullableMembership(_children...))
+}
 func (_factory AccessTeamObjectFactory) SelectReviewer(_children ...orm.RelatedSelection[people.Member]) orm.RelatedSelect[access.Team, people.Member] {
 	return orm.SelectNullableForward(_factory.reviewer).WithChildren(_children...)
 }
@@ -442,6 +558,32 @@ func (_factory AccessTeamObjectFactory) selectionInputs(_paths []string) ([]orm.
 					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
 				}
 				_children, _err := _factory._projectSelections.PeopleMember.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "membership":
+			_selection := _factory.SelectMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "nullable_membership":
+			_selection := _factory.SelectNullableMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
 				if _err != nil {
 					return nil, _err
 				}
@@ -620,6 +762,24 @@ func (_factory AccessTeamObjectFactory) FromSelected(_selected *orm.RelatedSelec
 		}
 		_object.creator = _related
 	}
+	if _has, _err := _selected.HasSelection("membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.membership = _related
+	}
+	if _has, _err := _selected.HasSelection("nullable_membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectNullableMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.nullableMembership = _related
+	}
 	if _has, _err := _selected.HasSelection("reviewer"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -650,6 +810,54 @@ func (_object *AccessTeamObject) CreatorObject(_ctx context.Context) (*PeopleMem
 		_target, _err = _object.factory._projectSelections.PeopleMember.FromSelected(_graph)
 	} else {
 		_target, _err = _object.factory._projectSelections.PeopleMember.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *AccessTeamObject) MembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.Membership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.membership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *AccessTeamObject) NullableMembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.NullableMembership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.nullableMembership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
 	}
 	if _err != nil {
 		return nil, false, _err
@@ -1466,6 +1674,18 @@ func (_factory PeopleMemberObjectFactory) SelectLeader(_children ...orm.RelatedS
 func (_query PeopleMemberSelectRelatedQuery) WithLeader(_children ...orm.RelatedSelection[people.Member]) PeopleMemberSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectLeader(_children...))
 }
+func (_factory PeopleMemberObjectFactory) SelectMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[people.Member, links.Membership] {
+	return orm.SelectNullableForward(_factory.membership).WithChildren(_children...)
+}
+func (_query PeopleMemberSelectRelatedQuery) WithMembership(_children ...orm.RelatedSelection[links.Membership]) PeopleMemberSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectMembership(_children...))
+}
+func (_factory PeopleMemberObjectFactory) SelectNullableMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[people.Member, links.Membership] {
+	return orm.SelectNullableForward(_factory.nullableMembership).WithChildren(_children...)
+}
+func (_query PeopleMemberSelectRelatedQuery) WithNullableMembership(_children ...orm.RelatedSelection[links.Membership]) PeopleMemberSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectNullableMembership(_children...))
+}
 func (_factory PeopleMemberObjectFactory) SelectReviewer(_children ...orm.RelatedSelection[people.Member]) orm.RelatedSelect[people.Member, people.Member] {
 	return orm.SelectNullableForward(_factory.reviewer).WithChildren(_children...)
 }
@@ -1514,6 +1734,32 @@ func (_factory PeopleMemberObjectFactory) selectionInputs(_paths []string) ([]or
 					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
 				}
 				_children, _err := _factory._projectSelections.PeopleMember.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "membership":
+			_selection := _factory.SelectMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "nullable_membership":
+			_selection := _factory.SelectNullableMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
 				if _err != nil {
 					return nil, _err
 				}
@@ -1714,6 +1960,24 @@ func (_factory PeopleMemberObjectFactory) FromSelected(_selected *orm.RelatedSel
 		}
 		_object.leader = _related
 	}
+	if _has, _err := _selected.HasSelection("membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.membership = _related
+	}
+	if _has, _err := _selected.HasSelection("nullable_membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectNullableMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.nullableMembership = _related
+	}
 	if _has, _err := _selected.HasSelection("reviewer"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -1777,6 +2041,54 @@ func (_object *PeopleMemberObject) LeaderObject(_ctx context.Context) (*PeopleMe
 		_target, _err = _object.factory._projectSelections.PeopleMember.FromSelected(_graph)
 	} else {
 		_target, _err = _object.factory._projectSelections.PeopleMember.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *PeopleMemberObject) MembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.Membership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.membership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *PeopleMemberObject) NullableMembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.NullableMembership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.nullableMembership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
 	}
 	if _err != nil {
 		return nil, false, _err
@@ -2634,4 +2946,4 @@ func (_object *TicketsTicketObject) ProtectedGrantLinkObject(_ctx context.Contex
 	return _target, true, nil
 }
 
-var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ goDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

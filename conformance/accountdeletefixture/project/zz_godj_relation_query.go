@@ -15,33 +15,39 @@ const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project
 
 type relationQueryBindings struct {
 	edge0  orm.QueryRelation[access.Grant, people.Member]
-	edge1  orm.QueryRelation[access.Grant, people.Member]
-	edge2  orm.QueryRelation[access.Grant, access.Team]
-	edge3  orm.QueryRelation[access.Team, people.Member]
-	edge4  orm.QueryRelation[access.Team, access.Grant]
+	edge1  orm.QueryRelation[access.Grant, links.Membership]
+	edge2  orm.QueryRelation[access.Grant, links.Membership]
+	edge3  orm.QueryRelation[access.Grant, people.Member]
+	edge4  orm.QueryRelation[access.Grant, access.Team]
 	edge5  orm.QueryRelation[access.Team, people.Member]
-	edge6  orm.QueryRelation[links.GrantLink, people.Member]
-	edge7  orm.QueryRelation[links.GrantLink, access.Grant]
-	edge8  orm.QueryRelation[links.GrantLink, access.Team]
-	edge9  orm.QueryRelation[links.Membership, people.Member]
-	edge10 orm.QueryRelation[links.Membership, links.GrantLink]
-	edge11 orm.QueryRelation[links.Membership, people.Member]
-	edge12 orm.QueryRelation[links.Membership, access.Team]
-	edge13 orm.QueryRelation[people.Member, access.Grant]
-	edge14 orm.QueryRelation[people.Member, access.Grant]
-	edge15 orm.QueryRelation[people.Member, people.Member]
-	edge16 orm.QueryRelation[people.Member, people.Member]
-	edge17 orm.QueryRelation[people.Member, access.Team]
-	edge18 orm.QueryRelation[people.Member, access.Team]
-	edge19 orm.QueryRelation[people.Member, tickets.Ticket]
-	edge20 orm.QueryRelation[people.MemberGrantsLink, people.Member]
-	edge21 orm.QueryRelation[people.MemberGrantsLink, access.Grant]
-	edge22 orm.QueryRelation[tickets.Ticket, links.GrantLink]
-	edge23 orm.QueryRelation[tickets.Ticket, links.Membership]
-	edge24 orm.QueryRelation[tickets.Ticket, links.GrantLink]
-	edge25 orm.QueryRelation[tickets.Ticket, links.Membership]
-	edge26 orm.QueryRelation[tickets.Ticket, people.Member]
-	edge27 orm.QueryRelation[tickets.Ticket, links.GrantLink]
+	edge6  orm.QueryRelation[access.Team, access.Grant]
+	edge7  orm.QueryRelation[access.Team, links.Membership]
+	edge8  orm.QueryRelation[access.Team, links.Membership]
+	edge9  orm.QueryRelation[access.Team, people.Member]
+	edge10 orm.QueryRelation[links.GrantLink, people.Member]
+	edge11 orm.QueryRelation[links.GrantLink, access.Grant]
+	edge12 orm.QueryRelation[links.GrantLink, access.Team]
+	edge13 orm.QueryRelation[links.Membership, people.Member]
+	edge14 orm.QueryRelation[links.Membership, links.GrantLink]
+	edge15 orm.QueryRelation[links.Membership, people.Member]
+	edge16 orm.QueryRelation[links.Membership, access.Team]
+	edge17 orm.QueryRelation[people.Member, access.Grant]
+	edge18 orm.QueryRelation[people.Member, access.Grant]
+	edge19 orm.QueryRelation[people.Member, people.Member]
+	edge20 orm.QueryRelation[people.Member, links.Membership]
+	edge21 orm.QueryRelation[people.Member, links.Membership]
+	edge22 orm.QueryRelation[people.Member, people.Member]
+	edge23 orm.QueryRelation[people.Member, access.Team]
+	edge24 orm.QueryRelation[people.Member, access.Team]
+	edge25 orm.QueryRelation[people.Member, tickets.Ticket]
+	edge26 orm.QueryRelation[people.MemberGrantsLink, people.Member]
+	edge27 orm.QueryRelation[people.MemberGrantsLink, access.Grant]
+	edge28 orm.QueryRelation[tickets.Ticket, links.GrantLink]
+	edge29 orm.QueryRelation[tickets.Ticket, links.Membership]
+	edge30 orm.QueryRelation[tickets.Ticket, links.GrantLink]
+	edge31 orm.QueryRelation[tickets.Ticket, links.Membership]
+	edge32 orm.QueryRelation[tickets.Ticket, people.Member]
+	edge33 orm.QueryRelation[tickets.Ticket, links.GrantLink]
 }
 type AccessGrantRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
@@ -97,17 +103,31 @@ func (_fields AccessGrantRelatedFields[S]) Issuer() PeopleMemberRelatedFields[S]
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
+func (_fields AccessGrantRelatedFields[S]) Membership() LinksMembershipRelatedFields[S] {
+	var _next orm.QueryRelation[access.Grant, links.Membership]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields AccessGrantRelatedFields[S]) NullableMembership() LinksMembershipRelatedFields[S] {
+	var _next orm.QueryRelation[access.Grant, links.Membership]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge2
+	}
+	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
 func (_fields AccessGrantRelatedFields[S]) Reviewer() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[access.Grant, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge1
+		_next = _fields.bindings.edge3
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccessGrantRelatedFields[S]) Team() AccessTeamRelatedFields[S] {
 	var _next orm.QueryRelation[access.Grant, access.Team]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge2
+		_next = _fields.bindings.edge4
 	}
 	return newAccessTeamRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -156,21 +176,35 @@ func (_fields AccessTeamRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
 func (_fields AccessTeamRelatedFields[S]) Creator() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[access.Team, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge3
+		_next = _fields.bindings.edge5
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccessTeamRelatedFields[S]) Grants() AccessGrantRelatedFields[S] {
 	var _next orm.QueryRelation[access.Team, access.Grant]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge4
+		_next = _fields.bindings.edge6
 	}
 	return newAccessGrantRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields AccessTeamRelatedFields[S]) Membership() LinksMembershipRelatedFields[S] {
+	var _next orm.QueryRelation[access.Team, links.Membership]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge7
+	}
+	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields AccessTeamRelatedFields[S]) NullableMembership() LinksMembershipRelatedFields[S] {
+	var _next orm.QueryRelation[access.Team, links.Membership]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge8
+	}
+	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccessTeamRelatedFields[S]) Reviewer() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[access.Team, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge5
+		_next = _fields.bindings.edge9
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -201,21 +235,21 @@ func (_fields LinksGrantLinkRelatedFields[S]) LockTarget() orm.RowLockTarget[S] 
 func (_fields LinksGrantLinkRelatedFields[S]) Anchor() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[links.GrantLink, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge6
+		_next = _fields.bindings.edge10
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields LinksGrantLinkRelatedFields[S]) Grant() AccessGrantRelatedFields[S] {
 	var _next orm.QueryRelation[links.GrantLink, access.Grant]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge7
+		_next = _fields.bindings.edge11
 	}
 	return newAccessGrantRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields LinksGrantLinkRelatedFields[S]) Team() AccessTeamRelatedFields[S] {
 	var _next orm.QueryRelation[links.GrantLink, access.Team]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge8
+		_next = _fields.bindings.edge12
 	}
 	return newAccessTeamRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -246,28 +280,28 @@ func (_fields LinksMembershipRelatedFields[S]) LockTarget() orm.RowLockTarget[S]
 func (_fields LinksMembershipRelatedFields[S]) Anchor() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[links.Membership, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge9
+		_next = _fields.bindings.edge13
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields LinksMembershipRelatedFields[S]) DependsOn() LinksGrantLinkRelatedFields[S] {
 	var _next orm.QueryRelation[links.Membership, links.GrantLink]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge10
+		_next = _fields.bindings.edge14
 	}
 	return newLinksGrantLinkRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields LinksMembershipRelatedFields[S]) Member() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[links.Membership, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge11
+		_next = _fields.bindings.edge15
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields LinksMembershipRelatedFields[S]) Team() AccessTeamRelatedFields[S] {
 	var _next orm.QueryRelation[links.Membership, access.Team]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge12
+		_next = _fields.bindings.edge16
 	}
 	return newAccessTeamRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -346,49 +380,63 @@ func (_fields PeopleMemberRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
 func (_fields PeopleMemberRelatedFields[S]) GrantRef() AccessGrantRelatedFields[S] {
 	var _next orm.QueryRelation[people.Member, access.Grant]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge13
+		_next = _fields.bindings.edge17
 	}
 	return newAccessGrantRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields PeopleMemberRelatedFields[S]) Grants() AccessGrantRelatedFields[S] {
 	var _next orm.QueryRelation[people.Member, access.Grant]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge14
+		_next = _fields.bindings.edge18
 	}
 	return newAccessGrantRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields PeopleMemberRelatedFields[S]) Leader() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[people.Member, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge15
+		_next = _fields.bindings.edge19
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields PeopleMemberRelatedFields[S]) Membership() LinksMembershipRelatedFields[S] {
+	var _next orm.QueryRelation[people.Member, links.Membership]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge20
+	}
+	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+func (_fields PeopleMemberRelatedFields[S]) NullableMembership() LinksMembershipRelatedFields[S] {
+	var _next orm.QueryRelation[people.Member, links.Membership]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge21
+	}
+	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields PeopleMemberRelatedFields[S]) Reviewer() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[people.Member, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge16
+		_next = _fields.bindings.edge22
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields PeopleMemberRelatedFields[S]) Sponsor() AccessTeamRelatedFields[S] {
 	var _next orm.QueryRelation[people.Member, access.Team]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge17
+		_next = _fields.bindings.edge23
 	}
 	return newAccessTeamRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields PeopleMemberRelatedFields[S]) Teams() AccessTeamRelatedFields[S] {
 	var _next orm.QueryRelation[people.Member, access.Team]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge18
+		_next = _fields.bindings.edge24
 	}
 	return newAccessTeamRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields PeopleMemberRelatedFields[S]) Tickets() TicketsTicketRelatedFields[S] {
 	var _next orm.QueryRelation[people.Member, tickets.Ticket]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge19
+		_next = _fields.bindings.edge25
 	}
 	return newTicketsTicketRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
@@ -425,51 +473,53 @@ func (_fields TicketsTicketRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
 func (_fields TicketsTicketRelatedFields[S]) GrantLink() LinksGrantLinkRelatedFields[S] {
 	var _next orm.QueryRelation[tickets.Ticket, links.GrantLink]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge22
+		_next = _fields.bindings.edge28
 	}
 	return newLinksGrantLinkRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields TicketsTicketRelatedFields[S]) Membership() LinksMembershipRelatedFields[S] {
 	var _next orm.QueryRelation[tickets.Ticket, links.Membership]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge23
+		_next = _fields.bindings.edge29
 	}
 	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields TicketsTicketRelatedFields[S]) NullableGrantLink() LinksGrantLinkRelatedFields[S] {
 	var _next orm.QueryRelation[tickets.Ticket, links.GrantLink]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge24
+		_next = _fields.bindings.edge30
 	}
 	return newLinksGrantLinkRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields TicketsTicketRelatedFields[S]) NullableMembership() LinksMembershipRelatedFields[S] {
 	var _next orm.QueryRelation[tickets.Ticket, links.Membership]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge25
+		_next = _fields.bindings.edge31
 	}
 	return newLinksMembershipRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields TicketsTicketRelatedFields[S]) Owner() PeopleMemberRelatedFields[S] {
 	var _next orm.QueryRelation[tickets.Ticket, people.Member]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge26
+		_next = _fields.bindings.edge32
 	}
 	return newPeopleMemberRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields TicketsTicketRelatedFields[S]) ProtectedGrantLink() LinksGrantLinkRelatedFields[S] {
 	var _next orm.QueryRelation[tickets.Ticket, links.GrantLink]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge27
+		_next = _fields.bindings.edge33
 	}
 	return newLinksGrantLinkRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
 type AccessGrantRelations struct {
-	Issuer   PeopleMemberRelatedFields[access.Grant]
-	Reviewer PeopleMemberRelatedFields[access.Grant]
-	Team     AccessTeamRelatedFields[access.Grant]
-	model    orm.BoundModel[access.Grant]
+	Issuer             PeopleMemberRelatedFields[access.Grant]
+	Membership         LinksMembershipRelatedFields[access.Grant]
+	NullableMembership LinksMembershipRelatedFields[access.Grant]
+	Reviewer           PeopleMemberRelatedFields[access.Grant]
+	Team               AccessTeamRelatedFields[access.Grant]
+	model              orm.BoundModel[access.Grant]
 }
 
 func (_relations AccessGrantRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[access.Grant], error) {
@@ -477,10 +527,12 @@ func (_relations AccessGrantRelations) ParseDynamic(_policy orm.LookupPolicy, _i
 }
 
 type AccessTeamRelations struct {
-	Creator  PeopleMemberRelatedFields[access.Team]
-	Grants   AccessGrantRelatedFields[access.Team]
-	Reviewer PeopleMemberRelatedFields[access.Team]
-	model    orm.BoundModel[access.Team]
+	Creator            PeopleMemberRelatedFields[access.Team]
+	Grants             AccessGrantRelatedFields[access.Team]
+	Membership         LinksMembershipRelatedFields[access.Team]
+	NullableMembership LinksMembershipRelatedFields[access.Team]
+	Reviewer           PeopleMemberRelatedFields[access.Team]
+	model              orm.BoundModel[access.Team]
 }
 
 func (_relations AccessTeamRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[access.Team], error) {
@@ -511,14 +563,16 @@ func (_relations LinksMembershipRelations) ParseDynamic(_policy orm.LookupPolicy
 }
 
 type PeopleMemberRelations struct {
-	GrantRef AccessGrantRelatedFields[people.Member]
-	Grants   AccessGrantRelatedFields[people.Member]
-	Leader   PeopleMemberRelatedFields[people.Member]
-	Reviewer PeopleMemberRelatedFields[people.Member]
-	Sponsor  AccessTeamRelatedFields[people.Member]
-	Teams    AccessTeamRelatedFields[people.Member]
-	Tickets  TicketsTicketRelatedFields[people.Member]
-	model    orm.BoundModel[people.Member]
+	GrantRef           AccessGrantRelatedFields[people.Member]
+	Grants             AccessGrantRelatedFields[people.Member]
+	Leader             PeopleMemberRelatedFields[people.Member]
+	Membership         LinksMembershipRelatedFields[people.Member]
+	NullableMembership LinksMembershipRelatedFields[people.Member]
+	Reviewer           PeopleMemberRelatedFields[people.Member]
+	Sponsor            AccessTeamRelatedFields[people.Member]
+	Teams              AccessTeamRelatedFields[people.Member]
+	Tickets            TicketsTicketRelatedFields[people.Member]
+	model              orm.BoundModel[people.Member]
 }
 
 func (_relations PeopleMemberRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[people.Member], error) {
@@ -626,158 +680,188 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindQueryRelation(_model0, "reviewer", _model4)
+	_relation1, _err := orm.BindQueryRelation(_model0, "membership", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_relation2, _err := orm.BindQueryRelation(_model0, "team", _model1)
+	_relation2, _err := orm.BindQueryRelation(_model0, "nullable_membership", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge2 = _relation2
-	_relation3, _err := orm.BindQueryRelation(_model1, "creator", _model4)
+	_relation3, _err := orm.BindQueryRelation(_model0, "reviewer", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge3 = _relation3
-	_relation4, _err := orm.BindQueryRelation(_model1, "grants", _model0)
+	_relation4, _err := orm.BindQueryRelation(_model0, "team", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge4 = _relation4
-	_relation5, _err := orm.BindQueryRelation(_model1, "reviewer", _model4)
+	_relation5, _err := orm.BindQueryRelation(_model1, "creator", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge5 = _relation5
-	_relation6, _err := orm.BindQueryRelation(_model2, "anchor", _model4)
+	_relation6, _err := orm.BindQueryRelation(_model1, "grants", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge6 = _relation6
-	_relation7, _err := orm.BindQueryRelation(_model2, "grant", _model0)
+	_relation7, _err := orm.BindQueryRelation(_model1, "membership", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge7 = _relation7
-	_relation8, _err := orm.BindQueryRelation(_model2, "team", _model1)
+	_relation8, _err := orm.BindQueryRelation(_model1, "nullable_membership", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge8 = _relation8
-	_relation9, _err := orm.BindQueryRelation(_model3, "anchor", _model4)
+	_relation9, _err := orm.BindQueryRelation(_model1, "reviewer", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge9 = _relation9
-	_relation10, _err := orm.BindQueryRelation(_model3, "depends_on", _model2)
+	_relation10, _err := orm.BindQueryRelation(_model2, "anchor", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge10 = _relation10
-	_relation11, _err := orm.BindQueryRelation(_model3, "member", _model4)
+	_relation11, _err := orm.BindQueryRelation(_model2, "grant", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge11 = _relation11
-	_relation12, _err := orm.BindQueryRelation(_model3, "team", _model1)
+	_relation12, _err := orm.BindQueryRelation(_model2, "team", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge12 = _relation12
-	_relation13, _err := orm.BindQueryRelation(_model4, "grant_ref", _model0)
+	_relation13, _err := orm.BindQueryRelation(_model3, "anchor", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge13 = _relation13
-	_relation14, _err := orm.BindQueryRelation(_model4, "grants", _model0)
+	_relation14, _err := orm.BindQueryRelation(_model3, "depends_on", _model2)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge14 = _relation14
-	_relation15, _err := orm.BindQueryRelation(_model4, "leader", _model4)
+	_relation15, _err := orm.BindQueryRelation(_model3, "member", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge15 = _relation15
-	_relation16, _err := orm.BindQueryRelation(_model4, "reviewer", _model4)
+	_relation16, _err := orm.BindQueryRelation(_model3, "team", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge16 = _relation16
-	_relation17, _err := orm.BindQueryRelation(_model4, "sponsor", _model1)
+	_relation17, _err := orm.BindQueryRelation(_model4, "grant_ref", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge17 = _relation17
-	_relation18, _err := orm.BindQueryRelation(_model4, "teams", _model1)
+	_relation18, _err := orm.BindQueryRelation(_model4, "grants", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge18 = _relation18
-	_relation19, _err := orm.BindQueryRelation(_model4, "tickets", _model6)
+	_relation19, _err := orm.BindQueryRelation(_model4, "leader", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge19 = _relation19
-	_relation20, _err := orm.BindQueryRelation(_model5, "source", _model4)
+	_relation20, _err := orm.BindQueryRelation(_model4, "membership", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge20 = _relation20
-	_relation21, _err := orm.BindQueryRelation(_model5, "target", _model0)
+	_relation21, _err := orm.BindQueryRelation(_model4, "nullable_membership", _model3)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge21 = _relation21
-	_relation22, _err := orm.BindQueryRelation(_model6, "grant_link", _model2)
+	_relation22, _err := orm.BindQueryRelation(_model4, "reviewer", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge22 = _relation22
-	_relation23, _err := orm.BindQueryRelation(_model6, "membership", _model3)
+	_relation23, _err := orm.BindQueryRelation(_model4, "sponsor", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge23 = _relation23
-	_relation24, _err := orm.BindQueryRelation(_model6, "nullable_grant_link", _model2)
+	_relation24, _err := orm.BindQueryRelation(_model4, "teams", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge24 = _relation24
-	_relation25, _err := orm.BindQueryRelation(_model6, "nullable_membership", _model3)
+	_relation25, _err := orm.BindQueryRelation(_model4, "tickets", _model6)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge25 = _relation25
-	_relation26, _err := orm.BindQueryRelation(_model6, "owner", _model4)
+	_relation26, _err := orm.BindQueryRelation(_model5, "source", _model4)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge26 = _relation26
-	_relation27, _err := orm.BindQueryRelation(_model6, "protected_grant_link", _model2)
+	_relation27, _err := orm.BindQueryRelation(_model5, "target", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge27 = _relation27
+	_relation28, _err := orm.BindQueryRelation(_model6, "grant_link", _model2)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge28 = _relation28
+	_relation29, _err := orm.BindQueryRelation(_model6, "membership", _model3)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge29 = _relation29
+	_relation30, _err := orm.BindQueryRelation(_model6, "nullable_grant_link", _model2)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge30 = _relation30
+	_relation31, _err := orm.BindQueryRelation(_model6, "nullable_membership", _model3)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge31 = _relation31
+	_relation32, _err := orm.BindQueryRelation(_model6, "owner", _model4)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge32 = _relation32
+	_relation33, _err := orm.BindQueryRelation(_model6, "protected_grant_link", _model2)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge33 = _relation33
 	_group0 := newPeopleMemberRelatedFields[access.Grant](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
-	_group1 := newPeopleMemberRelatedFields[access.Grant](_routes, _routes.edge1)
+	_group1 := newLinksMembershipRelatedFields[access.Grant](_routes, _routes.edge1)
 	if _group1.configurationErr != nil {
 		return Relations{}, _group1.configurationErr
 	}
-	_group2 := newAccessTeamRelatedFields[access.Grant](_routes, _routes.edge2)
+	_group2 := newLinksMembershipRelatedFields[access.Grant](_routes, _routes.edge2)
 	if _group2.configurationErr != nil {
 		return Relations{}, _group2.configurationErr
 	}
-	_group3 := newPeopleMemberRelatedFields[access.Team](_routes, _routes.edge3)
+	_group3 := newPeopleMemberRelatedFields[access.Grant](_routes, _routes.edge3)
 	if _group3.configurationErr != nil {
 		return Relations{}, _group3.configurationErr
 	}
-	_group4 := newAccessGrantRelatedFields[access.Team](_routes, _routes.edge4)
+	_group4 := newAccessTeamRelatedFields[access.Grant](_routes, _routes.edge4)
 	if _group4.configurationErr != nil {
 		return Relations{}, _group4.configurationErr
 	}
@@ -785,138 +869,168 @@ func BindRelations() (Relations, error) {
 	if _group5.configurationErr != nil {
 		return Relations{}, _group5.configurationErr
 	}
-	_group6 := newPeopleMemberRelatedFields[links.GrantLink](_routes, _routes.edge6)
+	_group6 := newAccessGrantRelatedFields[access.Team](_routes, _routes.edge6)
 	if _group6.configurationErr != nil {
 		return Relations{}, _group6.configurationErr
 	}
-	_group7 := newAccessGrantRelatedFields[links.GrantLink](_routes, _routes.edge7)
+	_group7 := newLinksMembershipRelatedFields[access.Team](_routes, _routes.edge7)
 	if _group7.configurationErr != nil {
 		return Relations{}, _group7.configurationErr
 	}
-	_group8 := newAccessTeamRelatedFields[links.GrantLink](_routes, _routes.edge8)
+	_group8 := newLinksMembershipRelatedFields[access.Team](_routes, _routes.edge8)
 	if _group8.configurationErr != nil {
 		return Relations{}, _group8.configurationErr
 	}
-	_group9 := newPeopleMemberRelatedFields[links.Membership](_routes, _routes.edge9)
+	_group9 := newPeopleMemberRelatedFields[access.Team](_routes, _routes.edge9)
 	if _group9.configurationErr != nil {
 		return Relations{}, _group9.configurationErr
 	}
-	_group10 := newLinksGrantLinkRelatedFields[links.Membership](_routes, _routes.edge10)
+	_group10 := newPeopleMemberRelatedFields[links.GrantLink](_routes, _routes.edge10)
 	if _group10.configurationErr != nil {
 		return Relations{}, _group10.configurationErr
 	}
-	_group11 := newPeopleMemberRelatedFields[links.Membership](_routes, _routes.edge11)
+	_group11 := newAccessGrantRelatedFields[links.GrantLink](_routes, _routes.edge11)
 	if _group11.configurationErr != nil {
 		return Relations{}, _group11.configurationErr
 	}
-	_group12 := newAccessTeamRelatedFields[links.Membership](_routes, _routes.edge12)
+	_group12 := newAccessTeamRelatedFields[links.GrantLink](_routes, _routes.edge12)
 	if _group12.configurationErr != nil {
 		return Relations{}, _group12.configurationErr
 	}
-	_group13 := newAccessGrantRelatedFields[people.Member](_routes, _routes.edge13)
+	_group13 := newPeopleMemberRelatedFields[links.Membership](_routes, _routes.edge13)
 	if _group13.configurationErr != nil {
 		return Relations{}, _group13.configurationErr
 	}
-	_group14 := newAccessGrantRelatedFields[people.Member](_routes, _routes.edge14)
+	_group14 := newLinksGrantLinkRelatedFields[links.Membership](_routes, _routes.edge14)
 	if _group14.configurationErr != nil {
 		return Relations{}, _group14.configurationErr
 	}
-	_group15 := newPeopleMemberRelatedFields[people.Member](_routes, _routes.edge15)
+	_group15 := newPeopleMemberRelatedFields[links.Membership](_routes, _routes.edge15)
 	if _group15.configurationErr != nil {
 		return Relations{}, _group15.configurationErr
 	}
-	_group16 := newPeopleMemberRelatedFields[people.Member](_routes, _routes.edge16)
+	_group16 := newAccessTeamRelatedFields[links.Membership](_routes, _routes.edge16)
 	if _group16.configurationErr != nil {
 		return Relations{}, _group16.configurationErr
 	}
-	_group17 := newAccessTeamRelatedFields[people.Member](_routes, _routes.edge17)
+	_group17 := newAccessGrantRelatedFields[people.Member](_routes, _routes.edge17)
 	if _group17.configurationErr != nil {
 		return Relations{}, _group17.configurationErr
 	}
-	_group18 := newAccessTeamRelatedFields[people.Member](_routes, _routes.edge18)
+	_group18 := newAccessGrantRelatedFields[people.Member](_routes, _routes.edge18)
 	if _group18.configurationErr != nil {
 		return Relations{}, _group18.configurationErr
 	}
-	_group19 := newTicketsTicketRelatedFields[people.Member](_routes, _routes.edge19)
+	_group19 := newPeopleMemberRelatedFields[people.Member](_routes, _routes.edge19)
 	if _group19.configurationErr != nil {
 		return Relations{}, _group19.configurationErr
 	}
-	_group20 := newPeopleMemberRelatedFields[people.MemberGrantsLink](_routes, _routes.edge20)
+	_group20 := newLinksMembershipRelatedFields[people.Member](_routes, _routes.edge20)
 	if _group20.configurationErr != nil {
 		return Relations{}, _group20.configurationErr
 	}
-	_group21 := newAccessGrantRelatedFields[people.MemberGrantsLink](_routes, _routes.edge21)
+	_group21 := newLinksMembershipRelatedFields[people.Member](_routes, _routes.edge21)
 	if _group21.configurationErr != nil {
 		return Relations{}, _group21.configurationErr
 	}
-	_group22 := newLinksGrantLinkRelatedFields[tickets.Ticket](_routes, _routes.edge22)
+	_group22 := newPeopleMemberRelatedFields[people.Member](_routes, _routes.edge22)
 	if _group22.configurationErr != nil {
 		return Relations{}, _group22.configurationErr
 	}
-	_group23 := newLinksMembershipRelatedFields[tickets.Ticket](_routes, _routes.edge23)
+	_group23 := newAccessTeamRelatedFields[people.Member](_routes, _routes.edge23)
 	if _group23.configurationErr != nil {
 		return Relations{}, _group23.configurationErr
 	}
-	_group24 := newLinksGrantLinkRelatedFields[tickets.Ticket](_routes, _routes.edge24)
+	_group24 := newAccessTeamRelatedFields[people.Member](_routes, _routes.edge24)
 	if _group24.configurationErr != nil {
 		return Relations{}, _group24.configurationErr
 	}
-	_group25 := newLinksMembershipRelatedFields[tickets.Ticket](_routes, _routes.edge25)
+	_group25 := newTicketsTicketRelatedFields[people.Member](_routes, _routes.edge25)
 	if _group25.configurationErr != nil {
 		return Relations{}, _group25.configurationErr
 	}
-	_group26 := newPeopleMemberRelatedFields[tickets.Ticket](_routes, _routes.edge26)
+	_group26 := newPeopleMemberRelatedFields[people.MemberGrantsLink](_routes, _routes.edge26)
 	if _group26.configurationErr != nil {
 		return Relations{}, _group26.configurationErr
 	}
-	_group27 := newLinksGrantLinkRelatedFields[tickets.Ticket](_routes, _routes.edge27)
+	_group27 := newAccessGrantRelatedFields[people.MemberGrantsLink](_routes, _routes.edge27)
 	if _group27.configurationErr != nil {
 		return Relations{}, _group27.configurationErr
 	}
+	_group28 := newLinksGrantLinkRelatedFields[tickets.Ticket](_routes, _routes.edge28)
+	if _group28.configurationErr != nil {
+		return Relations{}, _group28.configurationErr
+	}
+	_group29 := newLinksMembershipRelatedFields[tickets.Ticket](_routes, _routes.edge29)
+	if _group29.configurationErr != nil {
+		return Relations{}, _group29.configurationErr
+	}
+	_group30 := newLinksGrantLinkRelatedFields[tickets.Ticket](_routes, _routes.edge30)
+	if _group30.configurationErr != nil {
+		return Relations{}, _group30.configurationErr
+	}
+	_group31 := newLinksMembershipRelatedFields[tickets.Ticket](_routes, _routes.edge31)
+	if _group31.configurationErr != nil {
+		return Relations{}, _group31.configurationErr
+	}
+	_group32 := newPeopleMemberRelatedFields[tickets.Ticket](_routes, _routes.edge32)
+	if _group32.configurationErr != nil {
+		return Relations{}, _group32.configurationErr
+	}
+	_group33 := newLinksGrantLinkRelatedFields[tickets.Ticket](_routes, _routes.edge33)
+	if _group33.configurationErr != nil {
+		return Relations{}, _group33.configurationErr
+	}
 	return Relations{
 		AccessGrant: AccessGrantRelations{model: _model0,
-			Issuer:   _group0,
-			Reviewer: _group1,
-			Team:     _group2,
+			Issuer:             _group0,
+			Membership:         _group1,
+			NullableMembership: _group2,
+			Reviewer:           _group3,
+			Team:               _group4,
 		},
 		AccessTeam: AccessTeamRelations{model: _model1,
-			Creator:  _group3,
-			Grants:   _group4,
-			Reviewer: _group5,
+			Creator:            _group5,
+			Grants:             _group6,
+			Membership:         _group7,
+			NullableMembership: _group8,
+			Reviewer:           _group9,
 		},
 		LinksGrantLink: LinksGrantLinkRelations{model: _model2,
-			Anchor: _group6,
-			Grant:  _group7,
-			Team:   _group8,
+			Anchor: _group10,
+			Grant:  _group11,
+			Team:   _group12,
 		},
 		LinksMembership: LinksMembershipRelations{model: _model3,
-			Anchor:    _group9,
-			DependsOn: _group10,
-			Member:    _group11,
-			Team:      _group12,
+			Anchor:    _group13,
+			DependsOn: _group14,
+			Member:    _group15,
+			Team:      _group16,
 		},
 		PeopleMember: PeopleMemberRelations{model: _model4,
-			GrantRef: _group13,
-			Grants:   _group14,
-			Leader:   _group15,
-			Reviewer: _group16,
-			Sponsor:  _group17,
-			Teams:    _group18,
-			Tickets:  _group19,
+			GrantRef:           _group17,
+			Grants:             _group18,
+			Leader:             _group19,
+			Membership:         _group20,
+			NullableMembership: _group21,
+			Reviewer:           _group22,
+			Sponsor:            _group23,
+			Teams:              _group24,
+			Tickets:            _group25,
 		},
 		PeopleMemberGrantsLink: PeopleMemberGrantsLinkRelations{model: _model5,
-			Source: _group20,
-			Target: _group21,
+			Source: _group26,
+			Target: _group27,
 		},
 		TicketsTicket: TicketsTicketRelations{model: _model6,
-			GrantLink:          _group22,
-			Membership:         _group23,
-			NullableGrantLink:  _group24,
-			NullableMembership: _group25,
-			Owner:              _group26,
-			ProtectedGrantLink: _group27,
+			GrantLink:          _group28,
+			Membership:         _group29,
+			NullableGrantLink:  _group30,
+			NullableMembership: _group31,
+			Owner:              _group32,
+			ProtectedGrantLink: _group33,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ goDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

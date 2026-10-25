@@ -9,9 +9,9 @@
 
 ## 다음
 
-1. Migration 순환 분리·HTTP 검증 순서·PostgreSQL fixture 수정을 포함한 계정/catalog 삭제와 공통 collection batch를 새 source의 원격 CI에서 확인한다.
-2. 준비한 collection batch의 전체 효과와 계정/catalog 편집의 최종 후보·권한·revision·session·audit를 통합한다.
-3. 최초 계정 Command/runtime의 공개 터미널/상위 프로세스·scaffold 전환, 공통 Admin/HTTP 조립과 프로필 관계/파일·채운 DB 전환·통합 restart를 완성한다.
+1. Collection 편집·catalog 생성/삭제의 전체 수명 통합과 CI fixture 보정을 같은 source의 원격 CI에서 확인한다.
+2. 최초 계정 Command/runtime의 공개 터미널/상위 프로세스·scaffold를 전환하고 공통 Admin/HTTP를 조립한다.
+3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치/startup·통합 restart의 남은 요구를 완성한다.
 
 ## 검증 경계
 

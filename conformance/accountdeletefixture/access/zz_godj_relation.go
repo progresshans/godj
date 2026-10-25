@@ -5,7 +5,7 @@ package access
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "045e5c2590fddd44dbe5b09463582b96a2e80af922ad3f67af70c011ceef77f9"
+const GoDjRelationSchemaSHA256 = "af7108c231b2ee3f93c845078b8e6a1e6e2adeea690e8564b333c893208404f1"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -53,6 +53,32 @@ func GoDjRelationSchema() ir.Schema {
 						Kind:    ir.FieldText,
 						Blank:   true,
 						Default: &ir.Scalar{Kind: ir.ScalarString, String: ""},
+					},
+					{
+						Name:     "membership",
+						GoName:   "MembershipID",
+						Column:   "membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+					{
+						Name:     "nullable_membership",
+						GoName:   "NullableMembershipID",
+						Column:   "nullable_membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteSetNull,
+						},
 					},
 					{
 						Name:     "issuer",
@@ -130,6 +156,32 @@ func GoDjRelationSchema() ir.Schema {
 						Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: 1},
 					},
 					{
+						Name:     "membership",
+						GoName:   "MembershipID",
+						Column:   "membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+					{
+						Name:     "nullable_membership",
+						GoName:   "NullableMembershipID",
+						Column:   "nullable_membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteSetNull,
+						},
+					},
+					{
 						Name:     "creator",
 						GoName:   "CreatorID",
 						Column:   "creator_id",
@@ -164,6 +216,6 @@ func GoDjRelationSchema() ir.Schema {
 	}
 }
 
-type GoDjAppPart1_f7a1ced9b428e7bd1c68c29104270bc77aac7808220294f80710cc99d1da39c9 struct{}
+type GoDjAppPart1_4ef2ff5ead1bac645b388e339a48db6096fca4c4be87399b65ad0a5726b0c704 struct{}
 
-var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

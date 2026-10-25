@@ -5,7 +5,7 @@ package people
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "8b136ffc9c391735dc4e23d195a77feb6ca6be4e21660930d2767016f17f4fb4"
+const GoDjRelationSchemaSHA256 = "7ccbd781a71d408e8f94f62c766de08ae6057005edbf72a95c1b4fccd1a3b809"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -83,6 +83,32 @@ func GoDjRelationSchema() ir.Schema {
 						MaxLength: 24,
 					},
 					{
+						Name:     "membership",
+						GoName:   "MembershipID",
+						Column:   "membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+					{
+						Name:     "nullable_membership",
+						GoName:   "NullableMembershipID",
+						Column:   "nullable_membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteSetNull,
+						},
+					},
+					{
 						Name:     "leader",
 						GoName:   "LeaderID",
 						Column:   "leader_id",
@@ -144,6 +170,6 @@ func GoDjRelationSchema() ir.Schema {
 	}
 }
 
-type GoDjAppPart1_8cd2398715d3bb754ce73d9625abdc2fef5cd634ee9e48e4afa38ebf8bcb7bbd struct{}
+type GoDjAppPart1_de3d33afc5b22cb7560f7b19d73e7792c578f5a02dce131437bb07e42e083cae struct{}
 
-var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

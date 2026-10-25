@@ -6,8 +6,6 @@ import (
 	"math"
 	"slices"
 
-	accountaudit "github.com/progresshans/godj/account/audit"
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/crud"
 	"github.com/progresshans/godj/db"
@@ -19,8 +17,9 @@ import (
 // CatalogChange exposes only confirmed mutation metadata, not an implicit read
 // of a model whose view permission the writer might not hold.
 type CatalogChange struct {
-	ID, Revision  int64
-	ChangedFields []string
+	ID, Revision    int64
+	ChangedFields   []string
+	RevokedSessions int
 }
 type CatalogDeletion struct {
 	ID, Revision, DeletedRows int64
@@ -55,9 +54,9 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 		return CatalogChange{}, err
 	}
 	state := resource.state
-	required, action := state.permissions.change, admin.ActionChange
+	required := state.permissions.change
 	if create {
-		required, action = state.permissions.add, admin.ActionAdd
+		required = state.permissions.add
 	}
 	return managementRelationWrite(ctx, state.shared.writer, func(work context.Context, scope db.RelationSession) (CatalogChange, error) {
 		currentActor, allowed, err := state.shared.authorize(work, scope, actor, required)
@@ -67,113 +66,141 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 		if !allowed {
 			return CatalogChange{}, managementError(CodePermission, nil)
 		}
-		namespace, _ := currentActor.CredentialDomain()
-		var changedCollection bool
-		keys, selected := prepared.Collection(state.collection)
-		options := crud.SaveOptions[M]{Before: func(ctx context.Context, session db.Session, current, candidate *M) error {
-			if candidate == nil || create != (current == nil) {
-				return managementError(CodePersistence, nil)
-			}
-			var before map[string]query.Value
-			var currentKeys []int64
-			if current != nil {
-				var currentID, actual int64
-				before, currentID, actual, err = state.inspect(*current, true)
-				if err != nil {
-					return err
-				}
-				if currentID != id {
-					return managementError(CodePersistence, nil)
-				}
-				if actual != revision {
-					return managementError(CodeConflict, nil)
-				}
-				if state.readKeys != nil {
-					currentKeys, err = state.readKeys(ctx, session, id)
-					if err != nil {
-						return err
-					}
-				}
-			}
-			if selected {
-				if err := state.checkKeys(ctx, session, keys); err != nil {
-					return err
-				}
-				changedCollection = !slices.Equal(currentKeys, keys)
-				if changedCollection && !create {
-					if err := state.checkMembers(ctx, session, namespace, id, keys); err != nil {
-						return err
-					}
-				}
-			}
-			after, _, _, err := state.inspect(*candidate, false)
+		var current *M
+		if !create {
+			row, found, err := state.resource.Get(work, scope, id)
 			if err != nil {
-				return err
+				return CatalogChange{}, err
 			}
-			if err := state.validateCandidate(ctx, session, current, *candidate); err != nil {
-				return err
+			if !found {
+				return CatalogChange{}, managementError(CodeNotFound, nil)
 			}
-			changed := create || changedCollection
-			for _, field := range state.model.Fields {
-				if current != nil && !before[field.Name].Equal(after[field.Name]) {
-					changed = true
-				}
+			_, key, actual, err := state.inspect(row, true)
+			if err != nil || key != id {
+				return CatalogChange{}, managementError(CodePersistence, err)
 			}
-			if changed {
-				next := revision + 1
-				if create {
-					next = 1
-				}
-				updated, err := state.resource.Manager().ApplyValues(*candidate, map[string]query.Value{state.revision: query.Integer(next)})
-				if err != nil {
-					return err
-				}
-				*candidate = updated
+			if actual != revision {
+				return CatalogChange{}, managementError(CodeConflict, nil)
 			}
-			return nil
-		}}
+			current = &row
+		}
+		keys, selected := prepared.Collection(state.collection)
 		if selected {
-			options.Collections = []crud.CollectionSaver[M]{{Field: state.collection, Save: func(ctx context.Context, session db.Session, row M, selected []int64) (bool, error) {
-				if !changedCollection {
-					return false, nil
-				}
-				if err := state.saveKeys(ctx, session, row, selected); err != nil {
-					return false, err
-				}
-				return true, nil
-			}}}
-		}
-		var mutation crud.Mutation[M]
-		if create {
-			mutation, err = state.resource.CreateInSession(work, scope, prepared, options)
-		} else {
-			mutation, err = state.resource.UpdateInSession(work, scope, id, prepared, options)
-		}
-		if err == crud.ErrNotFound {
-			return CatalogChange{}, managementError(CodeNotFound, nil)
-		}
-		if err != nil {
-			return CatalogChange{}, err
-		}
-		_, key, actual, err := state.inspect(mutation.Value, true)
-		if err != nil {
-			return CatalogChange{}, err
-		}
-		changed := make([]string, 0, len(mutation.ChangedFields))
-		for _, name := range mutation.ChangedFields {
-			if state.allowed[name] {
-				changed = append(changed, name)
-			}
-		}
-		if create {
-			changed = slices.Clone(state.writeFields)
-		}
-		if create || len(changed) != 0 {
-			if err := state.audit(work, scope, currentActor, key, action, changed); err != nil {
+			if err := state.checkKeys(work, scope, keys); err != nil {
 				return CatalogChange{}, err
 			}
 		}
-		return CatalogChange{ID: key, Revision: actual, ChangedFields: changed}, nil
+		objects := state.resource.Manager()
+		if create {
+			prepared, err = objects.WithServerValues(prepared, map[string]query.Value{state.revision: query.Integer(1)})
+			if err != nil {
+				return CatalogChange{}, err
+			}
+		}
+		model, err := objects.PrepareInput(prepared, current)
+		if err != nil {
+			return CatalogChange{}, err
+		}
+		candidate, err := model.Model()
+		if err != nil {
+			return CatalogChange{}, err
+		}
+		if _, _, _, err := state.inspect(candidate, false); err != nil {
+			return CatalogChange{}, err
+		}
+		if create {
+			// A generated owner key is needed to inspect any links established
+			// by database rules. This provisional insert and every later refusal
+			// remain under the same native transaction; nothing is published yet.
+			failures, err := model.ValidateUnique(work, scope, candidate)
+			if err != nil {
+				return CatalogChange{}, err
+			}
+			if err := validation.Reject(failures, nil); err != nil {
+				return CatalogChange{}, err
+			}
+			if err := model.Save(work, scope, &candidate); err != nil {
+				return CatalogChange{}, err
+			}
+			_, id, revision, err = state.inspect(candidate, true)
+			if err != nil || revision != 1 {
+				return CatalogChange{}, managementError(CodePersistence, err)
+			}
+			// The final scalar save is now update-only, never a second insert.
+			model, err = objects.PrepareValues(&candidate, nil)
+			if err != nil {
+				return CatalogChange{}, err
+			}
+		}
+		var batch orm.PreparedCollectionChanges
+		var effects orm.CollectionChangeEffects
+		if selected {
+			change, err := state.collectionChange(candidate, keys)
+			if err != nil {
+				return CatalogChange{}, err
+			}
+			batch, err = orm.PrepareCollectionChangesInSession(work, scope, change)
+			if err != nil {
+				return CatalogChange{}, err
+			}
+			if err := batch.ValidateSource(state.shared.project); err != nil {
+				return CatalogChange{}, err
+			}
+			effects = batch.Effects()
+		}
+		fields := model.ChangedFields()
+		if create {
+			fields = slices.Clone(state.writeFields)
+		}
+		values, err := objects.ModelValues(candidate)
+		if err != nil {
+			return CatalogChange{}, err
+		}
+		plan, err := state.shared.prepare(work, scope, currentActor, effects.Deletions(), effects.Insertions(), &lifecycleEdit{
+			key: deletionKey{state.identity, id}, revision: revision, required: required, fields: fields, values: values, created: create,
+		})
+		if err != nil {
+			return CatalogChange{}, err
+		}
+		touch, nextRevision, _ := plan.rootState()
+		final := map[string]query.Value{state.revision: query.Integer(nextRevision)}
+		for _, field := range touch.nulls {
+			final[field] = query.Null()
+		}
+		candidate, err = objects.ApplyValues(candidate, final)
+		if err != nil {
+			return CatalogChange{}, err
+		}
+		if err := state.validateCandidate(work, scope, current, candidate); err != nil {
+			return CatalogChange{}, err
+		}
+		revoked := 0
+		if selected {
+			err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
+				var err error
+				revoked, err = plan.apply(ctx, scope)
+				return err
+			})
+		} else {
+			revoked, err = plan.apply(work, scope)
+		}
+		if err != nil {
+			return CatalogChange{}, err
+		}
+		failures, err := model.ValidateUnique(work, scope, candidate)
+		if err != nil {
+			return CatalogChange{}, err
+		}
+		if err := validation.Reject(failures, nil); err != nil {
+			return CatalogChange{}, err
+		}
+		if err := model.Save(work, scope, &candidate); err != nil {
+			return CatalogChange{}, err
+		}
+		if err := plan.verify(work, scope); err != nil {
+			return CatalogChange{}, err
+		}
+		return CatalogChange{ID: id, Revision: nextRevision, ChangedFields: lifecycleChangedFields(state.model, touch), RevokedSessions: revoked}, nil
 	})
 }
 
@@ -290,13 +317,4 @@ func (resource CatalogResource[M]) Delete(ctx context.Context, actor auth.Princi
 		}
 		return CatalogDeletion{ID: id, Revision: revision, DeletedRows: count, RevokedSessions: revoked}, nil
 	})
-}
-
-func (state *catalogModelState[M]) audit(ctx context.Context, scope db.Session, actor auth.Principal, id int64, action admin.Action, fields []string) error {
-	event, err := accountaudit.Prepare(actor, state.modelName(), id, action, fields, state.shared.now())
-	if err != nil {
-		return err
-	}
-	_, err = accountaudit.AppendIn(ctx, scope, event)
-	return err
 }

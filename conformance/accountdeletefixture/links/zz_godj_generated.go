@@ -804,4 +804,4 @@ func grantLinkMetadata() ir.Model {
 
 type GoDjAppPart0_bec4d00d4a513ca78e447f44bf075168970bcf182f8bd74aa0945cbbcfb0b6f1 struct{}
 
-type GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7 struct{}
+type GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d struct{}

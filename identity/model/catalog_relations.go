@@ -28,31 +28,12 @@ func catalogInverse[O, T any](owner orm.BoundModel[O], name string, target orm.B
 }
 
 func bindCatalogRelations[M, G, P any](store *CredentialStore[M], group orm.BoundModel[G], permission orm.BoundModel[P], groups *catalogModelState[G], permissions *catalogModelState[P]) error {
-	binding := store.state.binding
-	role, account := binding.state.role, binding.state.model
-	accountKey, accountObjects := store.state.key, binding.state.objects
-	groupObjects, permissionObjects := groups.resource.Manager(), permissions.resource.Manager()
-	accountGroup, err := catalogRelation(account, role.Groups, group, groups.key)
-	if err != nil {
-		return err
-	}
+	role := store.state.binding.state.role
+	permissionObjects := permissions.resource.Manager()
 	permissionGroup, err := catalogInverse(group, role.Catalog.GroupPermissions, permission, groups.key)
 	if err != nil {
 		return err
 	}
-	groupAccount, err := catalogInverse(account, role.Groups, group, accountKey)
-	if err != nil {
-		return err
-	}
-	permissionAccount, err := catalogInverse(account, role.Permissions, permission, accountKey)
-	if err != nil {
-		return err
-	}
-	groupRevision, present := namedField(groups.model, groups.revision)
-	if !present {
-		return managementError(CodeInvalidConfig, nil)
-	}
-	groupRevisionField := orm.NewIntegerField[G](groupRevision)
 	readPermissions := func(ctx context.Context, source orm.QuerySet[P]) ([]P, error) {
 		bounded, err := source.Distinct().OrderBy(permissions.key.Asc()).Limit(auth.MaximumPermissions + 1)
 		if err != nil {
@@ -105,79 +86,8 @@ func bindCatalogRelations[M, G, P any](store *CredentialStore[M], group orm.Boun
 		}
 		return nil
 	}
-	checkAccount := func(ctx context.Context, scope db.Queryer, namespace auth.CredentialDomain, row M, key int64) error {
-		grants, err := store.state.permissions(ctx, scope, key)
-		if err != nil {
-			return err
-		}
-		_, err = binding.prepareCredentialForDomain(namespace, row, grants)
-		return err
-	}
-	groups.checkMembers = func(ctx context.Context, scope db.Session, namespace auth.CredentialDomain, id int64, proposed []int64) error {
-		return walkCatalogRows(ctx, accountObjects, accountObjects.Using(scope).Filter(accountGroup.Exact(id)), accountKey, func(row M, key int64) error {
-			if err := checkAccount(ctx, scope, namespace, row, key); err != nil {
-				return err
-			}
-			memberships, err := catalogMembershipKeys(ctx, groupObjects.Using(scope).Filter(groupAccount.Exact(key)), groups.key, groupRevisionField, MaximumAccountGroups)
-			if err != nil {
-				return err
-			}
-			position, found := slices.BinarySearch(memberships, id)
-			if !found {
-				return managementError(CodePersistence, nil)
-			}
-			otherGroups := append(memberships[:position:position], memberships[position+1:]...)
-			rows, err := readPermissions(ctx, permissionObjects.Using(scope).Filter(orm.Or(permissionAccount.Exact(key), permissionGroup.In(otherGroups...), permissions.key.In(proposed...))))
-			if err != nil {
-				return err
-			}
-			if len(rows) > auth.MaximumPermissions {
-				return profileInputError(groups.collection, "max_items")
-			}
-			return nil
-		})
-	}
-	return nil
-}
 
-// Every page is materialized and its rowset closed before nested inspection or
-// writes. The first page has no lower-bound predicate: zero/negative stored
-// keys are ordinary owners. Strict advancement prevents a truncated/infinite
-// walk when a backend violates ordered distinct model materialization.
-func walkCatalogRows[M any](ctx context.Context, objects orm.Manager[M], source orm.QuerySet[M], key orm.AutoField[M], visit func(M, int64) error) error {
-	var last int64
-	started := false
-	for {
-		page := source.OrderBy(key.Asc())
-		if started {
-			page = page.Filter(key.GreaterThan(last))
-		}
-		bounded, err := page.Limit(catalogOwnerBatchSize)
-		if err != nil {
-			return err
-		}
-		rows, err := bounded.All(ctx)
-		if err != nil {
-			return err
-		}
-		if len(rows) > catalogOwnerBatchSize {
-			return managementError(CodePersistence, nil)
-		}
-		for _, row := range rows {
-			value, present, err := objects.PrimaryKey(row)
-			id, integer := value.Integer()
-			if err != nil || !present || !integer || started && id <= last {
-				return managementError(CodePersistence, err)
-			}
-			if err := visit(row, id); err != nil {
-				return err
-			}
-			last, started = id, true
-		}
-		if len(rows) < catalogOwnerBatchSize {
-			return nil
-		}
-	}
+	return nil
 }
 
 func catalogMembershipKeys[M any](ctx context.Context, source orm.QuerySet[M], key orm.AutoField[M], revision orm.IntegerField[M], maximum int) ([]int64, error) {
@@ -228,34 +138,27 @@ func advanceCatalogRevision[M any](ctx context.Context, scope db.Session, object
 	return prepared.Save(ctx, scope, &value)
 }
 
-// Catalog endpoint deletion has a complete lifecycle collector. Collection
-// replacement is a separate operation: its multiple relation mutations still
-// require a single combined lifecycle owner before critical effects are safe.
-func validateCatalogCollectionTopology(project orm.ProjectBinding, role ir.AccountRole) error {
-	var roots []ir.ModelIdentity
+// Through rows that are themselves selected account/catalog models also need
+// an identity-creating insertion owner. The shared lifecycle handles incoming
+// effects on those models; that distinct storage/creation composition remains
+// explicit and is not inferred from generic through defaults.
+func validateCatalogCollectionStorage(project orm.ProjectBinding, role ir.AccountRole) error {
 	for _, relation := range project.ManyToManyRelations() {
 		if relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions {
-			if relation.Through.Model == role.Model || relation.Through.Model == role.Catalog.Group || relation.Through.Model == role.Catalog.Permission {
-				return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "catalog membership storage requires another account or catalog lifecycle owner"}
-			}
-			roots = append(roots, relation.Through.Model)
+			return validateLifecycleThroughStorage(role, relation.Through.Model)
 		}
 	}
-	return validateAccountDeleteRoots(project, role, roots)
+	return managementError(CodeInvalidConfig, nil)
 }
 
-// SetKeys may delete an explicit through row even when its endpoint FKs use
-// PROTECT. Inspect that root directly; endpoint deletion reachability alone
-// cannot prove that collection replacement preserves other account owners.
-func validateRoleDeleteTopology(project orm.ProjectBinding, role ir.AccountRole, fields []string) error {
-	var roots []ir.ModelIdentity
+func validateAccountCollectionStorage(project orm.ProjectBinding, role ir.AccountRole, fields []string) error {
+	found := 0
 	for _, relation := range project.ManyToManyRelations() {
 		if relation.Source == role.Model && (relation.Field == role.Groups || relation.Field == role.Permissions) && slices.Contains(fields, relation.Field) {
-			root := relation.Through.Model
-			if root == role.Model || root == role.Catalog.Group || root == role.Catalog.Permission {
-				return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "account membership storage requires another account or catalog lifecycle owner"}
+			if err := validateLifecycleThroughStorage(role, relation.Through.Model); err != nil {
+				return err
 			}
-			roots = append(roots, root)
+			found++
 		}
 	}
 	expected := 0
@@ -264,53 +167,15 @@ func validateRoleDeleteTopology(project orm.ProjectBinding, role ir.AccountRole,
 			expected++
 		}
 	}
-	if len(roots) != expected {
+	if found != expected {
 		return managementError(CodeInvalidConfig, nil)
 	}
-	return validateAccountDeleteRoots(project, role, roots)
+	return nil
 }
 
-func validateAccountDeleteRoots(project orm.ProjectBinding, role ir.AccountRole, roots []ir.ModelIdentity) error {
-	critical := map[ir.ModelIdentity]bool{role.Model: true, role.Catalog.Group: true, role.Catalog.Permission: true}
-	// Destroying another selected through row changes its direct owner's
-	// membership revision even when no account/catalog row is deleted or
-	// nulled. A payload-only NULL does not change that membership.
-	memberships := make(map[ir.ModelIdentity]map[string]bool)
-	for _, relation := range project.ManyToManyRelations() {
-		if relation.Source == role.Model && (relation.Field == role.Groups || relation.Field == role.Permissions) ||
-			relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions {
-			if memberships[relation.Through.Model] == nil {
-				memberships[relation.Through.Model] = make(map[string]bool)
-			}
-			memberships[relation.Through.Model][relation.Through.SourceField] = true
-			memberships[relation.Through.Model][relation.Through.TargetField] = true
-		}
-	}
-	relations := project.ForwardRelations()
-	for _, root := range roots {
-		pending, visited := []ir.ModelIdentity{root}, make(map[ir.ModelIdentity]bool)
-		for len(pending) != 0 {
-			current := pending[0]
-			pending = pending[1:]
-			if visited[current] {
-				continue
-			}
-			visited[current] = true
-			for _, relation := range relations {
-				if relation.Target != current || relation.OnDelete == ir.DeleteProtect {
-					continue
-				}
-				if critical[relation.Source] {
-					return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "relation deletion requires lifecycle coordination for additional account or catalog row effects"}
-				}
-				if fields, selected := memberships[relation.Source]; selected && (relation.OnDelete == ir.DeleteCascade || fields[relation.Field]) {
-					return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "relation deletion requires lifecycle coordination for additional selected membership rows"}
-				}
-				if relation.OnDelete == ir.DeleteCascade {
-					pending = append(pending, relation.Source)
-				}
-			}
-		}
+func validateLifecycleThroughStorage(role ir.AccountRole, through ir.ModelIdentity) error {
+	if through == role.Model || through == role.Catalog.Group || through == role.Catalog.Permission {
+		return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "selected-model through insertion requires an explicit identity creation owner"}
 	}
 	return nil
 }

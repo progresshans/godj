@@ -8,7 +8,6 @@ import (
 	"slices"
 	"time"
 
-	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/crud"
@@ -16,7 +15,6 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
-	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -41,8 +39,9 @@ func (selection RoleMemberships) Permissions() []int64 {
 	return slices.Clone(selection.state.permissions)
 }
 
-// AccountEditValidator receives detached models and owned proposed membership after
-// current authorization, revision and choice checks. The reader is borrowed;
+// AccountEditValidator receives detached current/final models and final distinct
+// memberships after the entire collected graph has been prepared. The candidate
+// includes collected NULLs and its next revision. The reader is borrowed;
 // it must not be retained, mutated, re-entered or used for external effects.
 // The validator and clock must be safe for concurrent calls.
 type AccountEditValidator[M any] func(context.Context, db.Queryer, M, M, RoleMemberships) (validation.Errors, error)
@@ -56,26 +55,29 @@ type AccountEditConfig[M any] struct {
 	Fields                []string
 	ChangePermission      auth.Permission
 	AdditionalPermissions []auth.Permission
+	RelatedPermissions    RelatedRowPermissions
 	Validate              AccountEditValidator[M]
 	Now                   func() time.Time
 }
 
-// AccountEditor owns combined profile/role writes, a single revision and audit,
-// and deactivation's session revocation in one native coordinated relation
+// AccountEditor owns combined profile/role writes and the selected-model effects
+// of their host graph. Each surviving changed owner advances once; direct effects
+// have one audit and deleted/deactivated accounts lose their sessions in one
+// native coordinated relation
 // transaction. It uses the exact SessionStore's backend, credential binding
 // and namespace policy. ProfileEditor remains a narrower scalar-only owner.
 type AccountEditor[M any] struct{ state *accountEditState[M] }
 type accountEditState[M any] struct {
-	sessions                    *SessionStore[M]
-	backend                     db.CoordinatedRelationAtomic
-	overlay                     auth.Authorizer
-	resource                    crud.Resource[M]
-	metadata                    ir.Model
-	allowed                     map[string]bool
-	required                    []auth.Permission
-	validate                    AccountEditValidator[M]
-	now                         func() time.Time
-	saveGroups, savePermissions func(context.Context, db.Session, M, []int64) error
+	sessions                        *SessionStore[M]
+	backend                         db.CoordinatedRelationAtomic
+	overlay                         auth.Authorizer
+	resource                        crud.Resource[M]
+	metadata                        ir.Model
+	allowed                         map[string]bool
+	required                        []auth.Permission
+	validate                        AccountEditValidator[M]
+	groupsChange, permissionsChange func(M, []int64) (orm.CollectionChange, error)
+	lifecycle                       *deletionLifecycle[M]
 }
 
 func (AccountEditor[M]) Format(state fmt.State, _ rune) {
@@ -105,7 +107,7 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 	for _, err := range []error{
 		groups.ValidateSource(project, role.Model, role.Groups),
 		permissions.ValidateSource(project, role.Model, role.Permissions),
-		validateRoleDeleteTopology(project, role, config.Fields),
+		validateAccountCollectionStorage(project, role, config.Fields),
 	} {
 		if err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
@@ -144,21 +146,18 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 	if now == nil {
 		now = time.Now
 	}
-	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, required: required, validate: config.Validate, now: now}
-	state.saveGroups = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
-		collection, err := groups.InSession(scope, row)
-		if err != nil {
-			return err
-		}
-		return collection.SetKeys(ctx, keys)
+	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, required: required, validate: config.Validate}
+	if store.state.relatedLifecycle == nil {
+		return nil, managementError(CodeInvalidConfig, nil)
 	}
-	state.savePermissions = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
-		collection, err := permissions.InSession(scope, row)
-		if err != nil {
-			return err
-		}
-		return collection.SetKeys(ctx, keys)
+	state.lifecycle, err = store.state.relatedLifecycle(sessionStore, expected, overlay, AccountDeleteConfig{
+		Account: config.RelatedPermissions.Account, Group: config.RelatedPermissions.Group, Permission: config.RelatedPermissions.Permission, Now: now,
+	})
+	if err != nil {
+		return nil, err
 	}
+	state.groupsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return groups.SetKeysChange(row, keys) }
+	state.permissionsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return permissions.SetKeysChange(row, keys) }
 	return &AccountEditor[M]{state: state}, nil
 }
 
@@ -219,152 +218,126 @@ func (editor *AccountEditor[M]) Update(ctx context.Context, actor auth.Principal
 		if !allowed {
 			return AccountChange{}, managementError(CodePermission, nil)
 		}
-		namespace, _ := currentActor.CredentialDomain()
-		groupKeys, groupsSelected := prepared.Collection(role.Groups)
-		permissionKeys, permissionsSelected := prepared.Collection(role.Permissions)
-		var groupsChanged, permissionsChanged, deactivate bool
-		var principalID string
-		options := crud.SaveOptions[M]{Before: func(ctx context.Context, session db.Session, current, candidate *M) error {
-			if current == nil || candidate == nil {
-				return managementError(CodePersistence, nil)
-			}
-			objects := state.resource.Manager()
-			before, err := objects.ModelValues(*current)
-			if err != nil {
-				return err
-			}
-			actual, valid := before[role.Revision].Integer()
-			if !valid || actual <= 0 {
-				return invalidAccountCredential()
-			}
-			if actual != revision {
-				return managementError(CodeConflict, nil)
-			}
-			key, present, err := objects.PrimaryKey(*current)
-			currentID, integer := key.Integer()
-			if err != nil || !present || !integer || currentID != id {
-				return invalidAccountCredential()
-			}
-			currentMemberships, err := store.state.relations.memberships(ctx, session, id)
-			if err != nil {
-				return err
-			}
-			credential, err := binding.prepareCredentialForDomain(namespace, *current, currentMemberships.grants)
-			if err != nil {
-				return err
-			}
-			proposedGroups, proposedPermissions := currentMemberships.groups, currentMemberships.direct
-			if groupsSelected {
-				proposedGroups = groupKeys
-				groupsChanged = !slices.Equal(groupKeys, currentMemberships.groups)
-			}
-			if permissionsSelected {
-				proposedPermissions = permissionKeys
-				permissionsChanged = !slices.Equal(permissionKeys, currentMemberships.direct)
-			}
-			grants := currentMemberships.grants
-			if groupsSelected || permissionsSelected {
-				grants, err = store.state.relations.proposed(ctx, session, proposedGroups, proposedPermissions)
-				if errors.Is(err, errAccountGrantLimit) {
-					field := role.Groups
-					if permissionsSelected {
-						field = role.Permissions
-					}
-					return profileInputError(field, "max_items")
-				}
-				if err != nil {
-					return err
-				}
-			}
-			if _, err := binding.prepareCredentialForDomain(namespace, *candidate, grants); err != nil {
-				return err
-			}
-			if err := state.validateCandidate(ctx, session, *current, *candidate, proposedGroups, proposedPermissions); err != nil {
-				return err
-			}
-			after, err := objects.ModelValues(*candidate)
-			if err != nil {
-				return err
-			}
-			wasActive, err := credentialBoolean(before, role.Active)
-			if err != nil {
-				return err
-			}
-			active, err := credentialBoolean(after, role.Active)
-			if err != nil {
-				return err
-			}
-			deactivate = wasActive && !active
-			principalID = credential.Principal().ID()
-			changed := groupsChanged || permissionsChanged
-			for _, field := range state.metadata.Fields {
-				if !before[field.Name].Equal(after[field.Name]) {
-					changed = true
-				}
-			}
-			if changed {
-				updated, err := objects.ApplyValues(*candidate, map[string]query.Value{role.Revision: query.Integer(revision + 1)})
-				if err != nil {
-					return err
-				}
-				*candidate = updated
-			}
-			return nil
-		}}
-		for _, collection := range []struct {
-			name     string
-			selected bool
-			changed  *bool
-			save     func(context.Context, db.Session, M, []int64) error
-		}{
-			{role.Groups, groupsSelected, &groupsChanged, state.saveGroups}, {role.Permissions, permissionsSelected, &permissionsChanged, state.savePermissions},
-		} {
-			if !collection.selected {
-				continue
-			}
-			options.Collections = append(options.Collections, crud.CollectionSaver[M]{Field: collection.name, Save: func(ctx context.Context, session db.Session, row M, keys []int64) (bool, error) {
-				if !*collection.changed {
-					return false, nil
-				}
-				if err := collection.save(ctx, session, row, keys); err != nil {
-					return false, err
-				}
-				return true, nil
-			}})
+		current, found, err := state.resource.Get(work, scope, id)
+		if err != nil {
+			return AccountChange{}, err
 		}
-		mutation, err := state.resource.UpdateInSession(work, scope, id, prepared, options)
-		if err == crud.ErrNotFound {
+		if !found {
 			return AccountChange{}, managementError(CodeNotFound, nil)
 		}
+		objects := state.resource.Manager()
+		before, err := objects.ModelValues(current)
 		if err != nil {
 			return AccountChange{}, err
 		}
-		values, err := state.resource.Manager().ModelValues(mutation.Value)
-		if err != nil {
-			return AccountChange{}, err
-		}
-		actual, valid := values[role.Revision].Integer()
+		actual, valid := before[role.Revision].Integer()
 		if !valid || actual <= 0 {
 			return AccountChange{}, invalidAccountCredential()
 		}
-		changed := slices.DeleteFunc(slices.Clone(mutation.ChangedFields), func(name string) bool { return name == role.Revision })
+		if actual != revision {
+			return AccountChange{}, managementError(CodeConflict, nil)
+		}
+		memberships, err := store.state.relations.memberships(work, scope, id)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		namespace, _ := currentActor.CredentialDomain()
+		if _, err := binding.prepareCredentialForDomain(namespace, current, memberships.grants); err != nil {
+			return AccountChange{}, err
+		}
+		model, err := objects.PrepareInput(prepared, &current)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		candidate, err := model.Model()
+		if err != nil {
+			return AccountChange{}, err
+		}
+		values, err := objects.ModelValues(candidate)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		wasActive, err := credentialBoolean(before, role.Active)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		active, err := credentialBoolean(values, role.Active)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		var changes []orm.CollectionChange
+		for _, collection := range []struct {
+			field   string
+			prepare func(M, []int64) (orm.CollectionChange, error)
+		}{{role.Groups, state.groupsChange}, {role.Permissions, state.permissionsChange}} {
+			if keys, selected := prepared.Collection(collection.field); selected {
+				change, err := collection.prepare(current, keys)
+				if err != nil {
+					return AccountChange{}, err
+				}
+				changes = append(changes, change)
+			}
+		}
+		var batch orm.PreparedCollectionChanges
+		var effects orm.CollectionChangeEffects
+		if len(changes) != 0 {
+			batch, err = orm.PrepareCollectionChangesInSession(work, scope, changes...)
+			if err != nil {
+				return AccountChange{}, err
+			}
+			if err := batch.ValidateSource(binding.state.project); err != nil {
+				return AccountChange{}, err
+			}
+			effects = batch.Effects()
+		}
+		plan, err := state.lifecycle.prepare(work, scope, currentActor, effects.Deletions(), effects.Insertions(), &lifecycleEdit{
+			key: deletionKey{role.Model, id}, revision: revision, required: state.required, fields: model.ChangedFields(), values: values, deactivate: wasActive && !active,
+		})
+		if err != nil {
+			return AccountChange{}, err
+		}
+		final := map[string]query.Value{role.Revision: query.Integer(plan.rootRevision)}
+		for _, field := range plan.root.nulls {
+			final[field] = query.Null()
+		}
+		candidate, err = objects.ApplyValues(candidate, final)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		groups := plan.projection.keys(role.Model, id, role.Groups, memberships.groups)
+		direct := plan.projection.keys(role.Model, id, role.Permissions, memberships.direct)
+		if err := state.validateCandidate(work, scope, current, candidate, groups, direct); err != nil {
+			return AccountChange{}, err
+		}
 		revoked := 0
-		if deactivate {
-			revoked, err = state.sessions.RevokeIn(work, scope, principalID, sessions.ID{})
-			if err != nil {
-				return AccountChange{}, err
-			}
+		if len(changes) != 0 {
+			err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
+				var err error
+				revoked, err = plan.apply(ctx, scope)
+				return err
+			})
+		} else {
+			revoked, err = plan.apply(work, scope)
 		}
-		if len(changed) != 0 {
-			event, err := accountaudit.Prepare(currentActor, role.Model.AppLabel+"."+role.Model.ModelName, id, admin.ActionChange, changed, state.now())
-			if err != nil {
-				return AccountChange{}, err
-			}
-			if _, err := accountaudit.AppendIn(work, scope, event); err != nil {
-				return AccountChange{}, err
-			}
+		if err != nil {
+			return AccountChange{}, err
 		}
-		return AccountChange{ID: id, Revision: actual, ChangedFields: changed, RevokedSessions: revoked}, nil
+		// Advisory uniqueness observes the collected final graph. Any refusal
+		// rolls back its earlier companion and relation writes in this scope.
+		failures, err := model.ValidateUnique(work, scope, candidate)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		if err := validation.Reject(failures, nil); err != nil {
+			return AccountChange{}, err
+		}
+		if err := model.Save(work, scope, &candidate); err != nil {
+			return AccountChange{}, err
+		}
+		if err := plan.verify(work, scope); err != nil {
+			return AccountChange{}, err
+		}
+		return AccountChange{ID: id, Revision: plan.rootRevision, ChangedFields: lifecycleChangedFields(state.metadata, plan.root), RevokedSessions: revoked}, nil
 	})
 }
 

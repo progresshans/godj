@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "045e5c2590fddd44dbe5b09463582b96a2e80af922ad3f67af70c011ceef77f9"
+const GoDjRelationProjectionSchemaSHA256 = "af7108c231b2ee3f93c845078b8e6a1e6e2adeea690e8564b333c893208404f1"
 
 var _ orm.ProjectionDescriptor[Grant] = GrantDescriptor{}
 
@@ -18,14 +18,16 @@ func (GrantDescriptor) NewProjectionScan() orm.ProjectionScan[Grant] {
 }
 
 type grantProjectionScan struct {
-	scanID          sql.NullInt64
-	scanKey         sql.NullString
-	scanTitle       sql.NullString
-	scanVersion     sql.NullInt64
-	scanDescription sql.NullString
-	scanIssuerID    sql.NullInt64
-	scanTeamID      sql.NullInt64
-	scanReviewerID  sql.NullInt64
+	scanID                   sql.NullInt64
+	scanKey                  sql.NullString
+	scanTitle                sql.NullString
+	scanVersion              sql.NullInt64
+	scanDescription          sql.NullString
+	scanMembershipID         sql.NullInt64
+	scanNullableMembershipID sql.NullInt64
+	scanIssuerID             sql.NullInt64
+	scanTeamID               sql.NullInt64
+	scanReviewerID           sql.NullInt64
 }
 
 func (_scan *grantProjectionScan) Destinations() []any {
@@ -38,6 +40,8 @@ func (_scan *grantProjectionScan) Destinations() []any {
 		&_scan.scanTitle,
 		&_scan.scanVersion,
 		&_scan.scanDescription,
+		&_scan.scanMembershipID,
+		&_scan.scanNullableMembershipID,
 		&_scan.scanIssuerID,
 		&_scan.scanTeamID,
 		&_scan.scanReviewerID,
@@ -48,7 +52,7 @@ func (_scan *grantProjectionScan) Decode() (Grant, query.Value, orm.ProjectionPr
 	if _scan == nil {
 		return Grant{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanKey.Valid && !_scan.scanTitle.Valid && !_scan.scanVersion.Valid && !_scan.scanDescription.Valid && !_scan.scanIssuerID.Valid && !_scan.scanTeamID.Valid && !_scan.scanReviewerID.Valid {
+	if !_scan.scanID.Valid && !_scan.scanKey.Valid && !_scan.scanTitle.Valid && !_scan.scanVersion.Valid && !_scan.scanDescription.Valid && !_scan.scanMembershipID.Valid && !_scan.scanNullableMembershipID.Valid && !_scan.scanIssuerID.Valid && !_scan.scanTeamID.Valid && !_scan.scanReviewerID.Valid {
 		return Grant{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -72,6 +76,14 @@ func (_scan *grantProjectionScan) Decode() (Grant, query.Value, orm.ProjectionPr
 	_value.Title = _scan.scanTitle.String
 	_value.Version = _scan.scanVersion.Int64
 	_value.Description = _scan.scanDescription.String
+	if _scan.scanMembershipID.Valid {
+		_scanned := _scan.scanMembershipID.Int64
+		_value.MembershipID = &_scanned
+	}
+	if _scan.scanNullableMembershipID.Valid {
+		_scanned := _scan.scanNullableMembershipID.Int64
+		_value.NullableMembershipID = &_scanned
+	}
 	if _scan.scanIssuerID.Valid {
 		_scanned := _scan.scanIssuerID.Int64
 		_value.IssuerID = &_scanned
@@ -95,12 +107,14 @@ func (TeamDescriptor) NewProjectionScan() orm.ProjectionScan[Team] {
 }
 
 type teamProjectionScan struct {
-	scanID         sql.NullInt64
-	scanTitle      sql.NullString
-	scanVersion    sql.NullInt64
-	scanPriority   sql.NullInt64
-	scanCreatorID  sql.NullInt64
-	scanReviewerID sql.NullInt64
+	scanID                   sql.NullInt64
+	scanTitle                sql.NullString
+	scanVersion              sql.NullInt64
+	scanPriority             sql.NullInt64
+	scanMembershipID         sql.NullInt64
+	scanNullableMembershipID sql.NullInt64
+	scanCreatorID            sql.NullInt64
+	scanReviewerID           sql.NullInt64
 }
 
 func (_scan *teamProjectionScan) Destinations() []any {
@@ -112,6 +126,8 @@ func (_scan *teamProjectionScan) Destinations() []any {
 		&_scan.scanTitle,
 		&_scan.scanVersion,
 		&_scan.scanPriority,
+		&_scan.scanMembershipID,
+		&_scan.scanNullableMembershipID,
 		&_scan.scanCreatorID,
 		&_scan.scanReviewerID,
 	}
@@ -121,7 +137,7 @@ func (_scan *teamProjectionScan) Decode() (Team, query.Value, orm.ProjectionPres
 	if _scan == nil {
 		return Team{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanTitle.Valid && !_scan.scanVersion.Valid && !_scan.scanPriority.Valid && !_scan.scanCreatorID.Valid && !_scan.scanReviewerID.Valid {
+	if !_scan.scanID.Valid && !_scan.scanTitle.Valid && !_scan.scanVersion.Valid && !_scan.scanPriority.Valid && !_scan.scanMembershipID.Valid && !_scan.scanNullableMembershipID.Valid && !_scan.scanCreatorID.Valid && !_scan.scanReviewerID.Valid {
 		return Team{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -141,6 +157,14 @@ func (_scan *teamProjectionScan) Decode() (Team, query.Value, orm.ProjectionPres
 	_value.Title = _scan.scanTitle.String
 	_value.Version = _scan.scanVersion.Int64
 	_value.Priority = _scan.scanPriority.Int64
+	if _scan.scanMembershipID.Valid {
+		_scanned := _scan.scanMembershipID.Int64
+		_value.MembershipID = &_scanned
+	}
+	if _scan.scanNullableMembershipID.Valid {
+		_scanned := _scan.scanNullableMembershipID.Int64
+		_value.NullableMembershipID = &_scanned
+	}
 	if _scan.scanCreatorID.Valid {
 		_scanned := _scan.scanCreatorID.Int64
 		_value.CreatorID = &_scanned
@@ -153,6 +177,6 @@ func (_scan *teamProjectionScan) Decode() (Team, query.Value, orm.ProjectionPres
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_f7a1ced9b428e7bd1c68c29104270bc77aac7808220294f80710cc99d1da39c9 struct{}
+type GoDjAppPart3_4ef2ff5ead1bac645b388e339a48db6096fca4c4be87399b65ad0a5726b0c704 struct{}
 
-var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

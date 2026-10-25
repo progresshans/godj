@@ -24,6 +24,7 @@ type credentialStoreState[M any] struct {
 	key              orm.AutoField[M]
 	permissions      func(context.Context, db.Queryer, int64) ([]auth.Permission, error)
 	relations        *accountRelationReader
+	relatedLifecycle func(*SessionStore[M], Binding[M], auth.Authorizer, AccountDeleteConfig) (*deletionLifecycle[M], error)
 }
 
 func (CredentialStore[M]) Format(state fmt.State, _ rune) {
@@ -71,6 +72,9 @@ func prepareCredentialStore[M, G, P any](binding Binding[M], groups orm.Relation
 		login:     orm.NewStringField[M](binding.state.credentialFields[binding.state.role.Login]),
 		principal: orm.NewStringField[M](binding.state.credentialFields[binding.state.role.PrincipalID]),
 		key:       orm.NewAutoField[M](key), permissions: load.permissions, relations: load,
+		relatedLifecycle: func(sessions *SessionStore[M], expected Binding[M], overlay auth.Authorizer, config AccountDeleteConfig) (*deletionLifecycle[M], error) {
+			return newLifecycle(sessions, expected, groups, permissions, overlay, config, false)
+		},
 	}, nil
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "8b136ffc9c391735dc4e23d195a77feb6ca6be4e21660930d2767016f17f4fb4"
+const GoDjRelationProjectionSchemaSHA256 = "7ccbd781a71d408e8f94f62c766de08ae6057005edbf72a95c1b4fccd1a3b809"
 
 var _ orm.ProjectionDescriptor[Member] = MemberDescriptor{}
 
@@ -18,19 +18,21 @@ func (MemberDescriptor) NewProjectionScan() orm.ProjectionScan[Member] {
 }
 
 type memberProjectionScan struct {
-	scanID         sql.NullInt64
-	scanSubject    sql.NullString
-	scanContact    sql.NullString
-	scanSecret     sql.NullString
-	scanVersion    sql.NullInt64
-	scanSeen       orm.NullableDateTimeScanner
-	scanEnabled    sql.NullBool
-	scanRoot       sql.NullBool
-	scanRegion     sql.NullString
-	scanLeaderID   sql.NullInt64
-	scanReviewerID sql.NullInt64
-	scanSponsorID  sql.NullInt64
-	scanGrantRefID sql.NullInt64
+	scanID                   sql.NullInt64
+	scanSubject              sql.NullString
+	scanContact              sql.NullString
+	scanSecret               sql.NullString
+	scanVersion              sql.NullInt64
+	scanSeen                 orm.NullableDateTimeScanner
+	scanEnabled              sql.NullBool
+	scanRoot                 sql.NullBool
+	scanRegion               sql.NullString
+	scanMembershipID         sql.NullInt64
+	scanNullableMembershipID sql.NullInt64
+	scanLeaderID             sql.NullInt64
+	scanReviewerID           sql.NullInt64
+	scanSponsorID            sql.NullInt64
+	scanGrantRefID           sql.NullInt64
 }
 
 func (_scan *memberProjectionScan) Destinations() []any {
@@ -47,6 +49,8 @@ func (_scan *memberProjectionScan) Destinations() []any {
 		&_scan.scanEnabled,
 		&_scan.scanRoot,
 		&_scan.scanRegion,
+		&_scan.scanMembershipID,
+		&_scan.scanNullableMembershipID,
 		&_scan.scanLeaderID,
 		&_scan.scanReviewerID,
 		&_scan.scanSponsorID,
@@ -58,7 +62,7 @@ func (_scan *memberProjectionScan) Decode() (Member, query.Value, orm.Projection
 	if _scan == nil {
 		return Member{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanContact.Valid && !_scan.scanSecret.Valid && !_scan.scanVersion.Valid && !_scan.scanSeen.Valid && !_scan.scanEnabled.Valid && !_scan.scanRoot.Valid && !_scan.scanRegion.Valid && !_scan.scanLeaderID.Valid && !_scan.scanReviewerID.Valid && !_scan.scanSponsorID.Valid && !_scan.scanGrantRefID.Valid {
+	if !_scan.scanID.Valid && !_scan.scanSubject.Valid && !_scan.scanContact.Valid && !_scan.scanSecret.Valid && !_scan.scanVersion.Valid && !_scan.scanSeen.Valid && !_scan.scanEnabled.Valid && !_scan.scanRoot.Valid && !_scan.scanRegion.Valid && !_scan.scanMembershipID.Valid && !_scan.scanNullableMembershipID.Valid && !_scan.scanLeaderID.Valid && !_scan.scanReviewerID.Valid && !_scan.scanSponsorID.Valid && !_scan.scanGrantRefID.Valid {
 		return Member{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -98,6 +102,14 @@ func (_scan *memberProjectionScan) Decode() (Member, query.Value, orm.Projection
 	_value.Enabled = _scan.scanEnabled.Bool
 	_value.Root = _scan.scanRoot.Bool
 	_value.Region = _scan.scanRegion.String
+	if _scan.scanMembershipID.Valid {
+		_scanned := _scan.scanMembershipID.Int64
+		_value.MembershipID = &_scanned
+	}
+	if _scan.scanNullableMembershipID.Valid {
+		_scanned := _scan.scanNullableMembershipID.Int64
+		_value.NullableMembershipID = &_scanned
+	}
 	if _scan.scanLeaderID.Valid {
 		_scanned := _scan.scanLeaderID.Int64
 		_value.LeaderID = &_scanned
@@ -165,6 +177,6 @@ func (_scan *memberGrantsLinkProjectionScan) Decode() (MemberGrantsLink, query.V
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_8cd2398715d3bb754ce73d9625abdc2fef5cd634ee9e48e4afa38ebf8bcb7bbd struct{}
+type GoDjAppPart3_de3d33afc5b22cb7560f7b19d73e7792c578f5a02dce131437bb07e42e083cae struct{}
 
-var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

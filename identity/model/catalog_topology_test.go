@@ -1,34 +1,32 @@
 package model
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestCatalogCollectionDeletionCannotSkipOtherLifecycleOwners(t *testing.T) {
+func TestCatalogCollectionStorageAcceptsCoordinatedIncomingPolicies(t *testing.T) {
 	account := ir.ModelIdentity{AppLabel: "app", ModelName: "account"}
 	group := ir.ModelIdentity{AppLabel: "app", ModelName: "group"}
 	permission := ir.ModelIdentity{AppLabel: "app", ModelName: "permission"}
 	link := ir.ModelIdentity{AppLabel: "app", ModelName: "grant_link"}
 	role := ir.AccountRole{Model: account, Catalog: ir.AccountCatalog{Group: group, Permission: permission, GroupPermissions: "permissions"}}
 	for _, test := range []struct {
-		name               string
-		source, target     ir.ModelIdentity
-		policy             ir.DeletePolicy
-		indirect, rejected bool
+		name           string
+		source, target ir.ModelIdentity
+		policy         ir.DeletePolicy
+		indirect       bool
 	}{
-		{"ordinary_cascade", ir.ModelIdentity{AppLabel: "app", ModelName: "host"}, link, ir.DeleteCascade, false, false},
-		{"ordinary_set_null", ir.ModelIdentity{AppLabel: "app", ModelName: "host"}, link, ir.DeleteSetNull, false, false},
-		{"protected_account", account, link, ir.DeleteProtect, false, false},
-		{"account_cascade", account, link, ir.DeleteCascade, false, true},
-		{"account_set_null", account, link, ir.DeleteSetNull, false, true},
-		{"group_cascade", group, link, ir.DeleteCascade, false, true},
-		{"permission_cascade", permission, link, ir.DeleteCascade, false, true},
-		{"indirect_account", account, ir.ModelIdentity{AppLabel: "app", ModelName: "host"}, ir.DeleteSetNull, true, true},
+		{"ordinary_cascade", ir.ModelIdentity{AppLabel: "app", ModelName: "host"}, link, ir.DeleteCascade, false},
+		{"ordinary_set_null", ir.ModelIdentity{AppLabel: "app", ModelName: "host"}, link, ir.DeleteSetNull, false},
+		{"protected_account", account, link, ir.DeleteProtect, false},
+		{"account_cascade", account, link, ir.DeleteCascade, false},
+		{"account_set_null", account, link, ir.DeleteSetNull, false},
+		{"group_cascade", group, link, ir.DeleteCascade, false},
+		{"permission_cascade", permission, link, ir.DeleteCascade, false},
+		{"indirect_account", account, ir.ModelIdentity{AppLabel: "app", ModelName: "host"}, ir.DeleteSetNull, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			definition := ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "app", Models: []ir.Model{{Name: "account", GoName: "Account"},
@@ -56,9 +54,9 @@ func TestCatalogCollectionDeletionCannotSkipOtherLifecycleOwners(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			err = validateCatalogCollectionTopology(binding, role)
-			if test.rejected != errors.Is(err, &query.Error{Code: query.CodeUnsupported}) || !test.rejected && err != nil {
-				t.Fatal("catalog lifecycle topology classification", err)
+			err = validateCatalogCollectionStorage(binding, role)
+			if err != nil {
+				t.Fatal("coordinated catalog lifecycle policy was rejected at construction", err)
 			}
 		})
 	}

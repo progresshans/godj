@@ -82,7 +82,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "access", ModelName: "grant"},
 		access.GrantDescriptor{},
-		"c923d4edf2f55ef9285011f1cff2da8fca5a47244a415358f3ce3bccfa027f20",
+		"28785ab8d65fafb4d8dbd675925c34a1db275e5e6725bce8b6fb27b09861230f",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -91,7 +91,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "access", ModelName: "team"},
 		access.TeamDescriptor{},
-		"2715c49957f59ee6e01f8701bfbb6ff6031d24171944507e81b563024300d05a",
+		"793991ee4c294cddcefc821df2229a89eb1c42426fbbff87dba93edc83a1c646",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -100,7 +100,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
 		links.GrantLinkDescriptor{},
-		"824a8b6f867752504f27a7444f43bda8ee1bfc146b1fe133af0c19d8fc3caf4d",
+		"4b36b4eccef32eeb64c0e5006079aa66a106354c3697ed52851797cc589442fd",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -109,7 +109,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
 		links.MembershipDescriptor{},
-		"9eb462d0b8059a19b9cb17a7a3986bd6deabbc890ab3f6f678d8b0eb4eb5a597",
+		"c8a7bf4a9f5f7a640447efe05b17d170d205b727afd78ef1c5ac74be34ccc338",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -118,7 +118,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "people", ModelName: "member"},
 		people.MemberDescriptor{},
-		"f3e005d5725080a73b521d110bc96b359426cf1c0e8134bf994a83d12ed24331",
+		"928279bd5e51cfa60af80d9735f4e0e19629eabc6ed4ad383d15be1c58482cfa",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -132,4 +132,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ goDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

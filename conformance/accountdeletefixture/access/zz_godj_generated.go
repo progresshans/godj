@@ -11,7 +11,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v3"
-const GoDjSchemaSHA256 = "045e5c2590fddd44dbe5b09463582b96a2e80af922ad3f67af70c011ceef77f9"
+const GoDjSchemaSHA256 = "af7108c231b2ee3f93c845078b8e6a1e6e2adeea690e8564b333c893208404f1"
 
 type Grant struct {
 	ID                    int64
@@ -19,6 +19,8 @@ type Grant struct {
 	Title                 string
 	Version               int64
 	Description           string
+	MembershipID          *int64
+	NullableMembershipID  *int64
 	IssuerID              *int64
 	TeamID                *int64
 	ReviewerID            *int64
@@ -37,11 +39,21 @@ func (GrantDescriptor) Metadata() ir.Model {
 
 func (GrantDescriptor) Scan(row db.Row) (Grant, error) {
 	var value Grant
+	var scanMembershipID sql.NullInt64
+	var scanNullableMembershipID sql.NullInt64
 	var scanIssuerID sql.NullInt64
 	var scanTeamID sql.NullInt64
 	var scanReviewerID sql.NullInt64
-	if err := row.Scan(&value.ID, &value.Key, &value.Title, &value.Version, &value.Description, &scanIssuerID, &scanTeamID, &scanReviewerID); err != nil {
+	if err := row.Scan(&value.ID, &value.Key, &value.Title, &value.Version, &value.Description, &scanMembershipID, &scanNullableMembershipID, &scanIssuerID, &scanTeamID, &scanReviewerID); err != nil {
 		return Grant{}, err
+	}
+	if scanMembershipID.Valid {
+		scanned := scanMembershipID.Int64
+		value.MembershipID = &scanned
+	}
+	if scanNullableMembershipID.Valid {
+		scanned := scanNullableMembershipID.Int64
+		value.NullableMembershipID = &scanned
 	}
 	if scanIssuerID.Valid {
 		scanned := scanIssuerID.Int64
@@ -75,6 +87,14 @@ func (GrantDescriptor) ClearPrimaryKey(value *Grant) {
 
 func (GrantDescriptor) CloneModel(value Grant) Grant {
 	clone := value
+	if value.MembershipID != nil {
+		clonedMembershipID := *value.MembershipID
+		clone.MembershipID = &clonedMembershipID
+	}
+	if value.NullableMembershipID != nil {
+		clonedNullableMembershipID := *value.NullableMembershipID
+		clone.NullableMembershipID = &clonedNullableMembershipID
+	}
 	if value.IssuerID != nil {
 		clonedIssuerID := *value.IssuerID
 		clone.IssuerID = &clonedIssuerID
@@ -106,6 +126,16 @@ func (GrantDescriptor) WriteFieldValue(value Grant, field ir.Field) (query.Value
 		return query.Integer(value.Version), true
 	case "description":
 		return query.String(value.Description), true
+	case "membership":
+		if value.MembershipID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.MembershipID), true
+	case "nullable_membership":
+		if value.NullableMembershipID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.NullableMembershipID), true
 	case "issuer":
 		if value.IssuerID == nil {
 			return query.Null(), true
@@ -159,6 +189,28 @@ func (GrantDescriptor) SetFieldValue(value *Grant, field ir.Field, input query.V
 		}
 		value.Description = assigned
 		return true
+	case "membership":
+		if input.IsNull() {
+			value.MembershipID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.MembershipID = &assigned
+		return true
+	case "nullable_membership":
+		if input.IsNull() {
+			value.NullableMembershipID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.NullableMembershipID = &assigned
+		return true
 	case "issuer":
 		if input.IsNull() {
 			value.IssuerID = nil
@@ -198,27 +250,31 @@ func (GrantDescriptor) SetFieldValue(value *Grant, field ir.Field, input query.V
 }
 
 type GrantFieldSet struct {
-	ID          orm.AutoField[Grant]
-	Key         orm.StringField[Grant]
-	Title       orm.StringField[Grant]
-	Version     orm.IntegerField[Grant]
-	Description orm.StringField[Grant]
-	IssuerID    orm.NullableForeignKeyField[Grant]
-	TeamID      orm.NullableForeignKeyField[Grant]
-	ReviewerID  orm.NullableForeignKeyField[Grant]
+	ID                   orm.AutoField[Grant]
+	Key                  orm.StringField[Grant]
+	Title                orm.StringField[Grant]
+	Version              orm.IntegerField[Grant]
+	Description          orm.StringField[Grant]
+	MembershipID         orm.NullableForeignKeyField[Grant]
+	NullableMembershipID orm.NullableForeignKeyField[Grant]
+	IssuerID             orm.NullableForeignKeyField[Grant]
+	TeamID               orm.NullableForeignKeyField[Grant]
+	ReviewerID           orm.NullableForeignKeyField[Grant]
 }
 
 var GrantFields = func() GrantFieldSet {
 	metadata := grantMetadata()
 	return GrantFieldSet{
-		ID:          orm.NewAutoField[Grant](metadata.Fields[0]),
-		Key:         orm.NewStringField[Grant](metadata.Fields[1]),
-		Title:       orm.NewStringField[Grant](metadata.Fields[2]),
-		Version:     orm.NewIntegerField[Grant](metadata.Fields[3]),
-		Description: orm.NewStringField[Grant](metadata.Fields[4]),
-		IssuerID:    orm.NewNullableForeignKeyField[Grant](metadata.Fields[5]),
-		TeamID:      orm.NewNullableForeignKeyField[Grant](metadata.Fields[6]),
-		ReviewerID:  orm.NewNullableForeignKeyField[Grant](metadata.Fields[7]),
+		ID:                   orm.NewAutoField[Grant](metadata.Fields[0]),
+		Key:                  orm.NewStringField[Grant](metadata.Fields[1]),
+		Title:                orm.NewStringField[Grant](metadata.Fields[2]),
+		Version:              orm.NewIntegerField[Grant](metadata.Fields[3]),
+		Description:          orm.NewStringField[Grant](metadata.Fields[4]),
+		MembershipID:         orm.NewNullableForeignKeyField[Grant](metadata.Fields[5]),
+		NullableMembershipID: orm.NewNullableForeignKeyField[Grant](metadata.Fields[6]),
+		IssuerID:             orm.NewNullableForeignKeyField[Grant](metadata.Fields[7]),
+		TeamID:               orm.NewNullableForeignKeyField[Grant](metadata.Fields[8]),
+		ReviewerID:           orm.NewNullableForeignKeyField[Grant](metadata.Fields[9]),
 	}
 }()
 
@@ -245,13 +301,15 @@ func GrantForceUpdate() orm.SaveOption[Grant] {
 }
 
 type GrantCreate struct {
-	key         orm.Change[string]
-	title       orm.Change[string]
-	version     orm.Change[int64]
-	description orm.Change[string]
-	issuerID    orm.NullableChange[int64]
-	teamID      orm.NullableChange[int64]
-	reviewerID  orm.NullableChange[int64]
+	key                  orm.Change[string]
+	title                orm.Change[string]
+	version              orm.Change[int64]
+	description          orm.Change[string]
+	membershipID         orm.NullableChange[int64]
+	nullableMembershipID orm.NullableChange[int64]
+	issuerID             orm.NullableChange[int64]
+	teamID               orm.NullableChange[int64]
+	reviewerID           orm.NullableChange[int64]
 }
 
 func NewGrantCreate(key string, title string) GrantCreate {
@@ -278,6 +336,26 @@ func (input GrantCreate) WithVersion(value int64) GrantCreate {
 
 func (input GrantCreate) WithDescription(value string) GrantCreate {
 	input.description = orm.Set(value)
+	return input
+}
+
+func (input GrantCreate) WithMembershipID(value int64) GrantCreate {
+	input.membershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input GrantCreate) WithMembershipIDNull() GrantCreate {
+	input.membershipID = orm.SetNull[int64]()
+	return input
+}
+
+func (input GrantCreate) WithNullableMembershipID(value int64) GrantCreate {
+	input.nullableMembershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input GrantCreate) WithNullableMembershipIDNull() GrantCreate {
+	input.nullableMembershipID = orm.SetNull[int64]()
 	return input
 }
 
@@ -313,7 +391,7 @@ func (input GrantCreate) WithReviewerIDNull() GrantCreate {
 
 func (input GrantCreate) BuildCreate() orm.Mutation[Grant] {
 	var value Grant
-	assignments := make([]query.Assignment, 0, 7)
+	assignments := make([]query.Assignment, 0, 9)
 	changedKey, changedKeySet := input.key.Get()
 	if !changedKeySet {
 		return orm.InvalidMutation[Grant](&query.Error{
@@ -348,6 +426,46 @@ func (input GrantCreate) BuildCreate() orm.Mutation[Grant] {
 	}
 	value.Description = changedDescription
 	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("description", "description", query.FieldString, false), query.String(changedDescription)))
+	changedMembershipID, changedMembershipIDState := input.membershipID.Get()
+	switch changedMembershipIDState {
+	case orm.NullableChangeUnset:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedMembershipID := changedMembershipID
+		value.MembershipID = &storedMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Integer(changedMembershipID)))
+	case orm.NullableChangeNull:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Grant](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedNullableMembershipID, changedNullableMembershipIDState := input.nullableMembershipID.Get()
+	switch changedNullableMembershipIDState {
+	case orm.NullableChangeUnset:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedNullableMembershipID := changedNullableMembershipID
+		value.NullableMembershipID = &storedNullableMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Integer(changedNullableMembershipID)))
+	case orm.NullableChangeNull:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Grant](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "nullable_membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	changedIssuerID, changedIssuerIDState := input.issuerID.Get()
 	switch changedIssuerIDState {
 	case orm.NullableChangeUnset:
@@ -412,13 +530,15 @@ func (input GrantCreate) BuildCreate() orm.Mutation[Grant] {
 }
 
 type GrantPatch struct {
-	key         orm.Change[string]
-	title       orm.Change[string]
-	version     orm.Change[int64]
-	description orm.Change[string]
-	issuerID    orm.NullableChange[int64]
-	teamID      orm.NullableChange[int64]
-	reviewerID  orm.NullableChange[int64]
+	key                  orm.Change[string]
+	title                orm.Change[string]
+	version              orm.Change[int64]
+	description          orm.Change[string]
+	membershipID         orm.NullableChange[int64]
+	nullableMembershipID orm.NullableChange[int64]
+	issuerID             orm.NullableChange[int64]
+	teamID               orm.NullableChange[int64]
+	reviewerID           orm.NullableChange[int64]
 }
 
 func (input GrantPatch) WithKey(value string) GrantPatch {
@@ -438,6 +558,26 @@ func (input GrantPatch) WithVersion(value int64) GrantPatch {
 
 func (input GrantPatch) WithDescription(value string) GrantPatch {
 	input.description = orm.Set(value)
+	return input
+}
+
+func (input GrantPatch) WithMembershipID(value int64) GrantPatch {
+	input.membershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input GrantPatch) WithMembershipIDNull() GrantPatch {
+	input.membershipID = orm.SetNull[int64]()
+	return input
+}
+
+func (input GrantPatch) WithNullableMembershipID(value int64) GrantPatch {
+	input.nullableMembershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input GrantPatch) WithNullableMembershipIDNull() GrantPatch {
+	input.nullableMembershipID = orm.SetNull[int64]()
 	return input
 }
 
@@ -473,7 +613,7 @@ func (input GrantPatch) WithReviewerIDNull() GrantPatch {
 
 func (input GrantPatch) BuildPatch(current Grant) orm.Mutation[Grant] {
 	value := current
-	assignments := make([]query.Assignment, 0, 7)
+	assignments := make([]query.Assignment, 0, 9)
 	if changedKey, ok := input.key.Get(); ok {
 		value.Key = changedKey
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("key", "key", query.FieldString, false), query.String(changedKey)))
@@ -489,6 +629,42 @@ func (input GrantPatch) BuildPatch(current Grant) orm.Mutation[Grant] {
 	if changedDescription, ok := input.description.Get(); ok {
 		value.Description = changedDescription
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("description", "description", query.FieldString, false), query.String(changedDescription)))
+	}
+	changedMembershipID, changedMembershipIDState := input.membershipID.Get()
+	switch changedMembershipIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedMembershipID := changedMembershipID
+		value.MembershipID = &storedMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Integer(changedMembershipID)))
+	case orm.NullableChangeNull:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Grant](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedNullableMembershipID, changedNullableMembershipIDState := input.nullableMembershipID.Get()
+	switch changedNullableMembershipIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedNullableMembershipID := changedNullableMembershipID
+		value.NullableMembershipID = &storedNullableMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Integer(changedNullableMembershipID)))
+	case orm.NullableChangeNull:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Grant](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "nullable_membership",
+			Detail:   "unknown nullable change state",
+		})
 	}
 	changedIssuerID, changedIssuerIDState := input.issuerID.Get()
 	switch changedIssuerIDState {
@@ -591,6 +767,32 @@ func grantMetadata() ir.Model {
 				Default: &ir.Scalar{Kind: ir.ScalarString, String: ""},
 			},
 			{
+				Name:     "membership",
+				GoName:   "MembershipID",
+				Column:   "membership_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Disabled: true},
+					OnDelete:    ir.DeleteCascade,
+				},
+			},
+			{
+				Name:     "nullable_membership",
+				GoName:   "NullableMembershipID",
+				Column:   "nullable_membership_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Disabled: true},
+					OnDelete:    ir.DeleteSetNull,
+				},
+			},
+			{
 				Name:     "issuer",
 				GoName:   "IssuerID",
 				Column:   "issuer_id",
@@ -638,6 +840,8 @@ type Team struct {
 	Title                 string
 	Version               int64
 	Priority              int64
+	MembershipID          *int64
+	NullableMembershipID  *int64
 	CreatorID             *int64
 	ReviewerID            *int64
 	godjPrimaryKeyPresent bool
@@ -655,10 +859,20 @@ func (TeamDescriptor) Metadata() ir.Model {
 
 func (TeamDescriptor) Scan(row db.Row) (Team, error) {
 	var value Team
+	var scanMembershipID sql.NullInt64
+	var scanNullableMembershipID sql.NullInt64
 	var scanCreatorID sql.NullInt64
 	var scanReviewerID sql.NullInt64
-	if err := row.Scan(&value.ID, &value.Title, &value.Version, &value.Priority, &scanCreatorID, &scanReviewerID); err != nil {
+	if err := row.Scan(&value.ID, &value.Title, &value.Version, &value.Priority, &scanMembershipID, &scanNullableMembershipID, &scanCreatorID, &scanReviewerID); err != nil {
 		return Team{}, err
+	}
+	if scanMembershipID.Valid {
+		scanned := scanMembershipID.Int64
+		value.MembershipID = &scanned
+	}
+	if scanNullableMembershipID.Valid {
+		scanned := scanNullableMembershipID.Int64
+		value.NullableMembershipID = &scanned
 	}
 	if scanCreatorID.Valid {
 		scanned := scanCreatorID.Int64
@@ -688,6 +902,14 @@ func (TeamDescriptor) ClearPrimaryKey(value *Team) {
 
 func (TeamDescriptor) CloneModel(value Team) Team {
 	clone := value
+	if value.MembershipID != nil {
+		clonedMembershipID := *value.MembershipID
+		clone.MembershipID = &clonedMembershipID
+	}
+	if value.NullableMembershipID != nil {
+		clonedNullableMembershipID := *value.NullableMembershipID
+		clone.NullableMembershipID = &clonedNullableMembershipID
+	}
 	if value.CreatorID != nil {
 		clonedCreatorID := *value.CreatorID
 		clone.CreatorID = &clonedCreatorID
@@ -713,6 +935,16 @@ func (TeamDescriptor) WriteFieldValue(value Team, field ir.Field) (query.Value, 
 		return query.Integer(value.Version), true
 	case "priority":
 		return query.Integer(value.Priority), true
+	case "membership":
+		if value.MembershipID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.MembershipID), true
+	case "nullable_membership":
+		if value.NullableMembershipID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.NullableMembershipID), true
 	case "creator":
 		if value.CreatorID == nil {
 			return query.Null(), true
@@ -754,6 +986,28 @@ func (TeamDescriptor) SetFieldValue(value *Team, field ir.Field, input query.Val
 		}
 		value.Priority = assigned
 		return true
+	case "membership":
+		if input.IsNull() {
+			value.MembershipID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.MembershipID = &assigned
+		return true
+	case "nullable_membership":
+		if input.IsNull() {
+			value.NullableMembershipID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.NullableMembershipID = &assigned
+		return true
 	case "creator":
 		if input.IsNull() {
 			value.CreatorID = nil
@@ -782,23 +1036,27 @@ func (TeamDescriptor) SetFieldValue(value *Team, field ir.Field, input query.Val
 }
 
 type TeamFieldSet struct {
-	ID         orm.AutoField[Team]
-	Title      orm.StringField[Team]
-	Version    orm.IntegerField[Team]
-	Priority   orm.IntegerField[Team]
-	CreatorID  orm.NullableForeignKeyField[Team]
-	ReviewerID orm.NullableForeignKeyField[Team]
+	ID                   orm.AutoField[Team]
+	Title                orm.StringField[Team]
+	Version              orm.IntegerField[Team]
+	Priority             orm.IntegerField[Team]
+	MembershipID         orm.NullableForeignKeyField[Team]
+	NullableMembershipID orm.NullableForeignKeyField[Team]
+	CreatorID            orm.NullableForeignKeyField[Team]
+	ReviewerID           orm.NullableForeignKeyField[Team]
 }
 
 var TeamFields = func() TeamFieldSet {
 	metadata := teamMetadata()
 	return TeamFieldSet{
-		ID:         orm.NewAutoField[Team](metadata.Fields[0]),
-		Title:      orm.NewStringField[Team](metadata.Fields[1]),
-		Version:    orm.NewIntegerField[Team](metadata.Fields[2]),
-		Priority:   orm.NewIntegerField[Team](metadata.Fields[3]),
-		CreatorID:  orm.NewNullableForeignKeyField[Team](metadata.Fields[4]),
-		ReviewerID: orm.NewNullableForeignKeyField[Team](metadata.Fields[5]),
+		ID:                   orm.NewAutoField[Team](metadata.Fields[0]),
+		Title:                orm.NewStringField[Team](metadata.Fields[1]),
+		Version:              orm.NewIntegerField[Team](metadata.Fields[2]),
+		Priority:             orm.NewIntegerField[Team](metadata.Fields[3]),
+		MembershipID:         orm.NewNullableForeignKeyField[Team](metadata.Fields[4]),
+		NullableMembershipID: orm.NewNullableForeignKeyField[Team](metadata.Fields[5]),
+		CreatorID:            orm.NewNullableForeignKeyField[Team](metadata.Fields[6]),
+		ReviewerID:           orm.NewNullableForeignKeyField[Team](metadata.Fields[7]),
 	}
 }()
 
@@ -825,11 +1083,13 @@ func TeamForceUpdate() orm.SaveOption[Team] {
 }
 
 type TeamCreate struct {
-	title      orm.Change[string]
-	version    orm.Change[int64]
-	priority   orm.Change[int64]
-	creatorID  orm.NullableChange[int64]
-	reviewerID orm.NullableChange[int64]
+	title                orm.Change[string]
+	version              orm.Change[int64]
+	priority             orm.Change[int64]
+	membershipID         orm.NullableChange[int64]
+	nullableMembershipID orm.NullableChange[int64]
+	creatorID            orm.NullableChange[int64]
+	reviewerID           orm.NullableChange[int64]
 }
 
 func NewTeamCreate(title string) TeamCreate {
@@ -850,6 +1110,26 @@ func (input TeamCreate) WithVersion(value int64) TeamCreate {
 
 func (input TeamCreate) WithPriority(value int64) TeamCreate {
 	input.priority = orm.Set(value)
+	return input
+}
+
+func (input TeamCreate) WithMembershipID(value int64) TeamCreate {
+	input.membershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input TeamCreate) WithMembershipIDNull() TeamCreate {
+	input.membershipID = orm.SetNull[int64]()
+	return input
+}
+
+func (input TeamCreate) WithNullableMembershipID(value int64) TeamCreate {
+	input.nullableMembershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input TeamCreate) WithNullableMembershipIDNull() TeamCreate {
+	input.nullableMembershipID = orm.SetNull[int64]()
 	return input
 }
 
@@ -875,7 +1155,7 @@ func (input TeamCreate) WithReviewerIDNull() TeamCreate {
 
 func (input TeamCreate) BuildCreate() orm.Mutation[Team] {
 	var value Team
-	assignments := make([]query.Assignment, 0, 5)
+	assignments := make([]query.Assignment, 0, 7)
 	changedTitle, changedTitleSet := input.title.Get()
 	if !changedTitleSet {
 		return orm.InvalidMutation[Team](&query.Error{
@@ -899,6 +1179,46 @@ func (input TeamCreate) BuildCreate() orm.Mutation[Team] {
 	}
 	value.Priority = changedPriority
 	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, false), query.Integer(changedPriority)))
+	changedMembershipID, changedMembershipIDState := input.membershipID.Get()
+	switch changedMembershipIDState {
+	case orm.NullableChangeUnset:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedMembershipID := changedMembershipID
+		value.MembershipID = &storedMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Integer(changedMembershipID)))
+	case orm.NullableChangeNull:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Team](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedNullableMembershipID, changedNullableMembershipIDState := input.nullableMembershipID.Get()
+	switch changedNullableMembershipIDState {
+	case orm.NullableChangeUnset:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedNullableMembershipID := changedNullableMembershipID
+		value.NullableMembershipID = &storedNullableMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Integer(changedNullableMembershipID)))
+	case orm.NullableChangeNull:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Team](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "nullable_membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	changedCreatorID, changedCreatorIDState := input.creatorID.Get()
 	switch changedCreatorIDState {
 	case orm.NullableChangeUnset:
@@ -943,11 +1263,13 @@ func (input TeamCreate) BuildCreate() orm.Mutation[Team] {
 }
 
 type TeamPatch struct {
-	title      orm.Change[string]
-	version    orm.Change[int64]
-	priority   orm.Change[int64]
-	creatorID  orm.NullableChange[int64]
-	reviewerID orm.NullableChange[int64]
+	title                orm.Change[string]
+	version              orm.Change[int64]
+	priority             orm.Change[int64]
+	membershipID         orm.NullableChange[int64]
+	nullableMembershipID orm.NullableChange[int64]
+	creatorID            orm.NullableChange[int64]
+	reviewerID           orm.NullableChange[int64]
 }
 
 func (input TeamPatch) WithTitle(value string) TeamPatch {
@@ -962,6 +1284,26 @@ func (input TeamPatch) WithVersion(value int64) TeamPatch {
 
 func (input TeamPatch) WithPriority(value int64) TeamPatch {
 	input.priority = orm.Set(value)
+	return input
+}
+
+func (input TeamPatch) WithMembershipID(value int64) TeamPatch {
+	input.membershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input TeamPatch) WithMembershipIDNull() TeamPatch {
+	input.membershipID = orm.SetNull[int64]()
+	return input
+}
+
+func (input TeamPatch) WithNullableMembershipID(value int64) TeamPatch {
+	input.nullableMembershipID = orm.SetNullable(value)
+	return input
+}
+
+func (input TeamPatch) WithNullableMembershipIDNull() TeamPatch {
+	input.nullableMembershipID = orm.SetNull[int64]()
 	return input
 }
 
@@ -987,7 +1329,7 @@ func (input TeamPatch) WithReviewerIDNull() TeamPatch {
 
 func (input TeamPatch) BuildPatch(current Team) orm.Mutation[Team] {
 	value := current
-	assignments := make([]query.Assignment, 0, 5)
+	assignments := make([]query.Assignment, 0, 7)
 	if changedTitle, ok := input.title.Get(); ok {
 		value.Title = changedTitle
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("title", "title", query.FieldString, false), query.String(changedTitle)))
@@ -999,6 +1341,42 @@ func (input TeamPatch) BuildPatch(current Team) orm.Mutation[Team] {
 	if changedPriority, ok := input.priority.Get(); ok {
 		value.Priority = changedPriority
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("priority", "priority", query.FieldInteger, false), query.Integer(changedPriority)))
+	}
+	changedMembershipID, changedMembershipIDState := input.membershipID.Get()
+	switch changedMembershipIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedMembershipID := changedMembershipID
+		value.MembershipID = &storedMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Integer(changedMembershipID)))
+	case orm.NullableChangeNull:
+		value.MembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("membership", "membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Team](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "membership",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedNullableMembershipID, changedNullableMembershipIDState := input.nullableMembershipID.Get()
+	switch changedNullableMembershipIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedNullableMembershipID := changedNullableMembershipID
+		value.NullableMembershipID = &storedNullableMembershipID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Integer(changedNullableMembershipID)))
+	case orm.NullableChangeNull:
+		value.NullableMembershipID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("nullable_membership", "nullable_membership_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Team](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "nullable_membership",
+			Detail:   "unknown nullable change state",
+		})
 	}
 	changedCreatorID, changedCreatorIDState := input.creatorID.Get()
 	switch changedCreatorIDState {
@@ -1075,6 +1453,32 @@ func teamMetadata() ir.Model {
 				Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: 1},
 			},
 			{
+				Name:     "membership",
+				GoName:   "MembershipID",
+				Column:   "membership_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Disabled: true},
+					OnDelete:    ir.DeleteCascade,
+				},
+			},
+			{
+				Name:     "nullable_membership",
+				GoName:   "NullableMembershipID",
+				Column:   "nullable_membership_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Disabled: true},
+					OnDelete:    ir.DeleteSetNull,
+				},
+			},
+			{
 				Name:     "creator",
 				GoName:   "CreatorID",
 				Column:   "creator_id",
@@ -1107,6 +1511,6 @@ func teamMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_f7a1ced9b428e7bd1c68c29104270bc77aac7808220294f80710cc99d1da39c9 struct{}
+type GoDjAppPart0_4ef2ff5ead1bac645b388e339a48db6096fca4c4be87399b65ad0a5726b0c704 struct{}
 
-type GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7 struct{}
+type GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d struct{}

@@ -24,6 +24,22 @@ func (_relation AccessGrantIssuerObjectRelation) IsNull(_value bool) orm.Predica
 	return _relation.relation.IsNull(_value)
 }
 
+type AccessGrantMembershipObjectRelation struct {
+	relation orm.NullableForwardObject[access.Grant, links.Membership]
+}
+
+func (_relation AccessGrantMembershipObjectRelation) IsNull(_value bool) orm.Predicate[access.Grant] {
+	return _relation.relation.IsNull(_value)
+}
+
+type AccessGrantNullableMembershipObjectRelation struct {
+	relation orm.NullableForwardObject[access.Grant, links.Membership]
+}
+
+func (_relation AccessGrantNullableMembershipObjectRelation) IsNull(_value bool) orm.Predicate[access.Grant] {
+	return _relation.relation.IsNull(_value)
+}
+
 type AccessGrantReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[access.Grant, people.Member]
 }
@@ -43,10 +59,14 @@ func (_relation AccessGrantTeamObjectRelation) IsNull(_value bool) orm.Predicate
 type AccessGrantObjectFactory struct {
 	_projectSelections *Objects
 	Issuer             AccessGrantIssuerObjectRelation
+	Membership         AccessGrantMembershipObjectRelation
+	NullableMembership AccessGrantNullableMembershipObjectRelation
 	Reviewer           AccessGrantReviewerObjectRelation
 	Team               AccessGrantTeamObjectRelation
 	model              orm.BoundModel[access.Grant]
 	issuer             orm.NullableForwardObject[access.Grant, people.Member]
+	membership         orm.NullableForwardObject[access.Grant, links.Membership]
+	nullableMembership orm.NullableForwardObject[access.Grant, links.Membership]
 	reviewer           orm.NullableForwardObject[access.Grant, people.Member]
 	team               orm.NullableForwardObject[access.Grant, access.Team]
 }
@@ -64,35 +84,47 @@ func (_factory AccessGrantObjectFactory) From(_backend db.Queryer, _value access
 	if _err != nil {
 		return nil, _err
 	}
-	_related1, _err := _factory.reviewer.From(_backend, _snapshot)
+	_related1, _err := _factory.membership.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related2, _err := _factory.team.From(_backend, _snapshot)
+	_related2, _err := _factory.nullableMembership.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related3, _err := _factory.reviewer.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related4, _err := _factory.team.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
 	_result := &AccessGrantObject{
-		model:    _snapshot,
-		factory:  _factory,
-		backend:  _backend,
-		issuer:   _related0,
-		reviewer: _related1,
-		team:     _related2,
+		model:              _snapshot,
+		factory:            _factory,
+		backend:            _backend,
+		issuer:             _related0,
+		membership:         _related1,
+		nullableMembership: _related2,
+		reviewer:           _related3,
+		team:               _related4,
 	}
 	_result._self = _result
 	return _result, nil
 }
 
 type AccessGrantObject struct {
-	_selectedGraph *orm.RelatedSelected[access.Grant]
-	model          access.Grant
-	factory        AccessGrantObjectFactory
-	backend        db.Queryer
-	issuer         *orm.RelatedObject[people.Member]
-	reviewer       *orm.RelatedObject[people.Member]
-	team           *orm.RelatedObject[access.Team]
-	_self          *AccessGrantObject
+	_selectedGraph     *orm.RelatedSelected[access.Grant]
+	model              access.Grant
+	factory            AccessGrantObjectFactory
+	backend            db.Queryer
+	issuer             *orm.RelatedObject[people.Member]
+	membership         *orm.RelatedObject[links.Membership]
+	nullableMembership *orm.RelatedObject[links.Membership]
+	reviewer           *orm.RelatedObject[people.Member]
+	team               *orm.RelatedObject[access.Team]
+	_self              *AccessGrantObject
 }
 
 func (_object *AccessGrantObject) _validate() error {
@@ -118,6 +150,20 @@ func (_object *AccessGrantObject) Issuer(_ctx context.Context) (people.Member, b
 		return people.Member{}, false, _err
 	}
 	return _object.issuer.Get(_ctx)
+}
+
+func (_object *AccessGrantObject) Membership(_ctx context.Context) (links.Membership, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return links.Membership{}, false, _err
+	}
+	return _object.membership.Get(_ctx)
+}
+
+func (_object *AccessGrantObject) NullableMembership(_ctx context.Context) (links.Membership, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return links.Membership{}, false, _err
+	}
+	return _object.nullableMembership.Get(_ctx)
 }
 
 func (_object *AccessGrantObject) Reviewer(_ctx context.Context) (people.Member, bool, error) {
@@ -149,6 +195,22 @@ func (_relation AccessTeamCreatorObjectRelation) IsNull(_value bool) orm.Predica
 	return _relation.relation.IsNull(_value)
 }
 
+type AccessTeamMembershipObjectRelation struct {
+	relation orm.NullableForwardObject[access.Team, links.Membership]
+}
+
+func (_relation AccessTeamMembershipObjectRelation) IsNull(_value bool) orm.Predicate[access.Team] {
+	return _relation.relation.IsNull(_value)
+}
+
+type AccessTeamNullableMembershipObjectRelation struct {
+	relation orm.NullableForwardObject[access.Team, links.Membership]
+}
+
+func (_relation AccessTeamNullableMembershipObjectRelation) IsNull(_value bool) orm.Predicate[access.Team] {
+	return _relation.relation.IsNull(_value)
+}
+
 type AccessTeamReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[access.Team, people.Member]
 }
@@ -160,9 +222,13 @@ func (_relation AccessTeamReviewerObjectRelation) IsNull(_value bool) orm.Predic
 type AccessTeamObjectFactory struct {
 	_projectSelections *Objects
 	Creator            AccessTeamCreatorObjectRelation
+	Membership         AccessTeamMembershipObjectRelation
+	NullableMembership AccessTeamNullableMembershipObjectRelation
 	Reviewer           AccessTeamReviewerObjectRelation
 	model              orm.BoundModel[access.Team]
 	creator            orm.NullableForwardObject[access.Team, people.Member]
+	membership         orm.NullableForwardObject[access.Team, links.Membership]
+	nullableMembership orm.NullableForwardObject[access.Team, links.Membership]
 	reviewer           orm.NullableForwardObject[access.Team, people.Member]
 }
 
@@ -175,33 +241,45 @@ func (_factory AccessTeamObjectFactory) ParseDynamic(
 
 func (_factory AccessTeamObjectFactory) From(_backend db.Queryer, _value access.Team) (*AccessTeamObject, error) {
 	_snapshot := (access.TeamDescriptor{}).CloneModel(_value)
-	_related3, _err := _factory.creator.From(_backend, _snapshot)
+	_related5, _err := _factory.creator.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related4, _err := _factory.reviewer.From(_backend, _snapshot)
+	_related6, _err := _factory.membership.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related7, _err := _factory.nullableMembership.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related8, _err := _factory.reviewer.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
 	_result := &AccessTeamObject{
-		model:    _snapshot,
-		factory:  _factory,
-		backend:  _backend,
-		creator:  _related3,
-		reviewer: _related4,
+		model:              _snapshot,
+		factory:            _factory,
+		backend:            _backend,
+		creator:            _related5,
+		membership:         _related6,
+		nullableMembership: _related7,
+		reviewer:           _related8,
 	}
 	_result._self = _result
 	return _result, nil
 }
 
 type AccessTeamObject struct {
-	_selectedGraph *orm.RelatedSelected[access.Team]
-	model          access.Team
-	factory        AccessTeamObjectFactory
-	backend        db.Queryer
-	creator        *orm.RelatedObject[people.Member]
-	reviewer       *orm.RelatedObject[people.Member]
-	_self          *AccessTeamObject
+	_selectedGraph     *orm.RelatedSelected[access.Team]
+	model              access.Team
+	factory            AccessTeamObjectFactory
+	backend            db.Queryer
+	creator            *orm.RelatedObject[people.Member]
+	membership         *orm.RelatedObject[links.Membership]
+	nullableMembership *orm.RelatedObject[links.Membership]
+	reviewer           *orm.RelatedObject[people.Member]
+	_self              *AccessTeamObject
 }
 
 func (_object *AccessTeamObject) _validate() error {
@@ -227,6 +305,20 @@ func (_object *AccessTeamObject) Creator(_ctx context.Context) (people.Member, b
 		return people.Member{}, false, _err
 	}
 	return _object.creator.Get(_ctx)
+}
+
+func (_object *AccessTeamObject) Membership(_ctx context.Context) (links.Membership, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return links.Membership{}, false, _err
+	}
+	return _object.membership.Get(_ctx)
+}
+
+func (_object *AccessTeamObject) NullableMembership(_ctx context.Context) (links.Membership, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return links.Membership{}, false, _err
+	}
+	return _object.nullableMembership.Get(_ctx)
 }
 
 func (_object *AccessTeamObject) Reviewer(_ctx context.Context) (people.Member, bool, error) {
@@ -269,15 +361,15 @@ func (_factory LinksGrantLinkObjectFactory) ParseDynamic(
 
 func (_factory LinksGrantLinkObjectFactory) From(_backend db.Queryer, _value links.GrantLink) (*LinksGrantLinkObject, error) {
 	_snapshot := (links.GrantLinkDescriptor{}).CloneModel(_value)
-	_related5, _err := _factory.anchor.From(_backend, _snapshot)
+	_related9, _err := _factory.anchor.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related6, _err := _factory.grant.From(_backend, _snapshot)
+	_related10, _err := _factory.grant.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related7, _err := _factory.team.From(_backend, _snapshot)
+	_related11, _err := _factory.team.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -285,9 +377,9 @@ func (_factory LinksGrantLinkObjectFactory) From(_backend db.Queryer, _value lin
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		anchor:  _related5,
-		grant:   _related6,
-		team:    _related7,
+		anchor:  _related9,
+		grant:   _related10,
+		team:    _related11,
 	}
 	_result._self = _result
 	return _result, nil
@@ -408,19 +500,19 @@ func (_factory LinksMembershipObjectFactory) ParseDynamic(
 
 func (_factory LinksMembershipObjectFactory) From(_backend db.Queryer, _value links.Membership) (*LinksMembershipObject, error) {
 	_snapshot := (links.MembershipDescriptor{}).CloneModel(_value)
-	_related8, _err := _factory.anchor.From(_backend, _snapshot)
+	_related12, _err := _factory.anchor.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related9, _err := _factory.dependsOn.From(_backend, _snapshot)
+	_related13, _err := _factory.dependsOn.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related10, _err := _factory.member.From(_backend, _snapshot)
+	_related14, _err := _factory.member.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related11, _err := _factory.team.From(_backend, _snapshot)
+	_related15, _err := _factory.team.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -428,10 +520,10 @@ func (_factory LinksMembershipObjectFactory) From(_backend db.Queryer, _value li
 		model:     _snapshot,
 		factory:   _factory,
 		backend:   _backend,
-		anchor:    _related8,
-		dependsOn: _related9,
-		member:    _related10,
-		team:      _related11,
+		anchor:    _related12,
+		dependsOn: _related13,
+		member:    _related14,
+		team:      _related15,
 	}
 	_result._self = _result
 	return _result, nil
@@ -540,6 +632,22 @@ func (_relation PeopleMemberLeaderObjectRelation) IsNull(_value bool) orm.Predic
 	return _relation.relation.IsNull(_value)
 }
 
+type PeopleMemberMembershipObjectRelation struct {
+	relation orm.NullableForwardObject[people.Member, links.Membership]
+}
+
+func (_relation PeopleMemberMembershipObjectRelation) IsNull(_value bool) orm.Predicate[people.Member] {
+	return _relation.relation.IsNull(_value)
+}
+
+type PeopleMemberNullableMembershipObjectRelation struct {
+	relation orm.NullableForwardObject[people.Member, links.Membership]
+}
+
+func (_relation PeopleMemberNullableMembershipObjectRelation) IsNull(_value bool) orm.Predicate[people.Member] {
+	return _relation.relation.IsNull(_value)
+}
+
 type PeopleMemberReviewerObjectRelation struct {
 	relation orm.NullableForwardObject[people.Member, people.Member]
 }
@@ -560,11 +668,15 @@ type PeopleMemberObjectFactory struct {
 	_projectSelections *Objects
 	GrantRef           PeopleMemberGrantRefObjectRelation
 	Leader             PeopleMemberLeaderObjectRelation
+	Membership         PeopleMemberMembershipObjectRelation
+	NullableMembership PeopleMemberNullableMembershipObjectRelation
 	Reviewer           PeopleMemberReviewerObjectRelation
 	Sponsor            PeopleMemberSponsorObjectRelation
 	model              orm.BoundModel[people.Member]
 	grantRef           orm.NullableForwardObject[people.Member, access.Grant]
 	leader             orm.NullableForwardObject[people.Member, people.Member]
+	membership         orm.NullableForwardObject[people.Member, links.Membership]
+	nullableMembership orm.NullableForwardObject[people.Member, links.Membership]
 	reviewer           orm.NullableForwardObject[people.Member, people.Member]
 	sponsor            orm.NullableForwardObject[people.Member, access.Team]
 }
@@ -578,45 +690,57 @@ func (_factory PeopleMemberObjectFactory) ParseDynamic(
 
 func (_factory PeopleMemberObjectFactory) From(_backend db.Queryer, _value people.Member) (*PeopleMemberObject, error) {
 	_snapshot := (people.MemberDescriptor{}).CloneModel(_value)
-	_related12, _err := _factory.grantRef.From(_backend, _snapshot)
+	_related16, _err := _factory.grantRef.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related13, _err := _factory.leader.From(_backend, _snapshot)
+	_related17, _err := _factory.leader.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related14, _err := _factory.reviewer.From(_backend, _snapshot)
+	_related18, _err := _factory.membership.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related15, _err := _factory.sponsor.From(_backend, _snapshot)
+	_related19, _err := _factory.nullableMembership.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related20, _err := _factory.reviewer.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related21, _err := _factory.sponsor.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
 	_result := &PeopleMemberObject{
-		model:    _snapshot,
-		factory:  _factory,
-		backend:  _backend,
-		grantRef: _related12,
-		leader:   _related13,
-		reviewer: _related14,
-		sponsor:  _related15,
+		model:              _snapshot,
+		factory:            _factory,
+		backend:            _backend,
+		grantRef:           _related16,
+		leader:             _related17,
+		membership:         _related18,
+		nullableMembership: _related19,
+		reviewer:           _related20,
+		sponsor:            _related21,
 	}
 	_result._self = _result
 	return _result, nil
 }
 
 type PeopleMemberObject struct {
-	_selectedGraph *orm.RelatedSelected[people.Member]
-	model          people.Member
-	factory        PeopleMemberObjectFactory
-	backend        db.Queryer
-	grantRef       *orm.RelatedObject[access.Grant]
-	leader         *orm.RelatedObject[people.Member]
-	reviewer       *orm.RelatedObject[people.Member]
-	sponsor        *orm.RelatedObject[access.Team]
-	_self          *PeopleMemberObject
+	_selectedGraph     *orm.RelatedSelected[people.Member]
+	model              people.Member
+	factory            PeopleMemberObjectFactory
+	backend            db.Queryer
+	grantRef           *orm.RelatedObject[access.Grant]
+	leader             *orm.RelatedObject[people.Member]
+	membership         *orm.RelatedObject[links.Membership]
+	nullableMembership *orm.RelatedObject[links.Membership]
+	reviewer           *orm.RelatedObject[people.Member]
+	sponsor            *orm.RelatedObject[access.Team]
+	_self              *PeopleMemberObject
 }
 
 func (_object *PeopleMemberObject) _validate() error {
@@ -649,6 +773,20 @@ func (_object *PeopleMemberObject) Leader(_ctx context.Context) (people.Member, 
 		return people.Member{}, false, _err
 	}
 	return _object.leader.Get(_ctx)
+}
+
+func (_object *PeopleMemberObject) Membership(_ctx context.Context) (links.Membership, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return links.Membership{}, false, _err
+	}
+	return _object.membership.Get(_ctx)
+}
+
+func (_object *PeopleMemberObject) NullableMembership(_ctx context.Context) (links.Membership, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return links.Membership{}, false, _err
+	}
+	return _object.nullableMembership.Get(_ctx)
 }
 
 func (_object *PeopleMemberObject) Reviewer(_ctx context.Context) (people.Member, bool, error) {
@@ -688,11 +826,11 @@ func (_factory PeopleMemberGrantsLinkObjectFactory) ParseDynamic(
 
 func (_factory PeopleMemberGrantsLinkObjectFactory) From(_backend db.Queryer, _value people.MemberGrantsLink) (*PeopleMemberGrantsLinkObject, error) {
 	_snapshot := (people.MemberGrantsLinkDescriptor{}).CloneModel(_value)
-	_related16, _err := _factory.source.From(_backend, _snapshot)
+	_related22, _err := _factory.source.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related17, _err := _factory.target.From(_backend, _snapshot)
+	_related23, _err := _factory.target.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -700,8 +838,8 @@ func (_factory PeopleMemberGrantsLinkObjectFactory) From(_backend db.Queryer, _v
 		model:   _snapshot,
 		factory: _factory,
 		backend: _backend,
-		source:  _related16,
-		target:  _related17,
+		source:  _related22,
+		target:  _related23,
 	}
 	_result._self = _result
 	return _result, nil
@@ -843,27 +981,27 @@ func (_factory TicketsTicketObjectFactory) ParseDynamic(
 
 func (_factory TicketsTicketObjectFactory) From(_backend db.Queryer, _value tickets.Ticket) (*TicketsTicketObject, error) {
 	_snapshot := (tickets.TicketDescriptor{}).CloneModel(_value)
-	_related18, _err := _factory.grantLink.From(_backend, _snapshot)
+	_related24, _err := _factory.grantLink.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related19, _err := _factory.membership.From(_backend, _snapshot)
+	_related25, _err := _factory.membership.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related20, _err := _factory.nullableGrantLink.From(_backend, _snapshot)
+	_related26, _err := _factory.nullableGrantLink.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related21, _err := _factory.nullableMembership.From(_backend, _snapshot)
+	_related27, _err := _factory.nullableMembership.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related22, _err := _factory.owner.From(_backend, _snapshot)
+	_related28, _err := _factory.owner.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
-	_related23, _err := _factory.protectedGrantLink.From(_backend, _snapshot)
+	_related29, _err := _factory.protectedGrantLink.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -871,12 +1009,12 @@ func (_factory TicketsTicketObjectFactory) From(_backend db.Queryer, _value tick
 		model:              _snapshot,
 		factory:            _factory,
 		backend:            _backend,
-		grantLink:          _related18,
-		membership:         _related19,
-		nullableGrantLink:  _related20,
-		nullableMembership: _related21,
-		owner:              _related22,
-		protectedGrantLink: _related23,
+		grantLink:          _related24,
+		membership:         _related25,
+		nullableGrantLink:  _related26,
+		nullableMembership: _related27,
+		owner:              _related28,
+		protectedGrantLink: _related29,
 	}
 	_result._self = _result
 	return _result, nil
@@ -1054,160 +1192,196 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation1, _err := orm.BindNullableForwardObject(_model0, "reviewer", _model4)
+	_relation1, _err := orm.BindNullableForwardObject(_model0, "membership", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation2, _err := orm.BindNullableForwardObject(_model0, "team", _model1)
+	_relation2, _err := orm.BindNullableForwardObject(_model0, "nullable_membership", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation3, _err := orm.BindNullableForwardObject(_model1, "creator", _model4)
+	_relation3, _err := orm.BindNullableForwardObject(_model0, "reviewer", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation4, _err := orm.BindNullableForwardObject(_model1, "reviewer", _model4)
+	_relation4, _err := orm.BindNullableForwardObject(_model0, "team", _model1)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation5, _err := orm.BindNullableForwardObject(_model2, "anchor", _model4)
+	_relation5, _err := orm.BindNullableForwardObject(_model1, "creator", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation6, _err := orm.BindRequiredForwardObject(_model2, "grant", _model0)
+	_relation6, _err := orm.BindNullableForwardObject(_model1, "membership", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation7, _err := orm.BindRequiredForwardObject(_model2, "team", _model1)
+	_relation7, _err := orm.BindNullableForwardObject(_model1, "nullable_membership", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation8, _err := orm.BindNullableForwardObject(_model3, "anchor", _model4)
+	_relation8, _err := orm.BindNullableForwardObject(_model1, "reviewer", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation9, _err := orm.BindNullableForwardObject(_model3, "depends_on", _model2)
+	_relation9, _err := orm.BindNullableForwardObject(_model2, "anchor", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation10, _err := orm.BindRequiredForwardObject(_model3, "member", _model4)
+	_relation10, _err := orm.BindRequiredForwardObject(_model2, "grant", _model0)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation11, _err := orm.BindRequiredForwardObject(_model3, "team", _model1)
+	_relation11, _err := orm.BindRequiredForwardObject(_model2, "team", _model1)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation12, _err := orm.BindNullableForwardObject(_model4, "grant_ref", _model0)
+	_relation12, _err := orm.BindNullableForwardObject(_model3, "anchor", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation13, _err := orm.BindNullableForwardObject(_model4, "leader", _model4)
+	_relation13, _err := orm.BindNullableForwardObject(_model3, "depends_on", _model2)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation14, _err := orm.BindNullableForwardObject(_model4, "reviewer", _model4)
+	_relation14, _err := orm.BindRequiredForwardObject(_model3, "member", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation15, _err := orm.BindNullableForwardObject(_model4, "sponsor", _model1)
+	_relation15, _err := orm.BindRequiredForwardObject(_model3, "team", _model1)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation16, _err := orm.BindRequiredForwardObject(_model5, "source", _model4)
+	_relation16, _err := orm.BindNullableForwardObject(_model4, "grant_ref", _model0)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation17, _err := orm.BindRequiredForwardObject(_model5, "target", _model0)
+	_relation17, _err := orm.BindNullableForwardObject(_model4, "leader", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation18, _err := orm.BindNullableForwardObject(_model6, "grant_link", _model2)
+	_relation18, _err := orm.BindNullableForwardObject(_model4, "membership", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation19, _err := orm.BindNullableForwardObject(_model6, "membership", _model3)
+	_relation19, _err := orm.BindNullableForwardObject(_model4, "nullable_membership", _model3)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation20, _err := orm.BindNullableForwardObject(_model6, "nullable_grant_link", _model2)
+	_relation20, _err := orm.BindNullableForwardObject(_model4, "reviewer", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation21, _err := orm.BindNullableForwardObject(_model6, "nullable_membership", _model3)
+	_relation21, _err := orm.BindNullableForwardObject(_model4, "sponsor", _model1)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation22, _err := orm.BindRequiredForwardObject(_model6, "owner", _model4)
+	_relation22, _err := orm.BindRequiredForwardObject(_model5, "source", _model4)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation23, _err := orm.BindNullableForwardObject(_model6, "protected_grant_link", _model2)
+	_relation23, _err := orm.BindRequiredForwardObject(_model5, "target", _model0)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation24, _err := orm.BindNullableForwardObject(_model6, "grant_link", _model2)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation25, _err := orm.BindNullableForwardObject(_model6, "membership", _model3)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation26, _err := orm.BindNullableForwardObject(_model6, "nullable_grant_link", _model2)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation27, _err := orm.BindNullableForwardObject(_model6, "nullable_membership", _model3)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation28, _err := orm.BindRequiredForwardObject(_model6, "owner", _model4)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation29, _err := orm.BindNullableForwardObject(_model6, "protected_grant_link", _model2)
 	if _err != nil {
 		return Objects{}, _err
 	}
 	_objects := Objects{
 		AccessGrant: AccessGrantObjectFactory{
-			Issuer:   AccessGrantIssuerObjectRelation{relation: _relation0},
-			Reviewer: AccessGrantReviewerObjectRelation{relation: _relation1},
-			Team:     AccessGrantTeamObjectRelation{relation: _relation2},
-			model:    _model0,
-			issuer:   _relation0,
-			reviewer: _relation1,
-			team:     _relation2,
+			Issuer:             AccessGrantIssuerObjectRelation{relation: _relation0},
+			Membership:         AccessGrantMembershipObjectRelation{relation: _relation1},
+			NullableMembership: AccessGrantNullableMembershipObjectRelation{relation: _relation2},
+			Reviewer:           AccessGrantReviewerObjectRelation{relation: _relation3},
+			Team:               AccessGrantTeamObjectRelation{relation: _relation4},
+			model:              _model0,
+			issuer:             _relation0,
+			membership:         _relation1,
+			nullableMembership: _relation2,
+			reviewer:           _relation3,
+			team:               _relation4,
 		},
 		AccessTeam: AccessTeamObjectFactory{
-			Creator:  AccessTeamCreatorObjectRelation{relation: _relation3},
-			Reviewer: AccessTeamReviewerObjectRelation{relation: _relation4},
-			model:    _model1,
-			creator:  _relation3,
-			reviewer: _relation4,
+			Creator:            AccessTeamCreatorObjectRelation{relation: _relation5},
+			Membership:         AccessTeamMembershipObjectRelation{relation: _relation6},
+			NullableMembership: AccessTeamNullableMembershipObjectRelation{relation: _relation7},
+			Reviewer:           AccessTeamReviewerObjectRelation{relation: _relation8},
+			model:              _model1,
+			creator:            _relation5,
+			membership:         _relation6,
+			nullableMembership: _relation7,
+			reviewer:           _relation8,
 		},
 		LinksGrantLink: LinksGrantLinkObjectFactory{
-			Anchor: LinksGrantLinkAnchorObjectRelation{relation: _relation5},
+			Anchor: LinksGrantLinkAnchorObjectRelation{relation: _relation9},
 			model:  _model2,
-			anchor: _relation5,
-			grant:  _relation6,
-			team:   _relation7,
+			anchor: _relation9,
+			grant:  _relation10,
+			team:   _relation11,
 		},
 		LinksMembership: LinksMembershipObjectFactory{
-			Anchor:    LinksMembershipAnchorObjectRelation{relation: _relation8},
-			DependsOn: LinksMembershipDependsOnObjectRelation{relation: _relation9},
+			Anchor:    LinksMembershipAnchorObjectRelation{relation: _relation12},
+			DependsOn: LinksMembershipDependsOnObjectRelation{relation: _relation13},
 			model:     _model3,
-			anchor:    _relation8,
-			dependsOn: _relation9,
-			member:    _relation10,
-			team:      _relation11,
+			anchor:    _relation12,
+			dependsOn: _relation13,
+			member:    _relation14,
+			team:      _relation15,
 		},
 		PeopleMember: PeopleMemberObjectFactory{
-			GrantRef: PeopleMemberGrantRefObjectRelation{relation: _relation12},
-			Leader:   PeopleMemberLeaderObjectRelation{relation: _relation13},
-			Reviewer: PeopleMemberReviewerObjectRelation{relation: _relation14},
-			Sponsor:  PeopleMemberSponsorObjectRelation{relation: _relation15},
-			model:    _model4,
-			grantRef: _relation12,
-			leader:   _relation13,
-			reviewer: _relation14,
-			sponsor:  _relation15,
+			GrantRef:           PeopleMemberGrantRefObjectRelation{relation: _relation16},
+			Leader:             PeopleMemberLeaderObjectRelation{relation: _relation17},
+			Membership:         PeopleMemberMembershipObjectRelation{relation: _relation18},
+			NullableMembership: PeopleMemberNullableMembershipObjectRelation{relation: _relation19},
+			Reviewer:           PeopleMemberReviewerObjectRelation{relation: _relation20},
+			Sponsor:            PeopleMemberSponsorObjectRelation{relation: _relation21},
+			model:              _model4,
+			grantRef:           _relation16,
+			leader:             _relation17,
+			membership:         _relation18,
+			nullableMembership: _relation19,
+			reviewer:           _relation20,
+			sponsor:            _relation21,
 		},
 		PeopleMemberGrantsLink: PeopleMemberGrantsLinkObjectFactory{
 			model:  _model5,
-			source: _relation16,
-			target: _relation17,
+			source: _relation22,
+			target: _relation23,
 		},
 		TicketsTicket: TicketsTicketObjectFactory{
-			GrantLink:          TicketsTicketGrantLinkObjectRelation{relation: _relation18},
-			Membership:         TicketsTicketMembershipObjectRelation{relation: _relation19},
-			NullableGrantLink:  TicketsTicketNullableGrantLinkObjectRelation{relation: _relation20},
-			NullableMembership: TicketsTicketNullableMembershipObjectRelation{relation: _relation21},
-			ProtectedGrantLink: TicketsTicketProtectedGrantLinkObjectRelation{relation: _relation23},
+			GrantLink:          TicketsTicketGrantLinkObjectRelation{relation: _relation24},
+			Membership:         TicketsTicketMembershipObjectRelation{relation: _relation25},
+			NullableGrantLink:  TicketsTicketNullableGrantLinkObjectRelation{relation: _relation26},
+			NullableMembership: TicketsTicketNullableMembershipObjectRelation{relation: _relation27},
+			ProtectedGrantLink: TicketsTicketProtectedGrantLinkObjectRelation{relation: _relation29},
 			model:              _model6,
-			grantLink:          _relation18,
-			membership:         _relation19,
-			nullableGrantLink:  _relation20,
-			nullableMembership: _relation21,
-			owner:              _relation22,
-			protectedGrantLink: _relation23,
+			grantLink:          _relation24,
+			membership:         _relation25,
+			nullableGrantLink:  _relation26,
+			nullableMembership: _relation27,
+			owner:              _relation28,
+			protectedGrantLink: _relation29,
 		},
 	}
 	_objects.AccessGrant._projectSelections = &_objects
@@ -1220,4 +1394,4 @@ func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ goDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

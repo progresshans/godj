@@ -17,7 +17,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
-const GoDjProjectRelationFacadeInputSHA256 = "1df65aeae5b05eaf48c6e2f86b5d7eca2988f81fe2c576e0878ef534ca97a426"
+const GoDjProjectRelationFacadeInputSHA256 = "7a8e60184d053d580dd669689753aac5b7e51142eb0164643249b36b049dcdea"
 
 type Backend interface {
 	db.Queryer
@@ -432,17 +432,23 @@ type AccessGrantQuery struct {
 func newAccessGrantQuery(_state *relationFacadeState, _query orm.QuerySet[access.Grant]) AccessGrantQuery {
 	_result := AccessGrantQuery{state: _state, query: _query}
 	_result.Related = AccessGrantRelationSelectors{
-		Issuer:   relationFacadeSelection[access.Grant, people.Member]{state: _state},
-		Reviewer: relationFacadeSelection[access.Grant, people.Member]{state: _state},
-		Team:     relationFacadeSelection[access.Grant, access.Team]{state: _state},
+		Issuer:             relationFacadeSelection[access.Grant, people.Member]{state: _state},
+		Membership:         relationFacadeSelection[access.Grant, links.Membership]{state: _state},
+		NullableMembership: relationFacadeSelection[access.Grant, links.Membership]{state: _state},
+		Reviewer:           relationFacadeSelection[access.Grant, people.Member]{state: _state},
+		Team:               relationFacadeSelection[access.Grant, access.Team]{state: _state},
 	}
 	if _state != nil {
 		_result.Related.Issuer.selection = _state.objects.AccessGrant.SelectIssuer()
+		_result.Related.Membership.selection = _state.objects.AccessGrant.SelectMembership()
+		_result.Related.NullableMembership.selection = _state.objects.AccessGrant.SelectNullableMembership()
 		_result.Related.Reviewer.selection = _state.objects.AccessGrant.SelectReviewer()
 		_result.Related.Team.selection = _state.objects.AccessGrant.SelectTeam()
 	}
 	if _state != nil {
 		_result.Prefetch.Issuer = relationFacadeSinglePrefetch[access.Grant, people.Member]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessGrant.issuer)}
+		_result.Prefetch.Membership = relationFacadeSinglePrefetch[access.Grant, links.Membership]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessGrant.membership)}
+		_result.Prefetch.NullableMembership = relationFacadeSinglePrefetch[access.Grant, links.Membership]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessGrant.nullableMembership)}
 		_result.Prefetch.Reviewer = relationFacadeSinglePrefetch[access.Grant, people.Member]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessGrant.reviewer)}
 		_result.Prefetch.Team = relationFacadeSinglePrefetch[access.Grant, access.Team]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessGrant.team)}
 	}
@@ -1056,21 +1062,27 @@ type accessGrantModel = access.Grant
 
 type AccessGrant struct {
 	accessGrantModel
-	state                     *relationFacadeState
-	primaryKeySnapshot        int64
-	primaryKeySnapshotPresent bool
-	_prefetched               *orm.RelatedSelected[access.Grant]
-	object                    *AccessGrantObject
-	issuerCache               *orm.RelationCache[PeopleMember]
-	issuerScalarSnapshot      int64
-	issuerScalarPresent       bool
-	reviewerCache             *orm.RelationCache[PeopleMember]
-	reviewerScalarSnapshot    int64
-	reviewerScalarPresent     bool
-	teamCache                 *orm.RelationCache[AccessTeam]
-	teamScalarSnapshot        int64
-	teamScalarPresent         bool
-	_self                     *AccessGrant
+	state                            *relationFacadeState
+	primaryKeySnapshot               int64
+	primaryKeySnapshotPresent        bool
+	_prefetched                      *orm.RelatedSelected[access.Grant]
+	object                           *AccessGrantObject
+	issuerCache                      *orm.RelationCache[PeopleMember]
+	issuerScalarSnapshot             int64
+	issuerScalarPresent              bool
+	membershipCache                  *orm.RelationCache[LinksMembership]
+	membershipScalarSnapshot         int64
+	membershipScalarPresent          bool
+	nullableMembershipCache          *orm.RelationCache[LinksMembership]
+	nullableMembershipScalarSnapshot int64
+	nullableMembershipScalarPresent  bool
+	reviewerCache                    *orm.RelationCache[PeopleMember]
+	reviewerScalarSnapshot           int64
+	reviewerScalarPresent            bool
+	teamCache                        *orm.RelationCache[AccessTeam]
+	teamScalarSnapshot               int64
+	teamScalarPresent                bool
+	_self                            *AccessGrant
 }
 
 func (_state *relationFacadeState) wrapAccessGrant(_value access.Grant, _new bool) (*AccessGrant, error) {
@@ -1087,6 +1099,16 @@ func (_state *relationFacadeState) wrapAccessGrant(_value access.Grant, _new boo
 	_result.issuerScalarPresent = _value.IssuerID != nil
 	if _value.IssuerID == nil {
 		_ = _result.issuerCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.membershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.membershipScalarPresent = _value.MembershipID != nil
+	if _value.MembershipID == nil {
+		_ = _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.nullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.nullableMembershipScalarPresent = _value.NullableMembershipID != nil
+	if _value.NullableMembershipID == nil {
+		_ = _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false)
 	}
 	_result.reviewerCache = orm.NewRelationCache[PeopleMember]()
 	_result.reviewerScalarPresent = _value.ReviewerID != nil
@@ -1122,6 +1144,16 @@ func (_state *relationFacadeState) wrapAccessGrantObject(_object *AccessGrantObj
 	_result.issuerScalarPresent = _model.IssuerID != nil
 	if _model.IssuerID == nil {
 		_ = _result.issuerCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.membershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.membershipScalarPresent = _model.MembershipID != nil
+	if _model.MembershipID == nil {
+		_ = _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.nullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.nullableMembershipScalarPresent = _model.NullableMembershipID != nil
+	if _model.NullableMembershipID == nil {
+		_ = _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false)
 	}
 	_result.reviewerCache = orm.NewRelationCache[PeopleMember]()
 	_result.reviewerScalarPresent = _model.ReviewerID != nil
@@ -1199,6 +1231,16 @@ func (_model *AccessGrant) relationFacadeRefreshSnapshots() error {
 	if _model.issuerScalarPresent {
 		_model.issuerScalarSnapshot = *_model.accessGrantModel.IssuerID
 	}
+	_model.membershipScalarPresent = _model.accessGrantModel.MembershipID != nil
+	_model.membershipScalarSnapshot = 0
+	if _model.membershipScalarPresent {
+		_model.membershipScalarSnapshot = *_model.accessGrantModel.MembershipID
+	}
+	_model.nullableMembershipScalarPresent = _model.accessGrantModel.NullableMembershipID != nil
+	_model.nullableMembershipScalarSnapshot = 0
+	if _model.nullableMembershipScalarPresent {
+		_model.nullableMembershipScalarSnapshot = *_model.accessGrantModel.NullableMembershipID
+	}
 	_model.reviewerScalarPresent = _model.accessGrantModel.ReviewerID != nil
 	_model.reviewerScalarSnapshot = 0
 	if _model.reviewerScalarPresent {
@@ -1225,6 +1267,20 @@ func (_model *AccessGrant) Unwrap() (access.Grant, error) {
 	}
 	if _issuerPending {
 		return access.Grant{}, relationFacadeUnsavedRelated("issuer")
+	}
+	_, _, _membershipPending, _membershipErr := _model.membershipCache.Snapshot()
+	if _membershipErr != nil {
+		return access.Grant{}, _membershipErr
+	}
+	if _membershipPending {
+		return access.Grant{}, relationFacadeUnsavedRelated("membership")
+	}
+	_, _, _nullableMembershipPending, _nullableMembershipErr := _model.nullableMembershipCache.Snapshot()
+	if _nullableMembershipErr != nil {
+		return access.Grant{}, _nullableMembershipErr
+	}
+	if _nullableMembershipPending {
+		return access.Grant{}, relationFacadeUnsavedRelated("nullable_membership")
 	}
 	_, _, _reviewerPending, _reviewerErr := _model.reviewerCache.Snapshot()
 	if _reviewerErr != nil {
@@ -1278,6 +1334,18 @@ func (_model *AccessGrant) relationFacadeDerived(_value access.Grant) (*AccessGr
 	if _err != nil {
 		return nil, _err
 	}
+	_result.membershipScalarSnapshot = _model.membershipScalarSnapshot
+	_result.membershipScalarPresent = _model.membershipScalarPresent
+	_result.membershipCache, _err = _model.membershipCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = _model.nullableMembershipScalarSnapshot
+	_result.nullableMembershipScalarPresent = _model.nullableMembershipScalarPresent
+	_result.nullableMembershipCache, _err = _model.nullableMembershipCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
 	_result.reviewerScalarSnapshot = _model.reviewerScalarSnapshot
 	_result.reviewerScalarPresent = _model.reviewerScalarPresent
 	_result.reviewerCache, _err = _model.reviewerCache.Clone()
@@ -1304,6 +1372,12 @@ func (_model *AccessGrant) relationFacadeReconcile() error {
 	if _, _, _, _err := _model.issuerCache.Snapshot(); _err != nil {
 		return _err
 	}
+	if _, _, _, _err := _model.membershipCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.nullableMembershipCache.Snapshot(); _err != nil {
+		return _err
+	}
 	if _, _, _, _err := _model.reviewerCache.Snapshot(); _err != nil {
 		return _err
 	}
@@ -1316,6 +1390,18 @@ func (_model *AccessGrant) relationFacadeReconcile() error {
 		_issuerCurrentKey = *_model.accessGrantModel.IssuerID
 	}
 	_issuerChanged := _issuerCurrentPresent != _model.issuerScalarPresent || (_issuerCurrentPresent && _issuerCurrentKey != _model.issuerScalarSnapshot)
+	_membershipCurrentPresent := _model.accessGrantModel.MembershipID != nil
+	var _membershipCurrentKey int64
+	if _membershipCurrentPresent {
+		_membershipCurrentKey = *_model.accessGrantModel.MembershipID
+	}
+	_membershipChanged := _membershipCurrentPresent != _model.membershipScalarPresent || (_membershipCurrentPresent && _membershipCurrentKey != _model.membershipScalarSnapshot)
+	_nullableMembershipCurrentPresent := _model.accessGrantModel.NullableMembershipID != nil
+	var _nullableMembershipCurrentKey int64
+	if _nullableMembershipCurrentPresent {
+		_nullableMembershipCurrentKey = *_model.accessGrantModel.NullableMembershipID
+	}
+	_nullableMembershipChanged := _nullableMembershipCurrentPresent != _model.nullableMembershipScalarPresent || (_nullableMembershipCurrentPresent && _nullableMembershipCurrentKey != _model.nullableMembershipScalarSnapshot)
 	_reviewerCurrentPresent := _model.accessGrantModel.ReviewerID != nil
 	var _reviewerCurrentKey int64
 	if _reviewerCurrentPresent {
@@ -1328,7 +1414,7 @@ func (_model *AccessGrant) relationFacadeReconcile() error {
 		_teamCurrentKey = *_model.accessGrantModel.TeamID
 	}
 	_teamChanged := _teamCurrentPresent != _model.teamScalarPresent || (_teamCurrentPresent && _teamCurrentKey != _model.teamScalarSnapshot)
-	_rebuild := false || _issuerChanged || _reviewerChanged || _teamChanged
+	_rebuild := false || _issuerChanged || _membershipChanged || _nullableMembershipChanged || _reviewerChanged || _teamChanged
 	if !_rebuild {
 		return nil
 	}
@@ -1342,6 +1428,24 @@ func (_model *AccessGrant) relationFacadeReconcile() error {
 		_nextIssuerCache = orm.NewRelationCache[PeopleMember]()
 		if !_issuerCurrentPresent {
 			if _err := _nextIssuerCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextMembershipCache := _model.membershipCache
+	if _membershipChanged {
+		_nextMembershipCache = orm.NewRelationCache[LinksMembership]()
+		if !_membershipCurrentPresent {
+			if _err := _nextMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextNullableMembershipCache := _model.nullableMembershipCache
+	if _nullableMembershipChanged {
+		_nextNullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+		if !_nullableMembershipCurrentPresent {
+			if _err := _nextNullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
 				return _err
 			}
 		}
@@ -1371,6 +1475,16 @@ func (_model *AccessGrant) relationFacadeReconcile() error {
 		_model.issuerScalarSnapshot = _issuerCurrentKey
 		_model.issuerScalarPresent = _issuerCurrentPresent
 	}
+	if _membershipChanged {
+		_model.membershipCache = _nextMembershipCache
+		_model.membershipScalarSnapshot = _membershipCurrentKey
+		_model.membershipScalarPresent = _membershipCurrentPresent
+	}
+	if _nullableMembershipChanged {
+		_model.nullableMembershipCache = _nextNullableMembershipCache
+		_model.nullableMembershipScalarSnapshot = _nullableMembershipCurrentKey
+		_model.nullableMembershipScalarPresent = _nullableMembershipCurrentPresent
+	}
 	if _reviewerChanged {
 		_model.reviewerCache = _nextReviewerCache
 		_model.reviewerScalarSnapshot = _reviewerCurrentKey
@@ -1392,6 +1506,14 @@ func (_model *AccessGrant) relationFacadePrepareSave() error {
 	if _err != nil {
 		return _err
 	}
+	_membershipState, _membershipTarget, _membershipPending, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_nullableMembershipState, _nullableMembershipTarget, _nullableMembershipPending, _err := _model.nullableMembershipCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
 	_reviewerState, _reviewerTarget, _reviewerPending, _err := _model.reviewerCache.Snapshot()
 	if _err != nil {
 		return _err
@@ -1407,6 +1529,28 @@ func (_model *AccessGrant) relationFacadePrepareSave() error {
 			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
 		}
 		_issuerKey, _issuerPresent, _err = _issuerTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _membershipKey int64
+	var _membershipPresent bool
+	if _membershipState == orm.RelationAssignedPresent {
+		if _membershipTarget == nil || _membershipTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_membershipKey, _membershipPresent, _err = _membershipTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _nullableMembershipKey int64
+	var _nullableMembershipPresent bool
+	if _nullableMembershipState == orm.RelationAssignedPresent {
+		if _nullableMembershipTarget == nil || _nullableMembershipTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_nullableMembershipKey, _nullableMembershipPresent, _err = _nullableMembershipTarget.relationFacadePrimaryKey()
 		if _err != nil {
 			return _err
 		}
@@ -1436,6 +1580,12 @@ func (_model *AccessGrant) relationFacadePrepareSave() error {
 	if _issuerState == orm.RelationAssignedPresent && !_issuerPresent {
 		return relationFacadeUnsavedRelated("issuer")
 	}
+	if _membershipState == orm.RelationAssignedPresent && !_membershipPresent {
+		return relationFacadeUnsavedRelated("membership")
+	}
+	if _nullableMembershipState == orm.RelationAssignedPresent && !_nullableMembershipPresent {
+		return relationFacadeUnsavedRelated("nullable_membership")
+	}
 	if _reviewerState == orm.RelationAssignedPresent && !_reviewerPresent {
 		return relationFacadeUnsavedRelated("reviewer")
 	}
@@ -1443,6 +1593,8 @@ func (_model *AccessGrant) relationFacadePrepareSave() error {
 		return relationFacadeUnsavedRelated("team")
 	}
 	_issuerReconcile := _issuerState == orm.RelationAssignedPresent && _issuerPending
+	_membershipReconcile := _membershipState == orm.RelationAssignedPresent && _membershipPending
+	_nullableMembershipReconcile := _nullableMembershipState == orm.RelationAssignedPresent && _nullableMembershipPending
 	_reviewerReconcile := _reviewerState == orm.RelationAssignedPresent && _reviewerPending
 	_teamReconcile := _teamState == orm.RelationAssignedPresent && _teamPending
 	_nextModel := (access.GrantDescriptor{}).CloneWriteModel(_model.accessGrantModel)
@@ -1450,6 +1602,16 @@ func (_model *AccessGrant) relationFacadePrepareSave() error {
 	if _issuerReconcile {
 		_relationKeyValue := _issuerKey
 		_nextModel.IssuerID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _membershipReconcile {
+		_relationKeyValue := _membershipKey
+		_nextModel.MembershipID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _nullableMembershipReconcile {
+		_relationKeyValue := _nullableMembershipKey
+		_nextModel.NullableMembershipID = &_relationKeyValue
 		_rebuild = true
 	}
 	if _reviewerReconcile {
@@ -1474,6 +1636,26 @@ func (_model *AccessGrant) relationFacadePrepareSave() error {
 				return _err
 			}
 			if _err := _nextIssuerCache.Store(orm.RelationAssignedPresent, _issuerTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_nextMembershipCache := _model.membershipCache
+		if _membershipReconcile {
+			_nextMembershipCache, _err = _model.membershipCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextMembershipCache.Store(orm.RelationAssignedPresent, _membershipTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_nextNullableMembershipCache := _model.nullableMembershipCache
+		if _nullableMembershipReconcile {
+			_nextNullableMembershipCache, _err = _model.nullableMembershipCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextNullableMembershipCache.Store(orm.RelationAssignedPresent, _nullableMembershipTarget, false); _err != nil {
 				return _err
 			}
 		}
@@ -1503,6 +1685,16 @@ func (_model *AccessGrant) relationFacadePrepareSave() error {
 			_model.issuerCache = _nextIssuerCache
 			_model.issuerScalarSnapshot = _issuerKey
 			_model.issuerScalarPresent = true
+		}
+		if _membershipReconcile {
+			_model.membershipCache = _nextMembershipCache
+			_model.membershipScalarSnapshot = _membershipKey
+			_model.membershipScalarPresent = true
+		}
+		if _nullableMembershipReconcile {
+			_model.nullableMembershipCache = _nextNullableMembershipCache
+			_model.nullableMembershipScalarSnapshot = _nullableMembershipKey
+			_model.nullableMembershipScalarPresent = true
 		}
 		if _reviewerReconcile {
 			_model.reviewerCache = _nextReviewerCache
@@ -1599,6 +1791,178 @@ func (_model *AccessGrant) ClearIssuer() (*AccessGrant, error) {
 	_result.issuerScalarSnapshot = 0
 	_result.issuerScalarPresent = false
 	if _err := _result.issuerCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessGrant) WithMembership(_target *LinksMembership) (*AccessGrant, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (access.GrantDescriptor{}).CloneWriteModel(_model.accessGrantModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.MembershipID = &_relationKeyValue
+	} else {
+		_value.MembershipID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = _key
+	_result.membershipScalarPresent = _present
+	if _err := _result.membershipCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessGrant) WithMembershipID(_key int64) (*AccessGrant, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.GrantDescriptor{}).CloneWriteModel(_model.accessGrantModel)
+	_, _, _pending, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.MembershipID != nil && *_value.MembershipID == _key
+	_relationKeyValue := _key
+	_value.MembershipID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = int64(_key)
+	_result.membershipScalarPresent = true
+	if !_same {
+		if _err := _result.membershipCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *AccessGrant) ClearMembership() (*AccessGrant, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.GrantDescriptor{}).CloneWriteModel(_model.accessGrantModel)
+	_value.MembershipID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = 0
+	_result.membershipScalarPresent = false
+	if _err := _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessGrant) WithNullableMembership(_target *LinksMembership) (*AccessGrant, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (access.GrantDescriptor{}).CloneWriteModel(_model.accessGrantModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.NullableMembershipID = &_relationKeyValue
+	} else {
+		_value.NullableMembershipID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = _key
+	_result.nullableMembershipScalarPresent = _present
+	if _err := _result.nullableMembershipCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessGrant) WithNullableMembershipID(_key int64) (*AccessGrant, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.GrantDescriptor{}).CloneWriteModel(_model.accessGrantModel)
+	_, _, _pending, _err := _model.nullableMembershipCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.NullableMembershipID != nil && *_value.NullableMembershipID == _key
+	_relationKeyValue := _key
+	_value.NullableMembershipID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = int64(_key)
+	_result.nullableMembershipScalarPresent = true
+	if !_same {
+		if _err := _result.nullableMembershipCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *AccessGrant) ClearNullableMembership() (*AccessGrant, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.GrantDescriptor{}).CloneWriteModel(_model.accessGrantModel)
+	_value.NullableMembershipID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = 0
+	_result.nullableMembershipScalarPresent = false
+	if _err := _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
 		return nil, _err
 	}
 	return _result, nil
@@ -1828,6 +2192,110 @@ func (_model *AccessGrant) Issuer(_ctx context.Context) (*PeopleMember, bool, er
 	return _wrapped, true, nil
 }
 
+func (_model *AccessGrant) Membership(_ctx context.Context) (*LinksMembership, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Membership(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.membershipCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *LinksMembership
+	_graph, _selected, _err := _model.object.membership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeLinksMembership(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapLinksMembership(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.membershipCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *AccessGrant) NullableMembership(_ctx context.Context) (*LinksMembership, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.nullableMembershipCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.NullableMembership(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.nullableMembershipCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *LinksMembership
+	_graph, _selected, _err := _model.object.nullableMembership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeLinksMembership(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapLinksMembership(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.nullableMembershipCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
 func (_model *AccessGrant) Reviewer(_ctx context.Context) (*PeopleMember, bool, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, false, _err
@@ -1934,9 +2402,11 @@ func (_model *AccessGrant) Team(_ctx context.Context) (*AccessTeam, bool, error)
 
 type AccessGrantPrefetchSelector = relationFacadePrefetchInput[access.Grant]
 type AccessGrantPrefetchSelectors struct {
-	Issuer   relationFacadeSinglePrefetch[access.Grant, people.Member]
-	Reviewer relationFacadeSinglePrefetch[access.Grant, people.Member]
-	Team     relationFacadeSinglePrefetch[access.Grant, access.Team]
+	Issuer             relationFacadeSinglePrefetch[access.Grant, people.Member]
+	Membership         relationFacadeSinglePrefetch[access.Grant, links.Membership]
+	NullableMembership relationFacadeSinglePrefetch[access.Grant, links.Membership]
+	Reviewer           relationFacadeSinglePrefetch[access.Grant, people.Member]
+	Team               relationFacadeSinglePrefetch[access.Grant, access.Team]
 }
 type AccessGrantPrefetchQuery struct {
 	state    *relationFacadeState
@@ -2292,9 +2762,11 @@ func (_query AccessGrantEagerQuery) PrefetchRelatedPaths(_paths ...string) (Acce
 
 type AccessGrantRelationSelector = relationFacadeSelectionInput[access.Grant]
 type AccessGrantRelationSelectors struct {
-	Issuer   relationFacadeSelection[access.Grant, people.Member]
-	Reviewer relationFacadeSelection[access.Grant, people.Member]
-	Team     relationFacadeSelection[access.Grant, access.Team]
+	Issuer             relationFacadeSelection[access.Grant, people.Member]
+	Membership         relationFacadeSelection[access.Grant, links.Membership]
+	NullableMembership relationFacadeSelection[access.Grant, links.Membership]
+	Reviewer           relationFacadeSelection[access.Grant, people.Member]
+	Team               relationFacadeSelection[access.Grant, access.Team]
 }
 
 func (_query AccessGrantQuery) SelectRelated(_selectors ...AccessGrantRelationSelector) AccessGrantEagerQuery {
@@ -2584,6 +3056,22 @@ func (_state *relationFacadeState) wrapSelectedAccessGrantObject(_ctx context.Co
 			return nil, _err
 		}
 	}
+	if _has, _err := _object._selectedGraph.HasSelection("membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Membership(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("nullable_membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.NullableMembership(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("reviewer"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -2629,6 +3117,26 @@ func (_state *relationFacadeState) prefetchAccessGrantPath(_path string, _depth 
 			_selection = _selection.WithChildren(_child)
 		}
 		return _selection, nil
+	case "membership":
+		_selection := orm.PrefetchNullableForward(_state.objects.AccessGrant.membership)
+		if _nested {
+			_child, _err := _state.prefetchLinksMembershipPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "nullable_membership":
+		_selection := orm.PrefetchNullableForward(_state.objects.AccessGrant.nullableMembership)
+		if _nested {
+			_child, _err := _state.prefetchLinksMembershipPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
 	case "reviewer":
 		_selection := orm.PrefetchNullableForward(_state.objects.AccessGrant.reviewer)
 		if _nested {
@@ -2663,15 +3171,21 @@ type AccessTeamQuery struct {
 func newAccessTeamQuery(_state *relationFacadeState, _query orm.QuerySet[access.Team]) AccessTeamQuery {
 	_result := AccessTeamQuery{state: _state, query: _query}
 	_result.Related = AccessTeamRelationSelectors{
-		Creator:  relationFacadeSelection[access.Team, people.Member]{state: _state},
-		Reviewer: relationFacadeSelection[access.Team, people.Member]{state: _state},
+		Creator:            relationFacadeSelection[access.Team, people.Member]{state: _state},
+		Membership:         relationFacadeSelection[access.Team, links.Membership]{state: _state},
+		NullableMembership: relationFacadeSelection[access.Team, links.Membership]{state: _state},
+		Reviewer:           relationFacadeSelection[access.Team, people.Member]{state: _state},
 	}
 	if _state != nil {
 		_result.Related.Creator.selection = _state.objects.AccessTeam.SelectCreator()
+		_result.Related.Membership.selection = _state.objects.AccessTeam.SelectMembership()
+		_result.Related.NullableMembership.selection = _state.objects.AccessTeam.SelectNullableMembership()
 		_result.Related.Reviewer.selection = _state.objects.AccessTeam.SelectReviewer()
 	}
 	if _state != nil {
 		_result.Prefetch.Creator = relationFacadeSinglePrefetch[access.Team, people.Member]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessTeam.creator)}
+		_result.Prefetch.Membership = relationFacadeSinglePrefetch[access.Team, links.Membership]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessTeam.membership)}
+		_result.Prefetch.NullableMembership = relationFacadeSinglePrefetch[access.Team, links.Membership]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessTeam.nullableMembership)}
 		_result.Prefetch.Reviewer = relationFacadeSinglePrefetch[access.Team, people.Member]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccessTeam.reviewer)}
 		_result.Prefetch.Grants = relationFacadeManyPrefetch[access.Team, access.Grant, links.GrantLink, AccessGrant]{state: _state, selection: _state.collections.AccessTeamGrants.WithChildren(), materialize: _state.materializeAccessGrant}
 	}
@@ -3285,19 +3799,25 @@ type accessTeamModel = access.Team
 
 type AccessTeam struct {
 	accessTeamModel
-	state                     *relationFacadeState
-	primaryKeySnapshot        int64
-	primaryKeySnapshotPresent bool
-	_prefetched               *orm.RelatedSelected[access.Team]
-	object                    *AccessTeamObject
-	creatorCache              *orm.RelationCache[PeopleMember]
-	creatorScalarSnapshot     int64
-	creatorScalarPresent      bool
-	reviewerCache             *orm.RelationCache[PeopleMember]
-	reviewerScalarSnapshot    int64
-	reviewerScalarPresent     bool
-	_manyCollection0          *orm.ManyCollectionCache[access.Grant, links.GrantLink]
-	_self                     *AccessTeam
+	state                            *relationFacadeState
+	primaryKeySnapshot               int64
+	primaryKeySnapshotPresent        bool
+	_prefetched                      *orm.RelatedSelected[access.Team]
+	object                           *AccessTeamObject
+	creatorCache                     *orm.RelationCache[PeopleMember]
+	creatorScalarSnapshot            int64
+	creatorScalarPresent             bool
+	membershipCache                  *orm.RelationCache[LinksMembership]
+	membershipScalarSnapshot         int64
+	membershipScalarPresent          bool
+	nullableMembershipCache          *orm.RelationCache[LinksMembership]
+	nullableMembershipScalarSnapshot int64
+	nullableMembershipScalarPresent  bool
+	reviewerCache                    *orm.RelationCache[PeopleMember]
+	reviewerScalarSnapshot           int64
+	reviewerScalarPresent            bool
+	_manyCollection0                 *orm.ManyCollectionCache[access.Grant, links.GrantLink]
+	_self                            *AccessTeam
 }
 
 func (_state *relationFacadeState) wrapAccessTeam(_value access.Team, _new bool) (*AccessTeam, error) {
@@ -3314,6 +3834,16 @@ func (_state *relationFacadeState) wrapAccessTeam(_value access.Team, _new bool)
 	_result.creatorScalarPresent = _value.CreatorID != nil
 	if _value.CreatorID == nil {
 		_ = _result.creatorCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.membershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.membershipScalarPresent = _value.MembershipID != nil
+	if _value.MembershipID == nil {
+		_ = _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.nullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.nullableMembershipScalarPresent = _value.NullableMembershipID != nil
+	if _value.NullableMembershipID == nil {
+		_ = _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false)
 	}
 	_result.reviewerCache = orm.NewRelationCache[PeopleMember]()
 	_result.reviewerScalarPresent = _value.ReviewerID != nil
@@ -3344,6 +3874,16 @@ func (_state *relationFacadeState) wrapAccessTeamObject(_object *AccessTeamObjec
 	_result.creatorScalarPresent = _model.CreatorID != nil
 	if _model.CreatorID == nil {
 		_ = _result.creatorCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.membershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.membershipScalarPresent = _model.MembershipID != nil
+	if _model.MembershipID == nil {
+		_ = _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.nullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.nullableMembershipScalarPresent = _model.NullableMembershipID != nil
+	if _model.NullableMembershipID == nil {
+		_ = _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false)
 	}
 	_result.reviewerCache = orm.NewRelationCache[PeopleMember]()
 	_result.reviewerScalarPresent = _model.ReviewerID != nil
@@ -3419,6 +3959,16 @@ func (_model *AccessTeam) relationFacadeRefreshSnapshots() error {
 	if _model.creatorScalarPresent {
 		_model.creatorScalarSnapshot = *_model.accessTeamModel.CreatorID
 	}
+	_model.membershipScalarPresent = _model.accessTeamModel.MembershipID != nil
+	_model.membershipScalarSnapshot = 0
+	if _model.membershipScalarPresent {
+		_model.membershipScalarSnapshot = *_model.accessTeamModel.MembershipID
+	}
+	_model.nullableMembershipScalarPresent = _model.accessTeamModel.NullableMembershipID != nil
+	_model.nullableMembershipScalarSnapshot = 0
+	if _model.nullableMembershipScalarPresent {
+		_model.nullableMembershipScalarSnapshot = *_model.accessTeamModel.NullableMembershipID
+	}
 	_model.reviewerScalarPresent = _model.accessTeamModel.ReviewerID != nil
 	_model.reviewerScalarSnapshot = 0
 	if _model.reviewerScalarPresent {
@@ -3440,6 +3990,20 @@ func (_model *AccessTeam) Unwrap() (access.Team, error) {
 	}
 	if _creatorPending {
 		return access.Team{}, relationFacadeUnsavedRelated("creator")
+	}
+	_, _, _membershipPending, _membershipErr := _model.membershipCache.Snapshot()
+	if _membershipErr != nil {
+		return access.Team{}, _membershipErr
+	}
+	if _membershipPending {
+		return access.Team{}, relationFacadeUnsavedRelated("membership")
+	}
+	_, _, _nullableMembershipPending, _nullableMembershipErr := _model.nullableMembershipCache.Snapshot()
+	if _nullableMembershipErr != nil {
+		return access.Team{}, _nullableMembershipErr
+	}
+	if _nullableMembershipPending {
+		return access.Team{}, relationFacadeUnsavedRelated("nullable_membership")
 	}
 	_, _, _reviewerPending, _reviewerErr := _model.reviewerCache.Snapshot()
 	if _reviewerErr != nil {
@@ -3486,6 +4050,18 @@ func (_model *AccessTeam) relationFacadeDerived(_value access.Team) (*AccessTeam
 	if _err != nil {
 		return nil, _err
 	}
+	_result.membershipScalarSnapshot = _model.membershipScalarSnapshot
+	_result.membershipScalarPresent = _model.membershipScalarPresent
+	_result.membershipCache, _err = _model.membershipCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = _model.nullableMembershipScalarSnapshot
+	_result.nullableMembershipScalarPresent = _model.nullableMembershipScalarPresent
+	_result.nullableMembershipCache, _err = _model.nullableMembershipCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
 	_result.reviewerScalarSnapshot = _model.reviewerScalarSnapshot
 	_result.reviewerScalarPresent = _model.reviewerScalarPresent
 	_result.reviewerCache, _err = _model.reviewerCache.Clone()
@@ -3507,6 +4083,12 @@ func (_model *AccessTeam) relationFacadeReconcile() error {
 	if _, _, _, _err := _model.creatorCache.Snapshot(); _err != nil {
 		return _err
 	}
+	if _, _, _, _err := _model.membershipCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.nullableMembershipCache.Snapshot(); _err != nil {
+		return _err
+	}
 	if _, _, _, _err := _model.reviewerCache.Snapshot(); _err != nil {
 		return _err
 	}
@@ -3516,13 +4098,25 @@ func (_model *AccessTeam) relationFacadeReconcile() error {
 		_creatorCurrentKey = *_model.accessTeamModel.CreatorID
 	}
 	_creatorChanged := _creatorCurrentPresent != _model.creatorScalarPresent || (_creatorCurrentPresent && _creatorCurrentKey != _model.creatorScalarSnapshot)
+	_membershipCurrentPresent := _model.accessTeamModel.MembershipID != nil
+	var _membershipCurrentKey int64
+	if _membershipCurrentPresent {
+		_membershipCurrentKey = *_model.accessTeamModel.MembershipID
+	}
+	_membershipChanged := _membershipCurrentPresent != _model.membershipScalarPresent || (_membershipCurrentPresent && _membershipCurrentKey != _model.membershipScalarSnapshot)
+	_nullableMembershipCurrentPresent := _model.accessTeamModel.NullableMembershipID != nil
+	var _nullableMembershipCurrentKey int64
+	if _nullableMembershipCurrentPresent {
+		_nullableMembershipCurrentKey = *_model.accessTeamModel.NullableMembershipID
+	}
+	_nullableMembershipChanged := _nullableMembershipCurrentPresent != _model.nullableMembershipScalarPresent || (_nullableMembershipCurrentPresent && _nullableMembershipCurrentKey != _model.nullableMembershipScalarSnapshot)
 	_reviewerCurrentPresent := _model.accessTeamModel.ReviewerID != nil
 	var _reviewerCurrentKey int64
 	if _reviewerCurrentPresent {
 		_reviewerCurrentKey = *_model.accessTeamModel.ReviewerID
 	}
 	_reviewerChanged := _reviewerCurrentPresent != _model.reviewerScalarPresent || (_reviewerCurrentPresent && _reviewerCurrentKey != _model.reviewerScalarSnapshot)
-	_rebuild := false || _creatorChanged || _reviewerChanged
+	_rebuild := false || _creatorChanged || _membershipChanged || _nullableMembershipChanged || _reviewerChanged
 	if !_rebuild {
 		return nil
 	}
@@ -3536,6 +4130,24 @@ func (_model *AccessTeam) relationFacadeReconcile() error {
 		_nextCreatorCache = orm.NewRelationCache[PeopleMember]()
 		if !_creatorCurrentPresent {
 			if _err := _nextCreatorCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextMembershipCache := _model.membershipCache
+	if _membershipChanged {
+		_nextMembershipCache = orm.NewRelationCache[LinksMembership]()
+		if !_membershipCurrentPresent {
+			if _err := _nextMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextNullableMembershipCache := _model.nullableMembershipCache
+	if _nullableMembershipChanged {
+		_nextNullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+		if !_nullableMembershipCurrentPresent {
+			if _err := _nextNullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
 				return _err
 			}
 		}
@@ -3556,6 +4168,16 @@ func (_model *AccessTeam) relationFacadeReconcile() error {
 		_model.creatorScalarSnapshot = _creatorCurrentKey
 		_model.creatorScalarPresent = _creatorCurrentPresent
 	}
+	if _membershipChanged {
+		_model.membershipCache = _nextMembershipCache
+		_model.membershipScalarSnapshot = _membershipCurrentKey
+		_model.membershipScalarPresent = _membershipCurrentPresent
+	}
+	if _nullableMembershipChanged {
+		_model.nullableMembershipCache = _nextNullableMembershipCache
+		_model.nullableMembershipScalarSnapshot = _nullableMembershipCurrentKey
+		_model.nullableMembershipScalarPresent = _nullableMembershipCurrentPresent
+	}
 	if _reviewerChanged {
 		_model.reviewerCache = _nextReviewerCache
 		_model.reviewerScalarSnapshot = _reviewerCurrentKey
@@ -3569,6 +4191,14 @@ func (_model *AccessTeam) relationFacadePrepareSave() error {
 		return _err
 	}
 	_creatorState, _creatorTarget, _creatorPending, _err := _model.creatorCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_membershipState, _membershipTarget, _membershipPending, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_nullableMembershipState, _nullableMembershipTarget, _nullableMembershipPending, _err := _model.nullableMembershipCache.Snapshot()
 	if _err != nil {
 		return _err
 	}
@@ -3587,6 +4217,28 @@ func (_model *AccessTeam) relationFacadePrepareSave() error {
 			return _err
 		}
 	}
+	var _membershipKey int64
+	var _membershipPresent bool
+	if _membershipState == orm.RelationAssignedPresent {
+		if _membershipTarget == nil || _membershipTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_membershipKey, _membershipPresent, _err = _membershipTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _nullableMembershipKey int64
+	var _nullableMembershipPresent bool
+	if _nullableMembershipState == orm.RelationAssignedPresent {
+		if _nullableMembershipTarget == nil || _nullableMembershipTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_nullableMembershipKey, _nullableMembershipPresent, _err = _nullableMembershipTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
 	var _reviewerKey int64
 	var _reviewerPresent bool
 	if _reviewerState == orm.RelationAssignedPresent {
@@ -3601,16 +4253,34 @@ func (_model *AccessTeam) relationFacadePrepareSave() error {
 	if _creatorState == orm.RelationAssignedPresent && !_creatorPresent {
 		return relationFacadeUnsavedRelated("creator")
 	}
+	if _membershipState == orm.RelationAssignedPresent && !_membershipPresent {
+		return relationFacadeUnsavedRelated("membership")
+	}
+	if _nullableMembershipState == orm.RelationAssignedPresent && !_nullableMembershipPresent {
+		return relationFacadeUnsavedRelated("nullable_membership")
+	}
 	if _reviewerState == orm.RelationAssignedPresent && !_reviewerPresent {
 		return relationFacadeUnsavedRelated("reviewer")
 	}
 	_creatorReconcile := _creatorState == orm.RelationAssignedPresent && _creatorPending
+	_membershipReconcile := _membershipState == orm.RelationAssignedPresent && _membershipPending
+	_nullableMembershipReconcile := _nullableMembershipState == orm.RelationAssignedPresent && _nullableMembershipPending
 	_reviewerReconcile := _reviewerState == orm.RelationAssignedPresent && _reviewerPending
 	_nextModel := (access.TeamDescriptor{}).CloneWriteModel(_model.accessTeamModel)
 	_rebuild := false
 	if _creatorReconcile {
 		_relationKeyValue := _creatorKey
 		_nextModel.CreatorID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _membershipReconcile {
+		_relationKeyValue := _membershipKey
+		_nextModel.MembershipID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _nullableMembershipReconcile {
+		_relationKeyValue := _nullableMembershipKey
+		_nextModel.NullableMembershipID = &_relationKeyValue
 		_rebuild = true
 	}
 	if _reviewerReconcile {
@@ -3633,6 +4303,26 @@ func (_model *AccessTeam) relationFacadePrepareSave() error {
 				return _err
 			}
 		}
+		_nextMembershipCache := _model.membershipCache
+		if _membershipReconcile {
+			_nextMembershipCache, _err = _model.membershipCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextMembershipCache.Store(orm.RelationAssignedPresent, _membershipTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_nextNullableMembershipCache := _model.nullableMembershipCache
+		if _nullableMembershipReconcile {
+			_nextNullableMembershipCache, _err = _model.nullableMembershipCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextNullableMembershipCache.Store(orm.RelationAssignedPresent, _nullableMembershipTarget, false); _err != nil {
+				return _err
+			}
+		}
 		_nextReviewerCache := _model.reviewerCache
 		if _reviewerReconcile {
 			_nextReviewerCache, _err = _model.reviewerCache.Clone()
@@ -3649,6 +4339,16 @@ func (_model *AccessTeam) relationFacadePrepareSave() error {
 			_model.creatorCache = _nextCreatorCache
 			_model.creatorScalarSnapshot = _creatorKey
 			_model.creatorScalarPresent = true
+		}
+		if _membershipReconcile {
+			_model.membershipCache = _nextMembershipCache
+			_model.membershipScalarSnapshot = _membershipKey
+			_model.membershipScalarPresent = true
+		}
+		if _nullableMembershipReconcile {
+			_model.nullableMembershipCache = _nextNullableMembershipCache
+			_model.nullableMembershipScalarSnapshot = _nullableMembershipKey
+			_model.nullableMembershipScalarPresent = true
 		}
 		if _reviewerReconcile {
 			_model.reviewerCache = _nextReviewerCache
@@ -3740,6 +4440,178 @@ func (_model *AccessTeam) ClearCreator() (*AccessTeam, error) {
 	_result.creatorScalarSnapshot = 0
 	_result.creatorScalarPresent = false
 	if _err := _result.creatorCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessTeam) WithMembership(_target *LinksMembership) (*AccessTeam, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (access.TeamDescriptor{}).CloneWriteModel(_model.accessTeamModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.MembershipID = &_relationKeyValue
+	} else {
+		_value.MembershipID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = _key
+	_result.membershipScalarPresent = _present
+	if _err := _result.membershipCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessTeam) WithMembershipID(_key int64) (*AccessTeam, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.TeamDescriptor{}).CloneWriteModel(_model.accessTeamModel)
+	_, _, _pending, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.MembershipID != nil && *_value.MembershipID == _key
+	_relationKeyValue := _key
+	_value.MembershipID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = int64(_key)
+	_result.membershipScalarPresent = true
+	if !_same {
+		if _err := _result.membershipCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *AccessTeam) ClearMembership() (*AccessTeam, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.TeamDescriptor{}).CloneWriteModel(_model.accessTeamModel)
+	_value.MembershipID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = 0
+	_result.membershipScalarPresent = false
+	if _err := _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessTeam) WithNullableMembership(_target *LinksMembership) (*AccessTeam, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (access.TeamDescriptor{}).CloneWriteModel(_model.accessTeamModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.NullableMembershipID = &_relationKeyValue
+	} else {
+		_value.NullableMembershipID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = _key
+	_result.nullableMembershipScalarPresent = _present
+	if _err := _result.nullableMembershipCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccessTeam) WithNullableMembershipID(_key int64) (*AccessTeam, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.TeamDescriptor{}).CloneWriteModel(_model.accessTeamModel)
+	_, _, _pending, _err := _model.nullableMembershipCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.NullableMembershipID != nil && *_value.NullableMembershipID == _key
+	_relationKeyValue := _key
+	_value.NullableMembershipID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = int64(_key)
+	_result.nullableMembershipScalarPresent = true
+	if !_same {
+		if _err := _result.nullableMembershipCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *AccessTeam) ClearNullableMembership() (*AccessTeam, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (access.TeamDescriptor{}).CloneWriteModel(_model.accessTeamModel)
+	_value.NullableMembershipID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = 0
+	_result.nullableMembershipScalarPresent = false
+	if _err := _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
 		return nil, _err
 	}
 	return _result, nil
@@ -3878,6 +4750,110 @@ func (_model *AccessTeam) Creator(_ctx context.Context) (*PeopleMember, bool, er
 		return nil, false, _err
 	}
 	if _err := _model.creatorCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *AccessTeam) Membership(_ctx context.Context) (*LinksMembership, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Membership(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.membershipCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *LinksMembership
+	_graph, _selected, _err := _model.object.membership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeLinksMembership(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapLinksMembership(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.membershipCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *AccessTeam) NullableMembership(_ctx context.Context) (*LinksMembership, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.nullableMembershipCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.NullableMembership(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.nullableMembershipCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *LinksMembership
+	_graph, _selected, _err := _model.object.nullableMembership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeLinksMembership(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapLinksMembership(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.nullableMembershipCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
 		return nil, false, _err
 	}
 	return _wrapped, true, nil
@@ -4083,9 +5059,11 @@ func (_view *AccessTeamGrantsCollection) Clear(_ctx context.Context) error {
 
 type AccessTeamPrefetchSelector = relationFacadePrefetchInput[access.Team]
 type AccessTeamPrefetchSelectors struct {
-	Creator  relationFacadeSinglePrefetch[access.Team, people.Member]
-	Reviewer relationFacadeSinglePrefetch[access.Team, people.Member]
-	Grants   relationFacadeManyPrefetch[access.Team, access.Grant, links.GrantLink, AccessGrant]
+	Creator            relationFacadeSinglePrefetch[access.Team, people.Member]
+	Membership         relationFacadeSinglePrefetch[access.Team, links.Membership]
+	NullableMembership relationFacadeSinglePrefetch[access.Team, links.Membership]
+	Reviewer           relationFacadeSinglePrefetch[access.Team, people.Member]
+	Grants             relationFacadeManyPrefetch[access.Team, access.Grant, links.GrantLink, AccessGrant]
 }
 type AccessTeamPrefetchQuery struct {
 	state    *relationFacadeState
@@ -4441,8 +5419,10 @@ func (_query AccessTeamEagerQuery) PrefetchRelatedPaths(_paths ...string) (Acces
 
 type AccessTeamRelationSelector = relationFacadeSelectionInput[access.Team]
 type AccessTeamRelationSelectors struct {
-	Creator  relationFacadeSelection[access.Team, people.Member]
-	Reviewer relationFacadeSelection[access.Team, people.Member]
+	Creator            relationFacadeSelection[access.Team, people.Member]
+	Membership         relationFacadeSelection[access.Team, links.Membership]
+	NullableMembership relationFacadeSelection[access.Team, links.Membership]
+	Reviewer           relationFacadeSelection[access.Team, people.Member]
 }
 
 func (_query AccessTeamQuery) SelectRelated(_selectors ...AccessTeamRelationSelector) AccessTeamEagerQuery {
@@ -4740,6 +5720,22 @@ func (_state *relationFacadeState) wrapSelectedAccessTeamObject(_ctx context.Con
 			return nil, _err
 		}
 	}
+	if _has, _err := _object._selectedGraph.HasSelection("membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Membership(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("nullable_membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.NullableMembership(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("reviewer"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -4771,6 +5767,26 @@ func (_state *relationFacadeState) prefetchAccessTeamPath(_path string, _depth i
 		_selection := orm.PrefetchNullableForward(_state.objects.AccessTeam.creator)
 		if _nested {
 			_child, _err := _state.prefetchPeopleMemberPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "membership":
+		_selection := orm.PrefetchNullableForward(_state.objects.AccessTeam.membership)
+		if _nested {
+			_child, _err := _state.prefetchLinksMembershipPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "nullable_membership":
+		_selection := orm.PrefetchNullableForward(_state.objects.AccessTeam.nullableMembership)
+		if _nested {
+			_child, _err := _state.prefetchLinksMembershipPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -9431,20 +10447,26 @@ type PeopleMemberQuery struct {
 func newPeopleMemberQuery(_state *relationFacadeState, _query orm.QuerySet[people.Member]) PeopleMemberQuery {
 	_result := PeopleMemberQuery{state: _state, query: _query}
 	_result.Related = PeopleMemberRelationSelectors{
-		GrantRef: relationFacadeSelection[people.Member, access.Grant]{state: _state},
-		Leader:   relationFacadeSelection[people.Member, people.Member]{state: _state},
-		Reviewer: relationFacadeSelection[people.Member, people.Member]{state: _state},
-		Sponsor:  relationFacadeSelection[people.Member, access.Team]{state: _state},
+		GrantRef:           relationFacadeSelection[people.Member, access.Grant]{state: _state},
+		Leader:             relationFacadeSelection[people.Member, people.Member]{state: _state},
+		Membership:         relationFacadeSelection[people.Member, links.Membership]{state: _state},
+		NullableMembership: relationFacadeSelection[people.Member, links.Membership]{state: _state},
+		Reviewer:           relationFacadeSelection[people.Member, people.Member]{state: _state},
+		Sponsor:            relationFacadeSelection[people.Member, access.Team]{state: _state},
 	}
 	if _state != nil {
 		_result.Related.GrantRef.selection = _state.objects.PeopleMember.SelectGrantRef()
 		_result.Related.Leader.selection = _state.objects.PeopleMember.SelectLeader()
+		_result.Related.Membership.selection = _state.objects.PeopleMember.SelectMembership()
+		_result.Related.NullableMembership.selection = _state.objects.PeopleMember.SelectNullableMembership()
 		_result.Related.Reviewer.selection = _state.objects.PeopleMember.SelectReviewer()
 		_result.Related.Sponsor.selection = _state.objects.PeopleMember.SelectSponsor()
 	}
 	if _state != nil {
 		_result.Prefetch.GrantRef = relationFacadeSinglePrefetch[people.Member, access.Grant]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.PeopleMember.grantRef)}
 		_result.Prefetch.Leader = relationFacadeSinglePrefetch[people.Member, people.Member]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.PeopleMember.leader)}
+		_result.Prefetch.Membership = relationFacadeSinglePrefetch[people.Member, links.Membership]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.PeopleMember.membership)}
+		_result.Prefetch.NullableMembership = relationFacadeSinglePrefetch[people.Member, links.Membership]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.PeopleMember.nullableMembership)}
 		_result.Prefetch.Reviewer = relationFacadeSinglePrefetch[people.Member, people.Member]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.PeopleMember.reviewer)}
 		_result.Prefetch.Sponsor = relationFacadeSinglePrefetch[people.Member, access.Team]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.PeopleMember.sponsor)}
 		_result.Prefetch.Tickets = relationFacadeReversePrefetch[people.Member, tickets.Ticket, TicketsTicket]{state: _state, selection: _state.reverseCollections.PeopleMember.tickets.WithChildren(), materialize: _state.materializeTicketsTicket}
@@ -10061,27 +11083,33 @@ type peopleMemberModel = people.Member
 
 type PeopleMember struct {
 	peopleMemberModel
-	state                     *relationFacadeState
-	primaryKeySnapshot        int64
-	primaryKeySnapshotPresent bool
-	_prefetched               *orm.RelatedSelected[people.Member]
-	object                    *PeopleMemberObject
-	grantRefCache             *orm.RelationCache[AccessGrant]
-	grantRefScalarSnapshot    int64
-	grantRefScalarPresent     bool
-	leaderCache               *orm.RelationCache[PeopleMember]
-	leaderScalarSnapshot      int64
-	leaderScalarPresent       bool
-	reviewerCache             *orm.RelationCache[PeopleMember]
-	reviewerScalarSnapshot    int64
-	reviewerScalarPresent     bool
-	sponsorCache              *orm.RelationCache[AccessTeam]
-	sponsorScalarSnapshot     int64
-	sponsorScalarPresent      bool
-	_manyCollection0          *orm.ManyCollectionCache[access.Grant, people.MemberGrantsLink]
-	_manyCollection1          *orm.ManyCollectionCache[access.Team, links.Membership]
-	_reverseCollection0       *orm.RelatedSetCache[tickets.Ticket]
-	_self                     *PeopleMember
+	state                            *relationFacadeState
+	primaryKeySnapshot               int64
+	primaryKeySnapshotPresent        bool
+	_prefetched                      *orm.RelatedSelected[people.Member]
+	object                           *PeopleMemberObject
+	grantRefCache                    *orm.RelationCache[AccessGrant]
+	grantRefScalarSnapshot           int64
+	grantRefScalarPresent            bool
+	leaderCache                      *orm.RelationCache[PeopleMember]
+	leaderScalarSnapshot             int64
+	leaderScalarPresent              bool
+	membershipCache                  *orm.RelationCache[LinksMembership]
+	membershipScalarSnapshot         int64
+	membershipScalarPresent          bool
+	nullableMembershipCache          *orm.RelationCache[LinksMembership]
+	nullableMembershipScalarSnapshot int64
+	nullableMembershipScalarPresent  bool
+	reviewerCache                    *orm.RelationCache[PeopleMember]
+	reviewerScalarSnapshot           int64
+	reviewerScalarPresent            bool
+	sponsorCache                     *orm.RelationCache[AccessTeam]
+	sponsorScalarSnapshot            int64
+	sponsorScalarPresent             bool
+	_manyCollection0                 *orm.ManyCollectionCache[access.Grant, people.MemberGrantsLink]
+	_manyCollection1                 *orm.ManyCollectionCache[access.Team, links.Membership]
+	_reverseCollection0              *orm.RelatedSetCache[tickets.Ticket]
+	_self                            *PeopleMember
 }
 
 func (_state *relationFacadeState) wrapPeopleMember(_value people.Member, _new bool) (*PeopleMember, error) {
@@ -10103,6 +11131,16 @@ func (_state *relationFacadeState) wrapPeopleMember(_value people.Member, _new b
 	_result.leaderScalarPresent = _value.LeaderID != nil
 	if _value.LeaderID == nil {
 		_ = _result.leaderCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.membershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.membershipScalarPresent = _value.MembershipID != nil
+	if _value.MembershipID == nil {
+		_ = _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.nullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.nullableMembershipScalarPresent = _value.NullableMembershipID != nil
+	if _value.NullableMembershipID == nil {
+		_ = _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false)
 	}
 	_result.reviewerCache = orm.NewRelationCache[PeopleMember]()
 	_result.reviewerScalarPresent = _value.ReviewerID != nil
@@ -10143,6 +11181,16 @@ func (_state *relationFacadeState) wrapPeopleMemberObject(_object *PeopleMemberO
 	_result.leaderScalarPresent = _model.LeaderID != nil
 	if _model.LeaderID == nil {
 		_ = _result.leaderCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.membershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.membershipScalarPresent = _model.MembershipID != nil
+	if _model.MembershipID == nil {
+		_ = _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false)
+	}
+	_result.nullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+	_result.nullableMembershipScalarPresent = _model.NullableMembershipID != nil
+	if _model.NullableMembershipID == nil {
+		_ = _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false)
 	}
 	_result.reviewerCache = orm.NewRelationCache[PeopleMember]()
 	_result.reviewerScalarPresent = _model.ReviewerID != nil
@@ -10234,6 +11282,16 @@ func (_model *PeopleMember) relationFacadeRefreshSnapshots() error {
 	if _model.leaderScalarPresent {
 		_model.leaderScalarSnapshot = *_model.peopleMemberModel.LeaderID
 	}
+	_model.membershipScalarPresent = _model.peopleMemberModel.MembershipID != nil
+	_model.membershipScalarSnapshot = 0
+	if _model.membershipScalarPresent {
+		_model.membershipScalarSnapshot = *_model.peopleMemberModel.MembershipID
+	}
+	_model.nullableMembershipScalarPresent = _model.peopleMemberModel.NullableMembershipID != nil
+	_model.nullableMembershipScalarSnapshot = 0
+	if _model.nullableMembershipScalarPresent {
+		_model.nullableMembershipScalarSnapshot = *_model.peopleMemberModel.NullableMembershipID
+	}
 	_model.reviewerScalarPresent = _model.peopleMemberModel.ReviewerID != nil
 	_model.reviewerScalarSnapshot = 0
 	if _model.reviewerScalarPresent {
@@ -10267,6 +11325,20 @@ func (_model *PeopleMember) Unwrap() (people.Member, error) {
 	}
 	if _leaderPending {
 		return people.Member{}, relationFacadeUnsavedRelated("leader")
+	}
+	_, _, _membershipPending, _membershipErr := _model.membershipCache.Snapshot()
+	if _membershipErr != nil {
+		return people.Member{}, _membershipErr
+	}
+	if _membershipPending {
+		return people.Member{}, relationFacadeUnsavedRelated("membership")
+	}
+	_, _, _nullableMembershipPending, _nullableMembershipErr := _model.nullableMembershipCache.Snapshot()
+	if _nullableMembershipErr != nil {
+		return people.Member{}, _nullableMembershipErr
+	}
+	if _nullableMembershipPending {
+		return people.Member{}, relationFacadeUnsavedRelated("nullable_membership")
 	}
 	_, _, _reviewerPending, _reviewerErr := _model.reviewerCache.Snapshot()
 	if _reviewerErr != nil {
@@ -10326,6 +11398,18 @@ func (_model *PeopleMember) relationFacadeDerived(_value people.Member) (*People
 	if _err != nil {
 		return nil, _err
 	}
+	_result.membershipScalarSnapshot = _model.membershipScalarSnapshot
+	_result.membershipScalarPresent = _model.membershipScalarPresent
+	_result.membershipCache, _err = _model.membershipCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = _model.nullableMembershipScalarSnapshot
+	_result.nullableMembershipScalarPresent = _model.nullableMembershipScalarPresent
+	_result.nullableMembershipCache, _err = _model.nullableMembershipCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
 	_result.reviewerScalarSnapshot = _model.reviewerScalarSnapshot
 	_result.reviewerScalarPresent = _model.reviewerScalarPresent
 	_result.reviewerCache, _err = _model.reviewerCache.Clone()
@@ -10358,6 +11442,12 @@ func (_model *PeopleMember) relationFacadeReconcile() error {
 	if _, _, _, _err := _model.leaderCache.Snapshot(); _err != nil {
 		return _err
 	}
+	if _, _, _, _err := _model.membershipCache.Snapshot(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.nullableMembershipCache.Snapshot(); _err != nil {
+		return _err
+	}
 	if _, _, _, _err := _model.reviewerCache.Snapshot(); _err != nil {
 		return _err
 	}
@@ -10376,6 +11466,18 @@ func (_model *PeopleMember) relationFacadeReconcile() error {
 		_leaderCurrentKey = *_model.peopleMemberModel.LeaderID
 	}
 	_leaderChanged := _leaderCurrentPresent != _model.leaderScalarPresent || (_leaderCurrentPresent && _leaderCurrentKey != _model.leaderScalarSnapshot)
+	_membershipCurrentPresent := _model.peopleMemberModel.MembershipID != nil
+	var _membershipCurrentKey int64
+	if _membershipCurrentPresent {
+		_membershipCurrentKey = *_model.peopleMemberModel.MembershipID
+	}
+	_membershipChanged := _membershipCurrentPresent != _model.membershipScalarPresent || (_membershipCurrentPresent && _membershipCurrentKey != _model.membershipScalarSnapshot)
+	_nullableMembershipCurrentPresent := _model.peopleMemberModel.NullableMembershipID != nil
+	var _nullableMembershipCurrentKey int64
+	if _nullableMembershipCurrentPresent {
+		_nullableMembershipCurrentKey = *_model.peopleMemberModel.NullableMembershipID
+	}
+	_nullableMembershipChanged := _nullableMembershipCurrentPresent != _model.nullableMembershipScalarPresent || (_nullableMembershipCurrentPresent && _nullableMembershipCurrentKey != _model.nullableMembershipScalarSnapshot)
 	_reviewerCurrentPresent := _model.peopleMemberModel.ReviewerID != nil
 	var _reviewerCurrentKey int64
 	if _reviewerCurrentPresent {
@@ -10388,7 +11490,7 @@ func (_model *PeopleMember) relationFacadeReconcile() error {
 		_sponsorCurrentKey = *_model.peopleMemberModel.SponsorID
 	}
 	_sponsorChanged := _sponsorCurrentPresent != _model.sponsorScalarPresent || (_sponsorCurrentPresent && _sponsorCurrentKey != _model.sponsorScalarSnapshot)
-	_rebuild := false || _grantRefChanged || _leaderChanged || _reviewerChanged || _sponsorChanged
+	_rebuild := false || _grantRefChanged || _leaderChanged || _membershipChanged || _nullableMembershipChanged || _reviewerChanged || _sponsorChanged
 	if !_rebuild {
 		return nil
 	}
@@ -10411,6 +11513,24 @@ func (_model *PeopleMember) relationFacadeReconcile() error {
 		_nextLeaderCache = orm.NewRelationCache[PeopleMember]()
 		if !_leaderCurrentPresent {
 			if _err := _nextLeaderCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextMembershipCache := _model.membershipCache
+	if _membershipChanged {
+		_nextMembershipCache = orm.NewRelationCache[LinksMembership]()
+		if !_membershipCurrentPresent {
+			if _err := _nextMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+				return _err
+			}
+		}
+	}
+	_nextNullableMembershipCache := _model.nullableMembershipCache
+	if _nullableMembershipChanged {
+		_nextNullableMembershipCache = orm.NewRelationCache[LinksMembership]()
+		if !_nullableMembershipCurrentPresent {
+			if _err := _nextNullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
 				return _err
 			}
 		}
@@ -10445,6 +11565,16 @@ func (_model *PeopleMember) relationFacadeReconcile() error {
 		_model.leaderScalarSnapshot = _leaderCurrentKey
 		_model.leaderScalarPresent = _leaderCurrentPresent
 	}
+	if _membershipChanged {
+		_model.membershipCache = _nextMembershipCache
+		_model.membershipScalarSnapshot = _membershipCurrentKey
+		_model.membershipScalarPresent = _membershipCurrentPresent
+	}
+	if _nullableMembershipChanged {
+		_model.nullableMembershipCache = _nextNullableMembershipCache
+		_model.nullableMembershipScalarSnapshot = _nullableMembershipCurrentKey
+		_model.nullableMembershipScalarPresent = _nullableMembershipCurrentPresent
+	}
 	if _reviewerChanged {
 		_model.reviewerCache = _nextReviewerCache
 		_model.reviewerScalarSnapshot = _reviewerCurrentKey
@@ -10467,6 +11597,14 @@ func (_model *PeopleMember) relationFacadePrepareSave() error {
 		return _err
 	}
 	_leaderState, _leaderTarget, _leaderPending, _err := _model.leaderCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_membershipState, _membershipTarget, _membershipPending, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	_nullableMembershipState, _nullableMembershipTarget, _nullableMembershipPending, _err := _model.nullableMembershipCache.Snapshot()
 	if _err != nil {
 		return _err
 	}
@@ -10500,6 +11638,28 @@ func (_model *PeopleMember) relationFacadePrepareSave() error {
 			return _err
 		}
 	}
+	var _membershipKey int64
+	var _membershipPresent bool
+	if _membershipState == orm.RelationAssignedPresent {
+		if _membershipTarget == nil || _membershipTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_membershipKey, _membershipPresent, _err = _membershipTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	var _nullableMembershipKey int64
+	var _nullableMembershipPresent bool
+	if _nullableMembershipState == orm.RelationAssignedPresent {
+		if _nullableMembershipTarget == nil || _nullableMembershipTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_nullableMembershipKey, _nullableMembershipPresent, _err = _nullableMembershipTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
 	var _reviewerKey int64
 	var _reviewerPresent bool
 	if _reviewerState == orm.RelationAssignedPresent {
@@ -10528,6 +11688,12 @@ func (_model *PeopleMember) relationFacadePrepareSave() error {
 	if _leaderState == orm.RelationAssignedPresent && !_leaderPresent {
 		return relationFacadeUnsavedRelated("leader")
 	}
+	if _membershipState == orm.RelationAssignedPresent && !_membershipPresent {
+		return relationFacadeUnsavedRelated("membership")
+	}
+	if _nullableMembershipState == orm.RelationAssignedPresent && !_nullableMembershipPresent {
+		return relationFacadeUnsavedRelated("nullable_membership")
+	}
 	if _reviewerState == orm.RelationAssignedPresent && !_reviewerPresent {
 		return relationFacadeUnsavedRelated("reviewer")
 	}
@@ -10536,6 +11702,8 @@ func (_model *PeopleMember) relationFacadePrepareSave() error {
 	}
 	_grantRefReconcile := _grantRefState == orm.RelationAssignedPresent && _grantRefPending
 	_leaderReconcile := _leaderState == orm.RelationAssignedPresent && _leaderPending
+	_membershipReconcile := _membershipState == orm.RelationAssignedPresent && _membershipPending
+	_nullableMembershipReconcile := _nullableMembershipState == orm.RelationAssignedPresent && _nullableMembershipPending
 	_reviewerReconcile := _reviewerState == orm.RelationAssignedPresent && _reviewerPending
 	_sponsorReconcile := _sponsorState == orm.RelationAssignedPresent && _sponsorPending
 	_nextModel := (people.MemberDescriptor{}).CloneWriteModel(_model.peopleMemberModel)
@@ -10548,6 +11716,16 @@ func (_model *PeopleMember) relationFacadePrepareSave() error {
 	if _leaderReconcile {
 		_relationKeyValue := _leaderKey
 		_nextModel.LeaderID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _membershipReconcile {
+		_relationKeyValue := _membershipKey
+		_nextModel.MembershipID = &_relationKeyValue
+		_rebuild = true
+	}
+	if _nullableMembershipReconcile {
+		_relationKeyValue := _nullableMembershipKey
+		_nextModel.NullableMembershipID = &_relationKeyValue
 		_rebuild = true
 	}
 	if _reviewerReconcile {
@@ -10585,6 +11763,26 @@ func (_model *PeopleMember) relationFacadePrepareSave() error {
 				return _err
 			}
 		}
+		_nextMembershipCache := _model.membershipCache
+		if _membershipReconcile {
+			_nextMembershipCache, _err = _model.membershipCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextMembershipCache.Store(orm.RelationAssignedPresent, _membershipTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_nextNullableMembershipCache := _model.nullableMembershipCache
+		if _nullableMembershipReconcile {
+			_nextNullableMembershipCache, _err = _model.nullableMembershipCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextNullableMembershipCache.Store(orm.RelationAssignedPresent, _nullableMembershipTarget, false); _err != nil {
+				return _err
+			}
+		}
 		_nextReviewerCache := _model.reviewerCache
 		if _reviewerReconcile {
 			_nextReviewerCache, _err = _model.reviewerCache.Clone()
@@ -10616,6 +11814,16 @@ func (_model *PeopleMember) relationFacadePrepareSave() error {
 			_model.leaderCache = _nextLeaderCache
 			_model.leaderScalarSnapshot = _leaderKey
 			_model.leaderScalarPresent = true
+		}
+		if _membershipReconcile {
+			_model.membershipCache = _nextMembershipCache
+			_model.membershipScalarSnapshot = _membershipKey
+			_model.membershipScalarPresent = true
+		}
+		if _nullableMembershipReconcile {
+			_model.nullableMembershipCache = _nextNullableMembershipCache
+			_model.nullableMembershipScalarSnapshot = _nullableMembershipKey
+			_model.nullableMembershipScalarPresent = true
 		}
 		if _reviewerReconcile {
 			_model.reviewerCache = _nextReviewerCache
@@ -10798,6 +12006,178 @@ func (_model *PeopleMember) ClearLeader() (*PeopleMember, error) {
 	_result.leaderScalarSnapshot = 0
 	_result.leaderScalarPresent = false
 	if _err := _result.leaderCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *PeopleMember) WithMembership(_target *LinksMembership) (*PeopleMember, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (people.MemberDescriptor{}).CloneWriteModel(_model.peopleMemberModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.MembershipID = &_relationKeyValue
+	} else {
+		_value.MembershipID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = _key
+	_result.membershipScalarPresent = _present
+	if _err := _result.membershipCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *PeopleMember) WithMembershipID(_key int64) (*PeopleMember, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (people.MemberDescriptor{}).CloneWriteModel(_model.peopleMemberModel)
+	_, _, _pending, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.MembershipID != nil && *_value.MembershipID == _key
+	_relationKeyValue := _key
+	_value.MembershipID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = int64(_key)
+	_result.membershipScalarPresent = true
+	if !_same {
+		if _err := _result.membershipCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *PeopleMember) ClearMembership() (*PeopleMember, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (people.MemberDescriptor{}).CloneWriteModel(_model.peopleMemberModel)
+	_value.MembershipID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.membershipScalarSnapshot = 0
+	_result.membershipScalarPresent = false
+	if _err := _result.membershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *PeopleMember) WithNullableMembership(_target *LinksMembership) (*PeopleMember, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (people.MemberDescriptor{}).CloneWriteModel(_model.peopleMemberModel)
+	if _present {
+		_relationKeyValue := _key
+		_value.NullableMembershipID = &_relationKeyValue
+	} else {
+		_value.NullableMembershipID = nil
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = _key
+	_result.nullableMembershipScalarPresent = _present
+	if _err := _result.nullableMembershipCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *PeopleMember) WithNullableMembershipID(_key int64) (*PeopleMember, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (people.MemberDescriptor{}).CloneWriteModel(_model.peopleMemberModel)
+	_, _, _pending, _err := _model.nullableMembershipCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := !_pending && _value.NullableMembershipID != nil && *_value.NullableMembershipID == _key
+	_relationKeyValue := _key
+	_value.NullableMembershipID = &_relationKeyValue
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = int64(_key)
+	_result.nullableMembershipScalarPresent = true
+	if !_same {
+		if _err := _result.nullableMembershipCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *PeopleMember) ClearNullableMembership() (*PeopleMember, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (people.MemberDescriptor{}).CloneWriteModel(_model.peopleMemberModel)
+	_value.NullableMembershipID = nil
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.nullableMembershipScalarSnapshot = 0
+	_result.nullableMembershipScalarPresent = false
+	if _err := _result.nullableMembershipCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
 		return nil, _err
 	}
 	return _result, nil
@@ -11074,6 +12454,110 @@ func (_model *PeopleMember) Leader(_ctx context.Context) (*PeopleMember, bool, e
 		return nil, false, _err
 	}
 	if _err := _model.leaderCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *PeopleMember) Membership(_ctx context.Context) (*LinksMembership, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.membershipCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Membership(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.membershipCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *LinksMembership
+	_graph, _selected, _err := _model.object.membership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeLinksMembership(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapLinksMembership(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.membershipCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_model *PeopleMember) NullableMembership(_ctx context.Context) (*LinksMembership, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.nullableMembershipCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.NullableMembership(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.nullableMembershipCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *LinksMembership
+	_graph, _selected, _err := _model.object.nullableMembership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeLinksMembership(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapLinksMembership(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.nullableMembershipCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
 		return nil, false, _err
 	}
 	return _wrapped, true, nil
@@ -11551,13 +13035,15 @@ func (_view *PeopleMemberTicketsCollection) Invalidate() error {
 
 type PeopleMemberPrefetchSelector = relationFacadePrefetchInput[people.Member]
 type PeopleMemberPrefetchSelectors struct {
-	GrantRef relationFacadeSinglePrefetch[people.Member, access.Grant]
-	Leader   relationFacadeSinglePrefetch[people.Member, people.Member]
-	Reviewer relationFacadeSinglePrefetch[people.Member, people.Member]
-	Sponsor  relationFacadeSinglePrefetch[people.Member, access.Team]
-	Tickets  relationFacadeReversePrefetch[people.Member, tickets.Ticket, TicketsTicket]
-	Grants   relationFacadeManyPrefetch[people.Member, access.Grant, people.MemberGrantsLink, AccessGrant]
-	Teams    relationFacadeManyPrefetch[people.Member, access.Team, links.Membership, AccessTeam]
+	GrantRef           relationFacadeSinglePrefetch[people.Member, access.Grant]
+	Leader             relationFacadeSinglePrefetch[people.Member, people.Member]
+	Membership         relationFacadeSinglePrefetch[people.Member, links.Membership]
+	NullableMembership relationFacadeSinglePrefetch[people.Member, links.Membership]
+	Reviewer           relationFacadeSinglePrefetch[people.Member, people.Member]
+	Sponsor            relationFacadeSinglePrefetch[people.Member, access.Team]
+	Tickets            relationFacadeReversePrefetch[people.Member, tickets.Ticket, TicketsTicket]
+	Grants             relationFacadeManyPrefetch[people.Member, access.Grant, people.MemberGrantsLink, AccessGrant]
+	Teams              relationFacadeManyPrefetch[people.Member, access.Team, links.Membership, AccessTeam]
 }
 type PeopleMemberPrefetchQuery struct {
 	state    *relationFacadeState
@@ -11913,10 +13399,12 @@ func (_query PeopleMemberEagerQuery) PrefetchRelatedPaths(_paths ...string) (Peo
 
 type PeopleMemberRelationSelector = relationFacadeSelectionInput[people.Member]
 type PeopleMemberRelationSelectors struct {
-	GrantRef relationFacadeSelection[people.Member, access.Grant]
-	Leader   relationFacadeSelection[people.Member, people.Member]
-	Reviewer relationFacadeSelection[people.Member, people.Member]
-	Sponsor  relationFacadeSelection[people.Member, access.Team]
+	GrantRef           relationFacadeSelection[people.Member, access.Grant]
+	Leader             relationFacadeSelection[people.Member, people.Member]
+	Membership         relationFacadeSelection[people.Member, links.Membership]
+	NullableMembership relationFacadeSelection[people.Member, links.Membership]
+	Reviewer           relationFacadeSelection[people.Member, people.Member]
+	Sponsor            relationFacadeSelection[people.Member, access.Team]
 }
 
 func (_query PeopleMemberQuery) SelectRelated(_selectors ...PeopleMemberRelationSelector) PeopleMemberEagerQuery {
@@ -12238,6 +13726,22 @@ func (_state *relationFacadeState) wrapSelectedPeopleMemberObject(_ctx context.C
 			return nil, _err
 		}
 	}
+	if _has, _err := _object._selectedGraph.HasSelection("membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Membership(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _has, _err := _object._selectedGraph.HasSelection("nullable_membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.NullableMembership(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("reviewer"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -12287,6 +13791,26 @@ func (_state *relationFacadeState) prefetchPeopleMemberPath(_path string, _depth
 		_selection := orm.PrefetchNullableForward(_state.objects.PeopleMember.leader)
 		if _nested {
 			_child, _err := _state.prefetchPeopleMemberPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "membership":
+		_selection := orm.PrefetchNullableForward(_state.objects.PeopleMember.membership)
+		if _nested {
+			_child, _err := _state.prefetchLinksMembershipPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	case "nullable_membership":
+		_selection := orm.PrefetchNullableForward(_state.objects.PeopleMember.nullableMembership)
+		if _nested {
+			_child, _err := _state.prefetchLinksMembershipPath(_tail, _depth+1, _remaining)
 			if _err != nil {
 				return nil, _err
 			}
@@ -17367,4 +18891,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7
+var _ goDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d

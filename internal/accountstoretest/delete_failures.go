@@ -161,7 +161,7 @@ func accountDeletionFailures(t *testing.T, backend Backend, reopen func(*testing
 				assertDeletionTree(t, reopen(t), f, tree, before, result)
 			} else {
 				want := accountmodel.CodePersistence
-				if mode == "unknown_commit" || mode == "unknown_rollback" {
+				if mode == "skipped" || mode == "repeated" || mode == "unknown_commit" || mode == "unknown_rollback" {
 					want = accountmodel.CodeOutcomeUnknown
 				}
 				if !errors.Is(err, &accountmodel.Error{Code: want}) || result != (accountmodel.AccountDeletion{}) {

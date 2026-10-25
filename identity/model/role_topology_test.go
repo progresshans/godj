@@ -1,16 +1,14 @@
 package model
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestAccountMembershipDeletionChecksExplicitThroughRoot(t *testing.T) {
+func TestAccountCollectionStorageAcceptsCoordinatedIncomingPolicies(t *testing.T) {
 	identity := func(name string) ir.ModelIdentity {
 		return ir.ModelIdentity{AppLabel: "godj_identity", ModelName: name}
 	}
@@ -45,18 +43,14 @@ func TestAccountMembershipDeletionChecksExplicitThroughRoot(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := validateCatalogCollectionTopology(project, role); err != nil {
+				if err := validateCatalogCollectionStorage(project, role); err != nil {
 					t.Fatal("PROTECT endpoint should not reach explicit through owner", err)
 				}
-				err = validateRoleDeleteTopology(project, role, []string{"groups"})
-				if policy == ir.DeleteProtect {
-					if err != nil {
-						t.Fatal("protected host effect should remain supported", err)
-					}
-				} else if !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-					t.Fatal("critical through lifecycle silently accepted", err)
+				err = validateAccountCollectionStorage(project, role, []string{"groups"})
+				if err != nil {
+					t.Fatal("coordinated incoming lifecycle policy was rejected at construction", err)
 				}
-				if err := validateRoleDeleteTopology(project, role, []string{"staff"}); err != nil {
+				if err := validateAccountCollectionStorage(project, role, []string{"staff"}); err != nil {
 					t.Fatal("unselected collection restricted scalar roles", err)
 				}
 			})
@@ -81,7 +75,7 @@ func TestAccountMembershipDeletionChecksExplicitThroughRoot(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := validateRoleDeleteTopology(project, role, []string{"groups"}); err != nil {
+		if err := validateAccountCollectionStorage(project, role, []string{"groups"}); err != nil {
 			t.Fatal("ordinary host deletion effect rejected", err)
 		}
 	}

@@ -26,8 +26,10 @@ type CatalogPermissions struct {
 	Additional                []auth.Permission
 }
 
-// CatalogValidator receives detached current/candidate values after current
-// authorization. Current is nil during creation. The borrowed reader may be
+// CatalogValidator receives detached current/final values after current
+// authorization and collected graph preparation, including the final revision
+// and collected NULLs. Current is nil during creation; the provisional candidate
+// already has its generated key. A refusal rolls back that insert. The reader may be
 // used for current choices but must not be retained, mutated or re-entered.
 // Validators and clocks must be safe for concurrent service calls.
 type CatalogValidator[M any] func(context.Context, db.Queryer, *M, M) (validation.Errors, error)
@@ -47,8 +49,8 @@ type CatalogConfig[G, P any] struct {
 	Group      CatalogModelConfig[G]
 	Permission CatalogModelConfig[P]
 	// AccountPermissions applies when the host deletion graph directly
-	// deletes or nulls selected account rows. Implicit membership revisions
-	// remain consequences of the authorized catalog deletion.
+	// deletes or nulls selected account rows during any catalog mutation.
+	// Implicit membership revisions remain consequences of that operation.
 	AccountPermissions DeletionPermissions
 	Now                func() time.Time
 }
@@ -96,15 +98,15 @@ type catalogModelState[M any] struct {
 	validate                                  CatalogValidator[M]
 	readKeys                                  func(context.Context, db.Queryer, int64) ([]int64, error)
 	checkKeys                                 func(context.Context, db.Queryer, []int64) error
-	checkMembers                              func(context.Context, db.Session, auth.CredentialDomain, int64, []int64) error
-	saveKeys                                  func(context.Context, db.Session, M, []int64) error
+	collectionChange                          func(M, []int64) (orm.CollectionChange, error)
 	delete                                    func(context.Context, db.Session, auth.Principal, M) (int64, int, error)
 }
 type catalogScope struct {
 	reader    db.SnapshotReader
 	writer    db.CoordinatedRelationAtomic
 	authorize func(context.Context, db.Queryer, auth.Principal, []auth.Permission) (auth.Principal, bool, error)
-	now       func() time.Time
+	project   orm.ProjectBinding
+	prepare   func(context.Context, db.RelationSession, auth.Principal, orm.RelationDeleteEffects, []orm.CollectionInsertEffect, *lifecycleEdit) (lifecycleWritePlan, error)
 }
 type catalogPermissions struct{ view, add, change, delete []auth.Permission }
 
@@ -176,7 +178,7 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 		}
 	}
 	if slices.Contains(config.Group.WriteFields, role.Catalog.GroupPermissions) {
-		if err := validateCatalogCollectionTopology(project, role); err != nil {
+		if err := validateCatalogCollectionStorage(project, role); err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
@@ -189,13 +191,12 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 	if err != nil {
 		return nil, err
 	}
-	now := config.Now
-	if now == nil {
-		now = time.Now
-	}
-	shared := &catalogScope{reader: store.state.backend, writer: writer, now: now,
+	shared := &catalogScope{reader: store.state.backend, writer: writer, project: project,
 		authorize: func(ctx context.Context, scope db.Queryer, actor auth.Principal, required []auth.Permission) (auth.Principal, bool, error) {
 			return store.AuthorizeIn(ctx, scope, actor, overlay, required[0], required[1:]...)
+		},
+		prepare: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, effects orm.RelationDeleteEffects, insertions []orm.CollectionInsertEffect, root *lifecycleEdit) (lifecycleWritePlan, error) {
+			return lifecycle.prepare(ctx, scope, actor, effects, insertions, root)
 		},
 	}
 	groupState, err := newCatalogModel(shared, orm.NewManager[G](groups), role.Catalog.Group, role.Catalog.GroupName, "", role.Catalog.GroupRevision, role.Catalog.GroupPermissions, config.Group)
@@ -217,11 +218,19 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 			return 0, 0, managementError(CodeInvalidConfig, nil)
 		}
 		revoked := 0
+		var plan *lifecyclePlan[M]
 		count, err := deleteGroups.DeleteWithEffectsInSession(ctx, relations, value, func(work context.Context, effects orm.RelationDeleteEffects) error {
 			var err error
-			revoked, err = lifecycle.apply(work, relations, actor, effects)
+			plan, err = lifecycle.prepare(work, relations, actor, effects, nil, nil)
+			if err != nil {
+				return err
+			}
+			revoked, err = plan.apply(work, relations)
 			return err
 		})
+		if err == nil {
+			err = plan.verify(ctx, relations)
+		}
 		return count, revoked, err
 	}
 	permissionState.delete = func(ctx context.Context, scope db.Session, actor auth.Principal, value P) (int64, int, error) {
@@ -230,20 +239,22 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 			return 0, 0, managementError(CodeInvalidConfig, nil)
 		}
 		revoked := 0
+		var plan *lifecyclePlan[M]
 		count, err := deletePermissions.DeleteWithEffectsInSession(ctx, relations, value, func(work context.Context, effects orm.RelationDeleteEffects) error {
 			var err error
-			revoked, err = lifecycle.apply(work, relations, actor, effects)
+			plan, err = lifecycle.prepare(work, relations, actor, effects, nil, nil)
+			if err != nil {
+				return err
+			}
+			revoked, err = plan.apply(work, relations)
 			return err
 		})
+		if err == nil {
+			err = plan.verify(ctx, relations)
+		}
 		return count, revoked, err
 	}
-	groupState.saveKeys = func(ctx context.Context, scope db.Session, owner G, keys []int64) error {
-		collection, err := grants.InSession(scope, owner)
-		if err != nil {
-			return err
-		}
-		return collection.SetKeys(ctx, keys)
-	}
+	groupState.collectionChange = func(owner G, keys []int64) (orm.CollectionChange, error) { return grants.SetKeysChange(owner, keys) }
 	if err := bindCatalogRelations(store, group, permission, groupState, permissionState); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}

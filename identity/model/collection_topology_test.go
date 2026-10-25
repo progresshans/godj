@@ -1,16 +1,14 @@
 package model
 
 import (
-	"errors"
 	"testing"
 
 	fixture "github.com/progresshans/godj/conformance/accountdeletefixture"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func TestCollectionDeletionCannotSkipOtherMembershipOwners(t *testing.T) {
+func TestCollectionStorageAcceptsCrossMembershipPolicies(t *testing.T) {
 	for _, mode := range []string{"cascade", "payload_null", "protect", "reverse_cascade", "self_cascade"} {
 		t.Run(mode, func(t *testing.T) {
 			spec, err := fixture.ProjectSpec(t.Context())
@@ -45,17 +43,12 @@ func TestCollectionDeletionCannotSkipOtherMembershipOwners(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			catalogErr := validateCatalogCollectionTopology(binding, *spec.Account)
-			roleErr := validateRoleDeleteTopology(binding, *spec.Account, []string{spec.Account.Groups})
-			catalogRejected := mode == "cascade"
-			roleRejected := mode == "reverse_cascade" || mode == "self_cascade"
-			if errors.Is(catalogErr, &query.Error{Code: query.CodeUnsupported}) != catalogRejected || !catalogRejected && catalogErr != nil {
-				t.Fatal("catalog indirect membership effect escaped its owner", catalogErr)
+			catalogErr := validateCatalogCollectionStorage(binding, *spec.Account)
+			roleErr := validateAccountCollectionStorage(binding, *spec.Account, []string{spec.Account.Groups})
+			if catalogErr != nil || roleErr != nil {
+				t.Fatal("cross-membership policy was rejected at construction", catalogErr, roleErr)
 			}
-			if errors.Is(roleErr, &query.Error{Code: query.CodeUnsupported}) != roleRejected || !roleRejected && roleErr != nil {
-				t.Fatal("account indirect membership effect escaped its owner", roleErr)
-			}
-			if err := validateRoleDeleteTopology(binding, *spec.Account, []string{spec.Account.Staff.Field}); err != nil {
+			if err := validateAccountCollectionStorage(binding, *spec.Account, []string{spec.Account.Staff.Field}); err != nil {
 				t.Fatal("unselected collection restricted scalar editing", err)
 			}
 		})

@@ -1280,6 +1280,64 @@ native method 이름과 bool 반환형 때문에 compile 단계에서 실패했�
 저장소 밖 검증 보관소의 `gdj0138-collection-changes-v1/receipt.json`에 연결했다
 (SHA-256 `38c36bba9660031980422feaa22d92f648f2da6586f0f92ed486cdf207cc5197`).
 
+### Collection 편집과 catalog 생성의 전체 수명 통합
+
+2026-10-26, `79059c3e3821d18798b4402c9f5b43b68d9ed463` 위에서 계정 편집과 catalog 생성/수정/삭제를 공통 수명
+owner에 연결했다. 모든 명시적 collection·공유 cascade/NULL·예정된 typed 삽입을 합쳐 최종 distinct 소속을 계산한다.
+현재 및 최종 typed 계정/catalog 상태, 직접/간접 유효 권한 한도와 관련 효과별 권한을 검증한다. 생존 owner revision은 한 번,
+직접 root/선택 모델 효과의 audit도 한 번이며 삭제/비활성화된 계정의 현재 domain session을 함께 폐기한다.
+최종 내부 재조회는 typed scalar·revision·소속/grant와 삭제 부재를 대조하고 실패하면 앞선 전체 DML을 rollback한다.
+
+편집 root가 자기 cascade로 삭제되면 conflict이고, validator는 전체 NULL·다음 revision·최종 소속을 반영한 후보를 받는다.
+Catalog 생성의 provisional INSERT와 이후 링크 상태도 같은 fence에 속한다. 생성 전에 확인한 권한을 추가 효과 인가에
+사용하여 INSERT에 따른 새 grant가 추가 삭제 권한을 만들어 주지 못하게 한다. 일반 through의 incoming critical 효과를
+일괄 거부하던 경계는 실제 통합으로 대체했다. 선택 계정/catalog 자체가 through인 저장은 별도 identity 생성 조립이 필요하다.
+
+선택 Member/Team/Grant에 nullable CASCADE/SET_NULL FK 여섯 개를 추가하고 공개 generate를 실행했다(24.298초).
+생성 manifest의 25개 파일 bytes/mode와 snapshot
+`ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d`를 대조했다. Account ABI v15는 유지한다.
+새 양 DB 소비자는 backend마다 55개 child를 작성했다. 계정 27개·catalog 편집 25개·catalog 생성 3개이며 다음을 포함한다.
+
+- 겹친 선택 모델 삭제/NULL, 다른 collection의 cascade로 지워진 보존 링크 재생성, 중복 링크가 남는 owner의 revision/audit 보존,
+  scalar-only·자기 비활성화·0/음수 key와 최종 256/257개 유효 권한 경계.
+- 추가 효과 권한 누락/deny·validator·PROTECT·root 삭제·손상 revision·조회/close 거부와 독립 connection의 10개 table 대조.
+- 257번째 owner revision, 두 번째 session batch, 실제 관계 삽입·마지막 root 쓰기·잘못된 NULL 수·최종 내부 읽기 실패,
+  callback 미호출/중복·확정 rollback·unknown commit/rollback·cleanup·확정 commit 뒤 취소.
+- Catalog INSERT 직후 같은 native session에 실제 링크를 만드는 주입으로 생성 효과의 권한 고정·validator rollback·revision 1과
+  add/delete audit·세션 폐기를 확인한다. Backend-specific trigger DDL의 실행 검증으로 세지 않는다.
+
+선행 [CI 40228029405](https://github.com/progresshans/godj/actions/runs/40228029405)의 두 페이지 115개 job을 관측한
+시점은 성공 68·실패 10·실행 중 5·대기 31·skip 1이었다. 실패한 10개 원본 로그의 checkout은 모두
+`f7c8637a26e06e2ed05b9fa2f9048ea92639fc9c`이며 부모에 제출 source가 있고 tree
+`75e669afce92096d65cd18589bc6e4af68fdb885`도 동일하다. 이는 부분 관측이며 전체 실행의 종결이나 성공이 아니다.
+확인한 실패 세 종류와 수정은 다음과 같다.
+
+- Portable CI verifier의 fake `go list`가 새 필수 package인 `internal/migrationautodetect`를 발견하지 못했다.
+  Fake discovery에 필수 manifest의 모든 package를 포함했다. Missing owner·중복 discovery·불완전/skip/잘린 JSON 등의
+  부정 검사는 유지한다. 기존 코드의 실패를 재현했고 수정 후 해당 Python 모듈 두 test가 통과했다(26.048초).
+- ORM의 새 collection 단위 세 root가 쓰기 불가 PK를 `ApplyValues`로 설정하다 fixture 단계에서 실패했다.
+  생성 `NewUserWithID`/`NewGroupWithID`로 0/음수의 저장 key presence를 준비하도록 고쳤다. 미저장 zero struct 거부와
+  기존 모든 입력/실행 assertion을 유지한다. 세 root의 수정 전 실패와 수정 뒤 통과를 한정 재현했다(6.627초).
+- 양 DB 계정 삭제의 `skipped`/`repeated` callback은 기존 atomic-result 계약대로 `outcome_unknown`인데 새 검사가
+  `persistence`를 기대했다. 공개 결과가 비고 durable 상태가 그대로라는 검사는 유지하며 기대 분류만 고쳤다.
+  SQLite의 이 두 child를 한정 실행해 통과했다(3.093초). PostgreSQL의 수정 후 본문은 원격 확인 대상이다.
+
+최초 최소 compile은 새 테스트의 `string`/`validation.Field` 불일치로 실패해 수정했다. 마지막 변경 후 identity/model·
+SQLite·PostgreSQL 세 package의 최소 compile이 통과했다(47.200초). 실행 receipt의 모든 Go source hash가 현재 코드와
+일치한다. 위 실패 재현/회귀 외 새 55개 lifecycle child와 topology/권한 단위 본문은 로컬에서 실행하지 않았다.
+
+Relation 필수 목록은 4,070→4,140, PostgreSQL core는 5,290→5,348로 확장했다. 기존 topology 입력을 유지하면서
+거부에서 조정 가능한 구성 허용으로 바꾼 두 root와 그 child 15개 항목을 이름으로 대응시켰다. Account topology의 기존
+아홉 입력과 root도 필수 목록에 연결했다. 새 실제 DB 거부/rollback 검사와 선택 모델-as-through 거부 검사가 보안 경계를
+담당한다. 기존 필수 항목 보존·중복 없음, PostgreSQL 세 mode/일곱 coordinate의 유일한 소유권, Python syntax·gofmt·diff를
+확인했다. 전체 generated drift·필수 본문·양 DB·독립 소비자·race/process/platform은 새 source의 원격 CI 확인 대상이다.
+
+원본 로그·merge/tree·실패 재현 전후·generate/compile·manifest/필수 목록·현재 비 Markdown source hash는 검증 보관소의
+`gdj0138-collection-lifecycle-v1/receipt.json`에 연결했다
+(SHA-256 `e4bd2f143cd83f540aff202b8200bc15c03bb60eb4ed5775d5c78153d69623a3`).
+공개 최초 계정 Command/runtime/scaffold·공통 Admin/HTTP, 선택 모델-as-through의 identity 생성·profile 관계/파일,
+채운 DB 전환·설치/startup·통합 restart와 전체 I1 수용은 남아 있다. 구현·작성·최소 compile을 환경별 실제 PASS로 바꾸지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
