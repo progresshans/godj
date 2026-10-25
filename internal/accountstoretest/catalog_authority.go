@@ -14,6 +14,8 @@ import (
 	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
@@ -23,7 +25,7 @@ import (
 
 func catalogDeniedOperations[M any](t *testing.T, resource accountmodel.CatalogResource[M], actor auth.Principal, id, revision int64, input orm.ModelInput[M], cause error) {
 	t.Helper()
-	for _, operation := range []string{"get", "list", "history", "create", "update", "delete"} {
+	for _, operation := range []string{"get", "list", "history", "create", "update", "delete", "check_create_form", "check_change_form"} {
 		t.Run(operation, func(t *testing.T) {
 			var err error
 			switch operation {
@@ -60,6 +62,32 @@ func catalogDeniedOperations[M any](t *testing.T, resource accountmodel.CatalogR
 				err = failure
 				if value != (accountmodel.CatalogDeletion{}) {
 					t.Fatal("denied delete published metadata")
+				}
+			case "check_create_form", "check_change_form":
+				model, failure := resource.Manager().Metadata()
+				if failure != nil {
+					t.Fatal(failure)
+				}
+				spec, failure := formmodel.NewSpecForFields(model, resource.WriteFields())
+				if failure != nil {
+					t.Fatal(failure)
+				}
+				description, failure := resource.Description()
+				if failure != nil {
+					t.Fatal(failure)
+				}
+				var initial map[string]forms.Value
+				if operation == "check_change_form" {
+					initial = map[string]forms.Value{description.KeyField: forms.Integer(id), description.RevisionField: forms.Integer(revision)}
+				}
+				bound, failure := formmodel.Bind(t.Context(), model, spec, forms.NewData(nil), initial, formmodel.PostClean{})
+				if failure != nil {
+					t.Fatal(failure)
+				}
+				if operation == "check_create_form" {
+					err = resource.CheckCreateForm(t.Context(), actor, bound)
+				} else {
+					err = resource.CheckChangeForm(t.Context(), actor, id, revision, bound)
 				}
 			}
 			if !errors.Is(err, cause) {

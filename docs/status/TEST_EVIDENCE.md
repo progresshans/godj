@@ -1384,6 +1384,53 @@ race/process/platform은 새 source의 원격 검증 대상이다. I1 전체 및
 검증 보관소의 `gdj0138-startup-inspection-v1/receipt.json`에 연결했다
 (SHA-256 `05bd46a6d8ef18bda7b230968f5a40aa581acf263679e51f2d96cb89432f130c`).
 
+### 선택 Catalog의 공통 Admin 등록과 현재 Form/선택지 검사
+
+2026-10-26, `4f3731b6ea46ff71cfe30b2849d332c8903819db` 위에서 `identityadmin.RegisterCatalog`를 작성했다.
+실제 Group/Permission 타입·Schema IR·명시적 read/write·전체 operation/추가 권한으로 공통 Admin 목록·Form·CRUD·history를
+구성한다. 현재 선택지는 같은 source의 typed ModelChoices와 인가된 snapshot을 사용한다. Partial-invalid Form의 unique field·
+복합 unique·선택 key는 읽기 전용으로 확인하며 scope/cleanup이 성공하기 전에는 진단·거부·conflict를 게시하지 않는다.
+최종 쓰기는 기존 Catalog 수명 owner에 위임하고 확정 결과 뒤 재조회하지 않는다. 생성 revision은 schema default와 별개로 1이다.
+
+공통 Admin의 모델 추가 권한에 대한 direct CRUD/history/action/명령·현재 overlay·복사 소유권 검사 14개 필수 항목을 연결했다.
+양 DB에는 Form의 독립 unique/선택 key·현재 행 제외·stale/부재·추가 권한·회수/inactive/old domain, query/close·callback·
+cleanup/취소·0/음수 저장 key 등 각각 35개의 필수 항목을 추가했다. 선언/등록은 storage 접근 전 source와 노출을 검사한다.
+기본/custom 일곱 생성 변형의 실제 첫 계정 fixture에서 새 등록 함수 자체를 호출하는 TCP Admin 소비자를 작성했다.
+기본 세 fixture와 custom 여섯 fixture에서 생성·bounded 검색/첫 page 밖 선택·partial-invalid·CSRF/stale/보호 field/추가 권한·
+수정/history·삭제에 따른 소속/revision·durable audit를 확인하도록 했다. Custom은 renamed role·NoReverse·추가 scalar,
+revision default 없는 schema와 다른 field 오류가 있는 복합 unique 검사도 포함한다. 부모 verifier가 새 123개 child/parent
+이름의 실행을 요구한다. 이 숫자는 작성된 실행 요구이며 새 HTTP 본문의 로컬 PASS가 아니다.
+
+선행 [CI 40236644763](https://github.com/progresshans/godj/actions/runs/40236644763) attempt 1의 114개 job을 관측한 시점은
+성공 57·실패 6·실행 중 16·대기 35였다. 여섯 실패 원본 checkout은 모두
+`ab0640e03e97286b2b0af60091a7e7a961a63876`이며 부모에 제출 source가 있고 tree
+`7c7476a62eaecf97d5bbd3d50484665a11157110`도 동일하다. 전체 실행의 종결/성공으로 계산하지 않는다.
+
+- SQLite 네 좌표와 PostgreSQL race/core의 실패는 모델 선언 순서로 바뀐 감사에 대해 남아 있던 사전식 기대값이었다.
+  SQLite `delete_lifecycle`의 동일 실패를 재현했다. 기대값을 실제 fixture의 scalar→collection 선언 순서로 명시하고 정렬로
+  덮지 않게 했다. 행/소속/세션/감사 수·actor/domain·rollback/unknown 검사는 유지한다. 보고된 lifecycle 실패 경로의 한정
+  회귀가 통과했다(1.928초, pass test event 24개, fail/skip 없음). PostgreSQL 수정 후 본문은 원격 대상이다.
+- Linux/amd64 CLI는 빈 PTY의 초기 180초 대기에서 두 번 실패했고 누적 20분 제한으로 실행이 잘렸다. 원본 artifact의
+  source/tree·SHA-256을 확인했고 같은 실행의 초기 migration-check runner가 371.14초 뒤 성공한 사실도 대조했다.
+  초기 빌드 뒤 프롬프트 대기를 10분, 해당 좌표의 누적 CLI package 예산을 35분으로 보정했다. 비밀번호 입력 대기·
+  30초 인터럽트 종료·터미널 복원·잔여 비밀 폐기와 전체 test inventory는 그대로다. macOS에서 기존 두 PTY 경로는
+  5.008초에 통과했으며 Hosted의 cold 지연은 재현되지 않았다. 이 결과를 Linux 보정 완료로 세지 않는다.
+
+위 한정 runtime 기록은 마지막 테스트 fixture 추가와 CLI 예산 조정 전 checkpoint다. 최종 source는 admin·identity/model·
+identity/admin·SQLite·PostgreSQL·codegen/consumertest·cmd/godj 일곱 package의 최소 compile만 실행했고 test body는 0개다.
+실제 부모의 source 선언과 embedded 소비자를 이용한 기본/custom 별도 생성 module도 각각 `go test -run '^$'`로 compile했다
+(부모 준비 17.748초). 이 compile 전용 임시 overlay는 저장소 테스트나 CI를 바꾸지 않으며 feature body를 실행하지 않는다.
+신규 native·Admin·HTTP 검사를 로컬에서 추가로 실행하지 않았다. 포맷·diff·243개 문서 링크도 확인했다.
+
+Relation 필수 목록은 4,221→4,273(52개 추가), PostgreSQL core 5,429→5,478(49개 추가), Portable core 51→65다.
+기존 항목 보존·중복 없음과 PostgreSQL 세 mode/일곱 coordinate의 유일한 소유권을 확인했다. 원본 CI 로그·artifact·merge/tree,
+한정 회귀와 최소 compile·manifest·현행 비 Markdown source 26개의 hash는 검증 보관소
+`gdj0138-catalog-admin-v1/receipt.json`에 연결했다
+(SHA-256 `e9140c71cd83d66739f33cc7ce34a7f0f3e5d6d5bdcb5544e7f355aeddacdc4a`).
+새 본문·generated drift·양 DB·race/process/platform과 전체 I1은 제출 source의 원격/독립 검증 대상이다. 계정 자체의 공통
+Admin·JSON API·공개 CLI/scaffold/runtime·profile 관계/파일·선택 모델-as-through identity·채운 DB 전환·통합 restart와
+전체 카탈로그의 잔여 범위를 유지한다. 공통 Admin 객체 URL의 양수 key 경계도 native signed key 지원과 구분한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -226,8 +226,14 @@ func (site *Site) listContext(
 }
 
 func (site *Site) modelWriteAllowed(ctx context.Context, model registeredModel, principal auth.Principal, permissions ...auth.Permission) (bool, error) {
-	if model.readOnly {
+	if model.readOnly || len(permissions) == 0 {
 		return false, nil
+	}
+	for _, permission := range model.additionalPermissions {
+		allowed, err := site.auth.Authorized(ctx, principal, permission)
+		if err != nil || !allowed {
+			return false, err
+		}
 	}
 	for _, permission := range permissions {
 		allowed, err := site.auth.Authorized(ctx, principal, permission)
@@ -235,7 +241,7 @@ func (site *Site) modelWriteAllowed(ctx context.Context, model registeredModel, 
 			return false, err
 		}
 	}
-	return len(permissions) != 0, nil
+	return true, nil
 }
 
 func listPageCount(total int64, limit int) int64 {

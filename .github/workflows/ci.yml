@@ -552,7 +552,9 @@ jobs:
           - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
-            cmd_test_timeout: "20m"
+            # A cold linked runner took 371s on this coordinate; preserve all
+            # sequential CLI tests beyond the former cumulative 20m cutoff.
+            cmd_test_timeout: "35m"
             flow_test_timeout: "25m"
             timeout_minutes: {normal: 65, race: 75, cgo0: 65}
           - runs_on: "ubuntu-24.04-arm"

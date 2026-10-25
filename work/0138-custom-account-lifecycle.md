@@ -255,7 +255,19 @@ schema index/constraint 전체 검증은 호스트가 소유한다.
 소속·최종 scalar 뒤 각각의 rollback 확인을 유지한다. 새 본문 작성·최소 compile·확인된 실패의 한정 실행은 TEST_EVIDENCE에서
 구분하며 공개 CLI/scaffold의 선택 계정 전환을 완료한 것으로 계산하지 않는다.
 
-프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
+선택된 실제 Group/Permission 타입을 받는 `identityadmin.RegisterCatalog`를 작성했다. Owner의 source·역할·명시적 읽기/쓰기와
+전체 operation/추가 권한을 공통 Admin 목록·Form·CRUD·durable history에 연결한다. 그룹 권한 선택은 현재 인가된 native
+snapshot에서 bounded 검색/Resolve하고, partial-invalid Form의 독립 unique·복합 unique·선택 key 검사도 같은 읽기 경계를
+사용한다. 최종 쓰기는 기존 수명 owner에 위임하며 성공 뒤 다시 읽지 않는다.
+
+공통 Admin의 모든 모델 작업에 필수 추가 권한을 적용하고 직접 호출·현재 overlay·descriptor 소유권 검사를 추가했다.
+양 DB의 Form partial validation·revision/부재·권한 회수/inactive/old domain·cleanup/취소·signed key 검사를 필수 목록에
+연결했다. 기본/custom 일곱 생성 변형에는 실제 TCP Admin 등록·범위가 있는 선택지·Form 오류/CSRF/stale/추가 권한 거부·
+생성/수정/삭제·수집된 소속/revision·감사를 작성했다. Custom은 revision default 없이 서버 값과 추가 scalar/복합 unique도 다룬다.
+작성·최소 compile과 실제 원격 본문 실행은 TEST_EVIDENCE에서 구분한다. 기존 수명 감사의 독립 기대값은 실제 모델 선언
+순서에 맞췄고 CI가 관측한 cold CLI 준비/누적 시간은 검사 삭제 없이 harness 예산으로 보정했다.
+
+프로필 관계/파일과 기존 Directory/Manager 교체, 계정 자체의 공통 Admin 등록·JSON HTTP 제품 조립,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 

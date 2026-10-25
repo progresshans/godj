@@ -58,6 +58,9 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput, editOwnAccount
 		assertAccountAdminMutationHTTP(t, backend, binding, store, sessions, hasher, row, "first_name", project.NewAccountEditor)
 		return
 	}
+	t.Run("admin_catalog", func(t *testing.T) {
+		assertCatalogAdminHTTP(t, backend, binding, sessions, hasher, row, "", "", project.NewAccountCatalog)
+	})
 	t.Run("admin_password", func(t *testing.T) {
 		assertAccountAdminPasswordHTTP(t, backend, binding, store, sessions, hasher, row, "first_name", project.NewAccountPasswordEditor)
 	})

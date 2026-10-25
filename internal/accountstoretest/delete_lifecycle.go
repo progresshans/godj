@@ -146,8 +146,8 @@ func assertDeletionTree(t *testing.T, backend Backend, f *deletionFixture, tree 
 	}{
 		{"people.member", tree.root.ID, admin.ActionDelete, nil}, {"people.member", tree.child.ID, admin.ActionDelete, nil},
 		{"access.team", tree.group.ID, admin.ActionDelete, nil}, {"access.grant", tree.permission.ID, admin.ActionDelete, nil},
-		{"people.member", tree.survivor.ID, admin.ActionChange, []string{"grant_ref", "grants", "reviewer", "teams"}},
-		{"access.team", tree.groupSurvivor.ID, admin.ActionChange, []string{"grants", "reviewer"}},
+		{"people.member", tree.survivor.ID, admin.ActionChange, []string{"reviewer", "grant_ref", "teams", "grants"}},
+		{"access.team", tree.groupSurvivor.ID, admin.ActionChange, []string{"reviewer", "grants"}},
 		{"access.grant", tree.permissionSurvivor.ID, admin.ActionChange, []string{"reviewer"}},
 	} {
 		history := deletionHistory(t, backend, f.actor, target.model, target.id)

@@ -140,8 +140,7 @@ func collectionCatalogCreation(t *testing.T, backend Backend, reopen func(*testi
 		accountSessionRecord(t, f.store, session, true)
 		return
 	}
-	slices.Sort(result.ChangedFields)
-	if err != nil || result.ID != observed.createdID || result.Revision != 1 || result.RevokedSessions != 1 || !slices.Equal(result.ChangedFields, []string{"grants", "title"}) || validations != 1 {
+	if err != nil || result.ID != observed.createdID || result.Revision != 1 || result.RevokedSessions != 1 || !slices.Equal(result.ChangedFields, []string{"title", "grants"}) || validations != 1 {
 		t.Fatal("composed creation result differs", err)
 	}
 	reader := reopen(t)
@@ -156,7 +155,7 @@ func collectionCatalogCreation(t *testing.T, backend Backend, reopen func(*testi
 	accountSessionRecord(t, f.store, session, false)
 	created := deletionHistory(t, reader, f.actor, "access.team", result.ID)
 	deleted := deletionHistory(t, reader, f.actor, "people.member", victim.ID)
-	if len(created) != 1 || created[0].Action() != admin.ActionAdd || !slices.Equal(created[0].ChangedFields(), []string{"grants", "title"}) || len(deleted) != 1 || deleted[0].Action() != admin.ActionDelete || created[0].ActorID() != f.actor.ID() || deleted[0].ActorID() != f.actor.ID() {
+	if len(created) != 1 || created[0].Action() != admin.ActionAdd || !slices.Equal(created[0].ChangedFields(), []string{"title", "grants"}) || len(deleted) != 1 || deleted[0].Action() != admin.ActionDelete || created[0].ActorID() != f.actor.ID() || deleted[0].ActorID() != f.actor.ID() {
 		t.Fatal("creation and collected deletion audits differ")
 	}
 	after := deletionSnapshot(t, reader)

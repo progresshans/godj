@@ -78,7 +78,7 @@ func prepareCommands(configs []CommandConfig, model registeredModel) ([]register
 		}
 		command := registeredCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form}
 		command.run = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form) (MutationResult, error) {
-			if err := validatePrincipalRead(ctx, principal, model.permissions); err != nil {
+			if err := validatePrincipalRead(ctx, principal, model.permissions, model.additionalPermissions...); err != nil {
 				return MutationResult{}, err
 			}
 			for _, permission := range permissions {

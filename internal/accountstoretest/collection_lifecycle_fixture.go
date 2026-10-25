@@ -245,12 +245,12 @@ func assertCollectionLifecycle(t *testing.T, backend Backend, f *deletionFixture
 	for _, record := range tree.preserved {
 		accountSessionRecord(t, f.store, record, true)
 	}
-	memberFields := []string{"grants", "nullable_membership", "teams"}
-	groupFields := []string{"grants", "nullable_membership", "reviewer"}
+	memberFields := []string{"nullable_membership", "teams", "grants"}
+	groupFields := []string{"nullable_membership", "reviewer", "grants"}
 	if kind == "account" {
-		memberFields = append(memberFields, "enabled", "region")
+		memberFields = append([]string{"enabled", "region"}, memberFields...)
 	} else {
-		groupFields = append(groupFields, "title")
+		groupFields = append([]string{"title"}, groupFields...)
 	}
 	for _, target := range []struct {
 		model  string
@@ -260,13 +260,12 @@ func assertCollectionLifecycle(t *testing.T, backend Backend, f *deletionFixture
 	}{
 		{"people.member", tree.member.ID, admin.ActionChange, memberFields},
 		{"people.member", tree.victim.ID, admin.ActionDelete, nil},
-		{"people.member", tree.survivor.ID, admin.ActionChange, []string{"grants", "nullable_membership", "reviewer", "teams"}},
+		{"people.member", tree.survivor.ID, admin.ActionChange, []string{"nullable_membership", "reviewer", "teams", "grants"}},
 		{"access.team", tree.group.ID, admin.ActionChange, groupFields},
 		{"access.team", tree.deletedGroup.ID, admin.ActionDelete, nil},
 		{"access.grant", tree.grant.ID, admin.ActionChange, []string{"nullable_membership", "reviewer"}},
 		{"access.grant", tree.deletedGrant.ID, admin.ActionDelete, nil},
 	} {
-		slices.Sort(target.fields)
 		events := deletionHistory(t, backend, f.actor, target.model, target.id)
 		if len(events) != 1 || events[0].Action() != target.action || !slices.Equal(events[0].ChangedFields(), target.fields) || events[0].ActorID() != f.actor.ID() {
 			t.Fatal("direct lifecycle effect audit was omitted, repeated or misattributed", target.model, target.id)

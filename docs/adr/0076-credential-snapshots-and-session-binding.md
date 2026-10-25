@@ -1345,6 +1345,35 @@ field 매핑을 유지한다. `CommandConfig.AdditionalPermissions`와 descripto
 브라우저 세션을 폐기해도 성공 뒤 ProfileReader를 다시 호출하지 않는다. Redirect 뒤의 새 요청은 새 credential과
 세션 상태를 적용한다. 이 계약은 account/catalog 자동 등록이나 삭제 정책의 구현을 의미하지 않는다.
 
+## 선택 Catalog의 공통 Admin 조립
+
+`identityadmin.RegisterCatalog(builder, catalog, presentation)`은 선택된 실제 Group/Permission 타입과 전체 host에 묶인
+Catalog owner를 공통 Admin에 등록한다. 모델 identity·역할 field·read/write 선택·operation 권한은 owner에서 가져오고,
+호스트는 slug와 읽을 수 있는 scalar 목록 열만 정한다. Label과 Form field가 명시적 ReadFields에 없으면 등록을 거부한다.
+ID/revision은 이미 공개된 operation metadata로 투영하며 숨은 모델 행이나 기본 User 복사본을 만들지 않는다. 등록은 I/O를
+하지 않는다. Builder는 모든 등록이 성공한 뒤에만 게시한다. 중간 등록 실패는 앞서 추가된 모델을 자동으로 되돌리지 않는다.
+
+`ModelConfig.AdditionalPermissions`는 모델의 모든 조회·생성·수정·삭제·작업·명령·선택지 admission에 적용한다.
+View 또는 Change라는 읽기 대안은 이 공통 필수 권한을 우회하지 않는다. 생성 전용 AdditionalAddPermissions와 각 command의
+별도 권한도 유지한다. 선언과 descriptor는 복사되며 현재 overlay 오류를 일반 거부나 다른 permission의 성공으로 바꾸지 않는다.
+UI/registry의 검사는 선행 admission이고 최종 권한·도메인·대상 revision은 Catalog owner가 자기 DB scope에서 다시 읽는다.
+
+그룹 권한 선택지는 실제 project relation과 typed Permission manager의 `ModelChoices`를 사용한다. Add와 Change를 별개로
+구성하고 origin의 source/operation을 확인한다. 검색과 제출 key 해석마다 한 native read snapshot 안에서 현재 actor와
+전체 operation/추가 권한을 확인한다. 부모의 할당 권한으로 선택하며 별도의 permission 목록 조회 권한을 강요하지 않는다.
+표시 page는 입력 허가 목록이 아니며 현재 선택과 제출 key는 별도로 bounded Resolve한다. 최종 저장도 key를 다시 해석한다.
+
+`CatalogResource.CheckCreateForm`/`CheckChangeForm`은 정확한 모델 source·선택 입력·대상/key/revision에 묶인 읽기 전용
+검사다. 생성 key의 NULL과 저장된 0/음수 key를 구분한다. 생성 revision은 Catalog 저장 owner가 1로 정하며 schema default에
+의존하지 않는다. 다른 필드가 실패한 Form도 유효한 field unique를 검사하고, 그 진단으로 제외를 다시 계산해 복합 unique를
+검사한다. 현재 선택 key도 같은 snapshot에서 확인한다. 거부·부재·conflict·validation 진단은 scope/cleanup 성공 뒤에만 게시한다.
+이 검사는 값을 예약하거나 최종 typed validator·권한·유효 소속/한도·삭제 graph·write fence를 대신하지 않는다.
+
+Admin은 Create/Update/Delete를 같은 owner에 위임하고 확정된 ID/revision/변경 field만 반환한다. 성공 뒤 row/권한을 다시
+읽지 않는다. History는 현재 domain의 durable event를 값 없는 Admin event로 투영한다. Account 자체의 자동 등록·JSON API,
+공개 CLI/scaffold/runtime·profile 관계/파일 조립은 별도로 남아 있다. 현재 공통 Admin 객체 URL의 양수 key 경계를 native
+Catalog/Form owner의 signed key 지원으로 완료했다고 해석하지 않는다.
+
 ## 선택 계정의 비밀번호 재설정
 
 생성 `NewAccountPasswordResetter`는 기존 `SessionStore[M]`·그 Store의 인증기·정확한 manager와 전체 host source/역할을

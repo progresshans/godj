@@ -198,6 +198,11 @@ type ModelConfig[M any] struct {
 	// SearchFields may be empty to disable text search for this model.
 	SearchFields []string
 	Permissions  Permissions
+	// AdditionalPermissions applies to every model read and write, including
+	// choices and command admission. Persistence owners still recheck current
+	// authority in their own database scope. AdditionalAddPermissions adds a
+	// creation-only policy on top of these shared grants.
+	AdditionalPermissions []auth.Permission
 
 	List func(context.Context, auth.Principal, ListRequest) (Page[M], error)
 	Get  func(context.Context, auth.Principal, int64) (M, bool, error)
@@ -329,23 +334,24 @@ func (builder *Builder) Build() (Registry, error) {
 // ModelDescriptor is a detached public registration description. It contains
 // no persistence or authorization callback.
 type ModelDescriptor struct {
-	Inlines            []InlineDescriptor
-	ReadOnly           bool
-	AppLabel           string
-	Slug               string
-	Model              ir.Model
-	ListFields         []string
-	SearchFields       []string
-	Permissions        Permissions
-	Actions            []ActionDescriptor
-	FormFields         []forms.Field
-	CreateFormFields   []forms.Field
-	AddPermissions     []auth.Permission
-	RevisionField      string
-	Commands           []CommandDescriptor
-	CollectionCommands []CollectionCommandDescriptor
-	CollectionFormSets []CollectionFormSetDescriptor
-	ReadOnlyFields     []ReadOnlyFieldDescriptor
+	Inlines               []InlineDescriptor
+	ReadOnly              bool
+	AppLabel              string
+	Slug                  string
+	Model                 ir.Model
+	ListFields            []string
+	SearchFields          []string
+	Permissions           Permissions
+	Actions               []ActionDescriptor
+	FormFields            []forms.Field
+	CreateFormFields      []forms.Field
+	AddPermissions        []auth.Permission
+	AdditionalPermissions []auth.Permission
+	RevisionField         string
+	Commands              []CommandDescriptor
+	CollectionCommands    []CollectionCommandDescriptor
+	CollectionFormSets    []CollectionFormSetDescriptor
+	ReadOnlyFields        []ReadOnlyFieldDescriptor
 }
 
 type ActionDescriptor struct {
@@ -391,6 +397,7 @@ type registeredModel struct {
 	createChoiceSources     []RelatedChoices
 	createChoicePermissions []auth.Permission
 	addPermissions          []auth.Permission
+	additionalPermissions   []auth.Permission
 	revisionField           string
 	listFields              []string
 	choiceLabels            map[string]map[ir.Scalar]string
@@ -495,9 +502,17 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	permissions := config.Permissions
+	additional := append([]auth.Permission(nil), config.AdditionalPermissions...)
+	for _, permission := range []auth.Permission{permissions.View, permissions.Add, permissions.Change, permissions.Delete} {
+		if permission != "" {
+			if _, err := additionalPermissions(permission, additional); err != nil {
+				return registeredModel{}, err
+			}
+		}
+	}
 	var addPermissions []auth.Permission
 	if !config.ReadOnly {
-		addPermissions, err = additionalPermissions(permissions.Add, config.AdditionalAddPermissions)
+		addPermissions, err = additionalPermissions(permissions.Add, append(append([]auth.Permission(nil), additional...), config.AdditionalAddPermissions...))
 		if err != nil {
 			return registeredModel{}, err
 		}
@@ -507,7 +522,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		(config.History != nil && config.Get == nil) {
 		return registeredModel{}, &ConfigError{Path: "model.callbacks", Code: "missing"}
 	}
-	actions, err := prepareActions(config.Actions)
+	actions, err := prepareActions(config.Actions, additional...)
 	if err != nil {
 		return registeredModel{}, err
 	}
@@ -684,6 +699,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		createFormFor:           createFormFor,
 		createChoicePermissions: createChoicePermissions,
 		addPermissions:          addPermissions,
+		additionalPermissions:   additional,
 		revisionField:           config.RevisionField,
 		listFields:              listFields,
 		choiceLabels:            modelChoiceLabels(model, listFields),
@@ -704,7 +720,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	registered.list = func(ctx context.Context, principal auth.Principal, request ListRequest) (registeredPage, error) {
-		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+		if err := validatePrincipalRead(ctx, principal, permissions, additional...); err != nil {
 			return registeredPage{}, err
 		}
 		normalizedRequest, err := normalizeListRequest(ctx, request)
@@ -753,7 +769,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if config.Get == nil {
 			return registeredRecord{}, false, &ConfigError{Path: "get", Code: "unavailable"}
 		}
-		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+		if err := validatePrincipalRead(ctx, principal, permissions, additional...); err != nil {
 			return registeredRecord{}, false, err
 		}
 		if err := validateOperation(ctx, id); err != nil {
@@ -862,7 +878,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if config.ReadOnly {
 			return MutationResult{}, nil, &ConfigError{Path: "update", Code: "read_only"}
 		}
-		if err := validatePrincipalPermission(ctx, principal, permissions.Change); err != nil {
+		if err := validatePrincipalModelPermission(ctx, principal, permissions.Change, additional); err != nil {
 			return MutationResult{}, nil, err
 		}
 		if err := registered.validateMutation(mutation); err != nil {
@@ -920,7 +936,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if config.ReadOnly {
 			return MutationResult{}, &ConfigError{Path: "delete", Code: "read_only"}
 		}
-		if err := validatePrincipalPermission(ctx, principal, permissions.Delete); err != nil {
+		if err := validatePrincipalModelPermission(ctx, principal, permissions.Delete, additional); err != nil {
 			return MutationResult{}, err
 		}
 		if err := registered.validateMutation(mutation); err != nil {
@@ -939,7 +955,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if config.History == nil {
 			return nil, &ConfigError{Path: "history", Code: "unavailable"}
 		}
-		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+		if err := validatePrincipalRead(ctx, principal, permissions, additional...); err != nil {
 			return nil, err
 		}
 		if err := validateOperation(ctx, id); err != nil {
@@ -973,7 +989,8 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	return registered, nil
 }
 
-func prepareActions(actions []ActionConfig) ([]registeredAction, error) {
+func prepareActions(actions []ActionConfig, additional ...auth.Permission) ([]registeredAction, error) {
+	additional = append([]auth.Permission(nil), additional...)
 	if len(actions) > MaximumActions {
 		return nil, &ConfigError{Path: "model.actions", Code: "limit_exceeded"}
 	}
@@ -1012,6 +1029,11 @@ func prepareActions(actions []ActionConfig) ([]registeredAction, error) {
 			permissions:   permissions,
 			successNotice: notice,
 			run: func(ctx context.Context, principal auth.Principal, selected []int64) (ActionResult, error) {
+				for _, permission := range additional {
+					if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+						return ActionResult{}, err
+					}
+				}
 				for _, permission := range permissions {
 					if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
 						return ActionResult{}, err
@@ -1055,22 +1077,23 @@ func (model registeredModel) descriptor() ModelDescriptor {
 		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permissions: slices.Clone(action.permissions), SuccessNotice: action.successNotice}
 	}
 	return ModelDescriptor{Inlines: inlineDescriptors(model.inlines),
-		ReadOnly:           model.readOnly,
-		AppLabel:           model.appLabel,
-		Slug:               model.slug,
-		Model:              model.model.Clone(),
-		ListFields:         append([]string(nil), model.listFields...),
-		SearchFields:       append([]string(nil), model.searchFields...),
-		Permissions:        model.permissions,
-		Actions:            actions,
-		FormFields:         model.form.Fields(),
-		CreateFormFields:   model.createForm.Fields(),
-		AddPermissions:     append([]auth.Permission(nil), model.addPermissions...),
-		RevisionField:      model.revisionField,
-		Commands:           commands,
-		CollectionCommands: collectionCommands,
-		CollectionFormSets: collectionFormSetDescriptors(model.collectionFormSets),
-		ReadOnlyFields:     append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
+		ReadOnly:              model.readOnly,
+		AppLabel:              model.appLabel,
+		Slug:                  model.slug,
+		Model:                 model.model.Clone(),
+		ListFields:            append([]string(nil), model.listFields...),
+		SearchFields:          append([]string(nil), model.searchFields...),
+		Permissions:           model.permissions,
+		Actions:               actions,
+		FormFields:            model.form.Fields(),
+		CreateFormFields:      model.createForm.Fields(),
+		AddPermissions:        append([]auth.Permission(nil), model.addPermissions...),
+		AdditionalPermissions: append([]auth.Permission(nil), model.additionalPermissions...),
+		RevisionField:         model.revisionField,
+		Commands:              commands,
+		CollectionCommands:    collectionCommands,
+		CollectionFormSets:    collectionFormSetDescriptors(model.collectionFormSets),
+		ReadOnlyFields:        append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
 	}
 }
 
@@ -1173,7 +1196,24 @@ func validatePrincipalPermission(ctx context.Context, principal auth.Principal, 
 	return nil
 }
 
-func validatePrincipalRead(ctx context.Context, principal auth.Principal, permissions Permissions) error {
+func validatePrincipalModelPermission(ctx context.Context, principal auth.Principal, primary auth.Permission, additional []auth.Permission) error {
+	if err := validatePrincipalPermission(ctx, principal, primary); err != nil {
+		return err
+	}
+	for _, permission := range additional {
+		if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePrincipalRead(ctx context.Context, principal auth.Principal, permissions Permissions, additional ...auth.Permission) error {
+	for _, permission := range additional {
+		if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+			return err
+		}
+	}
 	err := validatePrincipalPermission(ctx, principal, permissions.View)
 	if denied, ok := err.(*ConfigError); ok && denied.Path == "operation.permission" && denied.Code == "denied" && permissions.Change != "" {
 		return validatePrincipalPermission(ctx, principal, permissions.Change)

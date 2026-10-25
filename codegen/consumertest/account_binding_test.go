@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	_ "embed"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
@@ -34,6 +35,9 @@ var accountBindingPasswordHTTPConsumer []byte
 
 //go:embed testdata/accountbinding/admin_mutation_http_test.go
 var accountBindingAdminMutationHTTPConsumer []byte
+
+//go:embed testdata/accountbinding/admin_catalog_http_test.go
+var accountBindingAdminCatalogHTTPConsumer []byte
 
 //go:embed testdata/accountbinding/password_admin_http_test.go
 var accountBindingPasswordAdminHTTPConsumer []byte
@@ -200,31 +204,53 @@ func accountBindingConsumerSpec(t *testing.T, custom bool) codegen.ProjectSpec {
 	return spec
 }
 
+func firstAccountConsumerSpec(t *testing.T, variant accountLoginVariant) codegen.ProjectSpec {
+	t.Helper()
+	spec := accountBindingConsumerSpec(t, variant.custom)
+	applyAccountLoginVariant(&spec, variant)
+	if variant.custom {
+		*spec.Account.Staff.Constant = true
+	}
+	for i := range spec.Apps {
+		for j := range spec.Apps[i].Schema.Models {
+			model := &spec.Apps[i].Schema.Models[j]
+			identity := ir.ModelIdentity{AppLabel: spec.Apps[i].Schema.AppLabel, ModelName: model.Name}
+			if variant.custom && (identity == spec.Account.Catalog.Group || identity == spec.Account.Catalog.Permission) {
+				// Catalog creation owns revision=1, independently of a model default.
+				revision := spec.Account.Catalog.GroupRevision
+				if identity == spec.Account.Catalog.Permission {
+					revision = spec.Account.Catalog.PermissionRevision
+					model.UniqueConstraints = append(model.UniqueConstraints, ir.UniqueConstraint{Name: "catalog_title_description", Fields: []string{spec.Account.Catalog.PermissionName, "description"}})
+				}
+				for k := range model.Fields {
+					if model.Fields[k].Name == revision {
+						model.Fields[k].Default = nil
+					}
+				}
+			}
+			if identity != spec.Account.Model {
+				continue
+			}
+			for k := range model.Fields {
+				field := &model.Fields[k]
+				if variant.custom && field.Name == "region" {
+					field.Choices = []ir.Choice{{Value: ir.Scalar{Kind: ir.ScalarString, String: "NZ"}, Label: "New Zealand"}, {Value: ir.Scalar{Kind: ir.ScalarString, String: "KR"}, Label: "South Korea"}}
+				} else if !variant.custom && field.Name == "first_name" {
+					field.Default = &ir.Scalar{Kind: ir.ScalarString, String: "NZ"}
+				}
+			}
+		}
+	}
+	return spec
+}
+
 func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 	for _, variant := range accountLoginVariants() {
 		t.Run(variant.name, func(t *testing.T) {
-			spec := accountBindingConsumerSpec(t, variant.custom)
-			applyAccountLoginVariant(&spec, variant)
+			spec := firstAccountConsumerSpec(t, variant)
 			source := firstAccountDefaultConsumer
 			if variant.custom {
-				*spec.Account.Staff.Constant = true
 				source = firstAccountCustomConsumer
-			}
-			for i := range spec.Apps {
-				for j := range spec.Apps[i].Schema.Models {
-					model := &spec.Apps[i].Schema.Models[j]
-					if spec.Apps[i].Schema.AppLabel != spec.Account.Model.AppLabel || model.Name != spec.Account.Model.ModelName {
-						continue
-					}
-					for k := range model.Fields {
-						field := &model.Fields[k]
-						if variant.custom && field.Name == "region" {
-							field.Choices = []ir.Choice{{Value: ir.Scalar{Kind: ir.ScalarString, String: "NZ"}, Label: "New Zealand"}, {Value: ir.Scalar{Kind: ir.ScalarString, String: "KR"}, Label: "South Korea"}}
-						} else if !variant.custom && field.Name == "first_name" {
-							field.Default = &ir.Scalar{Kind: ir.ScalarString, String: "NZ"}
-						}
-					}
-				}
 			}
 			bundle, err := codegen.GenerateProject(spec)
 			if err != nil {
@@ -235,6 +261,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/first_account_test.go", firstAccountCommonConsumer)
 			writeGeneratedTestFile(t, root, "consumer/password_admin_http_test.go", accountBindingPasswordAdminHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_mutation_http_test.go", accountBindingAdminMutationHTTPConsumer)
+			writeGeneratedTestFile(t, root, "consumer/admin_catalog_http_test.go", accountBindingAdminCatalogHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
@@ -250,6 +277,14 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 				}
 			}
 			for _, parent := range adminParents {
+				catalogParent := strings.TrimSuffix(parent, "/admin_password") + "/admin_catalog"
+				required = append(required, catalogParent)
+				if variant.custom {
+					required = append(required, catalogParent+"/partial_constraint")
+				}
+				for _, name := range []string{"create_permission", "bounded_choices", "create_group", "partial_unique", "invalid_choice", "csrf", "stale", "protected_input", "additional_permission", "choice_operation", "update_and_history", "delete_collected_membership"} {
+					required = append(required, catalogParent+"/"+name)
+				}
 				required = append(required, parent)
 				if !variant.custom {
 					required = append(required, parent+"/login_staff")

@@ -98,6 +98,11 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"catalog_operation_policies", catalogOperationPolicies},
 		{"catalog_target_integrity", catalogTargetIntegrity},
 		{"catalog_read_failures", catalogReadFailures},
+		{"catalog_form_checks", catalogFormChecks},
+		{"catalog_form_failures", catalogFormFailures},
+		{"catalog_form_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+			catalogFormNonpositiveKeys(t, backend, storedKey)
+		}},
 		{"catalog_concurrent_writes", catalogConcurrentWrites},
 		{"catalog_host_graph", catalogHostGraph},
 		{"catalog_commit_failures", catalogCommitFailures},
