@@ -226,7 +226,7 @@ func (c *ManyCollection[T, L]) executeChange(ctx context.Context, session db.Rel
 	// All inputs and all reached PROTECT edges are checked before the first
 	// deletion. The existing collector owns declared incoming policy on links.
 	if len(roots) != 0 {
-		if _, err := executeRelationDeleteRoots(ctx, session, c.state.graph, roots); err != nil {
+		if _, err := executeRelationDeleteRoots(ctx, session, c.state.graph, roots, nil); err != nil {
 			return err
 		}
 	}

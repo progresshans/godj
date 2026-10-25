@@ -30,6 +30,7 @@ type ProductBackend interface {
 	db.Session
 	db.Atomic
 	db.RelationAtomic
+	db.CoordinatedRelationAtomic
 	mb.RevisionFencedBackend
 	Close() error
 }
@@ -391,6 +392,7 @@ func RunReference(t *testing.T, backend ProductBackend, dialect string, seedRequ
 			}
 		})
 	}
+	runCollectedDeleteEffects(t, backend, models, snapshot, clear)
 }
 
 func checkReference(t testing.TB, err error) {

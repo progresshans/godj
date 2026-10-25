@@ -22,7 +22,7 @@ import json, os, pathlib, sys
 module = 'github.com/progresshans/godj/'
 scenario = os.environ['GODJ_FAKE_GO_SCENARIO']
 if sys.argv[1:] == ['list', './...']:
-    packages = [module + name for name in ('admin', 'auth', 'orm', 'conformance/cmd/godjcheck')]
+    packages = [module + name for name in ('admin', 'auth', 'db/postgres', 'orm', 'conformance/cmd/godjcheck')]
     if scenario == 'no_owner': packages = [module + 'auth']
     if scenario == 'duplicate_discovery': packages.append(packages[0])
     print('\\n'.join(packages))

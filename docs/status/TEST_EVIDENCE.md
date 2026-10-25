@@ -1122,6 +1122,56 @@ system-state/operator source binding과 그 변경 검출 검사에도 포함했
 새 source의 전체 CI와 실제 Admin·DB/HTTP·race/platform 실행 대조는 여전히 필요하다. 이 수정으로 I1 제품 수용이나
 공통 Admin 등록·계정/host 삭제 등 남은 범위가 완료된 것으로 계산하지 않는다.
 
+### 전체 관계 삭제 영향 수집과 같은 transaction의 동반 쓰기 기반
+
+2026-10-26, `4e8c95f5c28b6df3e06ffd98e2c1541325ba9222` 위에서 공통 삭제기의 SET_NULL source 행도
+CASCADE/PROTECT와 함께 첫 쓰기 전에 수집하도록 확장했다. NULL 변경은 원래 FK와 수집한 정확한 PK 집합으로 한정하며,
+전체 집합을 256개 이하 batch로 나눈다. 빈 집합에는 UPDATE를 보내지 않고 실제 변경 수 불일치는 실패시킨다.
+단일 root와 M2M link 삭제가 같은 수집기를 사용한다. 기존 generic bulk plan은 유지하며, 수집 plan의 입력/출력은 사본이다.
+
+`DeleteWithEffectsInSession`은 전체 수집·rowset 정리·PROTECT 뒤 첫 관계 변경 전에 한 번의 동기 callback을 실행한다.
+관찰은 model/key별 삭제와 모든 NULL 필드를 합친 불변 사본이며, root 존재·현재 권한·revision의 증거는 아니다.
+같은 borrowed scope의 상위 owner가 현재 상태와 수명 처리를 소유한다. Callback은 수집한 key/FK topology를 바꾸지 않으며,
+오류·취소·scope 만료나 뒤 관계 쓰기 실패는 바깥 transaction의 rollback으로 전달해야 한다. 선택 계정 삭제와 catalog/role의
+전체 revision·session·audit 조정은 아직 구현하지 않았고, 추가 계정/catalog 효과를 만드는 기존 조합의 시작 거부를 유지한다.
+
+Query의 사본/equality, 양 DB compiler의 정확한 parameter·PK/FK·빈/중복/한도 검사, ORM의 전체 영향·중복 경로·여러 NULL 필드,
+동기 callback/취소/수명·PROTECT·조회 오류·빈 집합·0/음수 key·256+1 batch 검사를 작성했다. 기존 생성 삭제 정책을 사용하는
+양 DB native 소비자에는 commit, 0/음수 root, PROTECT, callback/outer/NULL/뒤 delete 오류, 잘못된 변경 수, 두 번째 batch 실패,
+새 참조/재지정, commit/rollback unknown의 14개 child씩을 추가했다. 같은 실제 scope에서 동반 값을 쓰고 전체 DB snapshot으로
+성공/rollback과 만료된 scope를 대조하도록 작성했다. Unknown acknowledgement는 실제 commit/rollback 뒤 주입하며 네트워크
+장애 실험이 아니다. 이 동반 값 검사가 계정 revision·session·audit 정책을 검증한 것으로 계산되지 않는다.
+
+기존 모든 필수 항목을 보존하면서 relation 목록은 3,916→3,959, portable core는 31→44,
+PostgreSQL core는 5,211→5,225로 확장했다. PostgreSQL의 순수 compiler 검사는 실제 실행 owner인 portable core에 속한다.
+기존 relation-delete conformance의 결과·FK·변경 수·rollback 검사는 유지하고 새 SET_NULL 수집 SELECT만 query count/order에
+반영했다. Django 공유 관측의 데이터 의미는 바꾸지 않았다. 기존 plan의 Go comparability 검사 대신 불변 사본과 equality의
+실제 위험을 검사한다. 생성기·ABI·생성물은 바꾸지 않았다.
+
+로컬은 gofmt·문서/diff·필수 목록의 이전 항목 보존/중복 검사를 적용했다. 최초 네 package의 `go test -run '^$'`는 통과했다.
+최종 다섯 package를 묶은 최소 compile에서는 query와 conformance가 통과하고 ORM·양 DB가 stderr 없이 build failed를
+반환했다. 제품 수정이나 cache 정리 없이 같은 source의 ORM 단독과 양 DB `-p=1` 최소 compile은 각각 통과했다.
+이 결합 실패의 원인은 확정하지 않았으며 실패 원본도 보존한다. 최종 다섯 package의 최소 compile 근거는 이 세 실행의
+합집합이다. 새 삭제 테스트 본문·양 DB 실제 수명 검증·race·전체 platform·generated drift는 로컬에서 실행하지 않았다.
+
+앞선 source의 [CI 40215971434](https://github.com/progresshans/godj/actions/runs/40215971434)에서는 relation shard 2의
+네 job `121237499591`·`121237499628`·`121237499646`·`121237499669`가 최초 계정의 일곱 생성 변형에서
+Admin 거부 뒤 durable 상태 비교로 실패했다. 실제 checkout `5dc78a4b58d3688d234a2371ed01388232a03144`의 tree가
+제출 source와 같음을 확인했다. 현재 변경 트리의 default child만 한정 실행하여 같은 실패를 재현했다. 일반 요청마다 움직인
+session access 시계가 payload를 바꾼 원인이며, 해당 consumer manager의 시계를 고정한 뒤 같은 child가 통과했다.
+행·전체 session·audit의 엄격한 비교는 유지했다. 다른 여섯 변형과 모든 환경을 로컬에서 재실행한 근거로 확대하지 않는다.
+
+같은 이전 source의 portable core normal/race/CGO0 세 job은 성공했다. 완전한 job 로그의 validator report에서 각각
+136 package·14,332 run·524개의 허용된 backend 비대상 skip과 필수 Admin 31개 PASS, exit 0·`ok: true`를 확인했다.
+목록 hash와 실제 checkout tree를 이전 source에 대조했다. 원본 Go JSON artifact를 별도로 내려받아 재판정한 결과는 아니며,
+다른 relation 실패가 있는 전체 CI나 이번 새 source의 PASS로 사용하지 않는다.
+
+실패 로그·한정 재현과 수정은 검증 보관소의 `gdj0138-delete-effects-v1/prior-ci/diagnosis.json`에 있다
+(SHA-256 `85dbd28b4118f24c686d84dba314dcd220888a35deb2cb4a4afd8c08f7b573d6`).
+새 source hash·필수 목록 차이·모든 최소 compile 성공/실패 원본의 연결은 같은 폴더의 `receipt.json`에 있다
+(SHA-256 `06679559c0936e6b957e06c6958067374173727aea9516a56dbdb4f65a6da2cb`).
+새 전체 CI에서 필수 본문·양 DB·실제 소비자·generated drift·race/process/platform을 확인해야 한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

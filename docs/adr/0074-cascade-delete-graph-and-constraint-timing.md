@@ -28,6 +28,22 @@ universe에서 CASCADE로 도달할 모델과 그 모든 incoming 정책을 사�
 PROTECT 검사 대상이다. Metadata 해석·동적 수집·보호 검사·변경은 동일한 coordinated transaction의 범위와 권한을 유지한다.
 삭제 수는 root와 실제 삭제한 후손의 합계다. 기존 exact-key delete의 예상 row 수 검사와 단일 동기 callback 계약을 유지한다.
 
+I1의 계정 수명 조정을 위해 SET_NULL도 변경 전에 실제 source key와 FK를 수집한다. 각 변경은 원래 FK 조건과 수집한
+source key 집합을 함께 사용하며, 한 statement의 한도에 맞춰 전체 집합을 분할한다. 빈 집합에는 UPDATE를 보내지 않고
+실제 변경 수가 해당 batch의 수집 수와 다르면 실패시킨다. 수집 뒤 새로 붙거나 다른 대상으로 바뀐 행을 일괄 NULL로
+바꿔서 그 행의 수명 처리를 건너뛰지 않는다. 이 경로는 단일 root 삭제와 collection link 삭제가 공유한다.
+
+`DeleteWithEffectsInSession`은 전체 수집·rowset 정리·PROTECT 검사 뒤, 첫 관계 변경 전에 한 번의 동기 callback을 실행한다.
+`RelationDeleteEffects.Rows()`는 `(model identity, key)`별 삭제 여부와 NULL로 바꿀 논리 필드 이름의 사본을 반환한다.
+여러 경로와 여러 필드는 한 행으로 합치며, 삭제될 행의 일시적 NULL 변경도 보관한다. 상위 수명 owner는 최종 삭제를
+우선하여 revision·audit·session 변경을 합쳐야 한다. 요청한 root의 존재·현재 revision·권한 검사는 그 owner의 책임이며,
+이 관찰 자체는 인가나 삭제 실행 권한이 아니다. Caller가 보관한 관찰은 실행 중에도 바뀌지 않는다.
+
+Callback은 같은 borrowed session에서 관련 수명 쓰기를 조립할 수 있지만 수집한 key/FK topology를 바꾸거나 session을
+보관·재진입하거나 다른 transaction·외부 효과를 만들지 않는다. Callback 오류·취소·scope 만료에는 관계 변경을 시작하지
+않고 오류를 바깥 transaction owner까지 전달한다. 뒤의 NULL/삭제 실패도 callback의 쓰기와 함께 rollback해야 하며,
+반환 건수는 바깥 commit 전까지 잠정 값이다. 이 기반이 선택 계정/catalog의 수명 owner 구현을 대신하지는 않는다.
+
 SQL FK는 `ON DELETE NO ACTION`을 사용한다. CASCADE 선언의 FK는 양 DB에서 `DEFERRABLE INITIALLY DEFERRED`로 생성하여
 required 순환의 생성·삭제를 transaction 끝에서 검사할 수 있게 한다. PROTECT/SET_NULL의 현재 즉시 검사 표현은 유지한다.
 CASCADE로 바꾸거나 되돌리는 AlterField는 물리 검사 시점도 변경하는 migration이다. SQLite remake와 PostgreSQL constraint 변경은

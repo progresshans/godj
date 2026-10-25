@@ -3,18 +3,18 @@ package query_test
 import (
 	"errors"
 	"math"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/query"
 )
 
-func TestRelationSetNullPlanRetainsComparableImmutableState(t *testing.T) {
+func TestRelationSetNullPlanRetainsImmutableState(t *testing.T) {
 	t.Parallel()
 
 	reviewer := query.NewFieldRef("reviewer", "reviewer_id", query.FieldInteger, true)
 	plan := query.NewRelationSetNullPlan("blog_post", reviewer, query.Integer(2))
-	assertRelationMutationComparable(plan)
 
 	if plan.Table() != "blog_post" || !plan.ForeignKey().Equal(reviewer) || !plan.TargetKey().Equal(query.Integer(2)) {
 		t.Fatalf("RelationSetNullPlan getters = (%q, %#v, %#v)", plan.Table(), plan.ForeignKey(), plan.TargetKey())
@@ -40,6 +40,36 @@ func TestRelationSetNullPlanRetainsComparableImmutableState(t *testing.T) {
 	if !zero.Equal(query.RelationSetNullPlan{}) || zero.Table() != "" ||
 		!zero.ForeignKey().Equal(query.FieldRef{}) || !zero.TargetKey().Equal(query.Value{}) {
 		t.Fatalf("zero RelationSetNullPlan getters = (%q, %#v, %#v)", zero.Table(), zero.ForeignKey(), zero.TargetKey())
+	}
+}
+
+func TestCollectedRelationSetNullPlanOwnsKeysAndCompleteEquality(t *testing.T) {
+	fk := query.NewFieldRef("owner", "owner_id", query.FieldInteger, true)
+	pk := query.NewFieldRef("id", "record_id", query.FieldInteger, false)
+	keys := []int64{-1, 0, 5}
+	plan := query.NewRelationSetNullRowsPlan("records", fk, query.Integer(0), pk, keys)
+	keys[0] = 999
+	gotPK, got, collected := plan.CollectedRows()
+	if !collected || !gotPK.Equal(pk) || !reflect.DeepEqual(got, []int64{-1, 0, 5}) {
+		t.Fatal("plan lost original collected keys", got)
+	}
+	got[1] = 999
+	_, next, _ := plan.CollectedRows()
+	if !reflect.DeepEqual(next, []int64{-1, 0, 5}) {
+		t.Fatal("returned keys alias the plan")
+	}
+	if !plan.Equal(query.NewRelationSetNullRowsPlan("records", fk, query.Integer(0), pk, []int64{-1, 0, 5})) {
+		t.Fatal("identical collected plans differ")
+	}
+	for _, different := range []query.RelationSetNullPlan{
+		query.NewRelationSetNullPlan("records", fk, query.Integer(0)),
+		query.NewRelationSetNullRowsPlan("records", fk, query.Integer(0), query.NewFieldRef("key", "record_id", query.FieldInteger, false), []int64{-1, 0, 5}),
+		query.NewRelationSetNullRowsPlan("records", fk, query.Integer(0), pk, []int64{-1, 0, 6}),
+		query.NewRelationSetNullRowsPlan("records", fk, query.Integer(0), pk, nil),
+	} {
+		if plan.Equal(different) {
+			t.Fatal("equality omitted collected source state")
+		}
 	}
 }
 
@@ -134,5 +164,3 @@ func TestProtectedForeignKeyErrorZeroAndNilValuesFailClosed(t *testing.T) {
 		}
 	}
 }
-
-func assertRelationMutationComparable[T comparable](T) {}

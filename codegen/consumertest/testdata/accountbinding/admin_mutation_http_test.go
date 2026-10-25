@@ -167,7 +167,10 @@ func assertAccountAdminMutationHTTP[M any](t *testing.T, backend database.Backen
 	check(err)
 	paths, err := admin.SiteAllowedNextPaths(registry, "/admin")
 	check(err)
-	manager, err := sessions.NewManager(selected, sessions.Config{})
+	// Keep ordinary authenticated access from advancing sliding session times
+	// while asserting that a rejected edit preserves the complete durable state.
+	clock := time.Now().UTC()
+	manager, err := sessions.NewManager(selected, sessions.Config{Clock: func() time.Time { return clock }})
 	check(err)
 	authenticator, err := selected.Authenticator(t.Context(), hasher)
 	check(err)
@@ -279,8 +282,10 @@ func assertAccountAdminMutationHTTP[M any](t *testing.T, backend database.Backen
 				previousAttempts++
 			}
 			status, headers, response := send(client, http.MethodPost, path, data)
-			if status != want || headers.Get("Location") != "" || committed.Load() || attempts.Load() != previousAttempts || !reflect.DeepEqual(snapshot(), before) {
-				t.Fatal("rejected mutation changed durable state", mode, status, want, attempts.Load(), previousAttempts)
+			after := snapshot()
+			if status != want || headers.Get("Location") != "" || committed.Load() || attempts.Load() != previousAttempts || !reflect.DeepEqual(after, before) {
+				t.Fatal("rejected mutation changed durable state", mode, status, want, attempts.Load(), previousAttempts,
+					"rows", reflect.DeepEqual(after.rows, before.rows), "sessions", reflect.DeepEqual(after.sessions, before.sessions), "audits", reflect.DeepEqual(after.audits, before.audits))
 			}
 			if mode == "cross_field" && !strings.Contains(response, `data-error-code="profile_required"`) {
 				t.Fatal("typed account policy did not reach the form")

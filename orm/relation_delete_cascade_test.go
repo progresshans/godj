@@ -43,7 +43,7 @@ func TestCascadeDeleteCollectsDeepRowsBeforeWritesAndReturnsTotal(t *testing.T) 
 		{values: [][2]any{{int64(20), int64(10)}}},
 		{},
 	}
-	session := &relationDeleteTestSession{queryRows: []db.Rows{rowSets[0], rowSets[1], rowSets[2], rowSets[3]}, deleteCount: 1}
+	session := &relationDeleteTestSession{queryRows: []db.Rows{rowSets[0], relationDeleteNullRows(1, 1), rowSets[1], rowSets[2], rowSets[3]}, setNullCounts: []int64{1}, deleteCount: 1}
 	session.onSetNull = func() {
 		for _, rows := range rowSets {
 			if rows.closeCalls != 1 || rows.errCalls != 1 {
@@ -68,16 +68,16 @@ func TestCascadeDeleteCollectsDeepRowsBeforeWritesAndReturnsTotal(t *testing.T) 
 func TestCascadeDeleteCompletesAllProtectChecksWithoutMutation(t *testing.T) {
 	deleter := cascadeTestDeleter(t)
 	session := &relationDeleteTestSession{queryRows: []db.Rows{
-		&relationDeleteTestRows{values: [][2]any{{int64(10), int64(1)}}},
+		&relationDeleteTestRows{values: [][2]any{{int64(10), int64(1)}}}, relationDeleteNullRows(1, 1),
 		&relationDeleteTestRows{values: [][2]any{{int64(9), int64(1)}}},
 		&relationDeleteTestRows{values: [][2]any{{int64(20), int64(10)}}},
 		&relationDeleteTestRows{values: [][2]any{{int64(9), int64(20)}}},
-	}, deleteCount: 1}
+	}, setNullCounts: []int64{1}, deleteCount: 1}
 	target := relationDeleteTestAuthorValue(1)
 	before := target
 	count, err := deleter.Delete(t.Context(), relationDeleteConformingBackend(session), &target)
 	var protected *query.ProtectedForeignKeyError
-	if count != 0 || !errors.As(err, &protected) || protected.ProtectedSourceRows() != 2 || target != before || len(session.queryPlans) != 4 || len(session.mutationOrder) != 0 {
+	if count != 0 || !errors.As(err, &protected) || protected.ProtectedSourceRows() != 2 || target != before || len(session.queryPlans) != 5 || len(session.mutationOrder) != 0 {
 		t.Fatal("partial, overlapping-model or mutating protect result", count, err, session.mutationOrder)
 	}
 }
@@ -113,14 +113,14 @@ func TestCascadeDeleteNestedReadFailureDiscardsEarlierProtection(t *testing.T) {
 				rows.onNext = func(int) { cancel() }
 			}
 			session := &relationDeleteTestSession{queryRows: []db.Rows{
-				&relationDeleteTestRows{values: [][2]any{{int64(10), int64(1)}}},
+				&relationDeleteTestRows{values: [][2]any{{int64(10), int64(1)}}}, relationDeleteNullRows(1, 1),
 				&relationDeleteTestRows{values: [][2]any{{int64(9), int64(1)}}}, supplied,
-			}, queryErrs: []error{nil, nil, queryErr}, deleteCount: 1}
+			}, queryErrs: []error{nil, nil, nil, queryErr}, setNullCounts: []int64{1}, deleteCount: 1}
 			target := relationDeleteTestAuthorValue(1)
 			before := target
 			count, err := deleter.Delete(ctx, relationDeleteConformingBackend(session), &target)
 			var protected *query.ProtectedForeignKeyError
-			if count != 0 || err == nil || errors.As(err, &protected) || target != before || len(session.mutationOrder) != 0 || len(session.queryPlans) != 3 {
+			if count != 0 || err == nil || errors.As(err, &protected) || target != before || len(session.mutationOrder) != 0 || len(session.queryPlans) != 4 {
 				t.Fatal("nested failure published protection, mutation or caller state", count, err)
 			}
 			switch fault {
@@ -166,9 +166,9 @@ func TestCascadeDeleteLateMutationAndAtomicFailuresPreserveCaller(t *testing.T) 
 		t.Run(fault, func(t *testing.T) {
 			deleter := cascadeTestDeleter(t)
 			session := &relationDeleteTestSession{queryRows: []db.Rows{
-				&relationDeleteTestRows{values: [][2]any{{int64(10), int64(1)}}}, &relationDeleteTestRows{},
+				&relationDeleteTestRows{values: [][2]any{{int64(10), int64(1)}}}, relationDeleteNullRows(1, 1), &relationDeleteTestRows{},
 				&relationDeleteTestRows{values: [][2]any{{int64(20), int64(10)}}}, &relationDeleteTestRows{},
-			}, deleteCount: 1}
+			}, setNullCounts: []int64{1}, deleteCount: 1}
 			failure := errors.New("failure at " + fault)
 			var relationSession db.RelationSession = session
 			switch fault {

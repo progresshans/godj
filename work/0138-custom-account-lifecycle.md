@@ -206,6 +206,13 @@ Article/Helpdesk·typed inline/collection 소비자를 같은 계약으로 연�
 AccountEditor를 통해 자기 profile+비활성화의 한 commit, 모든 자기 세션 폐기, 성공 응답 뒤 조회 권한 거부를
 검사하도록 작성했다. 기존 조회 검증을 없애거나 공통 계정 자동 등록을 완료한 것은 아니다.
 
+계정/host 삭제 조정의 기반으로 공통 삭제기가 모든 CASCADE·SET_NULL 행을 쓰기 전에 수집하도록 확장했다.
+`DeleteWithEffectsInSession`은 PROTECT와 전체 조회/정리가 끝난 뒤 같은 borrowed transaction에 불변 영향 목록을 제공한다.
+NULL 변경도 수집한 정확한 key/FK에 한정하고 전체 집합을 batch로 실행하며, 변경 수 불일치는 실패시킨다.
+생성 정책을 사용하는 양 DB 소비자에 동반 쓰기·뒤 실패/rollback·unknown·새 참조/재지정·batch·0/음수 key 검사를
+작성했다. 최소 compile과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다. 선택 계정 삭제 owner와 catalog/role의
+복합 수명 연결은 아직 남아 있으며, 추가 계정/catalog 효과가 있는 기존 조합의 시작 거부는 유지한다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.

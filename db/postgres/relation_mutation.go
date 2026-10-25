@@ -26,7 +26,30 @@ func compileRelationSetNull(schema string, plan query.RelationSetNullPlan) (stri
 	if !ok || plan.TargetKey().IsNull() {
 		return "", nil, invalidPlan("relation SET_NULL requires a non-null integer target key")
 	}
-	return "UPDATE " + table + " SET " + column + " = NULL WHERE " + column + " = $1", []any{key}, nil
+	statement, arguments := "UPDATE "+table+" SET "+column+" = NULL WHERE "+column+" = $1", []any{key}
+	primary, keys, collected := plan.CollectedRows()
+	if collected {
+		if primary.Name() == "" || strings.ContainsRune(primary.Name(), '\x00') || primary.Kind() != query.FieldInteger || primary.Nullable() ||
+			primary.Name() == field.Name() || primary.Column() == field.Column() || len(keys) == 0 || len(keys) > query.MaximumRelationSetNullRows {
+			return "", nil, invalidPlan("collected relation SET_NULL requires a distinct integer primary key and a bounded nonempty row set")
+		}
+		keyColumn, err := quoteIdentifier(primary.Column())
+		if err != nil {
+			return "", nil, err
+		}
+		seen := make(map[int64]bool, len(keys))
+		placeholders := make([]string, len(keys))
+		for index, key := range keys {
+			if seen[key] {
+				return "", nil, invalidPlan("collected relation SET_NULL repeats a source row")
+			}
+			seen[key] = true
+			arguments = append(arguments, key)
+			placeholders[index] = fmt.Sprintf("$%d", index+2)
+		}
+		statement += " AND " + keyColumn + " IN (" + strings.Join(placeholders, ", ") + ")"
+	}
+	return statement, arguments, nil
 }
 
 func (session *transactionSession) RelationSetNull(ctx context.Context, plan query.RelationSetNullPlan) (int64, error) {
