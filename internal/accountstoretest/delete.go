@@ -200,7 +200,7 @@ func deletionOwner(t *testing.T, backend Backend) *accountmodel.AccountDeleter[p
 func deletionCatalog(t *testing.T, store *accountmodel.SessionStore[people.Member]) *accountmodel.Catalog[access.Team, access.Grant] {
 	t.Helper()
 	config := accountmodel.CatalogConfig[access.Team, access.Grant]{
-		Group:              accountmodel.CatalogModelConfig[access.Team]{ReadFields: []string{"title", "grants"}, WriteFields: []string{"title", "grants"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}},
+		Group:              accountmodel.CatalogModelConfig[access.Team]{ReadFields: []string{"title", "grants"}, WriteFields: []string{"title"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}},
 		Permission:         accountmodel.CatalogModelConfig[access.Grant]{ReadFields: []string{"key", "title"}, WriteFields: []string{"key", "title"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}},
 		AccountPermissions: deletionConfig().Account, Now: func() time.Time { return joined },
 	}

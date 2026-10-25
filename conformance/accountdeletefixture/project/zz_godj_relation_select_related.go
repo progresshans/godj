@@ -1059,6 +1059,12 @@ func (_factory LinksMembershipObjectFactory) SelectAnchor(_children ...orm.Relat
 func (_query LinksMembershipSelectRelatedQuery) WithAnchor(_children ...orm.RelatedSelection[people.Member]) LinksMembershipSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectAnchor(_children...))
 }
+func (_factory LinksMembershipObjectFactory) SelectDependsOn(_children ...orm.RelatedSelection[links.GrantLink]) orm.RelatedSelect[links.Membership, links.GrantLink] {
+	return orm.SelectNullableForward(_factory.dependsOn).WithChildren(_children...)
+}
+func (_query LinksMembershipSelectRelatedQuery) WithDependsOn(_children ...orm.RelatedSelection[links.GrantLink]) LinksMembershipSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectDependsOn(_children...))
+}
 func (_factory LinksMembershipObjectFactory) SelectMember(_children ...orm.RelatedSelection[people.Member]) orm.RelatedSelect[links.Membership, people.Member] {
 	return orm.SelectRequiredForward(_factory.member).WithChildren(_children...)
 }
@@ -1094,6 +1100,19 @@ func (_factory LinksMembershipObjectFactory) selectionInputs(_paths []string) ([
 					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
 				}
 				_children, _err := _factory._projectSelections.PeopleMember.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "depends_on":
+			_selection := _factory.SelectDependsOn()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksGrantLink.selectionInputs([]string{strings.Join(_parts[1:], "__")})
 				if _err != nil {
 					return nil, _err
 				}
@@ -1285,6 +1304,15 @@ func (_factory LinksMembershipObjectFactory) FromSelected(_selected *orm.Related
 		}
 		_object.anchor = _related
 	}
+	if _has, _err := _selected.HasSelection("depends_on"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectDependsOn().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.dependsOn = _related
+	}
 	if _has, _err := _selected.HasSelection("member"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -1324,6 +1352,30 @@ func (_object *LinksMembershipObject) AnchorObject(_ctx context.Context) (*Peopl
 		_target, _err = _object.factory._projectSelections.PeopleMember.FromSelected(_graph)
 	} else {
 		_target, _err = _object.factory._projectSelections.PeopleMember.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *LinksMembershipObject) DependsOnObject(_ctx context.Context) (*LinksGrantLinkObject, bool, error) {
+	_value, _found, _err := _object.DependsOn(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.dependsOn.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksGrantLinkObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.From(_object.backend, _value)
 	}
 	if _err != nil {
 		return nil, false, _err
@@ -2100,11 +2152,41 @@ func (_query TicketsTicketSelectRelatedQuery) SelectForUpdate(_options orm.RowLo
 	_query.source = _query.source.SelectForUpdate(_options, _targets...)
 	return _query.rebuild()
 }
+func (_factory TicketsTicketObjectFactory) SelectGrantLink(_children ...orm.RelatedSelection[links.GrantLink]) orm.RelatedSelect[tickets.Ticket, links.GrantLink] {
+	return orm.SelectNullableForward(_factory.grantLink).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithGrantLink(_children ...orm.RelatedSelection[links.GrantLink]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectGrantLink(_children...))
+}
+func (_factory TicketsTicketObjectFactory) SelectMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[tickets.Ticket, links.Membership] {
+	return orm.SelectNullableForward(_factory.membership).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithMembership(_children ...orm.RelatedSelection[links.Membership]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectMembership(_children...))
+}
+func (_factory TicketsTicketObjectFactory) SelectNullableGrantLink(_children ...orm.RelatedSelection[links.GrantLink]) orm.RelatedSelect[tickets.Ticket, links.GrantLink] {
+	return orm.SelectNullableForward(_factory.nullableGrantLink).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithNullableGrantLink(_children ...orm.RelatedSelection[links.GrantLink]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectNullableGrantLink(_children...))
+}
+func (_factory TicketsTicketObjectFactory) SelectNullableMembership(_children ...orm.RelatedSelection[links.Membership]) orm.RelatedSelect[tickets.Ticket, links.Membership] {
+	return orm.SelectNullableForward(_factory.nullableMembership).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithNullableMembership(_children ...orm.RelatedSelection[links.Membership]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectNullableMembership(_children...))
+}
 func (_factory TicketsTicketObjectFactory) SelectOwner(_children ...orm.RelatedSelection[people.Member]) orm.RelatedSelect[tickets.Ticket, people.Member] {
 	return orm.SelectRequiredForward(_factory.owner).WithChildren(_children...)
 }
 func (_query TicketsTicketSelectRelatedQuery) WithOwner(_children ...orm.RelatedSelection[people.Member]) TicketsTicketSelectRelatedQuery {
 	return _query.WithSelections(_query.factory.SelectOwner(_children...))
+}
+func (_factory TicketsTicketObjectFactory) SelectProtectedGrantLink(_children ...orm.RelatedSelection[links.GrantLink]) orm.RelatedSelect[tickets.Ticket, links.GrantLink] {
+	return orm.SelectNullableForward(_factory.protectedGrantLink).WithChildren(_children...)
+}
+func (_query TicketsTicketSelectRelatedQuery) WithProtectedGrantLink(_children ...orm.RelatedSelection[links.GrantLink]) TicketsTicketSelectRelatedQuery {
+	return _query.WithSelections(_query.factory.SelectProtectedGrantLink(_children...))
 }
 func (_factory TicketsTicketObjectFactory) selectionInputs(_paths []string) ([]orm.RelatedSelection[tickets.Ticket], error) {
 	if len(_paths) == 0 || len(_paths) > orm.MaximumRelatedSelectionNodes {
@@ -2122,6 +2204,58 @@ func (_factory TicketsTicketObjectFactory) selectionInputs(_paths []string) ([]o
 			}
 		}
 		switch _parts[0] {
+		case "grant_link":
+			_selection := _factory.SelectGrantLink()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksGrantLink.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "membership":
+			_selection := _factory.SelectMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "nullable_grant_link":
+			_selection := _factory.SelectNullableGrantLink()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksGrantLink.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "nullable_membership":
+			_selection := _factory.SelectNullableMembership()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksMembership.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
 		case "owner":
 			_selection := _factory.SelectOwner()
 			if len(_parts) > 1 {
@@ -2129,6 +2263,19 @@ func (_factory TicketsTicketObjectFactory) selectionInputs(_paths []string) ([]o
 					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
 				}
 				_children, _err := _factory._projectSelections.PeopleMember.selectionInputs([]string{strings.Join(_parts[1:], "__")})
+				if _err != nil {
+					return nil, _err
+				}
+				_selection = _selection.WithChildren(_children...)
+			}
+			_result = append(_result, _selection)
+		case "protected_grant_link":
+			_selection := _factory.SelectProtectedGrantLink()
+			if len(_parts) > 1 {
+				if _factory._projectSelections == nil {
+					return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "related selection project is unbound"}
+				}
+				_children, _err := _factory._projectSelections.LinksGrantLink.selectionInputs([]string{strings.Join(_parts[1:], "__")})
 				if _err != nil {
 					return nil, _err
 				}
@@ -2285,6 +2432,42 @@ func (_factory TicketsTicketObjectFactory) FromSelected(_selected *orm.RelatedSe
 	if _err != nil {
 		return nil, _err
 	}
+	if _has, _err := _selected.HasSelection("grant_link"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectGrantLink().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.grantLink = _related
+	}
+	if _has, _err := _selected.HasSelection("membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.membership = _related
+	}
+	if _has, _err := _selected.HasSelection("nullable_grant_link"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectNullableGrantLink().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.nullableGrantLink = _related
+	}
+	if _has, _err := _selected.HasSelection("nullable_membership"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectNullableMembership().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.nullableMembership = _related
+	}
 	if _has, _err := _selected.HasSelection("owner"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -2294,8 +2477,113 @@ func (_factory TicketsTicketObjectFactory) FromSelected(_selected *orm.RelatedSe
 		}
 		_object.owner = _related
 	}
+	if _has, _err := _selected.HasSelection("protected_grant_link"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_related, _err := _factory.SelectProtectedGrantLink().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+		_object.protectedGrantLink = _related
+	}
 	_object._selectedGraph = _selected
 	return _object, nil
+}
+func (_object *TicketsTicketObject) GrantLinkObject(_ctx context.Context) (*LinksGrantLinkObject, bool, error) {
+	_value, _found, _err := _object.GrantLink(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.grantLink.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksGrantLinkObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *TicketsTicketObject) MembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.Membership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.membership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *TicketsTicketObject) NullableGrantLinkObject(_ctx context.Context) (*LinksGrantLinkObject, bool, error) {
+	_value, _found, _err := _object.NullableGrantLink(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.nullableGrantLink.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksGrantLinkObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
+func (_object *TicketsTicketObject) NullableMembershipObject(_ctx context.Context) (*LinksMembershipObject, bool, error) {
+	_value, _found, _err := _object.NullableMembership(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.nullableMembership.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksMembershipObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksMembership.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksMembership.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
 }
 func (_object *TicketsTicketObject) OwnerObject(_ctx context.Context) (*PeopleMemberObject, error) {
 	_value, _err := _object.Owner(_ctx)
@@ -2321,5 +2609,29 @@ func (_object *TicketsTicketObject) OwnerObject(_ctx context.Context) (*PeopleMe
 	}
 	return _target, nil
 }
+func (_object *TicketsTicketObject) ProtectedGrantLinkObject(_ctx context.Context) (*LinksGrantLinkObject, bool, error) {
+	_value, _found, _err := _object.ProtectedGrantLink(_ctx)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	if _object.factory._projectSelections == nil {
+		_err = &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "forward object project is unbound"}
+		return nil, false, _err
+	}
+	_graph, _selected, _err := _object.protectedGrantLink.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	var _target *LinksGrantLinkObject
+	if _selected {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.FromSelected(_graph)
+	} else {
+		_target, _err = _object.factory._projectSelections.LinksGrantLink.From(_object.backend, _value)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _target, true, nil
+}
 
-var _ goDjProjectSnapshot_6ffc53b85d7a16059e4db76dcd9fd07765c8818702cab07309e90e5b03dae67a
+var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7

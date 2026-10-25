@@ -272,6 +272,20 @@ func validateRoleDeleteTopology(project orm.ProjectBinding, role ir.AccountRole,
 
 func validateAccountDeleteRoots(project orm.ProjectBinding, role ir.AccountRole, roots []ir.ModelIdentity) error {
 	critical := map[ir.ModelIdentity]bool{role.Model: true, role.Catalog.Group: true, role.Catalog.Permission: true}
+	// Destroying another selected through row changes its direct owner's
+	// membership revision even when no account/catalog row is deleted or
+	// nulled. A payload-only NULL does not change that membership.
+	memberships := make(map[ir.ModelIdentity]map[string]bool)
+	for _, relation := range project.ManyToManyRelations() {
+		if relation.Source == role.Model && (relation.Field == role.Groups || relation.Field == role.Permissions) ||
+			relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions {
+			if memberships[relation.Through.Model] == nil {
+				memberships[relation.Through.Model] = make(map[string]bool)
+			}
+			memberships[relation.Through.Model][relation.Through.SourceField] = true
+			memberships[relation.Through.Model][relation.Through.TargetField] = true
+		}
+	}
 	relations := project.ForwardRelations()
 	for _, root := range roots {
 		pending, visited := []ir.ModelIdentity{root}, make(map[ir.ModelIdentity]bool)
@@ -288,6 +302,9 @@ func validateAccountDeleteRoots(project orm.ProjectBinding, role ir.AccountRole,
 				}
 				if critical[relation.Source] {
 					return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "relation deletion requires lifecycle coordination for additional account or catalog row effects"}
+				}
+				if fields, selected := memberships[relation.Source]; selected && (relation.OnDelete == ir.DeleteCascade || fields[relation.Field]) {
+					return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "relation deletion requires lifecycle coordination for additional selected membership rows"}
 				}
 				if relation.OnDelete == ir.DeleteCascade {
 					pending = append(pending, relation.Source)

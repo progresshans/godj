@@ -175,8 +175,10 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
-	if err := validateCatalogCollectionTopology(project, role); err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
+	if slices.Contains(config.Group.WriteFields, role.Catalog.GroupPermissions) {
+		if err := validateCatalogCollectionTopology(project, role); err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
 	}
 	lifecycle, err := newDeletionLifecycle(sessions, expected, groups, permissions, overlay, AccountDeleteConfig{
 		Account:    config.AccountPermissions,

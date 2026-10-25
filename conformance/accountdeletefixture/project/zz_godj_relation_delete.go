@@ -4,6 +4,7 @@ package project
 
 import (
 	access "github.com/progresshans/godj/conformance/accountdeletefixture/access"
+	links "github.com/progresshans/godj/conformance/accountdeletefixture/links"
 	people "github.com/progresshans/godj/conformance/accountdeletefixture/people"
 	orm "github.com/progresshans/godj/orm"
 	query "github.com/progresshans/godj/query"
@@ -14,12 +15,16 @@ const GoDjProjectRelationDeleteGeneratorVersion = "godj-codegen-rel-delete-proje
 
 var _ orm.WriteDescriptor[access.Grant] = access.GrantDescriptor{}
 var _ orm.WriteDescriptor[access.Team] = access.TeamDescriptor{}
+var _ orm.WriteDescriptor[links.GrantLink] = links.GrantLinkDescriptor{}
+var _ orm.WriteDescriptor[links.Membership] = links.MembershipDescriptor{}
 var _ orm.WriteDescriptor[people.Member] = people.MemberDescriptor{}
 
 type RelationDeleters struct {
-	AccessGrant  orm.RelationDeleter[access.Grant]
-	AccessTeam   orm.RelationDeleter[access.Team]
-	PeopleMember orm.RelationDeleter[people.Member]
+	AccessGrant     orm.RelationDeleter[access.Grant]
+	AccessTeam      orm.RelationDeleter[access.Team]
+	LinksGrantLink  orm.RelationDeleter[links.GrantLink]
+	LinksMembership orm.RelationDeleter[links.Membership]
+	PeopleMember    orm.RelationDeleter[people.Member]
 }
 
 func BindRelationDeleters() (RelationDeleters, error) {
@@ -31,7 +36,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	for _, _relation := range _binding.ForwardRelations() {
 		_targets[_relation.Target] = struct{}{}
 	}
-	if len(_targets) != 3 {
+	if len(_targets) != 5 {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
@@ -52,6 +57,20 @@ func BindRelationDeleters() (RelationDeleters, error) {
 			Detail:   "generated relation deleter target set does not match project binding",
 		}
 	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
+	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "links", ModelName: "membership"}]; !_ok {
+		return RelationDeleters{}, &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation deleter target set does not match project binding",
+		}
+	}
 	if _, _ok := _targets[ir.ModelIdentity{AppLabel: "people", ModelName: "member"}]; !_ok {
 		return RelationDeleters{}, &query.Error{
 			Category: query.CategoryQuery,
@@ -63,7 +82,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "access", ModelName: "grant"},
 		access.GrantDescriptor{},
-		"3059818622e4e2a74fbc7ac95cfa7f97ecaf5ec3496b470c3333c884ad22fabf",
+		"c923d4edf2f55ef9285011f1cff2da8fca5a47244a415358f3ce3bccfa027f20",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -72,25 +91,45 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "access", ModelName: "team"},
 		access.TeamDescriptor{},
-		"063a9f14e156b5400875e72614fbc0105e14d5744bd286843aa06deaa7bdf70d",
+		"2715c49957f59ee6e01f8701bfbb6ff6031d24171944507e81b563024300d05a",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
 	}
 	_deleter2, _err := orm.BindRelationDeleter(
 		_binding,
+		ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
+		links.GrantLinkDescriptor{},
+		"824a8b6f867752504f27a7444f43bda8ee1bfc146b1fe133af0c19d8fc3caf4d",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter3, _err := orm.BindRelationDeleter(
+		_binding,
+		ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+		links.MembershipDescriptor{},
+		"9eb462d0b8059a19b9cb17a7a3986bd6deabbc890ab3f6f678d8b0eb4eb5a597",
+	)
+	if _err != nil {
+		return RelationDeleters{}, _err
+	}
+	_deleter4, _err := orm.BindRelationDeleter(
+		_binding,
 		ir.ModelIdentity{AppLabel: "people", ModelName: "member"},
 		people.MemberDescriptor{},
-		"5fac64bb118aabb574271b0f9f5714d901fd4d001e8b41e675776fb673fada41",
+		"f3e005d5725080a73b521d110bc96b359426cf1c0e8134bf994a83d12ed24331",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
 	}
 	return RelationDeleters{
-		AccessGrant:  _deleter0,
-		AccessTeam:   _deleter1,
-		PeopleMember: _deleter2,
+		AccessGrant:     _deleter0,
+		AccessTeam:      _deleter1,
+		LinksGrantLink:  _deleter2,
+		LinksMembership: _deleter3,
+		PeopleMember:    _deleter4,
 	}, nil
 }
 
-var _ goDjProjectSnapshot_6ffc53b85d7a16059e4db76dcd9fd07765c8818702cab07309e90e5b03dae67a
+var _ goDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7

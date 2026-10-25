@@ -49,6 +49,13 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 			case role.Catalog.Permission:
 				model.Fields = append(model.Fields, fk("issuer", "IssuerID", role.Model, ir.DeleteCascade), fk("team", "TeamID", role.Catalog.Group, ir.DeleteCascade),
 					fk("reviewer", "ReviewerID", role.Model, ir.DeleteSetNull))
+			case (ir.ModelIdentity{AppLabel: "tickets", ModelName: "ticket"}):
+				model.Fields = append(model.Fields,
+					fk("membership", "MembershipID", schema.Target("links", "membership"), ir.DeleteCascade),
+					fk("grant_link", "GrantLinkID", schema.Target("links", "grant_link"), ir.DeleteCascade),
+					fk("nullable_membership", "NullableMembershipID", schema.Target("links", "membership"), ir.DeleteSetNull),
+					fk("nullable_grant_link", "NullableGrantLinkID", schema.Target("links", "grant_link"), ir.DeleteSetNull),
+					fk("protected_grant_link", "ProtectedGrantLinkID", schema.Target("links", "grant_link"), ir.DeleteProtect))
 			}
 		}
 	}
@@ -57,6 +64,7 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 			schema.ForeignKey("member", "MemberID", role.Model, schema.NoReverse(), schema.Cascade),
 			schema.ForeignKey("team", "TeamID", role.Catalog.Group, schema.NoReverse(), schema.Cascade),
 			schema.ForeignKey("anchor", "AnchorID", role.Model, schema.NoReverse(), schema.Cascade, schema.Nullable()),
+			schema.ForeignKey("depends_on", "DependsOnID", schema.Target("links", "grant_link"), schema.NoReverse(), schema.Cascade, schema.Nullable()),
 		}},
 		{Name: "grant_link", GoName: "GrantLink", Fields: []schema.Field{
 			schema.ForeignKey("team", "TeamID", role.Catalog.Group, schema.NoReverse(), schema.Cascade),

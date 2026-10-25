@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/progresshans/godj/internal/cascadetest"
@@ -31,5 +32,22 @@ func TestPostgresCascadeGeneratedDeletionMatchesDjango(t *testing.T) {
 			}
 		}
 		return transaction.Commit()
+	}, func(ctx context.Context, from, to int64) error {
+		table, err := quoteTable(namespace, "cascade_root")
+		if err != nil {
+			return err
+		}
+		result, err := backend.database.ExecContext(ctx, "UPDATE "+table+" SET id=$1 WHERE id=$2", to, from)
+		if err != nil {
+			return err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return fmt.Errorf("stored cascade root key fixture affected %d rows", count)
+		}
+		return nil
 	})
 }

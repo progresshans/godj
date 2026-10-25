@@ -1225,6 +1225,61 @@ Source hash·생성 manifest·필수 목록 차이·모든 실패/성공 compile
 삭제를 합치는 수명 조정, 공개 최초 계정 명령·scaffold/runtime, 자동 Admin/HTTP 조립, profile 관계/파일·채운 DB 전환·통합
 restart 및 나머지 I1 수용은 여전히 남아 있다.
 
+### 여러 collection의 전체 변경 준비와 이전 CI 실패 수정
+
+2026-10-26, `fb6e737340f887946cbe0106900f88c5f788f23a` 위에서 typed `SetKeysChange`와
+`PrepareCollectionChangesInSession`을 작성했다. I/O 없는 선택은 key 사본을 소유하고, 준비는 같은 전체 project source와
+borrowed session 수명·중복 selection을 조회 전에 확인한다. 모든 선택을 읽고 rowset을 닫은 뒤 삭제 root 합집합의
+CASCADE·PROTECT·SET_NULL을 수집한다. 다른 collection의 cascade로 지워질 보존 링크도 최종 생존 집합에서 제외하여
+필요한 삽입을 다시 준비하며, forward/reverse가 같은 물리 pair를 요청하면 중복 삽입을 합친다.
+
+효과 목록은 전체 삭제/NULL과 예정된 typed through 삽입의 사본이다. 복사본들도 한 번의 Apply 시도만 공유하며,
+같은 transaction의 한 callback 뒤 전체 삭제·모든 삽입·모든 collection postcondition을 실행한다. Scope 만료·취소·실패는
+성공으로 게시하지 않는다. 기존 단일 collection 쓰기도 같은 엔진을 사용한다. 이 기반은 account/catalog의 최종 후보·
+권한·revision·session·audit 조립을 완료한 것이 아니다. 다른 선택 through의 삭제/endpoint NULL이 추가 소속 owner를
+변경하는 조합도 기존 시작 거부에 포함했고, catalog collection guard는 해당 collection을 쓰도록 설정한 경우에 적용한다.
+
+새 양 DB 소비자는 세 생성 collection factory와 두 explicit through·자동 through를 함께 사용한다. 공유 자손과 두 NULL
+경로·교차 cascade 뒤 링크 복구·중복 보존·clear·0/음수 key, 보호/조회/close/callback/취소, 실제 삭제/삽입 뒤 실패·누락된
+삽입·postcondition·잘못된 변경 수·outer rollback·만료 준비를 16개 child로 작성했다. 같은 native transaction의 동반
+scalar 쓰기와 전체 10개 table의 rollback을 독립 connection으로 대조한다. 이 동반 쓰기를 계정 lifecycle 통합으로 세지 않는다.
+새 source/lifetime·one-attempt·forward/reverse 단위와 5개 topology 거부/허용 child도 원격 필수 실행에 연결했다.
+
+선행 source의 [CI 40223997549](https://github.com/progresshans/godj/actions/runs/40223997549)에서 실패한 11개 job의
+원본과 checkout `31448763c8a1195c111a5aae75d038152d0b04a8`을 확인했다. Merge 부모에 제출 source가 있고 tree
+`0507e49e1e02fc3ceeaf6621b4ad4c32dee91533`도 같다. 두 페이지를 읽은 관측 시점의 114개 job은 성공 59·실패 11·
+실행 중 12·대기 32였다. 이 부분 관측을 전체 CI 결과나 새 source의 성공으로 옮기지 않는다. 확인한 실패는 세 종류다.
+
+- SQLite/PostgreSQL의 새 계정 삭제 검사는 migration 분리 단계에서 `cycle has no model creator`로 실패했다.
+  먼저 만든 explicit through에서 FK column을 미루면 cycle의 사전순 첫 app에 CreateModel이 남아 있지 않을 수 있다.
+  실제 게시 가능한 operation이 있는 첫 cycle app을 선택하고 기존 model의 준비된 column도 게시하도록 수정했다.
+  이전 구현에서 여섯 app 이름 배치 중 네 배치의 실패를 재현했고, 수정 뒤 새 모든 publication prefix 재개 검사와
+  기존 순환/후속 migration 한도 검사의 세 root를 한정 실행해 통과했다. 이어 중간 작업본의 SQLite `delete_lifecycle`
+  한 child도 통과했다. 이 한 child는 이후 topology guard·fixture 변경을 포함한 최종 DB 전체 결과가 아니다.
+- 일곱 외부 생성 변형의 삭제 HTTP login은 500으로 실패했다. 로컬 default 변형에서 재현하고 인증 오류 경로를 확인했다.
+  앞선 `assertStoredAccount`가 의도적으로 foreign domain으로 전환한 상태에서 후속 삭제를 실행한 순서 문제였다.
+  이 부정 검사를 전체 HTTP 소비자 뒤로 옮겼고 default/custom 두 변형의 실제 생성·SQLite·TCP 소비자가 통과했다.
+  다른 다섯 변형·원격 환경은 이 한정 실행에 포함하지 않는다. 임시 진단 코드는 제거했다.
+- PostgreSQL normal/CGO0의 기존 삭제 효과 `root_zero`/`root_negative`는 미지원 명시적 generated-key 삽입으로
+  fixture를 준비하다 실패했다. 생성한 미참조 행의 key를 native fixture로 바꾸고 typed 조회로 다시 읽도록 양 DB 준비를
+  통일했다. 같은 삭제 assertion과 필수 항목은 유지한다. PostgreSQL의 명시적 key 삽입/sequence 지원을 추가한 것은
+  아니며 이 fixture 수정의 실제 PostgreSQL 본문은 새 source의 원격 확인 대상이다.
+
+새 fixture를 공개 generate로 갱신하고 manifest의 25개 소유 파일 bytes/mode를 대조했다. Snapshot은
+`1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7`이며 account ABI v15는 유지했다.
+로컬에서는 orm·identity/model·fixture·양 DB의 최소 compile을 확인했다. 첫 DB 실패 재현 명령은 새 helper의 잘못된
+native method 이름과 bool 반환형 때문에 compile 단계에서 실패했고 이를 수정했다. 최종 compile receipt의 source hash는
+현재 코드와 일치한다. 위 한정 회귀 외 새 collection/topology 단위·native DB·race/process/platform 본문은 실행하지 않았다.
+
+기존 필수 항목의 삭제 없이 relation 4,030→4,070, PostgreSQL core 5,273→5,290, portable core 44→51로 확장했다.
+목록 중복·기존 항목 보존·새 실행 소유권과 PostgreSQL 각 mode/partition의 정확한 소유권, Python syntax·gofmt·diff를
+확인했다. 로컬 전체 suite를 재실행하지 않았으며 전체 generated drift·필수 본문·양 DB·독립 소비자·race/process/platform은
+새 source의 원격 CI에서 확인한다. Account/catalog 편집의 전체 수명 통합과 기존 I1 미완료 범위는 유지한다.
+
+실패/수정 전후 원본·11개 job 로그·merge/source 대조·생성 manifest·실행 소유권과 현재 비 Markdown source hash는
+저장소 밖 검증 보관소의 `gdj0138-collection-changes-v1/receipt.json`에 연결했다
+(SHA-256 `38c36bba9660031980422feaa22d92f648f2da6586f0f92ed486cdf207cc5197`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

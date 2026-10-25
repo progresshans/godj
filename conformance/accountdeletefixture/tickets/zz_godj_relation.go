@@ -5,7 +5,7 @@ package tickets
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "76158233b882a5e814c3e1f88defffb09dd9f8ca4a4e63d84d7f8b75756b0823"
+const GoDjRelationSchemaSHA256 = "7066e414d4b6633060ad2074e1f5b1ff857c678474bff912378214cdeba51650"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -43,12 +43,77 @@ func GoDjRelationSchema() ir.Schema {
 							OnDelete:    ir.DeleteProtect,
 						},
 					},
+					{
+						Name:     "membership",
+						GoName:   "MembershipID",
+						Column:   "membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+					{
+						Name:     "grant_link",
+						GoName:   "GrantLinkID",
+						Column:   "grant_link_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+					{
+						Name:     "nullable_membership",
+						GoName:   "NullableMembershipID",
+						Column:   "nullable_membership_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteSetNull,
+						},
+					},
+					{
+						Name:     "nullable_grant_link",
+						GoName:   "NullableGrantLinkID",
+						Column:   "nullable_grant_link_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteSetNull,
+						},
+					},
+					{
+						Name:     "protected_grant_link",
+						GoName:   "ProtectedGrantLinkID",
+						Column:   "protected_grant_link_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
 				},
 			},
 		},
 	}
 }
 
-type GoDjAppPart1_8689d21ad32c1ef8bd2eab57cc4f5ce71cdee18e7d67c2d0bf796af8975dab5e struct{}
+type GoDjAppPart1_eca3d602e4ef96c08e46321306d27f4949b82be82e2faaf036c4ac43003285b9 struct{}
 
-var _ GoDjProjectSnapshot_6ffc53b85d7a16059e4db76dcd9fd07765c8818702cab07309e90e5b03dae67a
+var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7

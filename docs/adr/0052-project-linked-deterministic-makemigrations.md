@@ -101,8 +101,11 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    필요하지 않으므로 noncanonical single leaf를 이유로 실패하지 않습니다. 실제 delta가 있어 successor를 만들어야 할 때만
    noncanonical leaf numbering을 structured unsupported result로 닫습니다.
 5. 다음에 게시할 파일은 아직 생성되지 않은 다른 app의 target을 기다리지 않는 app에서 canonical app 순서로 선택합니다.
-   모두 기다리면 정렬된 target edge를 따라 실제 cycle을 찾고 그 cycle의 canonical app에서 unresolved cross-app FK를 제외한
-   model들을 먼저 생성합니다. 나머지 FK는 뒤의 후보가 추가하므로 한 app에 여러 파일이 생길 수 있습니다.
+   모두 기다리면 정렬된 target edge를 따라 실제 cycle을 찾고, cycle의 app을 정렬해 현재 게시 가능한 operation이 있는 첫 app을
+   선택합니다. Unresolved cross-app FK를 제외한 model 생성이나 이미 만들어진 model의 준비된 컬럼 추가가 진전을 만듭니다.
+   Explicit through는 model이 존재해도 필요한 endpoint 컬럼이 없으면 M2M 선언의 준비가 끝난 것이 아닙니다. 앞선 prefix가
+   through model을 만들었을 수 있으므로 cycle의 첫 app에 항상 CreateModel이 있다고 가정하지 않습니다.
+   나머지 FK와 M2M 선언은 뒤의 후보가 추가하므로 한 app에 여러 파일이 생길 수 있습니다.
    **각 후보 뒤의 정확한 historical prefix에서 다음 후보를 다시 계산**합니다. 중간 종료 뒤 fresh 탐지가 같은 나머지 bytes를
    만들기 때문에 partial temp의 엄격한 recovery 규칙을 약화하지 않습니다. 후보는 최대 64개이며 남은 app 수만으로도 한도를
    넘으면 추가 후보 구성 전에 거부합니다. 첫 identity는 `0001_initial`; 다음 identity는 exact single

@@ -5,7 +5,7 @@ package links
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "ce896dbd9ff7edcc7c13e5779374479ba7b413ae4bbd1f28834e8abca6694725"
+const GoDjRelationSchemaSHA256 = "09d77aa1e6555de34ea5cc9b7745ca18ff293a2bed0c714dddd5c4aacaba40c6"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -56,6 +56,19 @@ func GoDjRelationSchema() ir.Schema {
 						Nullable: true,
 						Relation: &ir.ForeignKeyRelation{
 							Target:      ir.ModelIdentity{AppLabel: "people", ModelName: "member"},
+							Cardinality: ir.RelationManyToOne,
+							Reverse:     ir.ReverseRelation{Disabled: true},
+							OnDelete:    ir.DeleteCascade,
+						},
+					},
+					{
+						Name:     "depends_on",
+						GoName:   "DependsOnID",
+						Column:   "depends_on_id",
+						Kind:     ir.FieldForeignKey,
+						Nullable: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
 							Cardinality: ir.RelationManyToOne,
 							Reverse:     ir.ReverseRelation{Disabled: true},
 							OnDelete:    ir.DeleteCascade,
@@ -118,6 +131,6 @@ func GoDjRelationSchema() ir.Schema {
 	}
 }
 
-type GoDjAppPart1_55882d2edd28b3c739e50252b9def5f39e59b0ff55752f81353472b1df311842 struct{}
+type GoDjAppPart1_bec4d00d4a513ca78e447f44bf075168970bcf182f8bd74aa0945cbbcfb0b6f1 struct{}
 
-var _ GoDjProjectSnapshot_6ffc53b85d7a16059e4db76dcd9fd07765c8818702cab07309e90e5b03dae67a
+var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7

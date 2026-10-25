@@ -18,7 +18,7 @@ import (
 
 // These are native coordination checks. They do not claim that Django exposes
 // the same Go callback or provisional result API.
-func runCollectedDeleteEffects(t *testing.T, backend ProductBackend, models []referenceModel, snapshot func(*testing.T) referenceSnapshot, clear func(*testing.T)) {
+func runCollectedDeleteEffects(t *testing.T, backend ProductBackend, models []referenceModel, snapshot func(*testing.T) referenceSnapshot, clear func(*testing.T), setStoredRootKey func(context.Context, int64, int64) error) {
 	t.Helper()
 	policies, err := project.BindRelationDeleters()
 	checkReference(t, err)
@@ -26,16 +26,18 @@ func runCollectedDeleteEffects(t *testing.T, backend ProductBackend, models []re
 		t.Run("collected_effects_"+scenario, func(t *testing.T) {
 			t.Cleanup(func() { clear(t) })
 			ctx := t.Context()
-			root := parents.Root{Name: "collected"}
+			root, err := parents.RootObjects.Create(ctx, backend, parents.NewRootCreate("collected"))
+			checkReference(t, err)
 			if scenario == "root_zero" || scenario == "root_negative" {
 				key := int64(0)
 				if scenario == "root_negative" {
 					key = -9
 				}
-				(parents.RootDescriptor{}).SetPrimaryKey(&root, key)
-				checkReference(t, parents.RootObjects.Save(ctx, backend, &root, orm.ForceInsert[parents.Root]()))
-			} else {
-				root, err = parents.RootObjects.Create(ctx, backend, parents.NewRootCreate("collected"))
+				// Establish an existing, unreferenced row before loading it through
+				// generated objects. This checks deletion key presence independently
+				// of each backend's explicit generated-key insertion capability.
+				checkReference(t, setStoredRootKey(ctx, root.ID, key))
+				root, err = parents.RootObjects.Using(backend).Filter(parents.RootFields.ID.Exact(key)).Get(ctx)
 				checkReference(t, err)
 			}
 			child, err := details.ChildObjects.Create(ctx, backend, details.NewChildCreate(root.ID))

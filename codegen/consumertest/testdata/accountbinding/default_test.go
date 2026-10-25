@@ -160,11 +160,6 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 			return validation.Errors{}, nil
 		})
 	})
-	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1", currentPassword)
-	if credential.Principal().Staff() || credential.Principal().Superuser() {
-		t.Fatal("default account unexpectedly changed its stored roles")
-	}
-
 	t.Run("account_delete", func(t *testing.T) {
 		target, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("delete-target", "delete-target", encoded, joined))
 		if err != nil {
@@ -172,5 +167,10 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		}
 		assertAccountDeletionHTTP(t, backend, binding, sessionStore, hasher, "alice", currentPassword, target, project.NewAccountDeleter, nil)
 	})
-
+	// This assertion ends in a foreign account-domain transition and therefore
+	// follows every consumer that requires the selected account to authenticate.
+	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1", currentPassword)
+	if credential.Principal().Staff() || credential.Principal().Superuser() {
+		t.Fatal("default account unexpectedly changed its stored roles")
+	}
 }

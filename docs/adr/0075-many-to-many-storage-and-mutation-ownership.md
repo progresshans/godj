@@ -149,6 +149,32 @@ capability가 아니며, 빌린 collection/model binding은 없으면 명시적�
 commit 확인과 외부 publication은 outer owner의 책임이다. 독립 root materialization의 cache를 session 변경으로 전역 갱신하지 않는다.
 Root cache를 새로 읽어야 하면 Fresh 또는 명시적 Invalidate를 사용한다.
 
+## 여러 collection 변경의 공통 준비와 실행
+
+`ManyToMany.SetKeysChange(owner, keys, options...)`는 typed owner·선택값·through input을 보관하는 I/O 없는 변경 선언이다.
+선택 key는 복사하며 저장된 0/음수 key와 미저장 owner를 구분한다. 사용자 정의 through input은 준비가 끝날 때까지 호출에
+안전해야 한다. Default는 실제 새 pair가 필요할 때만 typed create로 평가하고, 이미 보존하는 링크에 필수 payload를 다시 요구하지 않는다.
+
+`PrepareCollectionChangesInSession`은 하나의 명시적 borrowed RelationSession에서 여러 타입의 collection을 준비한다.
+전체 host source가 다르거나 같은 storage/방향/owner를 중복 선택하면 I/O 전에 거부한다. 각 현재 링크 집합을 읽고 닫은 뒤
+모든 삭제 root의 합집합을 공통 collector에 전달한다. 공유 CASCADE 행은 한 번만 수집하며 모든 PROTECT와 NULL 효과를 먼저
+확인한다. 앞선 collection이 보존하려던 링크를 다른 collection의 cascade가 지우는 경우도 전체 결과에서 다시 계산한다.
+살아남는 링크와 먼저 계획한 삽입을 기준으로 필요한 insert를 준비하므로 forward/reverse가 같은 pair를 중복 생성하지 않는다.
+
+`PreparedCollectionChanges.Effects()`는 전체 삭제/NULL과 예정된 through 삽입 값의 불변 사본이다. Conflict insert의 예정 값은
+실제 삽입 성공이나 최종 membership의 증거가 아니다. `ValidateSource`는 상위 owner의 전체 source와 대조한다.
+준비한 객체와 복사본은 같은 session과 한 번의 Apply 시도를 공유한다. 준비와 실행 사이에 관찰한 key/FK·소속 topology를 바꾸지
+않으며, 같은 transaction의 scalar/revision/session/audit 조립만 허용한다. Session 밖에서 실행하거나 실패한 시도를 재사용하지 않는다.
+
+`Apply`는 모든 준비 뒤 첫 관계 DML 전 callback을 한 번 호출하고, 합친 삭제·각 삽입·모든 collection의 최종 조건을 검사한다.
+Callback의 정상 오류 identity와 취소/만료 원인을 보존하며, 뒤쪽 실패는 바깥 transaction owner로 전달해 동반 쓰기까지 rollback한다.
+단일 `ManyCollection`의 add/remove/clear/set도 같은 준비·실행을 사용하고 기존 cache 무효화·native conflict·unknown 소유권을 유지한다.
+직접 factory로 준비한 batch가 이미 읽힌 별도 handle의 cache를 전역 갱신하지는 않는다.
+
+이 공통 실행은 계정 수명 권한을 부여하지 않는다. 선택 계정/그룹 편집 owner가 제안된 scalar·소속과 연쇄 효과를 하나의 최종
+후보로 검사하고 revision·session·audit를 합치는 조립은 [GDJ-0138](../../work/0138-custom-account-lifecycle.md)의 남은 범위다.
+그 조립 전에는 관련 critical through topology의 시작 거부를 유지한다. 작성·최소 compile·환경별 본문 실행은 TEST_EVIDENCE로 구분한다.
+
 ## 직접 컬렉션 prefetch
 
 2026-09-23, bound `ManyToMany.Prefetch`와 `PrefetchInSession`은 저장된 owner snapshot의 순서와 중복을 유지하며

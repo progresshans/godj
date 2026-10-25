@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "76158233b882a5e814c3e1f88defffb09dd9f8ca4a4e63d84d7f8b75756b0823"
+const GoDjRelationObjectSchemaSHA256 = "7066e414d4b6633060ad2074e1f5b1ff857c678474bff912378214cdeba51650"
 
 var _ orm.RelationObjectDescriptor[Ticket] = TicketDescriptor{}
 
@@ -22,6 +22,16 @@ func (TicketDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage
 	switch {
 	case reflect.DeepEqual(field, (ticketOwnerIDRelationStorage{}).Field()):
 		return ticketOwnerIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (ticketMembershipIDRelationStorage{}).Field()):
+		return ticketMembershipIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (ticketGrantLinkIDRelationStorage{}).Field()):
+		return ticketGrantLinkIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (ticketNullableMembershipIDRelationStorage{}).Field()):
+		return ticketNullableMembershipIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (ticketNullableGrantLinkIDRelationStorage{}).Field()):
+		return ticketNullableGrantLinkIDRelationStorage{}, true
+	case reflect.DeepEqual(field, (ticketProtectedGrantLinkIDRelationStorage{}).Field()):
+		return ticketProtectedGrantLinkIDRelationStorage{}, true
 	default:
 		return nil, false
 	}
@@ -50,6 +60,195 @@ func (ticketOwnerIDRelationStorage) Value(value Ticket) (query.Value, bool) {
 	return query.Integer(value.OwnerID), true
 }
 
-type GoDjAppPart2_8689d21ad32c1ef8bd2eab57cc4f5ce71cdee18e7d67c2d0bf796af8975dab5e struct{}
+type ticketMembershipIDRelationStorage struct{}
 
-var _ GoDjProjectSnapshot_6ffc53b85d7a16059e4db76dcd9fd07765c8818702cab07309e90e5b03dae67a
+var _ orm.RelationStorage[Ticket] = ticketMembershipIDRelationStorage{}
+
+func (ticketMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "membership",
+		GoName:   "MembershipID",
+		Column:   "membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (ticketMembershipIDRelationStorage) Value(value Ticket) (query.Value, bool) {
+	if value.MembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.MembershipID), true
+}
+
+type ticketGrantLinkIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Ticket] = ticketGrantLinkIDRelationStorage{}
+
+func (ticketGrantLinkIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "grant_link",
+		GoName:   "GrantLinkID",
+		Column:   "grant_link_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteCascade,
+		},
+	}
+}
+
+func (ticketGrantLinkIDRelationStorage) Value(value Ticket) (query.Value, bool) {
+	if value.GrantLinkID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.GrantLinkID), true
+}
+
+type ticketNullableMembershipIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Ticket] = ticketNullableMembershipIDRelationStorage{}
+
+func (ticketNullableMembershipIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "nullable_membership",
+		GoName:   "NullableMembershipID",
+		Column:   "nullable_membership_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "membership"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	}
+}
+
+func (ticketNullableMembershipIDRelationStorage) Value(value Ticket) (query.Value, bool) {
+	if value.NullableMembershipID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.NullableMembershipID), true
+}
+
+type ticketNullableGrantLinkIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Ticket] = ticketNullableGrantLinkIDRelationStorage{}
+
+func (ticketNullableGrantLinkIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "nullable_grant_link",
+		GoName:   "NullableGrantLinkID",
+		Column:   "nullable_grant_link_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteSetNull,
+		},
+	}
+}
+
+func (ticketNullableGrantLinkIDRelationStorage) Value(value Ticket) (query.Value, bool) {
+	if value.NullableGrantLinkID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.NullableGrantLinkID), true
+}
+
+type ticketProtectedGrantLinkIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Ticket] = ticketProtectedGrantLinkIDRelationStorage{}
+
+func (ticketProtectedGrantLinkIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:     "protected_grant_link",
+		GoName:   "ProtectedGrantLinkID",
+		Column:   "protected_grant_link_id",
+		Kind:     ir.FieldForeignKey,
+		Nullable: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
+			Cardinality: ir.RelationManyToOne,
+			Reverse:     ir.ReverseRelation{Disabled: true},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func (ticketProtectedGrantLinkIDRelationStorage) Value(value Ticket) (query.Value, bool) {
+	if value.ProtectedGrantLinkID == nil {
+		return query.Null(), true
+	}
+	return query.Integer(*value.ProtectedGrantLinkID), true
+}
+
+func (TicketDescriptor) ManyToManyCreateInput() orm.ManyToManyInput[Ticket] { return TicketCreate{} }
+
+var _ orm.ManyToManyDescriptor[Ticket] = TicketDescriptor{}
+
+func (input TicketCreate) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[Ticket] {
+	invalid := func() orm.Mutation[Ticket] {
+		return orm.InvalidMutation[Ticket](&query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan, Detail: "collection endpoints must be distinct canonical ForeignKeys omitted from through defaults"})
+	}
+	if source.Name == target.Name {
+		return invalid()
+	}
+	for index, field := range []ir.Field{source, target} {
+		key := sourceKey
+		if index == 1 {
+			key = targetKey
+		}
+		switch {
+		case reflect.DeepEqual(field, (ticketOwnerIDRelationStorage{}).Field()):
+			if _, set := input.ownerID.Get(); set {
+				return invalid()
+			}
+			input = input.WithOwnerID(key)
+		case reflect.DeepEqual(field, (ticketMembershipIDRelationStorage{}).Field()):
+			if _, state := input.membershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithMembershipID(key)
+		case reflect.DeepEqual(field, (ticketGrantLinkIDRelationStorage{}).Field()):
+			if _, state := input.grantLinkID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithGrantLinkID(key)
+		case reflect.DeepEqual(field, (ticketNullableMembershipIDRelationStorage{}).Field()):
+			if _, state := input.nullableMembershipID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithNullableMembershipID(key)
+		case reflect.DeepEqual(field, (ticketNullableGrantLinkIDRelationStorage{}).Field()):
+			if _, state := input.nullableGrantLinkID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithNullableGrantLinkID(key)
+		case reflect.DeepEqual(field, (ticketProtectedGrantLinkIDRelationStorage{}).Field()):
+			if _, state := input.protectedGrantLinkID.Get(); state != orm.NullableChangeUnset {
+				return invalid()
+			}
+			input = input.WithProtectedGrantLinkID(key)
+		default:
+			return invalid()
+		}
+	}
+	return input.BuildCreate()
+}
+
+type GoDjAppPart2_eca3d602e4ef96c08e46321306d27f4949b82be82e2faaf036c4ac43003285b9 struct{}
+
+var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7

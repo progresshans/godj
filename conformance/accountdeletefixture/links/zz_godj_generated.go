@@ -11,13 +11,14 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v3"
-const GoDjSchemaSHA256 = "ce896dbd9ff7edcc7c13e5779374479ba7b413ae4bbd1f28834e8abca6694725"
+const GoDjSchemaSHA256 = "09d77aa1e6555de34ea5cc9b7745ca18ff293a2bed0c714dddd5c4aacaba40c6"
 
 type Membership struct {
 	ID                    int64
 	MemberID              int64
 	TeamID                int64
 	AnchorID              *int64
+	DependsOnID           *int64
 	godjPrimaryKeyPresent bool
 }
 
@@ -34,12 +35,17 @@ func (MembershipDescriptor) Metadata() ir.Model {
 func (MembershipDescriptor) Scan(row db.Row) (Membership, error) {
 	var value Membership
 	var scanAnchorID sql.NullInt64
-	if err := row.Scan(&value.ID, &value.MemberID, &value.TeamID, &scanAnchorID); err != nil {
+	var scanDependsOnID sql.NullInt64
+	if err := row.Scan(&value.ID, &value.MemberID, &value.TeamID, &scanAnchorID, &scanDependsOnID); err != nil {
 		return Membership{}, err
 	}
 	if scanAnchorID.Valid {
 		scanned := scanAnchorID.Int64
 		value.AnchorID = &scanned
+	}
+	if scanDependsOnID.Valid {
+		scanned := scanDependsOnID.Int64
+		value.DependsOnID = &scanned
 	}
 	value.godjPrimaryKeyPresent = true
 	return value, nil
@@ -65,6 +71,10 @@ func (MembershipDescriptor) CloneModel(value Membership) Membership {
 		clonedAnchorID := *value.AnchorID
 		clone.AnchorID = &clonedAnchorID
 	}
+	if value.DependsOnID != nil {
+		clonedDependsOnID := *value.DependsOnID
+		clone.DependsOnID = &clonedDependsOnID
+	}
 	return clone
 }
 
@@ -85,6 +95,11 @@ func (MembershipDescriptor) WriteFieldValue(value Membership, field ir.Field) (q
 			return query.Null(), true
 		}
 		return query.Integer(*value.AnchorID), true
+	case "depends_on":
+		if value.DependsOnID == nil {
+			return query.Null(), true
+		}
+		return query.Integer(*value.DependsOnID), true
 	default:
 		return query.Value{}, false
 	}
@@ -120,25 +135,38 @@ func (MembershipDescriptor) SetFieldValue(value *Membership, field ir.Field, inp
 		}
 		value.AnchorID = &assigned
 		return true
+	case "depends_on":
+		if input.IsNull() {
+			value.DependsOnID = nil
+			return true
+		}
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.DependsOnID = &assigned
+		return true
 	default:
 		return false
 	}
 }
 
 type MembershipFieldSet struct {
-	ID       orm.AutoField[Membership]
-	MemberID orm.ForeignKeyField[Membership]
-	TeamID   orm.ForeignKeyField[Membership]
-	AnchorID orm.NullableForeignKeyField[Membership]
+	ID          orm.AutoField[Membership]
+	MemberID    orm.ForeignKeyField[Membership]
+	TeamID      orm.ForeignKeyField[Membership]
+	AnchorID    orm.NullableForeignKeyField[Membership]
+	DependsOnID orm.NullableForeignKeyField[Membership]
 }
 
 var MembershipFields = func() MembershipFieldSet {
 	metadata := membershipMetadata()
 	return MembershipFieldSet{
-		ID:       orm.NewAutoField[Membership](metadata.Fields[0]),
-		MemberID: orm.NewForeignKeyField[Membership](metadata.Fields[1]),
-		TeamID:   orm.NewForeignKeyField[Membership](metadata.Fields[2]),
-		AnchorID: orm.NewNullableForeignKeyField[Membership](metadata.Fields[3]),
+		ID:          orm.NewAutoField[Membership](metadata.Fields[0]),
+		MemberID:    orm.NewForeignKeyField[Membership](metadata.Fields[1]),
+		TeamID:      orm.NewForeignKeyField[Membership](metadata.Fields[2]),
+		AnchorID:    orm.NewNullableForeignKeyField[Membership](metadata.Fields[3]),
+		DependsOnID: orm.NewNullableForeignKeyField[Membership](metadata.Fields[4]),
 	}
 }()
 
@@ -165,9 +193,10 @@ func MembershipForceUpdate() orm.SaveOption[Membership] {
 }
 
 type MembershipCreate struct {
-	memberID orm.Change[int64]
-	teamID   orm.Change[int64]
-	anchorID orm.NullableChange[int64]
+	memberID    orm.Change[int64]
+	teamID      orm.Change[int64]
+	anchorID    orm.NullableChange[int64]
+	dependsOnID orm.NullableChange[int64]
 }
 
 func NewMembershipCreate(memberID int64, teamID int64) MembershipCreate {
@@ -197,9 +226,19 @@ func (input MembershipCreate) WithAnchorIDNull() MembershipCreate {
 	return input
 }
 
+func (input MembershipCreate) WithDependsOnID(value int64) MembershipCreate {
+	input.dependsOnID = orm.SetNullable(value)
+	return input
+}
+
+func (input MembershipCreate) WithDependsOnIDNull() MembershipCreate {
+	input.dependsOnID = orm.SetNull[int64]()
+	return input
+}
+
 func (input MembershipCreate) BuildCreate() orm.Mutation[Membership] {
 	var value Membership
-	assignments := make([]query.Assignment, 0, 3)
+	assignments := make([]query.Assignment, 0, 4)
 	changedMemberID, changedMemberIDSet := input.memberID.Get()
 	if !changedMemberIDSet {
 		return orm.InvalidMutation[Membership](&query.Error{
@@ -242,13 +281,34 @@ func (input MembershipCreate) BuildCreate() orm.Mutation[Membership] {
 			Detail:   "unknown nullable change state",
 		})
 	}
+	changedDependsOnID, changedDependsOnIDState := input.dependsOnID.Get()
+	switch changedDependsOnIDState {
+	case orm.NullableChangeUnset:
+		value.DependsOnID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("depends_on", "depends_on_id", query.FieldInteger, true), query.Null()))
+	case orm.NullableChangeValue:
+		storedDependsOnID := changedDependsOnID
+		value.DependsOnID = &storedDependsOnID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("depends_on", "depends_on_id", query.FieldInteger, true), query.Integer(changedDependsOnID)))
+	case orm.NullableChangeNull:
+		value.DependsOnID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("depends_on", "depends_on_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Membership](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "depends_on",
+			Detail:   "unknown nullable change state",
+		})
+	}
 	return orm.NewCreateMutation(value, "links_membership", assignments)
 }
 
 type MembershipPatch struct {
-	memberID orm.Change[int64]
-	teamID   orm.Change[int64]
-	anchorID orm.NullableChange[int64]
+	memberID    orm.Change[int64]
+	teamID      orm.Change[int64]
+	anchorID    orm.NullableChange[int64]
+	dependsOnID orm.NullableChange[int64]
 }
 
 func (input MembershipPatch) WithMemberID(value int64) MembershipPatch {
@@ -271,9 +331,19 @@ func (input MembershipPatch) WithAnchorIDNull() MembershipPatch {
 	return input
 }
 
+func (input MembershipPatch) WithDependsOnID(value int64) MembershipPatch {
+	input.dependsOnID = orm.SetNullable(value)
+	return input
+}
+
+func (input MembershipPatch) WithDependsOnIDNull() MembershipPatch {
+	input.dependsOnID = orm.SetNull[int64]()
+	return input
+}
+
 func (input MembershipPatch) BuildPatch(current Membership) orm.Mutation[Membership] {
 	value := current
-	assignments := make([]query.Assignment, 0, 3)
+	assignments := make([]query.Assignment, 0, 4)
 	if changedMemberID, ok := input.memberID.Get(); ok {
 		value.MemberID = changedMemberID
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("member", "member_id", query.FieldInteger, false), query.Integer(changedMemberID)))
@@ -297,6 +367,24 @@ func (input MembershipPatch) BuildPatch(current Membership) orm.Mutation[Members
 			Category: query.CategoryQuery,
 			Code:     query.CodeInvalidPlan,
 			Field:    "anchor",
+			Detail:   "unknown nullable change state",
+		})
+	}
+	changedDependsOnID, changedDependsOnIDState := input.dependsOnID.Get()
+	switch changedDependsOnIDState {
+	case orm.NullableChangeUnset:
+	case orm.NullableChangeValue:
+		storedDependsOnID := changedDependsOnID
+		value.DependsOnID = &storedDependsOnID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("depends_on", "depends_on_id", query.FieldInteger, true), query.Integer(changedDependsOnID)))
+	case orm.NullableChangeNull:
+		value.DependsOnID = nil
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("depends_on", "depends_on_id", query.FieldInteger, true), query.Null()))
+	default:
+		return orm.InvalidMutation[Membership](&query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Field:    "depends_on",
 			Detail:   "unknown nullable change state",
 		})
 	}
@@ -348,6 +436,19 @@ func membershipMetadata() ir.Model {
 				Nullable: true,
 				Relation: &ir.ForeignKeyRelation{
 					Target:      ir.ModelIdentity{AppLabel: "people", ModelName: "member"},
+					Cardinality: ir.RelationManyToOne,
+					Reverse:     ir.ReverseRelation{Disabled: true},
+					OnDelete:    ir.DeleteCascade,
+				},
+			},
+			{
+				Name:     "depends_on",
+				GoName:   "DependsOnID",
+				Column:   "depends_on_id",
+				Kind:     ir.FieldForeignKey,
+				Nullable: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "links", ModelName: "grant_link"},
 					Cardinality: ir.RelationManyToOne,
 					Reverse:     ir.ReverseRelation{Disabled: true},
 					OnDelete:    ir.DeleteCascade,
@@ -701,6 +802,6 @@ func grantLinkMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_55882d2edd28b3c739e50252b9def5f39e59b0ff55752f81353472b1df311842 struct{}
+type GoDjAppPart0_bec4d00d4a513ca78e447f44bf075168970bcf182f8bd74aa0945cbbcfb0b6f1 struct{}
 
-type GoDjProjectSnapshot_6ffc53b85d7a16059e4db76dcd9fd07765c8818702cab07309e90e5b03dae67a struct{}
+type GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7 struct{}

@@ -1010,6 +1010,9 @@ credential/hash/session stamp를 변경하는 작업으로 확대하지 않는�
 resource의 기존 권한을 사용한다. Catalog 삭제가 계정도 지우면 반환값의 `RevokedSessions`에 같은 domain의 실제 폐기 수를 담는다.
 Group grant collection 교체는 여러 관계 변경을 하나의 수명 조정으로 합치는 작업이 남아 있다. 해당 through 삭제가 추가
 계정/catalog 행을 바꾸는 조합은 시작 시 `unsupported` 원인을 보존하여 거부한다. Endpoint 삭제 지원으로 이 경계를 감추지 않는다.
+다른 선택 소속의 through 행을 연쇄 삭제하거나 endpoint를 NULL로 만드는 경우도 직접 owner의 revision에 영향을 주므로 같은
+미완료 경계에 속한다. 소속과 무관한 payload만 NULL로 바꾸는 효과는 이 거부에 포함하지 않는다. Catalog의 해당 검사는
+Group grant가 실제 WriteFields에 포함된 경우에 적용하며, 읽기나 전체 수명 owner가 처리하는 행 삭제를 함께 차단하지 않는다.
 공통 Admin/HTTP 조립과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
 
 ## 선택 계정과 catalog 삭제의 전체 수명 조정

@@ -43,10 +43,13 @@ type referenceModel struct {
 type referenceSnapshot map[string][][]any
 
 // RunReference exercises the real generated deleters against independently
-// captured Django outcomes. Only the required-cycle fixture seed uses native
-// SQL, because GoDj does not support assigning a generated key on insertion.
-func RunReference(t *testing.T, backend ProductBackend, dialect string, seedRequiredCycle func(context.Context) error) {
+// captured Django outcomes. Native fixture callbacks prepare required cycles
+// and existing signed keys without claiming generated-key insertion support.
+func RunReference(t *testing.T, backend ProductBackend, dialect string, seedRequiredCycle func(context.Context) error, setStoredRootKey func(context.Context, int64, int64) error) {
 	t.Helper()
+	if seedRequiredCycle == nil || setStoredRootKey == nil {
+		t.Fatal("native cascade fixture callbacks are required")
+	}
 	ctx := t.Context()
 	t.Cleanup(func() {
 		if err := backend.Close(); err != nil {
@@ -392,7 +395,7 @@ func RunReference(t *testing.T, backend ProductBackend, dialect string, seedRequ
 			}
 		})
 	}
-	runCollectedDeleteEffects(t, backend, models, snapshot, clear)
+	runCollectedDeleteEffects(t, backend, models, snapshot, clear, setStoredRootKey)
 }
 
 func checkReference(t testing.TB, err error) {

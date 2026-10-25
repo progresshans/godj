@@ -38,6 +38,7 @@ type ManyToMany[O, T, L any] struct {
 }
 
 type manyToManyState struct {
+	snapshot            *projectBindingSnapshot
 	through             ir.ModelIdentity
 	model               ir.Model
 	key, source, target ir.Field
@@ -110,7 +111,7 @@ func bindManyToMany[O, T, L any](owner BoundModel[O], name string, target BoundM
 	if !validLowerSHA256(fingerprint) || fingerprint != relationDeletePolicyFingerprint(through.identity, through.model, key, graph) {
 		return zero, relationInvalidPlan("collection delete policy fingerprint does not match project binding")
 	}
-	state := &manyToManyState{through: through.identity, model: through.model.Clone(), key: key, source: sourceField, target: targetField, symmetrical: binding.Symmetry == ir.ManyToManySymmetrical, graph: graph}
+	state := &manyToManyState{snapshot: owner.snapshot, through: through.identity, model: through.model.Clone(), key: key, source: sourceField, target: targetField, symmetrical: binding.Symmetry == ir.ManyToManySymmetrical, graph: graph}
 	for _, constraint := range through.model.UniqueConstraints {
 		if len(constraint.Fields) == 2 && (constraint.Fields[0] == sourceField.Name && constraint.Fields[1] == targetField.Name || constraint.Fields[1] == sourceField.Name && constraint.Fields[0] == targetField.Name) {
 			state.unique = []query.FieldRef{fieldReference(sourceField), fieldReference(targetField)}

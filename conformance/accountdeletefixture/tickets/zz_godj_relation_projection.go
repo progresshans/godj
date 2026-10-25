@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "76158233b882a5e814c3e1f88defffb09dd9f8ca4a4e63d84d7f8b75756b0823"
+const GoDjRelationProjectionSchemaSHA256 = "7066e414d4b6633060ad2074e1f5b1ff857c678474bff912378214cdeba51650"
 
 var _ orm.ProjectionDescriptor[Ticket] = TicketDescriptor{}
 
@@ -18,9 +18,14 @@ func (TicketDescriptor) NewProjectionScan() orm.ProjectionScan[Ticket] {
 }
 
 type ticketProjectionScan struct {
-	scanID      sql.NullInt64
-	scanTitle   sql.NullString
-	scanOwnerID sql.NullInt64
+	scanID                   sql.NullInt64
+	scanTitle                sql.NullString
+	scanOwnerID              sql.NullInt64
+	scanMembershipID         sql.NullInt64
+	scanGrantLinkID          sql.NullInt64
+	scanNullableMembershipID sql.NullInt64
+	scanNullableGrantLinkID  sql.NullInt64
+	scanProtectedGrantLinkID sql.NullInt64
 }
 
 func (_scan *ticketProjectionScan) Destinations() []any {
@@ -31,6 +36,11 @@ func (_scan *ticketProjectionScan) Destinations() []any {
 		&_scan.scanID,
 		&_scan.scanTitle,
 		&_scan.scanOwnerID,
+		&_scan.scanMembershipID,
+		&_scan.scanGrantLinkID,
+		&_scan.scanNullableMembershipID,
+		&_scan.scanNullableGrantLinkID,
+		&_scan.scanProtectedGrantLinkID,
 	}
 }
 
@@ -38,7 +48,7 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	if _scan == nil {
 		return Ticket{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanTitle.Valid && !_scan.scanOwnerID.Valid {
+	if !_scan.scanID.Valid && !_scan.scanTitle.Valid && !_scan.scanOwnerID.Valid && !_scan.scanMembershipID.Valid && !_scan.scanGrantLinkID.Valid && !_scan.scanNullableMembershipID.Valid && !_scan.scanNullableGrantLinkID.Valid && !_scan.scanProtectedGrantLinkID.Valid {
 		return Ticket{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -54,10 +64,30 @@ func (_scan *ticketProjectionScan) Decode() (Ticket, query.Value, orm.Projection
 	_value.ID = _scan.scanID.Int64
 	_value.Title = _scan.scanTitle.String
 	_value.OwnerID = _scan.scanOwnerID.Int64
+	if _scan.scanMembershipID.Valid {
+		_scanned := _scan.scanMembershipID.Int64
+		_value.MembershipID = &_scanned
+	}
+	if _scan.scanGrantLinkID.Valid {
+		_scanned := _scan.scanGrantLinkID.Int64
+		_value.GrantLinkID = &_scanned
+	}
+	if _scan.scanNullableMembershipID.Valid {
+		_scanned := _scan.scanNullableMembershipID.Int64
+		_value.NullableMembershipID = &_scanned
+	}
+	if _scan.scanNullableGrantLinkID.Valid {
+		_scanned := _scan.scanNullableGrantLinkID.Int64
+		_value.NullableGrantLinkID = &_scanned
+	}
+	if _scan.scanProtectedGrantLinkID.Valid {
+		_scanned := _scan.scanProtectedGrantLinkID.Int64
+		_value.ProtectedGrantLinkID = &_scanned
+	}
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_8689d21ad32c1ef8bd2eab57cc4f5ce71cdee18e7d67c2d0bf796af8975dab5e struct{}
+type GoDjAppPart3_eca3d602e4ef96c08e46321306d27f4949b82be82e2faaf036c4ac43003285b9 struct{}
 
-var _ GoDjProjectSnapshot_6ffc53b85d7a16059e4db76dcd9fd07765c8818702cab07309e90e5b03dae67a
+var _ GoDjProjectSnapshot_1fa4b3d79eb73f68615d403c3eb2f86509236c95463b68073245688b2c151cd7

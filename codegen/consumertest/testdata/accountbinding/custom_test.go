@@ -230,11 +230,6 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 			return validation.Errors{}, nil
 		})
 	})
-	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1", currentPassword)
-	if credential.Principal().Staff() || credential.Principal().Superuser() {
-		t.Fatal("custom account constants and renamed role fields were not respected")
-	}
-
 	t.Run("account_delete", func(t *testing.T) {
 		target, err := people.MemberObjects.Create(t.Context(), backend, people.NewMemberCreate("delete-target", "delete-target@example.test", encoded, "NZ"))
 		if err != nil {
@@ -252,5 +247,10 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 			}
 		})
 	})
-
+	// This assertion ends in a foreign account-domain transition and therefore
+	// follows every consumer that requires the selected account to authenticate.
+	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1", currentPassword)
+	if credential.Principal().Staff() || credential.Principal().Superuser() {
+		t.Fatal("custom account constants and renamed role fields were not respected")
+	}
 }
