@@ -19,9 +19,10 @@ type accountMemberships struct {
 	grants         []auth.Permission
 }
 type accountRelationReader struct {
-	permissions func(context.Context, db.Queryer, int64) ([]auth.Permission, error)
-	memberships func(context.Context, db.Queryer, int64) (accountMemberships, error)
-	proposed    func(context.Context, db.Queryer, []int64, []int64) ([]auth.Permission, error)
+	permissions                   func(context.Context, db.Queryer, int64) ([]auth.Permission, error)
+	memberships                   func(context.Context, db.Queryer, int64) (accountMemberships, error)
+	proposed                      func(context.Context, db.Queryer, []int64, []int64) ([]auth.Permission, error)
+	checkGroups, checkPermissions func(context.Context, db.Queryer, []int64) error
 }
 
 var errAccountGrantLimit = errors.New("account effective permission limit exceeded")
@@ -197,20 +198,32 @@ func bindAccountRelations[M, G, P any](binding Binding[M], groupDescriptor orm.R
 		}
 		return accountMemberships{groups, direct, grants}, nil
 	}
-	reader.proposed = func(ctx context.Context, scope db.Queryer, groups, direct []int64) ([]auth.Permission, error) {
+	reader.checkGroups = func(ctx context.Context, scope db.Queryer, groups []int64) error {
 		actualGroups, err := readGroups(ctx, groupObjects.Using(scope).Filter(groupKeyField.In(groups...)))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !slices.Equal(groups, actualGroups) {
-			return nil, profileInputError(role.Groups, "invalid_choice")
+			return profileInputError(role.Groups, "invalid_choice")
 		}
+		return nil
+	}
+	reader.checkPermissions = func(ctx context.Context, scope db.Queryer, direct []int64) error {
 		actualDirect, err := readDirect(ctx, permissionObjects.Using(scope).Filter(permissionKeyField.In(direct...)))
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if !slices.Equal(direct, actualDirect) {
-			return nil, profileInputError(role.Permissions, "invalid_choice")
+			return profileInputError(role.Permissions, "invalid_choice")
+		}
+		return nil
+	}
+	reader.proposed = func(ctx context.Context, scope db.Queryer, groups, direct []int64) ([]auth.Permission, error) {
+		if err := reader.checkGroups(ctx, scope, groups); err != nil {
+			return nil, err
+		}
+		if err := reader.checkPermissions(ctx, scope, direct); err != nil {
+			return nil, err
 		}
 		return readGrants(ctx, permissionObjects.Using(scope).Filter(orm.Or(permissionKeyField.In(direct...), permissionGroup.In(groups...))))
 	}

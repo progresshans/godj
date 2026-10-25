@@ -49,6 +49,17 @@ func (bound BoundForm) Candidate() forms.Values  { return bound.candidate }
 // entering its database scope. This metadata is not persistence authority.
 func (bound BoundForm) Model() ir.Model { return bound.model.Clone() }
 
+// FieldNames describes the selected inputs, including invalid and command-only
+// fields. Admission checks must not infer exposure from successfully cleaned
+// values alone. The returned slice does not share the binding's storage.
+func (bound BoundForm) FieldNames() []string {
+	names := make([]string, len(bound.fields))
+	for index, field := range bound.fields {
+		names[index] = field.Name()
+	}
+	return names
+}
+
 // Excluded returns model fields in declaration order that must not participate
 // in field/uniqueness/constraint validation. A constraint with any excluded
 // member is excluded as a whole. Collection fields are not scalar model fields.

@@ -1429,4 +1429,4 @@ func memberGrantsLinkMetadata() ir.Model {
 
 type GoDjAppPart0_de3d33afc5b22cb7560f7b19d73e7792c578f5a02dce131437bb07e42e083cae struct{}
 
-type GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d struct{}
+type GoDjProjectSnapshot_54357308d9495edf0ddf9e010dd67e2fa220e48d4b687c85ceeadc72dccb91d9 struct{}

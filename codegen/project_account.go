@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v15"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v16"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -227,6 +227,18 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tpolicies, err := BindRelationDeleters()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewCatalog(sessions, binding, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, policies.%s, policies.%s, overlay, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, groupCollection, groupDelete, permissionDelete)
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountManagement composes current account CRUD, password policy and bounded assignments over the same session owner.")
+	fmt.Fprintf(&output, "func NewAccountManagement(sessions *_godjaccountmodel.SessionStore[%s.%s], verifier *_godjaccountmodel.Authenticator[%s.%s], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountManagementConfig[%s.%s]) (*_godjaccountmodel.AccountManagement[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tsource, err := binding.Project()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tcollections, err := BindCollectionsIn(source)")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tpolicies, err := BindRelationDeleters()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewAccountManagement(sessions, binding, verifier, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, collections.%s, policies.%s, overlay, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, accountGroups, accountPermissions, accountDelete)
 	fmt.Fprintln(&output, "}")
 	return output.Bytes(), nil
 }

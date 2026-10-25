@@ -39,6 +39,9 @@ var accountBindingAdminMutationHTTPConsumer []byte
 //go:embed testdata/accountbinding/admin_catalog_http_test.go
 var accountBindingAdminCatalogHTTPConsumer []byte
 
+//go:embed testdata/accountbinding/admin_account_http_test.go
+var accountBindingAdminAccountHTTPConsumer []byte
+
 //go:embed testdata/accountbinding/password_admin_http_test.go
 var accountBindingPasswordAdminHTTPConsumer []byte
 
@@ -262,9 +265,14 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/password_admin_http_test.go", accountBindingPasswordAdminHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_mutation_http_test.go", accountBindingAdminMutationHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_catalog_http_test.go", accountBindingAdminCatalogHTTPConsumer)
+			writeGeneratedTestFile(t, root, "consumer/admin_account_http_test.go", accountBindingAdminAccountHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
+			required = append(required, "TestGeneratedAccountAdminLifecycle")
+			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
+				required = append(required, "TestGeneratedAccountAdminLifecycle/"+name)
+			}
 			for _, name := range []string{"csrf", "stale", "protected_input", "cross_field", "self_deactivation"} {
 				required = append(required, "TestGeneratedAdminAccountMutation/"+name)
 			}

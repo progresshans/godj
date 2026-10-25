@@ -14,14 +14,18 @@ import (
 )
 
 func TestGeneratedFirstAccountBootstrap(t *testing.T) {
-	firstCustomAccount(t, false)
+	firstCustomAccount(t, "")
 }
 
 func TestGeneratedAdminAccountMutation(t *testing.T) {
-	firstCustomAccount(t, true)
+	firstCustomAccount(t, "mutation")
 }
 
-func firstCustomAccount(t *testing.T, editOwnAccount bool) {
+func TestGeneratedAccountAdminLifecycle(t *testing.T) {
+	firstCustomAccount(t, "management")
+}
+
+func firstCustomAccount(t *testing.T, adminMode string) {
 	binding, err := project.BindAccount()
 	if err != nil {
 		t.Fatal(err)
@@ -58,8 +62,12 @@ func firstCustomAccount(t *testing.T, editOwnAccount bool) {
 	if row.Region != "NZ" || !row.Enabled || !row.Root || row.Contact != "first@example.test" {
 		t.Fatal("first custom typed fields lost")
 	}
-	if editOwnAccount {
+	if adminMode == "mutation" {
 		assertAccountAdminMutationHTTP(t, backend, binding, store, sessions, hasher, row, "region", project.NewAccountEditor)
+		return
+	}
+	if adminMode == "management" {
+		assertAccountAdminHTTP(t, backend, binding, sessions, hasher, row, "region", "priority", "description", project.NewAccountManagement, project.NewAccountCatalog)
 		return
 	}
 	t.Run("admin_catalog", func(t *testing.T) {

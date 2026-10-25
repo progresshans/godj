@@ -1012,12 +1012,12 @@ Group grant 교체는 아래의 공통 전체 수명 조정을 사용한다. Inc
 through를 바꾸는 조합도 전체 최종 상태로 검사한다. Through 모델 자체가 선택 계정/Group/Permission이면 새 링크 생성에도
 별도의 identity 생성 owner가 필요하므로 해당 collection을 쓰기로 노출할 때 `unsupported`로 거부한다. 이 저장/생성 조립은
 잔여 요구이며 읽기나 기존 전체 수명 owner의 행 삭제를 함께 차단하지 않는다.
-공통 Admin/HTTP 조립과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
+공통 Admin 조립은 아래의 선택 Catalog/Account 등록을 사용한다. 관리 JSON HTTP와 기존 고정 모델 Manager 교체는 별도 잔여 요구다.
 
 ## 선택 계정과 catalog 삭제의 전체 수명 조정
 
 생성 `NewAccountDeleter`와 `AccountDeleter[M]`는 정확한 SessionStore·계정 binding·typed catalog descriptor·전체 host의
-삭제 정책을 조립한다. 생성 ABI는 v15이며 과거 backend-only catalog 팩토리를 위한 호환 경로를 두지 않는다.
+삭제 정책을 조립한다. 현행 account-project 생성 ABI를 사용하며 과거 backend-only catalog 팩토리를 위한 호환 경로를 두지 않는다.
 `Delete`는 현재 root 삭제 권한·추가 권한을 확인한 뒤 실제 대상과 expected revision을 검사한다. 명시적으로 존재하는
 0/음수 key를 허용하며, 반환값은 확정된 ID·revision·삭제 행 수·폐기 session 수뿐이다. 삭제 권한으로 profile을 공개하지 않는다.
 
@@ -1370,9 +1370,46 @@ UI/registry의 검사는 선행 admission이고 최종 권한·도메인·대상
 이 검사는 값을 예약하거나 최종 typed validator·권한·유효 소속/한도·삭제 graph·write fence를 대신하지 않는다.
 
 Admin은 Create/Update/Delete를 같은 owner에 위임하고 확정된 ID/revision/변경 field만 반환한다. 성공 뒤 row/권한을 다시
-읽지 않는다. History는 현재 domain의 durable event를 값 없는 Admin event로 투영한다. Account 자체의 자동 등록·JSON API,
-공개 CLI/scaffold/runtime·profile 관계/파일 조립은 별도로 남아 있다. 현재 공통 Admin 객체 URL의 양수 key 경계를 native
+읽지 않는다. History는 현재 domain의 durable event를 값 없는 Admin event로 투영한다. Account 자체는 아래의 등록을 사용한다.
+관리 JSON API·공개 CLI/scaffold/runtime·profile 관계/파일 조립은 별도로 남아 있다. 현재 공통 Admin 객체 URL의 양수 key 경계를 native
 Catalog/Form owner의 signed key 지원으로 완료했다고 해석하지 않는다.
+
+## 선택 계정의 관리 owner와 공통 Admin 등록
+
+생성 `NewAccountManagement`는 정확한 SessionStore·그 Store의 인증기·전체 host source와 실제 collection/삭제 기능을 확인한다.
+하나의 `AccountManagementConfig[M]`에서 읽기/생성/수정 노출, view/add/change/delete·공통 추가 권한, Group/Permission의
+직접 동반 효과 권한, typed 생성/편집/비밀번호 정책과 서버 principal ID source·clock을 정한다. Creator·ProfileReader·
+AccountEditor·AccountDeleter·PasswordEditor는 같은 credential/session owner에 묶인다. 내부 API 이름이나 기본 User 사본을
+위한 호환 계층을 만들지 않는다. 구성은 DB·hasher·entropy·사용자 callback을 실행하지 않는다.
+
+읽기는 view 또는 change와 모든 추가 권한, 생성은 add와 change 및 모든 추가 권한을 요구한다. 수정/비밀번호/삭제도 각각의
+operation과 모든 추가 권한을 유지한다. 각 owner는 매번 현재 저장 actor·domain·대상 상태를 다시 검사한다. 반환 accessor는
+이미 source에 묶인 owner이며 source나 backend를 다시 지정하는 기능이 아니다. 설명·필드·선택지 slice는 복사된 선언이다.
+
+`FormDefinition`은 실제 노출 필드와 쓰기 login/email 정규화를 공통 ModelForm에 연결한다. `CheckCreateForm`과
+`CheckChangeForm`은 전체 model source와 선택 입력, 생성 NULL key 또는 기존 key/revision을 확인한다. `BoundForm.FieldNames`
+덕분에 cleaning에 실패한 보호 필드도 선행 admission에서 거부한다. Command 전용 입력은 모델 DB 검사에서 제외한다.
+현재 권한과 대상 무결성·유효 소속, 각 선택 key와 effective grant 한도, 정규화된 unique field/복합 unique를 한 native snapshot에서
+검사한다. 다른 필드가 invalid여도 독립 검사는 계속하고, 앞선 진단으로 제외를 다시 계산한다. Cleanup 실패에는 진단·부재·conflict도
+게시하지 않는다. 이 단계는 principal ID·시각·비밀번호를 만들거나 typed 최종 정책을 실행하지 않으며, 성공도 값을 예약하지 않는다.
+
+Add와 Change의 그룹/직접 권한 선택지는 각각의 노출과 전체 account operation 정책에 묶인다. 실제 typed catalog의 label/code,
+IR field·관계 source를 사용하고 현재 읽기 scope에서 bounded 검색/Resolve한다. 별도 catalog view 권한을 강요하지 않는다.
+Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동일 key와 최종 상태를 다시 확인한다.
+
+`identityadmin.RegisterAccount`는 login label과 모든 edit field가 읽기 노출에 있어야 한다. Create-only 필드를 읽기로 넓히지
+않으며 host는 slug와 읽을 수 있는 scalar 목록 열을 선택한다. 비밀번호/확인 입력은 공백을 보존하는 private widget과 byte 한도를
+사용한다. 명시적 unusable 선택은 별도이며 빈 비밀번호를 그 선택으로 추론하지 않는다. Command 이름이 실제 profile 이름과 겹치면
+결정적으로 별도 이름을 배정한다. 실제 stored Password/PrincipalID·revision·서버 timestamp는 쓰기 입력에 포함하지 않는다.
+
+등록된 Create는 typed 입력을 준비한 뒤 Creator의 Prepare/Commit을 한 번 호출한다. Update/Delete와 password commands도
+기존 수명 owner에 위임하며 확인된 ID/revision/변경 field만 전달한다. 자기 비활성화나 비밀번호 변경으로 읽기 권한·현재 session이
+사라져도 commit 뒤 재조회로 성공을 잃지 않는다. ProfileReader의 선택 ModelView와 현재 domain의 값 없는 durable audit만
+화면에 투영한다. 공통 Admin의 active staff·CSRF·최종 current authority 경계와 기존 host graph/rollback/unknown 의미를 유지한다.
+
+계정 관리 JSON API·공개 첫 계정 명령/scaffold/runtime 전환, profile 관계/파일, 선택 모델-as-through identity 생성, 채운 DB의
+명시적 mapping/retirement와 통합 restart는 남아 있다. Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
+경계를 완료했다고 계산하지 않는다. 구현·최소 compile·환경별 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
 ## 선택 계정의 비밀번호 재설정
 

@@ -1431,6 +1431,62 @@ Relation 필수 목록은 4,221→4,273(52개 추가), PostgreSQL core 5,429→5
 Admin·JSON API·공개 CLI/scaffold/runtime·profile 관계/파일·선택 모델-as-through identity·채운 DB 전환·통합 restart와
 전체 카탈로그의 잔여 범위를 유지한다. 공통 Admin 객체 URL의 양수 key 경계도 native signed key 지원과 구분한다.
 
+### 선택 계정의 공통 관리 owner와 Admin 등록
+
+2026-10-26, `037c0f6b9ee7e60e18672ae18b70e659761c99b6` 위에서 generated `NewAccountManagement`와
+`identityadmin.RegisterAccount`를 작성했다. 같은 SessionStore·그 Store의 인증기·전체 host source의 collection/삭제 기능에
+Creator·ProfileReader·AccountEditor·AccountDeleter·PasswordEditor를 묶는다. Read/create/edit 노출과 operation/공통 추가 권한,
+catalog 동반 효과의 권한·typed 생성/편집/비밀번호 정책을 한 선언에서 정한다. 등록은 I/O를 하지 않으며 실제 선택 ModelView만
+투영한다. Private 비밀번호/확인·명시적 unusable 생성과 두 password command를 연결하고 확인된 commit 뒤 재조회하지 않는다.
+
+폼은 같은 쓰기 정규화와 정확한 model/target/revision에 묶이며 실패한 보호 필드도 `BoundForm.FieldNames`로 검사한다.
+부분 오류가 있어도 유효 scalar의 unique/복합 unique와 각 선택 key·effective grant 한도를 같은 현재 인가 snapshot에서 확인한다.
+Scope/cleanup 실패에는 진단·부재·conflict도 게시하지 않는다. 읽기 검사에서는 principal ID/시각/비밀번호를 생성하거나
+최종 typed 정책을 실행하지 않는다. 성공 후 다른 writer가 만든 중복도 실제 Creator가 다시 거부하도록 요구한다.
+Add/Change별 그룹·직접 권한 선택지는 실제 typed catalog와 전체 account 권한을 사용하며 별도 catalog view를 강요하지 않는다.
+
+- 순수 source/세션/인증기/collection/삭제 기능·권한/노출·input admission·비밀번호 입력 분리 검사 37개 root/child 항목을
+  Relation 필수 목록에 추가했다. 생성 command 이름이 실제 profile 이름과 겹치는 경우, 필수/확인/byte 한도와 명시적
+  unusable 선택도 포함한다. 이 숫자는 새 본문의 실행 요구이며 로컬 runtime PASS가 아니다.
+- 양 DB에는 각각 28개 필수 root/child 항목을 추가했다. 부분 오류와 정규화/대소문자 unique, 현재 행 제외·stale/부재,
+  서로 다른 두 잘못된 선택, add+change/추가 권한·회수/inactive/old domain, query/close·누락/반복 callback·cleanup/취소와
+  저장된 0/음수 key를 포함한다. 저장 row/audit와 해싱·정책 callback이 읽기 검사로 바뀌지 않는지도 대조하도록 작성했다.
+- 기본/custom 일곱 생성 변형에는 실제 등록 API의 TCP Admin 수명 검사를 추가했다. Bounded 검색·첫 page 밖 두 소속,
+  private/정책/CSRF/보호 입력/추가 권한 거부, usable/unusable 생성, 수정/history/no-op, password command, 자기 비활성화와
+  두 브라우저 폐기, 삭제/audit를 요구한다. 새 root 7개와 child 147개를 부모 verifier가 필수로 확인한다. 기존 수동 callback의
+  commit 뒤 조회 금지 검사와 Catalog/password 소비자도 유지했다. 이 외부 HTTP 소비자의 DB는 SQLite다.
+
+Account-project ABI v16으로 관리 중인 12개 project bundle을 갱신했다. 실제 publication의 candidate compile과 12개 manifest의
+파일 hash/ABI가 현재 생성물에 일치함을 확인했다. 전체 deterministic generated drift·새 기능 본문 실행은 원격 검증 대상이다.
+
+선행 [CI 40240195765](https://github.com/progresshans/godj/actions/runs/40240195765) attempt 1을 관측한 시점은 114개 job 중
+성공 56·실패 6·실행 중 21·대기 31이었다. 여섯 Linux runtime 좌표의 원본 checkout은 모두
+`408e56d65cd23ebf377b5bcd52f10ae970db01df`이고 부모의 제출 source와 tree
+`a0f19779a2b5104066c623858d50ec0b723f4ecd`가 일치한다. 전체 실행의 종결/성공으로 계산하지 않는다.
+
+실패는 두 가지였다. Matrix 안의 설명 주석을 workflow 계약 검사가 속성으로 해석했다. 주석을 matrix 밖으로 옮겼으며
+35분 예산·모든 coordinate/mode/필수 실행과 검사 자체를 유지했다. Catalog의 `create_existing` fixture는 ID 값만 채워
+저장 key의 존재 표시를 하지 않았다. 생성 descriptor로 존재 표시를 설정해 기존 객체와 생성 NULL의 실제 차이를 검사한다.
+두 실패를 로컬에서 재현하고 해당 세 root의 한정 재실행에서 test pass event 10개, fail/skip 0개를 확인했다. 최초 시도에서
+새 management 단위 fixture의 존재하지 않는 host factory 참조도 compile 오류로 발견해 실제 source binding 선언으로 고쳤다.
+그 실패 기록을 성공으로 집계하지 않는다.
+
+최종 source는 forms/model·identity/model·identity/admin·SQLite·PostgreSQL·codegen·codegen/consumertest·cmd/godj 여덟 package의
+`go test -run '^$'` 최소 compile을 확인했다(test body 0개). 실제 부모의 source 선언과 embedded 소비자를 사용한 기본/custom
+별도 생성 module도 같은 방식으로 compile했다. 임시 overlay의 준비 root/child 3개는 23.656초에 통과했지만 실제 생성
+소비자의 feature body는 각각 0개다. 새 native/Admin/HTTP 본문·양 DB/race/process/platform은 로컬에서 실행하지 않았다.
+포맷·diff와 243개 문서의 로컬 링크도 확인했다.
+
+Relation 필수 목록은 4,273→4,338(65개 추가), PostgreSQL core는 5,478→5,506(28개 추가)이며 Portable core 65개는 유지한다.
+기존 항목 보존·중복 없음과 PostgreSQL 세 mode/일곱 coordinate의 유일한 실행 소유권을 확인했다. 원본 CI 로그·merge/tree,
+실패 재현/한정 재실행·최소 compile·생성 publication·필수 목록과 현행 비 Markdown source 214개의 hash는 검증 보관소의
+`gdj0138-account-admin-v1/receipt.json`에 연결했다
+(SHA-256 `b6b20b4ed483375813db87213d1ba5b65f61b5edc53d97818e0ddea49cdd5ad6`).
+
+관리 JSON API·공개 첫 계정 터미널/상위 process·scaffold/통합 runtime, profile 관계/파일, 선택 모델-as-through identity 생성,
+채운 DB의 mapping/retirement/receipt, 설치·통합 startup/restart·독립 PostgreSQL HTTP/브라우저·고정 Django 수용과 전체
+카탈로그의 잔여 요구를 유지한다. I1 전체 PASS가 아니며 Admin 양수 객체 URL과 native signed key의 검증 범위도 구분한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

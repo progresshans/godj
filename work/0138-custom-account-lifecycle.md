@@ -267,7 +267,17 @@ snapshot에서 bounded 검색/Resolve하고, partial-invalid Form의 독립 uniq
 작성·최소 compile과 실제 원격 본문 실행은 TEST_EVIDENCE에서 구분한다. 기존 수명 감사의 독립 기대값은 실제 모델 선언
 순서에 맞췄고 CI가 관측한 cold CLI 준비/누적 시간은 검사 삭제 없이 harness 예산으로 보정했다.
 
-프로필 관계/파일과 기존 Directory/Manager 교체, 계정 자체의 공통 Admin 등록·JSON HTTP 제품 조립,
+선택 계정 자체의 `NewAccountManagement`와 `identityadmin.RegisterAccount`를 작성했다. 같은 SessionStore·인증기·전체 host
+source에 생성/조회/수정/삭제/비밀번호 owner를 묶고 명시적 read/create/edit 노출과 전체 operation/추가 권한을 공통 Admin에
+연결한다. 두 종류의 현재 소속 선택지, partial-invalid Form의 정규화/unique/선택 key 검사, 명시적 unusable 생성과 private
+비밀번호 입력을 제공한다. 실제 profile 이름과 command 이름의 충돌을 피하며 저장 성공 뒤 재조회하지 않는다.
+
+양 DB에는 읽기 전용 Form의 부분 오류·현재 행 제외·signed key·권한 회수/inactive/old domain·실패 scope/cleanup을 추가했다.
+기본/custom 일곱 생성 변형에는 자동 등록 자체의 실제 TCP 생성·bounded 선택·보호/권한/비밀번호 오류·수정/history·비밀번호
+명령·자기 비활성화/두 세션 폐기·삭제/audit 소비자를 작성했다. 새 본문 작성·최소 compile과 원격 실행은 TEST_EVIDENCE에서
+구분한다. Account-project ABI v16으로 관리 중인 12개 project bundle을 갱신했다.
+
+프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP 제품 조립,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 

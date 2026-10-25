@@ -51,11 +51,15 @@ func checkRevision(expected, actual int64) error {
 }
 
 func passwordError(err error) error {
+	return passwordInputError(err, "password2")
+}
+
+func passwordInputError(err error, field string) error {
 	if failures, ok := validation.Rejected(err); ok {
 		items := failures.All()
 		for i, item := range items {
 			if item.Field() == "password" {
-				items[i] = validation.New("password2", item.Code(), item.Params()...)
+				items[i] = validation.New(validation.Field(field), item.Code(), item.Params()...)
 			}
 		}
 		// The manager owns whether rollback was confirmed. Keep its complete

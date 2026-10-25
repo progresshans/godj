@@ -297,8 +297,14 @@ Form·관리 화면·비밀번호 명령을 구성한다. 호스트의 전체 �
 선택 계정의 generated `NewAccountCatalog`로 만든 실제 Group/Permission owner는
 [`identityadmin.RegisterCatalog`](../identity/admin/selected_catalog.go)에 연결한다. 호스트는 두 모델의 slug와 목록 열을
 지정하고, source·Form field·권한·현재 선택지·CRUD·감사는 owner에서 가져온다. 읽기 노출에 없는 Form field/label은 등록 오류다.
-기본 User와 별도 catalog app·renamed field·추가 scalar에 같은 등록 함수를 사용한다. 이 경로의 계정 자체 자동 등록·JSON API와
-공개 CLI/scaffold runtime 전환은 아직 남아 있으며 [I1 진행](../work/0138-custom-account-lifecycle.md)을 따른다.
+기본 User와 별도 catalog app·renamed field·추가 scalar에 같은 등록 함수를 사용한다.
+
+계정 자체는 generated `NewAccountManagement`에 같은 SessionStore와 그 Store의 인증기, 관리 정책을 전달하고
+[`identityadmin.RegisterAccount`](../identity/admin/selected_account.go)에 등록한다. 읽기·생성·수정 필드와 operation/추가 권한,
+catalog 동반 효과의 권한, typed 생성/편집/비밀번호 정책을 한 곳에서 정한다. 등록 시에는 slug와 목록 열만 정하며 비밀번호
+입력·확인·명시적 unusable 선택, 현재 그룹/직접 권한 선택지와 비밀번호 명령을 함께 제공한다. 모델에 같은 이름의 프로필 필드가
+있으면 별도 command 이름을 사용한다. 생성은 add와 change를 모두 요구하고, 저장 뒤에는 확인된 ID/revision만 반환한다.
+이 경로의 관리 JSON API·공개 CLI/scaffold runtime 전환은 아직 남아 있으며 [I1 진행](../work/0138-custom-account-lifecycle.md)을 따른다.
 
 [일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON API를 제공한다.
 변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.

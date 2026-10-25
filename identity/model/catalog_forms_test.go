@@ -64,6 +64,7 @@ func TestCatalogFormAndChoiceDeclarationsRetainSourceBeforeIO(t *testing.T) {
 				t.Fatal(err)
 			}
 			current := models.Group{ID: 7, Name: "Before", Revision: 2}
+			(models.GroupDescriptor{}).SetPrimaryKey(&current, 7)
 			bound, err := formmodel.BindInstance(t.Context(), models.GroupObjects, form, forms.NewData(map[string][]string{"name": {"Changed"}}), &current, formmodel.PostClean{})
 			if err != nil {
 				t.Fatal(err)

@@ -545,6 +545,8 @@ jobs:
     env:
       LC_ALL: C
       TZ: UTC
+    # A cold linked runner took 371s on linux/amd64. Its command package needs
+    # the 35m cumulative budget below to retain every sequential CLI test.
     strategy:
       fail-fast: false
       matrix:
@@ -552,8 +554,6 @@ jobs:
           - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
-            # A cold linked runner took 371s on this coordinate; preserve all
-            # sequential CLI tests beyond the former cumulative 20m cutoff.
             cmd_test_timeout: "35m"
             flow_test_timeout: "25m"
             timeout_minutes: {normal: 65, race: 75, cgo0: 65}

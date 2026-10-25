@@ -17,16 +17,20 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 		{"explicit_empty", firstProfileInput{present: true, expected: ""}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			firstDefaultAccount(t, test.profile, false)
+			firstDefaultAccount(t, test.profile, "")
 		})
 	}
 }
 
 func TestGeneratedAdminAccountMutation(t *testing.T) {
-	firstDefaultAccount(t, firstProfileInput{present: true, text: "NZ", expected: "NZ"}, true)
+	firstDefaultAccount(t, firstProfileInput{present: true, text: "NZ", expected: "NZ"}, "mutation")
 }
 
-func firstDefaultAccount(t *testing.T, profile firstProfileInput, editOwnAccount bool) {
+func TestGeneratedAccountAdminLifecycle(t *testing.T) {
+	firstDefaultAccount(t, firstProfileInput{present: true, text: "NZ", expected: "NZ"}, "management")
+}
+
+func firstDefaultAccount(t *testing.T, profile firstProfileInput, adminMode string) {
 	t.Helper()
 	binding, err := project.BindAccount()
 	if err != nil {
@@ -54,8 +58,12 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput, editOwnAccount
 	if row.FirstName != profile.expected || !row.Staff || !row.Superuser {
 		t.Fatal("first default typed fields lost")
 	}
-	if editOwnAccount {
+	if adminMode == "mutation" {
 		assertAccountAdminMutationHTTP(t, backend, binding, store, sessions, hasher, row, "first_name", project.NewAccountEditor)
+		return
+	}
+	if adminMode == "management" {
+		assertAccountAdminHTTP(t, backend, binding, sessions, hasher, row, "first_name", "", "", project.NewAccountManagement, project.NewAccountCatalog)
 		return
 	}
 	t.Run("admin_catalog", func(t *testing.T) {

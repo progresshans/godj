@@ -251,4 +251,4 @@ func (input TicketCreate) BuildManyToManyCreate(source, target ir.Field, sourceK
 
 type GoDjAppPart2_eca3d602e4ef96c08e46321306d27f4949b82be82e2faaf036c4ac43003285b9 struct{}
 
-var _ GoDjProjectSnapshot_ec04b945d1e55ed1da5cdfaef72f265adf0d9c4ad645b547e243554ea3bc8b2d
+var _ GoDjProjectSnapshot_54357308d9495edf0ddf9e010dd67e2fa220e48d4b687c85ceeadc72dccb91d9

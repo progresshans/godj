@@ -23,9 +23,7 @@ func normalizeAccountInput(metadata ir.Model, role ir.AccountRole, values map[st
 			if !valid || auth.ValidateUsername(login) != nil {
 				return profileInputError(field.Name, "invalid")
 			}
-			if role.WriteLoginNormalization == ir.AccountUnicode16NFKC {
-				login = unicode16.NFKC(login)
-			}
+			login = normalizeAccountLogin(role, login)
 			if auth.ValidateUsername(login) != nil {
 				return profileInputError(field.Name, "invalid")
 			}
@@ -37,12 +35,7 @@ func normalizeAccountInput(metadata ir.Model, role ir.AccountRole, values map[st
 			if !valid || len(email) > 4096 || !utf8.ValidString(email) || strings.ContainsRune(email, 0) {
 				return profileInputError(field.Name, "invalid")
 			}
-			if role.WriteEmailNormalization == ir.AccountUnicode16EmailDomain {
-				trimmed := unicode16.TrimSpace(email)
-				if at := strings.LastIndexByte(trimmed, '@'); at >= 0 {
-					email = trimmed[:at+1] + unicode16.Lower(trimmed[at+1:])
-				}
-			}
+			email = normalizeAccountEmail(role, email)
 			if field.Name == role.Login && auth.ValidateUsername(email) != nil {
 				return profileInputError(field.Name, "invalid")
 			}
@@ -59,4 +52,21 @@ func normalizeAccountInput(metadata ir.Model, role ir.AccountRole, values map[st
 		}
 	}
 	return nil
+}
+
+func normalizeAccountLogin(role ir.AccountRole, value string) string {
+	if role.WriteLoginNormalization == ir.AccountUnicode16NFKC {
+		return unicode16.NFKC(value)
+	}
+	return value
+}
+
+func normalizeAccountEmail(role ir.AccountRole, value string) string {
+	if role.WriteEmailNormalization == ir.AccountUnicode16EmailDomain {
+		trimmed := unicode16.TrimSpace(value)
+		if at := strings.LastIndexByte(trimmed, '@'); at >= 0 {
+			return trimmed[:at+1] + unicode16.Lower(trimmed[at+1:])
+		}
+	}
+	return value
 }

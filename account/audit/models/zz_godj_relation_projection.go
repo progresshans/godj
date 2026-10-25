@@ -90,4 +90,4 @@ func (_scan *eventProjectionScan) Decode() (Event, query.Value, orm.ProjectionPr
 
 type GoDjAppPart3_b7f116c310b31d04c3ef4468d2afc774b06a6ed401dc5595fea37cd8713ecae6 struct{}
 
-var _ GoDjProjectSnapshot_0afb693e3a74223dbf5f424a0e754b7c6c0e42de4087988a5f92dda2742d153a
+var _ GoDjProjectSnapshot_58bae201c729562bb196d3932898199ed322ad5413cc5dbd53602ff8541b43de
