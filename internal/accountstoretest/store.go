@@ -159,6 +159,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			creationNonpositiveChoices(t, backend, storedKey)
 		}},
 		{"role_edit_and_deactivation", roleEditAndDeactivation},
+		{"account_profile_and_roles", combinedProfileAndRoles},
 		{"role_authority_and_domain", roleAuthorityAndDomain},
 		{"role_bounds", roleBounds},
 		{"role_target_integrity", roleTargetIntegrity},
@@ -174,7 +175,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
-			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || test.name == "first_account_lifecycle" {
+			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || test.name == "first_account_lifecycle" || test.name == "account_profile_and_roles" {
 				sources = append(sources, sessiondb.MigrationSources()...)
 			}
 			loaded, _, err := definition.Load(sources...)

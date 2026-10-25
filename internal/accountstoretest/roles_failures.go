@@ -91,7 +91,7 @@ func roleCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T) B
 					return &roleFaultScope{RelationSession: relation, conflict: conflict, mode: mode, fault: fault, effects: effects}
 				}
 			}
-			config := roleConfig()
+			config := accountEditConfig()
 			if mode == "validator_rejection" || mode == "validator_failure" || mode == "cleanup_failure" || mode == "swallowed_rejection" {
 				config.Validate = func(context.Context, db.Queryer, models.User, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
 					diagnostics := validation.NewErrors(validation.New("staff", "rejected"))
@@ -108,11 +108,11 @@ func roleCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T) B
 			if err != nil {
 				t.Fatal(err)
 			}
-			editor, err := project.NewAccountRoleEditor(scopedSessions, auth.PrincipalAuthorizer{}, config)
+			editor, err := project.NewAccountEditor(scopedSessions, auth.PrincipalAuthorizer{}, config)
 			if err != nil {
 				t.Fatal(err)
 			}
-			input := roleInput(t, map[string]query.Value{"active": query.Boolean(false), "staff": query.Boolean(true)}, map[string][]int64{"groups": {f.group.ID}, "permissions": {f.grants[0].ID}})
+			input := roleInput(t, map[string]query.Value{"username": query.String("combined-" + mode), "email": query.String("Local@EXAMPLE.TEST"), "first_name": query.String("Combined profile"), "active": query.Boolean(false), "staff": query.Boolean(true)}, map[string][]int64{"groups": {f.group.ID}, "permissions": {f.grants[0].ID}})
 			result, err := editor.Update(ctx, actor, target.ID, 1, input)
 			if owner.calls != 1 {
 				t.Fatal("role mutation retried or skipped configured owner", owner.calls)
@@ -162,7 +162,7 @@ func roleCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T) B
 			row := profileRow(t, reopen(t), target.ID)
 			history := profileHistory(t, reopen(t), actor, target.ID)
 			if committed {
-				if row.Active || !row.Staff || row.Revision != 2 || len(history) != 1 {
+				if row.Active || !row.Staff || row.Revision != 2 || len(history) != 1 || row.Username != "combined-"+mode || row.Email != "Local@example.test" || row.FirstName != "Combined profile" {
 					t.Fatal("committed role state/audit mismatch")
 				}
 				assertRoleKeys(t, reader, actor, target.ID, []int64{f.group.ID}, []int64{f.grants[0].ID})

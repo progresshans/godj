@@ -49,7 +49,7 @@ func roleConsumerFields(role ir.AccountRole) []string {
 // real browser cookie authenticates Form/JSON management and a second browser
 // logs into the target before its deactivation. No principal or role is trusted
 // from a request, and all membership mutations go through the typed owner.
-func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], authenticator *accountmodel.Authenticator[M], store *accountmodel.SessionStore[M], editor *accountmodel.RoleEditor[M], reader *accountmodel.ProfileReader[M], actor auth.Principal, actorLogin string, target M, groupID, permissionID int64) {
+func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], authenticator *accountmodel.Authenticator[M], store *accountmodel.SessionStore[M], editor *accountmodel.AccountEditor[M], reader *accountmodel.ProfileReader[M], actor auth.Principal, actorLogin string, target M, groupID, permissionID int64, profileField, editedProfile string) {
 	t.Helper()
 	check := func(err error) {
 		t.Helper()
@@ -71,6 +71,10 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	values, err := objects.ModelValues(target)
 	check(err)
 	targetLogin, _ := values[role.Login].String()
+	originalProfile, ok := values[profileField].String()
+	if !ok || originalProfile == editedProfile {
+		t.Fatal("combined profile fixture has no actual change")
+	}
 	secret, _ := values[role.Password].String()
 	subject, _ := values[role.PrincipalID].String()
 	form, err := formmodel.NewSpecForFields(metadata, editor.Fields())
@@ -287,7 +291,7 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 		t.Fatal("role detail exposed hidden fields", raw)
 	}
 	token := headers.Get(runtime.CSRFHeader())
-	data := url.Values{"revision": {"1"}, "csrfmiddlewaretoken": {token}, role.Groups: {strconv.FormatInt(groupID, 10)}, role.Permissions: {strconv.FormatInt(permissionID, 10)}}
+	data := url.Values{"revision": {"1"}, "csrfmiddlewaretoken": {token}, role.Groups: {strconv.FormatInt(groupID, 10)}, role.Permissions: {strconv.FormatInt(permissionID, 10)}, profileField: {editedProfile}}
 	for _, flag := range []ir.AccountBoolean{role.Active, role.Staff, role.Superuser} {
 		if flag.Constant == nil {
 			data[flag.Field] = []string{"true"}
@@ -301,12 +305,22 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	if status != 200 || headers.Get("X-Role-Revision") != "2" {
 		t.Fatal("role form revision", status)
 	}
+	formCurrent, err := reader.Get(t.Context(), actor, id)
+	check(err)
+	if value, _ := formCurrent.View().Values()[profileField].String(); value != editedProfile || formCurrent.Revision() != 2 {
+		t.Fatal("Form profile and roles did not commit at one revision")
+	}
 	token = headers.Get(runtime.CSRFHeader())
 	encode := func(data map[string]any) string { wire, err := json.Marshal(data); check(err); return string(wire) }
-	raw = encode(map[string]any{role.Permissions: []int64{}})
+	raw = encode(map[string]any{role.Permissions: []int64{}, profileField: originalProfile})
 	status, _, _ = send(client, "PATCH", "/api/roles/", api.JSONContentType, raw, token, "1")
 	if status != 409 {
 		t.Fatal("stale role JSON admitted", status)
+	}
+	staleCurrent, err := reader.Get(t.Context(), actor, id)
+	check(err)
+	if value, _ := staleCurrent.View().Values()[profileField].String(); value != editedProfile || staleCurrent.Revision() != 2 {
+		t.Fatal("stale combined JSON changed profile")
 	}
 	status, _, _ = send(client, "PATCH", "/api/roles/", api.JSONContentType, encode(map[string]any{role.Password: "must-not-write"}), token, "2")
 	if status != 400 {
@@ -323,6 +337,9 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	if current.Revision() != 3 || !loaded || len(groupKeys) != 1 || groupKeys[0] != groupID || !directLoaded || len(directKeys) != 0 {
 		t.Fatal("role omission/clear semantics diverged")
 	}
+	if value, _ := current.View().Values()[profileField].String(); value != originalProfile {
+		t.Fatal("JSON profile and memberships did not commit together")
+	}
 	status, _, _ = send(client, "PATCH", "/api/roles/", api.JSONContentType, encode(map[string]any{role.Groups: []int64{9223372036854775807}}), token, "3")
 	if status != 400 {
 		t.Fatal("missing role choice admitted", status)
@@ -331,7 +348,7 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	if _, present, err := store.Load(t.Context(), targetSession); err != nil || !present {
 		t.Fatal("target HTTP login not durable", err)
 	}
-	status, _, _ = send(client, "PATCH", "/api/roles/", api.JSONContentType, encode(map[string]any{role.Active.Field: false}), token, "3")
+	status, _, _ = send(client, "PATCH", "/api/roles/", api.JSONContentType, encode(map[string]any{role.Active.Field: false, profileField: editedProfile}), token, "3")
 	if status != 204 {
 		t.Fatal("role JSON deactivation", status)
 	}
@@ -349,6 +366,9 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	check(err)
 	if current.Revision() != 4 {
 		t.Fatal("rejections advanced role revision")
+	}
+	if value, _ := current.View().Values()[profileField].String(); value != editedProfile {
+		t.Fatal("deactivation did not commit the same profile edit")
 	}
 	history, err := reader.History(t.Context(), actor, id, 100)
 	check(err)

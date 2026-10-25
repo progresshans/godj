@@ -126,11 +126,12 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertCatalogConsumer(t, catalog, actor.Principal(), role, "", "")
-	roleEditor, err := project.NewAccountRoleEditor(sessionStore, auth.PrincipalAuthorizer{}, accountmodel.RoleConfig[models.User]{Fields: roleConsumerFields(role), ChangePermission: "account.team"})
+	editFields := append(roleConsumerFields(role), "first_name")
+	roleEditor, err := project.NewAccountEditor(sessionStore, auth.PrincipalAuthorizer{}, accountmodel.AccountEditConfig[models.User]{Fields: editFields, ChangePermission: "account.team"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	roleReader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: roleConsumerFields(role), ViewPermission: "account.team"})
+	roleReader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: editFields, ViewPermission: "account.team"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -138,7 +139,9 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "alice", roleTarget, team.ID, grants[0].ID)
+	t.Run("profile_role_edit", func(t *testing.T) {
+		assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "alice", roleTarget, team.ID, grants[0].ID, "first_name", "Managed")
+	})
 	creationConfig := creationConsumerConfig[models.User](role, "first_name")
 	creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, creationConfig)
 	if err != nil {

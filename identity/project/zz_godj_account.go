@@ -13,7 +13,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v13"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v14"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -136,8 +136,8 @@ func NewFirstAccountDefinition(hasher _godjaccountauth.PasswordHasher, config _g
 	return _godjaccountmodel.NewFirstAccountDefinition(binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, hasher, config)
 }
 
-// NewAccountRoleEditor uses the existing session owner for current roles, memberships, audit and deactivation.
-func NewAccountRoleEditor(sessions *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RoleConfig[identity.User]) (*_godjaccountmodel.RoleEditor[identity.User], error) {
+// NewAccountEditor uses the existing session owner for profiles, roles, memberships, audit and deactivation.
+func NewAccountEditor(sessions *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountEditConfig[identity.User]) (*_godjaccountmodel.AccountEditor[identity.User], error) {
 	binding, err := BindAccount()
 	if err != nil {
 		return nil, err
@@ -150,7 +150,7 @@ func NewAccountRoleEditor(sessions *_godjaccountmodel.SessionStore[identity.User
 	if err != nil {
 		return nil, err
 	}
-	return _godjaccountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config)
+	return _godjaccountmodel.NewAccountEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config)
 }
 
 // NewAccountProfileReader binds current account authority, selected profile data and domain history to one snapshot owner.
@@ -187,4 +187,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_ee690058018c94e2d553e44471c0b247c4bba8115f2e4122dac69bee37c41022
+var _ goDjProjectSnapshot_52b75592ae8fe017d883002e6e9c4c6e1b11d40173ecab754bc52b8a42083faf

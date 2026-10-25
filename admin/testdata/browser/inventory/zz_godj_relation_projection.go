@@ -190,4 +190,4 @@ func (_scan *auditProjectionScan) Decode() (Audit, query.Value, orm.ProjectionPr
 
 type GoDjAppPart3_5a8833a17d94e7ae0abc20c9be6e98a8d55d3e2d8caccefc05e8a1624a6b0cf6 struct{}
 
-var _ GoDjProjectSnapshot_74476e031407569a9ecf119dc19820aa7545fdd850b62af3ade7c77f2353218c
+var _ GoDjProjectSnapshot_e9612608a7d19b3dc29c049edb678b5a766c8fd82addbf8452dce421f2b50d91

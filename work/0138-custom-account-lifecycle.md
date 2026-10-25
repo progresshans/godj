@@ -105,8 +105,8 @@ Namespace/전체 용량·batch rollback·scope/cleanup/unknown·동시 생성·d
 실제 cookie의 저장 행·선택 LastLogin을 대조하도록 확장했다. 새 본문 실행과 이전 catalog CI 실패의 한정 수정 재현은
 서로 구분하며 TEST_EVIDENCE에 기록한다.
 
-같은 SessionStore를 받는 생성 `NewAccountRoleEditor`와 typed `RoleEditor[M]`를 작성했다. 명시한 active/staff/superuser와
-직접 그룹/권한만 수정하며, 현재 인가·revision·현재/제안 소속과 유효 합집합의 한도·감사·활성→비활성 세션 폐기를
+같은 SessionStore를 받는 생성 `NewAccountEditor`와 typed `AccountEditor[M]`는 명시한 scalar profile·active/staff/superuser와
+직접 그룹/권한을 수정하며, 현재 인가·revision·현재/제안 소속과 유효 합집합의 한도·감사·활성→비활성 세션 폐기를
 하나의 native relation transaction에 묶는다. 상세 조회는 선택한 소속을 제공하고 목록은 scalar만 읽는다.
 역할 source 혼합·상수 역할·부정 입력과 양 DB의 생명주기·선택/한도·실패/rollback·경합 검사를 추가했다.
 기본/renamed/NoReverse 소비자의 실제 HTTP Form·JSON 역할 수정과 대상 브라우저 세션 폐기 검사도 작성했다.
@@ -192,6 +192,12 @@ Form 검사와 active staff/추가 권한의 선행·최종 admission, 동일 �
 기본/custom/인증 NFKC/Form NFKC/짧은 login/Text login/LastLogin 없는 첫 계정 소비자를 실제 Admin에 연결해
 입력·권한 거부의 durable 불변과 성공 시 선택 session/LastLogin·안전한 redirect를 확인하도록 확장했다.
 로컬 최소 compile과 새 단위·HTTP 본문의 원격 실행 상태는 TEST_EVIDENCE에서 구분한다.
+
+통합 Admin 수정의 기반으로 기존 역할 편집 owner를 AccountEditor로 확장했다. 선택 프로필의 login/email 정규화와
+모든 역할/소속 입력을 같은 현재 후보로 검증하고 한 번의 revision·전체 감사·비활성화 세션 폐기로 확정한다.
+생성 factory와 실제 소비자를 새 API로 전환했다. 양 DB의 복합 정책/unique 거부·부분 쓰기/cleanup/unknown·동시 수정과
+기본/custom 실제 Form·JSON의 프로필/소속 수정 및 비활성화를 검사하도록 확장했다. 생성/최소 compile과 새 본문 실행은
+TEST_EVIDENCE에서 구분한다. 이 owner와 소비자는 공통 account/catalog Admin 자동 등록의 완료가 아니다.
 
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·통합 runtime·host 삭제·audit/session 설치/startup·채운 DB

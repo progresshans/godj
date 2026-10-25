@@ -22,8 +22,8 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func roleConfig() accountmodel.RoleConfig[models.User] {
-	return accountmodel.RoleConfig[models.User]{Fields: []string{"active", "staff", "superuser", "groups", "permissions"}, ChangePermission: "account.direct", Now: func() time.Time { return joined }}
+func roleConfig() accountmodel.AccountEditConfig[models.User] {
+	return accountmodel.AccountEditConfig[models.User]{Fields: []string{"active", "staff", "superuser", "groups", "permissions"}, ChangePermission: "account.direct", Now: func() time.Time { return joined }}
 }
 func roleInput(t *testing.T, values map[string]query.Value, collections map[string][]int64) orm.ModelInput[models.User] {
 	t.Helper()
@@ -42,9 +42,9 @@ func roleTarget(t *testing.T, backend Backend, f *fixture, name string) models.U
 	}
 	return target
 }
-func roleEditor(t *testing.T, store *accountmodel.SessionStore[models.User]) *accountmodel.RoleEditor[models.User] {
+func roleEditor(t *testing.T, store *accountmodel.SessionStore[models.User]) *accountmodel.AccountEditor[models.User] {
 	t.Helper()
-	editor, err := project.NewAccountRoleEditor(store, auth.PrincipalAuthorizer{}, roleConfig())
+	editor, err := project.NewAccountEditor(store, auth.PrincipalAuthorizer{}, roleConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func roleEditAndDeactivation(t *testing.T, backend Backend, reopen func(*testing
 		candidate.EncodedPassword = "mutated-copy"
 		return validation.Errors{}, nil
 	}
-	editor, err = project.NewAccountRoleEditor(store, auth.PrincipalAuthorizer{}, config)
+	editor, err = project.NewAccountEditor(store, auth.PrincipalAuthorizer{}, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,14 +247,14 @@ func roleAuthorityAndDomain(t *testing.T, backend Backend, reopen func(*testing.
 	f.direct = restored
 	config := roleConfig()
 	config.AdditionalPermissions = []auth.Permission{"account.missing"}
-	restricted, err := project.NewAccountRoleEditor(store, auth.PrincipalAuthorizer{}, config)
+	restricted, err := project.NewAccountEditor(store, auth.PrincipalAuthorizer{}, config)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := restricted.Update(t.Context(), actor, target.ID, 1, input); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodePermission}) {
 		t.Fatal("missing additional permission admitted", err)
 	}
-	denied, err := project.NewAccountRoleEditor(store, overlayFunc(func(context.Context, auth.Principal, auth.Permission) (bool, error) { return false, nil }), roleConfig())
+	denied, err := project.NewAccountEditor(store, overlayFunc(func(context.Context, auth.Principal, auth.Permission) (bool, error) { return false, nil }), roleConfig())
 	if err != nil {
 		t.Fatal(err)
 	}

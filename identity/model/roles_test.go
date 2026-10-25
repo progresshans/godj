@@ -5,6 +5,7 @@ import (
 	"errors"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/auth"
@@ -38,18 +39,18 @@ func TestAccountRoleCompositionAndInputsRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := accountmodel.RoleConfig[models.User]{Fields: []string{"active", "staff", "superuser", "groups", "permissions"}, ChangePermission: "account.change"}
-	build := func(c accountmodel.RoleConfig[models.User]) (*accountmodel.RoleEditor[models.User], error) {
-		return accountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, c)
+	config := accountmodel.AccountEditConfig[models.User]{Fields: []string{"active", "staff", "superuser", "groups", "permissions"}, ChangePermission: "account.change"}
+	build := func(c accountmodel.AccountEditConfig[models.User]) (*accountmodel.AccountEditor[models.User], error) {
+		return accountmodel.NewAccountEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, c)
 	}
-	for _, fields := range [][]string{nil, {"staff", "staff"}, {"unknown"}, {"id"}, {"principal_id"}, {"encoded_password"}, {"revision"}, {"last_login"}, {"date_joined"}, {"first_name"}, {"username"}} {
+	for _, fields := range [][]string{nil, {"staff", "staff"}, {"unknown"}, {"id"}, {"principal_id"}, {"encoded_password"}, {"revision"}, {"last_login"}, {"date_joined"}} {
 		invalid := config
 		invalid.Fields = fields
 		if editor, err := build(invalid); editor != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) {
 			t.Fatal("invalid role exposure", fields, err)
 		}
 	}
-	for _, policy := range []accountmodel.RoleConfig[models.User]{{Fields: config.Fields}, {Fields: config.Fields, ChangePermission: "invalid permission"}, {Fields: config.Fields, ChangePermission: config.ChangePermission, AdditionalPermissions: []auth.Permission{config.ChangePermission}}} {
+	for _, policy := range []accountmodel.AccountEditConfig[models.User]{{Fields: config.Fields}, {Fields: config.Fields, ChangePermission: "invalid permission"}, {Fields: config.Fields, ChangePermission: config.ChangePermission, AdditionalPermissions: []auth.Permission{config.ChangePermission}}} {
 		if editor, err := build(policy); editor != nil || err == nil {
 			t.Fatal("invalid grant policy")
 		}
@@ -58,10 +59,10 @@ func TestAccountRoleCompositionAndInputsRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if editor, err := accountmodel.NewRoleEditor(sessions, binding, host.AccountsUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
+	if editor, err := accountmodel.NewAccountEditor(sessions, binding, host.AccountsUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
 		t.Fatal("foreign group source admitted")
 	}
-	if editor, err := accountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, host.AccountsUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
+	if editor, err := accountmodel.NewAccountEditor(sessions, binding, collections.IdentityUserGroups, host.AccountsUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
 		t.Fatal("foreign permission source admitted")
 	}
 	role := modeldef.AccountRole()
@@ -70,11 +71,11 @@ func TestAccountRoleCompositionAndInputsRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if editor, err := accountmodel.NewRoleEditor(sessions, foreign, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
+	if editor, err := accountmodel.NewAccountEditor(sessions, foreign, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
 		t.Fatal("same model with another role policy admitted")
 	}
 	for _, overlay := range []auth.Authorizer{nil, (*auth.PrincipalAuthorizer)(nil)} {
-		if editor, err := accountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config); editor != nil || err == nil {
+		if editor, err := accountmodel.NewAccountEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config); editor != nil || err == nil {
 			t.Fatal("nil overlay admitted")
 		}
 	}
@@ -86,7 +87,7 @@ func TestAccountRoleCompositionAndInputsRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if editor, err := accountmodel.NewRoleEditor(narrowSessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
+	if editor, err := accountmodel.NewAccountEditor(narrowSessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
 		t.Fatal("ordinary coordinated writer admitted")
 	}
 	fixed := false
@@ -104,8 +105,17 @@ func TestAccountRoleCompositionAndInputsRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if editor, err := accountmodel.NewRoleEditor(constantSessions, constant, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor != nil || err == nil {
-		t.Fatal("constant role became editable")
+	// A model Boolean not selected as a role is an ordinary explicitly chosen
+	// profile field. Its name cannot override the binding's constant role.
+	if editor, err := accountmodel.NewAccountEditor(constantSessions, constant, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, config); editor == nil || err != nil {
+		t.Fatal("unselected Boolean acquired an implicit role", err)
+	}
+	row := models.NewUserWithID(7)
+	row.PrincipalID, row.Username, row.EncodedPassword, row.Revision = "constant-role", "constant", "hash:secret", 1
+	row.Active, row.Staff = true, true
+	credential, err := constant.PrepareCredential([32]byte{1}, row, nil)
+	if err != nil || credential.Principal().Staff() {
+		t.Fatal("a same-named profile overrode the constant role", err)
 	}
 	editor, err := build(config)
 	if err != nil {
@@ -173,5 +183,84 @@ func TestAccountRoleCompositionAndInputsRejectBeforeIO(t *testing.T) {
 	}
 	if backend.calls != 0 || backend.writes != 0 {
 		t.Fatal("invalid role composition or input performed I/O")
+	}
+}
+
+func TestAccountEditorCombinedInputRetainsSourceSelectionAndTargetBeforeIO(t *testing.T) {
+	backend := &untouchedCatalogBackend{}
+	sessions, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config := accountmodel.AccountEditConfig[models.User]{Fields: []string{"username", "email", "first_name", "active", "groups", "permissions"}, ChangePermission: "account.change"}
+	editor, err := project.NewAccountEditor(sessions, auth.PrincipalAuthorizer{}, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "actor", Active: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		values map[string]query.Value
+		input  bool
+	}{
+		{"unselected_role", map[string]query.Value{"staff": query.Boolean(true)}, true},
+		{"unselected_profile", map[string]query.Value{"last_name": query.String("private")}, true},
+		{"protected", map[string]query.Value{"principal_id": query.String("private")}, true},
+		{"username_byte_limit", map[string]query.Value{"username": query.String(strings.Repeat("界", 342))}, false},
+		{"profile_limit", map[string]query.Value{"first_name": query.String(strings.Repeat("x", 151))}, false},
+		{"email_nul", map[string]query.Value{"email": query.String("a\x00@example.test")}, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			input, err := models.UserObjects.Input(test.values)
+			if err != nil {
+				t.Fatal(err)
+			}
+			result, err := editor.Update(t.Context(), actor, 0, 1, input)
+			if result.Revision != 0 || result.ChangedFields != nil || err == nil {
+				t.Fatal("bad combined input published a result")
+			}
+			if test.input {
+				if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) {
+					t.Fatal("selection error lost", err)
+				}
+			} else if _, rejected := validation.Rejected(err); !rejected {
+				t.Fatal("pure field validation lost", err)
+			}
+		})
+	}
+	foreign, err := orm.NewManager[models.User](changedProfileDescriptor{}).Input(map[string]query.Value{"first_name": query.String("private")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := editor.Update(t.Context(), actor, 0, 1, foreign); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) {
+		t.Fatal("foreign profile source accepted", err)
+	}
+	input, err := editor.Manager().Input(map[string]query.Value{"username": query.String("ｕｓｅｒ"), "email": query.String("Local@EXAMPLE.TEST"), "first_name": query.String("new"), "active": query.Boolean(false)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, err = input.WithCollections(map[string][]int64{"groups": {0, -1}, "permissions": {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrong, err := input.WithTargetKey(query.Integer(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := editor.Update(t.Context(), actor, 0, 1, wrong); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) {
+		t.Fatal("normalization detached the target key", err)
+	}
+	if backend.calls != 0 || backend.writes != 0 {
+		t.Fatal("invalid combined input performed I/O")
+	}
+	input, err = input.WithTargetKey(query.Integer(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result, err := editor.Update(t.Context(), actor, 0, 1, input); result.Revision != 0 || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodePersistence}) || backend.writes != 1 {
+		t.Fatal("valid combined intent did not reach its native owner", err)
 	}
 }

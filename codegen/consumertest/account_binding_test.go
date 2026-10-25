@@ -127,7 +127,7 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/roles_test.go", accountBindingRoleConsumer)
 			writeGeneratedTestFile(t, root, "consumer/creation_test.go", accountBindingCreationConsumer)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
-			requiredNames := []string{required, required + "/password_change"}
+			requiredNames := []string{required, required + "/password_change", required + "/profile_role_edit"}
 			for _, name := range []string{"login_presentation", "login_csrf", "login_input_limit", "login_fullwidth_policy", "form_csrf", "form_origin", "form_confirmation", "form_combined", "form_target", "json_csrf_before_parse", "json_target", "json_duplicate", "json_null", "json_combined", "form_success", "json_success"} {
 				requiredNames = append(requiredNames, required+"/password_change/"+name)
 			}

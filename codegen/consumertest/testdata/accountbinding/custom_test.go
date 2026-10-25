@@ -181,11 +181,12 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertCatalogConsumer(t, catalog, actor.Principal(), role, "priority", "description")
-	roleEditor, err := project.NewAccountRoleEditor(sessionStore, auth.PrincipalAuthorizer{}, accountmodel.RoleConfig[people.Member]{Fields: roleConsumerFields(role), ChangePermission: "account.team"})
+	editFields := append(roleConsumerFields(role), "region")
+	roleEditor, err := project.NewAccountEditor(sessionStore, auth.PrincipalAuthorizer{}, accountmodel.AccountEditConfig[people.Member]{Fields: editFields, ChangePermission: "account.team"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	roleReader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: roleConsumerFields(role), ViewPermission: "account.team"})
+	roleReader, err := project.NewAccountProfileReader(backend, auth.PrincipalAuthorizer{}, accountmodel.ProfileReadConfig{Fields: editFields, ViewPermission: "account.team"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +194,9 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "member@EXAMPLE.TEST", roleTarget, team.ID, grants[0].ID)
+	t.Run("profile_role_edit", func(t *testing.T) {
+		assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "member@EXAMPLE.TEST", roleTarget, team.ID, grants[0].ID, "region", "KR")
+	})
 	firstConfig := accountmodel.FirstAccountConfig[people.Member]{CreationPolicy: accountmodel.CreationPolicy[people.Member]{Fields: []string{role.Login, "region"}}, EvidenceSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
 	if owner, err := project.NewFirstAccount(backend, hasher, firstConfig); owner != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) {
 		t.Fatal("constant staff=false was silently accepted by createsuperuser capability", err)

@@ -338,4 +338,4 @@ func (_scan *ticketLabelProjectionScan) Decode() (TicketLabel, query.Value, orm.
 
 type GoDjAppPart3_d35b57a5f1435ea4895a880397d097f2d861be97b4953c4bd97d97b1f95a0637 struct{}
 
-var _ GoDjProjectSnapshot_b9292bdc1efe432ce135d361ed478f79aa4cf83952adfe061aa0c8c358453d53
+var _ GoDjProjectSnapshot_5af1b9ece6f7fac47a2e1d05542ae8d4bd0926ff2e2bfb034058ab2db8054ce2

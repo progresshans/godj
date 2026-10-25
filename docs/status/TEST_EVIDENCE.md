@@ -1007,6 +1007,44 @@ inactive·저장 staff=false·추가 권한 거부와 최종 admission에서의 
 새 Admin 변경의 근거가 아니다. 새 source의 전체 원격 실행·원본 대조는 아직 필요하다. 공개 최초 계정 터미널/process,
 scaffold/runtime·공통 Admin 등록, profile 관계/파일·계정/host 삭제·명시적 모델 전환과 I1 전체 수용은 남아 있다.
 
+### 선택 계정의 프로필·역할 통합 수정
+
+2026-10-26, `b0e7b185` 위에서 역할 편집기를 `AccountEditor`와 생성 `NewAccountEditor`로 전환했다.
+명시한 scalar profile·역할 flag·그룹/직접 권한을 하나의 native relation transaction에서 검증하고 저장한다.
+선택 login/email의 저장 정규화·source/target·필드 검사는 I/O 전에 수행하며, 현재 후보 전체의 typed 정책·unique와
+소속 한도 검사를 거친 뒤 한 revision·전체 변경 필드의 한 audit·비활성화 세션 폐기를 확정한다.
+기존 RoleEditor API의 대체 계층은 두지 않았으며 세션 변경 권한이 없는 좁은 ProfileEditor는 유지한다.
+
+선택하지 않은 profile/role·보호 필드·문자/byte/NUL·source 혼합·다른 target의 선행 거부와 명시적인 0 key 입력,
+상수 역할과 같은 이름의 일반 Boolean이 인증 역할을 바꾸지 않는 검사를 작성했다. 양 DB에는 한 번의 복합 수정과
+정규화·no-op·복합 정책/unique/stale 거부·소속 유지/비우기·세션 폐기와 재접속 대조를 추가했다. 기존 단계별 DML 후
+실패·cleanup/unknown·늦은 취소의 행/소속/세션/audit rollback 검사는 profile 변경도 포함하도록 확장했다.
+독립 connection의 같은 revision 경쟁은 승자의 profile과 role이 함께 남고 서로 다른 요청의 값이 섞이지 않도록 검사한다.
+기존 권한 회수·domain·소속/합집합 한도·비양수 key·catalog 확장/로그인과의 경쟁도 새 owner로 연결했다.
+
+기본/custom 및 기존 일곱 생성 변형의 실제 ModelForm/API endpoint 소비자는 profile과 role을 함께 수정한다.
+Form 성공의 한 revision, stale JSON 뒤 profile 불변, JSON의 profile+명시적 소속 비우기와 profile+비활성화에 따른
+대상 브라우저 세션 폐기를 확인하도록 확장했다. Child 실행을 필수로 요구하며 이전 password/login 검사는 유지한다.
+이 SQLite 소비자와 통합 owner는 공통 account/catalog Admin 자동 등록의 완료가 아니다.
+
+생성 ABI는 account-project v14로 바꿨다. 초기 공개 생성은 새 타입이 아직 없는 후보를 거부했고 기존 생성물은 보존됐다.
+동일한 modeldef 선언·GenerateProject·Go 후보 verifier·원자적 publisher를 호출하는 저장소 밖 main overlay로
+초기 identity bundle을 게시한 뒤, 정상 공개 `godj generate` 11개 명령을 모두 완료했다. 임시 overlay나 이전 API
+대체 코드는 제품 소스에 남기지 않았다. 생성 결과와 source를 함께 관리하며 실제 런타임 테스트 실행으로 계산하지 않는다.
+
+영향 다섯 package는 `go test -run '^$'`로 컴파일했다. 실제 일곱 외부 module은 별도 생성 harness에서
+child `-run '^$'`만 실행했다. 이 harness의 pass는 DB/HTTP 본문 실행이 아니다. 새 본문은 로컬에서 실행하지 않았다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-account-editor-generate-v1/public.json` — 공개 생성 11개와 후보 compile | `4348a5a83b9439162e48675a2746cf47daa82b9860cc91738ee1abca6f1315a5` |
+| `gdj0138-account-editor-compile-v1/receipt.json` — 영향 5 package 최소 compile | `9bd4c14e7f9649f3afdb19bb15b75fcbe2d2e0155a8a5f5ee05a15f665ffbb98` |
+| `gdj0138-account-editor-external-compile-v1/receipt.json` — 생성 7개 module의 child compile | `f04f28847bfda75445322c7bb4f718848b75849f18017c43bb40154d62cc5b62` |
+
+앞선 `b0e7b185`의 [CI 40206693322](https://github.com/progresshans/godj/actions/runs/40206693322)와 이번 source는 구분한다.
+새 통합 수정·기존 계정 흐름·generated drift·양 DB/race/platform의 원격 실행과 원본 대조가 필요하다.
+공개 최초 계정 명령·공통 Admin/scaffold/runtime, profile 관계/파일·계정/host 삭제·모델 전환 및 I1 전체 수용은 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

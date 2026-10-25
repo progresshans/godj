@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v13"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v14"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -189,15 +189,15 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tif err != nil { return zero, err }")
 	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewFirstAccountDefinition(binding, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, collections.%s, hasher, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, accountGroups, accountPermissions)
 	fmt.Fprintln(&output, "}")
-	fmt.Fprintln(&output, "\n// NewAccountRoleEditor uses the existing session owner for current roles, memberships, audit and deactivation.")
-	fmt.Fprintf(&output, "func NewAccountRoleEditor(sessions *_godjaccountmodel.SessionStore[%s.%s], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RoleConfig[%s.%s]) (*_godjaccountmodel.RoleEditor[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\n// NewAccountEditor uses the existing session owner for profiles, roles, memberships, audit and deactivation.")
+	fmt.Fprintf(&output, "func NewAccountEditor(sessions *_godjaccountmodel.SessionStore[%s.%s], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountEditConfig[%s.%s]) (*_godjaccountmodel.AccountEditor[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
 	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\tsource, err := binding.Project()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\tcollections, err := BindCollectionsIn(source)")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
-	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewRoleEditor(sessions, binding, collections.%s, collections.%s, overlay, config)\n", accountGroups, accountPermissions)
+	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewAccountEditor(sessions, binding, collections.%s, collections.%s, overlay, config)\n", accountGroups, accountPermissions)
 	fmt.Fprintln(&output, "}")
 	fmt.Fprintln(&output, "\n// NewAccountProfileReader binds current account authority, selected profile data and domain history to one snapshot owner.")
 	fmt.Fprintf(&output, "func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileReadConfig) (*_godjaccountmodel.ProfileReader[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName)

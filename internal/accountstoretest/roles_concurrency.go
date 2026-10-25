@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/identity/project"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
@@ -21,11 +22,19 @@ func roleConcurrentRevision(t *testing.T, backend Backend, reopen func(*testing.
 	now := joined
 	store, _, _ := accountSessions(t, backend, &now)
 	other, _, _ := accountSessions(t, reopen(t), &now)
-	editors := []*accountmodel.RoleEditor[models.User]{roleEditor(t, store), roleEditor(t, other)}
+	first, err := project.NewAccountEditor(store, auth.PrincipalAuthorizer{}, accountEditConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := project.NewAccountEditor(other, auth.PrincipalAuthorizer{}, accountEditConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	editors := []*accountmodel.AccountEditor[models.User]{first, second}
 	start := make(chan struct{})
 	done := make(chan error, 2)
 	for i, field := range []string{"staff", "superuser"} {
-		input := roleInput(t, map[string]query.Value{field: query.Boolean(true)}, nil)
+		input := roleInput(t, map[string]query.Value{field: query.Boolean(true), "first_name": query.String(field)}, nil)
 		go func() { <-start; _, err := editors[i].Update(t.Context(), actor, target.ID, 1, input); done <- err }()
 	}
 	close(start)
@@ -43,6 +52,9 @@ func roleConcurrentRevision(t *testing.T, backend Backend, reopen func(*testing.
 	row := profileRow(t, reopen(t), target.ID)
 	if success != 1 || conflicts != 1 || row.Revision != 2 || row.Staff == row.Superuser || len(profileHistory(t, backend, actor, target.ID)) != 1 {
 		t.Fatal("same revision role writes did not have one winner")
+	}
+	if row.Staff && row.FirstName != "staff" || row.Superuser && row.FirstName != "superuser" {
+		t.Fatal("concurrent edit combined different winners' profile and role")
 	}
 }
 

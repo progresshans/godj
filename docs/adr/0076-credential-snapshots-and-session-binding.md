@@ -1127,19 +1127,27 @@ close·writer와 오류 분류 callback은 panic/Goexit를 포함한 defer 종�
 `command.ExitCode`를 사용하고 Serve가 반환할 때까지 SIGPIPE 처리를 유지한다. 상위 process는 완전한 단일 request
 전달·프로세스 종료 근거와 함께 판정해야 하며 이 exit 값만으로 임의 child의 성공을 만들지 않는다.
 
-## 선택 계정의 역할과 직접 소속 편집
+## 선택 계정의 프로필과 역할 통합 편집
 
-생성 `NewAccountRoleEditor`는 기존 `SessionStore[M]`를 받아 같은 계정 binding·backend·현재 domain의 session 정책을
-사용한다. `RoleConfig.Fields`로 active/staff/superuser의 실제 editable 필드와 Groups/Permissions를 명시한다.
-상수 역할에는 입력 필드가 없고 credential·principal identity·revision·서버 시각·프로필·임의 관계는 거부한다.
+생성 `NewAccountEditor`와 `identity/model.AccountEditor[M]`는 기존 `SessionStore[M]`를 받아 같은 계정
+binding·backend·현재 domain의 session 정책을 사용한다. `AccountEditConfig.Fields`로 scalar profile과
+active/staff/superuser의 실제 editable 필드, Groups/Permissions를 명시한다. 새 필드를 자동 노출하지 않는다.
+Credential·principal identity·revision·선택 서버 시각·파일·다른 관계는 거부한다. 역할을 상수로 선언하면 그 역할의
+입력 필드는 없다. 같은 이름의 일반 Boolean을 명시적으로 profile에 선택해도 상수의 인증 의미를 바꾸지 않는다.
 생성 factory의 예상 role fingerprint와 실제 collection의 완전한 host source가 세션 owner와 맞아야 한다.
+이 통합 owner가 기존 RoleEditor를 대체한다. Scalar만 선택하며 session 변경 권한을 갖지 않는 ProfileEditor는
+별도 용도로 유지한다. ProfileEditor와 역할 저장을 차례로 호출하는 방식으로 통합 수정을 구현하지 않는다.
 
-`Update`는 현재 change 권한과 추가 권한·deny overlay, 대상의 현재 revision/credential/소속 무결성을 먼저 확인한다.
+입력의 source·선택 필드·target binding과 login/email의 고정 저장 정규화·문자/byte 한도를 I/O 전에 확인한다.
+`Update`는 전체 수정에 대해 현재 change 권한과 모든 추가 권한·deny overlay를 요구하며, 대상의 현재
+revision/credential/소속 무결성을 먼저 확인한다. Scalar만 또는 collection만 보냈어도 같은 권한 정책을 적용한다.
 생략한 소속은 유지하고 명시한 빈 집합은 지운다. 정렬/중복 제거 전 원 입력을 256개로 제한하며 현재와 제안 그룹 수,
 직접 권한 수와 그룹/직접 권한의 유효 합집합을 각각 검증한다. 비활성 후보도 한도를 우회하지 않는다. Typed validator는
-분리된 현재/후보 모델과 사본을 반환하는 제안 소속을 받으며 callback 뒤 scope 수명과 취소를 재검사한다.
+분리된 현재 모델과 프로필·역할을 함께 반영한 후보, 사본을 반환하는 제안 소속을 받는다. Callback 뒤 scope 수명과
+취소를 재검사하고 typed 모델의 unique 검증을 같은 scope에서 수행한다.
 
-Scalar·두 collection·실제 변경의 revision 증가·domain audit는 같은 native coordinated relation transaction에 속한다.
+프로필·역할 scalar와 두 collection·한 번의 revision 증가·전체 변경 필드의 한 audit는 같은 native coordinated
+relation transaction에 속한다. 모델/정책 거부가 프로필 또는 역할만 먼저 남겨서는 안 된다.
 권한과 flag 변경은 principal/hash/session stamp를 바꾸지 않는다. Active가 true에서 false로 바뀔 때만 같은 scope에서
 현재 domain의 대상 principal 세션을 모두 폐기하며 다른 계정·익명·역사 domain의 세션은 유지한다. 재활성화는 삭제한
 세션을 되살리지 않는다. LoginPersistence도 같은 DB fence와 현재 active 재검사를 사용하므로 동시 로그인이 비활성화 뒤
