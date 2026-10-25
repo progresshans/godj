@@ -70,6 +70,10 @@ type inventoryRow struct {
 // duplicate using one previous value in the bounded stream; no unbounded
 // payload array or set of every bearer digest is retained.
 func (store *Store) inventory(ctx context.Context, reader db.Queryer) (inventory, error) {
+	return store.state.database.inventory(ctx, reader, store.state.namespace)
+}
+
+func (database *databaseState) inventory(ctx context.Context, reader db.Queryer, namespace string) (inventory, error) {
 	var result inventory
 	var previous string
 	projection := orm.Project3(models.SessionFields.ID, models.SessionFields.Namespace, models.SessionFields.Digest,
@@ -78,7 +82,7 @@ func (store *Store) inventory(ctx context.Context, reader db.Queryer) (inventory
 	if err != nil {
 		return inventory{}, err
 	}
-	selected, err = selected.Limit(store.state.database.maxRecords + 1)
+	selected, err = selected.Limit(database.maxRecords + 1)
 	if err != nil {
 		return inventory{}, err
 	}
@@ -92,10 +96,10 @@ func (store *Store) inventory(ctx context.Context, reader db.Queryer) (inventory
 		}
 		previous = row.digest
 		result.total++
-		if row.namespace == store.state.namespace {
+		if row.namespace == namespace {
 			result.owned++
 		}
-		if result.total > store.state.database.maxRecords {
+		if result.total > database.maxRecords {
 			return false, failure(sessions.CodeStoreFull, nil)
 		}
 		return true, nil
@@ -110,12 +114,20 @@ func (store *Store) inventory(ctx context.Context, reader db.Queryer) (inventory
 // key is rejected instead of skipped. Each rowset is closed before visiting
 // rows, permitting same-scope mutation and rollback after a later-page error.
 func (store *Store) payloads(ctx context.Context, reader db.Queryer, ownNamespace bool, visit func(models.Session, sessionwire.Metadata) error) (int, error) {
+	namespace := ""
+	if ownNamespace {
+		namespace = store.state.namespace
+	}
+	return store.state.database.payloads(ctx, reader, namespace, visit)
+}
+
+func (database *databaseState) payloads(ctx context.Context, reader db.Queryer, namespace string, visit func(models.Session, sessionwire.Metadata) error) (int, error) {
 	count := 0
 	var previous int64
 	for {
 		source := models.SessionObjects.Using(reader).OrderBy(models.SessionFields.ID.Asc())
-		if ownNamespace {
-			source = source.Filter(models.SessionFields.Namespace.Exact(store.state.namespace))
+		if namespace != "" {
+			source = source.Filter(models.SessionFields.Namespace.Exact(namespace))
 		}
 		if count > 0 {
 			source = source.Filter(models.SessionFields.ID.GreaterThan(previous))
@@ -132,14 +144,14 @@ func (store *Store) payloads(ctx context.Context, reader db.Queryer, ownNamespac
 			return 0, failure(sessions.CodeInvalidRecord, nil)
 		}
 		for _, row := range rows {
-			if row.ID <= previous || !validNamespace(row.Namespace) || !validDigest(row.Digest) || ownNamespace && row.Namespace != store.state.namespace {
+			if row.ID <= previous || !validNamespace(row.Namespace) || !validDigest(row.Digest) || namespace != "" && row.Namespace != namespace {
 				return 0, failure(sessions.CodeInvalidRecord, nil)
 			}
 			count++
-			if count > store.state.database.maxRecords {
+			if count > database.maxRecords {
 				return 0, failure(sessions.CodeStoreFull, nil)
 			}
-			metadata, err := sessionwire.Inspect(row.Payload, store.state.database.limits)
+			metadata, err := sessionwire.Inspect(row.Payload, database.limits)
 			if err != nil {
 				return 0, err
 			}
@@ -198,19 +210,23 @@ func (store *Store) ensureCapacity(ctx context.Context, scope db.Session, at tim
 // including foreign namespaces. It neither provisions nor cleans up records.
 func (store *Store) Inspect(ctx context.Context) (int, error) {
 	return readStore(ctx, store, func(work context.Context, reader db.Queryer) (int, error) {
-		inventory, err := store.inventory(work, reader)
-		if err != nil {
-			return 0, err
-		}
-		count, err := store.payloads(work, reader, false, nil)
-		if err != nil {
-			return 0, err
-		}
-		if count != inventory.total {
-			return 0, failure(sessions.CodeInvalidRecord, nil)
-		}
-		return count, nil
+		return store.state.database.inspect(work, reader)
 	})
+}
+
+func (database *databaseState) inspect(ctx context.Context, reader db.Queryer) (int, error) {
+	inventory, err := database.inventory(ctx, reader, "")
+	if err != nil {
+		return 0, err
+	}
+	count, err := database.payloads(ctx, reader, "", nil)
+	if err != nil {
+		return 0, err
+	}
+	if count != inventory.total {
+		return 0, failure(sessions.CodeInvalidRecord, nil)
+	}
+	return count, nil
 }
 
 // Validate each scanned payload before retaining it in the bounded page. A

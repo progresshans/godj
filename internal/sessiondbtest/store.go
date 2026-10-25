@@ -161,6 +161,25 @@ func namespaceAndReopen(t *testing.T, backend Backend, reopen func(*testing.T) B
 	if count, err := b.Inspect(t.Context()); err != nil || count != 1 {
 		t.Fatal("complete inventory", count, err)
 	}
+	database, err := sessiondb.New(reopen(t), sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count, err := database.Inspect(t.Context()); err != nil || count != 1 {
+		t.Fatal("namespace-free database inspection", count, err)
+	}
+	if err := backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+		count, err := database.InspectIn(t.Context(), scope)
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return errors.New("borrowed database inspection lost foreign namespace")
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func globalCapacity(t *testing.T, backend Backend, _ func(*testing.T) Backend) {

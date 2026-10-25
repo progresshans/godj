@@ -243,8 +243,20 @@ incoming critical 효과를 시작 시 일괄 거부하던 경계는 이 조정�
 이전 CI의 fake package discovery, 저장 key fixture와 잘못된 owner callback의 outcome 기대도 보정했다.
 새 본문 실행·전체 원격 검증을 제품 코드와 최소 compile 완료로 대신하지 않는다.
 
+선택 `SessionStore.InspectStartup`과 독립 domain/audit/session의 borrowed inspection을 작성했다. 명시적으로 적용한
+framework-owned migration 이력을 확인한 뒤 하나의 native 데이터 snapshot에서 전체 소유권 chain·고유 operation/generation,
+선택 account/catalog/소속 column, 모든 감사와 session namespace를 읽는다. Fresh/Ready·domain 불일치와 orphan 계정/audit를
+구분하고 초기화·정리·repair나 캐시 권한으로 사용하지 않는다. Migration 조회는 데이터 snapshot과 별개이며 프로젝트 graph와
+schema index/constraint 전체 검증은 호스트가 소유한다.
+
+양 DB의 빈 저장소·0/음수 기존 key·필수 migration/column 접근·과거/뒤 page 손상·중복 generation/operation·조회 수명 실패와
+동시 domain/audit/session 변경 검사를 필수 목록에 연결했다. 기본/custom 최초 계정과 재접속하는 reset HTTP 소비자에도
+실제 기동 관측을 연결했다. CI가 드러낸 collection 감사의 반환 순서 불일치를 고치고, 바뀐 쓰기 순서의 실패 주입은 세션/감사·
+소속·최종 scalar 뒤 각각의 rollback 확인을 유지한다. 새 본문 작성·최소 compile·확인된 실패의 한정 실행은 TEST_EVIDENCE에서
+구분하며 공개 CLI/scaffold의 선택 계정 전환을 완료한 것으로 계산하지 않는다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
-첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·audit/session 설치/startup·채운 DB
+첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

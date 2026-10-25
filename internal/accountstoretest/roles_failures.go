@@ -150,14 +150,17 @@ func roleCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T) B
 					t.Fatal("private role failure leaked")
 				}
 			}
-			if mode == "direct_failure" && effects["godj_identity_user_groups"] == 0 {
-				t.Fatal("direct failure did not follow first collection write")
+			if mode == "direct_failure" && (effects["godj_identity_user_groups"] == 0 || effects["godj_sessions_session"] == 0 || effects["godj_account_audit_event"] == 0) {
+				t.Fatal("direct failure did not follow companion and first collection writes")
 			}
-			if mode == "session_failure" && (effects["godj_identity_user_permissions"] == 0 || effects["godj_sessions_session"] == 0) {
-				t.Fatal("session failure missed completed memberships and deletion")
+			if mode == "session_failure" && (effects["godj_identity_user_groups"] != 0 || effects["godj_identity_user_permissions"] != 0 || effects["godj_sessions_session"] == 0 || effects["godj_account_audit_event"] != 0) {
+				t.Fatal("session failure did not occur after revocation and before relation writes")
 			}
 			if mode == "audit_failure" && (effects["godj_sessions_session"] == 0 || effects["godj_account_audit_event"] == 0) {
 				t.Fatal("audit failure did not follow session revocation")
+			}
+			if mode == "write_failure" && (effects["godj_identity_user_groups"] == 0 || effects["godj_identity_user_permissions"] == 0 || effects["godj_sessions_session"] == 0 || effects["godj_account_audit_event"] == 0) {
+				t.Fatal("final scalar failure missed completed companion and collection writes")
 			}
 			row := profileRow(t, reopen(t), target.ID)
 			history := profileHistory(t, reopen(t), actor, target.ID)

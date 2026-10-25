@@ -85,6 +85,12 @@ func TestDatabaseSessionConfigurationAndInputsArePure(t *testing.T) {
 		if value, err := store.InSession(t.Context(), scope); err == nil || value != nil {
 			t.Fatal("root/nil/expired scope admitted")
 		}
+		if count, err := database.InspectIn(t.Context(), scope); err == nil || count != 0 {
+			t.Fatal("database inspection admitted root/nil/expired scope")
+		}
+	}
+	if count, err := database.InspectIn(nil, &expiringSession{}); err == nil || count != 0 {
+		t.Fatal("database inspection admitted nil context")
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	scope := &expiringSession{}

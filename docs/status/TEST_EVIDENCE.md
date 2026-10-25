@@ -1338,6 +1338,52 @@ Relation 필수 목록은 4,070→4,140, PostgreSQL core는 5,290→5,348로 확
 공개 최초 계정 Command/runtime/scaffold·공통 Admin/HTTP, 선택 모델-as-through의 identity 생성·profile 관계/파일,
 채운 DB 전환·설치/startup·통합 restart와 전체 I1 수용은 남아 있다. 구현·작성·최소 compile을 환경별 실제 PASS로 바꾸지 않는다.
 
+### 선택 계정의 기동 관측과 collection 감사 순서 보정
+
+2026-10-26, `8a2f8965cb3123f65c44a34e3a12015174e5d03f` 위에서 선택 `SessionStore.InspectStartup`을 작성했다.
+Framework-owned domain/audit/session migration의 정확한 identity inventory를 확인한 뒤 한 native 데이터 snapshot에서
+전체 domain chain·고유 operation/generation, 실제 typed account/catalog/소속 column, 전체 audit와 session namespace를 읽는다.
+Fresh/Ready와 기존 계정/audit가 남은 비초기화 상태, 다른 저장 역할을 구분하며 초기화·정리·repair를 하지 않는다.
+Migration 조회는 별도이며 프로젝트 graph·index/constraint 전체 감사의 증거가 아니다. 장기 경계는 ADR-0076에 둔다.
+
+양 DB에 각각 81개의 새 필수 항목을 연결했다. 계정 startup 77개와 domain inspector 4개이며 다음을 포함한다.
+
+- 빈 설치 저장소와 foreign/expired session 보존, 첫 계정 이후 재접속, 마지막 계정 삭제 후 Ready 유지, 0/음수 orphan key와 audit 거부.
+- 없는 schema, 세 owned 앱의 누락/중복/미래 migration, history capability/조회/취소와 다른 앱 이력의 독립 소유권.
+- 257개 소유권/감사 행과 과거/뒤 page 손상, 실제 native schema의 Unique를 제거한 fixture에서 page 경계의 비인접
+  operation/generation 중복 거부. 이 fixture는 제품 migration 정의를 바꾸지 않는다.
+- 모든 필수 table/projection의 query/close 실패, callback 미호출/중복/삼킴·nil/root/만료 scope·cleanup/취소와 빈 결과.
+  공개 borrowed inspector의 scan/iteration 실패도 원인을 보존하고 진단에서 값이 노출되지 않게 한다.
+- 독립 connection이 domain/audit/session을 바꾸는 동안의 coherent snapshot과 다음 호출의 현재 상태 관측.
+
+기본/custom 최초 계정 소비자에 실제 Fresh→Ready 검사를 넣었고, 양 DB reset HTTP 소비자의 owner 구성·재접속에도
+기동 관측을 연결했다. 공개 terminal/상위 process와 scaffold 기본 runtime 전환은 이 소비자 확장과 별개로 남아 있다.
+
+선행 [CI 40233081446](https://github.com/progresshans/godj/actions/runs/40233081446) attempt 1의 두 페이지 114개 job을
+관측했을 때 성공 52·실패 8·실행 중 19·대기 35였다. 실패 8개 원본 모두 checkout
+`a4514e9156632b1d0e97d0ca1c13db9c6f8ab25c`이며 제출 source를 부모로 갖고 tree
+`33020975412cc59e74a16acba5c093a906bb54cc`도 동일하다. 부분 관측이며 전체 성공/종결로 세지 않는다.
+
+네 native runtime 실패는 combined profile/role 감사 필드 순서와 session-failure 주입의 이전 쓰기 순서 기대였고,
+네 생성 consumer 실패는 같은 감사 순서를 비교하는 기본 계정 Admin HTTP였다. 저장 감사와 반환 결과를 실제 모델 선언
+순서로 통일했다. Session/audit가 관계 DML에 앞서는 현재 수명 조정에 맞춰 assertion을 보정하고, 뒤 direct collection·
+최종 scalar 실패는 앞선 session/audit와 collection 쓰기가 실제 실행됐고 전체 rollback됐는지 계속 확인한다.
+
+로컬에서는 combined 감사 실패를 한정 재현했다. 수정 뒤 SQLite의 `account_profile_and_roles`·`role_commit_failures`
+두 경로가 통과했고(기록한 실행 0.935초, fail/skip 없음), 실제 별도 생성 module의
+`TestGeneratedFirstAccountUsesRequiredProfiles/default`도 통과했다(14.907초). 이 외부 소비자는 새 Fresh/Ready와
+실제 TCP·CSRF·Admin 저장 감사까지 실행했다. 이 두 runtime 기록은 마지막 scan 오류 비노출·through column 타입 확인
+보강 전 checkpoint다. 보강 후 최종 source는 identity/model·domain·audit·sessions/database·SQLite·PostgreSQL 여섯
+package의 `go test -run '^$'` 최소 compile만 확인했으며 새 native startup 본문을 로컬에서 실행하지 않았다.
+
+Relation 필수 목록은 4,140→4,221, PostgreSQL core는 5,348→5,429다. 기존 항목 보존·중복 없음·추가 root의 실제 존재와
+PostgreSQL 세 mode/일곱 coordinate의 유일한 소유권을 확인했다. 전체 generated drift·새 필수 본문·양 DB·custom HTTP·
+race/process/platform은 새 source의 원격 검증 대상이다. I1 전체 및 후속 실행 계획의 범위를 줄이지 않는다.
+
+원본 8개 CI 로그·merge/tree 연결·한정 회귀와 최종 최소 compile JSON·필수 목록 및 현행 비 Markdown source hash는
+검증 보관소의 `gdj0138-startup-inspection-v1/receipt.json`에 연결했다
+(SHA-256 `05bd46a6d8ef18bda7b230968f5a40aa581acf263679e51f2d96cb89432f130c`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

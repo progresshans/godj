@@ -64,6 +64,11 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, s
 	check(err)
 	role, err := binding.Role()
 	check(err)
+	fresh, err := sessionStore.InspectStartup(t.Context())
+	check(err)
+	if !fresh.Fresh() || fresh.Ready() || fresh.Ownership().Sequence() != 0 || fresh.AuditEvents() != 0 || fresh.SessionRecords() != 0 {
+		t.Fatal("generated first-account composition did not inspect empty installed storage")
+	}
 	form, err := formmodel.NewSpecForFields(metadata, owner.Fields())
 	check(err)
 	raw := map[string][]string{role.Login: {"first@example.test"}}
@@ -212,6 +217,11 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, s
 	check(err)
 	if receipt.OperationID() != operationID || receipt.Sequence() != 1 || receipt.RoleFingerprint() != description.RoleSHA256 || receipt.EvidenceSHA256() != description.EvidenceSHA256 || expectedDomain.Identifier() != namespace.Identifier() {
 		t.Fatal("first operation receipt lost selected ownership")
+	}
+	ready, err := sessionStore.InspectStartup(t.Context())
+	check(err)
+	if !ready.Ready() || ready.Fresh() || ready.Ownership().OperationID() != operationID || ready.AuditEvents() != 1 || ready.SessionRecords() != 0 {
+		t.Fatal("generated first-account composition failed stored startup inspection")
 	}
 	if _, err := owner.Prepare(t.Context(), input, accountPasswordText); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeNotFresh}) {
 		t.Fatal("first operation implicitly adopted existing state", err)

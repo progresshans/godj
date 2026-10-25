@@ -44,8 +44,9 @@ func (*Database) Format(state fmt.State, _ rune) {
 	_, _ = state.Write([]byte("sessions.database.Database{redacted}"))
 }
 
-// New only validates configuration. Migration, startup inspection and any
-// transition from the historical systemstate session table are explicit work.
+// New only validates configuration. Apply migrations and call Inspect
+// explicitly before startup; neither operation happens in this constructor.
+// Transition from historical systemstate sessions is a separate host operation.
 func New(backend Backend, config Config) (*Database, error) {
 	if nilValue(backend) {
 		return nil, failure(sessions.CodeInvalidConfig, nil)

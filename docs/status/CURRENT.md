@@ -9,9 +9,9 @@
 
 ## 다음
 
-1. Collection 편집·catalog 생성/삭제의 전체 수명 통합과 CI fixture 보정을 같은 source의 원격 CI에서 확인한다.
-2. 최초 계정 Command/runtime의 공개 터미널/상위 프로세스·scaffold를 전환하고 공통 Admin/HTTP를 조립한다.
-3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치/startup·통합 restart의 남은 요구를 완성한다.
+1. Collection 감사/실패 주입 보정과 선택 계정 기동 관측을 같은 source의 원격 CI에서 확인한다.
+2. 선택 계정 기동 관측을 바탕으로 최초 계정의 공개 터미널/상위 프로세스·scaffold와 공통 Admin/HTTP를 조립한다.
+3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치·통합 restart의 남은 요구를 완성한다.
 
 ## 검증 경계
 

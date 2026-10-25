@@ -44,6 +44,7 @@ func Run(t *testing.T, open Open) {
 		{"expired_scope", expiredScope},
 		{"invalid_history", invalidHistory},
 		{"unknown_outcome_reconciliation", unknownOutcome},
+		{"inspect_scope", inspectScope},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
@@ -61,6 +62,7 @@ func Run(t *testing.T, open Open) {
 			test.run(t, backend, reopen)
 		})
 	}
+	inspectLostUniqueness(t, open)
 }
 
 var instant = time.Date(2026, 10, 24, 1, 2, 3, 456789000, time.UTC)

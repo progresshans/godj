@@ -1404,3 +1404,33 @@ key도 지원하며, 감사 event 자체의 순번은 양수다. 공통 Admin ev
 역사 조회 인가는 호출자가 같은 scope에서 소유한다. 현재 domain을 자동 선택하거나 서로 다른 세대를 섞지 않으므로,
 이전 세대의 같은 model/ID 기록이 새 계정 이력으로 이어지지 않는다. 잘못된 row·canonical JSON·시각·순서는 거부하고
 종료 실패를 성공으로 바꾸지 않는다. 이 저장소는 임의 SQL writer의 역사 삭제·변조까지 막는 증명이 아니다.
+
+## 선택 계정의 읽기 전용 기동 관측
+
+선택 계정의 `SessionStore.InspectStartup`은 같은 credential/source·실제 typed account/catalog와 독립 domain·audit·session
+저장소를 검사한다. 생성자는 I/O를 하지 않는다. 호스트는 먼저 프로젝트 migration graph를 명시적으로 적용/검사하고 기동
+관측을 호출한다. 관측은 migration·계정 초기화·legacy adoption·자동 repair·session 만료 정리를 수행하지 않는다.
+
+첫 단계는 `AppliedMigrationReader`로 세 framework-owned 앱의 현행 migration identity 전체를 읽는다. 누락·중복·알 수 없는
+owned migration은 `schema_unavailable`이고 다른 앱의 이력은 해당 앱이 소유한다. 이 조회는 아래 데이터 snapshot과 별도다.
+동시 schema migration을 잠그는 보증이나 project 전체 migration/constraint/index 감사로 확대하지 않는다.
+
+데이터는 정확히 한 native snapshot에서 읽는다. Domain 검사는 전체 sequence/직전 ID chain과 모든 operation/generation의
+고유성을 확인한다. 256행 keyset page와 정렬 projection을 사용해 비인접 중복도 확인하며 전체 이력을 메모리에 쌓지 않는다.
+첫 page에 양수 하한을 두지 않는다. 과거 행 손상이나 scope/query/scan/iteration/close 실패도 최신 receipt를 게시하지 못한다.
+
+선택 account/catalog는 실제 typed manager로 각 table의 scalar column을 조회하고, 선택한 세 collection의 key/FK column도
+확인한다. 이것은 schema column 접근성 검사이며 전체 사용자 업무 validation이나 DB index/constraint 모양의 증명은 아니다.
+각 요청은 계속 현재 domain·credential·권한·대상 무결성을 해당 요청의 snapshot/transaction에서 확인한다.
+
+전체 account audit의 canonical encoding·시간·identity와 모든 session namespace의 global capacity·digest·payload를 검사한다.
+역사 domain, 삭제된 actor/target의 감사, 익명/삭제된 계정/이전 domain의 session은 정리하지 않는다. 계정 전환이나 session 인증의
+유효성은 각 owner의 현재 domain/credential 검사에 속하며 저장 encoding의 유효성과 구분한다.
+
+이력이 완전히 비어 있을 때 선택 계정 행과 account audit도 없어야 `Fresh`다. 0·음수 계정 key는 기존 행으로 취급한다.
+유효한 외부 session namespace는 빈 계정 domain과 공존할 수 있다. 소유권이 존재하면 선택 역할과 일치해야 `Ready`이며,
+마지막 계정 삭제 후에도 초기화된 domain은 Fresh가 되지 않는다. 역사 receipt를 현재 권한 cache나 재초기화 허가로 쓰지 않는다.
+
+`StartupInspection`은 snapshot 종료와 cleanup까지 성공한 뒤에만 반환하는 불변 관측이다. 실패·취소·누락/중복 callback은
+빈 결과와 비밀값 없는 오류를 반환한다. Borrowed `domain.InspectIn`, `audit.InspectIn`, `database.InspectIn`의 결과는 외부 scope
+성공 전까지 잠정 값이다. 공개 명령·scaffold 서버가 이 경로와 선택 계정 Admin/HTTP를 함께 조립해야 통합 startup 수용이 된다.

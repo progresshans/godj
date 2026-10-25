@@ -186,7 +186,7 @@ func (state *deletionLifecycle[M]) prepare(ctx context.Context, scope db.Relatio
 		if touch.direct && touch.changed() {
 			action, fields := admin.ActionDelete, []string(nil)
 			if !touch.deleted {
-				action, fields = admin.ActionChange, touch.changedFields()
+				action, fields = admin.ActionChange, lifecycleChangedFields(state.models[touch.key.model].metadata, touch)
 			}
 			if touch.created {
 				action = admin.ActionAdd

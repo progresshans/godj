@@ -52,6 +52,17 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		name string
 		run  func(*testing.T, Backend, func(*testing.T) Backend)
 	}{
+		{"startup_lifecycle", startupLifecycle},
+		{"startup_nonfresh", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+			startupNonfresh(t, backend, reopen, storedKey)
+		}},
+		{"startup_migrations", startupMigrations},
+		{"startup_current_domain", startupCurrentDomain},
+		{"startup_inventory", startupInventory},
+		{"startup_read_failures", startupReadFailures},
+		{"startup_snapshot", startupSnapshot},
+		{"startup_history_capability", startupHistoryCapability},
+		{"startup_public_failures", startupPublicFailures},
 		{"permission_union_and_freshness", permissionUnion},
 		{"coherent_snapshot", coherentSnapshot},
 		{"password_recheck", passwordRecheck},
@@ -175,7 +186,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
-			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || test.name == "first_account_lifecycle" || test.name == "account_profile_and_roles" {
+			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || strings.HasPrefix(test.name, "startup_") || test.name == "first_account_lifecycle" || test.name == "account_profile_and_roles" {
 				sources = append(sources, sessiondb.MigrationSources()...)
 			}
 			loaded, _, err := definition.Load(sources...)
@@ -188,6 +199,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			test.run(t, backend, reopen)
 		})
 	}
+	runStartupSchemaRequired(t, open)
 	runAccountDeletion(t, open, storedKey)
 	runCollectionChanges(t, open, storedKey)
 	runCollectionLifecycle(t, open, storedKey)

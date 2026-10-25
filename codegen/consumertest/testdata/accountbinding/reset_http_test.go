@@ -136,6 +136,11 @@ func runSelectedResetHTTP[M any](t *testing.T, backend database.Backend, reopen 
 		t.Helper()
 		store, err := storeFactory(connection, sessiondb.Config{})
 		check(err)
+		startup, err := store.InspectStartup(t.Context())
+		check(err)
+		if !startup.Ready() || startup.Fresh() {
+			t.Fatal("generated HTTP composition did not inspect current stored account ownership")
+		}
 		manager, err := sessions.NewManager(store, sessions.Config{Clock: clock})
 		check(err)
 		verifier, err := store.Authenticator(t.Context(), observed)

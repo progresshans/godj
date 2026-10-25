@@ -24,6 +24,7 @@ type credentialStoreState[M any] struct {
 	key              orm.AutoField[M]
 	permissions      func(context.Context, db.Queryer, int64) ([]auth.Permission, error)
 	relations        *accountRelationReader
+	probeSchema      func(context.Context, db.Queryer) (bool, error)
 	relatedLifecycle func(*SessionStore[M], Binding[M], auth.Authorizer, AccountDeleteConfig) (*deletionLifecycle[M], error)
 }
 
@@ -67,11 +68,16 @@ func prepareCredentialStore[M, G, P any](binding Binding[M], groups orm.Relation
 	if !exists {
 		return zero, invalidCredentialStore()
 	}
+	probe, err := prepareStartupProbe(binding, groups, permissions)
+	if err != nil {
+		return zero, err
+	}
 	return credentialStoreState[M]{
 		binding:   binding,
 		login:     orm.NewStringField[M](binding.state.credentialFields[binding.state.role.Login]),
 		principal: orm.NewStringField[M](binding.state.credentialFields[binding.state.role.PrincipalID]),
 		key:       orm.NewAutoField[M](key), permissions: load.permissions, relations: load,
+		probeSchema: probe,
 		relatedLifecycle: func(sessions *SessionStore[M], expected Binding[M], overlay auth.Authorizer, config AccountDeleteConfig) (*deletionLifecycle[M], error) {
 			return newLifecycle(sessions, expected, groups, permissions, overlay, config, false)
 		},
