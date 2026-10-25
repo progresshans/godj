@@ -47,6 +47,15 @@ type AlternativeAuthentication interface {
 	RequireAny(auth.Permission, AuthenticatedHandler, ...auth.Permission) (web.Handler, error)
 }
 
+// PolicyAuthentication supports mandatory grants together with alternatives.
+// Credential and CSRF admission runs once, followed by the complete immutable
+// policy before parsing or the handler. Mandatory checks precede alternatives;
+// a deny overlay cannot grant a permission absent from the resolved principal.
+type PolicyAuthentication interface {
+	Authentication
+	RequirePolicy(PermissionPolicy, AuthenticatedHandler) (web.Handler, error)
+}
+
 // AuthenticationKind names the accepted, mutually exclusive API profiles.
 type AuthenticationKind uint8
 

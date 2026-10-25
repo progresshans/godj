@@ -207,8 +207,12 @@ List는 scalar만 최대 100개씩 ID 순서로 반환하고 count와 items가 �
 
 조회는 view 또는 change, User 생성은 add와 change, 나머지 변경은 해당 모델의 add/change/delete를 요구한다.
 `api.AlternativeAuthentication.RequireAny`는 인증과 CSRF를 한 번 수행하고 확정 거부일 때만 다음 권한을 확인한다.
-인가 실행 오류는 다른 권한으로 우회하지 않는다. OpenAPI의 `x-godj-any-permissions`도 같은 대안을 명시하고
-conjunction과 혼합한 선언은 거부한다. API의 모델 권한과 Admin의 active staff admission은 별개다.
+인가 실행 오류는 다른 권한으로 우회하지 않는다. 공통 `api.PermissionPolicy`는 모든 필수 권한과 대안 중 하나를
+결합한다. Session/Bearer의 `RequirePolicy`는 인증·CSRF를 한 번 수행하고 필수 권한 뒤에 대안을 평가한다.
+오류·취소에는 뒤 검사를 하지 않으며, deny overlay는 principal이 갖지 않은 grant를 추가할 수 없다.
+`endpoint.Permissions`가 같은 불변 선언을 실행과 OpenAPI에 연결한다. OpenAPI의 `x-godj-any-permissions`는 대안,
+`x-godj-additional-permissions`는 함께 필요한 전체 권한이며 두 그룹 사이의 중복도 거부한다.
+API의 모델 권한과 Admin의 active staff admission은 별개다.
 Manager는 HTTP에서 받은 principal의 과거 grant를 쓰기 권한으로 신뢰하지 않고 현재 저장 상태를 다시 확인한다.
 
 수정·삭제·password 명령은 `If-Revision`에 대상 row의 canonical positive decimal revision을 요구한다.

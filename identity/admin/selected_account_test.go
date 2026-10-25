@@ -72,7 +72,8 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 	for _, field := range descriptor.FormFields {
 		edited = append(edited, field.Name())
 	}
-	if !slices.Equal(created, []string{"username", "groups", "password1", "password2", "unusable_password"}) || !slices.Equal(edited, config.EditFields) {
+	// The allowlist selects fields; ModelForm preserves their Schema IR order.
+	if !slices.Equal(created, []string{"username", "groups", "password1", "password2", "unusable_password"}) || !slices.Equal(edited, []string{"first_name", "email", "active", "permissions"}) {
 		t.Fatal("read/create/edit policies merged", created, edited)
 	}
 	for _, mode := range []string{"nil_owner", "nil_builder", "unreadable_edit", "missing_label", "collection_column", "secret_column", "missing_slug"} {

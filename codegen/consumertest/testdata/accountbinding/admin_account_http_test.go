@@ -57,6 +57,13 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	values, err := objects.ModelValues(original)
 	check(err)
 	loginName, _ := values[role.Login].String()
+	managedLogin, unusableLogin := "managed", "disabled"
+	if role.Login == role.Email {
+		// The selected login may also be an EmailField. Keep the same valid
+		// identity for creation, stored-value assertions and later logins.
+		managedLogin += "@example.test"
+		unusableLogin += "@example.test"
+	}
 	keyField, err := objects.PrimaryKeyField()
 	check(err)
 	key := orm.NewAutoField[M](keyField)
@@ -275,10 +282,18 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				t.Fatal("account assignment is not bounded/current", status)
 			}
 			overlay.denied.Store(auth.Permission("catalog.view_permission"))
-			status, _, _ = send(client, "GET", path+"?search=20&limit=1", nil)
+			status, _, body = send(client, "GET", path+"?q=20&limit=1", nil)
 			overlay.denied.Store(auth.Permission(""))
-			if status != 200 {
-				t.Fatal("assignment required unrelated catalog view")
+			check(json.Unmarshal([]byte(body), &page))
+			want := groupID
+			if field == role.Permissions {
+				want = permissionID
+			}
+			if status != 200 || len(page.Items) != 1 || page.Items[0].Value != strconv.FormatInt(want, 10) || page.More {
+				t.Fatal("assignment search lost current selection or required unrelated catalog view", status)
+			}
+			if status, _, _ := send(client, "GET", path+"?search=20&limit=1", nil); status != 400 {
+				t.Fatal("unknown choice query was accepted", status)
 			}
 		}
 		if !reflect.DeepEqual(before, snapshot()) {
@@ -289,7 +304,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		t.Run(mode, func(t *testing.T) {
 			path := "/admin/accounts/add/"
 			page := get(client, path)
-			data := dataFor("managed", "NZ")
+			data := dataFor(managedLogin, "NZ")
 			data.Set("password1", accountPasswordText)
 			data.Set("password2", accountPasswordText)
 			data.Set("csrfmiddlewaretoken", csrf(page))
@@ -297,7 +312,13 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			switch mode {
 			case "partial_unique":
 				data.Set(role.Login, loginName)
-				data.Set(role.Email, "invalid")
+				if role.Email != role.Login {
+					data.Set(role.Email, "invalid")
+				} else {
+					// The custom role's email and login are one field. An invalid
+					// independent region choice must not overwrite that duplicate.
+					data.Set(profileField, "US")
+				}
 				code = "unique"
 			case "invalid_choice":
 				data.Set(role.Login, loginName)
@@ -371,7 +392,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				t.Fatal("server field became writable", field)
 			}
 		}
-		data := dataFor("managed", "NZ")
+		data := dataFor(managedLogin, "NZ")
 		data.Set("password1", accountPasswordText)
 		data.Set("password2", accountPasswordText)
 		data.Set("csrfmiddlewaretoken", csrf(page))
@@ -382,7 +403,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		rows, err := owner.Reader().List(t.Context(), actor, 0, 100)
 		check(err)
 		for _, row := range rows.Items {
-			if name, _ := row.View().Values()[role.Login].String(); name == "managed" {
+			if name, _ := row.View().Values()[role.Login].String(); name == managedLogin {
 				targetID = row.ID()
 			}
 		}
@@ -399,7 +420,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		if len(snapshot().rows) != 2 {
 			t.Fatal("creation inserted a hidden account")
 		}
-		_, err = verifier.Authenticate(t.Context(), "managed", accountPasswordText)
+		_, err = verifier.Authenticate(t.Context(), managedLogin, accountPasswordText)
 		check(err)
 	})
 	if targetID <= 0 {
@@ -407,7 +428,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	}
 	path := "/admin/accounts/change/?id=" + strconv.FormatInt(targetID, 10)
 	t.Run("create_unusable", func(t *testing.T) {
-		data := dataFor("disabled", "NZ")
+		data := dataFor(unusableLogin, "NZ")
 		data.Set("unusable_password", "on")
 		data.Set("csrfmiddlewaretoken", csrf(get(client, "/admin/accounts/add/")))
 		status, _, _ := send(client, "POST", "/admin/accounts/add/", data)
@@ -417,14 +438,14 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		rows, err := owner.Reader().List(t.Context(), actor, 0, 100)
 		check(err)
 		for _, row := range rows.Items {
-			if name, _ := row.View().Values()[role.Login].String(); name == "disabled" {
+			if name, _ := row.View().Values()[role.Login].String(); name == unusableLogin {
 				disabledID = row.ID()
 			}
 		}
 		if disabledID <= 0 {
 			t.Fatal("unusable row absent")
 		}
-		if _, err := verifier.Authenticate(t.Context(), "disabled", accountPasswordText); err == nil {
+		if _, err := verifier.Authenticate(t.Context(), unusableLogin, accountPasswordText); err == nil {
 			t.Fatal("unusable credential authenticated")
 		}
 	})
@@ -432,7 +453,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		t.Run(mode, func(t *testing.T) {
 			page := get(client, path)
 			before := snapshot()
-			data := dataFor("managed", "NZ")
+			data := dataFor(managedLogin, "NZ")
 			data.Set("expected_revision", "1")
 			data.Set("csrfmiddlewaretoken", csrf(page))
 			want := 200
@@ -473,7 +494,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		if !strings.Contains(page, "Assignment team 20") || !strings.Contains(page, "Assignment 20") {
 			t.Fatal("selected choice outside first page lost its label")
 		}
-		data := dataFor("managed", "KR")
+		data := dataFor(managedLogin, "KR")
 		data.Set("expected_revision", "1")
 		data.Set("csrfmiddlewaretoken", csrf(page))
 		status, _, _ := send(client, "POST", path, data)
@@ -500,7 +521,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	})
 	t.Run("password_command", func(t *testing.T) {
 		sibling := newClient()
-		bearer := login(sibling, "managed", accountPasswordText)
+		bearer := login(sibling, managedLogin, accountPasswordText)
 		command := "/admin/accounts/command/password/?id=" + strconv.FormatInt(targetID, 10)
 		data := url.Values{"password1": {"replacement-password"}, "password2": {"replacement-password"}, "expected_revision": {"2"}, "csrfmiddlewaretoken": {csrf(get(client, command))}}
 		status, _, _ := send(client, "POST", command, data)
@@ -510,10 +531,10 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		if _, present, err := selected.Load(t.Context(), bearer); err != nil || present {
 			t.Fatal("password replacement retained target session", err)
 		}
-		if _, err := verifier.Authenticate(t.Context(), "managed", accountPasswordText); err == nil {
+		if _, err := verifier.Authenticate(t.Context(), managedLogin, accountPasswordText); err == nil {
 			t.Fatal("old password remained usable")
 		}
-		_, err := verifier.Authenticate(t.Context(), "managed", "replacement-password")
+		_, err := verifier.Authenticate(t.Context(), managedLogin, "replacement-password")
 		check(err)
 		row, err := owner.Reader().Get(t.Context(), actor, targetID)
 		check(err)
@@ -523,8 +544,8 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	})
 	t.Run("self_deactivation", func(t *testing.T) {
 		self, sibling := newClient(), newClient()
-		bearers := []sessions.ID{login(self, "managed", "replacement-password"), login(sibling, "managed", "replacement-password")}
-		data := dataFor("managed", "KR")
+		bearers := []sessions.ID{login(self, managedLogin, "replacement-password"), login(sibling, managedLogin, "replacement-password")}
+		data := dataFor(managedLogin, "KR")
 		data.Del(role.Active.Field)
 		data.Set("expected_revision", "3")
 		data.Set("csrfmiddlewaretoken", csrf(get(self, path)))

@@ -34,8 +34,9 @@ type Config struct {
 }
 
 // Operation associates documentation with the same route used for execution.
-// Permission and AdditionalPermissions describe the complete conjunction used
-// to wrap Route.Handler. Additional permissions do not grant alternative access.
+// AdditionalPermissions are mandatory. Permission is also mandatory unless
+// AlternativePermissions declares its alternative group. These fields describe
+// the complete policy used to wrap Route.Handler.
 type Operation struct {
 	Route                 web.Route `json:"-"`
 	Summary               string
@@ -55,8 +56,9 @@ type Operation struct {
 	// validates that proof. Other admission modes already own their transport.
 	SessionCookieRequired bool
 	// AlternativePermissions makes Permission and these entries a disjunction,
-	// matching AlternativeAuthentication.RequireAny. It cannot be combined with
-	// AdditionalPermissions; an authorizer error never selects another branch.
+	// matching AlternativeAuthentication.RequireAny when used alone.
+	// AdditionalPermissions remain mandatory; an authorizer error never selects
+	// another branch.
 	AlternativePermissions []auth.Permission
 	Parameters             []Parameter
 	RequestBody            *RequestBody
@@ -237,20 +239,20 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 	if !validText(operation.Summary, 256, false) || !validText(operation.Description, 8192, false) {
 		return nil, documentError("operation.description", "operation text is invalid or too long")
 	}
-	if len(operation.AdditionalPermissions) != 0 && len(operation.AlternativePermissions) != 0 {
-		return nil, documentError("operation.permission", "conjunction and alternatives cannot be combined")
-	}
 	if operation.AuthenticatedOnly && operation.CSRFOnly || (operation.AuthenticatedOnly || operation.CSRFOnly) && (operation.Permission != "" || len(operation.AdditionalPermissions) != 0 || len(operation.AlternativePermissions) != 0) {
 		return nil, documentError("operation.permission", "principal-only or CSRF-only admission cannot be combined with other admission requirements")
 	}
-	remaining := operation.AdditionalPermissions
-	if len(operation.AlternativePermissions) != 0 {
-		remaining = operation.AlternativePermissions
-	}
-	var permissions []auth.Permission
 	if !operation.AuthenticatedOnly && !operation.CSRFOnly {
-		var err error
-		permissions, err = auth.RequiredPermissions(operation.Permission, remaining...)
+		if len(operation.AdditionalPermissions) >= auth.MaximumPermissions || len(operation.AlternativePermissions) >= auth.MaximumPermissions-len(operation.AdditionalPermissions) {
+			return nil, documentError("operation.permission", "permission policy exceeds the supported bound")
+		}
+		required := append([]auth.Permission{operation.Permission}, operation.AdditionalPermissions...)
+		var alternatives []auth.Permission
+		if len(operation.AlternativePermissions) != 0 {
+			required = operation.AdditionalPermissions
+			alternatives = append([]auth.Permission{operation.Permission}, operation.AlternativePermissions...)
+		}
+		_, err := api.NewPermissionPolicy(required, alternatives)
 		if err != nil {
 			return nil, documentError("operation.permission", "explicit canonical distinct permissions are required")
 		}
@@ -401,9 +403,10 @@ func operationValue(operation Operation, path web.RoutePathDescription, profile 
 		value["x-godj-authenticated-only"] = true
 	} else if len(operation.AlternativePermissions) != 0 {
 		delete(value, "x-godj-permission")
-		value["x-godj-any-permissions"] = permissions
-	} else if len(permissions) > 1 {
-		value["x-godj-additional-permissions"] = permissions[1:]
+		value["x-godj-any-permissions"] = append([]auth.Permission{operation.Permission}, operation.AlternativePermissions...)
+	}
+	if len(operation.AdditionalPermissions) != 0 {
+		value["x-godj-additional-permissions"] = operation.AdditionalPermissions
 	}
 	if body := operation.RequestBody; body != nil {
 		if operation.Route.Method != http.MethodPost && operation.Route.Method != http.MethodPut && operation.Route.Method != http.MethodPatch {

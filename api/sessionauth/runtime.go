@@ -3,6 +3,7 @@
 package sessionauth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -66,6 +67,7 @@ type Runtime struct {
 }
 
 var _ api.AlternativeAuthentication = (*Runtime)(nil)
+var _ api.PolicyAuthentication = (*Runtime)(nil)
 var _ api.PrincipalAuthentication = (*Runtime)(nil)
 var _ api.CSRFAuthentication = (*Runtime)(nil)
 
@@ -99,16 +101,8 @@ func New(runtime *websessionauth.Runtime, options ...Option) (*Runtime, error) {
 	return prepared, nil
 }
 
-type permissionMode uint8
-
-const (
-	allPermissions permissionMode = iota
-	anyPermission
-	onlyAuthenticated
-)
-
 func (r *Runtime) RequireAuthenticated(handler api.AuthenticatedHandler) (web.Handler, error) {
-	return r.protect(onlyAuthenticated, "", handler)
+	return r.protect(api.PermissionPolicy{}, true, handler)
 }
 
 // RequireCSRF admits anonymous or signed-in browsers without resolving a
@@ -141,29 +135,38 @@ func (r *Runtime) RequireCSRF(handler web.Handler) (web.Handler, error) {
 // or persistence. Expected denial responses are JSON 403 without redirects or
 // WWW-Authenticate.
 func (r *Runtime) Require(permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
-	return r.protect(allPermissions, permission, handler, additional...)
+	policy, err := api.NewPermissionPolicy(append([]auth.Permission{permission}, additional...), nil)
+	if err != nil {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
+	}
+	return r.RequirePolicy(policy, handler)
 }
 
 // RequireAny accepts the first explicitly granted permission whose deny overlay
 // allows the request. Credential/CSRF checks run once; errors never fall back.
 func (r *Runtime) RequireAny(permission auth.Permission, handler api.AuthenticatedHandler, alternatives ...auth.Permission) (web.Handler, error) {
-	return r.protect(anyPermission, permission, handler, alternatives...)
+	policy, err := api.NewPermissionPolicy(nil, append([]auth.Permission{permission}, alternatives...))
+	if err != nil {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
+	}
+	return r.RequirePolicy(policy, handler)
 }
 
-func (r *Runtime) protect(mode permissionMode, permission auth.Permission, handler api.AuthenticatedHandler, additional ...auth.Permission) (web.Handler, error) {
+// RequirePolicy keeps compound permission admission inside one credential and
+// CSRF boundary. It never implements conjunction by authenticating twice.
+func (r *Runtime) RequirePolicy(policy api.PermissionPolicy, handler api.AuthenticatedHandler) (web.Handler, error) {
+	return r.protect(policy, false, handler)
+}
+
+func (r *Runtime) protect(policy api.PermissionPolicy, principalOnly bool, handler api.AuthenticatedHandler) (web.Handler, error) {
 	if r == nil || r.runtime == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "runtime", Detail: "API session runtime is nil or uninitialized"}
 	}
 	if r.runtime.CSRFHeader() == "" {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "csrf_header", Detail: "session-auth runtime has no CSRF header"}
 	}
-	var permissions []auth.Permission
-	if mode != onlyAuthenticated {
-		var err error
-		permissions, err = auth.RequiredPermissions(permission, additional...)
-		if err != nil {
-			return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission is invalid"}
-		}
+	if !principalOnly && !policy.Valid() {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "permission", Detail: "permission policy is invalid"}
 	}
 	if handler == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "handler", Detail: "authenticated API handler is nil"}
@@ -189,23 +192,16 @@ func (r *Runtime) protect(mode permissionMode, permission auth.Permission, handl
 				return web.Response{}, err
 			}
 		}
-		granted := false
-		for _, required := range permissions {
-			allowed, err := r.runtime.Authorized(request.Context(), principal, required)
+		if !principalOnly {
+			granted, err := policy.Check(request.Context(), func(ctx context.Context, permission auth.Permission) (bool, error) {
+				return r.runtime.Authorized(ctx, principal, permission)
+			})
 			if err != nil {
 				return web.Response{}, err
 			}
-			if mode == anyPermission {
-				if allowed {
-					granted = true
-					break
-				}
-			} else if !allowed {
+			if !granted {
 				return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
 			}
-		}
-		if mode == anyPermission && !granted {
-			return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
 		}
 		response, err := handler(request, principal)
 		if err != nil || !safeMethod(request.Method()) {

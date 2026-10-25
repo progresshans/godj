@@ -277,6 +277,12 @@ source에 생성/조회/수정/삭제/비밀번호 owner를 묶고 명시적 rea
 명령·자기 비활성화/두 세션 폐기·삭제/audit 소비자를 작성했다. 새 본문 작성·최소 compile과 원격 실행은 TEST_EVIDENCE에서
 구분한다. Account-project ABI v16으로 관리 중인 12개 project bundle을 갱신했다.
 
+관리 JSON의 공통 권한을 위한 `api.PermissionPolicy`·Session/Bearer `RequirePolicy`와 `endpoint.Permissions`를 작성했다.
+필수 추가 권한과 view/change 대안을 한 번의 인증·CSRF 뒤 확인하며 같은 선언으로 OpenAPI를 구성한다.
+확정 거부·인가 오류·취소·권한 없는 principal을 overlay가 허용하는 경우와 body 이전 admission을 원격 필수 검사에 추가했다.
+선행 CI의 Admin 필드 순서·선택지 query·이메일형/동일 역할 로그인 fixture 오류를 재현·보정했고, 기본/custom/Text 로그인
+세 생성 소비자의 한정 재실행을 확인했다. 새 API 정책의 최소 compile과 실제 본문 검증은 TEST_EVIDENCE에서 구분한다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP 제품 조립,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.

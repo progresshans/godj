@@ -38,6 +38,12 @@ JSON negotiation은 기존 `api.JSONPolicy`와 실제 middleware가 소유한다
 선언을 거부한다. 초기화에서 getter·setter·handler·DB I/O를 실행하지 않으며 각 callback은 동시 요청에 안전해야 한다.
 
 `All(first, more...)`는 모든 권한, `Any(first, alternatives...)`는 명시한 권한 중 하나를 요구한다.
+`Permissions(policy)`는 `api.NewPermissionPolicy(required, alternatives)`의 모든 필수 권한과 대안 중 하나를
+같이 요구한다. 필수 권한을 먼저 확인하고 확정 거부일 때만 다음 대안을 평가한다. 오류·취소는 대안을 우회하지 않는다.
+실제 Session/Bearer adapter는 인증·CSRF 경계를 한 번만 수행한다. 둘 이상의 대안과 필수 권한을 결합하려면
+`api.PolicyAuthentication`이 필요하며, 없는 adapter는 초기화에서 거부한다. 단일 대안은 순서를 유지한 conjunction이다.
+OpenAPI는 대안을 `x-godj-any-permissions`, 함께 필요한 권한을 `x-godj-additional-permissions`로 기술한다.
+두 배열의 합집합은 canonical·distinct·최대 256개이며 입력 배열과 반환 metadata의 변경은 정책을 바꾸지 않는다.
 `Authenticated()`는 모델 권한과 독립적인 인증, `CSRFOnly(requireSessionProof)`는 Session adapter의 익명 CSRF admission이다.
 마지막 경우 handler에는 zero Principal을 전달하며 `requireSessionProof`는 application이 직접 검증하는 session proof의
 문서 선언이다. 이 bool이 proof 검증을 수행하지는 않는다. Zero admission·빈/중복 권한·없는 adapter capability는 준비 오류다.

@@ -1487,6 +1487,45 @@ Relation 필수 목록은 4,273→4,338(65개 추가), PostgreSQL core는 5,478�
 채운 DB의 mapping/retirement/receipt, 설치·통합 startup/restart·독립 PostgreSQL HTTP/브라우저·고정 Django 수용과 전체
 카탈로그의 잔여 요구를 유지한다. I1 전체 PASS가 아니며 Admin 양수 객체 URL과 native signed key의 검증 범위도 구분한다.
 
+### 관리 JSON의 복합 권한 정책과 선행 Admin 소비자 보정
+
+2026-10-26, `7a022f58be6eb1725ad2b8fc88f72f76e8b03bf0` 위에서 `api.PermissionPolicy`와 Session/Bearer의
+`RequirePolicy`, `endpoint.Permissions`를 작성했다. 필수 권한 모두와 대안 중 하나를 같은 인증·CSRF 경계에서 검사한다.
+필수 권한을 먼저 평가하고 대안은 확정 거부에만 진행한다. 오류·취소는 뒤 검사나 handler를 실행하지 않으며 principal에
+없는 grant는 overlay의 허용으로 보충하지 않는다. 선언은 canonical/distinct·전체 256개 한도를 갖고 입출력 slice를 소유한다.
+Endpoint와 OpenAPI는 같은 정책을 사용하며 필수 추가 권한과 alternative를 함께 기술한다. API adapter의 실행과 문서
+capability가 없는 조합은 route 게시 전에 거부한다. 실제 선택 계정의 JSON CRUD 조립은 아직 남아 있다.
+
+순수 정책의 소유권/한도/진리값·직접 오류 보존/취소, 실제 Session/Bearer의 단일 credential/CSRF·필수/대안 거부·현재
+principal/overlay, endpoint의 body 이전 admission·동일 OpenAPI 의미를 55개 root/child 필수 항목으로 추가했다.
+Portable core 목록은 65→120이며 기존 항목과 실행 소유권을 보존했다. Relation 4,338·PostgreSQL core 5,506은 그대로다.
+이 새 정책 본문은 로컬에서 실행하지 않았다. API·Bearer·Session·Endpoint·OpenAPI 다섯 package의
+`go test -run '^$'`가 통과했으며 test body는 0개다.
+
+선행 [CI 40243228905](https://github.com/progresshans/godj/actions/runs/40243228905) attempt 1은 관측 시 114개 job 중
+성공 46·실패 4·실행 중 32·대기 32였다. 네 실패 로그의 checkout은 모두
+`932e4f12e5c585ed0366945a11b389c5d8edcd9b`이며 부모에 제출 source가 있고 tree
+`a96d52a5851574c7f42c0c617db6de577c926d64`도 그 source와 일치한다. 실행 전체의 종결이나 PASS가 아니다.
+
+- 두 Linux cgo0와 amd64 normal runtime 좌표는 Admin 등록 단위 기대값이 allowlist 순서를 Form 순서로 오인해 실패했다.
+  기존 `NewSpecForFields`의 Schema IR 선언 순서에 기대값을 맞췄다. 같은 root를 로컬에서 재현한 뒤 root/child 8개
+  pass event, fail/skip 0개를 확인했다. 제품의 Form 순서나 필드 노출을 바꾸지 않았다.
+- Linux arm64 normal 소비자 shard는 새 자동 등록 HTTP fixture에서 실패했다. 선택지의 실제 query 이름 `q` 대신
+  `search`를 썼고, EmailField 로그인에 `managed`를 제출했으며, Login과 Email이 같은 필드인 경우 partial-unique 입력을
+  덮어썼다. 같은 역할은 유효한 이메일형 identity를 생성·조회·후속 로그인에 사용하고, 독립 region 오류와 중복 login을
+  함께 제출하도록 고쳤다. 선택지 결과가 요청한 실제 row인지와 알 수 없는 query의 400도 확인한다.
+  기본/custom/custom_text_login 세 변형의 동일 명령에서 실패를 재현했고 보정 뒤 부모 root/child 4개가 12.354초에
+  통과했다. 원본 child JSON은 각각 140·65·65개 test pass event, fail/skip 0개이며 이 중 새 Account Admin 수명은
+  각 22개(root+21 child)다. 실제 TCP/SQLite 생성·선택지·partial validation·권한/CSRF/stale·수정·password·자기 비활성화와
+  세션 폐기·삭제/audit를 실행했다. 다른 네 생성 변형과 PostgreSQL HTTP/race/platform을 이 한정 결과로 대신하지 않는다.
+
+포맷·diff·현행 문서 링크와 필수 목록의 중복/실행 소유권을 검사했다. 원본 네 CI job 로그·merge/tree·실패 재현/재실행,
+새 API 최소 compile의 tool 출력 전사와 필수 목록, 변경한 비 Markdown source hash는 검증 보관소의
+`gdj0138-api-permission-policy-v1/receipt.json`에 연결했다
+(SHA-256 `654837db475a5968b9fdd61dbd6ea11db682d4c6aa60c0696c2497118923523d`).
+새 API 정책 본문과 전체 영향 검증은 제출 source의 원격 CI에서 수행한다. 관리 JSON CRUD·공개 첫 계정 명령과
+scaffold/runtime·나머지 I1-01~08 및 전체 카탈로그의 범위를 그대로 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
