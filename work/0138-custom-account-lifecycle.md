@@ -148,7 +148,7 @@ typed password 정책·DB 밖 이전 검증/한 번의 hash와 최종 현재 계
 시작 시 거부한다. 기본/custom/인증 NFKC/Form NFKC/짧은 login/Text login/LastLogin 없는 외부 생성 소비자는
 공통 로그인에서 실제 CSRF·정규화·길이·redirect·durable session을 확인하고 이어 같은 Form/JSON 비밀번호 경로를 사용한다.
 앞선 password CI 실패에서 잘못된 bound-session 호출과 credential 읽기 범위 검증 누락을 재현해 수정했다.
-한정 재현과 새 로그인 본문의 실행 상태는 TEST_EVIDENCE에서 구분한다. Admin login·관리/reset·통합 runtime은 남아 있다.
+한정 재현과 새 로그인 본문의 실행 상태는 TEST_EVIDENCE에서 구분한다. 후속 Admin·관리/reset 조립은 아래 진행과 같다.
 
 선택 계정의 생성 `NewAccountPasswordEditor`와 공통 `PasswordEditor[M]`를 작성했다. 같은 세션/인증기와 전체 host source,
 현재 관리 권한·추가 권한·target revision·기존 credential·typed password 정책을 검사한다. DB 밖 한 번의 hash 뒤 같은
@@ -159,7 +159,7 @@ native transaction에서 Password/Revision·모든 대상 세션 폐기·현재 
 오류 분류를 조립했다. 기본/custom/LastLogin 없는 최초 계정 소비자는 실제 Admin Site·TCP·CSRF·stale/추가 권한 거부·
 변경/disable·기존 브라우저 폐기와 선택 필드 audit를 확인하도록 확장했다. 양 DB는 현재 상태 재검사·부분 쓰기/뒤 batch·
 cleanup/unknown·관리자/자기 변경/login 경합·0/음수 key 검사를 포함한다. 작성·생성·최소 compile과 본문 실행은
-TEST_EVIDENCE에서 구분한다. 자동 account/catalog Admin 등록과 Admin 로그인 Form 정책의 전환을 완료한 것은 아니다.
+TEST_EVIDENCE에서 구분한다. 이 명령 조립은 자동 account/catalog Admin 등록을 완료한 것은 아니다.
 
 선택 계정 reset을 위한 공통 key ring·상태 서명·email cleaner를 `auth`에 두고 기존 reset owner와 소비자를 전환했다.
 메일러는 모델을 직접 조회하지 않고 저장 owner가 같은 snapshot에서 만든 수신자/token 전체를 받는다. 서명은 credential
@@ -185,6 +185,13 @@ renamed Member·기본 키/별도 Text email·Email/LastLogin 부재·상수 act
 소비자는 실제 별도 DB 연결과 이 Registry 경로를 통해 첫 계정·receipt·HTTP 로그인을 확인하도록 전환했다.
 새 본문 실행은 원격 대상이며 최소 compile과 확인된 CI 시간 제한의 실행 소유권 수정은 TEST_EVIDENCE에서 구분한다.
 공개 터미널·상위 process·scaffold/runtime 전환을 완료한 것으로 계산하지 않는다.
+
+Admin Site와 일반 계정 Application의 로그인을 같은 `forms/auth` 정의에 연결했다. 선택 인증기의 불변 label·문자 한도·
+Form 정규화와 username/password byte 한도를 사용하고, metadata 누락은 Site 시작 시 거부한다. 엄격한 파싱·CSRF 뒤의
+Form 검사와 active staff/추가 권한의 선행·최종 admission, 동일 세션 owner의 원자적 저장을 유지한다.
+기본/custom/인증 NFKC/Form NFKC/짧은 login/Text login/LastLogin 없는 첫 계정 소비자를 실제 Admin에 연결해
+입력·권한 거부의 durable 불변과 성공 시 선택 session/LastLogin·안전한 redirect를 확인하도록 확장했다.
+로컬 최소 compile과 새 단위·HTTP 본문의 원격 실행 상태는 TEST_EVIDENCE에서 구분한다.
 
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·통합 runtime·host 삭제·audit/session 설치/startup·채운 DB

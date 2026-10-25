@@ -13,6 +13,8 @@ import (
 
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/forms"
+	authform "github.com/progresshans/godj/forms/auth"
 	"github.com/progresshans/godj/templates"
 	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/web"
@@ -66,6 +68,7 @@ type Site struct {
 	basePath    string
 	registry    Registry
 	auth        *sessionauth.Runtime
+	login       forms.Spec
 	templates   *templates.Engine
 	widgets     widgetRegistry
 	routes      []web.Route
@@ -88,6 +91,14 @@ func NewSite(config SiteConfig) (*Site, error) {
 	}
 	if config.Auth == nil {
 		return nil, &ConfigError{Path: "site.auth", Code: "missing"}
+	}
+	loginInput, err := config.Auth.LoginInput()
+	if err != nil {
+		return nil, &ConfigError{Path: "site.auth.login_input", Code: "invalid", Cause: err}
+	}
+	login, err := authform.NewLoginSpec(loginInput, MaximumInputBytes)
+	if err != nil {
+		return nil, &ConfigError{Path: "site.auth.login_input", Code: "invalid", Cause: err}
 	}
 	pageSize := config.PageSize
 	if pageSize == 0 {
@@ -141,6 +152,7 @@ func NewSite(config SiteConfig) (*Site, error) {
 		basePath:  basePath,
 		registry:  config.Registry,
 		auth:      config.Auth,
+		login:     login,
 		templates: engine,
 		widgets:   widgets,
 		pageSize:  pageSize,

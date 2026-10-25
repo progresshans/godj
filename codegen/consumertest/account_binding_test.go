@@ -53,71 +53,66 @@ var accountBindingCreationConsumer []byte
 //go:embed testdata/accountbinding/roles_test.go
 var accountBindingRoleConsumer []byte
 
-func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing.T) {
-	for _, variant := range []struct{ custom, normalized, noLastLogin, formNormalized, shortLogin, textLogin bool }{{}, {custom: true}, {custom: true, normalized: true}, {custom: true, noLastLogin: true}, {custom: true, formNormalized: true}, {custom: true, shortLogin: true}, {custom: true, textLogin: true}} {
-		custom := variant.custom
-		name, source, required := "default", defaultAccountBindingConsumer, "TestDefaultAccountBindingOwnsTypedRows"
-		if custom {
-			name, source, required = "custom", customAccountBindingConsumer, "TestCustomAccountBindingOwnsTypedRowsAndHostGraph"
-		}
-		if variant.normalized {
-			name = "custom_normalized"
-		}
-		if variant.noLastLogin {
-			name = "custom_without_last_login"
-		}
-		if variant.formNormalized {
-			name = "custom_form_normalized"
-		}
-		if variant.shortLogin {
-			name = "custom_short_login"
-		}
-		if variant.textLogin {
-			name = "custom_text_login"
-		}
-		t.Run(name, func(t *testing.T) {
-			spec := accountBindingConsumerSpec(t, custom)
-			if variant.normalized {
-				spec.Account.AuthenticateNormalization = ir.AccountUnicode16NFKC
+type accountLoginVariant struct {
+	name                                                                   string
+	custom, normalized, noLastLogin, formNormalized, shortLogin, textLogin bool
+}
+
+func accountLoginVariants() []accountLoginVariant {
+	return []accountLoginVariant{
+		{name: "default"}, {name: "custom", custom: true},
+		{name: "custom_normalized", custom: true, normalized: true},
+		{name: "custom_without_last_login", custom: true, noLastLogin: true},
+		{name: "custom_form_normalized", custom: true, formNormalized: true},
+		{name: "custom_short_login", custom: true, shortLogin: true},
+		{name: "custom_text_login", custom: true, textLogin: true},
+	}
+}
+
+func applyAccountLoginVariant(spec *codegen.ProjectSpec, variant accountLoginVariant) {
+	if variant.normalized {
+		spec.Account.AuthenticateNormalization = ir.AccountUnicode16NFKC
+	}
+	if variant.formNormalized {
+		spec.Account.LoginFormNormalization = ir.AccountUnicode16NFKC
+	}
+	for i := range spec.Apps {
+		for j := range spec.Apps[i].Schema.Models {
+			model := &spec.Apps[i].Schema.Models[j]
+			if spec.Apps[i].Schema.AppLabel != spec.Account.Model.AppLabel || model.Name != spec.Account.Model.ModelName {
+				continue
 			}
-			if variant.formNormalized {
-				spec.Account.LoginFormNormalization = ir.AccountUnicode16NFKC
-			}
-			if variant.shortLogin || variant.textLogin {
-				for i := range spec.Apps {
-					for j := range spec.Apps[i].Schema.Models {
-						model := &spec.Apps[i].Schema.Models[j]
-						if spec.Apps[i].Schema.AppLabel != spec.Account.Model.AppLabel || model.Name != spec.Account.Model.ModelName {
-							continue
-						}
-						for k := range model.Fields {
-							field := &model.Fields[k]
-							if field.Name == spec.Account.Login {
-								if variant.shortLogin {
-									field.MaxLength = 100
-								} else {
-									field.Kind, field.MaxLength = ir.FieldText, 0
-								}
-							}
-						}
-					}
+			for k := range model.Fields {
+				field := &model.Fields[k]
+				if field.Name != spec.Account.Login {
+					continue
+				}
+				if variant.shortLogin {
+					field.MaxLength = 100
+				}
+				if variant.textLogin {
+					field.Kind, field.MaxLength = ir.FieldText, 0
 				}
 			}
 			if variant.noLastLogin {
-				field := spec.Account.LastLogin
-				for i := range spec.Apps {
-					if spec.Apps[i].Schema.AppLabel != spec.Account.Model.AppLabel {
-						continue
-					}
-					for j := range spec.Apps[i].Schema.Models {
-						model := &spec.Apps[i].Schema.Models[j]
-						if model.Name == spec.Account.Model.ModelName {
-							model.Fields = slices.DeleteFunc(model.Fields, func(candidate ir.Field) bool { return candidate.Name == field })
-						}
-					}
-				}
-				spec.Account.LastLogin = ""
+				model.Fields = slices.DeleteFunc(model.Fields, func(field ir.Field) bool { return field.Name == spec.Account.LastLogin })
 			}
+		}
+	}
+	if variant.noLastLogin {
+		spec.Account.LastLogin = ""
+	}
+}
+
+func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing.T) {
+	for _, variant := range accountLoginVariants() {
+		source, required := defaultAccountBindingConsumer, "TestDefaultAccountBindingOwnsTypedRows"
+		if variant.custom {
+			source, required = customAccountBindingConsumer, "TestCustomAccountBindingOwnsTypedRowsAndHostGraph"
+		}
+		t.Run(variant.name, func(t *testing.T) {
+			spec := accountBindingConsumerSpec(t, variant.custom)
+			applyAccountLoginVariant(&spec, variant)
 			bundle, err := codegen.GenerateProject(spec)
 			if err != nil {
 				t.Fatal(err)
@@ -193,12 +188,10 @@ func accountBindingConsumerSpec(t *testing.T, custom bool) codegen.ProjectSpec {
 }
 
 func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
-	for _, variant := range []struct {
-		name                string
-		custom, noLastLogin bool
-	}{{name: "default"}, {name: "custom", custom: true}, {name: "custom_without_last_login", custom: true, noLastLogin: true}} {
+	for _, variant := range accountLoginVariants() {
 		t.Run(variant.name, func(t *testing.T) {
 			spec := accountBindingConsumerSpec(t, variant.custom)
+			applyAccountLoginVariant(&spec, variant)
 			source := firstAccountDefaultConsumer
 			if variant.custom {
 				*spec.Account.Staff.Constant = true
@@ -219,20 +212,6 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 						}
 					}
 				}
-			}
-			if variant.noLastLogin {
-				name := spec.Account.LastLogin
-				for i := range spec.Apps {
-					if spec.Apps[i].Schema.AppLabel == spec.Account.Model.AppLabel {
-						for j := range spec.Apps[i].Schema.Models {
-							model := &spec.Apps[i].Schema.Models[j]
-							if model.Name == spec.Account.Model.ModelName {
-								model.Fields = slices.DeleteFunc(model.Fields, func(field ir.Field) bool { return field.Name == name })
-							}
-						}
-					}
-				}
-				spec.Account.LastLogin = ""
 			}
 			bundle, err := codegen.GenerateProject(spec)
 			if err != nil {
@@ -255,7 +234,10 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			}
 			for _, parent := range adminParents {
 				required = append(required, parent)
-				for _, name := range []string{"csrf", "mismatch", "byte_limit", "policy", "reserved", "stale", "additional_permission", "change", "disable_confirmation", "disable"} {
+				if !variant.custom {
+					required = append(required, parent+"/login_staff")
+				}
+				for _, name := range []string{"login_presentation", "login_csrf", "login_input_limit", "login_byte_limit", "login_duplicate", "login_reserved", "login_inactive", "login_access", "login_final_access", "login_fullwidth_policy", "login_trimmed", "csrf", "mismatch", "byte_limit", "policy", "reserved", "stale", "additional_permission", "change", "disable_confirmation", "disable"} {
 					required = append(required, parent+"/"+name)
 				}
 			}

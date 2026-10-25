@@ -580,7 +580,7 @@ func siteTestRuntimeConfigured(
 			t.Fatalf("auth.NewCredential(%q) error = %v", identity.username, err)
 		}
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, sitePlainHasher{})
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, sitePlainHasher{}, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		t.Fatalf("auth.NewMemoryAuthenticator() error = %v", err)
 	}

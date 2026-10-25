@@ -57,6 +57,16 @@ type LoginInputProvider interface {
 	LoginInput() (LoginInput, error)
 }
 
+// LoginInput returns only the declaration supplied at memory-authenticator
+// construction. Generic verifier use without a form declaration remains valid;
+// a form consumer must reject the unavailable capability at its own startup.
+func (a *MemoryAuthenticator) LoginInput() (LoginInput, error) {
+	if a == nil || a.state == nil || a.state.loginInput.Validate() != nil {
+		return LoginInput{}, &Error{Code: CodeInvalidConfig, Field: "login_input", Detail: "memory authenticator does not declare login input"}
+	}
+	return a.state.loginInput, nil
+}
+
 // LoginInput keeps the stored verifier's input metadata with the same source
 // that supplies its credentials. Generic credential stores may omit this
 // capability when they do not offer an account login form.

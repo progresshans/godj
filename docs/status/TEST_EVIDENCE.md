@@ -975,6 +975,38 @@ Arm64 normal도 temporal 소비자를 시작한 지 7초에 같은 누적 제한
 위 원격 실행은 제출 source의 부분 근거이며 새 runtime 변경의 PASS가 아니다. 수정 source의 전체 필수 원격 실행과
 원본 대조는 다음 CI에서 확인한다.
 
+### 선택 모델의 Admin 로그인과 공통 Form 정의
+
+2026-10-26, `ba987fa9` 위에서 Admin Site와 일반 계정 Application을 `forms/auth.NewLoginSpec`에 연결했다.
+선택 인증기의 실제 login label·문자 한도·Form 정규화를 재사용하며 username의 인증 byte 한도와 password byte 한도도
+Form에서 검사한다. Metadata가 없거나 잘못된 Site는 entropy/DB 작업 전 구성 오류가 된다. MemoryAuthenticator의
+Form capability는 생성 시 명시한 선언만 제공하며 일반 exact 인증에 기본 User를 추론하지 않는다.
+
+단위 검사는 선언의 복사·password 작업 전 실패·직접 인증과 Form 정규화의 분리, Unicode 공백·문자/byte 한도,
+NFKC 축소 전/확장 후 거부·비밀번호 공백·UTF-8/NUL을 포함하도록 작성했다. Admin HTTP 검사는 label 이스케이프,
+선언의 불변성·CSRF/중복/예약 입력의 선행 거부·인증 호출 여부·거부 시 session/cookie 불변·성공 시 안전한 next와 회전을
+확인하도록 추가했다. 기존 active/staff/superuser 조합의 입장 검사는 유지한다.
+
+실제 첫 계정 외부 소비자를 기본/custom/인증 NFKC/Form NFKC/짧은 Char/Text/LastLogin 없는 일곱 선언으로 확장했다.
+선택 credential/session/login persistence와 실제 Admin Site를 TCP에서 사용하고, 길이·byte·CSRF·중복·예약 입력,
+inactive·저장 staff=false·추가 권한 거부와 최종 admission에서의 권한 거부 뒤 행/세션/audit/cookie 불변을 검사한다.
+성공은 선택 계정의 durable session과 선택적인 LastLogin만 바꾸며 profile/revision/password/audit를 보존하는지 대조한다.
+이 소비자는 SQLite이며 독립 PostgreSQL Admin HTTP 소비자·공통 account/catalog 자동 등록을 대신하지 않는다.
+기존 첫 계정 필수 프로필/receipt와 관리 비밀번호의 거부·변경/disable 검사는 함께 유지하고 child 실행 누락도 거부한다.
+
+로컬은 영향 일곱 package의 `go test -run '^$'`와 일곱 생성 module의 child `-run '^$'` compile을 확인했다.
+외부 compile은 저장소 밖 overlay에서 본문 실행을 끈 생성 harness이며, DB/HTTP 테스트의 PASS가 아니다.
+새 단위·DB/HTTP 본문은 로컬에서 실행하지 않았다. 생성기 ABI나 관리 생성물은 이번 변경에서 바뀌지 않았다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-admin-login-compile-v1/receipt.json` — 영향 7 package 최소 compile | `194fb625a411c5482e6fe7053716b7e063f17e29586d3d2e597c937061f26124` |
+| `gdj0138-admin-login-external-compile-v1/receipt.json` — 7개 실제 생성 module의 child compile | `f50c688f9044a78a9ad26cf7f43c8915f725a4da9d84ab2dd976253c7f1c4a0f` |
+
+앞선 `ba987fa9`의 [CI 40203372090](https://github.com/progresshans/godj/actions/runs/40203372090)는 확인 당시 진행 중이며
+새 Admin 변경의 근거가 아니다. 새 source의 전체 원격 실행·원본 대조는 아직 필요하다. 공개 최초 계정 터미널/process,
+scaffold/runtime·공통 Admin 등록, profile 관계/파일·계정/host 삭제·명시적 모델 전환과 I1 전체 수용은 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

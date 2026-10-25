@@ -127,6 +127,7 @@ type memoryAuthenticatorState struct {
 	byID       map[string]Credential
 	hasher     PasswordHasher
 	dummyHash  string
+	loginInput LoginInput
 }
 
 func (MemoryAuthenticator) Format(state fmt.State, _ rune) {
@@ -136,7 +137,21 @@ func (MemoryAuthenticator) Format(state fmt.State, _ rune) {
 func (*MemoryAuthenticator) String() string   { return "auth.MemoryAuthenticator{redacted}" }
 func (*MemoryAuthenticator) GoString() string { return "auth.MemoryAuthenticator{redacted}" }
 
-func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher) (*MemoryAuthenticator, error) {
+// NewMemoryAuthenticator keeps exact credential lookup. A caller exposing a
+// login form supplies one explicit input declaration; omitting it leaves the
+// form capability unavailable. Form normalization never changes direct lookup.
+func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher, loginInput ...LoginInputConfig) (*MemoryAuthenticator, error) {
+	if len(loginInput) > 1 {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "login_input", Detail: "at most one login input declaration is permitted"}
+	}
+	var input LoginInput
+	if len(loginInput) == 1 {
+		var err error
+		input, err = NewLoginInput(loginInput[0])
+		if err != nil {
+			return nil, err
+		}
+	}
 	if nilAuthValue(hasher) {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "password_hasher", Detail: "password hasher is nil"}
 	}
@@ -147,6 +162,7 @@ func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher) (*M
 		byUsername: make(map[string]Credential, len(credentials)),
 		byID:       make(map[string]Credential, len(credentials)),
 		hasher:     hasher,
+		loginInput: input,
 	}}
 	for _, credential := range credentials {
 		if !validUsername(credential.value().username) || credential.value().hash == "" || credential.value().principal.id == "" {

@@ -167,7 +167,7 @@ func runCollectionFixture() (runErr error) {
 		}
 		credentials = append(credentials, credential)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		return err
 	}

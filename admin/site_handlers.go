@@ -64,19 +64,23 @@ func (site *Site) loginPost(request *web.Request) (web.Response, error) {
 	if response, rejected, err := site.verifyCSRF(request, values["csrfmiddlewaretoken"]); rejected || err != nil {
 		return response, err
 	}
-	username, usernameOK := exactValue(values, "username")
-	password, passwordOK := exactValue(values, "password")
+	form, err := site.login.Bind(request.Context(), forms.NewData(map[string][]string{"username": values["username"], "password": values["password"]}), nil)
+	if err != nil {
+		return operationResponse(err)
+	}
 	next := site.auth.SafeNext(values.Get("next"))
-	if !usernameOK || !passwordOK {
-		context, contextErr := site.loginContext(username, next, true)
+	if !form.Valid() {
+		context, contextErr := site.loginContext(values.Get("username"), next, true)
 		if contextErr != nil {
 			return web.Response{}, contextErr
 		}
 		return site.render(request, "login.html", context)
 	}
+	username, _ := form.Cleaned().String("username")
+	password, _ := form.Cleaned().String("password")
 	result, err := site.auth.LoginStaff(request, username, password, site.access)
 	if err == auth.ErrInvalidCredentials {
-		context, contextErr := site.loginContext(username, next, true)
+		context, contextErr := site.loginContext(values.Get("username"), next, true)
 		if contextErr != nil {
 			return web.Response{}, contextErr
 		}

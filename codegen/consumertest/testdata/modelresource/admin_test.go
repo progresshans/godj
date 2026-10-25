@@ -120,7 +120,7 @@ func verifyAdmin(t *testing.T, backend resourceBackend) {
 		check(t, err)
 		credentials = append(credentials, credential)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	check(t, err)
 	allowed, err := admin.SiteAllowedNextPaths(registry, "/admin")
 	check(t, err)

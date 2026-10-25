@@ -176,7 +176,7 @@ func newArticleAdminFixture(ctx context.Context, contractID string) (*articleAdm
 		}
 		credentials = append(credentials, credential)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		return fail(fmt.Errorf("create Article Admin authenticator: %w", err))
 	}

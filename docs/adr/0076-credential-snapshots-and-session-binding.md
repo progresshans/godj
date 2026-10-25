@@ -813,16 +813,23 @@ DB가 있는 프로젝트에서 이 선언을 바꾸는 것은 단순 화면 변
 Text 또는 공통 인증 한도보다 큰 필드는 1,024의 Form 문자 한도를 사용하고 인증의 1,024-byte 한도도 유지한다.
 `CredentialStore`→`StoredAuthenticator`/선택 인증기→`sessionauth.Runtime`은 같은 credential source의 metadata만 전달한다.
 Metadata 제공은 DB 조회나 password work를 하지 않는다. 일반 인증기에는 이 추가 capability를 강제하지 않지만,
-공통 계정 Application을 조립할 때 누락·잘못된 metadata는 시작 오류이며 기본 User로 대체하지 않는다.
-기존 Directory 인증기는 자신의 명시적인 기본 계정 binding으로 이 capability를 제공한다.
+공통 계정 Application과 Admin Site를 조립할 때 누락·잘못된 metadata는 시작 오류이며 기본 User로 대체하지 않는다.
+기존 Directory 인증기는 자신의 명시적인 기본 계정 binding으로 이 capability를 제공한다. MemoryAuthenticator는
+Form을 제공하는 소비자가 생성 시 넘긴 불변 선언만 반환하며 이를 생략한 일반 인증에 Form 정책을 추론하지 않는다.
 
-공통 AuthenticationForm의 wire field 이름은 `username`을 유지하되 label·문자 한도·Form 정규화는 선택 인증기에서 받는다.
+`forms/auth.NewLoginSpec`은 공통 계정 Application과 Admin의 같은 AuthenticationForm 정의다. Wire field 이름은
+`username`을 유지하되 label·문자 한도·Form 정규화는 선택 인증기에서 받는다.
 고정 Unicode 16 공백 정리 후 exact는 원문을 유지한다. NFKC는 변환 전 byte·문자 한도를 확인하고 변환 후 문자 한도를
-다시 적용한다. Password 공백은 보존한다. 선택 필드가 Email이거나 생성 choices를 가지더라도 로그인에 해당 모델의
+다시 적용한다. 두 Form은 정리된 username의 1,024-byte 한도와 password의 명시적 byte 한도도 인증 전에 검사한다.
+Password 공백은 보존한다. 선택 필드가 Email이거나 생성 choices를 가지더라도 로그인에 해당 모델의
 생성 validation을 암묵적으로 적용하지 않는다. 이후 인증기의 exact/NFKC 조회·현재 credential/active/권한 재검사와
 동일 session owner의 원자적 login persistence가 최종 인증을 담당한다.
 
-공통 Form의 source 선택과 Admin login, 관리/reset·scaffold runtime의 완성 여부는 구분한다.
+Admin은 같은 Form을 시작 시 준비하고 실제 login field의 label과 maxlength를 HTML에 이스케이프해 표시한다.
+엄격한 요청 파싱과 CSRF 검사 뒤에 Form을 bind하며, 입력 실패와 인증/입장 거부는 같은 invalid_credentials 화면으로
+응답한다. Password를 다시 렌더링하지 않는다. Form 통과 뒤의 `LoginStaff`는 active staff와 명시적 AccessPermission을
+검사하며 선택 LoginPersistence가 저장 fence에서 같은 admission을 다시 확인한다. 이 Form 조립이 account/catalog
+전체 Admin 등록, 관리/reset·scaffold runtime의 완성을 대신하지 않는다.
 실제 생성 소비자와 환경별 실행 상태는 GDJ-0138 및 TEST_EVIDENCE에서 추적한다.
 
 ## 계정 도메인을 구분하는 credential과 actor
@@ -1256,7 +1263,7 @@ Account update·세션 삭제의 뒤 batch·audit insert 후 실패는 함께 ro
 field 매핑을 유지한다. `CommandConfig.AdditionalPermissions`와 descriptor의 전체 `Permissions`는 복사된 불변 선언이다.
 화면의 command link, GET/POST, direct command 실행은 모델 조회와 모든 command 권한을 요구하고 owner는 현재 DB 권한을
 다시 확인한다. Admin의 active staff/CSRF 규칙과 최종 revision 검사를 우회하지 않는다. 성공 뒤 재조회나 자동 로그인은 없다.
-이 명령 조립은 account/catalog 전체 자동 등록, Admin login Form 정책, profile 관계/파일 및 scaffold runtime 전환을
+이 명령 조립은 account/catalog 전체 자동 등록, profile 관계/파일 및 scaffold runtime 전환을
 대신하지 않는다. 공통 Admin의 객체 URL key 경계와 모델 owner의 저장 key 지원도 별도 수용 대상으로 둔다.
 
 ## 선택 계정의 비밀번호 재설정

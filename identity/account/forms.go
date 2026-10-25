@@ -3,11 +3,9 @@ package identityaccount
 import (
 	"context"
 	"net/url"
-	"unicode/utf8"
 
-	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
-	"github.com/progresshans/godj/internal/unicode16"
+	authform "github.com/progresshans/godj/forms/auth"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -16,25 +14,7 @@ func (a *Application) prepareForms() error {
 	if err != nil {
 		return err
 	}
-	usernameLimit := input.MaxLength()
-	// The username wire name is the account AuthenticationForm contract, not
-	// a model field lookup. Label, length and transformation come from the
-	// exact selected authenticator; its own lookup policy remains independent.
-	username, err := forms.CharField("username", forms.WithLabel(input.Label()), forms.WithMaxLength(usernameLimit), forms.WithTrimWhitespace(false), forms.WithStringNormalizer(func(value string) string {
-		value = unicode16.TrimSpace(value)
-		if input.Normalization() == auth.LoginExact || len(value) > auth.MaximumUsernameBytes || utf8.RuneCountInString(value) > usernameLimit {
-			return value
-		}
-		return unicode16.NFKC(value)
-	}))
-	if err != nil {
-		return err
-	}
-	password, err := passwordField("password", "Password")
-	if err != nil {
-		return err
-	}
-	a.login, err = forms.NewSpec([]forms.Field{username, password})
+	a.login, err = authform.NewLoginSpec(input, MaximumInputBytes)
 	if err != nil {
 		return err
 	}

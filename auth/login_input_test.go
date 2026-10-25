@@ -139,3 +139,44 @@ func TestStoredLoginInputUsesExactCredentialSourceWithoutPasswordWork(t *testing
 		})
 	}
 }
+
+func TestMemoryLoginInputRequiresDeclarationWithoutChangingExactLookup(t *testing.T) {
+	config := auth.LoginInputConfig{Label: "Contact", MaxLength: 64, Normalization: auth.LoginUnicode16NFKC}
+	for _, declarations := range [][]auth.LoginInputConfig{{{}}, {config, config}} {
+		hasher := &storedProbeHasher{onValidate: func(string) { t.Fatal("invalid metadata reached password validation") }}
+		verifier, err := auth.NewMemoryAuthenticator(nil, hasher, declarations...)
+		if verifier != nil || !errors.Is(err, &auth.Error{Code: auth.CodeInvalidConfig, Field: "login_input"}) || hasher.hashCalls != 0 || hasher.verifyCalls != 0 {
+			t.Fatal("invalid metadata did password work or became usable", err)
+		}
+	}
+	hasher := &storedProbeHasher{}
+	credential := storedTestCredential(t, "person", "user", "hash:secret", true, true, false)
+	verifier, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := hasher.hashCalls
+	config.Label, config.MaxLength, config.Normalization = "mutated", 1, auth.LoginExact
+	input, err := verifier.LoginInput()
+	if err != nil || input.Label() != "Contact" || input.MaxLength() != 64 || input.Normalization() != auth.LoginUnicode16NFKC || hasher.hashCalls != before || hasher.verifyCalls != 0 {
+		t.Fatal("memory input aliases caller state or does password work", err)
+	}
+	if _, err := verifier.Authenticate(t.Context(), "ｕｓｅｒ", "secret"); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Fatal("form policy silently changed direct lookup", err)
+	}
+	if got, err := verifier.Authenticate(t.Context(), "user", "secret"); err != nil || got.SessionStamp() != credential.SessionStamp() {
+		t.Fatal("exact credential changed", err)
+	}
+	generic, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, missing := range []*auth.MemoryAuthenticator{nil, {}, generic} {
+		if got, err := missing.LoginInput(); err == nil || got != (auth.LoginInput{}) {
+			t.Fatal("missing declaration inferred a default")
+		}
+	}
+	if _, err := generic.Authenticate(t.Context(), "user", "secret"); err != nil {
+		t.Fatal("generic exact authentication requires a login form", err)
+	}
+}

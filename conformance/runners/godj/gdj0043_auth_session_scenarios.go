@@ -751,7 +751,7 @@ func newAuthSessionSiteFixture(ctx context.Context, contractID string) (*article
 	if err != nil {
 		return fail(fmt.Errorf("create auth/session Site credential: %w", err))
 	}
-	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		return fail(fmt.Errorf("create auth/session Site authenticator: %w", err))
 	}
