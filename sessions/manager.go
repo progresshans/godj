@@ -112,6 +112,22 @@ func (m *Manager) CheckRecord(record Record) error {
 	return nil
 }
 
+// CheckActiveRecord validates a detached record against this manager's limits
+// and samples its current clock, without store I/O, entropy or expiry cleanup.
+// The result grants no persistence authority. Transaction adapters use it on
+// their current stored record and candidate inside the final write fence, so a
+// proposal prepared before waiting for that fence cannot publish expired state.
+func (m *Manager) CheckActiveRecord(record Record) (bool, error) {
+	if err := m.CheckRecord(record); err != nil {
+		return false, err
+	}
+	now := m.now()
+	if now.IsZero() {
+		return false, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
+	}
+	return !record.expired(now), nil
+}
+
 // WithStore prepares an independent persistence binding with the same policy
 // and serialized sources. A transaction-scoped store must not escape its owner;
 // this method does not start a transaction or change the original manager.
@@ -190,14 +206,14 @@ func (m *Manager) Peek(ctx context.Context, id ID) (Record, bool, error) {
 	if !found {
 		return Record{}, false, nil
 	}
-	if !record.valid(m.limits) || record.id != id {
+	if record.id != id {
 		return Record{}, false, &Error{Code: CodeInvalidRecord, Detail: "store returned an invalid session record"}
 	}
-	now := m.now()
-	if now.IsZero() {
-		return Record{}, false, &Error{Code: CodeInvalidConfig, Field: "clock", Detail: "clock returned the zero time"}
+	active, err := m.CheckActiveRecord(record)
+	if err != nil {
+		return Record{}, false, err
 	}
-	if record.expired(now) {
+	if !active {
 		return Record{}, false, nil
 	}
 	return record, true, nil

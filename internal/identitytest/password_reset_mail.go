@@ -3,7 +3,6 @@ package identitytest
 import (
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -17,6 +16,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/mail"
 	"github.com/progresshans/godj/validation"
 )
@@ -97,32 +97,11 @@ func deliveredResetToken(t *testing.T, message mail.Message) (id, token string) 
 
 func RunPasswordResetMail(t *testing.T, referenceBackend string, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Run("native_recipient_selection", func(t *testing.T) {
-		raw, err := passwordResetReferences.ReadFile("testdata/password-reset-django61-" + referenceBackend + ".json")
+		observations, err := identityreference.ResetRequests(referenceBackend)
 		if err != nil {
 			t.Fatal(err)
 		}
-		var reference struct {
-			Django, Backend string
-			Observations    struct {
-				Cases []struct {
-					Label, Input, Cleaned string
-					Valid                 bool
-					Accounts              []struct {
-						Username, Email string
-						Active, Usable  bool
-					}
-					Selected, Delivered []string
-					UsersUnchanged      bool `json:"users_unchanged"`
-				} `json:"request_selection"`
-			}
-		}
-		if err := json.Unmarshal(raw, &reference); err != nil || reference.Django != "6.1" || len(reference.Observations.Cases) != 12 {
-			t.Fatal("incomplete native recipient reference", err)
-		}
-		if reference.Backend != map[string]string{"sqlite": "sqlite", "postgres": "postgresql"}[referenceBackend] {
-			t.Fatal("reference backend mismatch")
-		}
-		for _, row := range reference.Observations.Cases {
+		for _, row := range observations {
 			t.Run(row.Label, func(t *testing.T) {
 				backend, _ := open(t)
 				f := newManagementFixture(t, backend, 0)
@@ -130,6 +109,7 @@ func RunPasswordResetMail(t *testing.T, referenceBackend string, open func(*test
 				for index, input := range row.Accounts {
 					encoded := f.user.EncodedPassword
 					if !input.Usable {
+						var err error
 						encoded, err = auth.MakeUnusablePassword(t.Context())
 						if err != nil {
 							t.Fatal(err)

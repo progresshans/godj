@@ -439,4 +439,4 @@ func articleMetadata() ir.Model {
 
 type GoDjAppPart0_357f75c79af7d21e3d0869d81fc0016c2aee69a801989dc805a3b5982b1fc340 struct{}
 
-type GoDjProjectSnapshot_af821746488fa87aeaa90f7725ca73e41d5d7a62519ba4bca3b14ece3038d6ba struct{}
+type GoDjProjectSnapshot_a604c81eaaa48abcd8f0e8e534768ce16da3b3a69a69ebd9bfabd5e1e47d82f8 struct{}

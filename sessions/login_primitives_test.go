@@ -123,6 +123,67 @@ func TestManagerPeekDoesNotTouchOrDeleteStoredState(t *testing.T) {
 	}
 }
 
+type checkActiveRecordStore struct{ sessions.Store }
+
+func TestManagerChecksActiveDetachedRecordsWithoutStoreOrEntropy(t *testing.T) {
+	store, _ := sessions.NewMemoryStore(1)
+	now := time.Date(2026, 10, 25, 10, 0, 0, 0, time.UTC)
+	source := &serialLoginEntropy{}
+	clockCalls := 0
+	manager, err := sessions.NewManager(store, sessions.Config{Clock: func() time.Time { clockCalls++; return now }, Random: source, IdleTimeout: 10 * time.Second, AbsoluteLifetime: time.Minute})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := manager.Create(t.Context(), map[string]string{"owner": "preserved"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The nil embedded interface makes every accidental Store call fail.
+	// Only detached validation and the shared serialized clock are available.
+	guarded, err := manager.WithStore(&checkActiveRecordStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name   string
+		offset time.Duration
+		active bool
+	}{
+		{"active", 9 * time.Second, true}, {"idle_boundary", 10 * time.Second, false}, {"absolute_boundary", time.Minute, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			now = record.CreatedAt().Add(test.offset)
+			before := clockCalls
+			active, err := guarded.CheckActiveRecord(record)
+			if err != nil || active != test.active || clockCalls != before+1 || source.calls != 1 {
+				t.Fatal("detached activity check used effects or stale time", err)
+			}
+		})
+	}
+	before := clockCalls
+	if active, err := guarded.CheckActiveRecord(sessions.Record{}); active || err == nil || clockCalls != before {
+		t.Fatal("invalid record reached clock")
+	}
+	now = time.Time{}
+	if active, err := guarded.CheckActiveRecord(record); active || !errors.Is(err, &sessions.Error{Code: sessions.CodeInvalidConfig}) {
+		t.Fatal("invalid clock accepted", err)
+	}
+	if active, err := (*sessions.Manager)(nil).CheckActiveRecord(record); active || err == nil {
+		t.Fatal("nil manager accepted")
+	}
+	stored, present, err := store.Load(t.Context(), record.ID())
+	if err != nil || !present || !reflect.DeepEqual(stored.Snapshot(), record.Snapshot()) {
+		t.Fatal("activity check changed stored state", err)
+	}
+	limited, err := sessions.NewManager(&checkActiveRecordStore{}, sessions.Config{Limits: sessions.Limits{MaxValueBytes: 1}, Clock: func() time.Time { t.Fatal("invalid detached limits reached clock"); return now }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if active, err := limited.CheckActiveRecord(record); active || !errors.Is(err, &sessions.Error{Code: sessions.CodeInvalidRecord}) {
+		t.Fatal("manager limits bypassed", err)
+	}
+}
+
 func TestMemoryStoreFreshReplacement(t *testing.T) {
 	sessiontest.Replacement(t, func(t *testing.T) sessions.Store {
 		store, err := sessions.NewMemoryStore(4)

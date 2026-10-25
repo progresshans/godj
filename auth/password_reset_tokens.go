@@ -68,7 +68,7 @@ type passwordResetState struct {
 }
 
 func NewPasswordResetState(id int64, credential Credential, email string, lastLogin *time.Time) (PasswordResetState, error) {
-	if credential.state == nil || credential.SessionStamp() == "" || !utf8.ValidString(email) || len(email) > 4096 || strings.ContainsRune(email, 0) {
+	if credential.state == nil || credential.SessionStamp() == "" || !utf8.ValidString(email) || len(email) > MaximumPasswordResetEmailBytes || strings.ContainsRune(email, 0) {
 		return PasswordResetState{}, &Error{Code: CodeCredential, Detail: "password reset observation is invalid"}
 	}
 	last := ""

@@ -34,6 +34,10 @@ func (PasswordResetAuthority) MarshalJSON() ([]byte, error) {
 // before usable-password or Unicode filtering. Overflow publishes no prefix.
 const MaximumPasswordResetCandidates = 256
 
+// MaximumPasswordResetEmailBytes bounds raw email material before Unicode
+// normalization or signing. The public Form's 254-character limit is separate.
+const MaximumPasswordResetEmailBytes = 4096
+
 // PasswordResetMailSource reads every active database-iexact candidate before
 // usable/Unicode filtering, bounded by MaximumPasswordResetCandidates. Each
 // token and its recipient must derive from one coherent snapshot. Read/scope/
@@ -50,7 +54,7 @@ type PasswordResetMailSource interface {
 // It returns no cleaned value when any diagnostic exists. UTF-8 and a 4096-byte
 // raw input bound are Go transport limits, checked before Unicode work.
 func CleanPasswordResetEmail(raw string) (string, validation.Errors) {
-	if !utf8.ValidString(raw) || len(raw) > 4096 {
+	if !utf8.ValidString(raw) || len(raw) > MaximumPasswordResetEmailBytes {
 		return "", validation.NewErrors(validation.New("email", "invalid"))
 	}
 	value := unicode16.TrimSpace(raw)

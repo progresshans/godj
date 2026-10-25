@@ -3,6 +3,8 @@ package identity
 import (
 	"context"
 	"errors"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -45,6 +47,9 @@ func (resetter *PasswordResetter) PasswordResetCandidates(ctx context.Context, e
 		folded := unicode16.CaseFold(unicode16.NFKC(cleaned))
 		var accounts []Account
 		for _, row := range rows {
+			if len(row.Email) > auth.MaximumPasswordResetEmailBytes || !utf8.ValidString(row.Email) || strings.ContainsRune(row.Email, 0) {
+				return nil, &auth.Error{Code: auth.CodeCredential, Detail: "password reset recipient observation is invalid"}
+			}
 			if unicode16.CaseFold(unicode16.NFKC(row.Email)) != folded {
 				continue
 			}

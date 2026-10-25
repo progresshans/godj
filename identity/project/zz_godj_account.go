@@ -9,10 +9,11 @@ import (
 	_godjaccountmodel "github.com/progresshans/godj/identity/model"
 	identity "github.com/progresshans/godj/identity/models"
 	ir "github.com/progresshans/godj/schema/ir"
+	_godjaccountsession "github.com/progresshans/godj/sessions"
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v12"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v13"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -76,6 +77,15 @@ func NewAccountPasswordEditor(sessions *_godjaccountmodel.SessionStore[identity.
 		return nil, err
 	}
 	return _godjaccountmodel.NewPasswordEditor(sessions, binding, verifier, overlay, config)
+}
+
+// NewAccountPasswordResetter binds recipient tokens and atomic reset proofs to the exact selected account, sessions and verifier.
+func NewAccountPasswordResetter(store *_godjaccountmodel.SessionStore[identity.User], manager *_godjaccountsession.Manager, verifier *_godjaccountmodel.Authenticator[identity.User], config _godjaccountmodel.PasswordResetConfig[identity.User]) (*_godjaccountmodel.PasswordResetter[identity.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewPasswordResetter(store, binding, manager, verifier, config)
 }
 
 // NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.
@@ -177,4 +187,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_3994b8ac3a2b4609f07ff1c4346e447e4849f22ad94992c505e3481808b33846
+var _ goDjProjectSnapshot_ee690058018c94e2d553e44471c0b247c4bba8115f2e4122dac69bee37c41022

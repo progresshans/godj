@@ -860,6 +860,51 @@ Schema/생성 ABI/생성 코드는 변경하지 않았다. 새 단위·native DB
 새 source의 전체 CI·generated drift·양 DB·race/process/platform과 실제 소비자 본문 확인은 남아 있다.
 앞선 source의 부분 실행과 이번 compile을 현재 source의 전체 PASS로 계산하지 않는다.
 
+### 선택 모델 reset·세션 proof·메일과 독립 HTTP 소비자
+
+2026-10-25, 공통 reset 기반 `2a435a79` 위에 생성 `NewAccountPasswordResetter`와 `PasswordResetter[M]`를 작성했다.
+정확한 session/credential owner·manager·전체 host source를 검사하고 실제 선택 필드·현재 domain·전체 LastLogin 정밀도로
+발급/후보/완료를 처리한다. 메일 후보는 같은 native snapshot에서 완전한 bounded 집합으로 만들며 optional Email과 상수 Active를
+명시적으로 다룬다. DB 밖 한 번의 hash 뒤 현재 proof·인증 binding·계정·typed 정책·독립 session/token clock을 다시 확인하고,
+Password/현재 Revision·모든 대상 로그인 세션 폐기·proof 회전 또는 자기 cookie 제거·자기 domain audit를 원자적으로 확정한다.
+
+양 DB 필수 검사는 읽기 각 단계의 scope/종료 실패, 입력/policy/hasher 분류와 원인 보존, 현재 profile/권한·email·LastLogin·
+credential/proof/domain 재검사, gate 대기와 final policy 뒤의 만료·manager 한도, 실제 DML 뒤 실패·257개 세션의 뒤 batch
+rollback/전체 폐기, callback·cleanup·unknown·취소와 확정 commit을 포함한다. 확정 collision 네 번 한도·unknown 무재시도·
+자기 완료의 세션 entropy 부재, 독립 connection의 reset/reset·self/admin/login/deactivate 경합과 0/음수 key도 작성했다.
+고정 Django 6.1의 기존 SQLite/PostgreSQL 후보 자료는 같은 원본을 최소 test reference package에서 공유한다. 원본 JSON bytes와
+기존 legacy 소비자는 유지하며 새 native 후보/256·257 한도·snapshot 뒤 실제 계정 변경과 발송 metadata를 대조한다.
+
+새 외부 생성 7개 module은 default/custom, LastLogin/Email 부재, 다른 기본 key와 별도 Text email, 상수 Active true/false를
+사용한다. 실제 TCP의 공통 Account Form/JSON, 없는 계정과 같은 요청 응답·메일 수신자/숨긴 token URL, CSRF·입력·다른 대상/
+새 브라우저 거부, 성공의 실제 선택 hash/revision/audit·대상 브라우저 폐기·다른 payload/CSRF/LastLogin 보존과 replay를 검사한다.
+실제 DB 재접속과 새 owner/key ring으로 저장 proof를 이어받도록 구성했다. 같은 key·principal·hash를 가진 별도 실제 모델과
+새 소유권 세대에 proof를 복사해도 완료되지 않는 부정 검사도 포함한다. 이 검사는 populated-model mapping/retirement나
+별도 process restart의 제품 수용이 아니다. PostgreSQL 환경이 필수인 owner에서 없으면 실패하며 각 child 완료를 요구한다.
+
+필수 목록에 native parent/child 252개를 양 DB에 추가했다. Relation은 생성 소비자/단위를 합해 277행을 추가한 3,900행,
+PostgreSQL은 생성 소비자를 합해 260행을 추가한 5,207행이다. 기존 행은 삭제하지 않았고 모든 PostgreSQL 필수 행의
+normal/race/CGO0 실행 소유권을 정적으로 대조했다. 새 manager 만료 단위는 `sessions` 전체 core suite가 실행한다.
+
+공개 `godj generate` 11개 명령을 완료했고 account generator ABI는 v13이다. 11개 manifest의 소유 파일 155개 hash/mode와
+189개 변경 Go 파일의 gofmt, migration·schema/modeldef·workflow 보존을 확인했다. 첫 최소 compile에서 영향 9 package와
+실제 외부 7개 module이 통과했다. 이어 코드 대조에서 경합 gate에 native relation transaction을 연결하고, 다른 모델의 같은 key
+fixture가 PostgreSQL의 rollback 후 sequence 소비도 반영하도록 보완했다. 두 fixture 변경 뒤 같은 최소 compile을 다시 확인했다.
+최종 실행은 각각 exit 0이고 전후 및 최종 비 Markdown 입력 4,027개 hash가 같다. Native Test run/fail/skip은 0이며,
+외부는 저장소 밖 overlay로 child `-run '^$'`만 실행해 7개 child package 모두 Test run/fail/skip 0임을 원본에서 대조했다.
+Parent의 생성/compile harness 실행을 DB/HTTP 테스트 본문의 PASS로 계산하지 않는다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-selected-reset-generate-v1/receipt.json` — 공개 11개 생성 명령 | `4ad7e54a909a7c089fc7bf1285e19cb1e5f403e1d4300d0a5f248d86228ccb5d` |
+| `gdj0138-selected-reset-native-compile-v2/receipt.json` — 영향 9 package 최소 compile | `cd2f4f4a8b68aec0d778c1da5e62a459db8f3d6a26d64b0ce7c4007a723edc8e` |
+| `gdj0138-selected-reset-external-compile-v2/receipt.json` — 실제 생성 7개 module 최소 compile | `10abc59a386ea74ca8e18fc37d2b5d9503a8a7595a8a31b16d4fe668fab191dc` |
+| `gdj0138-selected-reset-publication-v1/verification.json` — source/생성물/필수 실행 소유권 대조 | `49708c8b39af7fbe92281dfb9e2237aa219a7492fd309e29f4fa01aa7f1cb168` |
+
+새 단위·native DB·Django 후보 대조·HTTP·실패/경합 본문은 로컬에서 실행하지 않았다. 새 source의 전체 원격 CI와 원본 대조가
+필요하다. 이전 source의 부분 원격 결과와 이번 compile을 현재 수용으로 옮기지 않는다. 공개 최초 계정 터미널/process,
+공통 Admin/scaffold/runtime, profile 관계/파일·계정/host 삭제·채운 DB 모델 전환과 통합 process restart 및 I1 전체 수용은 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

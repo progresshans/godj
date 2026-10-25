@@ -36,6 +36,7 @@ func TestAccountSelectionOwnsGeneratedBindingAndProjectSnapshot(t *testing.T) {
 		"func NewAccountCredentialStore(", "func NewAccountAuthenticator(",
 		"func NewAccountSessionStore(", "_godjaccountmodel.NewSessionStore(store, config)",
 		"func NewAccountPasswordEditor(", "_godjaccountmodel.NewPasswordEditor(sessions, binding, verifier, overlay, config)",
+		"func NewAccountPasswordResetter(", "_godjaccountmodel.NewPasswordResetter(store, binding, manager, verifier, config)",
 		"func NewAccountRoleEditor(", "_godjaccountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config)",
 		"func NewAccountCreator(", "_godjaccountmodel.NewCreator(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, hasher, config)",
 		"func NewFirstAccount(", "return definition.Bind(backend)",

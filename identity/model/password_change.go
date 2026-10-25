@@ -142,7 +142,7 @@ func (owner *accountPasswordChange[M]) check(ctx context.Context, id sessions.ID
 	}
 	previous, found, err := owner.manager.Peek(ctx, id)
 	if err != nil {
-		return sessions.Record{}, zero, passwordChangeFailure(err)
+		return sessions.Record{}, zero, accountPasswordFailure(err)
 	}
 	principalID, hasID := previous.Value(auth.SessionPrincipalIDKey)
 	stamp, hasStamp := previous.Value(auth.SessionCredentialStampKey)
@@ -153,7 +153,7 @@ func (owner *accountPasswordChange[M]) check(ctx context.Context, id sessions.ID
 		return owner.accountIn(work, scope, principalID, stamp)
 	})
 	if err != nil {
-		return sessions.Record{}, zero, passwordChangeFailure(err)
+		return sessions.Record{}, zero, accountPasswordFailure(err)
 	}
 	if !before.valid {
 		return sessions.Record{}, zero, auth.ErrInvalidCredentials
@@ -162,12 +162,12 @@ func (owner *accountPasswordChange[M]) check(ctx context.Context, id sessions.ID
 	if oldPassword != nil {
 		confirmed, err := owner.authenticator.ConfirmPassword(ctx, principalID, *oldPassword)
 		if canceled := ctx.Err(); canceled != nil {
-			return sessions.Record{}, zero, passwordChangeFailure(errors.Join(err, canceled))
+			return sessions.Record{}, zero, accountPasswordFailure(errors.Join(err, canceled))
 		}
 		if err == auth.ErrInvalidCredentials {
 			diagnostics = diagnostics.Append(validation.NewErrors(validation.New("old_password", "password_incorrect")))
 		} else if err != nil {
-			return sessions.Record{}, zero, passwordChangeFailure(err)
+			return sessions.Record{}, zero, accountPasswordFailure(err)
 		} else if !confirmed.Principal().Authenticated() || confirmed.Principal().ID() != principalID || !confirmed.MatchesSessionStamp(stamp) {
 			return sessions.Record{}, zero, auth.ErrInvalidCredentials
 		}
@@ -177,12 +177,12 @@ func (owner *accountPasswordChange[M]) check(ctx context.Context, id sessions.ID
 			if rejected, ok := validation.Rejected(err); ok && errors.Unwrap(err) == nil {
 				diagnostics = diagnostics.Append(rejected)
 			} else {
-				return sessions.Record{}, zero, passwordChangeFailure(err)
+				return sessions.Record{}, zero, accountPasswordFailure(err)
 			}
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return sessions.Record{}, zero, passwordChangeFailure(err)
+		return sessions.Record{}, zero, accountPasswordFailure(err)
 	}
 	if !diagnostics.Empty() {
 		return sessions.Record{}, zero, validation.Reject(diagnostics, nil)
@@ -213,7 +213,7 @@ func (owner *accountPasswordChange[M]) ChangePassword(ctx context.Context, id se
 	binding := owner.store.state.credentials.state.binding
 	row, err := binding.state.objects.ApplyValues(before.row, map[string]query.Value{binding.state.role.Password: query.String(encoded)})
 	if err != nil {
-		return auth.PasswordChangeResult{}, passwordChangeFailure(err)
+		return auth.PasswordChangeResult{}, accountPasswordFailure(err)
 	}
 	after, err := binding.prepareCredentialForDomain(before.domain, row, before.credential.Principal().Permissions())
 	if err != nil || !after.HasUsablePassword() || after.MatchesSessionStamp(before.credential.SessionStamp()) {
@@ -224,19 +224,19 @@ func (owner *accountPasswordChange[M]) ChangePassword(ctx context.Context, id se
 	defer func() { interceptor.prepared = nil; prepared = accountPasswordPreparation[M]{} }()
 	manager, err := owner.manager.WithStore(interceptor)
 	if err != nil {
-		return auth.PasswordChangeResult{}, passwordChangeFailure(err)
+		return auth.PasswordChangeResult{}, accountPasswordFailure(err)
 	}
 	record, err := manager.Rotate(ctx, previous)
 	if err != nil {
 		if interceptor.rejection != nil {
 			return auth.PasswordChangeResult{}, interceptor.rejection
 		}
-		return auth.PasswordChangeResult{}, passwordChangeFailure(err)
+		return auth.PasswordChangeResult{}, accountPasswordFailure(err)
 	}
 	principalID, _ := record.Value(auth.SessionPrincipalIDKey)
 	stamp, _ := record.Value(auth.SessionCredentialStampKey)
 	if !interceptor.current.Principal().Authenticated() || interceptor.current.Principal().ID() != principalID || !interceptor.current.MatchesSessionStamp(stamp) {
-		return auth.PasswordChangeResult{}, passwordChangeFailure(nil)
+		return auth.PasswordChangeResult{}, accountPasswordFailure(nil)
 	}
 	return auth.PasswordChangeResult{Credential: interceptor.current, Record: record}, nil
 }
@@ -347,7 +347,7 @@ func (store *accountPasswordStore[M]) Rotate(ctx context.Context, oldID sessions
 	return result.Record, true, nil
 }
 
-func passwordChangeFailure(cause error) error {
+func accountPasswordFailure(cause error) error {
 	for _, code := range []string{query.CodeCommitOutcomeUnknown, query.CodeTransactionOutcomeUnknown} {
 		if errors.Is(cause, &query.Error{Code: code}) {
 			return managementError(CodeOutcomeUnknown, cause)

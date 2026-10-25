@@ -204,6 +204,20 @@ type passwordWriteGate struct {
 }
 
 func (owner *passwordWriteGate) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
+	if err := owner.wait(ctx); err != nil {
+		return err
+	}
+	return owner.Backend.CoordinatedAtomic(ctx, write)
+}
+
+func (owner *passwordWriteGate) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	if err := owner.wait(ctx); err != nil {
+		return err
+	}
+	return owner.Backend.CoordinatedAtomicRelation(ctx, write)
+}
+
+func (owner *passwordWriteGate) wait(ctx context.Context) error {
 	select {
 	case owner.ready <- struct{}{}:
 	case <-ctx.Done():
@@ -214,7 +228,7 @@ func (owner *passwordWriteGate) CoordinatedAtomic(ctx context.Context, write fun
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	return owner.Backend.CoordinatedAtomic(ctx, write)
+	return nil
 }
 
 func passwordVersusLogin(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {

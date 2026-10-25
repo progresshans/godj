@@ -1159,7 +1159,7 @@ Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replac
 policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거부로 축소하지 않는다.
 
 이 로그인 구성만으로 계정의 다른 쓰기를 수행하지 않는다. 자기 비밀번호 변경은 아래의 별도 owner를 명시적으로
-연결한다. Reset·계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement와 공개 Admin/HTTP 제품 조립,
+연결한다. Reset은 아래의 선택 계정 owner를 사용한다. 계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement와 공개 Admin/HTTP 제품 조립,
 양 DB의 독립 HTTP/process 재시작 수용은 I1에 남는다.
 
 ## 선택 계정의 자기 비밀번호 변경
@@ -1200,7 +1200,7 @@ unknown 결과는 공개 credential/record 없이 원인을 보존한다. 확정
 기존 `web/sessionauth`와 계정 Application의 password Form/JSON은 이 owner를 명시적으로 받아 그대로 사용한다.
 CSRF·confirmation·입력 제한은 HTTP가 소유하고, 확정 commit에만 현재 cookie를 교체한다. 독립 CSRF cookie는 유지한다.
 선택 모델의 공통 로그인 Form은 같은 인증기의 명시적 입력 metadata를 사용한다. Scaffold/runtime 전체 전환,
-reset과 실제 process restart는 별도 남은 I1 요구다. 작성/compile만으로 해당 요구의 완료를 주장하지 않는다.
+통합 reset 조립과 실제 process restart는 별도 남은 I1 요구다. 작성/compile만으로 해당 요구의 완료를 주장하지 않는다.
 
 ## 선택 계정의 관리자 비밀번호 변경
 
@@ -1230,8 +1230,50 @@ Account update·세션 삭제의 뒤 batch·audit insert 후 실패는 함께 ro
 field 매핑을 유지한다. `CommandConfig.AdditionalPermissions`와 descriptor의 전체 `Permissions`는 복사된 불변 선언이다.
 화면의 command link, GET/POST, direct command 실행은 모델 조회와 모든 command 권한을 요구하고 owner는 현재 DB 권한을
 다시 확인한다. Admin의 active staff/CSRF 규칙과 최종 revision 검사를 우회하지 않는다. 성공 뒤 재조회나 자동 로그인은 없다.
-이 명령 조립은 account/catalog 전체 자동 등록, Admin login Form 정책, profile 관계/파일, reset 및 scaffold runtime 전환을
+이 명령 조립은 account/catalog 전체 자동 등록, Admin login Form 정책, profile 관계/파일 및 scaffold runtime 전환을
 대신하지 않는다. 공통 Admin의 객체 URL key 경계와 모델 owner의 저장 key 지원도 별도 수용 대상으로 둔다.
+
+## 선택 계정의 비밀번호 재설정
+
+생성 `NewAccountPasswordResetter`는 기존 `SessionStore[M]`·그 Store의 인증기·정확한 manager와 전체 host source/역할을
+검사한다. `PasswordResetConfig[M]`는 공통 불변 key ring, whole-second timeout, 순수 clock과 생성/변경에서 공유하는 실제
+typed password 정책·raw byte 한도를 갖는다. 구성 자체는 I/O·clock·entropy·hasher·callback을 실행하지 않는다. 메일 source와
+Web persistence는 같은 owner의 불투명 authority를 공유한다. 같은 key라도 따로 구성한 owner를 startup에서 섞지 않는다.
+
+계정의 PrincipalID로 native snapshot을 읽으며 현재 durable domain·실제 key·credential·권한·Email·선택 LastLogin을 함께
+관측한다. 서명은 공통 `auth.PasswordResetKeyRing`이 소유하고, 이후의 신규 모델/역할/소유권 세대가 같은 key·principal·hash를
+가져도 승계되지 않는다. 별도 연결/owner 재구성 뒤에도 현재 세대와 허용 key가 같으면 유효한 proof는 유지된다. LastLogin은
+UTC의 전체 저장 정밀도를 사용하고 부재는 명시적이다. Username·일반 profile·revision·grants는 서명 입력이 아니며 최종 현재
+상태를 사용한다. Inactive/unusable/없는 계정·만료/미래/잘못된 서명은 일반 invalid token/proof로 묶는다. 읽기 실패는 별도다.
+
+`PasswordResetCandidates`는 명시적 Email 역할이 있어야 한다. 실제 해당 필드의 DB `iexact`와 field/constant Active 역할을
+사용하며 key 순서로 최대 257행을 읽는다. 256개를 넘으면 usable/Unicode 후처리 전에 전부 거부한다. 저장 Email도 UTF-8·NUL·
+IR 문자 한도와 4,096-byte 상한을 먼저 확인한 뒤 Unicode 16 NFKC/casefold를 적용한다. 메일러에 줄 수신자·username·token의
+완전한 집합은 같은 snapshot에서 분리한 관측으로 만든다. Scope 종료/cleanup 실패 뒤에는 prefix도 게시하지 않는다. 렌더링과
+발송은 DB scope 밖에서 이루어지고 별도의 현재 계정 조회로 수신자를 바꾸지 않는다. Email 부재에서도 privileged token 발급은
+가능하지만 메일 source 사용은 I/O 전에 명시적으로 거부한다.
+
+`StartPasswordReset`은 사전 토큰 확인 뒤 유효한 기존 브라우저를 현재 저장 payload/수명으로 회전하거나, 없거나 이미 만료된
+브라우저에는 익명 proof를 만든다. 쓰기를 기다리는 사이 기존 세션이 사라졌으면 새 익명 세션으로 대체하지 않는다. 입력과 현재
+계정/namespace를 native fence에서 다시 확인한다. 실패한 입장에 따로 만료 정리를 commit하지 않는다. `CheckPasswordReset`은
+hash·touch·cleanup·쓰기 없이 현재 proof/계정을 읽고, nil password이면 strength 검사도 생략한다. 결과는 후속 쓰기 권한이 아니다.
+
+완료는 사전 typed 정책 뒤 DB scope 밖에서 한 번 hash하고, 이전 stamp와 같거나 unusable인 encoded 결과를 거부한다. 같은
+원문도 새 salt로 실제 변경할 수 있다. 내부 준비 값은 한 호출의 bounded collision 재시도에만 쓰이며 외부로 반환하지 않는다.
+최종 transaction에서 현재 proof의 target/token·인증 principal/stamp 존재와 값, 계정 key/domain/서명·typed 정책을 재검사한다.
+현재 profile·grants·revision은 그대로 이어받아 Password/Revision만 갱신한다. 로그인 시각은 변경하지 않는다.
+
+Session 만료는 token clock과 독립된 manager의 serialized clock으로 검사한다. `CheckActiveRecord`는 I/O·entropy 없이
+manager 한도와 현재 clock을 적용하며, final policy 뒤의 현재 세션과 gate에서 기다린 신규 후보도 다시 확인한다. 회전 후보는
+현재 생성/절대 수명과 단조로운 access/idle 시각·최신 payload를 유지한다. Proof를 지우고 회전하거나, 현재 브라우저가 대상
+자신으로 로그인했다면 새 세션 ID 없이 제거한다. 같은 namespace의 모든 대상 로그인 세션 폐기와 대상 자신을 actor로 한 실제
+Password 필드의 domain audit를 같은 transaction에 포함한다. 익명·다른 계정·역사 namespace 세션은 보존한다.
+
+회전 delete/insert·password update·뒤 batch 폐기·audit 뒤의 오류는 앞선 효과와 함께 rollback한다. 확정 rollback의 직접
+proof/원인 없는 policy 거부만 일반 입력으로 유지한다. Cleanup·callback scope 위반·unknown 결과는 결과 record/clear cookie
+없이 원인을 보존하며 자동 재시도하지 않는다. 확정 ID collision만 manager의 최대 네 번 entropy 시도를 허용하며 hash는 반복하지
+않는다. 확정 commit 뒤의 취소는 성공을 되돌리지 않는다. 실제 Form/JSON·메일·DB 재접속 소비자의 작성, 실행, 별도 process
+restart와 scaffold/runtime 전체 조립은 각각 독립된 수용 범위이며 TEST_EVIDENCE에서 구분한다.
 
 ## 도메인에 묶인 계정 감사 기록
 

@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v12"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v13"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -68,7 +68,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	}
 	for _, app := range input.apps {
 		switch app.Package.ImportPath {
-		case "context", "github.com/progresshans/godj/auth", "github.com/progresshans/godj/db", "github.com/progresshans/godj/identity/model", "github.com/progresshans/godj/schema/ir", "github.com/progresshans/godj/sessions/database":
+		case "context", "github.com/progresshans/godj/auth", "github.com/progresshans/godj/db", "github.com/progresshans/godj/identity/model", "github.com/progresshans/godj/schema/ir", "github.com/progresshans/godj/sessions", "github.com/progresshans/godj/sessions/database":
 			return nil, fmt.Errorf("project account import path conflicts with framework binding")
 		}
 	}
@@ -80,6 +80,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\t_godjaccountauth \"github.com/progresshans/godj/auth\"")
 	fmt.Fprintln(&output, "\t_godjaccountdb \"github.com/progresshans/godj/db\"")
 	fmt.Fprintln(&output, "\t_godjaccountmodel \"github.com/progresshans/godj/identity/model\"")
+	fmt.Fprintln(&output, "\t_godjaccountsession \"github.com/progresshans/godj/sessions\"")
 	fmt.Fprintln(&output, "\t_godjaccountsessiondb \"github.com/progresshans/godj/sessions/database\"")
 	fmt.Fprintln(&output, "\tir \"github.com/progresshans/godj/schema/ir\"")
 	for _, app := range input.apps {
@@ -152,6 +153,12 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewPasswordEditor(sessions, binding, verifier, overlay, config)")
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountPasswordResetter binds recipient tokens and atomic reset proofs to the exact selected account, sessions and verifier.")
+	fmt.Fprintf(&output, "func NewAccountPasswordResetter(store *_godjaccountmodel.SessionStore[%s.%s], manager *_godjaccountsession.Manager, verifier *_godjaccountmodel.Authenticator[%s.%s], config _godjaccountmodel.PasswordResetConfig[%s.%s]) (*_godjaccountmodel.PasswordResetter[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewPasswordResetter(store, binding, manager, verifier, config)")
 	fmt.Fprintln(&output, "}")
 	fmt.Fprintln(&output, "\n// NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.")
 	fmt.Fprintf(&output, "func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[%s.%s]) (*_godjaccountmodel.Creator[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)

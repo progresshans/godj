@@ -3,7 +3,6 @@ package identitytest
 import (
 	"bytes"
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -16,13 +15,11 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/validation"
 )
-
-//go:embed testdata/password-reset-django61-*.json
-var passwordResetReferences embed.FS
 
 func resetConfig(t *testing.T, now *time.Time, validators ...identity.PasswordValidator) identity.PasswordResetConfig {
 	t.Helper()
@@ -52,7 +49,7 @@ func resetBindingReference(t *testing.T, mode string) bool {
 	t.Helper()
 	var result bool
 	for _, backend := range []string{"sqlite", "postgres"} {
-		data, err := passwordResetReferences.ReadFile("testdata/password-reset-django61-" + backend + ".json")
+		data, err := identityreference.PasswordReset(backend)
 		if err != nil {
 			t.Fatal(err)
 		}

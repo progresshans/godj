@@ -8,7 +8,7 @@ import (
 
 func TestPostgresAccountCredentialStore(t *testing.T) {
 	url := postgresIntegrationURL(t)
-	accountstoretest.Run(t, func(t *testing.T) (accountstoretest.Backend, func(*testing.T) accountstoretest.Backend) {
+	accountstoretest.Run(t, "postgres", func(t *testing.T) (accountstoretest.Backend, func(*testing.T) accountstoretest.Backend) {
 		namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
 		open := func(t *testing.T) accountstoretest.Backend {
 			backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)

@@ -164,11 +164,23 @@ TEST_EVIDENCE에서 구분한다. 자동 account/catalog Admin 등록과 Admin �
 선택 계정 reset을 위한 공통 key ring·상태 서명·email cleaner를 `auth`에 두고 기존 reset owner와 소비자를 전환했다.
 메일러는 모델을 직접 조회하지 않고 저장 owner가 같은 snapshot에서 만든 수신자/token 전체를 받는다. 서명은 credential
 domain과 실제 key·email·LastLogin을 사용하며, 메일 source와 완료 persistence의 정확한 owner도 startup에서 검사한다.
-기존 native 기준과 DB/HTTP 검사는 유지하고 토큰/입력 단위는 해당 공통 package로 옮겼다. 선택 모델의 typed reset 저장·
-세션 proof/폐기·생성 팩토리·독립 HTTP/restart 연결은 아직 남아 있으며 이 공통 기반의 완료로 대체하지 않는다.
+기존 native 기준과 DB/HTTP 검사는 유지하고 토큰/입력 단위는 해당 공통 package로 옮겼다.
+
+생성 `NewAccountPasswordResetter`와 공통 typed reset owner를 작성했다. 같은 SessionStore·인증기·manager와 전체 host
+source에 묶이며, 명시적 Email/Active·실제 signed key·LastLogin·domain을 사용한다. 메일 후보는 하나의 native snapshot에서
+완전한 bounded 집합으로 준비하고, 실제 DB의 case-insensitive prefilter 뒤 Unicode 동등성을 확인한다. 재설정은 DB 밖 한 번의
+hash 뒤 현재 proof·인증 binding·계정·typed 정책과 별도의 session/token clock을 다시 확인한다. Password/현재 Revision,
+모든 대상 세션 폐기·proof 회전/자기 로그인 제거와 실제 필드의 domain audit는 같은 native transaction에서 확정한다.
+
+읽기/cleanup·부분 DML·뒤 batch·unknown/cancel·현재 상태/만료·entropy·reset/login/관리/자기 변경/비활성화 경합과 0/음수
+key를 양 DB 필수 목록에 추가했다. 같은 고정 Django 후보 자료를 기본/선택 owner가 공유한다. 별도 생성 소비자는 기본 User,
+renamed Member·기본 키/별도 Text email·Email/LastLogin 부재·상수 active를 사용하며 실제 TCP Form/JSON·메일 링크·CSRF·
+재접속/owner 재구성·키 회전과 모델/세대 사이의 proof 거부를 SQLite/PostgreSQL에서 실행하도록 작성했다. 같은 key/principal/hash를
+가진 다른 실제 모델의 부정 검사는 채운 DB 전환 제품의 완료가 아니다. Compile과 새 본문의 환경별 실행은 TEST_EVIDENCE에서
+구분한다. 이 소비자의 재접속은 별도 process restart나 공통 scaffold/runtime 전체 조립을 대신하지 않는다.
 
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
-첫 계정 명령·password reset과 통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
+첫 계정 명령·통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

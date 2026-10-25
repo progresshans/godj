@@ -44,7 +44,7 @@ type Open func(*testing.T) (Backend, func(*testing.T) Backend)
 // implements explicit generated-key insertion or sequence reconciliation.
 type StoredKeyFixture func(*testing.T, Backend, string, int64, int64)
 
-func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
+func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFixture) {
 	if storedKey == nil {
 		t.Fatal("stored account key fixture is required")
 	}
@@ -98,6 +98,25 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"session_optional_last_login", sessionOptionalLastLogin},
 		{"session_domain_snapshot", sessionDomainSnapshot},
 		{"password_change_lifecycle", passwordChangeLifecycle},
+		{"password_reset_lifecycle", passwordResetLifecycle},
+		{"password_reset_rechecks", passwordResetRechecks},
+		{"password_reset_commit_failures", passwordResetCommitFailures},
+		{"password_reset_entry_failures", passwordResetEntryFailures},
+		{"password_reset_read_failures", passwordResetReadFailures},
+		{"password_reset_validation", passwordResetValidation},
+		{"password_reset_admission", passwordResetAdmission},
+		{"password_reset_session_fence", passwordResetSessionFence},
+		{"password_reset_entropy", passwordResetEntropy},
+		{"password_reset_many_sessions", passwordResetManySessions},
+		{"password_reset_concurrent", passwordResetConcurrent},
+		{"password_reset_mail", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+			passwordResetMail(t, referenceBackend, backend, reopen)
+		}},
+		{"password_reset_mail_bound", passwordResetMailBound},
+		{"password_reset_mail_snapshot", passwordResetMailSnapshot},
+		{"password_reset_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+			passwordResetNonpositiveKeys(t, backend, storedKey)
+		}},
 		{"password_admin_lifecycle", passwordAdminLifecycle},
 		{"password_admin_admission", passwordAdminAdmission},
 		{"password_admin_rechecks", passwordAdminRechecks},

@@ -37,6 +37,12 @@ func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 			t.Error(err)
 		}
 	})
+	migrateAccountDatabase(t, backend, schemas...)
+	return backend
+}
+
+func migrateAccountDatabase(t *testing.T, backend database.Backend, schemas ...ir.Schema) {
+	t.Helper()
 	sources := domain.MigrationSources()
 	sources = append(sources, accountaudit.MigrationSources()...)
 	sources = append(sources, sessiondb.MigrationSources()...)
@@ -64,7 +70,6 @@ func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 	if _, err := (migrations.Executor{Backend: backend}).Migrate(t.Context(), loaded, migrations.LatestLifecycleRequest()); err != nil {
 		t.Fatal(err)
 	}
-	return backend
 }
 
 // The consumer composes the real domain and typed model writes in one native
