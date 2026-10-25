@@ -38,6 +38,7 @@ RELATION_PACKAGES = {
 RELATION_PREFIXES = (
     'identity', 'account', 'conformance/identityfixture',
     'conformance/cascadefixture',
+    'conformance/accountdeletefixture',
     'conformance/onetoonefixture',
     'conformance/relationfixture', 'conformance/relationproduct',
     'conformance/relationqueryproduct', 'conformance/relationobjectproduct',

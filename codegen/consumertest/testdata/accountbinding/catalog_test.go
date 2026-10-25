@@ -31,8 +31,9 @@ func catalogConsumerConfig[G, P any](role ir.AccountRole, groupExtra, permission
 		permissionFields = append(permissionFields, permissionExtra)
 	}
 	return accountmodel.CatalogConfig[G, P]{
-		Group:      accountmodel.CatalogModelConfig[G]{ReadFields: groupFields, WriteFields: groupFields, Permissions: policy},
-		Permission: accountmodel.CatalogModelConfig[P]{ReadFields: permissionFields, WriteFields: permissionFields, Permissions: policy},
+		AccountPermissions: accountmodel.DeletionPermissions{Delete: "account.shared", Change: "account.team"},
+		Group:              accountmodel.CatalogModelConfig[G]{ReadFields: groupFields, WriteFields: groupFields, Permissions: policy},
+		Permission:         accountmodel.CatalogModelConfig[P]{ReadFields: permissionFields, WriteFields: permissionFields, Permissions: policy},
 	}
 }
 

@@ -42,6 +42,8 @@ func TestAccountSelectionOwnsGeneratedBindingAndProjectSnapshot(t *testing.T) {
 		"func NewFirstAccount(", "return definition.Bind(backend)",
 		"func NewFirstAccountDefinition(", "_godjaccountmodel.NewFirstAccountDefinition(binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, hasher, config)",
 		"func NewAccountCatalog(", "BindCollectionsIn(source)", "BindRelationDeleters()",
+		"func NewAccountDeleter(", "_godjaccountmodel.NewAccountDeleter(sessions, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, policies.IdentityUser, overlay, config)",
+		"_godjaccountmodel.NewCatalog(sessions, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)",
 		"identity.GroupDescriptor{}", "identity.PermissionDescriptor{}",
 	} {
 		if !bytes.Contains(source, []byte(required)) {

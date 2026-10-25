@@ -22,4 +22,4 @@ func (EventDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[
 
 type GoDjAppPart2_b7f116c310b31d04c3ef4468d2afc774b06a6ed401dc5595fea37cd8713ecae6 struct{}
 
-var _ GoDjProjectSnapshot_2ad33413a35096827395a8b209a0606bbfed0833a3e4defaa03f9b9a1ed86d74
+var _ GoDjProjectSnapshot_0afb693e3a74223dbf5f424a0e754b7c6c0e42de4087988a5f92dda2742d153a

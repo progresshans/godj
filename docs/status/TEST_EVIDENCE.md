@@ -1172,6 +1172,59 @@ session access 시계가 payload를 바꾼 원인이며, 해당 consumer manager
 (SHA-256 `06679559c0936e6b957e06c6958067374173727aea9516a56dbdb4f65a6da2cb`).
 새 전체 CI에서 필수 본문·양 DB·실제 소비자·generated drift·race/process/platform을 확인해야 한다.
 
+### 계정·catalog 삭제의 현재 권한과 전체 revision·session·audit 조정 작성
+
+2026-10-26, `5c737e18943c44a62a2689c80b4c7f128164d9c0` 위에서 생성 `NewAccountDeleter`와 공통 typed
+`AccountDeleter[M]`를 작성했다. 정확한 SessionStore·예상 role과 전체 host source·typed Group/Permission descriptor·
+삭제 정책을 요구한다. Catalog 팩토리도 같은 SessionStore를 받도록 전환했다. Account-project ABI v15의 12개 프로젝트를
+생성했고, manifest가 소유한 180개 파일의 현재 bytes·mode와 ABI를 대조했다. 새 생성 fixture는 별도 Member/Team/Grant,
+공개 reverse가 없는 관계, cross-app CASCADE·SET_NULL·PROTECT와 pair uniqueness가 없는 명시적 through를 사용한다.
+
+Root의 현재 삭제 권한과 revision을 확인한 뒤 전체 수집·PROTECT·rowset 정리가 끝난 같은 transaction에서 한 번의 callback이
+모든 선택 모델의 직접 효과와 소속 변경을 합친다. 직접 삭제에는 해당 모델의 delete, 살아남는 NULL 변경에는 change와 추가
+권한을 검사한다. 현재 typed credential/catalog·grant·revision과 모든 audit 준비를 완료한 뒤 살아남는 직접 owner의 revision을
+한 번 증가시키고, 삭제될 계정의 현재 domain session을 폐기하며 직접 삭제/NULL 효과의 감사를 남긴다. 중복 through 링크는
+전체 링크의 전/후 distinct target 집합을 대조하므로 마지막 링크가 사라질 때만 소속 revision이 달라진다. 소속 변화만 있는
+owner의 별도 편집 권한·감사는 요구하지 않는 기존 계약을 유지한다. 자기 삭제도 쓰기 전의 현재 actor/domain을 사용한다.
+Callback 오류는 scope가 유효할 때 원래 identity를 보존하여 정상 거부를 persistence 오류로 바꾸지 않는다.
+
+양 DB의 기존 account credential suite에 각각 필수 root/child 48개를 추가했다. 세 모델의 삭제/NULL·중복 경로·직접/간접
+소속·현재/익명/과거 domain session과 감사, 자기 삭제, catalog에서 시작한 account cascade, 현재/추가 권한·overlay·stale·
+domain 거부·손상/overflow·보호된 자손을 실제 DB에서 검사하도록 작성했다. 전체 10개 model table의 단일 snapshot으로 거부와
+rollback을 대조하며 query+rowset 정리, 실제 revision/session/audit/NULL/delete 쓰기 뒤 실패, 257번째 session 및 생존 owner,
+잘못된 변경 수·scope·clock·취소·cleanup/unknown과 독립 connection의 편집/삭제·login/삭제 경합, 0/음수 key를 포함한다.
+Unknown은 실제 commit/rollback 뒤 acknowledgement 오류를 주입한 검사이며 물리 네트워크 장애 실험은 아니다.
+
+기본/custom/인증 NFKC/Form NFKC/LastLogin 부재/짧은 Char/Text login의 일곱 외부 생성 소비자에 실제 TCP·SQLite 삭제를
+연결했다. 실제 cookie·CSRF·현재/추가 권한·expected revision과 custom PROTECT를 검사하고, 거부 뒤 전체 account/session/audit
+bytes·성공 뒤 대상 계정/세션 폐기·다른 actor 보존·대상 브라우저의 401·한 delete audit를 대조하도록 작성했다. Consumer의
+session clock은 고정하고, 게시 결과는 원자 참조로 전달한다. 이 소비자는 공통 account/catalog Admin 자동 등록의 완료 근거가 아니다.
+
+기존 필수 항목을 제거하지 않고 relation 3,959→4,030, PostgreSQL core 5,225→5,273으로 확장했다. Portable core 44개는
+그대로 유지했다. 새 fixture의 generated drift와 모든 subpackage를 relation owner에 연결했다. 목록의 중복·기존 항목 보존,
+새 항목/fixture의 실행 소유권·Python syntax, gofmt·diff·문서 243개 링크를 로컬에서 확인했다. Python 검사 본문은 실행하지 않았다.
+
+로컬 최소 compile은 `identity/model`, `codegen`, `codegen/consumertest`, 새 fixture, 양 DB의 여섯 package를 확인했다.
+첫 실행의 앞 네 package는 통과했고, 양 DB는 공통 테스트 helper의 import 별칭·backend interface·scope method·오류 상수 네
+compile 오류로 실패했다. 해당 세 파일을 수정한 뒤 양 DB 직렬 `go test -p=1 -run '^$'`가 통과했다. 최종 216개 Go source의
+hash를 대조했다. 일곱 외부 module도 현재 generator·아홉 개 실제 consumer template로 준비해 `-run '^$' -mod=mod` 최소
+compile을 통과했다. 생성 Go/consumer bytes는 receipt와 현재 source가 같고, Go가 갱신한 module metadata는 별도로 기록했다.
+새 Go 단위·DB·HTTP 테스트 본문은 실행하지 않았으며 이 compile을 실제 동작 PASS로 사용하지 않는다.
+
+생성 중 새 fixture의 Query AST helper 호출을 수정했고, 이전 identity 생성물의 catalog signature 의존은 현재 순수 generator와
+제품 candidate verifier/publisher로 먼저 전환했다. 이후 공개 generate를 12개 프로젝트에서 완료했다. 한 후보 compile의 디스크
+공간 부족은 cache 소유권·활성 프로세스를 확인하고 재생성 가능한 Go build cache만 정리한 뒤 다시 생성했다. 실패 원본·보관
+근거·source·module cache를 보존했다. 이 한정 생성과 manifest 대조는 전체 generated drift suite 실행의 대체가 아니다.
+
+Source hash·생성 manifest·필수 목록 차이·모든 실패/성공 compile과 일곱 외부 module의 bytes는 검증 보관소의
+`gdj0138-account-delete-v1/receipt.json`에 연결했다
+(SHA-256 `441d81f74eb52cbf1f6fa70d08fff084d9526c16919372daafb0ef42341498d0`).
+앞선 source의 [CI 40219859895](https://github.com/progresshans/godj/actions/runs/40219859895)는 두 페이지의 114개 job을
+대조한 시점에 성공 74·실행 중 9·대기 31이었다. 이는 이전 source의 부분 관측이며 전체 CI나 새 source의 PASS가 아니다.
+새 source의 필수 본문·양 DB·독립 HTTP·generated drift·race/process/platform과 원본 대조가 필요하다. Collection 교체의 여러
+삭제를 합치는 수명 조정, 공개 최초 계정 명령·scaffold/runtime, 자동 Admin/HTTP 조립, profile 관계/파일·채운 DB 전환·통합
+restart 및 나머지 I1 수용은 여전히 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -138,7 +138,7 @@ func catalogReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					if mode == "denial_cleanup" {
 						config.Group.Permissions.View, config.Group.Permissions.Change = "catalog.absent_view", "catalog.absent_change"
 					}
-					catalog, err := project.NewAccountCatalog(owner, auth.PrincipalAuthorizer{}, config)
+					catalog, err := project.NewAccountCatalog(catalogSessions(t, owner), auth.PrincipalAuthorizer{}, config)
 					if err != nil {
 						t.Fatal(err)
 					}

@@ -56,6 +56,7 @@ generate-check:
 	go run ./cmd/godj generate --check --project ./conformance/relationfixture/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/onetoonefixture/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/cascadefixture/godj.toml
+	go run ./cmd/godj generate --check --project ./conformance/accountdeletefixture/godj.toml
 	go test -count=1 -run '^TestCheckedInGenerated' ./conformance/relationproduct
 
 project-command-dependencies:

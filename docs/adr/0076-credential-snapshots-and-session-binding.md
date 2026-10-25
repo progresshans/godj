@@ -976,8 +976,8 @@ count·이력을 모두 버리고 비공개 원인을 보존한 persistence 오�
 
 ## 선택 계정의 typed Group·Permission 관리
 
-생성 `NewAccountCatalog`와 `identity/model.Catalog[G, P]`는 선택 계정의 현재 권한을 실제 Group·Permission 타입의
-CRUD에 연결한다. `Groups()`와 `Permissions()`의 `CatalogResource[M]`는 각각 명시적 읽기·쓰기 필드, view/add/change/delete와
+생성 `NewAccountCatalog`와 `identity/model.Catalog[G, P]`는 선택 계정의 정확한 SessionStore와 현재 권한을 실제 Group·Permission 타입의
+CRUD에 연결한다. 생성 팩토리의 예상 role·전체 host source가 session owner와 같아야 한다. `Groups()`와 `Permissions()`의 `CatalogResource[M]`는 각각 명시적 읽기·쓰기 필드, view/add/change/delete와
 추가 권한을 소유한다. 조회는 확정된 view 거부에서만 change를 검사하고 추가 권한은 두 경로 모두 필요하다.
 Metadata용 `Manager()`는 Form/API 선언에 쓰는 순수 typed source이며 backend나 관리 권한을 포함하지 않는다.
 
@@ -996,17 +996,53 @@ cleanup/unknown 원인을 보존하며 실패 결과 게시와 자동 재시도�
 권한 확장은 선택 계정의 모든 해당 회원을 256개 keyset batch로 읽어 현재 상태와 제안된 유효 권한 합집합을 확인한다.
 첫 page는 ID 하한을 두지 않아 명시적으로 저장된 0/음수 회원을 포함한다. 직접 grant·다른 그룹·새 grant를 합친 256개 한도는
 서로 다른 그룹의 동시 변경에도 같은 fence로 보호한다. Group 삭제는 직접 회원, Permission 삭제는 직접 할당 계정과 소유
-Group의 revision을 증가시킨다. 간접 회원의 revision이나 credential/hash/session stamp를 변경하는 작업으로 확대하지 않는다.
+Group의 revision을 증가시킨다. 전체 삭제 영향과 합쳐 한 owner의 revision을 한 번만 증가시킨다. 간접 회원의 revision이나
+credential/hash/session stamp를 변경하는 작업으로 확대하지 않는다. 명시적 through의 중복 링크 일부만 사라져 실제 소속 집합이
+유지되면 해당 owner의 revision을 증가시키지 않는다.
 
 상세 조회는 출력에서 collection을 제외했더라도 저장된 전체 그룹 grant의 무결성을 검사한다. 명시한 collection만 선택
 `ModelView`에 넣으며 로드한 빈 집합과 미로드를 구분한다. 목록은 같은 snapshot의 count와 최대 100개 scalar page이고
 행마다 grant를 읽지 않는다. 이력은 현재 domain의 존재하는 대상에 한정한다. 읽기 종료 실패에는 선택 값·page·이력이 없다.
 
-전체 host source의 collection과 삭제 기능을 생성 단계와 runtime 시작 시 함께 확인한다. 일반 host CASCADE/PROTECT/SET_NULL과
-직접 owner revision·audit는 한 transaction에 속한다. 현재 추가적인 계정/Group/Permission 행을 CASCADE로 지우거나 SET_NULL로
-수정하는 host graph는 시작 시 `unsupported` 원인을 보존하여 거부한다. 이 경우 필요한 추가 owner revision·계정 session과 삭제
-수명 조정은 I1-06의 미완료 구현이다. 단순한 identity-only 삭제로 대체하거나 이 제한을 전체 host 삭제 완료로 계산하지 않는다.
+전체 host source의 collection과 삭제 기능을 생성 단계와 runtime 시작 시 함께 확인한다. Catalog 행 삭제는 아래의 공통
+선택 계정 수명 owner로 추가 계정/Group/Permission의 CASCADE·SET_NULL과 session·revision·audit를 조정한다.
+`CatalogConfig.AccountPermissions`는 직접 영향을 받는 선택 계정의 delete/change·추가 권한이다. Group/Permission에는 각
+resource의 기존 권한을 사용한다. Catalog 삭제가 계정도 지우면 반환값의 `RevokedSessions`에 같은 domain의 실제 폐기 수를 담는다.
+Group grant collection 교체는 여러 관계 변경을 하나의 수명 조정으로 합치는 작업이 남아 있다. 해당 through 삭제가 추가
+계정/catalog 행을 바꾸는 조합은 시작 시 `unsupported` 원인을 보존하여 거부한다. Endpoint 삭제 지원으로 이 경계를 감추지 않는다.
 공통 Admin/HTTP 조립과 기존 고정 모델 Manager 교체도 별도 잔여 요구다.
+
+## 선택 계정과 catalog 삭제의 전체 수명 조정
+
+생성 `NewAccountDeleter`와 `AccountDeleter[M]`는 정확한 SessionStore·계정 binding·typed catalog descriptor·전체 host의
+삭제 정책을 조립한다. 생성 ABI는 v15이며 과거 backend-only catalog 팩토리를 위한 호환 경로를 두지 않는다.
+`Delete`는 현재 root 삭제 권한·추가 권한을 확인한 뒤 실제 대상과 expected revision을 검사한다. 명시적으로 존재하는
+0/음수 key를 허용하며, 반환값은 확정된 ID·revision·삭제 행 수·폐기 session 수뿐이다. 삭제 권한으로 profile을 공개하지 않는다.
+
+공통 관계 삭제기의 전체 수집·PROTECT·rowset 정리 뒤 한 번의 callback에서 선택 계정/Group/Permission의 효과를 조정한다.
+직접 삭제되는 각 선택 모델에는 명시한 `DeletionPermissions.Delete`, 살아남아 SET_NULL되는 모델에는 `Change`와 모든 추가
+권한이 필요하다. Actor의 현재 domain·저장 grant와 deny overlay를 쓰기 전에 다시 검사한다. 일반 host 행은 선언한 관계 정책을
+따른다. Django Admin의 삭제 대상별 권한 검사는 [공식 get_deleted_objects 계약](https://docs.djangoproject.com/en/6.1/ref/contrib/admin/#django.contrib.admin.ModelAdmin.get_deleted_objects)을 참조한다.
+GoDj의 선택 모델 SET_NULL에 대한 명시적 change 권한과 revision·domain session 처리는 이 수명 owner의 추가 계약이며,
+일반 host 모델의 Admin 등록·삭제 preview 전체 권한 대조를 완료했다는 의미가 아니다.
+
+모든 직접 효과와 실제로 달라지는 직접 소속을 `(model, key)`별로 합친다. Through는 정규화 IR의 정확한 source/target 필드를
+사용하여 같은 Query AST로 읽는다. 전체 key를 bounded batch로 읽고, owner별 전체 링크를 keyset으로 순회하여 삭제 전/후의
+서로 다른 target 집합을 비교한다. 공개 reverse accessor·pair uniqueness를 가정하지 않고 중복 링크나 첫 batch만으로 결론내리지 않는다.
+같은 account/catalog에 여러 NULL·소속 변경이 겹쳐도 revision은 한 번만 증가한다. 삭제될 행에는 revision 증가를 적용하지 않는다.
+
+현재 typed 계정 credential·소속/권한 한도, catalog name/code·revision·grant를 모두 확인하고 모든 audit를 준비한 뒤 동반 쓰기를
+시작한다. 살아남는 owner의 revision overflow나 뒤 owner의 손상도 앞선 변경을 남기지 않는다. Collector가 PK/FK 변경을 소유하므로
+callback은 revision만 수정하고 수집한 topology를 변경하지 않는다. 삭제되는 계정의 현재 domain session만 폐기하며 익명·다른 계정·
+과거 domain의 bytes를 유지한다. LoginPersistence와 같은 native write fence를 사용해 동시 login이 삭제 뒤 session을 남기지 못하게 한다.
+
+직접 삭제되는 각 선택 모델 행에는 값 없는 delete audit, 직접 NULL되는 생존 행에는 전체 NULL·함께 바뀐 소속 필드의 change audit를
+한 번 기록한다. 소속 변화만 받는 owner에는 기존 계약대로 별도의 편집 audit를 만들지 않는다. 삭제와 일시적 NULL이 겹치면 delete가
+우선한다. 현재 actor가 자기 삭제나 cascade 대상이어도 쓰기 전의 검증된 actor/domain으로 감사를 남기고 성공 뒤 재조회로 결과를 뒤집지 않는다.
+
+조회/정리·인가·revision·session·audit·뒤 관계 DML 실패는 하나의 transaction에서 rollback한다. Callback의 정상적인 거부는 scope가
+유효할 때 원래 오류 identity를 보존하고, 취소/만료가 겹치면 이를 함께 유지한다. Unknown/cleanup에는 성공값을 게시하거나 자동 재시도하지
+않는다. 계정/그룹의 collection 교체 전체를 합치는 조정, 공개 계정 Admin/HTTP 조립과 통합 restart 수용은 I1의 잔여 요구다.
 
 ## 선택 계정의 typed 생성과 해시 준비
 

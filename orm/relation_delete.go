@@ -206,7 +206,10 @@ func (d RelationDeleter[M]) deleteInSession(ctx context.Context, session db.Rela
 	if before != nil {
 		observe = func(work context.Context, effects RelationDeleteEffects) error {
 			err := before(work, effects)
-			return errors.Join(err, validateQuerySession(work, session))
+			if scopeErr := validateQuerySession(work, session); scopeErr != nil {
+				return errors.Join(err, scopeErr)
+			}
+			return err
 		}
 	}
 	count, err := d.state.execute(ctx, session, key, observe)

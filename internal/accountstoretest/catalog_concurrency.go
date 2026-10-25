@@ -19,7 +19,7 @@ func catalogConcurrentWrites(t *testing.T, backend Backend, reopen func(*testing
 	f := provisionCatalog(t, backend)
 	actor := f.credential.Principal()
 	writers := []accountmodel.CatalogResource[models.Group]{f.catalog.Groups(), {}}
-	other, err := project.NewAccountCatalog(reopen(t), auth.PrincipalAuthorizer{}, catalogConfig())
+	other, err := project.NewAccountCatalog(catalogSessions(t, reopen(t)), auth.PrincipalAuthorizer{}, catalogConfig())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
 type untouchedCatalogBackend struct{ untouchedProfileBackend }
@@ -29,8 +30,9 @@ func (backend *untouchedCatalogBackend) CoordinatedAtomicRelation(context.Contex
 
 func unitCatalogConfig() accountmodel.CatalogConfig[models.Group, models.Permission] {
 	return accountmodel.CatalogConfig[models.Group, models.Permission]{
-		Group:      accountmodel.CatalogModelConfig[models.Group]{ReadFields: []string{"name", "permissions"}, WriteFields: []string{"permissions", "name"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}},
-		Permission: accountmodel.CatalogModelConfig[models.Permission]{ReadFields: []string{"code", "name"}, WriteFields: []string{"name", "code"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}},
+		AccountPermissions: accountmodel.DeletionPermissions{Delete: "account.delete", Change: "account.change"},
+		Group:              accountmodel.CatalogModelConfig[models.Group]{ReadFields: []string{"name", "permissions"}, WriteFields: []string{"permissions", "name"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}},
+		Permission:         accountmodel.CatalogModelConfig[models.Permission]{ReadFields: []string{"code", "name"}, WriteFields: []string{"name", "code"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}},
 	}
 }
 
@@ -44,6 +46,10 @@ func TestAccountCatalogCompositionAndInputRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sessionStore, err := accountmodel.NewSessionStore(store, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	collections, err := project.BindCollections()
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +59,7 @@ func TestAccountCatalogCompositionAndInputRejectBeforeIO(t *testing.T) {
 		t.Fatal(err)
 	}
 	build := func(config accountmodel.CatalogConfig[models.Group, models.Permission]) (*accountmodel.Catalog[models.Group, models.Permission], error) {
-		return accountmodel.NewCatalog(store, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, auth.PrincipalAuthorizer{}, config)
+		return accountmodel.NewCatalog(sessionStore, binding, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, auth.PrincipalAuthorizer{}, config)
 	}
 	for _, mutate := range []func(*accountmodel.CatalogConfig[models.Group, models.Permission]){
 		func(c *accountmodel.CatalogConfig[models.Group, models.Permission]) { c.Group.ReadFields = nil },
@@ -112,7 +118,7 @@ func TestAccountCatalogCompositionAndInputRejectBeforeIO(t *testing.T) {
 		{collections.IdentityGroupPermissions, policies.IdentityGroup, hostPolicies.AccountsPermission},
 		{},
 	} {
-		catalog, err := accountmodel.NewCatalog(store, models.GroupDescriptor{}, models.PermissionDescriptor{}, capabilities.grants, capabilities.groups, capabilities.permissions, auth.PrincipalAuthorizer{}, unitCatalogConfig())
+		catalog, err := accountmodel.NewCatalog(sessionStore, binding, models.GroupDescriptor{}, models.PermissionDescriptor{}, capabilities.grants, capabilities.groups, capabilities.permissions, auth.PrincipalAuthorizer{}, unitCatalogConfig())
 		if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) || catalog != nil {
 			t.Fatal("foreign/zero full host capability admitted", err)
 		}
@@ -121,18 +127,23 @@ func TestAccountCatalogCompositionAndInputRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if catalog, err := accountmodel.NewCatalog(readOnly, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, auth.PrincipalAuthorizer{}, unitCatalogConfig()); err == nil || catalog != nil {
-		t.Fatal("unfenced catalog backend admitted")
+	if sessionStore, err := accountmodel.NewSessionStore(readOnly, sessiondb.Config{}); err == nil || sessionStore != nil {
+		t.Fatal("unfenced backend admitted as catalog session owner")
 	}
+
 	narrow, err := accountmodel.NewCredentialStore(&untouchedProfileBackend{}, binding, models.GroupDescriptor{}, models.PermissionDescriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if catalog, err := accountmodel.NewCatalog(narrow, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, auth.PrincipalAuthorizer{}, unitCatalogConfig()); err == nil || catalog != nil {
+	narrowSessions, err := accountmodel.NewSessionStore(narrow, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog, err := accountmodel.NewCatalog(narrowSessions, binding, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, auth.PrincipalAuthorizer{}, unitCatalogConfig()); err == nil || catalog != nil {
 		t.Fatal("ordinary coordinated writer substituted for native relation owner")
 	}
 	for _, overlay := range []auth.Authorizer{nil, (*auth.PrincipalAuthorizer)(nil)} {
-		if catalog, err := accountmodel.NewCatalog(store, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, unitCatalogConfig()); err == nil || catalog != nil {
+		if catalog, err := accountmodel.NewCatalog(sessionStore, binding, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, unitCatalogConfig()); err == nil || catalog != nil {
 			t.Fatal("missing catalog overlay admitted")
 		}
 	}

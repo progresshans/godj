@@ -46,7 +46,11 @@ type CatalogModelConfig[M any] struct {
 type CatalogConfig[G, P any] struct {
 	Group      CatalogModelConfig[G]
 	Permission CatalogModelConfig[P]
-	Now        func() time.Time
+	// AccountPermissions applies when the host deletion graph directly
+	// deletes or nulls selected account rows. Implicit membership revisions
+	// remain consequences of the authorized catalog deletion.
+	AccountPermissions DeletionPermissions
+	Now                func() time.Time
 }
 
 // Catalog composes the selected account's current authority with its actual
@@ -94,8 +98,7 @@ type catalogModelState[M any] struct {
 	checkKeys                                 func(context.Context, db.Queryer, []int64) error
 	checkMembers                              func(context.Context, db.Session, auth.CredentialDomain, int64, []int64) error
 	saveKeys                                  func(context.Context, db.Session, M, []int64) error
-	advanceOwners                             func(context.Context, db.Session, auth.CredentialDomain, int64) error
-	delete                                    func(context.Context, db.Session, M) (int64, error)
+	delete                                    func(context.Context, db.Session, auth.Principal, M) (int64, int, error)
 }
 type catalogScope struct {
 	reader    db.SnapshotReader
@@ -138,7 +141,11 @@ func (resource CatalogResource[M]) Manager() orm.Manager[M] {
 	return resource.state.resource.Manager()
 }
 
-func NewCatalog[M, G, P, L any](store *CredentialStore[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P], grants orm.ManyToMany[G, P, L], deleteGroups orm.RelationDeleter[G], deletePermissions orm.RelationDeleter[P], overlay auth.Authorizer, config CatalogConfig[G, P]) (*Catalog[G, P], error) {
+func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P], grants orm.ManyToMany[G, P, L], deleteGroups orm.RelationDeleter[G], deletePermissions orm.RelationDeleter[P], overlay auth.Authorizer, config CatalogConfig[G, P]) (*Catalog[G, P], error) {
+	if sessions == nil || sessions.state == nil {
+		return nil, managementError(CodeInvalidConfig, nil)
+	}
+	store := sessions.state.credentials
 	if err := store.valid(); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
@@ -168,8 +175,17 @@ func NewCatalog[M, G, P, L any](store *CredentialStore[M], groups orm.RelationOb
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
-	if err := validateCatalogDeleteTopology(project, role); err != nil {
+	if err := validateCatalogCollectionTopology(project, role); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
+	}
+	lifecycle, err := newDeletionLifecycle(sessions, expected, groups, permissions, overlay, AccountDeleteConfig{
+		Account:    config.AccountPermissions,
+		Group:      DeletionPermissions{Delete: config.Group.Permissions.Delete, Change: config.Group.Permissions.Change, Additional: config.Group.Permissions.Additional},
+		Permission: DeletionPermissions{Delete: config.Permission.Permissions.Delete, Change: config.Permission.Permissions.Change, Additional: config.Permission.Permissions.Additional},
+		Now:        config.Now,
+	})
+	if err != nil {
+		return nil, err
 	}
 	now := config.Now
 	if now == nil {
@@ -193,19 +209,31 @@ func NewCatalog[M, G, P, L any](store *CredentialStore[M], groups orm.RelationOb
 	if !groupPresent || !permissionPresent || !groupState.model.Equal(groupSource) || !permissionState.model.Equal(permissionSource) {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
-	groupState.delete = func(ctx context.Context, scope db.Session, value G) (int64, error) {
+	groupState.delete = func(ctx context.Context, scope db.Session, actor auth.Principal, value G) (int64, int, error) {
 		relations, ok := scope.(db.RelationSession)
 		if !ok || nilModelValue(relations) {
-			return 0, managementError(CodeInvalidConfig, nil)
+			return 0, 0, managementError(CodeInvalidConfig, nil)
 		}
-		return deleteGroups.DeleteInSession(ctx, relations, value)
+		revoked := 0
+		count, err := deleteGroups.DeleteWithEffectsInSession(ctx, relations, value, func(work context.Context, effects orm.RelationDeleteEffects) error {
+			var err error
+			revoked, err = lifecycle.apply(work, relations, actor, effects)
+			return err
+		})
+		return count, revoked, err
 	}
-	permissionState.delete = func(ctx context.Context, scope db.Session, value P) (int64, error) {
+	permissionState.delete = func(ctx context.Context, scope db.Session, actor auth.Principal, value P) (int64, int, error) {
 		relations, ok := scope.(db.RelationSession)
 		if !ok || nilModelValue(relations) {
-			return 0, managementError(CodeInvalidConfig, nil)
+			return 0, 0, managementError(CodeInvalidConfig, nil)
 		}
-		return deletePermissions.DeleteInSession(ctx, relations, value)
+		revoked := 0
+		count, err := deletePermissions.DeleteWithEffectsInSession(ctx, relations, value, func(work context.Context, effects orm.RelationDeleteEffects) error {
+			var err error
+			revoked, err = lifecycle.apply(work, relations, actor, effects)
+			return err
+		})
+		return count, revoked, err
 	}
 	groupState.saveKeys = func(ctx context.Context, scope db.Session, owner G, keys []int64) error {
 		collection, err := grants.InSession(scope, owner)

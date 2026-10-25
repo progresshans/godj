@@ -333,10 +333,11 @@ class ExecutionOwnerTests(unittest.TestCase):
     def test_generated_relation_fixtures_have_exactly_one_execution_owner(self):
         from packages import selected
         from workflow import JOBS
-        for family, apps in [('onetoonefixture', ('tickets', 'reports')), ('cascadefixture', ('parents', 'details'))]:
+        for family, apps in [('onetoonefixture', ('tickets', 'reports')), ('cascadefixture', ('parents', 'details')),
+                             ('accountdeletefixture', ('people', 'access', 'links', 'tickets'))]:
             prefix = 'conformance/' + family
             consumers = [MODULE + relative for relative in (
-                prefix, prefix + '/' + apps[0], prefix + '/' + apps[1],
+                prefix, *(prefix + '/' + app for app in apps),
                 prefix + '/project', prefix + '/cmd/projectrunner',
             )]
             adjacent = MODULE + prefix + 'helper'

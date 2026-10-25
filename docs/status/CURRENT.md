@@ -9,9 +9,9 @@
 
 ## 다음
 
-1. I1의 계정 흐름과 Admin 저장 결과, 관계 삭제 영향 수집의 실패/경합을 새 source의 원격 CI에서 확인한다.
+1. I1의 계정/catalog 삭제 수명 조정과 실제 소비자·실패/경합을 새 source의 원격 CI에서 확인한다.
 2. 준비한 최초 계정 Command/runtime을 공개 터미널/상위 프로세스에 연결하고 scaffold runtime·공통 Admin 등록/HTTP 제품 조립을 완성한다.
-3. 전체 삭제 영향 수집을 계정/catalog의 revision·session·audit 조정에 연결하고, 프로필 관계/파일·채운 DB 모델 전환과 통합 startup/process restart를 완성한다.
+3. Collection 교체의 전체 삭제 효과를 계정/catalog 수명 조정에 통합하고, 프로필 관계/파일·채운 DB 모델 전환과 통합 startup/process restart를 완성한다.
 
 ## 검증 경계
 

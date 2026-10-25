@@ -26,10 +26,10 @@ CASCADE·PROTECT까지 호스트 graph가 소유하므로 라이브러리의 별
 선택 계정의 catalog 팩토리는 같은 binding에서 실제 Group/Permission descriptor·그룹 권한 collection과 전체 host 삭제
 정책을 조합한다. 공개 reverse accessor가 없어도 선언한 forward M2M과 bound Query AST로 회원·grant를 조회한다.
 삭제 graph가 추가 계정/catalog 행의 수명까지 바꾸는 경우에는 단순 관계 삭제 이상의 revision·session 조정이 필요하다.
-현재 이 조합은 시작 시 명시적으로 거부하며, 완전한 수명 조정은 [GDJ-0138 I1-06](../../work/0138-custom-account-lifecycle.md)에 남긴다.
-공통 삭제기의 `DeleteWithEffectsInSession`은 이 조정을 위한 전체 삭제/NULL 변경 행의 불변 관찰을 제공한다.
-선택 계정 owner가 이를 사용해 모든 관련 계정/catalog의 현재 권한·revision·session·audit를 함께 처리하기 전에는
-위의 조합 거부를 제거하거나 일반 관계 삭제를 계정 수명 완료로 계산하지 않는다.
+선택 계정과 catalog의 행 삭제는 같은 SessionStore에 묶인 owner가 `DeleteWithEffectsInSession`의 전체 효과를 합쳐
+현재 권한·직접 소속 revision·session·audit를 조정한다. 구체적인 계약은 [선택 계정 수명](0076-credential-snapshots-and-session-binding.md)을 따른다.
+Collection 교체의 여러 삭제를 하나의 수명 조정으로 합치는 작업은 [GDJ-0138 I1-06](../../work/0138-custom-account-lifecycle.md)에 남긴다.
+해당 through 삭제가 추가 계정/catalog 행을 바꾸는 조합의 시작 거부를 유지하며, 행 삭제 지원으로 이를 대체하지 않는다.
 
 외부 app에는 호스트가 생성·삭제하는 파일 roster가 없다. Manifest, runner wire, bounded scan/size와 snapshot hash에
 External을 보존한다. 검사기는 격리한 Go module 환경의 `go list -find`로 dependency를 찾아 읽는다.

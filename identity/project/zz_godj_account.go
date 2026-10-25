@@ -13,7 +13,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v14"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v15"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -162,13 +162,22 @@ func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _god
 	return _godjaccountmodel.NewProfileReader(store, overlay, config)
 }
 
-// NewAccountCatalog composes current account authority with the selected catalog and complete host relation policies.
-func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.CatalogConfig[identity.Group, identity.Permission]) (*_godjaccountmodel.Catalog[identity.Group, identity.Permission], error) {
+// NewAccountDeleter coordinates all collected account/catalog effects with the exact session owner.
+func NewAccountDeleter(sessions *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountDeleteConfig) (*_godjaccountmodel.AccountDeleter[identity.User], error) {
 	binding, err := BindAccount()
 	if err != nil {
 		return nil, err
 	}
-	store, err := _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewAccountDeleter(sessions, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, policies.IdentityUser, overlay, config)
+}
+
+// NewAccountCatalog shares session ownership for every collected catalog/account deletion effect.
+func NewAccountCatalog(sessions *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.CatalogConfig[identity.Group, identity.Permission]) (*_godjaccountmodel.Catalog[identity.Group, identity.Permission], error) {
+	binding, err := BindAccount()
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +193,7 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	if err != nil {
 		return nil, err
 	}
-	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
+	return _godjaccountmodel.NewCatalog(sessions, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_52b75592ae8fe017d883002e6e9c4c6e1b11d40173ecab754bc52b8a42083faf
+var _ goDjProjectSnapshot_d672a223538c03cad73da50ade1540f56804facefa699e51abf875df55ce3bc4

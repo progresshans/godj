@@ -91,8 +91,8 @@ audit의 원자성, 0/음수 key·뒤 batch 실패·동시 확장·권한 회수
 별도 모델·NoReverse·추가 정수/텍스트 필드를 가진 외부 생성 소비자도 같은 팩토리를 사용하도록 확장했다.
 작성·생성·compile과 이 새 본문의 환경별 실행은 구분하며 결과는 TEST_EVIDENCE에 둔다.
 
-추가 계정/catalog 행을 CASCADE/SET_NULL로 바꾸는 host graph는 아직 필요한 revision·session 수명 조정이 없어
-시작 시 명시적으로 거부한다. 이 조정은 I1-06에서 완성해야 하며 일반 host 참조의 삭제 지원으로 대체하지 않는다.
+추가 계정/catalog 행을 CASCADE/SET_NULL로 바꾸는 행 삭제는 아래의 전체 수명 owner로 조정한다.
+Collection 교체의 여러 삭제를 같은 owner로 합치는 작업은 I1-06에 남아 있으며, 해당 through 조합은 시작 시 명시적으로 거부한다.
 
 독립 `godj_sessions` migration·typed DB Store와 선택 계정의 `SessionStore[M]`/생성 팩토리를 작성했다.
 현재 durable domain과 세션은 같은 snapshot/fence에서 처리하고 역사 namespace를 승계하지 않는다. Typed LoginRecorder와
@@ -210,11 +210,19 @@ AccountEditor를 통해 자기 profile+비활성화의 한 commit, 모든 자기
 `DeleteWithEffectsInSession`은 PROTECT와 전체 조회/정리가 끝난 뒤 같은 borrowed transaction에 불변 영향 목록을 제공한다.
 NULL 변경도 수집한 정확한 key/FK에 한정하고 전체 집합을 batch로 실행하며, 변경 수 불일치는 실패시킨다.
 생성 정책을 사용하는 양 DB 소비자에 동반 쓰기·뒤 실패/rollback·unknown·새 참조/재지정·batch·0/음수 key 검사를
-작성했다. 최소 compile과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다. 선택 계정 삭제 owner와 catalog/role의
-복합 수명 연결은 아직 남아 있으며, 추가 계정/catalog 효과가 있는 기존 조합의 시작 거부는 유지한다.
+작성했다. 최소 compile과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+생성 `NewAccountDeleter`와 typed 계정 삭제 owner를 작성하고 catalog 행 삭제를 같은 수명 조정에 연결했다.
+정확한 SessionStore·전체 host source에서 모든 직접 계정/catalog 효과와 실제 소속 집합 변화를 합친다. 각 선택 모델의
+현재 delete/change·추가 권한, 전체 typed 상태/한도·revision을 먼저 확인하고 생존 owner revision을 한 번만 증가시킨다.
+삭제 계정의 현재 domain session과 직접 효과 audit를 원자적으로 처리하며, 중복 through 일부 제거·삭제/NULL 중복·자기 삭제를 구분한다.
+생성 ABI v15와 기존 소비자를 전환했다. 별도 custom 모델·명시적 through·교차 host graph를 생성하고 양 DB의 전체 durable
+비교·거부·뒤 쓰기 실패·unknown·독립 connection 경합·0/음수 key·257개 owner 검사를 작성했다. 일곱 외부 생성 변형에는
+실제 HTTP login·CSRF·stale/추가 권한/host 보호 거부·삭제·두 대상 브라우저 폐기 소비자를 추가했다.
+최소 compile·작성과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다. Collection 교체의 전체 효과 통합과 공통 Admin/HTTP 등록은 남아 있다.
 
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
-첫 계정 명령·통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
+첫 계정 명령·통합 runtime·collection 교체의 연쇄 수명·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

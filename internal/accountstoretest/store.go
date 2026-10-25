@@ -188,6 +188,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			test.run(t, backend, reopen)
 		})
 	}
+	runAccountDeletion(t, open, storedKey)
 }
 
 const password = "native-selected-account-password"

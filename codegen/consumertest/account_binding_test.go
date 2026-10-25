@@ -56,6 +56,9 @@ var accountBindingCreationConsumer []byte
 //go:embed testdata/accountbinding/roles_test.go
 var accountBindingRoleConsumer []byte
 
+//go:embed testdata/accountbinding/delete_http_test.go
+var accountBindingDeleteHTTPConsumer []byte
+
 type accountLoginVariant struct {
 	name                                                                   string
 	custom, normalized, noLastLogin, formNormalized, shortLogin, textLogin bool
@@ -129,8 +132,15 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/catalog_test.go", accountBindingCatalogConsumer)
 			writeGeneratedTestFile(t, root, "consumer/roles_test.go", accountBindingRoleConsumer)
 			writeGeneratedTestFile(t, root, "consumer/creation_test.go", accountBindingCreationConsumer)
+			writeGeneratedTestFile(t, root, "consumer/delete_http_test.go", accountBindingDeleteHTTPConsumer)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			requiredNames := []string{required, required + "/password_change", required + "/profile_role_edit"}
+			for _, name := range []string{"", "/csrf", "/stale", "/additional_permission", "/commit"} {
+				requiredNames = append(requiredNames, required+"/account_delete"+name)
+			}
+			if variant.custom {
+				requiredNames = append(requiredNames, required+"/account_delete/protected")
+			}
 			for _, name := range []string{"login_presentation", "login_csrf", "login_input_limit", "login_fullwidth_policy", "form_csrf", "form_origin", "form_confirmation", "form_combined", "form_target", "json_csrf_before_parse", "json_target", "json_duplicate", "json_null", "json_combined", "form_success", "json_success"} {
 				requiredNames = append(requiredNames, required+"/password_change/"+name)
 			}

@@ -45,7 +45,7 @@ func TestAccountMembershipDeletionChecksExplicitThroughRoot(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if err := validateCatalogDeleteTopology(project, role); err != nil {
+				if err := validateCatalogCollectionTopology(project, role); err != nil {
 					t.Fatal("PROTECT endpoint should not reach explicit through owner", err)
 				}
 				err = validateRoleDeleteTopology(project, role, []string{"groups"})

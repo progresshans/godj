@@ -22,7 +22,10 @@ type CatalogChange struct {
 	ID, Revision  int64
 	ChangedFields []string
 }
-type CatalogDeletion struct{ ID, Revision, DeletedRows int64 }
+type CatalogDeletion struct {
+	ID, Revision, DeletedRows int64
+	RevokedSessions           int
+}
 
 // Create consumes already cleaned typed Form/JSON intent. The owner checks
 // current authority, catalog scalar/choice/unique policy and audit in one
@@ -252,8 +255,8 @@ func (resource CatalogResource[M]) Delete(ctx context.Context, actor auth.Princi
 		if !allowed {
 			return CatalogDeletion{}, managementError(CodePermission, nil)
 		}
-		namespace, _ := current.CredentialDomain()
 		var count int64
+		var revoked int
 		_, err = state.resource.DeleteInSession(work, scope, id, crud.DeleteOptions[M]{
 			Before: func(ctx context.Context, scope db.Session, row M) error {
 				_, key, actual, err := state.inspect(row, true)
@@ -271,11 +274,11 @@ func (resource CatalogResource[M]) Delete(ctx context.Context, actor auth.Princi
 						return err
 					}
 				}
-				return state.advanceOwners(ctx, scope, namespace, id)
+				return nil
 			},
 			Delete: func(ctx context.Context, scope db.Session, row M) (int64, error) {
 				var err error
-				count, err = state.delete(ctx, scope, row)
+				count, revoked, err = state.delete(ctx, scope, current, row)
 				return count, err
 			},
 		})
@@ -285,10 +288,7 @@ func (resource CatalogResource[M]) Delete(ctx context.Context, actor auth.Princi
 		if err != nil {
 			return CatalogDeletion{}, err
 		}
-		if err := state.audit(work, scope, current, id, admin.ActionDelete, nil); err != nil {
-			return CatalogDeletion{}, err
-		}
-		return CatalogDeletion{ID: id, Revision: revision, DeletedRows: count}, nil
+		return CatalogDeletion{ID: id, Revision: revision, DeletedRows: count, RevokedSessions: revoked}, nil
 	})
 }
 

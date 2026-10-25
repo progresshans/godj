@@ -20,14 +20,16 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/validation"
 )
 
 func catalogConfig() accountmodel.CatalogConfig[models.Group, models.Permission] {
 	return accountmodel.CatalogConfig[models.Group, models.Permission]{
-		Group:      accountmodel.CatalogModelConfig[models.Group]{ReadFields: []string{"name", "permissions"}, WriteFields: []string{"name", "permissions"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}},
-		Permission: accountmodel.CatalogModelConfig[models.Permission]{ReadFields: []string{"code", "name"}, WriteFields: []string{"code", "name"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}},
-		Now:        func() time.Time { return joined },
+		AccountPermissions: accountmodel.DeletionPermissions{Delete: "account.delete", Change: "account.change"},
+		Group:              accountmodel.CatalogModelConfig[models.Group]{ReadFields: []string{"name", "permissions"}, WriteFields: []string{"name", "permissions"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}},
+		Permission:         accountmodel.CatalogModelConfig[models.Permission]{ReadFields: []string{"code", "name"}, WriteFields: []string{"code", "name"}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}},
+		Now:                func() time.Time { return joined },
 	}
 }
 
@@ -71,11 +73,20 @@ func provisionCatalog(t *testing.T, backend Backend) *catalogFixture {
 	t.Helper()
 	f := provision(t, backend, ir.AccountExact)
 	credential, links := catalogAuthority(t, backend, f)
-	catalog, err := project.NewAccountCatalog(backend, auth.PrincipalAuthorizer{}, catalogConfig())
+	catalog, err := project.NewAccountCatalog(catalogSessions(t, backend), auth.PrincipalAuthorizer{}, catalogConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
 	return &catalogFixture{account: f, credential: credential, catalog: catalog, grants: links}
+}
+
+func catalogSessions(t *testing.T, backend sessiondb.Backend) *accountmodel.SessionStore[models.User] {
+	t.Helper()
+	store, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return store
 }
 
 func catalogGroupInput(t *testing.T, values map[string]query.Value, collections map[string][]int64) orm.ModelInput[models.Group] {

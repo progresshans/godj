@@ -36,14 +36,6 @@ func bindCatalogRelations[M, G, P any](store *CredentialStore[M], group orm.Boun
 	if err != nil {
 		return err
 	}
-	accountPermission, err := catalogRelation(account, role.Permissions, permission, permissions.key)
-	if err != nil {
-		return err
-	}
-	groupPermission, err := catalogRelation(group, role.Catalog.GroupPermissions, permission, permissions.key)
-	if err != nil {
-		return err
-	}
 	permissionGroup, err := catalogInverse(group, role.Catalog.GroupPermissions, permission, groups.key)
 	if err != nil {
 		return err
@@ -145,31 +137,6 @@ func bindCatalogRelations[M, G, P any](store *CredentialStore[M], group orm.Boun
 			return nil
 		})
 	}
-	advanceAccounts := func(ctx context.Context, scope db.Session, namespace auth.CredentialDomain, filter orm.Predicate[M]) error {
-		return walkCatalogRows(ctx, accountObjects, accountObjects.Using(scope).Filter(filter), accountKey, func(row M, key int64) error {
-			if err := checkAccount(ctx, scope, namespace, row, key); err != nil {
-				return err
-			}
-			return advanceCatalogRevision(ctx, scope, accountObjects, row, role.Revision)
-		})
-	}
-	groups.advanceOwners = func(ctx context.Context, scope db.Session, namespace auth.CredentialDomain, id int64) error {
-		return advanceAccounts(ctx, scope, namespace, accountGroup.Exact(id))
-	}
-	permissions.advanceOwners = func(ctx context.Context, scope db.Session, namespace auth.CredentialDomain, id int64) error {
-		if err := advanceAccounts(ctx, scope, namespace, accountPermission.Exact(id)); err != nil {
-			return err
-		}
-		return walkCatalogRows(ctx, groupObjects, groupObjects.Using(scope).Filter(groupPermission.Exact(id)), groups.key, func(row G, key int64) error {
-			if _, _, _, err := groups.inspect(row, true); err != nil {
-				return err
-			}
-			if _, err := groups.readKeys(ctx, scope, key); err != nil {
-				return err
-			}
-			return advanceCatalogRevision(ctx, scope, groupObjects, row, groups.revision)
-		})
-	}
 	return nil
 }
 
@@ -261,14 +228,11 @@ func advanceCatalogRevision[M any](ctx context.Context, scope db.Session, object
 	return prepared.Save(ctx, scope, &value)
 }
 
-// Ordinary host references still use the complete sealed CASCADE/PROTECT/
-// SET_NULL graph. A host FK that would additionally delete or rewrite an
-// account/catalog row needs that row's lifecycle effects (including account
-// sessions), not only this catalog's direct-membership revision propagation.
-// Refuse such composition before I/O until those owners can be coordinated;
-// never silently execute a partial lifecycle or use an identity-only policy.
-func validateCatalogDeleteTopology(project orm.ProjectBinding, role ir.AccountRole) error {
-	roots := []ir.ModelIdentity{role.Catalog.Group, role.Catalog.Permission}
+// Catalog endpoint deletion has a complete lifecycle collector. Collection
+// replacement is a separate operation: its multiple relation mutations still
+// require a single combined lifecycle owner before critical effects are safe.
+func validateCatalogCollectionTopology(project orm.ProjectBinding, role ir.AccountRole) error {
+	var roots []ir.ModelIdentity
 	for _, relation := range project.ManyToManyRelations() {
 		if relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions {
 			if relation.Through.Model == role.Model || relation.Through.Model == role.Catalog.Group || relation.Through.Model == role.Catalog.Permission {

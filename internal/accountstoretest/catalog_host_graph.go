@@ -18,6 +18,7 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
 func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
@@ -55,7 +56,11 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 	if err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := accountmodel.NewCatalog(f.store, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.AccountsGroupPermissions, deleters.AccountsGroup, deleters.AccountsPermission, auth.PrincipalAuthorizer{}, catalogConfig())
+	sessionStore, err := accountmodel.NewSessionStore(f.store, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := accountmodel.NewCatalog(sessionStore, f.binding, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.AccountsGroupPermissions, deleters.AccountsGroup, deleters.AccountsPermission, auth.PrincipalAuthorizer{}, catalogConfig())
 	if err != nil {
 		t.Fatal(err)
 	}

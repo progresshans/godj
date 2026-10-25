@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 // CatalogRecord is selected data and observed operation metadata, never an
@@ -145,16 +146,20 @@ func (state *catalogModelState[M]) record(ctx context.Context, scope db.Queryer,
 }
 
 func (state *catalogModelState[M]) inspect(row M, stored bool) (map[string]query.Value, int64, int64, error) {
-	values, err := state.resource.Manager().ModelValues(row)
+	return inspectCatalogRow(state.resource.Manager(), state.model, state.keyName, state.name, state.code, state.revision, row, stored)
+}
+
+func inspectCatalogRow[M any](objects orm.Manager[M], model ir.Model, keyName, name, code, revisionName string, row M, stored bool) (map[string]query.Value, int64, int64, error) {
+	values, err := objects.ModelValues(row)
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	id, present := values[state.keyName].Integer()
-	revision, validRevision := values[state.revision].Integer()
+	id, present := values[keyName].Integer()
+	revision, validRevision := values[revisionName].Integer()
 	if stored && (!present || !validRevision || revision <= 0) {
 		return nil, 0, 0, managementError(CodePersistence, nil)
 	}
-	if err := state.checkScalars(values); err != nil {
+	if err := checkCatalogScalars(model, name, code, values); err != nil {
 		if stored {
 			return nil, 0, 0, managementError(CodePersistence, err)
 		}
@@ -164,7 +169,11 @@ func (state *catalogModelState[M]) inspect(row M, stored bool) (map[string]query
 }
 
 func (state *catalogModelState[M]) checkScalars(values map[string]query.Value) error {
-	for _, field := range state.model.Fields {
+	return checkCatalogScalars(state.model, state.name, state.code, values)
+}
+
+func checkCatalogScalars(model ir.Model, name, code string, values map[string]query.Value) error {
+	for _, field := range model.Fields {
 		value, present := values[field.Name]
 		if !present {
 			continue
@@ -177,12 +186,12 @@ func (state *catalogModelState[M]) checkScalars(values map[string]query.Value) e
 				return profileInputError(field.Name, "max_length")
 			}
 		}
-		if field.Name == state.name {
+		if field.Name == name {
 			if text, valid := value.String(); !valid || text == "" {
 				return profileInputError(field.Name, "required")
 			}
 		}
-		if field.Name == state.code && state.code != "" {
+		if field.Name == code && code != "" {
 			text, valid := value.String()
 			if _, err := auth.NewPermission(text); !valid || err != nil {
 				return profileInputError(field.Name, "invalid")

@@ -83,7 +83,7 @@ func catalogAuthorityAndDomain(t *testing.T, backend Backend, reopen func(*testi
 	config := catalogConfig()
 	config.Group.Permissions.Additional = []auth.Permission{"account.shared"}
 	var observed []auth.Permission
-	reader, err := project.NewAccountCatalog(backend, overlayFunc(func(_ context.Context, current auth.Principal, permission auth.Permission) (bool, error) {
+	reader, err := project.NewAccountCatalog(catalogSessions(t, backend), overlayFunc(func(_ context.Context, current auth.Principal, permission auth.Permission) (bool, error) {
 		if current.ID() != actor.ID() {
 			return false, errors.New("wrong catalog actor")
 		}
@@ -97,7 +97,7 @@ func catalogAuthorityAndDomain(t *testing.T, backend Backend, reopen func(*testi
 	if _, err := reader.Groups().Get(t.Context(), actor, group.ID); err != nil || !reflect.DeepEqual(observed, []auth.Permission{"catalog.view_group", "catalog.change_group", "account.shared"}) {
 		t.Fatal("catalog read alternative or owned conjunction changed", observed, err)
 	}
-	missing, err := project.NewAccountCatalog(backend, auth.PrincipalAuthorizer{}, config)
+	missing, err := project.NewAccountCatalog(catalogSessions(t, backend), auth.PrincipalAuthorizer{}, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func catalogAuthorityAndDomain(t *testing.T, backend Backend, reopen func(*testi
 	}
 	for _, accepted := range []bool{false, true} {
 		calls, fault := 0, errors.New("private catalog overlay failure")
-		failing, err := project.NewAccountCatalog(backend, overlayFunc(func(context.Context, auth.Principal, auth.Permission) (bool, error) {
+		failing, err := project.NewAccountCatalog(catalogSessions(t, backend), overlayFunc(func(context.Context, auth.Principal, auth.Permission) (bool, error) {
 			calls++
 			return accepted, errors.Join(fault, &accountmodel.Error{Code: accountmodel.CodePermission})
 		}), catalogConfig())

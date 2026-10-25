@@ -176,7 +176,7 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		}
 		return validation.Errors{}, nil
 	}
-	catalog, err := project.NewAccountCatalog(backend, auth.PrincipalAuthorizer{}, catalogConfig)
+	catalog, err := project.NewAccountCatalog(sessionStore, auth.PrincipalAuthorizer{}, catalogConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -234,5 +234,23 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("custom account constants and renamed role fields were not respected")
 	}
+
+	t.Run("account_delete", func(t *testing.T) {
+		target, err := people.MemberObjects.Create(t.Context(), backend, people.NewMemberCreate("delete-target", "delete-target@example.test", encoded, "NZ"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertAccountDeletionHTTP(t, backend, binding, sessionStore, hasher, "member@EXAMPLE.TEST", currentPassword, target, project.NewAccountDeleter, func() func() {
+			guard, err := tickets.TicketObjects.Create(t.Context(), backend, tickets.NewTicketCreate("Deletion protected", target.ID))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return func() {
+				if count, err := tickets.TicketObjects.Delete(t.Context(), backend, &guard); err != nil || count != 1 {
+					t.Fatal("delete protection was not preserved", err)
+				}
+			}
+		})
+	})
 
 }

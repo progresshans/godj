@@ -30,7 +30,7 @@ func TestSQLiteAccountCredentialStore(t *testing.T) {
 		return first, open
 	}, func(t *testing.T, store accountstoretest.Backend, model string, from, to int64) {
 		t.Helper()
-		table, known := map[string]string{"user": "godj_identity_user", "group": "godj_identity_group", "permission": "godj_identity_permission"}[model]
+		table, known := map[string]string{"user": "godj_identity_user", "group": "godj_identity_group", "permission": "godj_identity_permission", "member": "people_member", "team": "access_team", "grant": "access_grant"}[model]
 		if !known {
 			t.Fatal("unknown stored key fixture model")
 		}

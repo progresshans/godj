@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v14"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v15"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -41,7 +41,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	if err != nil {
 		return nil, err
 	}
-	var groupCollection, accountGroups, accountPermissions, groupDelete, permissionDelete string
+	var groupCollection, accountGroups, accountPermissions, accountDelete, groupDelete, permissionDelete string
 	for _, relation := range collections {
 		if !relation.reverse && relation.owner.identity == role.Catalog.Group && relation.target.identity == role.Catalog.Permission && relation.name == role.Catalog.GroupPermissions {
 			groupCollection = relation.surface
@@ -56,6 +56,9 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 		}
 	}
 	for _, policy := range deletes {
+		if policy.model.identity == role.Model {
+			accountDelete = policy.surface
+		}
 		if policy.model.identity == role.Catalog.Group {
 			groupDelete = policy.surface
 		}
@@ -63,7 +66,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 			permissionDelete = policy.surface
 		}
 	}
-	if groupCollection == "" || accountGroups == "" || accountPermissions == "" || groupDelete == "" || permissionDelete == "" {
+	if groupCollection == "" || accountGroups == "" || accountPermissions == "" || accountDelete == "" || groupDelete == "" || permissionDelete == "" {
 		return nil, fmt.Errorf("project account catalog relation capabilities are unresolved")
 	}
 	for _, app := range input.apps {
@@ -205,11 +208,17 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewProfileReader(store, overlay, config)")
 	fmt.Fprintln(&output, "}")
-	fmt.Fprintln(&output, "\n// NewAccountCatalog composes current account authority with the selected catalog and complete host relation policies.")
-	fmt.Fprintf(&output, "func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.CatalogConfig[%s.%s, %s.%s]) (*_godjaccountmodel.Catalog[%s.%s, %s.%s], error) {\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
+	fmt.Fprintln(&output, "\n// NewAccountDeleter coordinates all collected account/catalog effects with the exact session owner.")
+	fmt.Fprintf(&output, "func NewAccountDeleter(sessions *_godjaccountmodel.SessionStore[%s.%s], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountDeleteConfig) (*_godjaccountmodel.AccountDeleter[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
 	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
-	fmt.Fprintf(&output, "\tstore, err := _godjaccountmodel.NewCredentialStore(backend, binding, %s.%sDescriptor{}, %s.%sDescriptor{})\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
+	fmt.Fprintln(&output, "\tpolicies, err := BindRelationDeleters()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewAccountDeleter(sessions, binding, %s.%sDescriptor{}, %s.%sDescriptor{}, policies.%s, overlay, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, accountDelete)
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountCatalog shares session ownership for every collected catalog/account deletion effect.")
+	fmt.Fprintf(&output, "func NewAccountCatalog(sessions *_godjaccountmodel.SessionStore[%s.%s], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.CatalogConfig[%s.%s, %s.%s]) (*_godjaccountmodel.Catalog[%s.%s, %s.%s], error) {\n", accountApp.Alias, accountModel.GoName, groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
+	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\tsource, err := binding.Project()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
@@ -217,7 +226,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\tpolicies, err := BindRelationDeleters()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
-	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewCatalog(store, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, policies.%s, policies.%s, overlay, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, groupCollection, groupDelete, permissionDelete)
+	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewCatalog(sessions, binding, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, policies.%s, policies.%s, overlay, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, groupCollection, groupDelete, permissionDelete)
 	fmt.Fprintln(&output, "}")
 	return output.Bytes(), nil
 }

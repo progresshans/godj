@@ -121,7 +121,7 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if err != nil || !present || edited.FirstName != "Updated Alice JSON" || edited.Revision != 5 || edited.PrincipalID != row.PrincipalID || edited.EncodedPassword != row.EncodedPassword || !edited.DateJoined.Equal(row.DateJoined) {
 		t.Fatal("authorized typed profile mutation did not commit", err)
 	}
-	catalog, err := project.NewAccountCatalog(backend, auth.PrincipalAuthorizer{}, catalogConsumerConfig[models.Group, models.Permission](role, "", ""))
+	catalog, err := project.NewAccountCatalog(sessionStore, auth.PrincipalAuthorizer{}, catalogConsumerConfig[models.Group, models.Permission](role, "", ""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,5 +164,13 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("default account unexpectedly changed its stored roles")
 	}
+
+	t.Run("account_delete", func(t *testing.T) {
+		target, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("delete-target", "delete-target", encoded, joined))
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertAccountDeletionHTTP(t, backend, binding, sessionStore, hasher, "alice", currentPassword, target, project.NewAccountDeleter, nil)
+	})
 
 }

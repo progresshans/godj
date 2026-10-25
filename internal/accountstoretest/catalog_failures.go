@@ -103,7 +103,7 @@ func catalogCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T
 			if mode == "invalid_clock" {
 				config.Now = func() time.Time { return time.Time{} }
 			}
-			catalog, err := project.NewAccountCatalog(owner, auth.PrincipalAuthorizer{}, config)
+			catalog, err := project.NewAccountCatalog(catalogSessions(t, owner), auth.PrincipalAuthorizer{}, config)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -186,7 +186,7 @@ func catalogRelationRollback(t *testing.T, backend Backend, reopen func(*testing
 				mode = "collection_failure"
 			}
 			owner := catalogFaultOwner(t, backend, mode, fault, func() {})
-			catalog, err := project.NewAccountCatalog(owner, auth.PrincipalAuthorizer{}, catalogConfig())
+			catalog, err := project.NewAccountCatalog(catalogSessions(t, owner), auth.PrincipalAuthorizer{}, catalogConfig())
 			if err != nil {
 				t.Fatal(err)
 			}
