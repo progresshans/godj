@@ -126,28 +126,7 @@ func (owner *accountPasswordChange[M]) validate(ctx context.Context, raw string,
 	if len(raw) > owner.config.MaxPasswordBytes {
 		return profileInputError("password", "max_length")
 	}
-	if owner.config.ValidatePassword == nil {
-		return ctx.Err()
-	}
-	binding := owner.store.state.credentials.state.binding
-	detached, err := binding.state.objects.ApplyValues(row, map[string]query.Value{binding.state.role.Password: query.String("")})
-	if err != nil {
-		return managementError(CodePersistence, err)
-	}
-	diagnostics, failure := owner.config.ValidatePassword(ctx, raw, detached)
-	if err := errors.Join(failure, ctx.Err()); err != nil {
-		// Caused or wrapped rejections are execution errors, not form input.
-		return managementError(CodePersistence, err)
-	}
-	for _, diagnostic := range diagnostics.All() {
-		if diagnostic.Field() != "password" && diagnostic.Field() != validation.NonField {
-			return managementError(CodeInvalidConfig, nil)
-		}
-	}
-	if !diagnostics.Empty() {
-		return validation.Reject(diagnostics, nil)
-	}
-	return nil
+	return validateAccountPassword(ctx, owner.store.state.credentials.state.binding, owner.config.ValidatePassword, raw, row)
 }
 
 func (owner *accountPasswordChange[M]) check(ctx context.Context, id sessions.ID, oldPassword, newPassword *string) (sessions.Record, passwordAccount[M], error) {

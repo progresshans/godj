@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 
@@ -129,6 +130,8 @@ func TestAdminCommandStartupAndForgedFormsFailBeforeMutation(t *testing.T) {
 	for _, change := range []func(*CommandConfig){
 		func(c *CommandConfig) { c.Name = "../bad" }, func(c *CommandConfig) { c.Label = "" },
 		func(c *CommandConfig) { c.Permission = "bad permission" }, func(c *CommandConfig) { c.Run = nil },
+		func(c *CommandConfig) { c.AdditionalPermissions = []auth.Permission{"bad permission"} },
+		func(c *CommandConfig) { c.AdditionalPermissions = []auth.Permission{c.Permission} },
 		func(c *CommandConfig) { c.Form = forms.Spec{} },
 		func(c *CommandConfig) { c.Form, _ = forms.NewSpec([]forms.Field{cField(t, "expected_revision")}) },
 	} {
@@ -141,7 +144,7 @@ func TestAdminCommandStartupAndForgedFormsFailBeforeMutation(t *testing.T) {
 	if _, err := prepareCommands([]CommandConfig{good, good}, registeredModel{}); err == nil {
 		t.Fatal("duplicate command accepted")
 	}
-	commands, err := prepareCommands([]CommandConfig{good}, registeredModel{revisionField: "revision"})
+	commands, err := prepareCommands([]CommandConfig{good}, registeredModel{revisionField: "revision", permissions: Permissions{View: "accounts.view", Change: "accounts.change"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,6 +152,92 @@ func TestAdminCommandStartupAndForgedFormsFailBeforeMutation(t *testing.T) {
 	bound, _ := forged.Bind(t.Context(), forms.NewData(map[string][]string{"username": {"unrelated"}}), nil)
 	if _, err := commands[0].run(context.Background(), mustPrincipalWithPermissions(t, "accounts.change"), Mutation{ID: 1, Revision: 1}, bound); err == nil {
 		t.Fatal("unrelated valid form was accepted")
+	}
+}
+
+func TestAdminCommandRequiresAllPermissionsBeforeObjectReadAndRun(t *testing.T) {
+	for _, mode := range []string{"allowed", "primary_only", "overlay_denied", "overlay_failure"} {
+		t.Run(mode, func(t *testing.T) {
+			denied := false
+			authorizer := managementFormAuthorizer(func(ctx context.Context, actor auth.Principal, permission auth.Permission) (bool, error) {
+				if denied && permission == "accounts.add" {
+					if mode == "overlay_failure" {
+						return false, errors.New("private command authority failure")
+					}
+					return false, nil
+				}
+				return (auth.PrincipalAuthorizer{}).Allowed(ctx, actor, permission)
+			})
+			additional := []auth.Permission{"accounts.add"}
+			calls := 0
+			client, state, registry := newManagementFormSite(t, authorizer, func(config *ModelConfig[managementFormRow]) {
+				config.Commands = []CommandConfig{{Name: "password", Label: "Change password", Permission: "accounts.change", AdditionalPermissions: additional, Form: managementCommandForm(t), Run: func(_ context.Context, _ auth.Principal, mutation Mutation, _ forms.Values) (CommandResult, error) {
+					calls++
+					return CommandResult{ID: mutation.ID, Revision: mutation.Revision + 1}, nil
+				}}}
+			})
+			additional[0] = "accounts.delete"
+			descriptor := registry.All()[0].Commands[0]
+			if !slices.Equal(descriptor.Permissions, []auth.Permission{"accounts.change", "accounts.add"}) {
+				t.Fatal("command authority metadata differs")
+			}
+			descriptor.Permissions[1] = "accounts.delete"
+			descriptor.FormFields[0] = cField(t, "forged")
+			username := "admin"
+			if mode == "primary_only" {
+				username = "changer"
+			}
+			client.login(t, username, "secret", "/admin/accounts/")
+			page := client.do("GET", "/admin/accounts/change/?id=1", nil)
+			if page.Code != 200 {
+				t.Fatal("ordinary model read failed")
+			}
+			csrf := siteCSRFToken(t, page.Body.String())
+			denied = mode == "overlay_denied" || mode == "overlay_failure"
+			page = client.do("GET", "/admin/accounts/change/?id=1", nil)
+			path := "/admin/accounts/command/password/?id=1"
+			if mode == "overlay_failure" {
+				if page.Code != 500 {
+					t.Fatal("discovery hid authority failure")
+				}
+			} else if page.Code != 200 || strings.Contains(page.Body.String(), path) != (mode == "allowed") {
+				t.Fatal("command discovery ignored additional authority")
+			}
+			before := state.reads
+			get := client.do("GET", path, nil)
+			post := client.do("POST", path, url.Values{"password": {"private-new-password"}, "expected_revision": {"1"}, "csrfmiddlewaretoken": {csrf}})
+			if mode == "allowed" {
+				if get.Code != 200 || post.Code != 302 || calls != 1 {
+					t.Fatal("authorized command rejected", get.Code, post.Code)
+				}
+			} else {
+				status := 403
+				if mode == "overlay_failure" {
+					status = 500
+				}
+				if get.Code != status || post.Code != status || calls != 0 || state.reads != before {
+					t.Fatal("command bypassed permission before target read", get.Code, post.Code)
+				}
+			}
+		})
+	}
+	form := managementCommandForm(t)
+	bound, err := form.Bind(t.Context(), forms.NewData(map[string][]string{"password": {"secret"}}), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model := registeredModel{revisionField: "revision", permissions: Permissions{View: "accounts.view", Change: "accounts.change"}}
+	commands, err := prepareCommands([]CommandConfig{{Name: "password", Label: "Password", Permission: "accounts.password", AdditionalPermissions: []auth.Permission{"accounts.confirm"}, Form: form, Run: func(context.Context, auth.Principal, Mutation, forms.Values) (CommandResult, error) {
+		t.Fatal("incomplete direct authority invoked command")
+		return CommandResult{}, nil
+	}}}, model)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, grants := range [][]auth.Permission{{"accounts.password", "accounts.confirm"}, {"accounts.view", "accounts.password"}} {
+		if _, err := commands[0].run(t.Context(), mustPrincipalWithPermissions(t, grants...), Mutation{ID: 1, Revision: 1}, bound); err == nil {
+			t.Fatal("direct command lacked model read or additional authority")
+		}
 	}
 }
 

@@ -50,4 +50,7 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 	if row.Region != "NZ" || !row.Enabled || !row.Root || row.Contact != "first@example.test" {
 		t.Fatal("first custom typed fields lost")
 	}
+	t.Run("admin_password", func(t *testing.T) {
+		assertAccountAdminPasswordHTTP(t, backend, binding, store, sessions, hasher, row, "region", project.NewAccountPasswordEditor)
+	})
 }

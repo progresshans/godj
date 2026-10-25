@@ -50,4 +50,7 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput) {
 	if row.FirstName != profile.expected || !row.Staff || !row.Superuser {
 		t.Fatal("first default typed fields lost")
 	}
+	t.Run("admin_password", func(t *testing.T) {
+		assertAccountAdminPasswordHTTP(t, backend, binding, store, sessions, hasher, row, "first_name", project.NewAccountPasswordEditor)
+	})
 }

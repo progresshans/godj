@@ -12,7 +12,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v11"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v12"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -67,6 +67,15 @@ func NewAccountProfileEditor(backend _godjaccountdb.SnapshotReader, overlay _god
 		return nil, err
 	}
 	return _godjaccountmodel.NewProfileEditor(store, overlay, config)
+}
+
+// NewAccountPasswordEditor binds administrative password replacement to the exact selected session and verifier owners.
+func NewAccountPasswordEditor(sessions *_godjaccountmodel.SessionStore[identity.User], verifier *_godjaccountmodel.Authenticator[identity.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.PasswordEditConfig[identity.User]) (*_godjaccountmodel.PasswordEditor[identity.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewPasswordEditor(sessions, binding, verifier, overlay, config)
 }
 
 // NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.
@@ -168,4 +177,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_da0f343c6a762f0260b032e1fd3f53fbc44c42cc041c42ce55b94a17537b0b8c
+var _ goDjProjectSnapshot_3994b8ac3a2b4609f07ff1c4346e447e4849f22ad94992c505e3481808b33846

@@ -32,6 +32,9 @@ var accountBindingProfileHTTPConsumer []byte
 //go:embed testdata/accountbinding/password_http_test.go
 var accountBindingPasswordHTTPConsumer []byte
 
+//go:embed testdata/accountbinding/password_admin_http_test.go
+var accountBindingPasswordAdminHTTPConsumer []byte
+
 //go:embed testdata/accountbinding/catalog_test.go
 var accountBindingCatalogConsumer []byte
 
@@ -238,12 +241,22 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			root := writeProjectBundleModule(t, bundle)
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_account_test.go", firstAccountCommonConsumer)
+			writeGeneratedTestFile(t, root, "consumer/password_admin_http_test.go", accountBindingPasswordAdminHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			required := []string{"TestGeneratedFirstAccountBootstrap"}
+			adminParents := []string{"TestGeneratedFirstAccountBootstrap/admin_password"}
 			if !variant.custom {
+				adminParents = nil
 				for _, name := range []string{"trimmed", "omitted_default", "explicit_empty"} {
 					required = append(required, "TestGeneratedFirstAccountBootstrap/"+name)
+					adminParents = append(adminParents, "TestGeneratedFirstAccountBootstrap/"+name+"/admin_password")
+				}
+			}
+			for _, parent := range adminParents {
+				required = append(required, parent)
+				for _, name := range []string{"csrf", "mismatch", "byte_limit", "policy", "reserved", "stale", "additional_permission", "change", "disable_confirmation", "disable"} {
+					required = append(required, parent+"/"+name)
 				}
 			}
 			assertGeneratedConsumerTests(t, output, required...)

@@ -758,6 +758,53 @@ compile과 이전 source의 한정 실패 수정으로 I1 수용 완료를 판�
 Admin login/관리/reset·profile 관계/파일·host 삭제·채운 DB 모델 전환·독립 PostgreSQL HTTP·실제 process restart와
 I1-01~08 전체 수용은 남아 있다.
 
+### 선택 계정 관리자 비밀번호 변경과 공통 Admin 명령
+
+2026-10-25, `abe3947d` 뒤의 변경에서 생성 `NewAccountPasswordEditor`와 `PasswordEditor[M]`를 작성했다.
+정확한 세션/인증기·전체 host source·현재 domain/actor/추가 권한·target revision/credential을 검사하고, DB 밖 한 번의
+hash와 현재 typed password 정책 재검사를 연결한다. 선택 Password/Revision, 대상 세션 전부의 폐기와 현재 actor의
+값 없는 audit를 한 native transaction에서 확정한다. Inactive/unusable 대상의 교체와 반복 unusable 표식 회전,
+자기 대상의 기존 브라우저 폐기, profile/소속/LastLogin 및 익명·다른 principal·역사 namespace 보존을 포함한다.
+
+`identityadmin.PasswordCommands`는 이 owner를 공통 Admin 명령에 연결한다. `CommandConfig.AdditionalPermissions`와
+descriptor의 전체 권한 목록을 복사하고 link·GET/POST·direct 실행에서 모두 검사한다. 선택 owner의 byte 한도,
+비공개 password/confirmation·명시적 disable 확인, 직접 거부/충돌/unknown의 HTTP 분류를 연결하며 rollback/cleanup
+실패를 입력 오류로 바꾸지 않는다. 기존 단위와 자기 password 검사는 유지하고 공유 typed 정책 코드만 추출했다.
+
+양 DB native 본문에는 새 7개 root와 하위 case 68개를 추가했다. 현재 권한·target profile/revision/credential/domain의
+해싱 뒤 변경, byte/typed policy/hasher 실패, 읽기 scope/cleanup, 실제 update/delete/audit 뒤 실패와 258번째 세션 삭제의
+rollback, 확정/unknown/취소와 무재시도, 두 독립 connection에서 관리자끼리·자기 변경·login과의 경합, 0/음수 key를
+포함한다. 거부 뒤 재접속해 계정·전체 session payload·audit를 대조하도록 작성했다. 필수 목록은 Relation 96행을 추가해
+3,612행, PostgreSQL 75행을 추가해 4,943행이며 기존 행은 삭제하지 않았다. 일반 Admin 단위는 기존 core package owner에서 실행한다.
+
+외부 최초 계정 소비자 3개 module(기본/custom/custom LastLogin 없음)에 실제 공통 Admin Site·TCP·DB session·생성 팩토리를
+연결했다. 기본 모델의 세 profile/default 변형과 두 custom 변형은 각각 새 Admin 부모/하위 10개 case의 완료를 요구한다.
+CSRF·confirmation·byte·typed policy·예약 필드·stale/추가 권한 거부, password 변경/disable, 기존 브라우저 폐기·원문 공백·
+선택 field audit를 검사한다. Host는 실제 ProfileReader/ProfileEditor와 password 명령을 등록하며 add/delete를 명시적으로
+금지한다. 이 소비자를 account/catalog 전체 자동 등록이나 Admin 로그인 Form 정책 전환으로 계산하지 않는다. DB는 SQLite다.
+
+첫 공개 generate는 새 단위 fixture가 계정 역할을 선언하지 않은 host project의 없는 `BindAccount`를 참조해 candidate
+compile에서 실패했다. 실제 host schema를 직접 결합하는 fixture로 고쳤으며 실패 전과 다음 시도 전 source 비교에서
+이 한 파일 이외 변경이 없었다. 생성 ABI v12로 공개 generate 11개를 완료했고 manifest 11개·소유 파일 155개의 hash와
+파일 모드를 대조했다. Schema/migration 정의는 바꾸지 않았다.
+
+로컬은 영향 8 package의 `go test -run '^$'`와 외부 실제 생성 3개 module의 최소 compile만 실행했다. 모두 exit 0이며
+native package 8개, 외부 child package 3개의 종료와 Test run/fail/skip 부재를 원본 JSON에서 확인했다. 외부 compile은
+저장소 밖 overlay로 child에 `-run '^$'`를 적용했으며 저장소의 본문·필수 child 검사는 유지한다. 두 실행 전후와 최종
+비 Markdown 입력 4,004개의 hash가 같다. 새 DB/경합/HTTP 본문은 로컬에서 실행하지 않았다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-admin-password-generate-v1/receipt.json` — candidate fixture compile 실패 | `76dfcb436024dddf3cf03dea99c6cca0cdf489a44f3bff5b729b5e6f868d3d8d` |
+| `gdj0138-admin-password-generate-v2/receipt.json` — 공개 11개 생성 명령 | `24888c6fd0560e1dd6213ca133d3e7565ff57181da0967b5f36b4bcbc24ebe29` |
+| `gdj0138-admin-password-native-compile-v1/receipt.json` — 영향 8 package 최소 compile | `bb61cc3fe638a799158fc36b47f932a094b1de2e739b5bc3caff88e7dc48582c` |
+| `gdj0138-admin-password-external-compile-v1/receipt.json` — 실제 외부 3 module 최소 compile | `ffaf3dc930ecf309f0529c4a91e7791f1ef1171d937518fc397e77fb315cb82e` |
+
+새 source의 전체 원격 DB/race/process/platform 및 실제 소비자 본문 확인은 남아 있다. 이전 source의 CI와 이번
+작성·생성·compile을 현재 제품 수용 PASS로 계산하지 않는다. 공개 최초 명령·scaffold/통합 runtime·자동 Admin 등록과
+Admin login Form 정책·reset·profile 관계/파일·host/계정 삭제·채운 DB 모델 전환·독립 PostgreSQL HTTP·process restart 및
+I1-01~08 전체 수용은 계속 진행한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

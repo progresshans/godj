@@ -1073,7 +1073,7 @@ func (model registeredModel) descriptor() ModelDescriptor {
 	}
 	commands := make([]CommandDescriptor, len(model.commands))
 	for index, command := range model.commands {
-		commands[index] = CommandDescriptor{Name: command.name, Label: command.label, Permission: command.permission, FormFields: command.form.Fields()}
+		commands[index] = CommandDescriptor{Name: command.name, Label: command.label, Permissions: slices.Clone(command.permissions), FormFields: command.form.Fields()}
 	}
 	actions := make([]ActionDescriptor, len(model.actions))
 	for index, action := range model.actions {

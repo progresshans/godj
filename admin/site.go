@@ -262,7 +262,7 @@ func (site *Site) buildRoutes() error {
 		for _, command := range model.commands {
 			path := prefix + "/command/" + command.name + "/"
 			routes = append(routes,
-				web.Route{Name: modelName("command-" + command.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(command.permission, site.modelCommandGet(model, command))},
+				web.Route{Name: modelName("command-" + command.name + "-get"), Method: http.MethodGet, Path: path, Handler: site.adminRequire(command.permissions[0], site.modelCommandGet(model, command))},
 				web.Route{Name: modelName("command-" + command.name + "-post"), Method: http.MethodPost, Path: path, Handler: site.modelCommandPost(model, command)},
 			)
 		}

@@ -150,8 +150,19 @@ typed password 정책·DB 밖 이전 검증/한 번의 hash와 최종 현재 계
 앞선 password CI 실패에서 잘못된 bound-session 호출과 credential 읽기 범위 검증 누락을 재현해 수정했다.
 한정 재현과 새 로그인 본문의 실행 상태는 TEST_EVIDENCE에서 구분한다. Admin login·관리/reset·통합 runtime은 남아 있다.
 
+선택 계정의 생성 `NewAccountPasswordEditor`와 공통 `PasswordEditor[M]`를 작성했다. 같은 세션/인증기와 전체 host source,
+현재 관리 권한·추가 권한·target revision·기존 credential·typed password 정책을 검사한다. DB 밖 한 번의 hash 뒤 같은
+native transaction에서 Password/Revision·모든 대상 세션 폐기·현재 actor의 domain audit를 확정한다. Inactive/unusable
+대상 복구와 반복 unusable 표식 회전도 지원한다. 자기 대상의 관리자 변경도 기존 브라우저를 보존하거나 자동 로그인하지 않는다.
+
+공통 Admin 명령에 추가 권한 목록을 연결하고 `identityadmin.PasswordCommands`로 private confirmation Form·byte 한도·
+오류 분류를 조립했다. 기본/custom/LastLogin 없는 최초 계정 소비자는 실제 Admin Site·TCP·CSRF·stale/추가 권한 거부·
+변경/disable·기존 브라우저 폐기와 선택 필드 audit를 확인하도록 확장했다. 양 DB는 현재 상태 재검사·부분 쓰기/뒤 batch·
+cleanup/unknown·관리자/자기 변경/login 경합·0/음수 key 검사를 포함한다. 작성·생성·최소 compile과 본문 실행은
+TEST_EVIDENCE에서 구분한다. 자동 account/catalog Admin 등록과 Admin 로그인 Form 정책의 전환을 완료한 것은 아니다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
-첫 계정 명령·관리자 password 변경/reset과 통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
+첫 계정 명령·password reset과 통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

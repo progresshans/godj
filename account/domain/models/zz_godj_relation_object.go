@@ -57,4 +57,4 @@ func (transitionPreviousIDRelationStorage) Value(value Transition) (query.Value,
 
 type GoDjAppPart2_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
 
-var _ GoDjProjectSnapshot_a2a897a94668263b5b6165dd8bb171550f6958a5d0bd2174aed8faf9f239c893
+var _ GoDjProjectSnapshot_95104217bd14db65b5b2e8a839abaf1dea962bbb780dd31ae789a178e0b016f5

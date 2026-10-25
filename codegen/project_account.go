@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v11"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v12"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -146,6 +146,12 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tstore, err := NewAccountCredentialStore(backend)")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewProfileEditor(store, overlay, config)")
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountPasswordEditor binds administrative password replacement to the exact selected session and verifier owners.")
+	fmt.Fprintf(&output, "func NewAccountPasswordEditor(sessions *_godjaccountmodel.SessionStore[%s.%s], verifier *_godjaccountmodel.Authenticator[%s.%s], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.PasswordEditConfig[%s.%s]) (*_godjaccountmodel.PasswordEditor[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
+	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewPasswordEditor(sessions, binding, verifier, overlay, config)")
 	fmt.Fprintln(&output, "}")
 	fmt.Fprintln(&output, "\n// NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.")
 	fmt.Fprintf(&output, "func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[%s.%s]) (*_godjaccountmodel.Creator[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)

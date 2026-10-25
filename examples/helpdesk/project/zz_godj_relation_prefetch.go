@@ -202,4 +202,4 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_0ac7ab3e3022dedfb2fafa10506f07605abd9129c91d57ec318f352dc301919a
+var _ goDjProjectSnapshot_33bf7aac092e9906666d456e68ea7f0370f5be1d529972b186d76917fd1bd156

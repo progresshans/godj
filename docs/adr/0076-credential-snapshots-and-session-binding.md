@@ -1186,8 +1186,39 @@ unknown 결과는 공개 credential/record 없이 원인을 보존한다. 확정
 
 기존 `web/sessionauth`와 계정 Application의 password Form/JSON은 이 owner를 명시적으로 받아 그대로 사용한다.
 CSRF·confirmation·입력 제한은 HTTP가 소유하고, 확정 commit에만 현재 cookie를 교체한다. 독립 CSRF cookie는 유지한다.
-선택 모델의 공통 로그인 Form·scaffold/runtime 전체 전환, 관리자 password 변경, reset과 실제 process restart는 별도 남은
-I1 요구다. 이 자기 변경 owner나 생성 소비자의 작성/compile만으로 해당 요구의 완료를 주장하지 않는다.
+선택 모델의 공통 로그인 Form은 같은 인증기의 명시적 입력 metadata를 사용한다. Scaffold/runtime 전체 전환,
+reset과 실제 process restart는 별도 남은 I1 요구다. 작성/compile만으로 해당 요구의 완료를 주장하지 않는다.
+
+## 선택 계정의 관리자 비밀번호 변경
+
+생성 `NewAccountPasswordEditor`는 정확한 `SessionStore[M]`와 그 Store에서 만든 인증기, 같은 역할과 전체 host source를
+검사한다. 새 hasher나 기본 User reader를 따로 받지 않는다. `PasswordEditConfig[M]`가 관리 권한·추가 필수 권한·raw
+byte 한도·같은 typed `PasswordValidator[M]`·순수 clock을 선언하며 생성은 I/O·해싱·entropy·callback을 실행하지 않는다.
+공개 권한 metadata는 사본이며 Form/Admin 조립에 사용해도 실제 쓰기 인가를 대신하지 않는다.
+
+`SetPassword(ctx, actor, id, revision, raw)`는 현재 domain·actor active/grants·deny overlay와 대상의 존재·revision·credential을
+한 native snapshot에서 읽는다. 권한 거부·대상 없음·revision 충돌도 읽기 종료 성공 뒤에만 게시한다. 해시는 DB scope 밖에서
+한 번 준비하고, 그 사이 domain/actor/target이 바뀔 수 있으므로 최종 native write fence에서 다시 관측한다. Revision과
+기존 credential stamp가 일치해야 하며 현재 typed profile로 정책을 다시 적용한다. 이전 profile·역할·소속·LastLogin은 덮지
+않는다. 실제 Password/Revision만 강제 update하고 현재 namespace의 대상 세션 전부를 폐기하며 현재 actor의 값 없는 audit를
+함께 저장한다. 반환 값은 확인된 ID/revision/폐기 수뿐이다. 대상 key의 0/음수도 이미 저장된 유효 key로 취급한다.
+
+관리 작업은 이전 비밀번호의 확인을 요구하지 않으며 inactive/unusable 대상에도 새 비밀번호를 설정할 수 있다. 이를 통해
+active가 되거나 로그인한 것으로 처리하지 않는다. `SetUnusablePassword`는 별도 명시적 작업으로 strength policy·hasher 없이
+새 unusable 표식을 만들고 같은 최종 권한/revision/credential 검사와 쓰기 원자성을 적용한다. 반복 disable도 표식·revision을
+바꾸며, 자기 대상을 관리할 때도 그 브라우저를 포함해 모두 폐기한다. 현재 세션 회전과 cookie 교체는 자기 변경 owner의 책임이다.
+
+Account update·세션 삭제의 뒤 batch·audit insert 후 실패는 함께 rollback한다. 확정 rollback의 직접 거부만 일반 오류로
+유지하고, cleanup·callback 소유권 위반·unknown 결과는 성공 metadata나 renderable validation을 게시하지 않는다. 해싱/쓰기는
+자동 재시도하지 않으며 확인된 commit 뒤 취소는 성공을 지우지 않는다. 익명·다른 principal·역사 namespace 세션은 보존한다.
+
+`identityadmin.PasswordCommands(editor)`는 이 owner를 공통 Admin의 object command 두 개로 조립한다. 호스트는 선택 계정의
+모델에 등록한다. 비밀번호/확인 입력의 공백·byte 한도·비공개 widget과 명시적 disable 확인, 원인이 없는 정책 진단의 confirmation
+field 매핑을 유지한다. `CommandConfig.AdditionalPermissions`와 descriptor의 전체 `Permissions`는 복사된 불변 선언이다.
+화면의 command link, GET/POST, direct command 실행은 모델 조회와 모든 command 권한을 요구하고 owner는 현재 DB 권한을
+다시 확인한다. Admin의 active staff/CSRF 규칙과 최종 revision 검사를 우회하지 않는다. 성공 뒤 재조회나 자동 로그인은 없다.
+이 명령 조립은 account/catalog 전체 자동 등록, Admin login Form 정책, profile 관계/파일, reset 및 scaffold runtime 전환을
+대신하지 않는다. 공통 Admin의 객체 URL key 경계와 모델 owner의 저장 key 지원도 별도 수용 대상으로 둔다.
 
 ## 도메인에 묶인 계정 감사 기록
 
