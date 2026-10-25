@@ -28,15 +28,18 @@ def matrix():
     rows = []
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
-            # macOS and Linux/amd64 exhaust package budgets through
-            # cumulative generated builds. Keep the budgets and partition every
-            # discovered root, including all required children.
-            split = mode == 'race' or goos == 'darwin' or runner == 'ubuntu-24.04'
-            count = 3 if split else 1
+            # Cumulative generated builds also exhausted the last unsplit
+            # Linux/arm64 normal coordinate. Give normal/CGO-disabled the same
+            # three consumer owners on every platform, separate from runtime.
+            # The selected-account consumers made both Linux race shard 3
+            # coordinates reach the cumulative 35-minute package limit. Add
+            # one consumer owner on those coordinates; retain their deadlines
+            # and discover/assign every complete root with the same algorithm.
+            count = 4 if goos == 'linux' and mode == 'race' else 3
             darwin_race = goos == 'darwin' and mode == 'race'
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
-            for shard in (range(count + 1) if count > 1 else (1,)):
+            for shard in range(count + 1):
                 rows.append({
                     'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
                     'mode': mode, 'shard': shard, 'shards': count,

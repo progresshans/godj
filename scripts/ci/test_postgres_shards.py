@@ -92,6 +92,18 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         for mode in ('normal', 'cgo0'):
             self.assertEqual(required, plan(mode, 'core', required)['required'])
 
+    def test_selected_account_reset_keeps_every_variant_in_the_write_partition(self):
+        root = MODULE + 'codegen/consumertest|TestGeneratedAccountResetUsesSelectedModels'
+        expected = [entry for entry in self.required if entry == root or entry.startswith(root + '/')]
+        self.assertTrue(expected)
+        self.assertIn(root + '/custom_renamed_key_email', expected)
+        self.assertIn(root + '/custom_without_last_login', expected)
+        self.assertIn(root + '/custom_without_email', expected)
+        writes = plan('race', 'core-consumer-writes', self.required)['required']
+        reads = plan('race', 'core-consumers', self.required)['required']
+        self.assertTrue(set(expected) <= set(writes))
+        self.assertFalse(set(expected) & set(reads))
+
     def test_invalid_missing_and_duplicate_manifest_entries_are_rejected(self):
         for entries in ([], [self.required[0], self.required[0]], [MODULE + 'foreign|TestMissing'],
                         [MODULE + 'orm/unregistered|TestForeign'], [MODULE + 'storage|not-a-test'], [MODULE + 'storage|TestBad\tName']):

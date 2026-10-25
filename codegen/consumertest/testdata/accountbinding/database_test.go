@@ -24,6 +24,12 @@ import (
 
 func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 	t.Helper()
+	backend, _ := accountDatabaseWithConfig(t, schemas...)
+	return backend
+}
+
+func accountDatabaseWithConfig(t *testing.T, schemas ...ir.Schema) (database.Backend, database.Config) {
+	t.Helper()
 	selected, err := database.SQLite(filepath.Join(t.TempDir(), "accounts.sqlite3"))
 	if err != nil {
 		t.Fatal(err)
@@ -38,7 +44,7 @@ func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 		}
 	})
 	migrateAccountDatabase(t, backend, schemas...)
-	return backend
+	return backend, selected
 }
 
 func migrateAccountDatabase(t *testing.T, backend database.Backend, schemas ...ir.Schema) {

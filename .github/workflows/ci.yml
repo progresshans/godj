@@ -505,6 +505,21 @@ jobs:
             go vet ./migrations ./db/sqlite
           fi
 
+      - name: Publish relation test logs and execution plan
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: relation-product-${{ matrix.platform.expected_goos }}-${{ matrix.platform.expected_goarch }}-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/relation-product-tests.json
+            ${{ runner.temp }}/relation-product.stderr
+            ${{ runner.temp }}/relation-consumer-discovery.json
+            ${{ runner.temp }}/relation-required.txt
+            ${{ runner.temp }}/relation-packages.txt
+            ${{ runner.temp }}/relation-shard/
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Require a clean worktree
         run: |
           git diff --exit-code

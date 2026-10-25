@@ -32,7 +32,7 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backend := accountDatabase(t, models.GoDjRelationSchema())
+	backend, selected := accountDatabaseWithConfig(t, models.GoDjRelationSchema())
 	hasher, _ := accountPassword(t)
 	definition, err := project.NewFirstAccountDefinition(hasher, firstConsumerConfig[models.User](role, "first_name"))
 	if err != nil {
@@ -46,7 +46,7 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := assertFirstAccountConsumer(t, backend, binding, definition, hasher, store, sessions, "first_name", profile)
+	row := assertFirstAccountConsumer(t, backend, selected, binding, definition, hasher, store, sessions, "first_name", profile)
 	if row.FirstName != profile.expected || !row.Staff || !row.Superuser {
 		t.Fatal("first default typed fields lost")
 	}

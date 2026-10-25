@@ -16,6 +16,8 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/internal/callback"
 	"github.com/progresshans/godj/internal/diagnosticlog"
+	"github.com/progresshans/godj/project/firstaccount"
+	firstaccountrunner "github.com/progresshans/godj/project/firstaccount/runner"
 )
 
 const (
@@ -75,6 +77,9 @@ type Definition struct {
 type Config struct {
 	Apps     apps.Registry
 	Commands []Definition
+	// FirstAccount is the selected-model operator capability. Its private wire
+	// is dispatched separately from ordinary command input, handlers and logs.
+	FirstAccount firstaccount.Command
 	// Logger is optional and caller-owned. Use With to identify the project and
 	// invocation. Logs omit arguments, output and error causes. Sink errors,
 	// panic and Goexit never alter Completed, OutputFailed or the command error.
@@ -93,6 +98,7 @@ type Registry struct {
 	resources      []ResourceCheck
 	resourceByName map[string]int
 	logger         *slog.Logger
+	firstAccount   firstaccount.Command
 }
 
 // New snapshots declarations and rejects ambiguity instead of overriding an
@@ -101,7 +107,7 @@ func New(config Config) (Registry, error) {
 	if len(config.Commands) > MaxCommands || len(config.ResourceChecks) > MaxCommands {
 		return Registry{}, failed("invalid_definition")
 	}
-	r := Registry{byName: make(map[string]int), check: config.Check, logger: config.Logger}
+	r := Registry{byName: make(map[string]int), check: config.Check, logger: config.Logger, firstAccount: config.FirstAccount}
 	for _, input := range config.Commands {
 		if !validName(input.Name) || Reserved(input.Name) || input.Handle == nil || !validText(input.Summary, 2048) {
 			return Registry{}, failed("invalid_definition")
@@ -297,6 +303,9 @@ func ExitCode(err error) int {
 	if err == nil {
 		return 0
 	}
+	if failure, ok := err.(*firstaccountrunner.Error); ok {
+		return failure.ExitCode()
+	}
 	var failure *Error
 	if errors.As(err, &failure) && failure != nil {
 		switch failure.Code {
@@ -312,6 +321,9 @@ func ExitCode(err error) int {
 func Diagnostic(err error) string {
 	if err == nil {
 		return ""
+	}
+	if failure, ok := err.(*firstaccountrunner.Error); ok {
+		return failure.Error()
 	}
 	var failure *Error
 	if errors.As(err, &failure) && failure != nil {

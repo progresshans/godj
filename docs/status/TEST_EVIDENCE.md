@@ -905,6 +905,76 @@ Parent의 생성/compile harness 실행을 DB/HTTP 테스트 본문의 PASS로 �
 필요하다. 이전 source의 부분 원격 결과와 이번 compile을 현재 수용으로 옮기지 않는다. 공개 최초 계정 터미널/process,
 공통 Admin/scaffold/runtime, profile 관계/파일·계정/host 삭제·채운 DB 모델 전환과 통합 process restart 및 I1 전체 수용은 남아 있다.
 
+### 최초 계정의 선택 모델 runtime·비밀 프레임과 연결 소유권
+
+2026-10-25, `0c0a0535` 위에 `internal/firstaccountwire`의 현재 private v2와 `project/firstaccount/runner`를 작성하고
+`command.Config.FirstAccount`/`Registry.Serve`에 연결했다. 자원 없는 실제 typed 선언 조회와 생성 dispatch를 일반
+command handler·입력 파싱·로그·출력 proxy에서 분리한다. 하나의 bounded binary frame이 source fingerprint,
+parent가 먼저 보관한 operation ID, 필드 순서/존재/값과 raw password를 전달한다. 전체 길이·중복·UTF-8/NUL scalar·EOF와
+canonical closed JSON을 검사하며 실제 ModelForm 준비와 선언의 password 한도 검사는 DB 연결보다 앞선다.
+
+반환된 자원은 open 오류를 동반해도 한 번 닫고 하나의 생성 시도만 한다. Panic/Goexit를 포함한 callback 종료를 기다리며
+확정 commit·unknown·cleanup을 operation에 묶어 별도로 게시한다. 늦은 취소·close 실패·응답 실패가 확정 commit을
+지우지 않으며, unknown은 성공이나 자동 재시도가 아니다. 기본/custom/LastLogin 없는 외부 생성 소비자는 실제 별도
+connection을 여닫는 Registry 경로로 첫 계정·선택 profile/default·receipt·HTTP login과 후속 Admin 비밀번호 검사를 연결했다.
+Global command에 추가된 의존성이 source binding에서 빠지지 않도록 operator attestation의 source·symlink 검사도 확장했다.
+
+새 wire 단위·fuzz seeds는 전체 frame/모든 truncation·정확한 omission/empty·raw password·aggregate 한도·EOF/reader
+failure·가변 버퍼 소거·진단 비노출·다른 source/operation·열린/중복/비정상 JSON을 검사하도록 작성했다. Runner는 DB 전
+실패·선언·잘못된 field 순서/필수 값/한도·반환된 자원과 open 오류·부족한 capability·nil·취소를 포함한다. 실제 SQLite
+검사는 한 번의 native commit/rollback·늦은 취소·close/응답의 error/panic/Goexit·unknown 뒤 별도 connection의 행/receipt
+대조와 같은 operation 재실행 거부를 포함한다. 이 새 본문의 실제 실행은 원격 대상이다.
+
+최소 compile은 새 protocol·runner·Registry·attestation 네 package에서 `go test -run '^$'`로 확인했다.
+실제 외부 세 module은 저장소 밖 overlay의 child `-run '^$'`만 실행해 생성된 타입과 새 소비자 소스를 컴파일했다.
+Parent 생성 harness의 pass는 child DB/HTTP 본문 실행이 아니며 native 테스트도 실행하지 않았다.
+
+| 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-first-account-runner-final-compile-v1/receipt.json` — 최종 네 package 최소 compile | `efeb5b80538ea0bc9fa65fae753b8829a90301c2732a9fc1612e4eac0a3706ad` |
+| `gdj0138-first-runner-external-compile-v1/receipt.json` — 실제 생성 세 module의 child compile | `c21e362a547650ae3692e8e700bfb596b78c8355ef1516f39822a9866d52e20e` |
+
+공개 `createsuperuser`는 아직 이 runtime을 호출하지 않는다. 실제 터미널의 선택 profile 입력·상위 owned process,
+scaffold/runtime·공통 Admin/HTTP 설치와 양 DB/process 수용은 남아 있다. 이 private runner/소비자나 compile을 공개
+명령 완료 또는 I1 전체 수용으로 계산하지 않는다. 새 source의 전체 원격 CI와 원본 대조가 필요하다.
+
+### 선택 reset 추가 뒤 원격 누적 시간 제한과 검사 소유권
+
+Source `0c0a0535cdeb6d0e0854a748f3ef4324ac33cbe0`의
+[CI 40198354732](https://github.com/progresshans/godj/actions/runs/40198354732)에서 PostgreSQL race core-consumers
+`121184388426`, Linux arm64/amd64 relation race shard 3/3 `121184388846`/`121184388893`, 그리고 arm64 relation normal
+`121184388863`의 실패를 확인했다. 네 job의 실제 checkout은 `72112f057a8ae617afc2c796620fb98ced455457`이며 제출 source와 tree
+`016d0dfcb61e714012f7ddc87a786f77d57fb03d`가 같음을 GitHub commit 정보와 로컬 HEAD로 대조했다.
+
+PostgreSQL의 보존된 전체 JSONL에서 생성 소비자 31개 root의 성공 누적 시간이 1,796.81초이고, reset root가
+526.54초에 완료됐다. `TestGeneratedTemporalExpressions`가 시작된 지 3초에 package 전체 30분 alarm이 발생했다.
+개별 실패/skip event 없이 package fail로 끝났지만 남은 필수 검사가 완료되지 않았으므로 전체 PASS가 아니다.
+기존 쓰기 소비자 owner는 같은 CI에서 1,027.171초에 완료됐다. 선택 계정 reset root와 모든 child를 그 owner로 옮겼으며
+검사 manifest와 normal/CGO0 범위·30분 deadline은 바꾸지 않았다. 정확한 이전 planner에 새 소유권 검사를 적용해 실패를
+재현하고 수정 planner의 9개 검사 및 모든 PostgreSQL 필수 행의 세 모드 단일 소유권을 확인했다.
+
+Linux 두 race job은 각각 URL 소비자 18초, 단일 생성 reference 15초 시점에 공유 35분 alarm으로 종료됐다.
+Arm64 normal도 temporal 소비자를 시작한 지 7초에 같은 누적 제한에 도달했다. 세 실패 로그의 직접 오류와 source/plan을
+보존했다. 기존 workflow는 전체 relation JSONL을 artifact로 남기지 않아
+60,000-byte 진단 출력에서 잘린 앞부분을 원본 본문으로 복원하거나 전체 실행 성공으로 취급하지 않았다.
+해당 두 Linux race coordinate의 소비자 owner를 3개에서 4개로 나누고 35분 package/45분 job 제한을 유지한다.
+마지막으로 나누지 않았던 arm64 normal/CGO0도 다른 플랫폼과 동일하게 runtime과 3개 소비자 owner를 사용한다.
+모든 relation coordinate에 성공·실패·취소와 무관하게 전체 JSONL/stderr·binary discovery·required/package/partition
+목록을 보존하는 업로드를 추가했다. 검증 누락·skip·잘린 event의 성공 거부는 유지한다.
+
+현재 binary에서 본문 없이 발견한 109개 root의 digest가 세 CI plan과 같음을 확인했다. 이전 matrix에 추가 owner 검사 두 개를
+적용하면 실패하고 수정 후 relation planner 10개·전체 workflow 필수 실행 4개 검사가 통과한다. 12개 coordinate 모두에서
+같은 root와 필수 child가 정확히 한 owner에 배정됨을 대조했다. 이 로컬 확인은 실행 계획/로그 보존의 수정 검증이며,
+30/35분 native suite를 로컬에서 반복하거나 새 분할의 실제 원격 완료 시간을 확인한 것이 아니다.
+
+| 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-postgres-reset-partition-v1/receipt.json` — 정확한 원격 로그/ZIP·tree·전후 planner 대조 | `ef7203cbd1eee3abbd868ca2322c66a59bbcbbb0cb4019267f458d6bea27e38d` |
+| `gdj0138-linux-partition-v2/receipt.json` — 세 relation job 원본·같은 discovery·12개 coordinate 대조 | `4d912583f39602c9b1ae3fb84946c3fc267306c44f3344225e39dfe2debcc0e4` |
+
+위 원격 실행은 제출 source의 부분 근거이며 새 runtime 변경의 PASS가 아니다. 수정 source의 전체 필수 원격 실행과
+원본 대조는 다음 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

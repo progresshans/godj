@@ -53,6 +53,10 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"account/domain/models/zz_godj_relation_object.go",
 		"account/domain/models/zz_godj_relation_projection.go",
 		"internal/diagnosticlog/log.go",
+		"internal/firstaccountwire/request.go",
+		"internal/firstaccountwire/response.go",
+		"project/firstaccount/command.go",
+		"project/firstaccount/runner/runner.go",
 		"internal/runservercontrol/protocol.go",
 		"events/event.go",
 		"scripts/ci/runserver_tests.py",
@@ -228,6 +232,10 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceFixturesAndOrdinaryTests
 
 func TestSourceScopeOwnsSYS029ProducerConsumerAndPolicyPaths(t *testing.T) {
 	tests := map[string]bool{
+		"internal/firstaccountwire/request.go":                                     true,
+		"internal/firstaccountwire/request_test.go":                                false,
+		"project/firstaccount/runner/runner.go":                                    true,
+		"project/firstaccount/runner/runner_test.go":                               false,
 		"internal/diagnosticlog/log.go":                                            true,
 		"internal/diagnosticlog/log_test.go":                                       false,
 		"internal/runservercontrol/protocol.go":                                    true,
@@ -316,6 +324,7 @@ func TestComputeSourceBindingRejectsDirectorySymlinkThatCanHideOwnedSource(t *te
 		{name: "account namespace", linkPath: "account", filePath: "domain/domain.go"},
 		{name: "account models", linkPath: "account/domain/models", filePath: "zz_godj_generated.go"},
 		{name: "runtime logging", linkPath: "internal/diagnosticlog", filePath: "log.go"},
+		{name: "first account wire", linkPath: "internal/firstaccountwire", filePath: "request.go"},
 		{name: "development control", linkPath: "internal/runservercontrol", filePath: "protocol.go"},
 		{name: "URL normalization", linkPath: "internal/urlinput", filePath: "url.go"},
 		{name: "product", linkPath: "systemstate", filePath: "runtime.go"},

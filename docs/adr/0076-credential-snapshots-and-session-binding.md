@@ -1092,7 +1092,33 @@ password를 포함하지 않는다. 최대 31개 필드·각 4,096 bytes·총 �
 Command는 명시적인 opener를 한 번 호출하되 실제 자원과 오류를 함께 반환할 수 있다. 호출한 process가 그 자원을
 정확히 한 번 닫고, 확정된 생성 결과와 뒤따른 close/응답 오류를 구분한다. 준비·실행은 암묵적으로 연결하거나 닫거나
 재시도하지 않는다. `Provision`은 상위 process가 보관한 operation ID와 실제 backend로 최초 owner를 호출한다.
-공개 터미널·비밀 프레임·runner·설치/startup의 연결은 별도 남은 구현이며 이 Command만으로 CLI 수용을 주장하지 않는다.
+이 Command만으로 공개 터미널·process·설치/startup의 CLI 수용을 주장하지 않는다.
+
+### 선택 계정의 runtime process owner
+
+`command.Config.FirstAccount`는 생성 모델을 import할 수 있는 별도 명령 runtime에 위 선언을 연결한다.
+`Registry.Serve`는 `project/firstaccount/runner`의 private 선언 조회와 최초 생성 dispatch를 일반 command handler,
+argv 값 파싱·로그·출력 proxy와 분리한다. 선언용 project runner에 생성 package를 import시키지 않는다.
+선언 조회는 실제 typed Description을 반환하며 stdin을 읽거나 DB를 연결하지 않는다. 아직 공개 `createsuperuser`와
+scaffold runtime을 이 경로로 전환한 것은 아니며, 실제 터미널/소유 process·공통 HTTP/Admin 설치는 남아 있다.
+
+현재 private v2 wire의 단일 binary frame은 선언 fingerprint·상위 process가 먼저 보관한 operation ID·정확한 순서의
+scalar 이름/존재 여부/값·raw password를 포함한다. 전체 bytes·개별 길이·중복·UTF-8/NUL scalar·EOF를 검사한 뒤
+분리된 가변 버퍼를 만들며, 제출 값을 JSON·argv·환경에 싣지 않는다. 생략과 빈 값, 정확한 choice 표현을 유지한다.
+Raw password의 전송 한도는 4,096 bytes이고 실제 선언의 더 좁은 한도와 정책을 다시 적용한다. 전송 단계가 별도의
+문자 정리나 password 정책을 만들지 않는다. JSON Description/결과는 canonical closed shape와 한도를 검사한다.
+
+Runner는 `Command.Prepare`로 실제 ModelForm을 DB 전에 검증하고 profile 버퍼를 해제한다. 실제 opener가 반환한 자원은
+오류를 동반해도 한 번 닫으며, 비밀번호는 한 번의 `Provision` 호출 경계에서만 string으로 바꾼다. 읽기·opener·provision·
+close·writer와 오류 분류 callback은 panic/Goexit를 포함한 defer 종료까지 기다린다. 입력과 panic/오류 원인은 출력하지 않는다.
+호출이 자원을 반환하기 전까지는 callback이 그 자원의 정리를 소유한다. 자동 재시도·adoption·receipt 기반 재실행은 없다.
+
+응답은 같은 operation의 `not_created`, `created`, `unknown`과 별도 `cleanup_failed`만 게시한다. 실제 source/receipt와
+일치하는 확정 commit은 이후 취소·close 실패로 지우지 않는다. Provision 중 비정상 callback 종료나 outcome-unknown은
+잠정 성공을 게시하지 않으며 operation ID를 retained parent에 남긴다. Close는 유일한 결과 쓰기보다 먼저 끝난다.
+확정 commit 뒤 응답을 못 쓰면 process는 private exit 86, close까지 실패하면 87을 보존한다. Entry point는
+`command.ExitCode`를 사용하고 Serve가 반환할 때까지 SIGPIPE 처리를 유지한다. 상위 process는 완전한 단일 request
+전달·프로세스 종료 근거와 함께 판정해야 하며 이 exit 값만으로 임의 child의 성공을 만들지 않는다.
 
 ## 선택 계정의 역할과 직접 소속 편집
 

@@ -29,6 +29,7 @@ HELPDESK_POSTGRES_PACKAGE = MODULE + 'examples/helpdesk'
 HELPDESK_POSTGRES_ROOT = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
 CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 WRITE_CONSUMER_ROOTS = frozenset({
+    'TestGeneratedAccountResetUsesSelectedModels',
     'TestGeneratedBulkCreate', 'TestGeneratedBulkCreateReference',
     'TestGeneratedBulkUpdate', 'TestGeneratedBulkUpdateReference',
     'TestGeneratedQueryUpdate', 'TestGeneratedQueryUpdateReference',
@@ -84,8 +85,11 @@ def plan(mode, shard, entries):
 
         selected = [entry for entry in selected if is_helpdesk_postgres(entry) == (shard == 'core-helpdesk-postgres')]
     if mode == 'race' and shard in ('core-consumers', 'core-consumer-writes'):
-        # A complete generated root and all its children have one owner. New
-        # roots default to core-consumers until their execution cost is known.
+        # A complete generated root and all its children have one owner. The
+        # selected-account reset performs HTTP/token/session writes across its
+        # model variants; keep it with writes rather than exhausting the read
+        # consumers' shared package deadline. New roots default to read consumers
+        # until their execution cost is known.
         def is_write_consumer(entry):
             package, _, test = entry.partition('|')
             return package == CONSUMER_PACKAGE and test.split('/')[0] in WRITE_CONSUMER_ROOTS

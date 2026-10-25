@@ -179,6 +179,13 @@ renamed Member·기본 키/별도 Text email·Email/LastLogin 부재·상수 act
 가진 다른 실제 모델의 부정 검사는 채운 DB 전환 제품의 완료가 아니다. Compile과 새 본문의 환경별 실행은 TEST_EVIDENCE에서
 구분한다. 이 소비자의 재접속은 별도 process restart나 공통 scaffold/runtime 전체 조립을 대신하지 않는다.
 
+선택 계정의 private v2 wire와 `project/firstaccount/runner`를 실제 명령 Registry에 연결했다. 선언 조회는 자원을 열지 않으며,
+정확한 source·생략/빈 값·typed ModelForm 검사를 DB 연결 전에 수행한다. 한 번의 입력 전달/생성/close와 operation에 묶인
+확정·unknown·cleanup 결과를 분리하며 panic/Goexit·늦은 취소·출력 실패를 포함한다. 기본/custom/LastLogin 없는 생성
+소비자는 실제 별도 DB 연결과 이 Registry 경로를 통해 첫 계정·receipt·HTTP 로그인을 확인하도록 전환했다.
+새 본문 실행은 원격 대상이며 최소 compile과 확인된 CI 시간 제한의 실행 소유권 수정은 TEST_EVIDENCE에서 구분한다.
+공개 터미널·상위 process·scaffold/runtime 전환을 완료한 것으로 계산하지 않는다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.

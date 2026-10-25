@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/project/compatibility"
+	firstaccountrunner "github.com/progresshans/godj/project/firstaccount/runner"
 )
 
 // Serve is a runtime command entrypoint. list/help are resource-free; check
@@ -15,6 +16,9 @@ import (
 // Call compatibility.Serve before constructing project configuration as well.
 func (r Registry) Serve(ctx context.Context, argv []string, streams Streams) error {
 	if handled, err := compatibility.Serve(ctx, argv, streams.Stdout); handled {
+		return err
+	}
+	if handled, err := firstaccountrunner.Serve(ctx, r.firstAccount, argv, streams.Stdin, streams.Stdout); handled {
 		return err
 	}
 	if ctx == nil || r.byName == nil || streams.Stdout == nil || streams.Stderr == nil || streams.Stdin == nil {

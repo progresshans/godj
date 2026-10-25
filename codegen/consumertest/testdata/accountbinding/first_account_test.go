@@ -1,9 +1,12 @@
 package consumer
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -25,6 +28,7 @@ import (
 	formmodel "github.com/progresshans/godj/forms/model"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/orm"
+	projectcommand "github.com/progresshans/godj/project/command"
 	"github.com/progresshans/godj/project/firstaccount"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
@@ -45,7 +49,7 @@ type firstProfileInput struct {
 	text, expected string
 }
 
-func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], definition accountmodel.FirstAccountDefinition[M], hasher auth.PasswordHasher, store *accountmodel.CredentialStore[M], sessionStore *accountmodel.SessionStore[M], profileField string, profile firstProfileInput) M {
+func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, selected database.Config, binding accountmodel.Binding[M], definition accountmodel.FirstAccountDefinition[M], hasher auth.PasswordHasher, store *accountmodel.CredentialStore[M], sessionStore *accountmodel.SessionStore[M], profileField string, profile firstProfileInput) M {
 	t.Helper()
 	check := func(err error) {
 		t.Helper()
@@ -82,8 +86,15 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 	}
 	operation := sha256.Sum256([]byte("parent-owned generated first-account operation"))
 	operationID := hex.EncodeToString(operation[:])
-	opens := 0
-	command, err := firstaccount.New(definition, func(context.Context) (firstaccount.Backend, error) { opens++; return backend, nil })
+	opens, closes := 0, 0
+	command, err := firstaccount.New(definition, func(ctx context.Context) (firstaccount.Backend, error) {
+		opens++
+		opened, err := database.Open(ctx, selected)
+		if err != nil {
+			return nil, err
+		}
+		return &firstCommandBackend{Backend: opened, closes: &closes}, nil
+	})
 	check(err)
 	description, err := command.Description()
 	check(err)
@@ -128,38 +139,45 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 	}
 	pending, err := command.Prepare(t.Context(), description.Fingerprint, commandValues)
 	check(err)
-	for _, value := range commandValues {
-		clear(value.Text)
-	}
+	pending.Clear()
 	if opens != 0 {
 		t.Fatal("model form description/cleaning opened a database")
 	}
 	if count, err := objects.Using(backend).Count(t.Context()); err != nil || count != 0 {
 		t.Fatal("first preparation wrote a row", err)
 	}
-	opened, err := command.Open(t.Context())
-	check(err)
-	if opened != backend || opens != 1 {
-		t.Fatal("command did not use the explicit backend owner")
+	assertFirstCommandRuntime(t, command, description, operationID, commandValues)
+	for _, value := range commandValues {
+		clear(value.Text)
 	}
-	result, err := command.Provision(t.Context(), opened, operationID, pending, accountPasswordText)
-	check(err)
-	if result.Account.Revision != 1 || result.Ownership.Sequence() != 1 || result.Ownership.OperationID() != operationID {
-		t.Fatal("first receipt missing")
+	if opens != 1 || closes != 1 {
+		t.Fatal("runtime did not own exactly one real connection")
+	}
+	if count, err := objects.Using(backend).Count(t.Context()); err != nil || count != 1 {
+		t.Fatal("runtime did not commit exactly one selected account", err)
 	}
 	key := orm.NewAutoField[M](metadata.Fields[0])
+	keyName := metadata.Fields[0].Name
 	for _, field := range metadata.Fields {
 		if field.PrimaryKey {
 			key = orm.NewAutoField[M](field)
+			keyName = field.Name
 		}
 	}
-	row, present, err := objects.Using(backend).Filter(key.Exact(result.Account.ID)).OrderBy(key.Asc()).First(t.Context())
+	row, present, err := objects.Using(backend).OrderBy(key.Asc()).First(t.Context())
 	check(err)
 	if !present {
 		t.Fatal("typed first row missing")
 	}
 	values, err := objects.ModelValues(row)
 	check(err)
+	rowID, keyOK := values[keyName].Integer()
+	if !keyOK {
+		t.Fatal("selected account key lost")
+	}
+	if revision, ok := values[role.Revision].Integer(); !ok || revision != 1 {
+		t.Fatal("first account revision missing")
+	}
 	if value, _ := values[profileField].String(); value != profile.expected {
 		t.Fatal("first profile/default/cleaning mismatch")
 	}
@@ -182,7 +200,7 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 	var entries []accountaudit.Entry
 	check(backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
 		var err error
-		entries, err = accountaudit.HistoryIn(t.Context(), scope, namespace, role.Model.AppLabel+"."+role.Model.ModelName, result.Account.ID, 100)
+		entries, err = accountaudit.HistoryIn(t.Context(), scope, namespace, role.Model.AppLabel+"."+role.Model.ModelName, rowID, 100)
 		return err
 	}))
 	if len(entries) != 1 || entries[0].ActorID() != principal {
@@ -190,8 +208,10 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 	}
 	receipt, err := domain.Lookup(t.Context(), backend, operationID)
 	check(err)
-	if receipt.Generation() != result.Ownership.Generation() {
-		t.Fatal("first operation receipt changed")
+	expectedDomain, err := binding.CredentialDomain(receipt.Generation())
+	check(err)
+	if receipt.OperationID() != operationID || receipt.Sequence() != 1 || receipt.RoleFingerprint() != description.RoleSHA256 || receipt.EvidenceSHA256() != description.EvidenceSHA256 || expectedDomain.Identifier() != namespace.Identifier() {
+		t.Fatal("first operation receipt lost selected ownership")
 	}
 	if _, err := owner.Prepare(t.Context(), input, accountPasswordText); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeNotFresh}) {
 		t.Fatal("first operation implicitly adopted existing state", err)
@@ -199,6 +219,94 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, b
 	assertFirstLoginHTTP(t, sessionStore, authenticator)
 	return row
 }
+
+type firstCommandBackend struct {
+	database.Backend
+	closes *int
+}
+
+func (backend *firstCommandBackend) Close() error { *backend.closes++; return backend.Backend.Close() }
+func (backend *firstCommandBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	return backend.Backend.(db.CoordinatedRelationAtomic).CoordinatedAtomicRelation(ctx, write)
+}
+
+// This external generated module exercises the runtime's actual private wire
+// without importing framework-internal codecs or borrowing its live DB handle.
+// The parent retains the operation before the single sensitive handoff.
+func assertFirstCommandRuntime(t *testing.T, command firstaccount.Command, description firstaccount.Description, operation string, values []firstaccount.Value) {
+	t.Helper()
+	registry, err := projectcommand.New(projectcommand.Config{FirstAccount: command})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output, stderr bytes.Buffer
+	if err := registry.Serve(t.Context(), []string{"__godj_first_account_describe_v2"}, projectcommand.Streams{Stdin: firstNoInput{}, Stdout: &output, Stderr: &stderr}); err != nil {
+		t.Fatal(err)
+	}
+	var described struct {
+		Version     uint64                   `json:"version"`
+		Description firstaccount.Description `json:"description"`
+		Code        string                   `json:"code"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(output.Bytes()))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&described); err != nil {
+		t.Fatal(err)
+	}
+	if described.Version != 2 || described.Code != "" || described.Description.Fingerprint != description.Fingerprint || firstaccount.ValidateDescription(described.Description) != nil {
+		t.Fatal("runtime changed the selected declaration")
+	}
+	var request bytes.Buffer
+	request.WriteString("GODJFA2")
+	request.WriteString(described.Description.Fingerprint)
+	request.WriteString(operation)
+	request.WriteByte(byte(len(values)))
+	if err := binary.Write(&request, binary.BigEndian, uint16(len(accountPasswordText))); err != nil {
+		t.Fatal(err)
+	}
+	for _, value := range values {
+		request.WriteByte(byte(len(value.Name)))
+		if value.Present {
+			request.WriteByte(1)
+		} else {
+			request.WriteByte(0)
+		}
+		if err := binary.Write(&request, binary.BigEndian, uint16(len(value.Text))); err != nil {
+			t.Fatal(err)
+		}
+		request.WriteString(value.Name)
+		request.Write(value.Text)
+	}
+	request.WriteString(accountPasswordText)
+	frame := request.Bytes()
+	defer clear(frame)
+	output.Reset()
+	if err := registry.Serve(t.Context(), []string{"__godj_first_account_provision_v2"}, projectcommand.Streams{Stdin: bytes.NewReader(frame), Stdout: &output, Stderr: &stderr}); err != nil {
+		t.Fatal(err)
+	}
+	var result struct {
+		Version       uint64 `json:"version"`
+		OperationID   string `json:"operation_id"`
+		Outcome       string `json:"outcome"`
+		Code          string `json:"code"`
+		CleanupFailed bool   `json:"cleanup_failed"`
+	}
+	decoder = json.NewDecoder(bytes.NewReader(output.Bytes()))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Version != 2 || result.OperationID != operation || result.Outcome != "created" || result.Code != "" || result.CleanupFailed || stderr.Len() != 0 {
+		t.Fatal("runtime did not publish its confirmed outcome", result)
+	}
+	if strings.Contains(output.String(), accountPasswordText) || strings.Contains(output.String(), "first@example.test") {
+		t.Fatal("runtime exposed input")
+	}
+}
+
+type firstNoInput struct{}
+
+func (firstNoInput) Read([]byte) (int, error) { panic("description read private input") }
 
 func assertFirstLoginHTTP[M any](t *testing.T, store *accountmodel.SessionStore[M], authenticator *accountmodel.Authenticator[M]) {
 	t.Helper()

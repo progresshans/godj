@@ -25,7 +25,7 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 	if role.Staff.Constant == nil || !*role.Staff.Constant {
 		t.Fatal("positive custom fixture requires fixed staff=true")
 	}
-	backend := accountDatabase(t, access.GoDjRelationSchema(), people.GoDjRelationSchema(), tickets.GoDjRelationSchema())
+	backend, selected := accountDatabaseWithConfig(t, access.GoDjRelationSchema(), people.GoDjRelationSchema(), tickets.GoDjRelationSchema())
 	hasher, _ := accountPassword(t)
 	config := firstConsumerConfig[people.Member](role, "region")
 	config.Validate = func(_ context.Context, _ db.Queryer, candidate people.Member, _ accountmodel.RoleMemberships) (validation.Errors, error) {
@@ -46,7 +46,7 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	row := assertFirstAccountConsumer(t, backend, binding, definition, hasher, store, sessions, "region", firstProfileInput{present: true, text: "NZ", expected: "NZ"})
+	row := assertFirstAccountConsumer(t, backend, selected, binding, definition, hasher, store, sessions, "region", firstProfileInput{present: true, text: "NZ", expected: "NZ"})
 	if row.Region != "NZ" || !row.Enabled || !row.Root || row.Contact != "first@example.test" {
 		t.Fatal("first custom typed fields lost")
 	}
