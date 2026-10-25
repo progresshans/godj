@@ -805,6 +805,28 @@ native package 8개, 외부 child package 3개의 종료와 Test run/fail/skip �
 Admin login Form 정책·reset·profile 관계/파일·host/계정 삭제·채운 DB 모델 전환·독립 PostgreSQL HTTP·process restart 및
 I1-01~08 전체 수용은 계속 진행한다.
 
+### 관리자 비밀번호 재검증의 준비 단계 counter 수정
+
+2026-10-25, `acdc96435f43395a7d90896db397fd04d8fca557`의
+[CI 40187440520](https://github.com/progresshans/godj/actions/runs/40187440520)에서 Linux amd64 normal/CGO0 및
+arm64 race runtime 작업 `121151453248`/`121151453160`/`121151453208`의 원본 로그를 확인했다. 실제 checkout은
+`98f723c445c01eab65f9930fabe2c679fce9ed73`이며 tree `3cf281149b8b8a39771cb5c61046e685ed7a4e02`가
+제출 source와 같다. `password_admin_rechecks`의 9개 하위 case가 준비용 session 생성까지 write 횟수로
+세어 실패했다. 준비를 마친 뒤 counter를 초기화하고, 실패 진단에 hash/write 횟수를 추가했다.
+제품의 한 번 hash/최종 fence 및 현재 권한·credential·policy·rollback 단언과 필수 실행 목록은 유지했다.
+
+작성 중인 reset 변경과 분리한 해당 commit의 Git archive에서 같은 9개 실패를 재현했다. 같은 export에 이 테스트
+파일의 수정만 적용한 한정 재현은 exit 0, 부모 포함 Test run/pass 11개·fail/skip 0이었다. export의 전체 파일
+4,247개를 archive와 대조해 이 한 파일 이외 변경이 없음을 확인했다. 실행 명령은
+`go test -json -count=1 -timeout=3m -run '^TestSQLiteAccountCredentialStore$/^password_admin_rechecks$' ./db/sqlite`다.
+이는 로컬 SQLite 실패 재현이며 원격 PostgreSQL/race/platform 전체 검증을 대신하지 않는다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-admin-password-rechecks-repro-v1/receipt.json` — 원본 실패 | `f3ab9b8807cd25eec2a1672bdafb19ca996598dd1c652099ae7fafd068dd7a5d` |
+| `gdj0138-admin-password-rechecks-repro-v1/fixed-receipt.json` — 수정 뒤 한정 재현 | `dfbabb7acb7d26a8dc572ca15aa12478d8799d6f16eacfd5e7613ab3680956a3` |
+| `gdj0138-admin-password-rechecks-repro-v1/fixed-source.json` — 재현 source 대조 | `b4c7077d6734883a3d773e2ba91c2d2f653d9ac34d5f1a5fa1be9ea97d34215a` |
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -48,6 +48,7 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 			previous := passwordSession(t, configured.manager, passwordCredential(t, f, target), "target")
 			var checkpoint passwordDurableState
 			hasher.hashes.Store(0)
+			tracked.writes.Store(0)
 			hasher.beforeHash = func(context.Context) error {
 				patch := models.UserPatch{}
 				switch mode {
@@ -84,7 +85,7 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 			}
 			result, err := owner.SetPassword(t.Context(), actor, target.ID, target.Revision, password+"-new")
 			if hasher.hashes.Load() != 1 || tracked.writes.Load() != 1 {
-				t.Fatal("recheck did not follow one hash/fence")
+				t.Fatal("recheck did not follow one hash/fence", hasher.hashes.Load(), tracked.writes.Load())
 			}
 			if mode == "current_profile" {
 				stored := profileRow(t, reopen(t), target.ID)
