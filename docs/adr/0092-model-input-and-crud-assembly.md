@@ -49,6 +49,20 @@ IR scalar 변환을 사용하되 각 backend의 backfill 및 schema editor 책�
 출력 준비·감사를 같은 callback에 넣는다. callback 생략·중복·늦은 실행·오류 삼킴·미완료와 불확실한 commit은
 정상 성공이나 재시도로 바꾸지 않는다. 확정 commit 이후의 취소는 이미 성공한 write를 실패로 뒤집지 않는다.
 
+`admin.ModelConfig[M]`의 `M`은 목록·상세 조회와 `Snapshot`/`Initial`의 타입이다. CRUD와 객체 명령은
+공통 `MutationResult{ID, Revision}`만 반환하고, Update는 별도로 실제 변경 필드를 반환한다. Callback은 저장
+owner가 확정한 값을 바로 전달한다. 저장 뒤 표시 모델을 만들기 위해 현재 권한으로 다시 조회하지 않는다.
+자기 비활성화·권한 회수·삭제·세션 폐기가 성공했다면 그 결과로 조회할 수 없게 되어도 저장 성공을 유지한다.
+이 결과는 조회 권한이나 저장 값의 사본이 아니며 화면의 다음 요청은 다시 현재 권한을 검사한다.
+
+Registry는 현재 Admin URL의 양수 객체 key 경계, 같은 update/delete 대상, versioned create의 양수 revision,
+변경 update의 증가·no-op과 delete의 관측 revision 유지, unversioned 결과의 revision 0을 확인한다.
+객체 명령은 같은 ID와 관측값 이상의 revision을 반환한다. 변경 필드는 editable/inline allowlist에 속하고
+중복이 없어야 하며 결과 slice는 복사한다. Callback 오류가 있으면 결과 전체를 버리고 원래 오류를 보존한다.
+Callback 성공 뒤 잘못된 metadata가 발견되면 `ErrReconciliationRequired`로 구분하며 입력 거부나 자동 재시도로
+바꾸지 않는다. 조회 `Snapshot`/`Initial`의 IR·필드/값·revision 검증과 저장 owner의 최종 인가·제약·감사·transaction
+검증은 계속 필요하다. 저장 결과에서 표시 snapshot을 제거하는 것은 이 검증을 대신하거나 생략하는 허가가 아니다.
+
 `db.ReadSnapshotResult`는 live validator가 있는 빌린 읽기 전용 scope에서 단 한 번 합류한 callback과 성공한
 snapshot 종료를 확인한 뒤 결과를 반환한다. root backend·쓰기/transaction capability와 callback 생략·중복·
 오류 삼킴·미완료는 결과를 게시하지 않는다. 읽기에서는 종료 중 취소도 결과를 버린다. 쓰기 commit unknown으로

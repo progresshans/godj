@@ -63,59 +63,57 @@ func (a *registration) registerGroup(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return operationError(a.manager.CheckGroupChange(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
-		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (groupRow, error) {
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero groupRow
-				return zero, inputErr
+				return admin.MutationResult{}, inputErr
 			}
 
 			name, ok := values.String("name")
 			ids, present := values.Integers("permissions")
 			if !ok || !present {
-				return groupRow{}, invalidInput()
+				return admin.MutationResult{}, invalidInput()
 			}
 			value, err := a.manager.CreateGroup(ctx, p, identity.NewGroupCreate(name).WithPermissions(ids...))
-			return groupRow{value, true}, operationError(err)
+			return admin.MutationResult{ID: value.ID, Revision: value.Revision}, operationError(err)
 		},
-		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (groupRow, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero groupRow
-				return zero, nil, inputErr
+				return admin.MutationResult{}, nil, inputErr
 			}
 
 			name, ok := values.String("name")
 			ids, present := values.Integers("permissions")
 			if !ok || !present {
-				return groupRow{}, nil, invalidInput()
+				return admin.MutationResult{}, nil, invalidInput()
 			}
 			before, err := a.manager.Group(ctx, p, m.ID)
 			if err != nil {
-				return groupRow{}, nil, operationError(err)
+				return admin.MutationResult{}, nil, operationError(err)
 			}
 			if err := checkRevision(m.Revision, before.Revision); err != nil {
-				return groupRow{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			after, err := a.manager.UpdateGroup(ctx, p, m.ID, m.Revision, identity.GroupPatch{}.WithName(name).WithPermissions(ids...))
 			if err != nil {
-				return groupRow{}, nil, operationError(err)
+				return admin.MutationResult{}, nil, operationError(err)
 			}
-			return groupRow{after, true}, changedFields(fields, groupInitial(before), groupInitial(after)), nil
+			return admin.MutationResult{ID: after.ID, Revision: after.Revision}, changedFields(fields, groupInitial(before), groupInitial(after)), nil
 		},
-		Delete: func(ctx context.Context, p auth.Principal, m admin.Mutation) (groupRow, error) {
+		Delete: func(ctx context.Context, p auth.Principal, m admin.Mutation) (admin.MutationResult, error) {
 			before, err := a.manager.Group(ctx, p, m.ID)
 			if err != nil {
-				return groupRow{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
 			if err := checkRevision(m.Revision, before.Revision); err != nil {
-				return groupRow{}, err
+				return admin.MutationResult{}, err
 			}
 			_, err = a.manager.DeleteGroup(ctx, p, m.ID, m.Revision, a.deletions.Groups)
 			if err != nil {
-				return groupRow{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
-			return groupRow{before, true}, nil
+			return admin.MutationResult{ID: before.ID, Revision: before.Revision}, nil
 		},
 		History: func(ctx context.Context, p auth.Principal, id int64, r admin.HistoryRequest) ([]admin.AuditEntry, error) {
 			entries, err := a.manager.GroupHistory(ctx, p, id, r.Limit)
@@ -159,59 +157,57 @@ func (a *registration) registerPermission(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return operationError(a.manager.CheckPermissionChange(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
-		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (identity.PermissionProfile, error) {
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero identity.PermissionProfile
-				return zero, inputErr
+				return admin.MutationResult{}, inputErr
 			}
 
 			code, ok := values.String("code")
 			name, present := values.String("name")
 			if !ok || !present {
-				return identity.PermissionProfile{}, invalidInput()
+				return admin.MutationResult{}, invalidInput()
 			}
 			value, err := a.manager.CreatePermission(ctx, p, identity.NewPermissionCreate(code, name))
-			return value, operationError(err)
+			return admin.MutationResult{ID: value.ID, Revision: value.Revision}, operationError(err)
 		},
-		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (identity.PermissionProfile, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero identity.PermissionProfile
-				return zero, nil, inputErr
+				return admin.MutationResult{}, nil, inputErr
 			}
 
 			code, ok := values.String("code")
 			name, present := values.String("name")
 			if !ok || !present {
-				return identity.PermissionProfile{}, nil, invalidInput()
+				return admin.MutationResult{}, nil, invalidInput()
 			}
 			before, err := a.manager.Permission(ctx, p, m.ID)
 			if err != nil {
-				return identity.PermissionProfile{}, nil, operationError(err)
+				return admin.MutationResult{}, nil, operationError(err)
 			}
 			if err := checkRevision(m.Revision, before.Revision); err != nil {
-				return identity.PermissionProfile{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			after, err := a.manager.UpdatePermission(ctx, p, m.ID, m.Revision, identity.PermissionPatch{}.WithCode(code).WithName(name))
 			if err != nil {
-				return identity.PermissionProfile{}, nil, operationError(err)
+				return admin.MutationResult{}, nil, operationError(err)
 			}
-			return after, changedFields(fields, permissionInitial(before), permissionInitial(after)), nil
+			return admin.MutationResult{ID: after.ID, Revision: after.Revision}, changedFields(fields, permissionInitial(before), permissionInitial(after)), nil
 		},
-		Delete: func(ctx context.Context, p auth.Principal, m admin.Mutation) (identity.PermissionProfile, error) {
+		Delete: func(ctx context.Context, p auth.Principal, m admin.Mutation) (admin.MutationResult, error) {
 			before, err := a.manager.Permission(ctx, p, m.ID)
 			if err != nil {
-				return identity.PermissionProfile{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
 			if err := checkRevision(m.Revision, before.Revision); err != nil {
-				return identity.PermissionProfile{}, err
+				return admin.MutationResult{}, err
 			}
 			_, err = a.manager.DeletePermission(ctx, p, m.ID, m.Revision, a.deletions.Permissions)
 			if err != nil {
-				return identity.PermissionProfile{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
-			return before, nil
+			return admin.MutationResult{ID: before.ID, Revision: before.Revision}, nil
 		},
 		History: func(ctx context.Context, p auth.Principal, id int64, r admin.HistoryRequest) ([]admin.AuditEntry, error) {
 			entries, err := a.manager.PermissionHistory(ctx, p, id, r.Limit)

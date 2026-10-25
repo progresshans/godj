@@ -1045,6 +1045,54 @@ child `-run '^$'`만 실행했다. 이 harness의 pass는 DB/HTTP 본문 실행�
 새 통합 수정·기존 계정 흐름·generated drift·양 DB/race/platform의 원격 실행과 원본 대조가 필요하다.
 공개 최초 계정 명령·공통 Admin/scaffold/runtime, profile 관계/파일·계정/host 삭제·모델 전환 및 I1 전체 수용은 남아 있다.
 
+### Admin의 확정 저장 결과와 조회 모델 분리
+
+2026-10-26, `cda70cd4` 위에서 Admin CRUD의 전체 모델 반환을 `MutationResult{ID, Revision}`로 바꾸고
+객체 command도 같은 결과를 사용하도록 정리했다. 저장 뒤 `Snapshot`이나 권한이 필요한 재조회를 요구하지 않는다.
+Create의 유효 ID/revision, update/delete의 같은 대상, 변경 update의 증가·no-op/delete의 revision 유지와
+unversioned revision 0, 변경 필드 allowlist·중복·사본 검사는 Registry가 수행한다. Callback 오류에서는 결과를
+버리며, 성공 뒤 잘못된 metadata는 reconciliation 오류로 유지한다. 조회의 기존 IR/initial/snapshot 검증과
+native owner의 현재 권한·제약·revision·audit·transaction 검사는 유지했다.
+
+기본 identity Admin·Article/Helpdesk·브라우저 fixture와 외부 model-resource/typed inline/collection 소비자를
+동일 계약으로 전환했다. 선택 계정의 기존 profile 수정 callback도 확인된 owner 결과를 바로 사용한다.
+새 단위 검사는 잘못된 결과·오류 시 결과 폐기·변경 필드 사본과, CRUD 성공 직후 표시/조회가 불가능해도 성공 응답을
+유지하고 다음 요청은 거부하는 경우를 다룬다. 원격 필수 목록에는 두 root·29개 child를 추가하고 기존 항목을 모두 유지했다.
+
+새 외부 소비자는 실제 최초 계정과 generated AccountEditor, SQLite·TCP Admin Site를 연결한다. CSRF/stale/보호 필드와
+복합 profile/active 정책 거부 뒤 행·세션·audit 불변, 자기 profile+비활성화의 한 revision·정확한 actor/domain/변경 필드의
+한 audit·모든 자기 세션 폐기, 성공 redirect와 이후 브라우저/이전 actor의 조회 거부를 검사하도록 작성했다.
+기본 모델과 여섯 custom 정책을 포함한 기존 일곱 생성 선언에서 child 실행을 필수로 요구한다.
+이것은 호스트가 선택한 편집 표면의 소비자이며 account/catalog 자동 등록·계정 삭제의 완료가 아니다.
+
+로컬은 영향 여섯 package와 실제 생성한 13개 module을 최소 compile했다. 생성 모듈은 계정 일곱 변형과
+model-resource/inline/collection의 baseline·changed 각각 둘이다. 저장소 밖 compile harness는 child를 `-run '^$'`로
+제한하고 테스트 실행 event가 생기면 실패하도록 검사했다. 이후 소비자의 audit source 대조를 보강한 일곱 계정 module만
+다시 compile했다. 새 Admin 단위·DB/HTTP 본문은 실행하지 않았다. 변경한 API 소비자의 포맷·문서 링크·diff를 검사했다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-admin-mutation-refactor-v1/native-receipt.json` — 여섯 package 최소 compile | `16c1b1e6b80651435854bcc185a8f542ee0c5f5c0846c60efb17ed943b424d27` |
+| `gdj0138-admin-mutation-refactor-v1/external-receipt.json` — 13개 생성 module 최소 compile | `70af3dd8583e16b29346e4f5ddf2cb29ef347c8705012f94f9aa97a354640d5c` |
+| `gdj0138-admin-mutation-refactor-v1/external-final-receipt.json` — audit 대조를 보강한 일곱 생성 module 최소 compile | `a3ed6a1d1e248e50f825ac467198550f853bf0c21266ff625dd8af4b5b8f5cbb` |
+
+작성 중 앞선 source의 [CI 40209526351](https://github.com/progresshans/godj/actions/runs/40209526351)에서 Linux
+amd64/arm64 normal/CGO0 relation shard 네 개가 같은 기본 계정 소비자 오류로 실패했다. 실제 checkout
+`ba33964a78785f1d73a9c7ea1ddb96893692c2d8`과 제출 `cda70cd4`의 tree가 같음을 확인했다.
+새로 선택한 `first_name`은 IR에서 빈 기본값과 Blank를 허용하지만, 복합 편집 소비자의 JSON 선언에 AllowEmpty가
+빠져 `fields.first_name.default: default value cannot be blank`로 초기화가 거부됐다.
+
+현재 작업트리에서 같은 default 부모/소비자 경로만 실행해 실패를 재현했다. 소비자가 선택한 profile의 Blank를
+JSON AllowEmpty에 명시하고 같은 경로를 다시 실행하여 통과했다. 빈 원래 profile로 되돌리는 JSON 수정과 이후
+비활성화, 기존 password 변경을 포함한 실제 SQLite/HTTP 소비자의 19개 pass event를 확인했고 skip은 없었다.
+Serializer의 일반 거부 정책·기본 모델 선언·필수 실행 항목은 완화하지 않았다. 이 한정 재현/수정 확인은 앞선 source
+전체 재실행이나 새 Admin 회귀 본문 실행이 아니다. 네 원격 원본과 tree 대조, 로컬 전후 실행은
+`gdj0138-admin-mutation-refactor-v1/prior-ci/diagnosis.json`에 연결했다
+(SHA-256 `ca0dcc75c12ec57026ee68cb445fcb1ff87c4987a5b6876b41a5dad3883beb6e`).
+
+새 source의 전체 CI·양 DB·브라우저·race/process/platform과 원본 대조는 아직 필요하다.
+공통 account/catalog Admin 자동 등록, 공개 최초 계정 명령·scaffold/runtime 및 나머지 I1 수용 범위는 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

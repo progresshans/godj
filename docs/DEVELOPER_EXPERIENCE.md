@@ -322,6 +322,9 @@ CreateForm은 생성에 필요한 별도 model field 선택과 password confirma
 Commands는 별도 Form·권한·명시적 callback으로 password 교체 같은 객체 동작을 구성한다.
 RevisionField를 지정한 모델의 수정·삭제·command는 표시한 revision을 Mutation으로 전달한다.
 실제 write callback은 같은 transaction에서 조건을 다시 확인한다. 충돌은 409이며 자동 재시도하지 않는다.
+CRUD와 객체 command는 확정된 `admin.MutationResult{ID, Revision}`를 반환한다. Update는 실제 변경 field 목록도
+반환하며, 조회용 모델·Snapshot은 저장 결과가 아니다. 자기 비활성화나 권한 회수가 성공한 뒤 표시를 위한 재조회를
+요구하지 않는다. 다음 요청의 접근 권한은 새 상태로 확인한다. [결과 검증 계약](adr/0092-model-input-and-crud-assembly.md)을 따른다.
 PasswordInput에는 저장 기본값을 둘 수 없고, 검증 실패에도 값을 다시 표시하지 않는다.
 `forms.WithTrimWhitespace(false)`는 비밀번호의 공백을 보존한다. Form 값의 일반 진단은 비공개이며,
 값 접근은 명시적 accessor, 값 비교는 `Value.Equal`을 사용한다.

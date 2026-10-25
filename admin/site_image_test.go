@@ -136,23 +136,23 @@ func TestAdminImageUploadVerifiedContentAndStorage(t *testing.T) {
 					}
 					target := "/admin/articles/add/"
 					if command {
-						config.Commands = []CommandConfig{{Name: "attach", Label: "Attach", Permission: config.Permissions.Change, Form: spec, Run: func(ctx context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (CommandResult, error) {
+						config.Commands = []CommandConfig{{Name: "attach", Label: "Attach", Permission: config.Permissions.Change, Form: spec, Run: func(ctx context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (MutationResult, error) {
 							if err := consume(ctx, values); err != nil {
-								return CommandResult{}, err
+								return MutationResult{}, err
 							}
-							return CommandResult{ID: mutation.ID}, nil
+							return MutationResult{ID: mutation.ID}, nil
 						}}}
 						target = "/admin/articles/command/attach/?id=1"
 					} else {
 						config.CreateForm = &FormConfig{Definition: formmodel.Definition{ExtraFields: []forms.Field{field}}}
 						original := config.Create
-						config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, inlines InlineSubmission) (registryArticle, error) {
+						config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, inlines InlineSubmission) (MutationResult, error) {
 							values, err := bound.Input()
 							if err != nil {
-								return registryArticle{}, err
+								return MutationResult{}, err
 							}
 							if err = consume(ctx, values); err != nil {
-								return registryArticle{}, err
+								return MutationResult{}, err
 							}
 							return original(ctx, actor, bound, inlines)
 						}
@@ -247,7 +247,7 @@ func TestAdminImageReadFailureIsOperational(t *testing.T) {
 		return validation.Errors{}
 	})))}}}
 	original := config.Create
-	config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, inlines InlineSubmission) (registryArticle, error) {
+	config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, inlines InlineSubmission) (MutationResult, error) {
 		calls++
 		return original(ctx, actor, bound, inlines)
 	}

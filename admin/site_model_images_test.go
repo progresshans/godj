@@ -92,7 +92,9 @@ func TestAdminModelImageDimensionsStayPrivateAndReachPersistence(t *testing.T) {
 			}
 			return values, err
 		},
-		Delete: func(context.Context, auth.Principal, Mutation) (registryPhotograph, error) { return current, nil },
+		Delete: func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+			return MutationResult{ID: current.id}, nil
+		},
 	}
 	apply := func(ctx context.Context, bound formmodel.BoundForm) (registryPhotograph, error) {
 		input, err := bound.Input()
@@ -134,10 +136,11 @@ func TestAdminModelImageDimensionsStayPrivateAndReachPersistence(t *testing.T) {
 		writes++
 		return next, nil
 	}
-	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryPhotograph, error) {
-		return apply(ctx, bound)
+	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
+		value, err := apply(ctx, bound)
+		return MutationResult{ID: value.id}, err
 	}
-	config.Update = func(ctx context.Context, _ auth.Principal, _ Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryPhotograph, []string, error) {
+	config.Update = func(ctx context.Context, _ auth.Principal, _ Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 		value, err := apply(ctx, bound)
 		changed := bound.Form().Changed()
 		if file, ok := bound.Form().Cleaned().File("photo"); ok {
@@ -146,7 +149,7 @@ func TestAdminModelImageDimensionsStayPrivateAndReachPersistence(t *testing.T) {
 				changed = append(changed, "width", "height")
 			}
 		}
-		return value, changed, err
+		return MutationResult{ID: value.id}, changed, err
 	}
 	conflicting := config
 	conflicting.Model = config.Model.Clone()

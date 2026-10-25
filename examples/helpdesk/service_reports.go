@@ -82,52 +82,53 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkReportForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.ServiceReport, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero models.ServiceReport
-				return zero, inputErr
+				return admin.MutationResult{}, inputErr
 			}
 
 			key, ok := values.Integer("ticket")
 			if !ok {
-				return models.ServiceReport{}, errors.New("helpdesk: invalid report ticket")
+				return admin.MutationResult{}, errors.New("helpdesk: invalid report ticket")
 			}
 			summary, ok := values.String("summary")
 			if !ok {
-				return models.ServiceReport{}, errors.New("helpdesk: invalid report summary")
+				return admin.MutationResult{}, errors.New("helpdesk: invalid report summary")
 			}
 			completed, ok := values.Boolean("completed")
 			if !ok {
-				return models.ServiceReport{}, errors.New("helpdesk: invalid report completed")
+				return admin.MutationResult{}, errors.New("helpdesk: invalid report completed")
 			}
-			return a.createReport(ctx, serviceReportInput{ticketID: key, summary: summary, completed: completed})
+			value, err := a.createReport(ctx, serviceReportInput{ticketID: key, summary: summary, completed: completed})
+			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.ServiceReport, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero models.ServiceReport
-				return zero, nil, inputErr
+				return admin.MutationResult{}, nil, inputErr
 			}
 
 			id := mutation.ID
 			key, ok := values.Integer("ticket")
 			if !ok {
-				return models.ServiceReport{}, nil, errors.New("helpdesk: invalid report ticket")
+				return admin.MutationResult{}, nil, errors.New("helpdesk: invalid report ticket")
 			}
 			summary, ok := values.String("summary")
 			if !ok {
-				return models.ServiceReport{}, nil, errors.New("helpdesk: invalid report summary")
+				return admin.MutationResult{}, nil, errors.New("helpdesk: invalid report summary")
 			}
 			completed, ok := values.Boolean("completed")
 			if !ok {
-				return models.ServiceReport{}, nil, errors.New("helpdesk: invalid report completed")
+				return admin.MutationResult{}, nil, errors.New("helpdesk: invalid report completed")
 			}
-			return a.updateReport(ctx, id, models.ServiceReportPatch{}.WithTicketID(key).WithSummary(summary).WithCompleted(completed))
+			value, changed, err := a.updateReport(ctx, id, models.ServiceReportPatch{}.WithTicketID(key).WithSummary(summary).WithCompleted(completed))
+			return admin.MutationResult{ID: value.ID}, changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.ServiceReport, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			return a.deleteReport(ctx, id)
+			value, err := a.deleteReport(ctx, id)
+			return admin.MutationResult{ID: value.ID}, err
 		},
 	})
 }

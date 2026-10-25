@@ -9,7 +9,7 @@
 
 ## 다음
 
-1. I1의 선택 모델 reset·비밀번호/세션 수명·최초 계정 runtime·Admin 로그인과 프로필/역할 통합 수정의 실패/경합을 새 source의 원격 CI에서 확인한다.
+1. I1의 선택 모델 reset·비밀번호/세션 수명·최초 계정 runtime·Admin 로그인과 프로필/역할 통합 수정·Admin 저장 결과 계약의 실패/경합을 새 source의 원격 CI에서 확인한다.
 2. 준비한 최초 계정 Command/runtime을 공개 터미널/상위 프로세스에 연결하고 scaffold runtime·공통 Admin 등록/HTTP 제품 조립을 완성한다.
 3. 프로필 관계/파일·host/계정 삭제·채운 DB 모델 전환과 통합 startup/process restart를 실제 소비자에서 완성한다.
 

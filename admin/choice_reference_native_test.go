@@ -613,14 +613,14 @@ func (native *adminChoiceNative) client(t *testing.T, c adminChoiceCase) (*siteH
 			return NewObject(row.Source.ID, "Source", map[string]templates.Value{"id": templates.Integer(row.Source.ID), "tenant": templates.Integer(row.Source.Tenant), "foreign_key": templates.Integer(row.Source.ForeignKey), "one_to_one": templates.Integer(row.Source.OneToOne), "many": templates.List(many...)})
 		},
 		Initial: func(row adminChoiceRow) (map[string]forms.Value, error) { return adminChoiceInitial(row), nil },
-		Create: func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (adminChoiceRow, error) {
-			return adminChoiceRow{}, errors.New("fixture only observes add projection")
+		Create: func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (MutationResult, error) {
+			return MutationResult{}, errors.New("fixture only observes add projection")
 		},
-		Delete: func(context.Context, auth.Principal, Mutation) (adminChoiceRow, error) {
-			return adminChoiceRow{}, errors.New("fixture does not expose source deletion")
+		Delete: func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+			return MutationResult{}, errors.New("fixture does not expose source deletion")
 		},
 	}
-	config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, submitted formmodel.BoundForm, _ InlineSubmission) (adminChoiceRow, []string, error) {
+	config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, submitted formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 		stats.Calls++
 		var result adminChoiceRow
 		var changed []string
@@ -663,7 +663,7 @@ func (native *adminChoiceNative) client(t *testing.T, c adminChoiceCase) (*siteH
 		if err == nil {
 			stats.Commits++
 		}
-		return result, changed, err
+		return MutationResult{ID: result.Source.ID}, changed, err
 	}
 	builder := NewBuilder(installed)
 	if err := RegisterModel(builder, config); err != nil {

@@ -78,12 +78,13 @@ func TestAdminModelFileCreateChangeRetentionAndClear(t *testing.T) {
 		current = next
 		return next, nil
 	}
-	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
-		return apply(ctx, bound)
-	}
-	config.Update = func(ctx context.Context, _ auth.Principal, _ Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
+	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 		value, err := apply(ctx, bound)
-		return value, []string{"title", "summary"}, err
+		return MutationResult{ID: value.id}, err
+	}
+	config.Update = func(ctx context.Context, _ auth.Principal, _ Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
+		value, err := apply(ctx, bound)
+		return MutationResult{ID: value.id}, []string{"title", "summary"}, err
 	}
 	client, _, _ := uploadTestSite(t, config, policy, auth.PrincipalAuthorizer{})
 	client.login(t, "admin", "secret", "/admin/")

@@ -268,16 +268,18 @@ func (a *Application) register(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkTicketForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm, inlines admin.InlineSubmission) (ticketRecord, error) {
+		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm, inlines admin.InlineSubmission) (admin.MutationResult, error) {
 			created, _, err := a.saveTicketForm(ctx, principal, 0, bound, inlines)
-			return created, err
+			return admin.MutationResult{ID: created.ID}, err
 		},
-		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, inlines admin.InlineSubmission) (ticketRecord, []string, error) {
-			return a.saveTicketForm(ctx, principal, mutation.ID, bound, inlines)
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, inlines admin.InlineSubmission) (admin.MutationResult, []string, error) {
+			value, changed, err := a.saveTicketForm(ctx, principal, mutation.ID, bound, inlines)
+			return admin.MutationResult{ID: value.ID}, changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (ticketRecord, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			return a.delete(ctx, id)
+			value, err := a.delete(ctx, id)
+			return admin.MutationResult{ID: value.ID}, err
 		},
 	}); err != nil {
 		return err

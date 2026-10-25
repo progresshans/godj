@@ -40,7 +40,7 @@ func TestAdminModelCandidatePreservesOmissionAndOriginalNormalization(t *testing
 				}))}
 				var got string
 				writes := 0
-				accept := func(values forms.Values, id int64) registryArticle {
+				accept := func(values forms.Values, id int64) MutationResult {
 					writes++
 					var ok bool
 					got, ok = values.String("title")
@@ -50,22 +50,20 @@ func TestAdminModelCandidatePreservesOmissionAndOriginalNormalization(t *testing
 					if _, exists := values.Get("id"); exists {
 						t.Fatal("private candidate key entered mutation input")
 					}
-					return registryArticle{id: id, title: got}
+					return MutationResult{ID: id}
 				}
-				config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
+				config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 					values, inputErr := bound.Input()
 					if inputErr != nil {
-						var zero registryArticle
-						return zero, inputErr
+						return MutationResult{}, inputErr
 					}
 
 					return accept(values, 2), nil
 				}
-				config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
+				config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 					values, inputErr := bound.Input()
 					if inputErr != nil {
-						var zero registryArticle
-						return zero, nil, inputErr
+						return MutationResult{}, nil, inputErr
 					}
 
 					return accept(values, mutation.ID), []string{"title"}, nil
@@ -184,7 +182,7 @@ func TestAdminChangeRechecksObservedRevisionBeforeCandidateWrite(t *testing.T) {
 	callbacks := 0
 	_, state, registry := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(config *ModelConfig[managementFormRow]) {
 		original := config.Update
-		config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, []string, error) {
+		config.Update = func(ctx context.Context, actor auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 			callbacks++
 			return original(ctx, actor, mutation, bound, InlineSubmission{})
 		}
@@ -248,11 +246,10 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 					return config.ValidateCreate(ctx, actor, bound)
 				}
 				original := config.Create
-				config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, error) {
+				config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 					values, inputErr := bound.Input()
 					if inputErr != nil {
-						var zero managementFormRow
-						return zero, inputErr
+						return MutationResult{}, inputErr
 					}
 
 					raw, _ := bound.Form().Submitted().Get("username")
@@ -261,9 +258,9 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 					if len(raw) != 1 || raw[0] != "mixed" || cleaned != "mixed" || candidate != "MIXED" {
 						t.Fatal("final write callback lost submitted, cleaned or model candidate")
 					}
-					row, err := original(ctx, actor, bound, InlineSubmission{})
+					result, err := original(ctx, actor, bound, InlineSubmission{})
 					if err != nil {
-						return row, err
+						return MutationResult{}, err
 					}
 					active, ok := values.Boolean("active")
 					if !ok {
@@ -271,9 +268,8 @@ func TestAdminModelCleanPersistsExplicitHiddenChangesAndKeepsWriteFences(t *test
 					}
 					state.mu.Lock()
 					defer state.mu.Unlock()
-					row.active = active
-					state.row = row
-					return row, nil
+					state.row.active = active
+					return result, nil
 				}
 			})
 			state = owned

@@ -194,23 +194,22 @@ func assertAccountAdminPasswordHTTP[M any](t *testing.T, backend database.Backen
 		Initial: func(row accountmodel.Profile[M]) (map[string]forms.Value, error) {
 			return formmodel.InitialView(objects, form, row.View())
 		},
-		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (accountmodel.Profile[M], error) {
-			return accountmodel.Profile[M]{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (accountmodel.Profile[M], error) {
-			return accountmodel.Profile[M]{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (accountmodel.Profile[M], []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			input, err := formmodel.PrepareInput(objects, bound)
 			if err != nil {
-				return accountmodel.Profile[M]{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			changed, err := editor.Update(ctx, actor, mutation.ID, mutation.Revision, input)
 			if err != nil {
-				return accountmodel.Profile[M]{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
-			row, err := reader.Get(ctx, actor, changed.ID)
-			return row, changed.ChangedFields, err
+			return admin.MutationResult{ID: changed.ID, Revision: changed.Revision}, changed.ChangedFields, nil
 		},
 		History: func(ctx context.Context, actor auth.Principal, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
 			entries, err := reader.History(ctx, actor, id, request.Limit)

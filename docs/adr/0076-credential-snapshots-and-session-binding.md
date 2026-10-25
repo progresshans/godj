@@ -1274,6 +1274,11 @@ field 매핑을 유지한다. `CommandConfig.AdditionalPermissions`와 descripto
 이 명령 조립은 account/catalog 전체 자동 등록, profile 관계/파일 및 scaffold runtime 전환을
 대신하지 않는다. 공통 Admin의 객체 URL key 경계와 모델 owner의 저장 key 지원도 별도 수용 대상으로 둔다.
 
+선택 계정의 profile/role owner도 공통 Admin CRUD에 확인된 ID/revision/변경 필드만 전달한다.
+[공통 mutation 결과 계약](0092-model-input-and-crud-assembly.md)에 따라 자기 active 변경으로 현재 actor와 모든
+브라우저 세션을 폐기해도 성공 뒤 ProfileReader를 다시 호출하지 않는다. Redirect 뒤의 새 요청은 새 credential과
+세션 상태를 적용한다. 이 계약은 account/catalog 자동 등록이나 삭제 정책의 구현을 의미하지 않는다.
+
 ## 선택 계정의 비밀번호 재설정
 
 생성 `NewAccountPasswordResetter`는 기존 `SessionStore[M]`·그 Store의 인증기·정확한 manager와 전체 host source/역할을

@@ -17,12 +17,16 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 		{"explicit_empty", firstProfileInput{present: true, expected: ""}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			firstDefaultAccount(t, test.profile)
+			firstDefaultAccount(t, test.profile, false)
 		})
 	}
 }
 
-func firstDefaultAccount(t *testing.T, profile firstProfileInput) {
+func TestGeneratedAdminAccountMutation(t *testing.T) {
+	firstDefaultAccount(t, firstProfileInput{present: true, text: "NZ", expected: "NZ"}, true)
+}
+
+func firstDefaultAccount(t *testing.T, profile firstProfileInput, editOwnAccount bool) {
 	t.Helper()
 	binding, err := project.BindAccount()
 	if err != nil {
@@ -49,6 +53,10 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput) {
 	row := assertFirstAccountConsumer(t, backend, selected, binding, definition, hasher, store, sessions, "first_name", profile)
 	if row.FirstName != profile.expected || !row.Staff || !row.Superuser {
 		t.Fatal("first default typed fields lost")
+	}
+	if editOwnAccount {
+		assertAccountAdminMutationHTTP(t, backend, binding, store, sessions, hasher, row, "first_name", project.NewAccountEditor)
+		return
 	}
 	t.Run("admin_password", func(t *testing.T) {
 		assertAccountAdminPasswordHTTP(t, backend, binding, store, sessions, hasher, row, "first_name", project.NewAccountPasswordEditor)

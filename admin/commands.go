@@ -18,15 +18,7 @@ type CommandConfig struct {
 	Permission            auth.Permission
 	AdditionalPermissions []auth.Permission
 	Form                  forms.Spec
-	Run                   func(context.Context, auth.Principal, Mutation, forms.Values) (CommandResult, error)
-}
-
-// CommandResult contains only the confirmed object's identity and revision.
-// A command need not reread a profile after committing (for example, after it
-// revokes its own actor's sessions). No result is published on error.
-type CommandResult struct {
-	ID       int64
-	Revision int64
+	Run                   func(context.Context, auth.Principal, Mutation, forms.Values) (MutationResult, error)
 }
 
 type CommandDescriptor struct {
@@ -40,7 +32,7 @@ type registeredCommand struct {
 	name, label string
 	permissions []auth.Permission
 	form        forms.Spec
-	run         func(context.Context, auth.Principal, Mutation, forms.Form) (CommandResult, error)
+	run         func(context.Context, auth.Principal, Mutation, forms.Form) (MutationResult, error)
 }
 
 func prepareCommands(configs []CommandConfig, model registeredModel) ([]registeredCommand, error) {
@@ -85,32 +77,35 @@ func prepareCommands(configs []CommandConfig, model registeredModel) ([]register
 			}
 		}
 		command := registeredCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form}
-		command.run = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form) (CommandResult, error) {
+		command.run = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form) (MutationResult, error) {
 			if err := validatePrincipalRead(ctx, principal, model.permissions); err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
 			for _, permission := range permissions {
 				if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
-					return CommandResult{}, err
+					return MutationResult{}, err
 				}
 			}
 			if err := model.validateMutation(mutation); err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
 			data, err := validatedSubmission(submitted, fields)
 			if err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
 			values, err := validateBoundData(ctx, data, config.Form, fields)
 			if err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
 			outcome, err := config.Run(ctx, principal, mutation, values)
 			if err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
-			if outcome.ID != mutation.ID || outcome.Revision < mutation.Revision || model.revisionField == "" && outcome.Revision != 0 {
-				return CommandResult{}, reconciliationError("command "+config.Name, &ConfigError{Path: "command.result", Code: "mismatch"})
+			if err := model.validateResult(outcome); err != nil {
+				return MutationResult{}, reconciliationError("command "+config.Name, err)
+			}
+			if outcome.ID != mutation.ID || outcome.Revision < mutation.Revision {
+				return MutationResult{}, reconciliationError("command "+config.Name, &ConfigError{Path: "command.result", Code: "mismatch"})
 			}
 			return outcome, nil
 		}

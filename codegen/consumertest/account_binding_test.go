@@ -32,6 +32,9 @@ var accountBindingProfileHTTPConsumer []byte
 //go:embed testdata/accountbinding/password_http_test.go
 var accountBindingPasswordHTTPConsumer []byte
 
+//go:embed testdata/accountbinding/admin_mutation_http_test.go
+var accountBindingAdminMutationHTTPConsumer []byte
+
 //go:embed testdata/accountbinding/password_admin_http_test.go
 var accountBindingPasswordAdminHTTPConsumer []byte
 
@@ -221,9 +224,13 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_account_test.go", firstAccountCommonConsumer)
 			writeGeneratedTestFile(t, root, "consumer/password_admin_http_test.go", accountBindingPasswordAdminHTTPConsumer)
+			writeGeneratedTestFile(t, root, "consumer/admin_mutation_http_test.go", accountBindingAdminMutationHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
-			required := []string{"TestGeneratedFirstAccountBootstrap"}
+			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
+			for _, name := range []string{"csrf", "stale", "protected_input", "cross_field", "self_deactivation"} {
+				required = append(required, "TestGeneratedAdminAccountMutation/"+name)
+			}
 			adminParents := []string{"TestGeneratedFirstAccountBootstrap/admin_password"}
 			if !variant.custom {
 				adminParents = nil

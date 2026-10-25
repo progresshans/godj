@@ -127,17 +127,17 @@ func TestAdminWidgetHTTPPreservesRawInputComposedValidationAndStoredPolicy(t *te
 		return forms.Values{}, validation.Errors{}
 	}}}}
 	calls := 0
-	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 		calls++
 		values, err := bound.Input()
 		if err != nil {
-			return registryArticle{}, err
+			return MutationResult{}, err
 		}
 		text, _ := values.String("title")
 		if text != "SAVED" {
 			t.Fatal("widget changed the writer's native cleaned input", text)
 		}
-		return registryArticle{id: 4, title: text}, nil
+		return MutationResult{ID: 4}, nil
 	}
 	client, _, _ := uploadTestSite(t, config, uploadTestPolicy(t), auth.PrincipalAuthorizer{}, textWidgetTestConfig())
 	client.login(t, "admin", "secret", "/admin/")

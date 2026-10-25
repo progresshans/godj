@@ -34,28 +34,28 @@ func TestAdminCommandUsesOwnFormPermissionAndConditionalWrite(t *testing.T) {
 			var state *managementFormState
 			var calls int
 			client, storage, registry := newManagementFormSite(t, auth.PrincipalAuthorizer{}, func(c *ModelConfig[managementFormRow]) {
-				c.Commands = []CommandConfig{{Name: "password", Label: "Change password", Permission: "accounts.change", Form: managementCommandForm(t), Run: func(_ context.Context, p auth.Principal, m Mutation, values forms.Values) (CommandResult, error) {
+				c.Commands = []CommandConfig{{Name: "password", Label: "Change password", Permission: "accounts.change", Form: managementCommandForm(t), Run: func(_ context.Context, p auth.Principal, m Mutation, values forms.Values) (MutationResult, error) {
 					calls++
 					state.actor = p.ID()
 					if mode == "late" {
 						state.row.revision++
 					}
 					if state.row.revision != m.Revision {
-						return CommandResult{}, NewOperationError(OperationConflict, nil)
+						return MutationResult{}, NewOperationError(OperationConflict, nil)
 					}
 					if mode == "rollback" {
-						return CommandResult{}, errors.Join(validation.Reject(validation.NewErrors(validation.New("password", "invalid")), nil), errors.New("private rollback failure"))
+						return MutationResult{}, errors.Join(validation.Reject(validation.NewErrors(validation.New("password", "invalid")), nil), errors.New("private rollback failure"))
 					}
 					state.password, _ = values.String("password")
 					state.row.revision++
 					state.writes++
 					if mode == "unknown" {
-						return CommandResult{}, NewOperationError(OperationOutcomeUnknown, errors.New("private outcome cause"))
+						return MutationResult{}, NewOperationError(OperationOutcomeUnknown, errors.New("private outcome cause"))
 					}
 					if mode == "invalid_result" {
-						return CommandResult{ID: m.ID + 1, Revision: state.row.revision}, nil
+						return MutationResult{ID: m.ID + 1, Revision: state.row.revision}, nil
 					}
-					return CommandResult{ID: m.ID, Revision: state.row.revision}, nil
+					return MutationResult{ID: m.ID, Revision: state.row.revision}, nil
 				}}}
 			})
 			state = storage
@@ -123,9 +123,9 @@ func TestAdminCommandUsesOwnFormPermissionAndConditionalWrite(t *testing.T) {
 }
 
 func TestAdminCommandStartupAndForgedFormsFailBeforeMutation(t *testing.T) {
-	good := CommandConfig{Name: "password", Label: "Change password", Permission: "accounts.change", Form: managementCommandForm(t), Run: func(context.Context, auth.Principal, Mutation, forms.Values) (CommandResult, error) {
+	good := CommandConfig{Name: "password", Label: "Change password", Permission: "accounts.change", Form: managementCommandForm(t), Run: func(context.Context, auth.Principal, Mutation, forms.Values) (MutationResult, error) {
 		t.Fatal("invalid definition/input invoked command")
-		return CommandResult{}, nil
+		return MutationResult{}, nil
 	}}
 	for _, change := range []func(*CommandConfig){
 		func(c *CommandConfig) { c.Name = "../bad" }, func(c *CommandConfig) { c.Label = "" },
@@ -171,9 +171,9 @@ func TestAdminCommandRequiresAllPermissionsBeforeObjectReadAndRun(t *testing.T) 
 			additional := []auth.Permission{"accounts.add"}
 			calls := 0
 			client, state, registry := newManagementFormSite(t, authorizer, func(config *ModelConfig[managementFormRow]) {
-				config.Commands = []CommandConfig{{Name: "password", Label: "Change password", Permission: "accounts.change", AdditionalPermissions: additional, Form: managementCommandForm(t), Run: func(_ context.Context, _ auth.Principal, mutation Mutation, _ forms.Values) (CommandResult, error) {
+				config.Commands = []CommandConfig{{Name: "password", Label: "Change password", Permission: "accounts.change", AdditionalPermissions: additional, Form: managementCommandForm(t), Run: func(_ context.Context, _ auth.Principal, mutation Mutation, _ forms.Values) (MutationResult, error) {
 					calls++
-					return CommandResult{ID: mutation.ID, Revision: mutation.Revision + 1}, nil
+					return MutationResult{ID: mutation.ID, Revision: mutation.Revision + 1}, nil
 				}}}
 			})
 			additional[0] = "accounts.delete"
@@ -227,9 +227,9 @@ func TestAdminCommandRequiresAllPermissionsBeforeObjectReadAndRun(t *testing.T) 
 		t.Fatal(err)
 	}
 	model := registeredModel{revisionField: "revision", permissions: Permissions{View: "accounts.view", Change: "accounts.change"}}
-	commands, err := prepareCommands([]CommandConfig{{Name: "password", Label: "Password", Permission: "accounts.password", AdditionalPermissions: []auth.Permission{"accounts.confirm"}, Form: form, Run: func(context.Context, auth.Principal, Mutation, forms.Values) (CommandResult, error) {
+	commands, err := prepareCommands([]CommandConfig{{Name: "password", Label: "Password", Permission: "accounts.password", AdditionalPermissions: []auth.Permission{"accounts.confirm"}, Form: form, Run: func(context.Context, auth.Principal, Mutation, forms.Values) (MutationResult, error) {
 		t.Fatal("incomplete direct authority invoked command")
-		return CommandResult{}, nil
+		return MutationResult{}, nil
 	}}}, model)
 	if err != nil {
 		t.Fatal(err)

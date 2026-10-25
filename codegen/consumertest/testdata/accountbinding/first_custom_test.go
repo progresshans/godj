@@ -14,6 +14,14 @@ import (
 )
 
 func TestGeneratedFirstAccountBootstrap(t *testing.T) {
+	firstCustomAccount(t, false)
+}
+
+func TestGeneratedAdminAccountMutation(t *testing.T) {
+	firstCustomAccount(t, true)
+}
+
+func firstCustomAccount(t *testing.T, editOwnAccount bool) {
 	binding, err := project.BindAccount()
 	if err != nil {
 		t.Fatal(err)
@@ -49,6 +57,10 @@ func TestGeneratedFirstAccountBootstrap(t *testing.T) {
 	row := assertFirstAccountConsumer(t, backend, selected, binding, definition, hasher, store, sessions, "region", firstProfileInput{present: true, text: "NZ", expected: "NZ"})
 	if row.Region != "NZ" || !row.Enabled || !row.Root || row.Contact != "first@example.test" {
 		t.Fatal("first custom typed fields lost")
+	}
+	if editOwnAccount {
+		assertAccountAdminMutationHTTP(t, backend, binding, store, sessions, hasher, row, "region", project.NewAccountEditor)
+		return
 	}
 	t.Run("admin_password", func(t *testing.T) {
 		assertAccountAdminPasswordHTTP(t, backend, binding, store, sessions, hasher, row, "region", project.NewAccountPasswordEditor)

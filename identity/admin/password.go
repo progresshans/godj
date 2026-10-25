@@ -48,30 +48,30 @@ func PasswordCommands[M any](editor *accountmodel.PasswordEditor[M]) ([]admin.Co
 	}
 	return []admin.CommandConfig{{
 		Name: "password", Label: "Change password", Permission: required[0], AdditionalPermissions: slices.Clone(required[1:]), Form: password,
-		Run: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, values forms.Values) (admin.CommandResult, error) {
+		Run: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, values forms.Values) (admin.MutationResult, error) {
 			raw, present := values.String("password1")
 			confirmation, confirmed := values.String("password2")
 			if !present || !confirmed || raw != confirmation {
-				return admin.CommandResult{}, invalidInput()
+				return admin.MutationResult{}, invalidInput()
 			}
 			result, err := editor.SetPassword(ctx, actor, mutation.ID, mutation.Revision, raw)
 			if err != nil {
-				return admin.CommandResult{}, passwordError(err)
+				return admin.MutationResult{}, passwordError(err)
 			}
-			return admin.CommandResult{ID: result.ID, Revision: result.Revision}, nil
+			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, nil
 		},
 	}, {
 		Name: "disable-password", Label: "Disable password login", Permission: required[0], AdditionalPermissions: slices.Clone(required[1:]), Form: disable,
-		Run: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, values forms.Values) (admin.CommandResult, error) {
+		Run: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, values forms.Values) (admin.MutationResult, error) {
 			confirmed, present := values.Boolean("confirm")
 			if !present || !confirmed {
-				return admin.CommandResult{}, invalidInput()
+				return admin.MutationResult{}, invalidInput()
 			}
 			result, err := editor.SetUnusablePassword(ctx, actor, mutation.ID, mutation.Revision)
 			if err != nil {
-				return admin.CommandResult{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
-			return admin.CommandResult{ID: result.ID, Revision: result.Revision}, nil
+			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, nil
 		},
 	}}, nil
 }

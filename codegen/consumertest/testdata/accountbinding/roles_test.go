@@ -83,9 +83,18 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	check(err)
 	form, err = form.WithModelChoices(role.Permissions, forms.Choice{Value: forms.Integer(permissionID), Label: "Direct permission"})
 	check(err)
+	// This host's JSON profile input follows the model's blank policy,
+	// including a valid empty default for the selected profile field.
+	profileAllowsEmpty := false
+	for _, field := range metadata.Fields {
+		if field.Name == profileField {
+			profileAllowsEmpty = field.Blank
+			break
+		}
+	}
 	fields := make([]serializers.ModelField, 0, len(editor.Fields()))
 	for _, name := range editor.Fields() {
-		fields = append(fields, serializers.ModelField{Name: name})
+		fields = append(fields, serializers.ModelField{Name: name, AllowEmpty: name == profileField && profileAllowsEmpty})
 	}
 	spec, err := serializers.FromModel(metadata, fields...)
 	check(err)

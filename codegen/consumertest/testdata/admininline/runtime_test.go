@@ -241,16 +241,16 @@ func newInlineHarness(t *testing.T, backend resourceBackend, name string) *inlin
 		Initial: func(value directory.Workspace) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(parentModel, parentForm, value, (directory.WorkspaceDescriptor{}).WriteFieldValue)
 		},
-		Create: func(ctx context.Context, actor auth.Principal, input formmodel.BoundForm, submission admin.InlineSubmission) (directory.Workspace, error) {
+		Create: func(ctx context.Context, actor auth.Principal, input formmodel.BoundForm, submission admin.InlineSubmission) (admin.MutationResult, error) {
 			result, err := save(ctx, actor, 0, input, submission)
-			return result.value, err
+			return admin.MutationResult{ID: result.value.ID}, err
 		},
-		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, input formmodel.BoundForm, submission admin.InlineSubmission) (directory.Workspace, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, input formmodel.BoundForm, submission admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			result, err := save(ctx, actor, mutation.ID, input, submission)
-			return result.value, result.changed, err
+			return admin.MutationResult{ID: result.value.ID}, result.changed, err
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (directory.Workspace, error) {
-			return directory.Workspace{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
 	}))
 	registry, err := builder.Build()

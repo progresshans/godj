@@ -28,7 +28,7 @@ func TestCreateAndChangeChoicesKeepIndependentActionAuthority(t *testing.T) {
 		return []forms.Choice{{Value: forms.Integer(7), Label: "Create selection"}}, nil
 	})}}
 	create := config.Create
-	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 
 		writes++
 		return create(ctx, p, bound, InlineSubmission{})

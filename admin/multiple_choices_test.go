@@ -46,35 +46,33 @@ func multipleChoiceConfig(t *testing.T) (*Builder, ModelConfig[multipleSelection
 		Initial: func(row multipleSelection) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"labels": forms.Integers(row.keys...)}, nil
 		},
-		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, error) {
+		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero multipleSelection
-				return zero, inputErr
+				return MutationResult{}, inputErr
 			}
 
-			keys, ok := values.Integers("labels")
+			_, ok := values.Integers("labels")
 			if !ok {
-				return multipleSelection{}, errors.New("missing collection")
+				return MutationResult{}, errors.New("missing collection")
 			}
-			return multipleSelection{1, keys}, nil
+			return MutationResult{ID: 1}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, []string, error) {
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero multipleSelection
-				return zero, nil, inputErr
+				return MutationResult{}, nil, inputErr
 			}
 
 			id := mutation.ID
-			keys, ok := values.Integers("labels")
+			_, ok := values.Integers("labels")
 			if !ok {
-				return multipleSelection{}, nil, errors.New("missing collection")
+				return MutationResult{}, nil, errors.New("missing collection")
 			}
-			return multipleSelection{id, keys}, []string{"labels"}, nil
+			return MutationResult{ID: id}, []string{"labels"}, nil
 		},
-		Delete: func(context.Context, auth.Principal, Mutation) (multipleSelection, error) {
-			return multipleSelection{1, []int64{}}, nil
+		Delete: func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+			return MutationResult{ID: 1}, nil
 		},
 		RelatedChoices: []RelatedChoices{testRelationChoices(t, base.Model, base.AppLabel, "labels", "helpdesk.view_label", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 			return []forms.Choice{{Value: forms.Integer(7), Label: "Seven"}, {Value: forms.Integer(9), Label: "Nine"}}, nil
@@ -91,22 +89,20 @@ func TestMultipleChoicesRevalidateEveryKeyAndPreserveEmptyReplacement(t *testing
 	config.RelatedChoices[0] = testChoicesWithRead(config.RelatedChoices[0], func(context.Context, auth.Principal) ([]forms.Choice, error) { reads++; return choices, failure })
 	create, update := config.Create, config.Update
 	var received []int64
-	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 		v, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero multipleSelection
-			return zero, inputErr
+			return MutationResult{}, inputErr
 		}
 
 		writes++
 		received, _ = v.Integers("labels")
 		return create(ctx, p, bound, InlineSubmission{})
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (multipleSelection, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 		v, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero multipleSelection
-			return zero, nil, inputErr
+			return MutationResult{}, nil, inputErr
 		}
 
 		writes++

@@ -82,36 +82,37 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkTicketLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.TicketLabel, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero models.TicketLabel
-				return zero, inputErr
+				return admin.MutationResult{}, inputErr
 			}
 
 			ticket, label, err := keys(values)
 			if err != nil {
-				return models.TicketLabel{}, err
+				return admin.MutationResult{}, err
 			}
-			return a.createTicketLabel(ctx, ticket, label)
+			value, err := a.createTicketLabel(ctx, ticket, label)
+			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.TicketLabel, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero models.TicketLabel
-				return zero, nil, inputErr
+				return admin.MutationResult{}, nil, inputErr
 			}
 
 			id := mutation.ID
 			ticket, label, err := keys(values)
 			if err != nil {
-				return models.TicketLabel{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
-			return a.updateTicketLabel(ctx, id, models.TicketLabelPatch{}.WithTicketID(ticket).WithLabelID(label))
+			value, changed, err := a.updateTicketLabel(ctx, id, models.TicketLabelPatch{}.WithTicketID(ticket).WithLabelID(label))
+			return admin.MutationResult{ID: value.ID}, changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.TicketLabel, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			return a.deleteTicketLabel(ctx, id)
+			value, err := a.deleteTicketLabel(ctx, id)
+			return admin.MutationResult{ID: value.ID}, err
 		},
 	})
 }

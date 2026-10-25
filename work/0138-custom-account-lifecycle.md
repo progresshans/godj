@@ -199,6 +199,13 @@ Form 검사와 active staff/추가 권한의 선행·최종 admission, 동일 �
 기본/custom 실제 Form·JSON의 프로필/소속 수정 및 비활성화를 검사하도록 확장했다. 생성/최소 compile과 새 본문 실행은
 TEST_EVIDENCE에서 구분한다. 이 owner와 소비자는 공통 account/catalog Admin 자동 등록의 완료가 아니다.
 
+공통 Admin의 CRUD와 객체 명령은 `MutationResult`로 확인된 ID/revision만 전달하도록 바꿨다.
+조회용 M/Snapshot/Initial을 저장 성공의 반환 조건으로 요구하지 않는다. Registry는 대상·revision·변경 필드의
+계약을 검사하며 잘못된 성공 결과는 reconciliation 오류, owner 실패는 원래 오류로 유지한다. 기존 기본 계정·
+Article/Helpdesk·typed inline/collection 소비자를 같은 계약으로 연결했다. 선택 계정 HTTP 소비자는 native
+AccountEditor를 통해 자기 profile+비활성화의 한 commit, 모든 자기 세션 폐기, 성공 응답 뒤 조회 권한 거부를
+검사하도록 작성했다. 기존 조회 검증을 없애거나 공통 계정 자동 등록을 완료한 것은 아니다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
