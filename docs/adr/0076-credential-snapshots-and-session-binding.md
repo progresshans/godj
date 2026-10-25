@@ -1121,8 +1121,49 @@ Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replac
 거부는 storage failure와 원인 연결을 유지한다. `Manager.Load`도 AccessPolicy의 오류를 그대로 반환받은 경우에만 일반
 policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거부로 축소하지 않는다.
 
-이 구성은 선택 계정의 password change/reset·계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement를
-자동 완성하지 않는다. 해당 쓰기 owner와 공개 Admin/HTTP 제품 조립, 양 DB의 독립 HTTP/process 재시작 수용은 I1에 남는다.
+이 로그인 구성만으로 계정의 다른 쓰기를 수행하지 않는다. 자기 비밀번호 변경은 아래의 별도 owner를 명시적으로
+연결한다. Reset·계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement와 공개 Admin/HTTP 제품 조립,
+양 DB의 독립 HTTP/process 재시작 수용은 I1에 남는다.
+
+## 선택 계정의 자기 비밀번호 변경
+
+`SessionStore.Authenticator(ctx, hasher)`는 해당 세션 owner의 정확한 credential reader 위에 저장 인증기를 만든다.
+로그인과 자기 비밀번호 변경에 이 인증기를 재사용한다. `PasswordChangePersistence(manager, authenticator, config)`는
+정확히 같은 Store를 사용하는 manager와 같은 credential reader의 인증기만 받는다. 같은 모델명이나 역할 fingerprint를
+가진 별도 reader를 허용하지 않는다. 이 구성 검사는 I/O·해싱·callback을 실행하지 않으며 새 hasher를 따로 받지도 않는다.
+인증기 구성에 필요한 bounded dummy hash만 실제 인증기 생성 시 DB scope 밖에서 준비한다.
+
+공통 `PasswordValidator[M]`는 생성과 변경에서 실제 detached typed profile을 받는다. Password 역할 필드는 빈 문자열이며
+기본 User DTO나 동적 입력 map으로 대체하지 않는다. 순수하고 동시 호출에 안전한 정책이며 비밀번호·profile을 보관하거나
+외부 부작용을 일으키지 않는다. 진단은 값 없는 `password`/NonField만 허용한다. Callback 오류·취소·감싼 rejection은
+입력 오류로 노출하지 않는다. 정책이 없어도 필수 문자열·byte 한도·hasher 검사는 유지한다. 한도는 기본 1,024 bytes,
+구성 범위는 1~4,096 bytes이며 실제 생성 IR의 encoded field 한도도 별도로 검사한다.
+
+`CheckPasswordChange`는 session `Peek`와 종료된 현재 계정 snapshot을 확인하고 stable principal ID로 기존 비밀번호를
+검증한다. 읽기 종료 실패를 일반 인증 거부로 축소하지 않는다. Form cleaning에 실패한 nil 필드는 건너뛰고, 정상적으로
+cleaning된 필드의 이전 비밀번호 오류와 새 정책 오류는 함께 반환한다. 해싱·세션 touch·만료 정리·쓰기를 하지 않으며
+후속 변경에 사용할 권한 객체도 반환하지 않는다.
+
+`ChangePassword`는 이 사전 검사 뒤 DB 밖에서 새 비밀번호를 한 번 해싱한다. Encoded 결과가 unusable이거나 기존
+stamp와 같으면 거부한다. 같은 원문도 새 salt와 hash로 실제 변경할 수 있다. 비밀번호를 담은 준비 상태는 함수 내부에만
+있으며 종료 시 참조를 버린다. Go 문자열의 메모리 소거를 보장한다는 뜻은 아니다.
+
+Manager가 시각과 entropy를 DB 밖에서 준비한 뒤 하나의 native coordinated transaction에서 현재 namespace·저장 세션의
+principal/stamp·선택 계정의 key/active/credential/권한과 현재 typed 정책을 다시 검사한다. 별도 callback의 오래된 승인이나
+서버 밖에서 받은 대상 ID를 신뢰하지 않는다. 계정의 username·profile·권한이 바뀌어도 credential이 같으면 현재 값을 쓰고,
+이전 snapshot으로 덮지 않는다. 실제 Password/Revision 두 필드만 강제 update하고, 현재 저장 세션의 payload·생성/절대 수명을
+유지한 새 stamp/ID로 회전하며, 같은 namespace의 그 principal에 속한 다른 세션을 모두 폐기한다. 익명·다른 계정·역사
+namespace는 보존한다. LastLogin은 변경하지 않는다. 현재 계정 자신을 actor로 값 없는 domain audit를 함께 추가한다.
+
+만료된 세션의 삭제도 실패한 변경과 따로 commit하지 않는다. Session insert·password update·뒤 batch의 폐기·audit 실패는
+앞선 변경과 함께 rollback한다. 확정 rollback의 직접 인증/정책 거부만 일반 거부로 돌려주며 cleanup·callback 소유권 위반·
+unknown 결과는 공개 credential/record 없이 원인을 보존한다. 확정 collision만 manager의 한정 entropy 재시도를 허용하고
+해싱은 반복하지 않는다. Unknown 결과는 자동 재시도하지 않으며 확정 commit 뒤 취소는 성공을 되돌리지 않는다.
+
+기존 `web/sessionauth`와 계정 Application의 password Form/JSON은 이 owner를 명시적으로 받아 그대로 사용한다.
+CSRF·confirmation·입력 제한은 HTTP가 소유하고, 확정 commit에만 현재 cookie를 교체한다. 독립 CSRF cookie는 유지한다.
+선택 모델의 공통 로그인 Form·scaffold/runtime 전체 전환, 관리자 password 변경, reset과 실제 process restart는 별도 남은
+I1 요구다. 이 자기 변경 owner나 생성 소비자의 작성/compile만으로 해당 요구의 완료를 주장하지 않는다.
 
 ## 도메인에 묶인 계정 감사 기록
 

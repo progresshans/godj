@@ -211,18 +211,5 @@ func (state *creationState[M]) encode(ctx context.Context, raw string, unusable 
 		}
 		return encoded, nil
 	}
-	encoded, err := state.hasher.Hash(ctx, raw)
-	if canceled := ctx.Err(); canceled != nil {
-		return "", managementError(CodeInvalidInput, errors.Join(err, canceled))
-	}
-	if err != nil {
-		if invalid, ok := err.(*auth.Error); ok && invalid != nil && invalid.Code == auth.CodeInvalidInput && invalid.Field == "password" && invalid.Unwrap() == nil {
-			return "", profileInputError("password", "invalid")
-		}
-		return "", managementError(CodeInvalidInput, err)
-	}
-	if err := state.hasher.ValidateEncoded(encoded); err != nil {
-		return "", managementError(CodeInvalidConfig, err)
-	}
-	return encoded, nil
+	return encodeUsablePassword(ctx, state.hasher, raw)
 }

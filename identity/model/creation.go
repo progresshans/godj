@@ -25,12 +25,6 @@ import (
 // password field is deliberately redacted in this callback's model copy.
 type CreationValidator[M any] func(context.Context, db.Queryer, M, RoleMemberships) (validation.Errors, error)
 
-// CreationPasswordValidator is a pure, concurrent-safe strength policy over
-// the raw password and actual typed profile, whose encoded password is redacted.
-// Return value-free diagnostics on "password" or NonField; do not retain raw
-// material or publish external effects. It runs before hashing and at commit.
-type CreationPasswordValidator[M any] func(context.Context, string, M) (validation.Errors, error)
-
 // CreationPolicy explicitly selects login, scalar profile, editable role flags
 // and group/direct-permission collections. Model defaults apply to omitted
 // fields. Principal ID, encoded password, revision and selected timestamps are
@@ -39,7 +33,7 @@ type CreationPasswordValidator[M any] func(context.Context, string, M) (validati
 type CreationPolicy[M any] struct {
 	Fields           []string
 	Validate         CreationValidator[M]
-	ValidatePassword CreationPasswordValidator[M]
+	ValidatePassword PasswordValidator[M]
 	// MaxPasswordBytes defaults to 1024; the supported bound is 1..4096. The
 	// hasher can impose a stricter limit. Empty input never means unusable.
 	MaxPasswordBytes int

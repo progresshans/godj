@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	sessiondb "github.com/progresshans/godj/sessions/database"
+	"github.com/progresshans/godj/validation"
 )
 
 func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
@@ -147,4 +149,15 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("default account unexpectedly changed its stored roles")
 	}
+	t.Run("password_change", func(t *testing.T) {
+		assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "alice", row, func(_ context.Context, raw string, current models.User) (validation.Errors, error) {
+			if current.ID != row.ID || current.FirstName != "Updated Alice JSON" || current.EncodedPassword != "" {
+				return validation.Errors{}, errors.New("default password policy lost the actual typed profile")
+			}
+			if len(raw) < 12 {
+				return validation.NewErrors(validation.New("password", "password_too_short", validation.NewParam("min_length", "12"))), nil
+			}
+			return validation.Errors{}, nil
+		})
+	})
 }

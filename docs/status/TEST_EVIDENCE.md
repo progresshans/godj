@@ -659,6 +659,44 @@ fixture 수정 후 같은 실행의 parent/child 7개가 PASS, fail/skip 0으로
 | `job-120735280401.log` — core normal | `343362feb473db83330b7d69e9dd92937bfa60d41dceaccd8766688eb565aca5` |
 | `job-120746985299.log` — 30분 제한으로 중단된 기준/32비트 대조 | `0d661b39e4caaf0f18c2c826142ad7bd80f54827a2b84a34c2da159b4cef3d80` |
 
+### 선택 계정 자기 비밀번호 변경과 실제 Form/JSON 소비자
+
+2026-10-25, `18b5a740` 뒤의 변경에서 `SessionStore.Authenticator`와 정확한 manager/credential owner에 묶인
+`PasswordChangePersistence`를 작성했다. 생성과 공유하는 `PasswordValidator[M]`는 실제 typed profile을 받으며
+encoded field는 비운다. DB 밖 기존 비밀번호 검증·한 번의 hash와 현재 namespace/계정/세션/정책의 최종 재검사를
+연결한다. 선택 Password/Revision만 강제 update하고 현재 세션 회전·다른 세션 폐기·자기 domain audit를 원자적으로
+확정한다. 같은 원문의 새 salt, 현재 profile/권한과 LastLogin 보존, 다른 계정·익명·역사 namespace 보존을 포함한다.
+
+양 DB native 검사에는 읽기 네 단계의 scope/cleanup 실패, nil field·합친 validation·정책 오류·hasher 실패,
+계정/세션/정책/domain 변경, 사전/최종 만료의 무정리 거부, 실제 insert/update/delete/audit 뒤 실패와 257개 sibling의
+뒤 batch rollback, callback 소유권·취소·unknown/확정 commit, 두 독립 connection의 password 경합 및 login 경합,
+확정 collision의 한정 재시도·unknown 무재시도·0/음수 key를 추가했다. 거부 뒤 재접속해 계정·session payload·audit의
+실제 저장 bytes를 대조하도록 작성했다. 필수 목록은 SQLite/단위 130행, PostgreSQL 123행을 추가했으며 기존 행은 삭제하지 않았다.
+
+외부 생성 4개 module(기본/custom/정규화/custom LastLogin 없음)은 실제 selected DB owner를 기존 계정 Application의
+password Form/JSON에 연결한다. 각 module의 새 12개 하위 case는 CSRF/confirmation/오류 결합·예약/중복/NULL 입력,
+실패의 무해싱/무변경/무쿠키, 성공의 현재 cookie 회전·다른 브라우저 폐기·절대 수명/독립 CSRF/LastLogin 보존과 새
+비밀번호 인증을 검사한다. 부모 harness가 모든 새 case의 완료를 요구한다. 로그인은 선택 인증기의 명시적 HTTP 경로이며
+기본 User에 고정된 공통 로그인 Form을 전환한 것으로 계산하지 않는다. 외부 소비자의 DB는 SQLite다.
+
+로컬은 영향 4 package의 `go test -run '^$'`와 실제 외부 생성 4개 module의 최소 compile만 실행했다. 외부 첫 compile에서
+새 helper의 미사용 import를 수정한 뒤 같은 범위를 다시 확인했다. 최종 두 실행은 exit 0이고 실행 전후 및 최종 3,989개
+비 Markdown 입력의 hash가 같다. 외부 compile은 저장소 밖 overlay로 child에 `-run '^$'`를 추가한 것이며 실제 child
+package 4개가 Test run/fail/skip 없이 종료한 원본을 별도로 대조했다. 저장소 CI의 본문/완료 검사는 유지한다.
+변경 Go 17개의 gofmt, 기존 11개 manifest/155개 소유 파일의 hash, migration·workflow 무변경과 필수 목록 무삭제를 확인했다.
+이번 변경은 기존 typed 생성 팩토리의 공통 runtime 확장이므로 generator/ABI를 바꾸거나 재생성하지 않았다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-selected-password-compile-v1/receipt.json` — 영향 4 package 최소 compile | `1d0ca044daef7d81eb5677e5d378aa6571ae4f1782081866062c7534ec25ca85` |
+| `gdj0138-selected-password-external-compile-v2/receipt.json` — 실제 외부 4 module 최소 compile | `dcec2f872ea398fe8aaf951f29726340f00675fa9b9d7424c7b2078a754a95d1` |
+| `gdj0138-selected-password-publication-v1/verification.json` — source/생성물/필수 실행 대조 | `9a16cc520871f0f97ed38e0965c352b2a518837cbf942a0eba826a0774b37f4a` |
+
+새 단위·native DB/실패/경합·HTTP 본문은 로컬에서 실행하지 않았다. 새 source의 전체 원격 DB/race/process/platform
+결과를 확인해야 하며 작성/compile과 이전 source의 결과를 현재 PASS로 계산하지 않는다. 공통 로그인 Form·공개 최초
+명령/scaffold runtime·관리자 password/reset·관계/파일·host 삭제·채운 DB 이행·독립 PostgreSQL HTTP와 process restart 및
+I1-01~08 전체 수용은 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

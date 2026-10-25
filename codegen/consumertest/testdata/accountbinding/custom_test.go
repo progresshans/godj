@@ -219,4 +219,15 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if credential.Principal().Staff() || credential.Principal().Superuser() {
 		t.Fatal("custom account constants and renamed role fields were not respected")
 	}
+	t.Run("password_change", func(t *testing.T) {
+		assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "member@EXAMPLE.TEST", row, func(_ context.Context, raw string, current people.Member) (validation.Errors, error) {
+			if current.ID != row.ID || current.Region != "JP JSON" || current.Secret != "" || current.Subject != "member-1" {
+				return validation.Errors{}, errors.New("custom password policy lost the actual typed profile")
+			}
+			if len(raw) < 12 {
+				return validation.NewErrors(validation.New("password", "password_too_short", validation.NewParam("min_length", "12"))), nil
+			}
+			return validation.Errors{}, nil
+		})
+	})
 }

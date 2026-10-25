@@ -29,6 +29,9 @@ var accountBindingProfileConsumer []byte
 //go:embed testdata/accountbinding/profile_http_test.go
 var accountBindingProfileHTTPConsumer []byte
 
+//go:embed testdata/accountbinding/password_http_test.go
+var accountBindingPasswordHTTPConsumer []byte
+
 //go:embed testdata/accountbinding/catalog_test.go
 var accountBindingCatalogConsumer []byte
 
@@ -89,11 +92,16 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/profile_test.go", accountBindingProfileConsumer)
 			writeGeneratedTestFile(t, root, "consumer/profile_http_test.go", accountBindingProfileHTTPConsumer)
+			writeGeneratedTestFile(t, root, "consumer/password_http_test.go", accountBindingPasswordHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/catalog_test.go", accountBindingCatalogConsumer)
 			writeGeneratedTestFile(t, root, "consumer/roles_test.go", accountBindingRoleConsumer)
 			writeGeneratedTestFile(t, root, "consumer/creation_test.go", accountBindingCreationConsumer)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
-			assertGeneratedConsumerTests(t, output, required)
+			requiredNames := []string{required, required + "/password_change"}
+			for _, name := range []string{"form_csrf", "form_origin", "form_confirmation", "form_combined", "form_target", "json_csrf_before_parse", "json_target", "json_duplicate", "json_null", "json_combined", "form_success", "json_success"} {
+				requiredNames = append(requiredNames, required+"/password_change/"+name)
+			}
+			assertGeneratedConsumerTests(t, output, requiredNames...)
 			t.Logf("account binding child events (sha256=%x):\n%s", sha256.Sum256(output), output)
 		})
 	}

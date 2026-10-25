@@ -15,6 +15,8 @@ import (
 type Authenticator[M any] struct {
 	inner         *auth.StoredAuthenticator
 	normalization ir.AccountNormalization
+	credentials   *CredentialStore[M]
+	hasher        auth.PasswordHasher
 }
 
 func (Authenticator[M]) Format(state fmt.State, _ rune) {
@@ -29,7 +31,7 @@ func NewAuthenticator[M any](ctx context.Context, store *CredentialStore[M], has
 	if err != nil {
 		return nil, err
 	}
-	return &Authenticator[M]{inner: inner, normalization: store.state.binding.state.role.AuthenticateNormalization}, nil
+	return &Authenticator[M]{inner: inner, normalization: store.state.binding.state.role.AuthenticateNormalization, credentials: store, hasher: hasher}, nil
 }
 
 func (authenticator *Authenticator[M]) Authenticate(ctx context.Context, login, password string) (auth.Credential, error) {

@@ -97,6 +97,20 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		{"session_revoked_previous", sessionRevokedPrevious},
 		{"session_optional_last_login", sessionOptionalLastLogin},
 		{"session_domain_snapshot", sessionDomainSnapshot},
+		{"password_change_lifecycle", passwordChangeLifecycle},
+		{"password_validation", passwordValidation},
+		{"password_session_admission", passwordSessionAdmission},
+		{"password_hasher_failures", passwordHasherFailures},
+		{"password_rechecks", passwordRechecks},
+		{"password_verify_recheck", passwordVerifyRecheck},
+		{"password_commit_failures", passwordCommitFailures},
+		{"password_read_failures", passwordReadFailures},
+		{"password_concurrent", passwordConcurrent},
+		{"password_versus_login", passwordVersusLogin},
+		{"password_entropy", passwordEntropy},
+		{"password_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+			passwordNonpositiveKeys(t, backend, storedKey)
+		}},
 		{"first_account_lifecycle", firstAccountLifecycle},
 		{"first_account_nonfresh", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 			firstAccountNonfresh(t, backend, reopen, storedKey)
@@ -132,7 +146,7 @@ func Run(t *testing.T, open Open, storedKey StoredKeyFixture) {
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
-			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || test.name == "first_account_lifecycle" {
+			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || test.name == "first_account_lifecycle" {
 				sources = append(sources, sessiondb.MigrationSources()...)
 			}
 			loaded, _, err := definition.Load(sources...)
