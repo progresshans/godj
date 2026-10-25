@@ -54,6 +54,10 @@ func accountDocument(guard *authenticationGuard, manager *sessions.Manager) (sch
 	return schemaFile{name: "accountsession.json", data: document.Bytes()}, nil
 }
 
+func (guard *authenticationGuard) LoginInput() (auth.LoginInput, error) {
+	return auth.NewLoginInput(auth.LoginInputConfig{Label: "Username", MaxLength: 256, Normalization: auth.LoginUnicode16NFKC})
+}
+
 type accountExportPassword struct {
 	manager *sessions.Manager
 	guard   *authenticationGuard

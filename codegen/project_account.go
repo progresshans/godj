@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v10"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v11"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -112,7 +112,7 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 			fmt.Fprintf(&output, "\t\t%s: ir.AccountBoolean{Constant: &_%s},\n", item.name, variable)
 		}
 	}
-	fmt.Fprintf(&output, "\t\tGroups: %q, Permissions: %q, WriteLoginNormalization: %q, AuthenticateNormalization: %q, WriteEmailNormalization: %q,\n", role.Groups, role.Permissions, role.WriteLoginNormalization, role.AuthenticateNormalization, role.WriteEmailNormalization)
+	fmt.Fprintf(&output, "\t\tGroups: %q, Permissions: %q, WriteLoginNormalization: %q, LoginFormNormalization: %q, AuthenticateNormalization: %q, WriteEmailNormalization: %q,\n", role.Groups, role.Permissions, role.WriteLoginNormalization, role.LoginFormNormalization, role.AuthenticateNormalization, role.WriteEmailNormalization)
 	fmt.Fprintln(&output, "\t\tCatalog: ir.AccountCatalog{")
 	fmt.Fprintf(&output, "\t\t\tGroup: ir.ModelIdentity{AppLabel: %q, ModelName: %q}, GroupName: %q, GroupRevision: %q, GroupPermissions: %q,\n", role.Catalog.Group.AppLabel, role.Catalog.Group.ModelName, role.Catalog.GroupName, role.Catalog.GroupRevision, role.Catalog.GroupPermissions)
 	fmt.Fprintf(&output, "\t\t\tPermission: ir.ModelIdentity{AppLabel: %q, ModelName: %q}, PermissionCode: %q, PermissionName: %q, PermissionRevision: %q,\n", role.Catalog.Permission.AppLabel, role.Catalog.Permission.ModelName, role.Catalog.PermissionCode, role.Catalog.PermissionName, role.Catalog.PermissionRevision)

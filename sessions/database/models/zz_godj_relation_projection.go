@@ -66,4 +66,4 @@ func (_scan *sessionProjectionScan) Decode() (Session, query.Value, orm.Projecti
 
 type GoDjAppPart3_d87b6f6ca229634a2c0d020873bee6da32d2d218ddcf985df1b41661cc3561c2 struct{}
 
-var _ GoDjProjectSnapshot_7583af2485ed7aa050851a033114f93265118c7b54ba4948130ef9413e27bda6
+var _ GoDjProjectSnapshot_11fb334ddb57b7dcf054d6d88f6c22691c7f968fa14fc5849543d32aaf21495d

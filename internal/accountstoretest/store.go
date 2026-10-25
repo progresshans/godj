@@ -300,6 +300,14 @@ type observedReader struct {
 	change func() error
 }
 
+func (r *observedReader) ValidateSession(ctx context.Context) error {
+	validator, ok := r.Queryer.(db.SessionValidator)
+	if !ok {
+		return errors.New("observation did not borrow a native snapshot")
+	}
+	return validator.ValidateSession(ctx)
+}
+
 func (r *observedReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
 	rows, err := r.Queryer.Query(ctx, plan)
 	if err == nil && !r.once && plan.Table() == (models.UserDescriptor{}).Metadata().DBTable {
@@ -447,8 +455,10 @@ func readContract(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 				_ = callback(reader)
 				return nil
 			case "ignored_callback_error":
-				_ = callback(failedReader{fault})
-				return nil
+				return backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+					_ = callback(&profileReadProbe{Queryer: reader, validator: reader.(db.SessionValidator), fault: fault})
+					return nil
+				})
 			}
 			if err := backend.ReadSnapshot(ctx, callback); err != nil {
 				return err
@@ -480,10 +490,6 @@ func readContract(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 		}
 	}
 }
-
-type failedReader struct{ err error }
-
-func (r failedReader) Query(context.Context, query.Plan) (db.Rows, error) { return nil, r.err }
 
 func invalidGrants(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)

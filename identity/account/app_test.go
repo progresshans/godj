@@ -31,6 +31,9 @@ func (g constructionGuard) Allowed(context.Context, auth.Principal, auth.Permiss
 	return false, nil
 }
 func (g constructionGuard) Sessions() *sessions.Manager { return g.manager }
+func (g constructionGuard) LoginInput() (auth.LoginInput, error) {
+	return auth.NewLoginInput(auth.LoginInputConfig{Label: "Username", MaxLength: 256, Normalization: auth.LoginUnicode16NFKC})
+}
 func (g constructionGuard) CheckPasswordChange(context.Context, sessions.ID, *string, *string) error {
 	g.t.Fatal("startup checked password")
 	return nil
@@ -40,7 +43,7 @@ func (g constructionGuard) ChangePassword(context.Context, sessions.ID, string, 
 	return auth.PasswordChangeResult{}, nil
 }
 func TestAccountConstructionValidatesCompositionWithoutPersistence(t *testing.T) {
-	for _, mode := range []string{"default", "custom", "namespace", "missing_password", "cookie_path", "allowed_next", "root", "parameter", "overlap", "trailing", "escape"} {
+	for _, mode := range []string{"default", "custom", "namespace", "missing_password", "missing_login_input", "cookie_path", "allowed_next", "root", "parameter", "overlap", "trailing", "escape"} {
 		t.Run(mode, func(t *testing.T) {
 			store, err := sessions.NewMemoryStore(4)
 			if err != nil {
@@ -62,6 +65,9 @@ func TestAccountConstructionValidatesCompositionWithoutPersistence(t *testing.T)
 			webConfig := sessionauth.Config{Sessions: manager, Authenticator: guard, Authorizer: guard, PasswordChangePersistence: guard, LoginPath: "/login/", FallbackPath: paths[0], AllowedNextPaths: paths}
 			if mode == "missing_password" {
 				webConfig.PasswordChangePersistence = nil
+			}
+			if mode == "missing_login_input" {
+				webConfig.Authenticator = struct{ auth.CredentialAuthenticator }{guard}
 			}
 			if mode == "cookie_path" {
 				webConfig.SessionCookie.Path = "/admin"

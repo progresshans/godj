@@ -764,15 +764,15 @@ Form/API의 양 DB 재접속은 별도 연결/runtime의 재개 검증이다. �
 `ir.AccountRole`이다. 설치한 model·logical field·M2M의 실제 IR에 principal/login/password/revision/last_login,
 active/staff/superuser와 permission catalog 역할을 대조한다. 기본 User도 같은 선언을 사용한다.
 Email과 login은 같은 unique field를 사용할 수 있다. Boolean 역할은 저장된 필드 또는 명시적인 상수 중 하나이며,
-상수의 false·true와 미선택은 구분한다. 저장할 login과 인증 입력의 정규화 정책은 각각 명시한다.
-기본 계정의 저장 NFKC와 정확한 입력 조회를 하나의 암묵적 규칙으로 합치지 않는다.
+상수의 false·true와 미선택은 구분한다. 저장할 login·공통 로그인 Form·인증 조회의 정규화 정책을 각각 명시한다.
+기본 계정은 저장과 Form에 NFKC, 인증 조회에 exact를 선언한다. Form을 거치지 않는 인증 호출에 Form 정책을 적용하지 않는다.
 선택적인 `CreatedAt`은 nullable이 아닌 DateTime의 서버 생성 시각을 가리키며 기본 계정은 `date_joined`를 선택한다.
 사용자 정의 모델은 이 역할을 생략할 수 있고 이름으로 추론하지 않는다.
 
 Email 역할에는 저장 정책 `exact` 또는 `unicode16_email_domain`을 명시한다. 후자는 변환 전 UTF-8·NUL·byte 한도를
 검사한 뒤 고정 Unicode 16 공백 처리와 마지막 `@` 뒤 domain의 전체 소문자 변환을 사용하며 local part는 보존한다.
 Email이 없으면 이 정책도 없다. Login과 email이 같은 필드면 login 변환 뒤 email 변환을 적용하고 결과 한도를 다시 검사한다.
-어느 정책도 암묵적인 대소문자 무시 조회나 unique 비교를 만들지 않는다. 두 저장 정책 모두 계정 역할 fingerprint에
+어느 정책도 암묵적인 대소문자 무시 조회나 unique 비교를 만들지 않는다. 저장·Form·인증 정책은 계정 역할 fingerprint에
 포함되므로 정책 변경 시 기존 저장 domain을 그대로 사용할 수 없다.
 
 계정 역할은 프로젝트 source identity이며 model의 물리 DDL history가 아니다. 역할 변경은 생성 snapshot과
@@ -789,6 +789,28 @@ Email이 없으면 이 정책도 없다. Login과 email이 같은 필드면 logi
 사용자 정의 모델을 인증 runtime에 연결할 때는 저장된 domain과 선택을 확인하고, 모델 또는 identity 정책 변경은
 명시적 mapping·receipt·session/reset 정책을 갖춘 전환으로 처리해야 한다. 그 runtime·이행·Form/API·실제 환경의
 완성 여부는 GDJ-0138과 TEST_EVIDENCE에서 따로 추적한다.
+
+### 선택 모델의 공통 로그인 Form
+
+`LoginFormNormalization`은 `exact` 또는 `unicode16_nfkc`를 필수로 선언한다. 정규화 원본·private wire의 닫힌 shape와
+실제 byte 예산·생성 snapshot/ABI·역할 fingerprint에 같은 선언을 넣는다. 누락된 과거 선언에 기본 정책을 보충하지 않는다.
+DB가 있는 프로젝트에서 이 선언을 바꾸는 것은 단순 화면 변경이 아니며 기존 domain의 명시적 전환 경계를 따른다.
+
+`Binding.LoginInput`은 선택한 실제 login field의 GoName과 MaxLength를 불변 `auth.LoginInput`으로 투영한다. 길이가 없는
+Text 또는 공통 인증 한도보다 큰 필드는 1,024의 Form 문자 한도를 사용하고 인증의 1,024-byte 한도도 유지한다.
+`CredentialStore`→`StoredAuthenticator`/선택 인증기→`sessionauth.Runtime`은 같은 credential source의 metadata만 전달한다.
+Metadata 제공은 DB 조회나 password work를 하지 않는다. 일반 인증기에는 이 추가 capability를 강제하지 않지만,
+공통 계정 Application을 조립할 때 누락·잘못된 metadata는 시작 오류이며 기본 User로 대체하지 않는다.
+기존 Directory 인증기는 자신의 명시적인 기본 계정 binding으로 이 capability를 제공한다.
+
+공통 AuthenticationForm의 wire field 이름은 `username`을 유지하되 label·문자 한도·Form 정규화는 선택 인증기에서 받는다.
+고정 Unicode 16 공백 정리 후 exact는 원문을 유지한다. NFKC는 변환 전 byte·문자 한도를 확인하고 변환 후 문자 한도를
+다시 적용한다. Password 공백은 보존한다. 선택 필드가 Email이거나 생성 choices를 가지더라도 로그인에 해당 모델의
+생성 validation을 암묵적으로 적용하지 않는다. 이후 인증기의 exact/NFKC 조회·현재 credential/active/권한 재검사와
+동일 session owner의 원자적 login persistence가 최종 인증을 담당한다.
+
+공통 Form의 source 선택과 Admin login, 관리/reset·scaffold runtime의 완성 여부는 구분한다.
+실제 생성 소비자와 환경별 실행 상태는 GDJ-0138 및 TEST_EVIDENCE에서 추적한다.
 
 ## 계정 도메인을 구분하는 credential과 actor
 
@@ -863,6 +885,8 @@ unknown write의 rollback을 확정하지 않고 원래 write fence와 작업 �
 Hash·dummy 검증·encoded profile 검사는 DB snapshot 밖에서 실행하고, 기존 StoredAuthenticator가 검증 뒤 현재
 도메인·credential·active와 권한을 새 snapshot에서 다시 읽는다. 한 번의 callback 및 read cleanup·취소 확인이
 성공하기 전에 credential을 게시하지 않으며 저장 오류의 private cause는 진단 문자열에 노출하지 않는다.
+공통 `ReadSnapshotResult`는 callback의 reader에 live `SessionValidator`를 요구하고 root backend·쓰기/transaction
+capability를 거부한다. Queryer를 감싸는 관측 도구도 실제 borrowed scope의 검증을 전달해야 한다.
 
 이 저장소는 credential 관측 경계다. Typed profile 관리·인가된 catalog 변경·첫 계정 명령·session/reset/audit
 write fence·채운 DB mapping은 같은 binding에 연결해야 하며 GDJ-0138에서 계속 추적한다.

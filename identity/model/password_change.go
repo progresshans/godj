@@ -281,7 +281,7 @@ func (store *accountPasswordStore[M]) Rotate(ctx context.Context, oldID sessions
 	prepared := store.prepared
 	result, err := accountSessionWrite(ctx, store.SessionStore, func(work context.Context, scope db.Session, scoped *sessiondb.Store) (auth.PasswordChangeResult, error) {
 		var zero auth.PasswordChangeResult
-		currentSession, present, err := scoped.LoadIn(work, scope, oldID)
+		currentSession, present, err := scoped.Load(work, oldID)
 		if err != nil {
 			return zero, err
 		}

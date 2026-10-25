@@ -32,6 +32,7 @@ func TestAccountSelectionOwnsGeneratedBindingAndProjectSnapshot(t *testing.T) {
 	for _, required := range []string{
 		"func BindAccount() (_godjaccountmodel.Binding[identity.User], error)",
 		"identity.UserDescriptor{}", "identity.GoDjRelationSchema()", "Constant: &_staff", "_staff := false",
+		`LoginFormNormalization: "unicode16_nfkc"`,
 		"func NewAccountCredentialStore(", "func NewAccountAuthenticator(",
 		"func NewAccountSessionStore(", "_godjaccountmodel.NewSessionStore(store, config)",
 		"func NewAccountRoleEditor(", "_godjaccountmodel.NewRoleEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config)",
@@ -54,6 +55,11 @@ func TestAccountSelectionOwnsGeneratedBindingAndProjectSnapshot(t *testing.T) {
 		if file.Path == "project/zz_godj_account.go" && !bytes.Equal(source, file.Source()) {
 			t.Fatal("declaration mutation changed a published candidate")
 		}
+	}
+	role.LoginFormNormalization = ir.AccountExact
+	formPolicy, err := codegen.GenerateProject(spec)
+	if err != nil || formPolicy.SnapshotSHA256() == second.SnapshotSHA256() {
+		t.Fatal("login form policy did not invalidate generated source", err)
 	}
 	spec.Account = nil
 	unselected, err := codegen.GenerateProject(spec)

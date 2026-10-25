@@ -35,6 +35,7 @@ func ValidateAccountRoleResources(role *ir.AccountRole) error {
 		{"active.field", role.Active.Field}, {"staff.field", role.Staff.Field}, {"superuser.field", role.Superuser.Field},
 		{"groups", role.Groups}, {"permissions", role.Permissions},
 		{"write_login_normalization", string(role.WriteLoginNormalization)}, {"authenticate_normalization", string(role.AuthenticateNormalization)},
+		{"login_form_normalization", string(role.LoginFormNormalization)},
 		{"write_email_normalization", string(role.WriteEmailNormalization)},
 		{"catalog.group.app_label", role.Catalog.Group.AppLabel}, {"catalog.group.model_name", role.Catalog.Group.ModelName},
 		{"catalog.group_name", role.Catalog.GroupName}, {"catalog.group_revision", role.Catalog.GroupRevision}, {"catalog.group_permissions", role.Catalog.GroupPermissions},

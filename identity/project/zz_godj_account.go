@@ -12,7 +12,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v10"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v11"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -23,7 +23,7 @@ func BindAccount() (_godjaccountmodel.Binding[identity.User], error) {
 		Active:    ir.AccountBoolean{Field: "active"},
 		Staff:     ir.AccountBoolean{Field: "staff"},
 		Superuser: ir.AccountBoolean{Field: "superuser"},
-		Groups:    "groups", Permissions: "permissions", WriteLoginNormalization: "unicode16_nfkc", AuthenticateNormalization: "exact", WriteEmailNormalization: "unicode16_email_domain",
+		Groups:    "groups", Permissions: "permissions", WriteLoginNormalization: "unicode16_nfkc", LoginFormNormalization: "unicode16_nfkc", AuthenticateNormalization: "exact", WriteEmailNormalization: "unicode16_email_domain",
 		Catalog: ir.AccountCatalog{
 			Group: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"}, GroupName: "name", GroupRevision: "revision", GroupPermissions: "permissions",
 			Permission: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}, PermissionCode: "code", PermissionName: "name", PermissionRevision: "revision",
@@ -168,4 +168,4 @@ func NewAccountCatalog(backend _godjaccountdb.SnapshotReader, overlay _godjaccou
 	return _godjaccountmodel.NewCatalog(store, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, policies.IdentityGroup, policies.IdentityPermission, overlay, config)
 }
 
-var _ goDjProjectSnapshot_56bc7b3bce2c6b460d6eda8fd1854c8f5d646eb8370129e58926815c6c3d0394
+var _ goDjProjectSnapshot_da0f343c6a762f0260b032e1fd3f53fbc44c42cc041c42ce55b94a17537b0b8c

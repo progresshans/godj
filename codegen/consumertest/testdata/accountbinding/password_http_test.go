@@ -23,6 +23,7 @@ import (
 	identityaccount "github.com/progresshans/godj/identity/account"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	sessionmodels "github.com/progresshans/godj/sessions/database/models"
@@ -34,7 +35,13 @@ import (
 
 type passwordHTTPHasher struct {
 	auth.PasswordHasher
-	hashes atomic.Int64
+	hashes   atomic.Int64
+	verifies atomic.Int64
+}
+
+func (hasher *passwordHTTPHasher) Verify(ctx context.Context, raw, encoded string) (bool, error) {
+	hasher.verifies.Add(1)
+	return hasher.PasswordHasher.Verify(ctx, raw, encoded)
 }
 
 func (hasher *passwordHTTPHasher) Hash(ctx context.Context, raw string) (string, error) {
@@ -43,9 +50,9 @@ func (hasher *passwordHTTPHasher) Hash(ctx context.Context, raw string) (string,
 }
 
 // The shared account application owns the password Form/JSON parsing, error
-// mapping, CSRF and responses. Login uses the selected authenticator directly;
-// the account application's default-User login form is a separate I1 migration.
-func assertAccountPasswordHTTP[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], selected *accountmodel.SessionStore[M], hasher auth.PasswordHasher, login string, row M, policy accountmodel.PasswordValidator[M]) {
+// mapping, CSRF, login and responses over the exact selected authenticator.
+// It does not require a hidden default User or a custom login handler.
+func assertAccountPasswordHTTP[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], selected *accountmodel.SessionStore[M], hasher auth.PasswordHasher, login string, row M, policy accountmodel.PasswordValidator[M]) string {
 	t.Helper()
 	check := func(err error) {
 		t.Helper()
@@ -111,46 +118,13 @@ func assertAccountPasswordHTTP[M any](t *testing.T, backend database.Backend, bi
 	check(err)
 	runtime, err := websession.New(websession.Config{Sessions: manager, Authenticator: verifier, Authorizer: auth.PrincipalAuthorizer{}, LoginPersistence: loginOwner, PasswordChangePersistence: passwordOwner, Clock: clock,
 		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
-		LoginPath: "/selected-login/", FallbackPath: "/account/password/", AllowedNextPaths: next})
+		LoginPath: "/account/login/", FallbackPath: "/account/password/", AllowedNextPaths: next})
 	check(err)
 	configured, err := settings.New(settings.Definition{ProjectName: "selected_account_password", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "account"})})
 	check(err)
 	surface, err := identityaccount.New(identityaccount.Config{Apps: configured.Apps(), Namespace: "account", Auth: runtime})
 	check(err)
-	routes := append(surface.Routes(),
-		web.Route{Name: "account:selected-login-token", Method: "GET", Path: "/selected-login/", Handler: func(request *web.Request) (web.Response, error) {
-			token, err := runtime.CSRFToken(request)
-			if err != nil {
-				return web.Response{}, err
-			}
-			response, err := web.HTML(200, []byte(token.Value()))
-			if err != nil {
-				return web.Response{}, err
-			}
-			return token.Apply(response)
-		}},
-		web.Route{Name: "account:selected-login", Method: "POST", Path: "/selected-login/", Handler: func(request *web.Request) (web.Response, error) {
-			data, err := profileFormData(request)
-			if err != nil {
-				return web.Response{}, err
-			}
-			if err := runtime.VerifyCSRF(request, data["csrfmiddlewaretoken"]); err != nil {
-				return web.HTML(403, nil)
-			}
-			result, err := runtime.Login(request, data.Get("login"), data.Get("password"))
-			if err == auth.ErrInvalidCredentials {
-				return web.HTML(401, nil)
-			}
-			if err != nil {
-				return web.Response{}, err
-			}
-			response, err := web.NewResponse(204, nil, nil)
-			if err != nil {
-				return web.Response{}, err
-			}
-			return result.Apply(response)
-		}})
-	application, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, Middleware: surface.Middleware()})
+	application, err := web.NewApplication(web.Config{Settings: configured, Routes: surface.Routes(), Middleware: surface.Middleware()})
 	check(err)
 	server := httptest.NewServer(application)
 	t.Cleanup(server.Close)
@@ -201,15 +175,100 @@ func assertAccountPasswordHTTP[M any](t *testing.T, backend database.Backend, bi
 		}
 		return record
 	}
+	csrfPattern := regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`)
+	loginPage := func(client *http.Client) (string, string) {
+		t.Helper()
+		status, _, markup := send(client, "GET", "/account/login/", "", "", "", "")
+		match := csrfPattern.FindStringSubmatch(markup)
+		if status != 200 || len(match) != 2 || len(match[1]) != 128 {
+			t.Fatal("common login form/CSRF missing", status)
+		}
+		return match[1], markup
+	}
+	input, err := verifier.LoginInput()
+	check(err)
+	for _, name := range []string{"login_presentation", "login_csrf", "login_input_limit", "login_fullwidth_policy"} {
+		t.Run(name, func(t *testing.T) {
+			probe := newClient()
+			token, markup := loginPage(probe)
+			before := snapshot()
+			observedHasher.hashes.Store(0)
+			observedHasher.verifies.Store(0)
+			if name == "login_presentation" {
+				limit := 0
+				label := ""
+				for _, field := range metadata.Fields {
+					if field.Name == role.Login {
+						limit, label = field.MaxLength, field.GoName
+					}
+				}
+				if limit == 0 || limit > auth.MaximumUsernameBytes {
+					limit = auth.MaximumUsernameBytes
+				}
+				if input.Label() != label || input.MaxLength() != limit || string(input.Normalization()) != string(role.LoginFormNormalization) || !strings.Contains(markup, `for="id_username">`+label+`</label>`) {
+					t.Fatal("common login did not use actual selected field metadata")
+				}
+				if observedHasher.hashes.Load() != 0 || observedHasher.verifies.Load() != 0 || !reflect.DeepEqual(snapshot(), before) {
+					t.Fatal("login form presentation performed password/DB work")
+				}
+				return
+			}
+			rawLogin := login
+			if name == "login_csrf" {
+				token = ""
+			}
+			if name == "login_input_limit" {
+				rawLogin = strings.Repeat("x", input.MaxLength()+1)
+			}
+			if name == "login_fullwidth_policy" {
+				rawLogin = strings.Map(func(r rune) rune {
+					if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' {
+						return r + 0xfee0
+					}
+					return r
+				}, login)
+			}
+			data := url.Values{"username": {rawLogin}, "password": {accountPasswordText}, "csrfmiddlewaretoken": {token}, "next": {"https://foreign.test/"}}
+			status, headers, payload := send(probe, "POST", "/account/login/", data.Encode(), "application/x-www-form-urlencoded", "", "")
+			admitted := name == "login_fullwidth_policy" && (role.LoginFormNormalization == ir.AccountUnicode16NFKC || role.AuthenticateNormalization == ir.AccountUnicode16NFKC)
+			if observedHasher.hashes.Load() != 0 {
+				t.Fatal("login form hashed a new password")
+			}
+			if admitted {
+				if status != 302 || headers.Get("Location") != "/account/password/" || headers.Get("Set-Cookie") == "" || observedHasher.verifies.Load() != 1 {
+					t.Fatal("declared Unicode policy failed real common login", status)
+				}
+				current(probe)
+			} else {
+				want := 200
+				if name == "login_csrf" {
+					want = 403
+				}
+				if status != want || headers.Get("Set-Cookie") != "" || !reflect.DeepEqual(snapshot(), before) {
+					t.Fatal("common login refusal changed durable state or cookie", status, want)
+				}
+				verifies := int64(0)
+				if name == "login_fullwidth_policy" {
+					verifies = 1
+				}
+				if observedHasher.verifies.Load() != verifies {
+					t.Fatal("login input/CSRF rejection reached password verification")
+				}
+				if name == "login_input_limit" && !strings.Contains(payload, `data-error-field="username" data-error-code="max_length"`) {
+					t.Fatal("selected login field bound was not enforced")
+				}
+				if name == "login_fullwidth_policy" && !strings.Contains(payload, `data-error-code="invalid_login"`) {
+					t.Fatal("exact form silently normalized login")
+				}
+			}
+		})
+	}
 	logIn := func(client *http.Client, raw string) sessions.Record {
 		t.Helper()
-		status, _, token := send(client, "GET", "/selected-login/", "", "", "", "")
-		if status != 200 || len(token) != 128 {
-			t.Fatal("login CSRF missing", status)
-		}
-		data := url.Values{"login": {login}, "password": {raw}, "csrfmiddlewaretoken": {token}}
-		status, _, _ = send(client, "POST", "/selected-login/", data.Encode(), "application/x-www-form-urlencoded", "", "")
-		if status != 204 {
+		token, _ := loginPage(client)
+		data := url.Values{"username": {login}, "password": {raw}, "csrfmiddlewaretoken": {token}}
+		status, headers, _ := send(client, "POST", "/account/login/", data.Encode(), "application/x-www-form-urlencoded", "", "")
+		if status != 302 || headers.Get("Location") != "/account/password/" {
 			t.Fatal("selected HTTP login failed", status)
 		}
 		return current(client)
@@ -217,7 +276,6 @@ func assertAccountPasswordHTTP[M any](t *testing.T, backend database.Backend, bi
 	previous := logIn(client, accountPasswordText)
 	other := logIn(sibling, accountPasswordText)
 	csrfCookie := cookie(client, websession.DefaultCSRFCookieName)
-	csrfPattern := regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`)
 	status, _, markup := send(client, "GET", "/account/password/", "", "", "", "")
 	match := csrfPattern.FindStringSubmatch(markup)
 	if status != 200 || len(match) != 2 {
@@ -343,4 +401,5 @@ func assertAccountPasswordHTTP[M any](t *testing.T, backend database.Backend, bi
 		t.Fatal("original credential survived HTTP password changes", err)
 	}
 	logIn(newClient(), oldPassword)
+	return oldPassword
 }

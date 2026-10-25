@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 	"crypto/sha256"
-	"errors"
 	"fmt"
 	"reflect"
 
@@ -104,26 +103,18 @@ func (store *CredentialStore[M]) lookup(ctx context.Context, predicate orm.Predi
 	if err := ctx.Err(); err != nil {
 		return auth.Credential{}, false, err
 	}
-	var candidate auth.Credential
-	var found bool
-	var callbackErr error
-	calls := 0
-	err := store.state.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-		calls++
-		if calls != 1 || nilModelValue(reader) {
-			callbackErr = errors.Join(callbackErr, invalidAccountCredential())
-			return callbackErr
-		}
-		candidate, found, callbackErr = store.lookupIn(ctx, reader, predicate)
-		return callbackErr
+	type observedCredential struct {
+		credential auth.Credential
+		found      bool
+	}
+	result, err := db.ReadSnapshotResult(ctx, store.state.backend, func(work context.Context, reader db.Queryer) (observedCredential, error) {
+		candidate, found, err := store.lookupIn(work, reader, predicate)
+		return observedCredential{candidate, found}, err
 	})
-	if err = errors.Join(err, callbackErr, ctx.Err()); err != nil {
+	if err != nil {
 		return auth.Credential{}, false, accountReadFailure(err)
 	}
-	if calls != 1 {
-		return auth.Credential{}, false, invalidAccountCredential()
-	}
-	return candidate, found, nil
+	return result.credential, result.found, nil
 }
 
 func (store *CredentialStore[M]) lookupIn(ctx context.Context, reader db.Queryer, predicate orm.Predicate[M]) (auth.Credential, bool, error) {

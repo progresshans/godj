@@ -93,6 +93,8 @@ func TestAccountRoleRejectsAmbiguousAndForeignSecurityBindings(t *testing.T) {
 		{"foreign principal field", func(r *ir.AccountRole, _ []ir.Schema) { r.PrincipalID = "principal_id" }, "account.principal_id", "unresolved_field"},
 		{"shared principal and login", func(r *ir.AccountRole, _ []ir.Schema) { r.PrincipalID = r.Login }, "account.login", "duplicate_field_role"},
 		{"missing write policy", func(r *ir.AccountRole, _ []ir.Schema) { r.WriteLoginNormalization = "" }, "account.write_login_normalization", "unsupported_normalization"},
+		{"missing form policy", func(r *ir.AccountRole, _ []ir.Schema) { r.LoginFormNormalization = "" }, "account.login_form_normalization", "unsupported_normalization"},
+		{"unknown form policy", func(r *ir.AccountRole, _ []ir.Schema) { r.LoginFormNormalization = ir.AccountUnicode16EmailDomain }, "account.login_form_normalization", "unsupported_normalization"},
 		{"missing email policy", func(r *ir.AccountRole, _ []ir.Schema) { r.WriteEmailNormalization = "" }, "account.write_email_normalization", "unsupported_normalization"},
 		{"unknown email policy", func(r *ir.AccountRole, _ []ir.Schema) { r.WriteEmailNormalization = ir.AccountUnicode16NFKC }, "account.write_email_normalization", "unsupported_normalization"},
 		{"email policy without role", func(r *ir.AccountRole, _ []ir.Schema) { r.Email = "" }, "account.write_email_normalization", "unsupported_normalization"},
@@ -213,7 +215,7 @@ func customAccountRole(t *testing.T) (ir.AccountRole, []ir.Schema) {
 		Model: schema.Target("people", "member"), PrincipalID: "subject", Login: "contact", Password: "secret",
 		Revision: "version", LastLogin: "seen", Email: "contact",
 		Active: ir.AccountBoolean{Field: "enabled"}, Staff: ir.AccountBoolean{Field: "operator"}, Superuser: ir.AccountBoolean{Field: "root"},
-		Groups: "teams", Permissions: "grants", WriteLoginNormalization: ir.AccountUnicode16NFKC, AuthenticateNormalization: ir.AccountExact,
+		Groups: "teams", Permissions: "grants", WriteLoginNormalization: ir.AccountUnicode16NFKC, LoginFormNormalization: ir.AccountExact, AuthenticateNormalization: ir.AccountExact,
 		WriteEmailNormalization: ir.AccountExact,
 		Catalog: ir.AccountCatalog{
 			Group: schema.Target("access", "team"), GroupName: "title", GroupRevision: "version", GroupPermissions: "grants",

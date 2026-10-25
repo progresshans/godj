@@ -215,12 +215,9 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertAccountCreationHTTP(t, backend, binding, creator, authenticator, sessionStore, actor.Principal(), "member@EXAMPLE.TEST", "region", team.ID, grants[0].ID)
-	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1")
-	if credential.Principal().Staff() || credential.Principal().Superuser() {
-		t.Fatal("custom account constants and renamed role fields were not respected")
-	}
+	var currentPassword string
 	t.Run("password_change", func(t *testing.T) {
-		assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "member@EXAMPLE.TEST", row, func(_ context.Context, raw string, current people.Member) (validation.Errors, error) {
+		currentPassword = assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "member@EXAMPLE.TEST", row, func(_ context.Context, raw string, current people.Member) (validation.Errors, error) {
 			if current.ID != row.ID || current.Region != "JP JSON" || current.Secret != "" || current.Subject != "member-1" {
 				return validation.Errors{}, errors.New("custom password policy lost the actual typed profile")
 			}
@@ -230,4 +227,9 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 			return validation.Errors{}, nil
 		})
 	})
+	credential := assertStoredAccount(t, backend, binding, authenticator, "member@EXAMPLE.TEST", "member-1", currentPassword)
+	if credential.Principal().Staff() || credential.Principal().Superuser() {
+		t.Fatal("custom account constants and renamed role fields were not respected")
+	}
+
 }

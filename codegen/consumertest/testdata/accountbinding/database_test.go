@@ -182,7 +182,7 @@ func (hasher outsideSnapshotHasher) ValidateEncoded(encoded string) error {
 	return hasher.inner.ValidateEncoded(encoded)
 }
 
-func assertStoredAccount[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], authenticator *accountmodel.Authenticator[M], login, principalID string) auth.Credential {
+func assertStoredAccount[M any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], authenticator *accountmodel.Authenticator[M], login, principalID, currentPassword string) auth.Credential {
 	t.Helper()
 	fingerprint, err := binding.RoleFingerprint()
 	if err != nil {
@@ -193,7 +193,7 @@ func assertStoredAccount[M any](t *testing.T, backend database.Backend, binding 
 	if err != nil {
 		t.Fatal(err)
 	}
-	before, err := authenticator.Authenticate(t.Context(), login, accountPasswordText)
+	before, err := authenticator.Authenticate(t.Context(), login, currentPassword)
 	if err != nil || before.Principal().ID() != principalID || !before.Principal().Authenticated() {
 		t.Fatal("selected account did not authenticate through the shared stored authenticator", err)
 	}
@@ -234,7 +234,7 @@ func assertStoredAccount[M any](t *testing.T, backend database.Backend, binding 
 	if err != nil || after.Principal().ID() != principalID || after.MatchesSessionStamp(before.SessionStamp()) {
 		t.Fatal("new account generation inherited authentication from identical stored fields", err)
 	}
-	fresh, err := authenticator.Authenticate(t.Context(), login, accountPasswordText)
+	fresh, err := authenticator.Authenticate(t.Context(), login, currentPassword)
 	if err != nil || !fresh.MatchesSessionStamp(after.SessionStamp()) {
 		t.Fatal("new ownership generation could not authenticate independently", err)
 	}

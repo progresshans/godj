@@ -145,12 +145,9 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	assertAccountCreationHTTP(t, backend, binding, creator, authenticator, sessionStore, actor.Principal(), "alice", "first_name", team.ID, grants[0].ID)
-	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1")
-	if credential.Principal().Staff() || credential.Principal().Superuser() {
-		t.Fatal("default account unexpectedly changed its stored roles")
-	}
+	var currentPassword string
 	t.Run("password_change", func(t *testing.T) {
-		assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "alice", row, func(_ context.Context, raw string, current models.User) (validation.Errors, error) {
+		currentPassword = assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "alice", row, func(_ context.Context, raw string, current models.User) (validation.Errors, error) {
 			if current.ID != row.ID || current.FirstName != "Updated Alice JSON" || current.EncodedPassword != "" {
 				return validation.Errors{}, errors.New("default password policy lost the actual typed profile")
 			}
@@ -160,4 +157,9 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 			return validation.Errors{}, nil
 		})
 	})
+	credential := assertStoredAccount(t, backend, binding, authenticator, "alice", "user-1", currentPassword)
+	if credential.Principal().Staff() || credential.Principal().Superuser() {
+		t.Fatal("default account unexpectedly changed its stored roles")
+	}
+
 }

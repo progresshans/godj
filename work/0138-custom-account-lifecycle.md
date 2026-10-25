@@ -141,8 +141,14 @@ typed password 정책·DB 밖 이전 검증/한 번의 hash와 최종 현재 계
 현재 세션 회전·같은 principal의 다른 세션 폐기·domain audit를 하나의 native transaction에서 확정한다. LastLogin과
 현재 profile/권한·독립 CSRF는 유지한다. 읽기/해싱/부분 쓰기·뒤 batch·cleanup/unknown·만료·경합과 entropy 한도를
 양 DB 필수 목록에 추가했다. 기본/custom/정규화/LastLogin 없는 외부 소비자는 기존 계정 Application의 실제 Form/JSON
-비밀번호 경로에 이 owner를 연결한다. 로그인은 선택 인증기의 명시적 HTTP 경로를 사용하며 기본 User에 고정된 공통
-로그인 Form의 전환까지 완료한 것으로 보지 않는다. 새 본문의 실행 여부는 TEST_EVIDENCE에서 구분한다.
+비밀번호 경로에 이 owner를 연결한다. 새 본문의 실행 여부는 TEST_EVIDENCE에서 구분한다.
+
+공통 계정 로그인 Form이 선택 인증기의 불변 metadata를 사용하도록 전환했다. 실제 login field의 label·문자 한도와
+저장/인증 조회와 별개인 명시적 Form 정규화 정책을 IR·private wire·생성 binding에 연결한다. Metadata가 없는 구성은
+시작 시 거부한다. 기본/custom/인증 NFKC/Form NFKC/짧은 login/Text login/LastLogin 없는 외부 생성 소비자는
+공통 로그인에서 실제 CSRF·정규화·길이·redirect·durable session을 확인하고 이어 같은 Form/JSON 비밀번호 경로를 사용한다.
+앞선 password CI 실패에서 잘못된 bound-session 호출과 credential 읽기 범위 검증 누락을 재현해 수정했다.
+한정 재현과 새 로그인 본문의 실행 상태는 TEST_EVIDENCE에서 구분한다. Admin login·관리/reset·통합 runtime은 남아 있다.
 
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·관리자 password 변경/reset과 통합 runtime·host 삭제·audit/session 설치/startup·채운 DB

@@ -5,25 +5,24 @@ import (
 	"net/url"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
-	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/validation"
 )
 
 func (a *Application) prepareForms() error {
-	usernameLimit := 0
-	for _, field := range (models.UserDescriptor{}).Metadata().Fields {
-		if field.Name == "username" {
-			usernameLimit = field.MaxLength
-		}
+	input, err := a.auth.LoginInput()
+	if err != nil {
+		return err
 	}
-	if usernameLimit < 1 {
-		return invalidConfig("username")
-	}
-	username, err := forms.CharField("username", forms.WithLabel("Username"), forms.WithMaxLength(usernameLimit), forms.WithTrimWhitespace(false), forms.WithStringNormalizer(func(value string) string {
+	usernameLimit := input.MaxLength()
+	// The username wire name is the account AuthenticationForm contract, not
+	// a model field lookup. Label, length and transformation come from the
+	// exact selected authenticator; its own lookup policy remains independent.
+	username, err := forms.CharField("username", forms.WithLabel(input.Label()), forms.WithMaxLength(usernameLimit), forms.WithTrimWhitespace(false), forms.WithStringNormalizer(func(value string) string {
 		value = unicode16.TrimSpace(value)
-		if utf8.RuneCountInString(value) > usernameLimit {
+		if input.Normalization() == auth.LoginExact || len(value) > auth.MaximumUsernameBytes || utf8.RuneCountInString(value) > usernameLimit {
 			return value
 		}
 		return unicode16.NFKC(value)

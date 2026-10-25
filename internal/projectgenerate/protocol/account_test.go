@@ -38,6 +38,9 @@ func TestProjectAccountSelectionSurvivesCanonicalProtocolAndOwnsConstants(t *tes
 		bytes.Replace(document, []byte(`"constant":false`), []byte(`"constant":null`), 1),
 		bytes.Replace(document, []byte(`"constant":false`), []byte(`"field":"staff","constant":false`), 1),
 		bytes.Replace(document, []byte(`"login":"username"`), []byte(`"login":"encoded_password"`), 1),
+		bytes.Replace(document, []byte(`"login_form_normalization":"unicode16_nfkc",`), nil, 1),
+		bytes.Replace(document, []byte(`"login_form_normalization":"unicode16_nfkc"`), []byte(`"login_form_normalization":""`), 1),
+		bytes.Replace(document, []byte(`"login_form_normalization":"unicode16_nfkc"`), []byte(`"login_form_normalization":"lowercase"`), 1),
 		bytes.Replace(document, []byte(`"write_email_normalization":"unicode16_email_domain"`), []byte(`"write_email_normalization":"unicode16_email_domain","unexpected":true`), 1),
 	} {
 		if _, _, rejected := ParseResponse(invalid, true); !rejected {

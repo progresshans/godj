@@ -12,7 +12,7 @@ func AccountRole() ir.AccountRole {
 		Revision: "revision", LastLogin: "last_login", CreatedAt: "date_joined", Email: "email",
 		Active: ir.AccountBoolean{Field: "active"}, Staff: ir.AccountBoolean{Field: "staff"}, Superuser: ir.AccountBoolean{Field: "superuser"},
 		Groups: "groups", Permissions: "permissions",
-		WriteLoginNormalization: ir.AccountUnicode16NFKC, AuthenticateNormalization: ir.AccountExact,
+		WriteLoginNormalization: ir.AccountUnicode16NFKC, LoginFormNormalization: ir.AccountUnicode16NFKC, AuthenticateNormalization: ir.AccountExact,
 		WriteEmailNormalization: ir.AccountUnicode16EmailDomain,
 		Catalog: ir.AccountCatalog{
 			Group:     ir.ModelIdentity{AppLabel: AppLabel, ModelName: "group"},

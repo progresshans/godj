@@ -11,6 +11,10 @@ It does not own identity storage or choose password strength policy. Article's `
 An Admin sharing the runtime declares the account paths in `admin.SiteConfig.AdditionalNextPaths`.
 Admin staff/model admission remains independent of ordinary account access. Startup performs no account reads or password work.
 
+For a generated selected account, construct the project's `NewAccountSessionStore`, create its session manager and obtain the verifier through `store.Authenticator(ctx, hasher)`. Bind `store.LoginPersistence(manager)` and `store.PasswordChangePersistence(manager, verifier, typedConfig)` into the same Web runtime. The password policy receives the actual selected model type.
+
+The login form requires the exact authenticator's `auth.LoginInputProvider` metadata. Generated bindings supply the selected login field's label and character limit, and the explicit `AccountRole.LoginFormNormalization` policy (`exact` or `unicode16_nfkc`). The built-in Directory verifier supplies its own default-account declaration. Missing metadata is a startup error. The form keeps the `username` wire name, trims Unicode 16 whitespace, applies the declared form policy and preserves password whitespace. Form normalization, stored login normalization and authentication lookup normalization are independent declarations; model creation validators and choices do not become login rules. Unbounded Text fields use the common 1,024-character form envelope, with the authentication byte limit enforced separately.
+
 | Route | Behavior |
 |---|---|
 | GET/POST `/account/login/` | CSRF-protected ordinary login, bounded local `next` |

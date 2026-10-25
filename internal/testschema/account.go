@@ -56,7 +56,7 @@ func CustomAccount() (ir.AccountRole, []ir.Schema, error) {
 		Model: schema.Target("people", "member"), PrincipalID: "subject", Login: "contact", Password: "secret",
 		Revision: "version", LastLogin: "seen", Email: "contact",
 		Active: ir.AccountBoolean{Field: "enabled"}, Staff: ir.AccountBoolean{Constant: &staff}, Superuser: ir.AccountBoolean{Field: "root"},
-		Groups: "teams", Permissions: "grants", WriteLoginNormalization: ir.AccountUnicode16NFKC, AuthenticateNormalization: ir.AccountExact,
+		Groups: "teams", Permissions: "grants", WriteLoginNormalization: ir.AccountUnicode16NFKC, LoginFormNormalization: ir.AccountExact, AuthenticateNormalization: ir.AccountExact,
 		WriteEmailNormalization: ir.AccountExact,
 		Catalog: ir.AccountCatalog{
 			Group: schema.Target("access", "team"), GroupName: "title", GroupRevision: "version", GroupPermissions: "grants",

@@ -697,6 +697,67 @@ package 4개가 Test run/fail/skip 없이 종료한 원본을 별도로 대조�
 명령/scaffold runtime·관리자 password/reset·관계/파일·host 삭제·채운 DB 이행·독립 PostgreSQL HTTP와 process restart 및
 I1-01~08 전체 수용은 남아 있다.
 
+### 선택 계정 공통 로그인 Form과 password CI 실패 수정
+
+2026-10-25, source `ea4e61e9476dbcc288b59ad6b4bbeac6d5919e0c`의
+[CI 40179403632](https://github.com/progresshans/godj/actions/runs/40179403632)에서 runtime job `121127316230`과
+외부 소비자 job `121127316137`의 실패를 확인했다. 실제 checkout `8efc0bcb42cd1346ff7a4c6dca99c6a271096f21`의
+tree `125540fb31328a8ee04c49672f10dcb4af893e0f`는 제출 source와 같다. 원본은 같은 검증 보관소의
+`gdj0138-ea4e61e9-ci-40179403632/`에 보존했다. 이 실행의 실패·취소·미완료 작업을 PASS로 계산하지 않는다.
+
+동일 source를 별도로 export하여 SQLite 실패를 재현했다. Password owner가 이미 `InSession`으로 묶인 Store에
+`LoadIn`을 다시 호출한 것이 쓰기 실패의 원인이었다. 같은 bound scope의 `Load`로 수정하고, credential 조회는
+공통 `ReadSnapshotResult`로 live borrowed read scope와 callback/cleanup을 검증하도록 바꿨다. Root backend를
+snapshot reader로 받아 해싱·쓰기에 진행하던 경로를 거부한다. 관측 wrapper와 오류 주입은 실제 native validator를
+전달하며 기존 원인 보존·rollback·unknown·경합 조건을 유지한다. 수정한 export에서 관련 SQLite Test event
+127개의 run/pass와 skip 0을 확인했다. PostgreSQL·race·전체 source 검증을 이 한정 재현에서 추론하지 않는다.
+
+외부 소비자의 로그인 500은 위 두 수정만으로 해결되지 않아 같은 export에서 별도로 재현했다. 기존 domain 검사가
+DB를 다른 계정 역할로 전환해 mismatch를 확인한 뒤 password HTTP 검사를 실행하고 있었다. 실제 오류는 그
+stored role mismatch의 정상 거부였다. Domain 거부 검사는 삭제하지 않고 정상 로그인·두 password 변경 뒤로
+옮겼으며, 새 비밀번호로 현재/변경 domain의 인증을 대조한다. 수정한 기존 네 생성 module은 각각 14개 child Test
+event의 run/pass와 skip 0을 기록했고 실제 SQLite·TCP·cookie·Form/JSON·domain 검사를 마쳤다. 이는 v10 source에
+결합한 실패 수정 확인이며 아래 새 공통 로그인 Form의 실행 근거로 대체하지 않는다.
+
+새 구현은 `AccountRole.LoginFormNormalization`을 저장 및 인증 조회 정책과 별개의 필수 exact/NFKC 선언으로 둔다.
+선택 field의 실제 label·문자 한도와 정책을 binding→credential store→저장 인증기→Web runtime의 불변 `LoginInput`으로
+전달한다. 공통 계정 Form은 기본 User metadata를 직접 읽지 않으며, provider가 없거나 잘못된 구성은 I/O 전에 거부한다.
+기존 Directory도 자신의 명시적인 기본 binding을 제공한다. Form의 `username` wire 이름·Unicode 공백 처리와 password
+공백 보존, CSRF·redirect·현재 credential/세션 재검사 경계는 유지한다.
+
+역할 IR·wire resource/닫힌 shape·정확한 byte 측정·생성 snapshot/역할 fingerprint를 함께 갱신했다. 첫 공개 generate에서
+새 wire 필드의 크기 계산 누락을 확인했으며, 해당 protocol 실패를 재현한 뒤 size/shape/round-trip 4개 검사로 수정했다.
+계정 생성 ABI v11로 11개 프로젝트의 공개 generate를 완료했다. 기존 migration 정의는 바꾸지 않았다.
+
+외부 실제 생성 소비자는 기본/custom/인증 NFKC/LastLogin 없음에 Form NFKC·100자 login·무제한 Text login을 추가했다.
+일곱 module 모두 자체 login handler를 제거하고 공통 Account Application의 login→password Form/JSON을 사용한다.
+선택 label/한도, 무인가 CSRF, 초과 길이의 무해싱/무변경, fullwidth의 명시적 Form·인증 정책과 외부 `next` 거부를
+네 필수 child로 추가했다. 기존 password 12개 child도 유지한다. Relation 필수 목록에는 10행을 추가해 3,516행이며
+PostgreSQL 4,868행과 기존 필수 행은 유지한다. Auth·IR·wire의 새 단위 본문은 기존 전체 package 실행 owner에서 검사한다.
+
+로컬 최소 compile은 영향 12 package의 본문 없는 `-run '^$'`와 실제 외부 10 module(일반 계정 7·최초 계정 3)이다.
+외부 compile은 저장소 밖 overlay에서만 child 본문을 제외하고, 각 child package의 종료와 Test run/fail/skip 부재를
+대조했다. Native compile 뒤 바뀐 비 Markdown 입력은 위 domain 순서 수정의 외부 fixture 네 파일뿐이며 최종 외부
+compile이 그 파일을 포함한다. 제품·생성기·새 단위 source는 그대로다. 최종 외부 compile 전후 3,996개 비 Markdown
+입력 hash가 같으며, 생성 소유 파일·포맷·필수 목록·문서 링크는 최종 게시 대조에 연결한다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-ea4e61e9-ci-40179403632/job-121127316230.log` — runtime 실패 원본 | `92723f3a933aad4101773f220e784eecd056ed19cc2ca9235b1cbb9d9de3fc3f` |
+| `gdj0138-ea4e61e9-ci-40179403632/job-121127316137.log` — 외부 로그인 실패 원본 | `58df73a36b47fbe5c20e43fe10edc2502784e4ba5545e09e339b62613e3ff7ea` |
+| `gdj0138-selected-password-ci-repro-v1/before.json` — 같은 source의 SQLite 실패 | `ad244bf20b8c05b3ee11723c17c1b1393b284b1f54fb9f0226354bd7e01db42c` |
+| `gdj0138-selected-password-ci-repro-v1/after.json` — native 수정 뒤 127 Test PASS | `4319e5490f4f916493c9bf15458ce20be5ecd69f56c17ce500bdd38bad39eeea` |
+| `gdj0138-selected-password-ci-repro-v1/external-order-fixed.json` — 기존 네 HTTP 소비자·domain 검사 | `047b68efee0fbe8570ca8970e5076643685bf5f8f0b757def07e71e9462c5fe0` |
+| `gdj0138-common-login-wire-repro-v1/after.json` — wire 실패 수정 뒤 4 Test PASS | `d7d15fc53c7b08099b69a392d7bef440a9354fa998189fa85f1af2e339296094` |
+| `gdj0138-common-login-generate-v2/receipt.json` — 공개 11개 생성 명령 | `ff94e4773d10b89275a16e04d4794d8c57a103280b6ebdbcfb7bd8ab6bb6d3d9` |
+| `gdj0138-common-login-native-compile-v1/receipt.json` — 영향 12 package 최소 compile | `0bb2e57de1b1b1c261aa2441d731a36bd178e6e83b94209a85ca4801ffb0cf67` |
+| `gdj0138-common-login-external-compile-v2/receipt.json` — 최종 외부 10 module 최소 compile | `e3a070948d1bb576f60bf8c3ed0c7181e966cc804ce020987147e45870759393` |
+
+새 로그인 단위·일곱 HTTP 소비자 본문과 전체 DB/race/process/platform 실행은 원격 CI 확인 대상이다. 이번 작성·생성·
+compile과 이전 source의 한정 실패 수정으로 I1 수용 완료를 판단하지 않는다. 공개 최초 명령·scaffold/통합 runtime·
+Admin login/관리/reset·profile 관계/파일·host 삭제·채운 DB 모델 전환·독립 PostgreSQL HTTP·실제 process restart와
+I1-01~08 전체 수용은 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

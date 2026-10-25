@@ -51,7 +51,7 @@ var accountBindingCreationConsumer []byte
 var accountBindingRoleConsumer []byte
 
 func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing.T) {
-	for _, variant := range []struct{ custom, normalized, noLastLogin bool }{{}, {custom: true}, {custom: true, normalized: true}, {custom: true, noLastLogin: true}} {
+	for _, variant := range []struct{ custom, normalized, noLastLogin, formNormalized, shortLogin, textLogin bool }{{}, {custom: true}, {custom: true, normalized: true}, {custom: true, noLastLogin: true}, {custom: true, formNormalized: true}, {custom: true, shortLogin: true}, {custom: true, textLogin: true}} {
 		custom := variant.custom
 		name, source, required := "default", defaultAccountBindingConsumer, "TestDefaultAccountBindingOwnsTypedRows"
 		if custom {
@@ -63,10 +63,42 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 		if variant.noLastLogin {
 			name = "custom_without_last_login"
 		}
+		if variant.formNormalized {
+			name = "custom_form_normalized"
+		}
+		if variant.shortLogin {
+			name = "custom_short_login"
+		}
+		if variant.textLogin {
+			name = "custom_text_login"
+		}
 		t.Run(name, func(t *testing.T) {
 			spec := accountBindingConsumerSpec(t, custom)
 			if variant.normalized {
 				spec.Account.AuthenticateNormalization = ir.AccountUnicode16NFKC
+			}
+			if variant.formNormalized {
+				spec.Account.LoginFormNormalization = ir.AccountUnicode16NFKC
+			}
+			if variant.shortLogin || variant.textLogin {
+				for i := range spec.Apps {
+					for j := range spec.Apps[i].Schema.Models {
+						model := &spec.Apps[i].Schema.Models[j]
+						if spec.Apps[i].Schema.AppLabel != spec.Account.Model.AppLabel || model.Name != spec.Account.Model.ModelName {
+							continue
+						}
+						for k := range model.Fields {
+							field := &model.Fields[k]
+							if field.Name == spec.Account.Login {
+								if variant.shortLogin {
+									field.MaxLength = 100
+								} else {
+									field.Kind, field.MaxLength = ir.FieldText, 0
+								}
+							}
+						}
+					}
+				}
 			}
 			if variant.noLastLogin {
 				field := spec.Account.LastLogin
@@ -98,7 +130,7 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/creation_test.go", accountBindingCreationConsumer)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			requiredNames := []string{required, required + "/password_change"}
-			for _, name := range []string{"form_csrf", "form_origin", "form_confirmation", "form_combined", "form_target", "json_csrf_before_parse", "json_target", "json_duplicate", "json_null", "json_combined", "form_success", "json_success"} {
+			for _, name := range []string{"login_presentation", "login_csrf", "login_input_limit", "login_fullwidth_policy", "form_csrf", "form_origin", "form_confirmation", "form_combined", "form_target", "json_csrf_before_parse", "json_target", "json_duplicate", "json_null", "json_combined", "form_success", "json_success"} {
 				requiredNames = append(requiredNames, required+"/password_change/"+name)
 			}
 			assertGeneratedConsumerTests(t, output, requiredNames...)

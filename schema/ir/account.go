@@ -72,6 +72,7 @@ type AccountRole struct {
 	Groups                    string               `json:"groups"`
 	Permissions               string               `json:"permissions"`
 	WriteLoginNormalization   AccountNormalization `json:"write_login_normalization"`
+	LoginFormNormalization    AccountNormalization `json:"login_form_normalization"`
 	AuthenticateNormalization AccountNormalization `json:"authenticate_normalization"`
 	WriteEmailNormalization   AccountNormalization `json:"write_email_normalization,omitempty"`
 	Catalog                   AccountCatalog       `json:"catalog"`
@@ -95,6 +96,7 @@ func NormalizeAccountRole(input AccountRole, schemas ...Schema) (AccountRole, er
 		value AccountNormalization
 	}{
 		{"write_login_normalization", role.WriteLoginNormalization},
+		{"login_form_normalization", role.LoginFormNormalization},
 		{"authenticate_normalization", role.AuthenticateNormalization},
 	} {
 		if policy.value != AccountExact && policy.value != AccountUnicode16NFKC {

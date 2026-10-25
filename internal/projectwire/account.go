@@ -34,11 +34,11 @@ func parseAccountRole(decoder *json.Decoder, budget *specBudget) error {
 	}
 	return wirejson.Object(decoder, []string{
 		"model", "principal_id", "login", "password", "revision", "last_login", "active", "staff", "superuser",
-		"groups", "permissions", "write_login_normalization", "authenticate_normalization", "catalog",
+		"groups", "permissions", "write_login_normalization", "login_form_normalization", "authenticate_normalization", "catalog",
 	}, map[string]func() error{
 		"model": identity, "principal_id": text, "login": text, "password": text, "revision": text, "last_login": text, "created_at": text, "email": text,
 		"active": boolean, "staff": boolean, "superuser": boolean, "groups": text, "permissions": text,
-		"write_login_normalization": text, "authenticate_normalization": text, "write_email_normalization": text,
+		"write_login_normalization": text, "login_form_normalization": text, "authenticate_normalization": text, "write_email_normalization": text,
 		"catalog": func() error {
 			return wirejson.Object(decoder, []string{
 				"group", "group_name", "group_revision", "group_permissions", "permission", "permission_code", "permission_name", "permission_revision",
@@ -95,6 +95,7 @@ func measureAccountRole(sizer *wirejson.Sizer, role ir.AccountRole) bool {
 		sizer.Literal(`,"groups":`) && sizer.String(role.Groups) &&
 		sizer.Literal(`,"permissions":`) && sizer.String(role.Permissions) &&
 		sizer.Literal(`,"write_login_normalization":`) && sizer.String(string(role.WriteLoginNormalization)) &&
+		sizer.Literal(`,"login_form_normalization":`) && sizer.String(string(role.LoginFormNormalization)) &&
 		sizer.Literal(`,"authenticate_normalization":`) && sizer.String(string(role.AuthenticateNormalization)) &&
 		emailPolicy() &&
 		sizer.Literal(`,"catalog":{"group":`) && identity(role.Catalog.Group) &&

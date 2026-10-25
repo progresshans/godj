@@ -18,6 +18,9 @@ import (
 func TestAccountWireOwnsSelectionConstantsAndExactEscapedBudget(t *testing.T) {
 	for _, email := range []string{"", "email<\u2028한글>"} {
 		role := modeldef.AccountRole()
+		// This is the structural/size boundary; semantic policy validation is
+		// separate. Account for empty and escaped form-policy bytes exactly.
+		role.LoginFormNormalization = ir.AccountNormalization(email)
 		role.Email = email
 		role.CreatedAt = email // Exercise both omitted and escaped optional values.
 		if email == "" {
@@ -93,6 +96,10 @@ func TestAccountWireRejectsOpenShapesAndExhaustedNodeBudget(t *testing.T) {
 		strings.Replace(valid, `"created_at":"date_joined"`, `"created_at":null`, 1),
 		strings.Replace(valid, `"created_at":"date_joined"`, `"created_at":"date_joined","created_at":"other"`, 1),
 		strings.Replace(valid, `"write_email_normalization":"unicode16_email_domain"`, `"write_email_normalization":null`, 1),
+		strings.Replace(valid, `"login_form_normalization":"unicode16_nfkc",`, ``, 1),
+		strings.Replace(valid, `"login_form_normalization":"unicode16_nfkc"`, `"login_form_normalization":null`, 1),
+		strings.Replace(valid, `"login_form_normalization":"unicode16_nfkc"`, `"login_form_normalization":"exact","login_form_normalization":"unicode16_nfkc"`, 1),
+		strings.Replace(valid, `"login_form_normalization":"unicode16_nfkc"`, `"login_form_normalization":"`+strings.Repeat("x", projectspec.MaxSchemaStringBytes+1)+`"`, 1),
 		strings.Replace(valid, `"login":"username"`, `"login":"`+strings.Repeat("x", projectspec.MaxSchemaStringBytes+1)+`"`, 1),
 		strings.Replace(valid, `"constant":false`, `"constant":null`, 1),
 		strings.Replace(valid, `"constant":false`, `"constant":"false"`, 1),
