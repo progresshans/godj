@@ -21,13 +21,15 @@ import (
 
 type probeBackend struct{ reads, writes, closes atomic.Int64 }
 
+var _ db.CoordinatedRelationAtomic = (*probeBackend)(nil)
+
 var privateFault = errors.New("private backend or profile detail")
 
 func (probe *probeBackend) ReadSnapshot(context.Context, func(db.Queryer) error) error {
 	probe.reads.Add(1)
 	return privateFault
 }
-func (probe *probeBackend) CoordinatedRelationAtomic(context.Context, func(db.RelationSession) error) error {
+func (probe *probeBackend) CoordinatedAtomicRelation(context.Context, func(db.RelationSession) error) error {
 	probe.writes.Add(1)
 	return privateFault
 }

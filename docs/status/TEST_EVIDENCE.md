@@ -628,6 +628,37 @@ open→최초 생성 경로를 사용하도록 확장했다. 기본 모델은 �
 수용으로 계산하지 않는다. 관계/파일·공통 Admin/HTTP·password/reset·host 삭제·채운 DB 전환과 I1-01~08 전체 수용은
 기존 잔여 범위에 유지한다.
 
+### 명령 검사 fixture의 native 인터페이스와 전체 대조 시간
+
+2026-10-25, source `52d98232065a5a60cf48ea84d8348573c0f2d29c`의
+[CI 40048253192](https://github.com/progresshans/godj/actions/runs/40048253192)는 104개 작업 성공, 4개 실패와 1개 취소로
+종료됐다. Core normal/race/CGO0의 실패는 `project/firstaccount`의 같은 두 root에서 발생했고 최종 CI 집계도 실패했다.
+가짜 backend가 실제 `CoordinatedAtomicRelation` 대신 `CoordinatedRelationAtomic`을 선언하여 제품의 native capability
+검사에서 올바르게 거부됐다. 실제 인터페이스 메서드로 fixture를 수정하고 compile-time 인터페이스 대조를 추가했다.
+제품의 capability 검사나 backend 소유권을 완화하지 않았다.
+
+세 실패 job의 실제 checkout `488b26765ebf00d18969c04b401dad9c3f2a368d`와 Git 객체를 읽었으며 tree
+`7a103c189375aa1ecd95f98d8897e2f63a183862`는 제출 source와 같다. 로컬의 동일 source에서 두 root를 한정 재현했고,
+fixture 수정 후 같은 실행의 parent/child 7개가 PASS, fail/skip 0으로 종료됐다. 실제 DB나 전체 suite 재실행은 아니다.
+검증 보관소의 `gdj0138-command-native-probe-repro-v1/before.json` SHA-256은
+`3962910f3d1374c0040c4af5f56b49ed6ec7c27cec57cbcc41d324510d1c5427`,
+`after.json`은 `3a75300238a66efbde3e49b8acb97eb476b6d783027f822367ca3101e256d250`다.
+
+별도 `Validate references and current product captures` job `120746985299`는 30분 실행 제한으로 취소됐다.
+같은 실행의 capture 출처·conformance 검사와 앞선 32비트 compile 단계는 종료했지만, 마지막 32비트 relation 실행 도중
+`godj.test`가 중단됐고 뒤의 oracle checksum·reference 변경 검사도 skip됐다. GitHub annotation은 작업의 30분 제한
+초과를 명시한다. 전체 job 시간을 60분으로 조정했으며 실행 명령·테스트별 제한·필수 목록·최종 집계 조건은 유지했다.
+중단된 32비트 실행과 skip된 마지막 검사를 PASS로 계산하지 않는다. 완료 여부는 새 source의 전체 CI에서 다시 확인한다.
+
+원본과 source 대조는 같은 검증 보관소의 `gdj0138-52d98232-ci-40048253192/`에 보존했다.
+
+| 원본 job log | SHA-256 |
+|---|---|
+| `job-120735280299.log` — core race | `e03384bb862b48788a857275b615947782659d0fb9bf37913430efab1f526b13` |
+| `job-120735280332.log` — core CGO0 | `6ede0333d0e47f939229f68baec6713276aacc34a2de63eb55936f507b02faa6` |
+| `job-120735280401.log` — core normal | `343362feb473db83330b7d69e9dd92937bfa60d41dceaccd8766688eb565aca5` |
+| `job-120746985299.log` — 30분 제한으로 중단된 기준/32비트 대조 | `0d661b39e4caaf0f18c2c826142ad7bd80f54827a2b84a34c2da159b4cef3d80` |
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
