@@ -827,6 +827,39 @@ arm64 race runtime 작업 `121151453248`/`121151453160`/`121151453208`의 원본
 | `gdj0138-admin-password-rechecks-repro-v1/fixed-receipt.json` — 수정 뒤 한정 재현 | `dfbabb7acb7d26a8dc572ca15aa12478d8799d6f16eacfd5e7613ab3680956a3` |
 | `gdj0138-admin-password-rechecks-repro-v1/fixed-source.json` — 재현 source 대조 | `b4c7077d6734883a3d773e2ba91c2d2f653d9ac34d5f1a5fa1be9ea97d34215a` |
 
+### Reset 공통 상태 서명과 메일 source의 정확한 owner
+
+2026-10-25, 관리자 재검증 counter 수정 `a6dd6a15` 뒤의 변경에서 reset key ring·token·email cleaner를 `auth`로
+옮기고 기존 owner·Form/JSON·Article·OpenAPI 구성과 DB 소비자를 전환했다. 이전 이름의 alias나 별도 서명 구현은 두지 않는다.
+공통 상태는 실제 credential domain·저장 int64 key·email·LastLogin의 전체 UTC 정밀도에 결합한다. 토큰에는 같은 관찰의
+수신자/login을 담고 hash/credential은 보유하지 않는다. 메일러는 저장 owner의 완전한 발급 목록을 받아 모두 준비한 뒤 전송한다.
+목록 오류·초과·잘못된 후속 token/수신자는 전송 prefix를 게시하지 않는다. 기존 전달 실패·unknown·취소 정책은 유지했다.
+
+메일 source와 완료 persistence는 같은 `PasswordResetAuthority`를 제공해야 하며 Web/계정 startup에서 초기화·정확한 manager·
+owner를 검사한다. 같은 키를 가진 별도 owner, zero authority, Email 미제공·nil source를 거부하는 검사를 작성했다.
+기존 owner의 후보 읽기는 `db.ReadSnapshotResult`로 scope/callback/cleanup을 확인하며 실제 양 DB의 root·typed nil·validator 없는
+reader 거부와 계정/session/audit 및 전송 무변경 검사를 추가했다. 새 선택 모델의 typed reset 저장·proof 원자 완료·생성 팩토리와
+그 실제 HTTP/restart는 아직 구현하지 않았으므로 이 공통 기반을 I1-04/I1-08 완료로 계산하지 않는다.
+
+Key 소유/교체·문법/만료와 고정 Django email 입력 단위 3개 root는 삭제 없이 `identity`에서 `auth`로 이동했다. 기존 Relation
+sentinel 3행 대신 실제 `auth` 전체 suite의 core normal/race/CGO0 owner에서 실행한다. 여기에 domain/현재 상태 결합·전체
+정밀도·0/음수와 int64 경계·secret 진단·owner 식별 단위를 추가했다. 기존 native fixture·DB/HTTP 테스트는 유지했다.
+Relation 목록은 3,623행(3행 이동, 14행 추가), PostgreSQL 목록은 4,947행(4행 추가)이다.
+
+로컬 첫 최소 compile에서 cleaner 이동 뒤 남은 `identity/account/reset_api.go`의 미사용 import를 확인했다. 해당 import만
+제거한 뒤 실패했던 package들만 다시 compile했다. 두 원본을 합하면 서로 다른 test package 9개의 `go test -run '^$'`가
+성공했고 OpenAPI exporter package도 compile됐다. Exporter의 package `skip` 1개는 `[no test files]`이며 Test run/fail/skip은
+두 실행 모두 0이다. 4,008개 비 Markdown 입력의 실행 전후 hash가 같고 두 실행 사이에는 해당 import 수정만 있다.
+Schema/생성 ABI/생성 코드는 변경하지 않았다. 새 단위·native DB·HTTP 본문은 로컬에서 실행하지 않았다.
+
+| 같은 검증 보관소의 근거 | SHA-256 |
+|---|---|
+| `gdj0138-reset-source-compile-v1/receipt.json` — 4 package compile, 미사용 import로 6 package 실패 | `0884b1dfd16349cd583df59c424c1953cd7819701b7d8156dab019a781f662a1` |
+| `gdj0138-reset-source-compile-v2/receipt.json` — 실패 package 한정 compile와 source 대조 | `3362fef65fbe9b1d25c523e529e526b7d0ee2f2e6463376a4012b70feaefe76f` |
+
+새 source의 전체 CI·generated drift·양 DB·race/process/platform과 실제 소비자 본문 확인은 남아 있다.
+앞선 source의 부분 실행과 이번 compile을 현재 source의 전체 PASS로 계산하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

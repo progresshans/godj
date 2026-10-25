@@ -24,6 +24,13 @@ func (PasswordResetResult) Format(state fmt.State, _ rune) {
 
 func (r *Runtime) CanResetPassword() bool { return r != nil && r.passwordResetPersistence != nil }
 
+func (r *Runtime) PasswordResetAuthority() auth.PasswordResetAuthority {
+	if !r.CanResetPassword() {
+		return auth.PasswordResetAuthority{}
+	}
+	return r.passwordResetPersistence.PasswordResetAuthority()
+}
+
 // StartPasswordReset exchanges a recipient-only token for server session state.
 // The caller redirects to a token-free URL with no-store/no-referrer headers and
 // must never reflect the token. No target authentication is granted. Only a

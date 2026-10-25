@@ -29,6 +29,7 @@ const (
 // of an uncertain outcome. Direct cause-free validation errors are input errors.
 type PasswordResetPersistence interface {
 	Sessions() *sessions.Manager
+	PasswordResetAuthority() PasswordResetAuthority
 	StartPasswordReset(context.Context, sessions.ID, string, string) (sessions.Record, error)
 	CheckPasswordReset(context.Context, sessions.ID, string, *string) error
 	ResetPassword(context.Context, sessions.ID, string, string) (PasswordResetResult, error)

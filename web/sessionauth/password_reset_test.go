@@ -19,13 +19,15 @@ import (
 )
 
 type resetTestProvider struct {
-	manager *sessions.Manager
-	start   func(context.Context, sessions.ID, string, string) (sessions.Record, error)
-	check   func(context.Context, sessions.ID, string, *string) error
-	finish  func(context.Context, sessions.ID, string, string) (auth.PasswordResetResult, error)
+	manager   *sessions.Manager
+	authority auth.PasswordResetAuthority
+	start     func(context.Context, sessions.ID, string, string) (sessions.Record, error)
+	check     func(context.Context, sessions.ID, string, *string) error
+	finish    func(context.Context, sessions.ID, string, string) (auth.PasswordResetResult, error)
 }
 
-func (p *resetTestProvider) Sessions() *sessions.Manager { return p.manager }
+func (p *resetTestProvider) Sessions() *sessions.Manager                         { return p.manager }
+func (p *resetTestProvider) PasswordResetAuthority() auth.PasswordResetAuthority { return p.authority }
 func (p *resetTestProvider) StartPasswordReset(ctx context.Context, id sessions.ID, target, token string) (sessions.Record, error) {
 	return p.start(ctx, id, target, token)
 }
@@ -37,12 +39,15 @@ func (p *resetTestProvider) ResetPassword(ctx context.Context, id sessions.ID, t
 }
 
 func TestPasswordResetPersistenceRequiresExactManager(t *testing.T) {
-	for _, mode := range []string{"omitted", "nil_pointer", "other_manager", "valid"} {
+	for _, mode := range []string{"omitted", "nil_pointer", "other_manager", "zero_authority", "valid"} {
 		t.Run(mode, func(t *testing.T) {
 			config := csrfKeyRuntimeConfig(t, CSRFKeyRing{}, nil)
 			var provider *resetTestProvider
-			if mode == "valid" || mode == "other_manager" {
-				provider = &resetTestProvider{manager: config.Sessions}
+			if mode == "valid" || mode == "other_manager" || mode == "zero_authority" {
+				provider = &resetTestProvider{manager: config.Sessions, authority: auth.NewPasswordResetAuthority()}
+			}
+			if mode == "zero_authority" {
+				provider.authority = auth.PasswordResetAuthority{}
 			}
 			if mode == "other_manager" {
 				provider.manager, _ = config.Sessions.WithStore(config.Sessions.Store())
@@ -52,8 +57,11 @@ func TestPasswordResetPersistenceRequiresExactManager(t *testing.T) {
 			}
 			runtime, err := New(config)
 			if mode == "valid" || mode == "omitted" {
-				if err != nil || runtime.CanResetPassword() != (mode == "valid") {
+				if err != nil || runtime.CanResetPassword() != (mode == "valid") || runtime.PasswordResetAuthority().Valid() != (mode == "valid") {
 					t.Fatal("reset capability mismatch", err)
+				}
+				if mode == "valid" && !runtime.PasswordResetAuthority().Matches(provider.authority) {
+					t.Fatal("runtime lost its exact reset owner")
 				}
 			} else if err == nil || runtime != nil {
 				t.Fatal("invalid reset capability accepted")
@@ -131,7 +139,7 @@ func TestPasswordResetRuntimePublishesOnlyConfirmedCookies(t *testing.T) {
 					}
 					return record
 				}
-				provider := &resetTestProvider{manager: config.Sessions}
+				provider := &resetTestProvider{manager: config.Sessions, authority: auth.NewPasswordResetAuthority()}
 				provider.start = func(ctx context.Context, id sessions.ID, target, token string) (sessions.Record, error) {
 					if err := fail(id, target, token); err != nil {
 						return sessions.Record{}, err

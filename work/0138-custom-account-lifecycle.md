@@ -161,6 +161,12 @@ native transaction에서 Password/Revision·모든 대상 세션 폐기·현재 
 cleanup/unknown·관리자/자기 변경/login 경합·0/음수 key 검사를 포함한다. 작성·생성·최소 compile과 본문 실행은
 TEST_EVIDENCE에서 구분한다. 자동 account/catalog Admin 등록과 Admin 로그인 Form 정책의 전환을 완료한 것은 아니다.
 
+선택 계정 reset을 위한 공통 key ring·상태 서명·email cleaner를 `auth`에 두고 기존 reset owner와 소비자를 전환했다.
+메일러는 모델을 직접 조회하지 않고 저장 owner가 같은 snapshot에서 만든 수신자/token 전체를 받는다. 서명은 credential
+domain과 실제 key·email·LastLogin을 사용하며, 메일 source와 완료 persistence의 정확한 owner도 startup에서 검사한다.
+기존 native 기준과 DB/HTTP 검사는 유지하고 토큰/입력 단위는 해당 공통 package로 옮겼다. 선택 모델의 typed reset 저장·
+세션 proof/폐기·생성 팩토리·독립 HTTP/restart 연결은 아직 남아 있으며 이 공통 기반의 완료로 대체하지 않는다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 공통 HTTP/Admin 제품 조립,
 첫 계정 명령·password reset과 통합 runtime·host 삭제·audit/session 설치/startup·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.

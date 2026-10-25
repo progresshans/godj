@@ -19,7 +19,7 @@ func accountDocument(guard *authenticationGuard, manager *sessions.Manager) (sch
 	if err != nil {
 		return schemaFile{}, err
 	}
-	keys, err := identity.NewPasswordResetKeyRing(bytes.Repeat([]byte{37}, 32))
+	keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{37}, 32))
 	if err != nil {
 		return schemaFile{}, err
 	}
@@ -35,7 +35,8 @@ func accountDocument(guard *authenticationGuard, manager *sessions.Manager) (sch
 	if err != nil {
 		return schemaFile{}, err
 	}
-	runtime, err := sessionauth.New(sessionauth.Config{Sessions: manager, Authenticator: guard, Authorizer: guard, PasswordChangePersistence: accountExportPassword{manager, guard}, PasswordResetPersistence: accountExportPassword{manager, guard}, LoginPath: "/account/login/", FallbackPath: paths[0], AllowedNextPaths: paths})
+	password := accountExportPassword{manager, guard, resetter.PasswordResetAuthority()}
+	runtime, err := sessionauth.New(sessionauth.Config{Sessions: manager, Authenticator: guard, Authorizer: guard, PasswordChangePersistence: password, PasswordResetPersistence: password, LoginPath: "/account/login/", FallbackPath: paths[0], AllowedNextPaths: paths})
 	if err != nil {
 		return schemaFile{}, err
 	}
@@ -59,11 +60,15 @@ func (guard *authenticationGuard) LoginInput() (auth.LoginInput, error) {
 }
 
 type accountExportPassword struct {
-	manager *sessions.Manager
-	guard   *authenticationGuard
+	manager   *sessions.Manager
+	guard     *authenticationGuard
+	authority auth.PasswordResetAuthority
 }
 
 func (p accountExportPassword) Sessions() *sessions.Manager { return p.manager }
+func (p accountExportPassword) PasswordResetAuthority() auth.PasswordResetAuthority {
+	return p.authority
+}
 func (p accountExportPassword) CheckPasswordChange(context.Context, sessions.ID, *string, *string) error {
 	return p.guard.reject("password check")
 }

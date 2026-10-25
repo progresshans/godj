@@ -81,7 +81,7 @@ func resetPrevious(t *testing.T, runtime *systemstate.Runtime, manager *sessions
 	return record
 }
 
-func startResetProof(t *testing.T, p *systemstate.PasswordResetPersistence, previous sessions.Record, target string) (sessions.Record, identity.PasswordResetToken) {
+func startResetProof(t *testing.T, p *systemstate.PasswordResetPersistence, previous sessions.Record, target string) (sessions.Record, auth.PasswordResetToken) {
 	t.Helper()
 	token := resetToken(t, p.Resetter(), target)
 	record, err := p.StartPasswordReset(t.Context(), previous.ID(), target, token.Encoded())

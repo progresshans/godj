@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
@@ -69,7 +70,7 @@ func RunPasswordResetComposition(t *testing.T, open func(*testing.T) (Transition
 		}
 		if err := f.runtime.CoordinatedAtomic(t.Context(), func(session db.Session) error {
 			return resetter.ApplyIn(t.Context(), session, prepared)
-		}); err != identity.ErrInvalidResetToken {
+		}); err != auth.ErrInvalidResetToken {
 			t.Fatal("prepared material bypassed consumed token admission", err)
 		}
 	})
@@ -153,7 +154,7 @@ func RunPasswordResetComposition(t *testing.T, open func(*testing.T) (Transition
 				}
 				assertResetCommit(t, f, before, selfPassword, 9)
 			} else {
-				if err != identity.ErrInvalidResetToken {
+				if err != auth.ErrInvalidResetToken {
 					t.Fatal("prepared reset ignored changed current state", change, err)
 				}
 				afterRows, afterAudit := snapshotIdentitySystemRows(t, backend)
@@ -181,7 +182,7 @@ func RunPasswordResetComposition(t *testing.T, open func(*testing.T) (Transition
 				t.Fatal("valid token check failed in borrowed scope", err)
 			}
 			for _, value := range []struct{ id, token string }{{token.PrincipalID(), "invalid"}, {"missing", token.Encoded()}, {"", token.Encoded()}} {
-				if err := resetter.CheckTokenIn(t.Context(), reader, value.id, value.token); err != identity.ErrInvalidResetToken {
+				if err := resetter.CheckTokenIn(t.Context(), reader, value.id, value.token); err != auth.ErrInvalidResetToken {
 					t.Fatal("invalid borrowed token accepted", err)
 				}
 			}
@@ -206,7 +207,7 @@ func RunPasswordResetComposition(t *testing.T, open func(*testing.T) (Transition
 		}
 		if err := f.runtime.CoordinatedAtomic(t.Context(), func(session db.Session) error {
 			return resetter.CheckTokenIn(t.Context(), session, token.PrincipalID(), token.Encoded())
-		}); err != identity.ErrInvalidResetToken || owner.reads != 0 {
+		}); err != auth.ErrInvalidResetToken || owner.reads != 0 {
 			t.Fatal("borrowed check did not use current transaction state", err)
 		}
 	})

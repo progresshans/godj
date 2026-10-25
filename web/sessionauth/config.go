@@ -210,6 +210,9 @@ func New(config Config) (*Runtime, error) {
 		if config.PasswordResetPersistence.Sessions() != config.Sessions {
 			return nil, &Error{Code: CodeInvalidConfig, Field: "password_reset_persistence", Detail: "password reset persistence belongs to another session manager"}
 		}
+		if !config.PasswordResetPersistence.PasswordResetAuthority().Valid() {
+			return nil, &Error{Code: CodeInvalidConfig, Field: "password_reset_persistence", Detail: "password reset authority is not initialized"}
+		}
 	}
 	if config.Authenticator == nil {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "authenticator", Detail: "credential authenticator is nil"}

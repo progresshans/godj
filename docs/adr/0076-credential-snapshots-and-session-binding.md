@@ -597,17 +597,24 @@ rollback/unknown 검증을 구분한다. Reset과 기본 UserCreationForm은 이
 
 `identity.PasswordResetter`는 `ManagementBackend`와 명시적 hasher·`PasswordResetConfig`에 결합한다.
 서버 내부의 `IssueToken(ctx, principalID)`는 현재 active/usable 계정을 읽어 수신자에게만 전달할 값을 만든다.
-이 함수를 identifier 기반 공개 조회 API로 노출하지 않는다. 수신자 선택·email 정규화·메일 전달은
-아래 `PasswordResetMailer`가 소유하며 실제 HTTP 소비자는 `identity/account`에 연결한다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
+이 함수를 identifier 기반 공개 조회 API로 노출하지 않는다. 수신자 선택은 reset 저장 owner가 소유하고,
+공통 email 정규화·메일 전달은 아래 계약을 따른다. 실제 HTTP 소비자는 `identity/account`에 연결한다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
 새 hash·write admission·session을 만들지 않는다. Raw token은 명시적인 `Encoded()`로만 꺼내고 fmt/JSON에서는 감춘다.
 
-`PasswordResetKeyRing`은 active 1개와 validation 전용 최대 7개의 서로 다른 32-byte 키를 소유 복사한다.
+`auth.PasswordResetKeyRing`은 active 1개와 validation 전용 최대 7개의 서로 다른 32-byte 키를 소유 복사한다.
 키의 생성·보관·배포는 host가 맡고 CSRF/session 키와 공유하는 API를 제공하지 않는다. 검증은 모든 등록 키를 확인한다.
 Token은 domain-separated HMAC-SHA256의 전체 MAC과 canonical base-36 Unix 초를 raw URL-base64와 함께 인코딩한다.
-HMAC 입력은 길이 framing한 User ID·stable principal ID·credential stamp·email 원문·UTC last_login·발급 시각이다.
+HMAC 입력은 길이 framing한 저장 row ID·stable principal ID·credential stamp·email 원문·UTC last_login·발급 시각이다.
 URL에는 password·stamp·email을 넣지 않으며 wire 형식은 Django와 호환되지 않는다.
 기본 만료는 Django와 같은 72시간이고 host는 양의 정수 초 duration을 선택한다. 경계 초는 유효하며 미래 발급은 거부한다.
 Key ring과 validator 목록은 생성 후 불변이고 clock/validator callback은 pure·concurrency-safe여야 한다.
+
+공통 서명은 모델에 의존하지 않는 `auth.PasswordResetState`를 사용한다. 저장 owner는 같은 snapshot의 실제
+credential·row key·email·LastLogin을 넘긴다. State는 LastLogin을 UTC 전체 정밀도로 복사하고 credential domain을
+포함한 stamp에 서명을 결합한다. 같은 ID/hash라도 다른 모델/domain 세대나 unscoped credential의 token을 승인하지 않는다.
+모든 저장 int64 key를 표현하며 optional Email/LastLogin의 부재도 명시적으로 표현한다. Email은 UTF-8/NUL과 4,096 byte
+자원 한도를 검사한다. State·key·syntax signature·delivery token의 fmt/JSON은 비공개이고, 발급 token은 hash/credential을
+보유하지 않는다. 이 순수 값은 DB 소유권이나 최종 write 권한을 증명하지 않으며 실제 owner의 현재 상태 재검사를 대체하지 않는다.
 
 `ResetPassword`는 preflight read scope를 닫은 뒤 password policy·새 hash를 처리하고, native write fence 안에서
 현재 행과 token의 credential/email/last_login·active/usable·만료를 다시 검사한다. 현재 profile로 policy도 다시 적용한다.
@@ -616,7 +623,7 @@ Key ring과 validator 목록은 생성 후 불변이고 clock/validator callback
 사용자를 로그인시키거나 현재 브라우저 session을 보존하지 않는다. Username/profile/role/revision만 바뀌면
 token을 불필요하게 거부하지 않되 최신 값을 덮어쓰지 않는다. 두 연결에서 같은 token을 제출하면 하나만 성공한다.
 
-없는/비활성/사용 불가/변경된 계정, malformed/만료/다른 서명은 원인 구분 없는 `ErrInvalidResetToken`이다.
+없는/비활성/사용 불가/변경된 계정, malformed/만료/다른 서명은 원인 구분 없는 `auth.ErrInvalidResetToken`이다.
 Malformed token은 I/O 전에 거부한다. 저장 단계의 거부는 확정 rollback이 직접 반환한 경우에만 그 sentinel이나
 원인 없는 validation으로 게시한다. Snapshot/transaction callback 위반·cleanup·취소·unknown은 실행 오류이며
 secret-free 진단과 원인을 유지하고 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 실패로 바꾸지 않는다.
@@ -637,8 +644,10 @@ GoDj는 token을 최종 재검사하고 field patch·원자 저장을 사용한�
 
 ## 재설정 메일 요청과 수신자 결합
 
-`identity.PasswordResetMailer`는 하나의 `PasswordResetter`, 명시적 `mail.Sender`와 mail 설정에 결합한다.
-`CleanPasswordResetEmail`은 고정 PasswordResetForm의 strip·required·EmailValidator·254자·NUL 진단을 공유한다.
+`identity.PasswordResetMailer`는 하나의 `auth.PasswordResetMailSource`, 명시적 `mail.Sender`와 mail 설정에 결합한다.
+Source는 reset 저장 owner이며 선택·서명·수신자 관찰을 소유한다. Mailer는 고정 User 조회나 별도 token 발급을 수행하지 않는다.
+Email 역할을 제공하지 않는 source와 초기화되지 않은 authority는 시작 시 거부한다.
+`auth.CleanPasswordResetEmail`은 고정 PasswordResetForm의 strip·required·EmailValidator·254자·NUL 진단을 공유한다.
 Raw UTF-8와 4,096 byte 한도는 Unicode 작업 전에 검사한다. EmailValidator 문법은 공통 `validation.ValidEmail`이 소유하며
 기존 Identity Admin도 같은 함수를 사용한다. Model 의미는 Schema IR에 남고 254자 입력 제한은 native reset form의 계약이다.
 
@@ -648,7 +657,8 @@ Case folding은 공식 Unicode 16 CaseFolding C/F data에서 생성하고 모든
 SQL 단계에서 다른 이메일인 값은 Unicode 정규화 결과가 같더라도 선택하지 않는다.
 후보는 ID 순서이며 active/DB-iexact 후보 256개까지 전부 읽는다. 초과·읽기 실패·callback 위반·cleanup 오류이면 아무 메일도 보내지 않는다.
 
-각 수신 주소와 token은 **같은 Account snapshot**에서 만든다. 나중에 계정을 다시 읽어 새 token만 발급하면
+각 수신 주소와 token은 **같은 계정 snapshot**에서 만든다. Source는 native borrowed reader와 callback/cleanup을 확인하고
+scope를 닫은 뒤 전체 `auth.PasswordResetToken` 목록만 전달한다. 나중에 계정을 다시 읽어 새 token만 발급하면
 변경 전 이메일로 현재 상태의 유효한 token을 보낼 수 있으므로 그렇게 하지 않는다. Snapshot 종료 후 경쟁 변경이 있으면
 메일의 이전 token은 기존 reset service의 현재 credential/email/last_login/active 검사에서 거부된다. 일반 profile 변경은 보존한다.
 요청 과정은 password hash·User·session·last_login·audit를 변경하지 않으며 callback과 mail I/O 전에 DB scope를 닫는다.
@@ -699,6 +709,9 @@ Native fixture나 transaction/runtime 검증과 실제 공개 HTTP 검증의 범
 `Runtime.PasswordResetPersistence(manager, config)`는 해당 Identity runtime의 정확한 durable store와 manager에 결합한다.
 생성은 I/O 없이 수행하고, `Resetter()`로 같은 key ring·policy owner에 메일 requester를 연결한다.
 공통 `auth.PasswordResetPersistence` 계약을 Web runtime에 명시적으로 주입하며 Web 설정의 manager와 다르면 startup에서 거부한다.
+Persistence는 초기화된 `auth.PasswordResetAuthority`를 제공한다. 이는 immutable reset owner 하나의 프로세스 내 식별이며
+서명 키·durable credential domain·bearer capability가 아니다. Mail source와 완료 persistence는 같은 식별을 공유해야 한다.
+키나 경로가 우연히 같아도 다른 owner를 조립하면 `identity/account` 시작 시 거부한다. 이 검사는 DB·해싱·메일 I/O를 수행하지 않는다.
 Legacy operator runtime은 이 기능을 제공하지 않는다.
 
 Entry는 현재 token을 읽기 전용으로 검사한 다음 같은 write fence에서 다시 확인한다. 기존의 활성 session이 있으면
@@ -728,7 +741,7 @@ Web runtime은 확정된 새/회전/삭제 cookie만 적용하며 별도 CSRF co
 
 `identity/account.Config.PasswordReset`은 같은 persistence의 resetter로 구성한 mailer와 내부 오류 reporter를 요구한다.
 여기서 reset service는 framework 내부의 token·password·transaction 코드이며 별도 서버 프로세스를 뜻하지 않는다.
-메일 링크 prefix와 cookie 범위를 startup에서 검사한다. 설정하지 않으면 기존 account route와 인증된 schema 조회를 유지한다.
+정확한 reset owner·메일 링크 prefix와 cookie 범위를 startup에서 검사한다. 설정하지 않으면 기존 account route와 인증된 schema 조회를 유지한다.
 Article의 `WithPasswordReset`은 같은 resetter/key/policy owner를 persistence와 mailer에 공유하고,
 명시적 sender·origin·From·reporter와 공통 password 정책 및 reset 전용 정책을 함께 구성한다.
 

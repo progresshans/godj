@@ -12,18 +12,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity/models"
-	"github.com/progresshans/godj/internal/emailinput"
-	"github.com/progresshans/godj/internal/unicode16"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/mail"
 	"github.com/progresshans/godj/validation"
 )
-
-// MaximumPasswordResetCandidates bounds the complete active, database-iexact
-// candidate set before usable-password and Unicode comparison. Overflow is an
-// explicit error; a truncated prefix must never receive reset messages.
-const MaximumPasswordResetCandidates = 256
 
 // MaximumPasswordResetMailBytes bounds combined subject/plain/HTML content per
 // recipient. Preparing the complete batch therefore retains at most 16 MiB.
@@ -110,9 +102,9 @@ func (PasswordResetMailConfig) MarshalJSON() ([]byte, error) {
 // Synchronous I/O is not a constant-time account-existence guarantee.
 type PasswordResetMailer struct{ state *passwordResetMailer }
 type passwordResetMailer struct {
-	resetter *PasswordResetter
-	sender   mail.Sender
-	config   PasswordResetMailConfig
+	source auth.PasswordResetMailSource
+	sender mail.Sender
+	config PasswordResetMailConfig
 }
 
 func (*PasswordResetMailer) Format(state fmt.State, _ rune) {
@@ -122,8 +114,8 @@ func (*PasswordResetMailer) MarshalJSON() ([]byte, error) {
 	return []byte(`"identity.PasswordResetMailer{redacted}"`), nil
 }
 
-func NewPasswordResetMailer(resetter *PasswordResetter, sender mail.Sender, config PasswordResetMailConfig) (*PasswordResetMailer, error) {
-	if resetter == nil || resetter.state == nil || nilIdentityValue(sender) || config.From.Mailbox() == "" {
+func NewPasswordResetMailer(source auth.PasswordResetMailSource, sender mail.Sender, config PasswordResetMailConfig) (*PasswordResetMailer, error) {
+	if nilIdentityValue(source) || !source.PasswordResetAuthority().Valid() || !source.PasswordResetEmailAvailable() || nilIdentityValue(sender) || config.From.Mailbox() == "" {
 		return nil, managementError(CodeInvalidConfig, "password_reset_mail", nil)
 	}
 	origin, err := url.Parse(config.Origin)
@@ -164,7 +156,7 @@ func NewPasswordResetMailer(resetter *PasswordResetter, sender mail.Sender, conf
 		return nil, managementError(CodeInvalidConfig, "password_reset_renderer", nil)
 	}
 	config.Origin = origin.String()
-	return &PasswordResetMailer{&passwordResetMailer{resetter, sender, config}}, nil
+	return &PasswordResetMailer{&passwordResetMailer{source, sender, config}}, nil
 }
 
 func defaultPasswordResetMail(_ context.Context, data PasswordResetMail) (PasswordResetMailContent, error) {
@@ -172,24 +164,6 @@ func defaultPasswordResetMail(_ context.Context, data PasswordResetMail) (Passwo
 		Subject: "Password reset on " + data.SiteName(),
 		Text:    "You requested a password reset on " + data.SiteName() + ".\n\nOpen this link to choose a new password:\n" + data.Link() + "\n\nIf you did not request this, you can ignore this message.\n",
 	}, nil
-}
-
-// CleanPasswordResetEmail shares native PasswordResetForm's Unicode stripping,
-// required, grammar, character-length and NUL diagnostics with its consumers.
-// It returns no cleaned value when any diagnostic exists. UTF-8 and a 4096-byte
-// raw input bound are Go transport limits, checked before Unicode work.
-func CleanPasswordResetEmail(raw string) (string, validation.Errors) {
-	if !utf8.ValidString(raw) || len(raw) > 4096 {
-		return "", validation.NewErrors(validation.New("email", "invalid"))
-	}
-	value := unicode16.TrimSpace(raw)
-	if value == "" {
-		return "", validation.NewErrors(validation.New("email", "required"))
-	}
-	if failures := emailinput.FormErrors("email", value, 254); !failures.Empty() {
-		return "", failures
-	}
-	return value, validation.Errors{}
 }
 
 // ConfirmPath reports the normalized recipient link prefix without I/O or
@@ -201,6 +175,13 @@ func (mailer *PasswordResetMailer) ConfirmPath() string {
 	return mailer.state.config.ConfirmPath
 }
 
+func (mailer *PasswordResetMailer) PasswordResetAuthority() auth.PasswordResetAuthority {
+	if mailer == nil || mailer.state == nil {
+		return auth.PasswordResetAuthority{}
+	}
+	return mailer.state.source.PasswordResetAuthority()
+}
+
 // Request returns nil for no eligible users as well as confirmed deliveries.
 // All candidates and token-bound recipient data come from one complete read
 // snapshot. It closes before rendering and mail I/O. No later token issuance
@@ -209,7 +190,7 @@ func (mailer *PasswordResetMailer) ConfirmPath() string {
 // failure. Errors preserve those failures (including unknown outcomes) without
 // exposing addresses or links, and the operation never automatically retries.
 func (mailer *PasswordResetMailer) Request(ctx context.Context, email string) error {
-	if ctx == nil {
+	if nilIdentityValue(ctx) {
 		return managementError(CodeInvalidInput, "context", nil)
 	}
 	if err := ctx.Err(); err != nil {
@@ -218,29 +199,32 @@ func (mailer *PasswordResetMailer) Request(ctx context.Context, email string) er
 	if mailer == nil || mailer.state == nil {
 		return managementError(CodeInvalidConfig, "password_reset_mail", nil)
 	}
-	cleaned, failures := CleanPasswordResetEmail(email)
+	cleaned, failures := auth.CleanPasswordResetEmail(email)
 	if !failures.Empty() {
 		return validation.Reject(failures, nil)
 	}
 	state := mailer.state
-	accounts, err := state.candidates(ctx, cleaned)
+	tokens, err := state.source.PasswordResetCandidates(ctx, cleaned)
 	if err != nil {
 		return err
 	}
-	now, err := state.resetter.instant()
-	if err = errors.Join(err, ctx.Err()); err != nil {
+	if err := ctx.Err(); err != nil {
 		return managementError(CodePersistence, "password_reset_request", err)
 	}
-	messages := make([]mail.Message, 0, len(accounts))
-	for _, account := range accounts {
-		profile := account.Profile()
-		recipient, err := mail.ParseAddress(profile.Email)
+	if len(tokens) > auth.MaximumPasswordResetCandidates {
+		return managementError(CodePersistence, "password_reset_candidates", nil)
+	}
+	messages := make([]mail.Message, 0, len(tokens))
+	for _, token := range tokens {
+		if _, valid := auth.ParsePasswordResetToken(token.Encoded()); !valid || token.PrincipalID() == "" {
+			return managementError(CodePersistence, "password_reset_candidates", nil)
+		}
+		recipient, err := mail.ParseAddress(token.Email())
 		if err != nil {
 			return managementError(CodeDelivery, "password_reset_recipient", err)
 		}
-		token := state.resetter.state.keys.issue(account, now)
-		link := state.config.Origin + state.config.ConfirmPath + "/" + base64.RawURLEncoding.EncodeToString([]byte(profile.PrincipalID)) + "/" + token.Encoded() + "/"
-		data := PasswordResetMail{&passwordResetMail{profile.Username, state.config.SiteName, link}}
+		link := state.config.Origin + state.config.ConfirmPath + "/" + base64.RawURLEncoding.EncodeToString([]byte(token.PrincipalID())) + "/" + token.Encoded() + "/"
+		data := PasswordResetMail{&passwordResetMail{token.Username(), state.config.SiteName, link}}
 		content, err := state.config.Renderer.RenderPasswordResetMail(ctx, data)
 		if err = errors.Join(err, ctx.Err()); err != nil {
 			return managementError(CodeDelivery, "password_reset_render", err)
@@ -277,52 +261,4 @@ func (mailer *PasswordResetMailer) Request(ctx context.Context, email string) er
 	}
 	// A sender's confirmed acceptance is not revoked by late cancellation.
 	return nil
-}
-
-func (state *passwordResetMailer) candidates(ctx context.Context, email string) ([]Account, error) {
-	var accounts []Account
-	var callbackErr error
-	calls := 0
-	err := state.resetter.state.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-		calls++
-		if calls != 1 || nilIdentityValue(reader) {
-			callbackErr = managementError(CodePersistence, "snapshot_contract", nil)
-			return callbackErr
-		}
-		callbackErr = func() error {
-			query, err := models.UserObjects.Using(reader).Filter(models.UserFields.Active.Exact(true), models.UserFields.Email.IExact(email)).OrderBy(models.UserFields.ID.Asc()).Limit(MaximumPasswordResetCandidates + 1)
-			if err != nil {
-				return err
-			}
-			rows, err := query.All(ctx)
-			if err != nil {
-				return err
-			}
-			if len(rows) > MaximumPasswordResetCandidates {
-				return managementError(CodePersistence, "password_reset_candidates", nil)
-			}
-			folded := unicode16.CaseFold(unicode16.NFKC(email))
-			for _, row := range rows {
-				if unicode16.CaseFold(unicode16.NFKC(row.Email)) != folded {
-					continue
-				}
-				account, err := state.resetter.state.directory.accountFromRow(ctx, reader, row)
-				if err != nil {
-					return err
-				}
-				if account.value().credential.Principal().Authenticated() && account.HasUsablePassword() {
-					accounts = append(accounts, account)
-				}
-			}
-			return nil
-		}()
-		return callbackErr
-	})
-	if err = errors.Join(err, callbackErr, ctx.Err()); err != nil {
-		return nil, managementError(CodePersistence, "password_reset_candidates", err)
-	}
-	if calls != 1 {
-		return nil, managementError(CodePersistence, "snapshot_contract", nil)
-	}
-	return accounts, nil
 }

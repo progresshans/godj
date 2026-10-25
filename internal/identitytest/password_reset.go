@@ -26,7 +26,7 @@ var passwordResetReferences embed.FS
 
 func resetConfig(t *testing.T, now *time.Time, validators ...identity.PasswordValidator) identity.PasswordResetConfig {
 	t.Helper()
-	keys, err := identity.NewPasswordResetKeyRing(bytes.Repeat([]byte{173}, 32))
+	keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{173}, 32))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,7 +40,7 @@ func resetService(t *testing.T, backend identity.ManagementBackend, hasher auth.
 	}
 	return service
 }
-func resetToken(t *testing.T, resetter *identity.PasswordResetter, id string) identity.PasswordResetToken {
+func resetToken(t *testing.T, resetter *identity.PasswordResetter, id string) auth.PasswordResetToken {
 	t.Helper()
 	token, err := resetter.IssueToken(t.Context(), id)
 	if err != nil || token.PrincipalID() != id || token.Encoded() == "" {
@@ -154,7 +154,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 		if f.hasher.calls.Load() != 1 {
 			t.Fatal("reset hashed more than once")
 		}
-		if err := resetter.ResetPassword(t.Context(), token.PrincipalID(), token.Encoded(), "replayed password"); err != identity.ErrInvalidResetToken || f.hasher.calls.Load() != 1 {
+		if err := resetter.ResetPassword(t.Context(), token.PrincipalID(), token.Encoded(), "replayed password"); err != auth.ErrInvalidResetToken || f.hasher.calls.Load() != 1 {
 			t.Fatal("used token repeated hash or write", err)
 		}
 		reopened, err := systemstate.OpenIdentity(t.Context(), other, systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher.PasswordHasher, MaxSessions: 512})
@@ -168,7 +168,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 			t.Fatal("reset trimmed password", err)
 		}
 		second := resetService(t, reopened, f.hasher, resetConfig(t, &now, minimum))
-		if err := second.CheckPassword(t.Context(), token.PrincipalID(), token.Encoded(), nil); err != identity.ErrInvalidResetToken {
+		if err := second.CheckPassword(t.Context(), token.PrincipalID(), token.Encoded(), nil); err != auth.ErrInvalidResetToken {
 			t.Fatal("restart revived consumed token", err)
 		}
 		next := resetToken(t, second, f.user.PrincipalID)
@@ -177,7 +177,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 			t.Fatal(err)
 		}
 		assertResetCommit(t, f, before, selfPassword, 3)
-		if f.hasher.calls.Load() != 2 || second.CheckPassword(t.Context(), next.PrincipalID(), next.Encoded(), nil) != identity.ErrInvalidResetToken {
+		if f.hasher.calls.Load() != 2 || second.CheckPassword(t.Context(), next.PrincipalID(), next.Encoded(), nil) != auth.ErrInvalidResetToken {
 			t.Fatal("same password did not get a new binding")
 		}
 	})
@@ -241,7 +241,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 				want = false
 			}
 			err = resetter.CheckPassword(t.Context(), token.PrincipalID(), token.Encoded(), nil)
-			if (err == nil) != want || err != nil && err != identity.ErrInvalidResetToken {
+			if (err == nil) != want || err != nil && err != auth.ErrInvalidResetToken {
 				t.Fatal("wrong reset state binding", mode, err)
 			}
 			afterRows, afterAudit := snapshotIdentitySystemRows(t, backend)
@@ -249,7 +249,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 				t.Fatal("token check changed durable state")
 			}
 			if mode == "inactive" || mode == "unusable" {
-				if token, err := resetter.IssueToken(t.Context(), f.user.PrincipalID); err != identity.ErrInvalidResetToken || token.Encoded() != "" {
+				if token, err := resetter.IssueToken(t.Context(), f.user.PrincipalID); err != auth.ErrInvalidResetToken || token.Encoded() != "" {
 					t.Fatal("ineligible token issued", err)
 				}
 			}
@@ -266,29 +266,29 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 			t.Run(mode, func(t *testing.T) {
 				boundary := &managementBoundary{ManagementBackend: f.runtime, mode: mode}
 				broken := resetService(t, boundary, f.hasher, config)
-				if result, err := broken.IssueToken(t.Context(), f.user.PrincipalID); err == nil || err == identity.ErrInvalidResetToken || result.Encoded() != "" {
+				if result, err := broken.IssueToken(t.Context(), f.user.PrincipalID); err == nil || err == auth.ErrInvalidResetToken || result.Encoded() != "" {
 					t.Fatal("read failure published token or ordinary refusal", err)
 				}
-				if err := broken.ResetPassword(t.Context(), token.PrincipalID(), token.Encoded(), selfPassword); err == nil || err == identity.ErrInvalidResetToken || boundary.calls != 0 || f.hasher.calls.Load() != 0 {
+				if err := broken.ResetPassword(t.Context(), token.PrincipalID(), token.Encoded(), selfPassword); err == nil || err == auth.ErrInvalidResetToken || boundary.calls != 0 || f.hasher.calls.Load() != 0 {
 					t.Fatal("read failure permitted reset", err)
 				}
 			})
 		}
 		for _, id := range []string{"", "unknown-reset-user", "\x00invalid"} {
-			if value, err := resetter.IssueToken(t.Context(), id); err != identity.ErrInvalidResetToken || value.Encoded() != "" {
+			if value, err := resetter.IssueToken(t.Context(), id); err != auth.ErrInvalidResetToken || value.Encoded() != "" {
 				t.Fatal("unknown identity issued token", err)
 			}
-			if err := resetter.CheckPassword(t.Context(), id, token.Encoded(), nil); err != identity.ErrInvalidResetToken {
+			if err := resetter.CheckPassword(t.Context(), id, token.Encoded(), nil); err != auth.ErrInvalidResetToken {
 				t.Fatal("unknown identity checked token", err)
 			}
 		}
 		broken := resetService(t, &managementBoundary{ManagementBackend: f.runtime, mode: "read_zero"}, f.hasher, config)
 		for _, malformed := range []string{"", strings.Repeat("x", 10000), token.Encoded() + "\n", token.Encoded() + "="} {
-			if err := broken.ResetPassword(t.Context(), f.user.PrincipalID, malformed, selfPassword); err != identity.ErrInvalidResetToken {
+			if err := broken.ResetPassword(t.Context(), f.user.PrincipalID, malformed, selfPassword); err != auth.ErrInvalidResetToken {
 				t.Fatal("malformed token reached database", err)
 			}
 		}
-		if err := resetter.CheckPassword(t.Context(), f.root.PrincipalID, token.Encoded(), nil); err != identity.ErrInvalidResetToken {
+		if err := resetter.CheckPassword(t.Context(), f.root.PrincipalID, token.Encoded(), nil); err != auth.ErrInvalidResetToken {
 			t.Fatal("token applied to another user", err)
 		}
 		for _, timeout := range []time.Duration{-1, time.Nanosecond, time.Second + time.Nanosecond} {
@@ -304,7 +304,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 			var hasher auth.PasswordHasher = f.hasher
 			switch mode {
 			case "keys":
-				bad.Keys = identity.PasswordResetKeyRing{}
+				bad.Keys = auth.PasswordResetKeyRing{}
 			case "validator":
 				bad.Validators = []identity.PasswordValidator{nil}
 			case "typed_nil_validator":
@@ -339,7 +339,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 		for _, offset := range []time.Duration{-time.Second, time.Hour, time.Hour + time.Second} {
 			now = loginInstant.Add(offset)
 			err := resetter.CheckPassword(t.Context(), token.PrincipalID(), token.Encoded(), nil)
-			if (err == nil) != (offset == time.Hour) || err != nil && err != identity.ErrInvalidResetToken {
+			if (err == nil) != (offset == time.Hour) || err != nil && err != auth.ErrInvalidResetToken {
 				t.Fatal("wrong current expiry check", err)
 			}
 		}
@@ -411,7 +411,7 @@ func RunPasswordResetBoundaries(t *testing.T, open func(*testing.T) (TransitionB
 				t.Fatal("reset hash or write retried", boundary.calls, f.hasher.calls.Load())
 			}
 			committed := mode == "unknown_commit" || mode == "late_cancel"
-			if mode == "token_rejected" && err != identity.ErrInvalidResetToken || mode == "token_cleanup" && (err == identity.ErrInvalidResetToken || !errors.Is(err, identity.ErrInvalidResetToken)) {
+			if mode == "token_rejected" && err != auth.ErrInvalidResetToken || mode == "token_cleanup" && (err == auth.ErrInvalidResetToken || !errors.Is(err, auth.ErrInvalidResetToken)) {
 				t.Fatal("token rollback classification changed", mode, err)
 			}
 			if mode == "late_cancel" {
@@ -539,7 +539,7 @@ func RunPasswordResetConcurrency(t *testing.T, open func(*testing.T) (Transition
 					if _, rejected := validation.Rejected(err); !rejected || validations != 2 {
 						t.Fatal("current reset policy not enforced", err)
 					}
-				} else if err != identity.ErrInvalidResetToken {
+				} else if err != auth.ErrInvalidResetToken {
 					t.Fatal("stale reset admitted", mode, err)
 				}
 				if mode != "deleted" && !reflect.DeepEqual(edited, f.stored(t)) {
@@ -593,7 +593,7 @@ func RunPasswordResetConcurrency(t *testing.T, open func(*testing.T) (Transition
 			err := <-done
 			if err == nil {
 				wins++
-			} else if err != identity.ErrInvalidResetToken {
+			} else if err != auth.ErrInvalidResetToken {
 				t.Fatal("reset loser lost refusal", err)
 			}
 		}

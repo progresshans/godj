@@ -65,7 +65,7 @@ func resetMailer(t *testing.T, resetter *identity.PasswordResetter, sender mail.
 }
 func resetMemory(t *testing.T) *mail.Memory {
 	t.Helper()
-	value, err := mail.NewMemory(mail.MemoryConfig{MaximumMessages: identity.MaximumPasswordResetCandidates + 1})
+	value, err := mail.NewMemory(mail.MemoryConfig{MaximumMessages: auth.MaximumPasswordResetCandidates + 1})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,7 +202,7 @@ func RunPasswordResetMail(t *testing.T, referenceBackend string, open func(*test
 			t.Fatal(err)
 		}
 		assertResetCommit(t, f, before, selfPassword, before.Revision+1)
-		if err := resetter.CheckPassword(t.Context(), id, token, nil); err != identity.ErrInvalidResetToken {
+		if err := resetter.CheckPassword(t.Context(), id, token, nil); err != auth.ErrInvalidResetToken {
 			t.Fatal("delivered token replay was accepted", err)
 		}
 		stored, found, err := models.UserObjects.Using(other).Filter(models.UserFields.ID.Exact(f.user.ID)).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
@@ -213,6 +213,7 @@ func RunPasswordResetMail(t *testing.T, referenceBackend string, open func(*test
 }
 
 func RunPasswordResetMailBoundaries(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
+	t.Run("read_scope_ownership", func(t *testing.T) { passwordResetSourceScopes(t, open) })
 	t.Run("read_failures_and_invalid_input_publish_no_mail", func(t *testing.T) {
 		backend, _ := open(t)
 		f := newManagementFixture(t, backend, 0)
@@ -340,7 +341,7 @@ func RunPasswordResetMailBoundaries(t *testing.T, open func(*testing.T) (Transit
 	t.Run("candidate_limit_is_complete_not_a_sent_prefix", func(t *testing.T) {
 		backend, _ := open(t)
 		f := newManagementFixture(t, backend, 0)
-		for index := range identity.MaximumPasswordResetCandidates - 1 {
+		for index := range auth.MaximumPasswordResetCandidates - 1 {
 			if _, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate(fmt.Sprintf("candidate-%d", index), fmt.Sprintf("candidate-%d", index), f.user.EncodedPassword, loginInstant).WithEmail(f.user.Email)); err != nil {
 				t.Fatal(err)
 			}
@@ -352,7 +353,7 @@ func RunPasswordResetMailBoundaries(t *testing.T, open func(*testing.T) (Transit
 		if err := mailer.Request(t.Context(), f.user.Email); err != nil {
 			t.Fatal("inclusive candidate boundary rejected", err)
 		}
-		if messages, _ := memory.Drain(); len(messages) != identity.MaximumPasswordResetCandidates {
+		if messages, _ := memory.Drain(); len(messages) != auth.MaximumPasswordResetCandidates {
 			t.Fatal("inclusive candidate set was truncated")
 		}
 		if _, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("candidate-overflow", "candidate-overflow", f.user.EncodedPassword, loginInstant).WithEmail(f.user.Email)); err != nil {
@@ -411,7 +412,7 @@ func RunPasswordResetMailSnapshotBinding(t *testing.T, open func(*testing.T) (Tr
 				if err != nil {
 					t.Fatal("unrelated profile edit invalidated token", err)
 				}
-			} else if err != identity.ErrInvalidResetToken {
+			} else if err != auth.ErrInvalidResetToken {
 				t.Fatal("new-state token was delivered to old snapshot recipient", err)
 			}
 			stored := f.stored(t)

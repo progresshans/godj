@@ -9,9 +9,9 @@
 
 ## 다음
 
-1. I1의 공통 로그인·자기/관리자 비밀번호 변경·Admin 명령과 세션 폐기·실패/경합을 새 source의 원격 CI에서 확인한다.
+1. I1의 공통 로그인·자기/관리자 비밀번호 변경·Admin 명령·reset 공통 기반과 세션 폐기·실패/경합을 새 source의 원격 CI에서 확인한다.
 2. 준비한 최초 계정 Command를 공개 터미널/프로세스에 연결하고 scaffold runtime·공통 Admin 등록/HTTP 제품 조립을 완성한다.
-3. Password reset·프로필 관계/파일·host/계정 삭제·채운 DB 모델 전환과 startup/restart를 실제 소비자에서 완성한다.
+3. 선택 모델의 password reset·프로필 관계/파일·host/계정 삭제·채운 DB 모델 전환과 startup/restart를 실제 소비자에서 완성한다.
 
 ## 검증 경계
 

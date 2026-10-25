@@ -44,7 +44,7 @@ func (a *Application) prepareReset(config *PasswordResetConfig) error {
 	if config == nil {
 		return nil
 	}
-	if !a.auth.CanResetPassword() || config.Mailer.ConfirmPath() != a.basePath+"/reset" || config.ReportError == nil {
+	if !a.auth.CanResetPassword() || !config.Mailer.PasswordResetAuthority().Matches(a.auth.PasswordResetAuthority()) || config.Mailer.ConfirmPath() != a.basePath+"/reset" || config.ReportError == nil {
 		return invalidConfig("password_reset")
 	}
 	for _, path := range []string{a.basePath + "/reset/", a.apiBasePath + "/reset/"} {
@@ -180,7 +180,7 @@ func (a *Application) resetRequestPost(r *web.Request) (web.Response, error) {
 	if err := a.auth.VerifyCSRF(r, data["csrfmiddlewaretoken"]); err != nil {
 		return csrfFailure(err)
 	}
-	email, failures := identity.CleanPasswordResetEmail(data.Get("email"))
+	email, failures := auth.CleanPasswordResetEmail(data.Get("email"))
 	if len(data["email"]) > 1 {
 		failures = validation.NewErrors(validation.New("email", "multiple"))
 	}
