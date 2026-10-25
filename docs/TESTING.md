@@ -171,7 +171,10 @@ macOS Intel/ARM race는 90분·package 70분 한도를 사용한다.
 SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
 Conformance Go runner 전체는 project-check matrix가 실행하고 관계 matrix는 같은 runner subset을 반복하지 않는다.
 Linux amd64 checker 전체는 Portable이 맡고 관계 matrix의 같은 subset을 생략한다.
-Portable conformance는 `scripts/ci/conformance_tests.py`가 JSON 시작·종료와 package 완료를 대조하고, 옮겨진 checker의 필수 sentinel·no-skip도 확인한다.
+Portable core/conformance는 `scripts/ci/portable_tests.py`가 normal/race/CGO0의 JSON 시작·종료와 package 완료를 대조한다.
+Core의 필수 root/child는 `portable-core-required.txt`에 두고 모두 실제 pass를 요구한다. 별도 PostgreSQL/native owner에 속한
+기존 선택적 검사의 skip은 core 결과에 구분해 기록한다. Conformance는 옮겨진 checker의 필수 sentinel·package no-skip을 유지한다.
+원격 job은 JSON 전체·stderr·실제 package/필수 목록·결과와 파일 hash를 portable test evidence artifact로 보존한다.
 다른 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
 aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다. Darwin CGO-disabled lifecycle도 관계/project-check matrix가 소유한다.
 

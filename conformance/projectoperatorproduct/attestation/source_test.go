@@ -153,7 +153,8 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"conformance/suites.json",
 		"conformance/catalog.py",
 		"scripts/conformance.py",
-		"scripts/ci/conformance_tests.py",
+		"scripts/ci/portable_tests.py",
+		"scripts/ci/portable-core-required.txt",
 
 		"conformance/contracts/system-state-manifest.json",
 	}

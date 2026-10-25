@@ -243,6 +243,24 @@ class ExecutionOwnerTests(unittest.TestCase):
                 self.assertTrue(relation_owned(relative) or relative in supplemental,
                                 'required test belongs to another execution owner')
 
+    def test_required_core_inventory_has_its_existing_portable_owner(self):
+        from packages import selected
+        from workflow import JOBS
+        root = Path(__file__).resolve().parents[2]
+        entries = (root / 'scripts/ci/portable-core-required.txt').read_text().splitlines()
+        self.assertTrue(entries)
+        self.assertEqual(len(entries), len(set(entries)))
+        packages = []
+        for entry in entries:
+            package, name = entry.split('|')
+            self.assertTrue(package.startswith(MODULE))
+            self.assertTrue(name.startswith('Test'))
+            self.assertEqual('core', group(package))
+            if package not in packages:
+                packages.append(package)
+        self.assertEqual(packages, selected(packages, 'core', JOBS))
+        self.assertEqual([], selected(packages, 'relation', JOBS))
+
     def test_postgres_child_sentinels_select_their_enclosing_tests(self):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / '.github/workflows/ci.yml').read_text()

@@ -1093,6 +1093,35 @@ Serializer의 일반 거부 정책·기본 모델 선언·필수 실행 항목�
 새 source의 전체 CI·양 DB·브라우저·race/process/platform과 원본 대조는 아직 필요하다.
 공통 account/catalog Admin 자동 등록, 공개 최초 계정 명령·scaffold/runtime 및 나머지 I1 수용 범위는 유지한다.
 
+### Admin 필수 검사의 실제 Portable 실행 소유권
+
+2026-10-26, `a4fc5303`의 [CI 40213537349](https://github.com/progresshans/godj/actions/runs/40213537349)에서
+새 Admin root/child 31개를 relation 필수 목록에 넣은 배정 오류를 확인했다. Admin package의 기존 실행 소유자는
+Portable core이므로 CI 도구의 소유권 검사와 relation planner가 실행 전에 거부했다. 대조 시점의 실패 작업 27개는
+CI 도구 한 개·relation 작업 26개였으며 원본 로그 모두에서 같은 원인을 확인했다. 실제 checkout
+`ab9a619eeaf4bc292c29b6a526b1747c96566621`과 제출 source의 tree `258791c131d51aca400e2d15bca5a534eb6676e5`도 같았다.
+이 실패는 새 Admin Go 본문의 실행 결과가 아니다.
+
+해당 31개를 `portable-core-required.txt`로 옮겼다. 기존 relation 항목 3,916개와 새 core 항목의 합집합이
+수정 전 3,947개와 정확히 같고 중복이 없음을 대조했다. Package를 다른 owner로 옮기거나 필수 검사를 제거하지 않았다.
+공통 `portable_tests.py`는 기존 conformance 실행과 core의 normal/race/CGO0 실행에서 전체 Go JSON의 시작·종료,
+선택 package 완료와 필수 root/child pass를 요구한다. Core의 별도 backend용 선택적 skip과 필수 skip을 구분하고,
+conformance의 기존 필수 package no-skip 조건을 유지한다. 실패한 discovery나 Go 종료·잘린 JSON을 성공으로 처리하지 않는다.
+원격 작업은 JSON·stderr·실제 package/필수 목록·결과와 hash를 보존한다. Runner와 필수 목록 변경은 기존
+system-state/operator source binding과 그 변경 검출 검사에도 포함했다.
+
+로컬에서는 제출 source의 여섯 파일을 별도 디렉터리에 그대로 복사하여 원래 소유권 검사 한 개의 31건 실패를 재현했다.
+수정 뒤 필요한 Python 검사 여섯 개가 통과했다. 이 중 fake Go와 실제 Make 진입점을 사용하는 66개 하위 사례는
+세 모드의 완전한 성공·필수 누락/skip·compile-only·잘린/잘못된 JSON·비정상 종료·불완전한 discovery의 거부와
+기존 conformance skip 정책·원본 근거 보관을 확인한다. 이들은 CI 실행 프로토콜 검사이며 실제 Go 제품 본문 실행이 아니다.
+영향받은 protocol·두 attestation package는 `go test -run '^$'`로 최소 compile만 확인했다.
+
+원본 작업 로그 27개, 동일 tree 대조, 원래 여섯 파일과 수정 source의 hash, 한정 재현/검사/compile 명령과 결과는
+같은 검증 보관소의 `gdj0138-a4fc5303-ci-v1/owner-fix-receipt.json`에 연결했다
+(SHA-256 `e4e0b5cb9962cf2b84c7a889944a125ec77cedccba9c83eb84dae1512fc7e5ea`).
+새 source의 전체 CI와 실제 Admin·DB/HTTP·race/platform 실행 대조는 여전히 필요하다. 이 수정으로 I1 제품 수용이나
+공통 Admin 등록·계정/host 삭제 등 남은 범위가 완료된 것으로 계산하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

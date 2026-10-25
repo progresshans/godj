@@ -277,7 +277,19 @@ jobs:
         run: make ci-tools-test
 
       - name: Run portable Go mode
+        id: portable-go
+        env:
+          GODJ_PORTABLE_EVIDENCE_DIR: ${{ runner.temp }}/portable-go
         run: make ${{ matrix.make_targets }}
+
+      - name: Publish portable test evidence
+        if: always() && steps.portable-go.outcome != 'skipped' && (matrix.shard == 'core-vet' || matrix.shard == 'core' || matrix.shard == 'conformance')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: portable-tests-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/portable-go/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Install locked Helpdesk browser tools
         if: matrix.mode == 'normal' && matrix.shard == 'integration'
