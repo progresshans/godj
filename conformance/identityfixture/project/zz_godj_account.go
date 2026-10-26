@@ -2,6 +2,242 @@
 
 package project
 
+import (
+	_godjaccountcontext "context"
+	_godjaccountauth "github.com/progresshans/godj/auth"
+	work "github.com/progresshans/godj/conformance/identityfixture/models"
+	_godjaccountdb "github.com/progresshans/godj/db"
+	_godjaccountmodel "github.com/progresshans/godj/identity/model"
+	accounts "github.com/progresshans/godj/identity/models"
+	ir "github.com/progresshans/godj/schema/ir"
+	_godjaccountsession "github.com/progresshans/godj/sessions"
+	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
+)
+
 const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v17"
 
-var _ goDjProjectSnapshot_80f35cf9f0c282da4ead92e94bb0071280d28080dfd229889ba8ad9ac7683eda
+// BindAccount validates the selected typed model and complete host relation graph.
+// It does not provision or transition the persisted credential domain.
+func BindAccount() (_godjaccountmodel.Binding[accounts.User], error) {
+	return _godjaccountmodel.Bind[accounts.User](ir.AccountRole{
+		Model:       ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user"},
+		PrincipalID: "principal_id", Login: "username", Password: "encoded_password", Revision: "revision", LastLogin: "last_login", CreatedAt: "date_joined", Email: "email",
+		Active:    ir.AccountBoolean{Field: "active"},
+		Staff:     ir.AccountBoolean{Field: "staff"},
+		Superuser: ir.AccountBoolean{Field: "superuser"},
+		Groups:    "groups", Permissions: "permissions", WriteLoginNormalization: "unicode16_nfkc", LoginFormNormalization: "unicode16_nfkc", AuthenticateNormalization: "exact", WriteEmailNormalization: "unicode16_email_domain",
+		Catalog: ir.AccountCatalog{
+			Group: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"}, GroupName: "name", GroupRevision: "revision", GroupPermissions: "permissions",
+			Permission: ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "permission"}, PermissionCode: "code", PermissionName: "name", PermissionRevision: "revision",
+		},
+	}, accounts.UserDescriptor{},
+		accounts.GoDjRelationSchema(),
+		work.GoDjRelationSchema(),
+	)
+}
+
+// NewAccountCredentialStore reads the selected typed account and effective permissions in one snapshot.
+func NewAccountCredentialStore(backend _godjaccountdb.SnapshotReader) (*_godjaccountmodel.CredentialStore[accounts.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewCredentialStore(backend, binding, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{})
+}
+
+// NewAccountSessionStore binds every session operation to the selected durable domain and the same native database owner.
+func NewAccountSessionStore(backend _godjaccountsessiondb.Backend, config _godjaccountsessiondb.Config) (*_godjaccountmodel.SessionStore[accounts.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewSessionStore(store, config)
+}
+
+// NewAccountAuthenticator applies the selected login policy and the shared current-credential verifier.
+func NewAccountAuthenticator(ctx _godjaccountcontext.Context, backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher) (*_godjaccountmodel.Authenticator[accounts.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewAuthenticator(ctx, store, hasher)
+}
+
+// NewAccountProfileEditor shares one backend owner for current authorization, profile writes and account audit.
+func NewAccountProfileEditor(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileConfig[accounts.User]) (*_godjaccountmodel.ProfileEditor[accounts.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewProfileEditor(store, overlay, config)
+}
+
+// NewAccountPasswordEditor binds administrative password replacement to the exact selected session and verifier owners.
+func NewAccountPasswordEditor(sessions *_godjaccountmodel.SessionStore[accounts.User], verifier *_godjaccountmodel.Authenticator[accounts.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.PasswordEditConfig[accounts.User]) (*_godjaccountmodel.PasswordEditor[accounts.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewPasswordEditor(sessions, binding, verifier, overlay, config)
+}
+
+// NewAccountPasswordResetter binds recipient tokens and atomic reset proofs to the exact selected account, sessions and verifier.
+func NewAccountPasswordResetter(store *_godjaccountmodel.SessionStore[accounts.User], manager *_godjaccountsession.Manager, verifier *_godjaccountmodel.Authenticator[accounts.User], config _godjaccountmodel.PasswordResetConfig[accounts.User]) (*_godjaccountmodel.PasswordResetter[accounts.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewPasswordResetter(store, binding, manager, verifier, config)
+}
+
+// NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.
+func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[accounts.User]) (*_godjaccountmodel.Creator[accounts.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	store, err := _godjaccountmodel.NewCredentialStore(backend, binding, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{})
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewCreator(store, binding, collections.AccountsUserGroups, collections.AccountsUserPermissions, overlay, hasher, config)
+}
+
+// NewFirstAccount prepares privileged provisioning of a fresh selected account domain.
+func NewFirstAccount(backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.FirstAccountConfig[accounts.User]) (*_godjaccountmodel.FirstAccount[accounts.User], error) {
+	definition, err := NewFirstAccountDefinition(hasher, config)
+	if err != nil {
+		return nil, err
+	}
+	return definition.Bind(backend)
+}
+
+// NewFirstAccountDefinition validates the typed operator declaration without opening a database.
+func NewFirstAccountDefinition(hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.FirstAccountConfig[accounts.User]) (_godjaccountmodel.FirstAccountDefinition[accounts.User], error) {
+	var zero _godjaccountmodel.FirstAccountDefinition[accounts.User]
+	binding, err := BindAccount()
+	if err != nil {
+		return zero, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return zero, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return zero, err
+	}
+	return _godjaccountmodel.NewFirstAccountDefinition(binding, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{}, collections.AccountsUserGroups, collections.AccountsUserPermissions, hasher, config)
+}
+
+// NewAccountEditor uses the existing session owner for profiles, roles, memberships, audit and deactivation.
+func NewAccountEditor(sessions *_godjaccountmodel.SessionStore[accounts.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountEditConfig[accounts.User]) (*_godjaccountmodel.AccountEditor[accounts.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewAccountEditor(sessions, binding, collections.AccountsUserGroups, collections.AccountsUserPermissions, overlay, config)
+}
+
+// NewAccountProfileReader binds current account authority, selected profile data and domain history to one snapshot owner.
+func NewAccountProfileReader(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.ProfileReadConfig) (*_godjaccountmodel.ProfileReader[accounts.User], error) {
+	store, err := NewAccountCredentialStore(backend)
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewProfileReader(store, overlay, config)
+}
+
+// NewAccountDeleter coordinates all collected account/catalog effects with the exact session owner.
+func NewAccountDeleter(sessions *_godjaccountmodel.SessionStore[accounts.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountDeleteConfig) (*_godjaccountmodel.AccountDeleter[accounts.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewAccountDeleter(sessions, binding, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{}, policies.AccountsUser, overlay, config)
+}
+
+// NewAccountCatalog shares session ownership for every collected catalog/account deletion effect.
+func NewAccountCatalog(sessions *_godjaccountmodel.SessionStore[accounts.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.CatalogConfig[accounts.Group, accounts.Permission]) (*_godjaccountmodel.Catalog[accounts.Group, accounts.Permission], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewCatalog(sessions, binding, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{}, collections.AccountsGroupPermissions, policies.AccountsGroup, policies.AccountsPermission, overlay, config)
+}
+
+// NewAccountManagement composes current account CRUD, password policy and bounded assignments over the same session owner.
+func NewAccountManagement(sessions *_godjaccountmodel.SessionStore[accounts.User], verifier *_godjaccountmodel.Authenticator[accounts.User], overlay _godjaccountauth.Authorizer, config _godjaccountmodel.AccountManagementConfig[accounts.User]) (*_godjaccountmodel.AccountManagement[accounts.User], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewAccountManagement(sessions, binding, verifier, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{}, collections.AccountsUserGroups, collections.AccountsUserPermissions, policies.AccountsUser, overlay, config)
+}
+
+// NewAccountRuntime composes sessions, current credentials, account and catalog management over this complete host source.
+func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsessiondb.Backend, hasher _godjaccountauth.PasswordHasher, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RuntimeConfig[accounts.User, accounts.Group, accounts.Permission]) (*_godjaccountmodel.Runtime[accounts.User, accounts.Group, accounts.Permission], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewRuntime(ctx, backend, binding, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{}, collections.AccountsUserGroups, collections.AccountsUserPermissions, collections.AccountsGroupPermissions, policies.AccountsUser, policies.AccountsGroup, policies.AccountsPermission, hasher, overlay, config)
+}
+
+var _ goDjProjectSnapshot_495c023a3466e60ebcc151260beb9b21fe3de0118b54cce94811485665a0f221

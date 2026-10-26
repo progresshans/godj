@@ -93,7 +93,8 @@ Wrapped/joined 오류·rollback/cleanup 실패는 일반 입력 오류로 낮추
 Unknown outcome은 503 `outcome_unknown`이며 Retry-After나 자동 재시도가 없다. 클라이언트가 durable 상태를 확인해야 한다.
 출력과 오류는 완전하게 준비하고 일부 JSON이나 잘린 진단을 성공으로 게시하지 않는다. Cache-Control은 no-store다.
 
-기본/사용자 정의 생성 앱의 실제 TCP·SQLite 소비자와 한정 검증 범위는
-[TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다. 새 구현과 최소 compile은 전체 원격 수용을 대신하지 않는다.
-기존 기본 모델 `New(Config)`의 host 교체, 공개 CLI/scaffold·통합 runtime, profile 관계/파일·채운 DB 전환과
-PostgreSQL의 독립 HTTP/브라우저 수용은 I1의 남은 요구에 포함된다.
+기본/사용자 정의 일곱 생성 변형을 실제 TCP·SQLite/PostgreSQL 소비자에 연결했다. 공개 CLI·Article/scaffold는
+선택 계정 runtime을 조립하며, 별도 ogen module의 Session/Bearer 관리 소비자도 같은 소유자·22개 경로와
+새 receipt/선택 필드 계약을 사용한다. 구현·최소 compile과 실제 환경별 실행 범위는
+[TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+남은 고정 Directory/Manager host 교체, profile 관계/파일·채운 DB 전환·복구와 전체 환경 수용은 I1에 남아 있다.

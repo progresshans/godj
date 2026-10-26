@@ -3,7 +3,7 @@
 `TestGeneratedOpenAPIClientContract`는 실제 Article Bearer·Article Session·Helpdesk Session·Identity Session/Bearer·Account API의 문서를
 `testdata/client/specs`와 비교하고, 별도 Go module에서 고정된 `ogen`으로 재생성한 파일이 저장된 생성물과 같은지 확인한다.
 이후 생성 client를 build하고 실제 HTTP로 실행하여 응답·인증·CSRF·관계·DB 변경을 검증한다.
-Article/Helpdesk는 메모리 session을, Identity는 실제 credential stamp와 durable session을 명시적으로 준비한다.
+Article/Helpdesk는 메모리 session을, 선택 계정 관리와 Account는 같은 typed runtime의 실제 credential domain·stamp와 DB session을 사용한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
 Helpdesk 서비스 일정의 `helpdesk_service_preview`는 원래 Ticket을 보존하고 Date/Time/Duration/DateTime fixture를
@@ -61,7 +61,7 @@ Identity의 `If-Revision`은 서버의 typed Header가 제공한 required int64 
 필수 receipt는 `identity_bearer_typed_headers`와 `identity_session_typed_headers`다. 큰 revision의 실제 갱신·취소·
 audit/무변경은 Identity의 SQLite/PostgreSQL 검사가, int64의 정확한 생성 wire는 기존 별도 wire fixture가 검증한다.
 
-Identity의 `password_usable`은 User/UserSummary의 required read-only boolean이다.
+Identity의 `password_usable`은 Account/AccountSummary의 required read-only boolean이다.
 Session/Bearer client는 사용 불가 생성·반복 설정·복구와 활성 상태의 독립성, 목록과 view-only 상세의 현재 상태를 확인한다.
 별도 wire 검사는 두 응답형의 true/false와 필드 누락·null·숫자·문자열 거부를 확인한다.
 이 필드는 stored password를 공개하거나 입력으로 상태를 변경하는 통로가 아니다.
@@ -154,17 +154,23 @@ Helpdesk priority는 nullable integer enum 입력을 사용한다. 생성된 req
 허용값·null·생략의 실제 HTTP 왕복, enum을 cast한 잘못된 입력의 서버 거부, 기존 목록 밖 값·int64 극값의 응답 decode를 검사한다.
 생성된 encoder는 `Validate()`를 자동 호출하지 않으므로 서버 검증이 별도로 필요하다.
 
-Identity의 Session/Bearer profile은 별도 생성 패키지이며 같은 영속 SQLite 사용자 저장소를 호출한다.
-Session client는 관리 API의 19개 operation, 페이지·Unicode username·unique 오류·PUT 기본값과
-collection 생략/빈 배열/no-op, required/stale revision, 권한·CSRF, 비밀번호 교체와 세션 폐기를 확인한다.
-Permission/Group 삭제로 직접 소유자 revision이 증가하는지와 호스트 PROTECT/CASCADE/SET_NULL도 검증한다.
-Bearer client는 CRUD·typed condition과 인증 challenge를 확인하고, Session client가 actor를 비활성화한 뒤에도
-원래 superuser snapshot을 반환하는 verifier로 다시 호출하여 현재 DB 권한 확인을 우회하지 못하는지 확인한다.
-부모는 새 runtime을 구성해 최종 사용자·password whitespace·정확한 관계 행·호스트 데이터·session·value-free audit를 별도로 조회한다.
-세션은 부모가 실제 durable store에 seed하며 로그인 endpoint나 token issuer를 구현한 것으로 간주하지 않는다.
+Identity의 Session/Bearer profile은 별도 생성 패키지이며 같은 영속 SQLite 선택 계정 저장소를 호출한다.
+`conformance/identityfixture`의 명시적 AccountRole·전체 host 그래프와 typed 정책으로 첫 계정/domain을 생성하고,
+`NewAccountRuntime`의 AccountManagement/Catalog를 `identityapi.NewManagement`의 22개 경로에 연결한다.
+요청은 `fields`와 `credential`을 구분한다. 생성은 201, 수정·password·삭제는 200의 확정 ID/revision과 Revision header를
+먼저 검사하고, 필요한 표현은 별도 상세 조회로 대조한다. 자기 비활성화는 성공 receipt 뒤 session 거부를 확인한다.
+
+Session client는 페이지·Unicode username·unique 오류·PUT 기본값과 collection 생략/빈 배열/no-op,
+required/stale revision·권한/CSRF·비밀번호 교체·사용하지 않은 session 폐기를 검사한다. Permission/Group 삭제의
+직접 owner revision, 호스트 PROTECT/CASCADE/SET_NULL, 계정/그룹/권한 이력의 순서·action·변경 필드·시각도 확인한다.
+Bearer client는 같은 현재 domain의 CRUD·typed condition과 인증 challenge를 검사하며, Session client가 actor를
+비활성화한 뒤에도 원래 superuser snapshot을 반환하는 verifier로 현재 DB 권한 검사를 확인한다.
+부모는 별도 selected runtime과 native ORM으로 최종 계정·password whitespace·정확한 관계/host 행·session·domain audit와
+최초 ownership receipt 보존을 대조한다. 두 실제 사용 session은 HTTP 로그인으로 수립하며 사용하지 않은 session은
+명시적으로 seed한다. 고정 Bearer verifier는 제품 token issuer가 아니다.
 
 Identity의 email 입력은 모델 EmailField의 254자 제한과 고정 이메일 문법을 사용한다. Session/Bearer client는
-공백 있는 주소의 정리와 사용자 Manager의 domain 소문자 변환, 잘못된 주소·길이 초과의 생성/PATCH 거부를 확인한다.
+공백 있는 주소의 정리와 선택 email 역할의 domain 소문자 변환, 잘못된 주소·길이 초과의 생성/PATCH 거부를 확인한다.
 기존의 문법상 잘못된 주소는 응답에서 그대로 읽으며 거부된 요청이 그 값·revision·감사 이력을 바꾸지 않는지 검사한다.
 OpenAPI는 입력 정리 뒤 정책을 extension으로 기술하고 저장된 출력에 이메일 문법을 다시 강제하지 않는다.
 생략 기본값도 extension으로 남겨 생성 client가 검증되지 않은 서버 기본값을 임의로 제출하지 않게 한다.
@@ -173,12 +179,12 @@ Identity의 required password 입력은 nullable string이다. Session client는
 기존 사용자의 반복 disable과 password 복구를 호출한다. Bearer client도 disable을 실제 서버에 요청한다.
 부모는 사용 불가 User의 현재 Resolve·비밀번호 거부와 복구 User의 공백 보존, 정확한 revision/session/audit를 별도로 확인한다.
 Wire에서는 null, zero-value의 빈 문자열, 공백 있는 문자열을 구분하고 unknown 응답을 한 번만 전송한다.
-현재 고정 생성물의 nullable PasswordReplacement에는 별도 Validate 메서드가 없으므로 서버의 required/length/type 검사가 계속 소유자다.
+Password 명령은 `credential.password`의 nullable string을 사용하며 서버가 required/length/type과 typed 강도 정책을 검사한다.
 
 Identity의 `If-Revision`/`Revision` header는 required int64이고 각각 변경 가능한 양수 범위와 저장 가능한 양수 범위다.
-별도 wire 검사는 2^53 밖 ID/revision/collection의 정확한 전송과 required collection·revision header 오류를 확인한다.
+별도 wire 검사는 canonical string 경로와 2^53 밖 ID/revision/collection의 정확한 정수 전송을 확인한다. 선택 상세의 required collection과 쓰기 receipt의 required ID/revision·header 오류도 거부한다.
 412/428/503 응답은 typed 오류이며 한 번만 전송된다. 이 synthetic 503은 실제 서버의 unknown outcome 증거가 아니다.
-관리 서버의 rollback/unknown·양 DB 검사는 `internal/identitytest`와 각 DB root가 소유한다.
+선택 관리 owner의 rollback/unknown·양 DB 검사는 `internal/accountstoretest`와 각 DB root가 소유한다.
 새 client는 SQLite HTTP와 별도 client process 경계의 증거이며 PostgreSQL client나 server process restart 증거는 아니다.
 
 Account Session client는 권한 없는 일반 사용자가 제품 login Form과 CSRF를 제출해 직접 session을 수립한다.
@@ -189,8 +195,8 @@ other-session 폐기를 확인하고 제품 logout을 제출한다. 이어서 �
 opaque session cookie를 전송한다. CSRF/origin refusal, policy 오류, cookie 회전·HttpOnly·독립 CSRF pair 보존,
 proof replay 거부·자동 로그인 없음과 no-store/no-referrer를 검사한다. 제품은 메일 조회 경로를 제공하지 않는다.
 부모는 별도 runtime의 최종 reset password, revision 4, 보존된 last_login, unused-session 폐기·foreign-session 보존과
-정확한 세 audit를 확인한다. 고정 synthetic 503은 typed unknown/no-retry만 검사하며 실제 native rollback/unknown HTTP는
-양 DB Identity suite가 소유한다. Safe generated proof GET이 CSRF cookie를 보내지 않으면 새 pair를 받을 수 있으므로,
+일반 계정의 최초 생성 audit와 정확한 세 password change audit, 최초 domain ownership 보존을 확인한다. 고정 synthetic 503은 typed unknown/no-retry만 검사하며 실제 native rollback/unknown HTTP는
+양 DB 선택 계정 suite가 소유한다. Safe generated proof GET이 CSRF cookie를 보내지 않으면 새 pair를 받을 수 있으므로,
 완료 전후 비교는 마지막 proof 응답에서 받은 pair를 기준으로 한다.
 
 ## 현재 소스에서 문서 내보내기
@@ -204,7 +210,7 @@ go run ./api/openapi/consumertest/testdata/export -out "$schema_update_dir/specs
 ```
 
 명령은 실제 API adapter와 builtin authentication profile에서 `articlebearer.json`, `articlesession.json`,
-`helpdesksession.json`, `identitysession.json`, `identitybearer.json`, `accountsession.json`을 구성한다. 격리된 메모리 SQLite만 사용하고 서버·migration·자격증명 검증을 실행하지 않는다.
+`helpdesksession.json`, `identitysession.json`, `identitybearer.json`, `accountsession.json`을 구성한다. 격리된 메모리 SQLite와 실제 선택 계정 owner를 사용한다. Runtime 생성의 제한된 dummy hash 준비 외에 서버·migration·credential 검증·권한 callback·메일 전송을 실행하지 않는다.
 여섯 문서의 구성이 모두 성공한 뒤 파일을 쓰며 기존 파일은 덮어쓰지 않는다. 파일 쓰기 자체가 실패하면 해당 임시 디렉터리를
 확인한 뒤 새 빈 디렉터리에서 다시 실행한다. `testdata` 아래의 유지보수 명령이므로 기본 `go test ./...` 대상에는 포함되지 않는다.
 
@@ -276,13 +282,12 @@ for profile in profiles:
 PY
 
 git diff --check
-go test -count=1 ./api/openapi ./api/openapi/consumertest ./examples/article/apiapp ./examples/helpdesk
-go test -race -count=1 ./api/openapi/consumertest
-CGO_ENABLED=0 go test -count=1 ./api/openapi/consumertest
+go test -run '^$' ./api/openapi/consumertest
 ```
 
-위 테스트는 갱신한 원본 문서·고정 생성기·정확한 생성 파일 집합과 실제 HTTP client를 함께 확인한다.
-CI integration target의 normal/race/CGO=0 실행도 같은 package를 포함한다. 생성물과 문서를 변경한 소스와 함께 commit한다.
+위 로컬 명령은 최소 compile만 확인한다. 생성물·소비자·문서를 함께 commit하고 PR에 push하여 전체 CI를 실행한다.
+CI integration target의 normal/race/CGO=0이 갱신한 문서·고정 생성기·정확한 파일 집합과 독립 module·실제 HTTP/DB를
+함께 확인한다. 새 본문의 실제 실행과 source별 결과는 TEST_EVIDENCE에 기록한다.
 
 Client 실패는 소스에 선언된 고정 단계명으로 진단한다. 전체 context가 종료됐으면 정해진 deadline/cancel 상태만
 덧붙이며 부모는 정확한 조합만 인정한다. 요청 URL·인증정보·응답 body나 임의의 오류 문자열은 진단에 추가하지 않는다.

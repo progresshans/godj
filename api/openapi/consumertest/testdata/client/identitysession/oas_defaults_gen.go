@@ -3,7 +3,7 @@
 package identitysession
 
 // setDefaults set default value of fields.
-func (s *UserCreate) setDefaults() {
+func (s *AccountCreateFields) setDefaults() {
 	{
 		val := string("")
 		s.FirstName.SetTo(val)
@@ -27,7 +27,7 @@ func (s *UserCreate) setDefaults() {
 }
 
 // setDefaults set default value of fields.
-func (s *UserUpdate) setDefaults() {
+func (s *AccountPutFields) setDefaults() {
 	{
 		val := string("")
 		s.FirstName.SetTo(val)

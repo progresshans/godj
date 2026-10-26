@@ -9,6 +9,890 @@ import (
 	"github.com/ogen-go/ogen/validate"
 )
 
+func (s *Account) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountCreate) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountCreateFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Groups {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "groups",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     256,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Username)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "username",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     254,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Email)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "email",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     150,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.FirstName)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "first_name",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     150,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.LastName)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_name",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Groups == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Groups {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "groups",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Permissions == nil {
+			return errors.New("nil is invalid value")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountPage) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if s.Items == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: true,
+			MaxLength:    100,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Items)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		var failures []validate.FieldError
+		for i, elem := range s.Items {
+			if err := func() error {
+				if err := elem.Validate(); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "items",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Count)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "count",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           0,
+			MaxSet:        true,
+			Max:           2147483647,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Offset)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "offset",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           100,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Limit)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "limit",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountPatch) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountPatchFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Groups {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "groups",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountPut) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountPutFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Groups {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "groups",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountSummary) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *AccountSummaryFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     256,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Username)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "username",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     254,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Email)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "email",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     150,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.FirstName)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "first_name",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     150,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.LastName)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "last_name",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
 func (s *GoDjAPIError) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
@@ -95,7 +979,7 @@ func (s *GoDjAPIErrorHeaders) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateBadRequest) Validate() error {
+func (s *GodjIdentityAccountsCreateBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -103,7 +987,105 @@ func (s *GodjIdentityIdentityGroupsCreateBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateForbidden) Validate() error {
+func (s *GodjIdentityAccountsCreateCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsCreateCreatedHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsCreateForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -111,7 +1093,7 @@ func (s *GodjIdentityIdentityGroupsCreateForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateNotAcceptable) Validate() error {
+func (s *GodjIdentityAccountsCreateNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -119,7 +1101,7 @@ func (s *GodjIdentityIdentityGroupsCreateNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateNotFound) Validate() error {
+func (s *GodjIdentityAccountsCreatePreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -127,7 +1109,7 @@ func (s *GodjIdentityIdentityGroupsCreateNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) Validate() error {
+func (s *GodjIdentityAccountsCreateRequestEntityTooLarge) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -135,7 +1117,7 @@ func (s *GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) Validate() error
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateServiceUnavailable) Validate() error {
+func (s *GodjIdentityAccountsCreateServiceUnavailable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -143,7 +1125,7 @@ func (s *GodjIdentityIdentityGroupsCreateServiceUnavailable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsCreateUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -151,7 +1133,7 @@ func (s *GodjIdentityIdentityGroupsCreateUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsCreateUnsupportedMediaType) Validate() error {
+func (s *GodjIdentityAccountsCreateUnsupportedMediaType) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -159,7 +1141,7 @@ func (s *GodjIdentityIdentityGroupsCreateUnsupportedMediaType) Validate() error 
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeleteBadRequest) Validate() error {
+func (s *GodjIdentityAccountsDeleteBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -167,7 +1149,7 @@ func (s *GodjIdentityIdentityGroupsDeleteBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeleteForbidden) Validate() error {
+func (s *GodjIdentityAccountsDeleteForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -175,7 +1157,7 @@ func (s *GodjIdentityIdentityGroupsDeleteForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeleteNotAcceptable) Validate() error {
+func (s *GodjIdentityAccountsDeleteNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -183,7 +1165,7 @@ func (s *GodjIdentityIdentityGroupsDeleteNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeleteNotFound) Validate() error {
+func (s *GodjIdentityAccountsDeleteNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -191,7 +1173,105 @@ func (s *GodjIdentityIdentityGroupsDeleteNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeletePreconditionFailed) Validate() error {
+func (s *GodjIdentityAccountsDeleteOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsDeleteOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsDeletePreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -199,7 +1279,7 @@ func (s *GodjIdentityIdentityGroupsDeletePreconditionFailed) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeletePreconditionRequired) Validate() error {
+func (s *GodjIdentityAccountsDeletePreconditionRequired) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -207,7 +1287,7 @@ func (s *GodjIdentityIdentityGroupsDeletePreconditionRequired) Validate() error 
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeleteServiceUnavailable) Validate() error {
+func (s *GodjIdentityAccountsDeleteServiceUnavailable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -215,7 +1295,7 @@ func (s *GodjIdentityIdentityGroupsDeleteServiceUnavailable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDeleteUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsDeleteUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -223,7 +1303,7 @@ func (s *GodjIdentityIdentityGroupsDeleteUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDetailBadRequest) Validate() error {
+func (s *GodjIdentityAccountsDetailBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -231,7 +1311,7 @@ func (s *GodjIdentityIdentityGroupsDetailBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDetailForbidden) Validate() error {
+func (s *GodjIdentityAccountsDetailForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -239,7 +1319,7 @@ func (s *GodjIdentityIdentityGroupsDetailForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDetailNotAcceptable) Validate() error {
+func (s *GodjIdentityAccountsDetailNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -247,7 +1327,7 @@ func (s *GodjIdentityIdentityGroupsDetailNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDetailNotFound) Validate() error {
+func (s *GodjIdentityAccountsDetailNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -255,7 +1335,7 @@ func (s *GodjIdentityIdentityGroupsDetailNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsDetailUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsDetailUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -263,7 +1343,7 @@ func (s *GodjIdentityIdentityGroupsDetailUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsListBadRequest) Validate() error {
+func (s *GodjIdentityAccountsHistoryBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -271,7 +1351,7 @@ func (s *GodjIdentityIdentityGroupsListBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsListForbidden) Validate() error {
+func (s *GodjIdentityAccountsHistoryForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -279,7 +1359,108 @@ func (s *GodjIdentityIdentityGroupsListForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsListUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsHistoryNotAcceptable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsHistoryNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s GodjIdentityAccountsHistoryOKApplicationJSON) Validate() error {
+	alias := ([]GodjIdentityAccountsHistoryOKItem)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	if err := (validate.Array{
+		MinLength:    0,
+		MinLengthSet: true,
+		MaxLength:    100,
+		MaxLengthSet: true,
+	}).ValidateLength(len(alias)); err != nil {
+		return errors.Wrap(err, "array")
+	}
+	var failures []validate.FieldError
+	for i, elem := range alias {
+		if err := func() error {
+			if err := elem.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			failures = append(failures, validate.FieldError{
+				Name:  fmt.Sprintf("[%d]", i),
+				Error: err,
+			})
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsHistoryOKItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Sequence)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sequence",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.ChangedFields == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: true,
+			MaxLength:    128,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.ChangedFields)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "changed_fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsHistoryUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -287,7 +1468,7 @@ func (s *GodjIdentityIdentityGroupsListUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsPatchBadRequest) Validate() error {
+func (s *GodjIdentityAccountsListBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -295,7 +1476,7 @@ func (s *GodjIdentityIdentityGroupsPatchBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsPatchForbidden) Validate() error {
+func (s *GodjIdentityAccountsListForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -303,55 +1484,7 @@ func (s *GodjIdentityIdentityGroupsPatchForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsPatchNotAcceptable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityGroupsPatchNotFound) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityGroupsPatchPreconditionFailed) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityGroupsPatchPreconditionRequired) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityGroupsPatchRequestEntityTooLarge) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityGroupsPatchServiceUnavailable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityGroupsPatchUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsListUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -359,15 +1492,7 @@ func (s *GodjIdentityIdentityGroupsPatchUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsPatchUnsupportedMediaType) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityGroupsUpdateBadRequest) Validate() error {
+func (s *GodjIdentityAccountsPasswordBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -375,7 +1500,7 @@ func (s *GodjIdentityIdentityGroupsUpdateBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdateForbidden) Validate() error {
+func (s *GodjIdentityAccountsPasswordForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -383,7 +1508,7 @@ func (s *GodjIdentityIdentityGroupsUpdateForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdateNotAcceptable) Validate() error {
+func (s *GodjIdentityAccountsPasswordNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -391,7 +1516,7 @@ func (s *GodjIdentityIdentityGroupsUpdateNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdateNotFound) Validate() error {
+func (s *GodjIdentityAccountsPasswordNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -399,7 +1524,105 @@ func (s *GodjIdentityIdentityGroupsUpdateNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionFailed) Validate() error {
+func (s *GodjIdentityAccountsPasswordOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPasswordOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPasswordPreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -407,7 +1630,7 @@ func (s *GodjIdentityIdentityGroupsUpdatePreconditionFailed) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionRequired) Validate() error {
+func (s *GodjIdentityAccountsPasswordPreconditionRequired) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -415,7 +1638,7 @@ func (s *GodjIdentityIdentityGroupsUpdatePreconditionRequired) Validate() error 
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) Validate() error {
+func (s *GodjIdentityAccountsPasswordRequestEntityTooLarge) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -423,7 +1646,7 @@ func (s *GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) Validate() error
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdateServiceUnavailable) Validate() error {
+func (s *GodjIdentityAccountsPasswordServiceUnavailable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -431,7 +1654,7 @@ func (s *GodjIdentityIdentityGroupsUpdateServiceUnavailable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdateUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsPasswordUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -439,7 +1662,7 @@ func (s *GodjIdentityIdentityGroupsUpdateUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) Validate() error {
+func (s *GodjIdentityAccountsPasswordUnsupportedMediaType) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -447,7 +1670,7 @@ func (s *GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) Validate() error 
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateBadRequest) Validate() error {
+func (s *GodjIdentityAccountsPatchBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -455,7 +1678,7 @@ func (s *GodjIdentityIdentityPermissionsCreateBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateForbidden) Validate() error {
+func (s *GodjIdentityAccountsPatchForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -463,7 +1686,7 @@ func (s *GodjIdentityIdentityPermissionsCreateForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateNotAcceptable) Validate() error {
+func (s *GodjIdentityAccountsPatchNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -471,7 +1694,7 @@ func (s *GodjIdentityIdentityPermissionsCreateNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateNotFound) Validate() error {
+func (s *GodjIdentityAccountsPatchNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -479,7 +1702,105 @@ func (s *GodjIdentityIdentityPermissionsCreateNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) Validate() error {
+func (s *GodjIdentityAccountsPatchOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPatchOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPatchPreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -487,7 +1808,7 @@ func (s *GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) Validate() 
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateServiceUnavailable) Validate() error {
+func (s *GodjIdentityAccountsPatchPreconditionRequired) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -495,7 +1816,23 @@ func (s *GodjIdentityIdentityPermissionsCreateServiceUnavailable) Validate() err
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsPatchRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPatchServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPatchUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -503,7 +1840,7 @@ func (s *GodjIdentityIdentityPermissionsCreateUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) Validate() error {
+func (s *GodjIdentityAccountsPatchUnsupportedMediaType) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -511,7 +1848,7 @@ func (s *GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) Validate() e
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeleteBadRequest) Validate() error {
+func (s *GodjIdentityAccountsPutBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -519,7 +1856,7 @@ func (s *GodjIdentityIdentityPermissionsDeleteBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeleteForbidden) Validate() error {
+func (s *GodjIdentityAccountsPutForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -527,7 +1864,7 @@ func (s *GodjIdentityIdentityPermissionsDeleteForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeleteNotAcceptable) Validate() error {
+func (s *GodjIdentityAccountsPutNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -535,7 +1872,7 @@ func (s *GodjIdentityIdentityPermissionsDeleteNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeleteNotFound) Validate() error {
+func (s *GodjIdentityAccountsPutNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -543,7 +1880,105 @@ func (s *GodjIdentityIdentityPermissionsDeleteNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionFailed) Validate() error {
+func (s *GodjIdentityAccountsPutOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPutOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPutPreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -551,7 +1986,7 @@ func (s *GodjIdentityIdentityPermissionsDeletePreconditionFailed) Validate() err
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionRequired) Validate() error {
+func (s *GodjIdentityAccountsPutPreconditionRequired) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -559,7 +1994,7 @@ func (s *GodjIdentityIdentityPermissionsDeletePreconditionRequired) Validate() e
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeleteServiceUnavailable) Validate() error {
+func (s *GodjIdentityAccountsPutRequestEntityTooLarge) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -567,7 +2002,15 @@ func (s *GodjIdentityIdentityPermissionsDeleteServiceUnavailable) Validate() err
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDeleteUnauthorized) Validate() error {
+func (s *GodjIdentityAccountsPutServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityAccountsPutUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -575,7 +2018,15 @@ func (s *GodjIdentityIdentityPermissionsDeleteUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDetailBadRequest) Validate() error {
+func (s *GodjIdentityAccountsPutUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsCreateBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -583,7 +2034,105 @@ func (s *GodjIdentityIdentityPermissionsDetailBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDetailForbidden) Validate() error {
+func (s *GodjIdentityGroupsCreateCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsCreateCreatedHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsCreateForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -591,7 +2140,7 @@ func (s *GodjIdentityIdentityPermissionsDetailForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDetailNotAcceptable) Validate() error {
+func (s *GodjIdentityGroupsCreateNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -599,7 +2148,7 @@ func (s *GodjIdentityIdentityPermissionsDetailNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDetailNotFound) Validate() error {
+func (s *GodjIdentityGroupsCreatePreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -607,7 +2156,23 @@ func (s *GodjIdentityIdentityPermissionsDetailNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsDetailUnauthorized) Validate() error {
+func (s *GodjIdentityGroupsCreateRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsCreateServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsCreateUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -615,7 +2180,15 @@ func (s *GodjIdentityIdentityPermissionsDetailUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsListBadRequest) Validate() error {
+func (s *GodjIdentityGroupsCreateUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeleteBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -623,7 +2196,7 @@ func (s *GodjIdentityIdentityPermissionsListBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsListForbidden) Validate() error {
+func (s *GodjIdentityGroupsDeleteForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -631,7 +2204,145 @@ func (s *GodjIdentityIdentityPermissionsListForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsListUnauthorized) Validate() error {
+func (s *GodjIdentityGroupsDeleteNotAcceptable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeleteNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeleteOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeleteOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeletePreconditionFailed) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeletePreconditionRequired) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeleteServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsDeleteUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -639,7 +2350,7 @@ func (s *GodjIdentityIdentityPermissionsListUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsPatchBadRequest) Validate() error {
+func (s *GodjIdentityGroupsDetailBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -647,7 +2358,7 @@ func (s *GodjIdentityIdentityPermissionsPatchBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsPatchForbidden) Validate() error {
+func (s *GodjIdentityGroupsDetailForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -655,7 +2366,7 @@ func (s *GodjIdentityIdentityPermissionsPatchForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsPatchNotAcceptable) Validate() error {
+func (s *GodjIdentityGroupsDetailNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -663,7 +2374,7 @@ func (s *GodjIdentityIdentityPermissionsPatchNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsPatchNotFound) Validate() error {
+func (s *GodjIdentityGroupsDetailNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -671,39 +2382,7 @@ func (s *GodjIdentityIdentityPermissionsPatchNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionFailed) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionRequired) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityPermissionsPatchServiceUnavailable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityPermissionsPatchUnauthorized) Validate() error {
+func (s *GodjIdentityGroupsDetailUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -711,15 +2390,7 @@ func (s *GodjIdentityIdentityPermissionsPatchUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsPatchUnsupportedMediaType) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityPermissionsUpdateBadRequest) Validate() error {
+func (s *GodjIdentityGroupsHistoryBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -727,7 +2398,7 @@ func (s *GodjIdentityIdentityPermissionsUpdateBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsUpdateForbidden) Validate() error {
+func (s *GodjIdentityGroupsHistoryForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -735,7 +2406,7 @@ func (s *GodjIdentityIdentityPermissionsUpdateForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsUpdateNotAcceptable) Validate() error {
+func (s *GodjIdentityGroupsHistoryNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -743,7 +2414,7 @@ func (s *GodjIdentityIdentityPermissionsUpdateNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsUpdateNotFound) Validate() error {
+func (s *GodjIdentityGroupsHistoryNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -751,39 +2422,92 @@ func (s *GodjIdentityIdentityPermissionsUpdateNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionFailed) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
+func (s GodjIdentityGroupsHistoryOKApplicationJSON) Validate() error {
+	alias := ([]GodjIdentityGroupsHistoryOKItem)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	if err := (validate.Array{
+		MinLength:    0,
+		MinLengthSet: true,
+		MaxLength:    100,
+		MaxLengthSet: true,
+	}).ValidateLength(len(alias)); err != nil {
+		return errors.Wrap(err, "array")
+	}
+	var failures []validate.FieldError
+	for i, elem := range alias {
+		if err := func() error {
+			if err := elem.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			failures = append(failures, validate.FieldError{
+				Name:  fmt.Sprintf("[%d]", i),
+				Error: err,
+			})
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionRequired) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
+func (s *GodjIdentityGroupsHistoryOKItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Sequence)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sequence",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.ChangedFields == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: true,
+			MaxLength:    128,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.ChangedFields)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "changed_fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityPermissionsUpdateServiceUnavailable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityPermissionsUpdateUnauthorized) Validate() error {
+func (s *GodjIdentityGroupsHistoryUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -791,15 +2515,7 @@ func (s *GodjIdentityIdentityPermissionsUpdateUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersCreateBadRequest) Validate() error {
+func (s *GodjIdentityGroupsListBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -807,7 +2523,7 @@ func (s *GodjIdentityIdentityUsersCreateBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersCreateForbidden) Validate() error {
+func (s *GodjIdentityGroupsListForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -815,39 +2531,7 @@ func (s *GodjIdentityIdentityUsersCreateForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersCreateNotAcceptable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersCreateNotFound) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersCreateRequestEntityTooLarge) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersCreateServiceUnavailable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersCreateUnauthorized) Validate() error {
+func (s *GodjIdentityGroupsListUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -855,15 +2539,7 @@ func (s *GodjIdentityIdentityUsersCreateUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersCreateUnsupportedMediaType) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersDeleteBadRequest) Validate() error {
+func (s *GodjIdentityGroupsPatchBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -871,7 +2547,7 @@ func (s *GodjIdentityIdentityUsersDeleteBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDeleteForbidden) Validate() error {
+func (s *GodjIdentityGroupsPatchForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -879,7 +2555,7 @@ func (s *GodjIdentityIdentityUsersDeleteForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDeleteNotAcceptable) Validate() error {
+func (s *GodjIdentityGroupsPatchNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -887,7 +2563,7 @@ func (s *GodjIdentityIdentityUsersDeleteNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDeleteNotFound) Validate() error {
+func (s *GodjIdentityGroupsPatchNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -895,7 +2571,105 @@ func (s *GodjIdentityIdentityUsersDeleteNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDeletePreconditionFailed) Validate() error {
+func (s *GodjIdentityGroupsPatchOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPatchOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPatchPreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -903,7 +2677,7 @@ func (s *GodjIdentityIdentityUsersDeletePreconditionFailed) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDeletePreconditionRequired) Validate() error {
+func (s *GodjIdentityGroupsPatchPreconditionRequired) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -911,7 +2685,7 @@ func (s *GodjIdentityIdentityUsersDeletePreconditionRequired) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDeleteServiceUnavailable) Validate() error {
+func (s *GodjIdentityGroupsPatchRequestEntityTooLarge) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -919,7 +2693,15 @@ func (s *GodjIdentityIdentityUsersDeleteServiceUnavailable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDeleteUnauthorized) Validate() error {
+func (s *GodjIdentityGroupsPatchServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPatchUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -927,7 +2709,15 @@ func (s *GodjIdentityIdentityUsersDeleteUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDetailBadRequest) Validate() error {
+func (s *GodjIdentityGroupsPatchUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPutBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -935,7 +2725,7 @@ func (s *GodjIdentityIdentityUsersDetailBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDetailForbidden) Validate() error {
+func (s *GodjIdentityGroupsPutForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -943,7 +2733,7 @@ func (s *GodjIdentityIdentityUsersDetailForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDetailNotAcceptable) Validate() error {
+func (s *GodjIdentityGroupsPutNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -951,7 +2741,7 @@ func (s *GodjIdentityIdentityUsersDetailNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDetailNotFound) Validate() error {
+func (s *GodjIdentityGroupsPutNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -959,7 +2749,137 @@ func (s *GodjIdentityIdentityUsersDetailNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersDetailUnauthorized) Validate() error {
+func (s *GodjIdentityGroupsPutOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPutOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPutPreconditionFailed) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPutPreconditionRequired) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPutRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPutServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityGroupsPutUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -967,7 +2887,15 @@ func (s *GodjIdentityIdentityUsersDetailUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersListBadRequest) Validate() error {
+func (s *GodjIdentityGroupsPutUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsCreateBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -975,7 +2903,105 @@ func (s *GodjIdentityIdentityUsersListBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersListForbidden) Validate() error {
+func (s *GodjIdentityPermissionsCreateCreated) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsCreateCreatedHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsCreateForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -983,7 +3009,39 @@ func (s *GodjIdentityIdentityUsersListForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersListUnauthorized) Validate() error {
+func (s *GodjIdentityPermissionsCreateNotAcceptable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsCreatePreconditionFailed) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsCreateRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsCreateServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsCreateUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -991,7 +3049,15 @@ func (s *GodjIdentityIdentityUsersListUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordBadRequest) Validate() error {
+func (s *GodjIdentityPermissionsCreateUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsDeleteBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -999,7 +3065,7 @@ func (s *GodjIdentityIdentityUsersPasswordBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordForbidden) Validate() error {
+func (s *GodjIdentityPermissionsDeleteForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1007,7 +3073,7 @@ func (s *GodjIdentityIdentityUsersPasswordForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordNotAcceptable) Validate() error {
+func (s *GodjIdentityPermissionsDeleteNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1015,7 +3081,7 @@ func (s *GodjIdentityIdentityUsersPasswordNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordNotFound) Validate() error {
+func (s *GodjIdentityPermissionsDeleteNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1023,7 +3089,105 @@ func (s *GodjIdentityIdentityUsersPasswordNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordPreconditionFailed) Validate() error {
+func (s *GodjIdentityPermissionsDeleteOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsDeleteOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsDeletePreconditionFailed) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1031,7 +3195,7 @@ func (s *GodjIdentityIdentityUsersPasswordPreconditionFailed) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordPreconditionRequired) Validate() error {
+func (s *GodjIdentityPermissionsDeletePreconditionRequired) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1039,7 +3203,7 @@ func (s *GodjIdentityIdentityUsersPasswordPreconditionRequired) Validate() error
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) Validate() error {
+func (s *GodjIdentityPermissionsDeleteServiceUnavailable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1047,15 +3211,7 @@ func (s *GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) Validate() erro
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordServiceUnavailable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersPasswordUnauthorized) Validate() error {
+func (s *GodjIdentityPermissionsDeleteUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1063,15 +3219,7 @@ func (s *GodjIdentityIdentityUsersPasswordUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPasswordUnsupportedMediaType) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersPatchBadRequest) Validate() error {
+func (s *GodjIdentityPermissionsDetailBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1079,7 +3227,7 @@ func (s *GodjIdentityIdentityUsersPatchBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPatchForbidden) Validate() error {
+func (s *GodjIdentityPermissionsDetailForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1087,7 +3235,7 @@ func (s *GodjIdentityIdentityUsersPatchForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPatchNotAcceptable) Validate() error {
+func (s *GodjIdentityPermissionsDetailNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1095,7 +3243,7 @@ func (s *GodjIdentityIdentityUsersPatchNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPatchNotFound) Validate() error {
+func (s *GodjIdentityPermissionsDetailNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1103,39 +3251,7 @@ func (s *GodjIdentityIdentityUsersPatchNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPatchPreconditionFailed) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersPatchPreconditionRequired) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersPatchRequestEntityTooLarge) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersPatchServiceUnavailable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersPatchUnauthorized) Validate() error {
+func (s *GodjIdentityPermissionsDetailUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1143,15 +3259,7 @@ func (s *GodjIdentityIdentityUsersPatchUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersPatchUnsupportedMediaType) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersUpdateBadRequest) Validate() error {
+func (s *GodjIdentityPermissionsHistoryBadRequest) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1159,7 +3267,7 @@ func (s *GodjIdentityIdentityUsersUpdateBadRequest) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersUpdateForbidden) Validate() error {
+func (s *GodjIdentityPermissionsHistoryForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1167,7 +3275,7 @@ func (s *GodjIdentityIdentityUsersUpdateForbidden) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersUpdateNotAcceptable) Validate() error {
+func (s *GodjIdentityPermissionsHistoryNotAcceptable) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1175,7 +3283,7 @@ func (s *GodjIdentityIdentityUsersUpdateNotAcceptable) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersUpdateNotFound) Validate() error {
+func (s *GodjIdentityPermissionsHistoryNotFound) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1183,39 +3291,92 @@ func (s *GodjIdentityIdentityUsersUpdateNotFound) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersUpdatePreconditionFailed) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
+func (s GodjIdentityPermissionsHistoryOKApplicationJSON) Validate() error {
+	alias := ([]GodjIdentityPermissionsHistoryOKItem)(s)
+	if alias == nil {
+		return errors.New("nil is invalid value")
+	}
+	if err := (validate.Array{
+		MinLength:    0,
+		MinLengthSet: true,
+		MaxLength:    100,
+		MaxLengthSet: true,
+	}).ValidateLength(len(alias)); err != nil {
+		return errors.Wrap(err, "array")
+	}
+	var failures []validate.FieldError
+	for i, elem := range alias {
+		if err := func() error {
+			if err := elem.Validate(); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
+			failures = append(failures, validate.FieldError{
+				Name:  fmt.Sprintf("[%d]", i),
+				Error: err,
+			})
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersUpdatePreconditionRequired) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
+func (s *GodjIdentityPermissionsHistoryOKItem) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Sequence)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "sequence",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.ChangedFields == nil {
+			return errors.New("nil is invalid value")
+		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: true,
+			MaxLength:    128,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.ChangedFields)); err != nil {
+			return errors.Wrap(err, "array")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "changed_fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersUpdateRequestEntityTooLarge) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersUpdateServiceUnavailable) Validate() error {
-	alias := (*GoDjAPIError)(s)
-	if err := alias.Validate(); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (s *GodjIdentityIdentityUsersUpdateUnauthorized) Validate() error {
+func (s *GodjIdentityPermissionsHistoryUnauthorized) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1223,7 +3384,379 @@ func (s *GodjIdentityIdentityUsersUpdateUnauthorized) Validate() error {
 	return nil
 }
 
-func (s *GodjIdentityIdentityUsersUpdateUnsupportedMediaType) Validate() error {
+func (s *GodjIdentityPermissionsListBadRequest) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsListForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsListUnauthorized) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchBadRequest) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchNotAcceptable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchPreconditionFailed) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchPreconditionRequired) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchUnauthorized) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPatchUnsupportedMediaType) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutBadRequest) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutNotAcceptable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutNotFound) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutOK) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           -9223372036854775808,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.ID)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "id",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutOKHeaders) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Response.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "Response",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutPreconditionFailed) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutPreconditionRequired) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutRequestEntityTooLarge) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutServiceUnavailable) Validate() error {
+	alias := (*GoDjAPIError)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutUnauthorized) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *GodjIdentityPermissionsPutUnsupportedMediaType) Validate() error {
 	alias := (*GoDjAPIError)(s)
 	if err := alias.Validate(); err != nil {
 		return err
@@ -1259,32 +3792,9 @@ func (s *Group) Validate() error {
 		})
 	}
 	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     150,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Name)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "name",
-			Error: err,
-		})
-	}
-	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           -9223372036854775808,
+			Min:           1,
 			MaxSet:        true,
 			Max:           9223372036854775807,
 			MinExclusive:  false,
@@ -1303,9 +3813,52 @@ func (s *Group) Validate() error {
 		})
 	}
 	if err := func() error {
-		if s.Permissions == nil {
-			return errors.New("nil is invalid value")
+		if err := s.Fields.Validate(); err != nil {
+			return err
 		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GroupCreate) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GroupCreateFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
 		var failures []validate.FieldError
 		for i, elem := range s.Permissions {
 			if err := func() error {
@@ -1346,13 +3899,39 @@ func (s *Group) Validate() error {
 	return nil
 }
 
-func (s *GroupCreate) Validate() error {
+func (s *GroupFields) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
 
 	var failures []validate.FieldError
 	if err := func() error {
+		if err := (validate.String{
+			MinLength:     0,
+			MinLengthSet:  false,
+			MaxLength:     150,
+			MaxLengthSet:  true,
+			Email:         false,
+			Hostname:      false,
+			Regex:         nil,
+			MinNumeric:    0,
+			MinNumericSet: false,
+			MaxNumeric:    0,
+			MaxNumericSet: false,
+		}).Validate(string(s.Name)); err != nil {
+			return errors.Wrap(err, "string")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "name",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if s.Permissions == nil {
+			return errors.New("nil is invalid value")
+		}
 		var failures []validate.FieldError
 		for i, elem := range s.Permissions {
 			if err := func() error {
@@ -1447,6 +4026,14 @@ func (s *GroupPage) Validate() error {
 		if s.Items == nil {
 			return errors.New("nil is invalid value")
 		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: true,
+			MaxLength:    100,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Items)); err != nil {
+			return errors.Wrap(err, "array")
+		}
 		var failures []validate.FieldError
 		for i, elem := range s.Items {
 			if err := func() error {
@@ -1495,27 +4082,6 @@ func (s *GroupPage) Validate() error {
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           100,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Limit)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "limit",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
 			Min:           0,
 			MaxSet:        true,
 			Max:           2147483647,
@@ -1534,6 +4100,27 @@ func (s *GroupPage) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           100,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Limit)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "limit",
+			Error: err,
+		})
+	}
 	if len(failures) > 0 {
 		return &validate.Error{Fields: failures}
 	}
@@ -1541,6 +4128,99 @@ func (s *GroupPage) Validate() error {
 }
 
 func (s *GroupPatch) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GroupPatchFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		var failures []validate.FieldError
+		for i, elem := range s.Permissions {
+			if err := func() error {
+				if err := (validate.Int{
+					MinSet:        true,
+					Min:           -9223372036854775808,
+					MaxSet:        true,
+					Max:           9223372036854775807,
+					MinExclusive:  false,
+					MaxExclusive:  false,
+					MultipleOfSet: false,
+					MultipleOf:    0,
+					Pattern:       nil,
+				}).Validate(int64(elem)); err != nil {
+					return errors.Wrap(err, "int")
+				}
+				return nil
+			}(); err != nil {
+				failures = append(failures, validate.FieldError{
+					Name:  fmt.Sprintf("[%d]", i),
+					Error: err,
+				})
+			}
+		}
+		if len(failures) > 0 {
+			return &validate.Error{Fields: failures}
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "permissions",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GroupPut) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GroupPutFields) Validate() error {
 	if s == nil {
 		return validate.ErrNilPointer
 	}
@@ -1615,6 +4295,50 @@ func (s *GroupSummary) Validate() error {
 		})
 	}
 	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *GroupSummaryFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
+	if err := func() error {
 		if err := (validate.String{
 			MinLength:     0,
 			MinLengthSet:  false,
@@ -1634,74 +4358,6 @@ func (s *GroupSummary) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "name",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9223372036854775808,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Revision)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "revision",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *GroupUpdate) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
 			Error: err,
 		})
 	}
@@ -1738,6 +4394,50 @@ func (s *Permission) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PermissionFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
 			MinLength:     0,
@@ -1781,27 +4481,6 @@ func (s *Permission) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "name",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9223372036854775808,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Revision)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "revision",
 			Error: err,
 		})
 	}
@@ -1865,6 +4544,14 @@ func (s *PermissionPage) Validate() error {
 		if s.Items == nil {
 			return errors.New("nil is invalid value")
 		}
+		if err := (validate.Array{
+			MinLength:    0,
+			MinLengthSet: true,
+			MaxLength:    100,
+			MaxLengthSet: true,
+		}).ValidateLength(len(s.Items)); err != nil {
+			return errors.Wrap(err, "array")
+		}
 		var failures []validate.FieldError
 		for i, elem := range s.Items {
 			if err := func() error {
@@ -1913,27 +4600,6 @@ func (s *PermissionPage) Validate() error {
 	if err := func() error {
 		if err := (validate.Int{
 			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           100,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Limit)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "limit",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
 			Min:           0,
 			MaxSet:        true,
 			Max:           2147483647,
@@ -1949,6 +4615,27 @@ func (s *PermissionPage) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "offset",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           100,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Limit)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "limit",
 			Error: err,
 		})
 	}
@@ -1985,6 +4672,50 @@ func (s *PermissionSummary) Validate() error {
 			Error: err,
 		})
 	}
+	if err := func() error {
+		if err := (validate.Int{
+			MinSet:        true,
+			Min:           1,
+			MaxSet:        true,
+			Max:           9223372036854775807,
+			MinExclusive:  false,
+			MaxExclusive:  false,
+			MultipleOfSet: false,
+			MultipleOf:    0,
+			Pattern:       nil,
+		}).Validate(int64(s.Revision)); err != nil {
+			return errors.Wrap(err, "int")
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "revision",
+			Error: err,
+		})
+	}
+	if err := func() error {
+		if err := s.Fields.Validate(); err != nil {
+			return err
+		}
+		return nil
+	}(); err != nil {
+		failures = append(failures, validate.FieldError{
+			Name:  "fields",
+			Error: err,
+		})
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+	return nil
+}
+
+func (s *PermissionSummaryFields) Validate() error {
+	if s == nil {
+		return validate.ErrNilPointer
+	}
+
+	var failures []validate.FieldError
 	if err := func() error {
 		if err := (validate.String{
 			MinLength:     0,
@@ -2028,832 +4759,6 @@ func (s *PermissionSummary) Validate() error {
 	}(); err != nil {
 		failures = append(failures, validate.FieldError{
 			Name:  "name",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9223372036854775808,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Revision)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "revision",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *User) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9223372036854775808,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.ID)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "id",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     256,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Username)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "username",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     150,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.FirstName)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "first_name",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     150,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.LastName)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "last_name",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     254,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Email)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "email",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9223372036854775808,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Revision)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "revision",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Groups == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Groups {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "groups",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if s.Permissions == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *UserCreate) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.Groups {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "groups",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *UserHeaders) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Revision)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "Revision",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Response.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "Response",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *UserPage) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if s.Items == nil {
-			return errors.New("nil is invalid value")
-		}
-		var failures []validate.FieldError
-		for i, elem := range s.Items {
-			if err := func() error {
-				if err := elem.Validate(); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "items",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           0,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Count)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "count",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           100,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Limit)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "limit",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           0,
-			MaxSet:        true,
-			Max:           2147483647,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Offset)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "offset",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *UserPatch) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.Groups {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "groups",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *UserSummary) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9223372036854775808,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.ID)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "id",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     256,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Username)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "username",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     150,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.FirstName)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "first_name",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     150,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.LastName)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "last_name",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.String{
-			MinLength:     0,
-			MinLengthSet:  false,
-			MaxLength:     254,
-			MaxLengthSet:  true,
-			Email:         false,
-			Hostname:      false,
-			Regex:         nil,
-			MinNumeric:    0,
-			MinNumericSet: false,
-			MaxNumeric:    0,
-			MaxNumericSet: false,
-		}).Validate(string(s.Email)); err != nil {
-			return errors.Wrap(err, "string")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "email",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           -9223372036854775808,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Revision)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "revision",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *UserSummaryHeaders) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		if err := (validate.Int{
-			MinSet:        true,
-			Min:           1,
-			MaxSet:        true,
-			Max:           9223372036854775807,
-			MinExclusive:  false,
-			MaxExclusive:  false,
-			MultipleOfSet: false,
-			MultipleOf:    0,
-			Pattern:       nil,
-		}).Validate(int64(s.Revision)); err != nil {
-			return errors.Wrap(err, "int")
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "Revision",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		if err := s.Response.Validate(); err != nil {
-			return err
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "Response",
-			Error: err,
-		})
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-	return nil
-}
-
-func (s *UserUpdate) Validate() error {
-	if s == nil {
-		return validate.ErrNilPointer
-	}
-
-	var failures []validate.FieldError
-	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.Groups {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "groups",
-			Error: err,
-		})
-	}
-	if err := func() error {
-		var failures []validate.FieldError
-		for i, elem := range s.Permissions {
-			if err := func() error {
-				if err := (validate.Int{
-					MinSet:        true,
-					Min:           -9223372036854775808,
-					MaxSet:        true,
-					Max:           9223372036854775807,
-					MinExclusive:  false,
-					MaxExclusive:  false,
-					MultipleOfSet: false,
-					MultipleOf:    0,
-					Pattern:       nil,
-				}).Validate(int64(elem)); err != nil {
-					return errors.Wrap(err, "int")
-				}
-				return nil
-			}(); err != nil {
-				failures = append(failures, validate.FieldError{
-					Name:  fmt.Sprintf("[%d]", i),
-					Error: err,
-				})
-			}
-		}
-		if len(failures) > 0 {
-			return &validate.Error{Fields: failures}
-		}
-		return nil
-	}(); err != nil {
-		failures = append(failures, validate.FieldError{
-			Name:  "permissions",
 			Error: err,
 		})
 	}

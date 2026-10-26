@@ -14,6 +14,2297 @@ import (
 )
 
 // Encode implements json.Marshaler.
+func (s *Account) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *Account) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+	{
+		e.FieldStart("password_usable")
+		e.Bool(s.PasswordUsable)
+	}
+}
+
+var jsonFieldsNameOfAccount = [4]string{
+	0: "id",
+	1: "revision",
+	2: "fields",
+	3: "password_usable",
+}
+
+// Decode decodes Account from json.
+func (s *Account) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode Account to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		case "fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		case "password_usable":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.PasswordUsable = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password_usable\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode Account")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccount) {
+					name = jsonFieldsNameOfAccount[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *Account) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *Account) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountCreate) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountCreate) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+	{
+		e.FieldStart("credential")
+		s.Credential.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfAccountCreate = [2]string{
+	0: "fields",
+	1: "credential",
+}
+
+// Decode decodes AccountCreate from json.
+func (s *AccountCreate) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountCreate to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "fields":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		case "credential":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				if err := s.Credential.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"credential\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountCreate")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountCreate) {
+					name = jsonFieldsNameOfAccountCreate[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountCreate) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountCreate) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountCreateCredential) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountCreateCredential) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("password")
+		s.Password.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfAccountCreateCredential = [1]string{
+	0: "password",
+}
+
+// Decode decodes AccountCreateCredential from json.
+func (s *AccountCreateCredential) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountCreateCredential to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "password":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Password.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountCreateCredential")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountCreateCredential) {
+					name = jsonFieldsNameOfAccountCreateCredential[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountCreateCredential) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountCreateCredential) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountCreateFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountCreateFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("username")
+		e.Str(s.Username)
+	}
+	{
+		if s.Email.Set {
+			e.FieldStart("email")
+			s.Email.Encode(e)
+		}
+	}
+	{
+		if s.FirstName.Set {
+			e.FieldStart("first_name")
+			s.FirstName.Encode(e)
+		}
+	}
+	{
+		if s.LastName.Set {
+			e.FieldStart("last_name")
+			s.LastName.Encode(e)
+		}
+	}
+	{
+		if s.Active.Set {
+			e.FieldStart("active")
+			s.Active.Encode(e)
+		}
+	}
+	{
+		if s.Staff.Set {
+			e.FieldStart("staff")
+			s.Staff.Encode(e)
+		}
+	}
+	{
+		if s.Superuser.Set {
+			e.FieldStart("superuser")
+			s.Superuser.Encode(e)
+		}
+	}
+	{
+		if s.Groups != nil {
+			e.FieldStart("groups")
+			e.ArrStart()
+			for _, elem := range s.Groups {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Permissions != nil {
+			e.FieldStart("permissions")
+			e.ArrStart()
+			for _, elem := range s.Permissions {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfAccountCreateFields = [9]string{
+	0: "username",
+	1: "email",
+	2: "first_name",
+	3: "last_name",
+	4: "active",
+	5: "staff",
+	6: "superuser",
+	7: "groups",
+	8: "permissions",
+}
+
+// Decode decodes AccountCreateFields from json.
+func (s *AccountCreateFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountCreateFields to nil")
+	}
+	var requiredBitSet [2]uint8
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "username":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Username = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "email":
+			if err := func() error {
+				s.Email.Reset()
+				if err := s.Email.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "first_name":
+			if err := func() error {
+				s.FirstName.Reset()
+				if err := s.FirstName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_name\"")
+			}
+		case "last_name":
+			if err := func() error {
+				s.LastName.Reset()
+				if err := s.LastName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_name\"")
+			}
+		case "active":
+			if err := func() error {
+				s.Active.Reset()
+				if err := s.Active.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"active\"")
+			}
+		case "staff":
+			if err := func() error {
+				s.Staff.Reset()
+				if err := s.Staff.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"staff\"")
+			}
+		case "superuser":
+			if err := func() error {
+				s.Superuser.Reset()
+				if err := s.Superuser.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"superuser\"")
+			}
+		case "groups":
+			if err := func() error {
+				s.Groups = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Groups = append(s.Groups, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"groups\"")
+			}
+		case "permissions":
+			if err := func() error {
+				s.Permissions = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Permissions = append(s.Permissions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountCreateFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b00000001,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountCreateFields) {
+					name = jsonFieldsNameOfAccountCreateFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountCreateFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountCreateFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("username")
+		e.Str(s.Username)
+	}
+	{
+		e.FieldStart("email")
+		e.Str(s.Email)
+	}
+	{
+		e.FieldStart("first_name")
+		e.Str(s.FirstName)
+	}
+	{
+		e.FieldStart("last_name")
+		e.Str(s.LastName)
+	}
+	{
+		e.FieldStart("active")
+		e.Bool(s.Active)
+	}
+	{
+		e.FieldStart("staff")
+		e.Bool(s.Staff)
+	}
+	{
+		e.FieldStart("superuser")
+		e.Bool(s.Superuser)
+	}
+	{
+		e.FieldStart("groups")
+		e.ArrStart()
+		for _, elem := range s.Groups {
+			e.Int64(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("permissions")
+		e.ArrStart()
+		for _, elem := range s.Permissions {
+			e.Int64(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("date_joined")
+		json.EncodeTimeFormat(e, s.DateJoined, "2006-01-02T15:04:05.999999999Z07:00")
+	}
+	{
+		e.FieldStart("last_login")
+		s.LastLogin.Encode(e, json.NewTimeEncoder("2006-01-02T15:04:05.999999999Z07:00"))
+	}
+}
+
+var jsonFieldsNameOfAccountFields = [11]string{
+	0:  "username",
+	1:  "email",
+	2:  "first_name",
+	3:  "last_name",
+	4:  "active",
+	5:  "staff",
+	6:  "superuser",
+	7:  "groups",
+	8:  "permissions",
+	9:  "date_joined",
+	10: "last_login",
+}
+
+// Decode decodes AccountFields from json.
+func (s *AccountFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountFields to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "username":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Username = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "email":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Email = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "first_name":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.FirstName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_name\"")
+			}
+		case "last_name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.LastName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_name\"")
+			}
+		case "active":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Active = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"active\"")
+			}
+		case "staff":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.Staff = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"staff\"")
+			}
+		case "superuser":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Bool()
+				s.Superuser = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"superuser\"")
+			}
+		case "groups":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				s.Groups = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Groups = append(s.Groups, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"groups\"")
+			}
+		case "permissions":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				s.Permissions = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Permissions = append(s.Permissions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		case "date_joined":
+			requiredBitSet[1] |= 1 << 1
+			if err := func() error {
+				v, err := json.DecodeTimeFormat(d, "2006-01-02T15:04:05.999999999Z07:00")
+				s.DateJoined = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"date_joined\"")
+			}
+		case "last_login":
+			requiredBitSet[1] |= 1 << 2
+			if err := func() error {
+				if err := s.LastLogin.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00")); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_login\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountFields) {
+					name = jsonFieldsNameOfAccountFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountPage) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountPage) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("items")
+		e.ArrStart()
+		for _, elem := range s.Items {
+			elem.Encode(e)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("count")
+		e.Int64(s.Count)
+	}
+	{
+		e.FieldStart("offset")
+		e.Int64(s.Offset)
+	}
+	{
+		e.FieldStart("limit")
+		e.Int64(s.Limit)
+	}
+}
+
+var jsonFieldsNameOfAccountPage = [4]string{
+	0: "items",
+	1: "count",
+	2: "offset",
+	3: "limit",
+}
+
+// Decode decodes AccountPage from json.
+func (s *AccountPage) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountPage to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "items":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				s.Items = make([]AccountSummary, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem AccountSummary
+					if err := elem.Decode(d); err != nil {
+						return err
+					}
+					s.Items = append(s.Items, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"items\"")
+			}
+		case "count":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Count = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"count\"")
+			}
+		case "offset":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Int64()
+				s.Offset = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"offset\"")
+			}
+		case "limit":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int64()
+				s.Limit = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"limit\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountPage")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountPage) {
+					name = jsonFieldsNameOfAccountPage[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountPage) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountPage) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountPassword) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountPassword) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("credential")
+		s.Credential.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfAccountPassword = [1]string{
+	0: "credential",
+}
+
+// Decode decodes AccountPassword from json.
+func (s *AccountPassword) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountPassword to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "credential":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Credential.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"credential\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountPassword")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountPassword) {
+					name = jsonFieldsNameOfAccountPassword[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountPassword) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountPassword) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountPasswordCredential) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountPasswordCredential) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("password")
+		s.Password.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfAccountPasswordCredential = [1]string{
+	0: "password",
+}
+
+// Decode decodes AccountPasswordCredential from json.
+func (s *AccountPasswordCredential) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountPasswordCredential to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "password":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Password.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountPasswordCredential")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountPasswordCredential) {
+					name = jsonFieldsNameOfAccountPasswordCredential[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountPasswordCredential) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountPasswordCredential) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountPatch) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountPatch) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfAccountPatch = [1]string{
+	0: "fields",
+}
+
+// Decode decodes AccountPatch from json.
+func (s *AccountPatch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountPatch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "fields":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountPatch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountPatch) {
+					name = jsonFieldsNameOfAccountPatch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountPatch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountPatch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountPatchFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountPatchFields) encodeFields(e *jx.Encoder) {
+	{
+		if s.Username.Set {
+			e.FieldStart("username")
+			s.Username.Encode(e)
+		}
+	}
+	{
+		if s.Email.Set {
+			e.FieldStart("email")
+			s.Email.Encode(e)
+		}
+	}
+	{
+		if s.FirstName.Set {
+			e.FieldStart("first_name")
+			s.FirstName.Encode(e)
+		}
+	}
+	{
+		if s.LastName.Set {
+			e.FieldStart("last_name")
+			s.LastName.Encode(e)
+		}
+	}
+	{
+		if s.Active.Set {
+			e.FieldStart("active")
+			s.Active.Encode(e)
+		}
+	}
+	{
+		if s.Staff.Set {
+			e.FieldStart("staff")
+			s.Staff.Encode(e)
+		}
+	}
+	{
+		if s.Superuser.Set {
+			e.FieldStart("superuser")
+			s.Superuser.Encode(e)
+		}
+	}
+	{
+		if s.Groups != nil {
+			e.FieldStart("groups")
+			e.ArrStart()
+			for _, elem := range s.Groups {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Permissions != nil {
+			e.FieldStart("permissions")
+			e.ArrStart()
+			for _, elem := range s.Permissions {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfAccountPatchFields = [9]string{
+	0: "username",
+	1: "email",
+	2: "first_name",
+	3: "last_name",
+	4: "active",
+	5: "staff",
+	6: "superuser",
+	7: "groups",
+	8: "permissions",
+}
+
+// Decode decodes AccountPatchFields from json.
+func (s *AccountPatchFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountPatchFields to nil")
+	}
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "username":
+			if err := func() error {
+				s.Username.Reset()
+				if err := s.Username.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "email":
+			if err := func() error {
+				s.Email.Reset()
+				if err := s.Email.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "first_name":
+			if err := func() error {
+				s.FirstName.Reset()
+				if err := s.FirstName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_name\"")
+			}
+		case "last_name":
+			if err := func() error {
+				s.LastName.Reset()
+				if err := s.LastName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_name\"")
+			}
+		case "active":
+			if err := func() error {
+				s.Active.Reset()
+				if err := s.Active.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"active\"")
+			}
+		case "staff":
+			if err := func() error {
+				s.Staff.Reset()
+				if err := s.Staff.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"staff\"")
+			}
+		case "superuser":
+			if err := func() error {
+				s.Superuser.Reset()
+				if err := s.Superuser.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"superuser\"")
+			}
+		case "groups":
+			if err := func() error {
+				s.Groups = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Groups = append(s.Groups, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"groups\"")
+			}
+		case "permissions":
+			if err := func() error {
+				s.Permissions = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Permissions = append(s.Permissions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountPatchFields")
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountPatchFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountPatchFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountPut) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountPut) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfAccountPut = [1]string{
+	0: "fields",
+}
+
+// Decode decodes AccountPut from json.
+func (s *AccountPut) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountPut to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "fields":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountPut")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountPut) {
+					name = jsonFieldsNameOfAccountPut[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountPut) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountPut) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountPutFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountPutFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("username")
+		e.Str(s.Username)
+	}
+	{
+		if s.Email.Set {
+			e.FieldStart("email")
+			s.Email.Encode(e)
+		}
+	}
+	{
+		if s.FirstName.Set {
+			e.FieldStart("first_name")
+			s.FirstName.Encode(e)
+		}
+	}
+	{
+		if s.LastName.Set {
+			e.FieldStart("last_name")
+			s.LastName.Encode(e)
+		}
+	}
+	{
+		if s.Active.Set {
+			e.FieldStart("active")
+			s.Active.Encode(e)
+		}
+	}
+	{
+		if s.Staff.Set {
+			e.FieldStart("staff")
+			s.Staff.Encode(e)
+		}
+	}
+	{
+		if s.Superuser.Set {
+			e.FieldStart("superuser")
+			s.Superuser.Encode(e)
+		}
+	}
+	{
+		if s.Groups != nil {
+			e.FieldStart("groups")
+			e.ArrStart()
+			for _, elem := range s.Groups {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+	{
+		if s.Permissions != nil {
+			e.FieldStart("permissions")
+			e.ArrStart()
+			for _, elem := range s.Permissions {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfAccountPutFields = [9]string{
+	0: "username",
+	1: "email",
+	2: "first_name",
+	3: "last_name",
+	4: "active",
+	5: "staff",
+	6: "superuser",
+	7: "groups",
+	8: "permissions",
+}
+
+// Decode decodes AccountPutFields from json.
+func (s *AccountPutFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountPutFields to nil")
+	}
+	var requiredBitSet [2]uint8
+	s.setDefaults()
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "username":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Username = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "email":
+			if err := func() error {
+				s.Email.Reset()
+				if err := s.Email.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "first_name":
+			if err := func() error {
+				s.FirstName.Reset()
+				if err := s.FirstName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_name\"")
+			}
+		case "last_name":
+			if err := func() error {
+				s.LastName.Reset()
+				if err := s.LastName.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_name\"")
+			}
+		case "active":
+			if err := func() error {
+				s.Active.Reset()
+				if err := s.Active.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"active\"")
+			}
+		case "staff":
+			if err := func() error {
+				s.Staff.Reset()
+				if err := s.Staff.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"staff\"")
+			}
+		case "superuser":
+			if err := func() error {
+				s.Superuser.Reset()
+				if err := s.Superuser.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"superuser\"")
+			}
+		case "groups":
+			if err := func() error {
+				s.Groups = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Groups = append(s.Groups, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"groups\"")
+			}
+		case "permissions":
+			if err := func() error {
+				s.Permissions = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Permissions = append(s.Permissions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountPutFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b00000001,
+		0b00000000,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountPutFields) {
+					name = jsonFieldsNameOfAccountPutFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountPutFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountPutFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountSummary) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountSummary) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+	{
+		e.FieldStart("password_usable")
+		e.Bool(s.PasswordUsable)
+	}
+}
+
+var jsonFieldsNameOfAccountSummary = [4]string{
+	0: "id",
+	1: "revision",
+	2: "fields",
+	3: "password_usable",
+}
+
+// Decode decodes AccountSummary from json.
+func (s *AccountSummary) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountSummary to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		case "fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		case "password_usable":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Bool()
+				s.PasswordUsable = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"password_usable\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountSummary")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountSummary) {
+					name = jsonFieldsNameOfAccountSummary[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountSummary) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountSummary) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *AccountSummaryFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *AccountSummaryFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("username")
+		e.Str(s.Username)
+	}
+	{
+		e.FieldStart("email")
+		e.Str(s.Email)
+	}
+	{
+		e.FieldStart("first_name")
+		e.Str(s.FirstName)
+	}
+	{
+		e.FieldStart("last_name")
+		e.Str(s.LastName)
+	}
+	{
+		e.FieldStart("active")
+		e.Bool(s.Active)
+	}
+	{
+		e.FieldStart("staff")
+		e.Bool(s.Staff)
+	}
+	{
+		e.FieldStart("superuser")
+		e.Bool(s.Superuser)
+	}
+	{
+		e.FieldStart("date_joined")
+		json.EncodeTimeFormat(e, s.DateJoined, "2006-01-02T15:04:05.999999999Z07:00")
+	}
+	{
+		e.FieldStart("last_login")
+		s.LastLogin.Encode(e, json.NewTimeEncoder("2006-01-02T15:04:05.999999999Z07:00"))
+	}
+}
+
+var jsonFieldsNameOfAccountSummaryFields = [9]string{
+	0: "username",
+	1: "email",
+	2: "first_name",
+	3: "last_name",
+	4: "active",
+	5: "staff",
+	6: "superuser",
+	7: "date_joined",
+	8: "last_login",
+}
+
+// Decode decodes AccountSummaryFields from json.
+func (s *AccountSummaryFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode AccountSummaryFields to nil")
+	}
+	var requiredBitSet [2]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "username":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Username = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"username\"")
+			}
+		case "email":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Email = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"email\"")
+			}
+		case "first_name":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				v, err := d.Str()
+				s.FirstName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"first_name\"")
+			}
+		case "last_name":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Str()
+				s.LastName = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_name\"")
+			}
+		case "active":
+			requiredBitSet[0] |= 1 << 4
+			if err := func() error {
+				v, err := d.Bool()
+				s.Active = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"active\"")
+			}
+		case "staff":
+			requiredBitSet[0] |= 1 << 5
+			if err := func() error {
+				v, err := d.Bool()
+				s.Staff = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"staff\"")
+			}
+		case "superuser":
+			requiredBitSet[0] |= 1 << 6
+			if err := func() error {
+				v, err := d.Bool()
+				s.Superuser = bool(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"superuser\"")
+			}
+		case "date_joined":
+			requiredBitSet[0] |= 1 << 7
+			if err := func() error {
+				v, err := json.DecodeTimeFormat(d, "2006-01-02T15:04:05.999999999Z07:00")
+				s.DateJoined = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"date_joined\"")
+			}
+		case "last_login":
+			requiredBitSet[1] |= 1 << 0
+			if err := func() error {
+				if err := s.LastLogin.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00")); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"last_login\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode AccountSummaryFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [2]uint8{
+		0b11111111,
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfAccountSummaryFields) {
+					name = jsonFieldsNameOfAccountSummaryFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *AccountSummaryFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *AccountSummaryFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *GoDjAPIError) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -389,17 +2680,17 @@ func (s *GoDjAPIErrorErrorsItemParamsItem) UnmarshalJSON(data []byte) error {
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsCreateBadRequest as json.
-func (s *GodjIdentityIdentityGroupsCreateBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsCreateBadRequest as json.
+func (s *GodjIdentityAccountsCreateBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsCreateBadRequest from json.
-func (s *GodjIdentityIdentityGroupsCreateBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsCreateBadRequest from json.
+func (s *GodjIdentityAccountsCreateBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsCreateBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreateBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -410,72 +2701,147 @@ func (s *GodjIdentityIdentityGroupsCreateBadRequest) Decode(d *jx.Decoder) error
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsCreateBadRequest(unwrapped)
+	*s = GodjIdentityAccountsCreateBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsCreateBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreateBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsCreateBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreateBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsCreateForbidden as json.
-func (s *GodjIdentityIdentityGroupsCreateForbidden) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityAccountsCreateCreated) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityAccountsCreateCreated) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
 }
 
-// Decode decodes GodjIdentityIdentityGroupsCreateForbidden from json.
-func (s *GodjIdentityIdentityGroupsCreateForbidden) Decode(d *jx.Decoder) error {
+var jsonFieldsNameOfGodjIdentityAccountsCreateCreated = [2]string{
+	0: "id",
+	1: "revision",
+}
+
+// Decode decodes GodjIdentityAccountsCreateCreated from json.
+func (s *GodjIdentityAccountsCreateCreated) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsCreateForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreateCreated to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityAccountsCreateCreated")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityAccountsCreateCreated) {
+					name = jsonFieldsNameOfGodjIdentityAccountsCreateCreated[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityGroupsCreateForbidden(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsCreateForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreateCreated) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsCreateForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreateCreated) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsCreateNotAcceptable as json.
-func (s *GodjIdentityIdentityGroupsCreateNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsCreateForbidden as json.
+func (s *GodjIdentityAccountsCreateForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsCreateNotAcceptable from json.
-func (s *GodjIdentityIdentityGroupsCreateNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsCreateForbidden from json.
+func (s *GodjIdentityAccountsCreateForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsCreateNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreateForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -486,34 +2852,34 @@ func (s *GodjIdentityIdentityGroupsCreateNotAcceptable) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsCreateNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsCreateForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsCreateNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreateForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsCreateNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreateForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsCreateNotFound as json.
-func (s *GodjIdentityIdentityGroupsCreateNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsCreateNotAcceptable as json.
+func (s *GodjIdentityAccountsCreateNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsCreateNotFound from json.
-func (s *GodjIdentityIdentityGroupsCreateNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsCreateNotAcceptable from json.
+func (s *GodjIdentityAccountsCreateNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsCreateNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreateNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -524,34 +2890,34 @@ func (s *GodjIdentityIdentityGroupsCreateNotFound) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsCreateNotFound(unwrapped)
+	*s = GodjIdentityAccountsCreateNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsCreateNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreateNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsCreateNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreateNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsCreateRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsCreatePreconditionFailed as json.
+func (s *GodjIdentityAccountsCreatePreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsCreateRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsCreatePreconditionFailed from json.
+func (s *GodjIdentityAccountsCreatePreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsCreateRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreatePreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -562,34 +2928,34 @@ func (s *GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) Decode(d *jx.Dec
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsCreateRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityAccountsCreatePreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreatePreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreatePreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsCreateServiceUnavailable as json.
-func (s *GodjIdentityIdentityGroupsCreateServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsCreateRequestEntityTooLarge as json.
+func (s *GodjIdentityAccountsCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsCreateServiceUnavailable from json.
-func (s *GodjIdentityIdentityGroupsCreateServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsCreateRequestEntityTooLarge from json.
+func (s *GodjIdentityAccountsCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsCreateServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreateRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -600,34 +2966,34 @@ func (s *GodjIdentityIdentityGroupsCreateServiceUnavailable) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsCreateServiceUnavailable(unwrapped)
+	*s = GodjIdentityAccountsCreateRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsCreateServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsCreateServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsCreateUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityGroupsCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsCreateServiceUnavailable as json.
+func (s *GodjIdentityAccountsCreateServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsCreateUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityGroupsCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsCreateServiceUnavailable from json.
+func (s *GodjIdentityAccountsCreateServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsCreateUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreateServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -638,34 +3004,34 @@ func (s *GodjIdentityIdentityGroupsCreateUnsupportedMediaType) Decode(d *jx.Deco
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsCreateUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityAccountsCreateServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreateServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreateServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDeleteBadRequest as json.
-func (s *GodjIdentityIdentityGroupsDeleteBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsCreateUnsupportedMediaType as json.
+func (s *GodjIdentityAccountsCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDeleteBadRequest from json.
-func (s *GodjIdentityIdentityGroupsDeleteBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsCreateUnsupportedMediaType from json.
+func (s *GodjIdentityAccountsCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDeleteBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsCreateUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -676,34 +3042,34 @@ func (s *GodjIdentityIdentityGroupsDeleteBadRequest) Decode(d *jx.Decoder) error
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDeleteBadRequest(unwrapped)
+	*s = GodjIdentityAccountsCreateUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDeleteBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDeleteBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDeleteForbidden as json.
-func (s *GodjIdentityIdentityGroupsDeleteForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsDeleteBadRequest as json.
+func (s *GodjIdentityAccountsDeleteBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDeleteForbidden from json.
-func (s *GodjIdentityIdentityGroupsDeleteForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeleteBadRequest from json.
+func (s *GodjIdentityAccountsDeleteBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDeleteForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeleteBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -714,34 +3080,34 @@ func (s *GodjIdentityIdentityGroupsDeleteForbidden) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDeleteForbidden(unwrapped)
+	*s = GodjIdentityAccountsDeleteBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDeleteForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeleteBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDeleteForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeleteBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDeleteNotAcceptable as json.
-func (s *GodjIdentityIdentityGroupsDeleteNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsDeleteForbidden as json.
+func (s *GodjIdentityAccountsDeleteForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDeleteNotAcceptable from json.
-func (s *GodjIdentityIdentityGroupsDeleteNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeleteForbidden from json.
+func (s *GodjIdentityAccountsDeleteForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDeleteNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeleteForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -752,34 +3118,34 @@ func (s *GodjIdentityIdentityGroupsDeleteNotAcceptable) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDeleteNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsDeleteForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDeleteNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeleteForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDeleteNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeleteForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDeleteNotFound as json.
-func (s *GodjIdentityIdentityGroupsDeleteNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsDeleteNotAcceptable as json.
+func (s *GodjIdentityAccountsDeleteNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDeleteNotFound from json.
-func (s *GodjIdentityIdentityGroupsDeleteNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeleteNotAcceptable from json.
+func (s *GodjIdentityAccountsDeleteNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDeleteNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeleteNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -790,34 +3156,34 @@ func (s *GodjIdentityIdentityGroupsDeleteNotFound) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDeleteNotFound(unwrapped)
+	*s = GodjIdentityAccountsDeleteNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDeleteNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeleteNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDeleteNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeleteNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDeletePreconditionFailed as json.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsDeleteNotFound as json.
+func (s *GodjIdentityAccountsDeleteNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDeletePreconditionFailed from json.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeleteNotFound from json.
+func (s *GodjIdentityAccountsDeleteNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDeletePreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeleteNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -828,72 +3194,147 @@ func (s *GodjIdentityIdentityGroupsDeletePreconditionFailed) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDeletePreconditionFailed(unwrapped)
+	*s = GodjIdentityAccountsDeleteNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeleteNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeleteNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDeletePreconditionRequired as json.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionRequired) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityAccountsDeleteOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityAccountsDeleteOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityAccountsDeleteOK = [2]string{
+	0: "id",
+	1: "revision",
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDeletePreconditionRequired from json.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeleteOK from json.
+func (s *GodjIdentityAccountsDeleteOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDeletePreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeleteOK to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityAccountsDeleteOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityAccountsDeleteOK) {
+					name = jsonFieldsNameOfGodjIdentityAccountsDeleteOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
-	*s = GodjIdentityIdentityGroupsDeletePreconditionRequired(unwrapped)
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeleteOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDeletePreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeleteOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDeleteServiceUnavailable as json.
-func (s *GodjIdentityIdentityGroupsDeleteServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsDeletePreconditionFailed as json.
+func (s *GodjIdentityAccountsDeletePreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDeleteServiceUnavailable from json.
-func (s *GodjIdentityIdentityGroupsDeleteServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeletePreconditionFailed from json.
+func (s *GodjIdentityAccountsDeletePreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDeleteServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeletePreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -904,34 +3345,34 @@ func (s *GodjIdentityIdentityGroupsDeleteServiceUnavailable) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDeleteServiceUnavailable(unwrapped)
+	*s = GodjIdentityAccountsDeletePreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDeleteServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeletePreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDeleteServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeletePreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDetailForbidden as json.
-func (s *GodjIdentityIdentityGroupsDetailForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsDeletePreconditionRequired as json.
+func (s *GodjIdentityAccountsDeletePreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDetailForbidden from json.
-func (s *GodjIdentityIdentityGroupsDetailForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeletePreconditionRequired from json.
+func (s *GodjIdentityAccountsDeletePreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDetailForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeletePreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -942,34 +3383,34 @@ func (s *GodjIdentityIdentityGroupsDetailForbidden) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDetailForbidden(unwrapped)
+	*s = GodjIdentityAccountsDeletePreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDetailForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeletePreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDetailForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeletePreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsDetailNotAcceptable as json.
-func (s *GodjIdentityIdentityGroupsDetailNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsDeleteServiceUnavailable as json.
+func (s *GodjIdentityAccountsDeleteServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsDetailNotAcceptable from json.
-func (s *GodjIdentityIdentityGroupsDetailNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsDeleteServiceUnavailable from json.
+func (s *GodjIdentityAccountsDeleteServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsDetailNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsDeleteServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -980,72 +3421,193 @@ func (s *GodjIdentityIdentityGroupsDetailNotAcceptable) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsDetailNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsDeleteServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsDetailNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsDeleteServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsDetailNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsDeleteServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsListForbidden as json.
-func (s *GodjIdentityIdentityGroupsListForbidden) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityAccountsHistoryOKItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityAccountsHistoryOKItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("sequence")
+		e.Int64(s.Sequence)
+	}
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("changed_fields")
+		e.ArrStart()
+		for _, elem := range s.ChangedFields {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("at")
+		json.EncodeTimeFormat(e, s.At, "2006-01-02T15:04:05.999999999Z07:00")
+	}
 }
 
-// Decode decodes GodjIdentityIdentityGroupsListForbidden from json.
-func (s *GodjIdentityIdentityGroupsListForbidden) Decode(d *jx.Decoder) error {
+var jsonFieldsNameOfGodjIdentityAccountsHistoryOKItem = [4]string{
+	0: "sequence",
+	1: "action",
+	2: "changed_fields",
+	3: "at",
+}
+
+// Decode decodes GodjIdentityAccountsHistoryOKItem from json.
+func (s *GodjIdentityAccountsHistoryOKItem) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsListForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsHistoryOKItem to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "sequence":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.Sequence = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sequence\"")
+			}
+		case "action":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "changed_fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.ChangedFields = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.ChangedFields = append(s.ChangedFields, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed_fields\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := json.DecodeTimeFormat(d, "2006-01-02T15:04:05.999999999Z07:00")
+				s.At = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityAccountsHistoryOKItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityAccountsHistoryOKItem) {
+					name = jsonFieldsNameOfGodjIdentityAccountsHistoryOKItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityGroupsListForbidden(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsListForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsHistoryOKItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsListForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsHistoryOKItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsListNotAcceptable as json.
-func (s *GodjIdentityIdentityGroupsListNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordBadRequest as json.
+func (s *GodjIdentityAccountsPasswordBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsListNotAcceptable from json.
-func (s *GodjIdentityIdentityGroupsListNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordBadRequest from json.
+func (s *GodjIdentityAccountsPasswordBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsListNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1056,34 +3618,34 @@ func (s *GodjIdentityIdentityGroupsListNotAcceptable) Decode(d *jx.Decoder) erro
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsListNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsPasswordBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsListNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsListNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchBadRequest as json.
-func (s *GodjIdentityIdentityGroupsPatchBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordForbidden as json.
+func (s *GodjIdentityAccountsPasswordForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchBadRequest from json.
-func (s *GodjIdentityIdentityGroupsPatchBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordForbidden from json.
+func (s *GodjIdentityAccountsPasswordForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1094,34 +3656,34 @@ func (s *GodjIdentityIdentityGroupsPatchBadRequest) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchBadRequest(unwrapped)
+	*s = GodjIdentityAccountsPasswordForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchForbidden as json.
-func (s *GodjIdentityIdentityGroupsPatchForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordNotAcceptable as json.
+func (s *GodjIdentityAccountsPasswordNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchForbidden from json.
-func (s *GodjIdentityIdentityGroupsPatchForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordNotAcceptable from json.
+func (s *GodjIdentityAccountsPasswordNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1132,34 +3694,34 @@ func (s *GodjIdentityIdentityGroupsPatchForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchForbidden(unwrapped)
+	*s = GodjIdentityAccountsPasswordNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchNotAcceptable as json.
-func (s *GodjIdentityIdentityGroupsPatchNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordNotFound as json.
+func (s *GodjIdentityAccountsPasswordNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchNotAcceptable from json.
-func (s *GodjIdentityIdentityGroupsPatchNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordNotFound from json.
+func (s *GodjIdentityAccountsPasswordNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1170,72 +3732,147 @@ func (s *GodjIdentityIdentityGroupsPatchNotAcceptable) Decode(d *jx.Decoder) err
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsPasswordNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchNotFound as json.
-func (s *GodjIdentityIdentityGroupsPatchNotFound) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityAccountsPasswordOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityAccountsPasswordOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityAccountsPasswordOK = [2]string{
+	0: "id",
+	1: "revision",
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchNotFound from json.
-func (s *GodjIdentityIdentityGroupsPatchNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordOK from json.
+func (s *GodjIdentityAccountsPasswordOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordOK to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityAccountsPasswordOK")
 	}
-	*s = GodjIdentityIdentityGroupsPatchNotFound(unwrapped)
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityAccountsPasswordOK) {
+					name = jsonFieldsNameOfGodjIdentityAccountsPasswordOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchPreconditionFailed as json.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordPreconditionFailed as json.
+func (s *GodjIdentityAccountsPasswordPreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchPreconditionFailed from json.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordPreconditionFailed from json.
+func (s *GodjIdentityAccountsPasswordPreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchPreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordPreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1246,34 +3883,34 @@ func (s *GodjIdentityIdentityGroupsPatchPreconditionFailed) Decode(d *jx.Decoder
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchPreconditionFailed(unwrapped)
+	*s = GodjIdentityAccountsPasswordPreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordPreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordPreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchPreconditionRequired as json.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionRequired) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordPreconditionRequired as json.
+func (s *GodjIdentityAccountsPasswordPreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchPreconditionRequired from json.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordPreconditionRequired from json.
+func (s *GodjIdentityAccountsPasswordPreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchPreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordPreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1284,34 +3921,34 @@ func (s *GodjIdentityIdentityGroupsPatchPreconditionRequired) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchPreconditionRequired(unwrapped)
+	*s = GodjIdentityAccountsPasswordPreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordPreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchPreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordPreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityGroupsPatchRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordRequestEntityTooLarge as json.
+func (s *GodjIdentityAccountsPasswordRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityGroupsPatchRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordRequestEntityTooLarge from json.
+func (s *GodjIdentityAccountsPasswordRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1322,34 +3959,34 @@ func (s *GodjIdentityIdentityGroupsPatchRequestEntityTooLarge) Decode(d *jx.Deco
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityAccountsPasswordRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchServiceUnavailable as json.
-func (s *GodjIdentityIdentityGroupsPatchServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordServiceUnavailable as json.
+func (s *GodjIdentityAccountsPasswordServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchServiceUnavailable from json.
-func (s *GodjIdentityIdentityGroupsPatchServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordServiceUnavailable from json.
+func (s *GodjIdentityAccountsPasswordServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1360,34 +3997,34 @@ func (s *GodjIdentityIdentityGroupsPatchServiceUnavailable) Decode(d *jx.Decoder
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchServiceUnavailable(unwrapped)
+	*s = GodjIdentityAccountsPasswordServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsPatchUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityGroupsPatchUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPasswordUnsupportedMediaType as json.
+func (s *GodjIdentityAccountsPasswordUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsPatchUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityGroupsPatchUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPasswordUnsupportedMediaType from json.
+func (s *GodjIdentityAccountsPasswordUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsPatchUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPasswordUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1398,34 +4035,34 @@ func (s *GodjIdentityIdentityGroupsPatchUnsupportedMediaType) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsPatchUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityAccountsPasswordUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsPatchUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPasswordUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsPatchUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPasswordUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdateBadRequest as json.
-func (s *GodjIdentityIdentityGroupsUpdateBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchBadRequest as json.
+func (s *GodjIdentityAccountsPatchBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdateBadRequest from json.
-func (s *GodjIdentityIdentityGroupsUpdateBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchBadRequest from json.
+func (s *GodjIdentityAccountsPatchBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdateBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1436,34 +4073,34 @@ func (s *GodjIdentityIdentityGroupsUpdateBadRequest) Decode(d *jx.Decoder) error
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdateBadRequest(unwrapped)
+	*s = GodjIdentityAccountsPatchBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdateBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdateBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdateForbidden as json.
-func (s *GodjIdentityIdentityGroupsUpdateForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchForbidden as json.
+func (s *GodjIdentityAccountsPatchForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdateForbidden from json.
-func (s *GodjIdentityIdentityGroupsUpdateForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchForbidden from json.
+func (s *GodjIdentityAccountsPatchForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdateForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1474,34 +4111,34 @@ func (s *GodjIdentityIdentityGroupsUpdateForbidden) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdateForbidden(unwrapped)
+	*s = GodjIdentityAccountsPatchForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdateForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdateForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdateNotAcceptable as json.
-func (s *GodjIdentityIdentityGroupsUpdateNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchNotAcceptable as json.
+func (s *GodjIdentityAccountsPatchNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdateNotAcceptable from json.
-func (s *GodjIdentityIdentityGroupsUpdateNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchNotAcceptable from json.
+func (s *GodjIdentityAccountsPatchNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdateNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1512,34 +4149,34 @@ func (s *GodjIdentityIdentityGroupsUpdateNotAcceptable) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdateNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsPatchNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdateNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdateNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdateNotFound as json.
-func (s *GodjIdentityIdentityGroupsUpdateNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchNotFound as json.
+func (s *GodjIdentityAccountsPatchNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdateNotFound from json.
-func (s *GodjIdentityIdentityGroupsUpdateNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchNotFound from json.
+func (s *GodjIdentityAccountsPatchNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdateNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1550,72 +4187,147 @@ func (s *GodjIdentityIdentityGroupsUpdateNotFound) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdateNotFound(unwrapped)
+	*s = GodjIdentityAccountsPatchNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdateNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdateNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdatePreconditionFailed as json.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionFailed) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityAccountsPatchOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityAccountsPatchOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityAccountsPatchOK = [2]string{
+	0: "id",
+	1: "revision",
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdatePreconditionFailed from json.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchOK from json.
+func (s *GodjIdentityAccountsPatchOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdatePreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchOK to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityAccountsPatchOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityAccountsPatchOK) {
+					name = jsonFieldsNameOfGodjIdentityAccountsPatchOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityGroupsUpdatePreconditionFailed(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdatePreconditionRequired as json.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionRequired) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchPreconditionFailed as json.
+func (s *GodjIdentityAccountsPatchPreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdatePreconditionRequired from json.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchPreconditionFailed from json.
+func (s *GodjIdentityAccountsPatchPreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdatePreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchPreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1626,34 +4338,34 @@ func (s *GodjIdentityIdentityGroupsUpdatePreconditionRequired) Decode(d *jx.Deco
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdatePreconditionRequired(unwrapped)
+	*s = GodjIdentityAccountsPatchPreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchPreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdatePreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchPreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchPreconditionRequired as json.
+func (s *GodjIdentityAccountsPatchPreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchPreconditionRequired from json.
+func (s *GodjIdentityAccountsPatchPreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchPreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1664,34 +4376,34 @@ func (s *GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) Decode(d *jx.Dec
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityAccountsPatchPreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchPreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchPreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdateServiceUnavailable as json.
-func (s *GodjIdentityIdentityGroupsUpdateServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchRequestEntityTooLarge as json.
+func (s *GodjIdentityAccountsPatchRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdateServiceUnavailable from json.
-func (s *GodjIdentityIdentityGroupsUpdateServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchRequestEntityTooLarge from json.
+func (s *GodjIdentityAccountsPatchRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdateServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1702,34 +4414,34 @@ func (s *GodjIdentityIdentityGroupsUpdateServiceUnavailable) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdateServiceUnavailable(unwrapped)
+	*s = GodjIdentityAccountsPatchRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdateServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdateServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityGroupsUpdateUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchServiceUnavailable as json.
+func (s *GodjIdentityAccountsPatchServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityGroupsUpdateUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchServiceUnavailable from json.
+func (s *GodjIdentityAccountsPatchServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityGroupsUpdateUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1740,34 +4452,34 @@ func (s *GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) Decode(d *jx.Deco
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityGroupsUpdateUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityAccountsPatchServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsCreateBadRequest as json.
-func (s *GodjIdentityIdentityPermissionsCreateBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPatchUnsupportedMediaType as json.
+func (s *GodjIdentityAccountsPatchUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsCreateBadRequest from json.
-func (s *GodjIdentityIdentityPermissionsCreateBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPatchUnsupportedMediaType from json.
+func (s *GodjIdentityAccountsPatchUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsCreateBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPatchUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1778,34 +4490,34 @@ func (s *GodjIdentityIdentityPermissionsCreateBadRequest) Decode(d *jx.Decoder) 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsCreateBadRequest(unwrapped)
+	*s = GodjIdentityAccountsPatchUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsCreateBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPatchUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsCreateBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPatchUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsCreateForbidden as json.
-func (s *GodjIdentityIdentityPermissionsCreateForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutBadRequest as json.
+func (s *GodjIdentityAccountsPutBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsCreateForbidden from json.
-func (s *GodjIdentityIdentityPermissionsCreateForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutBadRequest from json.
+func (s *GodjIdentityAccountsPutBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsCreateForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1816,34 +4528,34 @@ func (s *GodjIdentityIdentityPermissionsCreateForbidden) Decode(d *jx.Decoder) e
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsCreateForbidden(unwrapped)
+	*s = GodjIdentityAccountsPutBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsCreateForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsCreateForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsCreateNotAcceptable as json.
-func (s *GodjIdentityIdentityPermissionsCreateNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutForbidden as json.
+func (s *GodjIdentityAccountsPutForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsCreateNotAcceptable from json.
-func (s *GodjIdentityIdentityPermissionsCreateNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutForbidden from json.
+func (s *GodjIdentityAccountsPutForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsCreateNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1854,34 +4566,34 @@ func (s *GodjIdentityIdentityPermissionsCreateNotAcceptable) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsCreateNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsPutForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsCreateNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsCreateNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsCreateNotFound as json.
-func (s *GodjIdentityIdentityPermissionsCreateNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutNotAcceptable as json.
+func (s *GodjIdentityAccountsPutNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsCreateNotFound from json.
-func (s *GodjIdentityIdentityPermissionsCreateNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutNotAcceptable from json.
+func (s *GodjIdentityAccountsPutNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsCreateNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1892,34 +4604,34 @@ func (s *GodjIdentityIdentityPermissionsCreateNotFound) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsCreateNotFound(unwrapped)
+	*s = GodjIdentityAccountsPutNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsCreateNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsCreateNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutNotFound as json.
+func (s *GodjIdentityAccountsPutNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutNotFound from json.
+func (s *GodjIdentityAccountsPutNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -1930,72 +4642,147 @@ func (s *GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) Decode(d *j
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityAccountsPutNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsCreateServiceUnavailable as json.
-func (s *GodjIdentityIdentityPermissionsCreateServiceUnavailable) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityAccountsPutOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityAccountsPutOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityAccountsPutOK = [2]string{
+	0: "id",
+	1: "revision",
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsCreateServiceUnavailable from json.
-func (s *GodjIdentityIdentityPermissionsCreateServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutOK from json.
+func (s *GodjIdentityAccountsPutOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsCreateServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutOK to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityAccountsPutOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityAccountsPutOK) {
+					name = jsonFieldsNameOfGodjIdentityAccountsPutOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
-	*s = GodjIdentityIdentityPermissionsCreateServiceUnavailable(unwrapped)
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsCreateServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsCreateServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsCreateUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutPreconditionFailed as json.
+func (s *GodjIdentityAccountsPutPreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsCreateUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutPreconditionFailed from json.
+func (s *GodjIdentityAccountsPutPreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsCreateUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutPreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2006,34 +4793,34 @@ func (s *GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) Decode(d *jx
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsCreateUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityAccountsPutPreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutPreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutPreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDeleteBadRequest as json.
-func (s *GodjIdentityIdentityPermissionsDeleteBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutPreconditionRequired as json.
+func (s *GodjIdentityAccountsPutPreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDeleteBadRequest from json.
-func (s *GodjIdentityIdentityPermissionsDeleteBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutPreconditionRequired from json.
+func (s *GodjIdentityAccountsPutPreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDeleteBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutPreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2044,34 +4831,34 @@ func (s *GodjIdentityIdentityPermissionsDeleteBadRequest) Decode(d *jx.Decoder) 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDeleteBadRequest(unwrapped)
+	*s = GodjIdentityAccountsPutPreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutPreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutPreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDeleteForbidden as json.
-func (s *GodjIdentityIdentityPermissionsDeleteForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutRequestEntityTooLarge as json.
+func (s *GodjIdentityAccountsPutRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDeleteForbidden from json.
-func (s *GodjIdentityIdentityPermissionsDeleteForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutRequestEntityTooLarge from json.
+func (s *GodjIdentityAccountsPutRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDeleteForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2082,34 +4869,34 @@ func (s *GodjIdentityIdentityPermissionsDeleteForbidden) Decode(d *jx.Decoder) e
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDeleteForbidden(unwrapped)
+	*s = GodjIdentityAccountsPutRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDeleteNotAcceptable as json.
-func (s *GodjIdentityIdentityPermissionsDeleteNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutServiceUnavailable as json.
+func (s *GodjIdentityAccountsPutServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDeleteNotAcceptable from json.
-func (s *GodjIdentityIdentityPermissionsDeleteNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutServiceUnavailable from json.
+func (s *GodjIdentityAccountsPutServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDeleteNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2120,34 +4907,34 @@ func (s *GodjIdentityIdentityPermissionsDeleteNotAcceptable) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDeleteNotAcceptable(unwrapped)
+	*s = GodjIdentityAccountsPutServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDeleteNotFound as json.
-func (s *GodjIdentityIdentityPermissionsDeleteNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityAccountsPutUnsupportedMediaType as json.
+func (s *GodjIdentityAccountsPutUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDeleteNotFound from json.
-func (s *GodjIdentityIdentityPermissionsDeleteNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityAccountsPutUnsupportedMediaType from json.
+func (s *GodjIdentityAccountsPutUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDeleteNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityAccountsPutUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2158,34 +4945,34 @@ func (s *GodjIdentityIdentityPermissionsDeleteNotFound) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDeleteNotFound(unwrapped)
+	*s = GodjIdentityAccountsPutUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityAccountsPutUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityAccountsPutUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDeletePreconditionFailed as json.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsCreateBadRequest as json.
+func (s *GodjIdentityGroupsCreateBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDeletePreconditionFailed from json.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreateBadRequest from json.
+func (s *GodjIdentityGroupsCreateBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDeletePreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreateBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2196,72 +4983,147 @@ func (s *GodjIdentityIdentityPermissionsDeletePreconditionFailed) Decode(d *jx.D
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDeletePreconditionFailed(unwrapped)
+	*s = GodjIdentityGroupsCreateBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreateBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreateBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDeletePreconditionRequired as json.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionRequired) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityGroupsCreateCreated) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityGroupsCreateCreated) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityGroupsCreateCreated = [2]string{
+	0: "id",
+	1: "revision",
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDeletePreconditionRequired from json.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreateCreated from json.
+func (s *GodjIdentityGroupsCreateCreated) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDeletePreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreateCreated to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityGroupsCreateCreated")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityGroupsCreateCreated) {
+					name = jsonFieldsNameOfGodjIdentityGroupsCreateCreated[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityPermissionsDeletePreconditionRequired(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreateCreated) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDeletePreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreateCreated) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDeleteServiceUnavailable as json.
-func (s *GodjIdentityIdentityPermissionsDeleteServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsCreateForbidden as json.
+func (s *GodjIdentityGroupsCreateForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDeleteServiceUnavailable from json.
-func (s *GodjIdentityIdentityPermissionsDeleteServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreateForbidden from json.
+func (s *GodjIdentityGroupsCreateForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDeleteServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreateForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2272,34 +5134,34 @@ func (s *GodjIdentityIdentityPermissionsDeleteServiceUnavailable) Decode(d *jx.D
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDeleteServiceUnavailable(unwrapped)
+	*s = GodjIdentityGroupsCreateForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreateForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDeleteServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreateForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDetailForbidden as json.
-func (s *GodjIdentityIdentityPermissionsDetailForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsCreateNotAcceptable as json.
+func (s *GodjIdentityGroupsCreateNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDetailForbidden from json.
-func (s *GodjIdentityIdentityPermissionsDetailForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreateNotAcceptable from json.
+func (s *GodjIdentityGroupsCreateNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDetailForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreateNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2310,34 +5172,34 @@ func (s *GodjIdentityIdentityPermissionsDetailForbidden) Decode(d *jx.Decoder) e
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDetailForbidden(unwrapped)
+	*s = GodjIdentityGroupsCreateNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDetailForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreateNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDetailForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreateNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsDetailNotAcceptable as json.
-func (s *GodjIdentityIdentityPermissionsDetailNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsCreatePreconditionFailed as json.
+func (s *GodjIdentityGroupsCreatePreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsDetailNotAcceptable from json.
-func (s *GodjIdentityIdentityPermissionsDetailNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreatePreconditionFailed from json.
+func (s *GodjIdentityGroupsCreatePreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsDetailNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreatePreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2348,34 +5210,34 @@ func (s *GodjIdentityIdentityPermissionsDetailNotAcceptable) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsDetailNotAcceptable(unwrapped)
+	*s = GodjIdentityGroupsCreatePreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsDetailNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreatePreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsDetailNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreatePreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsListForbidden as json.
-func (s *GodjIdentityIdentityPermissionsListForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsCreateRequestEntityTooLarge as json.
+func (s *GodjIdentityGroupsCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsListForbidden from json.
-func (s *GodjIdentityIdentityPermissionsListForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreateRequestEntityTooLarge from json.
+func (s *GodjIdentityGroupsCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsListForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreateRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2386,34 +5248,34 @@ func (s *GodjIdentityIdentityPermissionsListForbidden) Decode(d *jx.Decoder) err
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsListForbidden(unwrapped)
+	*s = GodjIdentityGroupsCreateRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsListForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsListForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsListNotAcceptable as json.
-func (s *GodjIdentityIdentityPermissionsListNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsCreateServiceUnavailable as json.
+func (s *GodjIdentityGroupsCreateServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsListNotAcceptable from json.
-func (s *GodjIdentityIdentityPermissionsListNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreateServiceUnavailable from json.
+func (s *GodjIdentityGroupsCreateServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsListNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreateServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2424,34 +5286,34 @@ func (s *GodjIdentityIdentityPermissionsListNotAcceptable) Decode(d *jx.Decoder)
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsListNotAcceptable(unwrapped)
+	*s = GodjIdentityGroupsCreateServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsListNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreateServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsListNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreateServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchBadRequest as json.
-func (s *GodjIdentityIdentityPermissionsPatchBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsCreateUnsupportedMediaType as json.
+func (s *GodjIdentityGroupsCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchBadRequest from json.
-func (s *GodjIdentityIdentityPermissionsPatchBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsCreateUnsupportedMediaType from json.
+func (s *GodjIdentityGroupsCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsCreateUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2462,34 +5324,34 @@ func (s *GodjIdentityIdentityPermissionsPatchBadRequest) Decode(d *jx.Decoder) e
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchBadRequest(unwrapped)
+	*s = GodjIdentityGroupsCreateUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchForbidden as json.
-func (s *GodjIdentityIdentityPermissionsPatchForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsDeleteBadRequest as json.
+func (s *GodjIdentityGroupsDeleteBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchForbidden from json.
-func (s *GodjIdentityIdentityPermissionsPatchForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsDeleteBadRequest from json.
+func (s *GodjIdentityGroupsDeleteBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeleteBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2500,34 +5362,34 @@ func (s *GodjIdentityIdentityPermissionsPatchForbidden) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchForbidden(unwrapped)
+	*s = GodjIdentityGroupsDeleteBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeleteBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeleteBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchNotAcceptable as json.
-func (s *GodjIdentityIdentityPermissionsPatchNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsDeleteForbidden as json.
+func (s *GodjIdentityGroupsDeleteForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchNotAcceptable from json.
-func (s *GodjIdentityIdentityPermissionsPatchNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsDeleteForbidden from json.
+func (s *GodjIdentityGroupsDeleteForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeleteForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2538,34 +5400,34 @@ func (s *GodjIdentityIdentityPermissionsPatchNotAcceptable) Decode(d *jx.Decoder
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchNotAcceptable(unwrapped)
+	*s = GodjIdentityGroupsDeleteForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeleteForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeleteForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchNotFound as json.
-func (s *GodjIdentityIdentityPermissionsPatchNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsDeleteNotAcceptable as json.
+func (s *GodjIdentityGroupsDeleteNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchNotFound from json.
-func (s *GodjIdentityIdentityPermissionsPatchNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsDeleteNotAcceptable from json.
+func (s *GodjIdentityGroupsDeleteNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeleteNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2576,34 +5438,34 @@ func (s *GodjIdentityIdentityPermissionsPatchNotFound) Decode(d *jx.Decoder) err
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchNotFound(unwrapped)
+	*s = GodjIdentityGroupsDeleteNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeleteNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeleteNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchPreconditionFailed as json.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsDeleteNotFound as json.
+func (s *GodjIdentityGroupsDeleteNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchPreconditionFailed from json.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsDeleteNotFound from json.
+func (s *GodjIdentityGroupsDeleteNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchPreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeleteNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2614,72 +5476,147 @@ func (s *GodjIdentityIdentityPermissionsPatchPreconditionFailed) Decode(d *jx.De
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchPreconditionFailed(unwrapped)
+	*s = GodjIdentityGroupsDeleteNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeleteNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeleteNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchPreconditionRequired as json.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionRequired) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityGroupsDeleteOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityGroupsDeleteOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchPreconditionRequired from json.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionRequired) Decode(d *jx.Decoder) error {
+var jsonFieldsNameOfGodjIdentityGroupsDeleteOK = [2]string{
+	0: "id",
+	1: "revision",
+}
+
+// Decode decodes GodjIdentityGroupsDeleteOK from json.
+func (s *GodjIdentityGroupsDeleteOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchPreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeleteOK to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityGroupsDeleteOK")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchPreconditionRequired(unwrapped)
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityGroupsDeleteOK) {
+					name = jsonFieldsNameOfGodjIdentityGroupsDeleteOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeleteOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchPreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeleteOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsDeletePreconditionFailed as json.
+func (s *GodjIdentityGroupsDeletePreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsDeletePreconditionFailed from json.
+func (s *GodjIdentityGroupsDeletePreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeletePreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2690,34 +5627,34 @@ func (s *GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge) Decode(d *jx
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityGroupsDeletePreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeletePreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeletePreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchServiceUnavailable as json.
-func (s *GodjIdentityIdentityPermissionsPatchServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsDeletePreconditionRequired as json.
+func (s *GodjIdentityGroupsDeletePreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchServiceUnavailable from json.
-func (s *GodjIdentityIdentityPermissionsPatchServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsDeletePreconditionRequired from json.
+func (s *GodjIdentityGroupsDeletePreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeletePreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2728,34 +5665,34 @@ func (s *GodjIdentityIdentityPermissionsPatchServiceUnavailable) Decode(d *jx.De
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchServiceUnavailable(unwrapped)
+	*s = GodjIdentityGroupsDeletePreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeletePreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeletePreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsPatchUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityPermissionsPatchUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsDeleteServiceUnavailable as json.
+func (s *GodjIdentityGroupsDeleteServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsPatchUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityPermissionsPatchUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsDeleteServiceUnavailable from json.
+func (s *GodjIdentityGroupsDeleteServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsPatchUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsDeleteServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2766,72 +5703,193 @@ func (s *GodjIdentityIdentityPermissionsPatchUnsupportedMediaType) Decode(d *jx.
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsPatchUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityGroupsDeleteServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsPatchUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsDeleteServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsPatchUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsDeleteServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdateBadRequest as json.
-func (s *GodjIdentityIdentityPermissionsUpdateBadRequest) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityGroupsHistoryOKItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityGroupsHistoryOKItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("sequence")
+		e.Int64(s.Sequence)
+	}
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("changed_fields")
+		e.ArrStart()
+		for _, elem := range s.ChangedFields {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("at")
+		json.EncodeTimeFormat(e, s.At, "2006-01-02T15:04:05.999999999Z07:00")
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityGroupsHistoryOKItem = [4]string{
+	0: "sequence",
+	1: "action",
+	2: "changed_fields",
+	3: "at",
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdateBadRequest from json.
-func (s *GodjIdentityIdentityPermissionsUpdateBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsHistoryOKItem from json.
+func (s *GodjIdentityGroupsHistoryOKItem) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdateBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsHistoryOKItem to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "sequence":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.Sequence = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sequence\"")
+			}
+		case "action":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "changed_fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.ChangedFields = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.ChangedFields = append(s.ChangedFields, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed_fields\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := json.DecodeTimeFormat(d, "2006-01-02T15:04:05.999999999Z07:00")
+				s.At = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityGroupsHistoryOKItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityGroupsHistoryOKItem) {
+					name = jsonFieldsNameOfGodjIdentityGroupsHistoryOKItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
-	*s = GodjIdentityIdentityPermissionsUpdateBadRequest(unwrapped)
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsHistoryOKItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsHistoryOKItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdateForbidden as json.
-func (s *GodjIdentityIdentityPermissionsUpdateForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchBadRequest as json.
+func (s *GodjIdentityGroupsPatchBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdateForbidden from json.
-func (s *GodjIdentityIdentityPermissionsUpdateForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchBadRequest from json.
+func (s *GodjIdentityGroupsPatchBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdateForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2842,34 +5900,34 @@ func (s *GodjIdentityIdentityPermissionsUpdateForbidden) Decode(d *jx.Decoder) e
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsUpdateForbidden(unwrapped)
+	*s = GodjIdentityGroupsPatchBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdateNotAcceptable as json.
-func (s *GodjIdentityIdentityPermissionsUpdateNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchForbidden as json.
+func (s *GodjIdentityGroupsPatchForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdateNotAcceptable from json.
-func (s *GodjIdentityIdentityPermissionsUpdateNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchForbidden from json.
+func (s *GodjIdentityGroupsPatchForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdateNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2880,34 +5938,34 @@ func (s *GodjIdentityIdentityPermissionsUpdateNotAcceptable) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsUpdateNotAcceptable(unwrapped)
+	*s = GodjIdentityGroupsPatchForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdateNotFound as json.
-func (s *GodjIdentityIdentityPermissionsUpdateNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchNotAcceptable as json.
+func (s *GodjIdentityGroupsPatchNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdateNotFound from json.
-func (s *GodjIdentityIdentityPermissionsUpdateNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchNotAcceptable from json.
+func (s *GodjIdentityGroupsPatchNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdateNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2918,34 +5976,34 @@ func (s *GodjIdentityIdentityPermissionsUpdateNotFound) Decode(d *jx.Decoder) er
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsUpdateNotFound(unwrapped)
+	*s = GodjIdentityGroupsPatchNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdatePreconditionFailed as json.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchNotFound as json.
+func (s *GodjIdentityGroupsPatchNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdatePreconditionFailed from json.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchNotFound from json.
+func (s *GodjIdentityGroupsPatchNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdatePreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -2956,72 +6014,147 @@ func (s *GodjIdentityIdentityPermissionsUpdatePreconditionFailed) Decode(d *jx.D
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsUpdatePreconditionFailed(unwrapped)
+	*s = GodjIdentityGroupsPatchNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdatePreconditionRequired as json.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionRequired) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityGroupsPatchOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityGroupsPatchOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdatePreconditionRequired from json.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionRequired) Decode(d *jx.Decoder) error {
+var jsonFieldsNameOfGodjIdentityGroupsPatchOK = [2]string{
+	0: "id",
+	1: "revision",
+}
+
+// Decode decodes GodjIdentityGroupsPatchOK from json.
+func (s *GodjIdentityGroupsPatchOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdatePreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchOK to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityGroupsPatchOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityGroupsPatchOK) {
+					name = jsonFieldsNameOfGodjIdentityGroupsPatchOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityPermissionsUpdatePreconditionRequired(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdatePreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchPreconditionFailed as json.
+func (s *GodjIdentityGroupsPatchPreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchPreconditionFailed from json.
+func (s *GodjIdentityGroupsPatchPreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchPreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3032,34 +6165,34 @@ func (s *GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge) Decode(d *j
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityGroupsPatchPreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchPreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchPreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdateServiceUnavailable as json.
-func (s *GodjIdentityIdentityPermissionsUpdateServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchPreconditionRequired as json.
+func (s *GodjIdentityGroupsPatchPreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdateServiceUnavailable from json.
-func (s *GodjIdentityIdentityPermissionsUpdateServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchPreconditionRequired from json.
+func (s *GodjIdentityGroupsPatchPreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdateServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchPreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3070,34 +6203,34 @@ func (s *GodjIdentityIdentityPermissionsUpdateServiceUnavailable) Decode(d *jx.D
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsUpdateServiceUnavailable(unwrapped)
+	*s = GodjIdentityGroupsPatchPreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchPreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchPreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchRequestEntityTooLarge as json.
+func (s *GodjIdentityGroupsPatchRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchRequestEntityTooLarge from json.
+func (s *GodjIdentityGroupsPatchRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3108,34 +6241,34 @@ func (s *GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType) Decode(d *jx
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityGroupsPatchRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersCreateBadRequest as json.
-func (s *GodjIdentityIdentityUsersCreateBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchServiceUnavailable as json.
+func (s *GodjIdentityGroupsPatchServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersCreateBadRequest from json.
-func (s *GodjIdentityIdentityUsersCreateBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchServiceUnavailable from json.
+func (s *GodjIdentityGroupsPatchServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersCreateBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3146,34 +6279,34 @@ func (s *GodjIdentityIdentityUsersCreateBadRequest) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersCreateBadRequest(unwrapped)
+	*s = GodjIdentityGroupsPatchServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersCreateBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersCreateBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersCreateForbidden as json.
-func (s *GodjIdentityIdentityUsersCreateForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPatchUnsupportedMediaType as json.
+func (s *GodjIdentityGroupsPatchUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersCreateForbidden from json.
-func (s *GodjIdentityIdentityUsersCreateForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPatchUnsupportedMediaType from json.
+func (s *GodjIdentityGroupsPatchUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersCreateForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPatchUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3184,34 +6317,34 @@ func (s *GodjIdentityIdentityUsersCreateForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersCreateForbidden(unwrapped)
+	*s = GodjIdentityGroupsPatchUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersCreateForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPatchUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersCreateForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPatchUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersCreateNotAcceptable as json.
-func (s *GodjIdentityIdentityUsersCreateNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutBadRequest as json.
+func (s *GodjIdentityGroupsPutBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersCreateNotAcceptable from json.
-func (s *GodjIdentityIdentityUsersCreateNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutBadRequest from json.
+func (s *GodjIdentityGroupsPutBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersCreateNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3222,34 +6355,34 @@ func (s *GodjIdentityIdentityUsersCreateNotAcceptable) Decode(d *jx.Decoder) err
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersCreateNotAcceptable(unwrapped)
+	*s = GodjIdentityGroupsPutBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersCreateNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersCreateNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersCreateNotFound as json.
-func (s *GodjIdentityIdentityUsersCreateNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutForbidden as json.
+func (s *GodjIdentityGroupsPutForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersCreateNotFound from json.
-func (s *GodjIdentityIdentityUsersCreateNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutForbidden from json.
+func (s *GodjIdentityGroupsPutForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersCreateNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3260,34 +6393,34 @@ func (s *GodjIdentityIdentityUsersCreateNotFound) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersCreateNotFound(unwrapped)
+	*s = GodjIdentityGroupsPutForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersCreateNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersCreateNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersCreateRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityUsersCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutNotAcceptable as json.
+func (s *GodjIdentityGroupsPutNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersCreateRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityUsersCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutNotAcceptable from json.
+func (s *GodjIdentityGroupsPutNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersCreateRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3298,34 +6431,34 @@ func (s *GodjIdentityIdentityUsersCreateRequestEntityTooLarge) Decode(d *jx.Deco
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersCreateRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityGroupsPutNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersCreateServiceUnavailable as json.
-func (s *GodjIdentityIdentityUsersCreateServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutNotFound as json.
+func (s *GodjIdentityGroupsPutNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersCreateServiceUnavailable from json.
-func (s *GodjIdentityIdentityUsersCreateServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutNotFound from json.
+func (s *GodjIdentityGroupsPutNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersCreateServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3336,72 +6469,147 @@ func (s *GodjIdentityIdentityUsersCreateServiceUnavailable) Decode(d *jx.Decoder
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersCreateServiceUnavailable(unwrapped)
+	*s = GodjIdentityGroupsPutNotFound(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersCreateServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutNotFound) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersCreateServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutNotFound) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersCreateUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityUsersCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityGroupsPutOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityGroupsPutOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityGroupsPutOK = [2]string{
+	0: "id",
+	1: "revision",
 }
 
-// Decode decodes GodjIdentityIdentityUsersCreateUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityUsersCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutOK from json.
+func (s *GodjIdentityGroupsPutOK) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersCreateUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutOK to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityGroupsPutOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityGroupsPutOK) {
+					name = jsonFieldsNameOfGodjIdentityGroupsPutOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
-	*s = GodjIdentityIdentityUsersCreateUnsupportedMediaType(unwrapped)
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDeleteBadRequest as json.
-func (s *GodjIdentityIdentityUsersDeleteBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutPreconditionFailed as json.
+func (s *GodjIdentityGroupsPutPreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDeleteBadRequest from json.
-func (s *GodjIdentityIdentityUsersDeleteBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutPreconditionFailed from json.
+func (s *GodjIdentityGroupsPutPreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDeleteBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutPreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3412,34 +6620,34 @@ func (s *GodjIdentityIdentityUsersDeleteBadRequest) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDeleteBadRequest(unwrapped)
+	*s = GodjIdentityGroupsPutPreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDeleteBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutPreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDeleteBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutPreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDeleteForbidden as json.
-func (s *GodjIdentityIdentityUsersDeleteForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutPreconditionRequired as json.
+func (s *GodjIdentityGroupsPutPreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDeleteForbidden from json.
-func (s *GodjIdentityIdentityUsersDeleteForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutPreconditionRequired from json.
+func (s *GodjIdentityGroupsPutPreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDeleteForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutPreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3450,34 +6658,34 @@ func (s *GodjIdentityIdentityUsersDeleteForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDeleteForbidden(unwrapped)
+	*s = GodjIdentityGroupsPutPreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDeleteForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutPreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDeleteForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutPreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDeleteNotAcceptable as json.
-func (s *GodjIdentityIdentityUsersDeleteNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutRequestEntityTooLarge as json.
+func (s *GodjIdentityGroupsPutRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDeleteNotAcceptable from json.
-func (s *GodjIdentityIdentityUsersDeleteNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutRequestEntityTooLarge from json.
+func (s *GodjIdentityGroupsPutRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDeleteNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3488,34 +6696,34 @@ func (s *GodjIdentityIdentityUsersDeleteNotAcceptable) Decode(d *jx.Decoder) err
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDeleteNotAcceptable(unwrapped)
+	*s = GodjIdentityGroupsPutRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDeleteNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDeleteNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDeleteNotFound as json.
-func (s *GodjIdentityIdentityUsersDeleteNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutServiceUnavailable as json.
+func (s *GodjIdentityGroupsPutServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDeleteNotFound from json.
-func (s *GodjIdentityIdentityUsersDeleteNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutServiceUnavailable from json.
+func (s *GodjIdentityGroupsPutServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDeleteNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3526,34 +6734,34 @@ func (s *GodjIdentityIdentityUsersDeleteNotFound) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDeleteNotFound(unwrapped)
+	*s = GodjIdentityGroupsPutServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDeleteNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDeleteNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDeletePreconditionFailed as json.
-func (s *GodjIdentityIdentityUsersDeletePreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityGroupsPutUnsupportedMediaType as json.
+func (s *GodjIdentityGroupsPutUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDeletePreconditionFailed from json.
-func (s *GodjIdentityIdentityUsersDeletePreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityGroupsPutUnsupportedMediaType from json.
+func (s *GodjIdentityGroupsPutUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDeletePreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityGroupsPutUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3564,34 +6772,34 @@ func (s *GodjIdentityIdentityUsersDeletePreconditionFailed) Decode(d *jx.Decoder
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDeletePreconditionFailed(unwrapped)
+	*s = GodjIdentityGroupsPutUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDeletePreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityGroupsPutUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDeletePreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityGroupsPutUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDeletePreconditionRequired as json.
-func (s *GodjIdentityIdentityUsersDeletePreconditionRequired) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsCreateBadRequest as json.
+func (s *GodjIdentityPermissionsCreateBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDeletePreconditionRequired from json.
-func (s *GodjIdentityIdentityUsersDeletePreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsCreateBadRequest from json.
+func (s *GodjIdentityPermissionsCreateBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDeletePreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreateBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3602,72 +6810,147 @@ func (s *GodjIdentityIdentityUsersDeletePreconditionRequired) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDeletePreconditionRequired(unwrapped)
+	*s = GodjIdentityPermissionsCreateBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDeletePreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreateBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDeletePreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreateBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDeleteServiceUnavailable as json.
-func (s *GodjIdentityIdentityUsersDeleteServiceUnavailable) Encode(e *jx.Encoder) {
-	unwrapped := (*GoDjAPIError)(s)
+// Encode implements json.Marshaler.
+func (s *GodjIdentityPermissionsCreateCreated) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
 
-	unwrapped.Encode(e)
+// encodeFields encodes fields.
+func (s *GodjIdentityPermissionsCreateCreated) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
 }
 
-// Decode decodes GodjIdentityIdentityUsersDeleteServiceUnavailable from json.
-func (s *GodjIdentityIdentityUsersDeleteServiceUnavailable) Decode(d *jx.Decoder) error {
+var jsonFieldsNameOfGodjIdentityPermissionsCreateCreated = [2]string{
+	0: "id",
+	1: "revision",
+}
+
+// Decode decodes GodjIdentityPermissionsCreateCreated from json.
+func (s *GodjIdentityPermissionsCreateCreated) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDeleteServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreateCreated to nil")
 	}
-	var unwrapped GoDjAPIError
-	if err := func() error {
-		if err := unwrapped.Decode(d); err != nil {
-			return err
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
-	}(); err != nil {
-		return errors.Wrap(err, "alias")
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityPermissionsCreateCreated")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityPermissionsCreateCreated) {
+					name = jsonFieldsNameOfGodjIdentityPermissionsCreateCreated[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityUsersDeleteServiceUnavailable(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDeleteServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreateCreated) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDeleteServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreateCreated) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDetailForbidden as json.
-func (s *GodjIdentityIdentityUsersDetailForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsCreateForbidden as json.
+func (s *GodjIdentityPermissionsCreateForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDetailForbidden from json.
-func (s *GodjIdentityIdentityUsersDetailForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsCreateForbidden from json.
+func (s *GodjIdentityPermissionsCreateForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDetailForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreateForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3678,34 +6961,34 @@ func (s *GodjIdentityIdentityUsersDetailForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDetailForbidden(unwrapped)
+	*s = GodjIdentityPermissionsCreateForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDetailForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreateForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDetailForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreateForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersDetailNotAcceptable as json.
-func (s *GodjIdentityIdentityUsersDetailNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsCreateNotAcceptable as json.
+func (s *GodjIdentityPermissionsCreateNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersDetailNotAcceptable from json.
-func (s *GodjIdentityIdentityUsersDetailNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsCreateNotAcceptable from json.
+func (s *GodjIdentityPermissionsCreateNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersDetailNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreateNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3716,34 +6999,34 @@ func (s *GodjIdentityIdentityUsersDetailNotAcceptable) Decode(d *jx.Decoder) err
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersDetailNotAcceptable(unwrapped)
+	*s = GodjIdentityPermissionsCreateNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersDetailNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreateNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersDetailNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreateNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersListForbidden as json.
-func (s *GodjIdentityIdentityUsersListForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsCreatePreconditionFailed as json.
+func (s *GodjIdentityPermissionsCreatePreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersListForbidden from json.
-func (s *GodjIdentityIdentityUsersListForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsCreatePreconditionFailed from json.
+func (s *GodjIdentityPermissionsCreatePreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersListForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreatePreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3754,34 +7037,34 @@ func (s *GodjIdentityIdentityUsersListForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersListForbidden(unwrapped)
+	*s = GodjIdentityPermissionsCreatePreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersListForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreatePreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersListForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreatePreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersListNotAcceptable as json.
-func (s *GodjIdentityIdentityUsersListNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsCreateRequestEntityTooLarge as json.
+func (s *GodjIdentityPermissionsCreateRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersListNotAcceptable from json.
-func (s *GodjIdentityIdentityUsersListNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsCreateRequestEntityTooLarge from json.
+func (s *GodjIdentityPermissionsCreateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersListNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreateRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3792,34 +7075,34 @@ func (s *GodjIdentityIdentityUsersListNotAcceptable) Decode(d *jx.Decoder) error
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersListNotAcceptable(unwrapped)
+	*s = GodjIdentityPermissionsCreateRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersListNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersListNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordBadRequest as json.
-func (s *GodjIdentityIdentityUsersPasswordBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsCreateServiceUnavailable as json.
+func (s *GodjIdentityPermissionsCreateServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordBadRequest from json.
-func (s *GodjIdentityIdentityUsersPasswordBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsCreateServiceUnavailable from json.
+func (s *GodjIdentityPermissionsCreateServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreateServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3830,34 +7113,34 @@ func (s *GodjIdentityIdentityUsersPasswordBadRequest) Decode(d *jx.Decoder) erro
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPasswordBadRequest(unwrapped)
+	*s = GodjIdentityPermissionsCreateServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreateServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreateServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordForbidden as json.
-func (s *GodjIdentityIdentityUsersPasswordForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsCreateUnsupportedMediaType as json.
+func (s *GodjIdentityPermissionsCreateUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordForbidden from json.
-func (s *GodjIdentityIdentityUsersPasswordForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsCreateUnsupportedMediaType from json.
+func (s *GodjIdentityPermissionsCreateUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsCreateUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3868,34 +7151,34 @@ func (s *GodjIdentityIdentityUsersPasswordForbidden) Decode(d *jx.Decoder) error
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPasswordForbidden(unwrapped)
+	*s = GodjIdentityPermissionsCreateUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsCreateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsCreateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordNotAcceptable as json.
-func (s *GodjIdentityIdentityUsersPasswordNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsDeleteBadRequest as json.
+func (s *GodjIdentityPermissionsDeleteBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordNotAcceptable from json.
-func (s *GodjIdentityIdentityUsersPasswordNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsDeleteBadRequest from json.
+func (s *GodjIdentityPermissionsDeleteBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeleteBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3906,34 +7189,34 @@ func (s *GodjIdentityIdentityUsersPasswordNotAcceptable) Decode(d *jx.Decoder) e
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPasswordNotAcceptable(unwrapped)
+	*s = GodjIdentityPermissionsDeleteBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsDeleteBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsDeleteBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordNotFound as json.
-func (s *GodjIdentityIdentityUsersPasswordNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsDeleteForbidden as json.
+func (s *GodjIdentityPermissionsDeleteForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordNotFound from json.
-func (s *GodjIdentityIdentityUsersPasswordNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsDeleteForbidden from json.
+func (s *GodjIdentityPermissionsDeleteForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeleteForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3944,34 +7227,34 @@ func (s *GodjIdentityIdentityUsersPasswordNotFound) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPasswordNotFound(unwrapped)
+	*s = GodjIdentityPermissionsDeleteForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsDeleteForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsDeleteForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordPreconditionFailed as json.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsDeleteNotAcceptable as json.
+func (s *GodjIdentityPermissionsDeleteNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordPreconditionFailed from json.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsDeleteNotAcceptable from json.
+func (s *GodjIdentityPermissionsDeleteNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordPreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeleteNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -3982,34 +7265,34 @@ func (s *GodjIdentityIdentityUsersPasswordPreconditionFailed) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPasswordPreconditionFailed(unwrapped)
+	*s = GodjIdentityPermissionsDeleteNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsDeleteNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsDeleteNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordPreconditionRequired as json.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionRequired) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsDeleteNotFound as json.
+func (s *GodjIdentityPermissionsDeleteNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordPreconditionRequired from json.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsDeleteNotFound from json.
+func (s *GodjIdentityPermissionsDeleteNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordPreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeleteNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4019,35 +7302,148 @@ func (s *GodjIdentityIdentityUsersPasswordPreconditionRequired) Decode(d *jx.Dec
 		return nil
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
+	}
+	*s = GodjIdentityPermissionsDeleteNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjIdentityPermissionsDeleteNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjIdentityPermissionsDeleteNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GodjIdentityPermissionsDeleteOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GodjIdentityPermissionsDeleteOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityPermissionsDeleteOK = [2]string{
+	0: "id",
+	1: "revision",
+}
+
+// Decode decodes GodjIdentityPermissionsDeleteOK from json.
+func (s *GodjIdentityPermissionsDeleteOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeleteOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityPermissionsDeleteOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityPermissionsDeleteOK) {
+					name = jsonFieldsNameOfGodjIdentityPermissionsDeleteOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
-	*s = GodjIdentityIdentityUsersPasswordPreconditionRequired(unwrapped)
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsDeleteOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordPreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsDeleteOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsDeletePreconditionFailed as json.
+func (s *GodjIdentityPermissionsDeletePreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsDeletePreconditionFailed from json.
+func (s *GodjIdentityPermissionsDeletePreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeletePreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4058,34 +7454,34 @@ func (s *GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) Decode(d *jx.De
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPasswordRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityPermissionsDeletePreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsDeletePreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsDeletePreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordServiceUnavailable as json.
-func (s *GodjIdentityIdentityUsersPasswordServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsDeletePreconditionRequired as json.
+func (s *GodjIdentityPermissionsDeletePreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordServiceUnavailable from json.
-func (s *GodjIdentityIdentityUsersPasswordServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsDeletePreconditionRequired from json.
+func (s *GodjIdentityPermissionsDeletePreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeletePreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4096,34 +7492,34 @@ func (s *GodjIdentityIdentityUsersPasswordServiceUnavailable) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPasswordServiceUnavailable(unwrapped)
+	*s = GodjIdentityPermissionsDeletePreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsDeletePreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsDeletePreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPasswordUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityUsersPasswordUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsDeleteServiceUnavailable as json.
+func (s *GodjIdentityPermissionsDeleteServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPasswordUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityUsersPasswordUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsDeleteServiceUnavailable from json.
+func (s *GodjIdentityPermissionsDeleteServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPasswordUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsDeleteServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4133,35 +7529,194 @@ func (s *GodjIdentityIdentityUsersPasswordUnsupportedMediaType) Decode(d *jx.Dec
 		return nil
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
+	}
+	*s = GodjIdentityPermissionsDeleteServiceUnavailable(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjIdentityPermissionsDeleteServiceUnavailable) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjIdentityPermissionsDeleteServiceUnavailable) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GodjIdentityPermissionsHistoryOKItem) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GodjIdentityPermissionsHistoryOKItem) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("sequence")
+		e.Int64(s.Sequence)
+	}
+	{
+		e.FieldStart("action")
+		e.Str(s.Action)
+	}
+	{
+		e.FieldStart("changed_fields")
+		e.ArrStart()
+		for _, elem := range s.ChangedFields {
+			e.Str(elem)
+		}
+		e.ArrEnd()
+	}
+	{
+		e.FieldStart("at")
+		json.EncodeTimeFormat(e, s.At, "2006-01-02T15:04:05.999999999Z07:00")
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityPermissionsHistoryOKItem = [4]string{
+	0: "sequence",
+	1: "action",
+	2: "changed_fields",
+	3: "at",
+}
+
+// Decode decodes GodjIdentityPermissionsHistoryOKItem from json.
+func (s *GodjIdentityPermissionsHistoryOKItem) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsHistoryOKItem to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "sequence":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.Sequence = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"sequence\"")
+			}
+		case "action":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Action = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"action\"")
+			}
+		case "changed_fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				s.ChangedFields = make([]string, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem string
+					v, err := d.Str()
+					elem = string(v)
+					if err != nil {
+						return err
+					}
+					s.ChangedFields = append(s.ChangedFields, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"changed_fields\"")
+			}
+		case "at":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := json.DecodeTimeFormat(d, "2006-01-02T15:04:05.999999999Z07:00")
+				s.At = v
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"at\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityPermissionsHistoryOKItem")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00001111,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityPermissionsHistoryOKItem) {
+					name = jsonFieldsNameOfGodjIdentityPermissionsHistoryOKItem[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
 	}
-	*s = GodjIdentityIdentityUsersPasswordUnsupportedMediaType(unwrapped)
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPasswordUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsHistoryOKItem) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPasswordUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsHistoryOKItem) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchBadRequest as json.
-func (s *GodjIdentityIdentityUsersPatchBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchBadRequest as json.
+func (s *GodjIdentityPermissionsPatchBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchBadRequest from json.
-func (s *GodjIdentityIdentityUsersPatchBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchBadRequest from json.
+func (s *GodjIdentityPermissionsPatchBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4172,34 +7727,34 @@ func (s *GodjIdentityIdentityUsersPatchBadRequest) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchBadRequest(unwrapped)
+	*s = GodjIdentityPermissionsPatchBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchForbidden as json.
-func (s *GodjIdentityIdentityUsersPatchForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchForbidden as json.
+func (s *GodjIdentityPermissionsPatchForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchForbidden from json.
-func (s *GodjIdentityIdentityUsersPatchForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchForbidden from json.
+func (s *GodjIdentityPermissionsPatchForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4210,34 +7765,34 @@ func (s *GodjIdentityIdentityUsersPatchForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchForbidden(unwrapped)
+	*s = GodjIdentityPermissionsPatchForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchNotAcceptable as json.
-func (s *GodjIdentityIdentityUsersPatchNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchNotAcceptable as json.
+func (s *GodjIdentityPermissionsPatchNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchNotAcceptable from json.
-func (s *GodjIdentityIdentityUsersPatchNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchNotAcceptable from json.
+func (s *GodjIdentityPermissionsPatchNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4248,34 +7803,34 @@ func (s *GodjIdentityIdentityUsersPatchNotAcceptable) Decode(d *jx.Decoder) erro
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchNotAcceptable(unwrapped)
+	*s = GodjIdentityPermissionsPatchNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchNotFound as json.
-func (s *GodjIdentityIdentityUsersPatchNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchNotFound as json.
+func (s *GodjIdentityPermissionsPatchNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchNotFound from json.
-func (s *GodjIdentityIdentityUsersPatchNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchNotFound from json.
+func (s *GodjIdentityPermissionsPatchNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4285,35 +7840,148 @@ func (s *GodjIdentityIdentityUsersPatchNotFound) Decode(d *jx.Decoder) error {
 		return nil
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
+	}
+	*s = GodjIdentityPermissionsPatchNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjIdentityPermissionsPatchNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjIdentityPermissionsPatchNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GodjIdentityPermissionsPatchOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GodjIdentityPermissionsPatchOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityPermissionsPatchOK = [2]string{
+	0: "id",
+	1: "revision",
+}
+
+// Decode decodes GodjIdentityPermissionsPatchOK from json.
+func (s *GodjIdentityPermissionsPatchOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityPermissionsPatchOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityPermissionsPatchOK) {
+					name = jsonFieldsNameOfGodjIdentityPermissionsPatchOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityUsersPatchNotFound(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchPreconditionFailed as json.
-func (s *GodjIdentityIdentityUsersPatchPreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchPreconditionFailed as json.
+func (s *GodjIdentityPermissionsPatchPreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchPreconditionFailed from json.
-func (s *GodjIdentityIdentityUsersPatchPreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchPreconditionFailed from json.
+func (s *GodjIdentityPermissionsPatchPreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchPreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchPreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4324,34 +7992,34 @@ func (s *GodjIdentityIdentityUsersPatchPreconditionFailed) Decode(d *jx.Decoder)
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchPreconditionFailed(unwrapped)
+	*s = GodjIdentityPermissionsPatchPreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchPreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchPreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchPreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchPreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchPreconditionRequired as json.
-func (s *GodjIdentityIdentityUsersPatchPreconditionRequired) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchPreconditionRequired as json.
+func (s *GodjIdentityPermissionsPatchPreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchPreconditionRequired from json.
-func (s *GodjIdentityIdentityUsersPatchPreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchPreconditionRequired from json.
+func (s *GodjIdentityPermissionsPatchPreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchPreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchPreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4362,34 +8030,34 @@ func (s *GodjIdentityIdentityUsersPatchPreconditionRequired) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchPreconditionRequired(unwrapped)
+	*s = GodjIdentityPermissionsPatchPreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchPreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchPreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchPreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchPreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityUsersPatchRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchRequestEntityTooLarge as json.
+func (s *GodjIdentityPermissionsPatchRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityUsersPatchRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchRequestEntityTooLarge from json.
+func (s *GodjIdentityPermissionsPatchRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4400,34 +8068,34 @@ func (s *GodjIdentityIdentityUsersPatchRequestEntityTooLarge) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityPermissionsPatchRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchServiceUnavailable as json.
-func (s *GodjIdentityIdentityUsersPatchServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchServiceUnavailable as json.
+func (s *GodjIdentityPermissionsPatchServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchServiceUnavailable from json.
-func (s *GodjIdentityIdentityUsersPatchServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchServiceUnavailable from json.
+func (s *GodjIdentityPermissionsPatchServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4438,34 +8106,34 @@ func (s *GodjIdentityIdentityUsersPatchServiceUnavailable) Decode(d *jx.Decoder)
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchServiceUnavailable(unwrapped)
+	*s = GodjIdentityPermissionsPatchServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersPatchUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityUsersPatchUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPatchUnsupportedMediaType as json.
+func (s *GodjIdentityPermissionsPatchUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersPatchUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityUsersPatchUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPatchUnsupportedMediaType from json.
+func (s *GodjIdentityPermissionsPatchUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersPatchUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPatchUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4476,34 +8144,34 @@ func (s *GodjIdentityIdentityUsersPatchUnsupportedMediaType) Decode(d *jx.Decode
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersPatchUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityPermissionsPatchUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersPatchUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPatchUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersPatchUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPatchUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdateBadRequest as json.
-func (s *GodjIdentityIdentityUsersUpdateBadRequest) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutBadRequest as json.
+func (s *GodjIdentityPermissionsPutBadRequest) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdateBadRequest from json.
-func (s *GodjIdentityIdentityUsersUpdateBadRequest) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutBadRequest from json.
+func (s *GodjIdentityPermissionsPutBadRequest) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdateBadRequest to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutBadRequest to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4514,34 +8182,34 @@ func (s *GodjIdentityIdentityUsersUpdateBadRequest) Decode(d *jx.Decoder) error 
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdateBadRequest(unwrapped)
+	*s = GodjIdentityPermissionsPutBadRequest(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdateBadRequest) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutBadRequest) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdateBadRequest) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutBadRequest) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdateForbidden as json.
-func (s *GodjIdentityIdentityUsersUpdateForbidden) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutForbidden as json.
+func (s *GodjIdentityPermissionsPutForbidden) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdateForbidden from json.
-func (s *GodjIdentityIdentityUsersUpdateForbidden) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutForbidden from json.
+func (s *GodjIdentityPermissionsPutForbidden) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdateForbidden to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutForbidden to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4552,34 +8220,34 @@ func (s *GodjIdentityIdentityUsersUpdateForbidden) Decode(d *jx.Decoder) error {
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdateForbidden(unwrapped)
+	*s = GodjIdentityPermissionsPutForbidden(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdateForbidden) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutForbidden) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdateForbidden) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutForbidden) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdateNotAcceptable as json.
-func (s *GodjIdentityIdentityUsersUpdateNotAcceptable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutNotAcceptable as json.
+func (s *GodjIdentityPermissionsPutNotAcceptable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdateNotAcceptable from json.
-func (s *GodjIdentityIdentityUsersUpdateNotAcceptable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutNotAcceptable from json.
+func (s *GodjIdentityPermissionsPutNotAcceptable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdateNotAcceptable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutNotAcceptable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4590,34 +8258,34 @@ func (s *GodjIdentityIdentityUsersUpdateNotAcceptable) Decode(d *jx.Decoder) err
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdateNotAcceptable(unwrapped)
+	*s = GodjIdentityPermissionsPutNotAcceptable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdateNotAcceptable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutNotAcceptable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdateNotAcceptable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutNotAcceptable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdateNotFound as json.
-func (s *GodjIdentityIdentityUsersUpdateNotFound) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutNotFound as json.
+func (s *GodjIdentityPermissionsPutNotFound) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdateNotFound from json.
-func (s *GodjIdentityIdentityUsersUpdateNotFound) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutNotFound from json.
+func (s *GodjIdentityPermissionsPutNotFound) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdateNotFound to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutNotFound to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4627,35 +8295,148 @@ func (s *GodjIdentityIdentityUsersUpdateNotFound) Decode(d *jx.Decoder) error {
 		return nil
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
+	}
+	*s = GodjIdentityPermissionsPutNotFound(unwrapped)
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GodjIdentityPermissionsPutNotFound) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GodjIdentityPermissionsPutNotFound) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GodjIdentityPermissionsPutOK) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GodjIdentityPermissionsPutOK) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("id")
+		e.Int64(s.ID)
+	}
+	{
+		e.FieldStart("revision")
+		e.Int64(s.Revision)
+	}
+}
+
+var jsonFieldsNameOfGodjIdentityPermissionsPutOK = [2]string{
+	0: "id",
+	1: "revision",
+}
+
+// Decode decodes GodjIdentityPermissionsPutOK from json.
+func (s *GodjIdentityPermissionsPutOK) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutOK to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "id":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Int64()
+				s.ID = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"id\"")
+			}
+		case "revision":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Int64()
+				s.Revision = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GodjIdentityPermissionsPutOK")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGodjIdentityPermissionsPutOK) {
+					name = jsonFieldsNameOfGodjIdentityPermissionsPutOK[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
 	}
-	*s = GodjIdentityIdentityUsersUpdateNotFound(unwrapped)
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdateNotFound) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutOK) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdateNotFound) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutOK) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdatePreconditionFailed as json.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionFailed) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutPreconditionFailed as json.
+func (s *GodjIdentityPermissionsPutPreconditionFailed) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdatePreconditionFailed from json.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionFailed) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutPreconditionFailed from json.
+func (s *GodjIdentityPermissionsPutPreconditionFailed) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdatePreconditionFailed to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutPreconditionFailed to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4666,34 +8447,34 @@ func (s *GodjIdentityIdentityUsersUpdatePreconditionFailed) Decode(d *jx.Decoder
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdatePreconditionFailed(unwrapped)
+	*s = GodjIdentityPermissionsPutPreconditionFailed(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionFailed) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutPreconditionFailed) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionFailed) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutPreconditionFailed) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdatePreconditionRequired as json.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionRequired) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutPreconditionRequired as json.
+func (s *GodjIdentityPermissionsPutPreconditionRequired) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdatePreconditionRequired from json.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionRequired) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutPreconditionRequired from json.
+func (s *GodjIdentityPermissionsPutPreconditionRequired) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdatePreconditionRequired to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutPreconditionRequired to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4704,34 +8485,34 @@ func (s *GodjIdentityIdentityUsersUpdatePreconditionRequired) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdatePreconditionRequired(unwrapped)
+	*s = GodjIdentityPermissionsPutPreconditionRequired(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionRequired) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutPreconditionRequired) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdatePreconditionRequired) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutPreconditionRequired) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdateRequestEntityTooLarge as json.
-func (s *GodjIdentityIdentityUsersUpdateRequestEntityTooLarge) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutRequestEntityTooLarge as json.
+func (s *GodjIdentityPermissionsPutRequestEntityTooLarge) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdateRequestEntityTooLarge from json.
-func (s *GodjIdentityIdentityUsersUpdateRequestEntityTooLarge) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutRequestEntityTooLarge from json.
+func (s *GodjIdentityPermissionsPutRequestEntityTooLarge) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdateRequestEntityTooLarge to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutRequestEntityTooLarge to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4742,34 +8523,34 @@ func (s *GodjIdentityIdentityUsersUpdateRequestEntityTooLarge) Decode(d *jx.Deco
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdateRequestEntityTooLarge(unwrapped)
+	*s = GodjIdentityPermissionsPutRequestEntityTooLarge(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdateRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutRequestEntityTooLarge) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdateRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutRequestEntityTooLarge) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdateServiceUnavailable as json.
-func (s *GodjIdentityIdentityUsersUpdateServiceUnavailable) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutServiceUnavailable as json.
+func (s *GodjIdentityPermissionsPutServiceUnavailable) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdateServiceUnavailable from json.
-func (s *GodjIdentityIdentityUsersUpdateServiceUnavailable) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutServiceUnavailable from json.
+func (s *GodjIdentityPermissionsPutServiceUnavailable) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdateServiceUnavailable to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutServiceUnavailable to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4780,34 +8561,34 @@ func (s *GodjIdentityIdentityUsersUpdateServiceUnavailable) Decode(d *jx.Decoder
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdateServiceUnavailable(unwrapped)
+	*s = GodjIdentityPermissionsPutServiceUnavailable(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdateServiceUnavailable) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutServiceUnavailable) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdateServiceUnavailable) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutServiceUnavailable) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
 
-// Encode encodes GodjIdentityIdentityUsersUpdateUnsupportedMediaType as json.
-func (s *GodjIdentityIdentityUsersUpdateUnsupportedMediaType) Encode(e *jx.Encoder) {
+// Encode encodes GodjIdentityPermissionsPutUnsupportedMediaType as json.
+func (s *GodjIdentityPermissionsPutUnsupportedMediaType) Encode(e *jx.Encoder) {
 	unwrapped := (*GoDjAPIError)(s)
 
 	unwrapped.Encode(e)
 }
 
-// Decode decodes GodjIdentityIdentityUsersUpdateUnsupportedMediaType from json.
-func (s *GodjIdentityIdentityUsersUpdateUnsupportedMediaType) Decode(d *jx.Decoder) error {
+// Decode decodes GodjIdentityPermissionsPutUnsupportedMediaType from json.
+func (s *GodjIdentityPermissionsPutUnsupportedMediaType) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GodjIdentityIdentityUsersUpdateUnsupportedMediaType to nil")
+		return errors.New("invalid: unable to decode GodjIdentityPermissionsPutUnsupportedMediaType to nil")
 	}
 	var unwrapped GoDjAPIError
 	if err := func() error {
@@ -4818,19 +8599,19 @@ func (s *GodjIdentityIdentityUsersUpdateUnsupportedMediaType) Decode(d *jx.Decod
 	}(); err != nil {
 		return errors.Wrap(err, "alias")
 	}
-	*s = GodjIdentityIdentityUsersUpdateUnsupportedMediaType(unwrapped)
+	*s = GodjIdentityPermissionsPutUnsupportedMediaType(unwrapped)
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GodjIdentityIdentityUsersUpdateUnsupportedMediaType) MarshalJSON() ([]byte, error) {
+func (s *GodjIdentityPermissionsPutUnsupportedMediaType) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GodjIdentityIdentityUsersUpdateUnsupportedMediaType) UnmarshalJSON(data []byte) error {
+func (s *GodjIdentityPermissionsPutUnsupportedMediaType) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -4849,28 +8630,19 @@ func (s *Group) encodeFields(e *jx.Encoder) {
 		e.Int64(s.ID)
 	}
 	{
-		e.FieldStart("name")
-		e.Str(s.Name)
-	}
-	{
 		e.FieldStart("revision")
 		e.Int64(s.Revision)
 	}
 	{
-		e.FieldStart("permissions")
-		e.ArrStart()
-		for _, elem := range s.Permissions {
-			e.Int64(elem)
-		}
-		e.ArrEnd()
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfGroup = [4]string{
+var jsonFieldsNameOfGroup = [3]string{
 	0: "id",
-	1: "name",
-	2: "revision",
-	3: "permissions",
+	1: "revision",
+	2: "fields",
 }
 
 // Decode decodes Group from json.
@@ -4894,20 +8666,8 @@ func (s *Group) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "name":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
-			}
 		case "revision":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int64()
 				s.Revision = int64(v)
@@ -4918,25 +8678,15 @@ func (s *Group) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"revision\"")
 			}
-		case "permissions":
-			requiredBitSet[0] |= 1 << 3
+		case "fields":
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
-				s.Permissions = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Permissions = append(s.Permissions, elem)
-					return nil
-				}); err != nil {
+				if err := s.Fields.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"permissions\"")
+				return errors.Wrap(err, "decode field \"fields\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -4948,7 +8698,7 @@ func (s *Group) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -5004,24 +8754,13 @@ func (s *GroupCreate) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *GroupCreate) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("name")
-		e.Str(s.Name)
-	}
-	{
-		if s.Permissions != nil {
-			e.FieldStart("permissions")
-			e.ArrStart()
-			for _, elem := range s.Permissions {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfGroupCreate = [2]string{
-	0: "name",
-	1: "permissions",
+var jsonFieldsNameOfGroupCreate = [1]string{
+	0: "fields",
 }
 
 // Decode decodes GroupCreate from json.
@@ -5033,36 +8772,15 @@ func (s *GroupCreate) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "name":
+		case "fields":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
-				if err != nil {
+				if err := s.Fields.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
-			}
-		case "permissions":
-			if err := func() error {
-				s.Permissions = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Permissions = append(s.Permissions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"permissions\"")
+				return errors.Wrap(err, "decode field \"fields\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -5121,6 +8839,257 @@ func (s *GroupCreate) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *GroupCreateFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GroupCreateFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		if s.Permissions != nil {
+			e.FieldStart("permissions")
+			e.ArrStart()
+			for _, elem := range s.Permissions {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfGroupCreateFields = [2]string{
+	0: "name",
+	1: "permissions",
+}
+
+// Decode decodes GroupCreateFields from json.
+func (s *GroupCreateFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GroupCreateFields to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "name":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "permissions":
+			if err := func() error {
+				s.Permissions = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Permissions = append(s.Permissions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GroupCreateFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGroupCreateFields) {
+					name = jsonFieldsNameOfGroupCreateFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GroupCreateFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GroupCreateFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GroupFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GroupFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		e.FieldStart("permissions")
+		e.ArrStart()
+		for _, elem := range s.Permissions {
+			e.Int64(elem)
+		}
+		e.ArrEnd()
+	}
+}
+
+var jsonFieldsNameOfGroupFields = [2]string{
+	0: "name",
+	1: "permissions",
+}
+
+// Decode decodes GroupFields from json.
+func (s *GroupFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GroupFields to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "name":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "permissions":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				s.Permissions = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Permissions = append(s.Permissions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GroupFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGroupFields) {
+					name = jsonFieldsNameOfGroupFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GroupFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GroupFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *GroupPage) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -5142,20 +9111,20 @@ func (s *GroupPage) encodeFields(e *jx.Encoder) {
 		e.Int64(s.Count)
 	}
 	{
-		e.FieldStart("limit")
-		e.Int64(s.Limit)
-	}
-	{
 		e.FieldStart("offset")
 		e.Int64(s.Offset)
+	}
+	{
+		e.FieldStart("limit")
+		e.Int64(s.Limit)
 	}
 }
 
 var jsonFieldsNameOfGroupPage = [4]string{
 	0: "items",
 	1: "count",
-	2: "limit",
-	3: "offset",
+	2: "offset",
+	3: "limit",
 }
 
 // Decode decodes GroupPage from json.
@@ -5197,20 +9166,8 @@ func (s *GroupPage) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"count\"")
 			}
-		case "limit":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int64()
-				s.Limit = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"limit\"")
-			}
 		case "offset":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int64()
 				s.Offset = int64(v)
@@ -5220,6 +9177,18 @@ func (s *GroupPage) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"offset\"")
+			}
+		case "limit":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int64()
+				s.Limit = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"limit\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -5287,6 +9256,100 @@ func (s *GroupPatch) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *GroupPatch) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfGroupPatch = [1]string{
+	0: "fields",
+}
+
+// Decode decodes GroupPatch from json.
+func (s *GroupPatch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GroupPatch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "fields":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GroupPatch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGroupPatch) {
+					name = jsonFieldsNameOfGroupPatch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GroupPatch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GroupPatch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GroupPatchFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GroupPatchFields) encodeFields(e *jx.Encoder) {
+	{
 		if s.Name.Set {
 			e.FieldStart("name")
 			s.Name.Encode(e)
@@ -5304,15 +9367,15 @@ func (s *GroupPatch) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfGroupPatch = [2]string{
+var jsonFieldsNameOfGroupPatchFields = [2]string{
 	0: "name",
 	1: "permissions",
 }
 
-// Decode decodes GroupPatch from json.
-func (s *GroupPatch) Decode(d *jx.Decoder) error {
+// Decode decodes GroupPatchFields from json.
+func (s *GroupPatchFields) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GroupPatch to nil")
+		return errors.New("invalid: unable to decode GroupPatchFields to nil")
 	}
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -5351,21 +9414,241 @@ func (s *GroupPatch) Decode(d *jx.Decoder) error {
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode GroupPatch")
+		return errors.Wrap(err, "decode GroupPatchFields")
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GroupPatch) MarshalJSON() ([]byte, error) {
+func (s *GroupPatchFields) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GroupPatch) UnmarshalJSON(data []byte) error {
+func (s *GroupPatchFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GroupPut) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GroupPut) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfGroupPut = [1]string{
+	0: "fields",
+}
+
+// Decode decodes GroupPut from json.
+func (s *GroupPut) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GroupPut to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "fields":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GroupPut")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGroupPut) {
+					name = jsonFieldsNameOfGroupPut[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GroupPut) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GroupPut) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *GroupPutFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *GroupPutFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+	{
+		if s.Permissions != nil {
+			e.FieldStart("permissions")
+			e.ArrStart()
+			for _, elem := range s.Permissions {
+				e.Int64(elem)
+			}
+			e.ArrEnd()
+		}
+	}
+}
+
+var jsonFieldsNameOfGroupPutFields = [2]string{
+	0: "name",
+	1: "permissions",
+}
+
+// Decode decodes GroupPutFields from json.
+func (s *GroupPutFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode GroupPutFields to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "name":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		case "permissions":
+			if err := func() error {
+				s.Permissions = make([]int64, 0)
+				if err := d.Arr(func(d *jx.Decoder) error {
+					var elem int64
+					v, err := d.Int64()
+					elem = int64(v)
+					if err != nil {
+						return err
+					}
+					s.Permissions = append(s.Permissions, elem)
+					return nil
+				}); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"permissions\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode GroupPutFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfGroupPutFields) {
+					name = jsonFieldsNameOfGroupPutFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *GroupPutFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *GroupPutFields) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -5384,19 +9667,19 @@ func (s *GroupSummary) encodeFields(e *jx.Encoder) {
 		e.Int64(s.ID)
 	}
 	{
-		e.FieldStart("name")
-		e.Str(s.Name)
-	}
-	{
 		e.FieldStart("revision")
 		e.Int64(s.Revision)
+	}
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
 	}
 }
 
 var jsonFieldsNameOfGroupSummary = [3]string{
 	0: "id",
-	1: "name",
-	2: "revision",
+	1: "revision",
+	2: "fields",
 }
 
 // Decode decodes GroupSummary from json.
@@ -5420,20 +9703,8 @@ func (s *GroupSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "name":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
-			}
 		case "revision":
-			requiredBitSet[0] |= 1 << 2
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int64()
 				s.Revision = int64(v)
@@ -5443,6 +9714,16 @@ func (s *GroupSummary) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		case "fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -5501,39 +9782,28 @@ func (s *GroupSummary) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *GroupUpdate) Encode(e *jx.Encoder) {
+func (s *GroupSummaryFields) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *GroupUpdate) encodeFields(e *jx.Encoder) {
+func (s *GroupSummaryFields) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("name")
 		e.Str(s.Name)
 	}
-	{
-		if s.Permissions != nil {
-			e.FieldStart("permissions")
-			e.ArrStart()
-			for _, elem := range s.Permissions {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
-	}
 }
 
-var jsonFieldsNameOfGroupUpdate = [2]string{
+var jsonFieldsNameOfGroupSummaryFields = [1]string{
 	0: "name",
-	1: "permissions",
 }
 
-// Decode decodes GroupUpdate from json.
-func (s *GroupUpdate) Decode(d *jx.Decoder) error {
+// Decode decodes GroupSummaryFields from json.
+func (s *GroupSummaryFields) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode GroupUpdate to nil")
+		return errors.New("invalid: unable to decode GroupSummaryFields to nil")
 	}
 	var requiredBitSet [1]uint8
 
@@ -5551,31 +9821,12 @@ func (s *GroupUpdate) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"name\"")
 			}
-		case "permissions":
-			if err := func() error {
-				s.Permissions = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Permissions = append(s.Permissions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"permissions\"")
-			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode GroupUpdate")
+		return errors.Wrap(err, "decode GroupSummaryFields")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -5592,8 +9843,8 @@ func (s *GroupUpdate) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfGroupUpdate) {
-					name = jsonFieldsNameOfGroupUpdate[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfGroupSummaryFields) {
+					name = jsonFieldsNameOfGroupSummaryFields[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -5614,14 +9865,14 @@ func (s *GroupUpdate) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *GroupUpdate) MarshalJSON() ([]byte, error) {
+func (s *GroupSummaryFields) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *GroupUpdate) UnmarshalJSON(data []byte) error {
+func (s *GroupSummaryFields) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -5789,100 +10040,6 @@ func (s *OptString) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *PasswordReplacement) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *PasswordReplacement) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("password")
-		s.Password.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfPasswordReplacement = [1]string{
-	0: "password",
-}
-
-// Decode decodes PasswordReplacement from json.
-func (s *PasswordReplacement) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode PasswordReplacement to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "password":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				if err := s.Password.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"password\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode PasswordReplacement")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00000001,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfPasswordReplacement) {
-					name = jsonFieldsNameOfPasswordReplacement[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *PasswordReplacement) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PasswordReplacement) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
 func (s *Permission) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -5896,24 +10053,19 @@ func (s *Permission) encodeFields(e *jx.Encoder) {
 		e.Int64(s.ID)
 	}
 	{
-		e.FieldStart("code")
-		e.Str(s.Code)
-	}
-	{
-		e.FieldStart("name")
-		e.Str(s.Name)
-	}
-	{
 		e.FieldStart("revision")
 		e.Int64(s.Revision)
 	}
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfPermission = [4]string{
+var jsonFieldsNameOfPermission = [3]string{
 	0: "id",
-	1: "code",
-	2: "name",
-	3: "revision",
+	1: "revision",
+	2: "fields",
 }
 
 // Decode decodes Permission from json.
@@ -5937,32 +10089,8 @@ func (s *Permission) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "code":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Code = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"code\"")
-			}
-		case "name":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
-			}
 		case "revision":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int64()
 				s.Revision = int64(v)
@@ -5972,6 +10100,16 @@ func (s *Permission) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		case "fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -5983,7 +10121,7 @@ func (s *Permission) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -6039,18 +10177,13 @@ func (s *PermissionCreate) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *PermissionCreate) encodeFields(e *jx.Encoder) {
 	{
-		e.FieldStart("code")
-		e.Str(s.Code)
-	}
-	{
-		e.FieldStart("name")
-		e.Str(s.Name)
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
 	}
 }
 
-var jsonFieldsNameOfPermissionCreate = [2]string{
-	0: "code",
-	1: "name",
+var jsonFieldsNameOfPermissionCreate = [1]string{
+	0: "fields",
 }
 
 // Decode decodes PermissionCreate from json.
@@ -6062,29 +10195,15 @@ func (s *PermissionCreate) Decode(d *jx.Decoder) error {
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
 		switch string(k) {
-		case "code":
+		case "fields":
 			requiredBitSet[0] |= 1 << 0
 			if err := func() error {
-				v, err := d.Str()
-				s.Code = string(v)
-				if err != nil {
+				if err := s.Fields.Decode(d); err != nil {
 					return err
 				}
 				return nil
 			}(); err != nil {
-				return errors.Wrap(err, "decode field \"code\"")
-			}
-		case "name":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
+				return errors.Wrap(err, "decode field \"fields\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -6096,7 +10215,7 @@ func (s *PermissionCreate) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00000011,
+		0b00000001,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -6143,6 +10262,232 @@ func (s *PermissionCreate) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
+func (s *PermissionCreateFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PermissionCreateFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		e.Str(s.Code)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfPermissionCreateFields = [2]string{
+	0: "code",
+	1: "name",
+}
+
+// Decode decodes PermissionCreateFields from json.
+func (s *PermissionCreateFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PermissionCreateFields to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Code = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PermissionCreateFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPermissionCreateFields) {
+					name = jsonFieldsNameOfPermissionCreateFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PermissionCreateFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PermissionCreateFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *PermissionFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PermissionFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		e.Str(s.Code)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfPermissionFields = [2]string{
+	0: "code",
+	1: "name",
+}
+
+// Decode decodes PermissionFields from json.
+func (s *PermissionFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PermissionFields to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Code = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PermissionFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPermissionFields) {
+					name = jsonFieldsNameOfPermissionFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PermissionFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PermissionFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
 func (s *PermissionPage) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
@@ -6164,20 +10509,20 @@ func (s *PermissionPage) encodeFields(e *jx.Encoder) {
 		e.Int64(s.Count)
 	}
 	{
-		e.FieldStart("limit")
-		e.Int64(s.Limit)
-	}
-	{
 		e.FieldStart("offset")
 		e.Int64(s.Offset)
+	}
+	{
+		e.FieldStart("limit")
+		e.Int64(s.Limit)
 	}
 }
 
 var jsonFieldsNameOfPermissionPage = [4]string{
 	0: "items",
 	1: "count",
-	2: "limit",
-	3: "offset",
+	2: "offset",
+	3: "limit",
 }
 
 // Decode decodes PermissionPage from json.
@@ -6219,20 +10564,8 @@ func (s *PermissionPage) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"count\"")
 			}
-		case "limit":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int64()
-				s.Limit = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"limit\"")
-			}
 		case "offset":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 2
 			if err := func() error {
 				v, err := d.Int64()
 				s.Offset = int64(v)
@@ -6242,6 +10575,18 @@ func (s *PermissionPage) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"offset\"")
+			}
+		case "limit":
+			requiredBitSet[0] |= 1 << 3
+			if err := func() error {
+				v, err := d.Int64()
+				s.Limit = int64(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"limit\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -6309,6 +10654,100 @@ func (s *PermissionPatch) Encode(e *jx.Encoder) {
 // encodeFields encodes fields.
 func (s *PermissionPatch) encodeFields(e *jx.Encoder) {
 	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfPermissionPatch = [1]string{
+	0: "fields",
+}
+
+// Decode decodes PermissionPatch from json.
+func (s *PermissionPatch) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PermissionPatch to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "fields":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PermissionPatch")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPermissionPatch) {
+					name = jsonFieldsNameOfPermissionPatch[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PermissionPatch) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PermissionPatch) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *PermissionPatchFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PermissionPatchFields) encodeFields(e *jx.Encoder) {
+	{
 		if s.Code.Set {
 			e.FieldStart("code")
 			s.Code.Encode(e)
@@ -6322,15 +10761,15 @@ func (s *PermissionPatch) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPermissionPatch = [2]string{
+var jsonFieldsNameOfPermissionPatchFields = [2]string{
 	0: "code",
 	1: "name",
 }
 
-// Decode decodes PermissionPatch from json.
-func (s *PermissionPatch) Decode(d *jx.Decoder) error {
+// Decode decodes PermissionPatchFields from json.
+func (s *PermissionPatchFields) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode PermissionPatch to nil")
+		return errors.New("invalid: unable to decode PermissionPatchFields to nil")
 	}
 
 	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
@@ -6360,21 +10799,228 @@ func (s *PermissionPatch) Decode(d *jx.Decoder) error {
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode PermissionPatch")
+		return errors.Wrap(err, "decode PermissionPatchFields")
 	}
 
 	return nil
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *PermissionPatch) MarshalJSON() ([]byte, error) {
+func (s *PermissionPatchFields) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PermissionPatch) UnmarshalJSON(data []byte) error {
+func (s *PermissionPatchFields) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *PermissionPut) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PermissionPut) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
+}
+
+var jsonFieldsNameOfPermissionPut = [1]string{
+	0: "fields",
+}
+
+// Decode decodes PermissionPut from json.
+func (s *PermissionPut) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PermissionPut to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "fields":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PermissionPut")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000001,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPermissionPut) {
+					name = jsonFieldsNameOfPermissionPut[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PermissionPut) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PermissionPut) UnmarshalJSON(data []byte) error {
+	d := jx.DecodeBytes(data)
+	return s.Decode(d)
+}
+
+// Encode implements json.Marshaler.
+func (s *PermissionPutFields) Encode(e *jx.Encoder) {
+	e.ObjStart()
+	s.encodeFields(e)
+	e.ObjEnd()
+}
+
+// encodeFields encodes fields.
+func (s *PermissionPutFields) encodeFields(e *jx.Encoder) {
+	{
+		e.FieldStart("code")
+		e.Str(s.Code)
+	}
+	{
+		e.FieldStart("name")
+		e.Str(s.Name)
+	}
+}
+
+var jsonFieldsNameOfPermissionPutFields = [2]string{
+	0: "code",
+	1: "name",
+}
+
+// Decode decodes PermissionPutFields from json.
+func (s *PermissionPutFields) Decode(d *jx.Decoder) error {
+	if s == nil {
+		return errors.New("invalid: unable to decode PermissionPutFields to nil")
+	}
+	var requiredBitSet [1]uint8
+
+	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
+		switch string(k) {
+		case "code":
+			requiredBitSet[0] |= 1 << 0
+			if err := func() error {
+				v, err := d.Str()
+				s.Code = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"code\"")
+			}
+		case "name":
+			requiredBitSet[0] |= 1 << 1
+			if err := func() error {
+				v, err := d.Str()
+				s.Name = string(v)
+				if err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"name\"")
+			}
+		default:
+			return errors.Errorf("unexpected field %q", k)
+		}
+		return nil
+	}); err != nil {
+		return errors.Wrap(err, "decode PermissionPutFields")
+	}
+	// Validate required fields.
+	var failures []validate.FieldError
+	for i, mask := range [1]uint8{
+		0b00000011,
+	} {
+		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
+			// Mask only required fields and check equality to mask using XOR.
+			//
+			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
+			// Bits of fields which would be set are actually bits of missed fields.
+			missed := bits.OnesCount8(result)
+			for bitN := 0; bitN < missed; bitN++ {
+				bitIdx := bits.TrailingZeros8(result)
+				fieldIdx := i*8 + bitIdx
+				var name string
+				if fieldIdx < len(jsonFieldsNameOfPermissionPutFields) {
+					name = jsonFieldsNameOfPermissionPutFields[fieldIdx]
+				} else {
+					name = strconv.Itoa(fieldIdx)
+				}
+				failures = append(failures, validate.FieldError{
+					Name:  name,
+					Error: validate.ErrFieldRequired,
+				})
+				// Reset bit.
+				result &^= 1 << bitIdx
+			}
+		}
+	}
+	if len(failures) > 0 {
+		return &validate.Error{Fields: failures}
+	}
+
+	return nil
+}
+
+// MarshalJSON implements stdjson.Marshaler.
+func (s *PermissionPutFields) MarshalJSON() ([]byte, error) {
+	e := jx.Encoder{}
+	s.Encode(&e)
+	return e.Bytes(), nil
+}
+
+// UnmarshalJSON implements stdjson.Unmarshaler.
+func (s *PermissionPutFields) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }
@@ -6393,24 +11039,19 @@ func (s *PermissionSummary) encodeFields(e *jx.Encoder) {
 		e.Int64(s.ID)
 	}
 	{
-		e.FieldStart("code")
-		e.Str(s.Code)
-	}
-	{
-		e.FieldStart("name")
-		e.Str(s.Name)
-	}
-	{
 		e.FieldStart("revision")
 		e.Int64(s.Revision)
 	}
+	{
+		e.FieldStart("fields")
+		s.Fields.Encode(e)
+	}
 }
 
-var jsonFieldsNameOfPermissionSummary = [4]string{
+var jsonFieldsNameOfPermissionSummary = [3]string{
 	0: "id",
-	1: "code",
-	2: "name",
-	3: "revision",
+	1: "revision",
+	2: "fields",
 }
 
 // Decode decodes PermissionSummary from json.
@@ -6434,32 +11075,8 @@ func (s *PermissionSummary) Decode(d *jx.Decoder) error {
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"id\"")
 			}
-		case "code":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Code = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"code\"")
-			}
-		case "name":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Str()
-				s.Name = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"name\"")
-			}
 		case "revision":
-			requiredBitSet[0] |= 1 << 3
+			requiredBitSet[0] |= 1 << 1
 			if err := func() error {
 				v, err := d.Int64()
 				s.Revision = int64(v)
@@ -6469,6 +11086,16 @@ func (s *PermissionSummary) Decode(d *jx.Decoder) error {
 				return nil
 			}(); err != nil {
 				return errors.Wrap(err, "decode field \"revision\"")
+			}
+		case "fields":
+			requiredBitSet[0] |= 1 << 2
+			if err := func() error {
+				if err := s.Fields.Decode(d); err != nil {
+					return err
+				}
+				return nil
+			}(); err != nil {
+				return errors.Wrap(err, "decode field \"fields\"")
 			}
 		default:
 			return errors.Errorf("unexpected field %q", k)
@@ -6480,7 +11107,7 @@ func (s *PermissionSummary) Decode(d *jx.Decoder) error {
 	// Validate required fields.
 	var failures []validate.FieldError
 	for i, mask := range [1]uint8{
-		0b00001111,
+		0b00000111,
 	} {
 		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
 			// Mask only required fields and check equality to mask using XOR.
@@ -6527,14 +11154,14 @@ func (s *PermissionSummary) UnmarshalJSON(data []byte) error {
 }
 
 // Encode implements json.Marshaler.
-func (s *PermissionUpdate) Encode(e *jx.Encoder) {
+func (s *PermissionSummaryFields) Encode(e *jx.Encoder) {
 	e.ObjStart()
 	s.encodeFields(e)
 	e.ObjEnd()
 }
 
 // encodeFields encodes fields.
-func (s *PermissionUpdate) encodeFields(e *jx.Encoder) {
+func (s *PermissionSummaryFields) encodeFields(e *jx.Encoder) {
 	{
 		e.FieldStart("code")
 		e.Str(s.Code)
@@ -6545,15 +11172,15 @@ func (s *PermissionUpdate) encodeFields(e *jx.Encoder) {
 	}
 }
 
-var jsonFieldsNameOfPermissionUpdate = [2]string{
+var jsonFieldsNameOfPermissionSummaryFields = [2]string{
 	0: "code",
 	1: "name",
 }
 
-// Decode decodes PermissionUpdate from json.
-func (s *PermissionUpdate) Decode(d *jx.Decoder) error {
+// Decode decodes PermissionSummaryFields from json.
+func (s *PermissionSummaryFields) Decode(d *jx.Decoder) error {
 	if s == nil {
-		return errors.New("invalid: unable to decode PermissionUpdate to nil")
+		return errors.New("invalid: unable to decode PermissionSummaryFields to nil")
 	}
 	var requiredBitSet [1]uint8
 
@@ -6588,7 +11215,7 @@ func (s *PermissionUpdate) Decode(d *jx.Decoder) error {
 		}
 		return nil
 	}); err != nil {
-		return errors.Wrap(err, "decode PermissionUpdate")
+		return errors.Wrap(err, "decode PermissionSummaryFields")
 	}
 	// Validate required fields.
 	var failures []validate.FieldError
@@ -6605,8 +11232,8 @@ func (s *PermissionUpdate) Decode(d *jx.Decoder) error {
 				bitIdx := bits.TrailingZeros8(result)
 				fieldIdx := i*8 + bitIdx
 				var name string
-				if fieldIdx < len(jsonFieldsNameOfPermissionUpdate) {
-					name = jsonFieldsNameOfPermissionUpdate[fieldIdx]
+				if fieldIdx < len(jsonFieldsNameOfPermissionSummaryFields) {
+					name = jsonFieldsNameOfPermissionSummaryFields[fieldIdx]
 				} else {
 					name = strconv.Itoa(fieldIdx)
 				}
@@ -6627,1553 +11254,14 @@ func (s *PermissionUpdate) Decode(d *jx.Decoder) error {
 }
 
 // MarshalJSON implements stdjson.Marshaler.
-func (s *PermissionUpdate) MarshalJSON() ([]byte, error) {
+func (s *PermissionSummaryFields) MarshalJSON() ([]byte, error) {
 	e := jx.Encoder{}
 	s.Encode(&e)
 	return e.Bytes(), nil
 }
 
 // UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *PermissionUpdate) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *User) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *User) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("id")
-		e.Int64(s.ID)
-	}
-	{
-		e.FieldStart("username")
-		e.Str(s.Username)
-	}
-	{
-		e.FieldStart("first_name")
-		e.Str(s.FirstName)
-	}
-	{
-		e.FieldStart("last_name")
-		e.Str(s.LastName)
-	}
-	{
-		e.FieldStart("email")
-		e.Str(s.Email)
-	}
-	{
-		e.FieldStart("active")
-		e.Bool(s.Active)
-	}
-	{
-		e.FieldStart("staff")
-		e.Bool(s.Staff)
-	}
-	{
-		e.FieldStart("superuser")
-		e.Bool(s.Superuser)
-	}
-	{
-		e.FieldStart("date_joined")
-		json.EncodeTimeFormat(e, s.DateJoined, "2006-01-02T15:04:05.999999999Z07:00")
-	}
-	{
-		e.FieldStart("last_login")
-		s.LastLogin.Encode(e, json.NewTimeEncoder("2006-01-02T15:04:05.999999999Z07:00"))
-	}
-	{
-		e.FieldStart("revision")
-		e.Int64(s.Revision)
-	}
-	{
-		e.FieldStart("groups")
-		e.ArrStart()
-		for _, elem := range s.Groups {
-			e.Int64(elem)
-		}
-		e.ArrEnd()
-	}
-	{
-		e.FieldStart("permissions")
-		e.ArrStart()
-		for _, elem := range s.Permissions {
-			e.Int64(elem)
-		}
-		e.ArrEnd()
-	}
-	{
-		e.FieldStart("password_usable")
-		e.Bool(s.PasswordUsable)
-	}
-}
-
-var jsonFieldsNameOfUser = [14]string{
-	0:  "id",
-	1:  "username",
-	2:  "first_name",
-	3:  "last_name",
-	4:  "email",
-	5:  "active",
-	6:  "staff",
-	7:  "superuser",
-	8:  "date_joined",
-	9:  "last_login",
-	10: "revision",
-	11: "groups",
-	12: "permissions",
-	13: "password_usable",
-}
-
-// Decode decodes User from json.
-func (s *User) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode User to nil")
-	}
-	var requiredBitSet [2]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "id":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Int64()
-				s.ID = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"id\"")
-			}
-		case "username":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Username = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"username\"")
-			}
-		case "first_name":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Str()
-				s.FirstName = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"first_name\"")
-			}
-		case "last_name":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				v, err := d.Str()
-				s.LastName = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_name\"")
-			}
-		case "email":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				v, err := d.Str()
-				s.Email = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"email\"")
-			}
-		case "active":
-			requiredBitSet[0] |= 1 << 5
-			if err := func() error {
-				v, err := d.Bool()
-				s.Active = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"active\"")
-			}
-		case "staff":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				v, err := d.Bool()
-				s.Staff = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"staff\"")
-			}
-		case "superuser":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				v, err := d.Bool()
-				s.Superuser = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"superuser\"")
-			}
-		case "date_joined":
-			requiredBitSet[1] |= 1 << 0
-			if err := func() error {
-				v, err := json.DecodeTimeFormat(d, "2006-01-02T15:04:05.999999999Z07:00")
-				s.DateJoined = v
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"date_joined\"")
-			}
-		case "last_login":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				if err := s.LastLogin.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00")); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_login\"")
-			}
-		case "revision":
-			requiredBitSet[1] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int64()
-				s.Revision = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"revision\"")
-			}
-		case "groups":
-			requiredBitSet[1] |= 1 << 3
-			if err := func() error {
-				s.Groups = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Groups = append(s.Groups, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"groups\"")
-			}
-		case "permissions":
-			requiredBitSet[1] |= 1 << 4
-			if err := func() error {
-				s.Permissions = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Permissions = append(s.Permissions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"permissions\"")
-			}
-		case "password_usable":
-			requiredBitSet[1] |= 1 << 5
-			if err := func() error {
-				v, err := d.Bool()
-				s.PasswordUsable = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"password_usable\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode User")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00111111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfUser) {
-					name = jsonFieldsNameOfUser[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *User) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *User) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *UserCreate) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *UserCreate) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("username")
-		e.Str(s.Username)
-	}
-	{
-		if s.FirstName.Set {
-			e.FieldStart("first_name")
-			s.FirstName.Encode(e)
-		}
-	}
-	{
-		if s.LastName.Set {
-			e.FieldStart("last_name")
-			s.LastName.Encode(e)
-		}
-	}
-	{
-		if s.Email.Set {
-			e.FieldStart("email")
-			s.Email.Encode(e)
-		}
-	}
-	{
-		if s.Active.Set {
-			e.FieldStart("active")
-			s.Active.Encode(e)
-		}
-	}
-	{
-		if s.Staff.Set {
-			e.FieldStart("staff")
-			s.Staff.Encode(e)
-		}
-	}
-	{
-		if s.Superuser.Set {
-			e.FieldStart("superuser")
-			s.Superuser.Encode(e)
-		}
-	}
-	{
-		if s.Groups != nil {
-			e.FieldStart("groups")
-			e.ArrStart()
-			for _, elem := range s.Groups {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
-	}
-	{
-		if s.Permissions != nil {
-			e.FieldStart("permissions")
-			e.ArrStart()
-			for _, elem := range s.Permissions {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
-	}
-	{
-		e.FieldStart("password")
-		s.Password.Encode(e)
-	}
-}
-
-var jsonFieldsNameOfUserCreate = [10]string{
-	0: "username",
-	1: "first_name",
-	2: "last_name",
-	3: "email",
-	4: "active",
-	5: "staff",
-	6: "superuser",
-	7: "groups",
-	8: "permissions",
-	9: "password",
-}
-
-// Decode decodes UserCreate from json.
-func (s *UserCreate) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode UserCreate to nil")
-	}
-	var requiredBitSet [2]uint8
-	s.setDefaults()
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "username":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Username = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"username\"")
-			}
-		case "first_name":
-			if err := func() error {
-				s.FirstName.Reset()
-				if err := s.FirstName.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"first_name\"")
-			}
-		case "last_name":
-			if err := func() error {
-				s.LastName.Reset()
-				if err := s.LastName.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_name\"")
-			}
-		case "email":
-			if err := func() error {
-				s.Email.Reset()
-				if err := s.Email.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"email\"")
-			}
-		case "active":
-			if err := func() error {
-				s.Active.Reset()
-				if err := s.Active.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"active\"")
-			}
-		case "staff":
-			if err := func() error {
-				s.Staff.Reset()
-				if err := s.Staff.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"staff\"")
-			}
-		case "superuser":
-			if err := func() error {
-				s.Superuser.Reset()
-				if err := s.Superuser.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"superuser\"")
-			}
-		case "groups":
-			if err := func() error {
-				s.Groups = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Groups = append(s.Groups, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"groups\"")
-			}
-		case "permissions":
-			if err := func() error {
-				s.Permissions = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Permissions = append(s.Permissions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"permissions\"")
-			}
-		case "password":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				if err := s.Password.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"password\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode UserCreate")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b00000001,
-		0b00000010,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfUserCreate) {
-					name = jsonFieldsNameOfUserCreate[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *UserCreate) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *UserCreate) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *UserPage) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *UserPage) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("items")
-		e.ArrStart()
-		for _, elem := range s.Items {
-			elem.Encode(e)
-		}
-		e.ArrEnd()
-	}
-	{
-		e.FieldStart("count")
-		e.Int64(s.Count)
-	}
-	{
-		e.FieldStart("limit")
-		e.Int64(s.Limit)
-	}
-	{
-		e.FieldStart("offset")
-		e.Int64(s.Offset)
-	}
-}
-
-var jsonFieldsNameOfUserPage = [4]string{
-	0: "items",
-	1: "count",
-	2: "limit",
-	3: "offset",
-}
-
-// Decode decodes UserPage from json.
-func (s *UserPage) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode UserPage to nil")
-	}
-	var requiredBitSet [1]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "items":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				s.Items = make([]UserSummary, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem UserSummary
-					if err := elem.Decode(d); err != nil {
-						return err
-					}
-					s.Items = append(s.Items, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"items\"")
-			}
-		case "count":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Int64()
-				s.Count = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"count\"")
-			}
-		case "limit":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int64()
-				s.Limit = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"limit\"")
-			}
-		case "offset":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				v, err := d.Int64()
-				s.Offset = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"offset\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode UserPage")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [1]uint8{
-		0b00001111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfUserPage) {
-					name = jsonFieldsNameOfUserPage[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *UserPage) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *UserPage) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *UserPatch) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *UserPatch) encodeFields(e *jx.Encoder) {
-	{
-		if s.Username.Set {
-			e.FieldStart("username")
-			s.Username.Encode(e)
-		}
-	}
-	{
-		if s.FirstName.Set {
-			e.FieldStart("first_name")
-			s.FirstName.Encode(e)
-		}
-	}
-	{
-		if s.LastName.Set {
-			e.FieldStart("last_name")
-			s.LastName.Encode(e)
-		}
-	}
-	{
-		if s.Email.Set {
-			e.FieldStart("email")
-			s.Email.Encode(e)
-		}
-	}
-	{
-		if s.Active.Set {
-			e.FieldStart("active")
-			s.Active.Encode(e)
-		}
-	}
-	{
-		if s.Staff.Set {
-			e.FieldStart("staff")
-			s.Staff.Encode(e)
-		}
-	}
-	{
-		if s.Superuser.Set {
-			e.FieldStart("superuser")
-			s.Superuser.Encode(e)
-		}
-	}
-	{
-		if s.Groups != nil {
-			e.FieldStart("groups")
-			e.ArrStart()
-			for _, elem := range s.Groups {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
-	}
-	{
-		if s.Permissions != nil {
-			e.FieldStart("permissions")
-			e.ArrStart()
-			for _, elem := range s.Permissions {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
-	}
-}
-
-var jsonFieldsNameOfUserPatch = [9]string{
-	0: "username",
-	1: "first_name",
-	2: "last_name",
-	3: "email",
-	4: "active",
-	5: "staff",
-	6: "superuser",
-	7: "groups",
-	8: "permissions",
-}
-
-// Decode decodes UserPatch from json.
-func (s *UserPatch) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode UserPatch to nil")
-	}
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "username":
-			if err := func() error {
-				s.Username.Reset()
-				if err := s.Username.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"username\"")
-			}
-		case "first_name":
-			if err := func() error {
-				s.FirstName.Reset()
-				if err := s.FirstName.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"first_name\"")
-			}
-		case "last_name":
-			if err := func() error {
-				s.LastName.Reset()
-				if err := s.LastName.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_name\"")
-			}
-		case "email":
-			if err := func() error {
-				s.Email.Reset()
-				if err := s.Email.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"email\"")
-			}
-		case "active":
-			if err := func() error {
-				s.Active.Reset()
-				if err := s.Active.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"active\"")
-			}
-		case "staff":
-			if err := func() error {
-				s.Staff.Reset()
-				if err := s.Staff.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"staff\"")
-			}
-		case "superuser":
-			if err := func() error {
-				s.Superuser.Reset()
-				if err := s.Superuser.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"superuser\"")
-			}
-		case "groups":
-			if err := func() error {
-				s.Groups = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Groups = append(s.Groups, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"groups\"")
-			}
-		case "permissions":
-			if err := func() error {
-				s.Permissions = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Permissions = append(s.Permissions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"permissions\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode UserPatch")
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *UserPatch) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *UserPatch) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *UserSummary) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *UserSummary) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("id")
-		e.Int64(s.ID)
-	}
-	{
-		e.FieldStart("username")
-		e.Str(s.Username)
-	}
-	{
-		e.FieldStart("first_name")
-		e.Str(s.FirstName)
-	}
-	{
-		e.FieldStart("last_name")
-		e.Str(s.LastName)
-	}
-	{
-		e.FieldStart("email")
-		e.Str(s.Email)
-	}
-	{
-		e.FieldStart("active")
-		e.Bool(s.Active)
-	}
-	{
-		e.FieldStart("staff")
-		e.Bool(s.Staff)
-	}
-	{
-		e.FieldStart("superuser")
-		e.Bool(s.Superuser)
-	}
-	{
-		e.FieldStart("date_joined")
-		json.EncodeTimeFormat(e, s.DateJoined, "2006-01-02T15:04:05.999999999Z07:00")
-	}
-	{
-		e.FieldStart("last_login")
-		s.LastLogin.Encode(e, json.NewTimeEncoder("2006-01-02T15:04:05.999999999Z07:00"))
-	}
-	{
-		e.FieldStart("revision")
-		e.Int64(s.Revision)
-	}
-	{
-		e.FieldStart("password_usable")
-		e.Bool(s.PasswordUsable)
-	}
-}
-
-var jsonFieldsNameOfUserSummary = [12]string{
-	0:  "id",
-	1:  "username",
-	2:  "first_name",
-	3:  "last_name",
-	4:  "email",
-	5:  "active",
-	6:  "staff",
-	7:  "superuser",
-	8:  "date_joined",
-	9:  "last_login",
-	10: "revision",
-	11: "password_usable",
-}
-
-// Decode decodes UserSummary from json.
-func (s *UserSummary) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode UserSummary to nil")
-	}
-	var requiredBitSet [2]uint8
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "id":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Int64()
-				s.ID = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"id\"")
-			}
-		case "username":
-			requiredBitSet[0] |= 1 << 1
-			if err := func() error {
-				v, err := d.Str()
-				s.Username = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"username\"")
-			}
-		case "first_name":
-			requiredBitSet[0] |= 1 << 2
-			if err := func() error {
-				v, err := d.Str()
-				s.FirstName = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"first_name\"")
-			}
-		case "last_name":
-			requiredBitSet[0] |= 1 << 3
-			if err := func() error {
-				v, err := d.Str()
-				s.LastName = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_name\"")
-			}
-		case "email":
-			requiredBitSet[0] |= 1 << 4
-			if err := func() error {
-				v, err := d.Str()
-				s.Email = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"email\"")
-			}
-		case "active":
-			requiredBitSet[0] |= 1 << 5
-			if err := func() error {
-				v, err := d.Bool()
-				s.Active = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"active\"")
-			}
-		case "staff":
-			requiredBitSet[0] |= 1 << 6
-			if err := func() error {
-				v, err := d.Bool()
-				s.Staff = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"staff\"")
-			}
-		case "superuser":
-			requiredBitSet[0] |= 1 << 7
-			if err := func() error {
-				v, err := d.Bool()
-				s.Superuser = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"superuser\"")
-			}
-		case "date_joined":
-			requiredBitSet[1] |= 1 << 0
-			if err := func() error {
-				v, err := json.DecodeTimeFormat(d, "2006-01-02T15:04:05.999999999Z07:00")
-				s.DateJoined = v
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"date_joined\"")
-			}
-		case "last_login":
-			requiredBitSet[1] |= 1 << 1
-			if err := func() error {
-				if err := s.LastLogin.Decode(d, json.NewTimeDecoder("2006-01-02T15:04:05.999999999Z07:00")); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_login\"")
-			}
-		case "revision":
-			requiredBitSet[1] |= 1 << 2
-			if err := func() error {
-				v, err := d.Int64()
-				s.Revision = int64(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"revision\"")
-			}
-		case "password_usable":
-			requiredBitSet[1] |= 1 << 3
-			if err := func() error {
-				v, err := d.Bool()
-				s.PasswordUsable = bool(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"password_usable\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode UserSummary")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b11111111,
-		0b00001111,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfUserSummary) {
-					name = jsonFieldsNameOfUserSummary[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *UserSummary) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *UserSummary) UnmarshalJSON(data []byte) error {
-	d := jx.DecodeBytes(data)
-	return s.Decode(d)
-}
-
-// Encode implements json.Marshaler.
-func (s *UserUpdate) Encode(e *jx.Encoder) {
-	e.ObjStart()
-	s.encodeFields(e)
-	e.ObjEnd()
-}
-
-// encodeFields encodes fields.
-func (s *UserUpdate) encodeFields(e *jx.Encoder) {
-	{
-		e.FieldStart("username")
-		e.Str(s.Username)
-	}
-	{
-		if s.FirstName.Set {
-			e.FieldStart("first_name")
-			s.FirstName.Encode(e)
-		}
-	}
-	{
-		if s.LastName.Set {
-			e.FieldStart("last_name")
-			s.LastName.Encode(e)
-		}
-	}
-	{
-		if s.Email.Set {
-			e.FieldStart("email")
-			s.Email.Encode(e)
-		}
-	}
-	{
-		if s.Active.Set {
-			e.FieldStart("active")
-			s.Active.Encode(e)
-		}
-	}
-	{
-		if s.Staff.Set {
-			e.FieldStart("staff")
-			s.Staff.Encode(e)
-		}
-	}
-	{
-		if s.Superuser.Set {
-			e.FieldStart("superuser")
-			s.Superuser.Encode(e)
-		}
-	}
-	{
-		if s.Groups != nil {
-			e.FieldStart("groups")
-			e.ArrStart()
-			for _, elem := range s.Groups {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
-	}
-	{
-		if s.Permissions != nil {
-			e.FieldStart("permissions")
-			e.ArrStart()
-			for _, elem := range s.Permissions {
-				e.Int64(elem)
-			}
-			e.ArrEnd()
-		}
-	}
-}
-
-var jsonFieldsNameOfUserUpdate = [9]string{
-	0: "username",
-	1: "first_name",
-	2: "last_name",
-	3: "email",
-	4: "active",
-	5: "staff",
-	6: "superuser",
-	7: "groups",
-	8: "permissions",
-}
-
-// Decode decodes UserUpdate from json.
-func (s *UserUpdate) Decode(d *jx.Decoder) error {
-	if s == nil {
-		return errors.New("invalid: unable to decode UserUpdate to nil")
-	}
-	var requiredBitSet [2]uint8
-	s.setDefaults()
-
-	if err := d.ObjBytes(func(d *jx.Decoder, k []byte) error {
-		switch string(k) {
-		case "username":
-			requiredBitSet[0] |= 1 << 0
-			if err := func() error {
-				v, err := d.Str()
-				s.Username = string(v)
-				if err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"username\"")
-			}
-		case "first_name":
-			if err := func() error {
-				s.FirstName.Reset()
-				if err := s.FirstName.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"first_name\"")
-			}
-		case "last_name":
-			if err := func() error {
-				s.LastName.Reset()
-				if err := s.LastName.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"last_name\"")
-			}
-		case "email":
-			if err := func() error {
-				s.Email.Reset()
-				if err := s.Email.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"email\"")
-			}
-		case "active":
-			if err := func() error {
-				s.Active.Reset()
-				if err := s.Active.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"active\"")
-			}
-		case "staff":
-			if err := func() error {
-				s.Staff.Reset()
-				if err := s.Staff.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"staff\"")
-			}
-		case "superuser":
-			if err := func() error {
-				s.Superuser.Reset()
-				if err := s.Superuser.Decode(d); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"superuser\"")
-			}
-		case "groups":
-			if err := func() error {
-				s.Groups = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Groups = append(s.Groups, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"groups\"")
-			}
-		case "permissions":
-			if err := func() error {
-				s.Permissions = make([]int64, 0)
-				if err := d.Arr(func(d *jx.Decoder) error {
-					var elem int64
-					v, err := d.Int64()
-					elem = int64(v)
-					if err != nil {
-						return err
-					}
-					s.Permissions = append(s.Permissions, elem)
-					return nil
-				}); err != nil {
-					return err
-				}
-				return nil
-			}(); err != nil {
-				return errors.Wrap(err, "decode field \"permissions\"")
-			}
-		default:
-			return errors.Errorf("unexpected field %q", k)
-		}
-		return nil
-	}); err != nil {
-		return errors.Wrap(err, "decode UserUpdate")
-	}
-	// Validate required fields.
-	var failures []validate.FieldError
-	for i, mask := range [2]uint8{
-		0b00000001,
-		0b00000000,
-	} {
-		if result := (requiredBitSet[i] & mask) ^ mask; result != 0 {
-			// Mask only required fields and check equality to mask using XOR.
-			//
-			// If XOR result is not zero, result is not equal to expected, so some fields are missed.
-			// Bits of fields which would be set are actually bits of missed fields.
-			missed := bits.OnesCount8(result)
-			for bitN := 0; bitN < missed; bitN++ {
-				bitIdx := bits.TrailingZeros8(result)
-				fieldIdx := i*8 + bitIdx
-				var name string
-				if fieldIdx < len(jsonFieldsNameOfUserUpdate) {
-					name = jsonFieldsNameOfUserUpdate[fieldIdx]
-				} else {
-					name = strconv.Itoa(fieldIdx)
-				}
-				failures = append(failures, validate.FieldError{
-					Name:  name,
-					Error: validate.ErrFieldRequired,
-				})
-				// Reset bit.
-				result &^= 1 << bitIdx
-			}
-		}
-	}
-	if len(failures) > 0 {
-		return &validate.Error{Fields: failures}
-	}
-
-	return nil
-}
-
-// MarshalJSON implements stdjson.Marshaler.
-func (s *UserUpdate) MarshalJSON() ([]byte, error) {
-	e := jx.Encoder{}
-	s.Encode(&e)
-	return e.Bytes(), nil
-}
-
-// UnmarshalJSON implements stdjson.Unmarshaler.
-func (s *UserUpdate) UnmarshalJSON(data []byte) error {
+func (s *PermissionSummaryFields) UnmarshalJSON(data []byte) error {
 	d := jx.DecodeBytes(data)
 	return s.Decode(d)
 }

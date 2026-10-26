@@ -71,8 +71,8 @@ var requiredChecks = [...]string{
 	"generated_response_rejections",
 	"pre_canceled_request",
 	"identity_bearer_typed_headers", "identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login", "identity_bearer_email", "identity_stale_bearer_current_authorization",
-	"identity_session_typed_headers", "identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_session_last_login", "identity_session_email", "identity_host_deletion",
-	"generated_identity_revision_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire",
+	"identity_session_typed_headers", "identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_session_last_login", "identity_session_email", "identity_host_deletion", "identity_selected_history",
+	"generated_identity_revision_wire", "generated_identity_receipt_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire",
 }
 
 type report struct {
@@ -197,10 +197,10 @@ func run(ctx context.Context, config input) ([]string, error) {
 		}},
 		{func() error { return checkIdentityBearer(ctx, config.IdentityBearer) }, []string{"identity_bearer_typed_headers", "identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login", "identity_bearer_email"}},
 		{func() error { return checkIdentitySession(ctx, config.IdentitySession) }, []string{
-			"identity_session_typed_headers", "identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_session_last_login", "identity_session_email", "identity_host_deletion",
+			"identity_session_typed_headers", "identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_session_last_login", "identity_session_email", "identity_host_deletion", "identity_selected_history",
 		}},
 		{func() error { return checkIdentityStaleBearer(ctx, config.IdentityBearer) }, []string{"identity_stale_bearer_current_authorization"}},
-		{func() error { return checkGeneratedIdentityWire(ctx) }, []string{"generated_identity_revision_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire"}},
+		{func() error { return checkGeneratedIdentityWire(ctx) }, []string{"generated_identity_revision_wire", "generated_identity_receipt_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire"}},
 	}
 	for _, flow := range flows {
 		if err := flow.run(); err != nil {

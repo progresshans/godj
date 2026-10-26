@@ -7,6 +7,811 @@ import (
 	"time"
 )
 
+// Ref: #/components/schemas/Account
+type Account struct {
+	ID             int64         `json:"id"`
+	Revision       int64         `json:"revision"`
+	Fields         AccountFields `json:"fields"`
+	PasswordUsable bool          `json:"password_usable"`
+}
+
+// GetID returns the value of ID.
+func (s *Account) GetID() int64 {
+	return s.ID
+}
+
+// GetRevision returns the value of Revision.
+func (s *Account) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetFields returns the value of Fields.
+func (s *Account) GetFields() AccountFields {
+	return s.Fields
+}
+
+// GetPasswordUsable returns the value of PasswordUsable.
+func (s *Account) GetPasswordUsable() bool {
+	return s.PasswordUsable
+}
+
+// SetID sets the value of ID.
+func (s *Account) SetID(val int64) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *Account) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetFields sets the value of Fields.
+func (s *Account) SetFields(val AccountFields) {
+	s.Fields = val
+}
+
+// SetPasswordUsable sets the value of PasswordUsable.
+func (s *Account) SetPasswordUsable(val bool) {
+	s.PasswordUsable = val
+}
+
+// Ref: #/components/schemas/AccountCreate
+type AccountCreate struct {
+	Fields     AccountCreateFields     `json:"fields"`
+	Credential AccountCreateCredential `json:"credential"`
+}
+
+// GetFields returns the value of Fields.
+func (s *AccountCreate) GetFields() AccountCreateFields {
+	return s.Fields
+}
+
+// GetCredential returns the value of Credential.
+func (s *AccountCreate) GetCredential() AccountCreateCredential {
+	return s.Credential
+}
+
+// SetFields sets the value of Fields.
+func (s *AccountCreate) SetFields(val AccountCreateFields) {
+	s.Fields = val
+}
+
+// SetCredential sets the value of Credential.
+func (s *AccountCreate) SetCredential(val AccountCreateCredential) {
+	s.Credential = val
+}
+
+type AccountCreateCredential struct {
+	Password NilString `json:"password"`
+}
+
+// GetPassword returns the value of Password.
+func (s *AccountCreateCredential) GetPassword() NilString {
+	return s.Password
+}
+
+// SetPassword sets the value of Password.
+func (s *AccountCreateCredential) SetPassword(val NilString) {
+	s.Password = val
+}
+
+type AccountCreateFields struct {
+	Username    string    `json:"username"`
+	Email       OptString `json:"email"`
+	FirstName   OptString `json:"first_name"`
+	LastName    OptString `json:"last_name"`
+	Active      OptBool   `json:"active"`
+	Staff       OptBool   `json:"staff"`
+	Superuser   OptBool   `json:"superuser"`
+	Groups      []int64   `json:"groups"`
+	Permissions []int64   `json:"permissions"`
+}
+
+// GetUsername returns the value of Username.
+func (s *AccountCreateFields) GetUsername() string {
+	return s.Username
+}
+
+// GetEmail returns the value of Email.
+func (s *AccountCreateFields) GetEmail() OptString {
+	return s.Email
+}
+
+// GetFirstName returns the value of FirstName.
+func (s *AccountCreateFields) GetFirstName() OptString {
+	return s.FirstName
+}
+
+// GetLastName returns the value of LastName.
+func (s *AccountCreateFields) GetLastName() OptString {
+	return s.LastName
+}
+
+// GetActive returns the value of Active.
+func (s *AccountCreateFields) GetActive() OptBool {
+	return s.Active
+}
+
+// GetStaff returns the value of Staff.
+func (s *AccountCreateFields) GetStaff() OptBool {
+	return s.Staff
+}
+
+// GetSuperuser returns the value of Superuser.
+func (s *AccountCreateFields) GetSuperuser() OptBool {
+	return s.Superuser
+}
+
+// GetGroups returns the value of Groups.
+func (s *AccountCreateFields) GetGroups() []int64 {
+	return s.Groups
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *AccountCreateFields) GetPermissions() []int64 {
+	return s.Permissions
+}
+
+// SetUsername sets the value of Username.
+func (s *AccountCreateFields) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AccountCreateFields) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// SetFirstName sets the value of FirstName.
+func (s *AccountCreateFields) SetFirstName(val OptString) {
+	s.FirstName = val
+}
+
+// SetLastName sets the value of LastName.
+func (s *AccountCreateFields) SetLastName(val OptString) {
+	s.LastName = val
+}
+
+// SetActive sets the value of Active.
+func (s *AccountCreateFields) SetActive(val OptBool) {
+	s.Active = val
+}
+
+// SetStaff sets the value of Staff.
+func (s *AccountCreateFields) SetStaff(val OptBool) {
+	s.Staff = val
+}
+
+// SetSuperuser sets the value of Superuser.
+func (s *AccountCreateFields) SetSuperuser(val OptBool) {
+	s.Superuser = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *AccountCreateFields) SetGroups(val []int64) {
+	s.Groups = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *AccountCreateFields) SetPermissions(val []int64) {
+	s.Permissions = val
+}
+
+type AccountFields struct {
+	Username    string      `json:"username"`
+	Email       string      `json:"email"`
+	FirstName   string      `json:"first_name"`
+	LastName    string      `json:"last_name"`
+	Active      bool        `json:"active"`
+	Staff       bool        `json:"staff"`
+	Superuser   bool        `json:"superuser"`
+	Groups      []int64     `json:"groups"`
+	Permissions []int64     `json:"permissions"`
+	DateJoined  time.Time   `json:"date_joined"`
+	LastLogin   NilDateTime `json:"last_login"`
+}
+
+// GetUsername returns the value of Username.
+func (s *AccountFields) GetUsername() string {
+	return s.Username
+}
+
+// GetEmail returns the value of Email.
+func (s *AccountFields) GetEmail() string {
+	return s.Email
+}
+
+// GetFirstName returns the value of FirstName.
+func (s *AccountFields) GetFirstName() string {
+	return s.FirstName
+}
+
+// GetLastName returns the value of LastName.
+func (s *AccountFields) GetLastName() string {
+	return s.LastName
+}
+
+// GetActive returns the value of Active.
+func (s *AccountFields) GetActive() bool {
+	return s.Active
+}
+
+// GetStaff returns the value of Staff.
+func (s *AccountFields) GetStaff() bool {
+	return s.Staff
+}
+
+// GetSuperuser returns the value of Superuser.
+func (s *AccountFields) GetSuperuser() bool {
+	return s.Superuser
+}
+
+// GetGroups returns the value of Groups.
+func (s *AccountFields) GetGroups() []int64 {
+	return s.Groups
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *AccountFields) GetPermissions() []int64 {
+	return s.Permissions
+}
+
+// GetDateJoined returns the value of DateJoined.
+func (s *AccountFields) GetDateJoined() time.Time {
+	return s.DateJoined
+}
+
+// GetLastLogin returns the value of LastLogin.
+func (s *AccountFields) GetLastLogin() NilDateTime {
+	return s.LastLogin
+}
+
+// SetUsername sets the value of Username.
+func (s *AccountFields) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AccountFields) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetFirstName sets the value of FirstName.
+func (s *AccountFields) SetFirstName(val string) {
+	s.FirstName = val
+}
+
+// SetLastName sets the value of LastName.
+func (s *AccountFields) SetLastName(val string) {
+	s.LastName = val
+}
+
+// SetActive sets the value of Active.
+func (s *AccountFields) SetActive(val bool) {
+	s.Active = val
+}
+
+// SetStaff sets the value of Staff.
+func (s *AccountFields) SetStaff(val bool) {
+	s.Staff = val
+}
+
+// SetSuperuser sets the value of Superuser.
+func (s *AccountFields) SetSuperuser(val bool) {
+	s.Superuser = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *AccountFields) SetGroups(val []int64) {
+	s.Groups = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *AccountFields) SetPermissions(val []int64) {
+	s.Permissions = val
+}
+
+// SetDateJoined sets the value of DateJoined.
+func (s *AccountFields) SetDateJoined(val time.Time) {
+	s.DateJoined = val
+}
+
+// SetLastLogin sets the value of LastLogin.
+func (s *AccountFields) SetLastLogin(val NilDateTime) {
+	s.LastLogin = val
+}
+
+// AccountHeaders wraps Account with response headers.
+type AccountHeaders struct {
+	Revision int64
+	Response Account
+}
+
+// GetRevision returns the value of Revision.
+func (s *AccountHeaders) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetResponse returns the value of Response.
+func (s *AccountHeaders) GetResponse() Account {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *AccountHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *AccountHeaders) SetResponse(val Account) {
+	s.Response = val
+}
+
+func (*AccountHeaders) godjIdentityAccountsDetailRes() {}
+
+// Ref: #/components/schemas/AccountPage
+type AccountPage struct {
+	Items  []AccountSummary `json:"items"`
+	Count  int64            `json:"count"`
+	Offset int64            `json:"offset"`
+	Limit  int64            `json:"limit"`
+}
+
+// GetItems returns the value of Items.
+func (s *AccountPage) GetItems() []AccountSummary {
+	return s.Items
+}
+
+// GetCount returns the value of Count.
+func (s *AccountPage) GetCount() int64 {
+	return s.Count
+}
+
+// GetOffset returns the value of Offset.
+func (s *AccountPage) GetOffset() int64 {
+	return s.Offset
+}
+
+// GetLimit returns the value of Limit.
+func (s *AccountPage) GetLimit() int64 {
+	return s.Limit
+}
+
+// SetItems sets the value of Items.
+func (s *AccountPage) SetItems(val []AccountSummary) {
+	s.Items = val
+}
+
+// SetCount sets the value of Count.
+func (s *AccountPage) SetCount(val int64) {
+	s.Count = val
+}
+
+// SetOffset sets the value of Offset.
+func (s *AccountPage) SetOffset(val int64) {
+	s.Offset = val
+}
+
+// SetLimit sets the value of Limit.
+func (s *AccountPage) SetLimit(val int64) {
+	s.Limit = val
+}
+
+func (*AccountPage) godjIdentityAccountsListRes() {}
+
+// Ref: #/components/schemas/AccountPassword
+type AccountPassword struct {
+	Credential AccountPasswordCredential `json:"credential"`
+}
+
+// GetCredential returns the value of Credential.
+func (s *AccountPassword) GetCredential() AccountPasswordCredential {
+	return s.Credential
+}
+
+// SetCredential sets the value of Credential.
+func (s *AccountPassword) SetCredential(val AccountPasswordCredential) {
+	s.Credential = val
+}
+
+type AccountPasswordCredential struct {
+	Password NilString `json:"password"`
+}
+
+// GetPassword returns the value of Password.
+func (s *AccountPasswordCredential) GetPassword() NilString {
+	return s.Password
+}
+
+// SetPassword sets the value of Password.
+func (s *AccountPasswordCredential) SetPassword(val NilString) {
+	s.Password = val
+}
+
+// Ref: #/components/schemas/AccountPatch
+type AccountPatch struct {
+	Fields AccountPatchFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *AccountPatch) GetFields() AccountPatchFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *AccountPatch) SetFields(val AccountPatchFields) {
+	s.Fields = val
+}
+
+type AccountPatchFields struct {
+	Username    OptString `json:"username"`
+	Email       OptString `json:"email"`
+	FirstName   OptString `json:"first_name"`
+	LastName    OptString `json:"last_name"`
+	Active      OptBool   `json:"active"`
+	Staff       OptBool   `json:"staff"`
+	Superuser   OptBool   `json:"superuser"`
+	Groups      []int64   `json:"groups"`
+	Permissions []int64   `json:"permissions"`
+}
+
+// GetUsername returns the value of Username.
+func (s *AccountPatchFields) GetUsername() OptString {
+	return s.Username
+}
+
+// GetEmail returns the value of Email.
+func (s *AccountPatchFields) GetEmail() OptString {
+	return s.Email
+}
+
+// GetFirstName returns the value of FirstName.
+func (s *AccountPatchFields) GetFirstName() OptString {
+	return s.FirstName
+}
+
+// GetLastName returns the value of LastName.
+func (s *AccountPatchFields) GetLastName() OptString {
+	return s.LastName
+}
+
+// GetActive returns the value of Active.
+func (s *AccountPatchFields) GetActive() OptBool {
+	return s.Active
+}
+
+// GetStaff returns the value of Staff.
+func (s *AccountPatchFields) GetStaff() OptBool {
+	return s.Staff
+}
+
+// GetSuperuser returns the value of Superuser.
+func (s *AccountPatchFields) GetSuperuser() OptBool {
+	return s.Superuser
+}
+
+// GetGroups returns the value of Groups.
+func (s *AccountPatchFields) GetGroups() []int64 {
+	return s.Groups
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *AccountPatchFields) GetPermissions() []int64 {
+	return s.Permissions
+}
+
+// SetUsername sets the value of Username.
+func (s *AccountPatchFields) SetUsername(val OptString) {
+	s.Username = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AccountPatchFields) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// SetFirstName sets the value of FirstName.
+func (s *AccountPatchFields) SetFirstName(val OptString) {
+	s.FirstName = val
+}
+
+// SetLastName sets the value of LastName.
+func (s *AccountPatchFields) SetLastName(val OptString) {
+	s.LastName = val
+}
+
+// SetActive sets the value of Active.
+func (s *AccountPatchFields) SetActive(val OptBool) {
+	s.Active = val
+}
+
+// SetStaff sets the value of Staff.
+func (s *AccountPatchFields) SetStaff(val OptBool) {
+	s.Staff = val
+}
+
+// SetSuperuser sets the value of Superuser.
+func (s *AccountPatchFields) SetSuperuser(val OptBool) {
+	s.Superuser = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *AccountPatchFields) SetGroups(val []int64) {
+	s.Groups = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *AccountPatchFields) SetPermissions(val []int64) {
+	s.Permissions = val
+}
+
+// Ref: #/components/schemas/AccountPut
+type AccountPut struct {
+	Fields AccountPutFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *AccountPut) GetFields() AccountPutFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *AccountPut) SetFields(val AccountPutFields) {
+	s.Fields = val
+}
+
+type AccountPutFields struct {
+	Username    string    `json:"username"`
+	Email       OptString `json:"email"`
+	FirstName   OptString `json:"first_name"`
+	LastName    OptString `json:"last_name"`
+	Active      OptBool   `json:"active"`
+	Staff       OptBool   `json:"staff"`
+	Superuser   OptBool   `json:"superuser"`
+	Groups      []int64   `json:"groups"`
+	Permissions []int64   `json:"permissions"`
+}
+
+// GetUsername returns the value of Username.
+func (s *AccountPutFields) GetUsername() string {
+	return s.Username
+}
+
+// GetEmail returns the value of Email.
+func (s *AccountPutFields) GetEmail() OptString {
+	return s.Email
+}
+
+// GetFirstName returns the value of FirstName.
+func (s *AccountPutFields) GetFirstName() OptString {
+	return s.FirstName
+}
+
+// GetLastName returns the value of LastName.
+func (s *AccountPutFields) GetLastName() OptString {
+	return s.LastName
+}
+
+// GetActive returns the value of Active.
+func (s *AccountPutFields) GetActive() OptBool {
+	return s.Active
+}
+
+// GetStaff returns the value of Staff.
+func (s *AccountPutFields) GetStaff() OptBool {
+	return s.Staff
+}
+
+// GetSuperuser returns the value of Superuser.
+func (s *AccountPutFields) GetSuperuser() OptBool {
+	return s.Superuser
+}
+
+// GetGroups returns the value of Groups.
+func (s *AccountPutFields) GetGroups() []int64 {
+	return s.Groups
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *AccountPutFields) GetPermissions() []int64 {
+	return s.Permissions
+}
+
+// SetUsername sets the value of Username.
+func (s *AccountPutFields) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AccountPutFields) SetEmail(val OptString) {
+	s.Email = val
+}
+
+// SetFirstName sets the value of FirstName.
+func (s *AccountPutFields) SetFirstName(val OptString) {
+	s.FirstName = val
+}
+
+// SetLastName sets the value of LastName.
+func (s *AccountPutFields) SetLastName(val OptString) {
+	s.LastName = val
+}
+
+// SetActive sets the value of Active.
+func (s *AccountPutFields) SetActive(val OptBool) {
+	s.Active = val
+}
+
+// SetStaff sets the value of Staff.
+func (s *AccountPutFields) SetStaff(val OptBool) {
+	s.Staff = val
+}
+
+// SetSuperuser sets the value of Superuser.
+func (s *AccountPutFields) SetSuperuser(val OptBool) {
+	s.Superuser = val
+}
+
+// SetGroups sets the value of Groups.
+func (s *AccountPutFields) SetGroups(val []int64) {
+	s.Groups = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *AccountPutFields) SetPermissions(val []int64) {
+	s.Permissions = val
+}
+
+// Ref: #/components/schemas/AccountSummary
+type AccountSummary struct {
+	ID             int64                `json:"id"`
+	Revision       int64                `json:"revision"`
+	Fields         AccountSummaryFields `json:"fields"`
+	PasswordUsable bool                 `json:"password_usable"`
+}
+
+// GetID returns the value of ID.
+func (s *AccountSummary) GetID() int64 {
+	return s.ID
+}
+
+// GetRevision returns the value of Revision.
+func (s *AccountSummary) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetFields returns the value of Fields.
+func (s *AccountSummary) GetFields() AccountSummaryFields {
+	return s.Fields
+}
+
+// GetPasswordUsable returns the value of PasswordUsable.
+func (s *AccountSummary) GetPasswordUsable() bool {
+	return s.PasswordUsable
+}
+
+// SetID sets the value of ID.
+func (s *AccountSummary) SetID(val int64) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *AccountSummary) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetFields sets the value of Fields.
+func (s *AccountSummary) SetFields(val AccountSummaryFields) {
+	s.Fields = val
+}
+
+// SetPasswordUsable sets the value of PasswordUsable.
+func (s *AccountSummary) SetPasswordUsable(val bool) {
+	s.PasswordUsable = val
+}
+
+type AccountSummaryFields struct {
+	Username   string      `json:"username"`
+	Email      string      `json:"email"`
+	FirstName  string      `json:"first_name"`
+	LastName   string      `json:"last_name"`
+	Active     bool        `json:"active"`
+	Staff      bool        `json:"staff"`
+	Superuser  bool        `json:"superuser"`
+	DateJoined time.Time   `json:"date_joined"`
+	LastLogin  NilDateTime `json:"last_login"`
+}
+
+// GetUsername returns the value of Username.
+func (s *AccountSummaryFields) GetUsername() string {
+	return s.Username
+}
+
+// GetEmail returns the value of Email.
+func (s *AccountSummaryFields) GetEmail() string {
+	return s.Email
+}
+
+// GetFirstName returns the value of FirstName.
+func (s *AccountSummaryFields) GetFirstName() string {
+	return s.FirstName
+}
+
+// GetLastName returns the value of LastName.
+func (s *AccountSummaryFields) GetLastName() string {
+	return s.LastName
+}
+
+// GetActive returns the value of Active.
+func (s *AccountSummaryFields) GetActive() bool {
+	return s.Active
+}
+
+// GetStaff returns the value of Staff.
+func (s *AccountSummaryFields) GetStaff() bool {
+	return s.Staff
+}
+
+// GetSuperuser returns the value of Superuser.
+func (s *AccountSummaryFields) GetSuperuser() bool {
+	return s.Superuser
+}
+
+// GetDateJoined returns the value of DateJoined.
+func (s *AccountSummaryFields) GetDateJoined() time.Time {
+	return s.DateJoined
+}
+
+// GetLastLogin returns the value of LastLogin.
+func (s *AccountSummaryFields) GetLastLogin() NilDateTime {
+	return s.LastLogin
+}
+
+// SetUsername sets the value of Username.
+func (s *AccountSummaryFields) SetUsername(val string) {
+	s.Username = val
+}
+
+// SetEmail sets the value of Email.
+func (s *AccountSummaryFields) SetEmail(val string) {
+	s.Email = val
+}
+
+// SetFirstName sets the value of FirstName.
+func (s *AccountSummaryFields) SetFirstName(val string) {
+	s.FirstName = val
+}
+
+// SetLastName sets the value of LastName.
+func (s *AccountSummaryFields) SetLastName(val string) {
+	s.LastName = val
+}
+
+// SetActive sets the value of Active.
+func (s *AccountSummaryFields) SetActive(val bool) {
+	s.Active = val
+}
+
+// SetStaff sets the value of Staff.
+func (s *AccountSummaryFields) SetStaff(val bool) {
+	s.Staff = val
+}
+
+// SetSuperuser sets the value of Superuser.
+func (s *AccountSummaryFields) SetSuperuser(val bool) {
+	s.Superuser = val
+}
+
+// SetDateJoined sets the value of DateJoined.
+func (s *AccountSummaryFields) SetDateJoined(val time.Time) {
+	s.DateJoined = val
+}
+
+// SetLastLogin sets the value of LastLogin.
+func (s *AccountSummaryFields) SetLastLogin(val NilDateTime) {
+	s.LastLogin = val
+}
+
 type BearerAuth struct {
 	Token string
 	Roles []string
@@ -58,9 +863,9 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 	s.Errors = val
 }
 
-func (*GoDjAPIError) godjIdentityIdentityGroupsListRes()      {}
-func (*GoDjAPIError) godjIdentityIdentityPermissionsListRes() {}
-func (*GoDjAPIError) godjIdentityIdentityUsersListRes()       {}
+func (*GoDjAPIError) godjIdentityAccountsListRes()    {}
+func (*GoDjAPIError) godjIdentityGroupsListRes()      {}
+func (*GoDjAPIError) godjIdentityPermissionsListRes() {}
 
 type GoDjAPIErrorErrorsItem struct {
 	Field  string                             `json:"field"`
@@ -149,932 +954,1833 @@ func (s *GoDjAPIErrorHeaders) SetResponse(val GoDjAPIError) {
 	s.Response = val
 }
 
-type GodjIdentityIdentityGroupsCreateBadRequest GoDjAPIErrorHeaders
+type GodjIdentityAccountsCreateBadRequest GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsCreateBadRequest) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreateBadRequest) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsCreateForbidden GoDjAPIErrorHeaders
+type GodjIdentityAccountsCreateCreated struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
 
-func (*GodjIdentityIdentityGroupsCreateForbidden) godjIdentityIdentityGroupsCreateRes() {}
+// GetID returns the value of ID.
+func (s *GodjIdentityAccountsCreateCreated) GetID() int64 {
+	return s.ID
+}
 
-type GodjIdentityIdentityGroupsCreateInternalServerError struct {
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsCreateCreated) GetRevision() int64 {
+	return s.Revision
+}
+
+// SetID sets the value of ID.
+func (s *GodjIdentityAccountsCreateCreated) SetID(val int64) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsCreateCreated) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// GodjIdentityAccountsCreateCreatedHeaders wraps GodjIdentityAccountsCreateCreated with response headers.
+type GodjIdentityAccountsCreateCreatedHeaders struct {
+	Revision int64
+	Response GodjIdentityAccountsCreateCreated
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsCreateCreatedHeaders) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetResponse returns the value of Response.
+func (s *GodjIdentityAccountsCreateCreatedHeaders) GetResponse() GodjIdentityAccountsCreateCreated {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsCreateCreatedHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityAccountsCreateCreatedHeaders) SetResponse(val GodjIdentityAccountsCreateCreated) {
+	s.Response = val
+}
+
+func (*GodjIdentityAccountsCreateCreatedHeaders) godjIdentityAccountsCreateRes() {}
+
+type GodjIdentityAccountsCreateForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsCreateForbidden) godjIdentityAccountsCreateRes() {}
+
+type GodjIdentityAccountsCreateInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityGroupsCreateInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsCreateInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityGroupsCreateInternalServerError) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreateInternalServerError) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsCreateNotAcceptable GoDjAPIError
+type GodjIdentityAccountsCreateNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsCreateNotAcceptable) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreateNotAcceptable) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsCreateNotFound GoDjAPIError
+type GodjIdentityAccountsCreatePreconditionFailed GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsCreateNotFound) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreatePreconditionFailed) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsCreateRequestEntityTooLarge GoDjAPIError
+type GodjIdentityAccountsCreateRequestEntityTooLarge GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsCreateRequestEntityTooLarge) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreateRequestEntityTooLarge) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsCreateServiceUnavailable GoDjAPIError
+type GodjIdentityAccountsCreateServiceUnavailable GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsCreateServiceUnavailable) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreateServiceUnavailable) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsCreateUnauthorized GoDjAPIErrorHeaders
+type GodjIdentityAccountsCreateUnauthorized GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsCreateUnauthorized) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreateUnauthorized) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsCreateUnsupportedMediaType GoDjAPIError
+type GodjIdentityAccountsCreateUnsupportedMediaType GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsCreateUnsupportedMediaType) godjIdentityIdentityGroupsCreateRes() {}
+func (*GodjIdentityAccountsCreateUnsupportedMediaType) godjIdentityAccountsCreateRes() {}
 
-type GodjIdentityIdentityGroupsDeleteBadRequest GoDjAPIErrorHeaders
+type GodjIdentityAccountsDeleteBadRequest GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsDeleteBadRequest) godjIdentityIdentityGroupsDeleteRes() {}
+func (*GodjIdentityAccountsDeleteBadRequest) godjIdentityAccountsDeleteRes() {}
 
-type GodjIdentityIdentityGroupsDeleteForbidden GoDjAPIErrorHeaders
+type GodjIdentityAccountsDeleteForbidden GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsDeleteForbidden) godjIdentityIdentityGroupsDeleteRes() {}
+func (*GodjIdentityAccountsDeleteForbidden) godjIdentityAccountsDeleteRes() {}
 
-type GodjIdentityIdentityGroupsDeleteInternalServerError struct {
+type GodjIdentityAccountsDeleteInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityGroupsDeleteInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsDeleteInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityGroupsDeleteInternalServerError) godjIdentityIdentityGroupsDeleteRes() {}
+func (*GodjIdentityAccountsDeleteInternalServerError) godjIdentityAccountsDeleteRes() {}
 
-// GodjIdentityIdentityGroupsDeleteNoContent is response for GodjIdentityIdentityGroupsDelete operation.
-type GodjIdentityIdentityGroupsDeleteNoContent struct{}
+type GodjIdentityAccountsDeleteNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsDeleteNoContent) godjIdentityIdentityGroupsDeleteRes() {}
+func (*GodjIdentityAccountsDeleteNotAcceptable) godjIdentityAccountsDeleteRes() {}
 
-type GodjIdentityIdentityGroupsDeleteNotAcceptable GoDjAPIError
+type GodjIdentityAccountsDeleteNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsDeleteNotAcceptable) godjIdentityIdentityGroupsDeleteRes() {}
+func (*GodjIdentityAccountsDeleteNotFound) godjIdentityAccountsDeleteRes() {}
 
-type GodjIdentityIdentityGroupsDeleteNotFound GoDjAPIError
+type GodjIdentityAccountsDeleteOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
 
-func (*GodjIdentityIdentityGroupsDeleteNotFound) godjIdentityIdentityGroupsDeleteRes() {}
+// GetID returns the value of ID.
+func (s *GodjIdentityAccountsDeleteOK) GetID() int64 {
+	return s.ID
+}
 
-type GodjIdentityIdentityGroupsDeletePreconditionFailed GoDjAPIError
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsDeleteOK) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityGroupsDeletePreconditionFailed) godjIdentityIdentityGroupsDeleteRes() {}
+// SetID sets the value of ID.
+func (s *GodjIdentityAccountsDeleteOK) SetID(val int64) {
+	s.ID = val
+}
 
-type GodjIdentityIdentityGroupsDeletePreconditionRequired GoDjAPIError
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsDeleteOK) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityGroupsDeletePreconditionRequired) godjIdentityIdentityGroupsDeleteRes() {}
+// GodjIdentityAccountsDeleteOKHeaders wraps GodjIdentityAccountsDeleteOK with response headers.
+type GodjIdentityAccountsDeleteOKHeaders struct {
+	Revision int64
+	Response GodjIdentityAccountsDeleteOK
+}
 
-type GodjIdentityIdentityGroupsDeleteServiceUnavailable GoDjAPIError
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsDeleteOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityGroupsDeleteServiceUnavailable) godjIdentityIdentityGroupsDeleteRes() {}
+// GetResponse returns the value of Response.
+func (s *GodjIdentityAccountsDeleteOKHeaders) GetResponse() GodjIdentityAccountsDeleteOK {
+	return s.Response
+}
 
-type GodjIdentityIdentityGroupsDeleteUnauthorized GoDjAPIErrorHeaders
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsDeleteOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityGroupsDeleteUnauthorized) godjIdentityIdentityGroupsDeleteRes() {}
+// SetResponse sets the value of Response.
+func (s *GodjIdentityAccountsDeleteOKHeaders) SetResponse(val GodjIdentityAccountsDeleteOK) {
+	s.Response = val
+}
 
-type GodjIdentityIdentityGroupsDetailBadRequest GoDjAPIErrorHeaders
+func (*GodjIdentityAccountsDeleteOKHeaders) godjIdentityAccountsDeleteRes() {}
 
-func (*GodjIdentityIdentityGroupsDetailBadRequest) godjIdentityIdentityGroupsDetailRes() {}
+type GodjIdentityAccountsDeletePreconditionFailed GoDjAPIError
 
-type GodjIdentityIdentityGroupsDetailForbidden GoDjAPIErrorHeaders
+func (*GodjIdentityAccountsDeletePreconditionFailed) godjIdentityAccountsDeleteRes() {}
 
-func (*GodjIdentityIdentityGroupsDetailForbidden) godjIdentityIdentityGroupsDetailRes() {}
+type GodjIdentityAccountsDeletePreconditionRequired GoDjAPIError
 
-type GodjIdentityIdentityGroupsDetailInternalServerError struct {
+func (*GodjIdentityAccountsDeletePreconditionRequired) godjIdentityAccountsDeleteRes() {}
+
+type GodjIdentityAccountsDeleteServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityAccountsDeleteServiceUnavailable) godjIdentityAccountsDeleteRes() {}
+
+type GodjIdentityAccountsDeleteUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsDeleteUnauthorized) godjIdentityAccountsDeleteRes() {}
+
+type GodjIdentityAccountsDetailBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsDetailBadRequest) godjIdentityAccountsDetailRes() {}
+
+type GodjIdentityAccountsDetailForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsDetailForbidden) godjIdentityAccountsDetailRes() {}
+
+type GodjIdentityAccountsDetailInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityGroupsDetailInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsDetailInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityGroupsDetailInternalServerError) godjIdentityIdentityGroupsDetailRes() {}
+func (*GodjIdentityAccountsDetailInternalServerError) godjIdentityAccountsDetailRes() {}
 
-type GodjIdentityIdentityGroupsDetailNotAcceptable GoDjAPIError
+type GodjIdentityAccountsDetailNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsDetailNotAcceptable) godjIdentityIdentityGroupsDetailRes() {}
+func (*GodjIdentityAccountsDetailNotAcceptable) godjIdentityAccountsDetailRes() {}
 
-type GodjIdentityIdentityGroupsDetailNotFound GoDjAPIError
+type GodjIdentityAccountsDetailNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsDetailNotFound) godjIdentityIdentityGroupsDetailRes() {}
+func (*GodjIdentityAccountsDetailNotFound) godjIdentityAccountsDetailRes() {}
 
-type GodjIdentityIdentityGroupsDetailUnauthorized GoDjAPIErrorHeaders
+type GodjIdentityAccountsDetailUnauthorized GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsDetailUnauthorized) godjIdentityIdentityGroupsDetailRes() {}
+func (*GodjIdentityAccountsDetailUnauthorized) godjIdentityAccountsDetailRes() {}
 
-type GodjIdentityIdentityGroupsListBadRequest GoDjAPIErrorHeaders
+type GodjIdentityAccountsHistoryBadRequest GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsListBadRequest) godjIdentityIdentityGroupsListRes() {}
+func (*GodjIdentityAccountsHistoryBadRequest) godjIdentityAccountsHistoryRes() {}
 
-type GodjIdentityIdentityGroupsListForbidden GoDjAPIErrorHeaders
+type GodjIdentityAccountsHistoryForbidden GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsListForbidden) godjIdentityIdentityGroupsListRes() {}
+func (*GodjIdentityAccountsHistoryForbidden) godjIdentityAccountsHistoryRes() {}
 
-type GodjIdentityIdentityGroupsListInternalServerError struct {
+type GodjIdentityAccountsHistoryInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityGroupsListInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsHistoryInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityGroupsListInternalServerError) godjIdentityIdentityGroupsListRes() {}
+func (*GodjIdentityAccountsHistoryInternalServerError) godjIdentityAccountsHistoryRes() {}
 
-type GodjIdentityIdentityGroupsListUnauthorized GoDjAPIErrorHeaders
+type GodjIdentityAccountsHistoryNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsListUnauthorized) godjIdentityIdentityGroupsListRes() {}
+func (*GodjIdentityAccountsHistoryNotAcceptable) godjIdentityAccountsHistoryRes() {}
 
-type GodjIdentityIdentityGroupsPatchBadRequest GoDjAPIErrorHeaders
+type GodjIdentityAccountsHistoryNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsPatchBadRequest) godjIdentityIdentityGroupsPatchRes() {}
+func (*GodjIdentityAccountsHistoryNotFound) godjIdentityAccountsHistoryRes() {}
 
-type GodjIdentityIdentityGroupsPatchForbidden GoDjAPIErrorHeaders
+type GodjIdentityAccountsHistoryOKApplicationJSON []GodjIdentityAccountsHistoryOKItem
 
-func (*GodjIdentityIdentityGroupsPatchForbidden) godjIdentityIdentityGroupsPatchRes() {}
+func (*GodjIdentityAccountsHistoryOKApplicationJSON) godjIdentityAccountsHistoryRes() {}
 
-type GodjIdentityIdentityGroupsPatchInternalServerError struct {
+type GodjIdentityAccountsHistoryOKItem struct {
+	Sequence      int64     `json:"sequence"`
+	Action        string    `json:"action"`
+	ChangedFields []string  `json:"changed_fields"`
+	At            time.Time `json:"at"`
+}
+
+// GetSequence returns the value of Sequence.
+func (s *GodjIdentityAccountsHistoryOKItem) GetSequence() int64 {
+	return s.Sequence
+}
+
+// GetAction returns the value of Action.
+func (s *GodjIdentityAccountsHistoryOKItem) GetAction() string {
+	return s.Action
+}
+
+// GetChangedFields returns the value of ChangedFields.
+func (s *GodjIdentityAccountsHistoryOKItem) GetChangedFields() []string {
+	return s.ChangedFields
+}
+
+// GetAt returns the value of At.
+func (s *GodjIdentityAccountsHistoryOKItem) GetAt() time.Time {
+	return s.At
+}
+
+// SetSequence sets the value of Sequence.
+func (s *GodjIdentityAccountsHistoryOKItem) SetSequence(val int64) {
+	s.Sequence = val
+}
+
+// SetAction sets the value of Action.
+func (s *GodjIdentityAccountsHistoryOKItem) SetAction(val string) {
+	s.Action = val
+}
+
+// SetChangedFields sets the value of ChangedFields.
+func (s *GodjIdentityAccountsHistoryOKItem) SetChangedFields(val []string) {
+	s.ChangedFields = val
+}
+
+// SetAt sets the value of At.
+func (s *GodjIdentityAccountsHistoryOKItem) SetAt(val time.Time) {
+	s.At = val
+}
+
+type GodjIdentityAccountsHistoryUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsHistoryUnauthorized) godjIdentityAccountsHistoryRes() {}
+
+type GodjIdentityAccountsListBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsListBadRequest) godjIdentityAccountsListRes() {}
+
+type GodjIdentityAccountsListForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsListForbidden) godjIdentityAccountsListRes() {}
+
+type GodjIdentityAccountsListInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityGroupsPatchInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsListInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityGroupsPatchInternalServerError) godjIdentityIdentityGroupsPatchRes() {}
+func (*GodjIdentityAccountsListInternalServerError) godjIdentityAccountsListRes() {}
 
-type GodjIdentityIdentityGroupsPatchNotAcceptable GoDjAPIError
+type GodjIdentityAccountsListUnauthorized GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsPatchNotAcceptable) godjIdentityIdentityGroupsPatchRes() {}
+func (*GodjIdentityAccountsListUnauthorized) godjIdentityAccountsListRes() {}
 
-type GodjIdentityIdentityGroupsPatchNotFound GoDjAPIError
+type GodjIdentityAccountsPasswordBadRequest GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsPatchNotFound) godjIdentityIdentityGroupsPatchRes() {}
+func (*GodjIdentityAccountsPasswordBadRequest) godjIdentityAccountsPasswordRes() {}
 
-type GodjIdentityIdentityGroupsPatchPreconditionFailed GoDjAPIError
+type GodjIdentityAccountsPasswordForbidden GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityGroupsPatchPreconditionFailed) godjIdentityIdentityGroupsPatchRes() {}
+func (*GodjIdentityAccountsPasswordForbidden) godjIdentityAccountsPasswordRes() {}
 
-type GodjIdentityIdentityGroupsPatchPreconditionRequired GoDjAPIError
-
-func (*GodjIdentityIdentityGroupsPatchPreconditionRequired) godjIdentityIdentityGroupsPatchRes() {}
-
-type GodjIdentityIdentityGroupsPatchRequestEntityTooLarge GoDjAPIError
-
-func (*GodjIdentityIdentityGroupsPatchRequestEntityTooLarge) godjIdentityIdentityGroupsPatchRes() {}
-
-type GodjIdentityIdentityGroupsPatchServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityGroupsPatchServiceUnavailable) godjIdentityIdentityGroupsPatchRes() {}
-
-type GodjIdentityIdentityGroupsPatchUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityGroupsPatchUnauthorized) godjIdentityIdentityGroupsPatchRes() {}
-
-type GodjIdentityIdentityGroupsPatchUnsupportedMediaType GoDjAPIError
-
-func (*GodjIdentityIdentityGroupsPatchUnsupportedMediaType) godjIdentityIdentityGroupsPatchRes() {}
-
-type GodjIdentityIdentityGroupsUpdateBadRequest GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityGroupsUpdateBadRequest) godjIdentityIdentityGroupsUpdateRes() {}
-
-type GodjIdentityIdentityGroupsUpdateForbidden GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityGroupsUpdateForbidden) godjIdentityIdentityGroupsUpdateRes() {}
-
-type GodjIdentityIdentityGroupsUpdateInternalServerError struct {
+type GodjIdentityAccountsPasswordInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityGroupsUpdateInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsPasswordInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityGroupsUpdateInternalServerError) godjIdentityIdentityGroupsUpdateRes() {}
+func (*GodjIdentityAccountsPasswordInternalServerError) godjIdentityAccountsPasswordRes() {}
 
-type GodjIdentityIdentityGroupsUpdateNotAcceptable GoDjAPIError
+type GodjIdentityAccountsPasswordNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsUpdateNotAcceptable) godjIdentityIdentityGroupsUpdateRes() {}
+func (*GodjIdentityAccountsPasswordNotAcceptable) godjIdentityAccountsPasswordRes() {}
 
-type GodjIdentityIdentityGroupsUpdateNotFound GoDjAPIError
+type GodjIdentityAccountsPasswordNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityGroupsUpdateNotFound) godjIdentityIdentityGroupsUpdateRes() {}
+func (*GodjIdentityAccountsPasswordNotFound) godjIdentityAccountsPasswordRes() {}
 
-type GodjIdentityIdentityGroupsUpdatePreconditionFailed GoDjAPIError
+type GodjIdentityAccountsPasswordOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
 
-func (*GodjIdentityIdentityGroupsUpdatePreconditionFailed) godjIdentityIdentityGroupsUpdateRes() {}
+// GetID returns the value of ID.
+func (s *GodjIdentityAccountsPasswordOK) GetID() int64 {
+	return s.ID
+}
 
-type GodjIdentityIdentityGroupsUpdatePreconditionRequired GoDjAPIError
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsPasswordOK) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityGroupsUpdatePreconditionRequired) godjIdentityIdentityGroupsUpdateRes() {}
+// SetID sets the value of ID.
+func (s *GodjIdentityAccountsPasswordOK) SetID(val int64) {
+	s.ID = val
+}
 
-type GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge GoDjAPIError
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsPasswordOK) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityGroupsUpdateRequestEntityTooLarge) godjIdentityIdentityGroupsUpdateRes() {}
+// GodjIdentityAccountsPasswordOKHeaders wraps GodjIdentityAccountsPasswordOK with response headers.
+type GodjIdentityAccountsPasswordOKHeaders struct {
+	Revision int64
+	Response GodjIdentityAccountsPasswordOK
+}
 
-type GodjIdentityIdentityGroupsUpdateServiceUnavailable GoDjAPIError
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsPasswordOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityGroupsUpdateServiceUnavailable) godjIdentityIdentityGroupsUpdateRes() {}
+// GetResponse returns the value of Response.
+func (s *GodjIdentityAccountsPasswordOKHeaders) GetResponse() GodjIdentityAccountsPasswordOK {
+	return s.Response
+}
 
-type GodjIdentityIdentityGroupsUpdateUnauthorized GoDjAPIErrorHeaders
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsPasswordOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityGroupsUpdateUnauthorized) godjIdentityIdentityGroupsUpdateRes() {}
+// SetResponse sets the value of Response.
+func (s *GodjIdentityAccountsPasswordOKHeaders) SetResponse(val GodjIdentityAccountsPasswordOK) {
+	s.Response = val
+}
 
-type GodjIdentityIdentityGroupsUpdateUnsupportedMediaType GoDjAPIError
+func (*GodjIdentityAccountsPasswordOKHeaders) godjIdentityAccountsPasswordRes() {}
 
-func (*GodjIdentityIdentityGroupsUpdateUnsupportedMediaType) godjIdentityIdentityGroupsUpdateRes() {}
+type GodjIdentityAccountsPasswordPreconditionFailed GoDjAPIError
 
-type GodjIdentityIdentityPermissionsCreateBadRequest GoDjAPIErrorHeaders
+func (*GodjIdentityAccountsPasswordPreconditionFailed) godjIdentityAccountsPasswordRes() {}
 
-func (*GodjIdentityIdentityPermissionsCreateBadRequest) godjIdentityIdentityPermissionsCreateRes() {}
+type GodjIdentityAccountsPasswordPreconditionRequired GoDjAPIError
 
-type GodjIdentityIdentityPermissionsCreateForbidden GoDjAPIErrorHeaders
+func (*GodjIdentityAccountsPasswordPreconditionRequired) godjIdentityAccountsPasswordRes() {}
 
-func (*GodjIdentityIdentityPermissionsCreateForbidden) godjIdentityIdentityPermissionsCreateRes() {}
+type GodjIdentityAccountsPasswordRequestEntityTooLarge GoDjAPIError
 
-type GodjIdentityIdentityPermissionsCreateInternalServerError struct {
+func (*GodjIdentityAccountsPasswordRequestEntityTooLarge) godjIdentityAccountsPasswordRes() {}
+
+type GodjIdentityAccountsPasswordServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityAccountsPasswordServiceUnavailable) godjIdentityAccountsPasswordRes() {}
+
+type GodjIdentityAccountsPasswordUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsPasswordUnauthorized) godjIdentityAccountsPasswordRes() {}
+
+type GodjIdentityAccountsPasswordUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityAccountsPasswordUnsupportedMediaType) godjIdentityAccountsPasswordRes() {}
+
+type GodjIdentityAccountsPatchBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsPatchBadRequest) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsPatchForbidden) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityPermissionsCreateInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsPatchInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityPermissionsCreateInternalServerError) godjIdentityIdentityPermissionsCreateRes() {
+func (*GodjIdentityAccountsPatchInternalServerError) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchNotAcceptable GoDjAPIError
+
+func (*GodjIdentityAccountsPatchNotAcceptable) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchNotFound GoDjAPIError
+
+func (*GodjIdentityAccountsPatchNotFound) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
 }
 
-type GodjIdentityIdentityPermissionsCreateNotAcceptable GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsCreateNotAcceptable) godjIdentityIdentityPermissionsCreateRes() {
+// GetID returns the value of ID.
+func (s *GodjIdentityAccountsPatchOK) GetID() int64 {
+	return s.ID
 }
 
-type GodjIdentityIdentityPermissionsCreateNotFound GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsCreateNotFound) godjIdentityIdentityPermissionsCreateRes() {}
-
-type GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsCreateRequestEntityTooLarge) godjIdentityIdentityPermissionsCreateRes() {
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsPatchOK) GetRevision() int64 {
+	return s.Revision
 }
 
-type GodjIdentityIdentityPermissionsCreateServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsCreateServiceUnavailable) godjIdentityIdentityPermissionsCreateRes() {
+// SetID sets the value of ID.
+func (s *GodjIdentityAccountsPatchOK) SetID(val int64) {
+	s.ID = val
 }
 
-type GodjIdentityIdentityPermissionsCreateUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityPermissionsCreateUnauthorized) godjIdentityIdentityPermissionsCreateRes() {
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsPatchOK) SetRevision(val int64) {
+	s.Revision = val
 }
 
-type GodjIdentityIdentityPermissionsCreateUnsupportedMediaType GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsCreateUnsupportedMediaType) godjIdentityIdentityPermissionsCreateRes() {
+// GodjIdentityAccountsPatchOKHeaders wraps GodjIdentityAccountsPatchOK with response headers.
+type GodjIdentityAccountsPatchOKHeaders struct {
+	Revision int64
+	Response GodjIdentityAccountsPatchOK
 }
 
-type GodjIdentityIdentityPermissionsDeleteBadRequest GoDjAPIErrorHeaders
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsPatchOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityPermissionsDeleteBadRequest) godjIdentityIdentityPermissionsDeleteRes() {}
+// GetResponse returns the value of Response.
+func (s *GodjIdentityAccountsPatchOKHeaders) GetResponse() GodjIdentityAccountsPatchOK {
+	return s.Response
+}
 
-type GodjIdentityIdentityPermissionsDeleteForbidden GoDjAPIErrorHeaders
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsPatchOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityPermissionsDeleteForbidden) godjIdentityIdentityPermissionsDeleteRes() {}
+// SetResponse sets the value of Response.
+func (s *GodjIdentityAccountsPatchOKHeaders) SetResponse(val GodjIdentityAccountsPatchOK) {
+	s.Response = val
+}
 
-type GodjIdentityIdentityPermissionsDeleteInternalServerError struct {
+func (*GodjIdentityAccountsPatchOKHeaders) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchPreconditionFailed GoDjAPIError
+
+func (*GodjIdentityAccountsPatchPreconditionFailed) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchPreconditionRequired GoDjAPIError
+
+func (*GodjIdentityAccountsPatchPreconditionRequired) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchRequestEntityTooLarge GoDjAPIError
+
+func (*GodjIdentityAccountsPatchRequestEntityTooLarge) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityAccountsPatchServiceUnavailable) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsPatchUnauthorized) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPatchUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityAccountsPatchUnsupportedMediaType) godjIdentityAccountsPatchRes() {}
+
+type GodjIdentityAccountsPutBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsPutBadRequest) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsPutForbidden) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityPermissionsDeleteInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityAccountsPutInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityPermissionsDeleteInternalServerError) godjIdentityIdentityPermissionsDeleteRes() {
+func (*GodjIdentityAccountsPutInternalServerError) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutNotAcceptable GoDjAPIError
+
+func (*GodjIdentityAccountsPutNotAcceptable) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutNotFound GoDjAPIError
+
+func (*GodjIdentityAccountsPutNotFound) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
 }
 
-// GodjIdentityIdentityPermissionsDeleteNoContent is response for GodjIdentityIdentityPermissionsDelete operation.
-type GodjIdentityIdentityPermissionsDeleteNoContent struct{}
-
-func (*GodjIdentityIdentityPermissionsDeleteNoContent) godjIdentityIdentityPermissionsDeleteRes() {}
-
-type GodjIdentityIdentityPermissionsDeleteNotAcceptable GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsDeleteNotAcceptable) godjIdentityIdentityPermissionsDeleteRes() {
+// GetID returns the value of ID.
+func (s *GodjIdentityAccountsPutOK) GetID() int64 {
+	return s.ID
 }
 
-type GodjIdentityIdentityPermissionsDeleteNotFound GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsDeleteNotFound) godjIdentityIdentityPermissionsDeleteRes() {}
-
-type GodjIdentityIdentityPermissionsDeletePreconditionFailed GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsDeletePreconditionFailed) godjIdentityIdentityPermissionsDeleteRes() {
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsPutOK) GetRevision() int64 {
+	return s.Revision
 }
 
-type GodjIdentityIdentityPermissionsDeletePreconditionRequired GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsDeletePreconditionRequired) godjIdentityIdentityPermissionsDeleteRes() {
+// SetID sets the value of ID.
+func (s *GodjIdentityAccountsPutOK) SetID(val int64) {
+	s.ID = val
 }
 
-type GodjIdentityIdentityPermissionsDeleteServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsDeleteServiceUnavailable) godjIdentityIdentityPermissionsDeleteRes() {
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsPutOK) SetRevision(val int64) {
+	s.Revision = val
 }
 
-type GodjIdentityIdentityPermissionsDeleteUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityPermissionsDeleteUnauthorized) godjIdentityIdentityPermissionsDeleteRes() {
+// GodjIdentityAccountsPutOKHeaders wraps GodjIdentityAccountsPutOK with response headers.
+type GodjIdentityAccountsPutOKHeaders struct {
+	Revision int64
+	Response GodjIdentityAccountsPutOK
 }
 
-type GodjIdentityIdentityPermissionsDetailBadRequest GoDjAPIErrorHeaders
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityAccountsPutOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityPermissionsDetailBadRequest) godjIdentityIdentityPermissionsDetailRes() {}
+// GetResponse returns the value of Response.
+func (s *GodjIdentityAccountsPutOKHeaders) GetResponse() GodjIdentityAccountsPutOK {
+	return s.Response
+}
 
-type GodjIdentityIdentityPermissionsDetailForbidden GoDjAPIErrorHeaders
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityAccountsPutOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityPermissionsDetailForbidden) godjIdentityIdentityPermissionsDetailRes() {}
+// SetResponse sets the value of Response.
+func (s *GodjIdentityAccountsPutOKHeaders) SetResponse(val GodjIdentityAccountsPutOK) {
+	s.Response = val
+}
 
-type GodjIdentityIdentityPermissionsDetailInternalServerError struct {
+func (*GodjIdentityAccountsPutOKHeaders) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutPreconditionFailed GoDjAPIError
+
+func (*GodjIdentityAccountsPutPreconditionFailed) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutPreconditionRequired GoDjAPIError
+
+func (*GodjIdentityAccountsPutPreconditionRequired) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutRequestEntityTooLarge GoDjAPIError
+
+func (*GodjIdentityAccountsPutRequestEntityTooLarge) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityAccountsPutServiceUnavailable) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityAccountsPutUnauthorized) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityAccountsPutUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityAccountsPutUnsupportedMediaType) godjIdentityAccountsPutRes() {}
+
+type GodjIdentityGroupsCreateBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsCreateBadRequest) godjIdentityGroupsCreateRes() {}
+
+type GodjIdentityGroupsCreateCreated struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
+
+// GetID returns the value of ID.
+func (s *GodjIdentityGroupsCreateCreated) GetID() int64 {
+	return s.ID
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsCreateCreated) GetRevision() int64 {
+	return s.Revision
+}
+
+// SetID sets the value of ID.
+func (s *GodjIdentityGroupsCreateCreated) SetID(val int64) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsCreateCreated) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// GodjIdentityGroupsCreateCreatedHeaders wraps GodjIdentityGroupsCreateCreated with response headers.
+type GodjIdentityGroupsCreateCreatedHeaders struct {
+	Revision int64
+	Response GodjIdentityGroupsCreateCreated
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsCreateCreatedHeaders) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetResponse returns the value of Response.
+func (s *GodjIdentityGroupsCreateCreatedHeaders) GetResponse() GodjIdentityGroupsCreateCreated {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsCreateCreatedHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityGroupsCreateCreatedHeaders) SetResponse(val GodjIdentityGroupsCreateCreated) {
+	s.Response = val
+}
+
+func (*GodjIdentityGroupsCreateCreatedHeaders) godjIdentityGroupsCreateRes() {}
+
+type GodjIdentityGroupsCreateForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsCreateForbidden) godjIdentityGroupsCreateRes() {}
+
+type GodjIdentityGroupsCreateInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityPermissionsDetailInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityGroupsCreateInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityPermissionsDetailInternalServerError) godjIdentityIdentityPermissionsDetailRes() {
-}
+func (*GodjIdentityGroupsCreateInternalServerError) godjIdentityGroupsCreateRes() {}
 
-type GodjIdentityIdentityPermissionsDetailNotAcceptable GoDjAPIError
+type GodjIdentityGroupsCreateNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityPermissionsDetailNotAcceptable) godjIdentityIdentityPermissionsDetailRes() {
-}
+func (*GodjIdentityGroupsCreateNotAcceptable) godjIdentityGroupsCreateRes() {}
 
-type GodjIdentityIdentityPermissionsDetailNotFound GoDjAPIError
+type GodjIdentityGroupsCreatePreconditionFailed GoDjAPIError
 
-func (*GodjIdentityIdentityPermissionsDetailNotFound) godjIdentityIdentityPermissionsDetailRes() {}
+func (*GodjIdentityGroupsCreatePreconditionFailed) godjIdentityGroupsCreateRes() {}
 
-type GodjIdentityIdentityPermissionsDetailUnauthorized GoDjAPIErrorHeaders
+type GodjIdentityGroupsCreateRequestEntityTooLarge GoDjAPIError
 
-func (*GodjIdentityIdentityPermissionsDetailUnauthorized) godjIdentityIdentityPermissionsDetailRes() {
-}
+func (*GodjIdentityGroupsCreateRequestEntityTooLarge) godjIdentityGroupsCreateRes() {}
 
-type GodjIdentityIdentityPermissionsListBadRequest GoDjAPIErrorHeaders
+type GodjIdentityGroupsCreateServiceUnavailable GoDjAPIError
 
-func (*GodjIdentityIdentityPermissionsListBadRequest) godjIdentityIdentityPermissionsListRes() {}
+func (*GodjIdentityGroupsCreateServiceUnavailable) godjIdentityGroupsCreateRes() {}
 
-type GodjIdentityIdentityPermissionsListForbidden GoDjAPIErrorHeaders
+type GodjIdentityGroupsCreateUnauthorized GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityPermissionsListForbidden) godjIdentityIdentityPermissionsListRes() {}
+func (*GodjIdentityGroupsCreateUnauthorized) godjIdentityGroupsCreateRes() {}
 
-type GodjIdentityIdentityPermissionsListInternalServerError struct {
+type GodjIdentityGroupsCreateUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityGroupsCreateUnsupportedMediaType) godjIdentityGroupsCreateRes() {}
+
+type GodjIdentityGroupsDeleteBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsDeleteBadRequest) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeleteForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsDeleteForbidden) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeleteInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityPermissionsListInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityGroupsDeleteInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityPermissionsListInternalServerError) godjIdentityIdentityPermissionsListRes() {
+func (*GodjIdentityGroupsDeleteInternalServerError) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeleteNotAcceptable GoDjAPIError
+
+func (*GodjIdentityGroupsDeleteNotAcceptable) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeleteNotFound GoDjAPIError
+
+func (*GodjIdentityGroupsDeleteNotFound) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeleteOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
 }
 
-type GodjIdentityIdentityPermissionsListUnauthorized GoDjAPIErrorHeaders
+// GetID returns the value of ID.
+func (s *GodjIdentityGroupsDeleteOK) GetID() int64 {
+	return s.ID
+}
 
-func (*GodjIdentityIdentityPermissionsListUnauthorized) godjIdentityIdentityPermissionsListRes() {}
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsDeleteOK) GetRevision() int64 {
+	return s.Revision
+}
 
-type GodjIdentityIdentityPermissionsPatchBadRequest GoDjAPIErrorHeaders
+// SetID sets the value of ID.
+func (s *GodjIdentityGroupsDeleteOK) SetID(val int64) {
+	s.ID = val
+}
 
-func (*GodjIdentityIdentityPermissionsPatchBadRequest) godjIdentityIdentityPermissionsPatchRes() {}
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsDeleteOK) SetRevision(val int64) {
+	s.Revision = val
+}
 
-type GodjIdentityIdentityPermissionsPatchForbidden GoDjAPIErrorHeaders
+// GodjIdentityGroupsDeleteOKHeaders wraps GodjIdentityGroupsDeleteOK with response headers.
+type GodjIdentityGroupsDeleteOKHeaders struct {
+	Revision int64
+	Response GodjIdentityGroupsDeleteOK
+}
 
-func (*GodjIdentityIdentityPermissionsPatchForbidden) godjIdentityIdentityPermissionsPatchRes() {}
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsDeleteOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
 
-type GodjIdentityIdentityPermissionsPatchInternalServerError struct {
+// GetResponse returns the value of Response.
+func (s *GodjIdentityGroupsDeleteOKHeaders) GetResponse() GodjIdentityGroupsDeleteOK {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsDeleteOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityGroupsDeleteOKHeaders) SetResponse(val GodjIdentityGroupsDeleteOK) {
+	s.Response = val
+}
+
+func (*GodjIdentityGroupsDeleteOKHeaders) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeletePreconditionFailed GoDjAPIError
+
+func (*GodjIdentityGroupsDeletePreconditionFailed) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeletePreconditionRequired GoDjAPIError
+
+func (*GodjIdentityGroupsDeletePreconditionRequired) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeleteServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityGroupsDeleteServiceUnavailable) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDeleteUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsDeleteUnauthorized) godjIdentityGroupsDeleteRes() {}
+
+type GodjIdentityGroupsDetailBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsDetailBadRequest) godjIdentityGroupsDetailRes() {}
+
+type GodjIdentityGroupsDetailForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsDetailForbidden) godjIdentityGroupsDetailRes() {}
+
+type GodjIdentityGroupsDetailInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityPermissionsPatchInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityGroupsDetailInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityPermissionsPatchInternalServerError) godjIdentityIdentityPermissionsPatchRes() {
-}
+func (*GodjIdentityGroupsDetailInternalServerError) godjIdentityGroupsDetailRes() {}
 
-type GodjIdentityIdentityPermissionsPatchNotAcceptable GoDjAPIError
+type GodjIdentityGroupsDetailNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityPermissionsPatchNotAcceptable) godjIdentityIdentityPermissionsPatchRes() {}
+func (*GodjIdentityGroupsDetailNotAcceptable) godjIdentityGroupsDetailRes() {}
 
-type GodjIdentityIdentityPermissionsPatchNotFound GoDjAPIError
+type GodjIdentityGroupsDetailNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityPermissionsPatchNotFound) godjIdentityIdentityPermissionsPatchRes() {}
+func (*GodjIdentityGroupsDetailNotFound) godjIdentityGroupsDetailRes() {}
 
-type GodjIdentityIdentityPermissionsPatchPreconditionFailed GoDjAPIError
+type GodjIdentityGroupsDetailUnauthorized GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityPermissionsPatchPreconditionFailed) godjIdentityIdentityPermissionsPatchRes() {
-}
+func (*GodjIdentityGroupsDetailUnauthorized) godjIdentityGroupsDetailRes() {}
 
-type GodjIdentityIdentityPermissionsPatchPreconditionRequired GoDjAPIError
+type GodjIdentityGroupsHistoryBadRequest GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityPermissionsPatchPreconditionRequired) godjIdentityIdentityPermissionsPatchRes() {
-}
+func (*GodjIdentityGroupsHistoryBadRequest) godjIdentityGroupsHistoryRes() {}
 
-type GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge GoDjAPIError
+type GodjIdentityGroupsHistoryForbidden GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityPermissionsPatchRequestEntityTooLarge) godjIdentityIdentityPermissionsPatchRes() {
-}
+func (*GodjIdentityGroupsHistoryForbidden) godjIdentityGroupsHistoryRes() {}
 
-type GodjIdentityIdentityPermissionsPatchServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsPatchServiceUnavailable) godjIdentityIdentityPermissionsPatchRes() {
-}
-
-type GodjIdentityIdentityPermissionsPatchUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityPermissionsPatchUnauthorized) godjIdentityIdentityPermissionsPatchRes() {}
-
-type GodjIdentityIdentityPermissionsPatchUnsupportedMediaType GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsPatchUnsupportedMediaType) godjIdentityIdentityPermissionsPatchRes() {
-}
-
-type GodjIdentityIdentityPermissionsUpdateBadRequest GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityPermissionsUpdateBadRequest) godjIdentityIdentityPermissionsUpdateRes() {}
-
-type GodjIdentityIdentityPermissionsUpdateForbidden GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityPermissionsUpdateForbidden) godjIdentityIdentityPermissionsUpdateRes() {}
-
-type GodjIdentityIdentityPermissionsUpdateInternalServerError struct {
+type GodjIdentityGroupsHistoryInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityPermissionsUpdateInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityGroupsHistoryInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityPermissionsUpdateInternalServerError) godjIdentityIdentityPermissionsUpdateRes() {
+func (*GodjIdentityGroupsHistoryInternalServerError) godjIdentityGroupsHistoryRes() {}
+
+type GodjIdentityGroupsHistoryNotAcceptable GoDjAPIError
+
+func (*GodjIdentityGroupsHistoryNotAcceptable) godjIdentityGroupsHistoryRes() {}
+
+type GodjIdentityGroupsHistoryNotFound GoDjAPIError
+
+func (*GodjIdentityGroupsHistoryNotFound) godjIdentityGroupsHistoryRes() {}
+
+type GodjIdentityGroupsHistoryOKApplicationJSON []GodjIdentityGroupsHistoryOKItem
+
+func (*GodjIdentityGroupsHistoryOKApplicationJSON) godjIdentityGroupsHistoryRes() {}
+
+type GodjIdentityGroupsHistoryOKItem struct {
+	Sequence      int64     `json:"sequence"`
+	Action        string    `json:"action"`
+	ChangedFields []string  `json:"changed_fields"`
+	At            time.Time `json:"at"`
 }
 
-type GodjIdentityIdentityPermissionsUpdateNotAcceptable GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsUpdateNotAcceptable) godjIdentityIdentityPermissionsUpdateRes() {
+// GetSequence returns the value of Sequence.
+func (s *GodjIdentityGroupsHistoryOKItem) GetSequence() int64 {
+	return s.Sequence
 }
 
-type GodjIdentityIdentityPermissionsUpdateNotFound GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsUpdateNotFound) godjIdentityIdentityPermissionsUpdateRes() {}
-
-type GodjIdentityIdentityPermissionsUpdatePreconditionFailed GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsUpdatePreconditionFailed) godjIdentityIdentityPermissionsUpdateRes() {
+// GetAction returns the value of Action.
+func (s *GodjIdentityGroupsHistoryOKItem) GetAction() string {
+	return s.Action
 }
 
-type GodjIdentityIdentityPermissionsUpdatePreconditionRequired GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsUpdatePreconditionRequired) godjIdentityIdentityPermissionsUpdateRes() {
+// GetChangedFields returns the value of ChangedFields.
+func (s *GodjIdentityGroupsHistoryOKItem) GetChangedFields() []string {
+	return s.ChangedFields
 }
 
-type GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsUpdateRequestEntityTooLarge) godjIdentityIdentityPermissionsUpdateRes() {
+// GetAt returns the value of At.
+func (s *GodjIdentityGroupsHistoryOKItem) GetAt() time.Time {
+	return s.At
 }
 
-type GodjIdentityIdentityPermissionsUpdateServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsUpdateServiceUnavailable) godjIdentityIdentityPermissionsUpdateRes() {
+// SetSequence sets the value of Sequence.
+func (s *GodjIdentityGroupsHistoryOKItem) SetSequence(val int64) {
+	s.Sequence = val
 }
 
-type GodjIdentityIdentityPermissionsUpdateUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityPermissionsUpdateUnauthorized) godjIdentityIdentityPermissionsUpdateRes() {
+// SetAction sets the value of Action.
+func (s *GodjIdentityGroupsHistoryOKItem) SetAction(val string) {
+	s.Action = val
 }
 
-type GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType GoDjAPIError
-
-func (*GodjIdentityIdentityPermissionsUpdateUnsupportedMediaType) godjIdentityIdentityPermissionsUpdateRes() {
+// SetChangedFields sets the value of ChangedFields.
+func (s *GodjIdentityGroupsHistoryOKItem) SetChangedFields(val []string) {
+	s.ChangedFields = val
 }
 
-type GodjIdentityIdentityUsersCreateBadRequest GoDjAPIErrorHeaders
+// SetAt sets the value of At.
+func (s *GodjIdentityGroupsHistoryOKItem) SetAt(val time.Time) {
+	s.At = val
+}
 
-func (*GodjIdentityIdentityUsersCreateBadRequest) godjIdentityIdentityUsersCreateRes() {}
+type GodjIdentityGroupsHistoryUnauthorized GoDjAPIErrorHeaders
 
-type GodjIdentityIdentityUsersCreateForbidden GoDjAPIErrorHeaders
+func (*GodjIdentityGroupsHistoryUnauthorized) godjIdentityGroupsHistoryRes() {}
 
-func (*GodjIdentityIdentityUsersCreateForbidden) godjIdentityIdentityUsersCreateRes() {}
+type GodjIdentityGroupsListBadRequest GoDjAPIErrorHeaders
 
-type GodjIdentityIdentityUsersCreateInternalServerError struct {
+func (*GodjIdentityGroupsListBadRequest) godjIdentityGroupsListRes() {}
+
+type GodjIdentityGroupsListForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsListForbidden) godjIdentityGroupsListRes() {}
+
+type GodjIdentityGroupsListInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityUsersCreateInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityGroupsListInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityUsersCreateInternalServerError) godjIdentityIdentityUsersCreateRes() {}
+func (*GodjIdentityGroupsListInternalServerError) godjIdentityGroupsListRes() {}
 
-type GodjIdentityIdentityUsersCreateNotAcceptable GoDjAPIError
+type GodjIdentityGroupsListUnauthorized GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityUsersCreateNotAcceptable) godjIdentityIdentityUsersCreateRes() {}
+func (*GodjIdentityGroupsListUnauthorized) godjIdentityGroupsListRes() {}
 
-type GodjIdentityIdentityUsersCreateNotFound GoDjAPIError
+type GodjIdentityGroupsPatchBadRequest GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityUsersCreateNotFound) godjIdentityIdentityUsersCreateRes() {}
+func (*GodjIdentityGroupsPatchBadRequest) godjIdentityGroupsPatchRes() {}
 
-type GodjIdentityIdentityUsersCreateRequestEntityTooLarge GoDjAPIError
+type GodjIdentityGroupsPatchForbidden GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityUsersCreateRequestEntityTooLarge) godjIdentityIdentityUsersCreateRes() {}
+func (*GodjIdentityGroupsPatchForbidden) godjIdentityGroupsPatchRes() {}
 
-type GodjIdentityIdentityUsersCreateServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityUsersCreateServiceUnavailable) godjIdentityIdentityUsersCreateRes() {}
-
-type GodjIdentityIdentityUsersCreateUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityUsersCreateUnauthorized) godjIdentityIdentityUsersCreateRes() {}
-
-type GodjIdentityIdentityUsersCreateUnsupportedMediaType GoDjAPIError
-
-func (*GodjIdentityIdentityUsersCreateUnsupportedMediaType) godjIdentityIdentityUsersCreateRes() {}
-
-type GodjIdentityIdentityUsersDeleteBadRequest GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityUsersDeleteBadRequest) godjIdentityIdentityUsersDeleteRes() {}
-
-type GodjIdentityIdentityUsersDeleteForbidden GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityUsersDeleteForbidden) godjIdentityIdentityUsersDeleteRes() {}
-
-type GodjIdentityIdentityUsersDeleteInternalServerError struct {
+type GodjIdentityGroupsPatchInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityUsersDeleteInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityGroupsPatchInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityUsersDeleteInternalServerError) godjIdentityIdentityUsersDeleteRes() {}
+func (*GodjIdentityGroupsPatchInternalServerError) godjIdentityGroupsPatchRes() {}
 
-// GodjIdentityIdentityUsersDeleteNoContent is response for GodjIdentityIdentityUsersDelete operation.
-type GodjIdentityIdentityUsersDeleteNoContent struct{}
+type GodjIdentityGroupsPatchNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityUsersDeleteNoContent) godjIdentityIdentityUsersDeleteRes() {}
+func (*GodjIdentityGroupsPatchNotAcceptable) godjIdentityGroupsPatchRes() {}
 
-type GodjIdentityIdentityUsersDeleteNotAcceptable GoDjAPIError
+type GodjIdentityGroupsPatchNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityUsersDeleteNotAcceptable) godjIdentityIdentityUsersDeleteRes() {}
+func (*GodjIdentityGroupsPatchNotFound) godjIdentityGroupsPatchRes() {}
 
-type GodjIdentityIdentityUsersDeleteNotFound GoDjAPIError
+type GodjIdentityGroupsPatchOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
 
-func (*GodjIdentityIdentityUsersDeleteNotFound) godjIdentityIdentityUsersDeleteRes() {}
+// GetID returns the value of ID.
+func (s *GodjIdentityGroupsPatchOK) GetID() int64 {
+	return s.ID
+}
 
-type GodjIdentityIdentityUsersDeletePreconditionFailed GoDjAPIError
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsPatchOK) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityUsersDeletePreconditionFailed) godjIdentityIdentityUsersDeleteRes() {}
+// SetID sets the value of ID.
+func (s *GodjIdentityGroupsPatchOK) SetID(val int64) {
+	s.ID = val
+}
 
-type GodjIdentityIdentityUsersDeletePreconditionRequired GoDjAPIError
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsPatchOK) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityUsersDeletePreconditionRequired) godjIdentityIdentityUsersDeleteRes() {}
+// GodjIdentityGroupsPatchOKHeaders wraps GodjIdentityGroupsPatchOK with response headers.
+type GodjIdentityGroupsPatchOKHeaders struct {
+	Revision int64
+	Response GodjIdentityGroupsPatchOK
+}
 
-type GodjIdentityIdentityUsersDeleteServiceUnavailable GoDjAPIError
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsPatchOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityUsersDeleteServiceUnavailable) godjIdentityIdentityUsersDeleteRes() {}
+// GetResponse returns the value of Response.
+func (s *GodjIdentityGroupsPatchOKHeaders) GetResponse() GodjIdentityGroupsPatchOK {
+	return s.Response
+}
 
-type GodjIdentityIdentityUsersDeleteUnauthorized GoDjAPIErrorHeaders
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsPatchOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityUsersDeleteUnauthorized) godjIdentityIdentityUsersDeleteRes() {}
+// SetResponse sets the value of Response.
+func (s *GodjIdentityGroupsPatchOKHeaders) SetResponse(val GodjIdentityGroupsPatchOK) {
+	s.Response = val
+}
 
-type GodjIdentityIdentityUsersDetailBadRequest GoDjAPIErrorHeaders
+func (*GodjIdentityGroupsPatchOKHeaders) godjIdentityGroupsPatchRes() {}
 
-func (*GodjIdentityIdentityUsersDetailBadRequest) godjIdentityIdentityUsersDetailRes() {}
+type GodjIdentityGroupsPatchPreconditionFailed GoDjAPIError
 
-type GodjIdentityIdentityUsersDetailForbidden GoDjAPIErrorHeaders
+func (*GodjIdentityGroupsPatchPreconditionFailed) godjIdentityGroupsPatchRes() {}
 
-func (*GodjIdentityIdentityUsersDetailForbidden) godjIdentityIdentityUsersDetailRes() {}
+type GodjIdentityGroupsPatchPreconditionRequired GoDjAPIError
 
-type GodjIdentityIdentityUsersDetailInternalServerError struct {
+func (*GodjIdentityGroupsPatchPreconditionRequired) godjIdentityGroupsPatchRes() {}
+
+type GodjIdentityGroupsPatchRequestEntityTooLarge GoDjAPIError
+
+func (*GodjIdentityGroupsPatchRequestEntityTooLarge) godjIdentityGroupsPatchRes() {}
+
+type GodjIdentityGroupsPatchServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityGroupsPatchServiceUnavailable) godjIdentityGroupsPatchRes() {}
+
+type GodjIdentityGroupsPatchUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsPatchUnauthorized) godjIdentityGroupsPatchRes() {}
+
+type GodjIdentityGroupsPatchUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityGroupsPatchUnsupportedMediaType) godjIdentityGroupsPatchRes() {}
+
+type GodjIdentityGroupsPutBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsPutBadRequest) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsPutForbidden) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityUsersDetailInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityGroupsPutInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityUsersDetailInternalServerError) godjIdentityIdentityUsersDetailRes() {}
+func (*GodjIdentityGroupsPutInternalServerError) godjIdentityGroupsPutRes() {}
 
-type GodjIdentityIdentityUsersDetailNotAcceptable GoDjAPIError
+type GodjIdentityGroupsPutNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityUsersDetailNotAcceptable) godjIdentityIdentityUsersDetailRes() {}
+func (*GodjIdentityGroupsPutNotAcceptable) godjIdentityGroupsPutRes() {}
 
-type GodjIdentityIdentityUsersDetailNotFound GoDjAPIError
+type GodjIdentityGroupsPutNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityUsersDetailNotFound) godjIdentityIdentityUsersDetailRes() {}
+func (*GodjIdentityGroupsPutNotFound) godjIdentityGroupsPutRes() {}
 
-type GodjIdentityIdentityUsersDetailUnauthorized GoDjAPIErrorHeaders
+type GodjIdentityGroupsPutOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
 
-func (*GodjIdentityIdentityUsersDetailUnauthorized) godjIdentityIdentityUsersDetailRes() {}
+// GetID returns the value of ID.
+func (s *GodjIdentityGroupsPutOK) GetID() int64 {
+	return s.ID
+}
 
-type GodjIdentityIdentityUsersListBadRequest GoDjAPIErrorHeaders
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsPutOK) GetRevision() int64 {
+	return s.Revision
+}
 
-func (*GodjIdentityIdentityUsersListBadRequest) godjIdentityIdentityUsersListRes() {}
+// SetID sets the value of ID.
+func (s *GodjIdentityGroupsPutOK) SetID(val int64) {
+	s.ID = val
+}
 
-type GodjIdentityIdentityUsersListForbidden GoDjAPIErrorHeaders
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsPutOK) SetRevision(val int64) {
+	s.Revision = val
+}
 
-func (*GodjIdentityIdentityUsersListForbidden) godjIdentityIdentityUsersListRes() {}
+// GodjIdentityGroupsPutOKHeaders wraps GodjIdentityGroupsPutOK with response headers.
+type GodjIdentityGroupsPutOKHeaders struct {
+	Revision int64
+	Response GodjIdentityGroupsPutOK
+}
 
-type GodjIdentityIdentityUsersListInternalServerError struct {
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityGroupsPutOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetResponse returns the value of Response.
+func (s *GodjIdentityGroupsPutOKHeaders) GetResponse() GodjIdentityGroupsPutOK {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityGroupsPutOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityGroupsPutOKHeaders) SetResponse(val GodjIdentityGroupsPutOK) {
+	s.Response = val
+}
+
+func (*GodjIdentityGroupsPutOKHeaders) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutPreconditionFailed GoDjAPIError
+
+func (*GodjIdentityGroupsPutPreconditionFailed) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutPreconditionRequired GoDjAPIError
+
+func (*GodjIdentityGroupsPutPreconditionRequired) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutRequestEntityTooLarge GoDjAPIError
+
+func (*GodjIdentityGroupsPutRequestEntityTooLarge) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityGroupsPutServiceUnavailable) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityGroupsPutUnauthorized) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityGroupsPutUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityGroupsPutUnsupportedMediaType) godjIdentityGroupsPutRes() {}
+
+type GodjIdentityPermissionsCreateBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsCreateBadRequest) godjIdentityPermissionsCreateRes() {}
+
+type GodjIdentityPermissionsCreateCreated struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
+
+// GetID returns the value of ID.
+func (s *GodjIdentityPermissionsCreateCreated) GetID() int64 {
+	return s.ID
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsCreateCreated) GetRevision() int64 {
+	return s.Revision
+}
+
+// SetID sets the value of ID.
+func (s *GodjIdentityPermissionsCreateCreated) SetID(val int64) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsCreateCreated) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// GodjIdentityPermissionsCreateCreatedHeaders wraps GodjIdentityPermissionsCreateCreated with response headers.
+type GodjIdentityPermissionsCreateCreatedHeaders struct {
+	Revision int64
+	Response GodjIdentityPermissionsCreateCreated
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsCreateCreatedHeaders) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetResponse returns the value of Response.
+func (s *GodjIdentityPermissionsCreateCreatedHeaders) GetResponse() GodjIdentityPermissionsCreateCreated {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsCreateCreatedHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityPermissionsCreateCreatedHeaders) SetResponse(val GodjIdentityPermissionsCreateCreated) {
+	s.Response = val
+}
+
+func (*GodjIdentityPermissionsCreateCreatedHeaders) godjIdentityPermissionsCreateRes() {}
+
+type GodjIdentityPermissionsCreateForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsCreateForbidden) godjIdentityPermissionsCreateRes() {}
+
+type GodjIdentityPermissionsCreateInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityUsersListInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityPermissionsCreateInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityUsersListInternalServerError) godjIdentityIdentityUsersListRes() {}
+func (*GodjIdentityPermissionsCreateInternalServerError) godjIdentityPermissionsCreateRes() {}
 
-type GodjIdentityIdentityUsersListUnauthorized GoDjAPIErrorHeaders
+type GodjIdentityPermissionsCreateNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityUsersListUnauthorized) godjIdentityIdentityUsersListRes() {}
+func (*GodjIdentityPermissionsCreateNotAcceptable) godjIdentityPermissionsCreateRes() {}
 
-type GodjIdentityIdentityUsersPasswordBadRequest GoDjAPIErrorHeaders
+type GodjIdentityPermissionsCreatePreconditionFailed GoDjAPIError
 
-func (*GodjIdentityIdentityUsersPasswordBadRequest) godjIdentityIdentityUsersPasswordRes() {}
+func (*GodjIdentityPermissionsCreatePreconditionFailed) godjIdentityPermissionsCreateRes() {}
 
-type GodjIdentityIdentityUsersPasswordForbidden GoDjAPIErrorHeaders
+type GodjIdentityPermissionsCreateRequestEntityTooLarge GoDjAPIError
 
-func (*GodjIdentityIdentityUsersPasswordForbidden) godjIdentityIdentityUsersPasswordRes() {}
+func (*GodjIdentityPermissionsCreateRequestEntityTooLarge) godjIdentityPermissionsCreateRes() {}
 
-type GodjIdentityIdentityUsersPasswordInternalServerError struct {
+type GodjIdentityPermissionsCreateServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityPermissionsCreateServiceUnavailable) godjIdentityPermissionsCreateRes() {}
+
+type GodjIdentityPermissionsCreateUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsCreateUnauthorized) godjIdentityPermissionsCreateRes() {}
+
+type GodjIdentityPermissionsCreateUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityPermissionsCreateUnsupportedMediaType) godjIdentityPermissionsCreateRes() {}
+
+type GodjIdentityPermissionsDeleteBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsDeleteBadRequest) godjIdentityPermissionsDeleteRes() {}
+
+type GodjIdentityPermissionsDeleteForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsDeleteForbidden) godjIdentityPermissionsDeleteRes() {}
+
+type GodjIdentityPermissionsDeleteInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityUsersPasswordInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityPermissionsDeleteInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityUsersPasswordInternalServerError) godjIdentityIdentityUsersPasswordRes() {}
+func (*GodjIdentityPermissionsDeleteInternalServerError) godjIdentityPermissionsDeleteRes() {}
 
-type GodjIdentityIdentityUsersPasswordNotAcceptable GoDjAPIError
+type GodjIdentityPermissionsDeleteNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityUsersPasswordNotAcceptable) godjIdentityIdentityUsersPasswordRes() {}
+func (*GodjIdentityPermissionsDeleteNotAcceptable) godjIdentityPermissionsDeleteRes() {}
 
-type GodjIdentityIdentityUsersPasswordNotFound GoDjAPIError
+type GodjIdentityPermissionsDeleteNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityUsersPasswordNotFound) godjIdentityIdentityUsersPasswordRes() {}
+func (*GodjIdentityPermissionsDeleteNotFound) godjIdentityPermissionsDeleteRes() {}
 
-type GodjIdentityIdentityUsersPasswordPreconditionFailed GoDjAPIError
-
-func (*GodjIdentityIdentityUsersPasswordPreconditionFailed) godjIdentityIdentityUsersPasswordRes() {}
-
-type GodjIdentityIdentityUsersPasswordPreconditionRequired GoDjAPIError
-
-func (*GodjIdentityIdentityUsersPasswordPreconditionRequired) godjIdentityIdentityUsersPasswordRes() {
+type GodjIdentityPermissionsDeleteOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
 }
 
-type GodjIdentityIdentityUsersPasswordRequestEntityTooLarge GoDjAPIError
-
-func (*GodjIdentityIdentityUsersPasswordRequestEntityTooLarge) godjIdentityIdentityUsersPasswordRes() {
+// GetID returns the value of ID.
+func (s *GodjIdentityPermissionsDeleteOK) GetID() int64 {
+	return s.ID
 }
 
-type GodjIdentityIdentityUsersPasswordServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityUsersPasswordServiceUnavailable) godjIdentityIdentityUsersPasswordRes() {}
-
-type GodjIdentityIdentityUsersPasswordUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityUsersPasswordUnauthorized) godjIdentityIdentityUsersPasswordRes() {}
-
-type GodjIdentityIdentityUsersPasswordUnsupportedMediaType GoDjAPIError
-
-func (*GodjIdentityIdentityUsersPasswordUnsupportedMediaType) godjIdentityIdentityUsersPasswordRes() {
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsDeleteOK) GetRevision() int64 {
+	return s.Revision
 }
 
-type GodjIdentityIdentityUsersPatchBadRequest GoDjAPIErrorHeaders
+// SetID sets the value of ID.
+func (s *GodjIdentityPermissionsDeleteOK) SetID(val int64) {
+	s.ID = val
+}
 
-func (*GodjIdentityIdentityUsersPatchBadRequest) godjIdentityIdentityUsersPatchRes() {}
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsDeleteOK) SetRevision(val int64) {
+	s.Revision = val
+}
 
-type GodjIdentityIdentityUsersPatchForbidden GoDjAPIErrorHeaders
+// GodjIdentityPermissionsDeleteOKHeaders wraps GodjIdentityPermissionsDeleteOK with response headers.
+type GodjIdentityPermissionsDeleteOKHeaders struct {
+	Revision int64
+	Response GodjIdentityPermissionsDeleteOK
+}
 
-func (*GodjIdentityIdentityUsersPatchForbidden) godjIdentityIdentityUsersPatchRes() {}
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsDeleteOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
 
-type GodjIdentityIdentityUsersPatchInternalServerError struct {
+// GetResponse returns the value of Response.
+func (s *GodjIdentityPermissionsDeleteOKHeaders) GetResponse() GodjIdentityPermissionsDeleteOK {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsDeleteOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityPermissionsDeleteOKHeaders) SetResponse(val GodjIdentityPermissionsDeleteOK) {
+	s.Response = val
+}
+
+func (*GodjIdentityPermissionsDeleteOKHeaders) godjIdentityPermissionsDeleteRes() {}
+
+type GodjIdentityPermissionsDeletePreconditionFailed GoDjAPIError
+
+func (*GodjIdentityPermissionsDeletePreconditionFailed) godjIdentityPermissionsDeleteRes() {}
+
+type GodjIdentityPermissionsDeletePreconditionRequired GoDjAPIError
+
+func (*GodjIdentityPermissionsDeletePreconditionRequired) godjIdentityPermissionsDeleteRes() {}
+
+type GodjIdentityPermissionsDeleteServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityPermissionsDeleteServiceUnavailable) godjIdentityPermissionsDeleteRes() {}
+
+type GodjIdentityPermissionsDeleteUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsDeleteUnauthorized) godjIdentityPermissionsDeleteRes() {}
+
+type GodjIdentityPermissionsDetailBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsDetailBadRequest) godjIdentityPermissionsDetailRes() {}
+
+type GodjIdentityPermissionsDetailForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsDetailForbidden) godjIdentityPermissionsDetailRes() {}
+
+type GodjIdentityPermissionsDetailInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityUsersPatchInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityPermissionsDetailInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityUsersPatchInternalServerError) godjIdentityIdentityUsersPatchRes() {}
+func (*GodjIdentityPermissionsDetailInternalServerError) godjIdentityPermissionsDetailRes() {}
 
-type GodjIdentityIdentityUsersPatchNotAcceptable GoDjAPIError
+type GodjIdentityPermissionsDetailNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityUsersPatchNotAcceptable) godjIdentityIdentityUsersPatchRes() {}
+func (*GodjIdentityPermissionsDetailNotAcceptable) godjIdentityPermissionsDetailRes() {}
 
-type GodjIdentityIdentityUsersPatchNotFound GoDjAPIError
+type GodjIdentityPermissionsDetailNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityUsersPatchNotFound) godjIdentityIdentityUsersPatchRes() {}
+func (*GodjIdentityPermissionsDetailNotFound) godjIdentityPermissionsDetailRes() {}
 
-type GodjIdentityIdentityUsersPatchPreconditionFailed GoDjAPIError
+type GodjIdentityPermissionsDetailUnauthorized GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityUsersPatchPreconditionFailed) godjIdentityIdentityUsersPatchRes() {}
+func (*GodjIdentityPermissionsDetailUnauthorized) godjIdentityPermissionsDetailRes() {}
 
-type GodjIdentityIdentityUsersPatchPreconditionRequired GoDjAPIError
+type GodjIdentityPermissionsHistoryBadRequest GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityUsersPatchPreconditionRequired) godjIdentityIdentityUsersPatchRes() {}
+func (*GodjIdentityPermissionsHistoryBadRequest) godjIdentityPermissionsHistoryRes() {}
 
-type GodjIdentityIdentityUsersPatchRequestEntityTooLarge GoDjAPIError
+type GodjIdentityPermissionsHistoryForbidden GoDjAPIErrorHeaders
 
-func (*GodjIdentityIdentityUsersPatchRequestEntityTooLarge) godjIdentityIdentityUsersPatchRes() {}
+func (*GodjIdentityPermissionsHistoryForbidden) godjIdentityPermissionsHistoryRes() {}
 
-type GodjIdentityIdentityUsersPatchServiceUnavailable GoDjAPIError
-
-func (*GodjIdentityIdentityUsersPatchServiceUnavailable) godjIdentityIdentityUsersPatchRes() {}
-
-type GodjIdentityIdentityUsersPatchUnauthorized GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityUsersPatchUnauthorized) godjIdentityIdentityUsersPatchRes() {}
-
-type GodjIdentityIdentityUsersPatchUnsupportedMediaType GoDjAPIError
-
-func (*GodjIdentityIdentityUsersPatchUnsupportedMediaType) godjIdentityIdentityUsersPatchRes() {}
-
-type GodjIdentityIdentityUsersUpdateBadRequest GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityUsersUpdateBadRequest) godjIdentityIdentityUsersUpdateRes() {}
-
-type GodjIdentityIdentityUsersUpdateForbidden GoDjAPIErrorHeaders
-
-func (*GodjIdentityIdentityUsersUpdateForbidden) godjIdentityIdentityUsersUpdateRes() {}
-
-type GodjIdentityIdentityUsersUpdateInternalServerError struct {
+type GodjIdentityPermissionsHistoryInternalServerError struct {
 	Data io.Reader
 }
 
 // Read reads data from the Data reader.
 //
 // Kept to satisfy the io.Reader interface.
-func (s GodjIdentityIdentityUsersUpdateInternalServerError) Read(p []byte) (n int, err error) {
+func (s GodjIdentityPermissionsHistoryInternalServerError) Read(p []byte) (n int, err error) {
 	if s.Data == nil {
 		return 0, io.EOF
 	}
 	return s.Data.Read(p)
 }
 
-func (*GodjIdentityIdentityUsersUpdateInternalServerError) godjIdentityIdentityUsersUpdateRes() {}
+func (*GodjIdentityPermissionsHistoryInternalServerError) godjIdentityPermissionsHistoryRes() {}
 
-type GodjIdentityIdentityUsersUpdateNotAcceptable GoDjAPIError
+type GodjIdentityPermissionsHistoryNotAcceptable GoDjAPIError
 
-func (*GodjIdentityIdentityUsersUpdateNotAcceptable) godjIdentityIdentityUsersUpdateRes() {}
+func (*GodjIdentityPermissionsHistoryNotAcceptable) godjIdentityPermissionsHistoryRes() {}
 
-type GodjIdentityIdentityUsersUpdateNotFound GoDjAPIError
+type GodjIdentityPermissionsHistoryNotFound GoDjAPIError
 
-func (*GodjIdentityIdentityUsersUpdateNotFound) godjIdentityIdentityUsersUpdateRes() {}
+func (*GodjIdentityPermissionsHistoryNotFound) godjIdentityPermissionsHistoryRes() {}
 
-type GodjIdentityIdentityUsersUpdatePreconditionFailed GoDjAPIError
+type GodjIdentityPermissionsHistoryOKApplicationJSON []GodjIdentityPermissionsHistoryOKItem
 
-func (*GodjIdentityIdentityUsersUpdatePreconditionFailed) godjIdentityIdentityUsersUpdateRes() {}
+func (*GodjIdentityPermissionsHistoryOKApplicationJSON) godjIdentityPermissionsHistoryRes() {}
 
-type GodjIdentityIdentityUsersUpdatePreconditionRequired GoDjAPIError
+type GodjIdentityPermissionsHistoryOKItem struct {
+	Sequence      int64     `json:"sequence"`
+	Action        string    `json:"action"`
+	ChangedFields []string  `json:"changed_fields"`
+	At            time.Time `json:"at"`
+}
 
-func (*GodjIdentityIdentityUsersUpdatePreconditionRequired) godjIdentityIdentityUsersUpdateRes() {}
+// GetSequence returns the value of Sequence.
+func (s *GodjIdentityPermissionsHistoryOKItem) GetSequence() int64 {
+	return s.Sequence
+}
 
-type GodjIdentityIdentityUsersUpdateRequestEntityTooLarge GoDjAPIError
+// GetAction returns the value of Action.
+func (s *GodjIdentityPermissionsHistoryOKItem) GetAction() string {
+	return s.Action
+}
 
-func (*GodjIdentityIdentityUsersUpdateRequestEntityTooLarge) godjIdentityIdentityUsersUpdateRes() {}
+// GetChangedFields returns the value of ChangedFields.
+func (s *GodjIdentityPermissionsHistoryOKItem) GetChangedFields() []string {
+	return s.ChangedFields
+}
 
-type GodjIdentityIdentityUsersUpdateServiceUnavailable GoDjAPIError
+// GetAt returns the value of At.
+func (s *GodjIdentityPermissionsHistoryOKItem) GetAt() time.Time {
+	return s.At
+}
 
-func (*GodjIdentityIdentityUsersUpdateServiceUnavailable) godjIdentityIdentityUsersUpdateRes() {}
+// SetSequence sets the value of Sequence.
+func (s *GodjIdentityPermissionsHistoryOKItem) SetSequence(val int64) {
+	s.Sequence = val
+}
 
-type GodjIdentityIdentityUsersUpdateUnauthorized GoDjAPIErrorHeaders
+// SetAction sets the value of Action.
+func (s *GodjIdentityPermissionsHistoryOKItem) SetAction(val string) {
+	s.Action = val
+}
 
-func (*GodjIdentityIdentityUsersUpdateUnauthorized) godjIdentityIdentityUsersUpdateRes() {}
+// SetChangedFields sets the value of ChangedFields.
+func (s *GodjIdentityPermissionsHistoryOKItem) SetChangedFields(val []string) {
+	s.ChangedFields = val
+}
 
-type GodjIdentityIdentityUsersUpdateUnsupportedMediaType GoDjAPIError
+// SetAt sets the value of At.
+func (s *GodjIdentityPermissionsHistoryOKItem) SetAt(val time.Time) {
+	s.At = val
+}
 
-func (*GodjIdentityIdentityUsersUpdateUnsupportedMediaType) godjIdentityIdentityUsersUpdateRes() {}
+type GodjIdentityPermissionsHistoryUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsHistoryUnauthorized) godjIdentityPermissionsHistoryRes() {}
+
+type GodjIdentityPermissionsListBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsListBadRequest) godjIdentityPermissionsListRes() {}
+
+type GodjIdentityPermissionsListForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsListForbidden) godjIdentityPermissionsListRes() {}
+
+type GodjIdentityPermissionsListInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjIdentityPermissionsListInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjIdentityPermissionsListInternalServerError) godjIdentityPermissionsListRes() {}
+
+type GodjIdentityPermissionsListUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsListUnauthorized) godjIdentityPermissionsListRes() {}
+
+type GodjIdentityPermissionsPatchBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsPatchBadRequest) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsPatchForbidden) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjIdentityPermissionsPatchInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjIdentityPermissionsPatchInternalServerError) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchNotAcceptable GoDjAPIError
+
+func (*GodjIdentityPermissionsPatchNotAcceptable) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchNotFound GoDjAPIError
+
+func (*GodjIdentityPermissionsPatchNotFound) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
+
+// GetID returns the value of ID.
+func (s *GodjIdentityPermissionsPatchOK) GetID() int64 {
+	return s.ID
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsPatchOK) GetRevision() int64 {
+	return s.Revision
+}
+
+// SetID sets the value of ID.
+func (s *GodjIdentityPermissionsPatchOK) SetID(val int64) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsPatchOK) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// GodjIdentityPermissionsPatchOKHeaders wraps GodjIdentityPermissionsPatchOK with response headers.
+type GodjIdentityPermissionsPatchOKHeaders struct {
+	Revision int64
+	Response GodjIdentityPermissionsPatchOK
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsPatchOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetResponse returns the value of Response.
+func (s *GodjIdentityPermissionsPatchOKHeaders) GetResponse() GodjIdentityPermissionsPatchOK {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsPatchOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityPermissionsPatchOKHeaders) SetResponse(val GodjIdentityPermissionsPatchOK) {
+	s.Response = val
+}
+
+func (*GodjIdentityPermissionsPatchOKHeaders) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchPreconditionFailed GoDjAPIError
+
+func (*GodjIdentityPermissionsPatchPreconditionFailed) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchPreconditionRequired GoDjAPIError
+
+func (*GodjIdentityPermissionsPatchPreconditionRequired) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchRequestEntityTooLarge GoDjAPIError
+
+func (*GodjIdentityPermissionsPatchRequestEntityTooLarge) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityPermissionsPatchServiceUnavailable) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsPatchUnauthorized) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPatchUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityPermissionsPatchUnsupportedMediaType) godjIdentityPermissionsPatchRes() {}
+
+type GodjIdentityPermissionsPutBadRequest GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsPutBadRequest) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutForbidden GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsPutForbidden) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutInternalServerError struct {
+	Data io.Reader
+}
+
+// Read reads data from the Data reader.
+//
+// Kept to satisfy the io.Reader interface.
+func (s GodjIdentityPermissionsPutInternalServerError) Read(p []byte) (n int, err error) {
+	if s.Data == nil {
+		return 0, io.EOF
+	}
+	return s.Data.Read(p)
+}
+
+func (*GodjIdentityPermissionsPutInternalServerError) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutNotAcceptable GoDjAPIError
+
+func (*GodjIdentityPermissionsPutNotAcceptable) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutNotFound GoDjAPIError
+
+func (*GodjIdentityPermissionsPutNotFound) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutOK struct {
+	ID       int64 `json:"id"`
+	Revision int64 `json:"revision"`
+}
+
+// GetID returns the value of ID.
+func (s *GodjIdentityPermissionsPutOK) GetID() int64 {
+	return s.ID
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsPutOK) GetRevision() int64 {
+	return s.Revision
+}
+
+// SetID sets the value of ID.
+func (s *GodjIdentityPermissionsPutOK) SetID(val int64) {
+	s.ID = val
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsPutOK) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// GodjIdentityPermissionsPutOKHeaders wraps GodjIdentityPermissionsPutOK with response headers.
+type GodjIdentityPermissionsPutOKHeaders struct {
+	Revision int64
+	Response GodjIdentityPermissionsPutOK
+}
+
+// GetRevision returns the value of Revision.
+func (s *GodjIdentityPermissionsPutOKHeaders) GetRevision() int64 {
+	return s.Revision
+}
+
+// GetResponse returns the value of Response.
+func (s *GodjIdentityPermissionsPutOKHeaders) GetResponse() GodjIdentityPermissionsPutOK {
+	return s.Response
+}
+
+// SetRevision sets the value of Revision.
+func (s *GodjIdentityPermissionsPutOKHeaders) SetRevision(val int64) {
+	s.Revision = val
+}
+
+// SetResponse sets the value of Response.
+func (s *GodjIdentityPermissionsPutOKHeaders) SetResponse(val GodjIdentityPermissionsPutOK) {
+	s.Response = val
+}
+
+func (*GodjIdentityPermissionsPutOKHeaders) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutPreconditionFailed GoDjAPIError
+
+func (*GodjIdentityPermissionsPutPreconditionFailed) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutPreconditionRequired GoDjAPIError
+
+func (*GodjIdentityPermissionsPutPreconditionRequired) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutRequestEntityTooLarge GoDjAPIError
+
+func (*GodjIdentityPermissionsPutRequestEntityTooLarge) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutServiceUnavailable GoDjAPIError
+
+func (*GodjIdentityPermissionsPutServiceUnavailable) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutUnauthorized GoDjAPIErrorHeaders
+
+func (*GodjIdentityPermissionsPutUnauthorized) godjIdentityPermissionsPutRes() {}
+
+type GodjIdentityPermissionsPutUnsupportedMediaType GoDjAPIError
+
+func (*GodjIdentityPermissionsPutUnsupportedMediaType) godjIdentityPermissionsPutRes() {}
 
 // Ref: #/components/schemas/Group
 type Group struct {
-	ID          int64   `json:"id"`
-	Name        string  `json:"name"`
-	Revision    int64   `json:"revision"`
-	Permissions []int64 `json:"permissions"`
+	ID       int64       `json:"id"`
+	Revision int64       `json:"revision"`
+	Fields   GroupFields `json:"fields"`
 }
 
 // GetID returns the value of ID.
@@ -1082,19 +2788,14 @@ func (s *Group) GetID() int64 {
 	return s.ID
 }
 
-// GetName returns the value of Name.
-func (s *Group) GetName() string {
-	return s.Name
-}
-
 // GetRevision returns the value of Revision.
 func (s *Group) GetRevision() int64 {
 	return s.Revision
 }
 
-// GetPermissions returns the value of Permissions.
-func (s *Group) GetPermissions() []int64 {
-	return s.Permissions
+// GetFields returns the value of Fields.
+func (s *Group) GetFields() GroupFields {
+	return s.Fields
 }
 
 // SetID sets the value of ID.
@@ -1102,44 +2803,78 @@ func (s *Group) SetID(val int64) {
 	s.ID = val
 }
 
-// SetName sets the value of Name.
-func (s *Group) SetName(val string) {
-	s.Name = val
-}
-
 // SetRevision sets the value of Revision.
 func (s *Group) SetRevision(val int64) {
 	s.Revision = val
 }
 
-// SetPermissions sets the value of Permissions.
-func (s *Group) SetPermissions(val []int64) {
-	s.Permissions = val
+// SetFields sets the value of Fields.
+func (s *Group) SetFields(val GroupFields) {
+	s.Fields = val
 }
 
 // Ref: #/components/schemas/GroupCreate
 type GroupCreate struct {
+	Fields GroupCreateFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *GroupCreate) GetFields() GroupCreateFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *GroupCreate) SetFields(val GroupCreateFields) {
+	s.Fields = val
+}
+
+type GroupCreateFields struct {
 	Name        string  `json:"name"`
 	Permissions []int64 `json:"permissions"`
 }
 
 // GetName returns the value of Name.
-func (s *GroupCreate) GetName() string {
+func (s *GroupCreateFields) GetName() string {
 	return s.Name
 }
 
 // GetPermissions returns the value of Permissions.
-func (s *GroupCreate) GetPermissions() []int64 {
+func (s *GroupCreateFields) GetPermissions() []int64 {
 	return s.Permissions
 }
 
 // SetName sets the value of Name.
-func (s *GroupCreate) SetName(val string) {
+func (s *GroupCreateFields) SetName(val string) {
 	s.Name = val
 }
 
 // SetPermissions sets the value of Permissions.
-func (s *GroupCreate) SetPermissions(val []int64) {
+func (s *GroupCreateFields) SetPermissions(val []int64) {
+	s.Permissions = val
+}
+
+type GroupFields struct {
+	Name        string  `json:"name"`
+	Permissions []int64 `json:"permissions"`
+}
+
+// GetName returns the value of Name.
+func (s *GroupFields) GetName() string {
+	return s.Name
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *GroupFields) GetPermissions() []int64 {
+	return s.Permissions
+}
+
+// SetName sets the value of Name.
+func (s *GroupFields) SetName(val string) {
+	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *GroupFields) SetPermissions(val []int64) {
 	s.Permissions = val
 }
 
@@ -1169,17 +2904,14 @@ func (s *GroupHeaders) SetResponse(val Group) {
 	s.Response = val
 }
 
-func (*GroupHeaders) godjIdentityIdentityGroupsCreateRes() {}
-func (*GroupHeaders) godjIdentityIdentityGroupsDetailRes() {}
-func (*GroupHeaders) godjIdentityIdentityGroupsPatchRes()  {}
-func (*GroupHeaders) godjIdentityIdentityGroupsUpdateRes() {}
+func (*GroupHeaders) godjIdentityGroupsDetailRes() {}
 
 // Ref: #/components/schemas/GroupPage
 type GroupPage struct {
 	Items  []GroupSummary `json:"items"`
 	Count  int64          `json:"count"`
-	Limit  int64          `json:"limit"`
 	Offset int64          `json:"offset"`
+	Limit  int64          `json:"limit"`
 }
 
 // GetItems returns the value of Items.
@@ -1192,14 +2924,14 @@ func (s *GroupPage) GetCount() int64 {
 	return s.Count
 }
 
-// GetLimit returns the value of Limit.
-func (s *GroupPage) GetLimit() int64 {
-	return s.Limit
-}
-
 // GetOffset returns the value of Offset.
 func (s *GroupPage) GetOffset() int64 {
 	return s.Offset
+}
+
+// GetLimit returns the value of Limit.
+func (s *GroupPage) GetLimit() int64 {
+	return s.Limit
 }
 
 // SetItems sets the value of Items.
@@ -1212,49 +2944,103 @@ func (s *GroupPage) SetCount(val int64) {
 	s.Count = val
 }
 
-// SetLimit sets the value of Limit.
-func (s *GroupPage) SetLimit(val int64) {
-	s.Limit = val
-}
-
 // SetOffset sets the value of Offset.
 func (s *GroupPage) SetOffset(val int64) {
 	s.Offset = val
 }
 
-func (*GroupPage) godjIdentityIdentityGroupsListRes() {}
+// SetLimit sets the value of Limit.
+func (s *GroupPage) SetLimit(val int64) {
+	s.Limit = val
+}
+
+func (*GroupPage) godjIdentityGroupsListRes() {}
 
 // Ref: #/components/schemas/GroupPatch
 type GroupPatch struct {
+	Fields GroupPatchFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *GroupPatch) GetFields() GroupPatchFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *GroupPatch) SetFields(val GroupPatchFields) {
+	s.Fields = val
+}
+
+type GroupPatchFields struct {
 	Name        OptString `json:"name"`
 	Permissions []int64   `json:"permissions"`
 }
 
 // GetName returns the value of Name.
-func (s *GroupPatch) GetName() OptString {
+func (s *GroupPatchFields) GetName() OptString {
 	return s.Name
 }
 
 // GetPermissions returns the value of Permissions.
-func (s *GroupPatch) GetPermissions() []int64 {
+func (s *GroupPatchFields) GetPermissions() []int64 {
 	return s.Permissions
 }
 
 // SetName sets the value of Name.
-func (s *GroupPatch) SetName(val OptString) {
+func (s *GroupPatchFields) SetName(val OptString) {
 	s.Name = val
 }
 
 // SetPermissions sets the value of Permissions.
-func (s *GroupPatch) SetPermissions(val []int64) {
+func (s *GroupPatchFields) SetPermissions(val []int64) {
+	s.Permissions = val
+}
+
+// Ref: #/components/schemas/GroupPut
+type GroupPut struct {
+	Fields GroupPutFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *GroupPut) GetFields() GroupPutFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *GroupPut) SetFields(val GroupPutFields) {
+	s.Fields = val
+}
+
+type GroupPutFields struct {
+	Name        string  `json:"name"`
+	Permissions []int64 `json:"permissions"`
+}
+
+// GetName returns the value of Name.
+func (s *GroupPutFields) GetName() string {
+	return s.Name
+}
+
+// GetPermissions returns the value of Permissions.
+func (s *GroupPutFields) GetPermissions() []int64 {
+	return s.Permissions
+}
+
+// SetName sets the value of Name.
+func (s *GroupPutFields) SetName(val string) {
+	s.Name = val
+}
+
+// SetPermissions sets the value of Permissions.
+func (s *GroupPutFields) SetPermissions(val []int64) {
 	s.Permissions = val
 }
 
 // Ref: #/components/schemas/GroupSummary
 type GroupSummary struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	Revision int64  `json:"revision"`
+	ID       int64              `json:"id"`
+	Revision int64              `json:"revision"`
+	Fields   GroupSummaryFields `json:"fields"`
 }
 
 // GetID returns the value of ID.
@@ -1262,14 +3048,14 @@ func (s *GroupSummary) GetID() int64 {
 	return s.ID
 }
 
-// GetName returns the value of Name.
-func (s *GroupSummary) GetName() string {
-	return s.Name
-}
-
 // GetRevision returns the value of Revision.
 func (s *GroupSummary) GetRevision() int64 {
 	return s.Revision
+}
+
+// GetFields returns the value of Fields.
+func (s *GroupSummary) GetFields() GroupSummaryFields {
+	return s.Fields
 }
 
 // SetID sets the value of ID.
@@ -1277,40 +3063,28 @@ func (s *GroupSummary) SetID(val int64) {
 	s.ID = val
 }
 
-// SetName sets the value of Name.
-func (s *GroupSummary) SetName(val string) {
-	s.Name = val
-}
-
 // SetRevision sets the value of Revision.
 func (s *GroupSummary) SetRevision(val int64) {
 	s.Revision = val
 }
 
-// Ref: #/components/schemas/GroupUpdate
-type GroupUpdate struct {
-	Name        string  `json:"name"`
-	Permissions []int64 `json:"permissions"`
+// SetFields sets the value of Fields.
+func (s *GroupSummary) SetFields(val GroupSummaryFields) {
+	s.Fields = val
+}
+
+type GroupSummaryFields struct {
+	Name string `json:"name"`
 }
 
 // GetName returns the value of Name.
-func (s *GroupUpdate) GetName() string {
+func (s *GroupSummaryFields) GetName() string {
 	return s.Name
 }
 
-// GetPermissions returns the value of Permissions.
-func (s *GroupUpdate) GetPermissions() []int64 {
-	return s.Permissions
-}
-
 // SetName sets the value of Name.
-func (s *GroupUpdate) SetName(val string) {
+func (s *GroupSummaryFields) SetName(val string) {
 	s.Name = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *GroupUpdate) SetPermissions(val []int64) {
-	s.Permissions = val
 }
 
 // NewNilDateTime returns new NilDateTime with value set to v.
@@ -1541,27 +3315,11 @@ func (o OptString) Or(d string) string {
 	return d
 }
 
-// Ref: #/components/schemas/PasswordReplacement
-type PasswordReplacement struct {
-	Password NilString `json:"password"`
-}
-
-// GetPassword returns the value of Password.
-func (s *PasswordReplacement) GetPassword() NilString {
-	return s.Password
-}
-
-// SetPassword sets the value of Password.
-func (s *PasswordReplacement) SetPassword(val NilString) {
-	s.Password = val
-}
-
 // Ref: #/components/schemas/Permission
 type Permission struct {
-	ID       int64  `json:"id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Revision int64  `json:"revision"`
+	ID       int64            `json:"id"`
+	Revision int64            `json:"revision"`
+	Fields   PermissionFields `json:"fields"`
 }
 
 // GetID returns the value of ID.
@@ -1569,19 +3327,14 @@ func (s *Permission) GetID() int64 {
 	return s.ID
 }
 
-// GetCode returns the value of Code.
-func (s *Permission) GetCode() string {
-	return s.Code
-}
-
-// GetName returns the value of Name.
-func (s *Permission) GetName() string {
-	return s.Name
-}
-
 // GetRevision returns the value of Revision.
 func (s *Permission) GetRevision() int64 {
 	return s.Revision
+}
+
+// GetFields returns the value of Fields.
+func (s *Permission) GetFields() PermissionFields {
+	return s.Fields
 }
 
 // SetID sets the value of ID.
@@ -1589,44 +3342,78 @@ func (s *Permission) SetID(val int64) {
 	s.ID = val
 }
 
-// SetCode sets the value of Code.
-func (s *Permission) SetCode(val string) {
-	s.Code = val
-}
-
-// SetName sets the value of Name.
-func (s *Permission) SetName(val string) {
-	s.Name = val
-}
-
 // SetRevision sets the value of Revision.
 func (s *Permission) SetRevision(val int64) {
 	s.Revision = val
 }
 
+// SetFields sets the value of Fields.
+func (s *Permission) SetFields(val PermissionFields) {
+	s.Fields = val
+}
+
 // Ref: #/components/schemas/PermissionCreate
 type PermissionCreate struct {
+	Fields PermissionCreateFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *PermissionCreate) GetFields() PermissionCreateFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *PermissionCreate) SetFields(val PermissionCreateFields) {
+	s.Fields = val
+}
+
+type PermissionCreateFields struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
 }
 
 // GetCode returns the value of Code.
-func (s *PermissionCreate) GetCode() string {
+func (s *PermissionCreateFields) GetCode() string {
 	return s.Code
 }
 
 // GetName returns the value of Name.
-func (s *PermissionCreate) GetName() string {
+func (s *PermissionCreateFields) GetName() string {
 	return s.Name
 }
 
 // SetCode sets the value of Code.
-func (s *PermissionCreate) SetCode(val string) {
+func (s *PermissionCreateFields) SetCode(val string) {
 	s.Code = val
 }
 
 // SetName sets the value of Name.
-func (s *PermissionCreate) SetName(val string) {
+func (s *PermissionCreateFields) SetName(val string) {
+	s.Name = val
+}
+
+type PermissionFields struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// GetCode returns the value of Code.
+func (s *PermissionFields) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *PermissionFields) GetName() string {
+	return s.Name
+}
+
+// SetCode sets the value of Code.
+func (s *PermissionFields) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *PermissionFields) SetName(val string) {
 	s.Name = val
 }
 
@@ -1656,17 +3443,14 @@ func (s *PermissionHeaders) SetResponse(val Permission) {
 	s.Response = val
 }
 
-func (*PermissionHeaders) godjIdentityIdentityPermissionsCreateRes() {}
-func (*PermissionHeaders) godjIdentityIdentityPermissionsDetailRes() {}
-func (*PermissionHeaders) godjIdentityIdentityPermissionsPatchRes()  {}
-func (*PermissionHeaders) godjIdentityIdentityPermissionsUpdateRes() {}
+func (*PermissionHeaders) godjIdentityPermissionsDetailRes() {}
 
 // Ref: #/components/schemas/PermissionPage
 type PermissionPage struct {
 	Items  []PermissionSummary `json:"items"`
 	Count  int64               `json:"count"`
-	Limit  int64               `json:"limit"`
 	Offset int64               `json:"offset"`
+	Limit  int64               `json:"limit"`
 }
 
 // GetItems returns the value of Items.
@@ -1679,14 +3463,14 @@ func (s *PermissionPage) GetCount() int64 {
 	return s.Count
 }
 
-// GetLimit returns the value of Limit.
-func (s *PermissionPage) GetLimit() int64 {
-	return s.Limit
-}
-
 // GetOffset returns the value of Offset.
 func (s *PermissionPage) GetOffset() int64 {
 	return s.Offset
+}
+
+// GetLimit returns the value of Limit.
+func (s *PermissionPage) GetLimit() int64 {
+	return s.Limit
 }
 
 // SetItems sets the value of Items.
@@ -1699,50 +3483,103 @@ func (s *PermissionPage) SetCount(val int64) {
 	s.Count = val
 }
 
-// SetLimit sets the value of Limit.
-func (s *PermissionPage) SetLimit(val int64) {
-	s.Limit = val
-}
-
 // SetOffset sets the value of Offset.
 func (s *PermissionPage) SetOffset(val int64) {
 	s.Offset = val
 }
 
-func (*PermissionPage) godjIdentityIdentityPermissionsListRes() {}
+// SetLimit sets the value of Limit.
+func (s *PermissionPage) SetLimit(val int64) {
+	s.Limit = val
+}
+
+func (*PermissionPage) godjIdentityPermissionsListRes() {}
 
 // Ref: #/components/schemas/PermissionPatch
 type PermissionPatch struct {
+	Fields PermissionPatchFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *PermissionPatch) GetFields() PermissionPatchFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *PermissionPatch) SetFields(val PermissionPatchFields) {
+	s.Fields = val
+}
+
+type PermissionPatchFields struct {
 	Code OptString `json:"code"`
 	Name OptString `json:"name"`
 }
 
 // GetCode returns the value of Code.
-func (s *PermissionPatch) GetCode() OptString {
+func (s *PermissionPatchFields) GetCode() OptString {
 	return s.Code
 }
 
 // GetName returns the value of Name.
-func (s *PermissionPatch) GetName() OptString {
+func (s *PermissionPatchFields) GetName() OptString {
 	return s.Name
 }
 
 // SetCode sets the value of Code.
-func (s *PermissionPatch) SetCode(val OptString) {
+func (s *PermissionPatchFields) SetCode(val OptString) {
 	s.Code = val
 }
 
 // SetName sets the value of Name.
-func (s *PermissionPatch) SetName(val OptString) {
+func (s *PermissionPatchFields) SetName(val OptString) {
+	s.Name = val
+}
+
+// Ref: #/components/schemas/PermissionPut
+type PermissionPut struct {
+	Fields PermissionPutFields `json:"fields"`
+}
+
+// GetFields returns the value of Fields.
+func (s *PermissionPut) GetFields() PermissionPutFields {
+	return s.Fields
+}
+
+// SetFields sets the value of Fields.
+func (s *PermissionPut) SetFields(val PermissionPutFields) {
+	s.Fields = val
+}
+
+type PermissionPutFields struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// GetCode returns the value of Code.
+func (s *PermissionPutFields) GetCode() string {
+	return s.Code
+}
+
+// GetName returns the value of Name.
+func (s *PermissionPutFields) GetName() string {
+	return s.Name
+}
+
+// SetCode sets the value of Code.
+func (s *PermissionPutFields) SetCode(val string) {
+	s.Code = val
+}
+
+// SetName sets the value of Name.
+func (s *PermissionPutFields) SetName(val string) {
 	s.Name = val
 }
 
 // Ref: #/components/schemas/PermissionSummary
 type PermissionSummary struct {
-	ID       int64  `json:"id"`
-	Code     string `json:"code"`
-	Name     string `json:"name"`
-	Revision int64  `json:"revision"`
+	ID       int64                   `json:"id"`
+	Revision int64                   `json:"revision"`
+	Fields   PermissionSummaryFields `json:"fields"`
 }
 
 // GetID returns the value of ID.
@@ -1750,19 +3587,14 @@ func (s *PermissionSummary) GetID() int64 {
 	return s.ID
 }
 
-// GetCode returns the value of Code.
-func (s *PermissionSummary) GetCode() string {
-	return s.Code
-}
-
-// GetName returns the value of Name.
-func (s *PermissionSummary) GetName() string {
-	return s.Name
-}
-
 // GetRevision returns the value of Revision.
 func (s *PermissionSummary) GetRevision() int64 {
 	return s.Revision
+}
+
+// GetFields returns the value of Fields.
+func (s *PermissionSummary) GetFields() PermissionSummaryFields {
+	return s.Fields
 }
 
 // SetID sets the value of ID.
@@ -1770,766 +3602,37 @@ func (s *PermissionSummary) SetID(val int64) {
 	s.ID = val
 }
 
-// SetCode sets the value of Code.
-func (s *PermissionSummary) SetCode(val string) {
-	s.Code = val
-}
-
-// SetName sets the value of Name.
-func (s *PermissionSummary) SetName(val string) {
-	s.Name = val
-}
-
 // SetRevision sets the value of Revision.
 func (s *PermissionSummary) SetRevision(val int64) {
 	s.Revision = val
 }
 
-// Ref: #/components/schemas/PermissionUpdate
-type PermissionUpdate struct {
+// SetFields sets the value of Fields.
+func (s *PermissionSummary) SetFields(val PermissionSummaryFields) {
+	s.Fields = val
+}
+
+type PermissionSummaryFields struct {
 	Code string `json:"code"`
 	Name string `json:"name"`
 }
 
 // GetCode returns the value of Code.
-func (s *PermissionUpdate) GetCode() string {
+func (s *PermissionSummaryFields) GetCode() string {
 	return s.Code
 }
 
 // GetName returns the value of Name.
-func (s *PermissionUpdate) GetName() string {
+func (s *PermissionSummaryFields) GetName() string {
 	return s.Name
 }
 
 // SetCode sets the value of Code.
-func (s *PermissionUpdate) SetCode(val string) {
+func (s *PermissionSummaryFields) SetCode(val string) {
 	s.Code = val
 }
 
 // SetName sets the value of Name.
-func (s *PermissionUpdate) SetName(val string) {
+func (s *PermissionSummaryFields) SetName(val string) {
 	s.Name = val
-}
-
-// Ref: #/components/schemas/User
-type User struct {
-	ID             int64       `json:"id"`
-	Username       string      `json:"username"`
-	FirstName      string      `json:"first_name"`
-	LastName       string      `json:"last_name"`
-	Email          string      `json:"email"`
-	Active         bool        `json:"active"`
-	Staff          bool        `json:"staff"`
-	Superuser      bool        `json:"superuser"`
-	DateJoined     time.Time   `json:"date_joined"`
-	LastLogin      NilDateTime `json:"last_login"`
-	Revision       int64       `json:"revision"`
-	Groups         []int64     `json:"groups"`
-	Permissions    []int64     `json:"permissions"`
-	PasswordUsable bool        `json:"password_usable"`
-}
-
-// GetID returns the value of ID.
-func (s *User) GetID() int64 {
-	return s.ID
-}
-
-// GetUsername returns the value of Username.
-func (s *User) GetUsername() string {
-	return s.Username
-}
-
-// GetFirstName returns the value of FirstName.
-func (s *User) GetFirstName() string {
-	return s.FirstName
-}
-
-// GetLastName returns the value of LastName.
-func (s *User) GetLastName() string {
-	return s.LastName
-}
-
-// GetEmail returns the value of Email.
-func (s *User) GetEmail() string {
-	return s.Email
-}
-
-// GetActive returns the value of Active.
-func (s *User) GetActive() bool {
-	return s.Active
-}
-
-// GetStaff returns the value of Staff.
-func (s *User) GetStaff() bool {
-	return s.Staff
-}
-
-// GetSuperuser returns the value of Superuser.
-func (s *User) GetSuperuser() bool {
-	return s.Superuser
-}
-
-// GetDateJoined returns the value of DateJoined.
-func (s *User) GetDateJoined() time.Time {
-	return s.DateJoined
-}
-
-// GetLastLogin returns the value of LastLogin.
-func (s *User) GetLastLogin() NilDateTime {
-	return s.LastLogin
-}
-
-// GetRevision returns the value of Revision.
-func (s *User) GetRevision() int64 {
-	return s.Revision
-}
-
-// GetGroups returns the value of Groups.
-func (s *User) GetGroups() []int64 {
-	return s.Groups
-}
-
-// GetPermissions returns the value of Permissions.
-func (s *User) GetPermissions() []int64 {
-	return s.Permissions
-}
-
-// GetPasswordUsable returns the value of PasswordUsable.
-func (s *User) GetPasswordUsable() bool {
-	return s.PasswordUsable
-}
-
-// SetID sets the value of ID.
-func (s *User) SetID(val int64) {
-	s.ID = val
-}
-
-// SetUsername sets the value of Username.
-func (s *User) SetUsername(val string) {
-	s.Username = val
-}
-
-// SetFirstName sets the value of FirstName.
-func (s *User) SetFirstName(val string) {
-	s.FirstName = val
-}
-
-// SetLastName sets the value of LastName.
-func (s *User) SetLastName(val string) {
-	s.LastName = val
-}
-
-// SetEmail sets the value of Email.
-func (s *User) SetEmail(val string) {
-	s.Email = val
-}
-
-// SetActive sets the value of Active.
-func (s *User) SetActive(val bool) {
-	s.Active = val
-}
-
-// SetStaff sets the value of Staff.
-func (s *User) SetStaff(val bool) {
-	s.Staff = val
-}
-
-// SetSuperuser sets the value of Superuser.
-func (s *User) SetSuperuser(val bool) {
-	s.Superuser = val
-}
-
-// SetDateJoined sets the value of DateJoined.
-func (s *User) SetDateJoined(val time.Time) {
-	s.DateJoined = val
-}
-
-// SetLastLogin sets the value of LastLogin.
-func (s *User) SetLastLogin(val NilDateTime) {
-	s.LastLogin = val
-}
-
-// SetRevision sets the value of Revision.
-func (s *User) SetRevision(val int64) {
-	s.Revision = val
-}
-
-// SetGroups sets the value of Groups.
-func (s *User) SetGroups(val []int64) {
-	s.Groups = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *User) SetPermissions(val []int64) {
-	s.Permissions = val
-}
-
-// SetPasswordUsable sets the value of PasswordUsable.
-func (s *User) SetPasswordUsable(val bool) {
-	s.PasswordUsable = val
-}
-
-// Ref: #/components/schemas/UserCreate
-type UserCreate struct {
-	Username    string    `json:"username"`
-	FirstName   OptString `json:"first_name"`
-	LastName    OptString `json:"last_name"`
-	Email       OptString `json:"email"`
-	Active      OptBool   `json:"active"`
-	Staff       OptBool   `json:"staff"`
-	Superuser   OptBool   `json:"superuser"`
-	Groups      []int64   `json:"groups"`
-	Permissions []int64   `json:"permissions"`
-	Password    NilString `json:"password"`
-}
-
-// GetUsername returns the value of Username.
-func (s *UserCreate) GetUsername() string {
-	return s.Username
-}
-
-// GetFirstName returns the value of FirstName.
-func (s *UserCreate) GetFirstName() OptString {
-	return s.FirstName
-}
-
-// GetLastName returns the value of LastName.
-func (s *UserCreate) GetLastName() OptString {
-	return s.LastName
-}
-
-// GetEmail returns the value of Email.
-func (s *UserCreate) GetEmail() OptString {
-	return s.Email
-}
-
-// GetActive returns the value of Active.
-func (s *UserCreate) GetActive() OptBool {
-	return s.Active
-}
-
-// GetStaff returns the value of Staff.
-func (s *UserCreate) GetStaff() OptBool {
-	return s.Staff
-}
-
-// GetSuperuser returns the value of Superuser.
-func (s *UserCreate) GetSuperuser() OptBool {
-	return s.Superuser
-}
-
-// GetGroups returns the value of Groups.
-func (s *UserCreate) GetGroups() []int64 {
-	return s.Groups
-}
-
-// GetPermissions returns the value of Permissions.
-func (s *UserCreate) GetPermissions() []int64 {
-	return s.Permissions
-}
-
-// GetPassword returns the value of Password.
-func (s *UserCreate) GetPassword() NilString {
-	return s.Password
-}
-
-// SetUsername sets the value of Username.
-func (s *UserCreate) SetUsername(val string) {
-	s.Username = val
-}
-
-// SetFirstName sets the value of FirstName.
-func (s *UserCreate) SetFirstName(val OptString) {
-	s.FirstName = val
-}
-
-// SetLastName sets the value of LastName.
-func (s *UserCreate) SetLastName(val OptString) {
-	s.LastName = val
-}
-
-// SetEmail sets the value of Email.
-func (s *UserCreate) SetEmail(val OptString) {
-	s.Email = val
-}
-
-// SetActive sets the value of Active.
-func (s *UserCreate) SetActive(val OptBool) {
-	s.Active = val
-}
-
-// SetStaff sets the value of Staff.
-func (s *UserCreate) SetStaff(val OptBool) {
-	s.Staff = val
-}
-
-// SetSuperuser sets the value of Superuser.
-func (s *UserCreate) SetSuperuser(val OptBool) {
-	s.Superuser = val
-}
-
-// SetGroups sets the value of Groups.
-func (s *UserCreate) SetGroups(val []int64) {
-	s.Groups = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *UserCreate) SetPermissions(val []int64) {
-	s.Permissions = val
-}
-
-// SetPassword sets the value of Password.
-func (s *UserCreate) SetPassword(val NilString) {
-	s.Password = val
-}
-
-// UserHeaders wraps User with response headers.
-type UserHeaders struct {
-	Revision int64
-	Response User
-}
-
-// GetRevision returns the value of Revision.
-func (s *UserHeaders) GetRevision() int64 {
-	return s.Revision
-}
-
-// GetResponse returns the value of Response.
-func (s *UserHeaders) GetResponse() User {
-	return s.Response
-}
-
-// SetRevision sets the value of Revision.
-func (s *UserHeaders) SetRevision(val int64) {
-	s.Revision = val
-}
-
-// SetResponse sets the value of Response.
-func (s *UserHeaders) SetResponse(val User) {
-	s.Response = val
-}
-
-func (*UserHeaders) godjIdentityIdentityUsersCreateRes() {}
-func (*UserHeaders) godjIdentityIdentityUsersDetailRes() {}
-func (*UserHeaders) godjIdentityIdentityUsersPatchRes()  {}
-func (*UserHeaders) godjIdentityIdentityUsersUpdateRes() {}
-
-// Ref: #/components/schemas/UserPage
-type UserPage struct {
-	Items  []UserSummary `json:"items"`
-	Count  int64         `json:"count"`
-	Limit  int64         `json:"limit"`
-	Offset int64         `json:"offset"`
-}
-
-// GetItems returns the value of Items.
-func (s *UserPage) GetItems() []UserSummary {
-	return s.Items
-}
-
-// GetCount returns the value of Count.
-func (s *UserPage) GetCount() int64 {
-	return s.Count
-}
-
-// GetLimit returns the value of Limit.
-func (s *UserPage) GetLimit() int64 {
-	return s.Limit
-}
-
-// GetOffset returns the value of Offset.
-func (s *UserPage) GetOffset() int64 {
-	return s.Offset
-}
-
-// SetItems sets the value of Items.
-func (s *UserPage) SetItems(val []UserSummary) {
-	s.Items = val
-}
-
-// SetCount sets the value of Count.
-func (s *UserPage) SetCount(val int64) {
-	s.Count = val
-}
-
-// SetLimit sets the value of Limit.
-func (s *UserPage) SetLimit(val int64) {
-	s.Limit = val
-}
-
-// SetOffset sets the value of Offset.
-func (s *UserPage) SetOffset(val int64) {
-	s.Offset = val
-}
-
-func (*UserPage) godjIdentityIdentityUsersListRes() {}
-
-// Ref: #/components/schemas/UserPatch
-type UserPatch struct {
-	Username    OptString `json:"username"`
-	FirstName   OptString `json:"first_name"`
-	LastName    OptString `json:"last_name"`
-	Email       OptString `json:"email"`
-	Active      OptBool   `json:"active"`
-	Staff       OptBool   `json:"staff"`
-	Superuser   OptBool   `json:"superuser"`
-	Groups      []int64   `json:"groups"`
-	Permissions []int64   `json:"permissions"`
-}
-
-// GetUsername returns the value of Username.
-func (s *UserPatch) GetUsername() OptString {
-	return s.Username
-}
-
-// GetFirstName returns the value of FirstName.
-func (s *UserPatch) GetFirstName() OptString {
-	return s.FirstName
-}
-
-// GetLastName returns the value of LastName.
-func (s *UserPatch) GetLastName() OptString {
-	return s.LastName
-}
-
-// GetEmail returns the value of Email.
-func (s *UserPatch) GetEmail() OptString {
-	return s.Email
-}
-
-// GetActive returns the value of Active.
-func (s *UserPatch) GetActive() OptBool {
-	return s.Active
-}
-
-// GetStaff returns the value of Staff.
-func (s *UserPatch) GetStaff() OptBool {
-	return s.Staff
-}
-
-// GetSuperuser returns the value of Superuser.
-func (s *UserPatch) GetSuperuser() OptBool {
-	return s.Superuser
-}
-
-// GetGroups returns the value of Groups.
-func (s *UserPatch) GetGroups() []int64 {
-	return s.Groups
-}
-
-// GetPermissions returns the value of Permissions.
-func (s *UserPatch) GetPermissions() []int64 {
-	return s.Permissions
-}
-
-// SetUsername sets the value of Username.
-func (s *UserPatch) SetUsername(val OptString) {
-	s.Username = val
-}
-
-// SetFirstName sets the value of FirstName.
-func (s *UserPatch) SetFirstName(val OptString) {
-	s.FirstName = val
-}
-
-// SetLastName sets the value of LastName.
-func (s *UserPatch) SetLastName(val OptString) {
-	s.LastName = val
-}
-
-// SetEmail sets the value of Email.
-func (s *UserPatch) SetEmail(val OptString) {
-	s.Email = val
-}
-
-// SetActive sets the value of Active.
-func (s *UserPatch) SetActive(val OptBool) {
-	s.Active = val
-}
-
-// SetStaff sets the value of Staff.
-func (s *UserPatch) SetStaff(val OptBool) {
-	s.Staff = val
-}
-
-// SetSuperuser sets the value of Superuser.
-func (s *UserPatch) SetSuperuser(val OptBool) {
-	s.Superuser = val
-}
-
-// SetGroups sets the value of Groups.
-func (s *UserPatch) SetGroups(val []int64) {
-	s.Groups = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *UserPatch) SetPermissions(val []int64) {
-	s.Permissions = val
-}
-
-// Ref: #/components/schemas/UserSummary
-type UserSummary struct {
-	ID             int64       `json:"id"`
-	Username       string      `json:"username"`
-	FirstName      string      `json:"first_name"`
-	LastName       string      `json:"last_name"`
-	Email          string      `json:"email"`
-	Active         bool        `json:"active"`
-	Staff          bool        `json:"staff"`
-	Superuser      bool        `json:"superuser"`
-	DateJoined     time.Time   `json:"date_joined"`
-	LastLogin      NilDateTime `json:"last_login"`
-	Revision       int64       `json:"revision"`
-	PasswordUsable bool        `json:"password_usable"`
-}
-
-// GetID returns the value of ID.
-func (s *UserSummary) GetID() int64 {
-	return s.ID
-}
-
-// GetUsername returns the value of Username.
-func (s *UserSummary) GetUsername() string {
-	return s.Username
-}
-
-// GetFirstName returns the value of FirstName.
-func (s *UserSummary) GetFirstName() string {
-	return s.FirstName
-}
-
-// GetLastName returns the value of LastName.
-func (s *UserSummary) GetLastName() string {
-	return s.LastName
-}
-
-// GetEmail returns the value of Email.
-func (s *UserSummary) GetEmail() string {
-	return s.Email
-}
-
-// GetActive returns the value of Active.
-func (s *UserSummary) GetActive() bool {
-	return s.Active
-}
-
-// GetStaff returns the value of Staff.
-func (s *UserSummary) GetStaff() bool {
-	return s.Staff
-}
-
-// GetSuperuser returns the value of Superuser.
-func (s *UserSummary) GetSuperuser() bool {
-	return s.Superuser
-}
-
-// GetDateJoined returns the value of DateJoined.
-func (s *UserSummary) GetDateJoined() time.Time {
-	return s.DateJoined
-}
-
-// GetLastLogin returns the value of LastLogin.
-func (s *UserSummary) GetLastLogin() NilDateTime {
-	return s.LastLogin
-}
-
-// GetRevision returns the value of Revision.
-func (s *UserSummary) GetRevision() int64 {
-	return s.Revision
-}
-
-// GetPasswordUsable returns the value of PasswordUsable.
-func (s *UserSummary) GetPasswordUsable() bool {
-	return s.PasswordUsable
-}
-
-// SetID sets the value of ID.
-func (s *UserSummary) SetID(val int64) {
-	s.ID = val
-}
-
-// SetUsername sets the value of Username.
-func (s *UserSummary) SetUsername(val string) {
-	s.Username = val
-}
-
-// SetFirstName sets the value of FirstName.
-func (s *UserSummary) SetFirstName(val string) {
-	s.FirstName = val
-}
-
-// SetLastName sets the value of LastName.
-func (s *UserSummary) SetLastName(val string) {
-	s.LastName = val
-}
-
-// SetEmail sets the value of Email.
-func (s *UserSummary) SetEmail(val string) {
-	s.Email = val
-}
-
-// SetActive sets the value of Active.
-func (s *UserSummary) SetActive(val bool) {
-	s.Active = val
-}
-
-// SetStaff sets the value of Staff.
-func (s *UserSummary) SetStaff(val bool) {
-	s.Staff = val
-}
-
-// SetSuperuser sets the value of Superuser.
-func (s *UserSummary) SetSuperuser(val bool) {
-	s.Superuser = val
-}
-
-// SetDateJoined sets the value of DateJoined.
-func (s *UserSummary) SetDateJoined(val time.Time) {
-	s.DateJoined = val
-}
-
-// SetLastLogin sets the value of LastLogin.
-func (s *UserSummary) SetLastLogin(val NilDateTime) {
-	s.LastLogin = val
-}
-
-// SetRevision sets the value of Revision.
-func (s *UserSummary) SetRevision(val int64) {
-	s.Revision = val
-}
-
-// SetPasswordUsable sets the value of PasswordUsable.
-func (s *UserSummary) SetPasswordUsable(val bool) {
-	s.PasswordUsable = val
-}
-
-// UserSummaryHeaders wraps UserSummary with response headers.
-type UserSummaryHeaders struct {
-	Revision int64
-	Response UserSummary
-}
-
-// GetRevision returns the value of Revision.
-func (s *UserSummaryHeaders) GetRevision() int64 {
-	return s.Revision
-}
-
-// GetResponse returns the value of Response.
-func (s *UserSummaryHeaders) GetResponse() UserSummary {
-	return s.Response
-}
-
-// SetRevision sets the value of Revision.
-func (s *UserSummaryHeaders) SetRevision(val int64) {
-	s.Revision = val
-}
-
-// SetResponse sets the value of Response.
-func (s *UserSummaryHeaders) SetResponse(val UserSummary) {
-	s.Response = val
-}
-
-func (*UserSummaryHeaders) godjIdentityIdentityUsersPasswordRes() {}
-
-// Ref: #/components/schemas/UserUpdate
-type UserUpdate struct {
-	Username    string    `json:"username"`
-	FirstName   OptString `json:"first_name"`
-	LastName    OptString `json:"last_name"`
-	Email       OptString `json:"email"`
-	Active      OptBool   `json:"active"`
-	Staff       OptBool   `json:"staff"`
-	Superuser   OptBool   `json:"superuser"`
-	Groups      []int64   `json:"groups"`
-	Permissions []int64   `json:"permissions"`
-}
-
-// GetUsername returns the value of Username.
-func (s *UserUpdate) GetUsername() string {
-	return s.Username
-}
-
-// GetFirstName returns the value of FirstName.
-func (s *UserUpdate) GetFirstName() OptString {
-	return s.FirstName
-}
-
-// GetLastName returns the value of LastName.
-func (s *UserUpdate) GetLastName() OptString {
-	return s.LastName
-}
-
-// GetEmail returns the value of Email.
-func (s *UserUpdate) GetEmail() OptString {
-	return s.Email
-}
-
-// GetActive returns the value of Active.
-func (s *UserUpdate) GetActive() OptBool {
-	return s.Active
-}
-
-// GetStaff returns the value of Staff.
-func (s *UserUpdate) GetStaff() OptBool {
-	return s.Staff
-}
-
-// GetSuperuser returns the value of Superuser.
-func (s *UserUpdate) GetSuperuser() OptBool {
-	return s.Superuser
-}
-
-// GetGroups returns the value of Groups.
-func (s *UserUpdate) GetGroups() []int64 {
-	return s.Groups
-}
-
-// GetPermissions returns the value of Permissions.
-func (s *UserUpdate) GetPermissions() []int64 {
-	return s.Permissions
-}
-
-// SetUsername sets the value of Username.
-func (s *UserUpdate) SetUsername(val string) {
-	s.Username = val
-}
-
-// SetFirstName sets the value of FirstName.
-func (s *UserUpdate) SetFirstName(val OptString) {
-	s.FirstName = val
-}
-
-// SetLastName sets the value of LastName.
-func (s *UserUpdate) SetLastName(val OptString) {
-	s.LastName = val
-}
-
-// SetEmail sets the value of Email.
-func (s *UserUpdate) SetEmail(val OptString) {
-	s.Email = val
-}
-
-// SetActive sets the value of Active.
-func (s *UserUpdate) SetActive(val OptBool) {
-	s.Active = val
-}
-
-// SetStaff sets the value of Staff.
-func (s *UserUpdate) SetStaff(val OptBool) {
-	s.Staff = val
-}
-
-// SetSuperuser sets the value of Superuser.
-func (s *UserUpdate) SetSuperuser(val OptBool) {
-	s.Superuser = val
-}
-
-// SetGroups sets the value of Groups.
-func (s *UserUpdate) SetGroups(val []int64) {
-	s.Groups = val
-}
-
-// SetPermissions sets the value of Permissions.
-func (s *UserUpdate) SetPermissions(val []int64) {
-	s.Permissions = val
 }

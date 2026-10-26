@@ -45,7 +45,7 @@ func CredentialPolicy() (systemstate.CredentialPolicy, error) {
 }
 
 // RuntimeConfig describes the historical operator source and inspection bounds
-// for explicit adoption. New site processes use IdentityRuntimeConfig.
+// for explicit legacy adoption. New site processes use the selected accounts runtime.
 func RuntimeConfig() (systemstate.RuntimeConfig, error) {
 	policy, err := CredentialPolicy()
 	if err != nil {

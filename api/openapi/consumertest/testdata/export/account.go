@@ -3,18 +3,22 @@ package main
 import (
 	"bytes"
 	"context"
+
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
+	fixtureaccounts "github.com/progresshans/godj/conformance/identityfixture/accounts"
+	hostproject "github.com/progresshans/godj/conformance/identityfixture/project"
 	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/identity"
 	identityaccount "github.com/progresshans/godj/identity/account"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/mail"
-	"github.com/progresshans/godj/sessions"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/web/sessionauth"
 )
 
-func accountDocument(guard *authenticationGuard, manager *sessions.Manager) (schemaFile, error) {
+func accountDocument(ctx context.Context, backend sessiondb.Backend, guard *authenticationGuard) (schemaFile, error) {
 	paths, err := identityaccount.AllowedNextPaths("")
 	if err != nil {
 		return schemaFile{}, err
@@ -23,7 +27,19 @@ func accountDocument(guard *authenticationGuard, manager *sessions.Manager) (sch
 	if err != nil {
 		return schemaFile{}, err
 	}
-	resetter, err := identity.NewPasswordResetter(identityExportBackend{guard}, identityExportHasher{guard}, identity.PasswordResetConfig{Keys: keys})
+	config, err := fixtureaccounts.Policy()
+	if err != nil {
+		return schemaFile{}, err
+	}
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10000})
+	if err != nil {
+		return schemaFile{}, err
+	}
+	selected, err := hostproject.NewAccountRuntime(ctx, backend, hasher, guard, config)
+	if err != nil {
+		return schemaFile{}, err
+	}
+	resetter, err := selected.PasswordResetter(accountmodel.RuntimeResetConfig{Keys: keys})
 	if err != nil {
 		return schemaFile{}, err
 	}
@@ -35,8 +51,7 @@ func accountDocument(guard *authenticationGuard, manager *sessions.Manager) (sch
 	if err != nil {
 		return schemaFile{}, err
 	}
-	password := accountExportPassword{manager, guard, resetter.PasswordResetAuthority()}
-	runtime, err := sessionauth.New(sessionauth.Config{Sessions: manager, Authenticator: guard, Authorizer: guard, PasswordChangePersistence: password, PasswordResetPersistence: password, LoginPath: "/account/login/", FallbackPath: paths[0], AllowedNextPaths: paths})
+	runtime, err := sessionauth.New(sessionauth.Config{Sessions: selected.Sessions(), Authenticator: selected.Authenticator(), Authorizer: guard, LoginPersistence: selected.LoginPersistence(), PasswordChangePersistence: selected.PasswordChangePersistence(), PasswordResetPersistence: resetter, LoginPath: "/account/login/", FallbackPath: paths[0], AllowedNextPaths: paths})
 	if err != nil {
 		return schemaFile{}, err
 	}
@@ -57,33 +72,6 @@ func accountDocument(guard *authenticationGuard, manager *sessions.Manager) (sch
 
 func (guard *authenticationGuard) LoginInput() (auth.LoginInput, error) {
 	return auth.NewLoginInput(auth.LoginInputConfig{Label: "Username", MaxLength: 256, Normalization: auth.LoginUnicode16NFKC})
-}
-
-type accountExportPassword struct {
-	manager   *sessions.Manager
-	guard     *authenticationGuard
-	authority auth.PasswordResetAuthority
-}
-
-func (p accountExportPassword) Sessions() *sessions.Manager { return p.manager }
-func (p accountExportPassword) PasswordResetAuthority() auth.PasswordResetAuthority {
-	return p.authority
-}
-func (p accountExportPassword) CheckPasswordChange(context.Context, sessions.ID, *string, *string) error {
-	return p.guard.reject("password check")
-}
-func (p accountExportPassword) ChangePassword(context.Context, sessions.ID, string, string) (auth.PasswordChangeResult, error) {
-	return auth.PasswordChangeResult{}, p.guard.reject("password change")
-}
-
-func (p accountExportPassword) StartPasswordReset(context.Context, sessions.ID, string, string) (sessions.Record, error) {
-	return sessions.Record{}, p.guard.reject("reset proof start")
-}
-func (p accountExportPassword) CheckPasswordReset(context.Context, sessions.ID, string, *string) error {
-	return p.guard.reject("reset proof check")
-}
-func (p accountExportPassword) ResetPassword(context.Context, sessions.ID, string, string) (auth.PasswordResetResult, error) {
-	return auth.PasswordResetResult{}, p.guard.reject("reset completion")
 }
 
 type accountExportSender struct{ guard *authenticationGuard }

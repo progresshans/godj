@@ -27,7 +27,7 @@ func (source identitySessionSource) CsrfHeader(context.Context, is.OperationName
 }
 
 func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
-	httpClient, transport, state, err := newSessionClient(target.endpoint, target.Session, "/api/identity/users/")
+	httpClient, transport, state, err := newSessionClient(target.endpoint, target.Session, "/api/identity/accounts/")
 	if err != nil {
 		return err
 	}
@@ -36,8 +36,8 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil {
 		return fail("identity session setup")
 	}
-	listed, err := client.GodjIdentityIdentityUsersList(ctx, is.GodjIdentityIdentityUsersListParams{Limit: is.NewOptInt64(1)})
-	page, ok := listed.(*is.UserPageHeaders)
+	listed, err := client.GodjIdentityAccountsList(ctx, is.GodjIdentityAccountsListParams{Limit: is.NewOptInt64(1)})
+	page, ok := listed.(*is.AccountPageHeaders)
 	if err != nil || !ok || page.Response.Count != 4 || len(page.Response.Items) != 1 || page.Response.Limit != 1 || page.Response.Offset != 0 || !transport.capturedCSRF() || !page.XGodjCsrftoken.Set || !state.ready(page.XGodjCsrftoken.Value) {
 		return fail("identity session bounded list and csrf")
 	}
@@ -51,33 +51,33 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 		return err
 	}
 	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
-	loginDetail, err := client.GodjIdentityIdentityUsersDetail(ctx, is.GodjIdentityIdentityUsersDetailParams{ID: target.ActorID})
-	logged, ok := loginDetail.(*is.GodjIdentityIdentityUsersDetailOKHeaders)
-	if err != nil || !ok || logged.Response.LastLogin.Null || !logged.Response.LastLogin.Value.Equal(loginAt) || logged.Response.Revision != 1 {
+	loginDetail, err := client.GodjIdentityAccountsDetail(ctx, is.GodjIdentityAccountsDetailParams{ID: identityID(target.ActorID)})
+	logged, ok := loginDetail.(*is.AccountHeaders)
+	if err != nil || !ok || logged.Response.Fields.LastLogin.Null || !logged.Response.Fields.LastLogin.Value.Equal(loginAt) || logged.Response.Revision != 1 {
 		return fail("identity identity_session native login timestamp")
 	}
 	for _, user := range page.Response.Items {
 		wantLogin := user.ID == target.ActorID || user.ID == target.TargetID
 		if wantLogin {
-			if user.LastLogin.Null || !user.LastLogin.Value.Equal(loginAt) {
+			if user.Fields.LastLogin.Null || !user.Fields.LastLogin.Value.Equal(loginAt) {
 				return fail("identity identity_session list login timestamp")
 			}
-		} else if !user.LastLogin.Null {
+		} else if !user.Fields.LastLogin.Null {
 			return fail("identity identity_session never logged in timestamp")
 		}
 	}
-	groups, err := client.GodjIdentityIdentityGroupsList(ctx, is.GodjIdentityIdentityGroupsListParams{})
+	groups, err := client.GodjIdentityGroupsList(ctx, is.GodjIdentityGroupsListParams{})
 	groupPage, ok := groups.(*is.GroupPageHeaders)
 	if err != nil || !ok || groupPage.Response.Count != 2 || len(groupPage.Response.Items) != 2 || !groupPage.XGodjCsrftoken.Set || !state.ready(groupPage.XGodjCsrftoken.Value) {
 		return fail("identity session groups list")
 	}
-	permissions, err := client.GodjIdentityIdentityPermissionsList(ctx, is.GodjIdentityIdentityPermissionsListParams{})
+	permissions, err := client.GodjIdentityPermissionsList(ctx, is.GodjIdentityPermissionsListParams{})
 	permissionPage, ok := permissions.(*is.PermissionPageHeaders)
 	if err != nil || !ok || permissionPage.Response.Count != 5 || len(permissionPage.Response.Items) != 5 || !permissionPage.XGodjCsrftoken.Set || !state.ready(permissionPage.XGodjCsrftoken.Value) {
 		return fail("identity session permissions list")
 	}
 
-	viewerHTTP, viewerTransport, viewerState, err := newSessionClient(target.endpoint, target.ReadOnlySession, "/api/identity/users/")
+	viewerHTTP, viewerTransport, viewerState, err := newSessionClient(target.endpoint, target.ReadOnlySession, "/api/identity/accounts/")
 	if err != nil {
 		return err
 	}
@@ -86,20 +86,20 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	if err != nil {
 		return fail("identity viewer setup")
 	}
-	viewed, err := viewer.GodjIdentityIdentityUsersList(ctx, is.GodjIdentityIdentityUsersListParams{})
-	viewPage, ok := viewed.(*is.UserPageHeaders)
+	viewed, err := viewer.GodjIdentityAccountsList(ctx, is.GodjIdentityAccountsListParams{})
+	viewPage, ok := viewed.(*is.AccountPageHeaders)
 	if err != nil || !ok || viewPage.Response.Count != 4 || !viewPage.XGodjCsrftoken.Set || !viewerState.ready(viewPage.XGodjCsrftoken.Value) {
 		return fail("identity viewer read")
 	}
-	denied, err := viewer.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "forbidden", Password: is.NewNilString("never persisted")})
-	forbidden, ok := denied.(*is.GodjIdentityIdentityUsersCreateForbidden)
+	denied, err := viewer.GodjIdentityAccountsCreate(ctx, &is.AccountCreate{Fields: is.AccountCreateFields{Username: "forbidden"}, Credential: is.AccountCreateCredential{Password: is.NewNilString("never persisted")}})
+	forbidden, ok := denied.(*is.GodjIdentityAccountsCreateForbidden)
 	if err != nil || !ok || forbidden.Code != "permission_denied" {
 		return fail("identity session read only denied")
 	}
 	state.setInvalid(true)
-	csrf, err := client.GodjIdentityIdentityUsersPatch(ctx, &is.UserPatch{Active: is.NewOptBool(false)}, is.GodjIdentityIdentityUsersPatchParams{ID: target.TargetID, IfRevision: 1})
+	csrf, err := client.GodjIdentityAccountsPatch(ctx, &is.AccountPatch{Fields: is.AccountPatchFields{Active: is.NewOptBool(false)}}, is.GodjIdentityAccountsPatchParams{ID: identityID(target.TargetID), IfRevision: 1})
 	state.setInvalid(false)
-	csrfDenied, ok := csrf.(*is.GodjIdentityIdentityUsersPatchForbidden)
+	csrfDenied, ok := csrf.(*is.GodjIdentityAccountsPatchForbidden)
 	if err != nil || !ok || csrfDenied.Code != "csrf_rejected" {
 		return fail("identity session invalid csrf")
 	}
@@ -109,15 +109,15 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 		request.Header.Del("If-Revision")
 		return transport.RoundTrip(request)
 	})
-	missing, err := client.GodjIdentityIdentityUsersPatch(ctx, &is.UserPatch{Active: is.NewOptBool(false)}, is.GodjIdentityIdentityUsersPatchParams{ID: target.TargetID, IfRevision: 1})
+	missing, err := client.GodjIdentityAccountsPatch(ctx, &is.AccountPatch{Fields: is.AccountPatchFields{Active: is.NewOptBool(false)}}, is.GodjIdentityAccountsPatchParams{ID: identityID(target.TargetID), IfRevision: 1})
 	httpClient.Transport = transport
-	missingRevision, ok := missing.(*is.GodjIdentityIdentityUsersPatchPreconditionRequired)
-	if err != nil || !ok || missingRevision.Code != "precondition_required" {
+	missingRevision, ok := missing.(*is.GodjIdentityAccountsPatchPreconditionRequired)
+	if err != nil || !ok || !identitySessionHeaderError(missingRevision.Code, missingRevision.Errors, "required") {
 		return fail("identity required revision")
 	}
-	invalid, err := client.GodjIdentityIdentityUsersPatch(ctx, &is.UserPatch{Active: is.NewOptBool(false)}, is.GodjIdentityIdentityUsersPatchParams{ID: target.TargetID, IfRevision: 0})
-	invalidRevision, ok := invalid.(*is.GodjIdentityIdentityUsersPatchBadRequest)
-	if err != nil || !ok || invalidRevision.Code != "invalid_precondition" {
+	invalid, err := client.GodjIdentityAccountsPatch(ctx, &is.AccountPatch{Fields: is.AccountPatchFields{Active: is.NewOptBool(false)}}, is.GodjIdentityAccountsPatchParams{ID: identityID(target.TargetID), IfRevision: 0})
+	invalidRevision, ok := invalid.(*is.GodjIdentityAccountsPatchBadRequest)
+	if err != nil || !ok || !identitySessionHeaderError(invalidRevision.Code, invalidRevision.Errors, "invalid") {
 		return fail("identity invalid revision")
 	}
 
@@ -135,240 +135,335 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 		{" PASSWORD ", []string{"password_too_common"}},
 		{"¹²³⁴⁵⁶⁷⁸", []string{"password_entirely_numeric"}},
 	} {
-		rejected, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: "PolicyCandidate", Password: is.NewNilString(probe.password)})
-		failure, ok := rejected.(*is.GodjIdentityIdentityUsersCreateBadRequest)
+		rejected, err := client.GodjIdentityAccountsCreate(ctx, &is.AccountCreate{Fields: is.AccountCreateFields{Username: "PolicyCandidate"}, Credential: is.AccountCreateCredential{Password: is.NewNilString(probe.password)}})
+		failure, ok := rejected.(*is.GodjIdentityAccountsCreateBadRequest)
 		if err != nil || !ok || failure.Code != "validation_error" || len(failure.Errors) != len(probe.codes) {
 			return fail("identity generated built-in creation policy")
 		}
 		for i, code := range probe.codes {
-			if failure.Errors[i].Field != "password" || failure.Errors[i].Code != code {
+			if failure.Errors[i].Field != "/credential/password" || failure.Errors[i].Code != code {
 				return fail("identity generated creation policy order")
 			}
 		}
-		replaced, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NewNilString(probe.password)}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 1})
-		passwordFailure, ok := replaced.(*is.GodjIdentityIdentityUsersPasswordBadRequest)
+		replaced, err := client.GodjIdentityAccountsPassword(ctx, &is.AccountPassword{Credential: is.AccountPasswordCredential{Password: is.NewNilString(probe.password)}}, is.GodjIdentityAccountsPasswordParams{ID: identityID(target.TargetID), IfRevision: 1})
+		passwordFailure, ok := replaced.(*is.GodjIdentityAccountsPasswordBadRequest)
 		if err != nil || !ok || passwordFailure.Code != "validation_error" || len(passwordFailure.Errors) != len(probe.codes) {
 			return fail("identity generated built-in replacement policy")
 		}
 		for i, code := range probe.codes {
-			if passwordFailure.Errors[i].Field != "password" || passwordFailure.Errors[i].Code != code {
+			if passwordFailure.Errors[i].Field != "/credential/password" || passwordFailure.Errors[i].Code != code {
 				return fail("identity generated replacement policy order")
 			}
 		}
 	}
-	created, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityInputUsername, Email: is.NewOptString("  MiXeD@EXAMPLE.COM  "), Password: is.NilString{Null: true}, FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}})
-	user, ok := created.(*is.UserHeaders)
-	if err != nil || !ok || user.Revision != 1 || user.Response.Revision != 1 || user.Response.Username != identityCreatedUsername || user.Response.Email != "MiXeD@example.com" || !user.Response.Active || !user.Response.Staff || !slices.Equal(user.Response.Groups, []int64{groupID}) || !slices.Equal(user.Response.Permissions, []int64{permissionID}) {
-		return fail("identity session user create")
+	created, err := client.GodjIdentityAccountsCreate(ctx, &is.AccountCreate{Fields: is.AccountCreateFields{Username: identityInputUsername, Email: is.NewOptString("  MiXeD@EXAMPLE.COM  "), FirstName: is.NewOptString("Created"), Staff: is.NewOptBool(true), Groups: []int64{groupID}, Permissions: []int64{permissionID}}, Credential: is.AccountCreateCredential{Password: is.NilString{Null: true}}})
+	receipt, ok := created.(*is.GodjIdentityAccountsCreateCreatedHeaders)
+	if err != nil || !ok || receipt.Revision != 1 || receipt.Response.Revision != 1 {
+		return fail("identity session account creation receipt")
 	}
-	if user.Response.PasswordUsable {
+	id := receipt.Response.ID
+	user, err := identitySessionAccount(ctx, client, state, id, 1)
+	if err != nil || user.Fields.Username != identityCreatedUsername || user.Fields.Email != "MiXeD@example.com" || !user.Fields.Active || !user.Fields.Staff || !slices.Equal(user.Fields.Groups, []int64{groupID}) || !slices.Equal(user.Fields.Permissions, []int64{permissionID}) {
+		return fail("identity session account creation readback")
+	}
+	if user.PasswordUsable {
 		return fail("identity session unusable creation status")
 	}
-	id := user.Response.ID
-	duplicate, err := client.GodjIdentityIdentityUsersCreate(ctx, &is.UserCreate{Username: identityCreatedUsername, Password: is.NewNilString("duplicate rejected")})
-	duplicateUser, ok := duplicate.(*is.GodjIdentityIdentityUsersCreateBadRequest)
-	if err != nil || !ok || duplicateUser.Code != "validation_error" || len(duplicateUser.Errors) != 1 || duplicateUser.Errors[0].Field != "username" || duplicateUser.Errors[0].Code != "unique" {
+	duplicate, err := client.GodjIdentityAccountsCreate(ctx, &is.AccountCreate{Fields: is.AccountCreateFields{Username: identityCreatedUsername}, Credential: is.AccountCreateCredential{Password: is.NewNilString("duplicate rejected")}})
+	duplicateUser, ok := duplicate.(*is.GodjIdentityAccountsCreateBadRequest)
+	if err != nil || !ok || duplicateUser.Code != "validation_error" || len(duplicateUser.Errors) != 1 || duplicateUser.Errors[0].Field != "/fields/username" || duplicateUser.Errors[0].Code != "unique" {
 		return fail("identity generated normalized unique error")
 	}
-	if _, err := identityUserPatch(ctx, client, id, 1, 2, is.UserPatch{FirstName: is.NewOptString("Edited")}); err != nil {
+	if _, err := identityUserPatch(ctx, client, state, id, 1, 2, is.AccountPatch{Fields: is.AccountPatchFields{FirstName: is.NewOptString("Edited")}}); err != nil {
 		return err
 	}
-	stale, err := client.GodjIdentityIdentityUsersPatch(ctx, &is.UserPatch{FirstName: is.NewOptString("Lost")}, is.GodjIdentityIdentityUsersPatchParams{ID: id, IfRevision: 1})
-	conflict, ok := stale.(*is.GodjIdentityIdentityUsersPatchPreconditionFailed)
+	stale, err := client.GodjIdentityAccountsPatch(ctx, &is.AccountPatch{Fields: is.AccountPatchFields{FirstName: is.NewOptString("Lost")}}, is.GodjIdentityAccountsPatchParams{ID: identityID(id), IfRevision: 1})
+	conflict, ok := stale.(*is.GodjIdentityAccountsPatchPreconditionFailed)
 	if err != nil || !ok || conflict.Code != "revision_conflict" {
 		return fail("identity generated stale conflict")
 	}
-	noOp, err := identityUserPatch(ctx, client, id, 2, 2, is.UserPatch{})
-	if err != nil || noOp.FirstName != "Edited" || !slices.Equal(noOp.Groups, []int64{groupID}) || !slices.Equal(noOp.Permissions, []int64{permissionID}) {
+	noOp, err := identityUserPatch(ctx, client, state, id, 2, 2, is.AccountPatch{Fields: is.AccountPatchFields{}})
+	if err != nil || noOp.Fields.FirstName != "Edited" || !slices.Equal(noOp.Fields.Groups, []int64{groupID}) || !slices.Equal(noOp.Fields.Permissions, []int64{permissionID}) {
 		return fail("identity user omission and noop")
 	}
 	if noOp.PasswordUsable {
 		return fail("identity session edit changed password status")
 	}
-	put, err := client.GodjIdentityIdentityUsersUpdate(ctx, &is.UserUpdate{Username: identityCreatedUsername}, is.GodjIdentityIdentityUsersUpdateParams{ID: id, IfRevision: 2})
-	full, ok := put.(*is.UserHeaders)
-	if err != nil || !ok || full.Revision != 3 || full.Response.Revision != 3 || full.Response.FirstName != "" || full.Response.Staff || !full.Response.Active || !slices.Equal(full.Response.Groups, []int64{groupID}) || !slices.Equal(full.Response.Permissions, []int64{permissionID}) {
-		return fail("identity user full defaults preserve collections")
+	put, err := client.GodjIdentityAccountsPut(ctx, &is.AccountPut{Fields: is.AccountPutFields{Username: identityCreatedUsername}}, is.GodjIdentityAccountsPutParams{ID: identityID(id), IfRevision: 2})
+	putReceipt, ok := put.(*is.GodjIdentityAccountsPutOKHeaders)
+	if err != nil || !ok || putReceipt.Revision != 3 || putReceipt.Response.Revision != 3 || putReceipt.Response.ID != id {
+		return fail("identity account full update receipt")
 	}
-	cleared, err := identityUserPatch(ctx, client, id, 3, 4, is.UserPatch{Groups: []int64{}, Permissions: []int64{}})
-	if err != nil || len(cleared.Groups) != 0 || len(cleared.Permissions) != 0 {
+	full, err := identitySessionAccount(ctx, client, state, id, 3)
+	if err != nil || full.Fields.FirstName != "" || full.Fields.Staff || !full.Fields.Active || !slices.Equal(full.Fields.Groups, []int64{groupID}) || !slices.Equal(full.Fields.Permissions, []int64{permissionID}) {
+		return fail("identity account full defaults preserve collections")
+	}
+	cleared, err := identityUserPatch(ctx, client, state, id, 3, 4, is.AccountPatch{Fields: is.AccountPatchFields{Groups: []int64{}, Permissions: []int64{}}})
+	if err != nil || len(cleared.Fields.Groups) != 0 || len(cleared.Fields.Permissions) != 0 {
 		return fail("identity user explicit empty collections")
 	}
-	if _, err := identityUserPatch(ctx, client, id, 4, 5, is.UserPatch{Groups: []int64{groupID}, Permissions: []int64{permissionID}}); err != nil {
+	if _, err := identityUserPatch(ctx, client, state, id, 4, 5, is.AccountPatch{Fields: is.AccountPatchFields{Groups: []int64{groupID}, Permissions: []int64{permissionID}}}); err != nil {
 		return err
 	}
 
-	password, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NewNilString("  SDK replacement password  ")}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 1})
-	replaced, ok := password.(*is.UserSummaryHeaders)
-	if err != nil || !ok || replaced.Revision != 2 || replaced.Response.Revision != 2 || replaced.Response.ID != target.TargetID {
-		return fail("identity password replacement")
-	}
-	if !replaced.Response.PasswordUsable {
+	replaced, err := identitySessionPassword(ctx, client, state, target.TargetID, 1, is.NewNilString("  SDK replacement password  "))
+	if err != nil || !replaced.PasswordUsable {
 		return fail("identity session password replacement status")
 	}
 	if err := identityRevokedSession(ctx, viewer); err != nil {
 		return err
 	}
 	for revision := int64(2); revision <= 3; revision++ {
-		disabled, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NilString{Null: true}}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: revision})
-		value, ok := disabled.(*is.UserSummaryHeaders)
-		if err != nil || !ok || value.Revision != revision+1 || value.Response.Revision != revision+1 || !value.Response.Active {
+		value, err := identitySessionPassword(ctx, client, state, target.TargetID, revision, is.NilString{Null: true})
+		if err != nil || !value.Fields.Active || value.PasswordUsable {
 			return fail("identity session repeated password disablement")
 		}
-		if value.Response.PasswordUsable {
-			return fail("identity session disablement status")
-		}
 	}
-	restored, err := client.GodjIdentityIdentityUsersPassword(ctx, &is.PasswordReplacement{Password: is.NewNilString("  SDK replacement password  ")}, is.GodjIdentityIdentityUsersPasswordParams{ID: target.TargetID, IfRevision: 4})
-	restoredUser, ok := restored.(*is.UserSummaryHeaders)
-	if err != nil || !ok || restoredUser.Revision != 5 || restoredUser.Response.Revision != 5 {
-		return fail("identity session password restoration")
-	}
-	if !restoredUser.Response.PasswordUsable {
+	restored, err := identitySessionPassword(ctx, client, state, target.TargetID, 4, is.NewNilString("  SDK replacement password  "))
+	if err != nil || !restored.PasswordUsable {
 		return fail("identity session restoration status")
 	}
-	inactive, err := identityUserPatch(ctx, client, target.TargetID, 5, 6, is.UserPatch{Active: is.NewOptBool(false)})
-	if err != nil || !inactive.PasswordUsable || inactive.Active {
+	inactive, err := identityUserPatch(ctx, client, state, target.TargetID, 5, 6, is.AccountPatch{Fields: is.AccountPatchFields{Active: is.NewOptBool(false)}})
+	if err != nil || !inactive.PasswordUsable || inactive.Fields.Active {
 		return fail("identity password status independent of activation")
 	}
-	if _, err := identityUserPatch(ctx, client, target.TargetID, 6, 7, is.UserPatch{Active: is.NewOptBool(true)}); err != nil {
+	if _, err := identityUserPatch(ctx, client, state, target.TargetID, 6, 7, is.AccountPatch{Fields: is.AccountPatchFields{Active: is.NewOptBool(true)}}); err != nil {
 		return err
 	}
 	if err := identityRevokedSession(ctx, viewer); err != nil {
 		return err
 	}
 
-	removedPermission, err := client.GodjIdentityIdentityPermissionsDelete(ctx, is.GodjIdentityIdentityPermissionsDeleteParams{ID: permissionID, IfRevision: 3})
-	if _, ok := removedPermission.(*is.GodjIdentityIdentityPermissionsDeleteNoContent); err != nil || !ok {
+	removedPermission, err := client.GodjIdentityPermissionsDelete(ctx, is.GodjIdentityPermissionsDeleteParams{ID: identityID(permissionID), IfRevision: 3})
+	if receipt, ok := removedPermission.(*is.GodjIdentityPermissionsDeleteOKHeaders); err != nil || !ok || receipt.Revision != 3 || receipt.Response.Revision != 3 || receipt.Response.ID != permissionID {
 		return fail("identity permission delete")
 	}
-	staleGroup, err := client.GodjIdentityIdentityGroupsPatch(ctx, &is.GroupPatch{Name: is.NewOptString("Lost")}, is.GodjIdentityIdentityGroupsPatchParams{ID: groupID, IfRevision: 4})
-	groupConflict, ok := staleGroup.(*is.GodjIdentityIdentityGroupsPatchPreconditionFailed)
+	staleGroup, err := client.GodjIdentityGroupsPatch(ctx, &is.GroupPatch{Fields: is.GroupPatchFields{Name: is.NewOptString("Lost")}}, is.GodjIdentityGroupsPatchParams{ID: identityID(groupID), IfRevision: 4})
+	groupConflict, ok := staleGroup.(*is.GodjIdentityGroupsPatchPreconditionFailed)
 	if err != nil || !ok || groupConflict.Code != "revision_conflict" {
 		return fail("identity permission deletion advances group revision")
 	}
-	detail, err := client.GodjIdentityIdentityGroupsDetail(ctx, is.GodjIdentityIdentityGroupsDetailParams{ID: groupID})
-	currentGroup, ok := detail.(*is.GodjIdentityIdentityGroupsDetailOKHeaders)
-	if err != nil || !ok || currentGroup.Revision != 5 || currentGroup.Response.Revision != 5 || len(currentGroup.Response.Permissions) != 0 || !currentGroup.XGodjCsrftoken.Set || !state.ready(currentGroup.XGodjCsrftoken.Value) {
+	detail, err := client.GodjIdentityGroupsDetail(ctx, is.GodjIdentityGroupsDetailParams{ID: identityID(groupID)})
+	currentGroup, ok := detail.(*is.GroupHeaders)
+	if err != nil || !ok || currentGroup.Revision != 5 || currentGroup.Response.Revision != 5 || len(currentGroup.Response.Fields.Permissions) != 0 || !currentGroup.XGodjCsrftoken.Set || !state.ready(currentGroup.XGodjCsrftoken.Value) {
 		return fail("identity group relation refresh")
 	}
-	removedGroup, err := client.GodjIdentityIdentityGroupsDelete(ctx, is.GodjIdentityIdentityGroupsDeleteParams{ID: groupID, IfRevision: 5})
-	if _, ok := removedGroup.(*is.GodjIdentityIdentityGroupsDeleteNoContent); err != nil || !ok {
+	removedGroup, err := client.GodjIdentityGroupsDelete(ctx, is.GodjIdentityGroupsDeleteParams{ID: identityID(groupID), IfRevision: 5})
+	if receipt, ok := removedGroup.(*is.GodjIdentityGroupsDeleteOKHeaders); err != nil || !ok || receipt.Revision != 5 || receipt.Response.Revision != 5 || receipt.Response.ID != groupID {
 		return fail("identity group delete")
 	}
-	staleUser, err := client.GodjIdentityIdentityUsersPatch(ctx, &is.UserPatch{Email: is.NewOptString("lost@example.test")}, is.GodjIdentityIdentityUsersPatchParams{ID: id, IfRevision: 6})
-	userConflict, ok := staleUser.(*is.GodjIdentityIdentityUsersPatchPreconditionFailed)
+	staleUser, err := client.GodjIdentityAccountsPatch(ctx, &is.AccountPatch{Fields: is.AccountPatchFields{Email: is.NewOptString("lost@example.test")}}, is.GodjIdentityAccountsPatchParams{ID: identityID(id), IfRevision: 6})
+	userConflict, ok := staleUser.(*is.GodjIdentityAccountsPatchPreconditionFailed)
 	if err != nil || !ok || userConflict.Code != "revision_conflict" {
 		return fail("identity group deletion advances user revision")
 	}
-	final, err := client.GodjIdentityIdentityUsersDetail(ctx, is.GodjIdentityIdentityUsersDetailParams{ID: id})
-	finalUser, ok := final.(*is.GodjIdentityIdentityUsersDetailOKHeaders)
-	if err != nil || !ok || finalUser.Revision != 7 || finalUser.Response.Revision != 7 || finalUser.Response.Username != identityCreatedUsername || len(finalUser.Response.Groups) != 0 || len(finalUser.Response.Permissions) != 0 || !finalUser.XGodjCsrftoken.Set || !state.ready(finalUser.XGodjCsrftoken.Value) {
+	final, err := client.GodjIdentityAccountsDetail(ctx, is.GodjIdentityAccountsDetailParams{ID: identityID(id)})
+	finalUser, ok := final.(*is.AccountHeaders)
+	if err != nil || !ok || finalUser.Revision != 7 || finalUser.Response.Revision != 7 || finalUser.Response.Fields.Username != identityCreatedUsername || len(finalUser.Response.Fields.Groups) != 0 || len(finalUser.Response.Fields.Permissions) != 0 || !finalUser.XGodjCsrftoken.Set || !state.ready(finalUser.XGodjCsrftoken.Value) {
 		return fail("identity session final user")
+	}
+	history, err := client.GodjIdentityAccountsHistory(ctx, is.GodjIdentityAccountsHistoryParams{ID: identityID(target.TargetID), Limit: is.NewOptInt64(10)})
+	events, ok := history.(*is.GodjIdentityAccountsHistoryOKHeaders)
+	if err != nil || !ok || len(events.Response) != 6 || !events.XGodjCsrftoken.Set || !state.ready(events.XGodjCsrftoken.Value) {
+		return fail("selected account history")
+	}
+	for i, event := range events.Response {
+		field := "password"
+		if i >= 4 {
+			field = "active"
+		}
+		if event.Action != "change" || !slices.Equal(event.ChangedFields, []string{field}) || event.At.IsZero() || event.Sequence <= 0 || i > 0 && event.Sequence <= events.Response[i-1].Sequence {
+			return fail("selected account history data")
+		}
 	}
 	if err := identityHostDeletion(ctx, client, target); err != nil {
 		return err
 	}
-	if _, err := identityUserPatch(ctx, client, target.ActorID, 1, 2, is.UserPatch{Active: is.NewOptBool(false)}); err != nil {
-		return err
+	// Self-deactivation must return the committed receipt even though this
+	// actor can no longer read the target or keep its session afterward.
+	deactivated, err := client.GodjIdentityAccountsPatch(ctx, &is.AccountPatch{Fields: is.AccountPatchFields{Active: is.NewOptBool(false)}}, is.GodjIdentityAccountsPatchParams{ID: identityID(target.ActorID), IfRevision: 1})
+	confirmed, ok := deactivated.(*is.GodjIdentityAccountsPatchOKHeaders)
+	if err != nil || !ok || confirmed.Revision != 2 || confirmed.Response.Revision != 2 || confirmed.Response.ID != target.ActorID {
+		return fail("identity self-deactivation receipt")
 	}
 	return identityRevokedSession(ctx, client)
 }
 
-func identityUserPatch(ctx context.Context, client *is.Client, id, before, after int64, patch is.UserPatch) (is.User, error) {
-	response, err := client.GodjIdentityIdentityUsersPatch(ctx, &patch, is.GodjIdentityIdentityUsersPatchParams{ID: id, IfRevision: before})
-	value, ok := response.(*is.UserHeaders)
-	if err != nil || !ok || value.Revision != after || value.Response.Revision != after || value.Response.ID != id {
-		return is.User{}, fail("identity session user patch")
+// Every mutation is checked as a metadata receipt before issuing this
+// independent safe read. A read never substitutes for a successful write.
+func identitySessionAccount(ctx context.Context, client *is.Client, state *sessionState, id, revision int64) (is.Account, error) {
+	response, err := client.GodjIdentityAccountsDetail(ctx, is.GodjIdentityAccountsDetailParams{ID: identityID(id)})
+	value, ok := response.(*is.AccountHeaders)
+	if err != nil || !ok || value.Revision != revision || value.Response.Revision != revision || value.Response.ID != id || !value.XGodjCsrftoken.Set || !state.ready(value.XGodjCsrftoken.Value) {
+		return is.Account{}, fail("identity selected account readback")
 	}
 	return value.Response, nil
 }
 
+func identityUserPatch(ctx context.Context, client *is.Client, state *sessionState, id, before, after int64, patch is.AccountPatch) (is.Account, error) {
+	response, err := client.GodjIdentityAccountsPatch(ctx, &patch, is.GodjIdentityAccountsPatchParams{ID: identityID(id), IfRevision: before})
+	value, ok := response.(*is.GodjIdentityAccountsPatchOKHeaders)
+	if err != nil || !ok || value.Revision != after || value.Response.Revision != after || value.Response.ID != id {
+		return is.Account{}, fail("identity session account patch receipt")
+	}
+	return identitySessionAccount(ctx, client, state, id, after)
+}
+
+func identitySessionPassword(ctx context.Context, client *is.Client, state *sessionState, id, before int64, password is.NilString) (is.Account, error) {
+	response, err := client.GodjIdentityAccountsPassword(ctx, &is.AccountPassword{Credential: is.AccountPasswordCredential{Password: password}}, is.GodjIdentityAccountsPasswordParams{ID: identityID(id), IfRevision: before})
+	value, ok := response.(*is.GodjIdentityAccountsPasswordOKHeaders)
+	if err != nil || !ok || value.Revision != before+1 || value.Response.Revision != before+1 || value.Response.ID != id {
+		return is.Account{}, fail("identity session password receipt")
+	}
+	return identitySessionAccount(ctx, client, state, id, before+1)
+}
+
 func identityRevokedSession(ctx context.Context, client *is.Client) error {
-	response, err := client.GodjIdentityIdentityUsersList(ctx, is.GodjIdentityIdentityUsersListParams{})
-	denied, ok := response.(*is.GodjIdentityIdentityUsersListForbidden)
-	if err != nil || !ok || denied.Code != "not_authenticated" {
+	response, err := client.GodjIdentityAccountsList(ctx, is.GodjIdentityAccountsListParams{})
+	denied, ok := response.(*is.GodjIdentityAccountsListForbidden)
+	if err != nil || !ok || denied.Response.Code != "not_authenticated" {
 		return fail("identity revoked session denial")
 	}
 	return nil
 }
 
 func identitySessionCatalog(ctx context.Context, client *is.Client, state *sessionState) (int64, int64, error) {
-	created, err := client.GodjIdentityIdentityPermissionsCreate(ctx, &is.PermissionCreate{Code: "consumer.manage.view", Name: "SDK permission"})
-	p, ok := created.(*is.PermissionHeaders)
-	if err != nil || !ok || p.Revision != 1 || p.Response.Revision != 1 || p.Response.Code != "consumer.manage.view" {
-		return 0, 0, fail("identity session permission create")
+	created, err := client.GodjIdentityPermissionsCreate(ctx, &is.PermissionCreate{Fields: is.PermissionCreateFields{Code: "consumer.manage.view", Name: "SDK permission"}})
+	p, ok := created.(*is.GodjIdentityPermissionsCreateCreatedHeaders)
+	if err != nil || !ok || p.Revision != 1 || p.Response.Revision != 1 {
+		return 0, 0, fail("identity permission creation receipt")
 	}
 	permissionID := p.Response.ID
-	put, err := client.GodjIdentityIdentityPermissionsUpdate(ctx, &is.PermissionUpdate{Code: "consumer.manage.view", Name: "SDK permission full"}, is.GodjIdentityIdentityPermissionsUpdateParams{ID: permissionID, IfRevision: 1})
-	p, ok = put.(*is.PermissionHeaders)
-	if err != nil || !ok || p.Revision != 2 || p.Response.Revision != 2 || p.Response.Name != "SDK permission full" {
-		return 0, 0, fail("identity session permission put")
+	if err := identitySessionPermission(ctx, client, state, permissionID, 1, "SDK permission"); err != nil {
+		return 0, 0, err
 	}
-	patch, err := client.GodjIdentityIdentityPermissionsPatch(ctx, &is.PermissionPatch{Name: is.NewOptString("SDK permission patch")}, is.GodjIdentityIdentityPermissionsPatchParams{ID: permissionID, IfRevision: 2})
-	p, ok = patch.(*is.PermissionHeaders)
-	if err != nil || !ok || p.Revision != 3 || p.Response.Revision != 3 || p.Response.Name != "SDK permission patch" {
-		return 0, 0, fail("identity session permission patch")
+	put, err := client.GodjIdentityPermissionsPut(ctx, &is.PermissionPut{Fields: is.PermissionPutFields{Code: "consumer.manage.view", Name: "SDK permission full"}}, is.GodjIdentityPermissionsPutParams{ID: identityID(permissionID), IfRevision: 1})
+	p2, ok := put.(*is.GodjIdentityPermissionsPutOKHeaders)
+	if err != nil || !ok || p2.Revision != 2 || p2.Response.Revision != 2 || p2.Response.ID != permissionID {
+		return 0, 0, fail("identity permission put receipt")
 	}
-	detail, err := client.GodjIdentityIdentityPermissionsDetail(ctx, is.GodjIdentityIdentityPermissionsDetailParams{ID: permissionID})
-	current, ok := detail.(*is.GodjIdentityIdentityPermissionsDetailOKHeaders)
-	if err != nil || !ok || current.Revision != 3 || current.Response != p.Response || !current.XGodjCsrftoken.Set || !state.ready(current.XGodjCsrftoken.Value) {
-		return 0, 0, fail("identity session permission detail")
+	if err := identitySessionPermission(ctx, client, state, permissionID, 2, "SDK permission full"); err != nil {
+		return 0, 0, err
 	}
-	group, err := client.GodjIdentityIdentityGroupsCreate(ctx, &is.GroupCreate{Name: "  SDK group  ", Permissions: []int64{permissionID, permissionID}})
-	g, ok := group.(*is.GroupHeaders)
-	if err != nil || !ok || g.Revision != 1 || g.Response.Revision != 1 || g.Response.Name != "SDK group" || !slices.Equal(g.Response.Permissions, []int64{permissionID}) {
-		return 0, 0, fail("identity session group create normalization")
+	patch, err := client.GodjIdentityPermissionsPatch(ctx, &is.PermissionPatch{Fields: is.PermissionPatchFields{Name: is.NewOptString("SDK permission patch")}}, is.GodjIdentityPermissionsPatchParams{ID: identityID(permissionID), IfRevision: 2})
+	p3, ok := patch.(*is.GodjIdentityPermissionsPatchOKHeaders)
+	if err != nil || !ok || p3.Revision != 3 || p3.Response.Revision != 3 || p3.Response.ID != permissionID {
+		return 0, 0, fail("identity permission patch receipt")
+	}
+	if err := identitySessionPermission(ctx, client, state, permissionID, 3, "SDK permission patch"); err != nil {
+		return 0, 0, err
+	}
+	group, err := client.GodjIdentityGroupsCreate(ctx, &is.GroupCreate{Fields: is.GroupCreateFields{Name: "  SDK group  ", Permissions: []int64{permissionID, permissionID}}})
+	g, ok := group.(*is.GodjIdentityGroupsCreateCreatedHeaders)
+	if err != nil || !ok || g.Revision != 1 || g.Response.Revision != 1 {
+		return 0, 0, fail("identity group creation receipt")
 	}
 	groupID := g.Response.ID
-	full, err := client.GodjIdentityIdentityGroupsUpdate(ctx, &is.GroupUpdate{Name: "SDK group full"}, is.GodjIdentityIdentityGroupsUpdateParams{ID: groupID, IfRevision: 1})
-	g, ok = full.(*is.GroupHeaders)
-	if err != nil || !ok || g.Revision != 2 || g.Response.Revision != 2 || g.Response.Name != "SDK group full" || !slices.Equal(g.Response.Permissions, []int64{permissionID}) {
-		return 0, 0, fail("identity session group put omission")
+	if err := identitySessionGroup(ctx, client, state, groupID, 1, "SDK group", []int64{permissionID}); err != nil {
+		return 0, 0, err
+	}
+	full, err := client.GodjIdentityGroupsPut(ctx, &is.GroupPut{Fields: is.GroupPutFields{Name: "SDK group full"}}, is.GodjIdentityGroupsPutParams{ID: identityID(groupID), IfRevision: 1})
+	g2, ok := full.(*is.GodjIdentityGroupsPutOKHeaders)
+	if err != nil || !ok || g2.Revision != 2 || g2.Response.Revision != 2 || g2.Response.ID != groupID {
+		return 0, 0, fail("identity group put receipt")
+	}
+	if err := identitySessionGroup(ctx, client, state, groupID, 2, "SDK group full", []int64{permissionID}); err != nil {
+		return 0, 0, err
 	}
 	for _, step := range []struct {
 		patch         is.GroupPatch
 		before, after int64
 		permissions   []int64
 	}{
-		{is.GroupPatch{Permissions: []int64{}}, 2, 3, []int64{}},
-		{is.GroupPatch{}, 3, 3, []int64{}},
-		{is.GroupPatch{Permissions: []int64{permissionID}}, 3, 4, []int64{permissionID}},
+		{is.GroupPatch{Fields: is.GroupPatchFields{Permissions: []int64{}}}, 2, 3, []int64{}},
+		{is.GroupPatch{Fields: is.GroupPatchFields{}}, 3, 3, []int64{}},
+		{is.GroupPatch{Fields: is.GroupPatchFields{Permissions: []int64{permissionID}}}, 3, 4, []int64{permissionID}},
 	} {
-		response, err := client.GodjIdentityIdentityGroupsPatch(ctx, &step.patch, is.GodjIdentityIdentityGroupsPatchParams{ID: groupID, IfRevision: step.before})
-		g, ok := response.(*is.GroupHeaders)
-		if err != nil || !ok || g.Revision != step.after || g.Response.Revision != step.after || !slices.Equal(g.Response.Permissions, step.permissions) {
-			return 0, 0, fail("identity session group collection presence and noop")
+		response, err := client.GodjIdentityGroupsPatch(ctx, &step.patch, is.GodjIdentityGroupsPatchParams{ID: identityID(groupID), IfRevision: step.before})
+		changed, ok := response.(*is.GodjIdentityGroupsPatchOKHeaders)
+		if err != nil || !ok || changed.Revision != step.after || changed.Response.Revision != step.after || changed.Response.ID != groupID {
+			return 0, 0, fail("identity group patch receipt")
+		}
+		if err := identitySessionGroup(ctx, client, state, groupID, step.after, "SDK group full", step.permissions); err != nil {
+			return 0, 0, err
+		}
+	}
+	permissionHistory, err := client.GodjIdentityPermissionsHistory(ctx, is.GodjIdentityPermissionsHistoryParams{ID: identityID(permissionID)})
+	permissions, ok := permissionHistory.(*is.GodjIdentityPermissionsHistoryOKHeaders)
+	if err != nil || !ok || len(permissions.Response) != 3 || !permissions.XGodjCsrftoken.Set || !state.ready(permissions.XGodjCsrftoken.Value) {
+		return 0, 0, fail("selected permission history")
+	}
+	for i, event := range permissions.Response {
+		action, fields := "change", []string{"name"}
+		if i == 0 {
+			action, fields = "add", []string{"code", "name"}
+		}
+		if event.Action != action || !slices.Equal(event.ChangedFields, fields) || event.At.IsZero() || event.Sequence <= 0 || i > 0 && event.Sequence <= permissions.Response[i-1].Sequence {
+			return 0, 0, fail("selected permission history data")
+		}
+	}
+	groupHistory, err := client.GodjIdentityGroupsHistory(ctx, is.GodjIdentityGroupsHistoryParams{ID: identityID(groupID)})
+	groups, ok := groupHistory.(*is.GodjIdentityGroupsHistoryOKHeaders)
+	if err != nil || !ok || len(groups.Response) != 4 || !groups.XGodjCsrftoken.Set || !state.ready(groups.XGodjCsrftoken.Value) {
+		return 0, 0, fail("selected group history")
+	}
+	for i, event := range groups.Response {
+		action, fields := "change", []string{"permissions"}
+		if i == 0 {
+			action, fields = "add", []string{"name", "permissions"}
+		} else if i == 1 {
+			fields = []string{"name"}
+		}
+		if event.Action != action || !slices.Equal(event.ChangedFields, fields) || event.At.IsZero() || event.Sequence <= 0 || i > 0 && event.Sequence <= groups.Response[i-1].Sequence {
+			return 0, 0, fail("selected group history data")
 		}
 	}
 	return permissionID, groupID, nil
 }
 
+func identitySessionPermission(ctx context.Context, client *is.Client, state *sessionState, id, revision int64, name string) error {
+	response, err := client.GodjIdentityPermissionsDetail(ctx, is.GodjIdentityPermissionsDetailParams{ID: identityID(id)})
+	current, ok := response.(*is.PermissionHeaders)
+	if err != nil || !ok || current.Revision != revision || current.Response.Revision != revision || current.Response.ID != id || current.Response.Fields.Name != name || current.Response.Fields.Code != "consumer.manage.view" || !current.XGodjCsrftoken.Set || !state.ready(current.XGodjCsrftoken.Value) {
+		return fail("identity permission readback")
+	}
+	return nil
+}
+
+func identitySessionGroup(ctx context.Context, client *is.Client, state *sessionState, id, revision int64, name string, permissions []int64) error {
+	response, err := client.GodjIdentityGroupsDetail(ctx, is.GodjIdentityGroupsDetailParams{ID: identityID(id)})
+	current, ok := response.(*is.GroupHeaders)
+	if err != nil || !ok || current.Revision != revision || current.Response.Revision != revision || current.Response.ID != id || current.Response.Fields.Name != name || !slices.Equal(current.Response.Fields.Permissions, permissions) || !current.XGodjCsrftoken.Set || !state.ready(current.XGodjCsrftoken.Value) {
+		return fail("identity group readback")
+	}
+	return nil
+}
+
 func identityHostDeletion(ctx context.Context, client *is.Client, target identityEndpoint) error {
-	user, err := client.GodjIdentityIdentityUsersDelete(ctx, is.GodjIdentityIdentityUsersDeleteParams{ID: target.ProtectedUserID, IfRevision: 1})
-	u, ok := user.(*is.GodjIdentityIdentityUsersDeleteBadRequest)
+	user, err := client.GodjIdentityAccountsDelete(ctx, is.GodjIdentityAccountsDeleteParams{ID: identityID(target.ProtectedUserID), IfRevision: 1})
+	u, ok := user.(*is.GodjIdentityAccountsDeleteBadRequest)
 	if err != nil || !ok || !identityProtected(u.Code, u.Errors) {
 		return fail("identity user protected host")
 	}
-	group, err := client.GodjIdentityIdentityGroupsDelete(ctx, is.GodjIdentityIdentityGroupsDeleteParams{ID: target.ProtectedGroupID, IfRevision: 1})
-	g, ok := group.(*is.GodjIdentityIdentityGroupsDeleteBadRequest)
+	group, err := client.GodjIdentityGroupsDelete(ctx, is.GodjIdentityGroupsDeleteParams{ID: identityID(target.ProtectedGroupID), IfRevision: 1})
+	g, ok := group.(*is.GodjIdentityGroupsDeleteBadRequest)
 	if err != nil || !ok || !identityProtected(g.Code, g.Errors) {
 		return fail("identity group protected host")
 	}
-	permission, err := client.GodjIdentityIdentityPermissionsDelete(ctx, is.GodjIdentityIdentityPermissionsDeleteParams{ID: target.ProtectedPermissionID, IfRevision: 1})
-	p, ok := permission.(*is.GodjIdentityIdentityPermissionsDeleteBadRequest)
+	permission, err := client.GodjIdentityPermissionsDelete(ctx, is.GodjIdentityPermissionsDeleteParams{ID: identityID(target.ProtectedPermissionID), IfRevision: 1})
+	p, ok := permission.(*is.GodjIdentityPermissionsDeleteBadRequest)
 	if err != nil || !ok || !identityProtected(p.Code, p.Errors) {
 		return fail("identity permission protected host")
 	}
-	deletedUser, err := client.GodjIdentityIdentityUsersDelete(ctx, is.GodjIdentityIdentityUsersDeleteParams{ID: target.CascadeUserID, IfRevision: 1})
-	if _, ok := deletedUser.(*is.GodjIdentityIdentityUsersDeleteNoContent); err != nil || !ok {
+	deletedUser, err := client.GodjIdentityAccountsDelete(ctx, is.GodjIdentityAccountsDeleteParams{ID: identityID(target.CascadeUserID), IfRevision: 1})
+	if receipt, ok := deletedUser.(*is.GodjIdentityAccountsDeleteOKHeaders); err != nil || !ok || receipt.Revision != 1 || receipt.Response.Revision != 1 || receipt.Response.ID != target.CascadeUserID {
 		return fail("identity user host cascade")
 	}
-	deletedGroup, err := client.GodjIdentityIdentityGroupsDelete(ctx, is.GodjIdentityIdentityGroupsDeleteParams{ID: target.CascadeGroupID, IfRevision: 1})
-	if _, ok := deletedGroup.(*is.GodjIdentityIdentityGroupsDeleteNoContent); err != nil || !ok {
+	deletedGroup, err := client.GodjIdentityGroupsDelete(ctx, is.GodjIdentityGroupsDeleteParams{ID: identityID(target.CascadeGroupID), IfRevision: 1})
+	if receipt, ok := deletedGroup.(*is.GodjIdentityGroupsDeleteOKHeaders); err != nil || !ok || receipt.Revision != 1 || receipt.Response.Revision != 1 || receipt.Response.ID != target.CascadeGroupID {
 		return fail("identity group host set null")
 	}
-	deletedPermission, err := client.GodjIdentityIdentityPermissionsDelete(ctx, is.GodjIdentityIdentityPermissionsDeleteParams{ID: target.CascadePermissionID, IfRevision: 1})
+	deletedPermission, err := client.GodjIdentityPermissionsDelete(ctx, is.GodjIdentityPermissionsDeleteParams{ID: identityID(target.CascadePermissionID), IfRevision: 1})
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
 			return fail("identity permission host cascade request deadline")
@@ -378,12 +473,12 @@ func identityHostDeletion(ctx context.Context, client *is.Client, target identit
 		}
 		return fail("identity permission host cascade request failed")
 	}
-	if _, ok := deletedPermission.(*is.GodjIdentityIdentityPermissionsDeleteNoContent); !ok {
+	if receipt, ok := deletedPermission.(*is.GodjIdentityPermissionsDeleteOKHeaders); !ok || receipt.Revision != 1 || receipt.Response.Revision != 1 || receipt.Response.ID != target.CascadePermissionID {
 		return fail("identity permission host cascade response type")
 	}
 	return nil
 }
 
 func identityProtected(code string, fields []is.GoDjAPIErrorErrorsItem) bool {
-	return code == "validation_error" && len(fields) == 1 && fields[0].Field == "__all__" && fields[0].Code == "protected"
+	return code == "validation_error" && len(fields) == 1 && fields[0].Field == "/fields/__all__" && fields[0].Code == "protected"
 }

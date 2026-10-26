@@ -1905,6 +1905,35 @@ fixture의 불일치를 확인했다. 실제 checkout `fc29b7f713a94ec5a7d08e0a7
 (SHA-256 `9b1c8c1a617052bdb056e5ba04370a0b372475158627c93fb0d2078469820c79`).
 새 source의 전체 환경과 I1 수용은 다음 자동 CI에서 계속 확인하며 이 한정 수정 결과를 전체 수용으로 계산하지 않는다.
 
+### 선택 계정 runtime의 독립 OpenAPI 소비자 전환
+
+2026-10-27, source `646c57262819c4699d01b09548044c2bdda517cf`를 기준으로 관리 Session/Bearer와 자기 계정
+login/password/reset fixture를 선택 계정 runtime으로 옮겼다. `conformance/identityfixture`에 명시적 AccountRole을
+선택하고 공개 생성기로 전체 host 그래프의 13개 생성 파일을 갱신했다. Typed 정책·첫 계정/domain·공유 DB session owner를
+사용하며 기본 User Manager나 systemstate adapter를 새 관리 경로로 전달하지 않는다.
+
+별도 ogen module은 `fields`/`credential` 입력, 201/200의 확정 ID/revision receipt와 후속 상세 조회를 구분한다.
+계정·그룹·권한의 22개 경로, 순서/필드/시각이 있는 이력, 현재 인가·typed header·CSRF·Unicode/email·collection·
+password 상태와 unused-session 폐기·host PROTECT/CASCADE/SET_NULL 검사를 연결했다. 자기 비활성화는 재조회 없이
+성공 receipt 뒤 세션 거부를 검사한다. 새 runtime을 구성하는 부모가 native 계정/관계/session/audit 및 최초 ownership의
+불변성을 대조한다. Synthetic wire는 required receipt와 read collection·boolean·int64·실패의 단일 전송을 구분한다.
+
+실제 adapter 선언에서 여섯 문서를 내보냈고 관리 Session/Bearer 두 profile만 바뀌었다. 고정 ogen **v1.24.0**의
+24개 생성 Go 파일을 그대로 반영했다. 다른 네 schema와 의존성 잠금 `go.mod`·`go.sum`·`ogen.yml`은 byte-identical이다.
+선택 runtime의 schema export는 격리된 메모리 backend와 제한된 dummy hash 준비만 사용하며 migration·요청·메일 전송은 하지 않는다.
+
+로컬 darwin/arm64는 gofmt·244개 문서 링크·diff 검사, 부모 소비자/전체 fixture package의 `go test -run '^$'`와
+독립 module의 offline `go build`만 통과했다. 새 HTTP/DB·wire 본문과 normal/race/CGO=0·generated drift의 실제 수용은
+push 뒤 전체 원격 CI에서 확인한다. 생성·compile을 본문 실행이나 PostgreSQL SDK·server restart 성공으로 계산하지 않는다.
+`gdj0138-selected-openapi-v1/receipt.json`이 비 Markdown source 57개 hash·patch·실제 최소 compile 원본과 생성/잠금 대조를
+연결한다(SHA-256 `183d1d6057a70889f073624d8deeab73a5b01ba40e9426cccf3923f2b12248cd`).
+
+선행 [CI 40413979065](https://github.com/progresshans/godj/actions/runs/40413979065)의 실제 checkout
+`97d9356f9860befb14237aab6dbf6b80c0f3cce5`, tree `baf10a4a8bda238ea44145a87eea9cbaa6fc664b`가 기준 source와
+같음을 확인했다. 이 기록 시점은 성공 46·실행 중 34·대기 39이며 전체 PASS가 아니다. `validation-plan` job
+`121892101688`의 원본과 Git 객체는 `gdj0138-646c5726-ci-40413979065/`에 보존했다. 그 부분 성공을 이 새 소비자나 I1 전체
+수용으로 전이하지 않는다. 남은 고정 소비자·프로필 관계/파일·채운 DB 전환과 환경별 검증은 활성 work에 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

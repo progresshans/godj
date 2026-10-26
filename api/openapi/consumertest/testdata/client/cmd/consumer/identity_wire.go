@@ -13,8 +13,9 @@ import (
 	"github.com/ogen-go/ogen/ogenerrors"
 )
 
-const identityWireBase = `{"id":9223372036854775807,"username":"wire","first_name":"","last_name":"","email":"","active":true,"staff":false,"superuser":false,"date_joined":"2026-09-27T00:00:00Z","last_login":null,"revision":1152921504606846977,"password_usable":true`
-const identityWireCollections = `,"groups":[1152921504606846977,9223372036854775807],"permissions":[]}`
+const identityWireBase = `{"id":9223372036854775807,"revision":1152921504606846977,"password_usable":true,"fields":{"username":"wire","first_name":"","last_name":"","email":"","active":true,"staff":false,"superuser":false,"date_joined":"2026-09-27T00:00:00Z","last_login":null`
+const identityWireCollections = `,"groups":[1152921504606846977,9223372036854775807],"permissions":[]}}`
+const identityWireReceipt = `{"id":9223372036854775807,"revision":1152921504606846977}`
 const identityWireRevision = int64(1152921504606846977)
 
 // Fixed synthetic responses exercise the independent generated wire decoder.
@@ -27,73 +28,99 @@ func checkGeneratedIdentityWire(ctx context.Context) error {
 		return err
 	}
 	for _, test := range []struct {
-		patch    ib.UserPatch
+		patch    ib.AccountPatch
 		expected string
 	}{
-		{ib.UserPatch{}, `{}`},
-		{ib.UserPatch{Groups: []int64{}, Permissions: []int64{}}, `{"groups":[],"permissions":[]}`},
-		{ib.UserPatch{Groups: []int64{identityWireRevision, math.MaxInt64}}, `{"groups":[1152921504606846977,9223372036854775807]}`},
+		{ib.AccountPatch{Fields: ib.AccountPatchFields{}}, `{"fields":{}}`},
+		{ib.AccountPatch{Fields: ib.AccountPatchFields{Groups: []int64{}, Permissions: []int64{}}}, `{"fields":{"groups":[],"permissions":[]}}`},
+		{ib.AccountPatch{Fields: ib.AccountPatchFields{Groups: []int64{identityWireRevision, math.MaxInt64}}}, `{"fields":{"groups":[1152921504606846977,9223372036854775807]}}`},
 	} {
 		calls := 0
-		client, err := identityWireClient(identityWireBase+identityWireCollections, test.expected, "1152921504606846977", 200, &calls)
+		client, err := identityWireClient("PATCH", identityWireReceipt, test.expected, "1152921504606846977", 200, &calls)
 		if err != nil {
 			return err
 		}
-		response, err := client.GodjIdentityIdentityUsersPatch(ctx, &test.patch, ib.GodjIdentityIdentityUsersPatchParams{ID: math.MaxInt64, IfRevision: identityWireRevision})
-		user, ok := response.(*ib.UserHeaders)
-		if err != nil || !ok || calls != 1 || user.Revision != identityWireRevision || user.Response.Revision != identityWireRevision || user.Response.ID != math.MaxInt64 || !slices.Equal(user.Response.Groups, []int64{identityWireRevision, math.MaxInt64}) || len(user.Response.Permissions) != 0 || !user.Response.LastLogin.Null {
-			return fail("generated identity exact integer revision and collections")
+		response, err := client.GodjIdentityAccountsPatch(ctx, &test.patch, ib.GodjIdentityAccountsPatchParams{ID: identityID(math.MaxInt64), IfRevision: identityWireRevision})
+		receipt, ok := response.(*ib.GodjIdentityAccountsPatchOKHeaders)
+		if err != nil || !ok || calls != 1 || receipt.Revision != identityWireRevision || receipt.Response.Revision != identityWireRevision || receipt.Response.ID != math.MaxInt64 {
+			return fail("generated selected mutation exact integers and collections")
 		}
 	}
-	for _, suffix := range []string{`}`, `,"permissions":[]}`, `,"groups":[],"permissions":null}`, `,"groups":null,"permissions":[]}`, `,"groups":["1"],"permissions":[]}`, `,"groups":[1.0],"permissions":[]}`, `,"groups":[9223372036854775808],"permissions":[]}`} {
+	calls := 0
+	client, err := identityWireClient("GET", identityWireBase+identityWireCollections, "", "1152921504606846977", 200, &calls)
+	if err != nil {
+		return err
+	}
+	read, err := client.GodjIdentityAccountsDetail(ctx, ib.GodjIdentityAccountsDetailParams{ID: identityID(math.MaxInt64)})
+	account, ok := read.(*ib.AccountHeaders)
+	if err != nil || !ok || calls != 1 || account.Revision != identityWireRevision || account.Response.Revision != identityWireRevision || account.Response.ID != math.MaxInt64 || !slices.Equal(account.Response.Fields.Groups, []int64{identityWireRevision, math.MaxInt64}) || len(account.Response.Fields.Permissions) != 0 || !account.Response.Fields.LastLogin.Null {
+		return fail("generated selected read exact integers and collections")
+	}
+	for _, suffix := range []string{`}}`, `,"permissions":[]}}`, `,"groups":[],"permissions":null}}`, `,"groups":null,"permissions":[]}}`, `,"groups":["1"],"permissions":[]}}`, `,"groups":[1.0],"permissions":[]}}`, `,"groups":[9223372036854775808],"permissions":[]}}`} {
 		calls := 0
-		client, err := identityWireClient(identityWireBase+suffix, `{}`, "1152921504606846977", 200, &calls)
+		client, err := identityWireClient("GET", identityWireBase+suffix, "", "1152921504606846977", 200, &calls)
 		if err != nil {
 			return err
 		}
-		_, err = client.GodjIdentityIdentityUsersPatch(ctx, &ib.UserPatch{}, ib.GodjIdentityIdentityUsersPatchParams{ID: math.MaxInt64, IfRevision: identityWireRevision})
+		_, err = client.GodjIdentityAccountsDetail(ctx, ib.GodjIdentityAccountsDetailParams{ID: identityID(math.MaxInt64)})
 		var decode *ogenerrors.DecodeBodyError
 		if calls != 1 || !errors.As(err, &decode) {
-			return fail("generated identity required collection rejection")
+			return fail("generated selected read required collection rejection")
+		}
+	}
+	for _, body := range []string{`{}`, `{"id":1}`, `{"revision":1}`, `{"id":"1","revision":1}`, `{"id":9223372036854775808,"revision":1}`, `{"id":1,"revision":0}`} {
+		calls := 0
+		client, err := identityWireClient("PATCH", body, `{"fields":{}}`, "1152921504606846977", 200, &calls)
+		if err != nil {
+			return err
+		}
+		_, err = client.GodjIdentityAccountsPatch(ctx, &ib.AccountPatch{Fields: ib.AccountPatchFields{}}, ib.GodjIdentityAccountsPatchParams{ID: identityID(math.MaxInt64), IfRevision: identityWireRevision})
+		var decode *ogenerrors.DecodeBodyError
+		if calls != 1 || !errors.As(err, &decode) {
+			return fail("generated selected mutation required metadata rejection")
 		}
 	}
 	for _, revision := range []string{"", "0", "-1", "1.0", "9223372036854775808", "invalid"} {
 		calls := 0
-		client, err := identityWireClient(identityWireBase+identityWireCollections, `{}`, revision, 200, &calls)
+		client, err := identityWireClient("PATCH", identityWireReceipt, `{"fields":{}}`, revision, 200, &calls)
 		if err != nil {
 			return err
 		}
-		_, err = client.GodjIdentityIdentityUsersPatch(ctx, &ib.UserPatch{}, ib.GodjIdentityIdentityUsersPatchParams{ID: math.MaxInt64, IfRevision: identityWireRevision})
+		_, err = client.GodjIdentityAccountsPatch(ctx, &ib.AccountPatch{Fields: ib.AccountPatchFields{}}, ib.GodjIdentityAccountsPatchParams{ID: identityID(math.MaxInt64), IfRevision: identityWireRevision})
 		if calls != 1 || err == nil {
 			return fail("generated identity required revision header rejection")
 		}
 	}
-	// A failed condition or unknown outcome is a typed result, never a success
-	// DTO and never an implicit retry of this write.
+	// Failed conditions and unknown outcomes remain typed results and are
+	// never accepted as receipts or retried as writes.
 	for _, status := range []int{412, 428, 503} {
-		code := map[int]string{412: "revision_conflict", 428: "precondition_required", 503: "outcome_unknown"}[status]
+		code := map[int]string{412: "revision_conflict", 428: "validation_error", 503: "outcome_unknown"}[status]
+		fields := `[]`
+		if status == 428 {
+			fields = `[{"field":"If-Revision","code":"required","params":[]}]`
+		}
 		calls := 0
-		client, err := identityWireClient(`{"code":"`+code+`","errors":[]}`, `{}`, "", status, &calls)
+		client, err := identityWireClient("PATCH", `{"code":"`+code+`","errors":`+fields+`}`, `{"fields":{}}`, "", status, &calls)
 		if err != nil {
 			return err
 		}
-		response, err := client.GodjIdentityIdentityUsersPatch(ctx, &ib.UserPatch{}, ib.GodjIdentityIdentityUsersPatchParams{ID: math.MaxInt64, IfRevision: identityWireRevision})
+		response, err := client.GodjIdentityAccountsPatch(ctx, &ib.AccountPatch{Fields: ib.AccountPatchFields{}}, ib.GodjIdentityAccountsPatchParams{ID: identityID(math.MaxInt64), IfRevision: identityWireRevision})
 		if err != nil || calls != 1 {
 			return fail("generated identity failure retried or unclassified")
 		}
 		var actual string
 		switch typed := response.(type) {
-		case *ib.GodjIdentityIdentityUsersPatchPreconditionFailed:
+		case *ib.GodjIdentityAccountsPatchPreconditionFailed:
 			if status != 412 {
 				return fail("generated identity conflict classification")
 			}
 			actual = typed.Code
-		case *ib.GodjIdentityIdentityUsersPatchPreconditionRequired:
-			if status != 428 {
+		case *ib.GodjIdentityAccountsPatchPreconditionRequired:
+			if status != 428 || !identityBearerHeaderError(typed.Code, typed.Errors, "required") {
 				return fail("generated identity missing condition classification")
 			}
 			actual = typed.Code
-		case *ib.GodjIdentityIdentityUsersPatchServiceUnavailable:
+		case *ib.GodjIdentityAccountsPatchServiceUnavailable:
 			if status != 503 {
 				return fail("generated identity unknown outcome classification")
 			}
@@ -108,11 +135,16 @@ func checkGeneratedIdentityWire(ctx context.Context) error {
 	return nil
 }
 
-func identityWireClient(body, expected, revision string, status int, calls *int) (*ib.Client, error) {
+func identityWireClient(method, body, expected, revision string, status int, calls *int) (*ib.Client, error) {
 	transport := roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		*calls++
-		wire, err := io.ReadAll(request.Body)
-		if err != nil || request.Method != http.MethodPatch || request.URL.Host != "probe.invalid" || request.URL.Path != "/api/identity/users/9223372036854775807/" || request.Header.Get("If-Revision") != "1152921504606846977" || len(request.Header.Values("If-Revision")) != 1 || request.Header.Get("Authorization") != "Bearer probe-only" || len(request.Cookies()) != 0 || string(wire) != expected {
+		var wire []byte
+		var err error
+		if request.Body != nil {
+			wire, err = io.ReadAll(request.Body)
+		}
+		condition := method == "GET" && request.Header.Get("If-Revision") == "" || method == "PATCH" && request.Header.Get("If-Revision") == "1152921504606846977" && len(request.Header.Values("If-Revision")) == 1
+		if err != nil || request.Method != method || request.URL.Host != "probe.invalid" || request.URL.Path != "/api/identity/accounts/9223372036854775807/" || !condition || request.Header.Get("Authorization") != "Bearer probe-only" || len(request.Cookies()) != 0 || string(wire) != expected {
 			return nil, fail("generated identity request wire")
 		}
 		headers := http.Header{"Content-Type": []string{"application/json"}}

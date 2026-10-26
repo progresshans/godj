@@ -350,6 +350,12 @@ TEST_EVIDENCE에서 구분한다. 이 구현을 I1 전체 제품 수용으로 �
 Legacy adoption은 기존 credential/session 보존과 새 domain의 명시적 전환 거부를 검사한다. 한정 실패 수정 재현과 새 source의
 전체 양 DB·race/platform 검증은 TEST_EVIDENCE에서 구분한다.
 
+별도 ogen module의 Session/Bearer 관리 소비자와 자기 계정 login/password/reset fixture를 선택 runtime으로 전환했다.
+전체 host 그래프·명시적 typed 정책·최초 계정/domain·공유 session owner를 사용하며 새 fields/credential·확정 mutation
+receipt와 22개 경로의 실제 호출을 작성했다. 기존 권한 회수·세션 폐기·host 관계·Unicode/email·부정 header/wire를 유지하고
+이력 및 receipt 필수 metadata 검사를 추가했다. 원본 문서와 고정 생성물을 함께 갱신했으며 최소 compile과 실제 HTTP/DB·
+전체 환경 수용은 TEST_EVIDENCE에서 구분한다.
+
 프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 

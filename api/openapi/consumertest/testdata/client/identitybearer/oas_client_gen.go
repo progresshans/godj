@@ -22,312 +22,313 @@ func trimTrailingSlashes(u *url.URL) {
 
 // Invoker invokes operations described by OpenAPI v3 specification.
 type Invoker interface {
-	// GodjIdentityIdentityGroupsCreate invokes godj_identity:identity-groups-create operation.
+	// GodjIdentityAccountsCreate invokes godj_identity:accounts-create operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-	// and change_user. The server selects a fresh opaque principal ID. The password member is required for
-	// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
-	// creates an account without password login. Omission and an empty string are rejected. Hosts may
-	// configure password validators for usable passwords; null does not invoke them. No
-	// password-confirmation policy is implied by this API.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
+	//
+	// POST /api/identity/accounts/
+	GodjIdentityAccountsCreate(ctx context.Context, request *AccountCreate) (GodjIdentityAccountsCreateRes, error)
+	// GodjIdentityAccountsDelete invokes godj_identity:accounts-delete operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+	//
+	// DELETE /api/identity/accounts/{id}/
+	GodjIdentityAccountsDelete(ctx context.Context, params GodjIdentityAccountsDeleteParams) (GodjIdentityAccountsDeleteRes, error)
+	// GodjIdentityAccountsDetail invokes godj_identity:accounts-detail operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
+	//
+	// GET /api/identity/accounts/{id}/
+	GodjIdentityAccountsDetail(ctx context.Context, params GodjIdentityAccountsDetailParams) (GodjIdentityAccountsDetailRes, error)
+	// GodjIdentityAccountsHistory invokes godj_identity:accounts-history operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. History contains sequence, action, changed field
+	// names and time; it excludes actor principal IDs and values.
+	//
+	// GET /api/identity/accounts/{id}/history/
+	GodjIdentityAccountsHistory(ctx context.Context, params GodjIdentityAccountsHistoryParams) (GodjIdentityAccountsHistoryRes, error)
+	// GodjIdentityAccountsList invokes godj_identity:accounts-list operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
+	//
+	// GET /api/identity/accounts/
+	GodjIdentityAccountsList(ctx context.Context, params GodjIdentityAccountsListParams) (GodjIdentityAccountsListRes, error)
+	// GodjIdentityAccountsPassword invokes godj_identity:accounts-password operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+	//
+	// POST /api/identity/accounts/{id}/password/
+	GodjIdentityAccountsPassword(ctx context.Context, request *AccountPassword, params GodjIdentityAccountsPasswordParams) (GodjIdentityAccountsPasswordRes, error)
+	// GodjIdentityAccountsPatch invokes godj_identity:accounts-Patch operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+	//
+	// PATCH /api/identity/accounts/{id}/
+	GodjIdentityAccountsPatch(ctx context.Context, request *AccountPatch, params GodjIdentityAccountsPatchParams) (GodjIdentityAccountsPatchRes, error)
+	// GodjIdentityAccountsPut invokes godj_identity:accounts-Put operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+	//
+	// PUT /api/identity/accounts/{id}/
+	GodjIdentityAccountsPut(ctx context.Context, request *AccountPut, params GodjIdentityAccountsPutParams) (GodjIdentityAccountsPutRes, error)
+	// GodjIdentityGroupsCreate invokes godj_identity:groups-create operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
 	//
 	// POST /api/identity/groups/
-	GodjIdentityIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (GodjIdentityIdentityGroupsCreateRes, error)
-	// GodjIdentityIdentityGroupsDelete invokes godj_identity:identity-groups-delete operation.
+	GodjIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (GodjIdentityGroupsCreateRes, error)
+	// GodjIdentityGroupsDelete invokes godj_identity:groups-delete operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. No request body is accepted. Host
-	// CASCADE/PROTECT/SET_NULL policies and direct relation-owner revisions are atomic. Delete permission
-	// does not expose target profile data.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 	//
 	// DELETE /api/identity/groups/{id}/
-	GodjIdentityIdentityGroupsDelete(ctx context.Context, params GodjIdentityIdentityGroupsDeleteParams) (GodjIdentityIdentityGroupsDeleteRes, error)
-	// GodjIdentityIdentityGroupsDetail invokes godj_identity:identity-groups-detail operation.
+	GodjIdentityGroupsDelete(ctx context.Context, params GodjIdentityGroupsDeleteParams) (GodjIdentityGroupsDeleteRes, error)
+	// GodjIdentityGroupsDetail invokes godj_identity:groups-detail operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. View OR change permission admits the request; an authorization failure never falls back.
-	// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-	// collections; details include direct groups/permissions, not inherited grants.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
 	//
 	// GET /api/identity/groups/{id}/
-	GodjIdentityIdentityGroupsDetail(ctx context.Context, params GodjIdentityIdentityGroupsDetailParams) (GodjIdentityIdentityGroupsDetailRes, error)
-	// GodjIdentityIdentityGroupsList invokes godj_identity:identity-groups-list operation.
+	GodjIdentityGroupsDetail(ctx context.Context, params GodjIdentityGroupsDetailParams) (GodjIdentityGroupsDetailRes, error)
+	// GodjIdentityGroupsHistory invokes godj_identity:groups-history operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. View OR change permission admits the request; an authorization failure never falls back.
-	// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-	// collections; details include direct groups/permissions, not inherited grants.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. History contains sequence, action, changed field
+	// names and time; it excludes actor principal IDs and values.
+	//
+	// GET /api/identity/groups/{id}/history/
+	GodjIdentityGroupsHistory(ctx context.Context, params GodjIdentityGroupsHistoryParams) (GodjIdentityGroupsHistoryRes, error)
+	// GodjIdentityGroupsList invokes godj_identity:groups-list operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
 	//
 	// GET /api/identity/groups/
-	GodjIdentityIdentityGroupsList(ctx context.Context, params GodjIdentityIdentityGroupsListParams) (GodjIdentityIdentityGroupsListRes, error)
-	// GodjIdentityIdentityGroupsPatch invokes godj_identity:identity-groups-patch operation.
+	GodjIdentityGroupsList(ctx context.Context, params GodjIdentityGroupsListParams) (GodjIdentityGroupsListRes, error)
+	// GodjIdentityGroupsPatch invokes godj_identity:groups-Patch operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-	// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-	// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-	// identity, encoded password, timestamps and revision cannot be set through input.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 	//
 	// PATCH /api/identity/groups/{id}/
-	GodjIdentityIdentityGroupsPatch(ctx context.Context, request *GroupPatch, params GodjIdentityIdentityGroupsPatchParams) (GodjIdentityIdentityGroupsPatchRes, error)
-	// GodjIdentityIdentityGroupsUpdate invokes godj_identity:identity-groups-update operation.
+	GodjIdentityGroupsPatch(ctx context.Context, request *GroupPatch, params GodjIdentityGroupsPatchParams) (GodjIdentityGroupsPatchRes, error)
+	// GodjIdentityGroupsPut invokes godj_identity:groups-Put operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-	// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-	// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-	// identity, encoded password, timestamps and revision cannot be set through input.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 	//
 	// PUT /api/identity/groups/{id}/
-	GodjIdentityIdentityGroupsUpdate(ctx context.Context, request *GroupUpdate, params GodjIdentityIdentityGroupsUpdateParams) (GodjIdentityIdentityGroupsUpdateRes, error)
-	// GodjIdentityIdentityPermissionsCreate invokes godj_identity:identity-permissions-create operation.
+	GodjIdentityGroupsPut(ctx context.Context, request *GroupPut, params GodjIdentityGroupsPutParams) (GodjIdentityGroupsPutRes, error)
+	// GodjIdentityPermissionsCreate invokes godj_identity:permissions-create operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-	// and change_user. The server selects a fresh opaque principal ID. The password member is required for
-	// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
-	// creates an account without password login. Omission and an empty string are rejected. Hosts may
-	// configure password validators for usable passwords; null does not invoke them. No
-	// password-confirmation policy is implied by this API.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
 	//
 	// POST /api/identity/permissions/
-	GodjIdentityIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (GodjIdentityIdentityPermissionsCreateRes, error)
-	// GodjIdentityIdentityPermissionsDelete invokes godj_identity:identity-permissions-delete operation.
+	GodjIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (GodjIdentityPermissionsCreateRes, error)
+	// GodjIdentityPermissionsDelete invokes godj_identity:permissions-delete operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. No request body is accepted. Host
-	// CASCADE/PROTECT/SET_NULL policies and direct relation-owner revisions are atomic. Delete permission
-	// does not expose target profile data.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 	//
 	// DELETE /api/identity/permissions/{id}/
-	GodjIdentityIdentityPermissionsDelete(ctx context.Context, params GodjIdentityIdentityPermissionsDeleteParams) (GodjIdentityIdentityPermissionsDeleteRes, error)
-	// GodjIdentityIdentityPermissionsDetail invokes godj_identity:identity-permissions-detail operation.
+	GodjIdentityPermissionsDelete(ctx context.Context, params GodjIdentityPermissionsDeleteParams) (GodjIdentityPermissionsDeleteRes, error)
+	// GodjIdentityPermissionsDetail invokes godj_identity:permissions-detail operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. View OR change permission admits the request; an authorization failure never falls back.
-	// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-	// collections; details include direct groups/permissions, not inherited grants.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
 	//
 	// GET /api/identity/permissions/{id}/
-	GodjIdentityIdentityPermissionsDetail(ctx context.Context, params GodjIdentityIdentityPermissionsDetailParams) (GodjIdentityIdentityPermissionsDetailRes, error)
-	// GodjIdentityIdentityPermissionsList invokes godj_identity:identity-permissions-list operation.
+	GodjIdentityPermissionsDetail(ctx context.Context, params GodjIdentityPermissionsDetailParams) (GodjIdentityPermissionsDetailRes, error)
+	// GodjIdentityPermissionsHistory invokes godj_identity:permissions-history operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. View OR change permission admits the request; an authorization failure never falls back.
-	// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-	// collections; details include direct groups/permissions, not inherited grants.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. History contains sequence, action, changed field
+	// names and time; it excludes actor principal IDs and values.
+	//
+	// GET /api/identity/permissions/{id}/history/
+	GodjIdentityPermissionsHistory(ctx context.Context, params GodjIdentityPermissionsHistoryParams) (GodjIdentityPermissionsHistoryRes, error)
+	// GodjIdentityPermissionsList invokes godj_identity:permissions-list operation.
+	//
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store.
 	//
 	// GET /api/identity/permissions/
-	GodjIdentityIdentityPermissionsList(ctx context.Context, params GodjIdentityIdentityPermissionsListParams) (GodjIdentityIdentityPermissionsListRes, error)
-	// GodjIdentityIdentityPermissionsPatch invokes godj_identity:identity-permissions-patch operation.
+	GodjIdentityPermissionsList(ctx context.Context, params GodjIdentityPermissionsListParams) (GodjIdentityPermissionsListRes, error)
+	// GodjIdentityPermissionsPatch invokes godj_identity:permissions-Patch operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-	// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-	// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-	// identity, encoded password, timestamps and revision cannot be set through input.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 	//
 	// PATCH /api/identity/permissions/{id}/
-	GodjIdentityIdentityPermissionsPatch(ctx context.Context, request *PermissionPatch, params GodjIdentityIdentityPermissionsPatchParams) (GodjIdentityIdentityPermissionsPatchRes, error)
-	// GodjIdentityIdentityPermissionsUpdate invokes godj_identity:identity-permissions-update operation.
+	GodjIdentityPermissionsPatch(ctx context.Context, request *PermissionPatch, params GodjIdentityPermissionsPatchParams) (GodjIdentityPermissionsPatchRes, error)
+	// GodjIdentityPermissionsPut invokes godj_identity:permissions-Put operation.
 	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-	// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-	// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-	// identity, encoded password, timestamps and revision cannot be set through input.
+	// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+	// current authority, credential domain, target state, revision, uniqueness and related effects in
+	// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+	// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+	// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+	// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+	// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+	// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+	// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+	// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+	// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 	//
 	// PUT /api/identity/permissions/{id}/
-	GodjIdentityIdentityPermissionsUpdate(ctx context.Context, request *PermissionUpdate, params GodjIdentityIdentityPermissionsUpdateParams) (GodjIdentityIdentityPermissionsUpdateRes, error)
-	// GodjIdentityIdentityUsersCreate invokes godj_identity:identity-users-create operation.
-	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-	// and change_user. The server selects a fresh opaque principal ID. The password member is required for
-	// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
-	// creates an account without password login. Omission and an empty string are rejected. Hosts may
-	// configure password validators for usable passwords; null does not invoke them. No
-	// password-confirmation policy is implied by this API.
-	//
-	// POST /api/identity/users/
-	GodjIdentityIdentityUsersCreate(ctx context.Context, request *UserCreate) (GodjIdentityIdentityUsersCreateRes, error)
-	// GodjIdentityIdentityUsersDelete invokes godj_identity:identity-users-delete operation.
-	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. No request body is accepted. Host
-	// CASCADE/PROTECT/SET_NULL policies and direct relation-owner revisions are atomic. Delete permission
-	// does not expose target profile data.
-	//
-	// DELETE /api/identity/users/{id}/
-	GodjIdentityIdentityUsersDelete(ctx context.Context, params GodjIdentityIdentityUsersDeleteParams) (GodjIdentityIdentityUsersDeleteRes, error)
-	// GodjIdentityIdentityUsersDetail invokes godj_identity:identity-users-detail operation.
-	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. View OR change permission admits the request; an authorization failure never falls back.
-	// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-	// collections; details include direct groups/permissions, not inherited grants.
-	//
-	// GET /api/identity/users/{id}/
-	GodjIdentityIdentityUsersDetail(ctx context.Context, params GodjIdentityIdentityUsersDetailParams) (GodjIdentityIdentityUsersDetailRes, error)
-	// GodjIdentityIdentityUsersList invokes godj_identity:identity-users-list operation.
-	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. View OR change permission admits the request; an authorization failure never falls back.
-	// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-	// collections; details include direct groups/permissions, not inherited grants.
-	//
-	// GET /api/identity/users/
-	GodjIdentityIdentityUsersList(ctx context.Context, params GodjIdentityIdentityUsersListParams) (GodjIdentityIdentityUsersListRes, error)
-	// GodjIdentityIdentityUsersPassword invokes godj_identity:identity-users-password operation.
-	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. Administrative replacement, not self-service
-	// change/reset. A nonempty password string sets a usable password and preserves whitespace. Explicit
-	// null disables password login while retaining the account, roles and grants. The member is required;
-	// omission and empty strings are rejected. Every successful replacement, including repeated
-	// disablement, rotates the credential and revokes target sessions. Hashing or generation of an
-	// unusable marker runs once outside DB scopes after preflight; neither is returned. Password
-	// validators apply only to usable passwords. A successful response does not establish a login session.
-	//
-	// POST /api/identity/users/{id}/password/
-	GodjIdentityIdentityUsersPassword(ctx context.Context, request *PasswordReplacement, params GodjIdentityIdentityUsersPasswordParams) (GodjIdentityIdentityUsersPasswordRes, error)
-	// GodjIdentityIdentityUsersPatch invokes godj_identity:identity-users-patch operation.
-	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-	// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-	// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-	// identity, encoded password, timestamps and revision cannot be set through input.
-	//
-	// PATCH /api/identity/users/{id}/
-	GodjIdentityIdentityUsersPatch(ctx context.Context, request *UserPatch, params GodjIdentityIdentityUsersPatchParams) (GodjIdentityIdentityUsersPatchRes, error)
-	// GodjIdentityIdentityUsersUpdate invokes godj_identity:identity-users-update operation.
-	//
-	// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-	// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-	// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-	// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-	// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-	// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-	// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-	// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-	// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-	// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-	// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-	// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-	// identity, encoded password, timestamps and revision cannot be set through input.
-	//
-	// PUT /api/identity/users/{id}/
-	GodjIdentityIdentityUsersUpdate(ctx context.Context, request *UserUpdate, params GodjIdentityIdentityUsersUpdateParams) (GodjIdentityIdentityUsersUpdateRes, error)
+	GodjIdentityPermissionsPut(ctx context.Context, request *PermissionPut, params GodjIdentityPermissionsPutParams) (GodjIdentityPermissionsPutRes, error)
 }
 
 // Client implements OAS client.
@@ -371,38 +372,34 @@ func (c *Client) requestURL(ctx context.Context) *url.URL {
 	return u
 }
 
-// GodjIdentityIdentityGroupsCreate invokes godj_identity:identity-groups-create operation.
+// GodjIdentityAccountsCreate invokes godj_identity:accounts-create operation.
 //
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-// and change_user. The server selects a fresh opaque principal ID. The password member is required for
-// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
-// creates an account without password login. Omission and an empty string are rejected. Hosts may
-// configure password validators for usable passwords; null does not invoke them. No
-// password-confirmation policy is implied by this API.
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
 //
-// POST /api/identity/groups/
-func (c *Client) GodjIdentityIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (GodjIdentityIdentityGroupsCreateRes, error) {
-	res, err := c.sendGodjIdentityIdentityGroupsCreate(ctx, request)
+// POST /api/identity/accounts/
+func (c *Client) GodjIdentityAccountsCreate(ctx context.Context, request *AccountCreate) (GodjIdentityAccountsCreateRes, error) {
+	res, err := c.sendGodjIdentityAccountsCreate(ctx, request)
 	return res, err
 }
 
-func (c *Client) sendGodjIdentityIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (res GodjIdentityIdentityGroupsCreateRes, err error) {
+func (c *Client) sendGodjIdentityAccountsCreate(ctx context.Context, request *AccountCreate) (res GodjIdentityAccountsCreateRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [1]string
-	pathParts[0] = "/api/identity/groups/"
+	pathParts[0] = "/api/identity/accounts/"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	r, err := ht.NewRequest(ctx, "POST", u)
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
 	}
-	if err := encodeGodjIdentityIdentityGroupsCreateRequest(request, r); err != nil {
+	if err := encodeGodjIdentityAccountsCreateRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
 	}
 
@@ -411,7 +408,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsCreate(ctx context.Context, reque
 		var satisfied bitset
 		{
 
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityGroupsCreateOperation, r); {
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsCreateOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -452,7 +449,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsCreate(ctx context.Context, reque
 		_ = body.Close()
 	}()
 
-	result, err := decodeGodjIdentityIdentityGroupsCreateResponse(resp)
+	result, err := decodeGodjIdentityAccountsCreateResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -460,32 +457,31 @@ func (c *Client) sendGodjIdentityIdentityGroupsCreate(ctx context.Context, reque
 	return result, nil
 }
 
-// GodjIdentityIdentityGroupsDelete invokes godj_identity:identity-groups-delete operation.
+// GodjIdentityAccountsDelete invokes godj_identity:accounts-delete operation.
 //
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. No request body is accepted. Host
-// CASCADE/PROTECT/SET_NULL policies and direct relation-owner revisions are atomic. Delete permission
-// does not expose target profile data.
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 //
-// DELETE /api/identity/groups/{id}/
-func (c *Client) GodjIdentityIdentityGroupsDelete(ctx context.Context, params GodjIdentityIdentityGroupsDeleteParams) (GodjIdentityIdentityGroupsDeleteRes, error) {
-	res, err := c.sendGodjIdentityIdentityGroupsDelete(ctx, params)
+// DELETE /api/identity/accounts/{id}/
+func (c *Client) GodjIdentityAccountsDelete(ctx context.Context, params GodjIdentityAccountsDeleteParams) (GodjIdentityAccountsDeleteRes, error) {
+	res, err := c.sendGodjIdentityAccountsDelete(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGodjIdentityIdentityGroupsDelete(ctx context.Context, params GodjIdentityIdentityGroupsDeleteParams) (res GodjIdentityIdentityGroupsDeleteRes, err error) {
+func (c *Client) sendGodjIdentityAccountsDelete(ctx context.Context, params GodjIdentityAccountsDeleteParams) (res GodjIdentityAccountsDeleteRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [3]string
-	pathParts[0] = "/api/identity/groups/"
+	pathParts[0] = "/api/identity/accounts/"
 	{
 		// Encode "id" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -494,7 +490,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsDelete(ctx context.Context, param
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
+			return e.EncodeValue(conv.StringToString(params.ID))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -530,7 +526,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsDelete(ctx context.Context, param
 		var satisfied bitset
 		{
 
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityGroupsDeleteOperation, r); {
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsDeleteOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -571,7 +567,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsDelete(ctx context.Context, param
 		_ = body.Close()
 	}()
 
-	result, err := decodeGodjIdentityIdentityGroupsDeleteResponse(resp)
+	result, err := decodeGodjIdentityAccountsDeleteResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -579,28 +575,27 @@ func (c *Client) sendGodjIdentityIdentityGroupsDelete(ctx context.Context, param
 	return result, nil
 }
 
-// GodjIdentityIdentityGroupsDetail invokes godj_identity:identity-groups-detail operation.
+// GodjIdentityAccountsDetail invokes godj_identity:accounts-detail operation.
 //
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. View OR change permission admits the request; an authorization failure never falls back.
-// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-// collections; details include direct groups/permissions, not inherited grants.
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
 //
-// GET /api/identity/groups/{id}/
-func (c *Client) GodjIdentityIdentityGroupsDetail(ctx context.Context, params GodjIdentityIdentityGroupsDetailParams) (GodjIdentityIdentityGroupsDetailRes, error) {
-	res, err := c.sendGodjIdentityIdentityGroupsDetail(ctx, params)
+// GET /api/identity/accounts/{id}/
+func (c *Client) GodjIdentityAccountsDetail(ctx context.Context, params GodjIdentityAccountsDetailParams) (GodjIdentityAccountsDetailRes, error) {
+	res, err := c.sendGodjIdentityAccountsDetail(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGodjIdentityIdentityGroupsDetail(ctx context.Context, params GodjIdentityIdentityGroupsDetailParams) (res GodjIdentityIdentityGroupsDetailRes, err error) {
+func (c *Client) sendGodjIdentityAccountsDetail(ctx context.Context, params GodjIdentityAccountsDetailParams) (res GodjIdentityAccountsDetailRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [3]string
-	pathParts[0] = "/api/identity/groups/"
+	pathParts[0] = "/api/identity/accounts/"
 	{
 		// Encode "id" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -609,7 +604,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsDetail(ctx context.Context, param
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
+			return e.EncodeValue(conv.StringToString(params.ID))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -632,7 +627,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsDetail(ctx context.Context, param
 		var satisfied bitset
 		{
 
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityGroupsDetailOperation, r); {
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsDetailOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -673,7 +668,7 @@ func (c *Client) sendGodjIdentityIdentityGroupsDetail(ctx context.Context, param
 		_ = body.Close()
 	}()
 
-	result, err := decodeGodjIdentityIdentityGroupsDetailResponse(resp)
+	result, err := decodeGodjIdentityAccountsDetailResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -681,28 +676,47 @@ func (c *Client) sendGodjIdentityIdentityGroupsDetail(ctx context.Context, param
 	return result, nil
 }
 
-// GodjIdentityIdentityGroupsList invokes godj_identity:identity-groups-list operation.
+// GodjIdentityAccountsHistory invokes godj_identity:accounts-history operation.
 //
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. View OR change permission admits the request; an authorization failure never falls back.
-// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-// collections; details include direct groups/permissions, not inherited grants.
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. History contains sequence, action, changed field
+// names and time; it excludes actor principal IDs and values.
 //
-// GET /api/identity/groups/
-func (c *Client) GodjIdentityIdentityGroupsList(ctx context.Context, params GodjIdentityIdentityGroupsListParams) (GodjIdentityIdentityGroupsListRes, error) {
-	res, err := c.sendGodjIdentityIdentityGroupsList(ctx, params)
+// GET /api/identity/accounts/{id}/history/
+func (c *Client) GodjIdentityAccountsHistory(ctx context.Context, params GodjIdentityAccountsHistoryParams) (GodjIdentityAccountsHistoryRes, error) {
+	res, err := c.sendGodjIdentityAccountsHistory(ctx, params)
 	return res, err
 }
 
-func (c *Client) sendGodjIdentityIdentityGroupsList(ctx context.Context, params GodjIdentityIdentityGroupsListParams) (res GodjIdentityIdentityGroupsListRes, err error) {
+func (c *Client) sendGodjIdentityAccountsHistory(ctx context.Context, params GodjIdentityAccountsHistoryParams) (res GodjIdentityAccountsHistoryRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/api/identity/groups/"
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/accounts/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/history/"
 	uri.AddPathParts(u, pathParts[:]...)
 
 	q := uri.NewQueryEncoder()
@@ -723,6 +737,91 @@ func (c *Client) sendGodjIdentityIdentityGroupsList(ctx context.Context, params 
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsHistoryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityAccountsHistoryResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityAccountsList invokes godj_identity:accounts-list operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
+//
+// GET /api/identity/accounts/
+func (c *Client) GodjIdentityAccountsList(ctx context.Context, params GodjIdentityAccountsListParams) (GodjIdentityAccountsListRes, error) {
+	res, err := c.sendGodjIdentityAccountsList(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityAccountsList(ctx context.Context, params GodjIdentityAccountsListParams) (res GodjIdentityAccountsListRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/identity/accounts/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
 	{
 		// Encode "offset" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -740,648 +839,6 @@ func (c *Client) sendGodjIdentityIdentityGroupsList(ctx context.Context, params 
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
-	u.RawQuery = q.Values().Encode()
-
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityGroupsListOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityGroupsListResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityGroupsPatch invokes godj_identity:identity-groups-patch operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-// identity, encoded password, timestamps and revision cannot be set through input.
-//
-// PATCH /api/identity/groups/{id}/
-func (c *Client) GodjIdentityIdentityGroupsPatch(ctx context.Context, request *GroupPatch, params GodjIdentityIdentityGroupsPatchParams) (GodjIdentityIdentityGroupsPatchRes, error) {
-	res, err := c.sendGodjIdentityIdentityGroupsPatch(ctx, request, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityGroupsPatch(ctx context.Context, request *GroupPatch, params GodjIdentityIdentityGroupsPatchParams) (res GodjIdentityIdentityGroupsPatchRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/groups/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "PATCH", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGodjIdentityIdentityGroupsPatchRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "If-Revision",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityGroupsPatchOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityGroupsPatchResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityGroupsUpdate invokes godj_identity:identity-groups-update operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-// identity, encoded password, timestamps and revision cannot be set through input.
-//
-// PUT /api/identity/groups/{id}/
-func (c *Client) GodjIdentityIdentityGroupsUpdate(ctx context.Context, request *GroupUpdate, params GodjIdentityIdentityGroupsUpdateParams) (GodjIdentityIdentityGroupsUpdateRes, error) {
-	res, err := c.sendGodjIdentityIdentityGroupsUpdate(ctx, request, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityGroupsUpdate(ctx context.Context, request *GroupUpdate, params GodjIdentityIdentityGroupsUpdateParams) (res GodjIdentityIdentityGroupsUpdateRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/groups/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "PUT", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGodjIdentityIdentityGroupsUpdateRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "If-Revision",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityGroupsUpdateOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityGroupsUpdateResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityPermissionsCreate invokes godj_identity:identity-permissions-create operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-// and change_user. The server selects a fresh opaque principal ID. The password member is required for
-// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
-// creates an account without password login. Omission and an empty string are rejected. Hosts may
-// configure password validators for usable passwords; null does not invoke them. No
-// password-confirmation policy is implied by this API.
-//
-// POST /api/identity/permissions/
-func (c *Client) GodjIdentityIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (GodjIdentityIdentityPermissionsCreateRes, error) {
-	res, err := c.sendGodjIdentityIdentityPermissionsCreate(ctx, request)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (res GodjIdentityIdentityPermissionsCreateRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/api/identity/permissions/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGodjIdentityIdentityPermissionsCreateRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityPermissionsCreateOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityPermissionsCreateResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityPermissionsDelete invokes godj_identity:identity-permissions-delete operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. No request body is accepted. Host
-// CASCADE/PROTECT/SET_NULL policies and direct relation-owner revisions are atomic. Delete permission
-// does not expose target profile data.
-//
-// DELETE /api/identity/permissions/{id}/
-func (c *Client) GodjIdentityIdentityPermissionsDelete(ctx context.Context, params GodjIdentityIdentityPermissionsDeleteParams) (GodjIdentityIdentityPermissionsDeleteRes, error) {
-	res, err := c.sendGodjIdentityIdentityPermissionsDelete(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityPermissionsDelete(ctx context.Context, params GodjIdentityIdentityPermissionsDeleteParams) (res GodjIdentityIdentityPermissionsDeleteRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/permissions/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "DELETE", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "If-Revision",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityPermissionsDeleteOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityPermissionsDeleteResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityPermissionsDetail invokes godj_identity:identity-permissions-detail operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. View OR change permission admits the request; an authorization failure never falls back.
-// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-// collections; details include direct groups/permissions, not inherited grants.
-//
-// GET /api/identity/permissions/{id}/
-func (c *Client) GodjIdentityIdentityPermissionsDetail(ctx context.Context, params GodjIdentityIdentityPermissionsDetailParams) (GodjIdentityIdentityPermissionsDetailRes, error) {
-	res, err := c.sendGodjIdentityIdentityPermissionsDetail(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityPermissionsDetail(ctx context.Context, params GodjIdentityIdentityPermissionsDetailParams) (res GodjIdentityIdentityPermissionsDetailRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/permissions/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityPermissionsDetailOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityPermissionsDetailResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityPermissionsList invokes godj_identity:identity-permissions-list operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. View OR change permission admits the request; an authorization failure never falls back.
-// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-// collections; details include direct groups/permissions, not inherited grants.
-//
-// GET /api/identity/permissions/
-func (c *Client) GodjIdentityIdentityPermissionsList(ctx context.Context, params GodjIdentityIdentityPermissionsListParams) (GodjIdentityIdentityPermissionsListRes, error) {
-	res, err := c.sendGodjIdentityIdentityPermissionsList(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityPermissionsList(ctx context.Context, params GodjIdentityIdentityPermissionsListParams) (res GodjIdentityIdentityPermissionsListRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/api/identity/permissions/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	q := uri.NewQueryEncoder()
 	{
 		// Encode "limit" parameter.
 		cfg := uri.QueryParameterEncodingConfig{
@@ -1399,23 +856,6 @@ func (c *Client) sendGodjIdentityIdentityPermissionsList(ctx context.Context, pa
 			return res, errors.Wrap(err, "encode query")
 		}
 	}
-	{
-		// Encode "offset" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "offset",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Offset.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
 	u.RawQuery = q.Values().Encode()
 
 	r, err := ht.NewRequest(ctx, "GET", u)
@@ -1428,7 +868,7 @@ func (c *Client) sendGodjIdentityIdentityPermissionsList(ctx context.Context, pa
 		var satisfied bitset
 		{
 
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityPermissionsListOperation, r); {
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsListOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -1469,7 +909,7 @@ func (c *Client) sendGodjIdentityIdentityPermissionsList(ctx context.Context, pa
 		_ = body.Close()
 	}()
 
-	result, err := decodeGodjIdentityIdentityPermissionsListResponse(resp)
+	result, err := decodeGodjIdentityAccountsListResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -1477,33 +917,31 @@ func (c *Client) sendGodjIdentityIdentityPermissionsList(ctx context.Context, pa
 	return result, nil
 }
 
-// GodjIdentityIdentityPermissionsPatch invokes godj_identity:identity-permissions-patch operation.
+// GodjIdentityAccountsPassword invokes godj_identity:accounts-password operation.
 //
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-// identity, encoded password, timestamps and revision cannot be set through input.
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 //
-// PATCH /api/identity/permissions/{id}/
-func (c *Client) GodjIdentityIdentityPermissionsPatch(ctx context.Context, request *PermissionPatch, params GodjIdentityIdentityPermissionsPatchParams) (GodjIdentityIdentityPermissionsPatchRes, error) {
-	res, err := c.sendGodjIdentityIdentityPermissionsPatch(ctx, request, params)
+// POST /api/identity/accounts/{id}/password/
+func (c *Client) GodjIdentityAccountsPassword(ctx context.Context, request *AccountPassword, params GodjIdentityAccountsPasswordParams) (GodjIdentityAccountsPasswordRes, error) {
+	res, err := c.sendGodjIdentityAccountsPassword(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendGodjIdentityIdentityPermissionsPatch(ctx context.Context, request *PermissionPatch, params GodjIdentityIdentityPermissionsPatchParams) (res GodjIdentityIdentityPermissionsPatchRes, err error) {
+func (c *Client) sendGodjIdentityAccountsPassword(ctx context.Context, request *AccountPassword, params GodjIdentityAccountsPasswordParams) (res GodjIdentityAccountsPasswordRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [3]string
-	pathParts[0] = "/api/identity/permissions/"
+	pathParts[0] = "/api/identity/accounts/"
 	{
 		// Encode "id" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -1512,686 +950,7 @@ func (c *Client) sendGodjIdentityIdentityPermissionsPatch(ctx context.Context, r
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "PATCH", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGodjIdentityIdentityPermissionsPatchRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "If-Revision",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityPermissionsPatchOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityPermissionsPatchResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityPermissionsUpdate invokes godj_identity:identity-permissions-update operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-// identity, encoded password, timestamps and revision cannot be set through input.
-//
-// PUT /api/identity/permissions/{id}/
-func (c *Client) GodjIdentityIdentityPermissionsUpdate(ctx context.Context, request *PermissionUpdate, params GodjIdentityIdentityPermissionsUpdateParams) (GodjIdentityIdentityPermissionsUpdateRes, error) {
-	res, err := c.sendGodjIdentityIdentityPermissionsUpdate(ctx, request, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityPermissionsUpdate(ctx context.Context, request *PermissionUpdate, params GodjIdentityIdentityPermissionsUpdateParams) (res GodjIdentityIdentityPermissionsUpdateRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/permissions/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "PUT", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGodjIdentityIdentityPermissionsUpdateRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "If-Revision",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityPermissionsUpdateOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityPermissionsUpdateResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityUsersCreate invokes godj_identity:identity-users-create operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. Creates one record and requested direct relations. User creation requires BOTH add_user
-// and change_user. The server selects a fresh opaque principal ID. The password member is required for
-// User creation: a nonempty string sets a usable password with whitespace preserved; explicit null
-// creates an account without password login. Omission and an empty string are rejected. Hosts may
-// configure password validators for usable passwords; null does not invoke them. No
-// password-confirmation policy is implied by this API.
-//
-// POST /api/identity/users/
-func (c *Client) GodjIdentityIdentityUsersCreate(ctx context.Context, request *UserCreate) (GodjIdentityIdentityUsersCreateRes, error) {
-	res, err := c.sendGodjIdentityIdentityUsersCreate(ctx, request)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityUsersCreate(ctx context.Context, request *UserCreate) (res GodjIdentityIdentityUsersCreateRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/api/identity/users/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "POST", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-	if err := encodeGodjIdentityIdentityUsersCreateRequest(request, r); err != nil {
-		return res, errors.Wrap(err, "encode request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityUsersCreateOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityUsersCreateResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityUsersDelete invokes godj_identity:identity-users-delete operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. No request body is accepted. Host
-// CASCADE/PROTECT/SET_NULL policies and direct relation-owner revisions are atomic. Delete permission
-// does not expose target profile data.
-//
-// DELETE /api/identity/users/{id}/
-func (c *Client) GodjIdentityIdentityUsersDelete(ctx context.Context, params GodjIdentityIdentityUsersDeleteParams) (GodjIdentityIdentityUsersDeleteRes, error) {
-	res, err := c.sendGodjIdentityIdentityUsersDelete(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityUsersDelete(ctx context.Context, params GodjIdentityIdentityUsersDeleteParams) (res GodjIdentityIdentityUsersDeleteRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/users/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "DELETE", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	h := uri.NewHeaderEncoder(r.Header)
-	{
-		cfg := uri.HeaderParameterEncodingConfig{
-			Name:    "If-Revision",
-			Explode: false,
-		}
-		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
-			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
-		}); err != nil {
-			return res, errors.Wrap(err, "encode header")
-		}
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityUsersDeleteOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityUsersDeleteResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityUsersDetail invokes godj_identity:identity-users-detail operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. View OR change permission admits the request; an authorization failure never falls back.
-// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-// collections; details include direct groups/permissions, not inherited grants.
-//
-// GET /api/identity/users/{id}/
-func (c *Client) GodjIdentityIdentityUsersDetail(ctx context.Context, params GodjIdentityIdentityUsersDetailParams) (GodjIdentityIdentityUsersDetailRes, error) {
-	res, err := c.sendGodjIdentityIdentityUsersDetail(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityUsersDetail(ctx context.Context, params GodjIdentityIdentityUsersDetailParams) (res GodjIdentityIdentityUsersDetailRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/users/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
-		}(); err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		encoded, err := e.Result()
-		if err != nil {
-			return res, errors.Wrap(err, "encode path")
-		}
-		pathParts[1] = encoded
-	}
-	pathParts[2] = "/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityUsersDetailOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityUsersDetailResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityUsersList invokes godj_identity:identity-users-list operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. View OR change permission admits the request; an authorization failure never falls back.
-// Lists accept only limit/offset, at most 1024 query bytes; details accept no query. Lists omit
-// collections; details include direct groups/permissions, not inherited grants.
-//
-// GET /api/identity/users/
-func (c *Client) GodjIdentityIdentityUsersList(ctx context.Context, params GodjIdentityIdentityUsersListParams) (GodjIdentityIdentityUsersListRes, error) {
-	res, err := c.sendGodjIdentityIdentityUsersList(ctx, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityUsersList(ctx context.Context, params GodjIdentityIdentityUsersListParams) (res GodjIdentityIdentityUsersListRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [1]string
-	pathParts[0] = "/api/identity/users/"
-	uri.AddPathParts(u, pathParts[:]...)
-
-	q := uri.NewQueryEncoder()
-	{
-		// Encode "limit" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "limit",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Limit.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	{
-		// Encode "offset" parameter.
-		cfg := uri.QueryParameterEncodingConfig{
-			Name:    "offset",
-			Style:   uri.QueryStyleForm,
-			Explode: true,
-		}
-
-		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
-			if val, ok := params.Offset.Get(); ok {
-				return e.EncodeValue(conv.Int64ToString(val))
-			}
-			return nil
-		}); err != nil {
-			return res, errors.Wrap(err, "encode query")
-		}
-	}
-	u.RawQuery = q.Values().Encode()
-
-	r, err := ht.NewRequest(ctx, "GET", u)
-	if err != nil {
-		return res, errors.Wrap(err, "create request")
-	}
-
-	{
-		type bitset = [1]uint8
-		var satisfied bitset
-		{
-
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityUsersListOperation, r); {
-			case err == nil: // if NO error
-				satisfied[0] |= 1 << 0
-			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
-				// Skip this security.
-			default:
-				return res, errors.Wrap(err, "security \"BearerAuth\"")
-			}
-		}
-
-		if ok := func() bool {
-		nextRequirement:
-			for _, requirement := range []bitset{
-				{0b00000001},
-			} {
-				for i, mask := range requirement {
-					if satisfied[i]&mask != mask {
-						continue nextRequirement
-					}
-				}
-				return true
-			}
-			return false
-		}(); !ok {
-			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
-		}
-	}
-
-	resp, err := c.cfg.Client.Do(r)
-	if err != nil {
-		return res, errors.Wrap(err, "do request")
-	}
-	body := resp.Body
-	defer func() {
-		// Drain the body to EOF before closing, so the underlying
-		// connection can be reused by the Transport regardless of the
-		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
-		_, _ = io.Copy(io.Discard, body)
-		_ = body.Close()
-	}()
-
-	result, err := decodeGodjIdentityIdentityUsersListResponse(resp)
-	if err != nil {
-		return res, errors.Wrap(err, "decode response")
-	}
-
-	return result, nil
-}
-
-// GodjIdentityIdentityUsersPassword invokes godj_identity:identity-users-password operation.
-//
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. Administrative replacement, not self-service
-// change/reset. A nonempty password string sets a usable password and preserves whitespace. Explicit
-// null disables password login while retaining the account, roles and grants. The member is required;
-// omission and empty strings are rejected. Every successful replacement, including repeated
-// disablement, rotates the credential and revokes target sessions. Hashing or generation of an
-// unusable marker runs once outside DB scopes after preflight; neither is returned. Password
-// validators apply only to usable passwords. A successful response does not establish a login session.
-//
-// POST /api/identity/users/{id}/password/
-func (c *Client) GodjIdentityIdentityUsersPassword(ctx context.Context, request *PasswordReplacement, params GodjIdentityIdentityUsersPasswordParams) (GodjIdentityIdentityUsersPasswordRes, error) {
-	res, err := c.sendGodjIdentityIdentityUsersPassword(ctx, request, params)
-	return res, err
-}
-
-func (c *Client) sendGodjIdentityIdentityUsersPassword(ctx context.Context, request *PasswordReplacement, params GodjIdentityIdentityUsersPasswordParams) (res GodjIdentityIdentityUsersPasswordRes, err error) {
-
-	u := uri.Clone(c.requestURL(ctx))
-	var pathParts [3]string
-	pathParts[0] = "/api/identity/users/"
-	{
-		// Encode "id" parameter.
-		e := uri.NewPathEncoder(uri.PathEncoderConfig{
-			Param:   "id",
-			Style:   uri.PathStyleSimple,
-			Explode: false,
-		})
-		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
+			return e.EncodeValue(conv.StringToString(params.ID))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -2208,7 +967,7 @@ func (c *Client) sendGodjIdentityIdentityUsersPassword(ctx context.Context, requ
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
 	}
-	if err := encodeGodjIdentityIdentityUsersPasswordRequest(request, r); err != nil {
+	if err := encodeGodjIdentityAccountsPasswordRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
 	}
 
@@ -2230,7 +989,7 @@ func (c *Client) sendGodjIdentityIdentityUsersPassword(ctx context.Context, requ
 		var satisfied bitset
 		{
 
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityUsersPasswordOperation, r); {
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsPasswordOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -2271,7 +1030,7 @@ func (c *Client) sendGodjIdentityIdentityUsersPassword(ctx context.Context, requ
 		_ = body.Close()
 	}()
 
-	result, err := decodeGodjIdentityIdentityUsersPasswordResponse(resp)
+	result, err := decodeGodjIdentityAccountsPasswordResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -2279,33 +1038,31 @@ func (c *Client) sendGodjIdentityIdentityUsersPassword(ctx context.Context, requ
 	return result, nil
 }
 
-// GodjIdentityIdentityUsersPatch invokes godj_identity:identity-users-patch operation.
+// GodjIdentityAccountsPatch invokes godj_identity:accounts-Patch operation.
 //
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-// identity, encoded password, timestamps and revision cannot be set through input.
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 //
-// PATCH /api/identity/users/{id}/
-func (c *Client) GodjIdentityIdentityUsersPatch(ctx context.Context, request *UserPatch, params GodjIdentityIdentityUsersPatchParams) (GodjIdentityIdentityUsersPatchRes, error) {
-	res, err := c.sendGodjIdentityIdentityUsersPatch(ctx, request, params)
+// PATCH /api/identity/accounts/{id}/
+func (c *Client) GodjIdentityAccountsPatch(ctx context.Context, request *AccountPatch, params GodjIdentityAccountsPatchParams) (GodjIdentityAccountsPatchRes, error) {
+	res, err := c.sendGodjIdentityAccountsPatch(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendGodjIdentityIdentityUsersPatch(ctx context.Context, request *UserPatch, params GodjIdentityIdentityUsersPatchParams) (res GodjIdentityIdentityUsersPatchRes, err error) {
+func (c *Client) sendGodjIdentityAccountsPatch(ctx context.Context, request *AccountPatch, params GodjIdentityAccountsPatchParams) (res GodjIdentityAccountsPatchRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [3]string
-	pathParts[0] = "/api/identity/users/"
+	pathParts[0] = "/api/identity/accounts/"
 	{
 		// Encode "id" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -2314,7 +1071,7 @@ func (c *Client) sendGodjIdentityIdentityUsersPatch(ctx context.Context, request
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
+			return e.EncodeValue(conv.StringToString(params.ID))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -2331,7 +1088,7 @@ func (c *Client) sendGodjIdentityIdentityUsersPatch(ctx context.Context, request
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
 	}
-	if err := encodeGodjIdentityIdentityUsersPatchRequest(request, r); err != nil {
+	if err := encodeGodjIdentityAccountsPatchRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
 	}
 
@@ -2353,7 +1110,7 @@ func (c *Client) sendGodjIdentityIdentityUsersPatch(ctx context.Context, request
 		var satisfied bitset
 		{
 
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityUsersPatchOperation, r); {
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsPatchOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -2394,7 +1151,7 @@ func (c *Client) sendGodjIdentityIdentityUsersPatch(ctx context.Context, request
 		_ = body.Close()
 	}()
 
-	result, err := decodeGodjIdentityIdentityUsersPatchResponse(resp)
+	result, err := decodeGodjIdentityAccountsPatchResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}
@@ -2402,33 +1159,31 @@ func (c *Client) sendGodjIdentityIdentityUsersPatch(ctx context.Context, request
 	return result, nil
 }
 
-// GodjIdentityIdentityUsersUpdate invokes godj_identity:identity-users-update operation.
+// GodjIdentityAccountsPut invokes godj_identity:accounts-Put operation.
 //
-// Authentication and transport CSRF precede parsing. Each read owns a current database snapshot. Every
-// mutation rechecks current model permissions, the supplied revision, complete candidate relations and
-// uniqueness under one write fence. Confirmed writes include value-free audit; deactivation/password
-// replacement/deletion revoke the affected user's sessions. A mutation is never automatically retried.
-// Responses exclude principal IDs, encoded passwords and session material and use Cache-Control:
-// no-store. If-Revision must contain exactly one canonical positive decimal row revision, for example
-// 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428;
-// invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly.
-// Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any
-// new operation. No-op updates retain the revision. PATCH preserves omitted fields. PUT applies
-// declared scalar defaults; omitted optional collections remain unchanged. An explicit empty
-// collection clears it. Relation IDs and effective grant limits are checked under the fence. Server
-// identity, encoded password, timestamps and revision cannot be set through input.
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
 //
-// PUT /api/identity/users/{id}/
-func (c *Client) GodjIdentityIdentityUsersUpdate(ctx context.Context, request *UserUpdate, params GodjIdentityIdentityUsersUpdateParams) (GodjIdentityIdentityUsersUpdateRes, error) {
-	res, err := c.sendGodjIdentityIdentityUsersUpdate(ctx, request, params)
+// PUT /api/identity/accounts/{id}/
+func (c *Client) GodjIdentityAccountsPut(ctx context.Context, request *AccountPut, params GodjIdentityAccountsPutParams) (GodjIdentityAccountsPutRes, error) {
+	res, err := c.sendGodjIdentityAccountsPut(ctx, request, params)
 	return res, err
 }
 
-func (c *Client) sendGodjIdentityIdentityUsersUpdate(ctx context.Context, request *UserUpdate, params GodjIdentityIdentityUsersUpdateParams) (res GodjIdentityIdentityUsersUpdateRes, err error) {
+func (c *Client) sendGodjIdentityAccountsPut(ctx context.Context, request *AccountPut, params GodjIdentityAccountsPutParams) (res GodjIdentityAccountsPutRes, err error) {
 
 	u := uri.Clone(c.requestURL(ctx))
 	var pathParts [3]string
-	pathParts[0] = "/api/identity/users/"
+	pathParts[0] = "/api/identity/accounts/"
 	{
 		// Encode "id" parameter.
 		e := uri.NewPathEncoder(uri.PathEncoderConfig{
@@ -2437,7 +1192,7 @@ func (c *Client) sendGodjIdentityIdentityUsersUpdate(ctx context.Context, reques
 			Explode: false,
 		})
 		if err := func() error {
-			return e.EncodeValue(conv.Int64ToString(params.ID))
+			return e.EncodeValue(conv.StringToString(params.ID))
 		}(); err != nil {
 			return res, errors.Wrap(err, "encode path")
 		}
@@ -2454,7 +1209,7 @@ func (c *Client) sendGodjIdentityIdentityUsersUpdate(ctx context.Context, reques
 	if err != nil {
 		return res, errors.Wrap(err, "create request")
 	}
-	if err := encodeGodjIdentityIdentityUsersUpdateRequest(request, r); err != nil {
+	if err := encodeGodjIdentityAccountsPutRequest(request, r); err != nil {
 		return res, errors.Wrap(err, "encode request")
 	}
 
@@ -2476,7 +1231,7 @@ func (c *Client) sendGodjIdentityIdentityUsersUpdate(ctx context.Context, reques
 		var satisfied bitset
 		{
 
-			switch err := c.securityBearerAuth(ctx, GodjIdentityIdentityUsersUpdateOperation, r); {
+			switch err := c.securityBearerAuth(ctx, GodjIdentityAccountsPutOperation, r); {
 			case err == nil: // if NO error
 				satisfied[0] |= 1 << 0
 			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
@@ -2517,7 +1272,1581 @@ func (c *Client) sendGodjIdentityIdentityUsersUpdate(ctx context.Context, reques
 		_ = body.Close()
 	}()
 
-	result, err := decodeGodjIdentityIdentityUsersUpdateResponse(resp)
+	result, err := decodeGodjIdentityAccountsPutResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityGroupsCreate invokes godj_identity:groups-create operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
+//
+// POST /api/identity/groups/
+func (c *Client) GodjIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (GodjIdentityGroupsCreateRes, error) {
+	res, err := c.sendGodjIdentityGroupsCreate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityGroupsCreate(ctx context.Context, request *GroupCreate) (res GodjIdentityGroupsCreateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/identity/groups/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjIdentityGroupsCreateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityGroupsCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityGroupsCreateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityGroupsDelete invokes godj_identity:groups-delete operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+//
+// DELETE /api/identity/groups/{id}/
+func (c *Client) GodjIdentityGroupsDelete(ctx context.Context, params GodjIdentityGroupsDeleteParams) (GodjIdentityGroupsDeleteRes, error) {
+	res, err := c.sendGodjIdentityGroupsDelete(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityGroupsDelete(ctx context.Context, params GodjIdentityGroupsDeleteParams) (res GodjIdentityGroupsDeleteRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/groups/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "If-Revision",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityGroupsDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityGroupsDeleteResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityGroupsDetail invokes godj_identity:groups-detail operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
+//
+// GET /api/identity/groups/{id}/
+func (c *Client) GodjIdentityGroupsDetail(ctx context.Context, params GodjIdentityGroupsDetailParams) (GodjIdentityGroupsDetailRes, error) {
+	res, err := c.sendGodjIdentityGroupsDetail(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityGroupsDetail(ctx context.Context, params GodjIdentityGroupsDetailParams) (res GodjIdentityGroupsDetailRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/groups/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityGroupsDetailOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityGroupsDetailResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityGroupsHistory invokes godj_identity:groups-history operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. History contains sequence, action, changed field
+// names and time; it excludes actor principal IDs and values.
+//
+// GET /api/identity/groups/{id}/history/
+func (c *Client) GodjIdentityGroupsHistory(ctx context.Context, params GodjIdentityGroupsHistoryParams) (GodjIdentityGroupsHistoryRes, error) {
+	res, err := c.sendGodjIdentityGroupsHistory(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityGroupsHistory(ctx context.Context, params GodjIdentityGroupsHistoryParams) (res GodjIdentityGroupsHistoryRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/groups/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/history/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityGroupsHistoryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityGroupsHistoryResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityGroupsList invokes godj_identity:groups-list operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
+//
+// GET /api/identity/groups/
+func (c *Client) GodjIdentityGroupsList(ctx context.Context, params GodjIdentityGroupsListParams) (GodjIdentityGroupsListRes, error) {
+	res, err := c.sendGodjIdentityGroupsList(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityGroupsList(ctx context.Context, params GodjIdentityGroupsListParams) (res GodjIdentityGroupsListRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/identity/groups/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "offset" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "offset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Offset.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityGroupsListOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityGroupsListResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityGroupsPatch invokes godj_identity:groups-Patch operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+//
+// PATCH /api/identity/groups/{id}/
+func (c *Client) GodjIdentityGroupsPatch(ctx context.Context, request *GroupPatch, params GodjIdentityGroupsPatchParams) (GodjIdentityGroupsPatchRes, error) {
+	res, err := c.sendGodjIdentityGroupsPatch(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityGroupsPatch(ctx context.Context, request *GroupPatch, params GodjIdentityGroupsPatchParams) (res GodjIdentityGroupsPatchRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/groups/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PATCH", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjIdentityGroupsPatchRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "If-Revision",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityGroupsPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityGroupsPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityGroupsPut invokes godj_identity:groups-Put operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+//
+// PUT /api/identity/groups/{id}/
+func (c *Client) GodjIdentityGroupsPut(ctx context.Context, request *GroupPut, params GodjIdentityGroupsPutParams) (GodjIdentityGroupsPutRes, error) {
+	res, err := c.sendGodjIdentityGroupsPut(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityGroupsPut(ctx context.Context, request *GroupPut, params GodjIdentityGroupsPutParams) (res GodjIdentityGroupsPutRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/groups/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjIdentityGroupsPutRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "If-Revision",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityGroupsPutOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityGroupsPutResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityPermissionsCreate invokes godj_identity:permissions-create operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
+//
+// POST /api/identity/permissions/
+func (c *Client) GodjIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (GodjIdentityPermissionsCreateRes, error) {
+	res, err := c.sendGodjIdentityPermissionsCreate(ctx, request)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityPermissionsCreate(ctx context.Context, request *PermissionCreate) (res GodjIdentityPermissionsCreateRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/identity/permissions/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "POST", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjIdentityPermissionsCreateRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityPermissionsCreateOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityPermissionsCreateResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityPermissionsDelete invokes godj_identity:permissions-delete operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+//
+// DELETE /api/identity/permissions/{id}/
+func (c *Client) GodjIdentityPermissionsDelete(ctx context.Context, params GodjIdentityPermissionsDeleteParams) (GodjIdentityPermissionsDeleteRes, error) {
+	res, err := c.sendGodjIdentityPermissionsDelete(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityPermissionsDelete(ctx context.Context, params GodjIdentityPermissionsDeleteParams) (res GodjIdentityPermissionsDeleteRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/permissions/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "DELETE", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "If-Revision",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityPermissionsDeleteOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityPermissionsDeleteResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityPermissionsDetail invokes godj_identity:permissions-detail operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
+//
+// GET /api/identity/permissions/{id}/
+func (c *Client) GodjIdentityPermissionsDetail(ctx context.Context, params GodjIdentityPermissionsDetailParams) (GodjIdentityPermissionsDetailRes, error) {
+	res, err := c.sendGodjIdentityPermissionsDetail(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityPermissionsDetail(ctx context.Context, params GodjIdentityPermissionsDetailParams) (res GodjIdentityPermissionsDetailRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/permissions/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityPermissionsDetailOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityPermissionsDetailResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityPermissionsHistory invokes godj_identity:permissions-history operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. History contains sequence, action, changed field
+// names and time; it excludes actor principal IDs and values.
+//
+// GET /api/identity/permissions/{id}/history/
+func (c *Client) GodjIdentityPermissionsHistory(ctx context.Context, params GodjIdentityPermissionsHistoryParams) (GodjIdentityPermissionsHistoryRes, error) {
+	res, err := c.sendGodjIdentityPermissionsHistory(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityPermissionsHistory(ctx context.Context, params GodjIdentityPermissionsHistoryParams) (res GodjIdentityPermissionsHistoryRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/permissions/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/history/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityPermissionsHistoryOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityPermissionsHistoryResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityPermissionsList invokes godj_identity:permissions-list operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store.
+//
+// GET /api/identity/permissions/
+func (c *Client) GodjIdentityPermissionsList(ctx context.Context, params GodjIdentityPermissionsListParams) (GodjIdentityPermissionsListRes, error) {
+	res, err := c.sendGodjIdentityPermissionsList(ctx, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityPermissionsList(ctx context.Context, params GodjIdentityPermissionsListParams) (res GodjIdentityPermissionsListRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [1]string
+	pathParts[0] = "/api/identity/permissions/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	q := uri.NewQueryEncoder()
+	{
+		// Encode "offset" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "offset",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Offset.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	{
+		// Encode "limit" parameter.
+		cfg := uri.QueryParameterEncodingConfig{
+			Name:    "limit",
+			Style:   uri.QueryStyleForm,
+			Explode: true,
+		}
+
+		if err := q.EncodeParam(cfg, func(e uri.Encoder) error {
+			if val, ok := params.Limit.Get(); ok {
+				return e.EncodeValue(conv.Int64ToString(val))
+			}
+			return nil
+		}); err != nil {
+			return res, errors.Wrap(err, "encode query")
+		}
+	}
+	u.RawQuery = q.Values().Encode()
+
+	r, err := ht.NewRequest(ctx, "GET", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityPermissionsListOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityPermissionsListResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityPermissionsPatch invokes godj_identity:permissions-Patch operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+//
+// PATCH /api/identity/permissions/{id}/
+func (c *Client) GodjIdentityPermissionsPatch(ctx context.Context, request *PermissionPatch, params GodjIdentityPermissionsPatchParams) (GodjIdentityPermissionsPatchRes, error) {
+	res, err := c.sendGodjIdentityPermissionsPatch(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityPermissionsPatch(ctx context.Context, request *PermissionPatch, params GodjIdentityPermissionsPatchParams) (res GodjIdentityPermissionsPatchRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/permissions/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PATCH", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjIdentityPermissionsPatchRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "If-Revision",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityPermissionsPatchOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityPermissionsPatchResponse(resp)
+	if err != nil {
+		return res, errors.Wrap(err, "decode response")
+	}
+
+	return result, nil
+}
+
+// GodjIdentityPermissionsPut invokes godj_identity:permissions-Put operation.
+//
+// Authentication and transport CSRF precede path, query, revision and body validation. Owners recheck
+// current authority, credential domain, target state, revision, uniqueness and related effects in
+// their native snapshot or transaction. Object IDs are canonical signed int64 decimal strings,
+// including zero and negative keys, without a plus sign or leading zeroes. Read fields are explicitly
+// selected. Writes return only confirmed ID and revision metadata and never reread a target or actor
+// after commit. Outcome-unknown is 503 without Retry-After; reconcile durable state before another
+// operation. Responses use Cache-Control: no-store. If-Revision must contain exactly one canonical
+// positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is
+// accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state
+// and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown:
+// reconcile durable state before submitting any new operation. No-op updates retain the revision.
+//
+// PUT /api/identity/permissions/{id}/
+func (c *Client) GodjIdentityPermissionsPut(ctx context.Context, request *PermissionPut, params GodjIdentityPermissionsPutParams) (GodjIdentityPermissionsPutRes, error) {
+	res, err := c.sendGodjIdentityPermissionsPut(ctx, request, params)
+	return res, err
+}
+
+func (c *Client) sendGodjIdentityPermissionsPut(ctx context.Context, request *PermissionPut, params GodjIdentityPermissionsPutParams) (res GodjIdentityPermissionsPutRes, err error) {
+
+	u := uri.Clone(c.requestURL(ctx))
+	var pathParts [3]string
+	pathParts[0] = "/api/identity/permissions/"
+	{
+		// Encode "id" parameter.
+		e := uri.NewPathEncoder(uri.PathEncoderConfig{
+			Param:   "id",
+			Style:   uri.PathStyleSimple,
+			Explode: false,
+		})
+		if err := func() error {
+			return e.EncodeValue(conv.StringToString(params.ID))
+		}(); err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		encoded, err := e.Result()
+		if err != nil {
+			return res, errors.Wrap(err, "encode path")
+		}
+		pathParts[1] = encoded
+	}
+	pathParts[2] = "/"
+	uri.AddPathParts(u, pathParts[:]...)
+
+	r, err := ht.NewRequest(ctx, "PUT", u)
+	if err != nil {
+		return res, errors.Wrap(err, "create request")
+	}
+	if err := encodeGodjIdentityPermissionsPutRequest(request, r); err != nil {
+		return res, errors.Wrap(err, "encode request")
+	}
+
+	h := uri.NewHeaderEncoder(r.Header)
+	{
+		cfg := uri.HeaderParameterEncodingConfig{
+			Name:    "If-Revision",
+			Explode: false,
+		}
+		if err := h.EncodeParam(cfg, func(e uri.Encoder) error {
+			return e.EncodeValue(conv.Int64ToString(params.IfRevision))
+		}); err != nil {
+			return res, errors.Wrap(err, "encode header")
+		}
+	}
+
+	{
+		type bitset = [1]uint8
+		var satisfied bitset
+		{
+
+			switch err := c.securityBearerAuth(ctx, GodjIdentityPermissionsPutOperation, r); {
+			case err == nil: // if NO error
+				satisfied[0] |= 1 << 0
+			case errors.Is(err, ogenerrors.ErrSkipClientSecurity):
+				// Skip this security.
+			default:
+				return res, errors.Wrap(err, "security \"BearerAuth\"")
+			}
+		}
+
+		if ok := func() bool {
+		nextRequirement:
+			for _, requirement := range []bitset{
+				{0b00000001},
+			} {
+				for i, mask := range requirement {
+					if satisfied[i]&mask != mask {
+						continue nextRequirement
+					}
+				}
+				return true
+			}
+			return false
+		}(); !ok {
+			return res, ogenerrors.ErrSecurityRequirementIsNotSatisfied
+		}
+	}
+
+	resp, err := c.cfg.Client.Do(r)
+	if err != nil {
+		return res, errors.Wrap(err, "do request")
+	}
+	body := resp.Body
+	defer func() {
+		// Drain the body to EOF before closing, so the underlying
+		// connection can be reused by the Transport regardless of the
+		// response status code. See https://github.com/ogen-go/ogen/issues/1670.
+		_, _ = io.Copy(io.Discard, body)
+		_ = body.Close()
+	}()
+
+	result, err := decodeGodjIdentityPermissionsPutResponse(resp)
 	if err != nil {
 		return res, errors.Wrap(err, "decode response")
 	}

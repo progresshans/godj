@@ -19,7 +19,7 @@ func checkGeneratedPasswordStatusWire(ctx context.Context) error {
 			}
 			body := strings.Replace(identityWireBase, `,"password_usable":true`, member, 1)
 			if summary {
-				body += "}"
+				body = `{"count":1,"offset":0,"limit":20,"items":[` + body + `}}]}`
 			} else {
 				body += identityWireCollections
 			}
@@ -34,15 +34,15 @@ func checkGeneratedPasswordStatusWire(ctx context.Context) error {
 			}
 			var usable, typed bool
 			if summary {
-				response, callErr := client.GodjIdentityIdentityUsersPassword(ctx, &ib.PasswordReplacement{Password: ib.NilString{Null: true}}, ib.GodjIdentityIdentityUsersPasswordParams{ID: math.MaxInt64, IfRevision: identityWireRevision})
+				response, callErr := client.GodjIdentityAccountsList(ctx, ib.GodjIdentityAccountsListParams{})
 				err = callErr
-				if value, ok := response.(*ib.UserSummaryHeaders); ok {
-					usable, typed = value.Response.PasswordUsable, true
+				if value, ok := response.(*ib.AccountPage); ok && len(value.Items) == 1 {
+					usable, typed = value.Items[0].PasswordUsable, true
 				}
 			} else {
-				response, callErr := client.GodjIdentityIdentityUsersDetail(ctx, ib.GodjIdentityIdentityUsersDetailParams{ID: math.MaxInt64})
+				response, callErr := client.GodjIdentityAccountsDetail(ctx, ib.GodjIdentityAccountsDetailParams{ID: identityID(math.MaxInt64)})
 				err = callErr
-				if value, ok := response.(*ib.UserHeaders); ok {
+				if value, ok := response.(*ib.AccountHeaders); ok {
 					usable, typed = value.Response.PasswordUsable, true
 				}
 			}

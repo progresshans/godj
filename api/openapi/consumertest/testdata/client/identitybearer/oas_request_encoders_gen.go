@@ -10,7 +10,63 @@ import (
 	ht "github.com/ogen-go/ogen/http"
 )
 
-func encodeGodjIdentityIdentityGroupsCreateRequest(
+func encodeGodjIdentityAccountsCreateRequest(
+	req *AccountCreate,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeGodjIdentityAccountsPasswordRequest(
+	req *AccountPassword,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeGodjIdentityAccountsPatchRequest(
+	req *AccountPatch,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeGodjIdentityAccountsPutRequest(
+	req *AccountPut,
+	r *http.Request,
+) error {
+	const contentType = "application/json"
+	e := new(jx.Encoder)
+	{
+		req.Encode(e)
+	}
+	encoded := e.Bytes()
+	ht.SetBody(r, bytes.NewReader(encoded), contentType)
+	return nil
+}
+
+func encodeGodjIdentityGroupsCreateRequest(
 	req *GroupCreate,
 	r *http.Request,
 ) error {
@@ -24,7 +80,7 @@ func encodeGodjIdentityIdentityGroupsCreateRequest(
 	return nil
 }
 
-func encodeGodjIdentityIdentityGroupsPatchRequest(
+func encodeGodjIdentityGroupsPatchRequest(
 	req *GroupPatch,
 	r *http.Request,
 ) error {
@@ -38,8 +94,8 @@ func encodeGodjIdentityIdentityGroupsPatchRequest(
 	return nil
 }
 
-func encodeGodjIdentityIdentityGroupsUpdateRequest(
-	req *GroupUpdate,
+func encodeGodjIdentityGroupsPutRequest(
+	req *GroupPut,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"
@@ -52,7 +108,7 @@ func encodeGodjIdentityIdentityGroupsUpdateRequest(
 	return nil
 }
 
-func encodeGodjIdentityIdentityPermissionsCreateRequest(
+func encodeGodjIdentityPermissionsCreateRequest(
 	req *PermissionCreate,
 	r *http.Request,
 ) error {
@@ -66,7 +122,7 @@ func encodeGodjIdentityIdentityPermissionsCreateRequest(
 	return nil
 }
 
-func encodeGodjIdentityIdentityPermissionsPatchRequest(
+func encodeGodjIdentityPermissionsPatchRequest(
 	req *PermissionPatch,
 	r *http.Request,
 ) error {
@@ -80,64 +136,8 @@ func encodeGodjIdentityIdentityPermissionsPatchRequest(
 	return nil
 }
 
-func encodeGodjIdentityIdentityPermissionsUpdateRequest(
-	req *PermissionUpdate,
-	r *http.Request,
-) error {
-	const contentType = "application/json"
-	e := new(jx.Encoder)
-	{
-		req.Encode(e)
-	}
-	encoded := e.Bytes()
-	ht.SetBody(r, bytes.NewReader(encoded), contentType)
-	return nil
-}
-
-func encodeGodjIdentityIdentityUsersCreateRequest(
-	req *UserCreate,
-	r *http.Request,
-) error {
-	const contentType = "application/json"
-	e := new(jx.Encoder)
-	{
-		req.Encode(e)
-	}
-	encoded := e.Bytes()
-	ht.SetBody(r, bytes.NewReader(encoded), contentType)
-	return nil
-}
-
-func encodeGodjIdentityIdentityUsersPasswordRequest(
-	req *PasswordReplacement,
-	r *http.Request,
-) error {
-	const contentType = "application/json"
-	e := new(jx.Encoder)
-	{
-		req.Encode(e)
-	}
-	encoded := e.Bytes()
-	ht.SetBody(r, bytes.NewReader(encoded), contentType)
-	return nil
-}
-
-func encodeGodjIdentityIdentityUsersPatchRequest(
-	req *UserPatch,
-	r *http.Request,
-) error {
-	const contentType = "application/json"
-	e := new(jx.Encoder)
-	{
-		req.Encode(e)
-	}
-	encoded := e.Bytes()
-	ht.SetBody(r, bytes.NewReader(encoded), contentType)
-	return nil
-}
-
-func encodeGodjIdentityIdentityUsersUpdateRequest(
-	req *UserUpdate,
+func encodeGodjIdentityPermissionsPutRequest(
+	req *PermissionPut,
 	r *http.Request,
 ) error {
 	const contentType = "application/json"

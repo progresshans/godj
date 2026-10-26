@@ -48,7 +48,9 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 		return codegen.ProjectSpec{}, err
 	}
 	const root = "github.com/progresshans/godj/conformance/identityfixture/"
+	account := identitydef.AccountRole()
 	return codegen.ProjectSpec{
+		Account: &account,
 		Project: codegen.PackageSpec{PackageName: "project", ImportPath: root + "project", Directory: "project"},
 		Apps: []codegen.AppSpec{imported, {
 			Alias: "work", Package: codegen.PackageSpec{PackageName: "models", ImportPath: root + "models", Directory: "models"}, Schema: local,

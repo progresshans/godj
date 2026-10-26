@@ -115,12 +115,12 @@ func documents(ctx context.Context) (files []schemaFile, err error) {
 		return nil, fmt.Errorf("describe Helpdesk API: %w", err)
 	}
 	files = append(files, schemaFile{name: "helpdesksession.json", data: document.Bytes()})
-	identityFiles, err := identityDocuments(guard, session, bearer)
+	identityFiles, err := identityDocuments(ctx, backend, guard, session, bearer)
 	if err != nil {
 		return nil, fmt.Errorf("describe identity APIs: %w", err)
 	}
 	files = append(files, identityFiles...)
-	account, err := accountDocument(guard, manager)
+	account, err := accountDocument(ctx, backend, guard)
 	if err != nil {
 		return nil, err
 	}

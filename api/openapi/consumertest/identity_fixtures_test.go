@@ -12,12 +12,15 @@ import (
 	"testing"
 	"time"
 
+	accountaudit "github.com/progresshans/godj/account/audit"
+	accountdomain "github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/bearerauth"
 	apisession "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
+	fixtureaccounts "github.com/progresshans/godj/conformance/identityfixture/accounts"
 	hostdef "github.com/progresshans/godj/conformance/identityfixture/modeldef"
 	hostmodels "github.com/progresshans/godj/conformance/identityfixture/models"
 	hostproject "github.com/progresshans/godj/conformance/identityfixture/project"
@@ -26,8 +29,9 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
-	"github.com/progresshans/godj/systemstate"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/web"
 	websession "github.com/progresshans/godj/web/sessionauth"
 )
@@ -60,7 +64,10 @@ func identityConsumerSources(t *testing.T) []definition.Source {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return append(systemstate.IdentityMigrationSources(), definition.Source{SourceID: "identity-consumer/0001_initial", Document: document})
+	sources := append(identity.MigrationSources(), accountdomain.MigrationSources()...)
+	sources = append(sources, accountaudit.MigrationSources()...)
+	sources = append(sources, sessiondb.MigrationSources()...)
+	return append(sources, definition.Source{SourceID: "identity-consumer/0001_initial", Document: document})
 }
 
 // Both profiles operate on one durable store. The Session profile resolves live
@@ -76,20 +83,52 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if err != nil {
 		t.Fatal(err)
 	}
-	actor, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "identity-consumer-manager", Active: true, Staff: true, Superuser: true})
+	firstConfig, err := fixtureaccounts.FirstAccountConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := systemstate.ProvisionIdentity(ctx, backend, systemstate.ProvisionIdentityConfig{Principal: actor, Username: "sdk-manager", Password: "original SDK password", PasswordHasher: hasher}); err != nil {
-		t.Fatal(err)
-	}
-	runtime, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher, MaxSessions: 32})
+	first, err := hostproject.NewFirstAccount(backend, hasher, firstConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, found, err := models.UserObjects.Using(backend).Filter(models.UserFields.PrincipalID.Exact(actor.ID())).OrderBy(models.UserFields.ID.Asc()).First(ctx)
+	input, err := first.Manager().Input(map[string]query.Value{"username": query.String("sdk-manager"), "email": query.String("")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := first.Prepare(ctx, input, "original SDK password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	initial, err := first.Commit(ctx, pending)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
+	config, err := fixtureaccounts.Policy()
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.Sessions.Clock = func() time.Time { return loginAt }
+	runtime, err := hostproject.NewAccountRuntime(ctx, backend, hasher, auth.PrincipalAuthorizer{}, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	startup, err := runtime.InspectStartup(ctx)
+	if err != nil || !startup.Ready() || startup.Ownership().OperationID() != initial.Ownership.OperationID() || startup.Ownership().Generation() != initial.Ownership.Generation() || startup.SessionRecords() != 0 || startup.AuditEvents() != 1 {
+		t.Fatal("selected identity initial ownership", err)
+	}
+	authenticated, err := runtime.Authenticator().Authenticate(ctx, "sdk-manager", "original SDK password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	actor := authenticated.Principal()
+	namespace, bound := actor.CredentialDomain()
+	if !bound {
+		t.Fatal("selected actor lacks a credential domain")
+	}
+	root, found, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(initial.Account.ID)).OrderBy(models.UserFields.ID.Asc()).First(ctx)
 	if err != nil || !found {
-		t.Fatal("identity consumer actor missing")
+		t.Fatal("identity consumer actor missing", err)
 	}
 	encoded, err := hasher.Hash(ctx, "original SDK password")
 	if err != nil {
@@ -155,11 +194,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if _, err := hostmodels.AccessNoteObjects.Create(ctx, backend, hostmodels.NewAccessNoteCreate("Cascade with permission", cascadePermission.ID)); err != nil {
 		t.Fatal(err)
 	}
-	loginAt := time.Date(2026, 9, 27, 1, 2, 3, 123456000, time.UTC)
-	manager, err := sessions.NewManager(runtime.SessionStore(), sessions.Config{Clock: func() time.Time { return loginAt }})
-	if err != nil {
-		t.Fatal(err)
-	}
+	manager := runtime.Sessions()
 	seedSession := func(principalID string) sessions.Record {
 		credential, err := runtime.Authenticator().Resolve(ctx, principalID)
 		if err != nil {
@@ -178,15 +213,11 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if err != nil {
 		t.Fatal(err)
 	}
-	loginPersistence, err := runtime.LoginPersistence(manager)
-	if err != nil {
-		t.Fatal(err)
-	}
 	webAuth, err := websession.New(websession.Config{
-		LoginPersistence: loginPersistence, Clock: func() time.Time { return loginAt },
+		LoginPersistence: runtime.LoginPersistence(), Clock: func() time.Time { return loginAt },
 		Sessions: manager, Authenticator: runtime.Authenticator(), Authorizer: auth.PrincipalAuthorizer{},
 		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
-		FallbackPath: identityapi.BasePath + "users/", AllowedNextPaths: []string{identityapi.BasePath + "users/"},
+		FallbackPath: identityapi.BasePath + "accounts/", AllowedNextPaths: []string{identityapi.BasePath + "accounts/"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -283,17 +314,9 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 	if err != nil {
 		t.Fatal(err)
 	}
-	policies, err := hostproject.BindRelationDeleters()
-	if err != nil {
-		t.Fatal(err)
-	}
-	validators, err := identity.DefaultPasswordValidators()
-	if err != nil {
-		t.Fatal(err)
-	}
 	documents := make(map[string][]byte)
-	serve := func(name string, authentication api.AlternativeAuthentication) string {
-		application, err := identityapi.New(identityapi.Config{Namespace: "godj_identity", Backend: runtime, PasswordHasher: hasher, PasswordValidators: validators, Authorizer: auth.PrincipalAuthorizer{}, Authentication: authentication, Users: policies.AccountsUser, Groups: policies.AccountsGroup, Permissions: policies.AccountsPermission})
+	serve := func(name string, authentication api.PolicyAuthentication) string {
+		application, err := identityapi.NewManagement(runtime.Accounts(), runtime.Catalog(), identityapi.ManagementConfig{Namespace: "godj_identity", Authentication: authentication})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -313,9 +336,13 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 		ctx := t.Context()
 		// Construct a fresh runtime instead of trusting the client receipt or any
 		// of the response DTOs. The parent never reads generated client types.
-		reopened, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher, MaxSessions: 32})
+		reopened, err := hostproject.NewAccountRuntime(ctx, backend, hasher, auth.PrincipalAuthorizer{}, config)
 		if err != nil {
 			t.Fatal(err)
+		}
+		currentOwnership, err := accountdomain.Read(ctx, backend, initial.Ownership.RoleFingerprint())
+		if err != nil || currentOwnership.Sequence() != initial.Ownership.Sequence() || currentOwnership.OperationID() != initial.Ownership.OperationID() || currentOwnership.Generation() != initial.Ownership.Generation() || currentOwnership.EvidenceSHA256() != initial.Ownership.EvidenceSHA256() || !currentOwnership.At().Equal(initial.Ownership.At()) {
+			t.Fatal("selected identity ownership changed", err)
 		}
 		users, err := models.UserObjects.Using(backend).OrderBy(models.UserFields.ID.Asc()).All(ctx)
 		if err != nil || len(users) != 4 {
@@ -418,17 +445,23 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 			{"user", target.ID, [][]string{{"password"}, {"password"}, {"password"}, {"password"}, {"active"}, {"active"}}},
 			{"user", protectedUser.ID, nil}, {"group", protectedGroup.ID, nil}, {"permission", protectedPermission.ID, nil},
 		} {
-			history, err := reopened.AuditHistory(ctx, "godj_identity."+expected.model, expected.id, 100)
+			history, err := accountaudit.HistoryIn(ctx, backend, namespace, "godj_identity."+expected.model, expected.id, 100)
+			if expected.model == "user" && expected.id == root.ID && err == nil {
+				if len(history) == 0 || history[0].Action() != admin.ActionAdd || history[0].ActorID() != actor.ID() || history[0].Sequence() != 1 || history[0].Domain().Identifier() != namespace.Identifier() || !slices.Equal(history[0].ChangedFields(), initial.Account.ChangedFields) {
+					t.Fatal("selected first-account audit missing")
+				}
+				history = history[1:]
+			}
 			if err != nil || len(history) != len(expected.fields) {
 				t.Fatal("identity client audit count differs")
 			}
 			for index, event := range history {
-				if event.ActorID != actor.ID() || event.Action != admin.ActionChange || event.DisplayLabel != "" || !slices.Equal(event.ChangedFields, expected.fields[index]) {
+				if event.ActorID() != actor.ID() || event.Action() != admin.ActionChange || !slices.Equal(event.ChangedFields(), expected.fields[index]) {
 					t.Fatal("identity client audit changed or exposed values")
 				}
 			}
 		}
-		history, err := reopened.AuditHistory(ctx, "godj_identity.user", created.ID, 100)
+		history, err := accountaudit.HistoryIn(ctx, backend, namespace, "godj_identity.user", created.ID, 100)
 		// The two catalog deletions advance the User revision, but their audit
 		// events belong to the deleted catalog resources, not each affected user.
 		if err != nil || len(history) != 5 {
@@ -439,7 +472,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 			if index == 0 {
 				action = admin.ActionAdd
 			}
-			if event.ActorID != actor.ID() || event.DisplayLabel != "" || event.Action != action {
+			if event.ActorID() != actor.ID() || event.Action() != action {
 				t.Fatal("created identity audit exposed values")
 			}
 		}
@@ -447,8 +480,8 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 			model string
 			id    int64
 		}{{"user", cascadeUser.ID}, {"group", cascadeGroup.ID}, {"permission", cascadePermission.ID}} {
-			history, err := reopened.AuditHistory(ctx, "godj_identity."+deleted.model, deleted.id, 100)
-			if err != nil || len(history) != 1 || history[0].Action != admin.ActionDelete || history[0].ActorID != actor.ID() || history[0].DisplayLabel != "" || len(history[0].ChangedFields) != 0 {
+			history, err := accountaudit.HistoryIn(ctx, backend, namespace, "godj_identity."+deleted.model, deleted.id, 100)
+			if err != nil || len(history) != 1 || history[0].Action() != admin.ActionDelete || history[0].ActorID() != actor.ID() || len(history[0].ChangedFields()) != 0 {
 				t.Fatal("identity host deletion audit differs")
 			}
 		}
