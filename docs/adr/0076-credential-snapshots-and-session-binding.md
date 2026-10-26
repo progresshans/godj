@@ -220,8 +220,16 @@ Manager는 HTTP에서 받은 principal의 과거 grant를 쓰기 권한으로 �
 한 parser 예산이 중첩 객체와 JSONField 전체를 포함하고, 모든 child의 검증/변환이 끝나기 전에는 setter를 실행하지 않는다.
 이 결합 API의 바깥 객체 member는 full/partial 모두 필수이며 null을 허용하지 않는다. Mode는 child 내부 field에 적용한다.
 오류 위치는 escape된 JSON Pointer로 구별한다. 기본/custom 외부 계정 생성 소비자는 `fields`와 `credential`을 사용하고
-add+change/CSRF를 본문보다 먼저 확인한다. 공통 관리 JSON CRUD의 route/노출/수정 조건/응답 조립과 역할별 쓰기 정규화의
-입력 전 적용은 별도로 완성해야 하며, 이 입력 기반만으로 I1 JSON 제품 수용을 완료하지 않는다.
+add+change/CSRF를 본문보다 먼저 확인한다. 공통 관리 JSON CRUD의 route/노출/수정 조건/응답 조립은 남아 있으며,
+이 입력 기반만으로 I1 JSON 제품 수용을 완료하지 않는다.
+
+선택 계정의 `Binding.FormDefinition`과 `Binding.InputSpec`은 명시한 field의 전체 모델 source를 보존하고 login/email
+쓰기 정규화를 길이·문법·static choice 검사 전에 적용한다. Login은 raw UTF-8 1,024 bytes, 별도 email은 4,096 bytes를
+trim·정규화 전에 제한한다. 두 역할이 같은 field면 더 좁은 login 한도와 NFKC 다음 email-domain 정책을 함께 사용한다.
+JSON의 명시적 한도는 좁힐 수 있지만 넓히거나 다른 정규화로 바꿀 수 없다. Read-only 출력·생략 default·stored IR·choice
+선언은 이 변환으로 다시 쓰지 않는다. Form의 raw/initial도 유지한다. 관리 Form과 최초 계정 command가 같은 정의를 사용하며,
+command description/fingerprint에도 원문 한도를 포함한다. 이 정의는 입력 준비이며 저장 owner의 보호 field·현재 권한·
+domain/revision·최종 typed 상태 검사를 대신하지 않는다. 공개 CLI/scaffold의 선택 runtime 조립은 별도 요구다.
 
 수정·삭제·password 명령은 `If-Revision`에 대상 row의 canonical positive decimal revision을 요구한다.
 응답의 `revision`과 `Revision` header가 같은 값을 제공한다. 이 값은 profile·직접 관계의 충돌을 다루는
@@ -338,9 +346,12 @@ Helpdesk의 편집용 target-view 정책과 데이터 접근 전 write admission
 
 Form의 `WithStringNormalizer`는 whitespace 처리 뒤 required/length/validator 전에 pure 변환을 수행한다.
 Initial과 raw redisplay를 변경하지 않으며 changed 비교에도 같은 변환을 사용한다. Model override의 max length는 IR의 저장
-한도를 넓히지 않고 입력 한도를 좁힐 수 있다. Username 생성은 Python whitespace strip·NFKC·150자·문자 문법을 적용한다.
+한도를 넓히지 않고 입력 한도를 좁힐 수 있다. Static choice는 암묵적으로 trim하지 않고 명시적 normalizer를 적용한 값으로
+기존 선택값을 검사한다. `WithMaxInputBytes`는 callback 전에 원문 한도를 확인한다.
+기존 기본 identity Form의 Username 생성은 Python whitespace strip·NFKC·150자·문자 문법을 적용한다.
 편집은 IR의 256자 한도를 사용해 API/CLI에서 정상 생성한 긴 이름도 Form initial과 저장을 왕복할 수 있다.
-각 Form은 raw 글자 수가 해당 한도를 넘으면 NFKC를 생략하는 UsernameField의 비용 경계를 유지한다.
+기존 기본 identity Form은 raw 글자 수가 해당 한도를 넘으면 NFKC를 생략하는 UsernameField의 비용 경계를 유지한다.
+선택 계정 Form은 위의 역할 정책·원문 byte 한도와 실제 선택 모델의 IR 길이를 사용한다.
 Email은 고정 Django EmailValidator의 quoted local/Unicode BMP domain/IP literal 문법을 적용한다. Password 두 값은 strip/NFKC
 없이 비교하고 mismatch를 password2에 표시하며 모든 재표시에서 원문을 비공개로 유지한다.
 

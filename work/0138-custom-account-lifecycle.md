@@ -288,8 +288,15 @@ source에 생성/조회/수정/삭제/비밀번호 owner를 묶고 명시적 rea
 생략한 default는 제출값으로 다시 검사하지 않는다.
 전체 검증·타입 변환 전에는 어느 setter도 실행하지 않는다. 같은 Body의 배열·typed endpoint/OpenAPI도 연결했다.
 기본/custom 생성 소비자의 수동 password 분리를 이 typed 입력으로 교체하고 add+change/CSRF를 본문보다 먼저 확인한다.
-새 선언/소비자의 최소 compile과 실제 feature body 실행은 TEST_EVIDENCE에서 구분한다. 역할 정규화의 입력 전 적용과
-공통 관리 JSON CRUD의 전체 조립을 완료한 것으로 계산하지 않는다.
+새 선언/소비자의 최소 compile과 실제 feature body 실행은 TEST_EVIDENCE에서 구분한다.
+
+공통 serializer의 고정 Unicode 16 정규화와 원문 byte 한도, static choice를 지원하는 Form normalizer를 작성했다.
+선택 `Binding.FormDefinition`·`InputSpec`이 login/email 역할의 쓰기 정책을 길이·문법·선택값 검사 전에 적용하며,
+원문 한도는 변환 전에 검사한다. 전체 IR source·보호 field·최종 저장 owner와 raw/initial·default·출력의 경계를 유지한다.
+관리 Form·최초 계정 command·기본/custom 생성 소비자에 연결하고 OpenAPI에는 변환 전/후 제약을 구분해 기술했다.
+실제 generated 기본/custom 생성·최초 계정 module의 최소 compile을 확인했으며 새 본문과 환경별 수용은 원격 확인 대상이다.
+선행 CI의 PostgreSQL race·두 macOS 소비자 조합에서 관측한 누적 timeout은 기존 기한/필수 실행을 유지한 분할로 보완했다.
+구체적인 원본·소스·한정 검증은 TEST_EVIDENCE에 기록하며, 공통 관리 JSON CRUD와 공개 CLI 조립은 남아 있다.
 
 프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP 제품 조립,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB

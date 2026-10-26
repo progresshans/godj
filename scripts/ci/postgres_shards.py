@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Own every PostgreSQL core sentinel exactly once in each execution mode.
 
-Race partitions separate framework, the Helpdesk PostgreSQL consumer,
+Race partitions separate framework, native PostgreSQL roots, the Helpdesk PostgreSQL consumer,
 generated read consumers, generated write consumers and process products.
 Normal/CGO-disabled retain one core owner; the normal capture producer is stable.
 The required manifest stays authoritative for tests, including child-only roots.
@@ -16,8 +16,9 @@ import re
 MODULE = 'github.com/progresshans/godj/'
 FRAMEWORK = (
     './storage', './admin', './forms', './forms/model', './orm', './conformance/internal/dbstate', './cmd/godj',
-    './db/postgres', './examples/article', './examples/helpdesk',
+    './examples/article', './examples/helpdesk',
 )
+POSTGRES = ('./db/postgres',)
 CONSUMERS = ('./codegen/consumertest',)
 PROCESSES = (
     './conformance/postgresproduct/...', './conformance/projectmigrateproduct',
@@ -38,12 +39,14 @@ WRITE_CONSUMER_ROOTS = frozenset({
 })
 PARTITIONS = {
     'core': FRAMEWORK,
+    'core-postgres-1': POSTGRES,
+    'core-postgres-2': POSTGRES,
     'core-helpdesk-postgres': ('./examples/helpdesk',),
     'core-consumers': CONSUMERS,
     'core-consumer-writes': CONSUMERS,
     'core-processes': PROCESSES,
 }
-ALL_PACKAGES = (*FRAMEWORK, *CONSUMERS, *PROCESSES)
+ALL_PACKAGES = (*FRAMEWORK, *POSTGRES, *CONSUMERS, *PROCESSES)
 
 
 def matches(package, pattern):
@@ -76,6 +79,16 @@ def plan(mode, shard, entries):
         raise ValueError('only race core has multiple partitions')
     packages = ALL_PACKAGES if mode != 'race' else PARTITIONS[shard]
     selected = [entry for entry in entries if any(matches(entry.partition('|')[0], pattern) for pattern in packages)]
+    if mode == 'race' and shard in ('core-postgres-1', 'core-postgres-2'):
+        # CI 40248295204 reached the native package's cumulative 18-minute
+        # limit after 145 completed roots. Split complete roots and all their
+        # required children, including roots represented only by a child.
+        # No timing allowlist or test-name family can silently drop new work.
+        roots = sorted({entry.partition('|')[2].split('/')[0] for entry in selected},
+                       key=lambda name: (hashlib.sha256(name.encode()).digest(), name))
+        index = 0 if shard == 'core-postgres-1' else 1
+        owned = set(roots[index::2])
+        selected = [entry for entry in selected if entry.partition('|')[2].split('/')[0] in owned]
     if mode == 'race' and shard in ('core', 'core-helpdesk-postgres'):
         # The SQLite and PostgreSQL consumers share a Go package timeout.
         # Move the whole PostgreSQL root, including future child sentinels.

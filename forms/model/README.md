@@ -14,6 +14,16 @@ Admin의 모델 snapshot 및 최종 ORM 저장 검사는 유지한다. `InitialV
 문자 필드의 Changed 비교는 NULL 초기값과 빈 입력을 같은 빈 값으로 본다. Initial과 Cleaned의 NULL/빈 문자열 구분은
 유지하므로, 실제 저장을 명시한 Form의 후보 값과 변경 없는 FormSet 행을 생략하는 정책은 별개다.
 
+문자 field의 `WithStringNormalizer` override는 required·길이·문법 검사 전에 순수 변환을 적용한다. Static choices도
+명시적 변환을 지원하며 이 경우 원래 공백을 보존한 입력을 변환한 뒤 기존 canonical 선택값과 비교한다. 선택값이나 label을
+다시 정규화하지 않는다. Raw redisplay·initial은 그대로 두고 Changed 비교에는 동일한 변환을 사용한다.
+Callback은 동시 사용에 안전해야 하며 model-choice나 문자열이 아닌 field에는 선언할 수 없다.
+
+`WithMaxInputBytes`는 trim·normalizer callback 전에 제출 UTF-8 bytes를 제한한다. 0은 미설정이고 음수는 오류다.
+초과 원문에는 callback을 실행하지 않으며 `max_bytes` 진단을 반환한다. Initial·생략 default와 저장 IR은 바꾸지 않는다.
+선택 계정의 `Binding.FormDefinition`은 명시한 login/email field에 역할의 쓰기 정책과 원문 한도를 함께 적용한다.
+이 입력 선언은 필드 수정 권한이나 최종 저장 권한을 부여하지 않는다.
+
 ```go
 definition := formmodel.Definition{
     Fields: []string{"code", "email", "counter"},

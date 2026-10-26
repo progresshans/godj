@@ -36,6 +36,17 @@ def matrix():
             # one consumer owner on those coordinates; retain their deadlines
             # and discover/assign every complete root with the same algorithm.
             count = 4 if goos == 'linux' and mode == 'race' else 3
+            # CI 40248295204 exhausted two macOS cumulative package budgets
+            # while short individual roots were still progressing. Its full
+            # root timings show four Intel/CGO0 owners would already exceed
+            # 35 minutes before unobserved roots; use five there. Four ARM64
+            # race owners reduce the known account-heavy partition cost while
+            # retaining the 70-minute deadline; fresh CI verifies the full run.
+            # Every discovered root still runs exactly once.
+            if goos == 'darwin' and goarch == 'amd64' and mode == 'cgo0':
+                count = 5
+            elif goos == 'darwin' and goarch == 'arm64' and mode == 'race':
+                count = 4
             darwin_race = goos == 'darwin' and mode == 'race'
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.

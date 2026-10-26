@@ -116,15 +116,21 @@ class RelationShardTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
+        expected_counts = {
+            ('ubuntu-24.04', 'normal'): 3, ('ubuntu-24.04', 'race'): 4, ('ubuntu-24.04', 'cgo0'): 3,
+            ('ubuntu-24.04-arm', 'normal'): 3, ('ubuntu-24.04-arm', 'race'): 4, ('ubuntu-24.04-arm', 'cgo0'): 3,
+            ('macos-15-intel', 'normal'): 3, ('macos-15-intel', 'race'): 3, ('macos-15-intel', 'cgo0'): 5,
+            ('macos-26', 'normal'): 3, ('macos-26', 'race'): 4, ('macos-26', 'cgo0'): 3,
+        }
         seen = {}
         for row in actual['include']:
             coordinate = (row['platform']['runs_on'], row['platform']['expected_goos'], row['platform']['expected_goarch'], row['mode'])
             seen.setdefault(coordinate, []).append(row['shard'])
-            count = 4 if coordinate[1] == 'linux' and coordinate[3] == 'race' else 3
+            count = expected_counts[(coordinate[0], coordinate[3])]
             self.assertEqual(row['shards'], count)
             budget = (90, '70m') if coordinate[1] == 'darwin' and coordinate[3] == 'race' else (45, '35m')
             self.assertEqual((row['job_timeout'], row['test_timeout']), budget)
-        expected = {(runner, goos, arch, mode): ([0, 1, 2, 3, 4] if goos == 'linux' and mode == 'race' else [0, 1, 2, 3])
+        expected = {(runner, goos, arch, mode): list(range(expected_counts[(runner, mode)] + 1))
                     for runner, goos, arch in [('ubuntu-24.04', 'linux', 'amd64'), ('ubuntu-24.04-arm', 'linux', 'arm64'),
                                               ('macos-15-intel', 'darwin', 'amd64'), ('macos-26', 'darwin', 'arm64')]
                     for mode in ('normal', 'race', 'cgo0')}
@@ -155,6 +161,13 @@ class RelationShardTest(unittest.TestCase):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == 'ubuntu-24.04-arm' and row['mode'] == mode]
             self.assertEqual([0, 1, 2, 3], [row['shard'] for row in rows])
             self.assertTrue(all(row['shards'] == 3 and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
+
+    def test_macos_cumulative_timeout_partitions_preserve_deadlines(self):
+        for runner, mode, count, package_minutes, job_minutes in (
+                ('macos-15-intel', 'cgo0', 5, '35m', 45), ('macos-26', 'race', 4, '70m', 90)):
+            rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == mode]
+            self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
+            self.assertTrue(all(row['shards'] == count and row['test_timeout'] == package_minutes and row['job_timeout'] == job_minutes for row in rows))
 
     def test_relation_job_keeps_full_logs_and_discovery_even_on_failure(self):
         workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()

@@ -274,6 +274,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         self.assertTrue(child_only)
         coordinates = [('normal', 'core', '30m'), ('normal', 'operator-target', '18m'),
                        ('race', 'core', '18m'), ('race', 'core-helpdesk-postgres', '18m'),
+                       ('race', 'core-postgres-1', '18m'), ('race', 'core-postgres-2', '18m'),
                        ('race', 'core-consumers', '30m'),
                        ('race', 'core-consumer-writes', '30m'),
                        ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),

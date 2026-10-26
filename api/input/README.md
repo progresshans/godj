@@ -19,6 +19,28 @@ scope에서 확인한다. Pending upload는 일반 scalar 전달이 아닌 파�
 
 아래의 `New`·`Property` 경로는 임의 DTO와 업무 명령에 계속 사용할 수 있다.
 
+## 문자열의 정규화와 원문 한도
+
+`serializers.WithStringNormalization`은 String/Email/URL/Slug 입력의 명시적 정책이다. 기본 `StringExact`는
+필드의 whitespace 처리 뒤 문자를 보존하고, `StringUnicode16NFKC`·`StringUnicode16EmailDomain`·
+`StringUnicode16NFKCEmailDomain`은 고정 Unicode 16의 NFKC, 마지막 `@` 뒤 domain 소문자화, 두 순서의 결합을 제공한다.
+EmailDomain은 `@`가 있으면 Python whitespace를 제거한 뒤 domain만 바꾸며, 없으면 받은 문자열을 보존한다.
+임의 callback이나 I/O는 받지 않는다. 기존 field의 trim 정책과 choices 선언은 그대로 유지한다.
+
+`WithMaxInputBytes`는 제출한 문자열의 UTF-8 bytes를 trim·정규화 **전에** 검사한다. 0이면 해당 필드 한도를
+설정하지 않으며 요청 parser의 전체/문자열 한도는 별도로 적용한다. 이후 정규화한 값으로 blank·길이·문법·choice를
+검사한다. 따라서 축약되는 문자열은 정규화 뒤 길이로, 확장되는 문자열은 확장된 길이로 판단한다. 초과 원문은
+정규화로 짧아져도 `max_bytes`로 거부한다. 음수 한도·알 수 없는 정책·문자열이 아닌 field의 정책은 선언 오류다.
+
+모델에서는 `serializers.ModelField.Normalization`과 `MaxInputBytes`로 같은 정책을 선언한다. 전체 Schema IR source와
+명시적 노출 목록을 보존하며 저장 metadata·선택값·생략 default·모델 출력은 다시 정규화하거나 원문 한도로 검사하지 않는다.
+선택 계정은 `Binding.InputSpec`을 사용해 login/email 역할의 쓰기 정책과 byte 한도를 함께 가져온다. 이 선언과 typed
+준비는 현재 권한·보호 필드·revision·최종 저장 검사를 대신하지 않는다.
+
+OpenAPI request는 입력 정책을 `x-godj-normalization`에 기술한다. 정규화 뒤 길이와 선택값을 raw 문자열의
+`maxLength`/`enum`으로 제한하지 않으며, `maxInputBytes`는 변환 전 한도다. 정규화한 입력의 full omission default는
+`x-godj-omission-default`로 구분하고 partial에는 넣지 않는다. Response schema와 모델 encoder에는 입력 정책을 적용하지 않는다.
+
 ## 모델 입력과 명령의 객체 결합
 
 `Object(parserConfig, ObjectField(name, childBody, setter), ...)`는 이미 준비한 `Body`들을 별도 객체 member로

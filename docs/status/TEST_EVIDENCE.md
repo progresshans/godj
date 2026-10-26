@@ -1563,6 +1563,63 @@ root/child 3개는 20.760초에 통과했으며 두 자식의 feature body는 �
 역할 정규화를 serializer 제약보다 먼저 적용하는 공통 경로, 관리 JSON CRUD의 노출/조건/응답 조립, 공개 첫 계정 터미널·
 상위 process/scaffold, 나머지 I1-01~08과 전체 카탈로그의 미완료 요구를 유지한다.
 
+### 선택 계정 입력 정규화와 누적 CI 실행 분할
+
+2026-10-27, `748cc5624389d2894aa8df73d940ecab7f9e67c2` 위에 문자열 입력의 고정 Unicode 16 정규화와 원문 byte
+한도를 작성했다. 해당 Go 29개 파일은 복원 snapshot `6845188302164116fdf29077cb078e106e4ee943`와 현재 bytes가 같다.
+Serializer는 명시적 NFKC·email-domain·결합 정책을 길이/문법/choice 전에 적용하고, raw UTF-8 한도를 trim/변환 전에
+확인한다. Form은 static choice의 canonical 값과 원래 공백 정책을 유지한 명시적 normalizer 및 같은 원문 한도를 지원한다.
+전체 모델 source·생략 default·저장 metadata/choices·모델 출력과 Form raw/initial을 입력 변환으로 다시 쓰지 않는다.
+
+선택 `Binding.FormDefinition`·`InputSpec`이 login/email 역할의 쓰기 정책을 제공한다. Login 1,024 bytes·별도 email
+4,096 bytes를 넘는 원문은 정규화로 짧아져도 거부하며 동일 역할은 더 좁은 login 한도를 쓴다. JSON 한도의 확대나
+다른 nonzero 정규화 선언을 거부하고 read-only 출력은 변환하지 않는다. 관리 Form·최초 계정 command와 실제 생성
+소비자에 연결했으며 command description/fingerprint에도 원문 한도를 포함한다. 이는 입력 준비이며 현재 권한·domain·
+revision·보호 field·최종 typed 제약/저장 owner를 대체하지 않는다. OpenAPI는 변환 전 byte와 변환 후 길이/선택값·
+omission default를 구분하여 raw alias를 잘못 제한하거나 출력에 입력 변환을 부과하지 않는다.
+
+새 필수 항목은 root/child 68개다. Portable core 191→247(56개), Relation 4,338→4,350(12개)이며 PostgreSQL core
+5,506개는 유지한다. 축약/확장·문법/choice·raw 한도·선언 오류·동시 사용, source·default/출력·Form raw/initial과
+선택 역할의 같은/별도 field 정책을 포함한다. 일곱 외부 생성 변형의 부모는 기존 생성 흐름을 보존하면서 원문 초과 시
+setter/저장 미실행 검사를 추가해 생성 root/child 97→104개를 요구한다. Fullwidth alias의 실제 저장·로그인 대조도 작성했다.
+기존 static-choice normalizer의 미지원 선언 검사는 지원하는 alias/거부/소유권 검사로 대체했으며 나머지 거부 경계는 유지한다.
+
+로컬에서는 serializers·input·openapi·forms·forms/model·identity/model·project/firstaccount·codegen/consumertest
+여덟 package의 `go test -run '^$'` 최소 compile을 확인했다(test body 0개). 실제 부모의 source 선언·embedded 파일과
+생성기로 기본/custom 생성 및 최초 계정 module 네 가지도 compile했다. 임시 overlay의 준비 root/child 5개는
+71.801초에 통과했으며 각 자식은 `-run '^$'`, feature body 0개다. 새 본문·실제 정규화 DB/HTTP·race/process/platform·
+전체 generated drift는 원격 확인 대상이며 이 준비 결과를 기능 수용 PASS로 계산하지 않는다.
+
+선행 [CI 40248295204](https://github.com/progresshans/godj/actions/runs/40248295204) attempt 1은 종결 failure다.
+117개 job 중 성공 112·실패 4·skip 1이며 실제 실행 실패 세 개, 실패한 최종 집계와 skip된 conformance-validation을
+포함한다. 세 실행 실패의 checkout은 `0bc121f96d22c7e463f95a85fb59916f138649bd`, tree는
+`771be66c448e9f78cbc19494832f68ba738780da`로 제출 `748cc562`와 같고 해당 source가 merge parent에 있다.
+이전 source의 결과를 새 정규화 변경의 PASS로 사용하지 않는다.
+
+- PostgreSQL race core의 `db/postgres`가 누적 package 18분 한도에 도달했다. 완료 root 145개의 합산 시간은
+  1,025.06초이며 당시 진행 중 root는 약 55초였다. 같은 source의 normal은 root 170개와 package 완료를 기록했다.
+- macOS Intel CGO0 소비자 shard 2/3은 package 35분, macOS ARM race shard 3/3은 70분 누적 한도에 도달했다.
+  완료 root는 각각 15/21개이고 종료 때 진행 중 root는 약 63/27초였다. 전체 artifact JSON을 받아 job 요약의
+  출력 잘림과 구분했다. 관측된 root 시간으로 Intel을 네 shard에 배정해도 이미 35분을 넘는 partition이 있었다.
+  미완료 root의 시간은 알 수 없으므로 분할 추정값을 새 CI 완료 보장으로 해석하지 않는다.
+
+PostgreSQL race의 native package는 전체 root와 모든 child를 두 job에 결정적으로 배정한다. 다른 framework·Helpdesk·
+생성/프로세스 owner, normal/CGO0와 operator-target은 유지한다. Core 계열은 세 mode/아홉 coordinate이고 operator를
+포함하면 12개다. Relation의 Intel CGO0 소비자는 다섯, ARM race는 네 shard로 나누어 전체 matrix는 53개 coordinate다.
+기존 package/job 기한·실제 binary의 전체 root 발견·필수 child·no-skip·최종 집계는 유지한다. 검사 이름이나 시간을
+기준으로 제품 실행을 생략하지 않으며 PR의 자동 전체 실행/이전 실행 취소 정책도 바꾸지 않았다.
+
+변경한 필수 목록에서 분할/유일한 실행 소유권·child 상속·잘린/중복/skip 거부 검사 21개, 실제 shell selector·기한·
+Portable/Relation 소유권·workflow 집계 검사 8개가 통과했다. Workflow YAML과 PostgreSQL 12개 좌표의 중복 없음,
+gofmt·diff·243개 문서의 로컬 링크도 확인했다. 이 CI harness의 한정 확인은 PostgreSQL/macOS 실제 재실행이 아니다.
+최소 compile·생성 자식 JSON·선행 CI 원본/전체 artifact·분할 추정·필수 목록과 변경 비 Markdown source 37개의 hash는
+검증 보관소의 `gdj0138-input-normalization-v1/receipt.json`에 연결했다
+(SHA-256 `b6711acb2da7cb19752287187483c5752d295cb61df0d53e878455662402d40e`).
+
+관리 JSON CRUD의 공통 route/노출/수정 조건/응답, 공개 첫 계정 터미널·상위 process/scaffold·통합 runtime, profile
+관계/파일·선택 모델-as-through identity 생성·채운 DB 전환·설치/restart·독립 PostgreSQL HTTP/브라우저·고정 Django
+수용 대조와 전체 카탈로그의 잔여 요구는 유지한다. I1 전체는 구현 중이며 새 제출 source의 필수 원격 검증이 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
