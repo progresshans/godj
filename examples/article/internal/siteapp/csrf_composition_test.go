@@ -159,7 +159,7 @@ func newSiteAppCSRFFixture(t *testing.T, ring websessionauth.CSRFKeyRing) siteAp
 
 	const (
 		username = "csrf-composition-admin"
-		password = "csrf-composition-password-marker"
+		password = "Quartz-canyon-private-marker-73!"
 	)
 	if _, err := accounttest.Provision(ctx, firstBackend, username, password); err != nil {
 		t.Fatal(err)

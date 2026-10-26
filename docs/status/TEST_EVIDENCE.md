@@ -1832,6 +1832,56 @@ source 103개 hash를 연결한다(SHA-256 `b6af9a1647ce8b675aef15339e763d6d373c
 자동 전체 CI에서 새 본문·양 DB·process/race/platform·generated drift와 독립 기준을 확인한다. 사용자 정의 PostgreSQL HTTP,
 남은 고정 Manager host, profile 관계/파일·선택 모델-as-through 생성·채운 DB 전환과 I1-01~08 전체 수용은 계속 남아 있다.
 
+### 독립 계정 HTTP의 PostgreSQL 실행 연결과 공개 조립 CI 실패 수정
+
+2026-10-27, source `47ba2487ba65233280095fed5451bc02d274593c`의
+[CI 40401472618](https://github.com/progresshans/godj/actions/runs/40401472618) attempt 1에서 실제 실패한 경로를 재현했다.
+PR checkout `a70333ba96a5f057bceb8e81cc26b0eecbe9248e`의 두 parent는 main `f8a5e20c`와 제출 head `47ba2487`이며,
+tree `e3ebc8ab024934dc13834a24af60bd710046a6ef`가 제출 tree와 같다. 보관한 중간 snapshot은 119개 작업 중 성공 40·실패 32·
+실행 중 12·대기 35다. 전체 PASS가 아니며 수정한 새 source의 결과로 사용하지 않는다. 대표 좌표 11개의 원본 job log를 보존했다.
+
+| 관측한 실패 | 수정과 한정 확인 |
+|---|---|
+| Article의 stale transport principal이 최종 native 인가에서 거부됐지만 PATCH가 500을 반환 | typed PUT/PATCH·DELETE·bulk create의 명시적 403 응답을 추가했다. 기존 strict endpoint 오류 검사는 유지하고 PUT/bulk도 거부·무변경 검사를 받는다. inactive fixture 복원을 cleanup으로 옮겨 후속 실패 전파를 막았다. SQLite와 PostgreSQL 17.5의 같은 lifecycle root가 통과했다. |
+| 시작 취소 검사가 listener를 만들기 전에 실패 | 실제 선택 계정 runtime이 요구하는 `CoordinatedRelationAtomic`을 공용 database backend의 계약에 명시했다. wrapper가 native 기능을 보존하며 backend/listener를 한 번씩 닫는 기존 실패 root가 통과했다. |
+| SYS-028의 세션 table 부재가 기대한 오류와 다름 | 실제 startup 경계의 `CodePersistence`를 기대하도록 fixture를 수정했다. 설치/부재/오염/legacy 거부와 startup 무쓰기 조건은 유지하며 해당 SYS-028을 다시 대조했다. |
+| 최초 계정 시도 marker가 두 번 기록됨 | 선언/source 조회와 실제 migration·최초 계정 시도를 구분했다. 실제 외부 fixture의 generate·migrate·최초 계정·operation receipt·재접속 인증으로 수정 전 실패와 수정 후 통과를 확인했다. 전체 operator HTTP/restart suite를 로컬에서 중복 실행하지 않았다. |
+| CSRF 및 PostgreSQL scaffold의 최초 계정 입력 거부, 재기동 route 이름 불일치 | 기존 fixture 비밀번호가 기본 `password_too_similar`에 걸림을 실제 typed validator로 확인하고 관련 없는 입력으로 바꿨다. 정책은 유지했다. 실제 namespace의 Admin route를 부재/존재 양쪽에서 검사한다. 두 CSRF 조합·identity API·fresh startup 및 PostgreSQL scaffold의 migration/최초 계정/인증된 두 process 재시작이 통과했다. |
+| legacy adoption 뒤 현재 Article 시작 실패 | 옛 Article HTTP 게시의 성공 기대를 새 domain 전환 거부로 교체했다. 같은 테스트에서 기존 인증/hash binding·명시한 역할과 session ID·값·전체 시각 보존을 확인했다. 이 성공을 legacy→새 domain 이행 완료로 계산하지 않는다. |
+| 세 프로세스 system-state restart가 legacy fixture에서 시작 실패 | 선택 계정의 typed 첫 생성과 독립 domain/session/audit로 fixture를 전환했다. A/B/C의 서로 다른 PID, 기존 cookie·CSRF 교체·logout 거부·LastLogin, 변하지 않는 ownership/첫 감사와 Article 감사·secret 검사를 유지했다. SQLite와 PostgreSQL 17.5에서 통과했다. |
+| 현재 runtime 의존성이 source binding에서 빠짐 | `project/firstaccount/`를 소스 소유 범위와 mutation/symlink 검사에 추가했다. 실제 native dependency closure의 기존 실패 root가 통과했다. |
+| PostgreSQL constraint 기대값 불일치 | 31개 중 domain predecessor의 PROTECT FK 하나만 즉시/지연 기대가 달랐다. 실제 schema editor의 `NOT DEFERRABLE` 계약과 맞췄다. 정확한 table/column/constraint/index/trigger/sequence 검사는 유지하며 실제 global migration·경합·인증된 재시작 root가 PostgreSQL 17.5에서 통과했다. |
+
+한정 수정 재현의 11개 묶음은 root/child 25개 run/pass·skip 0이며 operator marker 재현은 별도 기록이다.
+로컬 PostgreSQL은 이미 설치된 **17.5**, darwin/arm64 normal의 격리 임시 DB였다. 최초 Unix-socket URL 준비는 native URL
+계약에 거부되어 제품 결과에서 제외했고 loopback/SCRAM 설정으로 다시 재현했다. 제품 URL 검증을 바꾸지 않았다.
+종료 전 테스트 schema 0·남은 client connection 0을 확인했고 임시 서버·data directory를 정리했다.
+이 결과를 Hosted PostgreSQL **17.10**, race/CGO0·다른 platform이나 새 source의 전체 수용으로 확대하지 않는다.
+
+Python 3.14.7과 고정 Django 6.1/DRF 3.18.0 등의 의존성에서 전체 311개 scenario payload를 다시 만들었다.
+1,082,344 bytes, SHA-256 `6cc13f26b756706844e8854739b6f7380bf3650c5e83d0f01fe4f46ee97b9542`다.
+SYS-028만 이전 함수의 관측으로 대체하면 기존 1,082,315 bytes와
+`9f16d52cdfe19db5fc1a2222fb04b01500c673ca45d48de7ea7d7245b0eb453c`가 정확히 복원된다.
+따라서 다른 310개는 바이트 단위로 같고 GoDj-only SYS-028의 29-byte 변경만 CI pin에 반영했다.
+이 decision 변경 자체는 Django 제품 동작의 신규 수용 근거가 아니다. 다른 Python 좌표의 재확인은 원격에서 수행한다.
+
+별도로 두 생성 계정 root의 기본/custom·정규화·LastLogin 없는 모델 등 일곱 변형을 SQLite/PostgreSQL의 실제 backend
+선택에 연결했다. 같은 생성 module을 각각 실행하고 native backend 종류를 확인하며 PostgreSQL schema owner는 모든 연결보다
+먼저 cleanup에 등록해 재접속까지 닫은 뒤 해당 schema만 제거한다. 기존 내부 HTTP·CSRF·권한/profile/catalog·password·
+관리 JSON·삭제/session/audit child의 필수 실행 검사는 각 backend에서 그대로 적용한다. PostgreSQL 필수 환경은 URL 누락이나
+대체 backend를 성공으로 처리하지 않는다. **이 새 양 DB 소비자 본문은 로컬에서 실행하지 않았으며 원격 확인 대상이다.**
+
+실제 기본/custom의 일반 계정·최초 계정 네 module을 다시 생성해 최소 compile했다. 이때 DB/HTTP 본문은 실행하지 않았다.
+공용 backend 계약 변경 뒤 parent package의 최소 compile도 통과했다. 필수 목록은 Relation 4,464(+14), PostgreSQL core
+5,559(+44), Portable core 258이다. 기존 항목 보존·중복 없음·PostgreSQL 세 mode의 9개 좌표에서 유일한 owner를 정적으로
+확인했고 timeout·분할·실행 범위를 바꾸지 않았다. Go 포맷·diff·244개 문서의 local link 검사를 적용했다.
+
+검증 보관소 `gdj0138-ci47-repairs-v1/receipt.json`은 수정 전/후 원본·명령·source patch, 비 Markdown source 20개 hash,
+실제 생성 compile·Python delta·PostgreSQL schema 차이/정리·CI source binding을 연결한다
+(SHA-256 `cb2782b1fc2ed3546a113cc387fa94352064fe0053ed148e3c1aaae6b9b64644`).
+이 묶음도 통합 PR #1에 push해 전체 CI를 자동 실행한다. 새 독립 PostgreSQL HTTP·남은 고정 소비자 전환,
+profile 관계/파일·선택 모델-as-through 생성·채운 DB mapping/retirement·복구와 I1-01~08 전체 수용은 계속 추적한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -80,7 +80,8 @@ validation·unknown 결과·revision 경합 검사를 양 DB 필수 목록에 �
 `ModelView[M]`는 전체 모델 행 없이 선택한 값과 모델 source를 보관하며 공통 Form/API 출력이 같은 source와
 로드 여부를 검사한다. 종료 실패·권한 회수·domain 변경·대상 손상·일관된 count/page·0/음수 key를 양 DB 필수
 검사에 연결했다. 기본/사용자 정의·정규화 변형의 외부 소비자는 실제 HTTP 로그인·CSRF·Form/JSON 수정·조회와
-stale/예약 필드 거부·기존 세션의 권한 회수/복구를 실행하도록 작성했다. 이 소비자의 DB는 SQLite이며 PostgreSQL의 독립 HTTP 소비자는 남아 있다.
+stale/예약 필드 거부·기존 세션의 권한 회수/복구를 실행하도록 작성했다. 초기 SQLite 소비자는 아래에서 PostgreSQL에도 연결하며,
+새 양 DB 본문의 원격 실행과 수용은 별도로 확인한다.
 
 Catalog 조립의 기반으로 선택 ModelView의 M2M·Form/API 표현과 전체 host source에 대한 collection/삭제 기능 검사를
 추가했다. ModelInput/ModelView 진단 형식의 선택 값 노출과 소속 그룹 256개 한도 누락을 재현해 보완했고, actor와 target의 현재 상태를
@@ -308,8 +309,8 @@ signed key·If-Revision·현재 domain 이력을 같은 선언으로 표현한�
 
 기본/custom 일곱 생성 변형에 실제 TCP·cookie/CSRF·SQLite 소비자를 작성했다. 생성과 로그인·명시적 조회·권한/CSRF/예약 입력·
 revision·PUT 생략/default·no-op·password와 세션 폐기·삭제/audit, native rollback·확정 commit 뒤 unknown·snapshot cleanup 실패·
-자기 비활성화 receipt를 확인하도록 필수 실행에 연결했다. 생성·최소 compile은 새 본문 실행과 다르며 PostgreSQL 독립 HTTP,
-기존 고정 Manager host 교체와 통합 기동은 아직 남아 있다. 실제 결과와 소스 경계는 TEST_EVIDENCE에 기록한다.
+자기 비활성화 receipt를 확인하도록 필수 실행에 연결했다. 후속 PostgreSQL 실행 연결과 통합 기동은 아래 진행을 따르며,
+생성·최소 compile은 새 본문 실행과 다르다. 실제 결과와 소스 경계는 TEST_EVIDENCE에 기록한다.
 
 선택 계정의 상위 `RunFirstAccount`는 실제 명령 runtime의 typed Description을 보관한 ProjectSpec의 전체 source·role과
 대조한 뒤 TTY를 읽는다. 생략/default와 빈 입력·static choice·원문 password를 보존하고, 새 operation ID와 한 번의
@@ -339,8 +340,18 @@ Admin mutation과 값 없는 domain audit를 함께 저장하고 읽기 정리/c
 Article 양 DB migration/restart 소비자를 새 저장소와 operation receipt에 연결했다. 생성·최소 compile과 새 본문/전체 환경 검증은
 TEST_EVIDENCE에서 구분한다. 이 구현을 I1 전체 제품 수용으로 계산하지 않는다.
 
-프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 사용자 정의 관리 JSON HTTP의 PostgreSQL 독립 소비자,
-선택 모델-as-through의 identity 생성, 채운 DB의 mapping/retirement/receipt·복구·restart와 전체 환경 수용은 남아 있다.
+기본/custom·정규화·LastLogin 없는 모델 등 일곱 변형의 독립 생성 계정 HTTP 소비자를 SQLite와 PostgreSQL 선택에 연결했다.
+한 번 생성한 같은 module을 각 native backend에서 실행하며 실제 연결 종류·격리 schema와 종료 순서를 확인한다.
+일반 관리와 최초 계정의 두 root는 내부 HTTP/CSRF·profile/role/catalog·password·삭제/session/audit의 필수 child를 유지한다.
+새 PostgreSQL 본문은 원격 CI 확인 대상이며, 실제 module 생성·최소 compile을 실행 완료로 계산하지 않는다.
+
+선행 CI에서 확인한 Article의 최종 인가 `403` 선언 누락과 DB wrapper의 native relation 기능 누락을 수정했다.
+현재 startup 오류·강도 정책·소스 바인딩·독립 domain/session/audit에 맞게 fixture를 고치고 세 프로세스 재시작 검사를 유지했다.
+Legacy adoption은 기존 credential/session 보존과 새 domain의 명시적 전환 거부를 검사한다. 한정 실패 수정 재현과 새 source의
+전체 양 DB·race/platform 검증은 TEST_EVIDENCE에서 구분한다.
+
+프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
+채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

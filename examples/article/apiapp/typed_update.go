@@ -50,6 +50,7 @@ func (a *Application) typedUpdate(authentication api.Authentication, mode serial
 		Success: []endpoint.Status{{Code: http.StatusOK, Description: "The updated Article."}},
 		Errors: []endpoint.Status{
 			{Code: 400, Description: "The body cannot be parsed or a field or query parameter is invalid."},
+			{Code: 403, Description: "The current account no longer permits this operation."},
 			{Code: 404, Description: "The Article or requested page does not exist, or its identifier is invalid."},
 			{Code: 413, Description: "The request body exceeds 4096 bytes."},
 			{Code: 415, Description: "The request Content-Type is not supported application/json."},

@@ -145,6 +145,11 @@ func runSelectedArticleScope(t *testing.T, backend database.Backend) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		t.Cleanup(func() {
+			if _, err := models.UserObjects.Patch(ctx, backend, inactive, (models.UserPatch{}).WithActive(true).WithRevision(inactive.Revision+1)); err != nil {
+				t.Error("restore current actor after denial checks", err)
+			}
+		})
 		page, err := service.List(ctx, actor, articleapp.ListOptions{})
 		assertDenied(err)
 		if page.Total != 0 || len(page.Articles) != 0 {
@@ -166,6 +171,8 @@ func runSelectedArticleScope(t *testing.T, backend database.Backend) {
 		for _, request := range []struct{ method, path, body string }{
 			{"GET", "/api/articles/", ""}, {"GET", fmt.Sprintf("/api/articles/%d/", value.ID), ""},
 			{"POST", "/api/articles/", `{"title":"denied"}`},
+			{"POST", apiapp.BulkCreatePath, `[{"title":"denied"}]`},
+			{"PUT", fmt.Sprintf("/api/articles/%d/", value.ID), `{"title":"denied"}`},
 			{"PATCH", fmt.Sprintf("/api/articles/%d/", value.ID), `{"title":"denied"}`},
 			{"DELETE", fmt.Sprintf("/api/articles/%d/", value.ID), ""},
 		} {
@@ -187,9 +194,6 @@ func runSelectedArticleScope(t *testing.T, backend database.Backend) {
 		}
 		if got := selectedArticleRequest(selectedArticleAPI(t, broken, runtime, actor), "GET", "/api/articles/", ""); got.Code != 500 {
 			t.Fatal("API cleanup failure became permission denial", got.Code)
-		}
-		if _, err := models.UserObjects.Patch(ctx, backend, inactive, (models.UserPatch{}).WithActive(true).WithRevision(inactive.Revision+1)); err != nil {
-			t.Fatal(err)
 		}
 	})
 

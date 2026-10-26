@@ -34,6 +34,7 @@ func (a *Application) bulkCreateEndpoint(authentication api.Authentication, item
 		Success: []endpoint.Status{{Code: http.StatusCreated, Description: "All created Articles in input order."}},
 		Errors: []endpoint.Status{
 			{Code: 400, Description: "Invalid count, item or unique slug; no Article is created."},
+			{Code: 403, Description: "The current account no longer permits this operation."},
 			{Code: 413, Description: "The complete array exceeds its request byte limit."},
 			{Code: 415, Description: "Exactly one supported application/json Content-Type is required."},
 		},

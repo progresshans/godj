@@ -28,6 +28,7 @@ func (a *Application) deleteEndpoint(authentication api.Authentication) (endpoin
 		Success: []endpoint.Status{{Code: 204, Description: "The Article was deleted. The response has no body or Content-Type."}},
 		Errors: []endpoint.Status{
 			{Code: 400, Description: "The deletion was rejected by application validation."},
+			{Code: 403, Description: "The current account no longer permits this operation."},
 			{Code: 404, Description: "The Article or requested page does not exist, or its identifier is invalid."},
 		},
 		Handle: func(request *web.Request, actor auth.Principal, id int64) (output.Prepared[struct{}], error) {

@@ -5,12 +5,14 @@ import (
 	"context"
 	"crypto/sha256"
 	_ "embed"
+	"os"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/identity/modeldef"
+	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/internal/testschema"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -143,7 +145,6 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/roles_test.go", accountBindingRoleConsumer)
 			writeGeneratedTestFile(t, root, "consumer/creation_test.go", accountBindingCreationConsumer)
 			writeGeneratedTestFile(t, root, "consumer/delete_http_test.go", accountBindingDeleteHTTPConsumer)
-			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			requiredNames := []string{required, required + "/password_change", required + "/profile_role_edit"}
 			for _, name := range []string{"", "/duplicate", "/reserved", "/missing_choice", "/empty_password", "/missing_fields", "/missing_credential", "/null_fields", "/null_credential", "/unknown_envelope", "/unknown_command", "/csrf_before_parse", "/malformed_before_setters", "/raw_login_bytes"} {
 				requiredNames = append(requiredNames, required+"/account_creation"+name)
@@ -160,8 +161,7 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			for _, name := range []string{"login_presentation", "login_csrf", "login_input_limit", "login_fullwidth_policy", "form_csrf", "form_origin", "form_confirmation", "form_combined", "form_target", "json_csrf_before_parse", "json_target", "json_duplicate", "json_null", "json_combined", "form_success", "json_success"} {
 				requiredNames = append(requiredNames, required+"/password_change/"+name)
 			}
-			assertGeneratedConsumerTests(t, output, requiredNames...)
-			t.Logf("account binding child events (sha256=%x):\n%s", sha256.Sum256(output), output)
+			runAccountConsumerDatabases(t, root, requiredNames)
 		})
 	}
 }
@@ -281,7 +281,6 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/admin_account_http_test.go", accountBindingAdminAccountHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/management_json_test.go", accountBindingManagementJSONConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
-			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
 			required = append(required, "TestGeneratedAccountManagementJSON")
 			for _, name := range []string{"composed_runtime", "typed_default_password_policy", "shared_reset_policy"} {
@@ -322,8 +321,27 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 					required = append(required, parent+"/"+name)
 				}
 			}
+			runAccountConsumerDatabases(t, root, required)
+		})
+	}
+}
+
+// Each generated model variant runs the same complete HTTP/native consumer on
+// every configured backend. A required PostgreSQL job cannot silently omit it.
+// The child selects a real isolated database and asserts its native type.
+func runAccountConsumerDatabases(t *testing.T, root string, required []string) {
+	t.Helper()
+	vendors := []string{"sqlite"}
+	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" || os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
+		vendors = append(vendors, "postgres")
+	}
+	for _, vendor := range vendors {
+		t.Run(vendor, func(t *testing.T) {
+			command := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer")
+			command.Env = testenv.With(command.Env, map[string]string{"GODJ_ACCOUNT_CONSUMER_DATABASE": vendor})
+			output := runStrictGeneratedCommand(t, command)
 			assertGeneratedConsumerTests(t, output, required...)
-			t.Logf("first-account child events (sha256=%x):\n%s", sha256.Sum256(output), output)
+			t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)
 		})
 	}
 }

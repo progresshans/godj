@@ -5,14 +5,21 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	postgresdb "github.com/progresshans/godj/db/postgres"
+	sqlitedb "github.com/progresshans/godj/db/sqlite"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
@@ -30,13 +37,21 @@ func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 
 func accountDatabaseWithConfig(t *testing.T, schemas ...ir.Schema) (database.Backend, database.Config) {
 	t.Helper()
-	selected, err := database.SQLite(filepath.Join(t.TempDir(), "accounts.sqlite3"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	selected, vendor := accountDatabaseConfig(t)
 	backend, err := database.Open(t.Context(), selected)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if vendor == "postgres" {
+		if _, actual := backend.(*postgresdb.Backend); !actual {
+			_ = backend.Close()
+			t.Fatal("PostgreSQL account consumer did not open a native PostgreSQL backend")
+		}
+	} else {
+		if _, actual := backend.(*sqlitedb.Backend); !actual {
+			_ = backend.Close()
+			t.Fatal("SQLite account consumer did not open a native SQLite backend")
+		}
 	}
 	t.Cleanup(func() {
 		if err := backend.Close(); err != nil {
@@ -45,6 +60,60 @@ func accountDatabaseWithConfig(t *testing.T, schemas ...ir.Schema) (database.Bac
 	})
 	migrateAccountDatabase(t, backend, schemas...)
 	return backend, selected
+}
+
+var accountSchemaSequence atomic.Uint64
+
+func accountDatabaseConfig(t *testing.T) (database.Config, string) {
+	t.Helper()
+	vendor := os.Getenv("GODJ_ACCOUNT_CONSUMER_DATABASE")
+	if vendor == "" {
+		vendor = "sqlite"
+	}
+	if vendor == "sqlite" {
+		selected, err := database.SQLite(filepath.Join(t.TempDir(), "accounts.sqlite3"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return selected, vendor
+	}
+	if vendor != "postgres" {
+		t.Fatal("unknown selected account consumer database")
+	}
+	url := strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL"))
+	if url == "" {
+		t.Fatal("selected PostgreSQL account consumer requires GODJ_TEST_POSTGRES_URL")
+	}
+	schema := fmt.Sprintf("godj_account_consumer_%d_%d_%d", os.Getpid(), time.Now().UnixNano(), accountSchemaSequence.Add(1))
+	selected, err := database.PostgreSQL(url, schema)
+	if err != nil {
+		t.Fatal("invalid selected PostgreSQL configuration")
+	}
+	connection, err := pgx.Connect(t.Context(), url)
+	if err != nil {
+		t.Fatal("connect selected PostgreSQL schema owner")
+	}
+	quoted := pgx.Identifier{schema}.Sanitize()
+	created := false
+	// Register the schema owner before native backends so LIFO cleanup closes
+	// every connection/reconnect before dropping only this fixture's schema.
+	t.Cleanup(func() {
+		cleanup, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if created {
+			if _, err := connection.Exec(cleanup, "DROP SCHEMA "+quoted+" CASCADE"); err != nil {
+				t.Error("drop selected PostgreSQL consumer schema")
+			}
+		}
+		if err := connection.Close(cleanup); err != nil {
+			t.Error("close selected PostgreSQL schema owner")
+		}
+	})
+	if _, err := connection.Exec(t.Context(), "CREATE SCHEMA "+quoted); err != nil {
+		t.Fatal("create isolated PostgreSQL consumer schema")
+	}
+	created = true
+	return selected, vendor
 }
 
 func migrateAccountDatabase(t *testing.T, backend database.Backend, schemas ...ir.Schema) {

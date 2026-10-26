@@ -5,6 +5,10 @@ package restart_test
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,19 +28,25 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	accountauditmodels "github.com/progresshans/godj/account/audit/models"
+	accountdomain "github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
-	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodeldef "github.com/progresshans/godj/examples/article/modeldef"
+	articleproject "github.com/progresshans/godj/examples/article/project"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	identitymodels "github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/project/firstaccount"
 	"github.com/progresshans/godj/query"
-	"github.com/progresshans/godj/systemstate"
+	settingsdatabase "github.com/progresshans/godj/settings/database"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -55,9 +65,7 @@ var (
 )
 
 type restartDatabaseBackend interface {
-	systemstate.IdentityBackend
-	migrationbackend.RevisionFencedBackend
-	Close() error
+	settingsdatabase.Backend
 }
 
 type restartBackendFactory func(context.Context) (restartDatabaseBackend, error)
@@ -128,8 +136,12 @@ func runSystemStateDistinctProcessRestartSentinel(t *testing.T, profile restartD
 	sensitive := append([]string{password}, profile.sensitive...)
 	assertBytesExcludeSensitive(t, "site build output", buildOutput, sensitive)
 	assertFileExcludesSensitive(t, "site binary", binaryPath, sensitive)
-	explicitlyProvisionRestartOperator(t, ctx, profile.open, username, password)
-	assertRestartDatabaseState(t, "explicit provision", inspectRestartDatabase(t, ctx, profile.open), 0, 0, 0)
+	provision := explicitlyProvisionRestartOperator(t, ctx, repository, profile.open, username, password)
+	initial := inspectRestartDatabase(t, ctx, profile.open)
+	assertRestartDatabaseState(t, "explicit provision", initial, provision, 0, 0, 0)
+	if initial.user.LastLogin != nil {
+		t.Fatal("explicit provision recorded a login before HTTP authentication")
+	}
 	profile.assertArtifacts(t, ctx, sensitive)
 
 	explicitEnvironment := make(map[string]string, len(profile.siteEnvironment))
@@ -218,15 +230,20 @@ func runSystemStateDistinctProcessRestartSentinel(t *testing.T, profile restartD
 	}
 	client.CloseIdleConnections()
 	stateA := inspectRestartDatabase(t, ctx, profile.open)
-	assertRestartDatabaseState(t, "phase A", stateA, 1, 1, 1)
-	if stateA.session == nil || !sessionDigestPattern.MatchString(stateA.session.digest) ||
+	assertRestartDatabaseState(t, "phase A", stateA, provision, 1, 1, 1)
+	digest := sha256.Sum256([]byte("godj.sessions.database.v1\x00" + provision.namespace + "\x00" + copiedPreLogoutSession))
+	if stateA.session == nil || stateA.session.namespace != provision.namespace ||
+		!sessionDigestPattern.MatchString(stateA.session.digest) || stateA.session.digest != hex.EncodeToString(digest[:]) ||
 		!strings.HasPrefix(stateA.session.payload, "v1.") {
 		t.Fatalf("phase A durable session row has invalid digest/payload shape")
 	}
-	if stateA.audit == nil || stateA.audit.actorID != "article-development-admin" ||
-		stateA.audit.model != "godj_conformance.article" || stateA.audit.objectID != "1" ||
-		stateA.audit.action != "add" || stateA.audit.displayLabel != "Process A audited" ||
-		!strings.HasPrefix(stateA.audit.changedFields, "v1.") {
+	if stateA.user.LastLogin == nil || stateA.user.LastLogin.IsZero() {
+		t.Fatal("phase A HTTP login did not persist the selected account's LastLogin")
+	}
+	if stateA.audit == nil || stateA.audit.id != 2 || stateA.audit.domain != provision.namespace || stateA.audit.actorID != provision.user.PrincipalID ||
+		stateA.audit.model != "godj_conformance.article" || stateA.audit.objectID != 1 ||
+		stateA.audit.action != "add" || stateA.audit.changedFields != `[]` ||
+		stateA.audit.recordedAt.IsZero() || stateA.audit.recordedAt.Nanosecond()%1000 != 0 {
 		t.Fatalf("phase A durable audit row has invalid semantic shape: %+v", stateA.audit)
 	}
 	profile.assertArtifacts(t, ctx, sensitive)
@@ -319,8 +336,7 @@ func runSystemStateDistinctProcessRestartSentinel(t *testing.T, profile restartD
 		for _, marker := range []string{
 			`data-admin-view="history"`,
 			`data-object-id="1"`,
-			`data-sequence="1" data-action="add" data-actor="article-development-admin"`,
-			"Process A audited",
+			`data-sequence="2" data-action="add" data-actor="` + provision.user.PrincipalID + `"`,
 		} {
 			if !strings.Contains(body, marker) {
 				return fmt.Errorf("phase B durable Admin history omitted required marker shape")
@@ -357,7 +373,10 @@ func runSystemStateDistinctProcessRestartSentinel(t *testing.T, profile restartD
 	}
 	client.CloseIdleConnections()
 	stateB := inspectRestartDatabase(t, ctx, profile.open)
-	assertRestartDatabaseState(t, "phase B", stateB, 2, 0, 1)
+	assertRestartDatabaseState(t, "phase B", stateB, provision, 2, 0, 1)
+	if stateB.user.LastLogin == nil || !stateB.user.LastLogin.Equal(*stateA.user.LastLogin) {
+		t.Fatal("phase B session reuse or logout changed selected LastLogin")
+	}
 	if stateB.audit == nil || stateA.audit == nil || *stateB.audit != *stateA.audit {
 		t.Fatalf("phase B did not preserve the exact phase A audit row")
 	}
@@ -402,7 +421,10 @@ func runSystemStateDistinctProcessRestartSentinel(t *testing.T, profile restartD
 		t.Fatal(err)
 	}
 	stateC := inspectRestartDatabase(t, ctx, profile.open)
-	assertRestartDatabaseState(t, "phase C", stateC, 2, 0, 1)
+	assertRestartDatabaseState(t, "phase C", stateC, provision, 2, 0, 1)
+	if stateC.user.LastLogin == nil || !stateC.user.LastLogin.Equal(*stateA.user.LastLogin) {
+		t.Fatal("phase C rejected cookie changed selected LastLogin")
+	}
 	if stateC.audit == nil || stateB.audit == nil || *stateC.audit != *stateB.audit {
 		t.Fatalf("phase C did not preserve the exact durable audit row after logout")
 	}
@@ -836,7 +858,7 @@ func explicitlyMigrateRestartDatabase(t *testing.T, ctx context.Context, reposit
 	if err != nil {
 		t.Fatalf("read Article migration definition: %v", err)
 	}
-	sources := append(systemstate.IdentityMigrationSources(), migrationdefinition.Source{SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document})
+	sources := append(articlemodeldef.MigrationSources(), migrationdefinition.Source{SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document})
 	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatal(err)
@@ -857,9 +879,9 @@ func explicitlyMigrateRestartDatabase(t *testing.T, ctx context.Context, reposit
 	}()
 	state, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest())
 	if err != nil {
-		t.Fatalf("explicitly migrate Article and system definitions: %v", err)
+		t.Fatalf("explicitly migrate Article and selected account definitions: %v", err)
 	}
-	for _, app := range []string{"godj_conformance", "godj_identity", systemstate.InitialMigrationKey().App} {
+	for _, app := range []string{"godj_conformance", "godj_identity", "godj_account_domain", "godj_account_audit", "godj_sessions"} {
 		if _, found := state.Schema(app); !found {
 			t.Fatalf("migrated restart state omitted app %q", app)
 		}
@@ -874,77 +896,138 @@ func explicitlyMigrateRestartDatabase(t *testing.T, ctx context.Context, reposit
 func explicitlyProvisionRestartOperator(
 	t *testing.T,
 	ctx context.Context,
+	repository string,
 	openBackend restartBackendFactory,
 	username, password string,
-) {
+) restartAccountProvision {
 	t.Helper()
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID:        "article-development-admin",
-		Active:    true,
-		Staff:     true,
-		Superuser: true,
-		Permissions: []auth.Permission{
-			"godj.admin.access",
-			articleapp.ArticleViewPermission,
-			articleapp.ArticleAddPermission,
-			articleapp.ArticleChangePermission,
-			articleapp.ArticleDeletePermission,
-		},
-	})
+	binding, err := articleproject.BindAccount()
 	if err != nil {
-		t.Fatalf("construct Article operator principal: %v", err)
+		t.Fatal("bind the restart fixture's selected account", err)
 	}
+	passwords, err := binding.DefaultPasswordValidator(
+		accountmodel.PasswordAttribute{Field: "username", Label: "username"},
+		accountmodel.PasswordAttribute{Field: "first_name", Label: "first name"},
+		accountmodel.PasswordAttribute{Field: "last_name", Label: "last name"},
+		accountmodel.PasswordAttribute{Field: "email", Label: "email address"},
+	)
+	if err != nil {
+		t.Fatal("construct restart password policy", err)
+	}
+	// This explicit fixture uses the public typed command owner. Its callback
+	// evidence identifies this declaration; the separate operator product owns
+	// evidence for the project's actual terminal command and policy source.
+	policySource, err := os.ReadFile(filepath.Join(repository, "conformance", "systemstate", "restart", "restart_unix_test.go"))
+	if err != nil {
+		t.Fatal("read restart fixture policy source", err)
+	}
+	evidence := sha256.Sum256(policySource)
 	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {
 		t.Fatalf("construct Article operator password hasher: %v", err)
 	}
-	backend, err := openBackend(ctx)
+	definition, err := articleproject.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[identitymodels.User]{
+		CreationPolicy: accountmodel.CreationPolicy[identitymodels.User]{Fields: []string{"username", "email"}, MaxPasswordBytes: 1024, ValidatePassword: passwords},
+		EvidenceSHA256: hex.EncodeToString(evidence[:]),
+	})
+	if err != nil {
+		t.Fatal("construct restart first-account declaration", err)
+	}
+	command, err := firstaccount.New(definition, func(work context.Context) (firstaccount.Backend, error) { return openBackend(work) })
+	if err != nil {
+		t.Fatal("construct restart first-account command", err)
+	}
+	description, err := command.Description()
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := []firstaccount.Value{{Name: "username", Present: true, Text: []byte(username)}, {Name: "email"}}
+	defer clear(values[0].Text)
+	prepared, err := command.Prepare(ctx, description.Fingerprint, values)
+	if err != nil {
+		t.Fatal("prepare restart first-account input", err)
+	}
+	defer prepared.Clear()
+	opened, err := command.Open(ctx)
+	if opened != nil {
+		defer func() {
+			if opened != nil {
+				_ = opened.Close()
+			}
+		}()
+	}
 	if err != nil {
 		t.Fatalf("open explicit operator provision backend: %v", err)
 	}
-	open := true
-	defer func() {
-		if open {
-			_ = backend.Close()
-		}
-	}()
-	if _, err := systemstate.ProvisionIdentity(ctx, backend, systemstate.ProvisionIdentityConfig{
-		Principal:      principal,
-		PasswordHasher: hasher,
-		Username:       username,
-		Password:       password,
-	}); err != nil {
+	backend, ok := opened.(restartDatabaseBackend)
+	if !ok {
+		t.Fatal("restart first-account command lost the native backend")
+	}
+	var operation [sha256.Size]byte
+	if _, err := rand.Read(operation[:]); err != nil {
+		t.Fatal(err)
+	}
+	created, err := command.Provision(ctx, backend, hex.EncodeToString(operation[:]), prepared, password)
+	if err != nil {
 		t.Fatalf("explicitly provision Article operator: %v", err)
 	}
-	if err := backend.Close(); err != nil {
-		t.Fatalf("close explicit operator provision backend: %v", err)
+	row, err := identitymodels.UserObjects.Using(backend).Filter(identitymodels.UserFields.ID.Exact(created.Account.ID)).Get(ctx)
+	if err != nil {
+		t.Fatal("read explicitly provisioned selected account", err)
 	}
-	open = false
+	namespace, err := binding.CredentialDomain(created.Ownership.Generation())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if row.Username != username || !row.Active || !row.Staff || !row.Superuser || row.Revision != 1 ||
+		!strings.HasPrefix(row.PrincipalID, "user-") || !strings.HasPrefix(row.EncodedPassword, "pbkdf2_sha256$") ||
+		row.DateJoined.IsZero() || created.Ownership.OperationID() != hex.EncodeToString(operation[:]) ||
+		created.Ownership.Sequence() != 1 || created.Ownership.EvidenceSHA256() != hex.EncodeToString(evidence[:]) {
+		t.Fatal("explicit selected account or ownership differs from the command")
+	}
+	closeErr := opened.Close()
+	opened = nil
+	if closeErr != nil {
+		t.Fatalf("close explicit operator provision backend: %v", closeErr)
+	}
+	return restartAccountProvision{user: row, namespace: namespace.Identifier(), ownership: created.Ownership}
+}
+
+type restartAccountProvision struct {
+	user      identitymodels.User
+	namespace string
+	ownership accountdomain.Receipt
 }
 
 type restartDatabaseState struct {
 	credentials int
+	transitions int
 	sessions    int
 	audits      int
 	articles    int
+	user        identitymodels.User
+	ownership   accountdomain.Receipt
 	session     *restartSessionRow
 	audit       *restartAuditRow
+	firstAudit  *restartAuditRow
 }
 
 type restartSessionRow struct {
-	id      int64
-	digest  string
-	payload string
+	id        int64
+	namespace string
+	digest    string
+	payload   string
 }
 
 type restartAuditRow struct {
 	id            int64
+	domain        string
 	actorID       string
 	model         string
-	objectID      string
+	objectID      int64
 	action        string
 	changedFields string
-	displayLabel  string
+	recordedAt    time.Time
 }
 
 func inspectRestartDatabase(t *testing.T, ctx context.Context, openBackend restartBackendFactory) restartDatabaseState {
@@ -954,12 +1037,30 @@ func inspectRestartDatabase(t *testing.T, ctx context.Context, openBackend resta
 		t.Fatalf("open restart database inspection handle: %v", err)
 	}
 	state := restartDatabaseState{
-		credentials: restartTableCount(t, ctx, backend, "godj_system_credential"),
-		sessions:    restartTableCount(t, ctx, backend, "godj_system_session"),
-		audits:      restartTableCount(t, ctx, backend, "godj_system_audit"),
+		credentials: restartTableCount(t, ctx, backend, "godj_identity_user"),
+		transitions: restartTableCount(t, ctx, backend, "godj_account_domain_transition"),
+		sessions:    restartTableCount(t, ctx, backend, "godj_sessions_session"),
+		audits:      restartTableCount(t, ctx, backend, "godj_account_audit_event"),
 		articles:    restartTableCount(t, ctx, backend, "godj_conformance_article"),
 		session:     readRestartSession(t, ctx, backend),
-		audit:       readRestartAudit(t, ctx, backend),
+		audit:       readRestartAudit(t, ctx, backend, "godj_conformance.article"),
+		firstAudit:  readRestartAudit(t, ctx, backend, "godj_identity.user"),
+	}
+	state.user, err = identitymodels.UserObjects.Using(backend).Get(ctx)
+	if err != nil {
+		t.Fatal("inspect restart selected account", err)
+	}
+	binding, err := articleproject.BindAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	role, err := binding.RoleFingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	state.ownership, err = accountdomain.Read(ctx, backend, role)
+	if err != nil {
+		t.Fatal("inspect restart ownership", err)
 	}
 	assertRestartMigrationHistory(t, ctx, backend)
 	if err := backend.Close(); err != nil {
@@ -972,21 +1073,43 @@ func assertRestartDatabaseState(
 	t *testing.T,
 	phase string,
 	state restartDatabaseState,
+	provision restartAccountProvision,
 	articles, sessions, audits int,
 ) {
 	t.Helper()
-	if state.credentials != 1 || state.articles != articles || state.sessions != sessions || state.audits != audits {
+	if state.credentials != 1 || state.transitions != 1 || state.articles != articles || state.sessions != sessions || state.audits != audits+1 {
 		t.Fatalf(
-			"%s database counts credential/article/session/audit = %d/%d/%d/%d, want 1/%d/%d/%d",
+			"%s database counts account/domain/article/session/audit = %d/%d/%d/%d/%d, want 1/1/%d/%d/%d",
 			phase,
 			state.credentials,
+			state.transitions,
 			state.articles,
 			state.sessions,
 			state.audits,
 			articles,
 			sessions,
-			audits,
+			audits+1,
 		)
+	}
+	actual, expected := state.user, provision.user
+	if actual.ID != expected.ID || actual.PrincipalID != expected.PrincipalID || actual.Username != expected.Username ||
+		actual.EncodedPassword != expected.EncodedPassword || actual.Revision != expected.Revision ||
+		actual.Active != expected.Active || actual.Staff != expected.Staff || actual.Superuser != expected.Superuser ||
+		actual.FirstName != expected.FirstName || actual.LastName != expected.LastName || actual.Email != expected.Email ||
+		!actual.DateJoined.Equal(expected.DateJoined) {
+		t.Fatal(phase, "changed selected account identity, credential, profile or roles")
+	}
+	got, want := state.ownership, provision.ownership
+	if got.OperationID() != want.OperationID() || got.RoleFingerprint() != want.RoleFingerprint() ||
+		got.Generation() != want.Generation() || got.Sequence() != want.Sequence() ||
+		got.EvidenceSHA256() != want.EvidenceSHA256() || !got.At().Equal(want.At()) {
+		t.Fatal(phase, "changed the durable first-account ownership receipt")
+	}
+	event := state.firstAudit
+	if event == nil || event.id != 1 || event.domain != provision.namespace || event.actorID != expected.PrincipalID ||
+		event.objectID != expected.ID || event.model != "godj_identity.user" || event.action != "add" ||
+		event.changedFields != `["username","email","active","staff","superuser","encoded_password"]` || !event.recordedAt.Equal(want.At()) {
+		t.Fatal(phase, "changed or omitted the first-account audit")
 	}
 }
 
@@ -1018,10 +1141,11 @@ func readRestartSession(t *testing.T, ctx context.Context, backend db.Queryer) *
 	t.Helper()
 	fields := []query.FieldRef{
 		query.NewFieldRef("id", "id", query.FieldInteger, false),
+		query.NewFieldRef("namespace", "namespace", query.FieldString, false),
 		query.NewFieldRef("digest", "digest", query.FieldString, false),
 		query.NewFieldRef("payload", "payload", query.FieldString, false),
 	}
-	rows, err := backend.Query(ctx, query.NewPlan("godj_system_session", fields))
+	rows, err := backend.Query(ctx, query.NewPlan("godj_sessions_session", fields))
 	if err != nil {
 		t.Fatalf("query restart session rows: %v", err)
 	}
@@ -1032,7 +1156,7 @@ func readRestartSession(t *testing.T, ctx context.Context, backend db.Queryer) *
 			t.Fatal("restart session query returned more than one row")
 		}
 		var row restartSessionRow
-		if err := rows.Scan(&row.id, &row.digest, &row.payload); err != nil {
+		if err := rows.Scan(&row.id, &row.namespace, &row.digest, &row.payload); err != nil {
 			_ = rows.Close()
 			t.Fatalf("scan restart session row: %v", err)
 		}
@@ -1046,48 +1170,21 @@ func readRestartSession(t *testing.T, ctx context.Context, backend db.Queryer) *
 	return found
 }
 
-func readRestartAudit(t *testing.T, ctx context.Context, backend db.Queryer) *restartAuditRow {
+func readRestartAudit(t *testing.T, ctx context.Context, backend db.Queryer, model string) *restartAuditRow {
 	t.Helper()
-	fields := []query.FieldRef{
-		query.NewFieldRef("id", "id", query.FieldInteger, false),
-		query.NewFieldRef("actor_id", "actor_id", query.FieldString, false),
-		query.NewFieldRef("model", "model", query.FieldString, false),
-		query.NewFieldRef("object_id", "object_id", query.FieldString, false),
-		query.NewFieldRef("action", "action", query.FieldString, false),
-		query.NewFieldRef("changed_fields", "changed_fields", query.FieldString, false),
-		query.NewFieldRef("display_label", "display_label", query.FieldString, false),
-	}
-	rows, err := backend.Query(ctx, query.NewPlan("godj_system_audit", fields))
+	rows, err := accountauditmodels.EventObjects.Using(backend).Filter(accountauditmodels.EventFields.Model.Exact(model)).All(ctx)
 	if err != nil {
 		t.Fatalf("query restart audit rows: %v", err)
 	}
-	var found *restartAuditRow
-	for rows.Next() {
-		if found != nil {
-			_ = rows.Close()
-			t.Fatal("restart audit query returned more than one row")
-		}
-		var row restartAuditRow
-		if err := rows.Scan(
-			&row.id,
-			&row.actorID,
-			&row.model,
-			&row.objectID,
-			&row.action,
-			&row.changedFields,
-			&row.displayLabel,
-		); err != nil {
-			_ = rows.Close()
-			t.Fatalf("scan restart audit row: %v", err)
-		}
-		found = &row
+	if len(rows) > 1 {
+		t.Fatal("restart audit query returned more than one row for the model")
 	}
-	iterationErr := rows.Err()
-	closeErr := rows.Close()
-	if err := errors.Join(iterationErr, closeErr); err != nil {
-		t.Fatalf("finish restart audit rows: %v", err)
+	if len(rows) == 0 {
+		return nil
 	}
-	return found
+	row := rows[0]
+	return &restartAuditRow{id: row.ID, domain: row.Domain, actorID: row.ActorID, model: row.Model,
+		objectID: row.ObjectID, action: row.Action, changedFields: row.ChangedFields, recordedAt: row.RecordedAt}
 }
 
 func assertRestartMigrationHistory(t *testing.T, ctx context.Context, backend migrationbackend.AppliedMigrationReader) {
@@ -1098,12 +1195,13 @@ func assertRestartMigrationHistory(t *testing.T, ctx context.Context, backend mi
 	}
 	want := map[migrations.MigrationKey]bool{
 		{App: "godj_conformance", Name: "0001_initial"}:          true,
-		systemstate.InitialMigrationKey():                        true,
 		{App: "godj_identity", Name: "0001_initial"}:             true,
 		{App: "godj_identity", Name: "0002_permission_revision"}: true,
 		{App: "godj_identity", Name: "0003_alter_user_email"}:    true,
 		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"}:   true,
-		{App: "godj_system", Name: "0002_identity_transition"}:   true,
+		{App: "godj_account_domain", Name: "0001_initial"}:       true,
+		{App: "godj_account_audit", Name: "0001_initial"}:        true,
+		{App: "godj_sessions", Name: "0001_initial"}:             true,
 	}
 	if len(history) != len(want) {
 		t.Fatalf("restart migration history has %d entries, want exactly %d", len(history), len(want))
@@ -1220,24 +1318,13 @@ func assertPostgresArtifactsExcludeSensitive(
 		}
 	}()
 	columns := map[string][]string{
-		"godj_identity_user":              {"principal_id", "username", "encoded_password"},
-		"godj_system_identity_transition": {"principal_id", "source_fingerprint"},
-		"godj_system_credential": {
-			"principal_id",
-			"username",
-			"encoded_password",
-			"permissions",
-			"definition_digest",
-		},
-		"godj_system_session": {"digest", "payload"},
-		"godj_system_audit": {
-			"actor_id",
-			"model",
-			"object_id",
-			"action",
-			"changed_fields",
-			"display_label",
-		},
+		"godj_identity_user":             {"principal_id", "username", "encoded_password", "first_name", "last_name", "email"},
+		"godj_identity_group":            {"name"},
+		"godj_identity_permission":       {"code", "name"},
+		"godj_account_domain_transition": {"operation_id", "role_fingerprint", "generation", "evidence_sha256"},
+		"godj_sessions_session":          {"namespace", "digest", "payload"},
+		"godj_account_audit_event":       {"domain", "actor_id", "model", "action", "changed_fields"},
+		"godj_conformance_article":       {"title", "summary", "slug"},
 	}
 	for table, names := range columns {
 		for _, name := range names {
@@ -1263,8 +1350,10 @@ func restartTextColumnValues(
 	table, column string,
 ) []string {
 	t.Helper()
-	field := query.NewFieldRef(column, column, query.FieldString, false)
-	plan, err := query.NewPlan(table, []query.FieldRef{field}).WithLimit(4)
+	field := query.NewFieldRef(column, column, query.FieldString, true)
+	// Read the extra sentinel row so an unexpectedly larger table is a failed
+	// inspection, never a truncated secret-scan success.
+	plan, err := query.NewPlan(table, []query.FieldRef{field}).WithLimit(5)
 	if err != nil {
 		t.Fatalf("build PostgreSQL artifact query: %v", testfixture.PostgresSafeError(err))
 	}
@@ -1280,12 +1369,12 @@ func restartTextColumnValues(
 	}
 	values := make([]string, 0, 4)
 	for rows.Next() {
-		var value string
+		var value sql.NullString
 		if err := rows.Scan(&value); err != nil {
 			_ = rows.Close()
 			t.Fatalf("scan PostgreSQL restart artifact: %v", testfixture.PostgresSafeError(err))
 		}
-		values = append(values, value)
+		values = append(values, value.String)
 		if len(values) > 4 {
 			_ = rows.Close()
 			t.Fatal("PostgreSQL restart artifact exceeded the bounded query")

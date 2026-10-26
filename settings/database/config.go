@@ -46,6 +46,7 @@ type Backend interface {
 	db.Atomic
 	db.SnapshotReader
 	db.CoordinatedAtomic
+	db.CoordinatedRelationAtomic
 	migrationbackend.AppliedMigrationReader
 	migrationbackend.RevisionFencedBackend
 	Close() error

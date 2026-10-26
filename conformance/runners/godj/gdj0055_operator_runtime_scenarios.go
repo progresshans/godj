@@ -768,7 +768,7 @@ func gdj0055CredentialAbsentPublicOnly(ctx context.Context, contract protocol.Co
 		{"exact_installation_and_unowned_account", "fresh", "account_domain_fresh", true, nil},
 		{"missing_or_wrong_migration", "missing", "schema_unavailable", false, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}},
 		{"missing_or_wrong_migration", "wrong", "schema_unavailable", false, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}},
-		{"unavailable_table", "table", "startup_failure", false, &query.Error{Code: query.CodeMissingTable}},
+		{"unavailable_table", "table", "startup_failure", false, &accountmodel.Error{Code: accountmodel.CodePersistence}},
 		{"dependent_rows_without_account_domain", "account", "startup_failure", false, &accountmodel.Error{Code: accountmodel.CodeNotFresh}},
 		{"dependent_rows_without_account_domain", "audit", "startup_failure", false, &accountmodel.Error{Code: accountmodel.CodeNotFresh}},
 		{"corrupt_state", "history", "corrupt_state", false, accountdomain.ErrCorrupt},

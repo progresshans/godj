@@ -127,7 +127,7 @@ func TestNewPublishesOnlyInstalledFreshAccountDomain(t *testing.T) {
 	if path, err := application.Reverse(webapp.ArticleListRoute); err != nil || path != webapp.ArticleListPath {
 		t.Fatal("public route", err)
 	}
-	if _, err := application.Reverse("admin:index"); err == nil {
+	if _, err := application.Reverse(apiapp.Namespace + ":admin-index"); err == nil {
 		t.Fatal("fresh application published Admin")
 	}
 	if _, err := application.Reverse(apiapp.OpenAPIRouteName); err == nil {
@@ -141,7 +141,7 @@ func TestNewPublishesOnlyInstalledFreshAccountDomain(t *testing.T) {
 	if _, err := accounttest.Provision(ctx, absent, "later-admin", "later-provision-secret"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := application.Reverse("admin:index"); err == nil {
+	if _, err := application.Reverse(apiapp.Namespace + ":admin-index"); err == nil {
 		t.Fatal("running public process hot-upgraded Admin")
 	}
 	if _, err := application.Reverse(apiapp.OpenAPIRouteName); err == nil {
@@ -151,7 +151,7 @@ func TestNewPublishesOnlyInstalledFreshAccountDomain(t *testing.T) {
 	if err != nil || restarted == nil {
 		t.Fatal("explicit restart did not publish ready account", err)
 	}
-	if _, err := restarted.Reverse("admin:index"); err != nil {
+	if _, err := restarted.Reverse(apiapp.Namespace + ":admin-index"); err != nil {
 		t.Fatal("restarted Admin missing", err)
 	}
 

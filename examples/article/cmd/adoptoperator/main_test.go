@@ -4,21 +4,21 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"net/http"
-	"net/http/httptest"
+	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/systemstate"
-	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
 func TestAdoptOperatorRequiresExplicitRolesBeforeOpeningDatabase(t *testing.T) {
@@ -31,7 +31,7 @@ func TestAdoptOperatorRequiresExplicitRolesBeforeOpeningDatabase(t *testing.T) {
 	}
 }
 
-func TestAdoptOperatorPreservesExistingArticleLoginAcrossReopen(t *testing.T) {
+func TestAdoptOperatorPreservesLegacyIdentityWithoutSelectingNewDomain(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "article.sqlite3")
 	backend, err := sqlite.Open(ctx, path)
@@ -122,14 +122,18 @@ func TestAdoptOperatorPreservesExistingArticleLoginAcrossReopen(t *testing.T) {
 		t.Fatal("adoption changed password/binding/explicit roles", err)
 	}
 	app, err := siteapp.New(ctx, siteapp.NewConfig(backend).WithLoopbackAuthentication())
+	if app != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeTransitionRequired}) {
+		t.Fatal("legacy adoption implicitly selected the new account domain", err)
+	}
+	currentManager, err := sessions.NewManager(current.SessionStore(), sessions.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequest(http.MethodGet, "/admin/", nil)
-	request.AddCookie(&http.Cookie{Name: websessionauth.DefaultSessionCookieName, Value: session.ID().Encoded()})
-	response := httptest.NewRecorder()
-	app.ServeHTTP(response, request)
-	if response.Code != http.StatusOK {
-		t.Fatal("existing Article session failed after command adoption", response.Code)
+	preserved, found, err := currentManager.Peek(ctx, session.ID())
+	if err != nil || !found || preserved.ID() != session.ID() ||
+		!reflect.DeepEqual(preserved.Values(), session.Values()) ||
+		!preserved.CreatedAt().Equal(session.CreatedAt()) || !preserved.AccessedAt().Equal(session.AccessedAt()) ||
+		!preserved.AbsoluteExpiresAt().Equal(session.AbsoluteExpiresAt()) || !preserved.IdleExpiresAt().Equal(session.IdleExpiresAt()) {
+		t.Fatal("adoption or refused startup changed the legacy session", err)
 	}
 }

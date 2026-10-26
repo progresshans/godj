@@ -643,7 +643,8 @@ func projectMigratePostgresExpectedConstraints() []dbstate.PostgresConstraint {
 		primary("godj_account_domain_transition", "godj_pk_97491d43d0d177d8a5b3a47b2e2fdb866232e3284ee58cd7", "1"),
 		{Table: "godj_account_domain_transition", Name: "godj_uq_3d4e18f281157da4d4728026be741f57d5a34ecbb9a79b09", Kind: "u", Validated: true, Key: "2", IndexName: "godj_uq_3d4e18f281157da4d4728026be741f57d5a34ecbb9a79b09"},
 		{Table: "godj_account_domain_transition", Name: "godj_uq_5f58a342c8cc4d75d13ebee1994e11841cf777e832d9e4ff", Kind: "u", Validated: true, Key: "3", IndexName: "godj_uq_5f58a342c8cc4d75d13ebee1994e11841cf777e832d9e4ff"},
-		{Table: "godj_account_domain_transition", Name: "godj_fk_2ec0a2f549e6fa62733ccd49306873bd9f52a26821ef8738", Kind: "f", Deferrable: true, Deferred: true, Validated: true, Key: "4", IndexName: "godj_pk_97491d43d0d177d8a5b3a47b2e2fdb866232e3284ee58cd7", InternalTriggers: 4},
+		// The history predecessor uses PROTECT, whose native constraint is immediate.
+		{Table: "godj_account_domain_transition", Name: "godj_fk_2ec0a2f549e6fa62733ccd49306873bd9f52a26821ef8738", Kind: "f", Validated: true, Key: "4", IndexName: "godj_pk_97491d43d0d177d8a5b3a47b2e2fdb866232e3284ee58cd7", InternalTriggers: 4},
 		{Table: "godj_account_domain_transition", Name: "godj_uq_9b7823a04ff81a67012f3f33e0c235e9c0ab1ad0434f32f9", Kind: "u", Validated: true, Key: "6", IndexName: "godj_uq_9b7823a04ff81a67012f3f33e0c235e9c0ab1ad0434f32f9"},
 		primary("godj_sessions_session", "godj_pk_a4a091d63239e34cee0e48176401493f1ea1a70cf44f4da0", "1"),
 		{Table: "godj_sessions_session", Name: "godj_uq_983a05d250c8635adedf62aae8f4b8b1dbab8f8a6b17fb9b", Kind: "u", Validated: true, Key: "3", IndexName: "godj_uq_983a05d250c8635adedf62aae8f4b8b1dbab8f8a6b17fb9b"},

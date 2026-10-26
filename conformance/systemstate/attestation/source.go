@@ -123,6 +123,7 @@ var productSourcePrefixes = []string{
 	"migrations/",
 	"orm/",
 	"project/compatibility/",
+	"project/firstaccount/",
 	"project/server/",
 	"query/",
 	"schema/",

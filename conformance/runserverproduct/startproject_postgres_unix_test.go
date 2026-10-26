@@ -112,7 +112,7 @@ func TestGlobalStartProjectPostgresResourceChecksAndAuthenticatedRestart(t *test
 	if result := mustRun(project, "command", "count-groups"); result.Stdout != "0\n" {
 		t.Fatal("new PostgreSQL project already has groups")
 	}
-	const username, password = "starter-postgres-admin", "Starter-Postgres-734!private"
+	const username, password = "starter-postgres-admin", "Quartz-Meadow-846!private"
 	descriptor := filepath.Join(project, "godj.toml")
 	provisionRunserverOperator(t, global, project, descriptor, environment, username, password)
 	assertRunserverWorkspaceEmpty(t, workspace)

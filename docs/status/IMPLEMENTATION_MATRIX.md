@@ -36,7 +36,8 @@ SQLite/PostgreSQL·고정 module 설치·cold/race·독립 Django 관측·브라
 운영 topology·향후 릴리스 upgrade 정책은 O1, Web/static/media 확장은 C2, durable event 전달은 R2에 남는다.
 I1 구현은 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 계속 모은다. 선택 계정 역할·domain·typed 관리·
 Admin/JSON·password/reset·공개 CLI·Article/scaffold 조립을 작성했으며, 채운 DB 전환·추가 프로필 관계/파일·
-남은 소비자와 새 source의 전체 환경 수용은 미완료다. C1의 성공을 사용자 정의 계정 지원의 완료로 사용하지 않는다.
+남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
+필수 목록에 연결했으며 새 본문의 원격 확인이 필요하다. C1의 성공을 사용자 정의 계정 지원의 완료로 사용하지 않는다.
 [GDJ-0137](../../work/0137-project-core-startup.md), [GDJ-0138](../../work/0138-custom-account-lifecycle.md)과 TEST_EVIDENCE를 따른다.
 
 GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
