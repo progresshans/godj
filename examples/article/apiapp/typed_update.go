@@ -25,11 +25,11 @@ func (a *Application) typedUpdate(authentication api.Authentication, mode serial
 	}
 	// DRF's target lookup precedes body I/O. Permission/CSRF remain outside
 	// both stages, and the write rechecks current state in its own transaction.
-	current := endpoint.Resolve(endpoint.PathInt64("id"), func(request *web.Request, _ auth.Principal, id int64) (articlemodels.Article, error) {
+	current := endpoint.Resolve(endpoint.PathInt64("id"), func(request *web.Request, actor auth.Principal, id int64) (articlemodels.Article, error) {
 		if id <= 0 {
 			return articlemodels.Article{}, endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
 		}
-		article, found, err := a.repository.Get(request.Context(), id)
+		article, found, err := a.getSelected(request.Context(), actor, articleapp.ArticleChangePermission, id)
 		if err != nil {
 			return articlemodels.Article{}, typedArticleFailure(err)
 		}
@@ -54,17 +54,16 @@ func (a *Application) typedUpdate(authentication api.Authentication, mode serial
 			{Code: 413, Description: "The request body exceeds 4096 bytes."},
 			{Code: 415, Description: "The request Content-Type is not supported application/json."},
 		},
-		Handle: func(request *web.Request, _ auth.Principal, input endpoint.Pair[articlemodels.Article, orm.ModelInput[articlemodels.Article]]) (output.Prepared[articlemodels.Article], error) {
+		Handle: func(request *web.Request, actor auth.Principal, input endpoint.Pair[articlemodels.Article, orm.ModelInput[articlemodels.Article]]) (output.Prepared[articlemodels.Article], error) {
 			prepare := func(ctx context.Context, article articlemodels.Article, _ []string) (output.Prepared[articlemodels.Article], error) {
 				return a.response.Prepare(ctx, http.StatusOK, article)
 			}
-			var prepared output.Prepared[articlemodels.Article]
-			var err error
-			if mode == serializers.ModePartial {
-				prepared, err = articleapp.PatchAndPrepare(request.Context(), a.repository, input.First.ID, input.Second, prepare)
-			} else {
-				prepared, err = articleapp.UpdateAndPrepare(request.Context(), a.repository, input.First.ID, input.Second, prepare)
-			}
+			prepared, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleChangePermission, true, func(work context.Context, repository articleapp.Repository) (output.Prepared[articlemodels.Article], error) {
+				if mode == serializers.ModePartial {
+					return articleapp.PatchAndPrepare(work, repository, input.First.ID, input.Second, prepare)
+				}
+				return articleapp.UpdateAndPrepare(work, repository, input.First.ID, input.Second, prepare)
+			})
 			if err != nil {
 				return output.Prepared[articlemodels.Article]{}, typedArticleFailure(err)
 			}
@@ -74,6 +73,9 @@ func (a *Application) typedUpdate(authentication api.Authentication, mode serial
 }
 
 func typedArticleFailure(err error) error {
+	if err == errArticleAccessDenied {
+		return endpoint.Reject(403, api.CodePermissionDenied, validation.NewErrors())
+	}
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) ||
 		errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) {
 		return err

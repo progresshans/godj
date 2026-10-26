@@ -46,7 +46,7 @@ func TestSelectedRuntimeSharesSessionPasswordAndManagementOwners(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if runtime.SessionStore() == nil || runtime.Sessions() == nil || runtime.Sessions().Store() != runtime.SessionStore() ||
+	if runtime.Credentials() == nil || runtime.SessionStore() == nil || runtime.Sessions() == nil || runtime.Sessions().Store() != runtime.SessionStore() ||
 		runtime.Authenticator() == nil || runtime.LoginPersistence().Sessions() != runtime.Sessions() ||
 		runtime.PasswordChangePersistence().Sessions() != runtime.Sessions() || runtime.Accounts() == nil || runtime.Catalog() == nil {
 		t.Fatal("runtime mixed or omitted an owner")

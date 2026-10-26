@@ -162,7 +162,12 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 			if args[0] == "commands" {
 				category, exit = "project_command_error", 1
 			}
-			if result.ExitCode != exit || result.Stdout != "" || result.Stderr != category+"/framework_incompatible\n" {
+			wantStderr := category + "/framework_incompatible\n"
+			if args[0] == "createsuperuser" {
+				exit = 3
+				wantStderr = `{"operation_id":"","status":"not_created","code":"framework_incompatible","cleanup_failed":false}` + "\n"
+			}
+			if result.ExitCode != exit || result.Stdout != "" || result.Stderr != wantStderr {
 				t.Fatalf("fixed mismatch %s was not rejected before I/O: %+v", args[0], result)
 			}
 		}

@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/postgres"
 	"github.com/progresshans/godj/db/sqlite"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/query"
-	"github.com/progresshans/godj/systemstate"
 )
 
 type Kind uint8
@@ -41,7 +41,12 @@ func (c Config) PostgresSchema() string       { return c.postgresSchema }
 // migration commands and the identity runtime. The caller closes it exactly
 // when that invocation or runtime ends; Config never retains a live backend.
 type Backend interface {
-	systemstate.IdentityBackend
+	db.Queryer
+	db.Mutator
+	db.Atomic
+	db.SnapshotReader
+	db.CoordinatedAtomic
+	migrationbackend.AppliedMigrationReader
 	migrationbackend.RevisionFencedBackend
 	Close() error
 }

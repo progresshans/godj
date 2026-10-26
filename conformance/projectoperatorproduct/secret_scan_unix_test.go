@@ -7,7 +7,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +19,21 @@ const (
 	operatorMaximumSecretScanBytes = 16 << 20
 )
 
+// Enumerate every text-bearing account, ownership, audit, session, catalog and
+// article sink used by this product. Both databases scan the same closed list.
+var operatorSecretSinks = []struct {
+	table   string
+	columns []string
+}{
+	{"godj_identity_user", []string{"principal_id", "username", "encoded_password", "email", "first_name", "last_name"}},
+	{"godj_identity_group", []string{"name"}},
+	{"godj_identity_permission", []string{"code", "name"}},
+	{"godj_account_domain_transition", []string{"operation_id", "role_fingerprint", "generation", "evidence_sha256"}},
+	{"godj_sessions_session", []string{"namespace", "digest", "payload"}},
+	{"godj_account_audit_event", []string{"domain", "actor_id", "model", "object_id", "action", "changed_fields"}},
+	{"godj_conformance_article", []string{"title", "summary", "slug"}},
+}
+
 func operatorSQLiteRawSecretOccurrences(t *testing.T, path string, secret []byte) int64 {
 	t.Helper()
 	database, err := sql.Open("sqlite", path)
@@ -29,14 +44,15 @@ func operatorSQLiteRawSecretOccurrences(t *testing.T, path string, secret []byte
 	defer database.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	queries := []string{
-		`SELECT "principal_id", "username", "encoded_password" FROM "godj_identity_user"`,
-		`SELECT "principal_id", "source_fingerprint" FROM "godj_system_identity_transition"`,
-		`SELECT "principal_id", "username", "encoded_password", "permissions", "definition_digest" FROM "godj_system_credential"`,
-		`SELECT "digest", "payload" FROM "godj_system_session"`,
-		`SELECT "actor_id", "model", "object_id", "action", "changed_fields", "display_label" FROM "godj_system_audit"`,
-		`SELECT "title", COALESCE("summary", '') FROM "godj_conformance_article"`,
+	queries := make([]string, 0, len(operatorSecretSinks))
+	for _, sink := range operatorSecretSinks {
+		columns := make([]string, len(sink.columns))
+		for i, column := range sink.columns {
+			columns[i] = `"` + column + `"`
+		}
+		queries = append(queries, `SELECT `+strings.Join(columns, ",")+` FROM "`+sink.table+`"`)
 	}
+
 	var fields [][]byte
 	for _, query := range queries {
 		rows, err := database.QueryContext(ctx, query)
@@ -100,30 +116,14 @@ func operatorPostgresRawSecretOccurrences(t *testing.T, databaseURL, schema stri
 	}
 	defer connection.Close(ctx)
 	prefix := pgx.Identifier{schema}.Sanitize() + "."
-	query := fmt.Sprintf(`
-		SELECT "value" FROM (
-			SELECT "principal_id"::text AS "value" FROM %[1]s"godj_system_credential"
-			UNION ALL SELECT "username"::text FROM %[1]s"godj_system_credential"
-			UNION ALL SELECT "encoded_password"::text FROM %[1]s"godj_system_credential"
-			UNION ALL SELECT "permissions"::text FROM %[1]s"godj_system_credential"
-			UNION ALL SELECT "definition_digest"::text FROM %[1]s"godj_system_credential"
-			UNION ALL SELECT "principal_id"::text FROM %[1]s"godj_identity_user"
-			UNION ALL SELECT "username"::text FROM %[1]s"godj_identity_user"
-			UNION ALL SELECT "encoded_password"::text FROM %[1]s"godj_identity_user"
-			UNION ALL SELECT "principal_id"::text FROM %[1]s"godj_system_identity_transition"
-			UNION ALL SELECT "source_fingerprint"::text FROM %[1]s"godj_system_identity_transition"
-			UNION ALL SELECT "digest"::text FROM %[1]s"godj_system_session"
-			UNION ALL SELECT "payload"::text FROM %[1]s"godj_system_session"
-			UNION ALL SELECT "actor_id"::text FROM %[1]s"godj_system_audit"
-			UNION ALL SELECT "model"::text FROM %[1]s"godj_system_audit"
-			UNION ALL SELECT "object_id"::text FROM %[1]s"godj_system_audit"
-			UNION ALL SELECT "action"::text FROM %[1]s"godj_system_audit"
-			UNION ALL SELECT "changed_fields"::text FROM %[1]s"godj_system_audit"
-			UNION ALL SELECT "display_label"::text FROM %[1]s"godj_system_audit"
-			UNION ALL SELECT "title"::text FROM %[1]s"godj_conformance_article"
-			UNION ALL SELECT COALESCE("summary", '')::text FROM %[1]s"godj_conformance_article"
-		) AS "forbidden_secret_sinks"
-	`, prefix)
+	var scans []string
+	for _, sink := range operatorSecretSinks {
+		for _, column := range sink.columns {
+			scans = append(scans, `SELECT COALESCE("`+column+`"::text,'') AS "value" FROM `+prefix+`"`+sink.table+`"`)
+		}
+	}
+	query := strings.Join(scans, " UNION ALL ")
+
 	rows, err := connection.Query(ctx, query)
 	if err != nil {
 		t.Fatal("query external operator PostgreSQL forbidden secret sinks")

@@ -75,7 +75,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 	)
 	assertWorkspaceEmpty(t, workspaceBase)
 	provisionedSnapshot := authenticatedRestartInspectDatabase(t, databasePath)
-	authenticatedRestartAssertProvisionedState(t, provisionedSnapshot, username, password)
+	authenticatedRestartAssertProvisionedState(t, provisionedSnapshot, username, password, provision.OperationID)
 	authenticatedRestartAssertArtifactsExcludeSensitive(t, databaseDirectory, sensitive)
 
 	jar, err := cookiejar.New(nil)
@@ -103,6 +103,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 				baseURL,
 				username,
 				password,
+				provisionedSnapshot.Identity.Users[0].PrincipalID,
 				&sensitive,
 			)
 			return phaseErr
@@ -146,6 +147,7 @@ func TestGlobalMigrateAuthenticatedArticleRestartDurability(t *testing.T) {
 }
 
 type authenticatedRestartPhaseAState struct {
+	PrincipalID              string
 	LoginStarted, LoginEnded time.Time
 	SessionCookie            string
 	CSRFCookie               string
@@ -159,6 +161,7 @@ type authenticatedRestartLoginState struct {
 }
 
 type authenticatedRestartPhaseResult struct {
+	OperationID   string
 	PID           int
 	ProcessGroups []int
 }
@@ -227,8 +230,10 @@ func authenticatedRestartProvisionOperator(
 		}
 	}()
 
-	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, "Username: ")
+	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, `"Username": `)
 	authenticatedRestartWritePTYLine(t, master, username)
+	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, `Use model default for "Email"? [Y/n]: `)
+	authenticatedRestartWritePTYLine(t, master, "y")
 	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, "Password: ")
 	authenticatedRestartWritePTYLine(t, master, password)
 	authenticatedRestartAwaitProvisionPrompt(t, output, waited, &waitErr, "Password (again): ")
@@ -254,17 +259,17 @@ func authenticatedRestartProvisionOperator(
 	}
 	transcript := output.String()
 	if waitErr != nil || output.Truncated() ||
-		!strings.Contains(transcript, "Username: ") ||
+		!strings.Contains(transcript, `"Username": `) ||
 		!strings.Contains(transcript, "Password: ") ||
 		!strings.Contains(transcript, "Password (again): ") ||
-		!strings.Contains(transcript, `{"status":"created"}`) {
+		!strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`) {
 		t.Fatalf(
 			"explicit operator provision shape = exit-ok:%t prompts:%t/%t/%t success:%t bytes:%d truncated:%t",
 			waitErr == nil,
-			strings.Contains(transcript, "Username: "),
+			strings.Contains(transcript, `"Username": `),
 			strings.Contains(transcript, "Password: "),
 			strings.Contains(transcript, "Password (again): "),
-			strings.Contains(transcript, `{"status":"created"}`),
+			strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`),
 			len(transcript),
 			output.Truncated(),
 		)
@@ -275,7 +280,31 @@ func authenticatedRestartProvisionOperator(
 	if err := testprocess.WaitAbsent([]int{command.Process.Pid}, 2*time.Second); err != nil {
 		t.Fatalf("explicit operator provision process group remained: %v", err)
 	}
-	return authenticatedRestartPhaseResult{PID: command.Process.Pid}
+	offset := strings.LastIndex(transcript, `{"operation_id":`)
+	if offset < 0 {
+		t.Fatal("operator result omitted operation identity")
+	}
+	document := strings.ReplaceAll(transcript[offset:], "\r\n", "\n")
+	var result struct {
+		OperationID   string `json:"operation_id"`
+		Status        string `json:"status"`
+		Code          string `json:"code"`
+		CleanupFailed bool   `json:"cleanup_failed"`
+	}
+	decoder := json.NewDecoder(strings.NewReader(document))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&result); err != nil {
+		t.Fatal("decode operator result")
+	}
+	encoded, err := json.Marshal(result)
+	if err != nil || document != string(encoded)+"\n" || result.Status != "created" || result.Code != "" || result.CleanupFailed {
+		t.Fatal("operator result is not one closed confirmed creation")
+	}
+	operation, err := hex.DecodeString(result.OperationID)
+	if err != nil || len(operation) != 32 || hex.EncodeToString(operation) != result.OperationID {
+		t.Fatal("invalid parent operation identity")
+	}
+	return authenticatedRestartPhaseResult{PID: command.Process.Pid, OperationID: result.OperationID}
 }
 
 func authenticatedRestartAwaitProvisionPrompt(
@@ -364,42 +393,30 @@ type authenticatedRestartPersistedArticle struct {
 }
 
 type authenticatedRestartSessionRow struct {
-	Digest  string
-	Payload string
+	Namespace string
+	Digest    string
+	Payload   string
 }
 
 type authenticatedRestartAuditRow struct {
-	Sequence      int64
-	ActorID       string
-	Model         string
-	ObjectID      string
-	Action        string
-	ChangedFields string
-	DisplayLabel  string
-}
-
-type authenticatedRestartCredentialRow struct {
-	ID               int64
-	PrincipalID      string
-	Username         string
-	EncodedPassword  string
-	Active           bool
-	Permissions      string
-	DefinitionDigest string
+	Sequence               int64
+	Domain, ActorID, Model string
+	ObjectID               int64
+	Action, ChangedFields  string
+	RecordedAt             time.Time
 }
 
 type authenticatedRestartDatabaseSnapshot struct {
-	Articles   []authenticatedRestartPersistedArticle
-	Sessions   []authenticatedRestartSessionRow
-	Audits     []authenticatedRestartAuditRow
-	Credential []authenticatedRestartCredentialRow
-	Identity   authenticatedRestartIdentityState
+	Articles []authenticatedRestartPersistedArticle
+	Sessions []authenticatedRestartSessionRow
+	Audits   []authenticatedRestartAuditRow
+	Identity authenticatedRestartIdentityState
 }
 
 func authenticatedRestartExercisePhaseA(
 	client *http.Client,
 	jar http.CookieJar,
-	baseURL, username, password string,
+	baseURL, username, password, principalID string,
 	sensitive *[]string,
 ) (authenticatedRestartPhaseAState, error) {
 	login, err := authenticatedRestartLogin(client, jar, baseURL, username, password, sensitive)
@@ -520,8 +537,8 @@ func authenticatedRestartExercisePhaseA(
 		baseURL,
 		3,
 		[]string{
-			`data-sequence="1" data-action="add" data-actor="article-development-admin"`,
-			`data-sequence="2" data-action="change" data-actor="article-development-admin"`,
+			fmt.Sprintf(`data-sequence="2" data-action="add" data-actor="%s"`, principalID),
+			fmt.Sprintf(`data-sequence="3" data-action="change" data-actor="%s"`, principalID),
 		},
 		sensitive,
 	); err != nil {
@@ -532,8 +549,8 @@ func authenticatedRestartExercisePhaseA(
 		baseURL,
 		4,
 		[]string{
-			`data-sequence="3" data-action="add" data-actor="article-development-admin"`,
-			`data-sequence="4" data-action="delete" data-actor="article-development-admin"`,
+			fmt.Sprintf(`data-sequence="4" data-action="add" data-actor="%s"`, principalID),
+			fmt.Sprintf(`data-sequence="5" data-action="delete" data-actor="%s"`, principalID),
 		},
 		sensitive,
 	); err != nil {
@@ -573,6 +590,7 @@ func authenticatedRestartExercisePhaseA(
 		return authenticatedRestartPhaseAState{}, errors.New("phase A browser CSRF cookie changed after CRUD")
 	}
 	return authenticatedRestartPhaseAState{
+		PrincipalID:   principalID,
 		SessionCookie: login.SessionCookie,
 		CSRFCookie:    login.CSRFCookie,
 		StaleCSRF:     csrf,
@@ -642,9 +660,8 @@ func authenticatedRestartExercisePhaseB(
 		baseURL,
 		3,
 		[]string{
-			`data-sequence="1" data-action="add" data-actor="article-development-admin"`,
-			`data-sequence="2" data-action="change" data-actor="article-development-admin"`,
-			"Admin durable",
+			fmt.Sprintf(`data-sequence="2" data-action="add" data-actor="%s"`, phaseA.PrincipalID),
+			fmt.Sprintf(`data-sequence="3" data-action="change" data-actor="%s"`, phaseA.PrincipalID),
 		},
 		sensitive,
 	); err != nil {
@@ -693,10 +710,9 @@ func authenticatedRestartExercisePhaseB(
 		baseURL,
 		3,
 		[]string{
-			`data-sequence="1" data-action="add" data-actor="article-development-admin"`,
-			`data-sequence="2" data-action="change" data-actor="article-development-admin"`,
-			`data-sequence="5" data-action="change" data-actor="article-development-admin"`,
-			"Admin after restart",
+			fmt.Sprintf(`data-sequence="2" data-action="add" data-actor="%s"`, phaseA.PrincipalID),
+			fmt.Sprintf(`data-sequence="3" data-action="change" data-actor="%s"`, phaseA.PrincipalID),
+			fmt.Sprintf(`data-sequence="6" data-action="change" data-actor="%s"`, phaseA.PrincipalID),
 		},
 		sensitive,
 	); err != nil {
@@ -1229,13 +1245,13 @@ func authenticatedRestartInspectDatabase(t *testing.T, databasePath string) auth
 		t.Fatal("finish authenticated restart Article rows")
 	}
 
-	sessionRows, err := database.QueryContext(ctx, `SELECT "digest", "payload" FROM "godj_system_session" ORDER BY "id"`)
+	sessionRows, err := database.QueryContext(ctx, `SELECT "namespace", "digest", "payload" FROM "godj_sessions_session" ORDER BY "id"`)
 	if err != nil {
 		t.Fatal("query authenticated restart sessions")
 	}
 	for sessionRows.Next() {
 		var row authenticatedRestartSessionRow
-		if err := sessionRows.Scan(&row.Digest, &row.Payload); err != nil {
+		if err := sessionRows.Scan(&row.Namespace, &row.Digest, &row.Payload); err != nil {
 			_ = sessionRows.Close()
 			t.Fatal("scan authenticated restart session")
 		}
@@ -1245,13 +1261,13 @@ func authenticatedRestartInspectDatabase(t *testing.T, databasePath string) auth
 		t.Fatal("finish authenticated restart session rows")
 	}
 
-	auditRows, err := database.QueryContext(ctx, `SELECT "id", "actor_id", "model", "object_id", "action", "changed_fields", "display_label" FROM "godj_system_audit" ORDER BY "id"`)
+	auditRows, err := database.QueryContext(ctx, `SELECT "id", "domain", "actor_id", "model", "object_id", "action", "changed_fields", "recorded_at" FROM "godj_account_audit_event" ORDER BY "id"`)
 	if err != nil {
 		t.Fatal("query authenticated restart audit")
 	}
 	for auditRows.Next() {
 		var row authenticatedRestartAuditRow
-		if err := auditRows.Scan(&row.Sequence, &row.ActorID, &row.Model, &row.ObjectID, &row.Action, &row.ChangedFields, &row.DisplayLabel); err != nil {
+		if err := auditRows.Scan(&row.Sequence, &row.Domain, &row.ActorID, &row.Model, &row.ObjectID, &row.Action, &row.ChangedFields, &row.RecordedAt); err != nil {
 			_ = auditRows.Close()
 			t.Fatal("scan authenticated restart audit")
 		}
@@ -1261,29 +1277,6 @@ func authenticatedRestartInspectDatabase(t *testing.T, databasePath string) auth
 		t.Fatal("finish authenticated restart audit rows")
 	}
 
-	credentialRows, err := database.QueryContext(ctx, `SELECT "id", "principal_id", "username", "encoded_password", "active", "permissions", "definition_digest" FROM "godj_system_credential" ORDER BY "id"`)
-	if err != nil {
-		t.Fatal("query authenticated restart credential")
-	}
-	for credentialRows.Next() {
-		var row authenticatedRestartCredentialRow
-		if err := credentialRows.Scan(
-			&row.ID,
-			&row.PrincipalID,
-			&row.Username,
-			&row.EncodedPassword,
-			&row.Active,
-			&row.Permissions,
-			&row.DefinitionDigest,
-		); err != nil {
-			_ = credentialRows.Close()
-			t.Fatal("scan authenticated restart credential")
-		}
-		snapshot.Credential = append(snapshot.Credential, row)
-	}
-	if err := errors.Join(credentialRows.Err(), credentialRows.Close()); err != nil {
-		t.Fatal("finish authenticated restart credential rows")
-	}
 	snapshot.Identity = authenticatedRestartReadIdentity(t, func(statement string) (authenticatedRestartRows, func() error, error) {
 		rows, err := database.QueryContext(ctx, statement)
 		if err != nil {
@@ -1308,12 +1301,12 @@ func authenticatedRestartAssertPhaseAState(
 	})
 	authenticatedRestartAssertIdentity(t, snapshot, username, password)
 	authenticatedRestartAssertLoginTime(t, snapshot, phase)
-	authenticatedRestartAssertSession(t, snapshot.Sessions, phase.SessionCookie, sensitive)
-	authenticatedRestartAssertAudit(t, snapshot.Audits, []authenticatedRestartAuditRow{
-		{Sequence: 1, ObjectID: "3", Action: "add", DisplayLabel: "Admin before restart"},
-		{Sequence: 2, ObjectID: "3", Action: "change", DisplayLabel: "Admin durable"},
-		{Sequence: 3, ObjectID: "4", Action: "add", DisplayLabel: "Admin disposable"},
-		{Sequence: 4, ObjectID: "4", Action: "delete", DisplayLabel: "Admin disposable"},
+	authenticatedRestartAssertSession(t, snapshot, phase.SessionCookie, sensitive)
+	authenticatedRestartAssertAudit(t, snapshot, []authenticatedRestartAuditRow{
+		{Sequence: 2, ObjectID: 3, Action: "add", ChangedFields: `[]`},
+		{Sequence: 3, ObjectID: 3, Action: "change", ChangedFields: `["title","published","summary"]`},
+		{Sequence: 4, ObjectID: 4, Action: "add", ChangedFields: `[]`},
+		{Sequence: 5, ObjectID: 4, Action: "delete", ChangedFields: `[]`},
 	})
 }
 
@@ -1322,13 +1315,13 @@ func authenticatedRestartAssertMigratedSystemStateEmpty(
 	snapshot authenticatedRestartDatabaseSnapshot,
 ) {
 	t.Helper()
-	if snapshot.Identity.Counts != ([4]int64{}) || len(snapshot.Identity.Users) != 0 || len(snapshot.Identity.Grants) != 0 || len(snapshot.Identity.Transitions) != 0 || len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 || len(snapshot.Credential) != 0 {
+	if snapshot.Identity.Counts != ([4]int64{}) || len(snapshot.Identity.Users) != 0 || len(snapshot.Identity.Grants) != 0 || len(snapshot.Identity.Transitions) != 0 || len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 {
 		t.Fatalf(
 			"authenticated migrate populated runtime state: articles=%d sessions=%d audits=%d credentials=%d",
 			len(snapshot.Articles),
 			len(snapshot.Sessions),
 			len(snapshot.Audits),
-			len(snapshot.Credential),
+			len(snapshot.Identity.Users),
 		)
 	}
 }
@@ -1336,10 +1329,10 @@ func authenticatedRestartAssertMigratedSystemStateEmpty(
 func authenticatedRestartAssertProvisionedState(
 	t *testing.T,
 	snapshot authenticatedRestartDatabaseSnapshot,
-	username, password string,
+	username, password, operationID string,
 ) {
 	t.Helper()
-	if len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 {
+	if len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 1 {
 		t.Fatalf(
 			"explicit operator provision changed non-credential state: articles=%d sessions=%d audits=%d",
 			len(snapshot.Articles),
@@ -1348,23 +1341,11 @@ func authenticatedRestartAssertProvisionedState(
 		)
 	}
 	authenticatedRestartAssertIdentity(t, snapshot, username, password)
+	if snapshot.Identity.Transitions[0].OperationID != operationID {
+		t.Fatal("durable receipt differs from the parent operation identity")
+	}
 	if snapshot.Identity.Users[0].LastLogin.Valid {
 		t.Fatal("provisioning recorded a login")
-	}
-}
-
-func authenticatedRestartAssertCredentialUnchanged(
-	t *testing.T,
-	before, after []authenticatedRestartCredentialRow,
-) {
-	t.Helper()
-	if len(before) != 1 || len(after) != 1 || before[0] != after[0] {
-		t.Fatalf(
-			"authenticated restart credential changed across processes: before-count=%d after-count=%d exact=%t",
-			len(before),
-			len(after),
-			len(before) == 1 && len(after) == 1 && before[0] == after[0],
-		)
 	}
 }
 
@@ -1383,13 +1364,13 @@ func authenticatedRestartAssertPhaseBState(
 	})
 	authenticatedRestartAssertIdentity(t, snapshot, username, password)
 	authenticatedRestartAssertLoginTime(t, snapshot, phase)
-	authenticatedRestartAssertSession(t, snapshot.Sessions, phase.SessionCookie, sensitive)
-	authenticatedRestartAssertAudit(t, snapshot.Audits, []authenticatedRestartAuditRow{
-		{Sequence: 1, ObjectID: "3", Action: "add", DisplayLabel: "Admin before restart"},
-		{Sequence: 2, ObjectID: "3", Action: "change", DisplayLabel: "Admin durable"},
-		{Sequence: 3, ObjectID: "4", Action: "add", DisplayLabel: "Admin disposable"},
-		{Sequence: 4, ObjectID: "4", Action: "delete", DisplayLabel: "Admin disposable"},
-		{Sequence: 5, ObjectID: "3", Action: "change", DisplayLabel: "Admin after restart"},
+	authenticatedRestartAssertSession(t, snapshot, phase.SessionCookie, sensitive)
+	authenticatedRestartAssertAudit(t, snapshot, []authenticatedRestartAuditRow{
+		{Sequence: 2, ObjectID: 3, Action: "add", ChangedFields: `[]`},
+		{Sequence: 3, ObjectID: 3, Action: "change", ChangedFields: `["title","published","summary"]`},
+		{Sequence: 4, ObjectID: 4, Action: "add", ChangedFields: `[]`},
+		{Sequence: 5, ObjectID: 4, Action: "delete", ChangedFields: `[]`},
+		{Sequence: 6, ObjectID: 3, Action: "change", ChangedFields: `["title","summary"]`},
 	})
 }
 
@@ -1408,28 +1389,17 @@ func authenticatedRestartAssertArticles(
 	}
 }
 
-func authenticatedRestartAssertCredential(
-	t *testing.T,
-	rows []authenticatedRestartCredentialRow,
-	username, password string,
-) {
-	t.Helper()
-	if len(rows) != 1 || rows[0].ID != 1 || rows[0].PrincipalID != "article-development-admin" || rows[0].Username != username ||
-		rows[0].EncodedPassword != "!godj-identity-transferred" || strings.Contains(rows[0].EncodedPassword, password) || rows[0].Active ||
-		rows[0].Permissions != "v1.AAA" || rows[0].DefinitionDigest != "sha256:eb4cdcd8f0419b8be2e1d67452037d27eba80ef0e08e8ecc9f5cbd686d4077a5" {
-		t.Fatal("retained operator credential is not the exact inactive identity-transfer tombstone")
-	}
-}
-
 func authenticatedRestartAssertSession(
 	t *testing.T,
-	rows []authenticatedRestartSessionRow,
+	snapshot authenticatedRestartDatabaseSnapshot,
 	rawSession string,
 	sensitive []string,
 ) {
 	t.Helper()
-	wantDigest := authenticatedRestartSessionDigest(rawSession)
-	if len(rows) != 1 || rows[0].Digest != wantDigest || !strings.HasPrefix(rows[0].Payload, "v1.") {
+	rows := snapshot.Sessions
+	namespace := authenticatedRestartDomain(t, snapshot)
+	wantDigest := authenticatedRestartSessionDigest(namespace, rawSession)
+	if len(rows) != 1 || rows[0].Namespace != namespace || rows[0].Digest != wantDigest || !strings.HasPrefix(rows[0].Payload, "v1.") {
 		t.Fatalf("authenticated restart session semantic shape = count:%d digest:%t payload-prefix:%t", len(rows), len(rows) == 1 && rows[0].Digest == wantDigest, len(rows) == 1 && strings.HasPrefix(rows[0].Payload, "v1."))
 	}
 	stored := rows[0].Digest + rows[0].Payload
@@ -1440,30 +1410,30 @@ func authenticatedRestartAssertSession(
 	}
 }
 
-func authenticatedRestartAssertAudit(
-	t *testing.T,
-	got, want []authenticatedRestartAuditRow,
-) {
+func authenticatedRestartAssertAudit(t *testing.T, snapshot authenticatedRestartDatabaseSnapshot, want []authenticatedRestartAuditRow) {
 	t.Helper()
-	if len(got) != len(want) {
-		t.Fatalf("authenticated restart audit row count = %d, want %d", len(got), len(want))
+	var got []authenticatedRestartAuditRow
+	for _, event := range snapshot.Audits {
+		if event.Model != "godj_identity.user" {
+			got = append(got, event)
+		}
 	}
-	for index := range want {
-		if got[index].Sequence != want[index].Sequence ||
-			got[index].ActorID != "article-development-admin" ||
-			got[index].Model != "godj_conformance.article" ||
-			got[index].ObjectID != want[index].ObjectID ||
-			got[index].Action != want[index].Action ||
-			!strings.HasPrefix(got[index].ChangedFields, "v1.") ||
-			got[index].DisplayLabel != want[index].DisplayLabel {
-			t.Fatalf("authenticated restart audit row %d semantic fields differ", index)
+	if len(snapshot.Audits) != len(want)+1 || len(got) != len(want) {
+		t.Fatalf("account/Article audit counts = %d/%d, want 1/%d", len(snapshot.Audits)-len(got), len(got), len(want))
+	}
+	namespace := authenticatedRestartDomain(t, snapshot)
+	for i := range want {
+		if got[i].Sequence != want[i].Sequence || got[i].Domain != namespace || got[i].ActorID != snapshot.Identity.Users[0].PrincipalID || got[i].Model != "godj_conformance.article" || got[i].ObjectID != want[i].ObjectID || got[i].Action != want[i].Action || got[i].ChangedFields != want[i].ChangedFields || got[i].RecordedAt.IsZero() || got[i].RecordedAt.Nanosecond()%1000 != 0 {
+			t.Fatalf("Article audit row %d semantic fields differ", i)
 		}
 	}
 }
 
-func authenticatedRestartSessionDigest(raw string) string {
+func authenticatedRestartSessionDigest(namespace, raw string) string {
 	digest := sha256.New()
-	_, _ = digest.Write([]byte("godj.systemstate.session.v1\x00"))
+	_, _ = digest.Write([]byte("godj.sessions.database.v1\x00"))
+	_, _ = digest.Write([]byte(namespace))
+	_, _ = digest.Write([]byte{0})
 	_, _ = digest.Write([]byte(raw))
 	return hex.EncodeToString(digest.Sum(nil))
 }

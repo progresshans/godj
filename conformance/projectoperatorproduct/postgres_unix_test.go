@@ -53,7 +53,7 @@ func TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct(t *testing.T) {
 	})
 	operatorAssertSecretFreeEnvironment(t, provisionEnvironment, password)
 	provision := project.runProvision(t, provisionEnvironment, provisionMarker, username, password)
-	operatorAssertPostgresCredential(t, databaseURL, schema, username, password)
+	operatorAssertPostgresCredential(t, databaseURL, schema, username, password, provision.operationID)
 	project.assertArtifactsExclude(t, password)
 
 	jar, err := cookiejar.New(nil)
@@ -77,7 +77,7 @@ func TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct(t *testing.T) {
 		return phaseErr
 	})
 	operatorAssertPostgresCounts(t, databaseURL, schema, 1, 1, 1)
-	operatorAssertPostgresCredential(t, databaseURL, schema, username, password)
+	operatorAssertPostgresCredential(t, databaseURL, schema, username, password, provision.operationID)
 
 	runtimeBMarker := project.marker(t, "postgres-runtime-b")
 	runtimeBEnvironment := testenv.With(environment, map[string]string{
@@ -90,7 +90,7 @@ func TestGlobalCreatesuperuserExternalPostgresAndSQLiteProduct(t *testing.T) {
 		return operatorExercisePhaseB(client, jar, baseURL, authentication)
 	})
 	operatorAssertPostgresCounts(t, databaseURL, schema, 1, 1, 2)
-	operatorAssertPostgresCredential(t, databaseURL, schema, username, password)
+	operatorAssertPostgresCredential(t, databaseURL, schema, username, password, provision.operationID)
 
 	leafPIDs := []int{provision.leafPID, runtimeA.leafPID, runtimeB.leafPID}
 	if !operatorDistinctPositivePIDs(leafPIDs...) ||
@@ -275,10 +275,10 @@ func operatorAssertPostgresCounts(t *testing.T, databaseURL, schema string, cred
 		query string
 		want  int
 	}{
-		{name: "credential", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_system_credential"`, want: credentials},
 		{name: "user", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_identity_user"`, want: credentials},
-		{name: "transition", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_system_identity_transition"`, want: credentials},
-		{name: "session", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_system_session"`, want: sessions},
+		{name: "transition", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_account_domain_transition"`, want: credentials},
+		{name: "first-account audit", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_account_audit_event" WHERE "model" = 'godj_identity.user' AND "action" = 'add'`, want: credentials},
+		{name: "session", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_sessions_session"`, want: sessions},
 		{name: "Article", query: `SELECT COUNT(*) FROM ` + prefix + `"godj_conformance_article"`, want: articles},
 	}
 	for _, item := range queries {
@@ -292,7 +292,7 @@ func operatorAssertPostgresCounts(t *testing.T, databaseURL, schema string, cred
 	}
 }
 
-func operatorAssertPostgresCredential(t *testing.T, databaseURL, schema, username string, password []byte) {
+func operatorAssertPostgresCredential(t *testing.T, databaseURL, schema, username string, password []byte, expectedOperation string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -302,6 +302,11 @@ func operatorAssertPostgresCredential(t *testing.T, databaseURL, schema, usernam
 	}
 	defer connection.Close(ctx)
 	prefix := pgx.Identifier{schema}.Sanitize() + "."
+	var operationID string
+	var sequence int64
+	if err := connection.QueryRow(ctx, `SELECT "operation_id", "sequence" FROM `+prefix+`"godj_account_domain_transition"`).Scan(&operationID, &sequence); err != nil || operationID != expectedOperation || sequence != 1 {
+		t.Fatal("PostgreSQL durable operation differs from the parent result")
+	}
 	var principal, storedUsername, encoded string
 	var active, staff, superuser bool
 	err = connection.QueryRow(ctx, `SELECT "principal_id", "username", "encoded_password", "active", "staff", "superuser" FROM `+prefix+`"godj_identity_user"`).Scan(
@@ -316,7 +321,7 @@ func operatorAssertPostgresCredential(t *testing.T, databaseURL, schema, usernam
 	if bytes.Equal([]byte(encoded), password) || bytes.Contains([]byte(encoded), password) {
 		t.Fatal("external operator PostgreSQL credential retained the raw password")
 	}
-	rows, err := connection.Query(ctx, `SELECT "digest", "payload" FROM `+prefix+`"godj_system_session"`)
+	rows, err := connection.Query(ctx, `SELECT "digest", "payload" FROM `+prefix+`"godj_sessions_session"`)
 	if err != nil {
 		t.Fatal("read external operator PostgreSQL sessions")
 	}

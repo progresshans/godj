@@ -16,9 +16,9 @@ import (
 	"time"
 
 	"github.com/creack/pty"
-	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"golang.org/x/sys/unix"
 	"golang.org/x/term"
+	"runtime"
 )
 
 const (
@@ -99,14 +99,14 @@ func TestExecuteDispatchesCreatesuperuserBeforeProjectOrTerminalIO(t *testing.T)
 		&stderr,
 		nil,
 	)
-	want := createsuperuserprotocol.CategoryCommand + "/" + createsuperuserprotocol.CodeInvalidArguments + "\n"
+	want := "{\"operation_id\":\"\",\"status\":\"not_created\",\"code\":\"invalid_arguments\",\"cleanup_failed\":false}\n"
 	if exit != 2 || stdout.Len() != 0 || stderr.String() != want || strings.Contains(stderr.String(), secretMarker) {
 		t.Fatalf("createsuperuser dispatch exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}
 }
 
 func TestActualGodjCreatesuperuserInterruptRestoresPTYAndDiscardsQueuedSecret(t *testing.T) {
-	fixture := newProcessFixture(t)
+	fixture := newFirstAccountProcessFixture(t)
 
 	for _, test := range []struct {
 		name           string
@@ -185,9 +185,13 @@ func TestActualGodjCreatesuperuserInterruptRestoresPTYAndDiscardsQueuedSecret(t 
 			}()
 
 			var transcript bytes.Buffer
-			readCreatesuperuserPTYUntil(t, master, &transcript, "Username: ", createsuperuserActualColdStartPromptTimeout)
+			readCreatesuperuserPTYUntil(t, master, &transcript, `"Username": `, createsuperuserActualColdStartPromptTimeout)
 			if written, err := master.Write([]byte("operator\n")); err != nil || written != len("operator\n") {
 				t.Fatalf("write username = %d, %v", written, err)
+			}
+			readCreatesuperuserPTYUntil(t, master, &transcript, `Use model default for "Email"? [Y/n]: `, createsuperuserActualPromptTimeout)
+			if _, err := master.Write([]byte("y\n")); err != nil {
+				t.Fatal(err)
 			}
 			readCreatesuperuserPTYUntil(t, master, &transcript, "Password: ", createsuperuserActualPromptTimeout)
 
@@ -250,12 +254,32 @@ func TestActualGodjCreatesuperuserInterruptRestoresPTYAndDiscardsQueuedSecret(t 
 			if strings.Contains(transcript.String(), string(secret)) {
 				t.Fatalf("PTY transcript leaked partial secret: %q", transcript.String())
 			}
-			wantFailure := createsuperuserprotocol.CategoryProcess + "/" + createsuperuserprotocol.CodeProjectInterrupted
+			wantFailure := `"status":"not_created","code":"project_interrupted","cleanup_failed":false`
 			if !strings.Contains(transcript.String(), wantFailure) {
 				t.Fatalf("PTY transcript = %q; want failure %q", transcript.String(), wantFailure)
 			}
 		})
 	}
+}
+
+func newFirstAccountProcessFixture(t *testing.T) processFixture {
+	t.Helper()
+	fixture := newProcessFixture(t)
+	_, source, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot locate framework source")
+	}
+	repository, err := filepath.EvalSymlinks(filepath.Join(filepath.Dir(source), "..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := fixture.run(t, fixture.universe, nil, "startproject", "example.com/selected-operator", "selected", "--framework-source", repository)
+	if result.exit != 0 {
+		t.Fatalf("prepare selected public project: exit=%d stdout=%q stderr=%q", result.exit, result.stdout, result.stderr)
+	}
+	fixture.project = filepath.Join(fixture.universe, "selected")
+	fixture.nested = fixture.project
+	return fixture
 }
 
 func readCreatesuperuserPTYUntil(t *testing.T, terminal *os.File, transcript *bytes.Buffer, marker string, timeout time.Duration) {

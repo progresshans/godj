@@ -140,6 +140,13 @@ func requireAccountMigrations(ctx context.Context, history migrationbackend.Appl
 		return managementError(CodePersistence, err)
 	}
 	for _, row := range rows {
+		// The old operator/identity store owns historical credentials, sessions
+		// and audit. Installing independent storage beside it is not an account
+		// transition. Until an explicit retirement/mapping operation is present,
+		// even an empty selected model must not be published as a fresh domain.
+		if row.App == "godj_system" {
+			return managementError(CodeTransitionRequired, nil)
+		}
 		if !owned[row.App] {
 			continue
 		}

@@ -128,7 +128,7 @@ Namespace/전체 용량·batch rollback·scope/cleanup/unknown·동시 생성·d
 확정한다. Unknown 결과는 게시하지 않고 상위 process가 지정한 operation ID를 보관해 명시적 receipt 대조에 쓸 수 있다.
 Fresh-only·0/음수 기존 key·재사용/경합·실제 저장 뒤 rollback/unknown 검사를 양 DB 필수 목록에 연결했다.
 필수 custom profile의 생성·HTTP login 외부 SQLite 소비자도 추가했다. 본문 실행·최소 compile·원격 확인은
-TEST_EVIDENCE에서 구분한다. 공개 명령의 전환은 남아 있다.
+TEST_EVIDENCE에서 구분한다. 공개 명령 연결은 아래 통합 조립을 따른다.
 
 DB 연결 전 검사를 위해 생성 `NewFirstAccountDefinition`과 typed 선언/실제 backend binding을 분리했다.
 전체 host source·역할·정적인 정책과 명시적 callback evidence를 식별하며 가짜 backend를 만들지 않는다.
@@ -136,7 +136,7 @@ DB 연결 전 검사를 위해 생성 `NewFirstAccountDefinition`과 typed 선�
 생략/명시적 빈 값·한도·source 혼합·취소·한 번의 시도와 acquired resource의 소유권을 검사하고, 실제 최초 owner에 연결한다.
 외부 기본/custom 소비자는 이 경로를 통해 생성·receipt/audit·HTTP/DB-session을 검사하도록 바꿨다.
 선택 필드의 기본값·빈 값·문자열 정리와 custom 정확한 선택값도 포함한다. 생성·최소 compile과 본문 실행은
-TEST_EVIDENCE에서 구분한다. 터미널/프로세스의 공개 명령 연결과 scaffold runtime 전환은 아직 완료하지 않았다.
+TEST_EVIDENCE에서 구분한다. 터미널/프로세스의 공개 명령 연결과 scaffold runtime 구현은 아래 통합 조립을 따른다.
 
 같은 `SessionStore`의 인증기와 manager에 묶인 선택 계정 자기 비밀번호 변경 owner를 작성했다. 생성과 공유하는 실제
 typed password 정책·DB 밖 이전 검증/한 번의 hash와 최종 현재 계정/세션 재검사를 사용한다. 선택 Password/Revision,
@@ -328,9 +328,19 @@ password 정책을 공유한다. 고정 비밀번호 알고리즘/사전을 공�
 기본/custom 일곱 HTTP 생성 변형은 새 runtime을 사용하고 실제 startup source·공유 owner·typed 기본 정책·reset admission과
 기존 mutation/rollback/unknown/세션 폐기를 검증하도록 연결했다. 작성/생성·최소 compile과 실제 환경별 결과는 TEST_EVIDENCE를 따른다.
 
-프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP의 환경별 수용,
-첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
-mapping/retirement/receipt·restart는 남아 있다.
+공개 `createsuperuser`·Article·새 scaffold를 선택 계정 runtime에 연결했다. 선언 runner는 Schema IR과 독립 migration만 읽고,
+별도 commands runtime이 동일 typed 정책의 첫 계정을 생성한다. 실제 opener의 startup 검사 뒤 획득한 backend는 process owner가
+한 번 닫는다. Article/scaffold의 자동 Account/Catalog Admin·관리 JSON·login/password/reset은 같은 credential/session owner를 쓴다.
+기존 `godj_system` 이력은 데이터 읽기 전에 명시적 전환 필요로 거부하며 자동 Fresh/adoption을 하지 않는다.
+
+Article 업무 Admin/API도 전체 Principal로 같은 native snapshot/write fence에서 현재 domain·active/권한을 재확인한다.
+Admin mutation과 값 없는 domain audit를 함께 저장하고 읽기 정리/commit이 확인된 뒤 결과를 게시한다. 실제 SQLite/PostgreSQL의
+권한 회수·이전 domain·read cleanup·audit rollback·확정 commit 뒤 unknown 소비자를 작성했다. 공개 CLI·scaffold·외부 operator·
+Article 양 DB migration/restart 소비자를 새 저장소와 operation receipt에 연결했다. 생성·최소 compile과 새 본문/전체 환경 검증은
+TEST_EVIDENCE에서 구분한다. 이 구현을 I1 전체 제품 수용으로 계산하지 않는다.
+
+프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 사용자 정의 관리 JSON HTTP의 PostgreSQL 독립 소비자,
+선택 모델-as-through의 identity 생성, 채운 DB의 mapping/retirement/receipt·복구·restart와 전체 환경 수용은 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

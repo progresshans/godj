@@ -314,15 +314,19 @@ Authentication은 Session 또는 명시적으로 선택한 Bearer profile을 사
 않으며 권한 거부·인증 실패·CSRF 실패를 구분한다. Raw token/password와 verifier cause는 logs·errors·audit에 남기지 않는다.
 Principal은 생성 시 복사·검증한 private 권한을 공유하고 Permissions는 별도 slice를 반환한다. Session ID는 외부 입력을
 ParseID에서 엄격히 검증한다. Record의 값 map은 입력·변경·mutable snapshot에서 복사하며 touch·load·rotation의 불변 전달은 공유한다.
-User/Group/Permission은 재사용 identity 앱의 Schema IR·generated model·migration에서 정의한다. Directory는 한 native read
-snapshot에서 현재 User와 직접·그룹 grant 합집합을 반환한다. 비밀번호 검증은 snapshot 밖에서 하고 성공 뒤 ID·username·stamp를
-다시 읽어 현재 권한/role을 반환한다. Admin은 active staff를 요구하며 superuser는 canonical permission만 암묵적으로 허용한다.
+계정 모델과 login·password·role·catalog 역할은 프로젝트 Schema IR에서 명시적으로 선택한다. 기본 identity 앱의
+User/Group/Permission과 사용자 정의 모델은 생성 binding과 같은 typed credential/session/관리 owner를 사용한다.
+현재 계정과 직접·그룹 grant 합집합을 native snapshot에서 읽고 비밀번호를 DB 밖에서 검증한 뒤 credential/domain/active와
+현재 권한을 다시 검사한다. Admin은 active staff를 요구하며 superuser도 canonical permission과 deny overlay를 따른다.
 
-Identity는 명시적인 `ProvisionIdentity` 또는 기존 operator의 `AdoptOperator` 뒤 `OpenIdentity`로 연다. Startup은 비밀번호를 다시
-받거나 데이터를 이전하지 않는다. 전환은 opaque principal ID·encoded password·session binding·audit 행을 보존한다.
-새 User·권한·receipt와 옛 credential의 비활성 표시를 같은 transaction으로 쓴다. Unknown outcome은 receipt를 조회해 조정한다.
-이전하지 않은 옛 도메인의 `OpenExisting`/policy CAS도 legacy 저장 의미를 검증한다. 자세한 결정은
-[ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)을 따른다.
+공개 `createsuperuser`는 실제 typed Description의 입력을 한 번 전달해 빈 domain의 소유권·선택 계정·첫 감사를 원자적으로
+저장한다. 별도의 `commands_package`가 policy와 DB 연결을 소유하고 선언 runner는 생성 모델을 import하지 않는다.
+Article/scaffold는 독립 domain·audit·session 설치 뒤 `NewAccountRuntime`과 읽기 전용 `InspectStartup`을 조립한다.
+기동은 password를 다시 받거나 데이터를 이전하지 않는다. 결과 유실·unknown은 operation receipt와 실제 저장 상태로
+조정하며 자동 재시도하지 않는다. 기존 `godj_system` 이력은 명시적 전환이 필요하므로 새 runtime에서 거부한다.
+
+기존 `AdoptOperator`·`OpenIdentity`는 역사적인 operator→고정 User 도메인의 API다. 새 선택 모델로의 mapping·retirement·
+복구를 대신하지 않는다. 자세한 결정과 남은 이행 경계는 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)을 따른다.
 `identity/account`는 같은 runtime의 일반 login/logout·password change와 선택적인 email reset Form/API를 구성한다.
 Reset은 CSRF-only admission과 application-owned proof cookie를 구분하며, token을 서버 session으로 옮긴 뒤 token-free
 URL로 전환한다. 현재 proof·credential 재검사, password/session/audit의 원자 저장과 공개 응답/내부 오류 보고는 각각
@@ -333,8 +337,8 @@ Store.Load는 갱신 없는 원시 조회다. 정책 검증·취소가 실패하
 Access는 단조로운 access/idle deadline과 고정 absolute lifetime을 보존하며 rotation된 ID를 되살리지 않는다.
 Clock은 저장소 원자적 범위에서 호출되므로 신속히 반환하고 I/O나 manager/store 재진입을 하지 않아야 한다.
 Clock·entropy callback의 panic은 그대로 전파하되 source lock과 저장소 transaction은 해제한다.
-감사 로그 prune은 최신 capacity+1 범위의 COUNT/MIN 한 행을 읽고 양수 sequence·cardinality·rows 종료를 검증한 뒤
-최대 한 행을 삭제한다. DB 내부의 bounded 탐색은 유지하고 capacity만큼의 행을 애플리케이션으로 전송하지 않는다.
+선택 계정 감사는 append-only domain 기록이며 현재 권한으로 bounded history를 읽는다. 계정/domain 변경으로 과거 행을
+삭제하거나 새 domain이 승계하지 않는다. 기존 system-state의 capacity 기반 prune은 해당 역사 저장소의 별도 계약이다.
 
 System-state와 application mutation이 같은 transaction이어야 하는 흐름은 동일 backend coordination domain에서 수행한다.
 Multi-runtime 안전성은 같은 normalized policy를 사용하고 fence에 참여하는 writer 사이의 계약이다. 비협력 writer·외부 process의

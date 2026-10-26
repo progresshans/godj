@@ -9,6 +9,7 @@ import (
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -22,8 +23,8 @@ const (
 // RegisterArticle installs the generated Article model and its explicit typed
 // persistence adapter into a startup Admin builder. Generated model values and
 // methods never cross into templates or generic form mutation.
-func RegisterArticle(builder *admin.Builder, service Service) error {
-	if !service.validState() {
+func RegisterArticle(builder *admin.Builder, service ArticleService) error {
+	if interfaceNil(service) || !service.Valid() {
 		return invalid("service", "service is zero or invalid")
 	}
 	permissions := admin.Permissions{
@@ -54,8 +55,8 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		ListFields:   []string{"id", "title", "published", "summary", "slug"},
 		SearchFields: []string{"title", "summary"},
 		Permissions:  permissions,
-		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[articlemodels.Article], error) {
-			page, err := service.List(ctx, articleapp.ListOptions{
+		List: func(ctx context.Context, principal auth.Principal, request admin.ListRequest) (admin.Page[articlemodels.Article], error) {
+			page, err := service.List(ctx, principal, articleapp.ListOptions{
 				Search: request.Search,
 				Offset: request.Offset,
 				Limit:  request.Limit,
@@ -70,8 +71,8 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 				Limit:  page.Limit,
 			}, nil
 		},
-		Get: func(ctx context.Context, _ auth.Principal, id int64) (articlemodels.Article, bool, error) {
-			return service.Get(ctx, id)
+		Get: func(ctx context.Context, principal auth.Principal, id int64) (articlemodels.Article, bool, error) {
+			return service.Get(ctx, principal, id)
 		},
 		Snapshot: func(article articlemodels.Article) (admin.Object, error) {
 			return projector.Project(article, article.ID, article.Title)
@@ -84,7 +85,7 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			if err != nil {
 				return admin.MutationResult{}, err
 			}
-			value, err := service.Create(ctx, principal.ID(), input)
+			value, err := service.Create(ctx, principal, input)
 			return admin.MutationResult{ID: value.ID}, err
 		},
 		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
@@ -92,16 +93,16 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			if err != nil {
 				return admin.MutationResult{}, nil, err
 			}
-			article, changed, err := service.Update(ctx, principal.ID(), mutation.ID, input)
+			article, changed, err := service.Update(ctx, principal, mutation.ID, input)
 			return admin.MutationResult{ID: article.ID}, changed, adminMutationError(err)
 		},
 		Delete: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			article, err := service.Delete(ctx, principal.ID(), id)
+			article, err := service.Delete(ctx, principal, id)
 			return admin.MutationResult{ID: article.ID}, adminMutationError(err)
 		},
-		History: func(ctx context.Context, _ auth.Principal, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
-			return service.HistoryLimited(ctx, id, request.Limit)
+		History: func(ctx context.Context, principal auth.Principal, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
+			return service.HistoryLimited(ctx, principal, id, request.Limit)
 		},
 		Actions: []admin.ActionConfig{{
 			Name:          "publish",
@@ -109,7 +110,7 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			Permission:    ArticleChangePermission,
 			SuccessNotice: admin.ActionNotice{Tag: "published", Text: "{count} object(s) published."},
 			Run: func(ctx context.Context, principal auth.Principal, ids []int64) (admin.ActionResult, error) {
-				result, err := service.Publish(ctx, principal.ID(), ids)
+				result, err := service.Publish(ctx, principal, ids)
 				if err != nil {
 					return admin.ActionResult{}, err
 				}
@@ -117,6 +118,19 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 			},
 		}},
 	})
+}
+
+// ArticleService receives the full authenticated principal, including its
+// credential domain. An ID string cannot identify a selected-account actor.
+type ArticleService interface {
+	Valid() bool
+	List(context.Context, auth.Principal, articleapp.ListOptions) (articleapp.Page, error)
+	Get(context.Context, auth.Principal, int64) (articlemodels.Article, bool, error)
+	Create(context.Context, auth.Principal, orm.ModelInput[articlemodels.Article]) (articlemodels.Article, error)
+	Update(context.Context, auth.Principal, int64, orm.ModelInput[articlemodels.Article]) (articlemodels.Article, []string, error)
+	Delete(context.Context, auth.Principal, int64) (articlemodels.Article, error)
+	Publish(context.Context, auth.Principal, []int64) (articleapp.PublishResult, error)
+	HistoryLimited(context.Context, auth.Principal, int64, int) ([]admin.AuditEntry, error)
 }
 
 func articleDisplayTextValidator(field validation.Field) forms.FieldValidator {

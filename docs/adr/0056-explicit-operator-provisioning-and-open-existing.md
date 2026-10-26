@@ -10,7 +10,9 @@
 - 수정하는 ADR: [ADR-0047](0047-explicit-single-runtime-system-state.md)의 implicit bootstrap/restart-password 결정,
   [ADR-0048](0048-database-coordinated-system-state-and-shared-csrf-key-ring.md)의 concurrent bootstrap observation
 - 대체하는 ADR: 없음
-- 후속 변경: [ADR-0076](0076-credential-snapshots-and-session-binding.md)의 identity 전환과 현재 createsuperuser/OpenIdentity 경로. 아래 OpenExisting/policy 의미는 legacy operator 도메인에 적용한다.
+- 후속 변경: [ADR-0076](0076-credential-snapshots-and-session-binding.md#공개-cli와-articlescaffold-통합)의 선택 계정 runtime과 현재 createsuperuser 경로.
+  아래 OpenExisting/policy·고정 username wire·category/code 출력과 두 번째 출력 시도는 역사적인 operator 경로에 적용한다.
+  현재 공개 명령은 선택 모델 Description·v2 frame·operation ID와 단일 JSON 결과를 사용하며 새 domain/audit/session 저장소를 조립한다.
 
 ## 맥락
 

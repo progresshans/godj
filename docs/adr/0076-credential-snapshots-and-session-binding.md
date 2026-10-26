@@ -1195,7 +1195,7 @@ Command는 명시적인 opener를 한 번 호출하되 실제 자원과 오류�
 `Registry.Serve`는 `project/firstaccount/runner`의 private 선언 조회와 최초 생성 dispatch를 일반 command handler,
 argv 값 파싱·로그·출력 proxy와 분리한다. 선언용 project runner에 생성 package를 import시키지 않는다.
 선언 조회는 실제 typed Description을 반환하며 stdin을 읽거나 DB를 연결하지 않는다. 아래의 상위 process가 이 경로를
-사용한다. 공개 `createsuperuser` entry point와 scaffold/runtime·공통 HTTP/Admin 설치의 일괄 전환은 아직 남아 있다.
+사용한다. 공개 `createsuperuser`와 Article/scaffold의 현재 조립은 아래의 공개 통합 경계를 따른다.
 
 현재 private v2 wire의 단일 binary frame은 선언 fingerprint·상위 process가 먼저 보관한 operation ID·정확한 순서의
 scalar 이름/존재 여부/값·raw password를 포함한다. 전체 bytes·개별 길이·중복·UTF-8/NUL scalar·EOF를 검사한 뒤
@@ -1237,8 +1237,8 @@ process group·출력 reader의 종료 및 project/workspace 정리를 끝낸 �
 완전한 한 번의 전달과 같은 operation의 엄격한 응답만 결과를 확정한다. 전달 완료 후 응답 유실·종료/정리 관측 불일치는
 `unknown`으로 유지하며, canonical runtime의 정상 private exit 86/87은 확정 생성과 응답/정리 실패를 보존한다.
 이미 확정된 결과 뒤에 취소·source 검사·계정 재조회로 성공을 지우지 않는다. 결과에는 operation ID·상태·코드와 별도
-cleanup 여부만 남긴다. 자동 재시도나 임의 adoption을 하지 않는다. 이 owner의 구현과 실제 생성 소비자 검사는
-공개 CLI/scaffold·독립 migration 설치·HTTP/Admin 통합 기동과 별도로 판정한다.
+cleanup 여부만 남긴다. 자동 재시도나 임의 adoption을 하지 않는다. 공개 CLI는 이 owner를 사용한다.
+공개 결과도 한 번만 쓰며 stdout 실패 뒤 stderr에 두 번째 결과를 쓰지 않는다. 게시 실패는 exit 3으로 보고한다.
 
 ### 선택 계정의 공통 runtime과 비밀번호 정책
 
@@ -1262,8 +1262,27 @@ typed password 정책·byte 한도를 자동으로 공유한다. 별도 reset �
 이름이 password여도 실제 credential 역할과 다르면 별개다. Nullable NULL·원문 비밀번호·고정 Unicode와 진단 순서를 유지하고,
 취소와 잘못된 모델 표현을 강도 거부로 바꾸지 않는다. 사전 원본/라이선스와 기존 독립 Django 비교 근거는 유지한다.
 
-이 조립과 생성 소비자의 구현은 공개 CLI·scaffold·기존 고정 runtime host 전환과 구분한다. 시작/설치·명시적 채운 DB 전환과
-환경별 실제 수용이 끝나기 전에는 I1 전체 완료로 계산하지 않는다.
+Article/scaffold의 공개 조립은 다음 경계를 사용한다. 명시적 채운 DB 전환과 환경별 실제 수용이 끝나기 전에는 I1 전체 완료로 계산하지 않는다.
+
+### 공개 CLI와 Article/scaffold 통합
+
+공개 `godj createsuperuser`는 `RunFirstAccount`와 프로젝트의 별도 commands runtime을 사용한다. 계정 없는 ProjectSpec,
+commands 미설정·ABI/source 불일치와 실제 typed Description의 불일치를 입력 전에 거부한다. 기본 User로 우회하지 않는다.
+`modeldef.MigrationSources`는 기본 모델 migration과 독립 account-domain·audit·session 설치를 선언하며 기존 system history를 바꾸지 않는다.
+
+호스트의 `internal/accounts/policy.go`가 최초 생성과 관리·자기 변경/reset에 사용하는 typed 비밀번호 정책을 소유한다.
+최초 생성의 callback evidence는 이 선언 파일의 내장 SHA-256이며 전체 schema/role/field source는 생성 팩토리가 별도로 묶는다.
+이 파일 hash는 선언 식별자이며 임의 callback의 행동을 증명하지 않는다. Opener는 실제 backend를 획득한 뒤 startup을 검사하며,
+검사 실패에도 획득한 자원을 반환해 process owner가 정확히 한 번 닫는다. Constructor/Description은 DB를 열지 않는다.
+
+서버는 같은 `NewAccountRuntime`의 SessionStore·Authenticator·LoginPersistence·관리/catalog·password owner를 사용한다.
+자동 Account/Catalog Admin과 관리 JSON을 연결하며 저장된 현재 domain과 권한을 요청마다 확인한다. `Runtime.Credentials()`는
+그 runtime의 동일한 scoped reader/authorizer다. 업무 Article도 전체 Principal을 native snapshot/write fence에서 재인가한다.
+읽기 거부는 scope 종료가 확인된 뒤 게시하며, mutation과 domain audit는 같은 native transaction이다. API 업무 CRUD에는
+Admin 감사가 추가되지 않는다. 감사는 현재 domain·actor·모델/key·변경 field와 시각만 보관하며 display label/값은 저장하지 않는다.
+
+Fresh startup은 공개 페이지를, Ready는 명시적으로 허용한 개발 loopback에서 Admin/API를 조립한다. 생성·migration·HTTP 기동은
+각각 명시적 동작이다. Public CLI와 독립 새 모듈의 재시작·응답 유실·양 DB 검증은 TEST_EVIDENCE에서 실행 source별로 판정한다.
 
 ## 선택 계정의 프로필과 역할 통합 편집
 
@@ -1584,7 +1603,9 @@ key도 지원하며, 감사 event 자체의 순번은 양수다. 공통 Admin ev
 관측을 호출한다. 관측은 migration·계정 초기화·legacy adoption·자동 repair·session 만료 정리를 수행하지 않는다.
 
 첫 단계는 `AppliedMigrationReader`로 세 framework-owned 앱의 현행 migration identity 전체를 읽는다. 누락·중복·알 수 없는
-owned migration은 `schema_unavailable`이고 다른 앱의 이력은 해당 앱이 소유한다. 이 조회는 아래 데이터 snapshot과 별도다.
+owned migration은 `schema_unavailable`이다. 기존 `godj_system` 이력은 데이터 조회 전에 `account_transition_required`로 거부한다.
+기존 operator→고정 User adoption만으로 선택 계정 domain의 mapping/retirement를 대신할 수 없다. 그 외 앱의 이력은 해당 앱이 소유한다.
+이 조회는 아래 데이터 snapshot과 별도다.
 동시 schema migration을 잠그는 보증이나 project 전체 migration/constraint/index 감사로 확대하지 않는다.
 
 데이터는 정확히 한 native snapshot에서 읽는다. Domain 검사는 전체 sequence/직전 ID chain과 모든 operation/generation의
@@ -1605,4 +1626,5 @@ owned migration은 `schema_unavailable`이고 다른 앱의 이력은 해당 앱
 
 `StartupInspection`은 snapshot 종료와 cleanup까지 성공한 뒤에만 반환하는 불변 관측이다. 실패·취소·누락/중복 callback은
 빈 결과와 비밀값 없는 오류를 반환한다. Borrowed `domain.InspectIn`, `audit.InspectIn`, `database.InspectIn`의 결과는 외부 scope
-성공 전까지 잠정 값이다. 공개 명령·scaffold 서버가 이 경로와 선택 계정 Admin/HTTP를 함께 조립해야 통합 startup 수용이 된다.
+성공 전까지 잠정 값이다. 공개 명령·Article/scaffold 서버는 이 경로와 선택 계정 Admin/HTTP를 함께 조립한다.
+이 구현은 채운 DB의 명시적 전환·환경별 실행 및 I1 전체 수용을 대신하지 않는다.

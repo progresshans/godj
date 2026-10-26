@@ -8,11 +8,8 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
-	"github.com/progresshans/godj/systemstate"
 )
 
 // Logger is opt-in: GODJ_LOG_LEVEL=debug|info|warn|error enables JSON records.
@@ -43,20 +40,4 @@ func Database(environment settings.Environment) (database.Config, error) {
 		return database.Config{}, err
 	}
 	return database.FromEnvironment(environment.Lookup, database.Options{Default: defaultDatabase})
-}
-
-func Identity() (systemstate.IdentityRuntimeConfig, error) {
-	hasher, err := auth.NewDefaultPBKDF2()
-	if err != nil {
-		return systemstate.IdentityRuntimeConfig{}, err
-	}
-	return systemstate.IdentityRuntimeConfig{
-		PasswordHasher: hasher, SessionLimits: sessions.DefaultLimits(), MaxSessions: 256, AuditCapacity: 1024,
-	}, nil
-}
-
-// InitialSuperuser is used only by the explicit first-account command.
-// Each subsequent request resolves the current stored user and permissions.
-func InitialSuperuser() (auth.Principal, error) {
-	return auth.NewPrincipal(auth.PrincipalConfig{ID: "initial-admin", Active: true, Staff: true, Superuser: true})
 }

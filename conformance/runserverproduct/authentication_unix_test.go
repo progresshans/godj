@@ -177,8 +177,10 @@ func provisionRunserverOperator(
 		}
 	}()
 
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Username: ")
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `"Username": `)
 	writeRunserverProvisionLine(t, master, username)
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `Use model default for "Email"? [Y/n]: `)
+	writeRunserverProvisionLine(t, master, "y")
 	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password: ")
 	writeRunserverProvisionLine(t, master, password)
 	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password (again): ")
@@ -205,15 +207,15 @@ func provisionRunserverOperator(
 		}
 	}
 	transcript, truncated := output.Snapshot()
-	if truncated || !strings.Contains(transcript, "Username: ") ||
+	if truncated || !strings.Contains(transcript, `"Username": `) ||
 		!strings.Contains(transcript, "Password: ") ||
 		!strings.Contains(transcript, "Password (again): ") ||
-		!strings.Contains(transcript, `{"status":"created"}`) {
+		!strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`) {
 		t.Fatalf("createsuperuser transcript shape = prompts:%t/%t/%t success:%t bytes:%d truncated:%t",
-			strings.Contains(transcript, "Username: "),
+			strings.Contains(transcript, `"Username": `),
 			strings.Contains(transcript, "Password: "),
 			strings.Contains(transcript, "Password (again): "),
-			strings.Contains(transcript, `{"status":"created"}`),
+			strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`),
 			len(transcript),
 			truncated,
 		)

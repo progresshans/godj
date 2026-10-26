@@ -3,8 +3,12 @@
 package projectmigrateproduct_test
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	articleproject "github.com/progresshans/godj/examples/article/project"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -12,7 +16,7 @@ import (
 )
 
 // Read the current durable identity independently of runtime authentication.
-// The retained system credential is a tombstone, not the login authority.
+// The selected User is the credential source; the domain receipt owns its generation.
 type authenticatedRestartIdentityRow struct {
 	ID                                                                 int64
 	PrincipalID, Username, EncodedPassword, FirstName, LastName, Email string
@@ -27,10 +31,10 @@ type authenticatedRestartGrantRow struct {
 	Revision             int64
 }
 type authenticatedRestartTransitionRow struct {
-	ID, SourceID, UserID           int64
-	Kind, PrincipalID, Fingerprint string
-	Staff, Superuser               bool
-	At                             time.Time
+	ID, Sequence                                             int64
+	Previous                                                 sql.NullInt64
+	OperationID, RoleFingerprint, Generation, EvidenceSHA256 string
+	At                                                       time.Time
 }
 type authenticatedRestartIdentityState struct {
 	Counts      [4]int64
@@ -77,9 +81,9 @@ func authenticatedRestartReadIdentity(t *testing.T, query authenticatedRestartQu
 		state.Grants = append(state.Grants, row)
 		return err
 	})
-	read(`SELECT "id", "source_kind", "source_id", "principal_id", "user_id", "staff", "superuser", "transitioned_at", "source_fingerprint" FROM `+table("godj_system_identity_transition")+` ORDER BY "id"`, func(rows authenticatedRestartRows) error {
+	read(`SELECT "id","operation_id","sequence","previous_id","role_fingerprint","generation","evidence_sha256","transitioned_at" FROM `+table("godj_account_domain_transition")+` ORDER BY "id"`, func(rows authenticatedRestartRows) error {
 		var row authenticatedRestartTransitionRow
-		err := rows.Scan(&row.ID, &row.Kind, &row.SourceID, &row.PrincipalID, &row.UserID, &row.Staff, &row.Superuser, &row.At, &row.Fingerprint)
+		err := rows.Scan(&row.ID, &row.OperationID, &row.Sequence, &row.Previous, &row.RoleFingerprint, &row.Generation, &row.EvidenceSHA256, &row.At)
 		state.Transitions = append(state.Transitions, row)
 		return err
 	})
@@ -91,46 +95,79 @@ func authenticatedRestartReadIdentity(t *testing.T, query authenticatedRestartQu
 
 func authenticatedRestartAssertIdentity(t *testing.T, snapshot authenticatedRestartDatabaseSnapshot, username, password string) {
 	t.Helper()
-	if snapshot.Identity.Counts != ([4]int64{5, 0, 0, 0}) {
-		t.Fatal("restart identity permission/group cardinalities differ")
+	if snapshot.Identity.Counts != ([4]int64{}) || len(snapshot.Identity.Grants) != 0 {
+		t.Fatal("first selected superuser unexpectedly copied catalog rows or grants")
 	}
 	rows := snapshot.Identity.Users
 	if len(rows) != 1 {
-		t.Fatalf("restart identity user count=%d, want 1", len(rows))
+		t.Fatalf("restart selected account count=%d, want 1", len(rows))
 	}
 	row := rows[0]
-	if row.ID != 1 || row.PrincipalID != "article-development-admin" || row.Username != username ||
-		row.EncodedPassword == "" || strings.Contains(row.EncodedPassword, password) ||
-		!row.Active || !row.Staff || !row.Superuser || row.Revision != 1 || row.DateJoined.IsZero() ||
-		row.FirstName != "" || row.LastName != "" || row.Email != "" {
-		t.Fatal("restart identity credential, profile, roles, or revision differs")
-	}
-	codes := []string{"godj.admin.access", "godj_conformance.add_article", "godj_conformance.change_article", "godj_conformance.delete_article", "godj_conformance.view_article"}
-	if len(snapshot.Identity.Grants) != len(codes) {
-		t.Fatal("restart identity grant count differs")
-	}
-	seen := map[int64]bool{}
-	for i, grant := range snapshot.Identity.Grants {
-		if grant.UserID != row.ID || grant.PermissionID <= 0 || seen[grant.PermissionID] || grant.Code != codes[i] || grant.Name != codes[i] || grant.Revision != 1 {
-			t.Fatal("restart identity grant differs")
-		}
-		seen[grant.PermissionID] = true
+	if row.ID != 1 || !strings.HasPrefix(row.PrincipalID, "user-") || !authenticatedRestartDigest(strings.TrimPrefix(row.PrincipalID, "user-")) || row.Username != username || !strings.HasPrefix(row.EncodedPassword, "pbkdf2_sha256$") || strings.Contains(row.EncodedPassword, password) || !row.Active || !row.Staff || !row.Superuser || row.Revision != 1 || row.DateJoined.IsZero() || row.FirstName != "" || row.LastName != "" || row.Email != "" {
+		t.Fatal("selected account credential, profile, roles or revision differs")
 	}
 	transitions := snapshot.Identity.Transitions
 	if len(transitions) != 1 {
-		t.Fatal("restart identity receipt count differs")
+		t.Fatal("selected account receipt count differs")
 	}
 	receipt := transitions[0]
-	fingerprint, err := hex.DecodeString(receipt.Fingerprint)
-	if receipt.ID != 1 || receipt.Kind != "bootstrap" || receipt.SourceID != 0 || receipt.PrincipalID != row.PrincipalID || receipt.UserID != row.ID || !receipt.Staff || !receipt.Superuser || !receipt.At.Equal(row.DateJoined) || err != nil || len(fingerprint) != 32 || hex.EncodeToString(fingerprint) != receipt.Fingerprint {
-		t.Fatal("restart identity receipt differs")
+	policy, err := os.ReadFile(filepath.Join(repositoryRoot(t), "examples/article/internal/accounts/policy.go"))
+	if err != nil {
+		t.Fatal("read selected first-account policy evidence")
 	}
-	authenticatedRestartAssertCredential(t, snapshot.Credential, username, password)
+	evidence := sha256.Sum256(policy)
+	if receipt.ID != 1 || receipt.Sequence != 1 || receipt.Previous.Valid || !authenticatedRestartDigest(receipt.OperationID) || !authenticatedRestartDigest(receipt.Generation) || receipt.EvidenceSHA256 != hex.EncodeToString(evidence[:]) || receipt.At.IsZero() || receipt.At.Before(row.DateJoined) || receipt.At.Nanosecond()%1000 != 0 {
+		t.Fatal("selected account ownership receipt differs")
+	}
+	namespace := authenticatedRestartDomain(t, snapshot)
+	var accountAudits []authenticatedRestartAuditRow
+	for _, event := range snapshot.Audits {
+		if event.Model == "godj_identity.user" {
+			accountAudits = append(accountAudits, event)
+		}
+	}
+	if len(accountAudits) != 1 {
+		t.Fatal("first selected account audit count differs")
+	}
+	event := accountAudits[0]
+	if event.Sequence != 1 || event.Domain != namespace || event.ActorID != row.PrincipalID || event.ObjectID != row.ID || event.Action != "add" || event.ChangedFields != `["username","email","active","staff","superuser","encoded_password"]` || !event.RecordedAt.Equal(receipt.At) {
+		t.Fatal("first selected account audit differs")
+	}
+}
+
+func authenticatedRestartDigest(value string) bool {
+	decoded, err := hex.DecodeString(value)
+	return err == nil && len(decoded) == 32 && hex.EncodeToString(decoded) == value && value != strings.Repeat("0", 64)
+}
+func authenticatedRestartDomain(t *testing.T, snapshot authenticatedRestartDatabaseSnapshot) string {
+	t.Helper()
+	if len(snapshot.Identity.Transitions) != 1 {
+		t.Fatal("account ownership is absent")
+	}
+	receipt := snapshot.Identity.Transitions[0]
+	binding, err := articleproject.BindAccount()
+	if err != nil {
+		t.Fatal("bind selected account")
+	}
+	fingerprint, err := binding.RoleFingerprint()
+	if err != nil || fingerprint != receipt.RoleFingerprint {
+		t.Fatal("stored account role differs")
+	}
+	encoded, err := hex.DecodeString(receipt.Generation)
+	if err != nil || len(encoded) != 32 {
+		t.Fatal("decode credential generation")
+	}
+	var generation [32]byte
+	copy(generation[:], encoded)
+	domain, err := binding.CredentialDomain(generation)
+	if err != nil {
+		t.Fatal("bind credential generation")
+	}
+	return domain.Identifier()
 }
 
 func authenticatedRestartAssertDurableIdentityUnchanged(t *testing.T, before, after authenticatedRestartDatabaseSnapshot) {
 	t.Helper()
-	authenticatedRestartAssertCredentialUnchanged(t, before.Credential, after.Credential)
 	if len(before.Identity.Users) != 1 || !reflect.DeepEqual(before.Identity, after.Identity) {
 		t.Fatal("identity user, grants, or receipt changed across runtime processes")
 	}

@@ -207,12 +207,12 @@ func TestSystemStateMixedAuthorityAndPayloadFreeBaselineAreExact(t *testing.T) {
 	}
 	publicOnlyCases := objectField(t, oracle.Contracts[27].Result, "cases")
 	wantPublicOnlyOutcomes := []string{
-		"credential_absent",
+		"account_domain_fresh",
 		"schema_unavailable",
 		"startup_failure",
 		"startup_failure",
 		"corrupt_state",
-		"identity_transition_required",
+		"account_transition_required",
 	}
 	if publicOnlyCases.Type != ValueList || len(publicOnlyCases.Items) != len(wantPublicOnlyOutcomes) {
 		t.Fatalf("SYS-028 cases = %#v, want exact clean/schema/table/dependent/corrupt/adoption decision", publicOnlyCases)

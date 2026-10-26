@@ -149,6 +149,17 @@ func (runtime *Runtime[M, G, P]) SessionStore() *SessionStore[M] {
 	}
 	return runtime.store
 }
+
+// Credentials returns this runtime's immutable selected-account reader and
+// scoped authorizer. Host business operations use AuthorizeIn with the full
+// authenticated principal inside their own native snapshot or write fence.
+// The returned owner does not open or close the host backend.
+func (runtime *Runtime[M, G, P]) Credentials() *CredentialStore[M] {
+	if runtime == nil || runtime.store == nil || runtime.store.state == nil {
+		return nil
+	}
+	return runtime.store.state.credentials
+}
 func (runtime *Runtime[M, G, P]) Sessions() *sessions.Manager {
 	if runtime == nil {
 		return nil

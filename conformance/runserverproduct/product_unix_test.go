@@ -26,13 +26,13 @@ import (
 
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
+	articlemodeldef "github.com/progresshans/godj/examples/article/modeldef"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/systemstate"
 )
 
 const (
@@ -445,15 +445,15 @@ func prepareRunserverArticleDatabase(t *testing.T, repository, databasePath stri
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources := append(systemstate.IdentityMigrationSources(), migrationdefinition.Source{
+	sources := append(articlemodeldef.MigrationSources(), migrationdefinition.Source{
 		SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document,
 	})
 	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load Article and system initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 7 || report.HeadersValidated != 7 || report.OperationsDecoded != 17 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 7 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 8 || report.HeadersValidated != 8 || report.OperationsDecoded != 16 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 8 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article and system initial migration load report = %+v", report)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -733,13 +733,14 @@ func assertAdvancedArticleResponse(t *testing.T, body string) {
 func assertRunserverMigrationHistory(t *testing.T, history []migrationbackend.AppliedMigration) {
 	t.Helper()
 	want := []migrationbackend.AppliedMigration{
+		{App: "godj_account_audit", Name: "0001_initial"},
+		{App: "godj_account_domain", Name: "0001_initial"},
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0002_permission_revision"},
 		{App: "godj_identity", Name: "0003_alter_user_email"},
 		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"},
-		{App: "godj_system", Name: "0001_initial"},
-		{App: "godj_system", Name: "0002_identity_transition"},
+		{App: "godj_sessions", Name: "0001_initial"},
 	}
 	if !reflect.DeepEqual(history, want) {
 		t.Fatalf("durable Article migration history = %+v, want %+v", history, want)

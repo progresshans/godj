@@ -1,0 +1,77 @@
+package accounts
+
+import (
+	"context"
+	"crypto/sha256"
+	_ "embed"
+	"encoding/hex"
+
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/examples/article/project"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/project/firstaccount"
+	sessiondb "github.com/progresshans/godj/sessions/database"
+)
+
+// Keep callback policy in policy.go so a changed declaration also changes the
+// first-account evidence. The generated definition separately binds the full
+// schema, role, prompt fields and password envelope. This digest identifies the
+// host declaration; it does not prove arbitrary callback behavior.
+//
+//go:embed policy.go
+var policySource []byte
+
+func New(ctx context.Context, backend sessiondb.Backend) (*Runtime, error) {
+	config, err := Policy()
+	if err != nil {
+		return nil, err
+	}
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		return nil, err
+	}
+	return project.NewAccountRuntime(ctx, backend, hasher, auth.PrincipalAuthorizer{}, config)
+}
+
+func FirstAccount(open func(context.Context) (firstaccount.Backend, error)) (firstaccount.Command, error) {
+	if open == nil {
+		return firstaccount.Command{}, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}
+	}
+	runtimeConfig, err := Policy()
+	if err != nil {
+		return firstaccount.Command{}, err
+	}
+
+	policy, err := FirstAccountPolicy()
+	if err != nil {
+		return firstaccount.Command{}, err
+	}
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		return firstaccount.Command{}, err
+	}
+	digest := sha256.Sum256(policySource)
+	definition, err := project.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[models.User]{
+		CreationPolicy: policy, EvidenceSHA256: hex.EncodeToString(digest[:]),
+	})
+	if err != nil {
+		return firstaccount.Command{}, err
+	}
+	return firstaccount.New(definition, func(ctx context.Context) (firstaccount.Backend, error) {
+		backend, err := open(ctx)
+		if err != nil || backend == nil {
+			return backend, err
+		}
+		native, ok := backend.(sessiondb.Backend)
+		if !ok {
+			return backend, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}
+		}
+		store, err := project.NewAccountSessionStore(native, runtimeConfig.SessionStorage)
+		if err != nil {
+			return backend, err
+		}
+		_, err = store.InspectStartup(ctx)
+		return backend, err
+	})
+}

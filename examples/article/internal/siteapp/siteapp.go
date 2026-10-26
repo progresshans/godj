@@ -1,6 +1,6 @@
 // Package siteapp composes the Article development server's public surface and
 // its explicitly provisioned Admin/JSON API surface. Credentials, sessions,
-// and Admin audit history live in the explicitly migrated system schema. CSRF
+// and Admin audit history live in explicitly migrated account storage. CSRF
 // signing remains process-local unless startup injects a shared key ring.
 package siteapp
 
@@ -13,20 +13,23 @@ import (
 	"github.com/progresshans/godj/admin"
 	apisessionauth "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/adminapp"
 	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/article/articleapp"
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
+	"github.com/progresshans/godj/examples/article/internal/accounts"
 	"github.com/progresshans/godj/examples/article/project"
 	"github.com/progresshans/godj/examples/article/webapp"
 	"github.com/progresshans/godj/identity"
 	identityaccount "github.com/progresshans/godj/identity/account"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	identityapi "github.com/progresshans/godj/identity/api"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/mail"
-	"github.com/progresshans/godj/sessions"
+	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/settings"
-	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -44,16 +47,25 @@ type Config struct {
 	state *configState
 }
 
+// Backend supplies the exact model, native-scope and installation capabilities
+// consumed by this host. Its lifetime remains with the server or caller.
+type Backend interface {
+	articleapp.Backend
+	db.SnapshotReader
+	db.CoordinatedAtomic
+	migrationbackend.AppliedMigrationReader
+}
+
 type configState struct {
-	backend                     systemstate.IdentityBackend
+	backend                     Backend
 	csrfKeyRing                 websessionauth.CSRFKeyRing
 	allowLoopbackAuthentication bool
-	passwordValidators          []identity.PasswordValidator
+	passwordValidators          []accountmodel.PasswordValidator[models.User]
 	passwordReset               *passwordResetConfiguration
 }
 
 type passwordResetConfiguration struct {
-	reset  identity.PasswordResetConfig
+	reset  accountmodel.RuntimeResetConfig
 	sender mail.Sender
 	mail   identity.PasswordResetMailConfig
 	report identityaccount.PasswordResetErrorReporter
@@ -61,14 +73,13 @@ type passwordResetConfiguration struct {
 
 // WithPasswordReset enables the ordinary-account reset routes with explicit
 // signing keys, recipient-link origin, sender and private failure reporting.
-// Global WithPasswordValidators policy also applies; reset.Validators adds any
-// reset-specific requirements. No sender, key or URL is inferred from requests.
-func (config Config) WithPasswordReset(reset identity.PasswordResetConfig, sender mail.Sender, mailConfig identity.PasswordResetMailConfig, report identityaccount.PasswordResetErrorReporter) Config {
+// The same typed password policy applies to creation, change and reset.
+// No sender, signing key or delivery URL is inferred from requests.
+func (config Config) WithPasswordReset(reset accountmodel.RuntimeResetConfig, sender mail.Sender, mailConfig identity.PasswordResetMailConfig, report identityaccount.PasswordResetErrorReporter) Config {
 	var configured configState
 	if config.state != nil {
 		configured = *config.state
 	}
-	reset.Validators = append([]identity.PasswordValidator(nil), reset.Validators...)
 	configured.passwordReset = &passwordResetConfiguration{reset, sender, mailConfig, report}
 	return Config{state: &configured}
 }
@@ -77,18 +88,18 @@ func (config Config) WithPasswordReset(reset identity.PasswordResetConfig, sende
 // state. Without WithCSRFKeyRing, web/sessionauth retains its process-local key
 // behavior. Authenticated publication remains disabled until the caller has
 // proven that its listener is loopback-only.
-func NewConfig(backend systemstate.IdentityBackend) Config {
+func NewConfig(backend Backend) Config {
 	return Config{state: &configState{backend: backend}}
 }
 
 // WithPasswordValidators applies one explicit identity policy to both Admin
 // and JSON API. Caller-owned slices are copied before this config is published.
-func (config Config) WithPasswordValidators(validators ...identity.PasswordValidator) Config {
+func (config Config) WithPasswordValidators(validators ...accountmodel.PasswordValidator[models.User]) Config {
 	var configured configState
 	if config.state != nil {
 		configured = *config.state
 	}
-	configured.passwordValidators = append([]identity.PasswordValidator(nil), validators...)
+	configured.passwordValidators = append([]accountmodel.PasswordValidator[models.User](nil), validators...)
 	return Config{state: &configured}
 }
 
@@ -131,10 +142,10 @@ func (Config) MarshalJSON() ([]byte, error) {
 	return []byte(`"siteapp.Config{redacted}"`), nil
 }
 
-// New first verifies the exact migrated system state without a raw password.
-// A clean credential-absent state produces the public Article application;
-// an existing credential produces the composed public + Admin + JSON API
-// application only when the caller asserted loopback publication.
+// New inspects explicitly installed selected-account storage without a raw
+// password. Only an exact fresh observation permits public-only startup. A
+// ready domain publishes Admin/API only on an explicitly loopback listener.
+// A missing schema or mismatched historical domain is an error, never adoption.
 func New(ctx context.Context, config Config) (*web.Application, error) {
 	if ctx == nil {
 		return nil, errors.New("article site application: context is nil")
@@ -146,20 +157,51 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if config.state != nil {
 		configured = *config.state
 	}
-	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
+	runtimeConfig, err := accounts.Policy()
 	if err != nil {
-		return nil, fmt.Errorf("article site application: operator policy: %w", err)
+		return nil, fmt.Errorf("article site application: account policy: %w", err)
 	}
-	runtime, err := systemstate.OpenIdentity(ctx, configured.backend, runtimeConfig)
-	if err != nil {
-		if exactCredentialAbsent(err) {
-			application, publicErr := webapp.NewApplication(configured.backend)
-			if publicErr != nil {
-				return nil, fmt.Errorf("article site application: public-only composition: %w", publicErr)
-			}
-			return application, nil
+	validators := append([]accountmodel.PasswordValidator[models.User]{runtimeConfig.Accounts.ValidatePassword}, configured.passwordValidators...)
+	for _, validator := range validators {
+		if validator == nil {
+			return nil, errors.New("article site application: nil password validator")
 		}
-		return nil, fmt.Errorf("article site application: system state: %w", err)
+	}
+	runtimeConfig.Accounts.ValidatePassword = func(ctx context.Context, raw string, value models.User) (validation.Errors, error) {
+		var failures validation.Errors
+		for _, validator := range validators {
+			if err := ctx.Err(); err != nil {
+				return validation.Errors{}, err
+			}
+			result, err := validator(ctx, raw, value)
+			if err != nil {
+				return validation.Errors{}, err
+			}
+			failures = failures.Append(result)
+		}
+		return failures, ctx.Err()
+	}
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		return nil, err
+	}
+	runtime, err := project.NewAccountRuntime(ctx, configured.backend, hasher, auth.PrincipalAuthorizer{}, runtimeConfig)
+	if err != nil {
+		return nil, fmt.Errorf("article site application: account runtime: %w", err)
+	}
+	inspection, err := runtime.InspectStartup(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("article site application: account storage: %w", err)
+	}
+	if inspection.Fresh() {
+		application, err := webapp.NewApplication(configured.backend)
+		if err != nil {
+			return nil, fmt.Errorf("article site application: public-only composition: %w", err)
+		}
+		return application, nil
+	}
+	if !inspection.Ready() {
+		return nil, errors.New("article site application: account storage is unavailable")
 	}
 	if !configured.allowLoopbackAuthentication {
 		return nil, errors.New("article site application: authenticated Admin/API mode requires a loopback listener")
@@ -171,7 +213,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: settings: %w", err)
 	}
-	adminService, err := adminapp.NewDurableService(runtime, runtime)
+	adminService, err := adminapp.NewSelectedService(configured.backend, runtime.Credentials(), auth.PrincipalAuthorizer{})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article Admin service: %w", err)
 	}
@@ -179,22 +221,23 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err := adminapp.RegisterArticle(builder, adminService); err != nil {
 		return nil, fmt.Errorf("article site application: register Article Admin: %w", err)
 	}
-	deletions, err := project.BindRelationDeleters()
-	if err != nil {
-		return nil, fmt.Errorf("article site application: identity deletion policy: %w", err)
+	if err := identityadmin.RegisterAccount(builder, runtime.Accounts(), identityadmin.AccountRegistration{
+		Slug: "users", ListFields: []string{"id", "username", "email", "active", "staff", "superuser"},
+	}); err != nil {
+		return nil, fmt.Errorf("article site application: account Admin: %w", err)
 	}
-	if err := identityadmin.Register(builder, identityadmin.NewConfig(runtime, runtimeConfig.PasswordHasher, auth.PrincipalAuthorizer{}, identityadmin.DeletionPolicies{Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission}).WithPasswordValidators(config.state.passwordValidators...)); err != nil {
-		return nil, fmt.Errorf("article site application: identity Admin: %w", err)
+	if err := identityadmin.RegisterCatalog(builder, runtime.Catalog(), identityadmin.CatalogRegistration{
+		Groups:      identityadmin.CatalogPresentation{Slug: "groups", ListFields: []string{"id", "name"}},
+		Permissions: identityadmin.CatalogPresentation{Slug: "permissions", ListFields: []string{"id", "code", "name"}},
+	}); err != nil {
+		return nil, fmt.Errorf("article site application: catalog Admin: %w", err)
 	}
 	registry, err := builder.Build()
 	if err != nil {
 		return nil, fmt.Errorf("article site application: build Admin registry: %w", err)
 	}
 
-	manager, err := sessions.NewManager(runtime.SessionStore(), sessions.Config{})
-	if err != nil {
-		return nil, fmt.Errorf("article site application: session manager: %w", err)
-	}
+	manager := runtime.Sessions()
 	allowedNext, err := admin.SiteAllowedNextPaths(registry, adminBasePath)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Admin next paths: %w", err)
@@ -204,24 +247,16 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 		return nil, err
 	}
 	allowedNext = append(allowedNext, accountNext...)
-	loginPersistence, err := runtime.LoginPersistence(manager)
-	if err != nil {
-		return nil, fmt.Errorf("article site application: login persistence: %w", err)
-	}
-	passwordChangePersistence, err := runtime.PasswordChangePersistence(manager, configured.passwordValidators...)
-	if err != nil {
-		return nil, fmt.Errorf("article site application: password change persistence: %w", err)
-	}
+	loginPersistence := runtime.LoginPersistence()
+	passwordChangePersistence := runtime.PasswordChangePersistence()
 	var resetPersistence auth.PasswordResetPersistence
 	var resetSurface *identityaccount.PasswordResetConfig
 	if reset := configured.passwordReset; reset != nil {
-		resetConfig := reset.reset
-		resetConfig.Validators = append(append([]identity.PasswordValidator(nil), configured.passwordValidators...), resetConfig.Validators...)
-		persistence, err := runtime.PasswordResetPersistence(manager, resetConfig)
+		persistence, err := runtime.PasswordResetter(reset.reset)
 		if err != nil {
 			return nil, fmt.Errorf("article site application: password reset persistence: %w", err)
 		}
-		mailer, err := identity.NewPasswordResetMailer(persistence.Resetter(), reset.sender, reset.mail)
+		mailer, err := identity.NewPasswordResetMailer(persistence, reset.sender, reset.mail)
 		if err != nil {
 			return nil, fmt.Errorf("article site application: password reset mail: %w", err)
 		}
@@ -262,7 +297,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	}
 	// API writes deliberately use the durable runtime backend without the Admin
 	// mutation hook, so they persist Articles but do not synthesize Admin audit.
-	articleAPI, err := apiapp.New(runtime, apiRuntime)
+	articleAPI, err := apiapp.NewSelected(configured.backend, runtime.Credentials(), auth.PrincipalAuthorizer{}, apiRuntime)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article API: %w", err)
 	}
@@ -276,7 +311,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("article site application: Article OpenAPI authentication: %w", err)
 	}
-	identityAPI, err := identityapi.New(identityapi.Config{Namespace: apiapp.Namespace, Backend: runtime, PasswordHasher: runtimeConfig.PasswordHasher, PasswordValidators: config.state.passwordValidators, Authorizer: auth.PrincipalAuthorizer{}, Authentication: apiRuntime, Users: deletions.IdentityUser, Groups: deletions.IdentityGroup, Permissions: deletions.IdentityPermission})
+	identityAPI, err := identityapi.NewManagement(runtime.Accounts(), runtime.Catalog(), identityapi.ManagementConfig{Namespace: apiapp.Namespace, Authentication: apiRuntime})
 	if err != nil {
 		return nil, fmt.Errorf("article site application: identity API: %w", err)
 	}
@@ -304,15 +339,9 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 	})
 	middleware := append(articleAPI.Middleware(), identityAPI.Middleware()...)
 	middleware = append(middleware, account.Middleware()...)
-	application, err := webapp.NewComposedApplication(runtime, routes, middleware)
+	application, err := webapp.NewComposedApplication(configured.backend, routes, middleware)
 	if err != nil {
 		return nil, fmt.Errorf("article site application: compose Web application: %w", err)
 	}
 	return application, nil
-}
-
-func exactCredentialAbsent(err error) bool {
-	var stateError *systemstate.Error
-	return errors.As(err, &stateError) && stateError != nil &&
-		stateError.Code == systemstate.CodeCredentialAbsent && stateError.Field == "credential"
 }

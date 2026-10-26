@@ -13,12 +13,19 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/account/domain"
+	domainmodels "github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/apiapp"
+	"github.com/progresshans/godj/examples/article/internal/accounts"
+	"github.com/progresshans/godj/examples/article/internal/accounttest"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
+	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/examples/article/webapp"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/project/firstaccount"
 	"github.com/progresshans/godj/systemstate"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -103,134 +110,151 @@ func TestNewConfigPreservesStartupValidationOrder(t *testing.T) {
 	}
 	for _, config := range []Config{{}, NewConfig(nil), NewConfig(nil).WithLoopbackAuthentication()} {
 		application, err := New(context.Background(), config)
-		if application != nil || !errors.Is(err, &systemstate.Error{
-			Code: systemstate.CodeInvalidConfig, Field: "backend",
-		}) {
+		if application != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) {
 			t.Fatalf("New(invalid backend) = (%v, %v)", application, err)
 		}
 	}
 }
 
-func TestNewSelectsPublicOnlyOnlyForExactMigratedCredentialAbsent(t *testing.T) {
-	ctx := context.Background()
-
+func TestNewPublishesOnlyInstalledFreshAccountDomain(t *testing.T) {
+	ctx := t.Context()
 	absent := openSiteAppStateBackend(t, "siteapp-public-only")
 	migrateSiteAppState(t, ctx, absent)
 	application, err := New(ctx, NewConfig(absent))
 	if err != nil || application == nil {
-		t.Fatalf("New(clean credential-absent) = (%v, %v)", application, err)
+		t.Fatalf("fresh startup: %v", err)
 	}
 	if path, err := application.Reverse(webapp.ArticleListRoute); err != nil || path != webapp.ArticleListPath {
-		t.Fatalf("public-only Article route = %q, %v", path, err)
+		t.Fatal("public route", err)
 	}
 	if _, err := application.Reverse("admin:index"); err == nil {
-		t.Fatal("credential-absent application published Admin routes")
+		t.Fatal("fresh application published Admin")
 	}
 	if _, err := application.Reverse(apiapp.OpenAPIRouteName); err == nil {
-		t.Fatal("credential-absent application published its API document")
+		t.Fatal("fresh application published API")
 	}
-	request := httptest.NewRequest(http.MethodGet, apiapp.OpenAPIPath, nil)
 	response := httptest.NewRecorder()
-	application.ServeHTTP(response, request)
+	application.ServeHTTP(response, httptest.NewRequest(http.MethodGet, apiapp.OpenAPIPath, nil))
 	if response.Code != http.StatusNotFound || response.Body.String() != "Not Found\n" {
-		t.Fatal("public-only application exposed an API document")
+		t.Fatal("fresh API document visible")
 	}
-	publicPrincipal, err := operatorconfig.InitialSuperuser()
-	if err != nil {
+	if _, err := accounttest.Provision(ctx, absent, "later-admin", "later-provision-secret"); err != nil {
 		t.Fatal(err)
-	}
-	publicConfig, err := operatorconfig.IdentityRuntimeConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := systemstate.ProvisionIdentity(ctx, absent, systemstate.ProvisionIdentityConfig{
-		Username:       "later-admin",
-		Password:       "later-provision-secret",
-		Principal:      publicPrincipal,
-		PasswordHasher: publicConfig.PasswordHasher,
-	}); err != nil {
-		t.Fatalf("ProvisionOperator(after public-only startup): %v", err)
 	}
 	if _, err := application.Reverse("admin:index"); err == nil {
-		t.Fatal("already-running public-only application hot-upgraded Admin routes")
+		t.Fatal("running public process hot-upgraded Admin")
 	}
 	if _, err := application.Reverse(apiapp.OpenAPIRouteName); err == nil {
-		t.Fatal("already-running public-only application hot-upgraded its API document")
+		t.Fatal("running public process hot-upgraded API")
+	}
+	restarted, err := New(ctx, NewConfig(absent).WithLoopbackAuthentication())
+	if err != nil || restarted == nil {
+		t.Fatal("explicit restart did not publish ready account", err)
+	}
+	if _, err := restarted.Reverse("admin:index"); err != nil {
+		t.Fatal("restarted Admin missing", err)
 	}
 
 	unmigrated := openSiteAppStateBackend(t, "siteapp-unmigrated")
-	if got, err := New(ctx, NewConfig(unmigrated)); got != nil || !errors.Is(err, &systemstate.Error{
-		Code: systemstate.CodeSchemaUnavailable, Field: "migration_history",
-	}) {
-		t.Fatalf("New(unmigrated) = (%v, %v)", got, err)
+	if got, err := New(ctx, NewConfig(unmigrated)); got != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}) {
+		t.Fatal("unmigrated startup", err)
 	}
-	wrongHistory := openSiteAppStateBackend(t, "siteapp-wrong-history")
-	migrateSiteAppState(t, ctx, wrongHistory)
-	if _, err := wrongHistory.ExecContext(ctx, `INSERT INTO "godj_migrations" ("app", "name") VALUES ('godj_system', '0002_unexpected')`); err != nil {
-		t.Fatalf("insert wrong system history: %v", err)
-	}
-	if got, err := New(ctx, NewConfig(wrongHistory)); got != nil || !errors.Is(err, &systemstate.Error{
-		Code: systemstate.CodeSchemaUnavailable, Field: "migration_history",
-	}) {
-		t.Fatalf("New(wrong system history) = (%v, %v)", got, err)
-	}
-
-	corrupt := openSiteAppStateBackend(t, "siteapp-corrupt")
-	migrateSiteAppState(t, ctx, corrupt)
-	if _, err := corrupt.ExecContext(ctx, `INSERT INTO "godj_system_credential"
-  ("principal_id", "username", "encoded_password", "active", "permissions", "definition_digest")
-VALUES ('article-development-admin', 'admin', 'malformed', 1, 'malformed', 'malformed')`); err != nil {
-		t.Fatalf("insert corrupt credential: %v", err)
-	}
-	if got, err := New(ctx, NewConfig(corrupt).WithLoopbackAuthentication()); got != nil ||
-		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeIdentityTransitionRequired}) {
-		t.Fatalf("New(unadopted credential) = (%v, %v)", got, err)
-	}
-
-	cardinality := openSiteAppStateBackend(t, "siteapp-cardinality")
-	migrateSiteAppState(t, ctx, cardinality)
-	for index := 0; index < 2; index++ {
-		if _, err := cardinality.ExecContext(ctx, `INSERT INTO "godj_system_credential"
-  ("principal_id", "username", "encoded_password", "active", "permissions", "definition_digest")
-VALUES ('article-development-admin', 'admin', 'malformed', 1, 'malformed', 'malformed')`); err != nil {
-			t.Fatalf("insert credential cardinality row %d: %v", index, err)
-		}
-	}
-	if got, err := New(ctx, NewConfig(cardinality)); got != nil ||
-		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeCardinality, Field: "credential"}) {
-		t.Fatalf("New(credential cardinality) = (%v, %v)", got, err)
-	}
-
-	dependent := openSiteAppStateBackend(t, "siteapp-dependent-row")
-	migrateSiteAppState(t, ctx, dependent)
-	if _, err := dependent.ExecContext(ctx, `INSERT INTO "godj_system_audit"
-  ("actor_id", "model", "object_id", "action", "changed_fields", "display_label")
-VALUES ('operator', 'godj_conformance.article', '1', 'add', 'v1.AAA', 'Article')`); err != nil {
-		t.Fatalf("insert dependent audit row: %v", err)
-	}
-	if got, err := New(ctx, NewConfig(dependent)); got != nil ||
-		!errors.Is(err, &systemstate.Error{Code: systemstate.CodeCorruptState, Field: "identity_transition"}) {
-		t.Fatalf("New(dependent row without credential) = (%v, %v)", got, err)
-	}
-
-	legacy := openSiteAppStateBackend(t, "siteapp-legacy-adoption-required")
-	initial, _, err := migrationdefinition.Load(systemstate.InitialDefinitionSource())
-	if err != nil {
+	wrong := openSiteAppStateBackend(t, "siteapp-wrong-history")
+	migrateSiteAppState(t, ctx, wrong)
+	if _, err := wrong.ExecContext(ctx, `INSERT INTO "godj_migrations" ("app", "name") VALUES ('godj_account_domain', '0002_unexpected')`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := (migrations.Executor{Backend: legacy}).Migrate(ctx, initial, migrations.LatestLifecycleRequest()); err != nil {
-		t.Fatal(err)
+	if got, err := New(ctx, NewConfig(wrong)); got != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}) {
+		t.Fatal("unexpected storage migration", err)
 	}
-	canonical, err := operatorconfig.CredentialPolicy()
-	if err != nil {
-		t.Fatal(err)
+}
+
+func TestNewRejectsCorruptSelectedAccountStorage(t *testing.T) {
+	for _, test := range []struct {
+		name, statement string
+		provision       bool
+		want            error
+	}{
+		{"unowned_row", `INSERT INTO "godj_identity_user" ("principal_id","username","encoded_password","active","staff","superuser","revision","date_joined","first_name","last_name","email") VALUES ('unowned','unowned','!',1,0,0,1,'2026-10-27T00:00:00Z','','','')`, false, &accountmodel.Error{Code: accountmodel.CodeNotFresh}},
+		{"history_gap", `UPDATE "godj_account_domain_transition" SET "sequence" = 2`, true, domain.ErrCorrupt},
+		{"invalid_generation", `UPDATE "godj_account_domain_transition" SET "generation" = 'invalid'`, true, domain.ErrCorrupt},
+		{"foreign_role", `UPDATE "godj_account_domain_transition" SET "role_fingerprint" = '` + strings.Repeat("a", 64) + `'`, true, domain.ErrMismatch},
+		{"corrupt_session", `INSERT INTO "godj_sessions_session" ("namespace","digest","payload") VALUES ('foreign','` + strings.Repeat("b", 64) + `','malformed')`, false, nil},
+		{"orphaned_audit", `INSERT INTO "godj_account_audit_event" ("domain","actor_id","model","object_id","action","changed_fields","recorded_at") VALUES ('` + strings.Repeat("c", 64) + `','operator','godj_conformance.article',1,'add','[]','2026-10-27T00:00:00Z')`, false, &accountmodel.Error{Code: accountmodel.CodeNotFresh}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			backend := openSiteAppStateBackend(t, "selected-"+test.name)
+			migrateSiteAppState(t, t.Context(), backend)
+			if test.provision {
+				if _, err := accounttest.Provision(t.Context(), backend, "admin", "river compass evergreen 71!"); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if _, err := backend.ExecContext(t.Context(), test.statement); err != nil {
+				t.Fatal(err)
+			}
+			if got, err := New(t.Context(), NewConfig(backend).WithLoopbackAuthentication()); got != nil || err == nil || test.want != nil && !errors.Is(err, test.want) {
+				t.Fatal("invalid selected storage published or wrong failure", err)
+			}
+		})
 	}
-	if err := systemstate.ProvisionOperator(ctx, legacy, systemstate.ProvisionOperatorConfig{Username: "admin", Password: "legacy-adoption-secret", CredentialPolicy: canonical}); err != nil {
-		t.Fatal(err)
-	}
-	migrateSiteAppState(t, ctx, legacy)
-	if got, err := New(ctx, NewConfig(legacy).WithLoopbackAuthentication()); got != nil || !errors.Is(err, &systemstate.Error{Code: systemstate.CodeIdentityTransitionRequired}) {
-		t.Fatalf("New(unadopted operator) = (%v, %v)", got, err)
+}
+
+func TestNewRejectsHistoricalOperatorStorageWithoutAdoption(t *testing.T) {
+	for _, mode := range []string{"empty", "corrupt", "cardinality", "orphaned_audit", "provisioned"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx := t.Context()
+			backend := openSiteAppStateBackend(t, "legacy-"+mode)
+			sources := append(modeldef.MigrationSources(), systemstate.InitialDefinitionSource())
+			loaded, _, err := migrationdefinition.Load(sources...)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := (migrations.Executor{Backend: backend}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+				t.Fatal(err)
+			}
+			if mode == "corrupt" || mode == "cardinality" {
+				count := 1
+				if mode == "cardinality" {
+					count = 2
+				}
+				for range count {
+					if _, err := backend.ExecContext(ctx, `INSERT INTO "godj_system_credential" ("principal_id","username","encoded_password","active","permissions","definition_digest") VALUES ('legacy','admin','malformed',1,'malformed','malformed')`); err != nil {
+						t.Fatal(err)
+					}
+				}
+			}
+			if mode == "orphaned_audit" {
+				if _, err := backend.ExecContext(ctx, `INSERT INTO "godj_system_audit" ("actor_id","model","object_id","action","changed_fields","display_label") VALUES ('legacy','godj_conformance.article','1','add','v1.AAA','Article')`); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if mode == "provisioned" {
+				policy, err := operatorconfig.CredentialPolicy()
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{Username: "admin", Password: "legacy-adoption-secret", CredentialPolicy: policy}); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got, err := New(ctx, NewConfig(backend).WithLoopbackAuthentication()); got != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeTransitionRequired}) {
+				t.Fatal("historical storage was accepted", err)
+			}
+			command, err := accounts.FirstAccount(func(context.Context) (firstaccount.Backend, error) { return backend, nil })
+			if err != nil {
+				t.Fatal(err)
+			}
+			opened, err := command.Open(ctx)
+			if opened != backend || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeTransitionRequired}) {
+				t.Fatal("first account ignored historical ownership or lost acquired backend", err)
+			}
+			count, err := domainmodels.TransitionObjects.Using(backend).Count(ctx)
+			if err != nil || count != 0 {
+				t.Fatal("rejection initialized selected ownership", err)
+			}
+
+		})
 	}
 }
 
@@ -250,7 +274,7 @@ func openSiteAppStateBackend(t *testing.T, name string) *sqlite.Backend {
 
 func migrateSiteAppState(t *testing.T, ctx context.Context, backend *sqlite.Backend) {
 	t.Helper()
-	loaded, _, err := migrationdefinition.Load(systemstate.IdentityMigrationSources()...)
+	loaded, _, err := migrationdefinition.Load(modeldef.MigrationSources()...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,6 +314,6 @@ func secretMarkerEncodings(value string) []string {
 }
 
 type configMarkerBackend struct {
-	systemstate.IdentityBackend
+	Backend
 	URL string
 }

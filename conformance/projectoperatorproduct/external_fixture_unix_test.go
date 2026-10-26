@@ -93,6 +93,7 @@ func newOperatorExternalProject(t *testing.T) *operatorExternalProject {
 		filepath.Join(universe, "cache"),
 		filepath.Join(root, "application"),
 		filepath.Join(root, "cmd", "projectrunner"),
+		filepath.Join(root, "cmd", "commands"),
 		filepath.Join(root, "cmd", "site"),
 		filepath.Join(root, "migrations"),
 		filepath.Join(root, "modeldef"),
@@ -111,9 +112,12 @@ require github.com/progresshans/godj v0.0.0
 
 replace github.com/progresshans/godj => %s
 `, filepath.ToSlash(repository))), 0o600)
-	operatorWriteFile(t, filepath.Join(root, "godj.toml"), []byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"./cmd/site\"\n"), 0o600)
+	operatorWriteFile(t, filepath.Join(root, "godj.toml"), []byte("format_version = 1\n[project]\npackage = \"./cmd/projectrunner\"\nrunserver_package = \"./cmd/site\"\ncommands_package = \"./cmd/commands\"\n"), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "application", "application.go"), []byte(operatorApplicationSource), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "cmd", "projectrunner", "main.go"), []byte(operatorProjectRunnerSource), 0o600)
+	operatorWriteFile(t, filepath.Join(root, "cmd", "commands", "main.go"), []byte(operatorCommandsSource), 0o600)
+	operatorWriteFile(t, filepath.Join(root, "modeldef", "migrations.go"), []byte(operatorMigrationSources), 0o600)
+	operatorWriteFile(t, filepath.Join(root, "operatorpolicy", "runtime.go"), []byte(operatorRuntimeSource), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "cmd", "site", "main.go"), []byte(operatorSiteSource), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "modeldef", "schema.go"), []byte(operatorModelDefinitionSource), 0o600)
 	operatorWriteFile(t, filepath.Join(root, "operatorpolicy", "policy.go"), []byte(operatorPolicySource), 0o600)
@@ -161,6 +165,24 @@ replace github.com/progresshans/godj => %s
 		t.Fatal("read repository dependency checksums")
 	}
 	operatorWriteFile(t, filepath.Join(root, "go.sum"), checksums, 0o600)
+	operatorRunSetup(t, root, setupEnvironment, "go", "list", "-mod=mod", "-deps", "./cmd/projectrunner")
+
+	baseEnvironment := testenv.With(setupEnvironment, map[string]string{
+		"GOPROXY": "off",
+		"GOSUMDB": "off",
+	})
+	globalBinary := filepath.Join(universe, "godj")
+	operatorRunSetup(t, repository, setupEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")
+
+	generateEnvironment := testenv.With(baseEnvironment, map[string]string{
+		operatorSQLiteDatabaseEnvironment: filepath.Join(state, "generate-unused.sqlite3"),
+		operatorMarkerEnvironment:         filepath.Join(state, "generate-unused.pid"),
+		operatorRunnerMarkerEnvironment:   "",
+		operatorHoldEnvironment:           "",
+	})
+	operatorAssertSecretFreeEnvironment(t, generateEnvironment, nil)
+	operatorRunSetup(t, nested, generateEnvironment, globalBinary, "generate", "--project", filepath.Join(root, "godj.toml"))
+
 	operatorRunSetup(t, root, setupEnvironment, "go", "mod", "tidy")
 	preparedChecksums, err := os.ReadFile(filepath.Join(root, "go.sum"))
 	if err != nil {
@@ -183,22 +205,6 @@ replace github.com/progresshans/godj => %s
 			t.Fatalf("external fixture selected a dependency outside repository checksums: %s %s", fields[0], fields[1])
 		}
 	}
-
-	baseEnvironment := testenv.With(setupEnvironment, map[string]string{
-		"GOPROXY": "off",
-		"GOSUMDB": "off",
-	})
-	globalBinary := filepath.Join(universe, "godj")
-	operatorRunSetup(t, repository, setupEnvironment, "go", "build", "-buildvcs=false", "-trimpath", "-mod=readonly", "-o", globalBinary, "./cmd/godj")
-
-	generateEnvironment := testenv.With(baseEnvironment, map[string]string{
-		operatorSQLiteDatabaseEnvironment: filepath.Join(state, "generate-unused.sqlite3"),
-		operatorMarkerEnvironment:         filepath.Join(state, "generate-unused.pid"),
-		operatorRunnerMarkerEnvironment:   "",
-		operatorHoldEnvironment:           "",
-	})
-	operatorAssertSecretFreeEnvironment(t, generateEnvironment, nil)
-	operatorRunSetup(t, nested, generateEnvironment, globalBinary, "generate", "--project", filepath.Join(root, "godj.toml"))
 
 	operatorAuditExternalSources(t, root)
 	project := &operatorExternalProject{

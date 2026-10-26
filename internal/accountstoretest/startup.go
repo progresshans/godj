@@ -180,7 +180,7 @@ func startupMigrations(t *testing.T, backend Backend, _ func(*testing.T) Backend
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"missing_domain", "missing_audit", "missing_sessions", "unknown_owned", "duplicate_owned", "read_failure", "cancel", "foreign_app"} {
+	for _, mode := range []string{"missing_domain", "missing_audit", "missing_sessions", "unknown_owned", "duplicate_owned", "legacy_system", "read_failure", "cancel", "foreign_app"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
@@ -202,6 +202,8 @@ func startupMigrations(t *testing.T, backend Backend, _ func(*testing.T) Backend
 					rows = append(rows, mb.AppliedMigration{App: "godj_account_domain", Name: "0001_initial"})
 				case "foreign_app":
 					rows = append(rows, mb.AppliedMigration{App: "unrelated", Name: "future"})
+				case "legacy_system":
+					rows = append(rows, mb.AppliedMigration{App: "godj_system", Name: "0001_initial"})
 				case "read_failure":
 					return rows, fault
 				case "cancel":
@@ -222,7 +224,10 @@ func startupMigrations(t *testing.T, backend Backend, _ func(*testing.T) Backend
 				if mode == "read_failure" && !errors.Is(err, fault) || mode == "cancel" && !errors.Is(err, context.Canceled) {
 					t.Fatal("preflight cause lost", err)
 				}
-				if mode != "read_failure" && mode != "cancel" && !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}) {
+				if mode == "legacy_system" && !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeTransitionRequired}) {
+					t.Fatal("historical ownership was not refused", err)
+				}
+				if mode != "read_failure" && mode != "cancel" && mode != "legacy_system" && !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}) {
 					t.Fatal("missing migration not classified", err)
 				}
 			}

@@ -667,11 +667,11 @@ func historyRead(
 	if err != nil {
 		return response, SecretBundle{}, fail(errorApplication)
 	}
-	all, err := service.HistoryLimited(ctx, request.ObjectID, 3)
+	all, err := service.HistoryLimited(ctx, auth.Anonymous(), request.ObjectID, 3)
 	if err != nil {
 		return response, SecretBundle{}, fail(errorPersistence)
 	}
-	newest, err := service.HistoryLimited(ctx, request.ObjectID, 2)
+	newest, err := service.HistoryLimited(ctx, auth.Anonymous(), request.ObjectID, 2)
 	if err != nil {
 		return response, SecretBundle{}, fail(errorPersistence)
 	}

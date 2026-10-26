@@ -115,7 +115,7 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 
 	// A 201-rune edit is rejected while preserving submitted text. Neither the
 	// Article row nor the semantic audit log may change.
-	beforeInvalid, found, err := fixture.service.Get(context.Background(), 2)
+	beforeInvalid, found, err := fixture.service.Get(context.Background(), auth.Anonymous(), 2)
 	if err != nil || !found {
 		t.Fatalf("Get(2) before invalid edit = %#v, %t, %v", beforeInvalid, found, err)
 	}
@@ -141,7 +141,7 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 		`sticky &lt;summary&gt;`,
 		tooLongTitle,
 	)
-	afterInvalid, found, err := fixture.service.Get(context.Background(), 2)
+	afterInvalid, found, err := fixture.service.Get(context.Background(), auth.Anonymous(), 2)
 	if err != nil || !found {
 		t.Fatalf("Get(2) after invalid edit = %#v, %t, %v", afterInvalid, found, err)
 	}
@@ -167,7 +167,7 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 		`data-error-field="title" data-error-code="invalid_control_character"`,
 		`must remain sticky`,
 	)
-	if _, found, err := fixture.service.Get(context.Background(), 3); err != nil || found {
+	if _, found, err := fixture.service.Get(context.Background(), auth.Anonymous(), 3); err != nil || found {
 		t.Fatalf("invalid-control add created row 3: found=%t error=%v", found, err)
 	}
 	if got := fixture.audit.Len(); got != 0 {
@@ -179,7 +179,7 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 		"summary":             {"created through Admin"},
 	})
 	addResult.requireNoticeRedirect(t, "added", "")
-	created, found, err := fixture.service.Get(context.Background(), 3)
+	created, found, err := fixture.service.Get(context.Background(), auth.Anonymous(), 3)
 	if err != nil || !found || created.Title != multibyteTitle || created.Published {
 		t.Fatalf("created Article = %#v, %t, %v", created, found, err)
 	}
@@ -198,7 +198,7 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 		"summary":             {"changed through Admin"},
 	})
 	changeResult.requireNoticeRedirect(t, "changed", "")
-	updated, found, err := fixture.service.Get(context.Background(), 3)
+	updated, found, err := fixture.service.Get(context.Background(), auth.Anonymous(), 3)
 	if err != nil || !found || updated.Title != asciiTitle || !updated.Published || updated.Summary == nil || *updated.Summary != "changed through Admin" {
 		t.Fatalf("updated Article = %#v, %t, %v", updated, found, err)
 	}
@@ -211,7 +211,7 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 		"confirm":             {"yes"},
 	})
 	deleteResult.requireNoticeRedirect(t, "deleted", "")
-	if deleted, found, err := fixture.service.Get(context.Background(), 3); err != nil || found {
+	if deleted, found, err := fixture.service.Get(context.Background(), auth.Anonymous(), 3); err != nil || found {
 		t.Fatalf("Get(3) after delete = %#v, %t, %v", deleted, found, err)
 	}
 
@@ -236,11 +236,11 @@ func runArticleAdminSiteUserFlow(t *testing.T, fixture articleAdminSiteFixture) 
 	publishedNotice := fixture.request(t, http.MethodGet, actionResult.header.Get("Location"), nil)
 	publishedNotice.requireStatus(t, http.StatusOK)
 	publishedNotice.requireMarkers(t, `data-admin-message="published" data-affected="1"`, `1 object(s) published.`)
-	selected, selectedFound, err := fixture.service.Get(context.Background(), 2)
+	selected, selectedFound, err := fixture.service.Get(context.Background(), auth.Anonymous(), 2)
 	if err != nil || !selectedFound || !selected.Published {
 		t.Fatalf("selected Article after publish = %#v, %t, %v", selected, selectedFound, err)
 	}
-	unselected, unselectedFound, err := fixture.service.Get(context.Background(), 1)
+	unselected, unselectedFound, err := fixture.service.Get(context.Background(), auth.Anonymous(), 1)
 	if err != nil || !unselectedFound || unselected.Published {
 		t.Fatalf("unselected Article after publish = %#v, %t, %v", unselected, unselectedFound, err)
 	}

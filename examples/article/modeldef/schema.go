@@ -49,7 +49,9 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 		return codegen.ProjectSpec{}, err
 	}
 	const rootImport = "github.com/progresshans/godj/examples/article/"
+	account := identitydef.AccountRole()
 	return codegen.ProjectSpec{
+		Account: &account,
 		Project: codegen.PackageSpec{
 			PackageName: "project",
 			ImportPath:  rootImport + "project",

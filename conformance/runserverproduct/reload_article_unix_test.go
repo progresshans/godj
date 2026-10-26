@@ -205,8 +205,8 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 			Count         *int
 			Offset, Limit int
 			Items         []struct {
-				ID   int64
-				Code string
+				ID     int64
+				Fields struct{ Code string }
 			}
 		}
 		if page.status != 200 || json.Unmarshal(page.body, &values) != nil || values.Count == nil ||
@@ -215,7 +215,7 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 			t.Fatal("permission page", page.status)
 		}
 		for _, value := range values.Items {
-			if value.Code == "godj_conformance.view_article" {
+			if value.Fields.Code == "godj_conformance.view_article" {
 				permissionID = value.ID
 			}
 		}
@@ -228,14 +228,14 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		}
 	}
 	if permissionID == 0 {
-		created := admin.request(t, "POST", "/api/identity/permissions/", `{"code":"godj_conformance.view_article","name":"View reload articles"}`, "", true)
+		created := admin.request(t, "POST", "/api/identity/permissions/", `{"fields":{"code":"godj_conformance.view_article","name":"View reload articles"}}`, "", true)
 		var permission struct{ ID int64 }
 		if created.status != 201 || json.Unmarshal(created.body, &permission) != nil || permission.ID <= 0 {
 			t.Fatal("permission creation", created.status)
 		}
 		permissionID = permission.ID
 	}
-	groupInput, err := json.Marshal(map[string]any{"name": inputs.Article.Group, "permissions": []int64{permissionID}})
+	groupInput, err := json.Marshal(map[string]any{"fields": map[string]any{"name": inputs.Article.Group, "permissions": []int64{permissionID}}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -246,18 +246,29 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		Permissions  []int64
 		Name         string
 	}
-	if groupResponse.status != 201 || json.Unmarshal(groupResponse.body, &group) != nil || group.ID <= 0 || group.Revision != 1 || group.Name != inputs.Article.Group || len(group.Permissions) != 1 || group.Permissions[0] != permissionID {
+	if groupResponse.status != 201 || json.Unmarshal(groupResponse.body, &group) != nil || group.ID <= 0 || group.Revision != 1 {
 		t.Fatal("group relation creation", groupResponse.status)
 	}
+	groupDetail := admin.request(t, "GET", "/api/identity/groups/"+strconv.FormatInt(group.ID, 10)+"/", "", "", false)
+	var groupView struct {
+		Fields struct {
+			Name        string
+			Permissions []int64
+		}
+	}
+	if groupDetail.status != 200 || json.Unmarshal(groupDetail.body, &groupView) != nil || groupView.Fields.Name != inputs.Article.Group || len(groupView.Fields.Permissions) != 1 || groupView.Fields.Permissions[0] != permissionID {
+		t.Fatal("stored group relation", groupDetail.status)
+	}
+	group.Name, group.Permissions = groupView.Fields.Name, groupView.Fields.Permissions
 	const readerPassword = "Reader-72p!sV9-secret"
 	sensitive = append(sensitive, readerPassword)
-	userJSON := `{"username":"reload-reader","password":"` + readerPassword + `","staff":true,"groups":[` + strconv.FormatInt(group.ID, 10) + `]}`
-	userResponse := admin.request(t, "POST", "/api/identity/users/", userJSON, "", true)
+	userJSON := `{"fields":{"username":"reload-reader","staff":true,"groups":[` + strconv.FormatInt(group.ID, 10) + `]},"credential":{"password":"` + readerPassword + `"}}`
+	userResponse := admin.request(t, "POST", "/api/identity/accounts/", userJSON, "", true)
 	var user struct {
 		ID     int64
 		Groups []int64
 	}
-	if userResponse.status != 201 || json.Unmarshal(userResponse.body, &user) != nil || user.ID <= 0 || len(user.Groups) != 1 || user.Groups[0] != group.ID {
+	if userResponse.status != 201 || json.Unmarshal(userResponse.body, &user) != nil || user.ID <= 0 {
 		t.Fatal("user-group relation creation", userResponse.status)
 	}
 	reader := newReloadArticleClient(t, p, "reload-reader", readerPassword, &sensitive)
@@ -291,23 +302,23 @@ func TestGlobalReloadPreservesArticleSessionsRelationsAndCurrentPermissions(t *t
 		if got.status != 200 || json.Unmarshal(got.body, &stored) != nil || stored.Title != inputs.Article.Title {
 			t.Fatal("new runtime lost session or durable Article", got.status)
 		}
-		detail := admin.request(t, "GET", "/api/identity/users/"+strconv.FormatInt(user.ID, 10)+"/", "", "", false)
-		var current struct{ Groups []int64 }
-		if detail.status != 200 || json.Unmarshal(detail.body, &current) != nil || len(current.Groups) != 1 || current.Groups[0] != group.ID {
+		detail := admin.request(t, "GET", "/api/identity/accounts/"+strconv.FormatInt(user.ID, 10)+"/", "", "", false)
+		var current struct{ Fields struct{ Groups []int64 } }
+		if detail.status != 200 || json.Unmarshal(detail.body, &current) != nil || len(current.Fields.Groups) != 1 || current.Fields.Groups[0] != group.ID {
 			t.Fatal("reload changed membership", detail.status)
 		}
 		observer.record(t, "session_relation", map[string]any{"status": got.status,
-			"member_present": current.Groups[0] == group.ID && group.Name == inputs.Article.Group, "stored_title": stored.Title})
+			"member_present": current.Fields.Groups[0] == group.ID && group.Name == inputs.Article.Group, "stored_title": stored.Title})
 		if got := reader.request(t, "POST", "/api/articles/", `{"title":"still forbidden","published":true}`, "", true); got.status != 403 {
 			t.Fatal("reload broadened permission", got.status)
 		}
 	})
 	runPhase("permission-revisions-remain-current-after-reload", func(t *testing.T) {
 		path := "/api/identity/groups/" + strconv.FormatInt(group.ID, 10) + "/"
-		if got := admin.request(t, "PATCH", path, `{"permissions":[]}`, "1", false); got.status != 403 {
+		if got := admin.request(t, "PATCH", path, `{"fields":{"permissions":[]}}`, "1", false); got.status != 403 {
 			t.Fatal("reload lost transport CSRF", got.status)
 		}
-		removed := admin.request(t, "PATCH", path, `{"permissions":[]}`, "1", true)
+		removed := admin.request(t, "PATCH", path, `{"fields":{"permissions":[]}}`, "1", true)
 		if removed.status != 200 || removed.header.Get("Revision") != "2" {
 			t.Fatal("relation revision update", removed.status)
 		}

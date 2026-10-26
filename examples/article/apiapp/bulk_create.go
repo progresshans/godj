@@ -37,9 +37,11 @@ func (a *Application) bulkCreateEndpoint(authentication api.Authentication, item
 			{Code: 413, Description: "The complete array exceeds its request byte limit."},
 			{Code: 415, Description: "Exactly one supported application/json Content-Type is required."},
 		},
-		Handle: func(request *web.Request, _ auth.Principal, values []orm.ModelInput[articlemodels.Article]) (output.Prepared[[]articlemodels.Article], error) {
-			prepared, err := articleapp.BulkCreateAndPrepare(request.Context(), a.repository, values, func(ctx context.Context, rows []articlemodels.Article) (output.Prepared[[]articlemodels.Article], error) {
-				return a.bulkResponse.Prepare(ctx, http.StatusCreated, rows)
+		Handle: func(request *web.Request, actor auth.Principal, values []orm.ModelInput[articlemodels.Article]) (output.Prepared[[]articlemodels.Article], error) {
+			prepared, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleAddPermission, true, func(work context.Context, repository articleapp.Repository) (output.Prepared[[]articlemodels.Article], error) {
+				return articleapp.BulkCreateAndPrepare(work, repository, values, func(ctx context.Context, rows []articlemodels.Article) (output.Prepared[[]articlemodels.Article], error) {
+					return a.bulkResponse.Prepare(ctx, http.StatusCreated, rows)
+				})
 			})
 			if err != nil {
 				return output.Prepared[[]articlemodels.Article]{}, typedArticleFailure(err)

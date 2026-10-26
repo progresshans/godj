@@ -613,8 +613,8 @@ def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
         {
             "cases": [
                 {
-                    "case": "exact_migration_and_all_system_state_empty",
-                    "outcome": "credential_absent",
+                    "case": "exact_installation_and_unowned_account",
+                    "outcome": "account_domain_fresh",
                     "public_only": True,
                 },
                 {
@@ -628,7 +628,7 @@ def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
                     "public_only": False,
                 },
                 {
-                    "case": "dependent_rows_without_credential",
+                    "case": "dependent_rows_without_account_domain",
                     "outcome": "startup_failure",
                     "public_only": False,
                 },
@@ -639,7 +639,7 @@ def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
                 },
                 {
                     "case": "explicit_transition_required",
-                    "outcome": "identity_transition_required",
+                    "outcome": "account_transition_required",
                     "public_only": False,
                 },
             ],
@@ -649,10 +649,11 @@ def credential_absent_public_only(contract_id: str) -> dict[str, Any]:
         db_state={
             "downgraded_failure_cases": 0,
             "public_only_mutations": 0,
-            "required_empty_stores": ["credential", "identity_user", "identity_transition", "session", "audit"],
+            "required_empty_stores": ["selected_account", "account_domain", "account_audit"],
+            "session_namespaces": "validated_without_adoption",
         },
         metrics={
-            "credential_absent_branches": 1,
+            "account_domain_fresh_branches": 1,
             "failure_downgrades": 0,
             "startup_writes": 0,
         },

@@ -68,8 +68,8 @@ type firstAccountParentHooks struct {
 // declaration/runtime ABI and complete generated bundle before reading a TTY,
 // obtains the actual typed field description, then hands one bounded secret
 // frame to that exact runtime. It performs no automatic retry or adoption.
-// The starter/public CLI cutover can use this same owner once its runtime and
-// independent domain/audit/session migrations are configured together.
+// The public createsuperuser command uses this owner with the host's explicitly
+// selected account runtime and independent domain/audit/session installation.
 func RunFirstAccount(input FirstAccountInvocation) FirstAccountReport {
 	return runFirstAccount(input, firstAccountParentHooks{})
 }

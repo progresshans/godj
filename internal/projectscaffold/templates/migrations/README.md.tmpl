@@ -1,3 +1,5 @@
 Project migrations are written here by `godj makemigrations` and applied only
-by an explicit `godj migrate`. The built-in identity migrations are supplied by
-the project runner. Keep migration definitions with your source code.
+by an explicit `godj migrate`. `modeldef.MigrationSources` explicitly supplies
+the selected external identity and independent domain, audit and session
+migrations. Keep these declarations and project migrations with your source.
+Migration installation never provisions or adopts an account.

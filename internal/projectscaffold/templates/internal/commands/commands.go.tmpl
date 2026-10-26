@@ -9,10 +9,12 @@ import (
 	"log/slog"
 
 	"[[.Module]]/internal/config"
+	"[[.Module]]/internal/accounts"
 	"[[.Module]]/project"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/project/command"
+	"github.com/progresshans/godj/project/firstaccount"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
 )
@@ -23,7 +25,13 @@ func Registry(environment settings.Environment, logger *slog.Logger) (command.Re
 		return command.Registry{}, err
 	}
 	selected, selectionErr := config.Database(environment)
+	first, err := accounts.FirstAccount(func(ctx context.Context) (firstaccount.Backend, error) {
+		if selectionErr != nil { return nil, selectionErr }
+		return database.Open(ctx, selected)
+	})
+	if err != nil { return command.Registry{}, err }
 	return command.New(command.Config{
+		FirstAccount: first,
 		Logger: logger,
 		Apps:  installed,
 		Check: func(context.Context) error { return configurationError(selectionErr) },

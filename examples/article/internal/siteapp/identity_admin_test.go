@@ -1,6 +1,7 @@
 package siteapp
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -10,31 +11,29 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
-	"github.com/progresshans/godj/identity"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/auth/passwordpolicy"
+	"github.com/progresshans/godj/examples/article/internal/accounttest"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
-	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web/sessionauth"
 )
 
 func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *testing.T) {
 	backend := openSiteAppStateBackend(t, "identity-admin-composition")
 	migrateSiteAppState(t, t.Context(), backend)
-	principal, err := operatorconfig.InitialSuperuser()
+	bootstrap, err := accounttest.Provision(t.Context(), backend, "admin", "admin-secret-password")
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
+	minimum, err := passwordpolicy.NewMinimumLengthValidator(8)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := systemstate.ProvisionIdentity(t.Context(), backend, systemstate.ProvisionIdentityConfig{Username: "admin", Password: "admin-secret-password", Principal: principal, PasswordHasher: runtimeConfig.PasswordHasher}); err != nil {
-		t.Fatal(err)
-	}
-	validators, err := identity.DefaultPasswordValidators()
-	if err != nil {
-		t.Fatal(err)
-	}
+	validators := []accountmodel.PasswordValidator[models.User]{func(_ context.Context, raw string, _ models.User) (validation.Errors, error) {
+		return minimum.ValidatePassword(raw, nil), nil
+	}}
 	config := NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(validators...)
 	validators[0] = nil // Configuration must own its policy slice.
 	application, err := New(t.Context(), config)
@@ -101,7 +100,7 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 	if !strings.Contains(rejected, `data-error-code="password_entirely_numeric"`) || strings.Contains(rejected, "¹²³⁴⁵⁶⁷⁸") {
 		t.Fatal("Article Admin lost built-in policy or exposed password")
 	}
-	request, err := http.NewRequestWithContext(t.Context(), "POST", server.URL+"/api/identity/users/", strings.NewReader(`{"username":"Rejected","password":"¹²³⁴⁵⁶⁷⁸"}`))
+	request, err := http.NewRequestWithContext(t.Context(), "POST", server.URL+"/api/identity/accounts/", strings.NewReader(`{"fields":{"username":"Rejected"},"credential":{"password":"¹²³⁴⁵⁶⁷⁸"}}`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,12 +119,16 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 		t.Fatal("rejected Article password wrote user", err)
 	}
 	add = call("GET", "/admin/users/add/", nil, 200)
-	call("POST", "/admin/users/add/", url.Values{"csrfmiddlewaretoken": {token(add)}, "username": {" Ｆｒｅｄ "}, "password1": {"new-member-password"}, "password2": {"new-member-password"}}, 302)
+	call("POST", "/admin/users/add/", url.Values{"csrfmiddlewaretoken": {token(add)}, "username": {" Ｆｒｅｄ "}, "active": {"true"}, "password1": {"new-member-password"}, "password2": {"new-member-password"}}, 302)
 	row, found, err := models.UserObjects.Using(backend).Filter(models.UserFields.Username.Exact("Fred")).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
-	if err != nil || !found || row.PrincipalID == principal.ID() || !row.Active || row.Staff || row.Superuser {
+	if err != nil || !found || row.ID == bootstrap.Account.ID || row.PrincipalID == "" || !row.Active || row.Staff || row.Superuser {
 		t.Fatal("composition did not persist safe new user", err)
 	}
-	if ok, err := runtimeConfig.PasswordHasher.Verify(t.Context(), "new-member-password", row.EncodedPassword); err != nil || !ok {
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := hasher.Verify(t.Context(), "new-member-password", row.EncodedPassword); err != nil || !ok {
 		t.Fatal("composition did not persist valid password", err)
 	}
 }

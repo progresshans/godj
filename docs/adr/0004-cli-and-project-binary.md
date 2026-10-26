@@ -17,7 +17,8 @@ Django의 `manage.py`는 project settings, installed apps, models, migration, cu
 - 사용자 명령 namespace는 `godj`로 통일합니다.
 - 전역 CLI는 `version`, `startproject`, `startapp`, 프로젝트 탐색과 build/orchestration을 담당합니다.
 - settings/app/model/custom command가 필요한 동작은 project code가 링크된 프로젝트 바이너리가 실행합니다.
-- production에서는 같은 project binary가 `serve`, `migrate`, `createsuperuser` 등을 subcommand로 제공합니다.
+- 프로젝트가 링크한 프로그램이 서버·migration·관리 명령을 소유합니다. 현행 생성 bootstrap은 선언 runner와 generated runtime을 분리하며
+  최초 계정의 현재 연결은 [ADR-0076](0076-credential-snapshots-and-session-binding.md#공개-cli와-articlescaffold-통합)을 따릅니다.
 - `go generate`는 보조 진입점이고 `godj generate`가 공식 명령입니다.
 
 ## 결과

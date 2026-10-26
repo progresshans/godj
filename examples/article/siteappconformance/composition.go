@@ -10,12 +10,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/apiapp"
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
 	"github.com/progresshans/godj/examples/article/webapp"
-	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web"
 )
 
@@ -28,38 +25,6 @@ type CompositionObservation struct {
 	APIPublished       bool
 }
 
-// ProvisionPolicyMismatch installs a valid encoded credential with the exact
-// Article hash profile and permissions but a different immutable principal.
-// It is fixture setup for proving that siteapp.New propagates the real policy
-// mismatch instead of downgrading it to public-only mode.
-func ProvisionPolicyMismatch(
-	ctx context.Context,
-	backend systemstate.Backend,
-	username string,
-	password string,
-) error {
-	canonical, err := operatorconfig.CredentialPolicy()
-	if err != nil {
-		return fmt.Errorf("load canonical Article operator policy: %w", err)
-	}
-	mismatch, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID:          operatorconfig.PrincipalID + "-mismatch",
-		Active:      canonical.Principal.Active(),
-		Permissions: canonical.Principal.Permissions(),
-	})
-	if err != nil {
-		return fmt.Errorf("construct mismatched Article operator principal: %w", err)
-	}
-	return systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{
-		Username: username,
-		Password: password,
-		CredentialPolicy: systemstate.CredentialPolicy{
-			Principal:      mismatch,
-			PasswordHasher: canonical.PasswordHasher,
-		},
-	})
-}
-
 // PublicOnly reports whether the real composition published precisely the
 // public Article surface and withheld both authenticated surfaces.
 func (observation CompositionObservation) PublicOnly() bool {
@@ -69,10 +34,10 @@ func (observation CompositionObservation) PublicOnly() bool {
 
 // ObserveComposition calls the real Article startup composition. Startup
 // failures are returned unchanged so the caller can verify the stable
-// system-state classification rather than inferring it from a synthetic flag.
+// selected-account classification rather than inferring it from a synthetic flag.
 func ObserveComposition(
 	ctx context.Context,
-	backend systemstate.IdentityBackend,
+	backend siteapp.Backend,
 ) (CompositionObservation, error) {
 	application, err := siteapp.New(ctx, siteapp.NewConfig(backend))
 	observation := CompositionObservation{ApplicationCreated: application != nil}

@@ -15,7 +15,7 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
-func (a *Application) list(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) list(request *web.Request, actor auth.Principal) (web.Response, error) {
 	query, diagnostics, pageNotFound := parseListQuery(request.HTTP().URL.RawQuery)
 	if pageNotFound {
 		return notFoundResponse()
@@ -23,9 +23,11 @@ func (a *Application) list(request *web.Request, _ auth.Principal) (web.Response
 	if !diagnostics.Empty() {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, diagnostics)
 	}
-	page, err := a.repository.List(request.Context(), query.options())
+	page, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleViewPermission, false, func(work context.Context, repository articleapp.Repository) (articleapp.Page, error) {
+		return repository.List(work, query.options())
+	})
 	if err != nil {
-		return web.Response{}, err
+		return a.readError(err)
 	}
 	if query.page > 1 && int64(page.Offset) >= page.Total {
 		return notFoundResponse()
@@ -64,27 +66,29 @@ func (a *Application) listHead(request *web.Request, principal auth.Principal) (
 	return emptyBody(response, err)
 }
 
-func (a *Application) create(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) create(request *web.Request, actor auth.Principal) (web.Response, error) {
 	values, response, handled, err := a.bind(request, serializers.ModeFull)
 	if handled || err != nil {
 		return response, err
 	}
-	prepared, err := articleapp.CreateAndPrepare(request.Context(), a.repository, values, func(_ context.Context, created articlemodels.Article) (web.Response, error) {
-		value, err := a.articleValue(created)
-		if err != nil {
-			return web.Response{}, err
-		}
-		response, err := api.JSON(http.StatusCreated, value)
-		if err != nil {
-			return web.Response{}, err
-		}
-		location, err := request.ReverseWith(DetailRouteName, web.Int64Argument("id", created.ID))
-		if err != nil {
-			return web.Response{}, err
-		}
-		header := response.Header()
-		header.Set("Location", location)
-		return response.WithHeaders(header)
+	prepared, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleAddPermission, true, func(work context.Context, repository articleapp.Repository) (web.Response, error) {
+		return articleapp.CreateAndPrepare(work, repository, values, func(_ context.Context, created articlemodels.Article) (web.Response, error) {
+			value, err := a.articleValue(created)
+			if err != nil {
+				return web.Response{}, err
+			}
+			response, err := api.JSON(http.StatusCreated, value)
+			if err != nil {
+				return web.Response{}, err
+			}
+			location, err := request.ReverseWith(DetailRouteName, web.Int64Argument("id", created.ID))
+			if err != nil {
+				return web.Response{}, err
+			}
+			header := response.Header()
+			header.Set("Location", location)
+			return response.WithHeaders(header)
+		})
 	})
 	if err != nil {
 		return a.writeError(err)
@@ -92,12 +96,12 @@ func (a *Application) create(request *web.Request, _ auth.Principal) (web.Respon
 	return prepared, nil
 }
 
-func (a *Application) retrieve(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) retrieve(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, ok := detailID(request)
 	if !ok {
 		return notFoundResponse()
 	}
-	article, found, err := a.repository.Get(request.Context(), id)
+	article, found, err := a.getSelected(request.Context(), actor, articleapp.ArticleViewPermission, id)
 	if err != nil {
 		return a.readError(err)
 	}
@@ -152,6 +156,9 @@ func detailID(request *web.Request) (int64, bool) {
 }
 
 func (a *Application) readError(err error) (web.Response, error) {
+	if err == errArticleAccessDenied {
+		return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
+	}
 	if articleapp.IsCode(err, articleapp.CodeNotFound) || errors.Is(err, articleapp.ErrNotFound) {
 		return notFoundResponse()
 	}

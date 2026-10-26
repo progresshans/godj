@@ -11,7 +11,6 @@ import (
 	"github.com/progresshans/godj/project/compatibility"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
-	"github.com/progresshans/godj/systemstate"
 )
 
 func main() {
@@ -27,12 +26,10 @@ func main() {
 		os.Exit(1)
 	}
 	selected, selectionErr := config.Database(environment)
-	identity, identityErr := config.Identity()
-	principal, principalErr := config.InitialSuperuser()
 	err = project.Run(context.Background(), project.Config{
 		LoadProjectSpec:            modeldef.ProjectSpec,
 		MigrationDefinitionRoots:   []string{"migrations"},
-		MigrationDefinitionSources: systemstate.IdentityMigrationSources(),
+		MigrationDefinitionSources: modeldef.MigrationSources(),
 		MigrationSQLRenderer:       selected.MigrationSQLRenderer(),
 		OpenMigrationBackend: func(ctx context.Context) (project.MigrationBackend, error) {
 			if selectionErr != nil {
@@ -40,20 +37,6 @@ func main() {
 			}
 			return database.Open(ctx, selected)
 		},
-		OpenSystemStateBackend: func(ctx context.Context) (project.SystemStateBackend, error) {
-			if selectionErr != nil {
-				return nil, selectionErr
-			}
-			if identityErr != nil {
-				return nil, identityErr
-			}
-			if principalErr != nil {
-				return nil, principalErr
-			}
-			return database.Open(ctx, selected)
-		},
-		InitialSuperuser: principal,
-		PasswordHasher:   identity.PasswordHasher,
 	}, os.Args[1:], os.Stdin, os.Stdout)
 	if err != nil {
 		code := project.RunnerExitCode(err)

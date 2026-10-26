@@ -27,10 +27,10 @@ import (
 	"github.com/progresshans/godj/conformance/internal/dbstate"
 	"github.com/progresshans/godj/conformance/internal/testprocess"
 	"github.com/progresshans/godj/db/sqlite"
+	articlemodeldef "github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/systemstate"
 )
 
 const (
@@ -272,7 +272,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources := append(systemstate.IdentityMigrationSources(),
+	sources := append(articlemodeldef.MigrationSources(),
 		migrationdefinition.Source{SourceID: "migrations/0001_initial.godj.json", Document: document})
 	blankDocument, err := os.ReadFile(filepath.Join(repository, "examples", "article", "migrations", "godj_conformance_0002_alter_article_summary.godj.json"))
 	if err != nil {
@@ -288,8 +288,8 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	if err != nil {
 		t.Fatalf("load expected Article catalog: %v", err)
 	}
-	if report.DocumentsReceived != 9 || report.HeadersValidated != 9 || report.OperationsDecoded != 19 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 9 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 10 || report.HeadersValidated != 10 || report.OperationsDecoded != 18 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 10 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}
 	definitions := loaded.Definitions()
@@ -305,6 +305,8 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		return history[left].Name < history[right].Name
 	})
 	wantHistory := []dbstate.HistoryRow{
+		{App: "godj_account_audit", Name: "0001_initial"},
+		{App: "godj_account_domain", Name: "0001_initial"},
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_conformance", Name: "0002_alter_article_summary"},
 		{App: "godj_conformance", Name: "0003_article_slug"},
@@ -312,8 +314,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		{App: "godj_identity", Name: "0002_permission_revision"},
 		{App: "godj_identity", Name: "0003_alter_user_email"},
 		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"},
-		{App: "godj_system", Name: "0001_initial"},
-		{App: "godj_system", Name: "0002_identity_transition"},
+		{App: "godj_sessions", Name: "0001_initial"},
 	}
 	if !reflect.DeepEqual(history, wantHistory) {
 		t.Fatalf("current Article graph = %+v, want %+v", history, wantHistory)
@@ -715,6 +716,8 @@ func assertLatestDatabase(t *testing.T, databasePath string, expected articleCat
 	t.Helper()
 	snapshot := inspectDatabase(t, databasePath)
 	wantTables := []string{
+		"godj_account_audit_event",
+		"godj_account_domain_transition",
 		"godj_conformance_article",
 		"godj_identity_group",
 		"godj_identity_group_permissions",
@@ -724,10 +727,7 @@ func assertLatestDatabase(t *testing.T, databasePath string, expected articleCat
 		"godj_identity_user_permissions",
 		"godj_migration_revision",
 		"godj_migrations",
-		"godj_system_audit",
-		"godj_system_credential",
-		"godj_system_identity_transition",
-		"godj_system_session",
+		"godj_sessions_session",
 	}
 	if !reflect.DeepEqual(snapshot.Tables, wantTables) {
 		t.Fatalf("latest tables = %v, want %v", snapshot.Tables, wantTables)
@@ -807,6 +807,35 @@ func assertExpectedColumns(t *testing.T, snapshot databaseSnapshot, tables []str
 
 func expectedColumns() map[string][]columnSnapshot {
 	return map[string][]columnSnapshot{
+		"godj_account_audit_event": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "domain", Type: "VARCHAR(64)", NotNull: 1},
+			{Name: "actor_id", Type: "VARCHAR(128)", NotNull: 1},
+			{Name: "model", Type: "VARCHAR(128)", NotNull: 1},
+			{Name: "object_id", Type: "BIGINT", NotNull: 1},
+			{Name: "action", Type: "VARCHAR(16)", NotNull: 1},
+			{Name: "changed_fields", Type: "VARCHAR(32768)", NotNull: 1},
+			{Name: "recorded_at", Type: "DATETIME", NotNull: 1},
+		},
+
+		"godj_account_domain_transition": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "operation_id", Type: "VARCHAR(64)", NotNull: 1},
+			{Name: "sequence", Type: "BIGINT", NotNull: 1},
+			{Name: "previous_id", Type: "INTEGER"},
+			{Name: "role_fingerprint", Type: "VARCHAR(64)", NotNull: 1},
+			{Name: "generation", Type: "VARCHAR(64)", NotNull: 1},
+			{Name: "evidence_sha256", Type: "VARCHAR(64)", NotNull: 1},
+			{Name: "transitioned_at", Type: "DATETIME", NotNull: 1},
+		},
+
+		"godj_sessions_session": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "namespace", Type: "VARCHAR(128)", NotNull: 1},
+			{Name: "digest", Type: "VARCHAR(64)", NotNull: 1},
+			{Name: "payload", Type: "VARCHAR(32768)", NotNull: 1},
+		},
+
 		"godj_identity_group": {
 			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
 			{Name: "name", Type: "VARCHAR(150)", NotNull: 1},
@@ -848,17 +877,6 @@ func expectedColumns() map[string][]columnSnapshot {
 			{Name: "source_id", Type: "INTEGER", NotNull: 1},
 			{Name: "target_id", Type: "INTEGER", NotNull: 1},
 		},
-		"godj_system_identity_transition": {
-			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
-			{Name: "source_kind", Type: "VARCHAR(16)", NotNull: 1},
-			{Name: "source_id", Type: "BIGINT", NotNull: 1},
-			{Name: "principal_id", Type: "VARCHAR(128)", NotNull: 1},
-			{Name: "user_id", Type: "BIGINT", NotNull: 1},
-			{Name: "staff", Type: "BOOLEAN", NotNull: 1},
-			{Name: "superuser", Type: "BOOLEAN", NotNull: 1},
-			{Name: "transitioned_at", Type: "DATETIME", NotNull: 1},
-			{Name: "source_fingerprint", Type: "VARCHAR(64)", NotNull: 1},
-		},
 		"godj_conformance_article": {
 			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
 			{Name: "title", Type: "VARCHAR(200)", NotNull: 1},
@@ -875,29 +893,6 @@ func expectedColumns() map[string][]columnSnapshot {
 		"godj_migrations": {
 			{Name: "app", Type: "VARCHAR(255)", NotNull: 1, Primary: 1},
 			{Name: "name", Type: "VARCHAR(255)", NotNull: 1, Primary: 2},
-		},
-		"godj_system_credential": {
-			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
-			{Name: "principal_id", Type: "VARCHAR(128)", NotNull: 1},
-			{Name: "username", Type: "VARCHAR(256)", NotNull: 1},
-			{Name: "encoded_password", Type: "VARCHAR(2048)", NotNull: 1},
-			{Name: "active", Type: "BOOLEAN", NotNull: 1},
-			{Name: "permissions", Type: "VARCHAR(65536)", NotNull: 1},
-			{Name: "definition_digest", Type: "VARCHAR(71)", NotNull: 1},
-		},
-		"godj_system_session": {
-			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
-			{Name: "digest", Type: "VARCHAR(64)", NotNull: 1},
-			{Name: "payload", Type: "VARCHAR(32768)", NotNull: 1},
-		},
-		"godj_system_audit": {
-			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
-			{Name: "actor_id", Type: "VARCHAR(128)", NotNull: 1},
-			{Name: "model", Type: "VARCHAR(128)", NotNull: 1},
-			{Name: "object_id", Type: "VARCHAR(64)", NotNull: 1},
-			{Name: "action", Type: "VARCHAR(16)", NotNull: 1},
-			{Name: "changed_fields", Type: "VARCHAR(32768)", NotNull: 1},
-			{Name: "display_label", Type: "VARCHAR(1024)", NotNull: 1},
 		},
 	}
 }

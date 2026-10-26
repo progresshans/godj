@@ -1755,15 +1755,15 @@ func articleAdminDeleteBoundaries(ctx context.Context, contract protocol.Contrac
 			return protocol.Observation{}, err
 		}
 
-		_, confirmedPreserved, err := fixture.service.Get(ctx, 1)
+		_, confirmedPreserved, err := fixture.service.Get(ctx, auth.Anonymous(), 1)
 		if err != nil {
 			return protocol.Observation{}, err
 		}
-		_, deniedPreserved, err := fixture.service.Get(ctx, 2)
+		_, deniedPreserved, err := fixture.service.Get(ctx, auth.Anonymous(), 2)
 		if err != nil {
 			return protocol.Observation{}, err
 		}
-		_, unsafePreserved, err := fixture.service.Get(ctx, 3)
+		_, unsafePreserved, err := fixture.service.Get(ctx, auth.Anonymous(), 3)
 		if err != nil {
 			return protocol.Observation{}, err
 		}
@@ -1976,7 +1976,7 @@ func articleAdminPublishAction(ctx context.Context, contract protocol.Contract) 
 		if err != nil || unselectedID <= 0 {
 			return protocol.Observation{}, fmt.Errorf("Article Admin unselected row is invalid")
 		}
-		before, found, err := fixture.service.Get(ctx, unselectedID)
+		before, found, err := fixture.service.Get(ctx, auth.Anonymous(), unselectedID)
 		if err != nil || !found {
 			return protocol.Observation{}, fmt.Errorf("read unselected Article before publish: found=%t: %w", found, err)
 		}
@@ -2007,7 +2007,7 @@ func articleAdminPublishAction(ctx context.Context, contract protocol.Contract) 
 		if err != nil || !noticeFound {
 			return protocol.Observation{}, fmt.Errorf("observe Article Admin publish notice: found=%t: %w", noticeFound, err)
 		}
-		after, found, err := fixture.service.Get(ctx, unselectedID)
+		after, found, err := fixture.service.Get(ctx, auth.Anonymous(), unselectedID)
 		if err != nil || !found {
 			return protocol.Observation{}, fmt.Errorf("read unselected Article after publish: found=%t: %w", found, err)
 		}

@@ -39,7 +39,6 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	holderBackend := &articleMultiRuntimeBackend{Backend: holderRaw, holder: true}
 	contenderBackend := &articleMultiRuntimeBackend{Backend: contenderRaw}
 	provisionConfig, runtimeConfig := articleMultiRuntimeConfig(t, 3)
-	principalID := runtimeConfig.CredentialPolicy.Principal.ID()
 	if err := systemstate.ProvisionOperator(ctx, holderBackend, provisionConfig); err != nil {
 		t.Fatalf("ProvisionOperator(holder Runtime): %v", err)
 	}
@@ -60,11 +59,11 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 		t.Fatalf("NewDurableService(contender): %v", err)
 	}
 
-	first, err := holderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Seed one"}))
+	first, err := holderService.Create(ctx, runtimeConfig.CredentialPolicy.Principal, fullArticleInput(t, articlemodels.Article{Title: "Seed one"}))
 	if err != nil {
 		t.Fatalf("Create(first seed): %v", err)
 	}
-	second, err := holderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Seed two"}))
+	second, err := holderService.Create(ctx, runtimeConfig.CredentialPolicy.Principal, fullArticleInput(t, articlemodels.Article{Title: "Seed two"}))
 	if err != nil {
 		t.Fatalf("Create(second seed): %v", err)
 	}
@@ -77,12 +76,12 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	holderResult := make(chan articleCreateResult, 1)
 	contenderResult := make(chan articleCreateResult, 1)
 	go func() {
-		article, err := holderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Holder"}))
+		article, err := holderService.Create(ctx, runtimeConfig.CredentialPolicy.Principal, fullArticleInput(t, articlemodels.Article{Title: "Holder"}))
 		holderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.holderEntered, "holder coordinated callback")
 	go func() {
-		article, err := contenderService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Contender"}))
+		article, err := contenderService.Create(ctx, runtimeConfig.CredentialPolicy.Principal, fullArticleInput(t, articlemodels.Article{Title: "Contender"}))
 		contenderResult <- articleCreateResult{article: article, err: err}
 	}()
 	waitArticleSignal(t, barrier.contenderAttempted, "contender coordinated attempt")
@@ -119,7 +118,7 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 		{sequence: 4, objectID: contenderCreated.article.ID, action: admin.ActionAdd},
 	}
 	assertArticleMultiRuntimeAudit(t, ctx, holderRaw, wantAudit)
-	pruned, err := contenderService.HistoryLimited(ctx, first.ID, 3)
+	pruned, err := contenderService.HistoryLimited(ctx, runtimeConfig.CredentialPolicy.Principal, first.ID, 3)
 	if err != nil || len(pruned) != 0 {
 		t.Fatalf("HistoryLimited(pruned first seed) = (%#v, %v), want empty/nil", pruned, err)
 	}
@@ -130,14 +129,14 @@ func TestTwoRuntimeSQLiteArticleAuditMutationUsesDatabaseFenceAndGlobalPrune(t *
 	if err != nil {
 		t.Fatalf("NewDurableService(failing audit): %v", err)
 	}
-	if _, err := failingService.Create(ctx, principalID, fullArticleInput(t, articlemodels.Article{Title: "Rolled back"})); !errors.Is(err, rollbackFailure) {
+	if _, err := failingService.Create(ctx, runtimeConfig.CredentialPolicy.Principal, fullArticleInput(t, articlemodels.Article{Title: "Rolled back"})); !errors.Is(err, rollbackFailure) {
 		t.Fatalf("Create(audit callback failure) error = %v, want injected failure", err)
 	}
 	if failingAudit.calls != 1 {
 		t.Fatalf("failing audit calls = %d, want 1", failingAudit.calls)
 	}
 	assertArticleMultiRuntimeAudit(t, ctx, contenderRaw, wantAudit)
-	page, err := contenderService.List(ctx, articleapp.ListOptions{Limit: 10})
+	page, err := contenderService.List(ctx, runtimeConfig.CredentialPolicy.Principal, articleapp.ListOptions{Limit: 10})
 	if err != nil || page.Total != 4 || len(page.Articles) != 4 {
 		t.Fatalf("List(after callback rollback) = (%#v, %v), want four committed Articles", page, err)
 	}

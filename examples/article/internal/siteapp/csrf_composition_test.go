@@ -20,10 +20,10 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/apiapp"
 	"github.com/progresshans/godj/examples/article/articleapp"
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
+	"github.com/progresshans/godj/examples/article/internal/accounttest"
+	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/systemstate"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -161,21 +161,8 @@ func newSiteAppCSRFFixture(t *testing.T, ring websessionauth.CSRFKeyRing) siteAp
 		username = "csrf-composition-admin"
 		password = "csrf-composition-password-marker"
 	)
-	principal, err := operatorconfig.InitialSuperuser()
-	if err != nil {
-		t.Fatalf("Article operator policy: %v", err)
-	}
-	config, err := operatorconfig.IdentityRuntimeConfig()
-	if err != nil {
+	if _, err := accounttest.Provision(ctx, firstBackend, username, password); err != nil {
 		t.Fatal(err)
-	}
-	if _, err := systemstate.ProvisionIdentity(ctx, firstBackend, systemstate.ProvisionIdentityConfig{
-		Username:       username,
-		Password:       password,
-		Principal:      principal,
-		PasswordHasher: config.PasswordHasher,
-	}); err != nil {
-		t.Fatalf("ProvisionOperator(): %v", err)
 	}
 	firstConfig := NewConfig(firstBackend).WithLoopbackAuthentication()
 	secondConfig := NewConfig(secondBackend).WithLoopbackAuthentication()
@@ -341,7 +328,7 @@ func newSiteAppTestServer(t *testing.T, application http.Handler) *httptest.Serv
 func migrateSiteAppCSRFSchema(t *testing.T, ctx context.Context, backend *sqlite.Backend) {
 	t.Helper()
 	repository := siteAppRepositoryRoot(t)
-	sources := systemstate.IdentityMigrationSources()
+	sources := modeldef.MigrationSources()
 	for _, name := range []string{"0001_initial.godj.json", "godj_conformance_0002_alter_article_summary.godj.json", "godj_conformance_0003_article_slug.godj.json"} {
 		document, err := os.ReadFile(filepath.Join(repository, "examples", "article", "migrations", name))
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
@@ -66,21 +67,22 @@ func NewDurableService(backend articleapp.Backend, audit DurableAuditStore) (Ser
 	return Service{repository: &repository, durableAudit: audit}, nil
 }
 
-func (s Service) List(ctx context.Context, options articleapp.ListOptions) (articleapp.Page, error) {
+func (s Service) List(ctx context.Context, _ auth.Principal, options articleapp.ListOptions) (articleapp.Page, error) {
 	if !s.validState() {
 		return articleapp.Page{}, invalid("service", "service is zero or invalid")
 	}
 	return s.repository.List(ctx, options)
 }
 
-func (s Service) Get(ctx context.Context, id int64) (articlemodels.Article, bool, error) {
+func (s Service) Get(ctx context.Context, _ auth.Principal, id int64) (articlemodels.Article, bool, error) {
 	if !s.validState() {
 		return articlemodels.Article{}, false, invalid("service", "service is zero or invalid")
 	}
 	return s.repository.Get(ctx, id)
 }
 
-func (s Service) Create(ctx context.Context, actorID string, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, error) {
+func (s Service) Create(ctx context.Context, actor auth.Principal, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, error) {
+	actorID := actor.ID()
 	if !s.validState() {
 		return articlemodels.Article{}, invalid("service", "service is zero or invalid")
 	}
@@ -115,7 +117,8 @@ func (s Service) Create(ctx context.Context, actorID string, input orm.ModelInpu
 	return created, nil
 }
 
-func (s Service) Update(ctx context.Context, actorID string, id int64, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, []string, error) {
+func (s Service) Update(ctx context.Context, actor auth.Principal, id int64, input orm.ModelInput[articlemodels.Article]) (articlemodels.Article, []string, error) {
+	actorID := actor.ID()
 	if !s.validState() {
 		return articlemodels.Article{}, nil, invalid("service", "service is zero or invalid")
 	}
@@ -150,7 +153,8 @@ func (s Service) Update(ctx context.Context, actorID string, id int64, input orm
 	return updated, append([]string(nil), changed...), nil
 }
 
-func (s Service) Delete(ctx context.Context, actorID string, id int64) (articlemodels.Article, error) {
+func (s Service) Delete(ctx context.Context, actor auth.Principal, id int64) (articlemodels.Article, error) {
+	actorID := actor.ID()
 	if !s.validState() {
 		return articlemodels.Article{}, invalid("service", "service is zero or invalid")
 	}
@@ -187,7 +191,8 @@ func (s Service) Delete(ctx context.Context, actorID string, id int64) (articlem
 	return deleted, nil
 }
 
-func (s Service) Publish(ctx context.Context, actorID string, ids []int64) (articleapp.PublishResult, error) {
+func (s Service) Publish(ctx context.Context, actor auth.Principal, ids []int64) (articleapp.PublishResult, error) {
+	actorID := actor.ID()
 	if !s.validState() {
 		return articleapp.PublishResult{}, invalid("service", "service is zero or invalid")
 	}
@@ -242,7 +247,7 @@ func (s Service) History(id int64) []admin.AuditEntry {
 	return s.memoryAudit.ForObject(articleModelIdentity, id)
 }
 
-func (s Service) HistoryLimited(ctx context.Context, id int64, limit int) ([]admin.AuditEntry, error) {
+func (s Service) HistoryLimited(ctx context.Context, _ auth.Principal, id int64, limit int) ([]admin.AuditEntry, error) {
 	if !s.validState() {
 		return nil, invalid("service", "service is zero or invalid")
 	}
@@ -268,6 +273,8 @@ func (s Service) validState() bool {
 	durable := !interfaceNil(s.durableAudit)
 	return memory != durable
 }
+
+func (s Service) Valid() bool { return s.validState() }
 
 type auditEventFactory func(articleapp.MutationResult) ([]admin.PreparedEvent, error)
 

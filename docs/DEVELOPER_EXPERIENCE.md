@@ -241,77 +241,59 @@ README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사
 - `showmigrations`는 현재 DB history의 한 snapshot이다.
 - `migrate --plan`은 preview이며 그 출력으로 나중 실행을 승인하지 않는다. 실제 `migrate`는 fresh history에서 다시 계획한다.
 - `sqlmigrate`는 명명된 migration의 forward SQL을 DB 없이 render한다. 데이터 실행 결과나 runtime history를 보여 주는 명령이 아니다.
-- `createsuperuser`는 명시적으로 migration한 빈 identity 저장소에 첫 active/staff/superuser를 만든다. 재시작은 raw password 없이 `OpenIdentity`를 사용한다.
-  Project config의 `InitialSuperuser`와 `PasswordHasher`는 최초 생성 입력이며, 실행 중인 사용자의 role/권한을 덧씌우지 않는다.
+- `createsuperuser`는 선택 모델의 필드·생략/default·choice를 터미널에서 읽고, 명시적으로 설치한 빈 계정 domain에 첫 active/staff/superuser를 만든다.
+  `commands_package`의 `command.Config.FirstAccount`가 실제 typed policy·DB 연결을 소유한다. 선언 runner는 migration과 Schema IR만 읽는다.
+  결과의 `operation_id`, `status`, `code`, `cleanup_failed`를 함께 보관한다. `unknown`·응답 유실·정리 실패를 재시도 허가로 사용하지 않는다.
 
-`godj.toml`은 [예제 파일](../examples/article/godj.toml)처럼 project runner와 runserver package를 지정한다.
+`godj.toml`은 [예제 파일](../examples/article/godj.toml)처럼 선언 runner·runserver·commands package를 지정한다.
 명령은 그 프로젝트의 schema/catalog/backend/policy를 사용한다. 임의 Python settings나 generated model package를 schema 입력으로 읽지 않는다.
 
 Process 진입점은 [환경 snapshot](../settings/README.md)을 한 번 만든 뒤 같은 `Lookup`을 설정 파서에 전달할 수 있다.
 원래 값과 존재 여부를 유지하며 DB 선택·필수 값·타입의 의미는 프로젝트 설정에서 검증한다.
 값이 secret일 수 있으므로 환경 snapshot이나 DB URL의 내용을 진단으로 출력하지 않는다.
 
+## 선택 계정 구성
+
+Article와 새 scaffold는 `modeldef`에서 계정 역할을 선택한다. 기본 User·Group·Permission의 기존 migration과 독립
+`godj_account_domain`, `godj_account_audit`, `godj_sessions`의 migration을 함께 명시적으로 설치한다.
+[Article 설치 선언](../examples/article/modeldef/migrations.go)과 [typed 정책](../examples/article/internal/accounts/policy.go)이 실제 구성이다.
+사용자 정의 모델을 선택할 때는 역할 참조·필수 최초 입력·노출·권한·비밀번호 정책과 해당 모델의 migration을 함께 변경한다.
+기존 migration 파일을 새 모델의 초기 정의로 덮어쓰지 않는다.
+
+생성 `NewAccountRuntime`은 같은 credential/session owner의 인증·login·자기 비밀번호 변경·관리 owner·catalog를 묶는다.
+`InspectStartup`은 설치 이력과 현재 domain·account/catalog·audit·모든 session namespace를 읽기 전용으로 검사한다.
+정확한 Fresh 상태일 때만 공개 페이지로 기동하며 Ready이면 저장된 현재 권한으로 Admin/API를 조립한다. 서버가 계정을
+자동 생성하거나 입력 password 없이 기존 사용자를 새 model/domain으로 채택하지 않는다.
+
+[`identityadmin.RegisterAccount`](../identity/admin/selected_account.go)와
+[`identityadmin.RegisterCatalog`](../identity/admin/selected_catalog.go)는 실제 typed owner를 공통 Admin에 연결한다.
+Slug·목록 열과 읽기/생성/수정의 명시적 노출·권한을 선택한다. 계정 생성은 add와 change를 모두 요구하며,
+현재 인가·revision·관련 행·세션 폐기·감사를 같은 native transaction에 묶는다. 저장 뒤에는 확정 ID/revision을 사용한다.
+
+[`identityapi.NewManagement`](../identity/api/README.md)는 같은 owner를 `/api/identity/accounts/`, `groups/`, `permissions/`에 연결한다.
+모델 입력은 `fields`, 비밀번호 명령은 `credential` 객체로 전달하며 기존 객체 쓰기는 현재 `If-Revision`을 사용한다.
+같은 브라우저의 Session/CSRF와 현재 권한을 검사한다. 자세한 요청 예시는 해당 API 문서를 따른다.
+
+[일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON을 제공한다.
+변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.
+메일 reset은 같은 runtime에 key·sender·신뢰한 origin·비공개 오류 reporter를 명시해 활성화한다. 계정 생성·변경과 같은
+실제 typed 비밀번호 정책을 사용하고 자동 로그인하지 않는다.
+
+Article의 업무 Admin/API도 전체 Principal을 받아 현재 domain·계정·권한을 실제 읽기 snapshot/쓰기 transaction 안에서
+다시 검사한다. Admin의 감사는 그 actor의 domain에 속하며 프로필 값이나 display label을 저장하지 않는다.
+[Article 구성](../examples/article/internal/siteapp/siteapp.go)과 [I1 진행](../work/0138-custom-account-lifecycle.md)은
+이 구현과 아직 미완료인 환경별 수용·추가 프로필 관계/파일·채운 DB 전환을 구분한다.
+
 ## 기존 operator 이전
 
-Article/Helpdesk의 선언은 재사용 `identity` 앱을 포함한다. `systemstate.IdentityMigrationSources()`는 기존 system `0001`,
-identity `0001`, system `0002_identity_transition`의 역사적 정의를 반환한다. Migration과 데이터 이전은 별도 명시적 작업이다.
-기존 `godj_system_credential`의 operator를 사용하는 Article DB에서는 같은 DB 환경을 선택한 뒤 다음을 실행한다.
+현재 Article/scaffold는 `godj_system` migration 이력이 있으면 `account_transition_required`로 시작을 거부한다.
+기존 operator 행이 없거나 새 선택 계정 저장소가 비어 있어도 자동 Fresh로 취급하지 않는다. 선언 변경이나 새 migration
+설치만으로 기존 session·reset·권한·audit를 다른 모델에 넘기지 않는다.
 
-```sh
-"$godj_demo_dir/godj" migrate --project examples/article/godj.toml
-go run ./examples/article/cmd/adoptoperator --staff=true --superuser=false
-"$godj_demo_dir/godj" runserver --project examples/article/godj.toml
-```
-
-위 예시는 기존 model 권한을 가진 staff로 이전한다. 두 role을 모두 명시해야 하며 superuser가 필요한 경우 그 값도 명시한다.
-`AdoptOperator`는 기존 principal ID·username·비밀번호 해시·active·권한을 보존한다. 기존 세션 binding과 감사 행도 유지한다.
-Staff/superuser는 과거 저장 형식에 없으므로 기존 permission 이름에서 추론하지 않는다. 기존 정책이 예상과 다르면 이전을 거부한다.
-새 User·직접 권한·전환 기록과 옛 credential의 비활성 표시는 한 transaction으로 저장하며 옛 provisioning을 다시 활성화하지 않는다.
-
-명령의 응답을 잃었거나 `uncertain`을 받았을 때는 같은 작업을 반복하기 전에 저장된 전환 기록을 조회한다.
-
-```sh
-go run ./examples/article/cmd/adoptoperator --inspect
-```
-
-일반 호스트는 `systemstate.AdoptOperator`와 `InspectIdentityTransition`을 사용한다. 새 DB는 `ProvisionIdentity`를 명시적으로 호출한다.
-전환 후 `OpenIdentity`는 현재 User/Group/Permission을 읽는 인증기와 기존 durable session/audit 저장소를 연결한다.
-
-`identity.NewManager(runtime, hasher, authorizer)`는 이 runtime의 native snapshot·동일 transaction·session/audit 소유권을 사용한다.
-`SetPassword(ctx, actor, userID, expectedRevision, password)`로 관리자 비밀번호 교체를 수행한다. Actor는 호스트가 인증한
-Principal이어야 하며, 서비스가 저장된 현재 `godj_identity.change_user`와 deny overlay를 다시 확인한다. 대상의 revision을 명시하고,
-성공 때 반환하는 Profile에만 새 revision이 있다. Hash 생성은 DB 범위 밖에서 한 번, User 변경·대상 세션 폐기·감사는 같은 transaction이다.
-오류에는 성공 Profile이 없으며 unknown outcome을 자동 재시도하지 않는다.
-
-`CreateUser`에는 호스트가 선택한 불변 principal ID로 만든 `NewUserCreate`와 password를 별도로 전달한다.
-`User`/`Users`는 현재 조회 또는 변경 권한을 확인하고 공개 profile을 반환한다. 단일 조회에는 그룹·직접 권한 ID도 포함된다.
-`UpdateUser`는 expected revision과 명시적 `UserPatch`를 받는다. 관계 입력을 생략하면 유지하고 빈 collection을 주면 해제한다.
-Profile·role·관계·감사는 하나의 transaction이며 비활성화는 대상의 현재 session도 폐기한다. Password/hash·principal ID는 patch에 없다.
-`DeleteUser`에는 호스트가 생성한 전체 User relation deleter를 전달한다. 외부 모델의 CASCADE/PROTECT와 session·감사를 함께 처리하며
-성공 결과는 ID·revision·삭제 건수다. 실패/unknown에는 성공 값을 반환하지 않는다.
-생성은 현재 `add_user`와 `change_user`를 모두 요구하고 모든 작업은 현재 grant와 deny overlay를 다시 확인한다.
-Group/Permission 관리 service와 관리 JSON API·OpenAPI·독립 Session/Bearer client도 연결했다.
-[Identity Admin](../identity/admin/config.go)은 같은 Manager·현재 권한·revision·삭제 정책으로 User/Group/Permission의
-Form·관리 화면·비밀번호 명령을 구성한다. 호스트의 전체 관계 graph에서 얻은 삭제 정책과 비밀번호 정책을 명시한다.
-
-선택 계정의 generated `NewAccountCatalog`로 만든 실제 Group/Permission owner는
-[`identityadmin.RegisterCatalog`](../identity/admin/selected_catalog.go)에 연결한다. 호스트는 두 모델의 slug와 목록 열을
-지정하고, source·Form field·권한·현재 선택지·CRUD·감사는 owner에서 가져온다. 읽기 노출에 없는 Form field/label은 등록 오류다.
-기본 User와 별도 catalog app·renamed field·추가 scalar에 같은 등록 함수를 사용한다.
-
-계정 자체는 generated `NewAccountManagement`에 같은 SessionStore와 그 Store의 인증기, 관리 정책을 전달하고
-[`identityadmin.RegisterAccount`](../identity/admin/selected_account.go)에 등록한다. 읽기·생성·수정 필드와 operation/추가 권한,
-catalog 동반 효과의 권한, typed 생성/편집/비밀번호 정책을 한 곳에서 정한다. 등록 시에는 slug와 목록 열만 정하며 비밀번호
-입력·확인·명시적 unusable 선택, 현재 그룹/직접 권한 선택지와 비밀번호 명령을 함께 제공한다. 모델에 같은 이름의 프로필 필드가
-있으면 별도 command 이름을 사용한다. 생성은 add와 change를 모두 요구하고, 저장 뒤에는 확인된 ID/revision만 반환한다.
-이 경로의 관리 JSON API·공개 CLI/scaffold runtime 전환은 아직 남아 있으며 [I1 진행](../work/0138-custom-account-lifecycle.md)을 따른다.
-
-[일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON API를 제공한다.
-변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.
-메일 reset은 key·sender·신뢰한 origin·비공개 오류 reporter를 명시해 활성화한다. Token을 서버 proof로 바꾼 뒤 현재 상태를
-재검사하고 비밀번호·session 폐기·proof 정리·audit를 함께 저장하며 자동 로그인하지 않는다.
-[Article 구성](../examples/article/internal/siteapp/siteapp.go)은 관리 화면/API와 일반 계정이 같은 저장 runtime과
-비밀번호 정책을 사용하게 연결한다. Custom user model·JWT/OAuth/OIDC 등의 추가 인증 provider는 남은 범위다.
+`systemstate.AdoptOperator`와 예전 `cmd/adoptoperator`는 역사적인 operator→고정 User 전환을 위한 API다.
+이 도구는 새 선택 계정 domain으로의 mapping·retirement·복구를 완료하지 않으므로 현재 runtime을 준비하는 명령으로
+사용할 수 없다. 저장된 계정과 소유권을 명시적으로 옮기는 전체 경로는 [I1-07](../work/0138-custom-account-lifecycle.md)의
+남은 구현이다. 기존 데이터는 보존한다. Fresh 새 프로젝트 사용과 채운 DB 전환의 검증은 별도로 판정한다.
 
 ## Form, Admin과 API
 

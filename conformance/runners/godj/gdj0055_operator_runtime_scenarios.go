@@ -10,14 +10,22 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
+	accountauditmodels "github.com/progresshans/godj/account/audit/models"
+	accountdomain "github.com/progresshans/godj/account/domain"
+	accountdomainmodels "github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/conformance/internal/protocol"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
+	articlemodeldef "github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/examples/article/siteappconformance"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	identitymodels "github.com/progresshans/godj/identity/models"
 	productcheck "github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/linked"
@@ -750,218 +758,88 @@ func gdj0055ValidationCase(name, outcome string) protocol.Value {
 	})
 }
 
-func gdj0055CredentialAbsentPublicOnly(
-	ctx context.Context,
-	contract protocol.Contract,
-	_ GDJ0055Inputs,
-) (protocol.Observation, error) {
-	type observedCase struct {
-		name       string
-		outcome    string
-		publicOnly bool
-		writes     int64
+func gdj0055CredentialAbsentPublicOnly(ctx context.Context, contract protocol.Contract, _ GDJ0055Inputs) (protocol.Observation, error) {
+	type specification struct {
+		name, mode, outcome string
+		fresh               bool
+		want                error
 	}
-	cases := make([]observedCase, 0, 6)
-
-	empty, err := newGDJ0055StateFixture(ctx, false)
-	if err != nil {
-		return protocol.Observation{}, err
+	specifications := []specification{
+		{"exact_installation_and_unowned_account", "fresh", "account_domain_fresh", true, nil},
+		{"missing_or_wrong_migration", "missing", "schema_unavailable", false, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}},
+		{"missing_or_wrong_migration", "wrong", "schema_unavailable", false, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}},
+		{"unavailable_table", "table", "startup_failure", false, &query.Error{Code: query.CodeMissingTable}},
+		{"dependent_rows_without_account_domain", "account", "startup_failure", false, &accountmodel.Error{Code: accountmodel.CodeNotFresh}},
+		{"dependent_rows_without_account_domain", "audit", "startup_failure", false, &accountmodel.Error{Code: accountmodel.CodeNotFresh}},
+		{"corrupt_state", "history", "corrupt_state", false, accountdomain.ErrCorrupt},
+		{"explicit_transition_required", "legacy", "account_transition_required", false, &accountmodel.Error{Code: accountmodel.CodeTransitionRequired}},
 	}
-	defer empty.cleanup()
-	if err := gdj0055MigrateIdentity(ctx, empty); err != nil {
-		return protocol.Observation{}, err
-	}
-	empty.resetDML()
-	emptyComposition, startupErr := siteappconformance.ObserveComposition(ctx, empty.observed)
-	if startupErr != nil || !emptyComposition.PublicOnly() || empty.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("empty Article composition observation=%+v error=%v writes=%d", emptyComposition, startupErr, empty.writes())
-	}
-	cases = append(cases, observedCase{"exact_migration_and_all_system_state_empty", string(systemstate.CodeCredentialAbsent), emptyComposition.PublicOnly(), empty.writes()})
-
-	missing, err := newGDJ0055UnmigratedBackend(ctx)
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	defer missing.cleanup()
-	missing.resetDML()
-	missingComposition, startupErr := siteappconformance.ObserveComposition(ctx, missing.observed)
-	if missingComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeSchemaUnavailable}) || missing.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("missing migration Article composition=%+v error=%v writes=%d", missingComposition, startupErr, missing.writes())
-	}
-
-	wrongHistory, err := newGDJ0055StateFixture(ctx, false)
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	defer wrongHistory.cleanup()
-	if err := gdj0055MigrateIdentity(ctx, wrongHistory); err != nil {
-		return protocol.Observation{}, err
-	}
-	if _, err := wrongHistory.raw.ExecContext(ctx, `INSERT INTO "godj_migrations" ("app", "name") VALUES ('godj_system', '9999_wrong')`); err != nil {
-		return protocol.Observation{}, err
-	}
-	wrongHistory.resetDML()
-	wrongComposition, startupErr := siteappconformance.ObserveComposition(ctx, wrongHistory.observed)
-	if wrongComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeSchemaUnavailable}) || wrongHistory.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("wrong migration history Article composition=%+v error=%v writes=%d", wrongComposition, startupErr, wrongHistory.writes())
-	}
-	cases = append(cases, observedCase{
-		"missing_or_wrong_migration",
-		string(systemstate.CodeSchemaUnavailable),
-		missingComposition.PublicOnly() || wrongComposition.PublicOnly(),
-		missing.writes() + wrongHistory.writes(),
-	})
-
-	unavailable, err := newGDJ0055StateFixture(ctx, false)
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	defer unavailable.cleanup()
-	if err := gdj0055MigrateIdentity(ctx, unavailable); err != nil {
-		return protocol.Observation{}, err
-	}
-	if _, err := unavailable.raw.ExecContext(ctx, `DROP TABLE "godj_system_session"`); err != nil {
-		return protocol.Observation{}, err
-	}
-	unavailable.resetDML()
-	unavailableComposition, startupErr := siteappconformance.ObserveComposition(ctx, unavailable.observed)
-	if unavailableComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeSchemaUnavailable}) || unavailable.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("unavailable table Article composition=%+v error=%v writes=%d", unavailableComposition, startupErr, unavailable.writes())
-	}
-	cases = append(cases, observedCase{"unavailable_table", "startup_failure", unavailableComposition.PublicOnly(), unavailable.writes()})
-
-	dependent, err := newGDJ0055StateFixture(ctx, false)
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	defer dependent.cleanup()
-	if err := gdj0055MigrateIdentity(ctx, dependent); err != nil {
-		return protocol.Observation{}, err
-	}
-	if _, err := dependent.raw.ExecContext(ctx, `INSERT INTO "godj_system_session" ("id", "digest", "payload") VALUES (1, 'dependent', 'dependent')`); err != nil {
-		return protocol.Observation{}, err
-	}
-	dependent.resetDML()
-	dependentComposition, startupErr := siteappconformance.ObserveComposition(ctx, dependent.observed)
-	if dependentComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeCorruptState}) || dependent.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("dependent row Article composition=%+v error=%v writes=%d", dependentComposition, startupErr, dependent.writes())
-	}
-
-	dependentAudit, err := newGDJ0055StateFixture(ctx, false)
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	defer dependentAudit.cleanup()
-	if err := gdj0055MigrateIdentity(ctx, dependentAudit); err != nil {
-		return protocol.Observation{}, err
-	}
-	if _, err := dependentAudit.raw.ExecContext(ctx, `INSERT INTO "godj_system_audit" (`+
-		`"actor_id", "model", "object_id", "action", "changed_fields", "display_label"`+
-		`) VALUES ('operator', 'article.article', '1', 'add', 'v1.AAA', 'dependent')`); err != nil {
-		return protocol.Observation{}, err
-	}
-	dependentAudit.resetDML()
-	dependentAuditComposition, startupErr := siteappconformance.ObserveComposition(ctx, dependentAudit.observed)
-	if dependentAuditComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeCorruptState}) || dependentAudit.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("dependent audit row Article composition=%+v error=%v writes=%d", dependentAuditComposition, startupErr, dependentAudit.writes())
-	}
-	cases = append(cases, observedCase{
-		"dependent_rows_without_credential",
-		"startup_failure",
-		dependentComposition.PublicOnly() || dependentAuditComposition.PublicOnly(),
-		dependent.writes() + dependentAudit.writes(),
-	})
-
-	corrupt, err := newGDJ0055StateFixture(ctx, false)
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	defer corrupt.cleanup()
-	if err := systemStateProvisionOperator(ctx, corrupt.observed, corrupt.config); err != nil {
-		return protocol.Observation{}, err
-	}
-	if err := gdj0055MigrateIdentity(ctx, corrupt); err != nil {
-		return protocol.Observation{}, err
-	}
-	corruptPolicy, err := corrupt.config.credentialPolicy()
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	if _, err := systemstate.AdoptOperator(ctx, corrupt.observed, systemstate.AdoptOperatorConfig{Expected: systemstate.RuntimeConfig{CredentialPolicy: corruptPolicy}, Staff: true}); err != nil {
-		return protocol.Observation{}, err
-	}
-	if _, err := corrupt.raw.ExecContext(ctx, `UPDATE "godj_system_credential" SET "encoded_password" = 'v9.invalid' WHERE "id" = 1`); err != nil {
-		return protocol.Observation{}, err
-	}
-	corrupt.resetDML()
-	corruptComposition, startupErr := siteappconformance.ObserveComposition(ctx, corrupt.observed)
-	if corruptComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeCorruptState}) || corrupt.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("corrupt Article composition=%+v error=%v writes=%d", corruptComposition, startupErr, corrupt.writes())
-	}
-	cases = append(cases, observedCase{"corrupt_state", string(systemstate.CodeCorruptState), corruptComposition.PublicOnly(), corrupt.writes()})
-
-	mismatch, err := newGDJ0055StateFixture(ctx, false)
-	if err != nil {
-		return protocol.Observation{}, err
-	}
-	defer mismatch.cleanup()
-	if err := siteappconformance.ProvisionPolicyMismatch(
-		ctx,
-		mismatch.observed,
-		mismatch.config.Username,
-		mismatch.config.Password,
-	); err != nil {
-		return protocol.Observation{}, err
-	}
-	if err := gdj0055MigrateIdentity(ctx, mismatch); err != nil {
-		return protocol.Observation{}, err
-	}
-	mismatch.resetDML()
-	mismatchComposition, startupErr := siteappconformance.ObserveComposition(ctx, mismatch.observed)
-	if mismatchComposition.ApplicationCreated || !errors.Is(startupErr, &systemstate.Error{Code: systemstate.CodeIdentityTransitionRequired}) || mismatch.writes() != 0 {
-		return protocol.Observation{}, fmt.Errorf("mismatch Article composition=%+v error=%v writes=%d", mismatchComposition, startupErr, mismatch.writes())
-	}
-	cases = append(cases, observedCase{"explicit_transition_required", string(systemstate.CodeIdentityTransitionRequired), mismatchComposition.PublicOnly(), mismatch.writes()})
-
-	values := make([]protocol.Value, len(cases))
+	var values []protocol.Value
 	var writes int64
-	var absentBranches, downgraded int
-	for index, candidate := range cases {
-		values[index] = protocol.Object(map[string]protocol.Value{
-			"case":        protocol.String(candidate.name),
-			"outcome":     protocol.String(candidate.outcome),
-			"public_only": protocol.Boolean(candidate.publicOnly),
-		})
-		writes += candidate.writes
-		if candidate.outcome == string(systemstate.CodeCredentialAbsent) {
-			absentBranches++
+	var publicBranches int
+	for _, test := range specifications {
+		fixture, err := newGDJ0055UnmigratedBackend(ctx)
+		if err != nil {
+			return protocol.Observation{}, err
 		}
-		if candidate.publicOnly && candidate.outcome != string(systemstate.CodeCredentialAbsent) {
-			downgraded++
+		defer fixture.cleanup()
+		if test.mode != "missing" {
+			sources := articlemodeldef.MigrationSources()
+			if test.mode == "legacy" {
+				sources = append(sources, systemstate.InitialDefinitionSource())
+			}
+			loaded, _, err := definition.Load(sources...)
+			if err != nil {
+				return protocol.Observation{}, err
+			}
+			if _, err := (migrations.Executor{Backend: fixture.raw}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil {
+				return protocol.Observation{}, err
+			}
 		}
+		switch test.mode {
+		case "wrong":
+			_, err = fixture.raw.ExecContext(ctx, `INSERT INTO "godj_migrations" ("app","name") VALUES ('godj_account_domain','9999_wrong')`)
+		case "table":
+			_, err = fixture.raw.ExecContext(ctx, `DROP TABLE "godj_sessions_session"`)
+		case "account":
+			_, err = identitymodels.UserObjects.Create(ctx, fixture.raw, identitymodels.NewUserCreate("unowned", "unowned", "!", time.Now().UTC()))
+		case "audit":
+			_, err = accountauditmodels.EventObjects.Create(ctx, fixture.raw, accountauditmodels.NewEventCreate(strings.Repeat("c", 64), "unowned", "godj_conformance.article", 1, "add", "[]", time.Now().UTC().Truncate(time.Microsecond)))
+		case "history":
+			_, err = accountdomainmodels.TransitionObjects.Create(ctx, fixture.raw, accountdomainmodels.NewTransitionCreate(strings.Repeat("a", 64), 2, strings.Repeat("b", 64), strings.Repeat("c", 64), strings.Repeat("d", 64), time.Now().UTC().Truncate(time.Microsecond)))
+		}
+		if err != nil {
+			return protocol.Observation{}, err
+		}
+		fixture.resetDML()
+		observation, failure := siteappconformance.ObserveComposition(ctx, fixture.observed)
+		if test.fresh {
+			if failure != nil || !observation.PublicOnly() {
+				return protocol.Observation{}, fmt.Errorf("selected fresh Article startup: %v", failure)
+			}
+			publicBranches++
+		} else if observation.ApplicationCreated || failure == nil || !errors.Is(failure, test.want) {
+			return protocol.Observation{}, fmt.Errorf("selected Article startup case %s: %v", test.mode, failure)
+		}
+		if fixture.writes() != 0 || fixture.observed.atomicCalls.Load() != 0 || fixture.observed.migrationTransactions.Load() != 0 {
+			return protocol.Observation{}, fmt.Errorf("selected Article startup mutated storage: %s", test.mode)
+		}
+		writes += fixture.writes()
+		// Both installation failures and both orphaned-data variants are
+		// independently executed above; each pair has one external outcome.
+		if test.mode == "wrong" || test.mode == "audit" {
+			continue
+		}
+		values = append(values, protocol.Object(map[string]protocol.Value{"case": protocol.String(test.name), "outcome": protocol.String(test.outcome), "public_only": protocol.Boolean(observation.PublicOnly())}))
 	}
-	return systemStateObservation(
-		contract,
+	return systemStateObservation(contract,
+		protocol.Object(map[string]protocol.Value{"cases": protocol.List(values...), "failure_downgrade": protocol.Boolean(false)}),
 		protocol.Object(map[string]protocol.Value{
-			"cases":             protocol.List(values...),
-			"failure_downgrade": protocol.Boolean(downgraded != 0),
+			"downgraded_failure_cases": systemStateInt(0), "public_only_mutations": systemStateInt64(writes),
+			"required_empty_stores": protocol.List(protocol.String("selected_account"), protocol.String("account_domain"), protocol.String("account_audit")),
+			"session_namespaces":    protocol.String("validated_without_adoption"),
 		}),
-		protocol.Object(map[string]protocol.Value{
-			"downgraded_failure_cases": systemStateInt(downgraded),
-			"public_only_mutations":    systemStateInt64(empty.writes()),
-			"required_empty_stores": protocol.List(
-				protocol.String("credential"),
-				protocol.String("identity_user"),
-				protocol.String("identity_transition"),
-				protocol.String("session"),
-				protocol.String("audit"),
-			),
-		}),
-		protocol.Object(map[string]protocol.Value{
-			"credential_absent_branches": systemStateInt(absentBranches),
-			"failure_downgrades":         systemStateInt(downgraded),
-			"startup_writes":             systemStateInt64(writes),
-		}),
+		protocol.Object(map[string]protocol.Value{"account_domain_fresh_branches": systemStateInt(publicBranches), "failure_downgrades": systemStateInt(0), "startup_writes": systemStateInt64(writes)}),
 	)
 }
 

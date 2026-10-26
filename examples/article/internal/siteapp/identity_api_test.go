@@ -14,14 +14,14 @@ import (
 
 func TestArticleSitePublishesIdentityAPIAndCreatedStaffCanLogin(t *testing.T) {
 	fixture := newSiteAppCSRFFixture(t, websessionauth.CSRFKeyRing{})
-	path := "/api/identity/users/"
+	path := "/api/identity/accounts/"
 	anonymous := fixture.request(t, "GET", fixture.firstURL+path, api.JSONContentType, "", "")
 	if anonymous.status != 403 {
 		t.Fatal("anonymous management admission")
 	}
 	fixture.login(t)
 	token := fixture.apiToken(t, fixture.firstURL)
-	created := fixture.request(t, "POST", fixture.firstURL+path, api.JSONContentType, `{"username":"created-staff","password":"  untrimmed password  ","staff":true}`, token)
+	created := fixture.request(t, "POST", fixture.firstURL+path, api.JSONContentType, `{"fields":{"username":"created-staff","staff":true},"credential":{"password":"  untrimmed password  "}}`, token)
 	if created.status != 201 || created.header.Get("Revision") != "1" {
 		t.Fatal("management API not composed or private projection")
 	}
@@ -34,8 +34,8 @@ func TestArticleSitePublishesIdentityAPIAndCreatedStaffCanLogin(t *testing.T) {
 			t.Fatal("management API exposed private field", name)
 		}
 	}
-	if string(projection["password_usable"]) != "true" || strings.Contains(created.body, "untrimmed password") {
-		t.Fatal("password status missing or private input exposed")
+	if len(projection) != 2 || strings.Contains(created.body, "untrimmed password") {
+		t.Fatal("creation receipt exposed profile or private input")
 	}
 	var user struct{ ID, Revision int64 }
 	if err := json.Unmarshal([]byte(created.body), &user); err != nil || user.ID <= 0 {

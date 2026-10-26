@@ -42,6 +42,7 @@ const (
 // route declarations whose handlers share this read-only configuration.
 type Application struct {
 	repository     articleapp.Repository
+	selected       *selectedAccess
 	body           bodyinput.Body[orm.ModelInput[articlemodels.Article]]
 	response       output.Output[articlemodels.Article]
 	bulkResponse   output.Output[[]articlemodels.Article]

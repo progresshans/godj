@@ -20,16 +20,29 @@ godj createsuperuser
 godj runserver
 ```
 
-`createsuperuser` prompts for the first administrator's username and password on
-the terminal. Open `http://127.0.0.1:8000/admin/` and sign in. The application also
+`createsuperuser` prompts for the selected account's declared login/profile fields
+and password on the terminal. The default policy asks for username and email;
+omission and an explicitly empty value stay distinct. Open
+`http://127.0.0.1:8000/admin/` and sign in. The application also
 provides the identity JSON API at `/api/identity/`; unsafe requests require the
 authenticated session and its masked CSRF token. The OpenAPI document at
 `/api/identity/openapi.json` requires identity model permissions.
+
+The management collections are `accounts/`, `groups/` and `permissions/`. Model
+input belongs in `fields`; credential commands belong in `credential`. Writes
+to existing objects require their current `If-Revision` value. The same owners
+apply current permissions, session revocation, related effects and audit in one
+native transaction for Admin and JSON requests.
 
 The default database is `site.sqlite3`. Apply migrations before serving. Without
 an initial account, the migrated application serves only its public home page.
 After provisioning, restarting loads the stored identity and permissions without
 requiring the password again.
+
+The first-account result retains an operation ID and distinguishes `created`,
+`not_created` and `unknown`, with cleanup reported separately. A lost response or
+cleanup failure does not authorize a retry. No command adopts old operator rows
+or transfers accounts merely because a model declaration changed.
 
 The supplied server accepts literal loopback addresses only. Its session cookies
 allow local HTTP. Review the deployment, TLS and cookie policy before creating a
@@ -41,8 +54,14 @@ separate production entrypoint.
   the app's declaration package; neither imports generated model code.
 - `modeldef/project.go` binds each app to `apps/<label>/models` and creates the
   generated project binding in `project/`.
-- Edit `internal/config/config.go` for database and identity policy. It reads an
-  explicit environment snapshot and opens no resources.
+- Edit `internal/config/config.go` for database and logging configuration. It
+  reads an explicit environment snapshot and opens no resources.
+- Select the account role in `modeldef/project.go` and its explicit migration
+  sources in `modeldef/migrations.go`. Declare typed exposure, grants, strength
+  policy and required first-account fields in `internal/accounts/policy.go`.
+  Keep callback policy in that file so its embedded source digest changes with
+  the first-account declaration. A populated database needs an explicit account
+  transition; changing source does not transfer existing authority.
 - Add Admin resources and authenticated API routes in `internal/site/models.go`.
   Choose exposed fields and permissions explicitly; adding a model does not
   automatically publish its fields as HTTP input.

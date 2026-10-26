@@ -65,7 +65,7 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 	)
 	assertWorkspaceEmpty(t, workspaceBase)
 	provisionedSnapshot := authenticatedRestartInspectPostgres(t, databaseURL, schema)
-	authenticatedRestartAssertProvisionedState(t, provisionedSnapshot, username, password)
+	authenticatedRestartAssertProvisionedState(t, provisionedSnapshot, username, password, provision.OperationID)
 	projectMigratePostgresAssertStoredValuesSecretFree(t, databaseURL, schema, sensitive)
 	projectMigratePostgresAssertArtifactsSecretFree(t, artifactRoots, sensitive)
 
@@ -94,6 +94,7 @@ func TestGlobalMigrateAuthenticatedArticlePostgresRestartDurability(t *testing.T
 				baseURL,
 				username,
 				password,
+				provisionedSnapshot.Identity.Users[0].PrincipalID,
 				&sensitive,
 			)
 			return phaseErr
@@ -179,15 +180,15 @@ func authenticatedRestartInspectPostgres(
 
 	sessionRows, err := connection.Query(
 		ctx,
-		`SELECT "digest", "payload" FROM `+
-			pgx.Identifier{schema, "godj_system_session"}.Sanitize()+` ORDER BY "id"`,
+		`SELECT "namespace", "digest", "payload" FROM `+
+			pgx.Identifier{schema, "godj_sessions_session"}.Sanitize()+` ORDER BY "id"`,
 	)
 	if err != nil {
 		t.Fatalf("query authenticated restart PostgreSQL sessions: %v", testfixture.PostgresSafeError(err))
 	}
 	for sessionRows.Next() {
 		var row authenticatedRestartSessionRow
-		if err := sessionRows.Scan(&row.Digest, &row.Payload); err != nil {
+		if err := sessionRows.Scan(&row.Namespace, &row.Digest, &row.Payload); err != nil {
 			sessionRows.Close()
 			t.Fatalf("scan authenticated restart PostgreSQL session: %v", testfixture.PostgresSafeError(err))
 		}
@@ -199,8 +200,8 @@ func authenticatedRestartInspectPostgres(
 
 	auditRows, err := connection.Query(
 		ctx,
-		`SELECT "id", "actor_id", "model", "object_id", "action", "changed_fields", "display_label" FROM `+
-			pgx.Identifier{schema, "godj_system_audit"}.Sanitize()+` ORDER BY "id"`,
+		`SELECT "id", "domain", "actor_id", "model", "object_id", "action", "changed_fields", "recorded_at" FROM `+
+			pgx.Identifier{schema, "godj_account_audit_event"}.Sanitize()+` ORDER BY "id"`,
 	)
 	if err != nil {
 		t.Fatalf("query authenticated restart PostgreSQL audit: %v", testfixture.PostgresSafeError(err))
@@ -209,12 +210,13 @@ func authenticatedRestartInspectPostgres(
 		var row authenticatedRestartAuditRow
 		if err := auditRows.Scan(
 			&row.Sequence,
+			&row.Domain,
 			&row.ActorID,
 			&row.Model,
 			&row.ObjectID,
 			&row.Action,
 			&row.ChangedFields,
-			&row.DisplayLabel,
+			&row.RecordedAt,
 		); err != nil {
 			auditRows.Close()
 			t.Fatalf("scan authenticated restart PostgreSQL audit: %v", testfixture.PostgresSafeError(err))
@@ -225,33 +227,6 @@ func authenticatedRestartInspectPostgres(
 		t.Fatalf("finish authenticated restart PostgreSQL audit rows: %v", testfixture.PostgresSafeError(err))
 	}
 
-	credentialRows, err := connection.Query(
-		ctx,
-		`SELECT "id", "principal_id", "username", "encoded_password", "active", "permissions", "definition_digest" FROM `+
-			pgx.Identifier{schema, "godj_system_credential"}.Sanitize()+` ORDER BY "id"`,
-	)
-	if err != nil {
-		t.Fatalf("query authenticated restart PostgreSQL credential: %v", testfixture.PostgresSafeError(err))
-	}
-	for credentialRows.Next() {
-		var row authenticatedRestartCredentialRow
-		if err := credentialRows.Scan(
-			&row.ID,
-			&row.PrincipalID,
-			&row.Username,
-			&row.EncodedPassword,
-			&row.Active,
-			&row.Permissions,
-			&row.DefinitionDigest,
-		); err != nil {
-			credentialRows.Close()
-			t.Fatalf("scan authenticated restart PostgreSQL credential: %v", testfixture.PostgresSafeError(err))
-		}
-		snapshot.Credential = append(snapshot.Credential, row)
-	}
-	if err := projectMigratePostgresCloseRows(credentialRows); err != nil {
-		t.Fatalf("finish authenticated restart PostgreSQL credential rows: %v", testfixture.PostgresSafeError(err))
-	}
 	snapshot.Identity = authenticatedRestartReadIdentity(t, func(statement string) (authenticatedRestartRows, func() error, error) {
 		rows, err := connection.Query(ctx, statement)
 		if err != nil {

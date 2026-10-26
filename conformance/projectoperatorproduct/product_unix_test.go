@@ -28,21 +28,22 @@ import (
 	"time"
 
 	"github.com/creack/pty"
+	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
 	operatorattestation "github.com/progresshans/godj/conformance/projectoperatorproduct/attestation"
 	sqlitebackend "github.com/progresshans/godj/db/sqlite"
-	"github.com/progresshans/godj/examples/article/articleapp"
-	"github.com/progresshans/godj/sessions"
-	"github.com/progresshans/godj/systemstate"
+	articleproject "github.com/progresshans/godj/examples/article/project"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
 var operatorCSRFPattern = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([A-Za-z0-9_-]{128})"`)
 
 type operatorProvisionResult struct {
-	globalPID int
-	leafPID   int
+	globalPID   int
+	leafPID     int
+	operationID string
 }
 
 type operatorProvisionExecution struct {
@@ -97,46 +98,48 @@ func operatorRunSQLiteLostResponseProduct(t *testing.T) {
 	t.Helper()
 	project := newOperatorExternalProject(t)
 	for _, test := range []struct {
-		name         string
-		mode         string
-		wantCategory string
-		wantCode     string
+		name        string
+		mode        string
+		wantStatus  string
+		wantCode    string
+		wantCleanup bool
 	}{
 		{
-			name:         "known created response write failure",
-			mode:         "broken-pipe",
-			wantCategory: "operator_project_internal_error",
-			wantCode:     "operator_created_output_failed",
+			name:       "known created response write failure",
+			mode:       "broken-pipe",
+			wantStatus: "created",
+			wantCode:   "created_output_failed",
 		},
 		{
-			name:         "post-commit child abort is outcome unknown",
-			mode:         "abort",
-			wantCategory: "operator_project_process_error",
-			wantCode:     "operator_provision_outcome_unknown",
+			name:       "post-commit child abort is outcome unknown",
+			mode:       "abort",
+			wantStatus: "unknown",
+			wantCode:   "outcome_unknown",
 		},
 		{
-			name:         "known created backend close and response failure",
-			mode:         "backend-close-broken-pipe",
-			wantCategory: "system_state_backend_error",
-			wantCode:     "operator_created_backend_cleanup_failed",
+			name:        "known created backend close and response failure",
+			mode:        "backend-close-broken-pipe",
+			wantStatus:  "created",
+			wantCode:    "created_cleanup_failed",
+			wantCleanup: true,
 		},
 		{
-			name:         "post-commit empty response is outcome unknown",
-			mode:         "empty",
-			wantCategory: "operator_project_process_error",
-			wantCode:     "operator_provision_outcome_unknown",
+			name:       "post-commit empty response is outcome unknown",
+			mode:       "empty",
+			wantStatus: "unknown",
+			wantCode:   "outcome_unknown",
 		},
 		{
-			name:         "post-commit malformed response is outcome unknown",
-			mode:         "malformed",
-			wantCategory: "operator_project_process_error",
-			wantCode:     "operator_provision_outcome_unknown",
+			name:       "post-commit malformed response is outcome unknown",
+			mode:       "malformed",
+			wantStatus: "unknown",
+			wantCode:   "outcome_unknown",
 		},
 		{
-			name:         "post-commit over-limit response is outcome unknown",
-			mode:         "over-limit",
-			wantCategory: "operator_project_process_error",
-			wantCode:     "operator_provision_outcome_unknown",
+			name:       "post-commit over-limit response is outcome unknown",
+			mode:       "over-limit",
+			wantStatus: "unknown",
+			wantCode:   "outcome_unknown",
 		},
 	} {
 		test := test
@@ -156,27 +159,13 @@ func operatorRunSQLiteLostResponseProduct(t *testing.T) {
 				operatorResponseModeEnvironment: test.mode,
 			})
 			execution := project.runProvisionPTY(t, provisionEnvironment, provisionMarker, username, password)
-			wantFailure := test.wantCategory + "/" + test.wantCode
-			normalizedTranscript := strings.ReplaceAll(execution.transcript, "\r\n", "\n")
-			wantTranscript := "Username: " + username + "\nPassword: \nPassword (again): \n" + wantFailure + "\n"
-			if execution.exitCode != 3 || execution.truncated || normalizedTranscript != wantTranscript ||
-				strings.Count(execution.transcript, "Username: ") != 1 ||
-				strings.Count(execution.transcript, "Password: ") != 1 ||
-				strings.Count(execution.transcript, "Password (again): ") != 1 ||
-				strings.Count(execution.transcript, wantFailure) != 1 ||
-				strings.Contains(execution.transcript, `{"status":"created"}`) {
-				t.Fatalf(
-					"lost response outcome = mode:%s exit:%d failure:%d created:%t bytes:%d truncated:%t",
-					test.mode,
-					execution.exitCode,
-					strings.Count(execution.transcript, wantFailure),
-					strings.Contains(execution.transcript, `{"status":"created"}`),
-					len(execution.transcript),
-					execution.truncated,
-				)
+			result := operatorDecodeProvisionTranscript(t, execution.transcript, username)
+			if execution.exitCode != 3 || execution.truncated || result.Status != test.wantStatus || result.Code != test.wantCode || result.CleanupFailed != test.wantCleanup {
+				t.Fatalf("lost response outcome = mode:%s exit:%d status:%s code:%s cleanup:%t truncated:%t", test.mode, execution.exitCode, result.Status, result.Code, result.CleanupFailed, execution.truncated)
 			}
+
 			operatorAssertSQLiteCounts(t, database, 1, 0, 0)
-			operatorAssertSQLiteCredential(t, database, username, password)
+			operatorAssertSQLiteCredential(t, database, username, password, result.OperationID)
 			operatorAssertSQLiteCounts(t, database, 1, 0, 0)
 			project.assertArtifactsExclude(t, password)
 			if occurrences := operatorSQLiteRawSecretOccurrences(t, database, password); occurrences != 0 {
@@ -185,15 +174,13 @@ func operatorRunSQLiteLostResponseProduct(t *testing.T) {
 		})
 	}
 	for _, test := range []struct {
-		name             string
-		stream           string
-		responseMode     string
-		wantFailureBytes bool
+		name         string
+		stream       string
+		responseMode string
 	}{
 		{
-			name:             "global stdout broken after durable success",
-			stream:           "stdout",
-			wantFailureBytes: true,
+			name:   "global stdout broken after durable success",
+			stream: "stdout",
 		},
 		{
 			name:         "global stderr broken after known-created child exit",
@@ -225,19 +212,16 @@ func operatorRunSQLiteLostResponseProduct(t *testing.T) {
 			// stdout/stderr are deliberately detached from the input PTY in this
 			// branch, so the username's visible terminal echo is not copied into
 			// the captured public stream. The three framework prompts/newlines are.
-			wantTranscript := "Username: \nPassword: \nPassword (again): \n"
-			if test.wantFailureBytes {
-				wantTranscript += "operator_project_internal_error/operator_created_output_failed\n"
-			}
+			wantTranscript := "\"Username\": \nPassword: \nPassword (again): \n"
 			if execution.exitCode != 3 || execution.truncated || normalizedTranscript != wantTranscript ||
-				strings.Contains(normalizedTranscript, `{"status":"created"}`) {
+				strings.Contains(normalizedTranscript, `"operation_id"`) {
 				t.Fatalf(
 					"lost public stream outcome = stream:%s exit:%d bytes:%d want-bytes:%d truncated:%t",
 					test.stream, execution.exitCode, len(normalizedTranscript), len(wantTranscript), execution.truncated,
 				)
 			}
 			operatorAssertSQLiteCounts(t, database, 1, 0, 0)
-			operatorAssertSQLiteCredential(t, database, username, password)
+			operatorAssertSQLiteCredential(t, database, username, password, "")
 			operatorAssertSQLiteCounts(t, database, 1, 0, 0)
 			project.assertArtifactsExclude(t, password)
 			if occurrences := operatorSQLiteRawSecretOccurrences(t, database, password); occurrences != 0 {
@@ -269,7 +253,7 @@ func operatorRunSQLiteBackendProduct(t *testing.T) operatorattestation.ObservedF
 	})
 	operatorAssertSecretFreeEnvironment(t, provisionEnvironment, password)
 	provision := project.runProvision(t, provisionEnvironment, provisionMarker, username, password)
-	operatorAssertSQLiteCredential(t, database, username, password)
+	operatorAssertSQLiteCredential(t, database, username, password, provision.operationID)
 	project.assertArtifactsExclude(t, password)
 
 	jar, err := cookiejar.New(nil)
@@ -293,7 +277,7 @@ func operatorRunSQLiteBackendProduct(t *testing.T) operatorattestation.ObservedF
 		return phaseErr
 	})
 	operatorAssertSQLiteCounts(t, database, 1, 1, 1)
-	operatorAssertSQLiteCredential(t, database, username, password)
+	operatorAssertSQLiteCredential(t, database, username, password, provision.operationID)
 
 	runtimeBMarker := project.marker(t, "runtime-b")
 	runtimeBEnvironment := testenv.With(environment, map[string]string{
@@ -306,7 +290,7 @@ func operatorRunSQLiteBackendProduct(t *testing.T) operatorattestation.ObservedF
 		return operatorExercisePhaseB(client, jar, baseURL, authentication)
 	})
 	operatorAssertSQLiteCounts(t, database, 1, 1, 2)
-	operatorAssertSQLiteCredential(t, database, username, password)
+	operatorAssertSQLiteCredential(t, database, username, password, provision.operationID)
 
 	leafPIDs := []int{provision.leafPID, runtimeA.leafPID, runtimeB.leafPID}
 	if !operatorDistinctPositivePIDs(leafPIDs...) ||
@@ -359,23 +343,45 @@ func (project *operatorExternalProject) runProvision(
 ) operatorProvisionResult {
 	t.Helper()
 	execution := project.runProvisionPTY(t, environment, marker, username, password)
-	transcript := execution.transcript
-	if execution.exitCode != 0 || execution.truncated ||
-		strings.Count(transcript, "Username: ") != 1 ||
-		strings.Count(transcript, "Password: ") != 1 ||
-		strings.Count(transcript, "Password (again): ") != 1 ||
-		strings.Count(transcript, `{"status":"created"}`) != 1 {
-		t.Fatalf(
-			"external operator provision shape = exit:%d prompts:%d/%d/%d created:%d bytes:%d truncated:%t",
-			execution.exitCode,
-			strings.Count(transcript, "Username: "),
-			strings.Count(transcript, "Password: "),
-			strings.Count(transcript, "Password (again): "),
-			strings.Count(transcript, `{"status":"created"}`),
-			len(transcript), execution.truncated,
-		)
+	result := operatorDecodeProvisionTranscript(t, execution.transcript, username)
+	if execution.exitCode != 0 || execution.truncated || result.Status != "created" || result.Code != "" || result.CleanupFailed {
+		t.Fatalf("external operator provision = exit:%d status:%s code:%s cleanup:%t truncated:%t", execution.exitCode, result.Status, result.Code, result.CleanupFailed, execution.truncated)
 	}
+	execution.operationID = result.OperationID
+
 	return execution.operatorProvisionResult
+}
+
+type operatorPublicProvisionResult struct {
+	OperationID   string `json:"operation_id"`
+	Status        string `json:"status"`
+	Code          string `json:"code"`
+	CleanupFailed bool   `json:"cleanup_failed"`
+}
+
+func operatorDecodeProvisionTranscript(t *testing.T, transcript, username string) operatorPublicProvisionResult {
+	t.Helper()
+	normalized := strings.ReplaceAll(transcript, "\r\n", "\n")
+	prefix := "\"Username\": " + username + "\nPassword: \nPassword (again): \n"
+	if !strings.HasPrefix(normalized, prefix) {
+		t.Fatal("external operator prompts differ from the selected field description")
+	}
+	document := strings.TrimPrefix(normalized, prefix)
+	var result operatorPublicProvisionResult
+	decoder := json.NewDecoder(strings.NewReader(document))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&result); err != nil {
+		t.Fatal("decode closed operator result")
+	}
+	canonical, err := json.Marshal(result)
+	if err != nil || document != string(canonical)+"\n" {
+		t.Fatal("operator result has duplicate, missing or trailing fields/output")
+	}
+	operation, err := hex.DecodeString(result.OperationID)
+	if err != nil || len(operation) != 32 || hex.EncodeToString(operation) != result.OperationID {
+		t.Fatal("operator result omitted its parent operation identity")
+	}
+	return result
 }
 
 func (project *operatorExternalProject) runProvisionPTY(
@@ -436,7 +442,7 @@ func (project *operatorExternalProject) runProvisionPTY(
 		}
 	}()
 
-	operatorAwaitPTYPrompt(t, output, waited, "Username: ")
+	operatorAwaitPTYPrompt(t, output, waited, "\"Username\": ")
 	operatorWritePTYRecord(t, master, []byte(username))
 	operatorAwaitPTYPrompt(t, output, waited, "Password: ")
 	operatorWritePTYRecord(t, master, password)
@@ -585,7 +591,7 @@ func (project *operatorExternalProject) runProvisionPublicStreamLoss(
 		}
 	}()
 
-	operatorAwaitPTYPrompt(t, output, waited, "Username: ")
+	operatorAwaitPTYPrompt(t, output, waited, "\"Username\": ")
 	operatorWritePTYRecord(t, master, []byte(username))
 	operatorAwaitPTYPrompt(t, output, waited, "Password: ")
 	operatorWritePTYRecord(t, master, password)
@@ -1134,10 +1140,10 @@ func operatorAssertSQLiteCounts(t *testing.T, path string, credentials, sessions
 		query string
 		want  int
 	}{
-		{name: "credential", query: `SELECT COUNT(*) FROM "godj_system_credential"`, want: credentials},
 		{name: "user", query: `SELECT COUNT(*) FROM "godj_identity_user"`, want: credentials},
-		{name: "transition", query: `SELECT COUNT(*) FROM "godj_system_identity_transition"`, want: credentials},
-		{name: "session", query: `SELECT COUNT(*) FROM "godj_system_session"`, want: sessions},
+		{name: "transition", query: `SELECT COUNT(*) FROM "godj_account_domain_transition"`, want: credentials},
+		{name: "first-account audit", query: `SELECT COUNT(*) FROM "godj_account_audit_event" WHERE "model" = 'godj_identity.user' AND "action" = 'add'`, want: credentials},
+		{name: "session", query: `SELECT COUNT(*) FROM "godj_sessions_session"`, want: sessions},
 		{name: "Article", query: `SELECT COUNT(*) FROM "godj_conformance_article"`, want: articles},
 	}
 	for _, item := range queries {
@@ -1151,7 +1157,7 @@ func operatorAssertSQLiteCounts(t *testing.T, path string, credentials, sessions
 	}
 }
 
-func operatorAssertSQLiteCredential(t *testing.T, path, username string, password []byte) {
+func operatorAssertSQLiteCredential(t *testing.T, path, username string, password []byte, expectedOperation string) {
 	t.Helper()
 	func() {
 		database, err := sql.Open("sqlite", path)
@@ -1176,7 +1182,7 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 		if bytes.Equal([]byte(encoded), password) || bytes.Contains([]byte(encoded), password) {
 			t.Fatal("external operator SQLite credential retained the raw password")
 		}
-		rows, err := database.QueryContext(ctx, `SELECT "digest", "payload" FROM "godj_system_session"`)
+		rows, err := database.QueryContext(ctx, `SELECT "digest", "payload" FROM "godj_sessions_session"`)
 		if err != nil {
 			t.Fatal("read external operator SQLite sessions")
 		}
@@ -1197,7 +1203,7 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 
 	// Reconcile through the product API on a separately opened backend instead
 	// of treating row shape as proof. This is the no-retry path used after a
-	// lost private response: OpenIdentity must accept the durable ownership receipt and
+	// lost private response: the selected store must accept the ownership receipt and
 	// the supplied password must authenticate against the durable hash.
 	// Default PBKDF2 verification is CPU work and is race-instrumented in the
 	// parent test. Reconciliation checks correctness, not a ten-second latency
@@ -1214,19 +1220,33 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 			_ = backend.Close()
 		}
 	}()
-	policy := operatorCredentialPolicy(t)
-	runtime, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{
-		PasswordHasher: policy.PasswordHasher,
-		SessionLimits:  sessions.DefaultLimits(),
-		MaxSessions:    64,
-		AuditCapacity:  256,
-	})
+	store, err := articleproject.NewAccountSessionStore(backend, sessiondb.Config{MaxRecords: 64})
 	if err != nil {
-		t.Fatal("open existing external operator runtime")
+		t.Fatal("construct selected account inspection owner")
+	}
+	inspection, err := store.InspectStartup(ctx)
+	if err != nil || !inspection.Ready() {
+		t.Fatal("open existing selected account ownership")
+	}
+	operationID := inspection.Ownership().OperationID()
+	if expectedOperation != "" && operationID != expectedOperation {
+		t.Fatal("durable operation differs from parent result")
+	}
+	receipt, err := domain.Lookup(ctx, backend, operationID)
+	if err != nil || receipt.OperationID() != operationID || receipt.Sequence() != 1 || receipt.Generation() != inspection.Ownership().Generation() {
+		t.Fatal("reconcile exact durable operator receipt")
+	}
+	hasher, err := auth.NewDefaultPBKDF2()
+	if err != nil {
+		t.Fatal("construct operator password hasher")
+	}
+	verifier, err := store.Authenticator(ctx, hasher)
+	if err != nil {
+		t.Fatal("construct selected account authenticator")
 	}
 	passwordText := string(password)
 	authenticationStarted := time.Now()
-	principalCredential, err := runtime.Authenticator().Authenticate(ctx, username, passwordText)
+	principalCredential, err := verifier.Authenticate(ctx, username, passwordText)
 	principal := principalCredential.Principal()
 	passwordText = ""
 	if err != nil || principal.ID() != "external-article-operator" || !principal.Active() || !principal.Staff() || !principal.Superuser() {
@@ -1238,29 +1258,6 @@ func operatorAssertSQLiteCredential(t *testing.T, path, username string, passwor
 		t.Fatal("close fresh external operator SQLite backend")
 	}
 	closed = true
-}
-
-func operatorCredentialPolicy(t *testing.T) systemstate.CredentialPolicy {
-	t.Helper()
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{
-		ID:     "external-article-operator",
-		Active: true,
-		Permissions: []auth.Permission{
-			"godj.admin.access",
-			articleapp.ArticleViewPermission,
-			articleapp.ArticleAddPermission,
-			articleapp.ArticleChangePermission,
-			articleapp.ArticleDeletePermission,
-		},
-	})
-	if err != nil {
-		t.Fatal("build external operator principal")
-	}
-	hasher, err := auth.NewDefaultPBKDF2()
-	if err != nil {
-		t.Fatal("build external operator password hasher")
-	}
-	return systemstate.CredentialPolicy{Principal: principal, PasswordHasher: hasher}
 }
 
 func operatorRandomPassword(t *testing.T) []byte {

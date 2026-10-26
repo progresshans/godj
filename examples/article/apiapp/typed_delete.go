@@ -1,6 +1,8 @@
 package apiapp
 
 import (
+	"context"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"net/http"
 
 	"github.com/progresshans/godj/api"
@@ -28,14 +30,16 @@ func (a *Application) deleteEndpoint(authentication api.Authentication) (endpoin
 			{Code: 400, Description: "The deletion was rejected by application validation."},
 			{Code: 404, Description: "The Article or requested page does not exist, or its identifier is invalid."},
 		},
-		Handle: func(request *web.Request, _ auth.Principal, id int64) (output.Prepared[struct{}], error) {
+		Handle: func(request *web.Request, actor auth.Principal, id int64) (output.Prepared[struct{}], error) {
 			// The fixed representation can be prepared before opening a transaction.
 			// Delete owns callback, hook and commit confirmation; an error discards it.
 			prepared, err := empty.Prepare(request.Context(), http.StatusNoContent, struct{}{})
 			if err != nil {
 				return output.Prepared[struct{}]{}, err
 			}
-			if _, err := a.repository.Delete(request.Context(), id); err != nil {
+			if _, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleDeletePermission, true, func(work context.Context, repository articleapp.Repository) (articlemodels.Article, error) {
+				return repository.Delete(work, id)
+			}); err != nil {
 				return output.Prepared[struct{}]{}, typedArticleFailure(err)
 			}
 			return prepared, nil

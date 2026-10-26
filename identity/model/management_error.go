@@ -9,15 +9,16 @@ import (
 type ErrorCode string
 
 const (
-	CodeInvalidInput      ErrorCode = "invalid_input"
-	CodeInvalidConfig     ErrorCode = "invalid_config"
-	CodePermission        ErrorCode = "permission_denied"
-	CodeNotFound          ErrorCode = "not_found"
-	CodeConflict          ErrorCode = "revision_conflict"
-	CodePersistence       ErrorCode = "persistence_failure"
-	CodeOutcomeUnknown    ErrorCode = "outcome_unknown"
-	CodeNotFresh          ErrorCode = "account_domain_not_fresh"
-	CodeSchemaUnavailable ErrorCode = "schema_unavailable"
+	CodeInvalidInput       ErrorCode = "invalid_input"
+	CodeInvalidConfig      ErrorCode = "invalid_config"
+	CodePermission         ErrorCode = "permission_denied"
+	CodeNotFound           ErrorCode = "not_found"
+	CodeConflict           ErrorCode = "revision_conflict"
+	CodePersistence        ErrorCode = "persistence_failure"
+	CodeOutcomeUnknown     ErrorCode = "outcome_unknown"
+	CodeNotFresh           ErrorCode = "account_domain_not_fresh"
+	CodeSchemaUnavailable  ErrorCode = "schema_unavailable"
+	CodeTransitionRequired ErrorCode = "account_transition_required"
 )
 
 type Error struct {

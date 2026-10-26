@@ -239,7 +239,7 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := rollbackService.Create(ctx, secondConfig.PrincipalID, rollbackInput); !errors.Is(err, errInjectedAuditRollback) {
+	if _, err := rollbackService.Create(ctx, restartedPrincipal, rollbackInput); !errors.Is(err, errInjectedAuditRollback) {
 		t.Fatalf("Article create with injected audit failure = %v, want rollback sentinel", err)
 	}
 	if rollbackStore.objectID <= 0 {
@@ -266,7 +266,7 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil {
 		t.Fatal(err)
 	}
-	committedArticle, err := commitService.Create(ctx, secondConfig.PrincipalID, commitInput)
+	committedArticle, err := commitService.Create(ctx, restartedPrincipal, commitInput)
 	if err != nil || committedArticle.ID <= 0 {
 		t.Fatalf("commit Article and audit together = (%#v, %v)", committedArticle, err)
 	}
@@ -274,7 +274,7 @@ func runSystemStateProductSentinel(t *testing.T, ctx context.Context, open backe
 	if err != nil || page.Total != 1 || len(page.Articles) != 1 || page.Articles[0].ID != committedArticle.ID {
 		t.Fatalf("committed Article rows = (%#v, %v)", page, err)
 	}
-	committedHistory, err := commitService.HistoryLimited(ctx, committedArticle.ID, 10)
+	committedHistory, err := commitService.HistoryLimited(ctx, restartedPrincipal, committedArticle.ID, 10)
 	if err != nil || len(committedHistory) != 1 || committedHistory[0].ObjectID != committedArticle.ID ||
 		committedHistory[0].Action != admin.ActionAdd || committedHistory[0].ActorID != secondConfig.PrincipalID {
 		t.Fatalf("committed durable audit history = (%#v, %v)", committedHistory, err)

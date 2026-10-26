@@ -21,13 +21,14 @@ export GODJ_ARTICLE_SQLITE_DATABASE="$godj_demo_dir/article.sqlite3"
 "$godj_demo_dir/godj" runserver --project examples/article/godj.toml
 ```
 
-`createsuperuser`는 실제 터미널에서 username/password를 입력받아 빈 identity 저장소의 첫 active/staff/superuser를 만든다.
+`createsuperuser`는 선택 계정의 실제 필드 선언으로 username·email·password를 묻고, 명시적으로 설치한 빈 계정 domain에 첫 active/staff/superuser를 만든다.
 비밀번호를 명령 인자에 넣지 않는다. User·Group·Permission 관리 화면과 JSON API를 제공하며, 일반 계정은
 [계정 로그인](http://127.0.0.1:8000/account/login/)과 [본인 비밀번호 변경](http://127.0.0.1:8000/account/password/)을 사용한다.
 일반 계정의 접근에는 staff나 모델 관리 권한이 필요하지 않다. [계정 API와 구성](identity/account/README.md)을 참고한다.
 [Article](http://127.0.0.1:8000/)과 [Admin](http://127.0.0.1:8000/admin/)을 열고, 종료는 Ctrl-C를 사용한다.
 같은 DB로 다시 실행할 때는 `runserver`만 실행한다. Startup은 저장된 User와 현재 권한을 읽으며 계정을 자동 생성하거나 이전하지 않는다.
-이전 형식의 operator가 있는 DB는 [명시적 계정 이전](docs/DEVELOPER_EXPERIENCE.md#기존-operator-이전)을 먼저 수행한다.
+결과 JSON은 operation ID·생성 상태·오류 코드·정리 실패를 구분한다. 결과 유실이나 정리 실패 뒤 같은 입력을 자동 재시도하지 않는다.
+기존 `godj_system` 저장소는 현재 기동에서 거부한다. [채운 DB의 계정 전환](docs/DEVELOPER_EXPERIENCE.md#기존-operator-이전)은 아직 구현 중이다.
 
 Admin에 로그인한 같은 브라우저에서 [Article OpenAPI](http://127.0.0.1:8000/api/openapi.json)를 조회할 수 있다.
 기존 API의 모델 기반 요청·응답, route와 Session/CSRF 조건을 제공한다. [코드에서 사용하는 방법](docs/DEVELOPER_EXPERIENCE.md#openapi와-client)은 개발 흐름을 따른다.
@@ -38,7 +39,7 @@ SQLite 선택과 PostgreSQL 환경변수를 동시에 설정하지 않는다. Po
 ## 코드 탐색
 
 - [Schema 선언](examples/article/modeldef/schema.go)과 [프로젝트 설정](examples/article/cmd/projectrunner/main.go)
-- [생성 model](examples/article/models/), [관계 binding](examples/article/project/)
+- [생성 model](examples/article/models/), [관계 binding](examples/article/project/), [선택 계정 정책](examples/article/internal/accounts/policy.go)
 - [Helpdesk 소비자](examples/helpdesk/app_test.go): 구조가 다른 관계 모델과 선택형 Admin·API·권한 변경
 - [Article Web](examples/article/webapp/), [Admin](examples/article/adminapp/), [API](examples/article/apiapp/)
 - [Typed API 출력](api/output/README.md): 같은 필드 선언에서 JSON 검증과 OpenAPI 연결

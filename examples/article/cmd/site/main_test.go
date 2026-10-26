@@ -18,17 +18,20 @@ import (
 	"testing"
 	"time"
 
+	auditmodels "github.com/progresshans/godj/account/audit/models"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
+	"github.com/progresshans/godj/examples/article/internal/accounttest"
+	"github.com/progresshans/godj/examples/article/modeldef"
 	"github.com/progresshans/godj/examples/article/webapp"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/project/firstaccount"
 	projectserver "github.com/progresshans/godj/project/server"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/settings/database"
-	"github.com/progresshans/godj/systemstate"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
 
@@ -229,25 +232,21 @@ func TestApplicationForServeRequiresExplicitSystemMigrationWithoutCreatingSchema
 	backend := newArticleSiteTestBackend(t, "article-site-system-migration-gate")
 	t.Cleanup(func() { _ = backend.Close() })
 	application, err := applicationForServe(ctx, backend, true)
-	if application != nil || !errors.Is(err, &systemstate.Error{
-		Code:  systemstate.CodeSchemaUnavailable,
-		Field: "migration_history",
-	}) {
+	if application != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}) {
 		t.Fatalf("applicationForServe(missing system migration) = (%v,%#v)", application, err)
 	}
 	history, historyErr := backend.ReadAppliedMigrations(ctx)
 	if historyErr != nil || len(history) != 0 {
 		t.Fatalf("migration history after rejected startup = (%+v,%v)", history, historyErr)
 	}
-	rows, queryErr := backend.Query(ctx, query.NewPlan(
-		"godj_system_credential",
-		[]query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)},
-	))
-	if rows != nil {
-		_ = rows.Close()
-	}
-	if !errors.Is(queryErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeMissingTable}) {
-		t.Fatalf("credential table after rejected startup error = %#v", queryErr)
+	for _, table := range []string{"godj_account_domain_transition", "godj_account_audit_event", "godj_sessions_session"} {
+		rows, queryErr := backend.Query(ctx, query.NewPlan(table, []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)}))
+		if rows != nil {
+			_ = rows.Close()
+		}
+		if !errors.Is(queryErr, &query.Error{Category: query.CategoryBackend, Code: query.CodeMissingTable}) {
+			t.Fatalf("storage table after rejected startup %s: %v", table, queryErr)
+		}
 	}
 }
 
@@ -305,7 +304,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 	if created.status != http.StatusCreated || created.body != `{"id":1,"title":"Before restart","published":true,"summary":null,"slug":null}` {
 		t.Fatalf("first-process API create = status %d body %q", created.status, created.body)
 	}
-	if got := articleSiteTableRowCount(t, ctx, firstBackend, "godj_system_audit"); got != 0 {
+	if got := articleSiteAuditCount(t, ctx, firstBackend); got != 0 {
 		t.Fatalf("API write synthesized %d Admin audit rows", got)
 	}
 	firstServer.Close()
@@ -360,7 +359,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_conformance_article"); got != 2 {
 		t.Fatalf("Article rows after rejected and accepted restart writes = %d, want 2", got)
 	}
-	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_system_audit"); got != 0 {
+	if got := articleSiteAuditCount(t, ctx, secondBackend); got != 0 {
 		t.Fatalf("restarted API writes synthesized %d Admin audit rows", got)
 	}
 	addPage := articleSiteGET(t, client, secondServer.URL+"/admin/articles/add/", "")
@@ -393,7 +392,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_conformance_article"); got != 3 {
 		t.Fatalf("Article rows after durable Admin write = %d, want 3", got)
 	}
-	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_system_audit"); got != 1 {
+	if got := articleSiteAuditCount(t, ctx, secondBackend); got != 1 {
 		t.Fatalf("durable Admin audit rows = %d, want 1", got)
 	}
 	logoutPage := articleSiteGET(t, client, secondServer.URL+"/admin/articles/", "")
@@ -423,7 +422,7 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 	if got := articleSiteCookieValue(t, jar, secondServer.URL, websessionauth.DefaultSessionCookieName); got != "" {
 		t.Fatalf("process-B logout retained browser session cookie of length %d", len(got))
 	}
-	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_system_session"); got != 0 {
+	if got := articleSiteTableRowCount(t, ctx, secondBackend, "godj_sessions_session"); got != 0 {
 		t.Fatalf("durable session rows after process-B logout = %d, want 0", got)
 	}
 	secondServer.Close()
@@ -471,10 +470,10 @@ func TestApplicationForServeExplicitSystemMigrationPersistsSessionAcrossReopenAn
 	if apiAfterLogout.status != http.StatusForbidden || apiAfterLogout.body != `{"code":"not_authenticated","errors":[]}` {
 		t.Fatalf("process-C copied-cookie API = status %d body %q", apiAfterLogout.status, apiAfterLogout.body)
 	}
-	if got := articleSiteTableRowCount(t, ctx, thirdBackend, "godj_system_session"); got != 0 {
+	if got := articleSiteTableRowCount(t, ctx, thirdBackend, "godj_sessions_session"); got != 0 {
 		t.Fatalf("process-C durable session rows = %d, want 0", got)
 	}
-	if got := articleSiteTableRowCount(t, ctx, thirdBackend, "godj_system_audit"); got != 1 {
+	if got := articleSiteAuditCount(t, ctx, thirdBackend); got != 1 {
 		t.Fatalf("process-C durable Admin audit rows = %d, want 1", got)
 	}
 }
@@ -729,7 +728,7 @@ func createArticleSiteArticleTable(t *testing.T, backend *sqlite.Backend) {
 func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backend) {
 	t.Helper()
 	ctx := context.Background()
-	loaded, _, err := migrationdefinition.Load(systemstate.IdentityMigrationSources()...)
+	loaded, _, err := migrationdefinition.Load(modeldef.MigrationSources()...)
 	if err != nil {
 		t.Fatalf("load Article site system definition: %v", err)
 	}
@@ -741,14 +740,11 @@ func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backe
 		t.Fatalf("explicitly migrate Article site system definition: %v", err)
 	}
 	history, err := backend.ReadAppliedMigrations(ctx)
-	want := map[migrations.MigrationKey]bool{
-		{App: "godj_system", Name: "0001_initial"}:               true,
-		{App: "godj_system", Name: "0002_identity_transition"}:   true,
-		{App: "godj_identity", Name: "0001_initial"}:             true,
-		{App: "godj_identity", Name: "0002_permission_revision"}: true,
-		{App: "godj_identity", Name: "0003_alter_user_email"}:    true,
-		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"}:   true,
+	want := map[migrations.MigrationKey]bool{}
+	for _, migration := range loaded.Definitions() {
+		want[migration.Key()] = true
 	}
+
 	if err != nil || len(history) != len(want) {
 		t.Fatalf("Article identity migration history = (%+v,%v), want exact current identity/system keys", history, err)
 	}
@@ -764,29 +760,20 @@ func explicitlyMigrateArticleSiteSystemState(t *testing.T, backend *sqlite.Backe
 	}
 }
 
-func provisionArticleSiteOperator(
-	t *testing.T,
-	ctx context.Context,
-	backend systemstate.IdentityBackend,
-	username, password string,
-) {
+func provisionArticleSiteOperator(t *testing.T, ctx context.Context, backend firstaccount.Backend, username, password string) {
 	t.Helper()
-	principal, err := operatorconfig.InitialSuperuser()
-	if err != nil {
-		t.Fatalf("Article operator policy: %v", err)
+	if _, err := accounttest.Provision(ctx, backend, username, password); err != nil {
+		t.Fatal(err)
 	}
-	config, err := operatorconfig.IdentityRuntimeConfig()
+}
+
+func articleSiteAuditCount(t *testing.T, ctx context.Context, backend *sqlite.Backend) int {
+	t.Helper()
+	count, err := auditmodels.EventObjects.Using(backend).Filter(auditmodels.EventFields.Model.Exact("godj_conformance.article")).Count(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := systemstate.ProvisionIdentity(ctx, backend, systemstate.ProvisionIdentityConfig{
-		Username:       username,
-		Password:       password,
-		Principal:      principal,
-		PasswordHasher: config.PasswordHasher,
-	}); err != nil {
-		t.Fatalf("ProvisionOperator(): %v", err)
-	}
+	return int(count)
 }
 
 type articleSiteLoginState struct {

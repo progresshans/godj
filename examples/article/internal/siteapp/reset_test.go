@@ -14,30 +14,32 @@ import (
 	"testing"
 	"time"
 
+	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
+	"github.com/progresshans/godj/auth/passwordpolicy"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/examples/article/internal/accounttest"
+	"github.com/progresshans/godj/examples/article/project"
 	"github.com/progresshans/godj/identity"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/mail"
-	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web/sessionauth"
 )
 
 func TestArticleCompositionSharesResetPolicyAndNativePersistence(t *testing.T) {
 	backend := openSiteAppStateBackend(t, "reset-composition")
 	migrateSiteAppState(t, t.Context(), backend)
-	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
+	created, err := accounttest.Provision(t.Context(), backend, "admin", "initial admin secret password")
 	if err != nil {
 		t.Fatal(err)
 	}
-	principal, err := operatorconfig.InitialSuperuser()
+	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = systemstate.ProvisionIdentity(t.Context(), backend, systemstate.ProvisionIdentityConfig{Username: "admin", Password: "initial admin secret password", Principal: principal, PasswordHasher: runtimeConfig.PasswordHasher}); err != nil {
-		t.Fatal(err)
-	}
-	encoded, err := runtimeConfig.PasswordHasher.Hash(t.Context(), "old ordinary reset password")
+	encoded, err := hasher.Hash(t.Context(), "old ordinary reset password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +47,7 @@ func TestArticleCompositionSharesResetPolicyAndNativePersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	minimum, err := identity.NewMinimumLengthValidator(20)
+	minimum, err := passwordpolicy.NewMinimumLengthValidator(20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +64,9 @@ func TestArticleCompositionSharesResetPolicyAndNativePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	var reports atomic.Int64
-	cfg := NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(minimum).WithPasswordReset(identity.PasswordResetConfig{Keys: keys}, outbox, identity.PasswordResetMailConfig{From: from, Origin: "https://reset.example.test"}, func(context.Context, error) { reports.Add(1) })
+	cfg := NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(func(_ context.Context, raw string, _ models.User) (validation.Errors, error) {
+		return minimum.ValidatePassword(raw, nil), nil
+	}).WithPasswordReset(accountmodel.RuntimeResetConfig{Keys: keys}, outbox, identity.PasswordResetMailConfig{From: from, Origin: "https://reset.example.test"}, func(context.Context, error) { reports.Add(1) })
 	application, err := New(t.Context(), cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -148,16 +152,22 @@ func TestArticleCompositionSharesResetPolicyAndNativePersistence(t *testing.T) {
 	if err != nil || !found || current.Revision != user.Revision+1 || current.LastLogin != nil || current.Staff || current.Superuser {
 		t.Fatal("reset changed profile or login state", err)
 	}
-	matched, err := runtimeConfig.PasswordHasher.Verify(t.Context(), password, current.EncodedPassword)
+	matched, err := hasher.Verify(t.Context(), password, current.EncodedPassword)
 	if err != nil || !matched {
 		t.Fatal("reset password not durable", err)
 	}
-	reopened, err := systemstate.OpenIdentity(t.Context(), backend, runtimeConfig)
+	binding, err := project.BindAccount()
 	if err != nil {
 		t.Fatal(err)
 	}
-	history, err := reopened.AuditHistory(t.Context(), "godj_identity.user", user.ID, 10)
-	if err != nil || len(history) != 1 || history[0].ActorID != user.PrincipalID {
+	namespace, err := binding.CredentialDomain(created.Ownership.Generation())
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, err := db.ReadSnapshotResult(t.Context(), backend, func(ctx context.Context, scope db.Queryer) ([]accountaudit.Entry, error) {
+		return accountaudit.HistoryIn(ctx, scope, namespace, "godj_identity.user", user.ID, 10)
+	})
+	if err != nil || len(history) != 1 || history[0].ActorID() != user.PrincipalID {
 		t.Fatal("reset audit not durable", err)
 	}
 	response, body = call("GET", "/api/account/openapi.json", "", "")

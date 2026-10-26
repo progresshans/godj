@@ -20,10 +20,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/progresshans/godj/conformance/internal/testfixture"
 	"github.com/progresshans/godj/db/postgres"
+	articlemodeldef "github.com/progresshans/godj/examples/article/modeldef"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/migrations"
 	migrationdefinition "github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/systemstate"
 )
 
 const (
@@ -114,15 +114,15 @@ func prepareRunserverArticlePostgresDatabase(t *testing.T, repository, databaseU
 	if err != nil {
 		t.Fatal(err)
 	}
-	sources := append(systemstate.IdentityMigrationSources(), migrationdefinition.Source{
+	sources := append(articlemodeldef.MigrationSources(), migrationdefinition.Source{
 		SourceID: "examples/article/testdata/postgres/0001_initial.godj.json", Document: document,
 	})
 	loaded, report, err := migrationdefinition.Load(sources...)
 	if err != nil {
 		t.Fatalf("load Article and system PostgreSQL initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 7 || report.HeadersValidated != 7 || report.OperationsDecoded != 17 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 7 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 8 || report.HeadersValidated != 8 || report.OperationsDecoded != 16 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 8 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article and system PostgreSQL initial migration load report = %+v", report)
 	}
 

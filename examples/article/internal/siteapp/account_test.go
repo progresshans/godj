@@ -1,10 +1,12 @@
 package siteapp
 
 import (
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
-	"github.com/progresshans/godj/identity"
+	"context"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/auth/passwordpolicy"
+	"github.com/progresshans/godj/examples/article/internal/accounttest"
 	"github.com/progresshans/godj/identity/models"
-	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/validation"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -19,18 +21,14 @@ import (
 func TestArticleOrdinaryAccountPasswordSurfaceAndStaffSeparation(t *testing.T) {
 	backend := openSiteAppStateBackend(t, "ordinary-account-composition")
 	migrateSiteAppState(t, t.Context(), backend)
-	config, err := operatorconfig.IdentityRuntimeConfig()
+	if _, err := accounttest.Provision(t.Context(), backend, "admin", "admin-secret-password"); err != nil {
+		t.Fatal(err)
+	}
+	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {
 		t.Fatal(err)
 	}
-	principal, err := operatorconfig.InitialSuperuser()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := systemstate.ProvisionIdentity(t.Context(), backend, systemstate.ProvisionIdentityConfig{Username: "admin", Password: "admin-secret-password", Principal: principal, PasswordHasher: config.PasswordHasher}); err != nil {
-		t.Fatal(err)
-	}
-	encoded, err := config.PasswordHasher.Hash(t.Context(), "ordinary secret password")
+	encoded, err := hasher.Hash(t.Context(), "ordinary secret password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,11 +36,13 @@ func TestArticleOrdinaryAccountPasswordSurfaceAndStaffSeparation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	minimum, err := identity.NewMinimumLengthValidator(20)
+	minimum, err := passwordpolicy.NewMinimumLengthValidator(20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	application, err := New(t.Context(), NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(minimum))
+	application, err := New(t.Context(), NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(func(_ context.Context, raw string, _ models.User) (validation.Errors, error) {
+		return minimum.ValidatePassword(raw, nil), nil
+	}))
 	if err != nil {
 		t.Fatal(err)
 	}

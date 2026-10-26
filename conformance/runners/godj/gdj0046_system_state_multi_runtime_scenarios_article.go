@@ -224,7 +224,11 @@ func systemStateConcurrentArticleAudit(
 			return protocol.Observation{}, err
 		}
 	}
-	actor := pair.config.PrincipalID
+	policy, err := pair.config.credentialPolicy()
+	if err != nil {
+		return protocol.Observation{}, err
+	}
+	actor := policy.Principal
 	if _, err := holderService.Create(ctx, actor, inputs[0]); err != nil {
 		return protocol.Observation{}, err
 	}
@@ -283,7 +287,7 @@ func systemStateConcurrentArticleAudit(
 	if err := gdj0046ValidateArticleAuditSnapshots(
 		articlesBeforeFault,
 		auditsBeforeFault,
-		actor,
+		actor.ID(),
 		auditCapacity,
 	); err != nil {
 		return protocol.Observation{}, err
@@ -325,7 +329,7 @@ func systemStateConcurrentArticleAudit(
 	if err := gdj0046ValidateArticleAuditSnapshots(
 		articlesAfterFault,
 		auditsAfterFault,
-		actor,
+		actor.ID(),
 		auditCapacity,
 	); err != nil {
 		return protocol.Observation{}, err

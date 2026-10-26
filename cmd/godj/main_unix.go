@@ -79,7 +79,7 @@ func execute(
 		brokenPipe := make(chan os.Signal, 1)
 		signal.Notify(brokenPipe, syscall.SIGPIPE)
 		defer signal.Stop(brokenPipe)
-		report := projectcheck.RunCreatesuperuser(projectcheck.CreatesuperuserInvocation{
+		report := projectcheck.RunFirstAccount(projectcheck.FirstAccountInvocation{
 			Context:     ctx,
 			CWD:         cwd,
 			Args:        args,

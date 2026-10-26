@@ -317,7 +317,7 @@
     },
     {
       "id": "SYS-028",
-      "title": "Only migrated clean identity-absent state selects public-only mode; corruption and required operator adoption never downgrade",
+      "title": "Only installed unowned selected-account storage selects public-only mode; corruption and historical operator storage never downgrade",
       "scenario": "godj.system_state.credential_absent_public_only",
       "phase": "environment",
       "status": "passing",

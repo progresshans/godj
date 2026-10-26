@@ -22,9 +22,11 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	if err != nil {
 		return codegen.ProjectSpec{}, err
 	}
+	account := identitydef.AccountRole()
 	result := codegen.ProjectSpec{
 		Project: codegen.PackageSpec{PackageName: "project", ImportPath: "[[.Module]]/project", Directory: "project"},
 		Apps: []codegen.AppSpec{identity},
+		Account: &account,
 	}
 	for _, definition := range Applications() {
 		appSchema, err := schema.Build(definition)

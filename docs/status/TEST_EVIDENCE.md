@@ -1788,6 +1788,50 @@ build 기한을 사용한다. 원본 SQL/취소/secret/oracle 검사를 유지�
 공개 CLI·기존 고정 runtime host·scaffold를 함께 바꾸는 후속 조립은 아직 통합하지 않았다. 이 기반과 fixture 수정 묶음을 PR #1에
 반영한 뒤 새 source의 전체 CI에서 확인하며 I1-01~08과 전체 카탈로그의 남은 요구를 유지한다.
 
+### 공개 최초 계정 명령과 Article/scaffold의 선택 runtime 통합
+
+2026-10-27, `379728b9cf7c6618705b6d62a84bdfb2aaadc0e9` 위에서 공개 `createsuperuser`를 `RunFirstAccount`에 연결했다.
+Article와 starter는 기본 User의 계정 역할을 명시하고 identity의 기존 네 migration과 독립 domain·audit·session 각 하나를
+설치한다. 선언 runner는 generated package를 import하지 않으며 commands runtime이 실제 typed 정책·Description·DB opener를
+소유한다. 실제 opener는 startup 검사 실패에도 획득한 backend를 반환해 process owner가 한 번 닫는다. 기본 password 정책은
+첫 계정·관리·자기 변경/reset에서 같은 typed declaration을 사용한다. Article의 13개 generated bundle 파일을 갱신했다.
+
+Article/scaffold 서버는 하나의 선택 계정 runtime을 자동 Account/Catalog Admin·관리 JSON·login/password/reset에 연결한다.
+기존 `godj_system` migration 이력은 데이터 읽기 전에 `account_transition_required`로 거부한다. 빈 legacy 저장소나 이미
+고정 User로 adoption한 상태도 새 domain으로 자동 채택하지 않는다. 채운 DB mapping/retirement·복구는 아직 구현하지 않았다.
+
+Article 업무 Admin/API는 전체 Principal의 현재 domain·계정·권한을 같은 native snapshot/write fence 안에서 검사한다.
+읽기 거부도 snapshot 종료가 성공한 뒤 게시하며 Admin 쓰기와 값 없는 domain 감사는 한 transaction이다. 기존 JSON 업무
+CRUD에 Admin 감사를 추가하지 않는다. 새 SQLite/PostgreSQL 공유 검사는 권한 회수·inactive/old domain·read cleanup·실제
+감사 실패 rollback·확정 commit 뒤 unknown과 단일 시도를 요구한다. 이 본문은 작성·compile 상태이며 로컬에서 실행하지 않았다.
+
+기존 공개 CLI·scaffold/reload·외부 operator·Article 양 DB migration/restart 소비자를 현재 저장소로 전환했다. Private
+86/87·abort·empty/malformed/oversized response, 공개 stdout/stderr 유실·한 번의 시도·종료/secret 검사와 독립 재접속을 유지한다.
+공개 결과는 닫힌 네 field와 parent operation ID를 대조하고 같은 ID의 durable receipt를 확인한다. 공개 결과 자체를 잃은 경우는
+현재 durable 소유권을 검사하며 같은 입력을 재실행하지 않는다. Article의 실제 HTTP consumer는 생성된 principal·domain·첫 계정
+감사와 후속 Article 감사, byte-identical session·process-local CSRF·LastLogin·restart를 구분해 대조하도록 수정했다.
+SQLite/PostgreSQL의 migration table/column/history·revision 및 PostgreSQL constraint/index/sequence의 독립 기대값도 새 설치에 맞췄다.
+이 소비자들의 새 본문은 원격 CI 대상이다. 삭제한 projectrunner provisioning 검사의 command/resource·broken-output 위험은
+`cmd/commands`와 외부 operator 소비자가 계속 검증한다.
+
+로컬은 gofmt·영향 package의 `go test -run '^$'` 최소 compile·정적 검사만 수행했다. 실제 scaffold renderer와 외부 operator
+fixture의 선언을 별도 module에 작성하고 공개 `generate`와 module 전체 최소 compile을 확인했다. 외부 fixture의 package 전역
+`definition`과 migration import가 충돌한 오류는 alias로 수정한 뒤 통과했다. 마지막 identity/model·accountstoretest·protocol·
+세 제품 package와 operator attestation의 최소 compile도 통과했다. 로컬 migration/provision/HTTP/PTY/race 본문은 실행하지 않았다.
+최초 scaffold materialization helper는 실제 renderer만 호출했으며 runtime 기능 검증으로 계산하지 않는다.
+
+필수 목록은 Relation 4,450(1개 추가), PostgreSQL core 5,515(9개 추가), Portable core 258이다. 기존 항목 보존·중복 없음과
+PostgreSQL normal/CGO0 및 race 일곱 owner의 정확히 한 번 배정을 확인했다. 새 Article root와 `cmd/commands`는 기존 integration
+owner에 속한다. `SYS-028`의 GoDj-only startup decision만 Python 선언과 checked-in 관측에 맞췄고 다른 29개 관측은 동일하다.
+이 변경은 Django 실행 근거가 아니다. Oracle SHA256SUMS·67개 pinned artifact와 244개 문서 링크도 정적으로 확인했다.
+
+검증 보관소 `gdj0138-public-account-v1/receipt.json`은 실제 두 module의 생성/compile 기록, 정적 기준 검사와 비 Markdown
+source 103개 hash를 연결한다(SHA-256 `b6af9a1647ce8b675aef15339e763d6d373c67e0bdf1579b7101731789929339`).
+선행 [CI 40390167814](https://github.com/progresshans/godj/actions/runs/40390167814)는 `379728b9`의 실행이며 이 새 코드를 포함하지 않는다.
+관측한 중간 상태는 120개 작업 중 성공 80·실행 중 6·대기 34·실패 0이며 전체 PASS가 아니다. 새 묶음은 통합 PR #1에 push하고
+자동 전체 CI에서 새 본문·양 DB·process/race/platform·generated drift와 독립 기준을 확인한다. 사용자 정의 PostgreSQL HTTP,
+남은 고정 Manager host, profile 관계/파일·선택 모델-as-through 생성·채운 DB 전환과 I1-01~08 전체 수용은 계속 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

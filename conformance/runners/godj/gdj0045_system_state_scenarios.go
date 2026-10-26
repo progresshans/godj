@@ -1554,7 +1554,11 @@ func systemStateCommitOutcomeUnknown(
 	if err != nil {
 		return protocol.Observation{}, err
 	}
-	_, mutationErr := service.Create(ctx, fixture.config.PrincipalID, input)
+	policy, err := fixture.config.credentialPolicy()
+	if err != nil {
+		return protocol.Observation{}, err
+	}
+	_, mutationErr := service.Create(ctx, policy.Principal, input)
 	var outcome *query.Error
 	classifiedUnknown := errors.As(mutationErr, &outcome) && outcome.Code == query.CodeCommitOutcomeUnknown
 	if !classifiedUnknown {

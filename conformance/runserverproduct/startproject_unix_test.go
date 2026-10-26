@@ -217,7 +217,7 @@ func exerciseStartedIdentity(address, username, password string, create bool, se
 		}
 		*sensitive = append(*sensitive, csrf)
 		for _, valid := range []bool{false, true} {
-			request, err := http.NewRequest(http.MethodPost, groups, strings.NewReader(`{"name":"Starter operators","permissions":[]}`))
+			request, err := http.NewRequest(http.MethodPost, groups, strings.NewReader(`{"fields":{"name":"Starter operators","permissions":[]}}`))
 			if err != nil {
 				return err
 			}
@@ -251,11 +251,13 @@ func exerciseStartedIdentity(address, username, password string, create bool, se
 	var page struct {
 		Count int64 `json:"count"`
 		Items []struct {
-			ID   int64  `json:"id"`
-			Name string `json:"name"`
+			ID     int64 `json:"id"`
+			Fields struct {
+				Name string `json:"name"`
+			} `json:"fields"`
 		} `json:"items"`
 	}
-	if err := json.Unmarshal(list.body, &page); err != nil || page.Count != 1 || len(page.Items) != 1 || page.Items[0].ID <= 0 || page.Items[0].Name != "Starter operators" {
+	if err := json.Unmarshal(list.body, &page); err != nil || page.Count != 1 || len(page.Items) != 1 || page.Items[0].ID <= 0 || page.Items[0].Fields.Name != "Starter operators" {
 		return errors.New("scaffold API write or persisted restart data differs")
 	}
 	adminGroups, err := requestAuthenticatedRunserver(client, http.MethodGet, base+"/admin/groups/", "", "")

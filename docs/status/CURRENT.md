@@ -11,12 +11,11 @@
 
 ## 다음
 
-1. 최초 계정 생성 소비자의 fixture 수정과 선택 runtime·비밀번호 정책을 #1에 통합하고 전체 CI를 확인한다.
-   기존 macOS Intel race 실패와 새 관리 JSON·runtime의 필수 실행도 대조한다.
+1. 공개 최초 계정 명령·독립 migration·Article/scaffold의 선택 runtime 조립을 #1에 통합하고 전체 CI를 확인한다.
+   양 DB의 외부 operator·migration/restart·응답 유실과 새 현재 인가/감사 검사의 필수 실행을 대조한다.
    실행 원본과 판정은 TEST_EVIDENCE에 둔다.
-2. [관리 JSON HTTP](../../identity/api/README.md)와 선택 계정의 터미널/상위 process·생성 소비자를 원격 CI에서 검증한다.
-   최초 계정의 공개 CLI entry point·독립 migration 설치·scaffold를 선택 runtime에 함께 조립한다.
-3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치·통합 restart의 남은 요구를 완성한다.
+2. 사용자 정의 계정의 PostgreSQL 독립 HTTP 소비자와 남은 고정 Directory/Manager 소비자를 전환한다.
+3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB mapping/retirement·복구/restart의 남은 요구를 완성한다.
 
 ## 검증 경계
 

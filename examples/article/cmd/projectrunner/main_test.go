@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -15,14 +14,11 @@ import (
 
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
-	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
-	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/sqlmigrateprotocol"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	godjproject "github.com/progresshans/godj/project"
 	"github.com/progresshans/godj/settings/database"
-	"github.com/progresshans/godj/systemstate"
 )
 
 func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T) {
@@ -55,7 +51,7 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 			t.Fatalf("project migrate invocation %d response=%+v failure=%+v", invocation+1, response, failure)
 		}
 		if response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Plan != nil ||
-			response.Result.Execute.SourceCount != 9 || response.Result.Execute.DefinitionCount != 9 {
+			response.Result.Execute.SourceCount != 10 || response.Result.Execute.DefinitionCount != 10 {
 			t.Fatalf("project migrate invocation %d result=%+v", invocation+1, response.Result)
 		}
 		if invocation == 0 {
@@ -98,206 +94,22 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 	if !reflect.DeepEqual(historyAfterPlan, historyBeforePlan) {
 		t.Fatalf("project migration plan changed history: before=%+v after=%+v", historyBeforePlan, historyAfterPlan)
 	}
-	if len(historyAfterPlan) != 9 ||
-		historyAfterPlan[0].App != "godj_conformance" || historyAfterPlan[0].Name != "0001_initial" ||
-		historyAfterPlan[1].App != "godj_conformance" || historyAfterPlan[1].Name != "0002_alter_article_summary" ||
-		historyAfterPlan[2].App != "godj_conformance" || historyAfterPlan[2].Name != "0003_article_slug" ||
-		historyAfterPlan[3].App != "godj_identity" || historyAfterPlan[3].Name != "0001_initial" ||
-		historyAfterPlan[4].App != "godj_identity" || historyAfterPlan[4].Name != "0002_permission_revision" ||
-		historyAfterPlan[5].App != "godj_identity" || historyAfterPlan[5].Name != "0003_alter_user_email" ||
-		historyAfterPlan[6].App != "godj_identity" || historyAfterPlan[6].Name != "0004_auto_1da4dbd173ec" ||
-		historyAfterPlan[7].App != "godj_system" || historyAfterPlan[7].Name != "0001_initial" ||
-		historyAfterPlan[8].App != "godj_system" || historyAfterPlan[8].Name != "0002_identity_transition" {
-		t.Fatalf("second invocation history=%+v", historyAfterPlan)
+	want := []migrationbackend.AppliedMigration{
+		{App: "godj_account_audit", Name: "0001_initial"},
+		{App: "godj_account_domain", Name: "0001_initial"},
+		{App: "godj_conformance", Name: "0001_initial"},
+		{App: "godj_conformance", Name: "0002_alter_article_summary"},
+		{App: "godj_conformance", Name: "0003_article_slug"},
+		{App: "godj_identity", Name: "0001_initial"},
+		{App: "godj_identity", Name: "0002_permission_revision"},
+		{App: "godj_identity", Name: "0003_alter_user_email"},
+		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"},
+		{App: "godj_sessions", Name: "0001_initial"},
 	}
-}
-
-func TestArticleProjectRunnerExplicitlyProvisionsAndOpensWithOneSharedPolicy(t *testing.T) {
-	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(projectRoot)
-
-	const (
-		username = "project-runner-admin"
-		password = "project-runner-provision-secret"
-	)
-	databasePath := filepath.Join(t.TempDir(), "article-operator.sqlite3")
-	config := articleProjectConfig(environmentLookup(map[string]string{
-		databaseconfig.SQLiteDatabaseEnv: databasePath,
-	}))
-	if config.OpenMigrationBackend == nil || config.OpenSystemStateBackend == nil ||
-		config.InitialSuperuser.ID() != operatorconfig.PrincipalID {
-		t.Fatalf("Article project config does not expose independent migration/system-state ownership: %+v", config)
+	if !reflect.DeepEqual(historyAfterPlan, want) {
+		t.Fatalf("migration installation differs: %+v", historyAfterPlan)
 	}
 
-	var migrateOutput bytes.Buffer
-	if err := godjproject.Run(
-		context.Background(),
-		config,
-		[]string{migrateprotocol.PrivateArgument},
-		bytes.NewReader(migrateprotocol.RequestDocument()),
-		&migrateOutput,
-	); err != nil {
-		t.Fatalf("project migrate: %v", err)
-	}
-	if response, failure, failed := migrateprotocol.ParseResponse(migrateOutput.Bytes(), true); failed ||
-		failure != (migrateprotocol.Failure{}) || !response.OK {
-		t.Fatalf("project migrate response = %+v, %+v, %t", response, failure, failed)
-	}
-
-	request, err := createsuperuserprotocol.EncodeRequest(createsuperuserprotocol.Request{
-		Username: []byte(username),
-		Password: []byte(password),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer clear(request)
-	var provisionOutput bytes.Buffer
-	if err := godjproject.Run(
-		context.Background(),
-		config,
-		[]string{createsuperuserprotocol.PrivateArgument},
-		bytes.NewReader(request),
-		&provisionOutput,
-	); err != nil {
-		t.Fatalf("project createsuperuser: %v", err)
-	}
-	response, failure, failed := createsuperuserprotocol.ParseResponse(provisionOutput.Bytes(), true)
-	if failed || failure != (createsuperuserprotocol.Failure{}) || !response.OK || !response.Created {
-		t.Fatalf("project createsuperuser response = %+v, %+v, %t", response, failure, failed)
-	}
-	if strings.Contains(provisionOutput.String(), password) {
-		t.Fatalf("private response exposed raw password: %q", provisionOutput.String())
-	}
-
-	backend, err := config.OpenSystemStateBackend(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := backend.Close(); err != nil {
-			t.Errorf("close reopened system-state backend: %v", err)
-		}
-	}()
-	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	runtime, err := systemstate.OpenIdentity(context.Background(), backend, runtimeConfig)
-	if err != nil {
-		t.Fatalf("OpenIdentity(): %v", err)
-	}
-	principalCredential, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
-	principal := principalCredential.Principal()
-	if err != nil || principal.ID() != operatorconfig.PrincipalID {
-		t.Fatalf("raw-password-free reopened authentication = principal %q error %v", principal.ID(), err)
-	}
-}
-
-func TestArticleProjectRunnerMainPreservesKnownCreatedExitOnBrokenPrivateStdout(t *testing.T) {
-	projectRoot, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Chdir(projectRoot)
-
-	const (
-		username = "project-runner-broken-output-admin"
-		password = "project-runner-broken-output-secret"
-	)
-	databasePath := filepath.Join(t.TempDir(), "article-runner-broken-output.sqlite3")
-	config := articleProjectConfig(environmentLookup(map[string]string{
-		databaseconfig.SQLiteDatabaseEnv: databasePath,
-	}))
-	var migrateOutput bytes.Buffer
-	if err := godjproject.Run(
-		context.Background(),
-		config,
-		[]string{migrateprotocol.PrivateArgument},
-		bytes.NewReader(migrateprotocol.RequestDocument()),
-		&migrateOutput,
-	); err != nil {
-		t.Fatalf("project migrate: %v", err)
-	}
-	if response, failure, failed := migrateprotocol.ParseResponse(migrateOutput.Bytes(), true); failed ||
-		failure != (migrateprotocol.Failure{}) || !response.OK {
-		t.Fatalf("project migrate response = %+v, %+v, %t", response, failure, failed)
-	}
-
-	binary := filepath.Join(t.TempDir(), "article-project-runner")
-	build := exec.Command("go", "build", "-buildvcs=false", "-o", binary, "./cmd/projectrunner")
-	build.Dir = projectRoot
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build canonical Article project runner: %v; output bytes=%d", err, len(output))
-	}
-	request, err := createsuperuserprotocol.EncodeRequest(createsuperuserprotocol.Request{
-		Username: []byte(username),
-		Password: []byte(password),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer clear(request)
-	reader, writer, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := reader.Close(); err != nil {
-		_ = writer.Close()
-		t.Fatal(err)
-	}
-	command := exec.Command(binary, createsuperuserprotocol.PrivateArgument)
-	command.Dir = projectRoot
-	command.Env = articleProjectRunnerSQLiteEnvironment(databasePath)
-	command.Stdin = bytes.NewReader(request)
-	command.Stdout = writer
-	var stderr bytes.Buffer
-	command.Stderr = &stderr
-	runErr := command.Run()
-	_ = writer.Close()
-	var exitError *exec.ExitError
-	if !errors.As(runErr, &exitError) || exitError.ExitCode() != createsuperuserprotocol.KnownCreatedResponseFailureExitCode ||
-		exitError.ProcessState == nil || !exitError.ProcessState.Exited() || stderr.Len() != 0 {
-		t.Fatalf("canonical Article broken-output exit = %v stderr-bytes=%d", runErr, stderr.Len())
-	}
-
-	backend, err := config.OpenSystemStateBackend(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := backend.Close(); err != nil {
-			t.Errorf("close reconciled Article system-state backend: %v", err)
-		}
-	}()
-	runtimeConfig, err := operatorconfig.IdentityRuntimeConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
-	runtime, err := systemstate.OpenIdentity(context.Background(), backend, runtimeConfig)
-	if err != nil {
-		t.Fatalf("OpenIdentity after private stdout loss: %v", err)
-	}
-	principalCredential, err := runtime.Authenticator().Authenticate(context.Background(), username, password)
-	principal := principalCredential.Principal()
-	if err != nil || principal.ID() != operatorconfig.PrincipalID {
-		t.Fatalf("broken-output reconciliation principal=%q error=%v", principal.ID(), err)
-	}
-}
-
-func articleProjectRunnerSQLiteEnvironment(databasePath string) []string {
-	environment := make([]string, 0, len(os.Environ())+1)
-	for _, entry := range os.Environ() {
-		key, _, ok := strings.Cut(entry, "=")
-		if ok && (key == databaseconfig.SQLiteDatabaseEnv || key == databaseconfig.PostgresURLEnv || key == databaseconfig.PostgresSchemaEnv) {
-			continue
-		}
-		environment = append(environment, entry)
-	}
-	return append(environment, databaseconfig.SQLiteDatabaseEnv+"="+databasePath)
 }
 
 func readArticleMigrationHistory(t *testing.T, databasePath string) []migrationbackend.AppliedMigration {
