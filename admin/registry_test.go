@@ -109,7 +109,7 @@ func TestRegisteredModelValidatesTypedOperationBoundaries(t *testing.T) {
 		t.Fatalf("Bind() = %#v, %v", bound, err)
 	}
 	updated, changed, err := model.update(context.Background(), principal, Mutation{ID: 1}, bound, InlineSubmission{})
-	if err != nil || updated.id != 1 || !reflect.DeepEqual(changed, []string{"title", "published", "summary"}) {
+	if err != nil || updated.ID != 1 || !reflect.DeepEqual(changed, []string{"title", "published", "summary"}) {
 		t.Fatalf("update() = %#v, %v, %v", updated, changed, err)
 	}
 	outcome, err := model.actions[0].run(context.Background(), principal, []int64{3, 1, 3, 2})
@@ -307,17 +307,17 @@ func TestRegisteredActionCannotMutateAuthoritativeSelection(t *testing.T) {
 func TestRegisteredMutationsEnforcePermissionAndValidFormBeforeCallbacks(t *testing.T) {
 	config := validRegistryConfig(t)
 	called := 0
-	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (registryArticle, error) {
+	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (MutationResult, error) {
 		called++
-		return registryArticle{id: 2, title: "Created"}, nil
+		return MutationResult{ID: 2}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (registryArticle, []string, error) {
+	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (MutationResult, []string, error) {
 		called++
-		return registryArticle{id: 1, title: "Updated"}, []string{"title"}, nil
+		return MutationResult{ID: 1}, []string{"title"}, nil
 	}
-	config.Delete = func(context.Context, auth.Principal, Mutation) (registryArticle, error) {
+	config.Delete = func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
 		called++
-		return registryArticle{id: 1, title: "Deleted"}, nil
+		return MutationResult{ID: 1}, nil
 	}
 	config.Actions[0].Run = func(context.Context, auth.Principal, []int64) (ActionResult, error) {
 		called++
@@ -403,9 +403,9 @@ func TestRegisteredMutationRevalidatesAgainstItsOwnFormSpec(t *testing.T) {
 		})),
 	)}
 	called := 0
-	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (registryArticle, error) {
+	config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (MutationResult, error) {
 		called++
-		return registryArticle{id: 2, title: "Blocked"}, nil
+		return MutationResult{ID: 2}, nil
 	}
 	builder := NewBuilder(mustApps(t))
 	if err := RegisterModel(builder, config); err != nil {
@@ -585,31 +585,26 @@ func validRegistryConfig(t *testing.T) ModelConfig[registryArticle] {
 				"summary":   summary,
 			}, nil
 		},
-		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
-			values, inputErr := bound.Input()
+		Create: func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
+			_, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero registryArticle
-				return zero, inputErr
+				return MutationResult{}, inputErr
 			}
 
-			title, _ := values.String("title")
-			return registryArticle{id: 2, title: title}, nil
+			return MutationResult{ID: 2}, nil
 		},
-		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
-			values, inputErr := bound.Input()
+		Update: func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
+			_, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero registryArticle
-				return zero, nil, inputErr
+				return MutationResult{}, nil, inputErr
 			}
 
 			id := mutation.ID
-			title, _ := values.String("title")
-			published, _ := values.Boolean("published")
-			return registryArticle{id: id, title: title, published: published}, []string{"title", "published", "summary"}, nil
+			return MutationResult{ID: id}, []string{"title", "published", "summary"}, nil
 		},
-		Delete: func(_ context.Context, _ auth.Principal, mutation Mutation) (registryArticle, error) {
+		Delete: func(_ context.Context, _ auth.Principal, mutation Mutation) (MutationResult, error) {
 			id := mutation.ID
-			return registryArticle{id: id, title: "Deleted"}, nil
+			return MutationResult{ID: id}, nil
 		},
 		History: func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error) { return nil, nil },
 		Actions: []ActionConfig{{

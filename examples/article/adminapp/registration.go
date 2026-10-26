@@ -79,25 +79,26 @@ func RegisterArticle(builder *admin.Builder, service Service) error {
 		Initial: func(article articlemodels.Article) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, initialSpec, article, descriptor.WriteFieldValue)
 		},
-		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (articlemodels.Article, error) {
+		Create: func(ctx context.Context, principal auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			input, err := formmodel.PrepareInput(articlemodels.ArticleObjects, bound)
 			if err != nil {
-				return articlemodels.Article{}, err
+				return admin.MutationResult{}, err
 			}
-			return service.Create(ctx, principal.ID(), input)
+			value, err := service.Create(ctx, principal.ID(), input)
+			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (articlemodels.Article, []string, error) {
+		Update: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			input, err := formmodel.PrepareInput(articlemodels.ArticleObjects, bound)
 			if err != nil {
-				return articlemodels.Article{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			article, changed, err := service.Update(ctx, principal.ID(), mutation.ID, input)
-			return article, changed, adminMutationError(err)
+			return admin.MutationResult{ID: article.ID}, changed, adminMutationError(err)
 		},
-		Delete: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation) (articlemodels.Article, error) {
+		Delete: func(ctx context.Context, principal auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
 			article, err := service.Delete(ctx, principal.ID(), id)
-			return article, adminMutationError(err)
+			return admin.MutationResult{ID: article.ID}, adminMutationError(err)
 		},
 		History: func(ctx context.Context, _ auth.Principal, id int64, request admin.HistoryRequest) ([]admin.AuditEntry, error) {
 			return service.HistoryLimited(ctx, id, request.Limit)

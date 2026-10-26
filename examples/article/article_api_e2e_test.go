@@ -309,7 +309,7 @@ func newArticleAPIAdminSessionFixture(t *testing.T, backend articleapp.Backend) 
 		articleAPICredential(t, ctx, hasher, articleAdminUsername, articleAdminPassword, fullPrincipal),
 		articleAPICredential(t, ctx, hasher, articleAPIViewerUsername, articleAPIViewerPassword, viewerPrincipal),
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		t.Fatal(err)
 	}

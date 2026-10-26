@@ -294,6 +294,18 @@ Group/Permission 관리 service와 관리 JSON API·OpenAPI·독립 Session/Bear
 [Identity Admin](../identity/admin/config.go)은 같은 Manager·현재 권한·revision·삭제 정책으로 User/Group/Permission의
 Form·관리 화면·비밀번호 명령을 구성한다. 호스트의 전체 관계 graph에서 얻은 삭제 정책과 비밀번호 정책을 명시한다.
 
+선택 계정의 generated `NewAccountCatalog`로 만든 실제 Group/Permission owner는
+[`identityadmin.RegisterCatalog`](../identity/admin/selected_catalog.go)에 연결한다. 호스트는 두 모델의 slug와 목록 열을
+지정하고, source·Form field·권한·현재 선택지·CRUD·감사는 owner에서 가져온다. 읽기 노출에 없는 Form field/label은 등록 오류다.
+기본 User와 별도 catalog app·renamed field·추가 scalar에 같은 등록 함수를 사용한다.
+
+계정 자체는 generated `NewAccountManagement`에 같은 SessionStore와 그 Store의 인증기, 관리 정책을 전달하고
+[`identityadmin.RegisterAccount`](../identity/admin/selected_account.go)에 등록한다. 읽기·생성·수정 필드와 operation/추가 권한,
+catalog 동반 효과의 권한, typed 생성/편집/비밀번호 정책을 한 곳에서 정한다. 등록 시에는 slug와 목록 열만 정하며 비밀번호
+입력·확인·명시적 unusable 선택, 현재 그룹/직접 권한 선택지와 비밀번호 명령을 함께 제공한다. 모델에 같은 이름의 프로필 필드가
+있으면 별도 command 이름을 사용한다. 생성은 add와 change를 모두 요구하고, 저장 뒤에는 확인된 ID/revision만 반환한다.
+이 경로의 관리 JSON API·공개 CLI/scaffold runtime 전환은 아직 남아 있으며 [I1 진행](../work/0138-custom-account-lifecycle.md)을 따른다.
+
 [일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON API를 제공한다.
 변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.
 메일 reset은 key·sender·신뢰한 origin·비공개 오류 reporter를 명시해 활성화한다. Token을 서버 proof로 바꾼 뒤 현재 상태를
@@ -322,6 +334,9 @@ CreateForm은 생성에 필요한 별도 model field 선택과 password confirma
 Commands는 별도 Form·권한·명시적 callback으로 password 교체 같은 객체 동작을 구성한다.
 RevisionField를 지정한 모델의 수정·삭제·command는 표시한 revision을 Mutation으로 전달한다.
 실제 write callback은 같은 transaction에서 조건을 다시 확인한다. 충돌은 409이며 자동 재시도하지 않는다.
+CRUD와 객체 command는 확정된 `admin.MutationResult{ID, Revision}`를 반환한다. Update는 실제 변경 field 목록도
+반환하며, 조회용 모델·Snapshot은 저장 결과가 아니다. 자기 비활성화나 권한 회수가 성공한 뒤 표시를 위한 재조회를
+요구하지 않는다. 다음 요청의 접근 권한은 새 상태로 확인한다. [결과 검증 계약](adr/0092-model-input-and-crud-assembly.md)을 따른다.
 PasswordInput에는 저장 기본값을 둘 수 없고, 검증 실패에도 값을 다시 표시하지 않는다.
 `forms.WithTrimWhitespace(false)`는 비밀번호의 공백을 보존한다. Form 값의 일반 진단은 비공개이며,
 값 접근은 명시적 accessor, 값 비교는 `Value.Equal`을 사용한다.

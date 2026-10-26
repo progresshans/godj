@@ -89,6 +89,10 @@ func prepareUniqueConstraints(model ir.Model, byName map[string]int) ([]prepared
 }
 
 func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, write preparedWrite[M]) (validation.Errors, error) {
+	return validateUniqueMutationExcluding(ctx, backend, write, nil)
+}
+
+func validateUniqueMutationExcluding[M any](ctx context.Context, backend db.Queryer, write preparedWrite[M], excluded map[string]bool) (validation.Errors, error) {
 	if err := ctx.Err(); err != nil {
 		return validation.Errors{}, err
 	}
@@ -111,7 +115,7 @@ func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, writ
 	// patch assignment order. Plans and scalar values own their immutable data.
 	for _, field := range model.metadata.Fields {
 		value, present := values[field.Name]
-		if !field.Unique || field.PrimaryKey || !present || value.IsNull() {
+		if excluded[field.Name] || !field.Unique || field.PrimaryKey || !present || value.IsNull() {
 			continue
 		}
 		plan, err := base.WithConditions(query.NewCondition(fieldReference(field), query.LookupExact, value))
@@ -121,12 +125,13 @@ func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, writ
 		checks = append(checks, uniqueCheck{violation: validation.New(validation.Field(field.Name), validation.CodeUnique), plan: plan})
 	}
 	for _, constraint := range model.unique {
-		touched, generatedKey := false, false
+		touched, generatedKey, excludedMember := false, false, false
 		for _, field := range constraint.fields {
+			excludedMember = excludedMember || excluded[field.Name]
 			touched = touched || assigned[field.Name]
 			generatedKey = generatedKey || (field.PrimaryKey && write.mutation.kind == MutationCreate)
 		}
-		if !touched || generatedKey {
+		if !touched || generatedKey || excludedMember {
 			continue
 		}
 		conditions := make([]query.Condition, 0, len(constraint.fields))

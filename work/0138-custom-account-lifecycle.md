@@ -69,12 +69,238 @@ typed unique 검증·강제 update·audit를 같은 native coordinated transacti
 append와 정확한 domain별 bounded history, 수정/audit 실패의 원자 rollback, stale/회수/domain 변경·대상 손상·
 validation·unknown 결과·revision 경합 검사를 양 DB 필수 목록에 연결했다. 명시적으로 존재하는 0/음수 계정 key도 유지한다.
 
-최종 source의 최소 compile과 생성 manifest를 확인했고, 공개 생성에서 발견한 protocol 상한 실패를 한정 재현·수정했다.
-새 profile/audit·단위·DB·외부 소비자 본문과 race/전체 platform 실행은 원격 확인 대상이다. 상세와 이전 source의
-실패/수정 결과는 TEST_EVIDENCE에만 둔다. 작성과 compile을 I1-01~08의 제품 수용으로 계산하지 않는다.
+최소 compile과 생성 manifest, 확인된 실패의 한정 재현·수정을 수행했다. 기본/사용자 정의 외부 생성 소비자의
+실제 SQLite·HTTP profile/catalog/session 흐름도 한정 확인했다. 현재 source의 전체 필수 단위·DB·race/platform 수용은
+원격 확인 대상이다. 상세와 이전 source의 실패/수정 결과는 TEST_EVIDENCE에만 둔다.
+작성·compile이나 한정 실행을 I1-01~08 전체의 제품 수용으로 계산하지 않는다.
 
-Scalar profile 조회, 관계/파일·role/catalog 관리와 기존 Directory/Manager 교체, 공통 HTTP/Admin 경로,
-첫 계정 명령·password/reset/session·host 삭제·audit 설치/startup·채운 DB mapping/retirement/receipt·restart는 남아 있다.
+생성 `ProfileReader[M]`는 현재 인가·domain·선택 프로필 조회/목록/이력을 같은 native snapshot에서 처리한다.
+`ModelView[M]`는 전체 모델 행 없이 선택한 값과 모델 source를 보관하며 공통 Form/API 출력이 같은 source와
+로드 여부를 검사한다. 종료 실패·권한 회수·domain 변경·대상 손상·일관된 count/page·0/음수 key를 양 DB 필수
+검사에 연결했다. 기본/사용자 정의·정규화 변형의 외부 소비자는 실제 HTTP 로그인·CSRF·Form/JSON 수정·조회와
+stale/예약 필드 거부·기존 세션의 권한 회수/복구를 실행하도록 작성했다. 이 소비자의 DB는 SQLite이며 PostgreSQL의 독립 HTTP 소비자는 남아 있다.
+
+Catalog 조립의 기반으로 선택 ModelView의 M2M·Form/API 표현과 전체 host source에 대한 collection/삭제 기능 검사를
+추가했다. ModelInput/ModelView 진단 형식의 선택 값 노출과 소속 그룹 256개 한도 누락을 재현해 보완했고, actor와 target의 현재 상태를
+확인하는 양 DB 필수 검사에 연결했다. 이 기반만으로 catalog CRUD·역할 변경의 구현 완료를 의미하지 않는다.
+
+이어서 공통 `Catalog[G, P]`와 생성 `NewAccountCatalog`를 작성했다. 실제 typed Group/Permission의 현재 인가·조회·
+목록·생성·수정·삭제·현재 domain 이력과 명시적 노출 정책을 연결한다. 추가 scalar 필드는 같은 ModelForm/JSON·IR
+준비를 사용하고, 권한 확장은 모든 해당 회원의 유효 합집합을 검사한다. 직접 owner revision·전체 host 관계 삭제·
+audit의 원자성, 0/음수 key·뒤 batch 실패·동시 확장·권한 회수와 unknown 결과 검사를 양 DB 필수 목록에 추가했다.
+별도 모델·NoReverse·추가 정수/텍스트 필드를 가진 외부 생성 소비자도 같은 팩토리를 사용하도록 확장했다.
+작성·생성·compile과 이 새 본문의 환경별 실행은 구분하며 결과는 TEST_EVIDENCE에 둔다.
+
+추가 계정/catalog 행을 CASCADE/SET_NULL로 바꾸는 행 삭제는 아래의 전체 수명 owner로 조정한다.
+Collection 교체의 여러 삭제를 같은 owner로 합치는 작업은 I1-06에 남아 있으며, 해당 through 조합은 시작 시 명시적으로 거부한다.
+
+독립 `godj_sessions` migration·typed DB Store와 선택 계정의 `SessionStore[M]`/생성 팩토리를 작성했다.
+현재 durable domain과 세션은 같은 snapshot/fence에서 처리하고 역사 namespace를 승계하지 않는다. Typed LoginRecorder와
+정확한 manager의 LoginPersistence는 현재 credential·권한·admission 재검사, 선택적인 LastLogin과 세션 교체를 원자적으로
+묶는다. 현재 domain의 특정 principal 폐기는 같은 borrowed scope에서 제공한다. 기존 systemstate migration/digest와
+canonical payload는 유지하며 이 저장 기능이 기존 데이터 이행·인가·계정 관리 owner를 대신하지 않는다.
+
+Namespace/전체 용량·batch rollback·scope/cleanup/unknown·동시 생성·domain snapshot·login 재검사와 재접속을 양 DB
+필수 검사에 추가했다. 외부 기본/사용자 정의 HTTP 소비자는 memory Store를 이 DB Store와 LoginPersistence로 교체하여
+실제 cookie의 저장 행·선택 LastLogin을 대조하도록 확장했다. 새 본문 실행과 이전 catalog CI 실패의 한정 수정 재현은
+서로 구분하며 TEST_EVIDENCE에 기록한다.
+
+같은 SessionStore를 받는 생성 `NewAccountEditor`와 typed `AccountEditor[M]`는 명시한 scalar profile·active/staff/superuser와
+직접 그룹/권한을 수정하며, 현재 인가·revision·현재/제안 소속과 유효 합집합의 한도·감사·활성→비활성 세션 폐기를
+하나의 native relation transaction에 묶는다. 상세 조회는 선택한 소속을 제공하고 목록은 scalar만 읽는다.
+역할 source 혼합·상수 역할·부정 입력과 양 DB의 생명주기·선택/한도·실패/rollback·경합 검사를 추가했다.
+기본/renamed/NoReverse 소비자의 실제 HTTP Form·JSON 역할 수정과 대상 브라우저 세션 폐기 검사도 작성했다.
+작성·compile과 이 새 본문의 실제 환경별 실행은 TEST_EVIDENCE에서 구분한다.
+
+생성 `NewAccountCreator`와 공통 `Creator[M]`를 작성했다. 필수 scalar profile·IR default·정규화·서버 identity/revision/시각,
+현재 add+change/추가 권한·소속/합집합·unique·typed/password policy의 사전 검사와 DB 밖 한 번의 hash를 연결한다.
+하나의 creator·actor·domain에 묶인 준비 결과는 한 번만 저장 시도하며, 최종 재검사·행/소속/audit를 같은 native scope에서
+확정한다. 해시 전에는 해당 필드를 포함한 unique만 미루고, 실제 hash를 넣은 최종 후보는 전체 제약을 검사한다.
+명시적 unusable·raw 한도·권한/정책/선택 변경·0/음수 선택 key·실패/cleanup/unknown·중복 생성 경합을 양 DB 필수 목록에
+추가했다. 기본/별도 Member의 실제 TCP Form·JSON 생성, 필수 region·예약 입력 거부·생성된 credential 로그인 소비자도
+작성했다. 최소 compile과 실제 실행 범위는 TEST_EVIDENCE에서 구분한다. 첫 계정 명령이나 공통 설치 완료는 아니다.
+
+생성 `NewFirstAccount`와 `FirstAccount[M]`를 별도 operator owner로 작성했다. 공통 `CreationPolicy`와 실제 typed
+필수 profile/default·validation·DB 밖 hash를 재사용하며 active/staff/superuser를 서버에서 고정하고 상수 false는 거부한다.
+현재 domain history와 선택 계정 행의 정확한 부재를 사전/최종 scope에서 확인한 뒤 domain·행·소속·첫 audit를 한 번에
+확정한다. Unknown 결과는 게시하지 않고 상위 process가 지정한 operation ID를 보관해 명시적 receipt 대조에 쓸 수 있다.
+Fresh-only·0/음수 기존 key·재사용/경합·실제 저장 뒤 rollback/unknown 검사를 양 DB 필수 목록에 연결했다.
+필수 custom profile의 생성·HTTP login 외부 SQLite 소비자도 추가했다. 본문 실행·최소 compile·원격 확인은
+TEST_EVIDENCE에서 구분한다. 공개 명령의 전환은 남아 있다.
+
+DB 연결 전 검사를 위해 생성 `NewFirstAccountDefinition`과 typed 선언/실제 backend binding을 분리했다.
+전체 host source·역할·정적인 정책과 명시적 callback evidence를 식별하며 가짜 backend를 만들지 않는다.
+`project/firstaccount.Command`는 같은 ModelForm의 실제 scalar 필드·선택값·필수/default 의미로 입력을 준비한다.
+생략/명시적 빈 값·한도·source 혼합·취소·한 번의 시도와 acquired resource의 소유권을 검사하고, 실제 최초 owner에 연결한다.
+외부 기본/custom 소비자는 이 경로를 통해 생성·receipt/audit·HTTP/DB-session을 검사하도록 바꿨다.
+선택 필드의 기본값·빈 값·문자열 정리와 custom 정확한 선택값도 포함한다. 생성·최소 compile과 본문 실행은
+TEST_EVIDENCE에서 구분한다. 터미널/프로세스의 공개 명령 연결과 scaffold runtime 전환은 아직 완료하지 않았다.
+
+같은 `SessionStore`의 인증기와 manager에 묶인 선택 계정 자기 비밀번호 변경 owner를 작성했다. 생성과 공유하는 실제
+typed password 정책·DB 밖 이전 검증/한 번의 hash와 최종 현재 계정/세션 재검사를 사용한다. 선택 Password/Revision,
+현재 세션 회전·같은 principal의 다른 세션 폐기·domain audit를 하나의 native transaction에서 확정한다. LastLogin과
+현재 profile/권한·독립 CSRF는 유지한다. 읽기/해싱/부분 쓰기·뒤 batch·cleanup/unknown·만료·경합과 entropy 한도를
+양 DB 필수 목록에 추가했다. 기본/custom/정규화/LastLogin 없는 외부 소비자는 기존 계정 Application의 실제 Form/JSON
+비밀번호 경로에 이 owner를 연결한다. 새 본문의 실행 여부는 TEST_EVIDENCE에서 구분한다.
+
+공통 계정 로그인 Form이 선택 인증기의 불변 metadata를 사용하도록 전환했다. 실제 login field의 label·문자 한도와
+저장/인증 조회와 별개인 명시적 Form 정규화 정책을 IR·private wire·생성 binding에 연결한다. Metadata가 없는 구성은
+시작 시 거부한다. 기본/custom/인증 NFKC/Form NFKC/짧은 login/Text login/LastLogin 없는 외부 생성 소비자는
+공통 로그인에서 실제 CSRF·정규화·길이·redirect·durable session을 확인하고 이어 같은 Form/JSON 비밀번호 경로를 사용한다.
+앞선 password CI 실패에서 잘못된 bound-session 호출과 credential 읽기 범위 검증 누락을 재현해 수정했다.
+한정 재현과 새 로그인 본문의 실행 상태는 TEST_EVIDENCE에서 구분한다. 후속 Admin·관리/reset 조립은 아래 진행과 같다.
+
+선택 계정의 생성 `NewAccountPasswordEditor`와 공통 `PasswordEditor[M]`를 작성했다. 같은 세션/인증기와 전체 host source,
+현재 관리 권한·추가 권한·target revision·기존 credential·typed password 정책을 검사한다. DB 밖 한 번의 hash 뒤 같은
+native transaction에서 Password/Revision·모든 대상 세션 폐기·현재 actor의 domain audit를 확정한다. Inactive/unusable
+대상 복구와 반복 unusable 표식 회전도 지원한다. 자기 대상의 관리자 변경도 기존 브라우저를 보존하거나 자동 로그인하지 않는다.
+
+공통 Admin 명령에 추가 권한 목록을 연결하고 `identityadmin.PasswordCommands`로 private confirmation Form·byte 한도·
+오류 분류를 조립했다. 기본/custom/LastLogin 없는 최초 계정 소비자는 실제 Admin Site·TCP·CSRF·stale/추가 권한 거부·
+변경/disable·기존 브라우저 폐기와 선택 필드 audit를 확인하도록 확장했다. 양 DB는 현재 상태 재검사·부분 쓰기/뒤 batch·
+cleanup/unknown·관리자/자기 변경/login 경합·0/음수 key 검사를 포함한다. 작성·생성·최소 compile과 본문 실행은
+TEST_EVIDENCE에서 구분한다. 이 명령 조립은 자동 account/catalog Admin 등록을 완료한 것은 아니다.
+
+선택 계정 reset을 위한 공통 key ring·상태 서명·email cleaner를 `auth`에 두고 기존 reset owner와 소비자를 전환했다.
+메일러는 모델을 직접 조회하지 않고 저장 owner가 같은 snapshot에서 만든 수신자/token 전체를 받는다. 서명은 credential
+domain과 실제 key·email·LastLogin을 사용하며, 메일 source와 완료 persistence의 정확한 owner도 startup에서 검사한다.
+기존 native 기준과 DB/HTTP 검사는 유지하고 토큰/입력 단위는 해당 공통 package로 옮겼다.
+
+생성 `NewAccountPasswordResetter`와 공통 typed reset owner를 작성했다. 같은 SessionStore·인증기·manager와 전체 host
+source에 묶이며, 명시적 Email/Active·실제 signed key·LastLogin·domain을 사용한다. 메일 후보는 하나의 native snapshot에서
+완전한 bounded 집합으로 준비하고, 실제 DB의 case-insensitive prefilter 뒤 Unicode 동등성을 확인한다. 재설정은 DB 밖 한 번의
+hash 뒤 현재 proof·인증 binding·계정·typed 정책과 별도의 session/token clock을 다시 확인한다. Password/현재 Revision,
+모든 대상 세션 폐기·proof 회전/자기 로그인 제거와 실제 필드의 domain audit는 같은 native transaction에서 확정한다.
+
+읽기/cleanup·부분 DML·뒤 batch·unknown/cancel·현재 상태/만료·entropy·reset/login/관리/자기 변경/비활성화 경합과 0/음수
+key를 양 DB 필수 목록에 추가했다. 같은 고정 Django 후보 자료를 기본/선택 owner가 공유한다. 별도 생성 소비자는 기본 User,
+renamed Member·기본 키/별도 Text email·Email/LastLogin 부재·상수 active를 사용하며 실제 TCP Form/JSON·메일 링크·CSRF·
+재접속/owner 재구성·키 회전과 모델/세대 사이의 proof 거부를 SQLite/PostgreSQL에서 실행하도록 작성했다. 같은 key/principal/hash를
+가진 다른 실제 모델의 부정 검사는 채운 DB 전환 제품의 완료가 아니다. Compile과 새 본문의 환경별 실행은 TEST_EVIDENCE에서
+구분한다. 이 소비자의 재접속은 별도 process restart나 공통 scaffold/runtime 전체 조립을 대신하지 않는다.
+
+선택 계정의 private v2 wire와 `project/firstaccount/runner`를 실제 명령 Registry에 연결했다. 선언 조회는 자원을 열지 않으며,
+정확한 source·생략/빈 값·typed ModelForm 검사를 DB 연결 전에 수행한다. 한 번의 입력 전달/생성/close와 operation에 묶인
+확정·unknown·cleanup 결과를 분리하며 panic/Goexit·늦은 취소·출력 실패를 포함한다. 기본/custom/LastLogin 없는 생성
+소비자는 실제 별도 DB 연결과 이 Registry 경로를 통해 첫 계정·receipt·HTTP 로그인을 확인하도록 전환했다.
+새 본문 실행은 원격 대상이며 최소 compile과 확인된 CI 시간 제한의 실행 소유권 수정은 TEST_EVIDENCE에서 구분한다.
+공개 터미널·상위 process·scaffold/runtime 전환을 완료한 것으로 계산하지 않는다.
+
+Admin Site와 일반 계정 Application의 로그인을 같은 `forms/auth` 정의에 연결했다. 선택 인증기의 불변 label·문자 한도·
+Form 정규화와 username/password byte 한도를 사용하고, metadata 누락은 Site 시작 시 거부한다. 엄격한 파싱·CSRF 뒤의
+Form 검사와 active staff/추가 권한의 선행·최종 admission, 동일 세션 owner의 원자적 저장을 유지한다.
+기본/custom/인증 NFKC/Form NFKC/짧은 login/Text login/LastLogin 없는 첫 계정 소비자를 실제 Admin에 연결해
+입력·권한 거부의 durable 불변과 성공 시 선택 session/LastLogin·안전한 redirect를 확인하도록 확장했다.
+로컬 최소 compile과 새 단위·HTTP 본문의 원격 실행 상태는 TEST_EVIDENCE에서 구분한다.
+
+통합 Admin 수정의 기반으로 기존 역할 편집 owner를 AccountEditor로 확장했다. 선택 프로필의 login/email 정규화와
+모든 역할/소속 입력을 같은 현재 후보로 검증하고 한 번의 revision·전체 감사·비활성화 세션 폐기로 확정한다.
+생성 factory와 실제 소비자를 새 API로 전환했다. 양 DB의 복합 정책/unique 거부·부분 쓰기/cleanup/unknown·동시 수정과
+기본/custom 실제 Form·JSON의 프로필/소속 수정 및 비활성화를 검사하도록 확장했다. 생성/최소 compile과 새 본문 실행은
+TEST_EVIDENCE에서 구분한다. 이 owner와 소비자는 공통 account/catalog Admin 자동 등록의 완료가 아니다.
+
+공통 Admin의 CRUD와 객체 명령은 `MutationResult`로 확인된 ID/revision만 전달하도록 바꿨다.
+조회용 M/Snapshot/Initial을 저장 성공의 반환 조건으로 요구하지 않는다. Registry는 대상·revision·변경 필드의
+계약을 검사하며 잘못된 성공 결과는 reconciliation 오류, owner 실패는 원래 오류로 유지한다. 기존 기본 계정·
+Article/Helpdesk·typed inline/collection 소비자를 같은 계약으로 연결했다. 선택 계정 HTTP 소비자는 native
+AccountEditor를 통해 자기 profile+비활성화의 한 commit, 모든 자기 세션 폐기, 성공 응답 뒤 조회 권한 거부를
+검사하도록 작성했다. 기존 조회 검증을 없애거나 공통 계정 자동 등록을 완료한 것은 아니다.
+
+계정/host 삭제 조정의 기반으로 공통 삭제기가 모든 CASCADE·SET_NULL 행을 쓰기 전에 수집하도록 확장했다.
+`DeleteWithEffectsInSession`은 PROTECT와 전체 조회/정리가 끝난 뒤 같은 borrowed transaction에 불변 영향 목록을 제공한다.
+NULL 변경도 수집한 정확한 key/FK에 한정하고 전체 집합을 batch로 실행하며, 변경 수 불일치는 실패시킨다.
+생성 정책을 사용하는 양 DB 소비자에 동반 쓰기·뒤 실패/rollback·unknown·새 참조/재지정·batch·0/음수 key 검사를
+작성했다. 최소 compile과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+생성 `NewAccountDeleter`와 typed 계정 삭제 owner를 작성하고 catalog 행 삭제를 같은 수명 조정에 연결했다.
+정확한 SessionStore·전체 host source에서 모든 직접 계정/catalog 효과와 실제 소속 집합 변화를 합친다. 각 선택 모델의
+현재 delete/change·추가 권한, 전체 typed 상태/한도·revision을 먼저 확인하고 생존 owner revision을 한 번만 증가시킨다.
+삭제 계정의 현재 domain session과 직접 효과 audit를 원자적으로 처리하며, 중복 through 일부 제거·삭제/NULL 중복·자기 삭제를 구분한다.
+생성 ABI v15와 기존 소비자를 전환했다. 별도 custom 모델·명시적 through·교차 host graph를 생성하고 양 DB의 전체 durable
+비교·거부·뒤 쓰기 실패·unknown·독립 connection 경합·0/음수 key·257개 owner 검사를 작성했다. 일곱 외부 생성 변형에는
+실제 HTTP login·CSRF·stale/추가 권한/host 보호 거부·삭제·두 대상 브라우저 폐기 소비자를 추가했다.
+최소 compile·작성과 실제 본문 실행은 TEST_EVIDENCE에서 구분한다. 공통 Admin/HTTP 등록은 남아 있다.
+
+여러 collection을 한 번에 조정하기 위해 typed `SetKeysChange`와 같은 session의 `PrepareCollectionChangesInSession`을 작성했다.
+공통 source·전체 root 합집합·공유 cascade/NULL과 최종 생존 링크를 먼저 확인하고, typed 삽입과 모든 최종 collection 조건을
+한 번 실행한다. 복사본의 재실행·scope 만료·뒤 실패는 성공으로 게시하지 않는다.
+새 native 소비자는 여러 타입의 생성 factory와 독립 DB connection에서 공유 자손·교차 cascade·중복 링크·0/음수 key·실제 뒤
+쓰기 실패와 전체 snapshot을 대조하도록 작성했다. CI가 드러낸 explicit-through migration 순환 분리 오류도 수정했다.
+다른 계정 domain으로 전환하는 소비자 검사는 선택 모델의 HTTP 삭제 검증 뒤에 실행하며, PostgreSQL의 기존 signed key
+삭제 검사는 별도 native fixture로 준비한다. 한정 재현·최소 compile·새 본문 실행은 TEST_EVIDENCE에 구분한다.
+
+계정 편집과 catalog 생성/수정/삭제를 같은 전체 수명 owner로 연결했다. 전체 collection 의도·연쇄 삭제/NULL·typed 삽입을
+합쳐 현재 및 최종 typed 상태·실제 distinct 소속·직접/간접 유효 권한 한도를 확인한다. 직접 효과별 권한과 root 전체 change
+정책, 한 번의 owner revision·direct audit·삭제/비활성 계정 session 폐기, 최종 내부 재조회가 하나의 fence에 속한다.
+편집 root가 삭제되면 conflict이고, 생성의 provisional row나 새 링크 상태가 추가 권한을 만들어 주지 않는다. 일반 through의
+incoming critical 효과를 시작 시 일괄 거부하던 경계는 이 조정으로 대체했다. 선택 계정/catalog 자체가 through인 저장에는
+별도의 identity 생성 owner가 필요하므로 해당 생성 조립은 여전히 남아 있다.
+
+새 native 소비자는 실제 Member/Team/Grant와 explicit/자동 through에서 root·추가 계정/catalog의 겹친 cascade/NULL,
+보존 링크 재생성·중복 링크·0/음수 key·자기 비활성화·최종 256/257개 경계, 전체 snapshot rollback과 뒤 batch/마지막 root
+쓰기/최종 읽기·unknown을 대조하도록 작성했다. Catalog 생성 후 링크를 만드는 native-session 주입도 같은 transaction의
+권한 고정·validator 거부와 실제 row/session/audit를 확인한다. Backend trigger DDL 자체를 시험했다는 의미는 아니다.
+이전 CI의 fake package discovery, 저장 key fixture와 잘못된 owner callback의 outcome 기대도 보정했다.
+새 본문 실행·전체 원격 검증을 제품 코드와 최소 compile 완료로 대신하지 않는다.
+
+선택 `SessionStore.InspectStartup`과 독립 domain/audit/session의 borrowed inspection을 작성했다. 명시적으로 적용한
+framework-owned migration 이력을 확인한 뒤 하나의 native 데이터 snapshot에서 전체 소유권 chain·고유 operation/generation,
+선택 account/catalog/소속 column, 모든 감사와 session namespace를 읽는다. Fresh/Ready·domain 불일치와 orphan 계정/audit를
+구분하고 초기화·정리·repair나 캐시 권한으로 사용하지 않는다. Migration 조회는 데이터 snapshot과 별개이며 프로젝트 graph와
+schema index/constraint 전체 검증은 호스트가 소유한다.
+
+양 DB의 빈 저장소·0/음수 기존 key·필수 migration/column 접근·과거/뒤 page 손상·중복 generation/operation·조회 수명 실패와
+동시 domain/audit/session 변경 검사를 필수 목록에 연결했다. 기본/custom 최초 계정과 재접속하는 reset HTTP 소비자에도
+실제 기동 관측을 연결했다. CI가 드러낸 collection 감사의 반환 순서 불일치를 고치고, 바뀐 쓰기 순서의 실패 주입은 세션/감사·
+소속·최종 scalar 뒤 각각의 rollback 확인을 유지한다. 새 본문 작성·최소 compile·확인된 실패의 한정 실행은 TEST_EVIDENCE에서
+구분하며 공개 CLI/scaffold의 선택 계정 전환을 완료한 것으로 계산하지 않는다.
+
+선택된 실제 Group/Permission 타입을 받는 `identityadmin.RegisterCatalog`를 작성했다. Owner의 source·역할·명시적 읽기/쓰기와
+전체 operation/추가 권한을 공통 Admin 목록·Form·CRUD·durable history에 연결한다. 그룹 권한 선택은 현재 인가된 native
+snapshot에서 bounded 검색/Resolve하고, partial-invalid Form의 독립 unique·복합 unique·선택 key 검사도 같은 읽기 경계를
+사용한다. 최종 쓰기는 기존 수명 owner에 위임하며 성공 뒤 다시 읽지 않는다.
+
+공통 Admin의 모든 모델 작업에 필수 추가 권한을 적용하고 직접 호출·현재 overlay·descriptor 소유권 검사를 추가했다.
+양 DB의 Form partial validation·revision/부재·권한 회수/inactive/old domain·cleanup/취소·signed key 검사를 필수 목록에
+연결했다. 기본/custom 일곱 생성 변형에는 실제 TCP Admin 등록·범위가 있는 선택지·Form 오류/CSRF/stale/추가 권한 거부·
+생성/수정/삭제·수집된 소속/revision·감사를 작성했다. Custom은 revision default 없이 서버 값과 추가 scalar/복합 unique도 다룬다.
+작성·최소 compile과 실제 원격 본문 실행은 TEST_EVIDENCE에서 구분한다. 기존 수명 감사의 독립 기대값은 실제 모델 선언
+순서에 맞췄고 CI가 관측한 cold CLI 준비/누적 시간은 검사 삭제 없이 harness 예산으로 보정했다.
+
+선택 계정 자체의 `NewAccountManagement`와 `identityadmin.RegisterAccount`를 작성했다. 같은 SessionStore·인증기·전체 host
+source에 생성/조회/수정/삭제/비밀번호 owner를 묶고 명시적 read/create/edit 노출과 전체 operation/추가 권한을 공통 Admin에
+연결한다. 두 종류의 현재 소속 선택지, partial-invalid Form의 정규화/unique/선택 key 검사, 명시적 unusable 생성과 private
+비밀번호 입력을 제공한다. 실제 profile 이름과 command 이름의 충돌을 피하며 저장 성공 뒤 재조회하지 않는다.
+
+양 DB에는 읽기 전용 Form의 부분 오류·현재 행 제외·signed key·권한 회수/inactive/old domain·실패 scope/cleanup을 추가했다.
+기본/custom 일곱 생성 변형에는 자동 등록 자체의 실제 TCP 생성·bounded 선택·보호/권한/비밀번호 오류·수정/history·비밀번호
+명령·자기 비활성화/두 세션 폐기·삭제/audit 소비자를 작성했다. 새 본문 작성·최소 compile과 원격 실행은 TEST_EVIDENCE에서
+구분한다. Account-project ABI v16으로 관리 중인 12개 project bundle을 갱신했다.
+
+관리 JSON의 공통 권한을 위한 `api.PermissionPolicy`·Session/Bearer `RequirePolicy`와 `endpoint.Permissions`를 작성했다.
+필수 추가 권한과 view/change 대안을 한 번의 인증·CSRF 뒤 확인하며 같은 선언으로 OpenAPI를 구성한다.
+확정 거부·인가 오류·취소·권한 없는 principal을 overlay가 허용하는 경우와 body 이전 admission을 원격 필수 검사에 추가했다.
+선행 CI의 Admin 필드 순서·선택지 query·이메일형/동일 역할 로그인 fixture 오류를 재현·보정했고, 기본/custom/Text 로그인
+세 생성 소비자의 한정 재실행을 확인했다. 새 API 정책의 최소 compile과 실제 본문 검증은 TEST_EVIDENCE에서 구분한다.
+
+모델 field와 credential 명령을 별도 객체로 결합하는 `api/input.Object`·`ObjectField`와 source를 유지한 공통 decoder를
+작성했다. 중첩 전체에 한 parser 예산을 적용하고 각 child의 기존 Spec으로 full/partial·nullable·choices를 검증한다.
+생략한 default는 제출값으로 다시 검사하지 않는다.
+전체 검증·타입 변환 전에는 어느 setter도 실행하지 않는다. 같은 Body의 배열·typed endpoint/OpenAPI도 연결했다.
+기본/custom 생성 소비자의 수동 password 분리를 이 typed 입력으로 교체하고 add+change/CSRF를 본문보다 먼저 확인한다.
+새 선언/소비자의 최소 compile과 실제 feature body 실행은 TEST_EVIDENCE에서 구분한다.
+
+공통 serializer의 고정 Unicode 16 정규화와 원문 byte 한도, static choice를 지원하는 Form normalizer를 작성했다.
+선택 `Binding.FormDefinition`·`InputSpec`이 login/email 역할의 쓰기 정책을 길이·문법·선택값 검사 전에 적용하며,
+원문 한도는 변환 전에 검사한다. 전체 IR source·보호 field·최종 저장 owner와 raw/initial·default·출력의 경계를 유지한다.
+관리 Form·최초 계정 command·기본/custom 생성 소비자에 연결하고 OpenAPI에는 변환 전/후 제약을 구분해 기술했다.
+실제 generated 기본/custom 생성·최초 계정 module의 최소 compile을 확인했으며 새 본문과 환경별 수용은 원격 확인 대상이다.
+선행 CI의 PostgreSQL race·두 macOS 소비자 조합에서 관측한 누적 timeout은 기존 기한/필수 실행을 유지한 분할로 보완했다.
+구체적인 원본·소스·한정 검증은 TEST_EVIDENCE에 기록하며, 공통 관리 JSON CRUD와 공개 CLI 조립은 남아 있다.
+
+프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP 제품 조립,
+첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
+mapping/retirement/receipt·restart는 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

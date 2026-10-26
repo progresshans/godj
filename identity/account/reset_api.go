@@ -6,7 +6,6 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
@@ -98,7 +97,7 @@ func (a *Application) resetRequestJSON(r *web.Request) (web.Response, error) {
 	}
 	value, _ := bound.Values().Get("email")
 	raw, _ := value.AsString()
-	email, failures := identity.CleanPasswordResetEmail(raw)
+	email, failures := auth.CleanPasswordResetEmail(raw)
 	if !failures.Empty() {
 		return api.ErrorResponse(400, api.CodeValidationError, failures)
 	}

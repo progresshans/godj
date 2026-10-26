@@ -17,7 +17,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
-        self.assertEqual(7, result['core_coordinates'])
+        self.assertEqual(9, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assertEqual(self.required, plan(mode, 'core', self.required)['required'])
             self.assertEqual(list(ALL_PACKAGES), plan(mode, 'core', self.required)['packages'])
@@ -66,6 +66,39 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             audit([entry for entry in self.required if entry not in selected['required']])
 
+    def test_native_postgres_partitions_keep_whole_roots_and_future_children(self):
+        prefix = MODULE + 'db/postgres|'
+        added = [prefix + 'TestFutureNativeBoundary/only_child/deep_check',
+                 prefix + 'TestFutureNativeBoundary/another_child',
+                 prefix + 'TestFutureNativeBoundaryExtra']
+        required = [*self.required, *added]
+        audit(required)
+        native = {entry for entry in required if entry.startswith(prefix)}
+        owners = {}
+        root_sets = []
+        for shard in ('core-postgres-1', 'core-postgres-2'):
+            selected = plan('race', shard, required)
+            self.assertEqual(['./db/postgres'], selected['packages'])
+            self.assertEqual(set(selected['required']), set(plan('race', shard, list(reversed(required)))['required']))
+            roots = {entry.partition('|')[2].split('/')[0] for entry in selected['required']}
+            root_sets.append(roots)
+            for entry in selected['required']:
+                self.assertNotIn(entry, owners)
+                owners[entry] = shard
+            for root in roots:
+                self.assertEqual({entry for entry in native if entry.partition('|')[2].split('/')[0] == root},
+                                 {entry for entry in selected['required'] if entry.partition('|')[2].split('/')[0] == root})
+        self.assertEqual(native, set(owners))
+        self.assertFalse(root_sets[0] & root_sets[1])
+        self.assertLessEqual(abs(len(root_sets[0]) - len(root_sets[1])), 1)
+        self.assertEqual(owners[added[0]], owners[added[1]])
+        self.assertNotIn('./db/postgres', plan('race', 'core', required)['packages'])
+        self.assertFalse(native.intersection(plan('race', 'core', required)['required']))
+        for mode in ('normal', 'cgo0'):
+            self.assertEqual(required, plan(mode, 'core', required)['required'])
+        with self.assertRaises(ValueError):
+            plan('normal', 'core-postgres-1', required)
+
     def test_cross_package_root_collision_cannot_reselect_a_partitioned_consumer(self):
         root = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
         entry = MODULE + 'examples/article|' + root + '/same_name_in_another_package'
@@ -91,6 +124,18 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         self.assertNotIn(read, plan('race', 'core-consumer-writes', required)['required'])
         for mode in ('normal', 'cgo0'):
             self.assertEqual(required, plan(mode, 'core', required)['required'])
+
+    def test_selected_account_reset_keeps_every_variant_in_the_write_partition(self):
+        root = MODULE + 'codegen/consumertest|TestGeneratedAccountResetUsesSelectedModels'
+        expected = [entry for entry in self.required if entry == root or entry.startswith(root + '/')]
+        self.assertTrue(expected)
+        self.assertIn(root + '/custom_renamed_key_email', expected)
+        self.assertIn(root + '/custom_without_last_login', expected)
+        self.assertIn(root + '/custom_without_email', expected)
+        writes = plan('race', 'core-consumer-writes', self.required)['required']
+        reads = plan('race', 'core-consumers', self.required)['required']
+        self.assertTrue(set(expected) <= set(writes))
+        self.assertFalse(set(expected) & set(reads))
 
     def test_invalid_missing_and_duplicate_manifest_entries_are_rejected(self):
         for entries in ([], [self.required[0], self.required[0]], [MODULE + 'foreign|TestMissing'],

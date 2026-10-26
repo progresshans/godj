@@ -79,8 +79,32 @@ func TestDocumentAlternativePermissionContract(t *testing.T) {
 		}
 	}
 	config.Operations[0].AlternativePermissions = []auth.Permission{"links.change"}
-	config.Operations[0].AdditionalPermissions = []auth.Permission{"links.other"}
+	config.Operations[0].AdditionalPermissions = []auth.Permission{"links.change"}
 	if _, err := openapi.New(config); err == nil {
-		t.Fatal("ambiguous mixed conjunction/disjunction accepted")
+		t.Fatal("duplicate across mandatory and alternative groups accepted")
+	}
+}
+
+func TestDocumentCompoundPermissionContract(t *testing.T) {
+	authentication := &describedAuthentication{description: sessionDescription()}
+	config := documentConfig(t, authentication)
+	config.Operations[0].Permission = "links.view"
+	config.Operations[0].AlternativePermissions = []auth.Permission{"links.change"}
+	config.Operations[0].AdditionalPermissions = []auth.Permission{"links.scope", "links.manage"}
+	document, err := openapi.New(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := document.Bytes()
+	if !bytes.Contains(before, []byte(`"x-godj-any-permissions":["links.view","links.change"]`)) || !bytes.Contains(before, []byte(`"x-godj-additional-permissions":["links.scope","links.manage"]`)) {
+		t.Fatal("document lost either mandatory or alternative requirements")
+	}
+	config.Operations[0].AlternativePermissions[0] = "links.other"
+	config.Operations[0].AdditionalPermissions[0] = "links.other"
+	if !bytes.Equal(before, document.Bytes()) || authentication.requireCalls != 0 {
+		t.Fatal("document retained input or executed admission")
+	}
+	if _, err := openapi.New(config); err == nil {
+		t.Fatal("cross-group duplicate accepted")
 	}
 }

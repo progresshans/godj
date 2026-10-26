@@ -1,8 +1,6 @@
 package endpoint
 
 import (
-	"slices"
-
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/openapi"
 	"github.com/progresshans/godj/auth"
@@ -13,7 +11,7 @@ import (
 // operation. Its zero value is invalid; no empty permission means anonymous.
 type Admission struct {
 	kind         admissionKind
-	permissions  []auth.Permission
+	policy       api.PermissionPolicy
 	sessionProof bool
 	err          error
 }
@@ -21,20 +19,26 @@ type Admission struct {
 type admissionKind uint8
 
 const (
-	allPermissions admissionKind = iota + 1
-	anyPermission
+	permissionPolicy admissionKind = iota + 1
 	principalOnly
 	csrfOnly
 )
 
 func All(first auth.Permission, additional ...auth.Permission) Admission {
-	permissions, err := auth.RequiredPermissions(first, additional...)
-	return Admission{kind: allPermissions, permissions: permissions, err: err}
+	policy, err := api.NewPermissionPolicy(append([]auth.Permission{first}, additional...), nil)
+	return Admission{kind: permissionPolicy, policy: policy, err: err}
 }
 
 func Any(first auth.Permission, alternatives ...auth.Permission) Admission {
-	permissions, err := auth.RequiredPermissions(first, alternatives...)
-	return Admission{kind: anyPermission, permissions: permissions, err: err}
+	policy, err := api.NewPermissionPolicy(nil, append([]auth.Permission{first}, alternatives...))
+	return Admission{kind: permissionPolicy, policy: policy, err: err}
+}
+
+// Permissions declares mandatory grants and an optional alternative group as
+// one admission. Compound alternatives require a PolicyAuthentication adapter;
+// the endpoint never composes two credential or CSRF resolutions.
+func Permissions(policy api.PermissionPolicy) Admission {
+	return Admission{kind: permissionPolicy, policy: policy}
 }
 
 func Authenticated() Admission { return Admission{kind: principalOnly} }
@@ -51,18 +55,21 @@ func (admission Admission) describe(operation *openapi.Operation) error {
 		return configError("admission", "permission declaration is invalid", admission.err)
 	}
 	switch admission.kind {
-	case allPermissions, anyPermission:
-		if len(admission.permissions) == 0 {
+	case permissionPolicy:
+		if !admission.policy.Valid() {
 			return configError("admission", "permissions are missing", nil)
 		}
-		operation.Permission = admission.permissions[0]
-		remaining := append([]auth.Permission(nil), admission.permissions[1:]...)
-		if admission.kind == allPermissions {
-			operation.AdditionalPermissions = remaining
+		required, alternatives := admission.policy.Required(), admission.policy.Alternatives()
+		if len(alternatives) > 1 {
+			operation.Permission = alternatives[0]
+			operation.AlternativePermissions = alternatives[1:]
+			operation.AdditionalPermissions = required
 		} else {
-			// RequireAny with one permission is equivalent to Require and needs
-			// no alternative capability or a synthetic extra permission.
-			operation.AlternativePermissions = remaining
+			// One alternative is mandatory, so preserve the declared evaluation
+			// order using ordinary conjunction metadata and capability.
+			required = append(required, alternatives...)
+			operation.Permission = required[0]
+			operation.AdditionalPermissions = required[1:]
 		}
 	case principalOnly:
 		operation.AuthenticatedOnly = true
@@ -75,19 +82,25 @@ func (admission Admission) describe(operation *openapi.Operation) error {
 }
 
 func (admission Admission) wrap(authentication api.Authentication, handler api.AuthenticatedHandler) (web.Handler, error) {
-	permissions := slices.Clone(admission.permissions)
 	switch admission.kind {
-	case allPermissions:
-		return authentication.Require(permissions[0], handler, permissions[1:]...)
-	case anyPermission:
-		if len(permissions) == 1 {
-			return authentication.Require(permissions[0], handler)
+	case permissionPolicy:
+		required, alternatives := admission.policy.Required(), admission.policy.Alternatives()
+		if len(alternatives) <= 1 {
+			required = append(required, alternatives...)
+			return authentication.Require(required[0], handler, required[1:]...)
+		}
+		if len(required) != 0 {
+			adapter, ok := authentication.(api.PolicyAuthentication)
+			if !ok {
+				return nil, configError("admission", "compound permission authentication capability is required", nil)
+			}
+			return adapter.RequirePolicy(admission.policy, handler)
 		}
 		adapter, ok := authentication.(api.AlternativeAuthentication)
 		if !ok {
 			return nil, configError("admission", "alternative authentication capability is required", nil)
 		}
-		return adapter.RequireAny(permissions[0], handler, permissions[1:]...)
+		return adapter.RequireAny(alternatives[0], handler, alternatives[1:]...)
 	case principalOnly:
 		adapter, ok := authentication.(api.PrincipalAuthentication)
 		if !ok {

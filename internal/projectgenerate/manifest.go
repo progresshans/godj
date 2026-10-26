@@ -35,6 +35,7 @@ var currentManifestABI = []manifestABI{
 	{Role: "app.relation_object", Filename: "zz_godj_relation_object.go", Version: codegen.RelationObjectGeneratorVersion},
 	{Role: "app.relation_projection", Filename: "zz_godj_relation_projection.go", Version: codegen.RelationProjectionGeneratorVersion},
 	{Role: "project.bindings", Filename: "zz_godj_bindings.go", Version: codegen.ProjectBindingGeneratorVersion},
+	{Role: "project.account", Filename: "zz_godj_account.go", Version: codegen.ProjectAccountGeneratorVersion},
 	{Role: "project.relation_query", Filename: "zz_godj_relation_query.go", Version: codegen.ProjectRelationQueryGeneratorVersion},
 	{Role: "project.relation_object", Filename: "zz_godj_relation_object.go", Version: codegen.ProjectRelationObjectGeneratorVersion},
 	{Role: "project.relation_reverse", Filename: "zz_godj_relation_reverse.go", Version: codegen.ProjectRelationReverseGeneratorVersion},
@@ -53,6 +54,7 @@ var currentAppFilenames = []string{
 
 var currentProjectFilenames = []string{
 	"zz_godj_bindings.go",
+	"zz_godj_account.go",
 	"zz_godj_relation_query.go",
 	"zz_godj_relation_object.go",
 	"zz_godj_relation_reverse.go",

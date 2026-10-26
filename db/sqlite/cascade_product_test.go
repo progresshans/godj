@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -25,5 +26,18 @@ func TestSQLiteCascadeGeneratedDeletionMatchesDjango(t *testing.T) {
 			}
 		}
 		return transaction.Commit()
+	}, func(ctx context.Context, from, to int64) error {
+		result, err := backend.database.ExecContext(ctx, "UPDATE cascade_root SET id=? WHERE id=?", to, from)
+		if err != nil {
+			return err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return fmt.Errorf("stored cascade root key fixture affected %d rows", count)
+		}
+		return nil
 	})
 }

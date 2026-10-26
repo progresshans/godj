@@ -28,8 +28,8 @@ func TestProjectManifestCanonicalSchemaAndFinalLF(t *testing.T) {
 	if document.SnapshotSHA256 != bundle.SnapshotSHA256() {
 		t.Fatalf("snapshot_sha256 = %q, want %q", document.SnapshotSHA256, bundle.SnapshotSHA256())
 	}
-	if len(document.GeneratorABI) != 13 {
-		t.Fatalf("len(generator_abi) = %d, want 13", len(document.GeneratorABI))
+	if len(document.GeneratorABI) != 14 {
+		t.Fatalf("len(generator_abi) = %d, want 14", len(document.GeneratorABI))
 	}
 	wantRoles := []string{
 		"bundle",
@@ -38,6 +38,7 @@ func TestProjectManifestCanonicalSchemaAndFinalLF(t *testing.T) {
 		"app.relation_object",
 		"app.relation_projection",
 		"project.bindings",
+		"project.account",
 		"project.relation_query",
 		"project.relation_object",
 		"project.relation_reverse",
@@ -98,8 +99,8 @@ func TestProjectManifestAccessorsExcludeCommitMarkerAndUseStableOwners(t *testin
 			t.Fatal("manifest appears in GeneratedBundle.Files")
 		}
 	}
-	if owners["app:authors"] != 4 || owners["app:blog"] != 4 || owners["project"] != 8 || len(owners) != 3 {
-		t.Fatalf("owner counts = %#v, want app 4+4 and project 8", owners)
+	if owners["app:authors"] != 4 || owners["app:blog"] != 4 || owners["project"] != 9 || len(owners) != 3 {
+		t.Fatalf("owner counts = %#v, want app 4+4 and project 9", owners)
 	}
 }
 

@@ -1,6 +1,13 @@
 package query
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+)
+
+// MaximumRelationSetNullRows bounds one collected mutation, not the size of a
+// deletion. Collectors split a complete set into batches before executing it.
+const MaximumRelationSetNullRows = 256
 
 // RelationSetNullPlan is the immutable, database-independent description of
 // one bulk SET_NULL relation mutation. Backend compilers validate the complete
@@ -9,6 +16,9 @@ type RelationSetNullPlan struct {
 	table      string
 	foreignKey FieldRef
 	targetKey  Value
+	primaryKey FieldRef
+	rowKeys    []int64
+	collected  bool
 }
 
 func NewRelationSetNullPlan(table string, foreignKey FieldRef, targetKey Value) RelationSetNullPlan {
@@ -19,11 +29,23 @@ func NewRelationSetNullPlan(table string, foreignKey FieldRef, targetKey Value) 
 	}
 }
 
+// NewRelationSetNullRowsPlan restricts SET_NULL to the exact collected source
+// keys while retaining the original FK predicate. It cannot null a newly
+// attached row or a collected row whose reference changed in the meantime.
+func NewRelationSetNullRowsPlan(table string, foreignKey FieldRef, targetKey Value, primaryKey FieldRef, rowKeys []int64) RelationSetNullPlan {
+	return RelationSetNullPlan{table: table, foreignKey: foreignKey, targetKey: targetKey,
+		primaryKey: primaryKey, rowKeys: slices.Clone(rowKeys), collected: true}
+}
+
 func (p RelationSetNullPlan) Table() string        { return p.table }
 func (p RelationSetNullPlan) ForeignKey() FieldRef { return p.foreignKey }
 func (p RelationSetNullPlan) TargetKey() Value     { return p.targetKey }
+func (p RelationSetNullPlan) CollectedRows() (FieldRef, []int64, bool) {
+	return p.primaryKey, slices.Clone(p.rowKeys), p.collected
+}
 func (p RelationSetNullPlan) Equal(other RelationSetNullPlan) bool {
-	return p == other
+	return p.table == other.table && p.foreignKey == other.foreignKey && p.targetKey == other.targetKey &&
+		p.primaryKey == other.primaryKey && p.collected == other.collected && slices.Equal(p.rowKeys, other.rowKeys)
 }
 
 // ProtectedForeignKeyError reports the number of distinct source rows that

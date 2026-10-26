@@ -151,7 +151,9 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
 관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. 모든 race 좌표와 macOS Intel/ARM normal/CGO0는
-독립 generated module의 합산 빌드 비용 때문에 생성 소비자를 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
+독립 generated module의 합산 빌드 비용 때문에 생성 소비자를 기본 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
+관측된 누적 package timeout에 맞춰 Linux amd64/arm64 race와 macOS ARM race는 소비자 네 job,
+macOS Intel CGO0는 다섯 job을 사용한다. 나머지 분할 좌표는 세 job을 유지한다.
 normal/CGO0와 Linux race는 45분·package 35분을 유지한다.
 macOS Intel/ARM race는 90분·package 70분 한도를 사용한다.
 `scripts/ci/relation_shards.py`가 동일 OS/arch/mode의 실제 Go binary에서 `-list .`로 발견한 Test/Example/Fuzz root를
@@ -171,7 +173,10 @@ macOS Intel/ARM race는 90분·package 70분 한도를 사용한다.
 SQLite/migrations 전체 normal·race·CGO-disabled와 vet는 관계 matrix의 같은 OS/CPU 좌표가 소유한다.
 Conformance Go runner 전체는 project-check matrix가 실행하고 관계 matrix는 같은 runner subset을 반복하지 않는다.
 Linux amd64 checker 전체는 Portable이 맡고 관계 matrix의 같은 subset을 생략한다.
-Portable conformance는 `scripts/ci/conformance_tests.py`가 JSON 시작·종료와 package 완료를 대조하고, 옮겨진 checker의 필수 sentinel·no-skip도 확인한다.
+Portable core/conformance는 `scripts/ci/portable_tests.py`가 normal/race/CGO0의 JSON 시작·종료와 package 완료를 대조한다.
+Core의 필수 root/child는 `portable-core-required.txt`에 두고 모두 실제 pass를 요구한다. 별도 PostgreSQL/native owner에 속한
+기존 선택적 검사의 skip은 core 결과에 구분해 기록한다. Conformance는 옮겨진 checker의 필수 sentinel·package no-skip을 유지한다.
+원격 job은 JSON 전체·stderr·실제 package/필수 목록·결과와 파일 hash를 portable test evidence artifact로 보존한다.
 다른 owner가 전체 vet를 실행하는 같은 좌표에서는 vet도 반복하지 않는다. 필수 sentinel과 no-skip 검사는 실제 실행 owner에 적용하고,
 aggregate는 모든 필수 owner의 실패·취소·skip·누락을 거부한다. Darwin CGO-disabled lifecycle도 관계/project-check matrix가 소유한다.
 
@@ -281,11 +286,14 @@ python3 scripts/ci/s3_service.py run --directory "$s3_build" -- \
 필수 실행 owner는 PostgreSQL product의 normal/cgo0 core와 race core/core-consumers이며 양 DB·S3 live 하위 사례와 Admin 저장의 실제 pass를
 `postgres-core-required.txt`와 생성 소비자의 child inventory로 요구한다. 서비스 없이 root만 통과한 실행은 이 gate를 만족하지 못한다.
 
-PostgreSQL core의 race mode는 [postgres_shards.py](../scripts/ci/postgres_shards.py)가 framework, generated consumer,
-process product를 core/core-consumers/core-processes로 나눈다. 생성 소비자 중 bulk create/update·query update·
+PostgreSQL core의 race mode는 [postgres_shards.py](../scripts/ci/postgres_shards.py)가 framework, native PostgreSQL,
+generated consumer, process product를 나눈다. Framework는 core, process는 core-processes가 맡는다.
+`db/postgres`는 core-postgres-1/2가 필수 목록의 전체 root를 SHA-256 순서로 번갈아 배정한다. Child만 필수 목록에 있는
+root도 포함하며 모든 child를 부모와 함께 실행한다. 생성 소비자 중 bulk create/update·query update·
 단일 객체 생성·update-or-create·행 잠금의 전체 root는 core-consumer-writes가 맡는다. Helpdesk의 PostgreSQL 소비자 root는
 core-helpdesk-postgres에서 실행한다. 같은 Go package에 있는 SQLite 소비자와 helper는 core가 맡아
 두 DB 소비자가 하나의 package timeout을 공유하지 않게 한다. Normal과 CGO-disabled는 기존 core 하나를 유지한다.
+세 mode의 core 계열은 총 아홉 coordinate이고 별도 operator-target 세 coordinate는 유지한다.
 필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속하며 새 child sentinel도 해당 root의 owner를 따른다.
 누락·중복·모호한 package와 빈 partition, 같은 이름의 root가 다른 partition을 재선택하는 경우는 실패다.
 Package별 18분 timeout과 no-skip 검사를 유지하며,

@@ -16,8 +16,10 @@ import (
 
 // Validator checks the model candidate after selected model fields have been
 // validated. Unlike a form cross-validator, it also sees default/initial values
-// of fields whose input failed cleaning or was excluded from the form. It must
-// be pure and safe for concurrent use; database checks remain explicit.
+// of fields whose input failed cleaning or was excluded from the form. A
+// BindView candidate contains only explicitly loaded fields and the key;
+// validators must check presence before using other current values. It must be
+// pure and safe for concurrent use; database checks remain explicit.
 type Validator interface {
 	ValidateModel(forms.Values) validation.Errors
 }
@@ -46,6 +48,17 @@ func (bound BoundForm) Candidate() forms.Values  { return bound.candidate }
 // A read-check adapter can reject a form belonging to a different model before
 // entering its database scope. This metadata is not persistence authority.
 func (bound BoundForm) Model() ir.Model { return bound.model.Clone() }
+
+// FieldNames describes the selected inputs, including invalid and command-only
+// fields. Admission checks must not infer exposure from successfully cleaned
+// values alone. The returned slice does not share the binding's storage.
+func (bound BoundForm) FieldNames() []string {
+	names := make([]string, len(bound.fields))
+	for index, field := range bound.fields {
+		names[index] = field.Name()
+	}
+	return names
+}
 
 // Excluded returns model fields in declaration order that must not participate
 // in field/uniqueness/constraint validation. A constraint with any excluded

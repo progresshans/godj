@@ -81,6 +81,7 @@ func nextCandidate(changes map[string]appChange, current, desired migrations.Pro
 		sort.Strings(waits[app])
 	}
 	selected, breakCycle := "", false
+	var operations []migrations.Operation
 	for _, app := range apps {
 		if len(waits[app]) == 0 {
 			selected = app
@@ -97,7 +98,24 @@ func nextCandidate(changes map[string]appChange, current, desired migrations.Pro
 			if start, exists := seen[cursor]; exists {
 				cycle := append([]string(nil), path[start:]...)
 				sort.Strings(cycle)
-				selected, breakCycle = cycle[0], true
+				// A prior prefix may already have created the first app's
+				// through models while deferring their endpoint columns. An
+				// M2M wait is therefore not evidence that this app still has
+				// a CreateModel. Select actual publishable operations from
+				// the cycle, including ready columns on existing models.
+				for _, app := range cycle {
+					candidate, err := candidateOperations(app, changes[app], current, desired, known, true)
+					if err != nil {
+						return migrations.Migration{}, err
+					}
+					if len(candidate) != 0 {
+						selected, breakCycle, operations = app, true, candidate
+						break
+					}
+				}
+				if selected == "" {
+					return migrations.Migration{}, detectionError(CodeInvalidGeneratedPlan, cycle[0], "", "", fmt.Errorf("relation cycle has no publishable model or field operations"))
+				}
 				break
 			}
 			seen[cursor] = len(path)
@@ -105,9 +123,12 @@ func nextCandidate(changes map[string]appChange, current, desired migrations.Pro
 			cursor = waits[cursor][0]
 		}
 	}
-	operations, err := candidateOperations(selected, changes[selected], current, desired, known, breakCycle)
-	if err != nil {
-		return migrations.Migration{}, err
+	if operations == nil {
+		var err error
+		operations, err = candidateOperations(selected, changes[selected], current, desired, known, breakCycle)
+		if err != nil {
+			return migrations.Migration{}, err
+		}
 	}
 	if len(operations) == 0 || len(operations) > definition.MaxOperationsPerMigration {
 		return migrations.Migration{}, detectionError(CodeInvalidGeneratedPlan, selected, "", "", fmt.Errorf("candidate operation count is outside current limits"))
@@ -214,9 +235,6 @@ func candidateOperations(app string, change appChange, current, desired migratio
 		default:
 			return nil, detectionError(CodeInvalidGeneratedPlan, app, "", "", fmt.Errorf("unsupported candidate operation %T", operation))
 		}
-	}
-	if breakCycle && len(creates) == 0 {
-		return nil, detectionError(CodeInvalidGeneratedPlan, app, "", "", fmt.Errorf("cycle has no model creator"))
 	}
 	operations := append(manyRemovals, creates...)
 	operations = append(operations, removals...)

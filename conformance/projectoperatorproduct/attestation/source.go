@@ -21,7 +21,8 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/conformance.py":                                                   {},
 	"conformance/suites.json":                                                  {},
 	"conformance/catalog.py":                                                   {},
-	"scripts/ci/conformance_tests.py":                                          {},
+	"scripts/ci/portable_tests.py":                                             {},
+	"scripts/ci/portable-core-required.txt":                                    {},
 	"scripts/ci/capture_artifact.py":                                           {},
 	"scripts/ci/go_test_events.py":                                             {},
 	"scripts/ci/packages.py":                                                   {},
@@ -47,6 +48,9 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"internal/sessionwire/",
+	"internal/rowset/",
+	"account/",
 	"timezone/",
 	"internal/zonerules/",
 	"uploads/",
@@ -81,6 +85,7 @@ var productSourcePrefixes = []string{
 	"internal/gobuild/",
 	"internal/callback/",
 	"internal/diagnosticlog/",
+	"internal/firstaccountwire/",
 	"internal/runservercontrol/",
 	"events/",
 	"admin/",
@@ -136,6 +141,9 @@ var embeddedAssetPrefixes = []string{
 }
 
 var migrationDataPrefixes = []string{
+	"sessions/database/migrations/",
+	"account/audit/migrations/",
+	"account/domain/migrations/",
 	"examples/article/migrations/",
 	"examples/article/testdata/postgres/",
 	"systemstate/testdata/",

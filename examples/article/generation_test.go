@@ -23,6 +23,7 @@ var articleBundleRoster = []string{
 	"models/zz_godj_relation.go",
 	"models/zz_godj_relation_object.go",
 	"models/zz_godj_relation_projection.go",
+	"project/zz_godj_account.go",
 	"project/zz_godj_bindings.go",
 	"project/zz_godj_relation_delete.go",
 	"project/zz_godj_relation_facade.go",
@@ -44,8 +45,8 @@ func TestCheckedInArticleRegeneratesExactProjectBundle(t *testing.T) {
 		t.Fatal(err)
 	}
 	files := bundle.Files()
-	if len(files) != 12 {
-		t.Fatalf("article bundle file count = %d, want exact 12", len(files))
+	if len(files) != len(articleBundleRoster) {
+		t.Fatalf("article bundle file count = %d, want exact %d", len(files), len(articleBundleRoster))
 	}
 	gotRoster := make([]string, len(files))
 	for index := range files {
@@ -106,7 +107,7 @@ func TestCheckedInArticleRegeneratesExactProjectBundle(t *testing.T) {
 	}
 	slices.Sort(checkedRoster)
 	if !reflect.DeepEqual(checkedRoster, articleBundleRoster) {
-		t.Fatalf("checked-in article inventory = %#v, want exact twelve %#v", checkedRoster, articleBundleRoster)
+		t.Fatalf("checked-in article inventory = %#v, want exact %#v", checkedRoster, articleBundleRoster)
 	}
 }
 

@@ -4,7 +4,6 @@ import (
 	"strconv"
 	"unicode/utf8"
 
-	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -19,9 +18,6 @@ func EmailField(name string, options ...FieldOption) (Field, error) {
 
 func cleanEmailValue(field Field, value Value) (Value, validation.Errors) {
 	text := value.string
-	if field.trimWhitespace {
-		text = unicode16.TrimSpace(text)
-	}
 	if text == "" {
 		if !field.allowEmpty {
 			return Value{}, oneViolation(field.name, CodeBlank)

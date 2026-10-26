@@ -19,6 +19,73 @@ scope에서 확인한다. Pending upload는 일반 scalar 전달이 아닌 파�
 
 아래의 `New`·`Property` 경로는 임의 DTO와 업무 명령에 계속 사용할 수 있다.
 
+## 문자열의 정규화와 원문 한도
+
+`serializers.WithStringNormalization`은 String/Email/URL/Slug 입력의 명시적 정책이다. 기본 `StringExact`는
+필드의 whitespace 처리 뒤 문자를 보존하고, `StringUnicode16NFKC`·`StringUnicode16EmailDomain`·
+`StringUnicode16NFKCEmailDomain`은 고정 Unicode 16의 NFKC, 마지막 `@` 뒤 domain 소문자화, 두 순서의 결합을 제공한다.
+EmailDomain은 `@`가 있으면 Python whitespace를 제거한 뒤 domain만 바꾸며, 없으면 받은 문자열을 보존한다.
+임의 callback이나 I/O는 받지 않는다. 기존 field의 trim 정책과 choices 선언은 그대로 유지한다.
+
+`WithMaxInputBytes`는 제출한 문자열의 UTF-8 bytes를 trim·정규화 **전에** 검사한다. 0이면 해당 필드 한도를
+설정하지 않으며 요청 parser의 전체/문자열 한도는 별도로 적용한다. 이후 정규화한 값으로 blank·길이·문법·choice를
+검사한다. 따라서 축약되는 문자열은 정규화 뒤 길이로, 확장되는 문자열은 확장된 길이로 판단한다. 초과 원문은
+정규화로 짧아져도 `max_bytes`로 거부한다. 음수 한도·알 수 없는 정책·문자열이 아닌 field의 정책은 선언 오류다.
+
+모델에서는 `serializers.ModelField.Normalization`과 `MaxInputBytes`로 같은 정책을 선언한다. 전체 Schema IR source와
+명시적 노출 목록을 보존하며 저장 metadata·선택값·생략 default·모델 출력은 다시 정규화하거나 원문 한도로 검사하지 않는다.
+선택 계정은 `Binding.InputSpec`을 사용해 login/email 역할의 쓰기 정책과 byte 한도를 함께 가져온다. 이 선언과 typed
+준비는 현재 권한·보호 필드·revision·최종 저장 검사를 대신하지 않는다.
+
+OpenAPI request는 입력 정책을 `x-godj-normalization`에 기술한다. 정규화 뒤 길이와 선택값을 raw 문자열의
+`maxLength`/`enum`으로 제한하지 않으며, `maxInputBytes`는 변환 전 한도다. 정규화한 입력의 full omission default는
+`x-godj-omission-default`로 구분하고 partial에는 넣지 않는다. Response schema와 모델 encoder에는 입력 정책을 적용하지 않는다.
+
+## 모델 입력과 명령의 객체 결합
+
+`Object(parserConfig, ObjectField(name, childBody, setter), ...)`는 이미 준비한 `Body`들을 별도 객체 member로
+결합한 `Body[T]`를 만든다. 예를 들어 실제 모델에 `password`라는 프로필 필드가 있어도 모델의 `fields.password`와
+명령의 `credential.password`는 서로 다른 입력이다. 각 child의 모델 출처·허용 필드·타입·default·choices와
+full/partial 의미를 유지하며, 필드 이름으로 모델이나 저장 동작을 추론하지 않는다.
+
+```go
+type Credential struct { Password input.Presence[*string] }
+type Creation[M any] struct {
+    Fields orm.ModelInput[M]
+    Credential Credential
+}
+
+func creationBody[M any](model input.Body[orm.ModelInput[M]], command input.Body[Credential]) (input.Body[Creation[M]], error) {
+    return input.Object(api.ParserConfig{MaxBodyBytes: 64 * 1024},
+        input.ObjectField("fields", model, func(out *Creation[M], value orm.ModelInput[M]) { out.Fields = value }),
+        input.ObjectField("credential", command, func(out *Creation[M], value Credential) { out.Credential = value }),
+    )
+}
+```
+
+입력은 `{"fields": {...}, "credential": {...}}`다. 바깥 객체 member는 **full과 partial 모두 필수**이고 null·배열·scalar를
+받지 않는다. Mode는 각 child 내부 field의 생략/default에 적용한다. Optional·nullable 객체 member와 자동 관계 저장은
+이 API의 기능이 아니다. 필요한 command field의 필수·nullable 정책은 그 child Spec에서 별도로 선언한다.
+
+요청 body는 한 번 읽으며 `Object`에 준 parser 설정이 전체 bytes·depth·values·member/array/string/number 제한을
+소유한다. Child의 단건 HTTP parser를 호출하거나 각 child에서 예산을 재시작하지 않는다. 각 Spec의 JSONField 경로만
+arbitrary JSON member name을 허용하며 다른 위치의 같은 이름이나 배열 안으로 권한이 번지지 않는다.
+`serializers.ObjectDecoder`는 이 grammar만 선언하는 불변 객체이며 model 출처나 검증/쓰기 권한을 부여하지 않는다.
+`NewObjectDecoder(spec)`와 `ComposeObjectDecoder`를 `api.Parser.ParseObjectWith`/`ParseListWith`에도 사용할 수 있다.
+선언은 공유 child의 매 사용을 세어 최대 4,096개 object node·64개 object 깊이를 허용하고, 실제 문서에는 parser의 더 작은
+기본값/설정 한도가 별도로 적용된다. Zero child·중복/잘못된 이름·nil setter·과한 graph는 준비 단계에서 거부한다.
+
+전체 child의 Spec 검증·타입 변환과 unknown member 검사가 성공하기 전에는 어느 child/parent setter도 실행하지 않는다.
+Default를 이미 제출한 값으로 재검증하지 않아 legacy default와 JSON null/SQL NULL 의미도 유지한다. Setter 순서는
+object 선언 순서와 각 child의 기존 Spec 순서다. 취소에는 이후 setter와 부분 DTO를 게시하지 않으며, setter는 순수해야 한다.
+
+결합된 입력의 diagnostic field는 JSON Pointer다. 예를 들어 `/fields/email`, `/credential/password`,
+`/outer/child/name`처럼 나타내고 원래 이름의 `~`와 `/`는 각각 `~0`, `~1`로 escape한다.
+각 child의 진단 순서를 유지한 뒤 바깥 unknown member를 이름 순으로 추가한다. Diagnostic params와 값 비노출 정책을
+유지한다. `Schema(mode)`도 같은 child schema로 만든 닫힌 객체이며 `JSONBody`/`JSONListBody`가 그대로 사용할 수 있다.
+
+아래는 단일 Spec에서 임의 DTO를 구성하는 예시다.
+
 ```go
 type PatchDTO struct {
     Name     input.Presence[string]
@@ -117,6 +184,9 @@ Go 오류·취소는 즉시 중단한다. Validator의 일반 오류가 parser�
 유효한 행의 순수 setter/validator는 실행될 수 있다. 요청 전체가 실패하면 부분 DTO slice는 반환하지 않는다.
 
 실제 연결은 [Helpdesk 선언](../../examples/helpdesk/api_inputs.go), [여러 티켓 생성](../../examples/helpdesk/ticket_bulk_api.go),
-[Article 배열 endpoint](../../examples/article/apiapp/bulk_create.go)를 참고한다. Header 입력·nested writable serializer와
-자동 viewset은 후속 범위다. 경로/endpoint 연결은 [api/endpoint](../endpoint/README.md)가 소유한다.
+[Article 배열 endpoint](../../examples/article/apiapp/bulk_create.go)와
+[선택 계정 생성 소비자](../../codegen/consumertest/testdata/accountbinding/creation_test.go)를 참고한다.
+객체 배열도 같은 `Object`를 사용하며 행 전체의 결합이 실패하면 그 행의 어떤 setter도 실행하지 않는다.
+앞선 유효 행의 setter/validator는 실행될 수 있고, 실패한 요청은 부분 행 slice를 반환하지 않는다.
+자동 nested 관계 저장과 viewset은 후속 범위다. Header·경로/endpoint 연결은 [api/endpoint](../endpoint/README.md)가 소유한다.
 환경별 검증과 후속 통합은 [실행 증거](../../docs/status/TEST_EVIDENCE.md)에 기록한다.

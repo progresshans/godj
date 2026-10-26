@@ -38,6 +38,12 @@ JSON negotiation은 기존 `api.JSONPolicy`와 실제 middleware가 소유한다
 선언을 거부한다. 초기화에서 getter·setter·handler·DB I/O를 실행하지 않으며 각 callback은 동시 요청에 안전해야 한다.
 
 `All(first, more...)`는 모든 권한, `Any(first, alternatives...)`는 명시한 권한 중 하나를 요구한다.
+`Permissions(policy)`는 `api.NewPermissionPolicy(required, alternatives)`의 모든 필수 권한과 대안 중 하나를
+같이 요구한다. 필수 권한을 먼저 확인하고 확정 거부일 때만 다음 대안을 평가한다. 오류·취소는 대안을 우회하지 않는다.
+실제 Session/Bearer adapter는 인증·CSRF 경계를 한 번만 수행한다. 둘 이상의 대안과 필수 권한을 결합하려면
+`api.PolicyAuthentication`이 필요하며, 없는 adapter는 초기화에서 거부한다. 단일 대안은 순서를 유지한 conjunction이다.
+OpenAPI는 대안을 `x-godj-any-permissions`, 함께 필요한 권한을 `x-godj-additional-permissions`로 기술한다.
+두 배열의 합집합은 canonical·distinct·최대 256개이며 입력 배열과 반환 metadata의 변경은 정책을 바꾸지 않는다.
 `Authenticated()`는 모델 권한과 독립적인 인증, `CSRFOnly(requireSessionProof)`는 Session adapter의 익명 CSRF admission이다.
 마지막 경우 handler에는 zero Principal을 전달하며 `requireSessionProof`는 application이 직접 검증하는 session proof의
 문서 선언이다. 이 bool이 proof 검증을 수행하지는 않는다. Zero admission·빈/중복 권한·없는 adapter capability는 준비 오류다.
@@ -50,6 +56,8 @@ transport/인증/표현용 reserved header를 application 입력으로 선언할
 `JSONBody(name, body, mode, description)`는
 같은 full/partial model 입력의 JSON parser와 named schema를 연결한다. 같은 Input 값을 재사용하면 component도 공유하며,
 독립 선언의 같은 이름은 오류다. `NoInput()`은 입력을 읽지 않으며 query를 검사하지도 않는다.
+`input.Object`로 결합한 모델/명령 객체도 같은 `JSONBody`와 `JSONListBody` 경로를 사용한다. 같은 named item을 단건과
+배열 operation에서 공유하며 각 child schema·전체 요청 예산·결합 전체 검증 뒤 setter 실행을 그대로 유지한다.
 `NoQuery(input)`은 비어 있지 않은 raw query를 wrapped parser 이전에 거부한다. Query parameter가 선언된 Input과는 조합할 수 없다.
 각 Input은 자체 client 오류 상태를 자동으로 선언한다. Query/Header는 400, JSON body는 400/413/415이며
 `Errors`에서 같은 상태의 업무 설명을 지정하거나 다른 4xx를 추가할 수 있다.

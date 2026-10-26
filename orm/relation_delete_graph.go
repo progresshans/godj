@@ -85,21 +85,48 @@ func relationDeletePolicyFingerprint(target ir.ModelIdentity, model ir.Model, ke
 		PrimaryKeyName: key.Name, PrimaryKeyColumn: key.Column}, incoming)
 }
 
-func (state relationDeleteState[M]) execute(ctx context.Context, session db.RelationSession, targetKey int64) (int64, error) {
-	return executeRelationDeleteRoots(ctx, session, state.graph, []relationDeleteRow{{model: state.target, key: targetKey}})
+func (state relationDeleteState[M]) execute(ctx context.Context, session db.RelationSession, targetKey int64, before func(context.Context, RelationDeleteEffects) error) (int64, error) {
+	return executeRelationDeleteRoots(ctx, session, state.graph, []relationDeleteRow{{model: state.target, key: targetKey}}, before)
 }
 
 // Multiple collection links are one delete operation: collect the union before
 // any write so PROTECT, shared CASCADE rows and cycles retain the same policy.
-func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession, graph map[ir.ModelIdentity]relationDeleteNode, roots []relationDeleteRow) (int64, error) {
+func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession, graph map[ir.ModelIdentity]relationDeleteNode, roots []relationDeleteRow, before func(context.Context, RelationDeleteEffects) error) (int64, error) {
+	plan, err := collectRelationDeleteRoots(ctx, session, graph, roots)
+	if err != nil {
+		return 0, err
+	}
+	if before != nil {
+		if err := before(ctx, plan.effects()); err != nil {
+			return 0, err
+		}
+	}
+	return plan.execute(ctx, session)
+}
+
+// The plan belongs to the collecting transaction. It deliberately stays
+// private: a composing collection owner must preserve the observed PK/FK
+// topology until execution and propagate every failure to the outer owner.
+type relationDeletePlan struct {
+	graph   map[ir.ModelIdentity]relationDeleteNode
+	rows    []relationDeleteRow
+	nulls   map[relationDeleteRow][]string
+	setNull []query.RelationSetNullPlan
+}
+
+func (plan relationDeletePlan) effects() RelationDeleteEffects {
+	return collectRelationDeleteEffects(plan.rows, plan.nulls)
+}
+
+func collectRelationDeleteRoots(ctx context.Context, session db.RelationSession, graph map[ir.ModelIdentity]relationDeleteNode, roots []relationDeleteRow) (relationDeletePlan, error) {
 	if interfaceIsNil(session) {
-		return 0, relationBackendInvalidPlan("relation atomic backend supplied a nil session")
+		return relationDeletePlan{}, relationBackendInvalidPlan("relation atomic backend supplied a nil session")
 	}
 	queue := make([]relationDeleteRow, 0, len(roots))
 	seen := make(map[relationDeleteRow]bool, len(roots))
 	for _, root := range roots {
 		if _, exists := graph[root.model]; !exists {
-			return 0, relationInvalidPlan("relation delete root is outside its bound graph")
+			return relationDeletePlan{}, relationInvalidPlan("relation delete root is outside its bound graph")
 		}
 		if !seen[root] {
 			seen[root] = true
@@ -107,20 +134,29 @@ func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 		}
 	}
 	protected := make(map[relationDeleteRow]bool)
+	nulls := make(map[relationDeleteRow][]string)
 	var setNull []query.RelationSetNullPlan
 	for cursor := 0; cursor < len(queue); cursor++ {
 		if err := ctx.Err(); err != nil {
-			return 0, err
+			return relationDeletePlan{}, err
 		}
 		row := queue[cursor]
 		for _, edge := range graph[row.model].incoming {
-			if edge.metadata.OnDelete == ir.DeleteSetNull {
-				setNull = append(setNull, query.NewRelationSetNullPlan(edge.sourceModel.DBTable, fieldReference(edge.sourceForeignKey), query.Integer(row.key)))
-				continue
-			}
 			keys, err := collectRelationDeleteRows(ctx, session, edge, row.key)
 			if err != nil {
-				return 0, err
+				return relationDeletePlan{}, err
+			}
+			if edge.metadata.OnDelete == ir.DeleteSetNull {
+				for _, key := range keys {
+					source := relationDeleteRow{model: edge.metadata.Source, key: key}
+					nulls[source] = append(nulls[source], edge.sourceForeignKey.Name)
+				}
+				for offset := 0; offset < len(keys); offset += query.MaximumRelationSetNullRows {
+					batch := keys[offset:min(offset+query.MaximumRelationSetNullRows, len(keys))]
+					setNull = append(setNull, query.NewRelationSetNullRowsPlan(edge.sourceModel.DBTable,
+						fieldReference(edge.sourceForeignKey), query.Integer(row.key), fieldReference(edge.sourcePrimaryKey), batch))
+				}
+				continue
 			}
 			for _, key := range keys {
 				source := relationDeleteRow{model: edge.metadata.Source, key: key}
@@ -134,16 +170,20 @@ func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 		}
 	}
 	if err := ctx.Err(); err != nil {
-		return 0, err
+		return relationDeletePlan{}, err
 	}
 	if len(protected) != 0 {
 		err, constructionErr := query.NewProtectedForeignKeyError(int64(len(protected)))
 		if constructionErr != nil {
-			return 0, constructionErr
+			return relationDeletePlan{}, constructionErr
 		}
-		return 0, err
+		return relationDeletePlan{}, err
 	}
-	for _, plan := range setNull {
+	return relationDeletePlan{graph: graph, rows: queue, nulls: nulls, setNull: setNull}, nil
+}
+
+func (deletion relationDeletePlan) execute(ctx context.Context, session db.RelationSession) (int64, error) {
+	for _, plan := range deletion.setNull {
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
@@ -154,15 +194,20 @@ func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 		if count < 0 {
 			return 0, relationBackendInvalidPlan("relation SET_NULL returned a negative affected-row count")
 		}
+		_, keys, _ := plan.CollectedRows()
+		if count != int64(len(keys)) {
+			return 0, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnexpectedRows,
+				Detail: fmt.Sprintf("relation SET_NULL affected %d rows, want the %d collected rows", count, len(keys))}
+		}
 	}
 	// Leaves normally go first. Required cycles are handled by the backend's
 	// deferred CASCADE constraints, not by a guessed topological order.
-	for index := len(queue) - 1; index >= 0; index-- {
+	for index := len(deletion.rows) - 1; index >= 0; index-- {
 		if err := ctx.Err(); err != nil {
 			return 0, err
 		}
-		row := queue[index]
-		node := graph[row.model]
+		row := deletion.rows[index]
+		node := deletion.graph[row.model]
 		count, err := session.Delete(ctx, query.NewDeletePlan(node.model.DBTable, fieldReference(node.key), query.Integer(row.key)))
 		if err != nil {
 			return 0, err
@@ -171,7 +216,7 @@ func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 			return 0, unexpectedRows("relation delete target", count)
 		}
 	}
-	return int64(len(queue)), ctx.Err()
+	return int64(len(deletion.rows)), ctx.Err()
 }
 
 func collectRelationDeleteRows(ctx context.Context, session db.RelationSession, edge relationDeleteEdge, targetKey int64) ([]int64, error) {

@@ -163,24 +163,25 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 	config.Initial = func(ticket selectionTicket) (map[string]forms.Value, error) {
 		return map[string]forms.Value{"subject": forms.String(ticket.subject)}, nil
 	}
-	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero selectionTicket
-			return zero, inputErr
+			return MutationResult{}, inputErr
 		}
 
 		if len(values.All()) != 1 {
 			t.Fatal("unselected data reached create")
 		}
-		subject, _ := values.String("subject")
-		return selectionTicket{2, subject, 2}, nil
+		if subject, ok := values.String("subject"); !ok || subject != "New" {
+			t.Fatal("selected subject missing from create input")
+		}
+		return MutationResult{ID: 2}, nil
 	}
-	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (selectionTicket, []string, error) {
-		return selectionTicket{1, "Updated", 2}, []string{"subject"}, nil
+	config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (MutationResult, []string, error) {
+		return MutationResult{ID: 1}, []string{"subject"}, nil
 	}
-	config.Delete = func(context.Context, auth.Principal, Mutation) (selectionTicket, error) {
-		return selectionTicket{1, "Printer", 2}, nil
+	config.Delete = func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+		return MutationResult{ID: 1}, nil
 	}
 	config.History = func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error) { return nil, nil }
 	if err := RegisterModel(builder, config); err != nil {
@@ -206,7 +207,7 @@ func TestSelectedAdminFormKeepsForeignKeyOutsideWritableSurface(t *testing.T) {
 		t.Fatal(err)
 	}
 	created, err := model.create(context.Background(), principal, bound, InlineSubmission{})
-	if err != nil || created.ID() != 2 {
+	if err != nil || created.ID != 2 {
 		t.Fatalf("selected create: %v", err)
 	}
 	config.FormFields = []string{"category"}

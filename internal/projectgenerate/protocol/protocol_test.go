@@ -187,6 +187,25 @@ func TestAppsAndSchemaWireBudgetBoundaries(t *testing.T) {
 }
 
 func TestJSONDepthAndResponseSizeExactBoundaries(t *testing.T) {
+	members := make(map[string]bool)
+	for index := 0; index < maximumObjectMembers; index++ {
+		members[strings.Repeat("k", index+1)] = true
+	}
+	bounded, err := json.Marshal(members)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := scanJSONDocument(bounded, MaxResponseBytes); err != nil {
+		t.Fatal("exact closed-shape member budget rejected", err)
+	}
+	members[strings.Repeat("k", maximumObjectMembers+1)] = true
+	oversized, err := json.Marshal(members)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := scanJSONDocument(oversized, MaxResponseBytes); err == nil {
+		t.Fatal("member budget maximum+1 accepted")
+	}
 	maximumDepth := strings.Repeat("[", MaxJSONDepth) + "0" + strings.Repeat("]", MaxJSONDepth)
 	if err := scanJSONDocument([]byte(maximumDepth), MaxResponseBytes); err != nil {
 		t.Fatalf("maximum depth rejected: %v", err)

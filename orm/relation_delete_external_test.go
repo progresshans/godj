@@ -67,11 +67,27 @@ func (externalRelationDeleteAuthorDescriptor) WriteFieldValue(
 
 type externalRelationDeleteRows struct {
 	closed bool
+	values [][2]int64
+	index  int
 }
 
-func (*externalRelationDeleteRows) Next() bool        { return false }
-func (*externalRelationDeleteRows) Scan(...any) error { return errors.New("empty rows cannot scan") }
-func (*externalRelationDeleteRows) Err() error        { return nil }
+func (rows *externalRelationDeleteRows) Next() bool {
+	if rows.index >= len(rows.values) {
+		return false
+	}
+	rows.index++
+	return true
+}
+func (rows *externalRelationDeleteRows) Scan(destinations ...any) error {
+	if len(destinations) != 2 || rows.index < 1 || rows.index > len(rows.values) {
+		return errors.New("invalid external delete scan")
+	}
+	for index, value := range rows.values[rows.index-1] {
+		*destinations[index].(*any) = value
+	}
+	return nil
+}
+func (*externalRelationDeleteRows) Err() error { return nil }
 func (rows *externalRelationDeleteRows) Close() error {
 	rows.closed = true
 	return nil
@@ -79,6 +95,7 @@ func (rows *externalRelationDeleteRows) Close() error {
 
 type externalRelationDeleteSession struct {
 	rows       *externalRelationDeleteRows
+	nullRows   *externalRelationDeleteRows
 	setNull    []query.RelationSetNullPlan
 	deletes    []query.DeletePlan
 	queryPlans []query.Plan
@@ -86,6 +103,9 @@ type externalRelationDeleteSession struct {
 
 func (session *externalRelationDeleteSession) Query(_ context.Context, plan query.Plan) (db.Rows, error) {
 	session.queryPlans = append(session.queryPlans, plan)
+	if plan.SourceFields()[1].Name() == "reviewer" {
+		return session.nullRows, nil
+	}
 	return session.rows, nil
 }
 
@@ -148,7 +168,7 @@ func TestExternalConsumerBindsAndExecutesRelationDeleter(t *testing.T) {
 	}
 
 	rows := &externalRelationDeleteRows{}
-	session := &externalRelationDeleteSession{rows: rows}
+	session := &externalRelationDeleteSession{rows: rows, nullRows: &externalRelationDeleteRows{values: [][2]int64{{10, 2}, {11, 2}}}}
 	backend := &externalRelationDeleteBackend{session: session}
 	target := externalRelationDeleteAuthor{ID: 2, Name: "Bob", present: true}
 	deleted, err := deleter.Delete(context.Background(), backend, &target)
@@ -158,7 +178,7 @@ func TestExternalConsumerBindsAndExecutesRelationDeleter(t *testing.T) {
 	if target.ID != 0 || target.present || target.Name != "Bob" || backend.calls != 1 || !rows.closed {
 		t.Fatalf("external committed state = target %#v backend calls %d rows closed %v", target, backend.calls, rows.closed)
 	}
-	if len(session.queryPlans) != 1 || len(session.setNull) != 1 || len(session.deletes) != 1 {
+	if len(session.queryPlans) != 2 || len(session.setNull) != 1 || len(session.deletes) != 1 || !session.nullRows.closed {
 		t.Fatalf("external plan counts = query %d set-null %d delete %d", len(session.queryPlans), len(session.setNull), len(session.deletes))
 	}
 }
@@ -188,7 +208,7 @@ func TestExternalBorrowedRelationDeletePreservesModelAndRejectsExpiredOrRootHand
 	if err != nil {
 		t.Fatal(err)
 	}
-	root := &externalRelationDeleteSession{rows: &externalRelationDeleteRows{}}
+	root := &externalRelationDeleteSession{rows: &externalRelationDeleteRows{}, nullRows: &externalRelationDeleteRows{values: [][2]int64{{10, 2}, {11, 2}}}}
 	target := externalRelationDeleteAuthor{ID: 2, Name: "Bob", present: true}
 	if count, err := deleter.DeleteInSession(t.Context(), root, target); err == nil || count != 0 || len(root.queryPlans) != 0 {
 		t.Fatal("root handle was treated as a borrowed transaction")

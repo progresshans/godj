@@ -35,21 +35,10 @@ func choiceInputSchema(field serializers.Field) (Schema, error) {
 		return jsonFieldSchema(field, true)
 	}
 	choices := field.Choices()
-	if choices == nil {
+	if choices == nil || field.StringNormalization() != serializers.StringExact {
 		return schemaFieldType(field)
 	}
-	values := make([]serializers.Value, 0, len(choices)+1)
-	hasBlank := false
-	for _, choice := range choices {
-		values = append(values, choice.Value)
-		if value, ok := choice.Value.AsString(); ok && value == "" {
-			hasBlank = true
-		}
-	}
-	if field.Kind() == serializers.FieldString && field.AllowEmpty() && !hasBlank {
-		values = append(values, serializers.String(""))
-	}
-	enum, err := serializers.NewList(values...)
+	enum, err := choiceInputValues(field)
 	if err != nil {
 		return Schema{}, err
 	}
@@ -69,7 +58,26 @@ func choiceInputSchema(field serializers.Field) (Schema, error) {
 	return base, nil
 }
 
+func choiceInputValues(field serializers.Field) (serializers.Value, error) {
+	choices := field.Choices()
+	values := make([]serializers.Value, 0, len(choices)+1)
+	hasBlank := false
+	for _, choice := range choices {
+		values = append(values, choice.Value)
+		if value, ok := choice.Value.AsString(); ok && value == "" {
+			hasBlank = true
+		}
+	}
+	if field.Kind() == serializers.FieldString && field.AllowEmpty() && !hasBlank {
+		values = append(values, serializers.String(""))
+	}
+	return serializers.NewList(values...)
+}
+
 func inputDefaultName(field serializers.Field, value serializers.Value) string {
+	if field.StringNormalization() != serializers.StringExact || field.MaxInputBytes() > 0 {
+		return "x-godj-omission-default"
+	}
 	if field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL || field.Kind() == serializers.FieldSlug {
 		return "x-godj-omission-default"
 	}

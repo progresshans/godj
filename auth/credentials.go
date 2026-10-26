@@ -44,9 +44,17 @@ type credentialState struct {
 	username  string
 	hash      string
 	principal Principal
+	domain    CredentialDomain
 }
 
 func NewCredential(username, encodedHash string, principal Principal) (Credential, error) {
+	return newCredential(username, encodedHash, principal, CredentialDomain{})
+}
+
+func newCredential(username, encodedHash string, principal Principal, domain CredentialDomain) (Credential, error) {
+	if principal.domain.valid && principal.domain != domain {
+		return Credential{}, invalidCredentialDomain()
+	}
 	if err := ValidateUsername(username); err != nil {
 		return Credential{}, err
 	}
@@ -56,7 +64,8 @@ func NewCredential(username, encodedHash string, principal Principal) (Credentia
 	if principal.id == "" {
 		return Credential{}, &Error{Code: CodeInvalidInput, Field: "principal", Detail: "credential principal is invalid"}
 	}
-	return Credential{state: &credentialState{username: username, hash: encodedHash, principal: principal}}, nil
+	principal.domain = domain
+	return Credential{state: &credentialState{username: username, hash: encodedHash, principal: principal, domain: domain}}, nil
 }
 
 // ValidateUsername applies the credential identity's exact UTF-8/byte/NUL
@@ -85,16 +94,22 @@ func (Credential) GoString() string { return "auth.Credential{redacted}" }
 func (c Credential) Principal() Principal { return c.value().principal }
 
 // SessionStamp binds server-side session data to this principal and encoded
-// password. A password replacement or rehash invalidates the previous stamp;
+// password and, when explicitly bound, its credential ownership domain.
+// A password replacement, rehash or domain transition invalidates the stamp;
 // username and permission changes do not. This is not a bearer token, password
 // verifier or client cookie. Store it only in the trusted server session.
 func (c Credential) SessionStamp() string {
-	if c.value().principal.id == "" || c.value().hash == "" {
+	value := c.value()
+	if value.principal.id == "" || value.hash == "" {
 		return ""
 	}
 	// Both fields exclude NUL, so the framing is unambiguous. The input is an
 	// already salted encoded password, never the raw password.
-	digest := sha256.Sum256([]byte("godj.session-credential.v1\x00" + c.value().principal.id + "\x00" + c.value().hash))
+	prefix := "godj.session-credential.v1\x00"
+	if value.domain.valid {
+		prefix = "godj.session-credential.v2\x00" + value.domain.Identifier() + "\x00"
+	}
+	digest := sha256.Sum256([]byte(prefix + value.principal.id + "\x00" + value.hash))
 	return hex.EncodeToString(digest[:])
 }
 
@@ -112,6 +127,7 @@ type memoryAuthenticatorState struct {
 	byID       map[string]Credential
 	hasher     PasswordHasher
 	dummyHash  string
+	loginInput LoginInput
 }
 
 func (MemoryAuthenticator) Format(state fmt.State, _ rune) {
@@ -121,7 +137,21 @@ func (MemoryAuthenticator) Format(state fmt.State, _ rune) {
 func (*MemoryAuthenticator) String() string   { return "auth.MemoryAuthenticator{redacted}" }
 func (*MemoryAuthenticator) GoString() string { return "auth.MemoryAuthenticator{redacted}" }
 
-func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher) (*MemoryAuthenticator, error) {
+// NewMemoryAuthenticator keeps exact credential lookup. A caller exposing a
+// login form supplies one explicit input declaration; omitting it leaves the
+// form capability unavailable. Form normalization never changes direct lookup.
+func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher, loginInput ...LoginInputConfig) (*MemoryAuthenticator, error) {
+	if len(loginInput) > 1 {
+		return nil, &Error{Code: CodeInvalidConfig, Field: "login_input", Detail: "at most one login input declaration is permitted"}
+	}
+	var input LoginInput
+	if len(loginInput) == 1 {
+		var err error
+		input, err = NewLoginInput(loginInput[0])
+		if err != nil {
+			return nil, err
+		}
+	}
 	if nilAuthValue(hasher) {
 		return nil, &Error{Code: CodeInvalidConfig, Field: "password_hasher", Detail: "password hasher is nil"}
 	}
@@ -132,6 +162,7 @@ func NewMemoryAuthenticator(credentials []Credential, hasher PasswordHasher) (*M
 		byUsername: make(map[string]Credential, len(credentials)),
 		byID:       make(map[string]Credential, len(credentials)),
 		hasher:     hasher,
+		loginInput: input,
 	}}
 	for _, credential := range credentials {
 		if !validUsername(credential.value().username) || credential.value().hash == "" || credential.value().principal.id == "" {

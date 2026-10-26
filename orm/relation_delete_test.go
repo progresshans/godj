@@ -273,6 +273,44 @@ func relationDeleteTestBinding(t *testing.T) ProjectBinding {
 	return binding
 }
 
+func TestRelationDeleterCapabilityRequiresCompleteHostSource(t *testing.T) {
+	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
+	binding := relationDeleteTestBinding(t)
+	deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
+	if err := deleter.ValidateSource(binding, target); err != nil {
+		t.Fatal("independently bound identical delete source rejected", err)
+	}
+	authors, blog := relationDeleteTestSchemas()
+	reordered, err := BindProject(blog, authors)
+	if err != nil || deleter.ValidateSource(reordered, target) != nil {
+		t.Fatal("source schema order changed capability", err)
+	}
+	blog.Models[0].Fields[2].Relation.OnDelete = ir.DeleteCascade
+	changed, err := BindProject(authors, blog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if current, _ := changed.Model(target); !current.Equal(relationDeleteTestAuthorModel()) {
+		t.Fatal("negative control changed target metadata")
+	}
+	authors, blog = relationDeleteTestSchemas()
+	extra, err := BindProject(authors, blog, ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "another", Models: []ir.Model{{Name: "unrelated", GoName: "Unrelated"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, candidate := range []ProjectBinding{{}, changed, extra} {
+		if err := deleter.ValidateSource(candidate, target); err == nil {
+			t.Fatal("foreign/unbound complete delete source accepted")
+		}
+	}
+	if err := deleter.ValidateSource(binding, ir.ModelIdentity{AppLabel: "blog", ModelName: "post"}); err == nil {
+		t.Fatal("different target accepted")
+	}
+	if err := (RelationDeleter[relationDeleteTestAuthor]{}).ValidateSource(binding, target); err == nil {
+		t.Fatal("zero deleter became a capability")
+	}
+}
+
 func relationDeleteTestActualFingerprint(t *testing.T, binding ProjectBinding) string {
 	t.Helper()
 	target := ir.ModelIdentity{AppLabel: "authors", ModelName: "author"}
@@ -478,6 +516,14 @@ func relationDeleteConformingBackend(session db.RelationSession) *relationDelete
 	}}
 }
 
+func relationDeleteNullRows(target int64, count int) *relationDeleteTestRows {
+	rows := &relationDeleteTestRows{}
+	for index := 0; index < count; index++ {
+		rows.values = append(rows.values, [2]any{int64(index + 10), target})
+	}
+	return rows
+}
+
 func relationDeleteTestAuthorValue(id int64) relationDeleteTestAuthor {
 	return relationDeleteTestAuthor{ID: id, Name: "Ada", primaryKeyPresent: true}
 }
@@ -641,7 +687,7 @@ func TestRelationDeleterSetNullThenDeleteSuccess(t *testing.T) {
 	deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
 	protectRows := &relationDeleteTestRows{}
 	session := &relationDeleteTestSession{
-		queryRows:     []db.Rows{protectRows},
+		queryRows:     []db.Rows{protectRows, relationDeleteNullRows(2, 2)},
 		setNullCounts: []int64{2},
 		deleteCount:   1,
 	}
@@ -672,7 +718,7 @@ func TestRelationDeleterProtectsAllDistinctSourceRowsWithoutMutation(t *testing.
 		{int64(11), int64(1)},
 		{int64(10), int64(1)},
 	}}
-	session := &relationDeleteTestSession{queryRows: []db.Rows{protectRows}, deleteCount: 1}
+	session := &relationDeleteTestSession{queryRows: []db.Rows{protectRows, &relationDeleteTestRows{}}, deleteCount: 1}
 	backend := relationDeleteConformingBackend(session)
 	target := relationDeleteTestAuthorValue(1)
 	before := target
@@ -744,7 +790,7 @@ func TestRelationDeleterQueriesEveryProtectEdgeAndDistinctsBySourceIdentityAndKe
 		{values: [][2]any{{int64(10), int64(1)}, {int64(11), int64(1)}}},
 		{values: [][2]any{{int64(10), int64(1)}}},
 	}
-	session := &relationDeleteTestSession{queryRows: []db.Rows{rowSets[0], rowSets[1], rowSets[2]}, deleteCount: 1}
+	session := &relationDeleteTestSession{queryRows: []db.Rows{rowSets[0], rowSets[1], rowSets[2], &relationDeleteTestRows{}}, deleteCount: 1}
 	target := relationDeleteTestAuthorValue(1)
 	before := target
 	rows, deleteErr := deleter.Delete(context.Background(), relationDeleteConformingBackend(session), &target)
@@ -752,7 +798,7 @@ func TestRelationDeleterQueriesEveryProtectEdgeAndDistinctsBySourceIdentityAndKe
 	if rows != 0 || !errors.As(deleteErr, &protected) || protected.ProtectedSourceRows() != 3 || target != before {
 		t.Fatalf("Delete(global distinct) = (%d, %v), protected %#v target %#v", rows, deleteErr, protected, target)
 	}
-	if len(session.queryPlans) != 3 || len(session.setNullPlans) != 0 || len(session.deletePlans) != 0 {
+	if len(session.queryPlans) != 4 || len(session.setNullPlans) != 0 || len(session.deletePlans) != 0 {
 		t.Fatalf("global distinct calls = query %d set-null %d delete %d", len(session.queryPlans), len(session.setNullPlans), len(session.deletePlans))
 	}
 	if got := []string{session.queryPlans[0].Table(), session.queryPlans[1].SourceFields()[1].Name(), session.queryPlans[2].SourceFields()[1].Name()}; !reflect.DeepEqual(got, []string{"archive_entry", "author", "editor"}) {
@@ -948,7 +994,9 @@ func TestRelationDeleterMutationFailuresReturnZeroAndPreserveCaller(t *testing.T
 		want          error
 		wantDeleteRun bool
 	}{
-		{name: "zero set-null permitted", setNullCount: 0, deleteCount: 1, wantDeleteRun: true},
+		{name: "exact set-null count", setNullCount: 2, deleteCount: 1, wantDeleteRun: true},
+		{name: "zero set-null rejected", setNullCount: 0, deleteCount: 1, want: &query.Error{Category: query.CategoryBackend, Code: query.CodeUnexpectedRows}},
+		{name: "excess set-null rejected", setNullCount: 3, deleteCount: 1, want: &query.Error{Category: query.CategoryBackend, Code: query.CodeUnexpectedRows}},
 		{name: "negative set-null rejected", setNullCount: -1, deleteCount: 1, want: &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}},
 		{name: "minimum set-null rejected", setNullCount: math.MinInt64, deleteCount: 1, want: &query.Error{Category: query.CategoryBackend, Code: query.CodeInvalidPlan}},
 		{name: "set-null error", setNullCount: 2, setNullErr: errRelationDeleteSetNull, deleteCount: 1, want: errRelationDeleteSetNull},
@@ -960,7 +1008,7 @@ func TestRelationDeleterMutationFailuresReturnZeroAndPreserveCaller(t *testing.T
 		t.Run(test.name, func(t *testing.T) {
 			deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
 			session := &relationDeleteTestSession{
-				queryRows:     []db.Rows{&relationDeleteTestRows{}},
+				queryRows:     []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)},
 				setNullCounts: []int64{test.setNullCount},
 				setNullErrs:   []error{test.setNullErr},
 				deleteCount:   test.deleteCount,
@@ -1054,7 +1102,7 @@ func TestRelationDeleterCancellationInsideCallbackPreventsLaterMutation(t *testi
 	deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
 	ctx, cancel := context.WithCancel(context.Background())
 	session := &relationDeleteTestSession{
-		queryRows:     []db.Rows{&relationDeleteTestRows{}},
+		queryRows:     []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)},
 		setNullCounts: []int64{2},
 		deleteCount:   1,
 		onSetNull:     cancel,
@@ -1108,7 +1156,7 @@ func TestRelationDeleterPreservesOutcomeUnknownMarkersAndCallerState(t *testing.
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
-			session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}}, setNullCounts: []int64{2}, deleteCount: 1}
+			session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)}, setNullCounts: []int64{2}, deleteCount: 1}
 			if test.callbackFailure {
 				session.setNullErrs = []error{errRelationDeleteSetNull}
 			}
@@ -1149,7 +1197,7 @@ func TestRelationDeleterSuccessfulAtomicReturnRemainsAuthoritativeAfterContextTr
 	deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
 	ctx, cancel := context.WithCancel(context.Background())
 	session := &relationDeleteTestSession{
-		queryRows:     []db.Rows{&relationDeleteTestRows{}},
+		queryRows:     []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)},
 		setNullCounts: []int64{2},
 		deleteCount:   1,
 	}
@@ -1193,7 +1241,7 @@ func TestRelationDeleterFirstCallbackRacingBackendReturnAndSealIsRaceSafe(t *tes
 	for attempt := range attempts {
 		deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
 		session := &relationDeleteTestSession{
-			queryRows:     []db.Rows{&relationDeleteTestRows{}},
+			queryRows:     []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)},
 			setNullCounts: []int64{2},
 			deleteCount:   1,
 		}
@@ -1270,7 +1318,7 @@ func TestRelationDeleterCallbackGuardRejectsPortViolations(t *testing.T) {
 
 	t.Run("double callback rejects second invocation and outer result", func(t *testing.T) {
 		deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
-		session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}}, setNullCounts: []int64{2}, deleteCount: 1}
+		session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)}, setNullCounts: []int64{2}, deleteCount: 1}
 		var secondErr error
 		backend := &relationDeleteTestBackend{invoke: func(_ context.Context, callback func(db.RelationSession) error) error {
 			firstErr := callback(session)
@@ -1322,7 +1370,7 @@ func TestRelationDeleterCallbackGuardRejectsPortViolations(t *testing.T) {
 
 	t.Run("late callback cannot revise committed result", func(t *testing.T) {
 		deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
-		session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}}, setNullCounts: []int64{2}, deleteCount: 1}
+		session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)}, setNullCounts: []int64{2}, deleteCount: 1}
 		var retained func(db.RelationSession) error
 		backend := &relationDeleteTestBackend{invoke: func(_ context.Context, callback func(db.RelationSession) error) error {
 			retained = callback
@@ -1343,7 +1391,7 @@ func TestRelationDeleterCallbackGuardRejectsPortViolations(t *testing.T) {
 
 func TestRelationDeleterConcurrentSecondCallbackIsRejectedRaceSafely(t *testing.T) {
 	deleter := relationDeleteTestDeleterWithDescriptor(t, relationDeleteTestAuthorDescriptor{})
-	session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}}, setNullCounts: []int64{2}, deleteCount: 1}
+	session := &relationDeleteTestSession{queryRows: []db.Rows{&relationDeleteTestRows{}, relationDeleteNullRows(2, 2)}, setNullCounts: []int64{2}, deleteCount: 1}
 	backend := &relationDeleteTestBackend{invoke: func(_ context.Context, callback func(db.RelationSession) error) error {
 		start := make(chan struct{})
 		results := make(chan error, 2)
@@ -1369,7 +1417,7 @@ func TestRelationDeleterConcurrentSecondCallbackIsRejectedRaceSafely(t *testing.
 
 func assertRelationDeletePlans(t *testing.T, session *relationDeleteTestSession, targetKey int64) {
 	t.Helper()
-	if len(session.queryPlans) != 1 || len(session.setNullPlans) != 1 || len(session.deletePlans) != 1 {
+	if len(session.queryPlans) != 2 || len(session.setNullPlans) != 1 || len(session.deletePlans) != 1 {
 		t.Fatalf("plan counts = query %d set-null %d delete %d", len(session.queryPlans), len(session.setNullPlans), len(session.deletePlans))
 	}
 	protect := session.queryPlans[0]
@@ -1380,11 +1428,19 @@ func assertRelationDeletePlans(t *testing.T, session *relationDeleteTestSession,
 		!conditions[0].Value().Equal(query.Integer(targetKey)) {
 		t.Fatalf("protect plan = table %q columns %#v conditions %#v", protect.Table(), columns, conditions)
 	}
+	nullRead := session.queryPlans[1]
+	if nullRead.Table() != "blog_post" || nullRead.SourceFields()[1].Name() != "reviewer" || !nullRead.Conditions()[0].Value().Equal(query.Integer(targetKey)) {
+		t.Fatal("SET_NULL collection did not use its exact FK", nullRead)
+	}
 	setNull := session.setNullPlans[0]
 	if setNull.Table() != "blog_post" || setNull.ForeignKey().Name() != "reviewer" ||
 		setNull.ForeignKey().Column() != "reviewer_id" || !setNull.ForeignKey().Nullable() ||
 		!setNull.TargetKey().Equal(query.Integer(targetKey)) {
 		t.Fatalf("SET_NULL plan = %#v", setNull)
+	}
+	primary, keys, collected := setNull.CollectedRows()
+	if !collected || primary.Name() != "id" || !reflect.DeepEqual(keys, []int64{10, 11}) {
+		t.Fatal("SET_NULL did not retain its exact collected keys", primary, keys, collected)
 	}
 	deletePlan := session.deletePlans[0]
 	if deletePlan.Table() != "authors_author" || deletePlan.KeyField().Name() != "id" ||

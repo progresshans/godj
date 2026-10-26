@@ -6,14 +6,13 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
-
-const MaximumUserGroups = 256
 
 // UserCreate owns detached administrative input. PrincipalID is chosen by the
 // host and never changes. Password is a separate argument to CreateUser, so it
@@ -216,7 +215,7 @@ func (input UserPatch) normalize() (UserPatch, error) {
 		}
 	}
 	if keys, set := input.groups.Get(); set {
-		values, err := normalizeIdentityKeys(keys, MaximumUserGroups, "groups")
+		values, err := normalizeIdentityKeys(keys, accountmodel.MaximumAccountGroups, "groups")
 		if err != nil {
 			return UserPatch{}, err
 		}

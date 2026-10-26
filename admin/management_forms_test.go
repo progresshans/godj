@@ -102,11 +102,10 @@ func newManagementFormSite(t *testing.T, authorizer auth.Authorizer, customize .
 		Initial: func(row managementFormRow) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"username": forms.String(row.username), "active": forms.Boolean(row.active)}, nil
 		},
-		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, error) {
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero managementFormRow
-				return zero, inputErr
+				return MutationResult{}, inputErr
 			}
 
 			state.mu.Lock()
@@ -117,13 +116,12 @@ func newManagementFormSite(t *testing.T, authorizer auth.Authorizer, customize .
 			name, _ := values.String("username")
 			state.row = managementFormRow{2, name, true, 1}
 			state.found = true
-			return state.row, ctx.Err()
+			return MutationResult{ID: state.row.id, Revision: state.row.revision}, ctx.Err()
 		},
-		Update: func(ctx context.Context, p auth.Principal, m Mutation, bound formmodel.BoundForm, _ InlineSubmission) (managementFormRow, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero managementFormRow
-				return zero, nil, inputErr
+				return MutationResult{}, nil, inputErr
 			}
 
 			state.mu.Lock()
@@ -135,10 +133,10 @@ func newManagementFormSite(t *testing.T, authorizer auth.Authorizer, customize .
 				state.race = false
 			}
 			if !state.found || state.row.id != m.ID {
-				return managementFormRow{}, nil, ErrObjectNotFound
+				return MutationResult{}, nil, ErrObjectNotFound
 			}
 			if state.row.revision != m.Revision {
-				return managementFormRow{}, nil, &OperationError{Code: OperationConflict}
+				return MutationResult{}, nil, &OperationError{Code: OperationConflict}
 			}
 			name, _ := values.String("username")
 			active, _ := values.Boolean("active")
@@ -156,23 +154,23 @@ func newManagementFormSite(t *testing.T, authorizer auth.Authorizer, customize .
 				state.writes++
 			}
 			if state.unknown {
-				return managementFormRow{}, nil, NewOperationError(OperationOutcomeUnknown, errors.New("private storage failure"))
+				return MutationResult{}, nil, NewOperationError(OperationOutcomeUnknown, errors.New("private storage failure"))
 			}
-			return state.row, changed, ctx.Err()
+			return MutationResult{ID: state.row.id, Revision: state.row.revision}, changed, ctx.Err()
 		},
-		Delete: func(ctx context.Context, p auth.Principal, m Mutation) (managementFormRow, error) {
+		Delete: func(ctx context.Context, p auth.Principal, m Mutation) (MutationResult, error) {
 			state.mu.Lock()
 			defer state.mu.Unlock()
 			state.actor = p.ID()
 			if !state.found || state.row.id != m.ID {
-				return managementFormRow{}, ErrObjectNotFound
+				return MutationResult{}, ErrObjectNotFound
 			}
 			if state.row.revision != m.Revision {
-				return managementFormRow{}, &OperationError{Code: OperationConflict}
+				return MutationResult{}, &OperationError{Code: OperationConflict}
 			}
 			state.found = false
 			state.writes++
-			return state.row, ctx.Err()
+			return MutationResult{ID: state.row.id, Revision: state.row.revision}, ctx.Err()
 		},
 		History: func(ctx context.Context, p auth.Principal, _ int64, _ HistoryRequest) ([]AuditEntry, error) {
 			state.mu.Lock()

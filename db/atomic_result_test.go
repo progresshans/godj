@@ -19,6 +19,71 @@ func (owner *resultOwner) Atomic(ctx context.Context, callback func(db.Session) 
 	return owner.invoke(ctx, callback)
 }
 
+type coordinatedResultOwner struct {
+	resultOwner
+	fenced, unfenced int
+}
+
+func (owner *coordinatedResultOwner) Atomic(context.Context, func(db.Session) error) error {
+	owner.unfenced++
+	return errors.New("unexpected unfenced transaction")
+}
+func (owner *coordinatedResultOwner) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
+	owner.fenced++
+	return owner.invoke(ctx, callback)
+}
+
+func TestCoordinatedAtomicResultUsesFenceAndConfirmedPublication(t *testing.T) {
+	for _, mode := range []string{"success", "unknown_commit", "skipped", "repeated", "swallowed", "post_commit_cancel"} {
+		t.Run(mode, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			failure := errors.New("callback failure")
+			owner := &coordinatedResultOwner{}
+			owner.invoke = func(ctx context.Context, callback func(db.Session) error) error {
+				if mode == "skipped" {
+					return nil
+				}
+				err := callback(&plainSession{})
+				if mode == "swallowed" {
+					return nil
+				}
+				if mode == "repeated" {
+					return errors.Join(err, callback(&plainSession{}))
+				}
+				if err != nil {
+					return err
+				}
+				if mode == "unknown_commit" {
+					return &query.Error{Code: query.CodeCommitOutcomeUnknown}
+				}
+				if mode == "post_commit_cancel" {
+					cancel()
+				}
+				return nil
+			}
+			calls := 0
+			result, err := db.CoordinatedAtomicResult(ctx, owner, func(context.Context, db.Session) (string, error) {
+				calls++
+				if mode == "swallowed" {
+					return "", failure
+				}
+				return "confirmed", nil
+			})
+			if owner.fenced != 1 || owner.unfenced != 0 || calls > 1 {
+				t.Fatal("fence/callback ownership changed", owner.fenced, owner.unfenced, calls)
+			}
+			if mode == "success" || mode == "post_commit_cancel" {
+				if err != nil || result != "confirmed" {
+					t.Fatal("confirmed coordinated result lost", err, result)
+				}
+			} else if err == nil || result != "" {
+				t.Fatal("failed coordinated operation published result", err, result)
+			}
+		})
+	}
+}
+
 func TestAtomicResultRequiresOneJoinedCallbackAndConfirmedCommit(t *testing.T) {
 	for _, mode := range []string{"success", "skipped", "repeated", "concurrent", "retained", "unfinished", "swallowed", "replaced_error", "wrapped_error", "begin_failure", "unknown_commit", "post_commit_cancel", "nil_session", "typed_nil_session", "expired_session"} {
 		t.Run(mode, func(t *testing.T) {

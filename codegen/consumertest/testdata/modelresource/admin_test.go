@@ -54,30 +54,32 @@ func registerAsset(t *testing.T, builder *admin.Builder, a assembly) {
 		Initial: func(value inventory.Asset) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(model, a.form, value, descriptor.WriteFieldValue)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (inventory.Asset, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			input, err := formmodel.PrepareInput(inventory.AssetObjects, bound)
 			if err != nil {
-				return inventory.Asset{}, err
+				return admin.MutationResult{}, err
 			}
-			return a.create(ctx, input)
+			value, err := a.create(ctx, input)
+			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (inventory.Asset, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			input, err := formmodel.PrepareInput(inventory.AssetObjects, bound)
 			if err != nil {
-				return inventory.Asset{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			result, err := a.update(ctx, mutation.ID, input)
 			if err == crud.ErrNotFound {
 				err = admin.ErrObjectNotFound
 			}
-			return result.Value, result.ChangedFields, err
+			return admin.MutationResult{ID: result.Value.ID}, result.ChangedFields, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (inventory.Asset, error) {
-			return db.AtomicResult(ctx, a.backend, func(ctx context.Context, session db.Session) (inventory.Asset, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
+			value, err := db.AtomicResult(ctx, a.backend, func(ctx context.Context, session db.Session) (inventory.Asset, error) {
 				return a.resource.DeleteInSession(ctx, session, mutation.ID, crud.DeleteOptions[inventory.Asset]{Delete: func(ctx context.Context, session db.Session, value inventory.Asset) (int64, error) {
 					return inventory.AssetObjects.Delete(ctx, session, &value)
 				}})
 			})
+			return admin.MutationResult{ID: value.ID}, err
 		},
 	}))
 }
@@ -120,7 +122,7 @@ func verifyAdmin(t *testing.T, backend resourceBackend) {
 		check(t, err)
 		credentials = append(credentials, credential)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	check(t, err)
 	allowed, err := admin.SiteAllowedNextPaths(registry, "/admin")
 	check(t, err)

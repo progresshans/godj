@@ -369,7 +369,7 @@ func newArticleAdminSiteFixtureWithBackend(t *testing.T, backend articleapp.Back
 	if err != nil {
 		t.Fatal(err)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator([]auth.Credential{credential}, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		t.Fatal(err)
 	}

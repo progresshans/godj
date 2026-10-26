@@ -78,6 +78,12 @@ func WithStringNormalizer(normalize func(string) string) OverrideOption {
 	return overrideOption(func(config *overrideConfig) { config.normalizeString, config.hasStringNormalizer = normalize, true })
 }
 
+// WithMaxInputBytes adds a submitted-string byte limit before normalization.
+// It does not alter model storage metadata or initial/default values.
+func WithMaxInputBytes(maximum int) OverrideOption {
+	return overrideOption(func(config *overrideConfig) { config.maxInputBytes, config.hasMaxInputBytes = maximum, true })
+}
+
 // WithMaxLength narrows a Char/Text form's input policy without changing IR
 // storage metadata. Zero, negative or broader limits are configuration errors.
 func WithMaxLength(limit int) OverrideOption {
@@ -104,6 +110,8 @@ type overrideConfig struct {
 	hasImageLimits      bool
 	normalizeString     func(string) string
 	hasStringNormalizer bool
+	maxInputBytes       int
+	hasMaxInputBytes    bool
 	maxLength           int
 	hasMaxLength        bool
 	label               string
@@ -270,7 +278,7 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 	if override.hasImageLimits && field.Kind != ir.FieldImage {
 		return forms.Field{}, &Error{Code: "unsupported_image_override"}
 	}
-	if (override.hasStringNormalizer || override.hasMaxLength && !field.Kind.IsFile()) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldURL && field.Kind != ir.FieldSlug && field.Kind != ir.FieldText {
+	if (override.hasStringNormalizer || override.hasMaxInputBytes || override.hasMaxLength && !field.Kind.IsFile()) && field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldURL && field.Kind != ir.FieldSlug && field.Kind != ir.FieldText {
 		return forms.Field{}, &Error{Code: "unsupported_string_override"}
 	}
 	if err := ir.ValidateChoices(field); err != nil {
@@ -290,6 +298,9 @@ func projectField(field ir.Field, override overrideConfig) (forms.Field, error) 
 	options := []forms.FieldOption{forms.WithLabel(label)}
 	if override.hasStringNormalizer {
 		options = append(options, forms.WithStringNormalizer(override.normalizeString))
+	}
+	if override.hasMaxInputBytes {
+		options = append(options, forms.WithMaxInputBytes(override.maxInputBytes))
 	}
 	if field.Choices != nil {
 		choices := make([]forms.Choice, len(field.Choices))

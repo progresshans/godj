@@ -17,6 +17,7 @@ func Scan(decoder *json.Decoder) error {
 	budget := &specBudget{}
 	return wirejson.Object(decoder, []string{"project", "apps"}, map[string]func() error{
 		"project": func() error { return parsePackage(decoder) },
+		"account": func() error { return parseAccountRole(decoder, budget) },
 		"apps": func() error {
 			return wirejson.Array(decoder, MaxApps, func(index int) error {
 				if err := budget.consumeNodes(1); err != nil {

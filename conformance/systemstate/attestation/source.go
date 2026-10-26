@@ -13,6 +13,9 @@ const (
 )
 
 var exactSourcePaths = map[string]struct{}{
+	"sessions/database/migrations/godj_sessions_0001_initial.godj.json":    {},
+	"account/audit/migrations/godj_account_audit_0001_initial.godj.json":   {},
+	"account/domain/migrations/godj_account_domain_0001_initial.godj.json": {},
 	"internal/zonerules/zoneinfo.zip":                                      {},
 	"internal/zonerules/source.json":                                       {},
 	"admin/site_assets/choices.js":                                         {},
@@ -24,7 +27,8 @@ var exactSourcePaths = map[string]struct{}{
 	"scripts/conformance.py":                                               {},
 	"conformance/suites.json":                                              {},
 	"conformance/catalog.py":                                               {},
-	"scripts/ci/conformance_tests.py":                                      {},
+	"scripts/ci/portable_tests.py":                                         {},
+	"scripts/ci/portable-core-required.txt":                                {},
 	"scripts/ci/capture_artifact.py":                                       {},
 	"scripts/ci/go_test_events.py":                                         {},
 	"scripts/ci/packages.py":                                               {},
@@ -56,6 +60,9 @@ var exactSourcePaths = map[string]struct{}{
 }
 
 var productSourcePrefixes = []string{
+	"internal/sessionwire/",
+	"internal/rowset/",
+	"account/",
 	"timezone/",
 	"internal/zonerules/",
 	"uploads/",

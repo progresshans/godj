@@ -38,6 +38,7 @@ type ManyToMany[O, T, L any] struct {
 }
 
 type manyToManyState struct {
+	snapshot            *projectBindingSnapshot
 	through             ir.ModelIdentity
 	model               ir.Model
 	key, source, target ir.Field
@@ -110,7 +111,7 @@ func bindManyToMany[O, T, L any](owner BoundModel[O], name string, target BoundM
 	if !validLowerSHA256(fingerprint) || fingerprint != relationDeletePolicyFingerprint(through.identity, through.model, key, graph) {
 		return zero, relationInvalidPlan("collection delete policy fingerprint does not match project binding")
 	}
-	state := &manyToManyState{through: through.identity, model: through.model.Clone(), key: key, source: sourceField, target: targetField, symmetrical: binding.Symmetry == ir.ManyToManySymmetrical, graph: graph}
+	state := &manyToManyState{snapshot: owner.snapshot, through: through.identity, model: through.model.Clone(), key: key, source: sourceField, target: targetField, symmetrical: binding.Symmetry == ir.ManyToManySymmetrical, graph: graph}
 	for _, constraint := range through.model.UniqueConstraints {
 		if len(constraint.Fields) == 2 && (constraint.Fields[0] == sourceField.Name && constraint.Fields[1] == targetField.Name || constraint.Fields[1] == sourceField.Name && constraint.Fields[0] == targetField.Name) {
 			state.unique = []query.FieldRef{fieldReference(sourceField), fieldReference(targetField)}
@@ -143,6 +144,20 @@ func (r ManyToMany[O, T, L]) Declaration() (ir.Model, ir.ManyToManyField, error)
 		}
 	}
 	return ir.Model{}, ir.ManyToManyField{}, relationInvalidPlan("collection declaration is absent from its owner snapshot")
+}
+
+// ValidateSource checks a forward collection capability against the complete
+// project source and explicit owner/field expected by a composing service.
+// It performs no I/O and accepts independently bound identical sources. The
+// same local declaration in another host policy is not interchangeable.
+func (r ManyToMany[O, T, L]) ValidateSource(binding ProjectBinding, owner ir.ModelIdentity, field string) error {
+	if _, _, err := r.Declaration(); err != nil {
+		return err
+	}
+	if r.prefetchOwner.identity != owner || r.prefetchName != field || !sameProjectSource(r.prefetchOwner.snapshot, binding.snapshot) {
+		return relationInvalidPlan("collection capability does not match the required project source and declaration")
+	}
+	return nil
 }
 
 // ManyCollection owns a lazy target QuerySet. A mutation invalidates this

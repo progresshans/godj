@@ -249,13 +249,24 @@ func TestRuntimeAuditHistoryValidatesRequestAndPreparedEvent(t *testing.T) {
 		limit int
 	}{
 		{model: "bad model", id: 1, limit: 1},
-		{model: "godj_conformance.article", id: 0, limit: 1},
 		{model: "godj_conformance.article", id: 1, limit: 0},
 		{model: "godj_conformance.article", id: 1, limit: admin.MaximumHistoryEntries + 1},
 	} {
 		if entries, err := runtime.AuditHistory(ctx, request.model, request.id, request.limit); err == nil || entries != nil {
 			t.Fatalf("AuditHistory(%q,%d,%d) = (%v,%v), want nil/error", request.model, request.id, request.limit, entries, err)
 		}
+	}
+	for _, key := range []int64{0, -17} {
+		if err := appendRuntimeAudit(ctx, runtime, mustPreparedAuditEvent(t, "operator", key, admin.ActionChange, []string{"title"}, "")); err != nil {
+			t.Fatal(err)
+		}
+		entries, err := runtime.AuditHistory(ctx, "godj_conformance.article", key, 2)
+		if err != nil || len(entries) != 1 || entries[0].ObjectID != key {
+			t.Fatal("valid integer audit key was rejected", key, err)
+		}
+	}
+	if _, err := inspectAuditTable(ctx, backend, 2); err != nil {
+		t.Fatal("stored signed keys failed reopen inspection", err)
 	}
 }
 

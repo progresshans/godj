@@ -73,7 +73,9 @@ func TestAdminStoredImageChoicesRespectHTTPAdmissionAndCurrentPolicy(t *testing.
 			file, err := forms.ExistingFile(*value.photo)
 			return map[string]forms.Value{"title": forms.String(value.title), "photo": file, "width": forms.Integer(*value.width), "height": forms.Integer(*value.height)}, err
 		},
-		Delete: func(context.Context, auth.Principal, Mutation) (registryPhotograph, error) { return current, nil },
+		Delete: func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+			return MutationResult{ID: current.id}, nil
+		},
 	}
 	apply := func(bound formmodel.BoundForm) (registryPhotograph, error) {
 		values, err := bound.Input()
@@ -99,10 +101,11 @@ func TestAdminStoredImageChoicesRespectHTTPAdmissionAndCurrentPolicy(t *testing.
 		writes++
 		return next, nil
 	}
-	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryPhotograph, error) {
-		return apply(bound)
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
+		value, err := apply(bound)
+		return MutationResult{ID: value.id}, err
 	}
-	config.Update = func(_ context.Context, _ auth.Principal, _ Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryPhotograph, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, _ Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 		value, err := apply(bound)
 		changed := bound.Form().Changed()
 		if file, present := bound.Form().Cleaned().File("photo"); present {
@@ -110,7 +113,7 @@ func TestAdminStoredImageChoicesRespectHTTPAdmissionAndCurrentPolicy(t *testing.
 				changed = append(changed, "width", "height")
 			}
 		}
-		return value, changed, err
+		return MutationResult{ID: value.id}, changed, err
 	}
 	policy := uploadTestPolicy(t)
 	client, _, _ := uploadTestSite(t, config, policy, auth.PrincipalAuthorizer{})

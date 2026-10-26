@@ -28,29 +28,31 @@ func editableRelationConfig(t *testing.T) (*Builder, ModelConfig[selectionTicket
 	config.Initial = func(row selectionTicket) (map[string]forms.Value, error) {
 		return map[string]forms.Value{"category": forms.Integer(row.category)}, nil
 	}
-	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
+	config.Create = func(_ context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero selectionTicket
-			return zero, inputErr
+			return MutationResult{}, inputErr
 		}
 
-		id, _ := values.Integer("category")
-		return selectionTicket{1, "Printer", id}, nil
+		if _, ok := values.Integer("category"); !ok {
+			return MutationResult{}, errors.New("missing category")
+		}
+		return MutationResult{ID: 1}, nil
 	}
-	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero selectionTicket
-			return zero, nil, inputErr
+			return MutationResult{}, nil, inputErr
 		}
 
 		id := mutation.ID
-		key, _ := values.Integer("category")
-		return selectionTicket{id, "Printer", key}, []string{"category"}, nil
+		if _, ok := values.Integer("category"); !ok {
+			return MutationResult{}, nil, errors.New("missing category")
+		}
+		return MutationResult{ID: id}, []string{"category"}, nil
 	}
-	config.Delete = func(context.Context, auth.Principal, Mutation) (selectionTicket, error) {
-		return selectionTicket{1, "Printer", 7}, nil
+	config.Delete = func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+		return MutationResult{ID: 1}, nil
 	}
 	config.RelatedChoices = []RelatedChoices{testRelationChoices(t, config.Model, config.AppLabel, "category", "helpdesk.view_category", func(context.Context, auth.Principal) ([]forms.Choice, error) {
 		return []forms.Choice{{Value: forms.Integer(7), Label: "Visible"}}, nil
@@ -113,12 +115,12 @@ func TestRelatedChoicesRevalidateBeforeMutationAndKeepExecutionFailures(t *testi
 	var failure error
 	config.RelatedChoices[0] = testChoicesWithRead(config.RelatedChoices[0], func(context.Context, auth.Principal) ([]forms.Choice, error) { loads++; return choices, failure })
 	create, update := config.Create, config.Update
-	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, error) {
+	config.Create = func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 
 		mutations++
 		return create(ctx, p, bound, InlineSubmission{})
 	}
-	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (selectionTicket, []string, error) {
+	config.Update = func(ctx context.Context, p auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 
 		mutations++
 		return update(ctx, p, mutation, bound, InlineSubmission{})

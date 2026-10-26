@@ -107,7 +107,7 @@ func TestRunGenerateUsesExactBuildAndPrivateRequestAndZeroizesResponse(t *testin
 		t.Fatalf("runner=%+v", runner)
 	}
 	wantPrefix := `{"status":"clean","snapshot_sha256":"`
-	if !strings.HasPrefix(stdout.String(), wantPrefix) || !strings.HasSuffix(stdout.String(), `","file_count":12}`+"\n") {
+	if !strings.HasPrefix(stdout.String(), wantPrefix) || !strings.HasSuffix(stdout.String(), `","file_count":13}`+"\n") {
 		t.Fatalf("stdout=%q", stdout.String())
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/identity/project"
 )
 
 // NewAuthenticator connects current stored accounts to the credential/session
@@ -25,4 +26,12 @@ func (store credentialDirectory) CredentialByUsername(ctx context.Context, usern
 func (store credentialDirectory) CredentialByID(ctx context.Context, principalID string) (auth.Credential, bool, error) {
 	account, found, err := store.directory.ByPrincipalID(ctx, principalID)
 	return account.value().credential, found, err
+}
+
+func (store credentialDirectory) LoginInput() (auth.LoginInput, error) {
+	binding, err := project.BindAccount()
+	if err != nil {
+		return auth.LoginInput{}, err
+	}
+	return binding.LoginInput()
 }

@@ -252,10 +252,28 @@ func newAPIAuthHarness(t *testing.T, configure ...func(*websessionauth.Config)) 
 		t.Fatal(err)
 	}
 	alternatives[0] = "links.changed_after_binding"
+	policy, err := api.NewPermissionPolicy([]auth.Permission{"links.label"}, []auth.Permission{view, "links.ticket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	policyHandler, err := adapter.RequirePolicy(policy, func(*web.Request, auth.Principal) (web.Response, error) {
+		harness.calls.Add(1)
+		harness.mutations.Add(1)
+		return api.NoContent()
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	csrfHandler, err := adapter.RequireCSRF(func(*web.Request) (web.Response, error) { return api.NoContent() })
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	harness.application, err = web.NewApplication(web.Config{
 		Settings: configured,
 		Routes: []web.Route{
+			{Name: "test:csrf", Method: http.MethodGet, Path: "/api/csrf/", Handler: csrfHandler},
+			{Name: "test:policy", Method: http.MethodPost, Path: "/api/policy/", Handler: policyHandler},
 			{Name: "test:any", Method: http.MethodPost, Path: "/api/any/", Handler: anyHandler},
 			{Name: "test:all", Method: http.MethodPost, Path: "/api/all/", Handler: allHandler},
 			{Name: "test:list", Method: http.MethodGet, Path: "/api/articles/", Handler: allowedHandler},

@@ -34,7 +34,29 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"account/audit/migrations/godj_account_audit_0001_initial.godj.json",
+		"sessions/database/migrations/godj_sessions_0001_initial.godj.json",
+		"sessions/database/store.go",
+		"internal/sessionwire/codec.go",
+		"internal/rowset/scan.go",
+		"account/audit/audit.go",
+		"account/audit/migrations.go",
+		"account/audit/models/zz_godj_generated.go",
+		"account/audit/models/zz_godj_relation.go",
+		"account/audit/models/zz_godj_relation_object.go",
+		"account/audit/models/zz_godj_relation_projection.go",
+		"account/domain/migrations/godj_account_domain_0001_initial.godj.json",
+		"account/domain/domain.go",
+		"account/domain/migrations.go",
+		"account/domain/models/zz_godj_generated.go",
+		"account/domain/models/zz_godj_relation.go",
+		"account/domain/models/zz_godj_relation_object.go",
+		"account/domain/models/zz_godj_relation_projection.go",
 		"internal/diagnosticlog/log.go",
+		"internal/firstaccountwire/request.go",
+		"internal/firstaccountwire/response.go",
+		"project/firstaccount/command.go",
+		"project/firstaccount/runner/runner.go",
 		"internal/runservercontrol/protocol.go",
 		"events/event.go",
 		"scripts/ci/runserver_tests.py",
@@ -131,7 +153,8 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"conformance/suites.json",
 		"conformance/catalog.py",
 		"scripts/conformance.py",
-		"scripts/ci/conformance_tests.py",
+		"scripts/ci/portable_tests.py",
+		"scripts/ci/portable-core-required.txt",
 
 		"conformance/contracts/system-state-manifest.json",
 	}
@@ -210,6 +233,10 @@ func TestComputeSourceBindingExcludesDocsCheckedEvidenceFixturesAndOrdinaryTests
 
 func TestSourceScopeOwnsSYS029ProducerConsumerAndPolicyPaths(t *testing.T) {
 	tests := map[string]bool{
+		"internal/firstaccountwire/request.go":                                     true,
+		"internal/firstaccountwire/request_test.go":                                false,
+		"project/firstaccount/runner/runner.go":                                    true,
+		"project/firstaccount/runner/runner_test.go":                               false,
 		"internal/diagnosticlog/log.go":                                            true,
 		"internal/diagnosticlog/log_test.go":                                       false,
 		"internal/runservercontrol/protocol.go":                                    true,
@@ -295,7 +322,10 @@ func TestComputeSourceBindingRejectsDirectorySymlinkThatCanHideOwnedSource(t *te
 		linkPath string
 		filePath string
 	}{
+		{name: "account namespace", linkPath: "account", filePath: "domain/domain.go"},
+		{name: "account models", linkPath: "account/domain/models", filePath: "zz_godj_generated.go"},
 		{name: "runtime logging", linkPath: "internal/diagnosticlog", filePath: "log.go"},
+		{name: "first account wire", linkPath: "internal/firstaccountwire", filePath: "request.go"},
 		{name: "development control", linkPath: "internal/runservercontrol", filePath: "protocol.go"},
 		{name: "URL normalization", linkPath: "internal/urlinput", filePath: "url.go"},
 		{name: "product", linkPath: "systemstate", filePath: "runtime.go"},

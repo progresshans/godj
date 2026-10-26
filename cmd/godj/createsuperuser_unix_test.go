@@ -27,9 +27,11 @@ const (
 	// is not a product latency contract.
 	createsuperuserActualInterruptExitTimeout = 30 * time.Second
 
-	// The first product prompt follows a cold project-runner build. Hosted race
-	// runners can take longer than an interactive prompt once the build is done.
-	createsuperuserActualColdStartPromptTimeout = 3 * time.Minute
+	// The first product prompt follows a cold project-runner build. Hosted
+	// Linux/amd64 has observed a 371-second initial runner build. Keep that
+	// compilation budget separate from the prompt and interrupt-exit budgets;
+	// neither secret-input handling nor terminal restoration gets extra time.
+	createsuperuserActualColdStartPromptTimeout = 10 * time.Minute
 	createsuperuserActualPromptTimeout          = 30 * time.Second
 	createsuperuserVINTRHarnessPromptTimeout    = 5 * time.Second
 )

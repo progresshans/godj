@@ -1229,8 +1229,8 @@ func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {
 	}
 	wantProtectMetrics := DeleteMetrics{
 		TransactionCount:    1,
-		QueryCount:          1,
-		OperationOrder:      []string{OperationQuery},
+		QueryCount:          2,
+		OperationOrder:      []string{OperationQuery, OperationQuery},
 		MutationOrder:       []string{},
 		MutationRows:        []MutationRow{},
 		RelationSetNullRows: []int64{},
@@ -1252,10 +1252,10 @@ func TestObserveExecutesExactREL007AndREL008Cases(t *testing.T) {
 	}
 	wantSetNullMetrics := DeleteMetrics{
 		TransactionCount:     1,
-		QueryCount:           1,
+		QueryCount:           2,
 		RelationSetNullCount: 1,
 		DeleteCount:          1,
-		OperationOrder:       []string{OperationQuery, OperationRelationSetNull, OperationDelete},
+		OperationOrder:       []string{OperationQuery, OperationQuery, OperationRelationSetNull, OperationDelete},
 		MutationOrder:        []string{OperationRelationSetNull, OperationDelete},
 		MutationRows: []MutationRow{
 			{Kind: OperationRelationSetNull, AffectedRows: 2},
@@ -1328,10 +1328,10 @@ func TestREL008AdversarialDeleteFailureRollsBackAndPreservesCaller(t *testing.T)
 	}
 	wantMetrics := DeleteMetrics{
 		TransactionCount:     1,
-		QueryCount:           1,
+		QueryCount:           2,
 		RelationSetNullCount: 1,
 		DeleteCount:          1,
-		OperationOrder:       []string{OperationQuery, OperationRelationSetNull, OperationDelete},
+		OperationOrder:       []string{OperationQuery, OperationQuery, OperationRelationSetNull, OperationDelete},
 		MutationOrder:        []string{OperationRelationSetNull, OperationDelete},
 		MutationRows: []MutationRow{
 			{Kind: OperationRelationSetNull, AffectedRows: 2},

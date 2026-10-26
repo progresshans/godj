@@ -27,9 +27,16 @@ func (site *Site) commandContext(model registeredModel, command registeredComman
 	return values, nil
 }
 
+func (site *Site) commandAllowed(ctx context.Context, principal auth.Principal, model registeredModel, command registeredCommand) (bool, error) {
+	if allowed, err := site.modelReadAllowed(ctx, principal, model); err != nil || !allowed {
+		return false, err
+	}
+	return site.modelWriteAllowed(ctx, model, principal, command.permissions...)
+}
+
 func (site *Site) modelCommandGet(model registeredModel, command registeredCommand) sessionauth.AuthenticatedHandler {
 	return func(request *web.Request, principal auth.Principal) (web.Response, error) {
-		if allowed, err := site.modelReadAllowed(request.Context(), principal, model); err != nil {
+		if allowed, err := site.commandAllowed(request.Context(), principal, model, command); err != nil {
 			return operationResponse(err)
 		} else if !allowed {
 			return siteForbidden()
@@ -77,7 +84,7 @@ func (site *Site) modelCommandPost(model registeredModel, command registeredComm
 		if err != nil {
 			return siteBadRequest()
 		}
-		if response, rejected, err := site.admitMultipart(request, command.permission); rejected || err != nil {
+		if response, rejected, err := site.admitMultipart(request, command.permissions[0], command.permissions[1:]...); rejected || err != nil {
 			return response, err
 		}
 		input, err := site.parseModelForm(request, commandModel)
@@ -88,8 +95,8 @@ func (site *Site) modelCommandPost(model registeredModel, command registeredComm
 		if response, rejected, err := site.verifyCSRF(request, values["csrfmiddlewaretoken"]); rejected || err != nil {
 			return response, err
 		}
-		return site.adminAuthorize(request, command.permission, func(principal auth.Principal) (web.Response, error) {
-			if allowed, err := site.modelReadAllowed(request.Context(), principal, model); err != nil {
+		return site.adminAuthorize(request, command.permissions[0], func(principal auth.Principal) (web.Response, error) {
+			if allowed, err := site.commandAllowed(request.Context(), principal, model, command); err != nil {
 				return operationResponse(err)
 			} else if !allowed {
 				return siteForbidden()
@@ -134,7 +141,7 @@ func (site *Site) modelCommandPost(model registeredModel, command registeredComm
 func (site *Site) commandLinks(ctx context.Context, principal auth.Principal, model registeredModel, id int64) (templates.Value, error) {
 	links := make([]templates.Value, 0, len(model.commands))
 	for _, command := range model.commands {
-		allowed, err := site.auth.Authorized(ctx, principal, command.permission)
+		allowed, err := site.commandAllowed(ctx, principal, model, command)
 		if err != nil {
 			return templates.Value{}, err
 		}

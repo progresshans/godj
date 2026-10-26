@@ -8,6 +8,12 @@ import (
 )
 
 func (site *Site) modelReadAllowed(ctx context.Context, principal auth.Principal, model registeredModel) (bool, error) {
+	for _, permission := range model.additionalPermissions {
+		allowed, err := site.auth.Authorized(ctx, principal, permission)
+		if err != nil || !allowed {
+			return false, err
+		}
+	}
 	for _, permission := range []auth.Permission{model.permissions.View, model.permissions.Change} {
 		if permission == "" {
 			continue

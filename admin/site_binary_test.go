@@ -99,14 +99,17 @@ func TestAdminBinaryWidgetAndServerOwnedModelValues(t *testing.T) {
 		Initial: func(value packet) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"title": forms.String(value.title), "payload": forms.Binary(value.payload), "fingerprint": forms.Binary(value.fingerprint), "internal_note": forms.String(value.note), "cover": forms.String(value.cover)}, nil
 		},
-		Create: func(_ context.Context, _ auth.Principal, b formmodel.BoundForm, _ InlineSubmission) (packet, error) {
-			return apply(b)
-		},
-		Update: func(_ context.Context, _ auth.Principal, _ Mutation, b formmodel.BoundForm, _ InlineSubmission) (packet, []string, error) {
+		Create: func(_ context.Context, _ auth.Principal, b formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 			value, err := apply(b)
-			return value, []string{"payload", "fingerprint"}, err
+			return MutationResult{ID: value.id}, err
 		},
-		Delete: func(context.Context, auth.Principal, Mutation) (packet, error) { return current, nil },
+		Update: func(_ context.Context, _ auth.Principal, _ Mutation, b formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
+			value, err := apply(b)
+			return MutationResult{ID: value.id}, []string{"payload", "fingerprint"}, err
+		},
+		Delete: func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+			return MutationResult{ID: current.id}, nil
+		},
 		ReadOnlyFields: []ReadOnlyField[packet]{
 			{Name: "fingerprint", Label: "Fingerprint", Value: func(value packet) (string, error) { return value.fingerprint.Base64(), nil }},
 			{Name: "cover", Label: "Cover", Value: func(value packet) (string, error) { return value.cover, nil }},

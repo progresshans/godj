@@ -13,12 +13,18 @@ import (
 // typed model source. It is independent of HTML/JSON and never performs I/O.
 // The zero value is invalid, unlike a prepared input with no changes.
 type ModelInput[M any] struct {
+	state *modelInputState
+	_     [0]func(M)
+}
+
+// Keep selected input behind an opaque pointer even when an invalid fmt verb
+// bypasses Format. Every derivation copies this state before changing it.
+type modelInputState struct {
 	model       ir.Model
 	values      map[string]query.Value
 	collections map[string][]int64
 	target      query.Value
 	targetBound bool
-	valid       bool
 }
 
 func (ModelInput[M]) Format(state fmt.State, _ rune) {
@@ -38,24 +44,32 @@ func (m Manager[M]) Input(values map[string]query.Value) (ModelInput[M], error) 
 	if err != nil {
 		return ModelInput[M]{}, err
 	}
-	return ModelInput[M]{model: m.prepared.metadata, values: owned, valid: true}, nil
+	return ModelInput[M]{state: &modelInputState{model: m.prepared.metadata, values: owned}}, nil
 }
 
 // Get distinguishes omission from explicit NULL and non-null zero. A default
 // supplied by a transport's full-input policy is present.
 func (value ModelInput[M]) Get(name string) (query.Value, bool) {
-	scalar, present := value.values[name]
+	if value.state == nil {
+		return query.Value{}, false
+	}
+	scalar, present := value.state.values[name]
 	return scalar, present
 }
 
-func (value ModelInput[M]) Values() map[string]query.Value { return maps.Clone(value.values) }
+func (value ModelInput[M]) Values() map[string]query.Value {
+	if value.state == nil {
+		return nil
+	}
+	return maps.Clone(value.state.values)
+}
 
 // Model returns the complete owned source policy, not persistence authority.
 func (value ModelInput[M]) Model() (ir.Model, bool) {
-	if !value.valid {
+	if value.state == nil {
 		return ir.Model{}, false
 	}
-	return value.model.Clone(), true
+	return value.state.model.Clone(), true
 }
 
 // WithTargetKey binds server-prepared input to one instance identity. NULL
@@ -64,14 +78,14 @@ func (value ModelInput[M]) Model() (ir.Model, bool) {
 // uses this to retain its initial object binding across a fresh write lookup.
 // An existing binding cannot be replaced with a different key.
 func (value ModelInput[M]) WithTargetKey(key query.Value) (ModelInput[M], error) {
-	if !value.valid {
+	if value.state == nil {
 		return ModelInput[M]{}, invalidWritePlan("model input is zero or invalid")
 	}
-	if value.targetBound && !value.target.Equal(key) {
+	if value.state.targetBound && !value.state.target.Equal(key) {
 		return ModelInput[M]{}, invalidWritePlan("model input target cannot be replaced")
 	}
 	var primaryKey *ir.Field
-	for _, field := range value.model.Fields {
+	for _, field := range value.state.model.Fields {
 		if !field.PrimaryKey {
 			continue
 		}
@@ -84,21 +98,27 @@ func (value ModelInput[M]) WithTargetKey(key query.Value) (ModelInput[M], error)
 	if primaryKey == nil || !key.IsNull() && !mutationValueMatches(*primaryKey, key) {
 		return ModelInput[M]{}, invalidWritePlan("model input target key has an invalid representation")
 	}
-	value.target, value.targetBound = key, true
-	return value, nil
+	state := *value.state
+	state.target, state.targetBound = key, true
+	return ModelInput[M]{state: &state}, nil
 }
 
-func (value ModelInput[M]) TargetKey() (query.Value, bool) { return value.target, value.targetBound }
+func (value ModelInput[M]) TargetKey() (query.Value, bool) {
+	if value.state == nil {
+		return query.Value{}, false
+	}
+	return value.state.target, value.state.targetBound
+}
 
 // WithCollections adds explicit membership intent separately from scalar
 // changes. It preserves key order, duplicates, empty selections and omissions;
 // current choice checks and relation writes remain the application's policy.
 func (value ModelInput[M]) WithCollections(collections map[string][]int64) (ModelInput[M], error) {
-	if !value.valid {
+	if value.state == nil {
 		return ModelInput[M]{}, invalidWritePlan("model input is zero or invalid")
 	}
-	known := make(map[string]bool, len(value.model.ManyToMany))
-	for _, field := range value.model.ManyToMany {
+	known := make(map[string]bool, len(value.state.model.ManyToMany))
+	for _, field := range value.state.model.ManyToMany {
 		known[field.Name] = true
 	}
 	names := make([]string, 0, len(collections))
@@ -111,21 +131,28 @@ func (value ModelInput[M]) WithCollections(collections map[string][]int64) (Mode
 			return ModelInput[M]{}, invalidModelValue(name, "model input collection is unknown")
 		}
 	}
-	value.collections = value.Collections()
+	state := *value.state
+	state.collections = value.Collections()
 	for _, name := range names {
-		value.collections[name] = slices.Clone(collections[name])
+		state.collections[name] = slices.Clone(collections[name])
 	}
-	return value, nil
+	return ModelInput[M]{state: &state}, nil
 }
 
 func (value ModelInput[M]) Collection(name string) ([]int64, bool) {
-	keys, present := value.collections[name]
+	if value.state == nil {
+		return nil, false
+	}
+	keys, present := value.state.collections[name]
 	return slices.Clone(keys), present
 }
 
 func (value ModelInput[M]) Collections() map[string][]int64 {
-	result := make(map[string][]int64, len(value.collections))
-	for name, keys := range value.collections {
+	if value.state == nil {
+		return nil
+	}
+	result := make(map[string][]int64, len(value.state.collections))
+	for name, keys := range value.state.collections {
 		result[name] = slices.Clone(keys)
 	}
 	return result
@@ -139,7 +166,7 @@ func (m Manager[M]) PrepareInput(value ModelInput[M], current *M) (PreparedModel
 	if err := m.checkInput(value); err != nil {
 		return PreparedModel[M]{}, err
 	}
-	if value.targetBound {
+	if value.state.targetBound {
 		key := query.Null()
 		if current != nil {
 			values, err := m.ModelValues(*current)
@@ -148,11 +175,11 @@ func (m Manager[M]) PrepareInput(value ModelInput[M], current *M) (PreparedModel
 			}
 			key = values[m.prepared.primaryKey.Name]
 		}
-		if !value.target.Equal(key) {
+		if !value.state.target.Equal(key) {
 			return PreparedModel[M]{}, invalidWritePlan("model input target does not match the current instance")
 		}
 	}
-	return m.PrepareValues(current, value.values)
+	return m.PrepareValues(current, value.state.values)
 }
 
 // WithServerValues adds explicitly server-owned scalar values before model
@@ -172,17 +199,18 @@ func (m Manager[M]) WithServerValues(value ModelInput[M], values map[string]quer
 		if _, present := owned[field.Name]; !present {
 			continue
 		}
-		if _, supplied := value.values[field.Name]; supplied {
+		if _, supplied := value.state.values[field.Name]; supplied {
 			return ModelInput[M]{}, invalidModelValue(field.Name, "server-owned field is already supplied by input")
 		}
 	}
-	value.values = maps.Clone(value.values)
-	maps.Copy(value.values, owned)
-	return value, nil
+	state := *value.state
+	state.values = maps.Clone(value.state.values)
+	maps.Copy(state.values, owned)
+	return ModelInput[M]{state: &state}, nil
 }
 
 func (m Manager[M]) checkInput(value ModelInput[M]) error {
-	if !value.valid || m.prepared == nil || !value.model.Equal(m.prepared.metadata) {
+	if value.state == nil || m.prepared == nil || !value.state.model.Equal(m.prepared.metadata) {
 		return invalidWritePlan("model input source does not match manager metadata")
 	}
 	return nil

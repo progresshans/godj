@@ -92,7 +92,7 @@ func newAccountConsumerFixture(t *testing.T) (accountServerInput, []byte, func(*
 	if err != nil {
 		t.Fatal(err)
 	}
-	keys, err := identity.NewPasswordResetKeyRing(bytes.Repeat([]byte{37}, 32))
+	keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{37}, 32))
 	if err != nil {
 		t.Fatal(err)
 	}

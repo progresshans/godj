@@ -62,12 +62,17 @@ func Field[T, V any](name string, codec Codec[V], assign func(*T, Presence[V])) 
 // Scalar value objects containing strings can share immutable text. The zero
 // Body is invalid. Reuse is concurrent subject to the setter contract.
 type Body[T any] struct {
-	spec          serializers.Spec
 	parser        api.Parser
-	transfer      func(context.Context, serializers.Values) (T, error)
+	decoder       serializers.ObjectDecoder
+	prepare       func(context.Context, serializers.Object, serializers.Mode) (preparedInput[T], validation.Errors, error)
 	full, partial openapi.Schema
+	nested        bool
 	valid         bool
 }
+
+// Preparation validates and converts every leaf before any DTO setter runs.
+// The build closure is private and consumed within the same binding call.
+type preparedInput[T any] func() (T, error)
 
 // New requires exactly one compatible binding for each writable Spec field.
 // Read-only fields stay in the Spec for validation but cannot have DTO setters.
@@ -107,34 +112,39 @@ func New[T any](spec serializers.Spec, config api.ParserConfig, properties ...Pr
 		}
 		ordered = append(ordered, property)
 	}
-	return newBody(spec, config, func(ctx context.Context, values serializers.Values) (T, error) {
+	return newBody(spec, config, func(ctx context.Context, values serializers.Values) (preparedInput[T], error) {
 		var zero T
 		assignments := make([]func(*T), len(ordered))
 		for index, property := range ordered {
 			if err := ctx.Err(); err != nil {
-				return zero, err
+				return nil, err
 			}
 			value, present := values.Get(property.name)
 			assign, ok := property.decode(value, present)
 			if !ok {
-				return zero, configError("fields."+property.name, "validated value does not match its declared type")
+				return nil, configError("fields."+property.name, "validated value does not match its declared type")
 			}
 			assignments[index] = assign
 		}
-		var result T
-		for _, assign := range assignments {
-			if err := ctx.Err(); err != nil {
-				return zero, err
+		return func() (T, error) {
+			var result T
+			for _, assign := range assignments {
+				if err := ctx.Err(); err != nil {
+					return zero, err
+				}
+				assign(&result)
 			}
-			assign(&result)
-		}
-		return result, nil
+			return result, nil
+		}, nil
 	})
 }
 
-func newBody[T any](spec serializers.Spec, config api.ParserConfig, transfer func(context.Context, serializers.Values) (T, error)) (Body[T], error) {
-	body := Body[T]{spec: spec, transfer: transfer}
+func newBody[T any](spec serializers.Spec, config api.ParserConfig, transfer func(context.Context, serializers.Values) (preparedInput[T], error)) (Body[T], error) {
+	body := Body[T]{}
 	var err error
+	if body.decoder, err = serializers.NewObjectDecoder(spec); err != nil {
+		return Body[T]{}, err
+	}
 	if body.parser, err = api.NewParser(config); err != nil {
 		return Body[T]{}, err
 	}
@@ -143,6 +153,20 @@ func newBody[T any](spec serializers.Spec, config api.ParserConfig, transfer fun
 	}
 	if body.partial, err = openapi.RequestSchema(spec, serializers.ModePartial); err != nil {
 		return Body[T]{}, err
+	}
+	body.prepare = func(ctx context.Context, object serializers.Object, mode serializers.Mode) (preparedInput[T], validation.Errors, error) {
+		bound, err := spec.Bind(object, mode)
+		if cancelled := ctx.Err(); cancelled != nil {
+			return nil, validation.Errors{}, cancelled
+		}
+		if err != nil {
+			return nil, validation.Errors{}, err
+		}
+		if !bound.Valid() {
+			return nil, bound.Errors(), nil
+		}
+		build, err := transfer(ctx, bound.Values())
+		return build, validation.Errors{}, err
 	}
 	body.valid = true
 	return body, nil
@@ -170,7 +194,7 @@ func (body Body[T]) Parse(request *web.Request, mode serializers.Mode) (T, valid
 	if err := body.check(mode); err != nil {
 		return zero, validation.Errors{}, err
 	}
-	object, err := body.parser.ParseObjectFor(request, body.spec)
+	object, err := body.parser.ParseObjectWith(request, body.decoder)
 	if err != nil {
 		return zero, validation.Errors{}, err
 	}
@@ -185,33 +209,44 @@ func (body Body[T]) Parse(request *web.Request, mode serializers.Mode) (T, valid
 // undo effects from a setter that violated the pure-callback contract.
 func (body Body[T]) Bind(ctx context.Context, object serializers.Object, mode serializers.Mode) (T, validation.Errors, error) {
 	var zero T
-	if err := body.check(mode); err != nil {
-		return zero, validation.Errors{}, err
+	build, diagnostics, err := body.prepareInput(ctx, object, mode)
+	if err != nil || !diagnostics.Empty() {
+		return zero, diagnostics, err
 	}
-	if ctx == nil {
-		return zero, validation.Errors{}, configError("context", "context is nil")
-	}
-	if err := ctx.Err(); err != nil {
-		return zero, validation.Errors{}, err
-	}
-	bound, err := body.spec.Bind(object, mode)
-	if cancelled := ctx.Err(); cancelled != nil {
-		return zero, validation.Errors{}, cancelled
-	}
-	if err != nil {
-		return zero, validation.Errors{}, err
-	}
-	if !bound.Valid() {
-		return zero, bound.Errors(), nil
-	}
-	result, err := body.transfer(ctx, bound.Values())
-	if err := ctx.Err(); err != nil {
-		return zero, validation.Errors{}, err
+	result, err := build()
+	if canceled := ctx.Err(); canceled != nil {
+		return zero, validation.Errors{}, canceled
 	}
 	if err != nil {
 		return zero, validation.Errors{}, err
 	}
 	return result, validation.Errors{}, nil
+}
+
+func (body Body[T]) prepareInput(ctx context.Context, object serializers.Object, mode serializers.Mode) (preparedInput[T], validation.Errors, error) {
+	if err := body.check(mode); err != nil {
+		return nil, validation.Errors{}, err
+	}
+	if ctx == nil {
+		return nil, validation.Errors{}, configError("context", "context is nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, validation.Errors{}, err
+	}
+	build, diagnostics, err := body.prepare(ctx, object, mode)
+	if cancelled := ctx.Err(); cancelled != nil {
+		return nil, validation.Errors{}, cancelled
+	}
+	if err != nil {
+		return nil, validation.Errors{}, err
+	}
+	if !diagnostics.Empty() {
+		return nil, diagnostics, nil
+	}
+	if build == nil {
+		return nil, validation.Errors{}, configError("body", "input preparation returned no binding")
+	}
+	return build, validation.Errors{}, nil
 }
 
 func (body Body[T]) check(mode serializers.Mode) error {

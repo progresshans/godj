@@ -24,7 +24,21 @@ type RelationDeleter[M any] struct {
 // connection or deleting rows. Hosts can reject missing policies at startup.
 func (d RelationDeleter[M]) ValidateBinding() error { return d.state.validate() }
 
+// ValidateSource additionally requires the composing service's complete
+// project source and target identity. A library-only or another host's delete
+// policy cannot replace this source even when target metadata is identical.
+func (d RelationDeleter[M]) ValidateSource(binding ProjectBinding, target ir.ModelIdentity) error {
+	if err := d.ValidateBinding(); err != nil {
+		return err
+	}
+	if d.state.target != target || !sameProjectSource(d.state.snapshot, binding.snapshot) {
+		return relationInvalidPlan("relation deleter does not match the required project source and target")
+	}
+	return nil
+}
+
 type relationDeleteState[M any] struct {
+	snapshot    *projectBindingSnapshot
 	descriptor  WriteDescriptor[M]
 	target      ir.ModelIdentity
 	targetModel ir.Model
@@ -86,6 +100,7 @@ func BindRelationDeleter[M any](
 	}
 
 	state := relationDeleteState[M]{
+		snapshot:    binding.snapshot,
 		descriptor:  descriptor,
 		target:      identity,
 		targetModel: targetModel.Clone(),
@@ -131,7 +146,7 @@ func (d RelationDeleter[M]) Delete(
 	var deleted int64
 
 	err = runRelationAtomic(ctx, backend.AtomicRelation, func(session db.RelationSession) error {
-		count, err := d.state.execute(ctx, session, targetKey)
+		count, err := d.state.execute(ctx, session, targetKey, nil)
 		deleted = count
 		return err
 	})
@@ -150,6 +165,24 @@ func (d RelationDeleter[M]) Delete(
 // never clears the caller's model key: the count is provisional until the outer
 // owner confirms commit. Any returned error must leave the outer callback.
 func (d RelationDeleter[M]) DeleteInSession(ctx context.Context, session db.RelationSession, target M) (int64, error) {
+	return d.deleteInSession(ctx, session, target, nil)
+}
+
+// DeleteWithEffectsInSession collects every deleted and SET_NULL row, completes
+// all PROTECT checks, then calls before exactly once before relation DML. The
+// caller can coordinate revision, audit and session writes in the same borrowed
+// transaction. It must not change the collected rows' keys or FK topology,
+// retain/re-enter the session, open another transaction, or perform external
+// effects. An error must leave the outer callback so all writes roll back.
+// The observer receives detached metadata, not mutable execution plans.
+func (d RelationDeleter[M]) DeleteWithEffectsInSession(ctx context.Context, session db.RelationSession, target M, before func(context.Context, RelationDeleteEffects) error) (int64, error) {
+	if before == nil {
+		return 0, relationInvalidPlan("relation delete effects callback is nil")
+	}
+	return d.deleteInSession(ctx, session, target, before)
+}
+
+func (d RelationDeleter[M]) deleteInSession(ctx context.Context, session db.RelationSession, target M, before func(context.Context, RelationDeleteEffects) error) (int64, error) {
 	if interfaceIsNil(ctx) {
 		return 0, relationInvalidPlan("context is nil")
 	}
@@ -169,7 +202,17 @@ func (d RelationDeleter[M]) DeleteInSession(ctx context.Context, session db.Rela
 	if err != nil {
 		return 0, err
 	}
-	count, err := d.state.execute(ctx, session, key)
+	var observe func(context.Context, RelationDeleteEffects) error
+	if before != nil {
+		observe = func(work context.Context, effects RelationDeleteEffects) error {
+			err := before(work, effects)
+			if scopeErr := validateQuerySession(work, session); scopeErr != nil {
+				return errors.Join(err, scopeErr)
+			}
+			return err
+		}
+	}
+	count, err := d.state.execute(ctx, session, key, observe)
 	if err != nil {
 		return 0, err
 	}
@@ -180,7 +223,7 @@ func (d RelationDeleter[M]) DeleteInSession(ctx context.Context, session db.Rela
 }
 
 func (state relationDeleteState[M]) validate() error {
-	if !state.valid || interfaceIsNil(state.descriptor) || !immutableZeroStateValue(state.descriptor) {
+	if !state.valid || state.snapshot == nil || interfaceIsNil(state.descriptor) || !immutableZeroStateValue(state.descriptor) {
 		return relationInvalidPlan("relation deleter is unbound")
 	}
 	if _, ok := relationDeleteTargetKey(state.targetModel); !ok ||

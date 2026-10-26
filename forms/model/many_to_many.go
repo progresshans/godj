@@ -9,7 +9,7 @@ func projectManyToMany(field ir.ManyToManyField, override overrideConfig) (forms
 	if override.hasImageLimits || override.hasImageInspector {
 		return forms.Field{}, &Error{Path: "fields." + field.Name, Code: "unsupported_image_override"}
 	}
-	if override.hasStringNormalizer || override.hasMaxLength {
+	if override.hasStringNormalizer || override.hasMaxInputBytes || override.hasMaxLength {
 		return forms.Field{}, &Error{Path: "fields." + field.Name, Code: "unsupported_string_override"}
 	}
 	if field.Target.AppLabel == "" || field.Target.ModelName == "" || (field.Symmetry != ir.ManyToManyDirected && field.Symmetry != ir.ManyToManySymmetrical) {

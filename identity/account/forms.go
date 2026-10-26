@@ -3,39 +3,18 @@ package identityaccount
 import (
 	"context"
 	"net/url"
-	"unicode/utf8"
 
 	"github.com/progresshans/godj/forms"
-	"github.com/progresshans/godj/identity/models"
-	"github.com/progresshans/godj/internal/unicode16"
+	authform "github.com/progresshans/godj/forms/auth"
 	"github.com/progresshans/godj/validation"
 )
 
 func (a *Application) prepareForms() error {
-	usernameLimit := 0
-	for _, field := range (models.UserDescriptor{}).Metadata().Fields {
-		if field.Name == "username" {
-			usernameLimit = field.MaxLength
-		}
-	}
-	if usernameLimit < 1 {
-		return invalidConfig("username")
-	}
-	username, err := forms.CharField("username", forms.WithLabel("Username"), forms.WithMaxLength(usernameLimit), forms.WithTrimWhitespace(false), forms.WithStringNormalizer(func(value string) string {
-		value = unicode16.TrimSpace(value)
-		if utf8.RuneCountInString(value) > usernameLimit {
-			return value
-		}
-		return unicode16.NFKC(value)
-	}))
+	input, err := a.auth.LoginInput()
 	if err != nil {
 		return err
 	}
-	password, err := passwordField("password", "Password")
-	if err != nil {
-		return err
-	}
-	a.login, err = forms.NewSpec([]forms.Field{username, password})
+	a.login, err = authform.NewLoginSpec(input, MaximumInputBytes)
 	if err != nil {
 		return err
 	}

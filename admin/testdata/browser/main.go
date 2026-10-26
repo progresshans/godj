@@ -216,15 +216,16 @@ func run() (runErr error) {
 		Initial: func(value models.Category) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(models.CategoryDescriptor{}.Metadata(), parentSpec, value, models.CategoryDescriptor{}.WriteFieldValue)
 		},
-		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, input admin.InlineSubmission) (models.Category, error) {
+		Create: func(ctx context.Context, p auth.Principal, bound formmodel.BoundForm, input admin.InlineSubmission) (admin.MutationResult, error) {
 			value, _, err := save(ctx, p, 0, bound, input)
-			return value, err
+			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, input admin.InlineSubmission) (models.Category, []string, error) {
-			return save(ctx, p, m.ID, bound, input)
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, input admin.InlineSubmission) (admin.MutationResult, []string, error) {
+			value, changed, err := save(ctx, p, m.ID, bound, input)
+			return admin.MutationResult{ID: value.ID}, changed, err
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (models.Category, error) {
-			return models.Category{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
 	})
 	if err != nil {
@@ -267,7 +268,7 @@ func run() (runErr error) {
 		}
 		credentials = append(credentials, credential)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		return err
 	}

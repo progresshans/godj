@@ -580,7 +580,7 @@ func siteTestRuntimeConfigured(
 			t.Fatalf("auth.NewCredential(%q) error = %v", identity.username, err)
 		}
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, sitePlainHasher{})
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, sitePlainHasher{}, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		t.Fatalf("auth.NewMemoryAuthenticator() error = %v", err)
 	}
@@ -778,15 +778,14 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		article, found := state.articles[id]
 		return cloneSiteArticle(article), found, nil
 	}
-	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, error) {
+	config.Create = func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero registryArticle
-			return zero, inputErr
+			return MutationResult{}, inputErr
 		}
 
 		if err := ctx.Err(); err != nil {
-			return registryArticle{}, err
+			return MutationResult{}, err
 		}
 		article := siteArticleFromValues(values)
 		state.mu.Lock()
@@ -795,18 +794,17 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		state.nextID++
 		state.articles[article.id] = cloneSiteArticle(article)
 		state.mutations.creates++
-		return cloneSiteArticle(article), nil
+		return MutationResult{ID: article.id}, nil
 	}
-	config.Update = func(ctx context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
+	config.Update = func(ctx context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero registryArticle
-			return zero, nil, inputErr
+			return MutationResult{}, nil, inputErr
 		}
 
 		id := mutation.ID
 		if err := ctx.Err(); err != nil {
-			return registryArticle{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		article := siteArticleFromValues(values)
 		article.id = id
@@ -814,12 +812,12 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		defer state.mu.Unlock()
 		state.articles[id] = cloneSiteArticle(article)
 		state.mutations.updates++
-		return cloneSiteArticle(article), []string{"title", "published", "summary"}, nil
+		return MutationResult{ID: article.id}, []string{"title", "published", "summary"}, nil
 	}
-	config.Delete = func(ctx context.Context, principal auth.Principal, mutation Mutation) (registryArticle, error) {
+	config.Delete = func(ctx context.Context, principal auth.Principal, mutation Mutation) (MutationResult, error) {
 		id := mutation.ID
 		if err := ctx.Err(); err != nil {
-			return registryArticle{}, err
+			return MutationResult{}, err
 		}
 		state.mu.Lock()
 		defer state.mu.Unlock()
@@ -827,7 +825,7 @@ func siteTestRegistry(t *testing.T, state *siteModelState, configure ...func(*Mo
 		delete(state.articles, id)
 		state.mutations.deletes++
 		state.appendHistoryLocked(principal.ID(), article, ActionDelete, nil)
-		return cloneSiteArticle(article), nil
+		return MutationResult{ID: article.id}, nil
 	}
 	config.History = func(ctx context.Context, _ auth.Principal, id int64, request HistoryRequest) ([]AuditEntry, error) {
 		if err := ctx.Err(); err != nil {

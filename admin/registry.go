@@ -198,10 +198,16 @@ type ModelConfig[M any] struct {
 	// SearchFields may be empty to disable text search for this model.
 	SearchFields []string
 	Permissions  Permissions
+	// AdditionalPermissions applies to every model read and write, including
+	// choices and command admission. Persistence owners still recheck current
+	// authority in their own database scope. AdditionalAddPermissions adds a
+	// creation-only policy on top of these shared grants.
+	AdditionalPermissions []auth.Permission
 
 	List func(context.Context, auth.Principal, ListRequest) (Page[M], error)
 	Get  func(context.Context, auth.Principal, int64) (M, bool, error)
-	// Snapshot must include ListFields and the selected editable fields. Other
+	// Snapshot serves list/detail reads, never mutation results. It must include
+	// ListFields and the selected editable fields. Other
 	// declared model values are optional and validated when explicitly supplied.
 	Snapshot func(M) (Object, error)
 	// Initial supplies all selected fields and may include other stored model
@@ -228,10 +234,12 @@ type ModelConfig[M any] struct {
 	// connect the same candidate to a typed current model without binding twice.
 	// Callbacks may return validation.Reject after confirming no mutation
 	// committed. Diagnostics must name selected form fields or validation.NonField.
-	// Preserve transaction/rollback failures as execution errors instead.
-	Create func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (M, error)
-	Update func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (M, []string, error)
-	Delete func(context.Context, auth.Principal, Mutation) (M, error)
+	// Preserve transaction/rollback failures as execution errors instead. Return
+	// only confirmed identity/revision metadata; do not perform an authorized
+	// reread after committing to construct a display model.
+	Create func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (MutationResult, error)
+	Update func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (MutationResult, []string, error)
+	Delete func(context.Context, auth.Principal, Mutation) (MutationResult, error)
 	// History is optional. Its absence removes history routes and links.
 	History            func(context.Context, auth.Principal, int64, HistoryRequest) ([]AuditEntry, error)
 	Actions            []ActionConfig
@@ -326,23 +334,24 @@ func (builder *Builder) Build() (Registry, error) {
 // ModelDescriptor is a detached public registration description. It contains
 // no persistence or authorization callback.
 type ModelDescriptor struct {
-	Inlines            []InlineDescriptor
-	ReadOnly           bool
-	AppLabel           string
-	Slug               string
-	Model              ir.Model
-	ListFields         []string
-	SearchFields       []string
-	Permissions        Permissions
-	Actions            []ActionDescriptor
-	FormFields         []forms.Field
-	CreateFormFields   []forms.Field
-	AddPermissions     []auth.Permission
-	RevisionField      string
-	Commands           []CommandDescriptor
-	CollectionCommands []CollectionCommandDescriptor
-	CollectionFormSets []CollectionFormSetDescriptor
-	ReadOnlyFields     []ReadOnlyFieldDescriptor
+	Inlines               []InlineDescriptor
+	ReadOnly              bool
+	AppLabel              string
+	Slug                  string
+	Model                 ir.Model
+	ListFields            []string
+	SearchFields          []string
+	Permissions           Permissions
+	Actions               []ActionDescriptor
+	FormFields            []forms.Field
+	CreateFormFields      []forms.Field
+	AddPermissions        []auth.Permission
+	AdditionalPermissions []auth.Permission
+	RevisionField         string
+	Commands              []CommandDescriptor
+	CollectionCommands    []CollectionCommandDescriptor
+	CollectionFormSets    []CollectionFormSetDescriptor
+	ReadOnlyFields        []ReadOnlyFieldDescriptor
 }
 
 type ActionDescriptor struct {
@@ -388,6 +397,7 @@ type registeredModel struct {
 	createChoiceSources     []RelatedChoices
 	createChoicePermissions []auth.Permission
 	addPermissions          []auth.Permission
+	additionalPermissions   []auth.Permission
 	revisionField           string
 	listFields              []string
 	choiceLabels            map[string]map[ir.Scalar]string
@@ -401,11 +411,11 @@ type registeredModel struct {
 
 	list           func(context.Context, auth.Principal, ListRequest) (registeredPage, error)
 	get            func(context.Context, auth.Principal, int64) (registeredRecord, bool, error)
-	create         func(context.Context, auth.Principal, forms.Form, InlineSubmission) (Object, error)
+	create         func(context.Context, auth.Principal, forms.Form, InlineSubmission) (MutationResult, error)
 	validateCreate func(context.Context, auth.Principal, formmodel.BoundForm) error
 	validateChange func(context.Context, auth.Principal, Mutation, formmodel.BoundForm) error
-	update         func(context.Context, auth.Principal, Mutation, forms.Form, InlineSubmission) (Object, []string, error)
-	delete         func(context.Context, auth.Principal, Mutation) (Object, error)
+	update         func(context.Context, auth.Principal, Mutation, forms.Form, InlineSubmission) (MutationResult, []string, error)
+	delete         func(context.Context, auth.Principal, Mutation) (MutationResult, error)
 	history        func(context.Context, auth.Principal, int64) ([]AuditEntry, error)
 }
 
@@ -492,9 +502,17 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	permissions := config.Permissions
+	additional := append([]auth.Permission(nil), config.AdditionalPermissions...)
+	for _, permission := range []auth.Permission{permissions.View, permissions.Add, permissions.Change, permissions.Delete} {
+		if permission != "" {
+			if _, err := additionalPermissions(permission, additional); err != nil {
+				return registeredModel{}, err
+			}
+		}
+	}
 	var addPermissions []auth.Permission
 	if !config.ReadOnly {
-		addPermissions, err = additionalPermissions(permissions.Add, config.AdditionalAddPermissions)
+		addPermissions, err = additionalPermissions(permissions.Add, append(append([]auth.Permission(nil), additional...), config.AdditionalAddPermissions...))
 		if err != nil {
 			return registeredModel{}, err
 		}
@@ -504,7 +522,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		(config.History != nil && config.Get == nil) {
 		return registeredModel{}, &ConfigError{Path: "model.callbacks", Code: "missing"}
 	}
-	actions, err := prepareActions(config.Actions)
+	actions, err := prepareActions(config.Actions, additional...)
 	if err != nil {
 		return registeredModel{}, err
 	}
@@ -681,6 +699,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		createFormFor:           createFormFor,
 		createChoicePermissions: createChoicePermissions,
 		addPermissions:          addPermissions,
+		additionalPermissions:   additional,
 		revisionField:           config.RevisionField,
 		listFields:              listFields,
 		choiceLabels:            modelChoiceLabels(model, listFields),
@@ -701,7 +720,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		return registeredModel{}, err
 	}
 	registered.list = func(ctx context.Context, principal auth.Principal, request ListRequest) (registeredPage, error) {
-		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+		if err := validatePrincipalRead(ctx, principal, permissions, additional...); err != nil {
 			return registeredPage{}, err
 		}
 		normalizedRequest, err := normalizeListRequest(ctx, request)
@@ -750,7 +769,7 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 		if config.Get == nil {
 			return registeredRecord{}, false, &ConfigError{Path: "get", Code: "unavailable"}
 		}
-		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+		if err := validatePrincipalRead(ctx, principal, permissions, additional...); err != nil {
 			return registeredRecord{}, false, err
 		}
 		if err := validateOperation(ctx, id); err != nil {
@@ -816,155 +835,127 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	if config.CreateForm != nil {
 		registered.createChoiceSources = slices.Clone(config.CreateForm.RelatedChoices)
 	}
-	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form, inlines InlineSubmission) (Object, error) {
+	registered.create = func(ctx context.Context, principal auth.Principal, submitted forms.Form, inlines InlineSubmission) (MutationResult, error) {
 		if config.ReadOnly {
-			return Object{}, &ConfigError{Path: "create", Code: "read_only"}
+			return MutationResult{}, &ConfigError{Path: "create", Code: "read_only"}
 		}
 		for _, permission := range addPermissions {
 			if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
-				return Object{}, err
+				return MutationResult{}, err
 			}
 		}
 		data, err := validatedSubmission(submitted, createForm.Fields())
 		if err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
 		keys, err := modelChoiceKeys(model, createForm, data, nil, false)
 		if err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
 		currentForm, err := createFormFor(ctx, principal, registered.origin(ChoiceAdd, 0), keys)
 		if err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
 		values, err := validateModelBoundData(ctx, model, data, currentForm, nil, createPostClean)
 		if err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
 		inlines, err = registered.checkedInlines(ctx, principal, 0, inlines)
 		if err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
-		item, err := config.Create(ctx, principal, values, inlines)
+		result, err := config.Create(ctx, principal, values, inlines)
 		if err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
-		object, err := config.Snapshot(item)
-		if err != nil {
-			return Object{}, reconciliationError("create", err)
+		if err := registered.validateResult(result); err != nil {
+			return MutationResult{}, reconciliationError("create", err)
 		}
-		if err := validateSnapshot(object); err != nil {
-			return Object{}, reconciliationError("create", err)
-		}
-		if _, err := registered.revision(object); err != nil {
-			return Object{}, reconciliationError("create", err)
-		}
-		return object, nil
+		return result, nil
 	}
-	registered.update = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form, inlines InlineSubmission) (Object, []string, error) {
+	registered.update = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form, inlines InlineSubmission) (MutationResult, []string, error) {
 		id := mutation.ID
 		if config.ReadOnly {
-			return Object{}, nil, &ConfigError{Path: "update", Code: "read_only"}
+			return MutationResult{}, nil, &ConfigError{Path: "update", Code: "read_only"}
 		}
-		if err := validatePrincipalPermission(ctx, principal, permissions.Change); err != nil {
-			return Object{}, nil, err
+		if err := validatePrincipalModelPermission(ctx, principal, permissions.Change, additional); err != nil {
+			return MutationResult{}, nil, err
 		}
 		if err := registered.validateMutation(mutation); err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		data, err := validatedSubmission(submitted, formFields)
 		if err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		for _, permission := range choicePermissions {
 			if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
-				return Object{}, nil, err
+				return MutationResult{}, nil, err
 			}
 		}
 		current, found, err := registered.get(ctx, principal, id)
 		if err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		if !found {
-			return Object{}, nil, ErrObjectNotFound
+			return MutationResult{}, nil, ErrObjectNotFound
 		}
 		if err := registered.checkObservedMutation(mutation, current.object); err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		keys, err := modelChoiceKeys(model, form, data, current.candidateInitial, false)
 		if err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		currentForm, err := formFor(ctx, principal, registered.origin(ChoiceChange, id), keys)
 		if err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		values, err := validateModelBoundData(ctx, model, data, currentForm, current.candidateInitial, postClean)
 		if err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
 		inlines, err = registered.checkedInlines(ctx, principal, id, inlines)
 		if err != nil {
-			return Object{}, nil, err
+			return MutationResult{}, nil, err
 		}
-		item, changed, err := config.Update(ctx, principal, mutation, values, inlines)
+		result, changed, err := config.Update(ctx, principal, mutation, values, inlines)
 		if err != nil {
-			return Object{}, nil, err
-		}
-		object, err := config.Snapshot(item)
-		if err != nil {
-			return Object{}, nil, reconciliationError("update", err)
-		}
-		if object.id != id {
-			return Object{}, nil, reconciliationError("update", &ConfigError{Path: "update.result.id", Code: "mismatch"})
-		}
-		if err := validateSnapshot(object); err != nil {
-			return Object{}, nil, reconciliationError("update", err)
+			return MutationResult{}, nil, err
 		}
 		changed, err = validateChangedFields(changed, editable)
 		if err != nil {
-			return Object{}, nil, reconciliationError("update", err)
+			return MutationResult{}, nil, reconciliationError("update", err)
 		}
-		if err := registered.validateMutationResult(mutation, object, len(changed) != 0); err != nil {
-			return Object{}, nil, reconciliationError("update", err)
+		if err := registered.validateMutationResult(mutation, result, len(changed) != 0); err != nil {
+			return MutationResult{}, nil, reconciliationError("update", err)
 		}
-		return object, changed, nil
+		return result, changed, nil
 	}
-	registered.delete = func(ctx context.Context, principal auth.Principal, mutation Mutation) (Object, error) {
-		id := mutation.ID
+	registered.delete = func(ctx context.Context, principal auth.Principal, mutation Mutation) (MutationResult, error) {
 		if config.ReadOnly {
-			return Object{}, &ConfigError{Path: "delete", Code: "read_only"}
+			return MutationResult{}, &ConfigError{Path: "delete", Code: "read_only"}
 		}
-		if err := validatePrincipalPermission(ctx, principal, permissions.Delete); err != nil {
-			return Object{}, err
+		if err := validatePrincipalModelPermission(ctx, principal, permissions.Delete, additional); err != nil {
+			return MutationResult{}, err
 		}
 		if err := registered.validateMutation(mutation); err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
-		item, err := config.Delete(ctx, principal, mutation)
+		result, err := config.Delete(ctx, principal, mutation)
 		if err != nil {
-			return Object{}, err
+			return MutationResult{}, err
 		}
-		object, err := config.Snapshot(item)
-		if err != nil {
-			return Object{}, reconciliationError("delete", err)
+		if err := registered.validateMutationResult(mutation, result, false); err != nil {
+			return MutationResult{}, reconciliationError("delete", err)
 		}
-		if err := validateSnapshot(object); err != nil {
-			return Object{}, reconciliationError("delete", err)
-		}
-		if object.id != id {
-			return Object{}, reconciliationError("delete", &ConfigError{Path: "delete.result.id", Code: "mismatch"})
-		}
-		if err := registered.validateMutationResult(mutation, object, false); err != nil {
-			return Object{}, reconciliationError("delete", err)
-		}
-		return object, nil
+		return result, nil
 	}
 	registered.history = func(ctx context.Context, principal auth.Principal, id int64) ([]AuditEntry, error) {
 		if config.History == nil {
 			return nil, &ConfigError{Path: "history", Code: "unavailable"}
 		}
-		if err := validatePrincipalRead(ctx, principal, permissions); err != nil {
+		if err := validatePrincipalRead(ctx, principal, permissions, additional...); err != nil {
 			return nil, err
 		}
 		if err := validateOperation(ctx, id); err != nil {
@@ -998,7 +989,8 @@ func prepareRegistration[M any](config ModelConfig[M], installed apps.Registry) 
 	return registered, nil
 }
 
-func prepareActions(actions []ActionConfig) ([]registeredAction, error) {
+func prepareActions(actions []ActionConfig, additional ...auth.Permission) ([]registeredAction, error) {
+	additional = append([]auth.Permission(nil), additional...)
 	if len(actions) > MaximumActions {
 		return nil, &ConfigError{Path: "model.actions", Code: "limit_exceeded"}
 	}
@@ -1037,6 +1029,11 @@ func prepareActions(actions []ActionConfig) ([]registeredAction, error) {
 			permissions:   permissions,
 			successNotice: notice,
 			run: func(ctx context.Context, principal auth.Principal, selected []int64) (ActionResult, error) {
+				for _, permission := range additional {
+					if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+						return ActionResult{}, err
+					}
+				}
 				for _, permission := range permissions {
 					if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
 						return ActionResult{}, err
@@ -1073,29 +1070,30 @@ func (model registeredModel) descriptor() ModelDescriptor {
 	}
 	commands := make([]CommandDescriptor, len(model.commands))
 	for index, command := range model.commands {
-		commands[index] = CommandDescriptor{Name: command.name, Label: command.label, Permission: command.permission, FormFields: command.form.Fields()}
+		commands[index] = CommandDescriptor{Name: command.name, Label: command.label, Permissions: slices.Clone(command.permissions), FormFields: command.form.Fields()}
 	}
 	actions := make([]ActionDescriptor, len(model.actions))
 	for index, action := range model.actions {
 		actions[index] = ActionDescriptor{Name: action.name, Label: action.label, Permissions: slices.Clone(action.permissions), SuccessNotice: action.successNotice}
 	}
 	return ModelDescriptor{Inlines: inlineDescriptors(model.inlines),
-		ReadOnly:           model.readOnly,
-		AppLabel:           model.appLabel,
-		Slug:               model.slug,
-		Model:              model.model.Clone(),
-		ListFields:         append([]string(nil), model.listFields...),
-		SearchFields:       append([]string(nil), model.searchFields...),
-		Permissions:        model.permissions,
-		Actions:            actions,
-		FormFields:         model.form.Fields(),
-		CreateFormFields:   model.createForm.Fields(),
-		AddPermissions:     append([]auth.Permission(nil), model.addPermissions...),
-		RevisionField:      model.revisionField,
-		Commands:           commands,
-		CollectionCommands: collectionCommands,
-		CollectionFormSets: collectionFormSetDescriptors(model.collectionFormSets),
-		ReadOnlyFields:     append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
+		ReadOnly:              model.readOnly,
+		AppLabel:              model.appLabel,
+		Slug:                  model.slug,
+		Model:                 model.model.Clone(),
+		ListFields:            append([]string(nil), model.listFields...),
+		SearchFields:          append([]string(nil), model.searchFields...),
+		Permissions:           model.permissions,
+		Actions:               actions,
+		FormFields:            model.form.Fields(),
+		CreateFormFields:      model.createForm.Fields(),
+		AddPermissions:        append([]auth.Permission(nil), model.addPermissions...),
+		AdditionalPermissions: append([]auth.Permission(nil), model.additionalPermissions...),
+		RevisionField:         model.revisionField,
+		Commands:              commands,
+		CollectionCommands:    collectionCommands,
+		CollectionFormSets:    collectionFormSetDescriptors(model.collectionFormSets),
+		ReadOnlyFields:        append([]ReadOnlyFieldDescriptor(nil), model.readOnlyFields...),
 	}
 }
 
@@ -1198,7 +1196,24 @@ func validatePrincipalPermission(ctx context.Context, principal auth.Principal, 
 	return nil
 }
 
-func validatePrincipalRead(ctx context.Context, principal auth.Principal, permissions Permissions) error {
+func validatePrincipalModelPermission(ctx context.Context, principal auth.Principal, primary auth.Permission, additional []auth.Permission) error {
+	if err := validatePrincipalPermission(ctx, principal, primary); err != nil {
+		return err
+	}
+	for _, permission := range additional {
+		if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validatePrincipalRead(ctx context.Context, principal auth.Principal, permissions Permissions, additional ...auth.Permission) error {
+	for _, permission := range additional {
+		if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+			return err
+		}
+	}
 	err := validatePrincipalPermission(ctx, principal, permissions.View)
 	if denied, ok := err.(*ConfigError); ok && denied.Path == "operation.permission" && denied.Code == "denied" && permissions.Change != "" {
 		return validatePrincipalPermission(ctx, principal, permissions.Change)

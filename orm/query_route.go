@@ -15,6 +15,7 @@ type queryRelationStep struct {
 	sourceIdentity, targetIdentity ir.ModelIdentity
 	sourceModel, targetModel       ir.Model
 	accessor                       string
+	inverseCollection              bool
 	hops                           []query.RelationHop
 	keys                           []query.FieldRef
 	presence                       ir.Field
@@ -97,48 +98,7 @@ func resolveQueryRelationStep(snapshot *projectBindingSnapshot, identity ir.Mode
 		if !(binding.Source == identity && binding.Field == accessor) && !reverse {
 			continue
 		}
-		targetIdentity := binding.Target
-		sourceField, targetField := binding.Through.SourceField, binding.Through.TargetField
-		if reverse {
-			targetIdentity = binding.Source
-			sourceField, targetField = targetField, sourceField
-		}
-		through, exists := snapshot.models[binding.Through.Model]
-		if !exists {
-			return zero, relationInvalidPlan("collection intermediary is missing")
-		}
-		left, err := resolveForwardRelationState(snapshot, binding.Through.Model, through, sourceField)
-		if err != nil {
-			return zero, err
-		}
-		right, err := resolveForwardRelationState(snapshot, binding.Through.Model, through, targetField)
-		if err != nil {
-			return zero, err
-		}
-		if left.metadata.Target != identity || right.metadata.Target != targetIdentity {
-			return zero, relationInvalidPlan("collection physical endpoints disagree with its declaration")
-		}
-		throughKey, present := relationAutoPrimaryKey(through)
-		if !present {
-			return zero, relationInvalidPlan("collection intermediary requires an AutoField primary key")
-		}
-		physicalField, ok := findField(through.Fields, left.metadata.Field)
-		if !ok {
-			return zero, relationInvalidPlan("collection source field is missing")
-		}
-		first, err := query.NewReverseRelationPath(binding.Through.Model, through.DBTable, left.metadata.Field, left.metadata.Column, identity, source.DBTable, rootKey.Column, physicalReverseAccessor(physicalField), left.metadata.Nullable, fieldReference(throughKey), ir.RelationOneToMany)
-		if err != nil {
-			return zero, err
-		}
-		last, err := right.path(fieldReference(right.targetPrimaryKey))
-		if err != nil {
-			return zero, err
-		}
-		step.targetIdentity, step.targetModel = targetIdentity, right.targetModel.Clone()
-		step.hops = append(first.Hops(), last.Hops()...)
-		step.keys = []query.FieldRef{fieldReference(rootKey), fieldReference(throughKey), fieldReference(right.targetPrimaryKey)}
-		step.presence = right.targetPrimaryKey.Clone()
-		return step, nil
+		return resolveCollectionQueryStep(snapshot, identity, source, accessor, binding, reverse)
 	}
 	reverse, err := resolveReverseRelationState(snapshot, identity, source, accessor)
 	if err != nil {
@@ -155,6 +115,100 @@ func resolveQueryRelationStep(snapshot *projectBindingSnapshot, identity ir.Mode
 	step.targetIdentity, step.targetModel = reverse.reverse.Target, reverse.forward.sourceModel.Clone()
 	step.hops, step.keys = path.Hops(), []query.FieldRef{fieldReference(rootKey), fieldReference(targetKey)}
 	step.presence = targetKey.Clone()
+	return step, nil
+}
+
+// BindInverseManyToManyQuery traverses a declared forward collection from its
+// target back to its owner. The explicit owner capability retains the original
+// declaration even when the target has no public reverse accessor. It does not
+// change namespaces, publish an accessor or grant mutation/authorization rights.
+func BindInverseManyToManyQuery[O, T any](owner BoundModel[O], name string, target BoundModel[T]) (QueryRelation[T, O], error) {
+	if err := validateBoundModel(owner); err != nil {
+		return QueryRelation[T, O]{}, err
+	}
+	if err := validateBoundModel(target); err != nil {
+		return QueryRelation[T, O]{}, err
+	}
+	if owner.snapshot != target.snapshot {
+		return QueryRelation[T, O]{}, relationInvalidPlan("inverse collection models belong to different project snapshots")
+	}
+	step, err := resolveInverseCollectionQueryStep(owner.snapshot, owner.identity, name, target.identity)
+	if err != nil {
+		return QueryRelation[T, O]{}, err
+	}
+	return QueryRelation[T, O]{route: relationQueryRoute{steps: []queryRelationStep{step}}}, nil
+}
+
+func resolveInverseCollectionQueryStep(snapshot *projectBindingSnapshot, owner ir.ModelIdentity, name string, target ir.ModelIdentity) (queryRelationStep, error) {
+	if snapshot == nil {
+		return queryRelationStep{}, relationInvalidPlan("inverse collection project is unbound")
+	}
+	for _, binding := range snapshot.manyToMany {
+		if binding.Source != owner || binding.Target != target || binding.Field != name {
+			continue
+		}
+		model, exists := snapshot.models[target]
+		if !exists {
+			return queryRelationStep{}, relationInvalidPlan("inverse collection target is missing")
+		}
+		step, err := resolveCollectionQueryStep(snapshot, target, model, name, binding, true)
+		if err != nil {
+			return queryRelationStep{}, err
+		}
+		step.inverseCollection = true
+		return step, nil
+	}
+	return queryRelationStep{}, relationInvalidPlan("inverse collection declaration does not match its bound endpoints")
+}
+
+func resolveCollectionQueryStep(snapshot *projectBindingSnapshot, identity ir.ModelIdentity, source ir.Model, accessor string, binding ir.ManyToManyBinding, reverse bool) (queryRelationStep, error) {
+	var zero queryRelationStep
+	rootKey, ok := relationAutoPrimaryKey(source)
+	if !ok {
+		return zero, relationInvalidPlan("collection query source requires one AutoField primary key")
+	}
+	step := queryRelationStep{snapshot: snapshot, sourceIdentity: identity, sourceModel: source.Clone(), accessor: accessor, presenceScope: query.RelationTerminalRelatedField}
+	targetIdentity := binding.Target
+	sourceField, targetField := binding.Through.SourceField, binding.Through.TargetField
+	if reverse {
+		targetIdentity = binding.Source
+		sourceField, targetField = targetField, sourceField
+	}
+	through, exists := snapshot.models[binding.Through.Model]
+	if !exists {
+		return zero, relationInvalidPlan("collection intermediary is missing")
+	}
+	left, err := resolveForwardRelationState(snapshot, binding.Through.Model, through, sourceField)
+	if err != nil {
+		return zero, err
+	}
+	right, err := resolveForwardRelationState(snapshot, binding.Through.Model, through, targetField)
+	if err != nil {
+		return zero, err
+	}
+	if left.metadata.Target != identity || right.metadata.Target != targetIdentity {
+		return zero, relationInvalidPlan("collection physical endpoints disagree with its declaration")
+	}
+	throughKey, present := relationAutoPrimaryKey(through)
+	if !present {
+		return zero, relationInvalidPlan("collection intermediary requires an AutoField primary key")
+	}
+	physicalField, ok := findField(through.Fields, left.metadata.Field)
+	if !ok {
+		return zero, relationInvalidPlan("collection source field is missing")
+	}
+	first, err := query.NewReverseRelationPath(binding.Through.Model, through.DBTable, left.metadata.Field, left.metadata.Column, identity, source.DBTable, rootKey.Column, physicalReverseAccessor(physicalField), left.metadata.Nullable, fieldReference(throughKey), ir.RelationOneToMany)
+	if err != nil {
+		return zero, err
+	}
+	last, err := right.path(fieldReference(right.targetPrimaryKey))
+	if err != nil {
+		return zero, err
+	}
+	step.targetIdentity, step.targetModel = targetIdentity, right.targetModel.Clone()
+	step.hops = append(first.Hops(), last.Hops()...)
+	step.keys = []query.FieldRef{fieldReference(rootKey), fieldReference(throughKey), fieldReference(right.targetPrimaryKey)}
+	step.presence = right.targetPrimaryKey.Clone()
 	return step, nil
 }
 
@@ -177,7 +231,13 @@ func (route relationQueryRoute) validate() error {
 	}
 	hops := 0
 	for index, step := range route.steps {
-		canonical, err := resolveQueryRelationStep(step.snapshot, step.sourceIdentity, step.sourceModel, step.accessor)
+		var canonical queryRelationStep
+		var err error
+		if step.inverseCollection {
+			canonical, err = resolveInverseCollectionQueryStep(step.snapshot, step.targetIdentity, step.accessor, step.sourceIdentity)
+		} else {
+			canonical, err = resolveQueryRelationStep(step.snapshot, step.sourceIdentity, step.sourceModel, step.accessor)
+		}
 		if err != nil {
 			return relationInvalidPlan("query route declaration cannot be reconstructed from its project snapshot")
 		}

@@ -47,12 +47,16 @@ generate-check:
 	python3 internal/unicode16/generate.py --check
 	python3 -m unittest discover -s internal/unicode16 -p 'test_*.py'
 	go run ./cmd/godj generate --check --project ./identity/godj.toml
+	go run ./cmd/godj generate --check --project ./account/domain/godj.toml
+	go run ./cmd/godj generate --check --project ./account/audit/godj.toml
+	go run ./cmd/godj generate --check --project ./sessions/database/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/identityfixture/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/helpdesk/godj.toml
 	go run ./cmd/godj generate --check --project ./examples/article/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/relationfixture/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/onetoonefixture/godj.toml
 	go run ./cmd/godj generate --check --project ./conformance/cascadefixture/godj.toml
+	go run ./cmd/godj generate --check --project ./conformance/accountdeletefixture/godj.toml
 	go test -count=1 -run '^TestCheckedInGenerated' ./conformance/relationproduct
 
 project-command-dependencies:
@@ -77,9 +81,7 @@ core-package-selection-check:
 	printf '%s\n' "$$core_packages"
 
 go-test-core:
-	@set -euo pipefail; \
-	$(select_core_go_packages); \
-	go test -timeout=20m $$core_packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py core normal
 
 go-test-products: project-command-dependencies
 	@set -euo pipefail; \
@@ -95,9 +97,7 @@ go-vet:
 	go vet ./...
 
 go-race-core:
-	@set -euo pipefail; \
-	$(select_core_go_packages); \
-	go test -timeout=20m -race $$core_packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py core race
 
 go-race-products: project-command-dependencies
 	@set -euo pipefail; \
@@ -110,9 +110,7 @@ go-race-operator: project-command-dependencies
 go-race: go-race-platform go-race-core go-race-integration go-race-conformance go-race-products go-race-operator
 
 cgo-zero-build-core:
-	@set -euo pipefail; \
-	packages="$$(CGO_ENABLED=0 go list ./... | python3 scripts/ci/packages.py core)"; \
-	CGO_ENABLED=0 go test -count=1 -timeout=20m $$packages
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py core cgo0
 
 cgo-zero-build-integration: project-command-dependencies api-client-dependencies
 	@set -euo pipefail; \
@@ -120,7 +118,7 @@ cgo-zero-build-integration: project-command-dependencies api-client-dependencies
 	CGO_ENABLED=0 go test -count=1 -timeout=25m $$packages
 
 cgo-zero-build-conformance:
-	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py cgo0
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py conformance cgo0
 
 cgo-zero-build-products: project-command-dependencies
 	@set -euo pipefail; \
@@ -179,7 +177,7 @@ go-test-integration: project-command-dependencies api-client-dependencies
 	go test -count=1 -timeout=25m $$packages
 
 go-test-conformance:
-	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py normal
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py conformance normal
 
 go-race-integration: project-command-dependencies api-client-dependencies
 	@set -euo pipefail; \
@@ -187,7 +185,7 @@ go-race-integration: project-command-dependencies api-client-dependencies
 	go test -race -count=1 -timeout=25m $$packages
 
 go-race-conformance:
-	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/conformance_tests.py race
+	PYTHONDONTWRITEBYTECODE=1 python3 scripts/ci/portable_tests.py conformance race
 
 .PHONY: require-live-evidence
 require-live-evidence:

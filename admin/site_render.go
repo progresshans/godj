@@ -91,10 +91,16 @@ func (site *Site) indexContext(ctx context.Context, principal auth.Principal) (m
 }
 
 func (site *Site) loginContext(username, next string, invalid bool) (map[string]templates.Value, error) {
+	fields := site.login.Fields()
+	if len(fields) != 2 {
+		return nil, &ConfigError{Path: "site.auth.login_input", Code: "invalid"}
+	}
 	return map[string]templates.Value{
-		"username": templates.String(safeDisplayText(username)),
-		"next":     templates.String(next),
-		"invalid":  templates.Bool(invalid),
+		"login_label":      templates.String(fields[0].Label()),
+		"login_max_length": templates.Integer(int64(fields[0].MaxLength())),
+		"username":         templates.String(safeDisplayText(username)),
+		"next":             templates.String(next),
+		"invalid":          templates.Bool(invalid),
 	}, nil
 }
 
@@ -220,8 +226,14 @@ func (site *Site) listContext(
 }
 
 func (site *Site) modelWriteAllowed(ctx context.Context, model registeredModel, principal auth.Principal, permissions ...auth.Permission) (bool, error) {
-	if model.readOnly {
+	if model.readOnly || len(permissions) == 0 {
 		return false, nil
+	}
+	for _, permission := range model.additionalPermissions {
+		allowed, err := site.auth.Authorized(ctx, principal, permission)
+		if err != nil || !allowed {
+			return false, err
+		}
 	}
 	for _, permission := range permissions {
 		allowed, err := site.auth.Authorized(ctx, principal, permission)
@@ -229,7 +241,7 @@ func (site *Site) modelWriteAllowed(ctx context.Context, model registeredModel, 
 			return false, err
 		}
 	}
-	return len(permissions) != 0, nil
+	return true, nil
 }
 
 func listPageCount(total int64, limit int) int64 {

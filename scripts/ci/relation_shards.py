@@ -28,15 +28,29 @@ def matrix():
     rows = []
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
-            # macOS and Linux/amd64 exhaust package budgets through
-            # cumulative generated builds. Keep the budgets and partition every
-            # discovered root, including all required children.
-            split = mode == 'race' or goos == 'darwin' or runner == 'ubuntu-24.04'
-            count = 3 if split else 1
+            # Cumulative generated builds also exhausted the last unsplit
+            # Linux/arm64 normal coordinate. Give normal/CGO-disabled the same
+            # three consumer owners on every platform, separate from runtime.
+            # The selected-account consumers made both Linux race shard 3
+            # coordinates reach the cumulative 35-minute package limit. Add
+            # one consumer owner on those coordinates; retain their deadlines
+            # and discover/assign every complete root with the same algorithm.
+            count = 4 if goos == 'linux' and mode == 'race' else 3
+            # CI 40248295204 exhausted two macOS cumulative package budgets
+            # while short individual roots were still progressing. Its full
+            # root timings show four Intel/CGO0 owners would already exceed
+            # 35 minutes before unobserved roots; use five there. Four ARM64
+            # race owners reduce the known account-heavy partition cost while
+            # retaining the 70-minute deadline; fresh CI verifies the full run.
+            # Every discovered root still runs exactly once.
+            if goos == 'darwin' and goarch == 'amd64' and mode == 'cgo0':
+                count = 5
+            elif goos == 'darwin' and goarch == 'arm64' and mode == 'race':
+                count = 4
             darwin_race = goos == 'darwin' and mode == 'race'
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
-            for shard in (range(count + 1) if count > 1 else (1,)):
+            for shard in range(count + 1):
                 rows.append({
                     'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
                     'mode': mode, 'shard': shard, 'shards': count,

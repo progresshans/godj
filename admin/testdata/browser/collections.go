@@ -167,7 +167,7 @@ func runCollectionFixture() (runErr error) {
 		}
 		credentials = append(credentials, credential)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		return err
 	}
@@ -580,14 +580,14 @@ func (fixture *collectionBrowserFixture) register(builder *admin.Builder) error 
 		Initial: func(value inventory.Asset) (map[string]forms.Value, error) {
 			return map[string]forms.Value{"code": forms.String(value.Code)}, nil
 		},
-		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (inventory.Asset, error) {
-			return inventory.Asset{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Update: func(context.Context, auth.Principal, admin.Mutation, formmodel.BoundForm, admin.InlineSubmission) (inventory.Asset, []string, error) {
-			return inventory.Asset{}, nil, admin.NewOperationError(admin.OperationDenied, nil)
+		Update: func(context.Context, auth.Principal, admin.Mutation, formmodel.BoundForm, admin.InlineSubmission) (admin.MutationResult, []string, error) {
+			return admin.MutationResult{}, nil, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (inventory.Asset, error) {
-			return inventory.Asset{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
 	})
 }

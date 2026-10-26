@@ -38,6 +38,17 @@ The starter project registers a generated-model `count-groups` command in
 the declaration runner. Commands may import generated models without breaking
 generation from an empty checkout.
 
+`Config.FirstAccount` connects a typed `firstaccount.Command` to this same
+generated-aware runtime. `Serve` dispatches its private declaration/provision
+protocol separately from ordinary commands, checks, output proxies and logging.
+The runner cleans the actual ModelForm before opening a database, owns one
+resource/attempt/close, and publishes an operation-bound durable outcome after
+closing. Keep `command.ExitCode` in the process entrypoint: a confirmed creation
+whose response failed has a private exit distinct from ordinary failure, including
+a separate exit when backend cleanup also failed. Keep SIGPIPE handling active
+until `Serve` returns. The public `createsuperuser` and starter runtime cutover are
+still tracked in [GDJ-0138](../../work/0138-custom-account-lifecycle.md).
+
 ```sh
 godj help
 godj commands

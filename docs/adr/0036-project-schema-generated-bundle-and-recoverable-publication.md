@@ -33,11 +33,11 @@ mixed-generation compile seal을 결합해 제공 가능한 보장을 정확히 
 
 ## 결정
 
-1. `codegen.ProjectSpec`은 project package와 ordered app declarations를 소유하며 모든 Schema를 한 번 clone,
-   normalize, canonicalize합니다.
+1. `codegen.ProjectSpec`은 project package와 ordered app declarations, 선택한 `ir.AccountRole`을 소유하며
+   Schema와 계정 참조를 clone, normalize, canonicalize합니다.
 2. `codegen.GenerateProject(ProjectSpec)`은 opaque immutable `GeneratedBundle`을 반환합니다. Bundle은 fixed current
    roster, canonical manifest, snapshot digest와 cloned source accessors를 소유합니다.
-3. Snapshot digest는 bundle format, generator ABI roster, package/layout identity와 normalized schemas에서
+3. Snapshot digest는 bundle format, generator ABI roster, package/layout identity, normalized schemas와 선택한 계정 역할에서
    계산합니다. Rendered output hash는 manifest에 기록하지만 snapshot 입력에는 넣지 않습니다.
 4. App main/companions와 project binding/companions는 snapshot marker를 참조합니다. Old/new 파일이 섞인 상태는
    compile failure가 되어야 합니다.
@@ -79,9 +79,10 @@ App마다 다음 네 파일을 소유합니다.
 - `zz_godj_relation_object.go`
 - `zz_godj_relation_projection.go`
 
-Project는 다음 여덟 파일을 소유합니다.
+Project는 다음 아홉 파일을 소유합니다.
 
 - `zz_godj_bindings.go`
+- `zz_godj_account.go`
 - `zz_godj_relation_query.go`
 - `zz_godj_relation_object.go`
 - `zz_godj_relation_reverse.go`
@@ -116,9 +117,11 @@ Manifest는 map이 아닌 고정 struct 순서의 canonical JSON과 final LF를 
 }
 ```
 
-현재 producer ABI는 bundle/seal 1개, app renderer 4개, project renderer 8개의 고정 role 순서입니다. Apps는
+현재 producer ABI는 bundle/seal 1개, app renderer 4개, project renderer 9개의 고정 role 순서입니다. Apps는
 app-label/alias/import/directory canonical 순서, files는 slash path lexical 순서입니다. Full normalized schema는
-snapshot digest preimage에만 넣고 manifest에는 진단용 app schema digest만 둡니다. Persisted format-1 decoder는
+선택한 계정 역할과 함께 snapshot digest preimage에 넣고 manifest에는 진단용 app schema digest만 둡니다.
+Account companion은 선택한 모델의 typed binding을 생성하며, 선택이 없을 때도 current ABI와 source marker를 유지합니다.
+계정 선언과 runtime 권한의 경계는 [ADR-0076](0076-credential-snapshots-and-session-binding.md)을 따릅니다. Persisted format-1 decoder는
 unknown/duplicate/trailing/noncanonical bytes와 순서·owner·path·mode·hash 위반을 fail-closed하지만, 안전한 prior
 ABI version/roster는 소유권·stale-file upgrade 입력으로 읽습니다. 새 bundle publication은 별도 current validator가
 exact current ABI와 roster를 요구합니다. 따라서 renderer version/roster 변화는 read-old/write-current로 수렴하며,

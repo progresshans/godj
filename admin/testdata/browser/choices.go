@@ -140,7 +140,7 @@ func runChoiceFixture() (runErr error) {
 		}
 		credentials = append(credentials, credential)
 	}
-	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher)
+	authenticator, err := auth.NewMemoryAuthenticator(credentials, hasher, auth.LoginInputConfig{Label: "Username", MaxLength: auth.MaximumUsernameBytes, Normalization: auth.LoginExact})
 	if err != nil {
 		return err
 	}
@@ -402,10 +402,10 @@ func (fixture *choiceFixture) registerTickets(builder *admin.Builder) error {
 				return (models.TicketDescriptor{}).WriteFieldValue(value.Ticket, field)
 			}, choiceRelated)
 		},
-		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (choiceTicket, error) {
-			return choiceTicket{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (choiceTicket, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			var saved choiceTicket
 			err := fixture.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 				if !actor.Has(permissions("ticket").Change) || !actor.Has(permissions("label").View) {
@@ -447,10 +447,10 @@ func (fixture *choiceFixture) registerTickets(builder *admin.Builder) error {
 				saved = choiceTicket{Ticket: value, labels: slices.Clone(keys)}
 				return nil
 			})
-			return saved, []string{"subject", "labels"}, err
+			return admin.MutationResult{ID: saved.ID}, []string{"subject", "labels"}, err
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (choiceTicket, error) {
-			return choiceTicket{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
 	})
 }
@@ -490,10 +490,10 @@ func (fixture *choiceFixture) registerLinks(builder *admin.Builder) error {
 		Initial: func(value models.TicketLabel) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, spec, value, models.TicketLabelDescriptor{}.WriteFieldValue)
 		},
-		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (models.TicketLabel, error) {
-			return models.TicketLabel{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.TicketLabel, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			var saved models.TicketLabel
 			err := fixture.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 				if !actor.Has(permissions("ticket_label").Change) || !actor.Has(permissions("label").View) {
@@ -538,10 +538,10 @@ func (fixture *choiceFixture) registerLinks(builder *admin.Builder) error {
 				}
 				return prepared.Save(ctx, session, &saved)
 			})
-			return saved, []string{"label"}, err
+			return admin.MutationResult{ID: saved.ID}, []string{"label"}, err
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (models.TicketLabel, error) {
-			return models.TicketLabel{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
 	})
 }
@@ -570,10 +570,10 @@ func (fixture *choiceFixture) registerLabels(builder *admin.Builder) error {
 		Initial: func(value models.Label) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, spec, value, models.LabelDescriptor{}.WriteFieldValue)
 		},
-		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (models.Label, error) {
-			return models.Label{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.Label, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			var saved models.Label
 			err := fixture.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 				if !actor.Has(permissions("label").Change) {
@@ -596,10 +596,10 @@ func (fixture *choiceFixture) registerLabels(builder *admin.Builder) error {
 				}
 				return prepared.Save(ctx, session, &saved)
 			})
-			return saved, []string{"name"}, err
+			return admin.MutationResult{ID: saved.ID}, []string{"name"}, err
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (models.Label, error) {
-			return models.Label{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
 	})
 }
@@ -681,10 +681,10 @@ func (fixture *choiceFixture) registerCategories(builder *admin.Builder) error {
 		Initial: func(value models.Category) (map[string]forms.Value, error) {
 			return formmodel.InitialValues(metadata, spec, value, models.CategoryDescriptor{}.WriteFieldValue)
 		},
-		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (models.Category, error) {
-			return models.Category{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Create: func(context.Context, auth.Principal, formmodel.BoundForm, admin.InlineSubmission) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
-		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, input admin.InlineSubmission) (models.Category, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, input admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			var saved models.Category
 			err := fixture.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
 				if !actor.Has(permissions("category").Change) {
@@ -779,10 +779,10 @@ func (fixture *choiceFixture) registerCategories(builder *admin.Builder) error {
 				}})
 				return err
 			})
-			return saved, []string{"name", "tickets"}, err
+			return admin.MutationResult{ID: saved.ID}, []string{"name", "tickets"}, err
 		},
-		Delete: func(context.Context, auth.Principal, admin.Mutation) (models.Category, error) {
-			return models.Category{}, admin.NewOperationError(admin.OperationDenied, nil)
+		Delete: func(context.Context, auth.Principal, admin.Mutation) (admin.MutationResult, error) {
+			return admin.MutationResult{}, admin.NewOperationError(admin.OperationDenied, nil)
 		},
 	})
 }

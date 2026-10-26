@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-10-24
+- 갱신: 2026-10-27
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)을 구현 중이다.
   구현은 별도 작업트리의 [PR #8](https://github.com/progresshans/godj/pull/8)에서 진행한다.
@@ -9,9 +9,9 @@
 
 ## 다음
 
-1. I1의 계정 역할·domain·credential 조회·현재 인가·typed profile/audit를 새 source의 원격 CI에서 확인한다.
-2. Profile 조회·관계/파일·role/catalog 관리와 공통 Form/Admin/API·첫 계정 명령을 같은 binding에 연결한다.
-3. Password/reset/session·계정 삭제·채운 DB의 명시적 모델 전환과 startup/restart를 실제 소비자에서 완성한다.
+1. 선택 계정 관리/Admin·복합 권한·중첩 typed JSON·입력 정규화/생성 소비자와 조정한 CI 분할을 같은 source의 원격 CI에서 확인한다.
+2. 관리 JSON HTTP와 최초 계정의 공개 터미널/상위 프로세스·scaffold를 선택 runtime에 조립한다.
+3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치·통합 restart의 남은 요구를 완성한다.
 
 ## 검증 경계
 

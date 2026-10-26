@@ -3,7 +3,7 @@
 <body data-admin-view="login">
 <main><h1>Sign in</h1>{% if invalid %}<p data-login-error="invalid_credentials">Invalid credentials.</p>{% endif %}
 <form method="post" action="{{ login_path }}">{% csrf_token %}<input type="hidden" name="next" value="{{ next }}">
-<label>Username <input name="username" value="{{ username }}" autocomplete="username" required></label>
+<label>{{ login_label }} <input name="username" value="{{ username }}" maxlength="{{ login_max_length }}" autocomplete="username" required></label>
 <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
 <button type="submit">Sign in</button></form></main>
 </body></html>

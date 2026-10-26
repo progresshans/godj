@@ -13,33 +13,26 @@ import (
 // Commands do not become editable model fields. Run owns the transaction and
 // must check the submitted revision there, just like an Update callback.
 type CommandConfig struct {
-	Name       string
-	Label      string
-	Permission auth.Permission
-	Form       forms.Spec
-	Run        func(context.Context, auth.Principal, Mutation, forms.Values) (CommandResult, error)
-}
-
-// CommandResult contains only the confirmed object's identity and revision.
-// A command need not reread a profile after committing (for example, after it
-// revokes its own actor's sessions). No result is published on error.
-type CommandResult struct {
-	ID       int64
-	Revision int64
+	Name                  string
+	Label                 string
+	Permission            auth.Permission
+	AdditionalPermissions []auth.Permission
+	Form                  forms.Spec
+	Run                   func(context.Context, auth.Principal, Mutation, forms.Values) (MutationResult, error)
 }
 
 type CommandDescriptor struct {
-	Name       string
-	Label      string
-	Permission auth.Permission
-	FormFields []forms.Field
+	Name        string
+	Label       string
+	Permissions []auth.Permission
+	FormFields  []forms.Field
 }
 
 type registeredCommand struct {
 	name, label string
-	permission  auth.Permission
+	permissions []auth.Permission
 	form        forms.Spec
-	run         func(context.Context, auth.Principal, Mutation, forms.Form) (CommandResult, error)
+	run         func(context.Context, auth.Principal, Mutation, forms.Form) (MutationResult, error)
 }
 
 func prepareCommands(configs []CommandConfig, model registeredModel) ([]registeredCommand, error) {
@@ -58,6 +51,10 @@ func prepareCommands(configs []CommandConfig, model registeredModel) ([]register
 			return nil, &ConfigError{Path: path + ".label", Code: "invalid"}
 		}
 		if err := validatePermission(path+".permission", config.Permission); err != nil {
+			return nil, err
+		}
+		permissions, err := additionalPermissions(config.Permission, config.AdditionalPermissions)
+		if err != nil {
 			return nil, err
 		}
 		if config.Run == nil {
@@ -79,28 +76,36 @@ func prepareCommands(configs []CommandConfig, model registeredModel) ([]register
 				return nil, &ConfigError{Path: path + ".form", Code: "unsupported_field"}
 			}
 		}
-		command := registeredCommand{name: config.Name, label: config.Label, permission: config.Permission, form: config.Form}
-		command.run = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form) (CommandResult, error) {
-			if err := validatePrincipalPermission(ctx, principal, config.Permission); err != nil {
-				return CommandResult{}, err
+		command := registeredCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form}
+		command.run = func(ctx context.Context, principal auth.Principal, mutation Mutation, submitted forms.Form) (MutationResult, error) {
+			if err := validatePrincipalRead(ctx, principal, model.permissions, model.additionalPermissions...); err != nil {
+				return MutationResult{}, err
+			}
+			for _, permission := range permissions {
+				if err := validatePrincipalPermission(ctx, principal, permission); err != nil {
+					return MutationResult{}, err
+				}
 			}
 			if err := model.validateMutation(mutation); err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
 			data, err := validatedSubmission(submitted, fields)
 			if err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
 			values, err := validateBoundData(ctx, data, config.Form, fields)
 			if err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
 			outcome, err := config.Run(ctx, principal, mutation, values)
 			if err != nil {
-				return CommandResult{}, err
+				return MutationResult{}, err
 			}
-			if outcome.ID != mutation.ID || outcome.Revision < mutation.Revision || model.revisionField == "" && outcome.Revision != 0 {
-				return CommandResult{}, reconciliationError("command "+config.Name, &ConfigError{Path: "command.result", Code: "mismatch"})
+			if err := model.validateResult(outcome); err != nil {
+				return MutationResult{}, reconciliationError("command "+config.Name, err)
+			}
+			if outcome.ID != mutation.ID || outcome.Revision < mutation.Revision {
+				return MutationResult{}, reconciliationError("command "+config.Name, &ConfigError{Path: "command.result", Code: "mismatch"})
 			}
 			return outcome, nil
 		}

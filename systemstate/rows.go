@@ -2,9 +2,9 @@ package systemstate
 
 import (
 	"context"
-	"errors"
 
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/rowset"
 	"github.com/progresshans/godj/query"
 )
 
@@ -29,39 +29,7 @@ func scanRows(
 	if isNilInterface(queryer) {
 		return &Error{Code: CodeInvalidConfig, Field: "backend", Detail: "query backend is nil"}
 	}
-	rows, err := queryer.Query(ctx, plan)
-	if !isNilInterface(rows) {
-		defer func() {
-			if closeErr := rows.Close(); closeErr != nil {
-				resultErr = errors.Join(resultErr, failure(closeErr))
-			}
-		}()
-	}
-	if err != nil {
-		return failure(err)
-	}
-	if isNilInterface(rows) {
-		return failure(errors.New("backend returned nil rows"))
-	}
-	for rows.Next() {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		more, err := scan(rows)
-		if err != nil {
-			return err
-		}
-		if !more {
-			break
-		}
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if err := rows.Err(); err != nil {
-		return failure(err)
-	}
-	return nil
+	return rowset.Scan(ctx, queryer, plan, failure, scan)
 }
 
 func schemaRowsFailure(table string) func(error) error {

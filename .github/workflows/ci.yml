@@ -36,7 +36,9 @@ jobs:
     needs: [validation-plan, postgresql-product]
     name: Validate references and current product captures
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Generation and reference checks precede the complete 32-bit products.
+    # Keep their test limits intact while allowing this full sequence to finish.
+    timeout-minutes: 60
     permissions:
       contents: read
       actions: read
@@ -275,7 +277,19 @@ jobs:
         run: make ci-tools-test
 
       - name: Run portable Go mode
+        id: portable-go
+        env:
+          GODJ_PORTABLE_EVIDENCE_DIR: ${{ runner.temp }}/portable-go
         run: make ${{ matrix.make_targets }}
+
+      - name: Publish portable test evidence
+        if: always() && steps.portable-go.outcome != 'skipped' && (matrix.shard == 'core-vet' || matrix.shard == 'core' || matrix.shard == 'conformance')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: portable-tests-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/portable-go/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Install locked Helpdesk browser tools
         if: matrix.mode == 'normal' && matrix.shard == 'integration'
@@ -503,6 +517,21 @@ jobs:
             go vet ./migrations ./db/sqlite
           fi
 
+      - name: Publish relation test logs and execution plan
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: relation-product-${{ matrix.platform.expected_goos }}-${{ matrix.platform.expected_goarch }}-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/relation-product-tests.json
+            ${{ runner.temp }}/relation-product.stderr
+            ${{ runner.temp }}/relation-consumer-discovery.json
+            ${{ runner.temp }}/relation-required.txt
+            ${{ runner.temp }}/relation-packages.txt
+            ${{ runner.temp }}/relation-shard/
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Require a clean worktree
         run: |
           git diff --exit-code
@@ -516,6 +545,8 @@ jobs:
     env:
       LC_ALL: C
       TZ: UTC
+    # A cold linked runner took 371s on linux/amd64. Its command package needs
+    # the 35m cumulative budget below to retain every sequential CLI test.
     strategy:
       fail-fast: false
       matrix:
@@ -523,7 +554,7 @@ jobs:
           - runs_on: "ubuntu-24.04"
             expected_goos: "linux"
             expected_goarch: "amd64"
-            cmd_test_timeout: "20m"
+            cmd_test_timeout: "35m"
             flow_test_timeout: "25m"
             timeout_minutes: {normal: 65, race: 75, cgo0: 65}
           - runs_on: "ubuntu-24.04-arm"
@@ -1282,6 +1313,12 @@ jobs:
             shard: core
             timeout_minutes: 60
           - mode: race
+            shard: core-postgres-1
+            timeout_minutes: 40
+          - mode: race
+            shard: core-postgres-2
+            timeout_minutes: 40
+          - mode: race
             shard: core-helpdesk-postgres
             timeout_minutes: 60
           - mode: race
@@ -1457,7 +1494,7 @@ jobs:
           )
           go mod download all
           case "$shard" in
-            core|core-helpdesk-postgres|core-consumers|core-consumer-writes|core-processes)
+            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-consumer-writes|core-processes)
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
               python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
                 --required scripts/ci/postgres-core-required.txt --output-dir "$partition"

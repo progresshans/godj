@@ -15,6 +15,12 @@ and [development server](https://docs.djangoproject.com/en/6.1/ref/django-admin/
 The observer requires the pinned polling environment without Watchman. It owns
 bounded process groups and output readers, verifies cleanup, and uses isolated
 HTTP cookie jars with redirects and ambient proxies disabled.
+Status/header parsing requires the terminating empty line. A connection closed
+before that boundary, or before its declared body length, is an unavailable
+transport observation within the existing readiness deadline. Fully received
+invalid JSON still fails; close-delimited bodies and interim 100 responses keep
+their actual content. Loopback controls exercise these distinctions without
+changing the Django server or accepting an expected payload in its place.
 An authored logging handler records the pinned reloader's debug messages for
 the two edited source files. Each edit waits for that process to observe the
 current file timestamp, including after a syntax error. HTTP readiness or an

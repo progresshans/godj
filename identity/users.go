@@ -7,6 +7,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
@@ -277,7 +278,7 @@ type userRelationKeys struct{ groups, permissions []int64 }
 
 func (manager *Manager) userKeys(ctx context.Context, reader db.Queryer, id int64) (userRelationKeys, error) {
 	relations := manager.state.directory.state.relations
-	groupsQuery, err := models.GroupObjects.Using(reader).Filter(relations.IdentityGroup.Users.ID.Exact(id)).OrderBy(models.GroupFields.ID.Asc()).Limit(MaximumUserGroups + 1)
+	groupsQuery, err := models.GroupObjects.Using(reader).Filter(relations.IdentityGroup.Users.ID.Exact(id)).OrderBy(models.GroupFields.ID.Asc()).Limit(accountmodel.MaximumAccountGroups + 1)
 	if err != nil {
 		return userRelationKeys{}, err
 	}
@@ -285,7 +286,7 @@ func (manager *Manager) userKeys(ctx context.Context, reader db.Queryer, id int6
 	if err != nil {
 		return userRelationKeys{}, err
 	}
-	if len(groups) > MaximumUserGroups {
+	if len(groups) > accountmodel.MaximumAccountGroups {
 		return userRelationKeys{}, managementError(CodePersistence, "user", nil)
 	}
 	permissionQuery, err := models.PermissionObjects.Using(reader).Filter(relations.IdentityPermission.Users.ID.Exact(id)).OrderBy(models.PermissionFields.ID.Asc()).Limit(auth.MaximumPermissions + 1)

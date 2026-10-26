@@ -11,6 +11,10 @@ It does not own identity storage or choose password strength policy. Article's `
 An Admin sharing the runtime declares the account paths in `admin.SiteConfig.AdditionalNextPaths`.
 Admin staff/model admission remains independent of ordinary account access. Startup performs no account reads or password work.
 
+For a generated selected account, construct the project's `NewAccountSessionStore`, create its session manager and obtain the verifier through `store.Authenticator(ctx, hasher)`. Bind `store.LoginPersistence(manager)` and `store.PasswordChangePersistence(manager, verifier, typedConfig)` into the same Web runtime. The password policy receives the actual selected model type.
+
+The login form requires the exact authenticator's `auth.LoginInputProvider` metadata. Generated bindings supply the selected login field's label and character limit, and the explicit `AccountRole.LoginFormNormalization` policy (`exact` or `unicode16_nfkc`). The built-in Directory verifier supplies its own default-account declaration. Missing metadata is a startup error. The form keeps the `username` wire name, trims Unicode 16 whitespace, applies the declared form policy and preserves password whitespace. Form normalization, stored login normalization and authentication lookup normalization are independent declarations; model creation validators and choices do not become login rules. Unbounded Text fields use the common 1,024-character form envelope, with the authentication byte limit enforced separately.
+
 | Route | Behavior |
 |---|---|
 | GET/POST `/account/login/` | CSRF-protected ordinary login, bounded local `next` |
@@ -30,6 +34,10 @@ Forms accept URL-encoded UTF-8 input, JSON commands accept `application/json`. T
 ## Optional password reset
 
 Bind `Runtime.PasswordResetPersistence(manager, resetConfig)` into the Web runtime. Build `identity.NewPasswordResetMailer` from that persistence's `Resetter()`, an explicit `mail.Sender`, From address and trusted origin. Pass the mailer and a mandatory private `ReportError` callback as `Config.PasswordReset`. The mailer's `ConfirmPath` must equal the account `BasePath` plus `/reset`. Install the account middleware as well as its routes so routing, negotiation and execution failures receive the reset privacy headers.
+
+For a generated selected account, call `project.NewAccountPasswordResetter(store, manager, verifier, identitymodel.PasswordResetConfig[YourModel]{Keys: keys, ValidatePassword: policy})`. Use the existing selected session store and its verifier, then pass this same resetter as both `sessionauth.Config.PasswordResetPersistence` and the source of `identity.NewPasswordResetMailer`. Separately constructed resetters have different in-process authorities even when their signing keys match. The explicit account Email role enables mail lookup; without it, privileged `IssueToken` and proof completion remain available but mailer construction is rejected. The account's selected password policy receives the actual typed profile with its encoded password field blank.
+
+This owner signs the current durable account domain, key, credential, email and full LastLogin precision. It rechecks them at completion, preserves current unrelated profile/session values, updates only Password/Revision, revokes every target login session and writes a domain audit in one transaction. It never logs the target in. A self-authenticated browser is cleared; anonymous and other-account browsers rotate with proof removed. Configure token keys independently of CSRF/session keys and retain explicit fallback keys when rotating them. Rebuilding the owner does not invalidate a valid stored proof; changing the selected model/domain does.
 
 Article's `siteapp.Config.WithPasswordReset` composes these owners together. It applies the global `WithPasswordValidators` policy plus any reset-specific validators. Sender, keys, origin and reporting are explicit; startup does not send mail. Omitting the reset configuration keeps the original route set and authenticated schema access.
 

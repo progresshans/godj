@@ -152,119 +152,15 @@ func (c *ManyCollection[T, L]) change(ctx context.Context, operation manyChange,
 }
 
 func (c *ManyCollection[T, L]) executeChange(ctx context.Context, session db.RelationSession, operation manyChange, keys []int64, input ManyToManyInput[L], clear bool) error {
-	if interfaceIsNil(session) {
-		return relationBackendInvalidPlan("collection backend supplied a nil session")
-	}
-	var conflict db.ConflictInserter
-	if len(c.state.unique) != 0 && (operation == manyAdd || operation == manySet) {
-		var ok bool
-		conflict, ok = session.(db.ConflictInserter)
-		if !ok || interfaceIsNil(conflict) {
-			return relationBackendInvalidPlan("collection unique pair requires native conflict insertion in its transaction session")
-		}
-	}
-	rows, err := c.state.rows(ctx, session, c.ownerKey)
+	change, err := newCollectionChange(c.state, c.through, c.ownerKey, operation, keys, input, clear)
 	if err != nil {
 		return err
 	}
-	existing := make(map[manyPair]bool, len(rows))
-	var roots []relationDeleteRow
-	for _, row := range rows {
-		partner, present := row.partner(c.ownerKey)
-		selected := present && slices.Contains(keys, partner)
-		remove := operation == manyClear || operation == manySet && (clear || present && !selected) || operation == manyRemove && selected
-		if remove {
-			roots = append(roots, relationDeleteRow{model: c.state.through, key: row.key})
-		} else if row.sourcePresent && row.targetPresent {
-			existing[row.pair] = true
-		}
-	}
-	var desired []manyPair
-	if operation == manyAdd || operation == manySet {
-		seen := make(map[manyPair]bool)
-		for _, key := range keys {
-			pairs := []manyPair{{source: c.ownerKey, target: key}}
-			if c.state.symmetrical {
-				pairs = append(pairs, manyPair{source: key, target: c.ownerKey})
-			}
-			for _, pair := range pairs {
-				if !seen[pair] {
-					seen[pair] = true
-					desired = append(desired, pair)
-				}
-			}
-		}
-	}
-	manager := NewManager[L](c.through)
-	var inserts []query.InsertPlan
-	for _, pair := range desired {
-		if existing[pair] {
-			continue
-		}
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		mutation := input.BuildManyToManyCreate(c.state.source.Clone(), c.state.target.Clone(), pair.source, pair.target)
-		if err := validateMutation(mutation, MutationCreate, manager.prepared, c.through, nil); err != nil {
-			return err
-		}
-		if _, present := c.through.PrimaryKey(mutation.value); present {
-			return relationInvalidPlan("collection create input supplied a primary key")
-		}
-		for _, endpoint := range []struct {
-			name string
-			key  int64
-		}{{c.state.source.Name, pair.source}, {c.state.target.Name, pair.target}} {
-			for _, assignment := range mutation.assignments {
-				if assignment.Field().Name() == endpoint.name && !assignment.Value().Equal(query.Integer(endpoint.key)) {
-					return relationInvalidPlan("collection create input changed a bound endpoint")
-				}
-			}
-		}
-		inserts = append(inserts, query.NewInsertPlanReturningKey(c.state.model.DBTable, mutation.Assignments(), fieldReference(c.state.key)))
-	}
-	// All inputs and all reached PROTECT edges are checked before the first
-	// deletion. The existing collector owns declared incoming policy on links.
-	if len(roots) != 0 {
-		if _, err := executeRelationDeleteRoots(ctx, session, c.state.graph, roots); err != nil {
-			return err
-		}
-	}
-	for _, insert := range inserts {
-		if err := ctx.Err(); err != nil {
-			return err
-		}
-		if conflict != nil {
-			_, err = conflict.InsertOnConflict(ctx, query.NewConflictInsertPlan(insert.Table(), insert.Assignments(), c.state.unique))
-		} else {
-			_, err = session.Insert(ctx, insert)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	// Native 0 affected rows are not proof of membership (a trigger may skip
-	// insertion). Check the requested postcondition inside the same transaction.
-	final, err := c.state.rows(ctx, session, c.ownerKey)
+	prepared, err := prepareCollectionChanges(ctx, session, []CollectionChange{change})
 	if err != nil {
 		return err
 	}
-	presentPairs := make(map[manyPair]bool, len(final))
-	for _, row := range final {
-		if row.sourcePresent && row.targetPresent {
-			presentPairs[row.pair] = true
-		}
-		partner, present := row.partner(c.ownerKey)
-		if operation == manyClear || present && (operation == manyRemove && slices.Contains(keys, partner) || operation == manySet && !slices.Contains(keys, partner)) {
-			return relationBackendInvalidPlan("collection deletion postcondition was not preserved")
-		}
-	}
-	for _, pair := range desired {
-		if !presentPairs[pair] {
-			return relationBackendInvalidPlan("collection insertion did not establish the requested membership")
-		}
-	}
-	return ctx.Err()
+	return prepared.Apply(ctx, nil)
 }
 
 func (row manyRow) partner(owner int64) (int64, bool) {

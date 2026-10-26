@@ -1302,4 +1302,4 @@ func rootLabelsMetadata() ir.Model {
 
 type GoDjAppPart0_1d0e13b4483d01ac5d344fa821ef7880f63a228b0682d6f2a1c3a446c2e0ae0d struct{}
 
-type GoDjProjectSnapshot_33b2b4542ecd7cd7388ee05c4beda71529072c3fc3cd6a2f704b0c1dce7acd00 struct{}
+type GoDjProjectSnapshot_3248101b697ef7c6747a63fbd73aa8766d6a3047920871d8f9f8c8b9aa9daf41 struct{}

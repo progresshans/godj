@@ -70,24 +70,26 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.Label, error) {
+		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			input, err := formmodel.PrepareInput(models.LabelObjects, bound)
 			if err != nil {
-				return models.Label{}, err
+				return admin.MutationResult{}, err
 			}
-			return a.createLabel(ctx, input)
+			value, err := a.createLabel(ctx, input)
+			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (models.Label, []string, error) {
+		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			input, err := formmodel.PrepareInput(models.LabelObjects, bound)
 			if err != nil {
-				return models.Label{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			result, err := a.updateLabel(ctx, mutation.ID, input)
-			return result.value, result.changed, err
+			return admin.MutationResult{ID: result.value.ID}, result.changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (models.Label, error) {
+		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			return a.deleteLabel(ctx, id)
+			value, err := a.deleteLabel(ctx, id)
+			return admin.MutationResult{ID: value.ID}, err
 		},
 	})
 }

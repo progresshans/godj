@@ -188,18 +188,18 @@ func TestAdminUploadCreateAndCommandPreserveContentAndRequestLifetime(t *testing
 			target := "/admin/articles/add/"
 			if command {
 				config.Commands = []CommandConfig{{Name: "attach", Label: "Attach", Permission: config.Permissions.Change, Form: spec,
-					Run: func(ctx context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (CommandResult, error) {
+					Run: func(ctx context.Context, _ auth.Principal, mutation Mutation, values forms.Values) (MutationResult, error) {
 						consume(ctx, values)
-						return CommandResult{ID: mutation.ID}, nil
+						return MutationResult{ID: mutation.ID}, nil
 					}}}
 				target = "/admin/articles/command/attach/?id=1"
 			} else {
 				config.CreateForm = &FormConfig{Definition: formmodel.Definition{ExtraFields: []forms.Field{field}}}
 				original := config.Create
-				config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, inlines InlineSubmission) (registryArticle, error) {
+				config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, inlines InlineSubmission) (MutationResult, error) {
 					values, err := bound.Input()
 					if err != nil {
-						return registryArticle{}, err
+						return MutationResult{}, err
 					}
 					if _, present := bound.Candidate().Get("document"); present {
 						t.Fatal("file entered stored model candidate")
@@ -260,9 +260,9 @@ func TestAdminUploadValidationRedisplayAndRejectBeforeCallback(t *testing.T) {
 			config := validRegistryConfig(t)
 			config.CreateForm = &FormConfig{Definition: formmodel.Definition{ExtraFields: []forms.Field{uploadTestField(t)}}}
 			called := false
-			config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (registryArticle, error) {
+			config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (MutationResult, error) {
 				called = true
-				return registryArticle{}, validation.Reject(validation.NewErrors(validation.New("document", "rejected")), nil)
+				return MutationResult{}, validation.Reject(validation.NewErrors(validation.New("document", "rejected")), nil)
 			}
 			client, _, _ := uploadTestSite(t, config, policy, auth.PrincipalAuthorizer{})
 			client.login(t, "admin", "secret", "/admin/")
@@ -505,10 +505,10 @@ func TestAdminInlineUploadUsesActualChangeRouteAndAdmittedRows(t *testing.T) {
 				Initial: func(value models.Ticket) (map[string]forms.Value, error) {
 					return map[string]forms.Value{"subject": forms.String(value.Subject)}, nil
 				},
-				Create: func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (models.Ticket, error) {
-					return models.Ticket{}, errors.New("unexpected create")
+				Create: func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (MutationResult, error) {
+					return MutationResult{}, errors.New("unexpected create")
 				},
-				Update: func(ctx context.Context, _ auth.Principal, _ Mutation, _ formmodel.BoundForm, submission InlineSubmission) (models.Ticket, []string, error) {
+				Update: func(ctx context.Context, _ auth.Principal, _ Mutation, _ formmodel.BoundForm, submission InlineSubmission) (MutationResult, []string, error) {
 					calls++
 					if len(submission.entries) != 1 {
 						t.Fatal("lost admitted inline")
@@ -539,10 +539,10 @@ func TestAdminInlineUploadUsesActualChangeRouteAndAdmittedRows(t *testing.T) {
 					} else if !present || !value.Clear() {
 						t.Fatal("inline clear intent lost")
 					}
-					return parent, nil, nil
+					return MutationResult{ID: parent.ID}, nil, nil
 				},
-				Delete: func(context.Context, auth.Principal, Mutation) (models.Ticket, error) {
-					return models.Ticket{}, errors.New("unexpected delete")
+				Delete: func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
+					return MutationResult{}, errors.New("unexpected delete")
 				},
 			}
 			if err = RegisterModel(builder, config); err != nil {
@@ -653,7 +653,7 @@ func TestAdminUploadCommandClearLimitsAndCallbackFailures(t *testing.T) {
 			}
 			calls := 0
 			var retained uploads.File
-			config.Commands = []CommandConfig{{Name: "attach", Label: "Attach", Permission: config.Permissions.Change, Form: spec, Run: func(ctx context.Context, _ auth.Principal, m Mutation, input forms.Values) (CommandResult, error) {
+			config.Commands = []CommandConfig{{Name: "attach", Label: "Attach", Permission: config.Permissions.Change, Form: spec, Run: func(ctx context.Context, _ auth.Principal, m Mutation, input forms.Values) (MutationResult, error) {
 				calls++
 				value, ok := input.File("document")
 				if !ok {
@@ -667,9 +667,9 @@ func TestAdminUploadCommandClearLimitsAndCallbackFailures(t *testing.T) {
 					panic("synthetic upload callback panic")
 				}
 				if test.failure == "error" {
-					return CommandResult{}, errors.New("synthetic upload callback failure")
+					return MutationResult{}, errors.New("synthetic upload callback failure")
 				}
-				return CommandResult{ID: m.ID}, nil
+				return MutationResult{ID: m.ID}, nil
 			}}}
 			client, _, _ := uploadTestSite(t, config, policy, auth.PrincipalAuthorizer{})
 			client.login(t, "admin", "secret", "/admin/")
@@ -712,7 +712,7 @@ func TestAdminUploadOptionalOmissionPreservedInFinalCallback(t *testing.T) {
 			config.CreateForm = &FormConfig{Definition: formmodel.Definition{ExtraFields: []forms.Field{uploadTestField(t, forms.WithRequired(false))}}}
 			original := config.Create
 			called := false
-			config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, submission InlineSubmission) (registryArticle, error) {
+			config.Create = func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, submission InlineSubmission) (MutationResult, error) {
 				called = true
 				raw := bound.Form().Submitted()
 				if _, present := raw.Files("document"); present {

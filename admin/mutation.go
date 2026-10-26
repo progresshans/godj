@@ -20,6 +20,17 @@ type Mutation struct {
 	Revision int64
 }
 
+// MutationResult contains only a confirmed object's identity and revision.
+// It carries no read authority or display values. A callback may revoke its
+// actor's access while committing; it must not need a later read to report
+// success. On error the registry discards the entire result.
+// Revision is zero for unversioned models. Delete returns the deleted row's
+// observed revision, while a changed update must advance it.
+type MutationResult struct {
+	ID       int64
+	Revision int64
+}
+
 type OperationErrorCode string
 
 const (
@@ -139,15 +150,31 @@ func (model registeredModel) revision(object Object) (int64, error) {
 	return number, nil
 }
 
-func (model registeredModel) validateMutationResult(before Mutation, object Object, changed bool) error {
-	after, err := model.revision(object)
-	if err != nil {
+func (model registeredModel) validateResult(result MutationResult) error {
+	if result.ID <= 0 {
+		return &ConfigError{Path: "mutation.result.id", Code: "invalid"}
+	}
+	if model.revisionField == "" {
+		if result.Revision != 0 {
+			return &ConfigError{Path: "mutation.result.revision", Code: "unexpected"}
+		}
+	} else if result.Revision <= 0 {
+		return &ConfigError{Path: "mutation.result.revision", Code: "invalid"}
+	}
+	return nil
+}
+
+func (model registeredModel) validateMutationResult(before Mutation, result MutationResult, changed bool) error {
+	if err := model.validateResult(result); err != nil {
 		return err
+	}
+	if result.ID != before.ID {
+		return &ConfigError{Path: "mutation.result.id", Code: "mismatch"}
 	}
 	if model.revisionField == "" {
 		return nil
 	}
-	if changed && after <= before.Revision || !changed && after != before.Revision {
+	if changed && result.Revision <= before.Revision || !changed && result.Revision != before.Revision {
 		return &ConfigError{Path: "mutation.result.revision", Code: "mismatch"}
 	}
 	return nil

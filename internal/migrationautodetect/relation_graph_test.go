@@ -154,3 +154,52 @@ func TestDetectCandidateLimitIncludesCycleSuccessors(t *testing.T) {
 	desired := mustProjectState(t, schemas...)
 	detectError(t, Request{Definitions: mustLoadDefinitions(t), Desired: desired, ManagedApps: desired.Apps()}, CodeCandidateResourceLimit)
 }
+
+// A created through model can still lack its deferred endpoint columns. The
+// owning M2M declaration must wait for those columns, while another model in
+// the same dependency cycle can make the next publication prefix progress.
+func TestDetectExplicitThroughCyclesResumeEveryPublicationPrefix(t *testing.T) {
+	for _, names := range [][3]string{{"access", "links", "people"}, {"access", "people", "links"}, {"links", "access", "people"}, {"links", "people", "access"}, {"people", "access", "links"}, {"people", "links", "access"}} {
+		t.Run(names[0]+"_"+names[1]+"_"+names[2], func(t *testing.T) {
+			catalog, through, accounts := names[0], names[1], names[2]
+			fk := func(name, app, model string) ir.Field {
+				field := testForeignKey(name, true, app, model, "")
+				field.Relation.Reverse = ir.ReverseRelation{Disabled: true}
+				return field
+			}
+			member := testModel("member", testChar("label", false, nil))
+			member.ManyToMany = []ir.ManyToManyField{{Name: "teams", GoName: "Teams", Target: ir.ModelIdentity{AppLabel: catalog, ModelName: "team"}, Reverse: ir.ReverseRelation{Disabled: true}, Through: &ir.ThroughModel{Model: ir.ModelIdentity{AppLabel: through, ModelName: "membership"}, SourceField: "member", TargetField: "team"}}}
+			team := testModel("team", fk("creator", accounts, "member"))
+			team.ManyToMany = []ir.ManyToManyField{{Name: "grants", GoName: "Grants", Target: ir.ModelIdentity{AppLabel: catalog, ModelName: "grant"}, Reverse: ir.ReverseRelation{Disabled: true}, Through: &ir.ThroughModel{Model: ir.ModelIdentity{AppLabel: through, ModelName: "grant_link"}, SourceField: "team", TargetField: "grant"}}}
+			desired := mustProjectState(t,
+				testSchema(catalog, team, testModel("grant", fk("issuer", accounts, "member"))),
+				testSchema(through, testModel("membership", fk("member", accounts, "member"), fk("team", catalog, "team")), testModel("grant_link", fk("team", catalog, "team"), fk("grant", catalog, "grant"))),
+				testSchema(accounts, member))
+			request := Request{Definitions: mustLoadDefinitions(t), Desired: desired, ManagedApps: desired.Apps()}
+			plan := mustDetect(t, request).Migrations()
+			assertGeneratedState(t, request.Definitions, plan, desired)
+			for prefix := 0; prefix <= len(plan); prefix++ {
+				history := cloneMigrations(plan[:prefix])
+				slices.Reverse(history)
+				request.Definitions = mustLoadDefinitions(t, history...)
+				remaining := mustDetect(t, request).Migrations()
+				if len(remaining) != len(plan)-prefix {
+					t.Fatal("publication prefix changed remaining operation count", prefix)
+				}
+				for index, migration := range remaining {
+					actual, err := definition.Encode(testProducer, migration)
+					if err != nil {
+						t.Fatal(err)
+					}
+					want, err := definition.Encode(testProducer, plan[prefix+index])
+					if err != nil {
+						t.Fatal(err)
+					}
+					if string(actual) != string(want) {
+						t.Fatal("publication restart changed exact migration bytes", prefix, index)
+					}
+				}
+			}
+		})
+	}
+}

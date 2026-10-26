@@ -56,6 +56,13 @@ func (p *PasswordResetPersistence) Resetter() *identity.PasswordResetter {
 	return p.resetter
 }
 
+func (p *PasswordResetPersistence) PasswordResetAuthority() auth.PasswordResetAuthority {
+	if p == nil {
+		return auth.PasswordResetAuthority{}
+	}
+	return p.resetter.PasswordResetAuthority()
+}
+
 func (p *PasswordResetPersistence) validCall(ctx context.Context) error {
 	if p == nil || p.runtime == nil || p.manager == nil || p.resetter == nil {
 		return &Error{Code: CodeInvalidConfig, Field: "password_reset", Detail: "password reset persistence is uninitialized"}
@@ -310,7 +317,7 @@ func (store *resetSessionStore) write(ctx context.Context, oldID sessions.ID, re
 		return callbackErr
 	})
 	if calls == 1 && err != nil {
-		if (callbackErr == identity.ErrInvalidResetToken || callbackErr == auth.ErrInvalidResetProof) && err == callbackErr {
+		if (callbackErr == auth.ErrInvalidResetToken || callbackErr == auth.ErrInvalidResetProof) && err == callbackErr {
 			store.rejection = auth.ErrInvalidResetProof
 			return sessions.Record{}, false, store.rejection
 		}
@@ -333,7 +340,7 @@ func resetAdmissionFailure(err error) error {
 	if err == nil {
 		return nil
 	}
-	if err == identity.ErrInvalidResetToken || err == auth.ErrInvalidResetProof {
+	if err == auth.ErrInvalidResetToken || err == auth.ErrInvalidResetProof {
 		return auth.ErrInvalidResetProof
 	}
 	if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {

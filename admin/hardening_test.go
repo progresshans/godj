@@ -137,7 +137,6 @@ func TestAuditLogForObjectLimitedReturnsNewestAscendingAndValidatesRequest(t *te
 	}{
 		{name: "nil context", model: "godj_conformance.article", id: 1, limit: 1, target: log},
 		{name: "invalid model", ctx: context.Background(), model: "bad/model", id: 1, limit: 1, target: log},
-		{name: "invalid object", ctx: context.Background(), model: "godj_conformance.article", id: 0, limit: 1, target: log},
 		{name: "zero limit", ctx: context.Background(), model: "godj_conformance.article", id: 1, target: log},
 		{name: "over limit", ctx: context.Background(), model: "godj_conformance.article", id: 1, limit: MaximumHistoryEntries + 1, target: log},
 		{name: "nil log", ctx: context.Background(), model: "godj_conformance.article", id: 1, limit: 1},
@@ -227,9 +226,9 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 		{
 			name: "create",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (registryArticle, error) {
+				config.Create = func(context.Context, auth.Principal, formmodel.BoundForm, InlineSubmission) (MutationResult, error) {
 					*called = true
-					return registryArticle{title: "Created"}, nil
+					return MutationResult{ID: 0}, nil
 				}
 			},
 			run: func(model registeredModel, form forms.Form) error {
@@ -240,9 +239,9 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 		{
 			name: "update",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (registryArticle, []string, error) {
+				config.Update = func(context.Context, auth.Principal, Mutation, formmodel.BoundForm, InlineSubmission) (MutationResult, []string, error) {
 					*called = true
-					return registryArticle{id: 2, title: "Updated"}, []string{"title"}, nil
+					return MutationResult{ID: 2}, []string{"title"}, nil
 				}
 			},
 			run: func(model registeredModel, form forms.Form) error {
@@ -253,9 +252,9 @@ func TestRegisteredMutationSuccessWithInvalidPostconditionRequiresReconciliation
 		{
 			name: "delete",
 			mutate: func(config *ModelConfig[registryArticle], called *bool) {
-				config.Delete = func(context.Context, auth.Principal, Mutation) (registryArticle, error) {
+				config.Delete = func(context.Context, auth.Principal, Mutation) (MutationResult, error) {
 					*called = true
-					return registryArticle{id: 2, title: "Deleted"}, nil
+					return MutationResult{ID: 2}, nil
 				}
 			},
 			run: func(model registeredModel, _ forms.Form) error {
@@ -302,16 +301,15 @@ func TestRegisteredGetAllowsSpacedExistingInitialWhileMutationUsesCleanedValue(t
 		return registryArticle{id: 1, title: existing}, true, nil
 	}
 	var received string
-	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (registryArticle, []string, error) {
+	config.Update = func(_ context.Context, _ auth.Principal, mutation Mutation, bound formmodel.BoundForm, _ InlineSubmission) (MutationResult, []string, error) {
 		values, inputErr := bound.Input()
 		if inputErr != nil {
-			var zero registryArticle
-			return zero, nil, inputErr
+			return MutationResult{}, nil, inputErr
 		}
 
 		id := mutation.ID
 		received, _ = values.String("title")
-		return registryArticle{id: id, title: received}, []string{"title"}, nil
+		return MutationResult{ID: id}, []string{"title"}, nil
 	}
 	model := buildHardeningModel(t, config)
 	record, found, err := model.get(context.Background(), mustPrincipal(t), 1)

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
@@ -48,7 +49,7 @@ func TestArticleCompositionSharesResetPolicyAndNativePersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	keys, err := identity.NewPasswordResetKeyRing(bytes.Repeat([]byte{39}, 32))
+	keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{39}, 32))
 	if err != nil {
 		t.Fatal(err)
 	}

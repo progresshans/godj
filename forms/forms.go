@@ -233,10 +233,19 @@ func WithTrimWhitespace(trim bool) FieldOption {
 
 // WithStringNormalizer supplies a pure string conversion after whitespace
 // handling and before required/length/field validation. It is only supported
-// for unenumerated Char fields and must be safe for concurrent Spec use.
+// for string fields, including static choices, and must be safe for concurrent
+// Spec use. Choice input preserves whitespace before this explicit transform;
+// the transformed string is matched against unchanged choice values.
 // It never rewrites raw redisplay input or initial model values.
 func WithStringNormalizer(normalize func(string) string) FieldOption {
 	return fieldOption(func(config *fieldConfig) { config.normalizeString, config.hasStringNormalizer = normalize, true })
+}
+
+// WithMaxInputBytes bounds submitted string bytes before whitespace handling
+// or a normalizer callback. Zero leaves the field limit unset. Initial values
+// and omission defaults are not submitted input.
+func WithMaxInputBytes(maximum int) FieldOption {
+	return fieldOption(func(config *fieldConfig) { config.maxInputBytes, config.hasMaxInputBytes = maximum, true })
 }
 
 // WithEmptyValue selects Null or the empty string for optional string input.
@@ -267,6 +276,8 @@ type fieldConfig struct {
 	hasAllowEmptyFile   bool
 	normalizeString     func(string) string
 	hasStringNormalizer bool
+	maxInputBytes       int
+	hasMaxInputBytes    bool
 	trimWhitespace      bool
 	hasTrimWhitespace   bool
 	label               string
@@ -296,6 +307,7 @@ type Field struct {
 	imageLimits        uploads.ImageLimits
 	allowEmptyFile     bool
 	normalizeString    func(string) string
+	maxInputBytes      int
 	trimWhitespace     bool
 	name               string
 	label              string
@@ -393,8 +405,11 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 	if config.hasAllowEmptyFile && (!fileFieldKind(kind) || config.choices != nil) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".allow_empty_file", Code: "unsupported"}
 	}
-	if config.hasStringNormalizer && (!stringFieldKind(kind) || config.normalizeString == nil || config.choices != nil || config.modelChoice) {
+	if config.hasStringNormalizer && (!stringFieldKind(kind) || config.normalizeString == nil || config.modelChoice) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".normalizer", Code: "invalid"}
+	}
+	if config.maxInputBytes < 0 || config.hasMaxInputBytes && !stringFieldKind(kind) {
+		return Field{}, &ConfigError{Path: "fields." + name + ".max_input_bytes", Code: "invalid"}
 	}
 	if config.hasTrimWhitespace && !stringFieldKind(kind) {
 		return Field{}, &ConfigError{Path: "fields." + name + ".trim_whitespace", Code: "unsupported"}
@@ -605,6 +620,7 @@ func makeField(name string, kind FieldKind, config fieldConfig) (Field, error) {
 		allowEmptyFile:     config.allowEmptyFile,
 		imageLimits:        config.imageLimits,
 		normalizeString:    config.normalizeString,
+		maxInputBytes:      config.maxInputBytes,
 		trimWhitespace:     config.trimWhitespace,
 		name:               name,
 		label:              config.label,
@@ -656,6 +672,7 @@ func (f Field) EmptyValue() (Value, bool) { return f.emptyValue, stringFieldKind
 func (f Field) Required() bool            { return f.required }
 func (f Field) Nullable() bool            { return f.nullable }
 func (f Field) MaxLength() int            { return f.maxLength }
+func (f Field) MaxInputBytes() int        { return f.maxInputBytes }
 
 func (f Field) TrimWhitespace() bool { return f.trimWhitespace }
 
@@ -1000,6 +1017,10 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 	if len(submitted) > 1 && field.kind != FieldIntegerList {
 		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "multiple"))
 	}
+	if field.maxInputBytes > 0 && len(submitted) == 1 && len(submitted[0]) > field.maxInputBytes {
+		return Null(), validation.NewErrors(validation.New(validation.Field(field.name), "max_bytes",
+			validation.NewParam("max_bytes", strconv.Itoa(field.maxInputBytes))))
+	}
 	if field.inlineParent {
 		if len(submitted) == 0 || submitted[0] == "" || !field.defaultValue.IsNull() && submitted[0] == modelChoiceInitial(field.defaultValue) {
 			return field.defaultValue, validation.Errors{}
@@ -1023,6 +1044,9 @@ func cleanField(field Field, data Data) (Value, validation.Errors) {
 		if field.modelChoice {
 			value, code = cleanModelChoice(field, raw)
 		} else {
+			if field.normalizeString != nil {
+				raw = field.normalizeString(raw)
+			}
 			value, code = cleanChoice(field, raw)
 		}
 		if code != "" {
@@ -1267,6 +1291,9 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 	if len(submitted) > 1 {
 		return true
 	}
+	if field.maxInputBytes > 0 && len(submitted) == 1 && len(submitted[0]) > field.maxInputBytes {
+		return true
+	}
 	if field.modelChoice {
 		raw := ""
 		if present && len(submitted) == 1 {
@@ -1278,6 +1305,9 @@ func fieldChanged(field Field, data Data, initial Value) bool {
 		raw := ""
 		if present && len(submitted) == 1 {
 			raw = submitted[0]
+		}
+		if field.normalizeString != nil {
+			raw = field.normalizeString(raw)
 		}
 		if raw == "" {
 			if stringFieldKind(field.kind) {

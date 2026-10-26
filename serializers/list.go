@@ -9,10 +9,14 @@ func (spec Spec) DecodeList(document []byte, limits Limits) ([]Object, error) {
 	if !spec.valid {
 		return nil, invalidConfig("spec", "serializer spec is zero or invalid")
 	}
-	value, err := decodeDocumentAt(document, limits, spec.jsonFieldNames(), false, 2)
+	value, err := decodeObjectDocument(document, limits, &objectDecoderNode{jsonFields: spec.jsonFieldNames()}, false, true)
 	if err != nil {
 		return nil, err
 	}
+	return decodedObjectList(value)
+}
+
+func decodedObjectList(value Value) ([]Object, error) {
 	if value.kind != ValueList {
 		return nil, invalidDocument("document", "top-level JSON value must be an array of objects", nil)
 	}

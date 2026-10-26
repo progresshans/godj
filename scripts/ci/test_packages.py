@@ -11,6 +11,8 @@ class PackagePartitionTests(unittest.TestCase):
     def test_slow_process_and_conformance_have_separate_owners(self):
         for relative, expected in {
             'orm': 'core', 'db/sqlite': 'core', 'codegen': 'core',
+            'account/domain': 'core', 'account/domain/models': 'core',
+            'account/audit': 'core', 'account/audit/models': 'core',
             'internal/testschema': 'core', 'codegen/consumertest': 'integration',
             'api/openapi': 'core', 'api/openapi/consumertest': 'integration',
             'api/openapi/consumertest/helpers': 'integration',
@@ -241,6 +243,24 @@ class ExecutionOwnerTests(unittest.TestCase):
                 self.assertTrue(relation_owned(relative) or relative in supplemental,
                                 'required test belongs to another execution owner')
 
+    def test_required_core_inventory_has_its_existing_portable_owner(self):
+        from packages import selected
+        from workflow import JOBS
+        root = Path(__file__).resolve().parents[2]
+        entries = (root / 'scripts/ci/portable-core-required.txt').read_text().splitlines()
+        self.assertTrue(entries)
+        self.assertEqual(len(entries), len(set(entries)))
+        packages = []
+        for entry in entries:
+            package, name = entry.split('|')
+            self.assertTrue(package.startswith(MODULE))
+            self.assertTrue(name.startswith('Test'))
+            self.assertEqual('core', group(package))
+            if package not in packages:
+                packages.append(package)
+        self.assertEqual(packages, selected(packages, 'core', JOBS))
+        self.assertEqual([], selected(packages, 'relation', JOBS))
+
     def test_postgres_child_sentinels_select_their_enclosing_tests(self):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / '.github/workflows/ci.yml').read_text()
@@ -254,6 +274,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         self.assertTrue(child_only)
         coordinates = [('normal', 'core', '30m'), ('normal', 'operator-target', '18m'),
                        ('race', 'core', '18m'), ('race', 'core-helpdesk-postgres', '18m'),
+                       ('race', 'core-postgres-1', '18m'), ('race', 'core-postgres-2', '18m'),
                        ('race', 'core-consumers', '30m'),
                        ('race', 'core-consumer-writes', '30m'),
                        ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),
@@ -313,10 +334,11 @@ class ExecutionOwnerTests(unittest.TestCase):
     def test_generated_relation_fixtures_have_exactly_one_execution_owner(self):
         from packages import selected
         from workflow import JOBS
-        for family, apps in [('onetoonefixture', ('tickets', 'reports')), ('cascadefixture', ('parents', 'details'))]:
+        for family, apps in [('onetoonefixture', ('tickets', 'reports')), ('cascadefixture', ('parents', 'details')),
+                             ('accountdeletefixture', ('people', 'access', 'links', 'tickets'))]:
             prefix = 'conformance/' + family
             consumers = [MODULE + relative for relative in (
-                prefix, prefix + '/' + apps[0], prefix + '/' + apps[1],
+                prefix, *(prefix + '/' + app for app in apps),
                 prefix + '/project', prefix + '/cmd/projectrunner',
             )]
             adjacent = MODULE + prefix + 'helper'

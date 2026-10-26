@@ -499,7 +499,10 @@ func TestWorkflowSharedLinuxOwnersKeepSentinelsAndTheSameEnvironment(t *testing.
 	relation := ciJob(t, jobs, "relation-product-matrix")
 	ciRequire(t, "relation execution owner", relation, "scripts/ci/packages.py relation", "--required", "--packages", "--no-skips", `"$PORTABLE_COVERED" != true`)
 	makefile := ciRead(t, "Makefile")
-	for target, mode := range map[string]string{"go-test-conformance": "normal", "go-race-conformance": "race", "cgo-zero-build-conformance": "cgo0"} {
-		ciRequire(t, "portable conformance owner", ciMakeTarget(t, makefile, target), "scripts/ci/conformance_tests.py "+mode)
+	for _, group := range []string{"core", "conformance"} {
+		for prefix, mode := range map[string]string{"go-test-": "normal", "go-race-": "race", "cgo-zero-build-": "cgo0"} {
+			ciRequire(t, "portable "+group+" owner", ciMakeTarget(t, makefile, prefix+group), "scripts/ci/portable_tests.py "+group+" "+mode)
+		}
 	}
+	ciRequire(t, "portable evidence", portable, "GODJ_PORTABLE_EVIDENCE_DIR: ${{ runner.temp }}/portable-go", "Publish portable test evidence", "path: ${{ runner.temp }}/portable-go/", "if-no-files-found: error")
 }

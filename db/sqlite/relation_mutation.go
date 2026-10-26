@@ -41,7 +41,28 @@ func compileRelationSetNull(plan query.RelationSetNullPlan) (string, []any, erro
 	if err != nil {
 		return "", nil, err
 	}
-	return "UPDATE " + table + " SET " + column + " = NULL WHERE " + column + " = ?", []any{argument}, nil
+	statement, arguments := "UPDATE "+table+" SET "+column+" = NULL WHERE "+column+" = ?", []any{argument}
+	primary, keys, collected := plan.CollectedRows()
+	if collected {
+		if primary.Name() == "" || strings.ContainsRune(primary.Name(), '\x00') || primary.Kind() != query.FieldInteger || primary.Nullable() ||
+			primary.Name() == foreignKey.Name() || primary.Column() == foreignKey.Column() || len(keys) == 0 || len(keys) > query.MaximumRelationSetNullRows {
+			return "", nil, invalidPlan("collected relation SET_NULL requires a distinct integer primary key and a bounded nonempty row set")
+		}
+		keyColumn, err := quoteIdentifier(primary.Column())
+		if err != nil {
+			return "", nil, err
+		}
+		seen := make(map[int64]bool, len(keys))
+		for _, key := range keys {
+			if seen[key] {
+				return "", nil, invalidPlan("collected relation SET_NULL repeats a source row")
+			}
+			seen[key] = true
+			arguments = append(arguments, key)
+		}
+		statement += " AND " + keyColumn + " IN (" + strings.TrimSuffix(strings.Repeat("?, ", len(keys)), ", ") + ")"
+	}
+	return statement, arguments, nil
 }
 
 func executeCompiledRelationSetNull(

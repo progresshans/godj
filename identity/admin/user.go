@@ -110,82 +110,80 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 			return userRow{value, true}, err == nil, operationError(err)
 		},
 		Snapshot: userSnapshot, Initial: func(value userRow) (map[string]forms.Value, error) { return userInitial(value.UserDetails), nil },
-		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (userRow, error) {
+		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero userRow
-				return zero, inputErr
+				return admin.MutationResult{}, inputErr
 			}
 
 			principalID, err := a.principalID(ctx)
 			if err != nil {
-				return userRow{}, err
+				return admin.MutationResult{}, err
 			}
 			created, err := creationForm.Create(ctx, actor, principalID, values)
-			return userRow{created, true}, operationError(err)
+			return admin.MutationResult{ID: created.ID, Revision: created.Revision}, operationError(err)
 		},
-		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (userRow, []string, error) {
+		Update: func(ctx context.Context, p auth.Principal, m admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
-				var zero userRow
-				return zero, nil, inputErr
+				return admin.MutationResult{}, nil, inputErr
 			}
 
 			before, err := a.manager.User(ctx, p, m.ID)
 			if err != nil {
-				return userRow{}, nil, operationError(err)
+				return admin.MutationResult{}, nil, operationError(err)
 			}
 			if err := checkRevision(m.Revision, before.Revision); err != nil {
-				return userRow{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			patch, err := userPatch(values)
 			if err != nil {
-				return userRow{}, nil, err
+				return admin.MutationResult{}, nil, err
 			}
 			after, err := a.manager.UpdateUser(ctx, p, m.ID, m.Revision, patch)
 			if err != nil {
-				return userRow{}, nil, operationError(err)
+				return admin.MutationResult{}, nil, operationError(err)
 			}
-			return userRow{after, true}, changedFields(userFields, userInitial(before), userInitial(after)), nil
+			return admin.MutationResult{ID: after.ID, Revision: after.Revision}, changedFields(userFields, userInitial(before), userInitial(after)), nil
 		},
-		Delete: func(ctx context.Context, p auth.Principal, m admin.Mutation) (userRow, error) {
+		Delete: func(ctx context.Context, p auth.Principal, m admin.Mutation) (admin.MutationResult, error) {
 			before, err := a.manager.User(ctx, p, m.ID)
 			if err != nil {
-				return userRow{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
 			if err := checkRevision(m.Revision, before.Revision); err != nil {
-				return userRow{}, err
+				return admin.MutationResult{}, err
 			}
 			_, err = a.manager.DeleteUser(ctx, p, m.ID, m.Revision, a.deletions.Users)
 			if err != nil {
-				return userRow{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
-			return userRow{before, true}, nil
+			return admin.MutationResult{ID: before.ID, Revision: before.Revision}, nil
 		},
 		History: func(ctx context.Context, p auth.Principal, id int64, r admin.HistoryRequest) ([]admin.AuditEntry, error) {
 			entries, err := a.manager.UserHistory(ctx, p, id, r.Limit)
 			return entries, operationError(err)
 		},
-		Commands: []admin.CommandConfig{{Name: "password", Label: "Change password", Permission: identity.ChangeUser, Form: passwordSpec, Run: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (admin.CommandResult, error) {
+		Commands: []admin.CommandConfig{{Name: "password", Label: "Change password", Permission: identity.ChangeUser, Form: passwordSpec, Run: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (admin.MutationResult, error) {
 			password, ok := values.String("password1")
 			if !ok {
-				return admin.CommandResult{}, invalidInput()
+				return admin.MutationResult{}, invalidInput()
 			}
 			profile, err := a.manager.SetPassword(ctx, p, m.ID, m.Revision, password)
 			if err != nil {
-				return admin.CommandResult{}, passwordError(err)
+				return admin.MutationResult{}, passwordError(err)
 			}
-			return admin.CommandResult{ID: profile.ID, Revision: profile.Revision}, nil
-		}}, {Name: "disable-password", Label: "Disable password login", Permission: identity.ChangeUser, Form: disableSpec, Run: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (admin.CommandResult, error) {
+			return admin.MutationResult{ID: profile.ID, Revision: profile.Revision}, nil
+		}}, {Name: "disable-password", Label: "Disable password login", Permission: identity.ChangeUser, Form: disableSpec, Run: func(ctx context.Context, p auth.Principal, m admin.Mutation, values forms.Values) (admin.MutationResult, error) {
 			confirmed, ok := values.Boolean("confirm")
 			if !ok || !confirmed {
-				return admin.CommandResult{}, invalidInput()
+				return admin.MutationResult{}, invalidInput()
 			}
 			profile, err := a.manager.SetUnusablePassword(ctx, p, m.ID, m.Revision)
 			if err != nil {
-				return admin.CommandResult{}, operationError(err)
+				return admin.MutationResult{}, operationError(err)
 			}
-			return admin.CommandResult{ID: profile.ID, Revision: profile.Revision}, nil
+			return admin.MutationResult{ID: profile.ID, Revision: profile.Revision}, nil
 		}}},
 	})
 }

@@ -104,7 +104,7 @@ func prepareCollectionCommands(configs []CollectionCommandConfig, model register
 		}
 		command := registeredCollectionCommand{name: config.Name, label: config.Label, permissions: permissions, form: config.Form, formFor: formFor, choiceSources: slices.Clone(config.RelatedChoices)}
 		command.run = func(ctx context.Context, principal auth.Principal, submitted forms.Form) (CollectionCommandResult, error) {
-			if err := validatePrincipalRead(ctx, principal, model.permissions); err != nil {
+			if err := validatePrincipalRead(ctx, principal, model.permissions, model.additionalPermissions...); err != nil {
 				return CollectionCommandResult{}, err
 			}
 			for _, permission := range permissions {
