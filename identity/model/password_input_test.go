@@ -18,6 +18,9 @@ func TestPasswordDiagnosticOriginSurvivesOnlyConfirmedCompletion(t *testing.T) {
 		t.Fatal("private validation cause became a credential rejection")
 	}
 	password := credentialPasswordRejection(passwordPolicyDiagnostics(validation.NewErrors(validation.New("password", "weak"), validation.New(validation.NonField, "policy"))))
+	if errors.Unwrap(password) != nil {
+		t.Fatal("credential provenance became an execution cause")
+	}
 	model := validation.Reject(validation.NewErrors(validation.New("password", "model_choice")), nil)
 	if failures, ok := PasswordInputDiagnostics(password); !ok || failures.Len() != 2 || failures.ByField("password").Len() != 1 {
 		t.Fatal("password origin lost")

@@ -1667,6 +1667,40 @@ Unknown 주입은 native commit 뒤 acknowledgement 오류이며 실제 네트�
 새 단위·DB/HTTP·race/process/platform·전체 generated drift를 함께 확인한다. 기존 고정 Manager host 교체·공개 CLI/scaffold·통합 runtime·profile 관계/파일·채운 DB 전환·
 설치/restart·독립 PostgreSQL HTTP/브라우저와 고정 Django 수용 대조 및 전체 카탈로그의 잔여 범위를 유지한다.
 
+### 통합 JSON CI의 namespace와 password 진단 출처 수정
+
+2026-10-27, 통합 source `f6e6948a61579d0f3985747bba86e08e08422a5d`의
+[CI 40367728195](https://github.com/progresshans/godj/actions/runs/40367728195)에서 두 결함을 확인했다.
+`NewManagement`가 잘못된 namespace를 생성 시 거부하지 않았고, password 진단 출처를 error cause로 표현한 변경이 기존의
+원인 없는 입력 거부 계약을 깨뜨렸다. Linux arm64 normal과 amd64 normal/CGO0 runtime, PostgreSQL race native job에서
+같은 실패를 관측했다. 네 job의 checkout은 `f8eb898800755abc30de746704dd119405611f3d`이며 부모에 제출 source가 있고,
+tree `e5c527a0f8151e6b38595e93a296b32d55a44a77`도 제출 source와 같다. 이는 전체 실행의 종결이나 PASS가 아니다.
+
+API namespace는 설치 app label과 같은 canonical SQL identifier 문법으로 준비 시 확인한다. `validation.RejectionOrigin`은
+직접 입력 거부에 producer identity를 진단 metadata로 붙이며 실행 원인을 만들지 않는다. Password owner만 자기 origin을
+보유하고 `PasswordInputDiagnostics`로 식별한다. 공통 snapshot/transaction 완료 판정에서 password marker 예외를 제거해
+원인 없는 정확한 callback 오류만 보존하는 기존 규칙으로 돌아갔다. 다른 producer·unmarked·private cause·wrapped/joined·
+cleanup은 해당 origin의 입력 진단으로 인식하지 않는다. 원인을 갖는 callback 실패를 새로 입력 오류로 바꾸지 않는다.
+
+확인된 실패의 제품 파일 네 개를 `f6e6948a` bytes의 임시 overlay로 읽어 동일 조건을 로컬에서 재현했다. Namespace root는
+namespace child와 함께 실패했고, 실제 SQLite의 password admission은 empty·byte_limit·policy_rejection·hash_invalid_input
+네 child에서 동일한 원인 없는 오류 검사를 실패했다. 수정 source로 같은 두 명령을 실행한 결과 각각 root/child 6개씩,
+합계 12개 pass event, fail/skip 0개를 확인했다. SQLite 검사에는 저장·세션·감사 보존, hash/write 횟수와 올바른 password origin
+확인도 포함한다. 이 한정 재현을 PostgreSQL/race나 나머지 HTTP/CLI·전체 수용의 완료로 계산하지 않는다.
+
+새 origin의 producer 분리·직접/추가 owner·cause 구분을 root/child 9개로 Portable core에 추가해 247→256개다.
+Relation 4,408·PostgreSQL core 5,506개와 기존 namespace/양 DB 필수 실행은 유지한다. 새 origin 단위 본문은 로컬에서 실행하지
+않았으며 validation·identity/model 두 package의 `go test -run '^$'` 최소 compile을 확인했다(feature body 0).
+포맷·diff·244개 문서 링크·필수 목록과 실행 전후 source hash를 대조했다. CI 원본 네 log, arm64 runtime의 원본 artifact
+`12671493803`(ZIP SHA-256 `156185274873d9bec91da257c4382a091a629483f58cba13f5a61e179e4d1d06`),
+overlay·재현/수정 JSON·최소 compile·source hash는 검증 보관소 `gdj0138-json-origin-fix-v1/receipt.json`에 연결했다
+(SHA-256 `4bcb8cd85b935d9b48bc401328af128bf0d0aec53bc4aa5dbc9c13ebc0a81904`).
+
+선행 #8의 [CI 40349451482](https://github.com/progresshans/godj/actions/runs/40349451482)는 중복 실행 취소로 종결했다.
+122개 job의 성공 91·실패 2·취소 29이며 실패는 macOS Intel race 실행과 최종 집계다. 전체 성공으로 기록하지 않는다.
+미해결 macOS 과정과 이번 수정의 양 DB·race·process·생성 소비자는 최신 #1 source의 자동 전체 CI에서 계속 확인한다.
+첫 계정 공개 터미널/상위 process·scaffold/runtime 및 I1과 전체 기능 카탈로그의 미완료 범위는 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -1444,8 +1444,10 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 AccountManagement의 `InputSpec`은 add/change의 노출 안에서 전체 모델 source와 역할 정규화·원문 한도를 보존한다.
 모델 입력은 `fields` 객체이며 생성과 password 명령의 `credential.password`는 별도 typed 객체다. Password는 trim·정규화하지
 않고 명시적 null만 사용 불가 요청이다. 실제 프로필 `password`는 `fields.password`로 유지한다. 명령의 확정된 직접 입력 거부는
-`PasswordInputDiagnostics`의 비공개 provenance로 식별한다. Creator와 관리자 password owner가 명령 단계에서만 표시하며,
-확정 snapshot/rollback 뒤에만 그대로 반환한다. 공유 자기 변경/reset의 진단 의미를 바꾸거나 wrapped/joined 실패를 입력으로 낮추지 않는다.
+`PasswordInputDiagnostics`가 확인하는 비공개 `validation.RejectionOrigin`으로 식별한다. 출처는 진단 metadata이며 error cause가
+아니다. Creator와 관리자 password owner가 명령 단계에서만 표시하고, 공통 scope는 기존의 원인 없는 정확한 callback 거부만
+확정 snapshot/rollback 뒤 그대로 반환한다. 출처별 예외를 transaction 판정에 추가하지 않는다. 공유 자기 변경/reset의 진단 의미를
+바꾸거나 wrapped/joined·private callback·cleanup 실패를 입력으로 낮추지 않는다.
 
 인증·CSRF·복합 권한은 경로/query·If-Revision·body보다 먼저 적용한다. 조회는 view 또는 change 및 전체 추가 권한,
 계정 생성은 add+change 및 전체 추가 권한이다. Catalog 생성과 다른 쓰기도 owner의 operation/추가 권한을 사용하며

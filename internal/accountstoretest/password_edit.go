@@ -253,6 +253,9 @@ func passwordAdminAdmission(t *testing.T, backend Backend, reopen func(*testing.
 				if diagnostics, rejected := validation.Rejected(err); !rejected || diagnostics.ByField("password").Empty() || errors.Unwrap(err) != nil {
 					t.Fatal("safe password diagnostics lost", err)
 				}
+				if diagnostics, password := accountmodel.PasswordInputDiagnostics(err); !password || diagnostics.ByField("password").Empty() {
+					t.Fatal("confirmed password rejection lost its command origin")
+				}
 			} else {
 				requireProfileCode(t, err, code)
 				if _, rejected := validation.Rejected(err); rejected {

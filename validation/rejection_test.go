@@ -34,3 +34,46 @@ func TestRejectedDoesNotHideAdditionalErrorOwnersOrRollbackFailures(t *testing.T
 		}
 	}
 }
+
+func TestRejectionOriginPreservesCauseFreeDirectDiagnostics(t *testing.T) {
+	origin, other := new(RejectionOrigin), new(RejectionOrigin)
+	diagnostics := NewErrors(New("password", "policy"))
+	marked := origin.Reject(diagnostics)
+	if errors.Unwrap(marked) != nil {
+		t.Fatal("diagnostic provenance is an execution cause")
+	}
+	if got, ok := Rejected(marked); !ok || got.Len() != 1 {
+		t.Fatal("ordinary input handling lost marked diagnostics")
+	}
+	for _, test := range []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"same", marked, true},
+		{"other", other.Reject(diagnostics), false},
+		{"unmarked", Reject(diagnostics, nil), false},
+		{"private_cause", Reject(diagnostics, errors.New("private")), false},
+		{"wrapped", fmt.Errorf("owner: %w", marked), false},
+		{"joined", errors.Join(marked), false},
+		{"cleanup", errors.Join(marked, errors.New("cleanup")), false},
+		{"nil", nil, false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, ok := origin.Diagnostics(test.err)
+			if ok != test.want || got.Empty() == test.want {
+				t.Fatal("origin crossed a producer or execution boundary")
+			}
+		})
+	}
+	var zero *RejectionOrigin
+	if _, ok := zero.Diagnostics(marked); ok || zero.Reject(diagnostics) == nil || origin.Reject(Errors{}) != nil {
+		t.Fatal("nil origin or empty diagnostics changed input semantics")
+	}
+	got, _ := origin.Diagnostics(marked)
+	copy := got.All()
+	copy[0] = New("other", "other")
+	if first, _ := diagnostics.At(0); first.Field() != "password" {
+		t.Fatal("origin returned mutable diagnostics")
+	}
+}

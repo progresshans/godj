@@ -9,14 +9,9 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-// passwordInputOrigin marks a confirmed credential-input rejection without
-// changing its field diagnostics. It is provenance, not an execution failure.
 // A model may have an unrelated profile field literally named "password".
-type passwordInputOrigin struct{ marker byte }
-
-func (*passwordInputOrigin) Error() string { return "credential input rejected" }
-
-var passwordInputSource = &passwordInputOrigin{}
+// Keep credential provenance separate from the error's execution cause.
+var passwordInputOrigin = new(validation.RejectionOrigin)
 
 // PasswordInputDiagnostics identifies only a directly returned, confirmed
 // creation or administrative password rejection. It never searches wrapped
@@ -24,8 +19,7 @@ var passwordInputSource = &passwordInputOrigin{}
 // Transport adapters can place these diagnostics in their command namespace
 // without confusing a real model field with the same name.
 func PasswordInputDiagnostics(err error) (validation.Errors, bool) {
-	diagnostics, rejected := validation.Rejected(err)
-	return diagnostics, rejected && errors.Unwrap(err) == passwordInputSource
+	return passwordInputOrigin.Diagnostics(err)
 }
 
 func passwordInputError(code validation.Code) error {
@@ -34,7 +28,7 @@ func passwordInputError(code validation.Code) error {
 
 func credentialPasswordRejection(err error) error {
 	if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
-		return validation.Reject(diagnostics, passwordInputSource)
+		return passwordInputOrigin.Reject(diagnostics)
 	}
 	return err
 }

@@ -21,7 +21,7 @@ func creationSnapshot(ctx context.Context, backend db.SnapshotReader, read func(
 	type observation struct{ rejection error }
 	observed, err := db.ReadSnapshotResult(ctx, backend, func(work context.Context, scope db.Queryer) (observation, error) {
 		failure := read(work, scope)
-		if _, rejected := validation.Rejected(failure); rejected && (errors.Unwrap(failure) == nil || errors.Unwrap(failure) == passwordInputSource) {
+		if _, rejected := validation.Rejected(failure); rejected && errors.Unwrap(failure) == nil {
 			return observation{failure}, nil
 		}
 		if classified, ok := failure.(*Error); ok && classified.Unwrap() == nil && (classified.Code == CodePermission || classified.Code == CodeNotFresh) {

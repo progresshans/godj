@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/api/parameters"
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/internal/identifiers"
 	"github.com/progresshans/godj/serializers"
 	"github.com/progresshans/godj/web"
 )
@@ -51,6 +52,9 @@ func NewManagement[M, G, P any](account *accountmodel.AccountManagement[M], cata
 			return nil, err
 		}
 		config.Namespace = description.Identity.AppLabel
+	}
+	if !identifiers.SQL(config.Namespace) {
+		return nil, selectedConfigError("namespace", nil)
 	}
 	if config.BasePath == "" {
 		config.BasePath = BasePath
