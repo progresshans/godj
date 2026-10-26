@@ -13,8 +13,8 @@
 
 1. 최신 #1 source의 전체 CI에서 기존 macOS Intel race 실패와 새 관리 JSON의 필수 실행을 확인한다.
    실행 원본과 판정은 TEST_EVIDENCE에 둔다.
-2. [관리 JSON HTTP](../../identity/api/README.md)의 생성 소비자·실패 경로를 원격 CI에서 검증하고,
-   최초 계정의 공개 터미널/상위 프로세스·scaffold를 선택 runtime에 조립한다.
+2. [관리 JSON HTTP](../../identity/api/README.md)와 선택 계정의 터미널/상위 process·생성 소비자를 원격 CI에서 검증한다.
+   최초 계정의 공개 CLI entry point·독립 migration 설치·scaffold를 선택 runtime에 함께 조립한다.
 3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치·통합 restart의 남은 요구를 완성한다.
 
 ## 검증 경계

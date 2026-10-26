@@ -1,0 +1,198 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
+	"example.com/godj-project-bundle/modeldef"
+	selectedmodel "{{.ModelImport}}"
+	"example.com/godj-project-bundle/project"
+	audit "github.com/progresshans/godj/account/audit"
+	"github.com/progresshans/godj/account/domain"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	defaultmodel "github.com/progresshans/godj/identity/models"
+	defaultproject "github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/project/command"
+	"github.com/progresshans/godj/project/compatibility"
+	"github.com/progresshans/godj/project/firstaccount"
+	"github.com/progresshans/godj/query"
+	sessiondb "github.com/progresshans/godj/sessions/database"
+	"github.com/progresshans/godj/settings/database"
+)
+
+const provisionArgument = {{.ProvisionArgument}}
+const profileField = {{.Profile}}
+const rawPassword = "parent-private-password"
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	brokenPipe := make(chan os.Signal, 1)
+	signal.Notify(brokenPipe, syscall.SIGPIPE)
+	defer signal.Stop(brokenPipe)
+	if handled, err := compatibility.Serve(ctx, os.Args[1:], os.Stdout); handled {
+		if err != nil { os.Exit(1) }
+		return
+	}
+	if len(os.Args) == 2 && os.Args[1] == "init" {
+		if err := initialize(ctx); err != nil { fail("initialize") }
+		return
+	}
+	if len(os.Args) == 4 && os.Args[1] == "inspect" {
+		if err := inspect(ctx, os.Args[2], os.Args[3]); err != nil { fail("inspect") }
+		return
+	}
+	selected, err := selectedCommand()
+	if err != nil { fail("declaration") }
+	registry, err := command.New(command.Config{FirstAccount: selected})
+	if err != nil { fail("registry") }
+	if len(os.Args) == 2 && os.Args[1] == provisionArgument && os.Getenv("GODJ_PARENT_MODE") == "response_loss" {
+		_ = os.Stdout.Close()
+	}
+	if err := registry.Serve(ctx, os.Args[1:], command.Streams{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}); err != nil {
+		os.Exit(command.ExitCode(err))
+	}
+}
+
+func fail(stage string) {
+	_, _ = os.Stderr.WriteString("parent fixture failed: " + stage + "\n")
+	os.Exit(1)
+}
+
+func open(ctx context.Context) (database.Backend, error) {
+	selected, err := database.SQLite(os.Getenv("GODJ_PARENT_DATABASE"))
+	if err != nil { return nil, err }
+	return database.Open(ctx, selected)
+}
+
+func trace(event string) error {
+	file, err := os.OpenFile(os.Getenv("GODJ_PARENT_TRACE"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+	if err != nil { return err }
+	_, writeErr := file.WriteString(event + "\n")
+	return errors.Join(writeErr, file.Close())
+}
+
+type backend struct { database.Backend; mode string }
+
+func (value *backend) Close() error {
+	err := errors.Join(value.Backend.Close(), trace("close"))
+	if value.mode == "cleanup" { return errors.Join(err, errors.New("private cleanup failure")) }
+	return err
+}
+
+// These probes surround real native operations. Unknown is injected after a
+// real commit, and cleanup failure after the actual close; neither is a claimed
+// network-loss or driver-close experiment.
+func (value *backend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	native, ok := value.Backend.(db.CoordinatedRelationAtomic)
+	if !ok { return errors.New("native relation backend missing") }
+	err := native.CoordinatedAtomicRelation(ctx, write)
+	if err == nil && value.mode == "unknown" { return &query.Error{Code: query.CodeCommitOutcomeUnknown} }
+	return err
+}
+
+func selectedCommand() (firstaccount.Command, error) {
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
+	if err != nil { return firstaccount.Command{}, err }
+	acquire := func(ctx context.Context) (firstaccount.Backend, error) {
+		opened, err := open(ctx)
+		if err != nil { return nil, err }
+		if err := trace("open"); err != nil { return nil, errors.Join(err, opened.Close()) }
+		return &backend{Backend: opened, mode: os.Getenv("GODJ_PARENT_MODE")}, nil
+	}
+	if os.Getenv("GODJ_PARENT_MODE") == "foreign" {
+		foreign, err := defaultproject.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[defaultmodel.User]{
+			CreationPolicy: accountmodel.CreationPolicy[defaultmodel.User]{Fields: []string{"username"}, MaxPasswordBytes: 64}, EvidenceSHA256: strings.Repeat("f", 64),
+		})
+		if err != nil { return firstaccount.Command{}, err }
+		return firstaccount.New(foreign, acquire)
+	}
+	binding, err := project.BindAccount()
+	if err != nil { return firstaccount.Command{}, err }
+	role, err := binding.Role()
+	if err != nil { return firstaccount.Command{}, err }
+	selected, err := project.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[selectedmodel.{{.ModelType}}]{
+		CreationPolicy: accountmodel.CreationPolicy[selectedmodel.{{.ModelType}}]{Fields: []string{role.Login, profileField}, MaxPasswordBytes: 64},
+		EvidenceSHA256: strings.Repeat("d", 64),
+	})
+	if err != nil { return firstaccount.Command{}, err }
+	return firstaccount.New(selected, acquire)
+}
+
+func initialize(ctx context.Context) (result error) {
+	opened, err := open(ctx)
+	if err != nil { return err }
+	defer func() { result = errors.Join(result, opened.Close()) }()
+	spec, err := modeldef.ProjectSpec(ctx)
+	if err != nil { return err }
+	sources := domain.MigrationSources()
+	sources = append(sources, audit.MigrationSources()...)
+	sources = append(sources, sessiondb.MigrationSources()...)
+	var previous *migrations.MigrationKey
+	for _, app := range spec.Apps {
+		migration := migrations.Migration{App: app.Schema.AppLabel, Name: "0001_initial"}
+		if previous != nil { migration.Dependencies = []migrations.MigrationKey{*previous} }
+		for _, model := range app.Schema.Models { migration.Operations = append(migration.Operations, migrations.CreateModel{AppLabel: app.Schema.AppLabel, Model: model}) }
+		document, err := definition.Encode(definition.Producer{Name: "first-account-parent-consumer", Version: "1"}, migration)
+		if err != nil { return err }
+		sources = append(sources, definition.Source{SourceID: app.Schema.AppLabel + "/0001_initial", Document: document})
+		key := migrations.MigrationKey{App: app.Schema.AppLabel, Name: "0001_initial"}
+		previous = &key
+	}
+	loaded, _, err := definition.Load(sources...)
+	if err != nil { return err }
+	if _, err := (migrations.Executor{Backend: opened}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil { return err }
+	command, err := selectedCommand()
+	if err != nil { return err }
+	description, err := command.Description()
+	if err != nil { return err }
+	document, err := json.Marshal(description)
+	if err != nil { return err }
+	return os.WriteFile(os.Getenv("GODJ_PARENT_DESCRIPTION"), document, 0600)
+}
+
+func inspect(ctx context.Context, status, operation string) (result error) {
+	opened, err := open(ctx)
+	if err != nil { return err }
+	defer func() { result = errors.Join(result, opened.Close()) }()
+	store, err := project.NewAccountSessionStore(opened, sessiondb.Config{})
+	if err != nil { return err }
+	observed, err := store.InspectStartup(ctx)
+	if err != nil { return err }
+	binding, err := project.BindAccount()
+	if err != nil { return err }
+	objects, err := binding.Objects()
+	if err != nil { return err }
+	rows, err := objects.Using(opened).All(ctx)
+	if err != nil { return err }
+	if status == "fresh" {
+		if !observed.Fresh() || observed.Ready() || len(rows) != 0 || observed.AuditEvents() != 0 || observed.SessionRecords() != 0 { return errors.New("unexpected fresh state") }
+		return nil
+	}
+	if status != "created" || !observed.Ready() || observed.Fresh() || len(rows) != 1 || observed.AuditEvents() != 1 || observed.SessionRecords() != 0 { return errors.New("unexpected created state") }
+	role, err := binding.Role()
+	if err != nil { return err }
+	values, err := objects.ModelValues(rows[0])
+	if err != nil { return err }
+	login, _ := values[role.Login].String()
+	profile, _ := values[profileField].String()
+	if login != "parent@example.test" || profile != "NZ" { return errors.New("selected model values changed") }
+	receipt, err := domain.Lookup(ctx, opened, operation)
+	if err != nil || receipt.OperationID() != operation || receipt.Sequence() != 1 || receipt.RoleFingerprint() != observed.Ownership().RoleFingerprint() { return errors.New("parent operation receipt lost") }
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
+	if err != nil { return err }
+	verifier, err := store.Authenticator(ctx, hasher)
+	if err != nil { return err }
+	credential, err := verifier.Authenticate(ctx, login, rawPassword)
+	if err != nil || !credential.Principal().Active() || !credential.Principal().Staff() || !credential.Principal().Superuser() { return errors.New("selected account cannot authenticate") }
+	return nil
+}

@@ -256,9 +256,11 @@ func removeLastCreatesuperuserInputRune(input []byte) []byte {
 	if utf8.Valid(input) {
 		_, size := utf8.DecodeLastRune(input)
 		if size > 0 {
+			clear(input[len(input)-size:])
 			return input[:len(input)-size]
 		}
 	}
+	input[len(input)-1] = 0
 	return input[:len(input)-1]
 }
 

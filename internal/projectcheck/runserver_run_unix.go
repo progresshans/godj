@@ -92,6 +92,9 @@ type preparedProjectRuntime struct {
 	command *projectCommand[RunServerFailure]
 	binary  string
 	source  *runserverSource
+	// The independently decoded declaration that owns the checked generated
+	// bundle. Account command parents compare their runtime description with it.
+	projectSpec codegen.ProjectSpec
 }
 
 func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string, target runtimeTarget, report *RunServerReport) (preparedProjectRuntime, *RunServerFailure) {
@@ -151,6 +154,7 @@ func prepareProjectRuntime(input RunServerInvocation, explicitDescriptor string,
 		candidate := RunServerFailure{Category: response.Failure.Category, Code: response.Failure.Code}
 		return prepared, &candidate
 	}
+	prepared.projectSpec = response.ProjectSpec
 	if !verifyRetainedProject(selected) {
 		candidate := RunServerFailure{Category: RunServerCategorySelection, Code: RunServerCodeProjectSelectionFailed}
 		return prepared, &candidate

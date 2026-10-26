@@ -92,6 +92,7 @@ const (
 	SQLMigrateRunnerStage
 	CompatibilityStage
 	RunserverInventoryStage
+	FirstAccountDescriptionStage
 )
 
 // Command is a fully separated argv invocation. It is never interpreted by a

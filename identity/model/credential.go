@@ -3,10 +3,12 @@ package model
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/internal/projectspec"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -19,6 +21,33 @@ func (binding Binding[M]) RoleFingerprint() (string, error) {
 		return "", invalidAccountCredential()
 	}
 	return hex.EncodeToString(binding.state.roleFingerprint[:]), nil
+}
+
+// RoleFingerprint identifies a normalized selection without binding a Go type
+// or acquiring resources. Process parents use it to compare a runtime's typed
+// declaration with the selected project IR. It is metadata, not write authority
+// or proof that a descriptor implements the selected model's capabilities.
+func RoleFingerprint(role ir.AccountRole, schemas ...ir.Schema) (string, error) {
+	if err := projectspec.ValidateProjectResources(schemas, &role); err != nil {
+		return "", err
+	}
+	normalized, err := ir.NormalizeAccountRole(role, schemas...)
+	if err != nil {
+		return "", err
+	}
+	digest, err := normalizedRoleFingerprint(normalized)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(digest[:]), nil
+}
+
+func normalizedRoleFingerprint(role ir.AccountRole) ([sha256.Size]byte, error) {
+	encoded, err := json.Marshal(role)
+	if err != nil {
+		return [sha256.Size]byte{}, err
+	}
+	return sha256.Sum256(append([]byte("godj.account-role.v1\x00"), encoded...)), nil
 }
 
 // CredentialDomain derives the authentication namespace from this exact role

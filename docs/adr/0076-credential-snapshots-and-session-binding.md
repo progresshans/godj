@@ -1194,8 +1194,8 @@ Command는 명시적인 opener를 한 번 호출하되 실제 자원과 오류�
 `command.Config.FirstAccount`는 생성 모델을 import할 수 있는 별도 명령 runtime에 위 선언을 연결한다.
 `Registry.Serve`는 `project/firstaccount/runner`의 private 선언 조회와 최초 생성 dispatch를 일반 command handler,
 argv 값 파싱·로그·출력 proxy와 분리한다. 선언용 project runner에 생성 package를 import시키지 않는다.
-선언 조회는 실제 typed Description을 반환하며 stdin을 읽거나 DB를 연결하지 않는다. 아직 공개 `createsuperuser`와
-scaffold runtime을 이 경로로 전환한 것은 아니며, 실제 터미널/소유 process·공통 HTTP/Admin 설치는 남아 있다.
+선언 조회는 실제 typed Description을 반환하며 stdin을 읽거나 DB를 연결하지 않는다. 아래의 상위 process가 이 경로를
+사용한다. 공개 `createsuperuser` entry point와 scaffold/runtime·공통 HTTP/Admin 설치의 일괄 전환은 아직 남아 있다.
 
 현재 private v2 wire의 단일 binary frame은 선언 fingerprint·상위 process가 먼저 보관한 operation ID·정확한 순서의
 scalar 이름/존재 여부/값·raw password를 포함한다. 전체 bytes·개별 길이·중복·UTF-8/NUL scalar·EOF를 검사한 뒤
@@ -1214,6 +1214,31 @@ close·writer와 오류 분류 callback은 panic/Goexit를 포함한 defer 종�
 확정 commit 뒤 응답을 못 쓰면 process는 private exit 86, close까지 실패하면 87을 보존한다. Entry point는
 `command.ExitCode`를 사용하고 Serve가 반환할 때까지 SIGPIPE 처리를 유지한다. 상위 process는 완전한 단일 request
 전달·프로세스 종료 근거와 함께 판정해야 하며 이 exit 값만으로 임의 child의 성공을 만들지 않는다.
+
+### 선택 계정의 터미널과 상위 process
+
+`internal/projectcheck.RunFirstAccount`는 보관한 프로젝트 descriptor의 `commands_package`를 사용한다.
+선언용 runner와 생성 모델을 사용하는 runtime을 각각 빌드하고 ABI를 확인하며, 전체 생성 bundle의 현행 source를
+입력 전에 검사한다. 실제 runtime Description의 전체 schema source와 정규화한 선택 role fingerprint를 선언용
+`ProjectSpec`과 대조한다. `identity/model.RoleFingerprint`는 이 대조를 위한 순수 metadata이며 typed binding이나
+쓰기 권한을 대신하지 않는다. 일치하지 않으면 TTY를 읽거나 기본 User로 우회하지 않는다.
+
+TTY는 실제 선언 순서의 scalar·static choice와 비밀번호를 한도 안에서 읽는다. 기본값/선택 필드의 생략은 별도 질문으로
+명시하여 빈 문자열을 제출한 경우와 구분한다. 터미널에서 값의 정규화나 model validation을 다시 구현하지 않으며,
+runtime의 실제 ModelForm이 이를 수행한다. 같은 터미널로 보낼 때만 profile을 echo하고 비밀번호는 echo하지 않는다.
+비밀번호 확인은 원문 bytes를 비교한다. 삭제한 rune 저장 영역·실패 입력·전달 frame을 비우고 terminal 상태를 복구하며,
+redirect된 진단 출력에는 입력값을 보관하지 않는다.
+
+상위 process는 입력 후 새 operation ID를 확보하고 동일 runtime에 private frame을 한 번 전달한다. Pipe 용량보다 큰
+frame도 취소/interrupt와 고정된 쓰기 기한을 관측한다. Pipe를 닫아 쓰기를 해제한 뒤 writer를 join하고 그 다음 bytes를
+비운다. 선언 조회와 생성 child의 출력은 각각 한도를 가진 별도 process 단계다. 원문 진단은 버리고 direct child와
+process group·출력 reader의 종료 및 project/workspace 정리를 끝낸 뒤 닫힌 JSON 결과 한 번을 게시한다.
+
+완전한 한 번의 전달과 같은 operation의 엄격한 응답만 결과를 확정한다. 전달 완료 후 응답 유실·종료/정리 관측 불일치는
+`unknown`으로 유지하며, canonical runtime의 정상 private exit 86/87은 확정 생성과 응답/정리 실패를 보존한다.
+이미 확정된 결과 뒤에 취소·source 검사·계정 재조회로 성공을 지우지 않는다. 결과에는 operation ID·상태·코드와 별도
+cleanup 여부만 남긴다. 자동 재시도나 임의 adoption을 하지 않는다. 이 owner의 구현과 실제 생성 소비자 검사는
+공개 CLI/scaffold·독립 migration 설치·HTTP/Admin 통합 기동과 별도로 판정한다.
 
 ## 선택 계정의 프로필과 역할 통합 편집
 

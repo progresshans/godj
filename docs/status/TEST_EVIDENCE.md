@@ -1701,6 +1701,41 @@ overlay·재현/수정 JSON·최소 compile·source hash는 검증 보관소 `gd
 미해결 macOS 과정과 이번 수정의 양 DB·race·process·생성 소비자는 최신 #1 source의 자동 전체 CI에서 계속 확인한다.
 첫 계정 공개 터미널/상위 process·scaffold/runtime 및 I1과 전체 기능 카탈로그의 미완료 범위는 유지한다.
 
+### 선택 계정의 터미널·상위 process와 생성 소비자
+
+2026-10-27, 통합 source `8c92b60245a347c387392032f421d68865ee7408` 위에서 `RunFirstAccount`를 작성했다.
+두 실제 ABI probe와 전체 generated bundle 검사 뒤 typed Description의 schema source·정규화한 role fingerprint를
+ProjectSpec과 대조한다. 실제 TTY의 profile/default 생략·빈 값·static choice·password 확인과 상태 복구, operation ID를
+보관한 한 번의 private pipe 전달·큰 frame·취소/쓰기 기한·writer join·버퍼 해제, 엄격한 동일 operation 응답과 private
+exit 86/87, 정리 뒤 한 번의 공개 결과를 연결한다. 확정 생성과 unknown·정리/출력 실패를 구분하고 자동 재시도하지 않는다.
+
+실제 PTY의 입력/오류/복구, 큰 private frame을 읽는 실제 child와 읽지 않는 child의 종료·reap, partial/중복/불일치 전달과
+다른 operation 응답, 준비 실패·source/role 변경·입력 해제·늦은 취소·출력 실패를 검사하는 본문을 추가했다. 상위 orchestration
+단위 검사의 prepare/process hook과 실제 OS 소비자의 범위를 구분한다. 기본/custom 외부 생성 module은 실제 선언용 runner와
+typed runtime을 빌드하고 두 ABI·전체 bundle·TTY·native SQLite를 연결한다. Source 거부·DB 전 profile 검증·첫 생성·재생성
+거부와 재접속한 실제 계정/인증/domain receipt/audit/session을 대조하도록 작성했다. Unknown은 실제 native commit 뒤,
+cleanup은 실제 Close 뒤 오류를 주입하며 응답 유실은 해당 provision child의 stdout을 닫는다. 이를 실제 DB 네트워크
+단절·driver Close 오류 실험이라고 주장하지 않는다.
+
+로컬에서는 `identity/model`, `internal/projectcheck`, `codegen/consumertest` 세 package의 `go test -run '^$'` 최소 compile과,
+실제 기본/custom fixture를 생성한 두 외부 module의 같은 compile을 확인했다. 외부 module의 선언용/명령 main과 모든 생성
+package가 compile됐지만 runtime·TTY·DB·새 테스트 본문은 실행하지 않았다. 저장소 밖 임시 overlay helper는 생성/compile만
+수행했다. 그 뒤 native 호출의 누락된 command 인자를 읽기 검토로 보완하고 테스트 실패 시 process join을 정리했으며,
+변경한 package의 최종 compile도 통과했다. 외부 module 생성 함수/템플릿은 compile 때와 같다.
+
+Relation 필수 항목은 role fingerprint root와 기본/custom root·각 일곱 child를 추가하여 4,408→4,425개다. Portable core
+256·PostgreSQL core 5,506개는 유지한다. 새 native SQLite 소비자를 PostgreSQL 수용으로 계산하지 않는다. 내부 process/TTY
+검사는 기존 Product project check의 전체 package 실행에 속한다. 포맷·diff·244개 문서 링크·필수 목록의 package/root 소유권과
+최종 compile 전후 비문서 17개 source hash를 확인했다. 명령·원본 log·compile-only overlay·source는 검증 보관소
+`gdj0138-first-account-parent-v1/receipt.json`에 연결했다
+(SHA-256 `0800ac2dfb487e78621f25f34225c5ff87647c690dd24b15ecb220d7887b2d8b`).
+
+선행 `8c92b602`의 [CI 40373508209](https://github.com/progresshans/godj/actions/runs/40373508209)는 2026-10-27
+03:49 KST 조회 시 119개 job 중 성공 76·실행 중 10·대기 33·실패 0이었다. 이는 전체 완료나 새 parent source의 실행 결과가
+아니다. 이 묶음을 PR #1 작업 브랜치에 통합한 뒤 자동 전체 CI에서 새 본문·기존 legacy process 회귀·양 DB·race·platform과
+기존 macOS Intel race 실패를 확인한다. 공개 CLI entry point·독립 migration 설치·scaffold/runtime의 일괄 전환과 나머지
+I1-01~08·전체 카탈로그 요구는 미완료로 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -311,6 +311,16 @@ revision·PUT 생략/default·no-op·password와 세션 폐기·삭제/audit, na
 자기 비활성화 receipt를 확인하도록 필수 실행에 연결했다. 생성·최소 compile은 새 본문 실행과 다르며 PostgreSQL 독립 HTTP,
 기존 고정 Manager host 교체와 통합 기동은 아직 남아 있다. 실제 결과와 소스 경계는 TEST_EVIDENCE에 기록한다.
 
+선택 계정의 상위 `RunFirstAccount`는 실제 명령 runtime의 typed Description을 보관한 ProjectSpec의 전체 source·role과
+대조한 뒤 TTY를 읽는다. 생략/default와 빈 입력·static choice·원문 password를 보존하고, 새 operation ID와 한 번의
+bounded private pipe 전달·취소/기한·writer join·버퍼 해제·terminal 복구를 연결한다. 같은 operation의 응답이나
+canonical private exit로 확정 생성·unknown·정리/출력 실패를 구분하며, project/process 정리 뒤 결과를 한 번 게시한다.
+
+실제 생성 기본/custom 프로젝트에서 선언용 runner와 typed runtime의 두 ABI·전체 generated bundle·TTY·native SQLite를
+연결하는 소비자를 작성했다. 다른 source의 입력 전 거부·DB 전 profile validation, 첫 생성·중복 거부·재접속한 계정/감사/
+operation receipt, 실제 commit 뒤 unknown·close/응답 실패를 검사하도록 필수 목록에 넣었다. Typed opener 앞뒤의 fault
+probe는 실제 네트워크 단절 실험과 구분한다. 작성·최소 compile과 본문/환경 실행의 결과는 TEST_EVIDENCE에 기록한다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP의 환경별 수용,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.

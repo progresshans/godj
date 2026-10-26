@@ -36,6 +36,40 @@ func credentialRow() models.User {
 	return row
 }
 
+func TestDeclaredRoleFingerprintMatchesTypedOwnerWithoutChangingInput(t *testing.T) {
+	definition, err := modeldef.Schema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	role := modeldef.AccountRole()
+	before, _ := json.Marshal(role)
+	typed, err := credentialBinding(t, role).RoleFingerprint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	declared, err := accountmodel.RoleFingerprint(role, definition)
+	if err != nil || declared != typed {
+		t.Fatal("declaration and typed owner disagree", err)
+	}
+	after, _ := json.Marshal(role)
+	if string(before) != string(after) {
+		t.Fatal("declaration fingerprint mutated the selection")
+	}
+	changed := role.Clone()
+	staff := true
+	changed.Staff = ir.AccountBoolean{Constant: &staff}
+	if digest, err := accountmodel.RoleFingerprint(changed, definition); err != nil || digest == declared {
+		t.Fatal("different role reused account identity", err)
+	}
+	changed.Password = "missing"
+	if digest, err := accountmodel.RoleFingerprint(changed, definition); err == nil || digest != "" {
+		t.Fatal("invalid role received an identity")
+	}
+	if digest, err := accountmodel.RoleFingerprint(role); err == nil || digest != "" {
+		t.Fatal("missing model source received an identity")
+	}
+}
+
 func TestAccountCredentialTracksRoleAndOwnershipGeneration(t *testing.T) {
 	binding := credentialBinding(t, modeldef.AccountRole())
 	generation := [sha256.Size]byte{1}

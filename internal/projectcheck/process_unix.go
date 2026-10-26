@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/internal/gobuild"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
@@ -43,6 +44,8 @@ func ownedResponseProcessPolicyForStage(stage ProcessStage) (ownedResponseProces
 	switch stage {
 	case CompatibilityStage:
 		return ownedResponseProcessPolicy{stdoutMaximum: compatibility.MaxBytes, stderrMaximum: maxDiagnosticBytes, grace: ownedProcessGrace}, true
+	case FirstAccountDescriptionStage:
+		return ownedResponseProcessPolicy{stdoutMaximum: firstaccountwire.MaxDescriptionResponseBytes, stderrMaximum: maxDiagnosticBytes, grace: ownedProcessGrace}, true
 	case MigrateRunnerStage:
 		return ownedResponseProcessPolicy{
 			stdoutMaximum: migrateprotocol.MaxResponseBytes,

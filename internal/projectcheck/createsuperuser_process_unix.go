@@ -111,6 +111,14 @@ type createsuperuserProcessHooks struct {
 	beforeTerminalReturn func()
 }
 
+// Each live operator protocol supplies its own bounds and strict completion
+// parser. The shared owner never infers persistence from arbitrary JSON or a
+// successful child exit. Submitted bytes stay outside the generic Backend.
+type sensitiveProcessPolicy struct {
+	requestMaximum, responseMaximum int
+	completedResponse               func([]byte) bool
+}
+
 type createsuperuserProcessDrain struct {
 	stdout bool
 	prefix []byte
@@ -158,6 +166,18 @@ func executeOwnedCreatesuperuserProcessWithHooks(
 	grace time.Duration,
 	hooks createsuperuserProcessHooks,
 ) createsuperuserProcessResult {
+	return executeOwnedSensitiveProcess(ctx, interrupt, command, request, grace, hooks, sensitiveProcessPolicy{
+		requestMaximum: createsuperuserprotocol.MaxRequestBytes, responseMaximum: createsuperuserprotocol.MaxResponseBytes,
+		completedResponse: func(document []byte) bool {
+			_, _, failed := createsuperuserprotocol.ParseResponse(document, true)
+			return !failed
+		},
+	})
+}
+
+func executeOwnedSensitiveProcess(ctx context.Context, interrupt <-chan struct{}, command createsuperuserProcessCommand,
+	request []byte, grace time.Duration, hooks createsuperuserProcessHooks, policy sensitiveProcessPolicy,
+) createsuperuserProcessResult {
 	result := createsuperuserProcessResult{exitCode: -1}
 	requestCleared := false
 	clearRequest := func() {
@@ -173,10 +193,11 @@ func executeOwnedCreatesuperuserProcessWithHooks(
 	}
 	defer clearRequest()
 
-	if ctx == nil || len(command.argv) == 0 || command.argv[0] == "" || grace <= 0 {
+	if ctx == nil || len(command.argv) == 0 || command.argv[0] == "" || grace <= 0 ||
+		policy.requestMaximum <= 0 || policy.responseMaximum <= 0 || policy.completedResponse == nil {
 		return result
 	}
-	if len(request) == 0 || len(request) > createsuperuserprotocol.MaxRequestBytes {
+	if len(request) == 0 || len(request) > policy.requestMaximum {
 		result.failure = createsuperuserProcessFailure(createsuperuserprotocol.CodeSensitiveInputTransportFailed)
 		return result
 	}
@@ -250,7 +271,7 @@ func executeOwnedCreatesuperuserProcessWithHooks(
 		defer drainers.Done()
 		drains <- drainCreatesuperuserProcessStream(
 			stdoutReader,
-			createsuperuserprotocol.MaxResponseBytes,
+			policy.responseMaximum,
 			true,
 			overflows,
 		)
@@ -289,7 +310,7 @@ func executeOwnedCreatesuperuserProcessWithHooks(
 			hooks.beforeRequestWrite()
 		}
 		result.requestWriteAttempts = 1
-		written, writeErr := writer(stdinWriter, request)
+		written, writeErr := writeSensitiveProcessRequest(ctx, interrupt, stdinWriter, request, grace, writer)
 		if written >= 0 && written <= len(request) {
 			result.requestBytesWritten = written
 		}
@@ -299,8 +320,11 @@ func executeOwnedCreatesuperuserProcessWithHooks(
 		if closeErr != nil && !errors.Is(closeErr, os.ErrClosed) {
 			result.cleanupFailed = true
 		}
-		if !completeWrite || closeErr != nil {
-			primary = createsuperuserProcessFailure(createsuperuserprotocol.CodeSensitiveInputTransportFailed)
+		if !completeWrite || closeErr != nil && !errors.Is(closeErr, os.ErrClosed) {
+			primary = pendingCreatesuperuserProcessFailure(ctx, interrupt)
+			if primary == nil {
+				primary = createsuperuserProcessFailure(createsuperuserprotocol.CodeSensitiveInputTransportFailed)
+			}
 		} else {
 			requestWriteComplete = true
 		}
@@ -437,6 +461,7 @@ func executeOwnedCreatesuperuserProcessWithHooks(
 		outputLimitExceeded,
 		child.Process.Pid,
 		result,
+		policy.completedResponse,
 	) {
 		primary = nil
 	}
@@ -464,6 +489,7 @@ func createsuperuserCancellationCompletedWithResponse(
 	outputLimitExceeded bool,
 	processGroup int,
 	result createsuperuserProcessResult,
+	completedResponse func([]byte) bool,
 ) bool {
 	if primary == nil || primary.Category != createsuperuserprotocol.CategoryProcess ||
 		(primary.Code != createsuperuserprotocol.CodeProjectCanceled &&
@@ -475,8 +501,39 @@ func createsuperuserCancellationCompletedWithResponse(
 		runserverProcessGroupExists(processGroup) {
 		return false
 	}
-	_, _, responseFailed := createsuperuserprotocol.ParseResponse(result.response, true)
-	return !responseFailed
+	return completedResponse(result.response)
+}
+
+// A selected profile frame can exceed the OS pipe capacity. One synchronous
+// write would prevent the owner from observing cancellation while a child did
+// not read. Closing our pipe releases that write; join it before clearing any
+// request bytes. The fixed write deadline also bounds an unresponsive child
+// when the invocation itself has no deadline.
+func writeSensitiveProcessRequest(ctx context.Context, interrupt <-chan struct{}, pipe *os.File, request []byte,
+	grace time.Duration, write func(io.Writer, []byte) (int, error),
+) (int, error) {
+	if err := pipe.SetWriteDeadline(time.Now().Add(grace)); err != nil {
+		return 0, err
+	}
+	type completion struct {
+		written int
+		err     error
+	}
+	finished := make(chan completion, 1)
+	go func() {
+		written, err := write(pipe, request)
+		finished <- completion{written, err}
+	}()
+	var result completion
+	select {
+	case result = <-finished:
+		return result.written, result.err
+	case <-ctx.Done():
+	case <-interrupt:
+	}
+	_ = pipe.Close()
+	result = <-finished
+	return result.written, result.err
 }
 
 func queuedCreatesuperuserProcessOverflow(overflows <-chan struct{}) bool {
