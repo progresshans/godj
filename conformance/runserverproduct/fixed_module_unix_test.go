@@ -117,7 +117,7 @@ func TestGlobalFixedModuleInstallationCompatibility(t *testing.T) {
 	if count.Stdout != "0\n" {
 		t.Fatal("fresh fixed module project has unexpected groups", count.Stdout)
 	}
-	const username, password = "fixed-module-admin", "Fixed-Module-734!private"
+	const username, password = "fixed-module-admin", "Quartz-Canyon-962!private"
 	descriptor := filepath.Join(project, "godj.toml")
 	provisionRunserverOperator(t, tools[0], project, descriptor, environment, username, password)
 	assertRunserverWorkspaceEmpty(t, workspace)

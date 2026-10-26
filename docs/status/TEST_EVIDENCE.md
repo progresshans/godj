@@ -1882,6 +1882,29 @@ SYS-028만 이전 함수의 관측으로 대체하면 기존 1,082,315 bytes와
 이 묶음도 통합 PR #1에 push해 전체 CI를 자동 실행한다. 새 독립 PostgreSQL HTTP·남은 고정 소비자 전환,
 profile 관계/파일·선택 모델-as-through 생성·채운 DB mapping/retirement·복구와 I1-01~08 전체 수용은 계속 추적한다.
 
+### 공개 OpenAPI 소비자와 고정 module 설치의 후속 CI 정합성
+
+2026-10-27, source `48f6dc6f481b9ea524d6692d994a1c55ec2dc6e3`의
+[CI 40408172936](https://github.com/progresshans/godj/actions/runs/40408172936)에서 외부 OpenAPI 문서와 고정 module 최초 계정
+fixture의 불일치를 확인했다. 실제 checkout `fc29b7f713a94ec5a7d08e0a700c263203d25249`, tree
+`d74b2583181d9d876d89327936e9e9f253775f52`는 제출 source와 같다. 보관한 중간 상태는 성공 61·실패 9·실행 중 13·대기 36으로,
+전체 PASS가 아니다. 대표 job `121872300846`·`121872300852`·`121872300783`의 원본을 보존했다.
+
+실제 선언에서 여섯 OpenAPI 문서를 다시 내보냈다. 차이는 Article bearer/session 각각 PUT·PATCH·DELETE·bulk create의
+403 설명 네 개뿐이다. 두 profile을 고정 ogen **v1.24.0**으로 다시 생성했으며 Go 파일은 모두 기존과 byte-identical이다.
+나머지 네 profile과 `go.mod`·`go.sum`·`ogen.yml`도 변하지 않았다. 설명 문서 두 개만 반영한 뒤 기존
+`TestGeneratedOpenAPIClientContract`가 여섯 package의 재생성·정확한 파일 집합·독립 module build·실제 HTTP와 부모 DB 검사를 통과했다.
+
+고정 module의 기존 fixture 비밀번호는 실제 typed validator에서 `password_too_similar`로 거부됐다. 기본 정책은 유지하고
+관련 없는 입력으로 바꿨다. `TestGlobalFixedModuleInstallationCompatibility`의 같은 실패를 수정 전 재현한 뒤 수정 후 통과했다.
+두 고정 module을 실제 설치하고 각 버전의 세 연결·양방향 다섯 명령의 호환성 거부, 최초 계정·인증된 재시작과 저장 group 보존을
+확인했다. 두 실패 root만 로컬 darwin/arm64 normal에서 재실행했으며 skip은 없다. CI 기한·분할·필수 목록은 바꾸지 않았다.
+
+검증 보관소 `gdj0138-ci48-repairs-v1/receipt.json`이 전후 JSON·원본 job log·source patch와 세 변경 파일 hash,
+문서 delta·고정 생성기/잠금 파일 대조·실제 password 진단을 연결한다
+(SHA-256 `9b1c8c1a617052bdb056e5ba04370a0b372475158627c93fb0d2078469820c79`).
+새 source의 전체 환경과 I1 수용은 다음 자동 CI에서 계속 확인하며 이 한정 수정 결과를 전체 수용으로 계산하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
