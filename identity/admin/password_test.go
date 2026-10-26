@@ -82,6 +82,17 @@ func TestSelectedAccountPasswordCommandsPreservePrivateInputsAndPolicy(t *testin
 	}
 }
 
+func TestSelectedCreationPreservesARealPasswordProfileDiagnostic(t *testing.T) {
+	model := validation.Reject(validation.NewErrors(validation.New("password", "profile_policy")), nil)
+	if result := selectedPasswordInputError(model, "password2_command"); result != model {
+		t.Fatal("model password field was reassigned to a credential command")
+	}
+	wrapped := errors.Join(model, errors.New("private cleanup"))
+	if result := selectedPasswordInputError(wrapped, "password2_command"); result != wrapped {
+		t.Fatal("wrapped failure became input validation")
+	}
+}
+
 func TestSelectedAccountPasswordErrorMappingKeepsOuterFailure(t *testing.T) {
 	for _, test := range []struct {
 		source accountmodel.ErrorCode

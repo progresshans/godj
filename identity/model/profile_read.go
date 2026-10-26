@@ -114,9 +114,10 @@ func (reader *ProfileReader[M]) ListFields() []string {
 // It is an observation, not authority for another read or write.
 type Profile[M any] struct{ state *profileData[M] }
 type profileData[M any] struct {
-	view     orm.ModelView[M]
-	id       int64
-	revision int64
+	view           orm.ModelView[M]
+	id             int64
+	revision       int64
+	passwordUsable bool
 }
 
 func (Profile[M]) Format(state fmt.State, _ rune) {
@@ -133,6 +134,12 @@ func (profile Profile[M]) Revision() int64 {
 		return 0
 	}
 	return profile.state.revision
+}
+
+// PasswordUsable is public credential-state metadata observed in the same
+// authorized snapshot. No encoded password or session material is retained.
+func (profile Profile[M]) PasswordUsable() bool {
+	return profile.state != nil && profile.state.passwordUsable
 }
 func (profile Profile[M]) View() orm.ModelView[M] {
 	if profile.state == nil {
@@ -277,7 +284,8 @@ func (reader *ProfileReader[M]) target(ctx context.Context, scope db.Queryer, id
 
 func (reader *ProfileReader[M]) project(namespace auth.CredentialDomain, row M, permissions []auth.Permission) (Profile[M], error) {
 	binding := reader.state.store.state.binding
-	if _, err := binding.prepareCredentialForDomain(namespace, row, permissions); err != nil {
+	credential, err := binding.prepareCredentialForDomain(namespace, row, permissions)
+	if err != nil {
 		return Profile[M]{}, err
 	}
 	values, err := binding.state.objects.ModelValues(row)
@@ -297,7 +305,7 @@ func (reader *ProfileReader[M]) project(namespace auth.CredentialDomain, row M, 
 	if !present || !integer {
 		return Profile[M]{}, invalidAccountCredential()
 	}
-	return Profile[M]{state: &profileData[M]{view: view, id: id, revision: revision}}, nil
+	return Profile[M]{state: &profileData[M]{view: view, id: id, revision: revision, passwordUsable: credential.HasUsablePassword()}}, nil
 }
 
 func profileSnapshot[M, T any](ctx context.Context, reader *ProfileReader[M], actor auth.Principal, read func(context.Context, db.Queryer, auth.CredentialDomain) (T, bool, error)) (T, error) {

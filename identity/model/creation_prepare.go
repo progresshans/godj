@@ -188,13 +188,8 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 		if err := errors.Join(failure, validateAuthorityScope(ctx, validator)); err != nil {
 			return err
 		}
-		for _, diagnostic := range diagnostics.All() {
-			if diagnostic.Field() != "password" && diagnostic.Field() != validation.NonField {
-				return managementError(CodeInvalidConfig, nil)
-			}
-		}
-		if !diagnostics.Empty() {
-			return validation.Reject(diagnostics, nil)
+		if err := passwordPolicyDiagnostics(diagnostics); err != nil {
+			return credentialPasswordRejection(err)
 		}
 	}
 	if err := validateAuthorityScope(ctx, validator); err != nil {

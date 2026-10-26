@@ -1,7 +1,9 @@
 # GDJ-0138: 사용자 정의 계정과 계정 수명
 
 - 상태: I1 구현 중 — C1 수용 확인 후 주 작업 전환
-- 구현: [PR #8](https://github.com/progresshans/godj/pull/8)의 `codex/custom-account-lifecycle` 작업트리
+- 통합: [PR #8](https://github.com/progresshans/godj/pull/8)의 source를 고정해 전체 CI를 확인한 뒤
+  [PR #1](https://github.com/progresshans/godj/pull/1) 작업 브랜치에 합친다. 후속 관리 JSON은
+  `feature/account-management-json`에서 준비하며 검증 중인 #8에 새 기능을 계속 누적하지 않는다.
 - 시작: 2026-10-24
 - 출발 source: `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`
 - 선행: A1·F1·C1의 완료 근거는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
@@ -296,9 +298,20 @@ source에 생성/조회/수정/삭제/비밀번호 owner를 묶고 명시적 rea
 관리 Form·최초 계정 command·기본/custom 생성 소비자에 연결하고 OpenAPI에는 변환 전/후 제약을 구분해 기술했다.
 실제 generated 기본/custom 생성·최초 계정 module의 최소 compile을 확인했으며 새 본문과 환경별 수용은 원격 확인 대상이다.
 선행 CI의 PostgreSQL race·두 macOS 소비자 조합에서 관측한 누적 timeout은 기존 기한/필수 실행을 유지한 분할로 보완했다.
-구체적인 원본·소스·한정 검증은 TEST_EVIDENCE에 기록하며, 공통 관리 JSON CRUD와 공개 CLI 조립은 남아 있다.
+구체적인 원본·소스·한정 검증은 TEST_EVIDENCE에 기록하며, 공개 CLI 조립은 남아 있다.
 
-프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP 제품 조립,
+`identityapi.NewManagement`는 실제 AccountManagement/Catalog의 명시적 노출·전체 권한·수명 owner를 22개 JSON 경로와
+OpenAPI에 연결한다. 모델 `fields`와 `credential` 명령을 구분하고 역할 정규화·원문 한도·PUT default/collection 생략,
+signed key·If-Revision·현재 domain 이력을 같은 선언으로 표현한다. 읽기는 선택 ModelView만 제공하고 password 사용 가능
+여부도 같은 snapshot에서 관측한다. 쓰기는 확정 ID/revision만 반환하여 자기 비활성화·세션 폐기 뒤 재조회로 성공을 잃지 않는다.
+실제 모델 프로필이 `password`인 경우도 credential-origin 진단과 구분하며 rollback/cleanup/unknown의 실패 경계를 유지한다.
+
+기본/custom 일곱 생성 변형에 실제 TCP·cookie/CSRF·SQLite 소비자를 작성했다. 생성과 로그인·명시적 조회·권한/CSRF/예약 입력·
+revision·PUT 생략/default·no-op·password와 세션 폐기·삭제/audit, native rollback·확정 commit 뒤 unknown·snapshot cleanup 실패·
+자기 비활성화 receipt를 확인하도록 필수 실행에 연결했다. 생성·최소 compile은 새 본문 실행과 다르며 PostgreSQL 독립 HTTP,
+기존 고정 Manager host 교체와 통합 기동은 아직 남아 있다. 실제 결과와 소스 경계는 TEST_EVIDENCE에 기록한다.
+
+프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP의 환경별 수용,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.
 

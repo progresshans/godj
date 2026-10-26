@@ -174,10 +174,10 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 				prepared, err = creator.Prepare(ctx, actor, input, raw)
 			}
 			if err != nil {
-				return admin.MutationResult{}, passwordInputError(err, passwords.confirm)
+				return admin.MutationResult{}, selectedPasswordInputError(err, passwords.confirm)
 			}
 			result, err := creator.Commit(ctx, actor, prepared)
-			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, passwordInputError(err, passwords.confirm)
+			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, selectedPasswordInputError(err, passwords.confirm)
 		},
 		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			input, err := formmodel.PrepareInput(objects, bound)

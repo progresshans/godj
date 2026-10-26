@@ -30,6 +30,10 @@ func TestGeneratedAccountAdminLifecycle(t *testing.T) {
 	firstDefaultAccount(t, firstProfileInput{present: true, text: "NZ", expected: "NZ"}, "management")
 }
 
+func TestGeneratedAccountManagementJSON(t *testing.T) {
+	firstDefaultAccount(t, firstProfileInput{present: true, text: "NZ", expected: "NZ"}, "json")
+}
+
 func firstDefaultAccount(t *testing.T, profile firstProfileInput, adminMode string) {
 	t.Helper()
 	binding, err := project.BindAccount()
@@ -41,6 +45,9 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput, adminMode stri
 		t.Fatal(err)
 	}
 	backend, selected := accountDatabaseWithConfig(t, models.GoDjRelationSchema())
+	if adminMode == "json" {
+		backend = &managementJSONBackend{Backend: backend}
+	}
 	hasher, _ := accountPassword(t)
 	definition, err := project.NewFirstAccountDefinition(hasher, firstConsumerConfig[models.User](role, "first_name"))
 	if err != nil {
@@ -64,6 +71,10 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput, adminMode stri
 	}
 	if adminMode == "management" {
 		assertAccountAdminHTTP(t, backend, binding, sessions, hasher, row, "first_name", "", "", project.NewAccountManagement, project.NewAccountCatalog)
+		return
+	}
+	if adminMode == "json" {
+		assertAccountManagementJSON(t, backend, binding, sessions, hasher, row, "first_name", "", "", project.NewAccountManagement, project.NewAccountCatalog)
 		return
 	}
 	t.Run("admin_catalog", func(t *testing.T) {

@@ -301,10 +301,10 @@ func (creator *Creator[M]) prepare(ctx context.Context, actor auth.Principal, in
 	state := creator.state
 	if !unusable {
 		if raw == "" {
-			return PreparedCreation[M]{}, profileInputError("password", "required")
+			return PreparedCreation[M]{}, passwordInputError("required")
 		}
 		if len(raw) > state.config.MaxPasswordBytes {
-			return PreparedCreation[M]{}, profileInputError("password", "max_length")
+			return PreparedCreation[M]{}, passwordInputError("max_length")
 		}
 	}
 	candidate, err := state.prepareInput(ctx, input)

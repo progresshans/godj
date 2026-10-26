@@ -42,6 +42,9 @@ var accountBindingAdminCatalogHTTPConsumer []byte
 //go:embed testdata/accountbinding/admin_account_http_test.go
 var accountBindingAdminAccountHTTPConsumer []byte
 
+//go:embed testdata/accountbinding/management_json_test.go
+var accountBindingManagementJSONConsumer []byte
+
 //go:embed testdata/accountbinding/password_admin_http_test.go
 var accountBindingPasswordAdminHTTPConsumer []byte
 
@@ -240,6 +243,10 @@ func firstAccountConsumerSpec(t *testing.T, variant accountLoginVariant) codegen
 			if identity != spec.Account.Model {
 				continue
 			}
+			// A real profile field deliberately shares the credential command's
+			// familiar name. It must stay independent across typed JSON and errors.
+			model.Fields = append(model.Fields, ir.Field{Name: "password", GoName: "Password", Kind: ir.FieldChar, MaxLength: 64,
+				Default: &ir.Scalar{Kind: ir.ScalarString, String: "profile-default"}})
 			for k := range model.Fields {
 				field := &model.Fields[k]
 				if variant.custom && field.Name == "region" {
@@ -272,9 +279,14 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/admin_mutation_http_test.go", accountBindingAdminMutationHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_catalog_http_test.go", accountBindingAdminCatalogHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_account_http_test.go", accountBindingAdminAccountHTTPConsumer)
+			writeGeneratedTestFile(t, root, "consumer/management_json_test.go", accountBindingManagementJSONConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
+			required = append(required, "TestGeneratedAccountManagementJSON")
+			for _, name := range []string{"catalog_create", "create_and_login", "selected_read_and_list", "csrf", "additional_permission", "add_requires_change", "password_policy", "model_password_policy", "protected_input", "credential_namespace", "revision_before_body", "put_defaults_and_omitted_collections", "update_noop_and_history", "catalog_put_and_permissions", "native_rollback", "unknown_after_native_commit", "read_cleanup_failure", "password_revokes_sessions", "delete_and_audit", "self_deactivation_keeps_confirmed_receipt"} {
+				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
+			}
 			required = append(required, "TestGeneratedAccountAdminLifecycle")
 			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
 				required = append(required, "TestGeneratedAccountAdminLifecycle/"+name)

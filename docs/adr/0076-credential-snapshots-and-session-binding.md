@@ -220,8 +220,8 @@ Manager는 HTTP에서 받은 principal의 과거 grant를 쓰기 권한으로 �
 한 parser 예산이 중첩 객체와 JSONField 전체를 포함하고, 모든 child의 검증/변환이 끝나기 전에는 setter를 실행하지 않는다.
 이 결합 API의 바깥 객체 member는 full/partial 모두 필수이며 null을 허용하지 않는다. Mode는 child 내부 field에 적용한다.
 오류 위치는 escape된 JSON Pointer로 구별한다. 기본/custom 외부 계정 생성 소비자는 `fields`와 `credential`을 사용하고
-add+change/CSRF를 본문보다 먼저 확인한다. 공통 관리 JSON CRUD의 route/노출/수정 조건/응답 조립은 남아 있으며,
-이 입력 기반만으로 I1 JSON 제품 수용을 완료하지 않는다.
+add+change/CSRF를 본문보다 먼저 확인한다. 공통 관리 JSON CRUD는 아래 선택 계정 관리 JSON 조립을 사용한다.
+이 입력 기반이나 조립 코드만으로 I1 JSON의 환경별 제품 수용을 완료하지 않는다.
 
 선택 계정의 `Binding.FormDefinition`과 `Binding.InputSpec`은 명시한 field의 전체 모델 source를 보존하고 login/email
 쓰기 정규화를 길이·문법·static choice 검사 전에 적용한다. Login은 raw UTF-8 1,024 bytes, 별도 email은 4,096 bytes를
@@ -1035,7 +1035,7 @@ Group grant 교체는 아래의 공통 전체 수명 조정을 사용한다. Inc
 through를 바꾸는 조합도 전체 최종 상태로 검사한다. Through 모델 자체가 선택 계정/Group/Permission이면 새 링크 생성에도
 별도의 identity 생성 owner가 필요하므로 해당 collection을 쓰기로 노출할 때 `unsupported`로 거부한다. 이 저장/생성 조립은
 잔여 요구이며 읽기나 기존 전체 수명 owner의 행 삭제를 함께 차단하지 않는다.
-공통 Admin 조립은 아래의 선택 Catalog/Account 등록을 사용한다. 관리 JSON HTTP와 기존 고정 모델 Manager 교체는 별도 잔여 요구다.
+공통 Admin과 JSON 조립은 아래의 선택 Catalog/Account 등록과 관리 JSON을 사용한다. 기존 고정 모델 Manager host 교체는 남아 있다.
 
 ## 선택 계정과 catalog 삭제의 전체 수명 조정
 
@@ -1394,7 +1394,7 @@ UI/registry의 검사는 선행 admission이고 최종 권한·도메인·대상
 
 Admin은 Create/Update/Delete를 같은 owner에 위임하고 확정된 ID/revision/변경 field만 반환한다. 성공 뒤 row/권한을 다시
 읽지 않는다. History는 현재 domain의 durable event를 값 없는 Admin event로 투영한다. Account 자체는 아래의 등록을 사용한다.
-관리 JSON API·공개 CLI/scaffold/runtime·profile 관계/파일 조립은 별도로 남아 있다. 현재 공통 Admin 객체 URL의 양수 key 경계를 native
+관리 JSON은 아래의 공통 조립을 사용하며 공개 CLI/scaffold/runtime·profile 관계/파일은 남아 있다. 현재 공통 Admin 객체 URL의 양수 key 경계를 native
 Catalog/Form owner의 signed key 지원으로 완료했다고 해석하지 않는다.
 
 ## 선택 계정의 관리 owner와 공통 Admin 등록
@@ -1430,9 +1430,40 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 사라져도 commit 뒤 재조회로 성공을 잃지 않는다. ProfileReader의 선택 ModelView와 현재 domain의 값 없는 durable audit만
 화면에 투영한다. 공통 Admin의 active staff·CSRF·최종 current authority 경계와 기존 host graph/rollback/unknown 의미를 유지한다.
 
-계정 관리 JSON API·공개 첫 계정 명령/scaffold/runtime 전환, profile 관계/파일, 선택 모델-as-through identity 생성, 채운 DB의
+공개 첫 계정 명령/scaffold/runtime 전환, profile 관계/파일, 선택 모델-as-through identity 생성, 채운 DB의
 명시적 mapping/retirement와 통합 restart는 남아 있다. Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
 경계를 완료했다고 계산하지 않는다. 구현·최소 compile·환경별 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+## 선택 계정의 관리 JSON 조립
+
+`identityapi.NewManagement`는 실제 `AccountManagement[M]`·`Catalog[G, P]`와 하나의 `api.PolicyAuthentication`을 받는다.
+기본 namespace는 선택 모델의 설치 app label, prefix는 `/api/identity/`다. 구성은 owner의 전체 source·명시적 필드와 권한으로
+22개 route·입출력·OpenAPI를 완성하며 I/O·해싱·사용자 callback을 실행하지 않는다. Schema URL과 접근 권한은 host가 정한다.
+별도 CRUD callback·SQL adapter·기본 User 사본을 요구하지 않고, 각 owner가 요청마다 현재 actor·domain·대상·revision을 재검사한다.
+
+AccountManagement의 `InputSpec`은 add/change의 노출 안에서 전체 모델 source와 역할 정규화·원문 한도를 보존한다.
+모델 입력은 `fields` 객체이며 생성과 password 명령의 `credential.password`는 별도 typed 객체다. Password는 trim·정규화하지
+않고 명시적 null만 사용 불가 요청이다. 실제 프로필 `password`는 `fields.password`로 유지한다. 명령의 확정된 직접 입력 거부는
+`PasswordInputDiagnostics`의 비공개 provenance로 식별한다. Creator와 관리자 password owner가 명령 단계에서만 표시하며,
+확정 snapshot/rollback 뒤에만 그대로 반환한다. 공유 자기 변경/reset의 진단 의미를 바꾸거나 wrapped/joined 실패를 입력으로 낮추지 않는다.
+
+인증·CSRF·복합 권한은 경로/query·If-Revision·body보다 먼저 적용한다. 조회는 view 또는 change 및 전체 추가 권한,
+계정 생성은 add+change 및 전체 추가 권한이다. Catalog 생성과 다른 쓰기도 owner의 operation/추가 권한을 사용하며
+Admin staff 조건을 임의로 더하지 않는다. Canonical signed int64 key는 0·음수를 포함하고, If-Revision은 단일 canonical
+positive decimal 1..MaxInt64-1이다. 누락 428·잘못된 입력 400·stale 412를 구별한다. 목록/이력 외 query와 미지·반복 query는 거부한다.
+
+JSON 전체는 64 KiB·각 문자열 4,096 bytes 한도와 같은 중첩 parser 예산을 사용한다. Scalar의 blank/nullable·빈 문자열·
+full default와 partial 생략은 Schema IR을 따른다. PUT에서도 생략한 optional collection은 보존하고 명시적 빈 배열은 해제한다.
+목록은 scalar만 100개 이하로 읽으며 count와 rows가 같은 snapshot에 있다. 상세/목록은 source·key·선택 값 로드를 확인한
+ModelView만 표현한다. Collection-only 읽기의 scalar 목록 객체는 비어 있다. `Profile.PasswordUsable`은 같은 credential
+snapshot의 boolean만 보관하며 hash·principal identity·session material을 노출하지 않는다. History는 현재 domain의 sequence·
+action·changed field names·time만 반환한다.
+
+생성 201과 나머지 쓰기 200은 확정된 `id`·`revision` 두 정수와 Revision header만 반환한다. Delete는 마지막 관측 revision이며
+no-op은 revision/audit를 늘리지 않는다. Commit 뒤 DB·model getter·인가·context 작업을 더하지 않아 자기 비활성화나 credential
+교체로 현재 session이 사라져도 확인된 성공을 유지한다. Unknown은 503 `outcome_unknown`, Retry-After 없이 durable 확인이 필요하다.
+입력 오류는 `/fields/...` 또는 `/credential/...`의 JSON Pointer이며 부분 JSON·잘린 진단을 성공으로 게시하지 않는다. 모든 응답은 no-store다.
+공개 경로와 사용법은 [identity/api](../../identity/api/README.md), 생성 소비자와 환경별 검증은 TEST_EVIDENCE를 따른다.
 
 ## 선택 계정의 비밀번호 재설정
 
