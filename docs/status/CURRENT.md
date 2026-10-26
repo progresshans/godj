@@ -3,14 +3,18 @@
 - 갱신: 2026-10-27
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)을 구현 중이다.
-  구현은 별도 작업트리의 [PR #8](https://github.com/progresshans/godj/pull/8)에서 진행한다.
+  [PR #8](https://github.com/progresshans/godj/pull/8)의 구현과 후속 관리 JSON을
+  [통합 PR #1](https://github.com/progresshans/godj/pull/1) 작업 브랜치에 모아 검증한다.
+  후속 변경도 완성된 코드 묶음 단위로 #1에 계속 통합하며, 구현 통합과 제품 수용은 구분한다.
 - 최근 제품 완료 범위: [C1 / GDJ-0137 Project/Core](../../work/0137-project-core-startup.md).
   같은 source의 전체 CI·원본 대조와 선행 F1/A1/Q1/G-ORM 근거는 [TEST_EVIDENCE](TEST_EVIDENCE.md)를 따른다.
 
 ## 다음
 
-1. 선택 계정 관리/Admin·복합 권한·중첩 typed JSON·입력 정규화/생성 소비자와 조정한 CI 분할을 같은 source의 원격 CI에서 확인한다.
-2. 관리 JSON HTTP와 최초 계정의 공개 터미널/상위 프로세스·scaffold를 선택 runtime에 조립한다.
+1. 최신 #1 source의 전체 CI에서 기존 macOS Intel race 실패와 새 관리 JSON의 필수 실행을 확인한다.
+   실행 원본과 판정은 TEST_EVIDENCE에 둔다.
+2. [관리 JSON HTTP](../../identity/api/README.md)의 생성 소비자·실패 경로를 원격 CI에서 검증하고,
+   최초 계정의 공개 터미널/상위 프로세스·scaffold를 선택 runtime에 조립한다.
 3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치·통합 restart의 남은 요구를 완성한다.
 
 ## 검증 경계

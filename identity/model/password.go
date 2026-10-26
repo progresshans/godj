@@ -9,6 +9,36 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
+// passwordInputOrigin marks a confirmed credential-input rejection without
+// changing its field diagnostics. It is provenance, not an execution failure.
+// A model may have an unrelated profile field literally named "password".
+type passwordInputOrigin struct{ marker byte }
+
+func (*passwordInputOrigin) Error() string { return "credential input rejected" }
+
+var passwordInputSource = &passwordInputOrigin{}
+
+// PasswordInputDiagnostics identifies only a directly returned, confirmed
+// creation or administrative password rejection. It never searches wrapped
+// or joined failures.
+// Transport adapters can place these diagnostics in their command namespace
+// without confusing a real model field with the same name.
+func PasswordInputDiagnostics(err error) (validation.Errors, bool) {
+	diagnostics, rejected := validation.Rejected(err)
+	return diagnostics, rejected && errors.Unwrap(err) == passwordInputSource
+}
+
+func passwordInputError(code validation.Code) error {
+	return credentialPasswordRejection(passwordPolicyDiagnostics(validation.NewErrors(validation.New("password", code))))
+}
+
+func credentialPasswordRejection(err error) error {
+	if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+		return validation.Reject(diagnostics, passwordInputSource)
+	}
+	return err
+}
+
 // PasswordValidator is a pure, concurrent-safe strength policy over the raw
 // password and actual detached typed profile, with its encoded password blank.
 // Return value-free diagnostics on "password" or NonField; do not retain either

@@ -1620,6 +1620,53 @@ gofmt·diff·243개 문서의 로컬 링크도 확인했다. 이 CI harness의 �
 관계/파일·선택 모델-as-through identity 생성·채운 DB 전환·설치/restart·독립 PostgreSQL HTTP/브라우저·고정 Django
 수용 대조와 전체 카탈로그의 잔여 요구는 유지한다. I1 전체는 구현 중이며 새 제출 source의 필수 원격 검증이 필요하다.
 
+### 선택 계정 관리 JSON의 공통 조립과 생성 소비자
+
+2026-10-27, `3c395c1f8f2a418fb05208c0d05b886acb115b51` 위에서 `identityapi.NewManagement`를 작성했다.
+실제 AccountManagement/Catalog의 명시적 읽기·쓰기 노출과 권한을 account/group/permission의 CRUD·history 및
+password 명령 22개 route와 OpenAPI에 연결한다. 모델 `fields`와 `credential` 객체, 역할 정규화·원문 한도·IR default,
+PUT의 collection 생략 보존, signed key·단일 If-Revision, 선택 ModelView·현재 domain history를 유지한다.
+같은 snapshot의 password 사용 가능 여부만 별도 metadata로 보관하며 hash·principal identity·session material은 노출하지 않는다.
+
+수정/생성/삭제/password는 기존 native 수명 owner를 호출하고 확정 ID/revision만 반환한다. Commit 뒤 조회나 현재 권한·
+context 작업을 더하지 않아 자기 비활성화·세션 폐기 뒤 이미 확인된 성공을 잃지 않는다. Unknown은 503이며 재시도를 권하지 않는다.
+실제 프로필 이름이 `password`여도 `/fields/password`와 `/credential/password`를 구분한다. 명령 owner의 직접 확정 입력 거부에만
+provenance를 붙이며 공유 자기 변경/reset의 기존 진단과 private callback·wrapped/joined·cleanup/rollback/unknown 실패는 보존한다.
+
+새 단위 필수 root/child 58개를 Relation에 추가해 4,350→4,408개다. Portable core 247·PostgreSQL core 5,506개는 유지한다.
+준비 시 I/O 부재·source/노출·권한/OpenAPI·collection-only 조회·body 이전 거부·signed receipt·입력 provenance와
+확정 callback/cleanup/unknown 구분을 등록했다. 기존 기본/custom 일곱 생성 변형에 실제 TCP·cookie/CSRF·SQLite 소비자를
+추가하고 부모가 새 관리 JSON root/child 147개(변형별 21개)를 필수 확인하게 했다. Model 프로필 `password`와 IR default,
+생성/로그인·선택 조회·권한/CSRF/예약 입력·revision·PUT/no-op/history·catalog·password/session·삭제/audit·자기 비활성화,
+native DML 뒤 rollback·실제 commit 뒤 unknown·snapshot cleanup 실패의 durable 상태 대조를 작성했다.
+Unknown 주입은 native commit 뒤 acknowledgement 오류이며 실제 네트워크 단절 실험은 아니다. 새 본문은 아직 실행하지 않았다.
+
+최종 로컬 최소 compile은 identity/model·api·admin·account, project/firstaccount, codegen/consumertest 여섯 package의
+`go test -run '^$'`로 통과했다(package pass 6, 동일 source cache 1, feature body 0).
+실제 source 선언·생성기·embedded 파일을 쓰는 임시 overlay로 기본/custom module도 `-run '^$'` compile했다.
+준비 부모 root/child 3개는 5.271초, 두 자식 compile은 0.627/0.578초이며 자식 feature body는 각각 0개다.
+초기 compile의 미사용 import와 소비자의 native interface/CSRF 인자 타입 오류를 수정한 뒤 위 최종 결과를 기록했다.
+최종 compile 전후 비 Markdown source 26개 hash가 같고, 포맷·diff·244개 문서 링크와 필수 목록 중복/실행 소유권을 확인했다.
+원본 JSON·초기 오류·실제 overlay·최종 명령·필수 목록·hash는 검증 보관소의
+`gdj0138-selected-management-json-v1/receipt.json`에 연결했다
+(SHA-256 `c6a71943156fe757b19d3f930954a44a8fcf20e27502f01e7e7da72fae631570`).
+
+선행 [CI 40349451482](https://github.com/progresshans/godj/actions/runs/40349451482) attempt 1은 관측 시 120개 job 중
+성공 90·실패 1·실행 중 5·대기 24였다. 실패한 macOS Intel race project check `121665297520`의 원본 artifact
+`12668874561`과 각 파일 SHA-256을 대조했다. Checkout은 `f6b38c225f39f9f6898a96a8182a45e9dc622187`, tree는
+`db21db35c686586d9cacd0912797a73bc15e24e0`로 제출 `3c395c1f`의 tree와 같다. Migration SQL 관측의 fresh 하위 빌드가
+3분 phase context에 도달해 `project_canceled`로 끝났고 실제 runner는 호출하지 않았다. 최초 root가 188.26초에 실패했고
+같은 준비 결과를 공유하는 두 root도 실패했다. 전체 conformance runner의 403개 run 중 400 pass·3 fail, skip 0이며
+뒤 runserver 검증은 이 job에서 실행하지 못했다. 원본은 `gdj0138-3c395-ci-40349451482`에 보존했다.
+
+해당 job 재실행 요청은 상위 workflow 실행 중이라는 GitHub 응답으로 거부됐다. 이 시점에는 기존 실행을 취소하거나 #8에
+새 소스를 push하지 않았다. 이후 #8을 통합용 Draft #1의 작업 브랜치에 merge `86c4ce01c8096bfc8035884f8b33443599caa086`로
+합쳤다. 두 parent는 기존 #1 `57a2654e`와 #8 `3c395c1f`이며 tree는 위 제출 source와 같다. JSON `11349e45`도 같은 작업 브랜치로
+통합하며 로컬 통합 중 변경은 현재 상태·작업·이 검증 기록뿐이다. 제품 source 26개 hash는 위 최소 compile receipt와 같다.
+이 통합은 구현을 모은 것이며 #8이나 새 JSON의 전체 원격 수용 PASS가 아니다. 최신 #1 source의 자동 전체 CI에서 기존 실패와
+새 단위·DB/HTTP·race/process/platform·전체 generated drift를 함께 확인한다. 기존 고정 Manager host 교체·공개 CLI/scaffold·통합 runtime·profile 관계/파일·채운 DB 전환·
+설치/restart·독립 PostgreSQL HTTP/브라우저와 고정 Django 수용 대조 및 전체 카탈로그의 잔여 범위를 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -85,8 +85,8 @@ func managementCompletion[T any](result T, err, callback error) (T, error) {
 	}
 	// Compare only recognized pointer errors. A host error may contain a slice
 	// and is not necessarily comparable as an arbitrary error interface.
-	if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil && err == callback {
-		return zero, validation.Reject(diagnostics, nil)
+	if _, rejected := validation.Rejected(err); rejected && err == callback && (errors.Unwrap(err) == nil || errors.Unwrap(err) == passwordInputSource) {
+		return zero, err
 	}
 	if classified, ok := err.(*Error); ok && err == callback {
 		return zero, classified

@@ -69,6 +69,16 @@ func passwordInputError(err error, field string) error {
 	return operationError(err)
 }
 
+// A selected model may contain a profile field named password. Only the
+// creation owner's credential-origin diagnostics belong to the private
+// password command; ordinary model diagnostics keep their actual field.
+func selectedPasswordInputError(err error, field string) error {
+	if _, credential := accountmodel.PasswordInputDiagnostics(err); credential {
+		return passwordInputError(err, field)
+	}
+	return operationError(err)
+}
+
 func notFound(err error) bool {
 	value, ok := err.(*identity.Error)
 	return ok && value != nil && value.Code == identity.CodeNotFound

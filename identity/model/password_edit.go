@@ -218,7 +218,7 @@ func (editor *PasswordEditor[M]) replace(ctx context.Context, actor auth.Princip
 		encoded, err = encodeUsablePassword(ctx, state.hasher, raw)
 	}
 	if err != nil {
-		return zero, err
+		return zero, credentialPasswordRejection(err)
 	}
 	binding := state.sessions.state.credentials.state.binding
 	role, objects := binding.state.role, binding.state.objects
@@ -272,10 +272,10 @@ func (state *passwordEditState[M]) checkPassword(ctx context.Context, raw string
 		return ctx.Err()
 	}
 	if raw == "" {
-		return profileInputError("password", "required")
+		return passwordInputError("required")
 	}
 	if len(raw) > state.maximum {
-		return profileInputError("password", "max_length")
+		return passwordInputError("max_length")
 	}
-	return validateAccountPassword(ctx, state.sessions.state.credentials.state.binding, state.validate, raw, row)
+	return credentialPasswordRejection(validateAccountPassword(ctx, state.sessions.state.credentials.state.binding, state.validate, raw, row))
 }

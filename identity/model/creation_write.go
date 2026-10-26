@@ -21,7 +21,7 @@ func creationSnapshot(ctx context.Context, backend db.SnapshotReader, read func(
 	type observation struct{ rejection error }
 	observed, err := db.ReadSnapshotResult(ctx, backend, func(work context.Context, scope db.Queryer) (observation, error) {
 		failure := read(work, scope)
-		if _, rejected := validation.Rejected(failure); rejected && errors.Unwrap(failure) == nil {
+		if _, rejected := validation.Rejected(failure); rejected && (errors.Unwrap(failure) == nil || errors.Unwrap(failure) == passwordInputSource) {
 			return observation{failure}, nil
 		}
 		if classified, ok := failure.(*Error); ok && classified.Unwrap() == nil && (classified.Code == CodePermission || classified.Code == CodeNotFresh) {
@@ -38,7 +38,7 @@ func creationSnapshot(ctx context.Context, backend db.SnapshotReader, read func(
 func (state *creationState[M]) encodeCandidate(ctx context.Context, namespace auth.CredentialDomain, candidate *creationCandidate[M]) error {
 	encoded, err := state.encode(ctx, candidate.raw, candidate.unusable)
 	if err != nil {
-		return err
+		return credentialPasswordRejection(err)
 	}
 	binding := state.store.state.binding
 	candidate.row, err = binding.state.objects.ApplyValues(candidate.row, map[string]query.Value{binding.state.role.Password: query.String(encoded)})
