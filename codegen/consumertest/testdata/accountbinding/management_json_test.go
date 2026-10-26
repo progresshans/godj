@@ -1,6 +1,7 @@
 package consumer
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -31,6 +32,7 @@ import (
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
@@ -78,9 +80,8 @@ func (backend *managementJSONBackend) CoordinatedAtomicRelation(ctx context.Cont
 
 // The selected generated owners publish their shared JSON application. The
 // consumer supplies no handwritten CRUD callbacks or default account DTO.
-func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], selected *accountmodel.SessionStore[M], hasher auth.PasswordHasher, original M, profileField, groupExtra, permissionExtra string,
-	factory func(*accountmodel.SessionStore[M], *accountmodel.Authenticator[M], auth.Authorizer, accountmodel.AccountManagementConfig[M]) (*accountmodel.AccountManagement[M], error),
-	catalogFactory func(*accountmodel.SessionStore[M], auth.Authorizer, accountmodel.CatalogConfig[G, P]) (*accountmodel.Catalog[G, P], error)) {
+func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], hasher auth.PasswordHasher, original M, profileField, groupExtra, permissionExtra string,
+	factory func(context.Context, sessiondb.Backend, auth.PasswordHasher, auth.Authorizer, accountmodel.RuntimeConfig[M, G, P]) (*accountmodel.Runtime[M, G, P], error)) {
 	t.Helper()
 	check := func(err error) {
 		t.Helper()
@@ -120,19 +121,14 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			fields = append(fields, field)
 		}
 	}
-	verifier, err := selected.Authenticator(t.Context(), hasher)
-	check(err)
-	credential, err := verifier.Authenticate(t.Context(), actorLogin, accountPasswordText)
-	check(err)
-	actor := credential.Principal()
 	overlay := &catalogAdminOverlay{}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	clock := func() time.Time { return now }
-	owner, err := factory(selected, verifier, overlay, accountmodel.AccountManagementConfig[M]{
+	accountPolicy := accountmodel.AccountManagementConfig[M]{
 		ReadFields: fields, CreateFields: fields, EditFields: fields,
 		Permissions:           accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete", Additional: []auth.Permission{"account.manage"}},
-		GroupPermissions:      accountmodel.DeletionPermissions{Delete: "catalog.delete_group", Change: "catalog.change_group"},
-		PermissionPermissions: accountmodel.DeletionPermissions{Delete: "catalog.delete_permission", Change: "catalog.change_permission"},
+		GroupPermissions:      accountmodel.DeletionPermissions{Delete: "catalog.delete_group", Change: "catalog.change_group", Additional: []auth.Permission{"catalog.manage"}},
+		PermissionPermissions: accountmodel.DeletionPermissions{Delete: "catalog.delete_permission", Change: "catalog.change_permission", Additional: []auth.Permission{"catalog.manage"}},
 		MaxPasswordBytes:      64, Now: clock,
 		ValidateCreate: func(_ context.Context, _ db.Queryer, candidate M, _ accountmodel.RoleMemberships) (validation.Errors, error) {
 			values, err := objects.ModelValues(candidate)
@@ -168,8 +164,7 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			}
 			return validation.Errors{}, nil
 		},
-	})
-	check(err)
+	}
 	groupFields := []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}
 	permissionFields := []string{role.Catalog.PermissionCode, role.Catalog.PermissionName}
 	if groupExtra != "" {
@@ -178,17 +173,52 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 	if permissionExtra != "" {
 		permissionFields = append(permissionFields, permissionExtra)
 	}
-	catalog, err := catalogFactory(selected, overlay, accountmodel.CatalogConfig[G, P]{
+	catalogPolicy := accountmodel.CatalogConfig[G, P]{
 		Group:              accountmodel.CatalogModelConfig[G]{ReadFields: groupFields, WriteFields: groupFields, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group", Additional: []auth.Permission{"catalog.manage"}}},
 		Permission:         accountmodel.CatalogModelConfig[P]{ReadFields: permissionFields, WriteFields: permissionFields, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission", Additional: []auth.Permission{"catalog.manage"}}},
-		AccountPermissions: accountmodel.DeletionPermissions{Delete: "account.delete", Change: "account.change"}, Now: clock,
+		AccountPermissions: accountmodel.DeletionPermissions{Delete: "account.delete", Change: "account.change", Additional: []auth.Permission{"account.manage"}}, Now: clock,
+	}
+	composed, err := factory(t.Context(), backend, hasher, overlay, accountmodel.RuntimeConfig[M, G, P]{
+		Accounts: accountPolicy, Catalog: catalogPolicy, Sessions: sessions.Config{Clock: clock},
 	})
 	check(err)
-	manager, err := sessions.NewManager(selected, sessions.Config{Clock: clock})
+	owner, catalog := composed.Accounts(), composed.Catalog()
+	selected, manager, verifier := composed.SessionStore(), composed.Sessions(), composed.Authenticator()
+	persistence := composed.LoginPersistence()
+	credential, err := verifier.Authenticate(t.Context(), actorLogin, accountPasswordText)
 	check(err)
-	persistence, err := selected.LoginPersistence(manager)
-	check(err)
-	runtime, err := websession.New(websession.Config{Sessions: manager, Authenticator: verifier, Authorizer: overlay, LoginPersistence: persistence, Clock: clock,
+	actor := credential.Principal()
+	run("composed_runtime", func(t *testing.T) {
+		inspection, err := composed.InspectStartup(t.Context())
+		check(err)
+		fingerprint, err := binding.RoleFingerprint()
+		check(err)
+		if !inspection.Ready() || inspection.Fresh() || inspection.Ownership().RoleFingerprint() != fingerprint ||
+			manager.Store() != selected || persistence.Sessions() != manager || composed.PasswordChangePersistence().Sessions() != manager {
+			t.Fatal("generated runtime mixed source, sessions or startup state")
+		}
+	})
+	run("typed_default_password_policy", func(t *testing.T) {
+		policy, err := binding.DefaultPasswordValidator(accountmodel.PasswordAttribute{Field: role.Login, Label: "login"},
+			accountmodel.PasswordAttribute{Field: "password", Label: "profile label"})
+		check(err)
+		for _, raw := range []string{actorLogin, "password", "12345678"} {
+			diagnostics, err := policy(t.Context(), raw, original)
+			check(err)
+			if diagnostics.Empty() {
+				t.Fatal("selected typed policy omitted a strength check")
+			}
+		}
+		if invalid, err := binding.DefaultPasswordValidator(accountmodel.PasswordAttribute{Field: role.Password, Label: "secret"}); err == nil || invalid != nil {
+			t.Fatal("encoded credential was admitted as a public attribute")
+		}
+		current, err := objects.ModelValues(original)
+		check(err)
+		if !reflect.DeepEqual(current, stored) {
+			t.Fatal("typed policy changed the actual model")
+		}
+	})
+	runtime, err := websession.New(websession.Config{Sessions: manager, Authenticator: verifier, Authorizer: overlay, LoginPersistence: persistence, PasswordChangePersistence: composed.PasswordChangePersistence(), Clock: clock,
 		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
 		LoginPath: "/login/", FallbackPath: "/api/identity/accounts/", AllowedNextPaths: []string{"/api/identity/accounts/"}})
 	check(err)
@@ -423,6 +453,40 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			t.Fatal("credential command overwrote the actual password profile field")
 		}
 		login(newClient(), "api@example.test", "created-password")
+	})
+	run("shared_reset_policy", func(t *testing.T) {
+		keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{37}, 32))
+		check(err)
+		reset, err := composed.PasswordResetter(accountmodel.RuntimeResetConfig{Keys: keys, Clock: clock})
+		check(err)
+		if reset.Sessions() != manager || reset.MaxPasswordBytes() != owner.Passwords().MaxPasswordBytes() {
+			t.Fatal("reset selected another session or password envelope")
+		}
+		row, err := objects.Using(backend).Filter(key.Exact(created.ID)).Get(t.Context())
+		check(err)
+		values, err := objects.ModelValues(row)
+		check(err)
+		principal, _ := values[role.PrincipalID].String()
+		token, err := reset.IssueToken(t.Context(), principal)
+		check(err)
+		proof, err := reset.StartPasswordReset(t.Context(), sessions.ID{}, principal, token.Encoded())
+		check(err)
+		defer func() {
+			if err := selected.Delete(t.Context(), proof.ID()); err != nil {
+				t.Error(err)
+			}
+		}()
+		before := snapshot()
+		weak := "weak"
+		diagnostics, rejected := validation.Rejected(reset.CheckPasswordReset(t.Context(), proof.ID(), principal, &weak))
+		if !rejected || diagnostics.ByField("password").Empty() || diagnostics.ByField("password").All()[0].Code() != "weak" {
+			t.Fatal("reset did not use the same typed account policy")
+		}
+		strong := "strong-reset-password"
+		check(reset.CheckPasswordReset(t.Context(), proof.ID(), principal, &strong))
+		if !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("reset admission changed account, sessions or audit")
+		}
 	})
 	run("selected_read_and_list", func(t *testing.T) {
 		status, header, body := send(client, "GET", path("accounts", created.ID), "", "", false)

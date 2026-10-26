@@ -74,7 +74,7 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput, adminMode stri
 		return
 	}
 	if adminMode == "json" {
-		assertAccountManagementJSON(t, backend, binding, sessions, hasher, row, "first_name", "", "", project.NewAccountManagement, project.NewAccountCatalog)
+		assertAccountManagementJSON(t, backend, binding, hasher, row, "first_name", "", "", project.NewAccountRuntime)
 		return
 	}
 	t.Run("admin_catalog", func(t *testing.T) {

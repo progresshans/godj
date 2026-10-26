@@ -78,7 +78,7 @@ func firstCustomAccount(t *testing.T, adminMode string) {
 		return
 	}
 	if adminMode == "json" {
-		assertAccountManagementJSON(t, backend, binding, sessions, hasher, row, "region", "priority", "description", project.NewAccountManagement, project.NewAccountCatalog)
+		assertAccountManagementJSON(t, backend, binding, hasher, row, "region", "priority", "description", project.NewAccountRuntime)
 		return
 	}
 	t.Run("admin_catalog", func(t *testing.T) {

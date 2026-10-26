@@ -72,7 +72,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"admin/site_assets/choices.js",
 		"admin/site_assets/inlines.js",
 		"identity/account/templates/account.html",
-		"identity/data/common-passwords.txt.gz",
+		"auth/passwordpolicy/data/common-passwords.txt.gz",
 		"identity/migrations/godj_identity_0002_permission_revision.godj.json",
 		"internal/unicode16/tables_generated.go",
 		"internal/migrationgraph/field_delta.go",

@@ -321,6 +321,13 @@ canonical private exit로 확정 생성·unknown·정리/출력 실패를 구분
 operation receipt, 실제 commit 뒤 unknown·close/응답 실패를 검사하도록 필수 목록에 넣었다. Typed opener 앞뒤의 fault
 probe는 실제 네트워크 단절 실험과 구분한다. 작성·최소 compile과 본문/환경 실행의 결과는 TEST_EVIDENCE에 기록한다.
 
+생성 `NewAccountRuntime`으로 같은 source·backend·세션/인증과 계정/catalog owner, login·자기 password 변경·reset을 묶었다.
+연쇄 효과의 수정/삭제·추가 grant와 직접 관리 정책의 일치, session manager/storage 한도 일치를 검사한다. Reset은 동일 typed
+password 정책을 공유한다. 고정 비밀번호 알고리즘/사전을 공통화하고 `Binding.DefaultPasswordValidator`가 실제 선택 모델의
+문자열 속성을 읽도록 작성했다. 기존 고정 Profile/Django 비교는 유지하고 secret 역할·선언 사본·원문·취소/동시성 검사를 추가했다.
+기본/custom 일곱 HTTP 생성 변형은 새 runtime을 사용하고 실제 startup source·공유 owner·typed 기본 정책·reset admission과
+기존 mutation/rollback/unknown/세션 폐기를 검증하도록 연결했다. 작성/생성·최소 compile과 실제 환경별 결과는 TEST_EVIDENCE를 따른다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP의 환경별 수용,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.

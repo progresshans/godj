@@ -35,6 +35,8 @@ func TestAccountSelectionOwnsGeneratedBindingAndProjectSnapshot(t *testing.T) {
 		`LoginFormNormalization: "unicode16_nfkc"`,
 		"func NewAccountCredentialStore(", "func NewAccountAuthenticator(",
 		"func NewAccountSessionStore(", "_godjaccountmodel.NewSessionStore(store, config)",
+		"func NewAccountRuntime(", "_godjaccountmodel.RuntimeConfig[identity.User, identity.Group, identity.Permission]",
+		"_godjaccountmodel.NewRuntime(ctx, backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, collections.IdentityGroupPermissions, policies.IdentityUser, policies.IdentityGroup, policies.IdentityPermission, hasher, overlay, config)",
 		"func NewAccountPasswordEditor(", "_godjaccountmodel.NewPasswordEditor(sessions, binding, verifier, overlay, config)",
 		"func NewAccountPasswordResetter(", "_godjaccountmodel.NewPasswordResetter(store, binding, manager, verifier, config)",
 		"func NewAccountEditor(", "_godjaccountmodel.NewAccountEditor(sessions, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, config)",

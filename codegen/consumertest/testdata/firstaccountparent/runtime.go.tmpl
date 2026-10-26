@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/progresshans/godj/project/compatibility"
 	"github.com/progresshans/godj/project/firstaccount"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/settings/database"
 )
@@ -44,7 +46,11 @@ func main() {
 		return
 	}
 	if len(os.Args) == 2 && os.Args[1] == "init" {
-		if err := initialize(ctx); err != nil { fail("initialize") }
+		if err := initialize(ctx); err != nil {
+			// No private input exists in this test-only migration phase.
+			_, _ = fmt.Fprintf(os.Stderr, "parent fixture initialization: %v\n", err)
+			os.Exit(1)
+		}
 		return
 	}
 	if len(os.Args) == 4 && os.Args[1] == "inspect" {
@@ -139,13 +145,18 @@ func initialize(ctx context.Context) (result error) {
 	sources = append(sources, sessiondb.MigrationSources()...)
 	var previous *migrations.MigrationKey
 	for _, app := range spec.Apps {
-		migration := migrations.Migration{App: app.Schema.AppLabel, Name: "0001_initial"}
+		// The declaration contains intentionally unnormalized added profile
+		// fields. Migration definitions accept only exact current normalized IR,
+		// just like the generated GoDjRelationSchema consumed by other fixtures.
+		schema, err := ir.Normalize(app.Schema)
+		if err != nil { return err }
+		migration := migrations.Migration{App: schema.AppLabel, Name: "0001_initial"}
 		if previous != nil { migration.Dependencies = []migrations.MigrationKey{*previous} }
-		for _, model := range app.Schema.Models { migration.Operations = append(migration.Operations, migrations.CreateModel{AppLabel: app.Schema.AppLabel, Model: model}) }
+		for _, model := range schema.Models { migration.Operations = append(migration.Operations, migrations.CreateModel{AppLabel: schema.AppLabel, Model: model}) }
 		document, err := definition.Encode(definition.Producer{Name: "first-account-parent-consumer", Version: "1"}, migration)
 		if err != nil { return err }
-		sources = append(sources, definition.Source{SourceID: app.Schema.AppLabel + "/0001_initial", Document: document})
-		key := migrations.MigrationKey{App: app.Schema.AppLabel, Name: "0001_initial"}
+		sources = append(sources, definition.Source{SourceID: schema.AppLabel + "/0001_initial", Document: document})
+		key := migrations.MigrationKey{App: schema.AppLabel, Name: "0001_initial"}
 		previous = &key
 	}
 	loaded, _, err := definition.Load(sources...)

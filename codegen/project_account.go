@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v16"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v17"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -239,6 +239,19 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tpolicies, err := BindRelationDeleters()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewAccountManagement(sessions, binding, verifier, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, collections.%s, policies.%s, overlay, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, accountGroups, accountPermissions, accountDelete)
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountRuntime composes sessions, current credentials, account and catalog management over this complete host source.")
+	modelTypes := fmt.Sprintf("%s.%s, %s.%s, %s.%s", accountApp.Alias, accountModel.GoName, groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
+	fmt.Fprintf(&output, "func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsessiondb.Backend, hasher _godjaccountauth.PasswordHasher, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RuntimeConfig[%s]) (*_godjaccountmodel.Runtime[%s], error) {\n", modelTypes, modelTypes)
+	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tsource, err := binding.Project()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tcollections, err := BindCollectionsIn(source)")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintln(&output, "\tpolicies, err := BindRelationDeleters()")
+	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
+	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewRuntime(ctx, backend, binding, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, collections.%s, collections.%s, policies.%s, policies.%s, policies.%s, hasher, overlay, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, accountGroups, accountPermissions, groupCollection, accountDelete, groupDelete, permissionDelete)
 	fmt.Fprintln(&output, "}")
 	return output.Bytes(), nil
 }

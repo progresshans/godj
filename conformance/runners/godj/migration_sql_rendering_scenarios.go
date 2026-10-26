@@ -46,10 +46,7 @@ const (
 	migrationSQLRenderingProcessSourcePrefix = "GODJ_SQL_RENDERING_ACTUAL_SOURCE_"
 	migrationSQLRenderingProcessNormal       = "normal"
 	migrationSQLRenderingProcessCancellation = "cancellation"
-	// Keep the phase bounded while allowing an explicit cold-build run to finish
-	// compilation before judging the result or exercising cancellation.
-	migrationSQLRenderingActualProcessTimeout = 3 * time.Minute
-	migrationSQLRenderingPoisonBarrier        = "godj-migration-sql-poison-barrier-v1"
+	migrationSQLRenderingPoisonBarrier       = "godj-migration-sql-poison-barrier-v1"
 )
 
 type migrationSQLRenderingRegistration struct {
@@ -1099,7 +1096,7 @@ func migrationSQLRenderingRunProcesses(
 		fresh.report.TempCreated != 1 || fresh.report.TempCleanupAttempts != 1 || fresh.report.CleanupFailed != 0 || fresh.report.ResidualTemp != 0 ||
 		fresh.report.UserStdoutWrites != 1 || fresh.report.UserStderrWrites != 0 || fresh.report.PartialStdoutWrites != 0 ||
 		fresh.stdout.String() != wantOutput || fresh.stderr.Len() != 0 {
-		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("fresh SQL migration process = report:%+v stdout:%q stderr:%q", fresh.report, fresh.stdout.String(), fresh.stderr.String())
+		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("fresh SQL migration process = report:%+v phases:%+v stdout:%q stderr:%q", fresh.report, fresh.phases, fresh.stdout.String(), fresh.stderr.String())
 	}
 	empty := migrationSQLRenderingRunProcess(ctx, projectFixture, migrationSQLRenderingProcessNormal, emptyTarget.Name, processSources)
 	if empty.report.ExitCode != 0 || !empty.report.HasSQLMigrateResult || empty.report.HasSQLMigrateFailure ||
@@ -1108,14 +1105,14 @@ func migrationSQLRenderingRunProcesses(
 		empty.report.TempCreated != 1 || empty.report.TempCleanupAttempts != 1 || empty.report.CleanupFailed != 0 || empty.report.ResidualTemp != 0 ||
 		empty.report.UserStdoutWrites != 0 || empty.report.UserStderrWrites != 0 || empty.report.PartialStdoutWrites != 0 ||
 		empty.stdout.Len() != 0 || empty.stderr.Len() != 0 {
-		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("empty SQL migration process = report:%+v stdout:%q stderr:%q", empty.report, empty.stdout.String(), empty.stderr.String())
+		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("empty SQL migration process = report:%+v phases:%+v stdout:%q stderr:%q", empty.report, empty.phases, empty.stdout.String(), empty.stderr.String())
 	}
 
 	unkeyedRejected, err := migrationSQLRenderingCompileUnkeyed(ctx, projectFixture, migrationSQLRenderingUnkeyedSource(false))
 	if err != nil {
 		return migrationSQLRenderingProcessEvidence{}, err
 	}
-	phaseContext, cancelPhase := context.WithTimeout(ctx, migrationSQLRenderingActualProcessTimeout)
+	phaseContext, cancelPhase := defaultMigrationCommandActualLimits().context(ctx)
 	defer cancelPhase()
 	runnerContext, cancelRunner := context.WithCancel(phaseContext)
 	done := make(chan migrationSQLRenderingProcessRun, 1)
@@ -1131,7 +1128,7 @@ func migrationSQLRenderingRunProcesses(
 		}
 		return primary
 	}
-	runnerPID, err := migrationCommandWaitForActualMarker(phaseContext, projectFixture.trace, "sql-render-cancel-ready", migrationCommandActualTimeout)
+	runnerPID, err := migrationCommandWaitForActualMarker(phaseContext, projectFixture.trace, "sql-render-cancel-ready", defaultMigrationCommandActualLimits().total())
 	if err != nil {
 		return migrationSQLRenderingProcessEvidence{}, abort(err)
 	}
@@ -1156,13 +1153,15 @@ func migrationSQLRenderingRunProcesses(
 		return migrationSQLRenderingProcessEvidence{}, abort(errors.New("migration SQL cancellation child readiness is invalid"))
 	}
 	cancelRunner()
+	cleanupContext, cancelCleanup := context.WithTimeout(phaseContext, migrationCommandActualTimeout)
+	defer cancelCleanup()
 	var canceled migrationSQLRenderingProcessRun
 	select {
 	case canceled = <-done:
-	case <-phaseContext.Done():
-		return migrationSQLRenderingProcessEvidence{}, phaseContext.Err()
+	case <-cleanupContext.Done():
+		return migrationSQLRenderingProcessEvidence{}, cleanupContext.Err()
 	}
-	if err := migrationCommandWaitForProcessGroupAbsent(phaseContext, runnerPID); err != nil {
+	if err := migrationCommandWaitForProcessGroupAbsent(cleanupContext, runnerPID); err != nil {
 		return migrationSQLRenderingProcessEvidence{}, err
 	}
 	wantFailure := sqlmigrateprotocol.Failure{Category: sqlmigrateprotocol.CategoryProcess, Code: sqlmigrateprotocol.CodeProjectCanceled}
@@ -1171,7 +1170,7 @@ func migrationSQLRenderingRunProcesses(
 		canceled.report.DirectChildReaps != 3 || canceled.report.CleanupFailed != 0 || canceled.report.ResidualTemp != 0 ||
 		canceled.report.UserStdoutWrites != 0 || canceled.report.UserStderrWrites != 1 || canceled.stdout.Len() != 0 ||
 		canceled.stderr.String() != sqlmigrateprotocol.CategoryProcess+"/"+sqlmigrateprotocol.CodeProjectCanceled+"\n" {
-		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("canceled SQL migration process = report:%+v stdout:%q stderr:%q", canceled.report, canceled.stdout.String(), canceled.stderr.String())
+		return migrationSQLRenderingProcessEvidence{}, fmt.Errorf("canceled SQL migration process = report:%+v phases:%+v stdout:%q stderr:%q", canceled.report, canceled.phases, canceled.stdout.String(), canceled.stderr.String())
 	}
 	if err := migrationCommandAssertActualDirectoryEmpty(projectFixture.workspace); err != nil {
 		return migrationSQLRenderingProcessEvidence{}, err
@@ -1195,6 +1194,7 @@ type migrationSQLRenderingProcessRun struct {
 	stdout      bytes.Buffer
 	stderr      bytes.Buffer
 	environment []string
+	phases      []migrationCommandActualPhase
 }
 
 func migrationSQLRenderingRunProcess(
@@ -1221,16 +1221,22 @@ func migrationSQLRenderingRunProcess(
 	environment["GOCACHEPROG"] = ""
 	environment["GOPROXY"] = "off"
 	entries := migrationCommandSortedEnvironment(environment)
-	phaseContext, cancel := context.WithTimeout(ctx, migrationSQLRenderingActualProcessTimeout)
+	// CI 40381369826 again exhausted the former three-minute combined bound
+	// during a macOS Intel race build, before the SQL runner started. Use the
+	// existing native migration stage owner: preparation has its own build
+	// budget, while runner execution and compatibility remain tightly bounded.
+	backend := newMigrationCommandActualBackend()
+	phaseContext, cancel := backend.limits.context(ctx)
 	defer cancel()
 	var stdout, stderr bytes.Buffer
 	report := productcheck.RunSQLMigrate(productcheck.SQLMigrateInvocation{
-		Backend: productcheck.NativeBackend{Framework: commandFixtureToolInfo()},
+		Backend: backend,
 		Context: phaseContext, CWD: projectFixture.root, Args: []string{"sqlmigrate", "blog", name},
 		Environment: entries, Stdout: &stdout, Stderr: &stderr,
 	})
 	return migrationSQLRenderingProcessRun{
 		report: report, stdout: stdout, stderr: stderr, environment: append([]string(nil), entries...),
+		phases: append([]migrationCommandActualPhase(nil), backend.phases...),
 	}
 }
 
@@ -1282,7 +1288,7 @@ func migrationSQLRenderingCompileUnkeyed(ctx context.Context, fixture migrationC
 	if err := writeMigrationCommandActualFile(filepath.Join(directory, "config.go"), []byte(source)); err != nil {
 		return false, err
 	}
-	phase, cancel := context.WithTimeout(ctx, migrationSQLRenderingActualProcessTimeout)
+	phase, cancel := context.WithTimeout(ctx, migrationCommandActualBuildTimeout)
 	defer cancel()
 	environment := migrationSQLRenderingProcessEnvironment(os.Environ())
 	environment["GOCACHE"] = filepath.Join(fixture.universe, "config-cache")

@@ -13,7 +13,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v16"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v17"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -217,4 +217,25 @@ func NewAccountManagement(sessions *_godjaccountmodel.SessionStore[identity.User
 	return _godjaccountmodel.NewAccountManagement(sessions, binding, verifier, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, policies.IdentityUser, overlay, config)
 }
 
-var _ goDjProjectSnapshot_286a0e8c9cb910bbd082c68ca882ed757eab544f71f008cfbc93fe52d09b6e96
+// NewAccountRuntime composes sessions, current credentials, account and catalog management over this complete host source.
+func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsessiondb.Backend, hasher _godjaccountauth.PasswordHasher, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RuntimeConfig[identity.User, identity.Group, identity.Permission]) (*_godjaccountmodel.Runtime[identity.User, identity.Group, identity.Permission], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewRuntime(ctx, backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, collections.IdentityGroupPermissions, policies.IdentityUser, policies.IdentityGroup, policies.IdentityPermission, hasher, overlay, config)
+}
+
+var _ goDjProjectSnapshot_478dd49a152abea2006671f50de57a821a1f7db578cc7db5b700b653168dc724

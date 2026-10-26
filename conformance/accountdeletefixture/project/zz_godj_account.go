@@ -16,7 +16,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v16"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v17"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -224,4 +224,25 @@ func NewAccountManagement(sessions *_godjaccountmodel.SessionStore[people.Member
 	return _godjaccountmodel.NewAccountManagement(sessions, binding, verifier, access.TeamDescriptor{}, access.GrantDescriptor{}, collections.PeopleMemberTeams, collections.PeopleMemberGrants, policies.PeopleMember, overlay, config)
 }
 
-var _ goDjProjectSnapshot_54357308d9495edf0ddf9e010dd67e2fa220e48d4b687c85ceeadc72dccb91d9
+// NewAccountRuntime composes sessions, current credentials, account and catalog management over this complete host source.
+func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsessiondb.Backend, hasher _godjaccountauth.PasswordHasher, overlay _godjaccountauth.Authorizer, config _godjaccountmodel.RuntimeConfig[people.Member, access.Team, access.Grant]) (*_godjaccountmodel.Runtime[people.Member, access.Team, access.Grant], error) {
+	binding, err := BindAccount()
+	if err != nil {
+		return nil, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return nil, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return nil, err
+	}
+	policies, err := BindRelationDeleters()
+	if err != nil {
+		return nil, err
+	}
+	return _godjaccountmodel.NewRuntime(ctx, backend, binding, access.TeamDescriptor{}, access.GrantDescriptor{}, collections.PeopleMemberTeams, collections.PeopleMemberGrants, collections.AccessTeamGrants, policies.PeopleMember, policies.AccessTeam, policies.AccessGrant, hasher, overlay, config)
+}
+
+var _ goDjProjectSnapshot_035cbe8f0a9976746f040b5a25437257289f97993e4c645af92e716b6da268a2

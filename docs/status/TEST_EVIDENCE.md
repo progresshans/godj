@@ -1736,6 +1736,58 @@ Relation 필수 항목은 role fingerprint root와 기본/custom root·각 일�
 기존 macOS Intel race 실패를 확인한다. 공개 CLI entry point·독립 migration 설치·scaffold/runtime의 일괄 전환과 나머지
 I1-01~08·전체 카탈로그 요구는 미완료로 유지한다.
 
+### 선택 계정 runtime·공통 강도 정책과 선행 CI 수정
+
+2026-10-27, `4186875fee8773b68bbe4b7f613ca4926b68140a` 위에서 생성 `NewAccountRuntime`과 typed Runtime을 작성했다.
+같은 credential/session store·Authenticator·session manager·LoginPersistence·자기 password 변경·AccountManagement·Catalog를
+조립하고 연쇄 효과의 변경/삭제/추가 grant와 직접 관리 정책, session manager/storage 한도의 일치를 검사한다. 선택적인 reset은
+같은 manager/verifier와 계정 생성/변경의 password 정책·한도를 공유한다. 생성자는 bounded dummy-hash 준비만 수행하며
+backend 수명·migration·startup 관측·첫 계정 생성은 명시적 호출자의 작업으로 유지한다.
+
+고정 비밀번호 알고리즘과 원본 사전은 `auth/passwordpolicy`로 공통화했다. 기존 기본 Profile과 선택 typed 모델이 같은 구현을
+사용하며 `Binding.DefaultPasswordValidator`는 명시한 실제 문자열 필드와 정적 label을 읽는다. Secret/server 역할 거부·선언
+사본·원문 password·취소·동시성·형식/JSON 비노출 검사를 추가했다. 사전 bytes·Django 출처/라이선스는 유지하고 두 attestation의
+내장 자료 소유 경로를 갱신했다. 사전 손상 검사는 공통 package로 옮겼으며 기존 독립 Django 결과/순서·16,245개 similarity와
+전체 사전 비교는 유지한다. 이 새 source의 비교 본문은 로컬에서 실행하지 않았다.
+
+Account-project ABI v17로 12개 관리 bundle을 공개 generate로 갱신했다. 실제 기본/custom 일곱 관리 JSON 소비자가 새 runtime을
+사용하도록 변경하고, startup source/공유 owner·typed 기본 정책·같은 reset 정책과 거부 뒤 durable 상태 보존 검사를 추가했다.
+기존 HTTP mutation·권한/CSRF·revision·rollback/unknown·session 폐기·감사 실행을 삭제하지 않았다. 이 새 본문은 원격 확인 대상이다.
+
+로컬에서는 일곱 영향 package 및 기본/custom 두 실제 생성 module의 `go test -run '^$'` 최소 compile을 확인했다. Runtime 설정의
+진단 보호와 fixture 수정 뒤 영향 두 package를 다시 compile했다. 별도 compile-only overlay는 실제 consumer 소스까지 생성·compile하며
+DB/HTTP/새 runtime·정책 본문을 실행하지 않았다. 포맷·diff·244개 문서 링크·필수 목록의 package/root 소유권과 최종 compile 소스
+hash를 대조했다. Relation 필수 항목은 4,449, Portable core 258, PostgreSQL core 5,506개다. 관리 JSON의 필수 child는 변형마다
+세 항목을 더했으며 runtime 신규 HTTP 소비자는 SQLite다. 원본·12개 생성 결과·비문서 217개 source hash와 검증 경계는
+`gdj0138-selected-runtime-v1/receipt.json`에 있다
+(SHA-256 `e466e49aea1b0c2fa9b4f8f205f835315e93426b4fc8cc08c22adcf81f630fae`).
+
+선행 [CI 40381369826](https://github.com/progresshans/godj/actions/runs/40381369826)의 Linux amd64 CGO0 생성 소비자 job
+`121779411168`은 최초 계정 fixture의 migration 초기화에서 두 root/14 child가 실패했다. Checkout `c40681b14784c7fabe3eed685cea0bebfbef852a`의
+parent와 tree `005190967c546486d26889dc2cbc06522acf35bd`가 제출 `4186875f`와 일치함을 확인했다. Artifact `12679229865`의
+원본을 대조했고 Linux amd64 race 두 shard에서도 같은 초기화 실패를 확인했다.
+
+현재 작업트리에서 두 `foreign_source` child의 같은 초기화 실패를 재현했다. Fixture가 추가 profile 필드의 비정규화 선언을
+정확한 현행 IR만 받는 migration encoder에 전달하고 있었다. 이를 정규화한 뒤 같은 두 child가 통과했다. 이어 두 root 전체를
+재실행해 custom 성공 입력의 static choice 공백 오류를 확인했다. Choice 값은 CharField처럼 trim되지 않으므로 성공 입력을
+정확한 `NZ`로, custom 거부 입력을 공백을 붙인 `NZ`로 구분했다. 제품 validator를 완화하지 않았다. 최종 같은 두 root/14 child가
+pass 16·fail/skip 0으로 통과했다. 실제 TTY·두 ABI·생성 bundle·native SQLite·재접속/인증·operation receipt/audit·unknown/cleanup/
+응답 유실까지 포함하지만 현재 작업트리의 한정 수정 검증이며 다른 OS/DB·전체 source 수용으로 계산하지 않는다.
+
+같은 CI의 macOS Intel race job `121779410291`은 기존 migration SQL 검사가 다시 첫 빌드의 합산 3분 기한에 도달했다. Runner 호출은
+0회이며, 같은 준비 실패를 공유하는 세 root가 실패했다. 원본 artifact `12681986518`의 ZIP SHA-256은
+`2845a7119cc57b4f15d6d57d5832eff84d2c8f33676e5e603ca2f22f9409643b`다. 이 원본의 새 parent 관련 단위/TTY/process 실행은
+통과했지만 conformance runner 전체는 400 pass·3 fail로 실패다. SQL 소비자도 기존 native migration의 단계 owner를 사용하도록
+연결하여 build 5분·runner 90초·기존 compatibility 15초를 따로 적용했다. 취소 뒤 종료/회수는 90초로 제한하고 cold unkeyed compile도
+build 기한을 사용한다. 원본 SQL/취소/secret/oracle 검사를 유지하고 실패에는 값 없는 단계 시간·기한 관측을 남긴다. 변경 package의
+최소 compile만 확인했으며 macOS Intel race/cold 실제 통과는 다음 원격 CI 대상이다.
+
+네 job log·두 원본 artifact·동일 tree 대조·재현/수정 JSON·SQL 단계 compile과 세 수정 파일 hash는
+`gdj0138-parent-init-fix-v1/receipt.json`에 있다
+(SHA-256 `725f990ca3ede2d718fb8dffbe6c82792602b47f7751c44e4a449dcf18f820c3`).
+공개 CLI·기존 고정 runtime host·scaffold를 함께 바꾸는 후속 조립은 아직 통합하지 않았다. 이 기반과 fixture 수정 묶음을 PR #1에
+반영한 뒤 새 source의 전체 CI에서 확인하며 I1-01~08과 전체 카탈로그의 남은 요구를 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

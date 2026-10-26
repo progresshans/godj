@@ -325,10 +325,18 @@ func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []
 			}
 			wait(label + ": ")
 			value := "  NZ  "
+			if custom {
+				// Static choices use exact declared text; unlike a CharField,
+				// a ChoiceField does not strip an input into a valid choice.
+				value = "NZ"
+			}
 			if field.Name == description.Login {
 				value = rawLogin
 			} else if invalidProfile {
 				value = strings.Repeat("x", 151)
+				if custom {
+					value = "  NZ  "
+				}
 			}
 			write(value)
 		}

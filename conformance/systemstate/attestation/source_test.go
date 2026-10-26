@@ -102,7 +102,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"admin/site_assets/choices.js",
 		"admin/site_assets/inlines.js",
 		"identity/account/templates/account.html",
-		"identity/data/common-passwords.txt.gz",
+		"auth/passwordpolicy/data/common-passwords.txt.gz",
 		"identity/migrations/godj_identity_0002_permission_revision.godj.json",
 		"identity/migrations/godj_identity_0003_alter_user_email.godj.json",
 		"identity/migrations/godj_identity_0004_auto_1da4dbd173ec.godj.json",

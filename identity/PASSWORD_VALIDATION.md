@@ -24,6 +24,37 @@ The manager applies the policy after current authorization and again inside
 the final write fence. Failed or uncertain rollback is an execution failure,
 not a renderable password rejection.
 
+## Selected account models
+
+`auth/passwordpolicy` owns the model-independent rules and pinned dictionary.
+The built-in account validators above select attributes from `identity.Profile`;
+selected models use their real typed binding without constructing that profile.
+
+```go
+binding, err := project.BindAccount()
+if err != nil { return err }
+validate, err := binding.DefaultPasswordValidator(
+    accountmodel.PasswordAttribute{Field: "contact", Label: "email address"},
+    accountmodel.PasswordAttribute{Field: "display_name", Label: "display name"},
+)
+if err != nil { return err }
+// Use validate in the selected CreationPolicy or AccountManagementConfig.
+```
+
+Fields must belong to the selected model and have a string scalar kind. Labels
+are static declaration metadata. Credential/principal identity, revision and
+server timestamp roles cannot become similarity attributes. An unrelated model
+field named `password` remains selectable when it is not the credential role.
+Nullable attributes contribute no text when null. The constructor snapshots
+metadata; validation reads detached typed values and preserves raw password
+bytes. Cancellation is an execution error, never password diagnostics.
+
+Omitted attributes select the actual login and optional distinct email roles;
+an explicit empty slice selects none. Other profile fields are opt-in. A generated
+`NewAccountRuntime` shares the configured password policy and byte envelope with
+account creation, administrative changes, self-service changes and its optional
+`PasswordResetter`. No reset key or policy is installed implicitly.
+
 ## Built-in semantics
 
 - `NewMinimumLengthValidator(n)` counts Unicode scalar values, including
@@ -73,10 +104,10 @@ Foundation and individual contributors. Go's multiset implementation is
 independent and does not reproduce Python's SequenceMatcher object machinery.
 
 The unmodified `django/contrib/auth/common-passwords.txt.gz` from that pinned
-Django distribution is embedded in [data](data/). Upstream attributes the list
+Django distribution is embedded in [data](../auth/passwordpolicy/data/). Upstream attributes the list
 to Royce Williams; the distribution contains **19,640** entries. Exact source,
 compressed/decompressed hashes, sizes and count are recorded in
-[password-sources.json](data/password-sources.json). Construction verifies the
+[password-sources.json](../auth/passwordpolicy/data/password-sources.json). Construction verifies the
 compressed source hash and decoded size/count before publishing the immutable
 shared dictionary. Configuration formatting never exposes dictionary contents.
 

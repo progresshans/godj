@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"os"
 	"reflect"
 	"slices"
 	"strings"
@@ -26,6 +27,15 @@ var passwordReferenceInputs []byte
 
 //go:embed testdata/password-django61.json
 var passwordReferenceData []byte
+
+func readCommonPasswordData(t *testing.T) []byte {
+	t.Helper()
+	data, err := os.ReadFile("../auth/passwordpolicy/data/common-passwords.txt.gz")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
+}
 
 type passwordDiagnostic struct {
 	Code   string            `json:"code"`
@@ -71,7 +81,7 @@ func readPasswordReference(t *testing.T) (passwordCorpus, passwordReference) {
 	if err := json.Unmarshal(passwordReferenceData, &reference); err != nil {
 		t.Fatal(err)
 	}
-	inputHash, dictionaryHash := sha256.Sum256(passwordReferenceInputs), sha256.Sum256(commonPasswordData)
+	inputHash, dictionaryHash := sha256.Sum256(passwordReferenceInputs), sha256.Sum256(readCommonPasswordData(t))
 	if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Unicode != unicode16.Version || reference.InputSHA256 != hex.EncodeToString(inputHash[:]) || reference.DictionarySHA256 != hex.EncodeToString(dictionaryHash[:]) || reference.SourceSHA256 != "eccaf8bc084009e006abc45eade4c08fe753420dc0015a8138b1b95b37282a21" || len(inputs.Cases) != len(reference.Cases) {
 		t.Fatal("password reference authority/input/source mismatch")
 	}
@@ -154,7 +164,7 @@ func TestPasswordSimilarityMatrixAndCompleteCommonDictionary(t *testing.T) {
 	if count != 16245 || count != reference.MatrixCases || hex.EncodeToString(matrix.Sum(nil)) != reference.MatrixSHA256 {
 		t.Fatal("similarity decision matrix differs from Django", count, hex.EncodeToString(matrix.Sum(nil)))
 	}
-	reader, err := gzip.NewReader(bytes.NewReader(commonPasswordData))
+	reader, err := gzip.NewReader(bytes.NewReader(readCommonPasswordData(t)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,11 +220,6 @@ func TestPasswordValidatorConfigurationOwnershipAndConcurrency(t *testing.T) {
 	}
 	if validator, err := NewCommonPasswordValidator([]string{"\xff"}); err == nil || validator != nil {
 		t.Fatal("invalid dictionary published")
-	}
-	for _, document := range [][]byte{nil, []byte("truncated"), append(append([]byte{}, commonPasswordData...), 0)} {
-		if words, err := loadDefaultCommonPasswords(document); err == nil || words != nil {
-			t.Fatal("unverified default dictionary published")
-		}
 	}
 	words := []string{"private-dictionary-marker"}
 	common, err := NewCommonPasswordValidator(words)

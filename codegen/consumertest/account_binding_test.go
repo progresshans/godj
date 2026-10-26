@@ -284,6 +284,9 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
 			required = append(required, "TestGeneratedAccountManagementJSON")
+			for _, name := range []string{"composed_runtime", "typed_default_password_policy", "shared_reset_policy"} {
+				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
+			}
 			for _, name := range []string{"catalog_create", "create_and_login", "selected_read_and_list", "csrf", "additional_permission", "add_requires_change", "password_policy", "model_password_policy", "protected_input", "credential_namespace", "revision_before_body", "put_defaults_and_omitted_collections", "update_noop_and_history", "catalog_put_and_permissions", "native_rollback", "unknown_after_native_commit", "read_cleanup_failure", "password_revokes_sessions", "delete_and_audit", "self_deactivation_keeps_confirmed_receipt"} {
 				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
 			}

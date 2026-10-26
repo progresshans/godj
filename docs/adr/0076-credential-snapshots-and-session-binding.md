@@ -1240,6 +1240,31 @@ process group·출력 reader의 종료 및 project/workspace 정리를 끝낸 �
 cleanup 여부만 남긴다. 자동 재시도나 임의 adoption을 하지 않는다. 이 owner의 구현과 실제 생성 소비자 검사는
 공개 CLI/scaffold·독립 migration 설치·HTTP/Admin 통합 기동과 별도로 판정한다.
 
+### 선택 계정의 공통 runtime과 비밀번호 정책
+
+생성 `NewAccountRuntime`과 `identity/model.Runtime[M,G,P]`는 같은 typed 계정·catalog·전체 host 관계 source와
+하나의 credential/session store에 Authenticator, session manager, LoginPersistence, 자기 비밀번호 변경,
+AccountManagement와 Catalog를 묶는다. 새 DTO·CRUD callback·SQL adapter로 모델을 대신하지 않는다.
+Backend는 성공/실패 모두 호출자가 소유하며 runtime은 DB를 열거나 닫거나 migration·첫 계정 생성을 실행하지 않는다.
+생성 시 Authenticator의 bounded dummy hash 준비만 실행하고 DB·모델 validator·권한 callback·session entropy는 쓰지 않는다.
+Startup은 명시적 `InspectStartup`으로 관측하며 각 요청의 현재 domain/credential 검사와 구분한다.
+
+계정에서 파생되는 catalog 효과와 catalog에서 파생되는 계정 효과는 해당 직접 수정/삭제의 grant와 모든 추가 권한이
+같아야 한다. 불일치와 다른 host source의 collection/deletion은 준비 시 거부한다. Session manager와 durable store도
+정규화한 같은 한도를 사용한다. 각 owner는 노출/권한 배열을 복사하며 공유 clock/entropy/callback의 기존 수명 계약을 유지한다.
+Runtime의 PasswordResetter는 명시한 key ring·timeout·clock과 기존 manager/verifier를 사용하며 계정 생성/변경과 같은
+typed password 정책·byte 한도를 자동으로 공유한다. 별도 reset 기본값으로 정책이 느슨해지지 않는다.
+
+모델 독립 `auth/passwordpolicy`가 고정 Django의 similarity·최소 길이·공통 사전·Unicode numeric 알고리즘과 사전 bytes를
+소유한다. 기존 기본 Profile과 선택 typed 모델은 이 한 구현에 실제 속성을 공급한다. `Binding.DefaultPasswordValidator`는
+명시한 문자열 필드/정적 label을 검사하고 실제 detached M의 값을 사용한다. 인자가 없으면 현재 선택 login/email 역할만
+선택하며 추가 profile은 명시적으로 넣는다. Credential·principal identity·revision·서버 시각은 선택할 수 없다. 일반 profile의
+이름이 password여도 실제 credential 역할과 다르면 별개다. Nullable NULL·원문 비밀번호·고정 Unicode와 진단 순서를 유지하고,
+취소와 잘못된 모델 표현을 강도 거부로 바꾸지 않는다. 사전 원본/라이선스와 기존 독립 Django 비교 근거는 유지한다.
+
+이 조립과 생성 소비자의 구현은 공개 CLI·scaffold·기존 고정 runtime host 전환과 구분한다. 시작/설치·명시적 채운 DB 전환과
+환경별 실제 수용이 끝나기 전에는 I1 전체 완료로 계산하지 않는다.
+
 ## 선택 계정의 프로필과 역할 통합 편집
 
 생성 `NewAccountEditor`와 `identity/model.AccountEditor[M]`는 기존 `SessionStore[M]`를 받아 같은 계정

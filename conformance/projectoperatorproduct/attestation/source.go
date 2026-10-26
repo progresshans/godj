@@ -17,7 +17,7 @@ var exactSourcePaths = map[string]struct{}{
 	"internal/zonerules/source.json":                                           {},
 	"admin/site_assets/choices.js":                                             {},
 	"admin/site_assets/inlines.js":                                             {},
-	"identity/data/common-passwords.txt.gz":                                    {},
+	"auth/passwordpolicy/data/common-passwords.txt.gz":                         {},
 	"scripts/conformance.py":                                                   {},
 	"conformance/suites.json":                                                  {},
 	"conformance/catalog.py":                                                   {},

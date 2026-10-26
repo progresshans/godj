@@ -14,4 +14,4 @@ func BindRelations() (Relations, error) {
 	return Relations{}, nil
 }
 
-var _ goDjProjectSnapshot_58bae201c729562bb196d3932898199ed322ad5413cc5dbd53602ff8541b43de
+var _ goDjProjectSnapshot_871c89a61739c59604bd7a5bd305d327d5fd23491073f2cd7cd4ce5fb21404d9

@@ -11,7 +11,8 @@
 
 ## 다음
 
-1. 최신 #1 source의 전체 CI에서 기존 macOS Intel race 실패와 새 관리 JSON의 필수 실행을 확인한다.
+1. 최초 계정 생성 소비자의 fixture 수정과 선택 runtime·비밀번호 정책을 #1에 통합하고 전체 CI를 확인한다.
+   기존 macOS Intel race 실패와 새 관리 JSON·runtime의 필수 실행도 대조한다.
    실행 원본과 판정은 TEST_EVIDENCE에 둔다.
 2. [관리 JSON HTTP](../../identity/api/README.md)와 선택 계정의 터미널/상위 process·생성 소비자를 원격 CI에서 검증한다.
    최초 계정의 공개 CLI entry point·독립 migration 설치·scaffold를 선택 runtime에 함께 조립한다.

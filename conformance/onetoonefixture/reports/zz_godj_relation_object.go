@@ -213,4 +213,4 @@ func (reviewTicketIDRelationStorage) Value(value Review) (query.Value, bool) {
 
 type GoDjAppPart2_a4c53adb16934b25c97ccf795708445120c8f8071103a96da1669d19eef9079a struct{}
 
-var _ GoDjProjectSnapshot_efbe8972b6d3b61fea533d4e3e7e67e0ccea526f7934f79a8cbf6e819d9eda8f
+var _ GoDjProjectSnapshot_5358a5f6442e8b8129123e85bd740f06244089329eb7defbe416a693714484d6
