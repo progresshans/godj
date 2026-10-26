@@ -53,6 +53,7 @@ const (
 	CodeFloat         validation.Code = "invalid"
 	CodeBlank         validation.Code = "blank"
 	CodeMaxLength     validation.Code = "max_length"
+	CodeMaxBytes      validation.Code = "max_bytes"
 	CodeUnknown       validation.Code = "unknown"
 	CodeInvalidChoice validation.Code = "invalid_choice"
 )
@@ -111,6 +112,10 @@ func WithTrimWhitespace(trim bool) FieldOption {
 }
 
 type fieldConfig struct {
+	normalization     StringNormalization
+	normalizationSet  bool
+	maxInputBytes     int
+	maxInputBytesSet  bool
 	allowUnicode      bool
 	allowUnicodeSet   bool
 	choices           []Choice
@@ -130,6 +135,8 @@ type fieldConfig struct {
 
 // Field is an immutable serializer field definition.
 type Field struct {
+	normalization  StringNormalization
+	maxInputBytes  int
 	allowUnicode   bool
 	choices        []Choice
 	name           string
@@ -172,6 +179,12 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 	}
 	if err := configureChoices(name, kind, &config); err != nil {
 		return Field{}, err
+	}
+	if !validStringNormalization(config.normalization) || config.normalizationSet && !stringFieldKind(kind) {
+		return Field{}, invalidConfig("fields."+name+".normalization", "unsupported string normalization")
+	}
+	if config.maxInputBytes < 0 || config.maxInputBytesSet && !stringFieldKind(kind) {
+		return Field{}, invalidConfig("fields."+name+".max_input_bytes", "invalid string input byte limit")
 	}
 	if config.allowUnicodeSet && kind != FieldSlug {
 		return Field{}, invalidConfig("fields."+name+".allow_unicode", "Unicode slug input requires a slug field")
@@ -236,6 +249,8 @@ func makeField(name string, kind FieldKind, config fieldConfig, options []FieldO
 		return Field{}, invalidConfig("fields."+name, "field kind is unsupported")
 	}
 	return Field{
+		normalization: config.normalization,
+		maxInputBytes: config.maxInputBytes,
 		allowUnicode:  config.allowUnicode,
 		choices:       slices.Clone(config.choices),
 		name:          name,
@@ -545,6 +560,13 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 	if !valueMatchesField(value, field.kind, field.nullable) {
 		return Value{}, oneViolation(field.name, CodeType)
 	}
+	if stringFieldKind(field.kind) {
+		if field.maxInputBytes > 0 && len(value.string) > field.maxInputBytes {
+			return Value{}, validation.NewErrors(validation.New(validation.Field(field.name), CodeMaxBytes,
+				validation.NewParam("max_bytes", fmt.Sprintf("%d", field.maxInputBytes))))
+		}
+		value = String(normalizeStringInput(field, value.string))
+	}
 	if field.choices != nil {
 		if !field.acceptsChoice(value) {
 			return Value{}, oneViolation(field.name, CodeInvalidChoice)
@@ -564,9 +586,6 @@ func cleanValue(field Field, value Value) (Value, validation.Errors) {
 		return value, validation.NewErrors()
 	}
 	cleaned := value.string
-	if field.trimWhitespace {
-		cleaned = strings.TrimSpace(cleaned)
-	}
 	if cleaned == "" && !field.allowEmpty {
 		return Value{}, oneViolation(field.name, CodeBlank)
 	}

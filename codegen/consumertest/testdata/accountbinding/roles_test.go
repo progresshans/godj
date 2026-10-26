@@ -77,7 +77,9 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	}
 	secret, _ := values[role.Password].String()
 	subject, _ := values[role.PrincipalID].String()
-	form, err := formmodel.NewSpecForFields(metadata, editor.Fields())
+	formDefinition, err := binding.FormDefinition(editor.Fields())
+	check(err)
+	form, err := formDefinition.Spec(metadata)
 	check(err)
 	form, err = form.WithModelChoices(role.Groups, forms.Choice{Value: forms.Integer(groupID), Label: "Operators"})
 	check(err)
@@ -96,7 +98,7 @@ func assertAccountRoleHTTP[M any](t *testing.T, backend database.Backend, bindin
 	for _, name := range editor.Fields() {
 		fields = append(fields, serializers.ModelField{Name: name, AllowEmpty: name == profileField && profileAllowsEmpty})
 	}
-	spec, err := serializers.FromModel(metadata, fields...)
+	spec, err := binding.InputSpec(fields...)
 	check(err)
 	input, err := apiinput.NewModel(objects, spec, api.ParserConfig{})
 	check(err)

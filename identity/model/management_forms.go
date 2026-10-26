@@ -30,26 +30,7 @@ func (management *AccountManagement[M]) FormDefinition(action admin.Action) (for
 	default:
 		return formmodel.Definition{}, managementError(CodeInvalidInput, nil)
 	}
-	role := state.reader.state.store.state.binding.state.role
-	definition := formmodel.Definition{Fields: fields}
-	for _, name := range fields {
-		if name != role.Login && name != role.Email {
-			continue
-		}
-		definition.Overrides = append(definition.Overrides, formmodel.OverrideField(name, formmodel.WithStringNormalizer(func(value string) string {
-			if name == role.Login {
-				value = normalizeAccountLogin(role, value)
-			}
-			if name == role.Email {
-				value = normalizeAccountEmail(role, value)
-			}
-			return value
-		})))
-	}
-	if _, err := definition.Spec(state.creator.state.metadata); err != nil {
-		return formmodel.Definition{}, err
-	}
-	return definition, nil
+	return state.reader.state.store.state.binding.FormDefinition(fields)
 }
 
 // CheckCreateForm performs read-only, current-authorized advisory checks even

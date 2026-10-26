@@ -19,10 +19,12 @@ import (
 // kind, nullability, length and default come from Schema IR; exposure and API
 // required/empty policy remain application choices. Auto keys are read-only.
 type ModelField struct {
-	Name       string
-	ReadOnly   bool
-	Optional   bool
-	AllowEmpty bool
+	Name          string
+	ReadOnly      bool
+	Optional      bool
+	AllowEmpty    bool
+	Normalization StringNormalization
+	MaxInputBytes int
 }
 
 // ModelEncoder binds an immutable serializer allowlist to owned model metadata.
@@ -250,7 +252,7 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 			if selection.Optional {
 				options = append(options, WithRequired(false))
 			}
-			if selection.AllowEmpty {
+			if selection.AllowEmpty || selection.Normalization != StringExact || selection.MaxInputBytes != 0 {
 				return Spec{}, invalidConfig("model."+selection.Name, "string-only option applied to a collection")
 			}
 			field, err := IntegerListField(selection.Name, options...)
@@ -271,6 +273,12 @@ func FromModel(model ir.Model, selected ...ModelField) (Spec, error) {
 			return Spec{}, invalidConfig("model."+selection.Name, "file references and image dimensions require read-only JSON projection; uploads use explicit file input")
 		}
 		options := []FieldOption{}
+		if selection.Normalization != StringExact || selection.MaxInputBytes != 0 {
+			if field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail && field.Kind != ir.FieldURL && field.Kind != ir.FieldSlug && field.Kind != ir.FieldText {
+				return Spec{}, invalidConfig("model."+selection.Name, "string input policy requires a text model field")
+			}
+			options = append(options, WithStringNormalization(selection.Normalization), WithMaxInputBytes(selection.MaxInputBytes))
+		}
 		if field.Choices != nil {
 			choices := make([]Choice, len(field.Choices))
 			for index, choice := range field.Choices {

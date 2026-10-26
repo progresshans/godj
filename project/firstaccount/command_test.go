@@ -40,6 +40,37 @@ func commandFixture(t *testing.T, backend *probeBackend, opens *atomic.Int64) fi
 	return commandWithOpener(t, func(context.Context) (firstaccount.Backend, error) { opens.Add(1); return backend, nil })
 }
 
+func TestCommandNormalizesBeforeModelChecksAndPreservesRawByteEnvelope(t *testing.T) {
+	backend, opens := &probeBackend{}, &atomic.Int64{}
+	command := commandFixture(t, backend, opens)
+	description, err := command.Description()
+	if err != nil || description.Fields[0].MaxBytes != auth.MaximumUsernameBytes {
+		t.Fatal("login byte envelope not in command fingerprint", err)
+	}
+	for _, test := range []struct {
+		name, raw string
+		valid     bool
+	}{
+		{"contracting", strings.Repeat("e\u0301", 200), true},
+		{"fullwidth", "ｆｉｒｓｔ＠ｅｘａｍｐｌｅ．ｔｅｓｔ", true},
+		{"expanding", strings.Repeat("ﬃ", 86), false},
+		{"raw_bytes", strings.Repeat(" ", auth.MaximumUsernameBytes) + "Fred", false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			values := inputValues(description)
+			values[0].Text = []byte(test.raw)
+			prepared, err := command.Prepare(t.Context(), description.Fingerprint, values)
+			if (err == nil) != test.valid {
+				t.Fatal("command normalization/byte boundary", err)
+			}
+			prepared.Clear()
+		})
+	}
+	if opens.Load() != 0 || backend.reads.Load() != 0 || backend.writes.Load() != 0 || backend.closes.Load() != 0 {
+		t.Fatal("input policy acquired storage")
+	}
+}
+
 func commandWithOpener(t *testing.T, open func(context.Context) (firstaccount.Backend, error)) firstaccount.Command {
 	t.Helper()
 	binding, err := project.BindAccount()

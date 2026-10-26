@@ -236,8 +236,10 @@ func EnumStrings(values ...string) (Schema, error) {
 // omitted field. Parser limits and application validation are separate policies.
 //
 // Strings cleaned before validation carry x-godj-normalization metadata. Its
-// allowEmptyAfterTrim and maxLengthAfterTrim describe checks after the field's Unicode trimming;
-// they are not standard JSON Schema assertions on the unnormalized input.
+// allowEmptyAfterTrim/maxLengthAfterTrim describe the existing trim policy.
+// Explicit transforms use allowEmptyAfterNormalization/maxLengthAfterNormalization
+// and enumAfterNormalization; maxInputBytes precedes any transform. These are
+// not standard JSON Schema assertions on the unnormalized input.
 func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error) {
 	fields := spec.Fields()
 	if len(fields) == 0 {
@@ -304,7 +306,13 @@ func RequestSchema(spec serializers.Spec, mode serializers.Mode) (Schema, error)
 			annotations = append(annotations, serializers.MemberOf("x-godj-slug", policy.Value()))
 		}
 		if field.Kind() == serializers.FieldString || field.Kind() == serializers.FieldEmail || field.Kind() == serializers.FieldURL || field.Kind() == serializers.FieldSlug {
-			if field.TrimWhitespace() {
+			if field.StringNormalization() != serializers.StringExact || field.MaxInputBytes() > 0 {
+				policy, err := stringInputPolicy(field)
+				if err != nil {
+					return Schema{}, err
+				}
+				annotations = append(annotations, policy)
+			} else if field.TrimWhitespace() {
 				normalization := []serializers.Member{
 					serializers.MemberOf("trimWhitespace", serializers.Boolean(true)),
 					serializers.MemberOf("allowEmptyAfterTrim", serializers.Boolean(field.AllowEmpty())),

@@ -138,7 +138,11 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 			return Command{}, failure(InvalidConfig, &query.Error{Code: query.CodeUnsupported})
 		}
 	}
-	form, err := formmodel.NewSpecForFields(metadata, selected)
+	formDefinition, err := binding.FormDefinition(selected)
+	if err != nil {
+		return Command{}, failure(InvalidConfig, err)
+	}
+	form, err := formDefinition.Spec(metadata)
 	if err != nil {
 		return Command{}, failure(InvalidConfig, err)
 	}
@@ -164,7 +168,11 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 		for _, choice := range field.Choices() {
 			choices = append(choices, Choice{Value: choice.InputValue(), Label: choice.Label})
 		}
-		description.Fields = append(description.Fields, Field{Name: field.Name(), Label: field.Label(), Kind: string(byName[field.Name()].Kind), Required: field.Required(), Nullable: field.Nullable(), HasDefault: hasDefault, MaxBytes: MaxFieldBytes, Choices: choices})
+		maximum := MaxFieldBytes
+		if field.MaxInputBytes() > 0 {
+			maximum = min(maximum, field.MaxInputBytes())
+		}
+		description.Fields = append(description.Fields, Field{Name: field.Name(), Label: field.Label(), Kind: string(byName[field.Name()].Kind), Required: field.Required(), Nullable: field.Nullable(), HasDefault: hasDefault, MaxBytes: maximum, Choices: choices})
 	}
 	// The login prompt precedes profile fields; the remaining order is the IR
 	// declaration order, independent of a caller's selection-slice order.

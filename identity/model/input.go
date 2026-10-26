@@ -5,6 +5,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/internal/emailinput"
 	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -63,10 +64,7 @@ func normalizeAccountLogin(role ir.AccountRole, value string) string {
 
 func normalizeAccountEmail(role ir.AccountRole, value string) string {
 	if role.WriteEmailNormalization == ir.AccountUnicode16EmailDomain {
-		trimmed := unicode16.TrimSpace(value)
-		if at := strings.LastIndexByte(trimmed, '@'); at >= 0 {
-			return trimmed[:at+1] + unicode16.Lower(trimmed[at+1:])
-		}
+		return emailinput.NormalizeDomain(value)
 	}
 	return value
 }

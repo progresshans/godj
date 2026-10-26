@@ -57,7 +57,9 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	check(err)
 	role, err := binding.Role()
 	check(err)
-	form, err := formmodel.NewSpecForFields(metadata, creator.Fields())
+	formDefinition, err := binding.FormDefinition(creator.Fields())
+	check(err)
+	form, err := formDefinition.Spec(metadata)
 	check(err)
 	form, err = form.WithModelChoices(role.Groups, forms.Choice{Value: forms.Integer(groupID), Label: "Operators"})
 	check(err)
@@ -76,7 +78,7 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 		}
 		fields = append(fields, selection)
 	}
-	spec, err := serializers.FromModel(metadata, fields...)
+	spec, err := binding.InputSpec(fields...)
 	check(err)
 	body, err := apiinput.NewModel(objects, spec, api.ParserConfig{})
 	check(err)
@@ -257,7 +259,18 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	}
 	client := newClient()
 	token := login(client, actorLogin)
-	data := url.Values{role.Login: {"created-form@example.test"}, profileField: {"  NZ  "}, role.Groups: {strconv.FormatInt(groupID, 10)}, role.Permissions: {strconv.FormatInt(permissionID, 10)}, "new_password": {accountPasswordText}, "csrfmiddlewaretoken": {token}}
+	writeAlias := func(value string) string {
+		if role.WriteLoginNormalization != ir.AccountUnicode16NFKC {
+			return value
+		}
+		return strings.Map(func(char rune) rune {
+			if char >= '!' && char <= '~' {
+				return char + 0xfee0
+			}
+			return char
+		}, value)
+	}
+	data := url.Values{role.Login: {writeAlias("created-form@example.test")}, profileField: {"  NZ  "}, role.Groups: {strconv.FormatInt(groupID, 10)}, role.Permissions: {strconv.FormatInt(permissionID, 10)}, "new_password": {accountPasswordText}, "csrfmiddlewaretoken": {token}}
 	status, raw := send(client, "POST", "/create-form/", "application/x-www-form-urlencoded", data.Encode(), "")
 	if status != 201 {
 		t.Fatal("typed form account creation", status, raw)
@@ -265,7 +278,7 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	var formResult accountmodel.Creation
 	check(json.Unmarshal([]byte(raw), &formResult))
 	encode := func(data map[string]any) string { wire, err := json.Marshal(data); check(err); return string(wire) }
-	jsonData := map[string]any{"fields": map[string]any{role.Login: "created-json@example.test", profileField: "  NZ  ", role.Groups: []int64{groupID}, role.Permissions: []int64{permissionID}}, "credential": map[string]any{"password": accountPasswordText}}
+	jsonData := map[string]any{"fields": map[string]any{role.Login: writeAlias("created-json@example.test"), profileField: "  NZ  ", role.Groups: []int64{groupID}, role.Permissions: []int64{permissionID}}, "credential": map[string]any{"password": accountPasswordText}}
 	status, raw = send(client, "POST", "/create-json/", api.JSONContentType, encode(jsonData), token)
 	if status != 201 {
 		t.Fatal("typed JSON account creation", status, raw)
@@ -289,6 +302,14 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 		}
 		values, err := objects.ModelValues(row)
 		check(err)
+		storedLogin, _ := values[role.Login].String()
+		expectedLogin := "created-form@example.test"
+		if result.ID == jsonResult.ID {
+			expectedLogin = "created-json@example.test"
+		}
+		if storedLogin != expectedLogin {
+			t.Fatal("write normalization did not reach the selected stored login")
+		}
 		extra, _ := values[profileField].String()
 		if extra != "NZ" {
 			t.Fatal("custom required profile/cleaning lost")
@@ -314,7 +335,7 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	}
 	before, err := objects.Using(backend).Count(t.Context())
 	check(err)
-	for _, mode := range []string{"duplicate", "reserved", "missing_choice", "empty_password", "required_profile", "missing_fields", "missing_credential", "null_fields", "null_credential", "unknown_envelope", "unknown_command", "csrf_before_parse", "malformed_before_setters"} {
+	for _, mode := range []string{"duplicate", "reserved", "missing_choice", "empty_password", "required_profile", "missing_fields", "missing_credential", "null_fields", "null_credential", "unknown_envelope", "unknown_command", "csrf_before_parse", "malformed_before_setters", "raw_login_bytes"} {
 		if mode == "required_profile" {
 			required := false
 			for _, field := range metadata.Fields {
@@ -342,6 +363,8 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 				beforeOwner = false
 			case "empty_password":
 				badCredential["password"] = ""
+			case "raw_login_bytes":
+				badFields[role.Login] = strings.Repeat(" ", auth.MaximumUsernameBytes) + "short@example.test"
 			case "required_profile":
 				delete(badFields, profileField)
 			case "missing_fields":

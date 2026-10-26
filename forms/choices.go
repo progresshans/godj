@@ -25,7 +25,8 @@ func (choice Choice) InputValue() string {
 
 // WithChoices snapshots an ordered, nonempty choice list. Choice fields use
 // Select unless a compatible widget is explicitly supplied. Submitted values
-// are matched before any scalar conversion; whitespace is significant.
+// are matched before scalar conversion; whitespace is significant. An explicit
+// string normalizer runs before matching without rewriting choice declarations.
 func WithChoices(choices ...Choice) FieldOption {
 	owned := append([]Choice{}, choices...)
 	return fieldOption(func(config *fieldConfig) { config.choices = slices.Clone(owned) })

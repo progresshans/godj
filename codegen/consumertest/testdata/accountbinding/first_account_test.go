@@ -69,9 +69,15 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, s
 	if !fresh.Fresh() || fresh.Ready() || fresh.Ownership().Sequence() != 0 || fresh.AuditEvents() != 0 || fresh.SessionRecords() != 0 {
 		t.Fatal("generated first-account composition did not inspect empty installed storage")
 	}
-	form, err := formmodel.NewSpecForFields(metadata, owner.Fields())
+	formDefinition, err := binding.FormDefinition(owner.Fields())
 	check(err)
-	raw := map[string][]string{role.Login: {"first@example.test"}}
+	form, err := formDefinition.Spec(metadata)
+	check(err)
+	loginInput := "first@example.test"
+	if role.WriteLoginNormalization == ir.AccountUnicode16NFKC {
+		loginInput = "ｆｉｒｓｔ＠ｅｘａｍｐｌｅ．ｔｅｓｔ"
+	}
+	raw := map[string][]string{role.Login: {loginInput}}
 	if profile.present {
 		raw[profileField] = []string{profile.text}
 	}
@@ -109,6 +115,9 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, s
 	}
 	commandValues := make([]firstaccount.Value, len(description.Fields))
 	for i, field := range description.Fields {
+		if field.Name == role.Login && field.MaxBytes != auth.MaximumUsernameBytes {
+			t.Fatal("first-account command lost the raw credential byte envelope")
+		}
 		text, present := data.Get(field.Name)
 		if present && len(text) != 1 {
 			t.Fatal("command did not describe the actual form input")

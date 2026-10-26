@@ -8,8 +8,21 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/validation"
 )
+
+// NormalizeDomain follows the pinned account write policy: strip Python
+// Unicode whitespace and lowercase only the domain after the final @. Without
+// an @, preserve the original value for the caller's validation. Local-part
+// case, grammar validation and resource limits remain with the caller.
+func NormalizeDomain(value string) string {
+	trimmed := unicode16.TrimSpace(value)
+	if at := strings.LastIndexByte(trimmed, '@'); at >= 0 {
+		return trimmed[:at+1] + unicode16.Lower(trimmed[at+1:])
+	}
+	return value
+}
 
 // FormErrors checks nonempty, already-normalized text in Django form order.
 func FormErrors(name, value string, maximum int) validation.Errors {
