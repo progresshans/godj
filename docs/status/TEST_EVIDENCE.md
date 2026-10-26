@@ -1526,6 +1526,43 @@ Portable core 목록은 65→120이며 기존 항목과 실행 소유권을 보�
 새 API 정책 본문과 전체 영향 검증은 제출 source의 원격 CI에서 수행한다. 관리 JSON CRUD·공개 첫 계정 명령과
 scaffold/runtime·나머지 I1-01~08 및 전체 카탈로그의 범위를 그대로 유지한다.
 
+### 중첩 typed JSON 입력과 선택 계정 생성 소비자
+
+2026-10-26, `34de39420d5c9b3238d443fbadf0d7dcf8e2b96d` 위에서 `api/input.Object`·`ObjectField`와
+`serializers.ObjectDecoder`를 작성했다. 실제 `FromModel`/`NewModel`의 완전한 source와 별도 명령 Body를 유지한 채
+`fields`·`credential` 같은 객체 member로 결합한다. 단건/배열 모두 요청 body를 한 번 읽고 중첩 전체의 byte·value·depth
+예산을 공유한다. 선언한 각 Spec의 JSONField에서만 임의 JSON member 이름을 허용하며, 다른 경로나 잘못된 배열 위치로
+문법을 확장하지 않는다. 공유 child의 매 사용을 세어 4,096개 object node·64개 object 깊이의 준비 한도를 적용한다.
+
+바깥 구조 member는 full/partial 모두 필수이며 null·배열·scalar를 받지 않는다. Child 내부의 생략/default·nullable·choices와
+typed 변환은 기존 Spec을 따른다. 생략된 legacy default를 제출값으로 재검증하지 않으며, 모든 child와 unknown member를
+검증한 뒤에만 setter를 실행한다. 진단은 child 선언 순서와 JSON Pointer escape를 보존한다. ModelInput의 source와
+단건/배열 endpoint의 동일 OpenAPI component도 유지한다. 자동 nested 관계 저장이나 optional 객체 member의 구현은 아니다.
+
+중첩 grammar·aggregate budget·선언 소유권/한도, 모델 source/기본값/부분 입력·진단 순서·취소/동시 사용, 실제 borrowed
+HTTP body·배열 및 인증 이전 거부/정확한 schema를 71개 root/child 필수 항목으로 추가했다. Portable core는 120→191이며
+기존 항목과 실제 package 실행 소유권을 보존했다. Relation 4,338·PostgreSQL core 5,506은 변경하지 않았다.
+
+기본/custom 계정 생성 소비자의 수동 password 분리를 공통 typed 객체 입력으로 교체했다. 실제 Session/CSRF와 add+change
+admission 뒤 `Creator.Prepare`/`Commit`을 호출하며, 기존 native 생성·profile/소속·hash/audit·TCP login 대조를 유지한다.
+구조/credential/예약 입력·CSRF/잘못된 JSON의 거부는 setter나 생성 owner가 실행되지 않는지도 검사한다. 일곱 생성 변형의
+부모는 생성 흐름 root/child 97개를 새로 필수 확인한다. 이 소비자 구현을 공통 관리 JSON CRUD 제품의 완료로 계산하지 않는다.
+
+로컬에서는 serializers·API·input·endpoint·codegen/consumertest 다섯 package의 `go test -run '^$'` 최소 compile을
+확인했다. 최종 JSON에는 package pass 5개(기존 동일 소스 cache 4개), test body 0개가 있다. 실제 소비자의 source 선언·
+생성기·embedded 파일을 쓰는 임시 overlay로 기본/custom 별도 module도 `go test -run '^$'` compile했다. 준비용 부모
+root/child 3개는 20.760초에 통과했으며 두 자식의 feature body는 각각 0개다. 새 기능·DB/HTTP 본문과 race/process/platform의
+실제 실행은 원격 CI 대상이다. 생성 ABI나 내장 모델 소스를 변경하지 않았으며 전체 generated drift도 원격에서 확인한다.
+
+선행 source의 [CI 40245351652](https://github.com/progresshans/godj/actions/runs/40245351652)는 관측 시 114개 job 중
+성공 62·실행 중 20·대기 32였고 실패는 관측되지 않았다. 종결 결과나 새 source의 PASS가 아니다. 최소 compile JSON·
+생성 준비/자식 JSON·선행 CI 관측·필수 목록과 변경한 비 Markdown source 17개의 hash는 검증 보관소의
+`gdj0138-object-input-v1/receipt.json`에 연결했다
+(SHA-256 `9e479f1b98152b92018c65ef056bc8aec791151be1afe4fce6a87f15e858acd4`). 포맷·diff와 현행 문서 링크도 검사했다.
+
+역할 정규화를 serializer 제약보다 먼저 적용하는 공통 경로, 관리 JSON CRUD의 노출/조건/응답 조립, 공개 첫 계정 터미널·
+상위 process/scaffold, 나머지 I1-01~08과 전체 카탈로그의 미완료 요구를 유지한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

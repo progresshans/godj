@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/api"
 	apiinput "github.com/progresshans/godj/api/input"
+	apisession "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -78,7 +80,25 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	check(err)
 	body, err := apiinput.NewModel(objects, spec, api.ParserConfig{})
 	check(err)
-	parser, err := api.NewParser(api.ParserConfig{})
+	password, err := serializers.StringField("password", serializers.WithTrimWhitespace(false), serializers.WithMaxLength(4096))
+	check(err)
+	passwordSpec, err := serializers.NewSpec([]serializers.Field{password})
+	check(err)
+	type passwordCommand struct{ Password apiinput.Presence[string] }
+	var jsonSetters, jsonSaves atomic.Int64
+	command, err := apiinput.New(passwordSpec, api.ParserConfig{}, apiinput.Field("password", apiinput.String(), func(command *passwordCommand, value apiinput.Presence[string]) {
+		jsonSetters.Add(1)
+		command.Password = value
+	}))
+	check(err)
+	type creationRequest struct {
+		Fields     orm.ModelInput[M]
+		Credential passwordCommand
+	}
+	creationBody, err := apiinput.Object(api.ParserConfig{MaxBodyBytes: 64 * 1024, JSONLimits: serializers.Limits{MaxStringBytes: 4096}},
+		apiinput.ObjectField("fields", body, func(request *creationRequest, value orm.ModelInput[M]) { jsonSetters.Add(1); request.Fields = value }),
+		apiinput.ObjectField("credential", command, func(request *creationRequest, value passwordCommand) { jsonSetters.Add(1); request.Credential = value }),
+	)
 	check(err)
 	manager, err := sessions.NewManager(store, sessions.Config{})
 	check(err)
@@ -86,6 +106,8 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	check(err)
 	runtime, err := websession.New(websession.Config{Sessions: manager, Authenticator: authenticator, Authorizer: auth.PrincipalAuthorizer{}, LoginPersistence: owner,
 		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/login/", FallbackPath: "/create-form/", AllowedNextPaths: []string{"/create-form/", "/create-json/"}})
+	check(err)
+	jsonAuthentication, err := apisession.New(runtime, apisession.WithReadOnlyResolution())
 	check(err)
 	save := func(request *web.Request, current auth.Principal, input orm.ModelInput[M], password string) (web.Response, error) {
 		prepared, err := creator.Prepare(request.Context(), current, input, password)
@@ -108,6 +130,25 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 		}
 		return web.NewResponse(201, http.Header{"Content-Type": {api.JSONContentType}}, wire)
 	}
+	jsonHandler, err := jsonAuthentication.Require("account.shared", func(request *web.Request, current auth.Principal) (web.Response, error) {
+		value, failures, err := creationBody.Parse(request, serializers.ModeFull)
+		if err != nil {
+			if response, handled, responseErr := api.RequestErrorResponse(err); handled {
+				return response, responseErr
+			}
+			return web.Response{}, err
+		}
+		if !failures.Empty() {
+			return api.ErrorResponse(400, api.CodeValidationError, failures)
+		}
+		password, present := value.Credential.Password.Get()
+		if !present {
+			return web.Response{}, errors.New("prepared credential command omitted required password")
+		}
+		jsonSaves.Add(1)
+		return save(request, current, value.Fields, password)
+	}, "account.team")
+	check(err)
 	routes := []web.Route{
 		{Name: "account:create_login_form", Method: "GET", Path: "/login/", Handler: func(request *web.Request) (web.Response, error) {
 			token, err := runtime.CSRFToken(request)
@@ -165,38 +206,7 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 			}
 			return save(request, current, input, password)
 		})},
-		{Name: "account:create_json", Method: "POST", Path: "/create-json/", Handler: runtime.Require("account.team", func(request *web.Request, current auth.Principal) (web.Response, error) {
-			if err := runtime.VerifyCSRF(request, nil); err != nil {
-				return web.HTML(403, []byte("CSRF rejected"))
-			}
-			object, err := parser.ParseObjectFor(request, spec)
-			if err != nil {
-				return web.HTML(400, []byte("Invalid JSON"))
-			}
-			raw, present := object.Get("new_password")
-			password, valid := raw.AsString()
-			if !present || !valid {
-				return web.HTML(400, []byte("Password required"))
-			}
-			members := make([]serializers.Member, 0, object.Len())
-			for _, member := range object.Members() {
-				if member.Name() != "new_password" {
-					members = append(members, member)
-				}
-			}
-			profile, err := serializers.NewObject(members...)
-			if err != nil {
-				return web.Response{}, err
-			}
-			input, failures, err := body.Bind(request.Context(), profile, serializers.ModeFull)
-			if err != nil {
-				return web.Response{}, err
-			}
-			if !failures.Empty() {
-				return web.HTML(400, []byte("Invalid account JSON"))
-			}
-			return save(request, current, input, password)
-		})},
+		{Name: "account:create_json", Method: "POST", Path: "/create-json/", Handler: jsonHandler},
 	}
 	configured, err := settings.New(settings.Definition{ProjectName: "account_creation_consumer", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "account"})})
 	check(err)
@@ -255,7 +265,7 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	var formResult accountmodel.Creation
 	check(json.Unmarshal([]byte(raw), &formResult))
 	encode := func(data map[string]any) string { wire, err := json.Marshal(data); check(err); return string(wire) }
-	jsonData := map[string]any{role.Login: "created-json@example.test", profileField: "  NZ  ", role.Groups: []int64{groupID}, role.Permissions: []int64{permissionID}, "new_password": accountPasswordText}
+	jsonData := map[string]any{"fields": map[string]any{role.Login: "created-json@example.test", profileField: "  NZ  ", role.Groups: []int64{groupID}, role.Permissions: []int64{permissionID}}, "credential": map[string]any{"password": accountPasswordText}}
 	status, raw = send(client, "POST", "/create-json/", api.JSONContentType, encode(jsonData), token)
 	if status != 201 {
 		t.Fatal("typed JSON account creation", status, raw)
@@ -304,18 +314,8 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 	}
 	before, err := objects.Using(backend).Count(t.Context())
 	check(err)
-	for _, mode := range []string{"duplicate", "reserved", "missing_choice", "empty_password", "required_profile"} {
-		bad := map[string]any{role.Login: "rejected-" + mode + "@example.test", profileField: "NZ", role.Groups: []int64{groupID}, role.Permissions: []int64{permissionID}, "new_password": accountPasswordText}
-		switch mode {
-		case "duplicate":
-			bad[role.Login] = "created-json@example.test"
-		case "reserved":
-			bad[role.PrincipalID] = "forged"
-		case "missing_choice":
-			bad[role.Groups] = []int64{9223372036854775807}
-		case "empty_password":
-			bad["new_password"] = ""
-		case "required_profile":
+	for _, mode := range []string{"duplicate", "reserved", "missing_choice", "empty_password", "required_profile", "missing_fields", "missing_credential", "null_fields", "null_credential", "unknown_envelope", "unknown_command", "csrf_before_parse", "malformed_before_setters"} {
+		if mode == "required_profile" {
 			required := false
 			for _, field := range metadata.Fields {
 				if field.Name == profileField {
@@ -325,12 +325,56 @@ func assertAccountCreationHTTP[M any](t *testing.T, backend database.Backend, bi
 			if !required {
 				continue
 			}
-			delete(bad, profileField)
 		}
-		status, _ = send(client, "POST", "/create-json/", api.JSONContentType, encode(bad), token)
-		if status != 400 {
-			t.Fatal("invalid account JSON accepted", mode, status)
-		}
+		t.Run(mode, func(t *testing.T) {
+			badFields := map[string]any{role.Login: "rejected-" + mode + "@example.test", profileField: "NZ", role.Groups: []int64{groupID}, role.Permissions: []int64{permissionID}}
+			badCredential := map[string]any{"password": accountPasswordText}
+			bad := map[string]any{"fields": badFields, "credential": badCredential}
+			wantStatus, beforeOwner := 400, true
+			switch mode {
+			case "duplicate":
+				badFields[role.Login] = "created-json@example.test"
+				beforeOwner = false
+			case "reserved":
+				badFields[role.PrincipalID] = "forged"
+			case "missing_choice":
+				badFields[role.Groups] = []int64{9223372036854775807}
+				beforeOwner = false
+			case "empty_password":
+				badCredential["password"] = ""
+			case "required_profile":
+				delete(badFields, profileField)
+			case "missing_fields":
+				delete(bad, "fields")
+			case "missing_credential":
+				delete(bad, "credential")
+			case "null_fields":
+				bad["fields"] = nil
+			case "null_credential":
+				bad["credential"] = nil
+			case "unknown_envelope":
+				bad[role.PrincipalID] = "forged"
+			case "unknown_command":
+				badCredential["unexpected"] = "forged"
+			case "csrf_before_parse":
+				wantStatus = 403
+			}
+			wire, proof := encode(bad), token
+			if mode == "csrf_before_parse" {
+				wire, proof = "malformed JSON", ""
+			}
+			if mode == "malformed_before_setters" {
+				wire = `{"fields":{},"fields":{}}`
+			}
+			setters, saves := jsonSetters.Load(), jsonSaves.Load()
+			status, _ = send(client, "POST", "/create-json/", api.JSONContentType, wire, proof)
+			if status != wantStatus {
+				t.Fatal("invalid account JSON accepted", mode, status)
+			}
+			if beforeOwner && (jsonSetters.Load() != setters || jsonSaves.Load() != saves) {
+				t.Fatal("invalid envelope reached a setter or creation owner")
+			}
+		})
 	}
 	after, err := objects.Using(backend).Count(t.Context())
 	check(err)

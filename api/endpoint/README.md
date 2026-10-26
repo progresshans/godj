@@ -56,6 +56,8 @@ transport/인증/표현용 reserved header를 application 입력으로 선언할
 `JSONBody(name, body, mode, description)`는
 같은 full/partial model 입력의 JSON parser와 named schema를 연결한다. 같은 Input 값을 재사용하면 component도 공유하며,
 독립 선언의 같은 이름은 오류다. `NoInput()`은 입력을 읽지 않으며 query를 검사하지도 않는다.
+`input.Object`로 결합한 모델/명령 객체도 같은 `JSONBody`와 `JSONListBody` 경로를 사용한다. 같은 named item을 단건과
+배열 operation에서 공유하며 각 child schema·전체 요청 예산·결합 전체 검증 뒤 setter 실행을 그대로 유지한다.
 `NoQuery(input)`은 비어 있지 않은 raw query를 wrapped parser 이전에 거부한다. Query parameter가 선언된 Input과는 조합할 수 없다.
 각 Input은 자체 client 오류 상태를 자동으로 선언한다. Query/Header는 400, JSON body는 400/413/415이며
 `Errors`에서 같은 상태의 업무 설명을 지정하거나 다른 4xx를 추가할 수 있다.

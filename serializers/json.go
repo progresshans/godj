@@ -76,10 +76,10 @@ func decodeDeclaredObject(document []byte, limits Limits, jsonFields map[string]
 }
 
 func decodeDocument(document []byte, limits Limits, jsonFields map[string]bool, arbitraryNames bool) (Value, error) {
-	return decodeDocumentAt(document, limits, jsonFields, arbitraryNames, 1)
+	return decodeObjectDocument(document, limits, &objectDecoderNode{jsonFields: jsonFields}, arbitraryNames, false)
 }
 
-func decodeDocumentAt(document []byte, limits Limits, jsonFields map[string]bool, arbitraryNames bool, fieldDepth int) (Value, error) {
+func decodeObjectDocument(document []byte, limits Limits, node *objectDecoderNode, arbitraryNames, list bool) (Value, error) {
 	resolved, err := resolveLimits(limits)
 	if err != nil {
 		return Value{}, err
@@ -98,8 +98,11 @@ func decodeDocumentAt(document []byte, limits Limits, jsonFields map[string]bool
 	}
 	decoder := json.NewDecoder(bytes.NewReader(document))
 	decoder.UseNumber()
-	budget := decodeBudget{limits: resolved, jsonFields: jsonFields, fieldDepth: fieldDepth}
-	value, err := decodeJSONValue(decoder, &budget, 1, arbitraryNames)
+	budget := decodeBudget{limits: resolved}
+	if list {
+		budget.rootItems, node = node, nil
+	}
+	value, err := decodeJSONValue(decoder, &budget, 1, arbitraryNames, node)
 	if err != nil {
 		return Value{}, err
 	}
@@ -178,10 +181,9 @@ func jsonHexValue(value byte) (byte, bool) {
 }
 
 type decodeBudget struct {
-	jsonFields map[string]bool
-	fieldDepth int
-	limits     Limits
-	values     int
+	rootItems *objectDecoderNode
+	limits    Limits
+	values    int
 }
 
 func (b *decodeBudget) consumeValue(depth int) error {
@@ -195,7 +197,7 @@ func (b *decodeBudget) consumeValue(depth int) error {
 	return nil
 }
 
-func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
+func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool, node *objectDecoderNode) (Value, error) {
 	if err := budget.consumeValue(depth); err != nil {
 		return Value{}, err
 	}
@@ -226,9 +228,13 @@ func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int, arb
 	case json.Delim:
 		switch typed {
 		case '{':
-			return decodeJSONObject(decoder, budget, depth, arbitraryNames)
+			return decodeJSONObject(decoder, budget, depth, arbitraryNames, node)
 		case '[':
-			return decodeJSONArray(decoder, budget, depth, arbitraryNames)
+			var items *objectDecoderNode
+			if depth == 1 {
+				items = budget.rootItems
+			}
+			return decodeJSONArray(decoder, budget, depth, arbitraryNames, items)
 		default:
 			return Value{}, invalidDocument("document", "JSON contains an unexpected closing delimiter", nil)
 		}
@@ -237,7 +243,7 @@ func decodeJSONValue(decoder *json.Decoder, budget *decodeBudget, depth int, arb
 	}
 }
 
-func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
+func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool, node *objectDecoderNode) (Value, error) {
 	members := make([]Member, 0)
 	byName := make(map[string]int)
 	for decoder.More() {
@@ -259,8 +265,12 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int, ar
 			return Value{}, invalidDocument("document.object."+name, "JSON object member is duplicated", nil)
 		}
 		byName[name] = len(members)
-		jsonField := depth == budget.fieldDepth && budget.jsonFields[name]
-		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames || jsonField)
+		jsonField := node != nil && node.jsonFields[name]
+		var child *objectDecoderNode
+		if node != nil {
+			child = node.children[name]
+		}
+		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames || jsonField, child)
 		if err != nil {
 			return Value{}, err
 		}
@@ -287,13 +297,13 @@ func decodeJSONObject(decoder *json.Decoder, budget *decodeBudget, depth int, ar
 	return (Object{members: members, index: byName, valid: true}).Value(), nil
 }
 
-func decodeJSONArray(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool) (Value, error) {
+func decodeJSONArray(decoder *json.Decoder, budget *decodeBudget, depth int, arbitraryNames bool, items *objectDecoderNode) (Value, error) {
 	values := make([]Value, 0)
 	for decoder.More() {
 		if len(values) >= budget.limits.MaxArrayItems {
 			return Value{}, resourceLimit("document.array", "JSON array item count exceeds the configured limit")
 		}
-		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames)
+		value, err := decodeJSONValue(decoder, budget, depth+1, arbitraryNames, items)
 		if err != nil {
 			return Value{}, err
 		}

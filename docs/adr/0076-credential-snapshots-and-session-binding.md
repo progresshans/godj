@@ -215,6 +215,14 @@ List는 scalar만 최대 100개씩 ID 순서로 반환하고 count와 items가 �
 API의 모델 권한과 Admin의 active staff admission은 별개다.
 Manager는 HTTP에서 받은 principal의 과거 grant를 쓰기 권한으로 신뢰하지 않고 현재 저장 상태를 다시 확인한다.
 
+선택 계정의 typed JSON 입력은 모델 field와 credential 명령을 별도 객체로 결합할 수 있다. 공통 `api/input.Object`는
+기존 `NewModel`의 완전한 source와 명령 Body를 보존하며 객체 구조에서 저장이나 권한을 추론하지 않는다.
+한 parser 예산이 중첩 객체와 JSONField 전체를 포함하고, 모든 child의 검증/변환이 끝나기 전에는 setter를 실행하지 않는다.
+이 결합 API의 바깥 객체 member는 full/partial 모두 필수이며 null을 허용하지 않는다. Mode는 child 내부 field에 적용한다.
+오류 위치는 escape된 JSON Pointer로 구별한다. 기본/custom 외부 계정 생성 소비자는 `fields`와 `credential`을 사용하고
+add+change/CSRF를 본문보다 먼저 확인한다. 공통 관리 JSON CRUD의 route/노출/수정 조건/응답 조립과 역할별 쓰기 정규화의
+입력 전 적용은 별도로 완성해야 하며, 이 입력 기반만으로 I1 JSON 제품 수용을 완료하지 않는다.
+
 수정·삭제·password 명령은 `If-Revision`에 대상 row의 canonical positive decimal revision을 요구한다.
 응답의 `revision`과 `Revision` header가 같은 값을 제공한다. 이 값은 profile·직접 관계의 충돌을 다루는
 application 조건이다. 특히 password 명령은 User의 revision을 사용한다. HTTP representation의 ETag로 표현하지 않는다.

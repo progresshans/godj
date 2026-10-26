@@ -19,6 +19,51 @@ scope에서 확인한다. Pending upload는 일반 scalar 전달이 아닌 파�
 
 아래의 `New`·`Property` 경로는 임의 DTO와 업무 명령에 계속 사용할 수 있다.
 
+## 모델 입력과 명령의 객체 결합
+
+`Object(parserConfig, ObjectField(name, childBody, setter), ...)`는 이미 준비한 `Body`들을 별도 객체 member로
+결합한 `Body[T]`를 만든다. 예를 들어 실제 모델에 `password`라는 프로필 필드가 있어도 모델의 `fields.password`와
+명령의 `credential.password`는 서로 다른 입력이다. 각 child의 모델 출처·허용 필드·타입·default·choices와
+full/partial 의미를 유지하며, 필드 이름으로 모델이나 저장 동작을 추론하지 않는다.
+
+```go
+type Credential struct { Password input.Presence[*string] }
+type Creation[M any] struct {
+    Fields orm.ModelInput[M]
+    Credential Credential
+}
+
+func creationBody[M any](model input.Body[orm.ModelInput[M]], command input.Body[Credential]) (input.Body[Creation[M]], error) {
+    return input.Object(api.ParserConfig{MaxBodyBytes: 64 * 1024},
+        input.ObjectField("fields", model, func(out *Creation[M], value orm.ModelInput[M]) { out.Fields = value }),
+        input.ObjectField("credential", command, func(out *Creation[M], value Credential) { out.Credential = value }),
+    )
+}
+```
+
+입력은 `{"fields": {...}, "credential": {...}}`다. 바깥 객체 member는 **full과 partial 모두 필수**이고 null·배열·scalar를
+받지 않는다. Mode는 각 child 내부 field의 생략/default에 적용한다. Optional·nullable 객체 member와 자동 관계 저장은
+이 API의 기능이 아니다. 필요한 command field의 필수·nullable 정책은 그 child Spec에서 별도로 선언한다.
+
+요청 body는 한 번 읽으며 `Object`에 준 parser 설정이 전체 bytes·depth·values·member/array/string/number 제한을
+소유한다. Child의 단건 HTTP parser를 호출하거나 각 child에서 예산을 재시작하지 않는다. 각 Spec의 JSONField 경로만
+arbitrary JSON member name을 허용하며 다른 위치의 같은 이름이나 배열 안으로 권한이 번지지 않는다.
+`serializers.ObjectDecoder`는 이 grammar만 선언하는 불변 객체이며 model 출처나 검증/쓰기 권한을 부여하지 않는다.
+`NewObjectDecoder(spec)`와 `ComposeObjectDecoder`를 `api.Parser.ParseObjectWith`/`ParseListWith`에도 사용할 수 있다.
+선언은 공유 child의 매 사용을 세어 최대 4,096개 object node·64개 object 깊이를 허용하고, 실제 문서에는 parser의 더 작은
+기본값/설정 한도가 별도로 적용된다. Zero child·중복/잘못된 이름·nil setter·과한 graph는 준비 단계에서 거부한다.
+
+전체 child의 Spec 검증·타입 변환과 unknown member 검사가 성공하기 전에는 어느 child/parent setter도 실행하지 않는다.
+Default를 이미 제출한 값으로 재검증하지 않아 legacy default와 JSON null/SQL NULL 의미도 유지한다. Setter 순서는
+object 선언 순서와 각 child의 기존 Spec 순서다. 취소에는 이후 setter와 부분 DTO를 게시하지 않으며, setter는 순수해야 한다.
+
+결합된 입력의 diagnostic field는 JSON Pointer다. 예를 들어 `/fields/email`, `/credential/password`,
+`/outer/child/name`처럼 나타내고 원래 이름의 `~`와 `/`는 각각 `~0`, `~1`로 escape한다.
+각 child의 진단 순서를 유지한 뒤 바깥 unknown member를 이름 순으로 추가한다. Diagnostic params와 값 비노출 정책을
+유지한다. `Schema(mode)`도 같은 child schema로 만든 닫힌 객체이며 `JSONBody`/`JSONListBody`가 그대로 사용할 수 있다.
+
+아래는 단일 Spec에서 임의 DTO를 구성하는 예시다.
+
 ```go
 type PatchDTO struct {
     Name     input.Presence[string]
@@ -117,6 +162,9 @@ Go 오류·취소는 즉시 중단한다. Validator의 일반 오류가 parser�
 유효한 행의 순수 setter/validator는 실행될 수 있다. 요청 전체가 실패하면 부분 DTO slice는 반환하지 않는다.
 
 실제 연결은 [Helpdesk 선언](../../examples/helpdesk/api_inputs.go), [여러 티켓 생성](../../examples/helpdesk/ticket_bulk_api.go),
-[Article 배열 endpoint](../../examples/article/apiapp/bulk_create.go)를 참고한다. Header 입력·nested writable serializer와
-자동 viewset은 후속 범위다. 경로/endpoint 연결은 [api/endpoint](../endpoint/README.md)가 소유한다.
+[Article 배열 endpoint](../../examples/article/apiapp/bulk_create.go)와
+[선택 계정 생성 소비자](../../codegen/consumertest/testdata/accountbinding/creation_test.go)를 참고한다.
+객체 배열도 같은 `Object`를 사용하며 행 전체의 결합이 실패하면 그 행의 어떤 setter도 실행하지 않는다.
+앞선 유효 행의 setter/validator는 실행될 수 있고, 실패한 요청은 부분 행 slice를 반환하지 않는다.
+자동 nested 관계 저장과 viewset은 후속 범위다. Header·경로/endpoint 연결은 [api/endpoint](../endpoint/README.md)가 소유한다.
 환경별 검증과 후속 통합은 [실행 증거](../../docs/status/TEST_EVIDENCE.md)에 기록한다.

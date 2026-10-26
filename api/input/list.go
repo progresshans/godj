@@ -102,7 +102,7 @@ func (list ListBody[T]) Parse(request *web.Request, mode serializers.Mode) ([]T,
 	if err := list.body.check(mode); err != nil {
 		return nil, validation.Errors{}, err
 	}
-	objects, err := list.parser.ParseListFor(request, list.body.spec)
+	objects, err := list.parser.ParseListWith(request, list.body.decoder)
 	if err != nil {
 		return nil, validation.Errors{}, err
 	}

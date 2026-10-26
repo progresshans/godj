@@ -142,6 +142,12 @@ func TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels(t *testing
 			writeGeneratedTestFile(t, root, "consumer/delete_http_test.go", accountBindingDeleteHTTPConsumer)
 			output := runStrictGeneratedCommand(t, generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer"))
 			requiredNames := []string{required, required + "/password_change", required + "/profile_role_edit"}
+			for _, name := range []string{"", "/duplicate", "/reserved", "/missing_choice", "/empty_password", "/missing_fields", "/missing_credential", "/null_fields", "/null_credential", "/unknown_envelope", "/unknown_command", "/csrf_before_parse", "/malformed_before_setters"} {
+				requiredNames = append(requiredNames, required+"/account_creation"+name)
+			}
+			if variant.custom {
+				requiredNames = append(requiredNames, required+"/account_creation/required_profile")
+			}
 			for _, name := range []string{"", "/csrf", "/stale", "/additional_permission", "/commit"} {
 				requiredNames = append(requiredNames, required+"/account_delete"+name)
 			}

@@ -217,7 +217,9 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assertAccountCreationHTTP(t, backend, binding, creator, authenticator, sessionStore, actor.Principal(), "member@EXAMPLE.TEST", "region", team.ID, grants[0].ID)
+	t.Run("account_creation", func(t *testing.T) {
+		assertAccountCreationHTTP(t, backend, binding, creator, authenticator, sessionStore, actor.Principal(), "member@EXAMPLE.TEST", "region", team.ID, grants[0].ID)
+	})
 	var currentPassword string
 	t.Run("password_change", func(t *testing.T) {
 		currentPassword = assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "member@EXAMPLE.TEST", row, func(_ context.Context, raw string, current people.Member) (validation.Errors, error) {

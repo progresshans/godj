@@ -9,7 +9,7 @@
 
 ## 다음
 
-1. 선택 계정 관리/Admin과 복합 API 권한 정책·선행 CI fixture 보정을 같은 source의 원격 CI에서 확인한다.
+1. 선택 계정 관리/Admin과 복합 권한·중첩 typed JSON 입력/생성 소비자를 같은 source의 원격 CI에서 확인한다.
 2. 관리 JSON HTTP와 최초 계정의 공개 터미널/상위 프로세스·scaffold를 선택 runtime에 조립한다.
 3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB 전환·설치·통합 restart의 남은 요구를 완성한다.
 

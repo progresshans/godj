@@ -79,6 +79,25 @@ func (p Parser) ParseListFor(request *web.Request, spec serializers.Spec) ([]ser
 	return parseJSONBody(p, request, "array of objects", spec.DecodeList)
 }
 
+// ParseObjectWith uses an immutable object-envelope grammar prepared from
+// leaf Specs. All members share this parser's whole-document limits and one
+// borrowed body read. The decoder does not perform binding or application I/O.
+func (p Parser) ParseObjectWith(request *web.Request, decoder serializers.ObjectDecoder) (serializers.Object, error) {
+	if !decoder.Valid() {
+		return serializers.Object{}, &Error{Code: FailureInvalidConfig, Field: "object_decoder", Detail: "object decoder is zero or unprepared"}
+	}
+	return parseJSONBody(p, request, "object", decoder.DecodeObject)
+}
+
+// ParseListWith keeps the same grammar and one aggregate budget for a root
+// array of object envelopes. Binding and per-item policy remain with the caller.
+func (p Parser) ParseListWith(request *web.Request, decoder serializers.ObjectDecoder) ([]serializers.Object, error) {
+	if !decoder.Valid() {
+		return nil, &Error{Code: FailureInvalidConfig, Field: "object_decoder", Detail: "object decoder is zero or unprepared"}
+	}
+	return parseJSONBody(p, request, "array of objects", decoder.DecodeList)
+}
+
 func parseJSONBody[T any](p Parser, request *web.Request, kind string, decode func([]byte, serializers.Limits) (T, error)) (T, error) {
 	var zero T
 	if !p.valid {

@@ -283,6 +283,14 @@ source에 생성/조회/수정/삭제/비밀번호 owner를 묶고 명시적 rea
 선행 CI의 Admin 필드 순서·선택지 query·이메일형/동일 역할 로그인 fixture 오류를 재현·보정했고, 기본/custom/Text 로그인
 세 생성 소비자의 한정 재실행을 확인했다. 새 API 정책의 최소 compile과 실제 본문 검증은 TEST_EVIDENCE에서 구분한다.
 
+모델 field와 credential 명령을 별도 객체로 결합하는 `api/input.Object`·`ObjectField`와 source를 유지한 공통 decoder를
+작성했다. 중첩 전체에 한 parser 예산을 적용하고 각 child의 기존 Spec으로 full/partial·nullable·choices를 검증한다.
+생략한 default는 제출값으로 다시 검사하지 않는다.
+전체 검증·타입 변환 전에는 어느 setter도 실행하지 않는다. 같은 Body의 배열·typed endpoint/OpenAPI도 연결했다.
+기본/custom 생성 소비자의 수동 password 분리를 이 typed 입력으로 교체하고 add+change/CSRF를 본문보다 먼저 확인한다.
+새 선언/소비자의 최소 compile과 실제 feature body 실행은 TEST_EVIDENCE에서 구분한다. 역할 정규화의 입력 전 적용과
+공통 관리 JSON CRUD의 전체 조립을 완료한 것으로 계산하지 않는다.
+
 프로필 관계/파일과 기존 Directory/Manager 교체, 관리 JSON HTTP 제품 조립,
 첫 계정 명령·통합 runtime·선택 모델-as-through의 identity 생성·명시적 설치와 scaffold startup 조립·채운 DB
 mapping/retirement/receipt·restart는 남아 있다.

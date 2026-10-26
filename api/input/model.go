@@ -52,32 +52,36 @@ func NewModel[M any](manager orm.Manager[M], spec serializers.Spec, config api.P
 	for _, field := range metadata.ManyToMany {
 		collections[field.Name] = true
 	}
-	return newBody(spec, config, func(ctx context.Context, values serializers.Values) (orm.ModelInput[M], error) {
+	return newBody(spec, config, func(ctx context.Context, values serializers.Values) (preparedInput[orm.ModelInput[M]], error) {
 		scalars := make(map[string]query.Value)
 		membership := make(map[string][]int64)
 		for _, entry := range values.All() {
 			if err := ctx.Err(); err != nil {
-				return orm.ModelInput[M]{}, err
+				return nil, err
 			}
 			if collections[entry.Name()] {
 				keys, ok := entry.Value().AsIntegers()
 				if !ok {
-					return orm.ModelInput[M]{}, configError("fields."+entry.Name(), "validated collection has an incompatible representation")
+					return nil, configError("fields."+entry.Name(), "validated collection has an incompatible representation")
 				}
 				membership[entry.Name()] = keys
 				continue
 			}
 			scalar, ok := modelScalar(entry.Value())
 			if !ok {
-				return orm.ModelInput[M]{}, configError("fields."+entry.Name(), "validated scalar has an incompatible representation")
+				return nil, configError("fields."+entry.Name(), "validated scalar has an incompatible representation")
 			}
 			scalars[entry.Name()] = scalar
 		}
 		result, err := manager.Input(scalars)
 		if err != nil {
-			return orm.ModelInput[M]{}, err
+			return nil, err
 		}
-		return result.WithCollections(membership)
+		result, err = result.WithCollections(membership)
+		if err != nil {
+			return nil, err
+		}
+		return func() (orm.ModelInput[M], error) { return result, nil }, nil
 	})
 }
 
