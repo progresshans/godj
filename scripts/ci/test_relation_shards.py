@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import textwrap
 import unittest
 
 from go_test_events import discover_roots
@@ -201,6 +202,46 @@ class RelationShardTest(unittest.TestCase):
             self.assertIn('${{ runner.temp }}/' + name, body)
         self.assertIn('if-no-files-found: error', body)
         self.assertIn('${{ matrix.shard }}-${{ github.run_attempt }}', body)
+
+    def test_workflow_shell_preserves_partition_arguments_with_nounset(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
+        step = workflow.split('- name: Run relation product mode', 1)[1].split('\n      - name:', 1)[0]
+        body = textwrap.dedent(step.split('run: |\n', 1)[1])
+        prefix = body.split('consumer_package=', 1)[0]
+        commands = [line for line in body.splitlines() if line.startswith('python3 scripts/ci/relation_shards.py ')]
+        self.assertEqual(len(commands), 2)
+        # Execute the actual workflow's expansion, including on macOS Bash 3.2.
+        # Capture argv before the already separately tested Python planner.
+        capture = '''python3() {
+          command "$PARTITION_PYTHON" -c 'import json, sys; print(json.dumps(sys.argv[1:]))' "$@"
+        }
+        '''
+        paths = {name: str(self.directory / ('path with spaces ' + name))
+                 for name in ('discovery', 'required', 'expected_packages', 'shard_dir', 'log')}
+        for isolated, shard, shards in ((False, 2, 3), (True, 7, 7)):
+            with self.subTest(isolated=isolated):
+                values = {'mode': 'normal', 'shard': str(shard), 'shards': str(shards),
+                          'isolate_accounts': str(isolated).lower()}
+                script = capture + prefix + '\n'.join(commands) + '\n'
+                script = re.sub(r'\$\{\{\s*matrix\.(\w+)\s*\}\}', lambda match: values[match[1]], script)
+                environment = {**os.environ, **paths, 'PARTITION_PYTHON': sys.executable}
+                result = subprocess.run(['/bin/bash', '-c', script], env=environment,
+                                        capture_output=True, text=True, timeout=10)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                captured = [json.loads(line) for line in result.stdout.splitlines()]
+                self.assertEqual([args[:2] for args in captured],
+                                 [['scripts/ci/relation_shards.py', action] for action in ('plan', 'verify')])
+                for args in captured:
+                    for flag, value in (('--shard', str(shard)), ('--shards', str(shards)),
+                                        ('--discovery', paths['discovery']), ('--packages', paths['expected_packages'])):
+                        self.assertEqual(args.count(flag), 1)
+                        self.assertEqual(args[args.index(flag) + 1], value)
+                    self.assertEqual(args.count('--isolate-accounts'), int(isolated))
+                for args, pairs in zip(captured, ((('--required', 'required'), ('--output-dir', 'shard_dir')),
+                                                 (('--log', 'log'),))):
+                    for flag, path in pairs:
+                        self.assertEqual(args.count(flag), 1)
+                        self.assertEqual(args[args.index(flag) + 1], paths[path])
 
     def test_cli_plan_and_verifier_keep_required_child_failure_visible(self):
         required = self.directory / 'required.txt'

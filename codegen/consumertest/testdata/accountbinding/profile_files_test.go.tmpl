@@ -210,6 +210,7 @@ func TestGeneratedProfileFileLifecycle(t *testing.T) {
     preset, err := accountmodel.NewProfileFile(binding,"preset",accountmodel.ProfileFileConfig[fileAccount]{ImageChoices:inspector.Inspect}); fileCheck(t,err)
     policies=append(policies,preset)
     baseFields:=[]string{role.Login,"@@PROFILE@@"}
+    createFields:=append(slices.Clone(baseFields),role.Groups,role.Permissions)
     editFields:=append(slices.Clone(baseFields),"document","second_document","portrait","preset",role.Groups,role.Permissions)
     for _, field:=range []string{role.Active.Field,role.Staff.Field,role.Superuser.Field} { if field!="" { editFields=append(editFields,field) } }
     readFields:=append(slices.Clone(editFields),"portrait_width","portrait_height","preset_width","preset_height")
@@ -217,31 +218,46 @@ func TestGeneratedProfileFileLifecycle(t *testing.T) {
     groupPermissions:=accountmodel.CatalogPermissions{View:"catalog.view_group",Add:"catalog.add_group",Change:"catalog.change_group",Delete:"catalog.delete_group"}
     permissionPermissions:=accountmodel.CatalogPermissions{View:"catalog.view_permission",Add:"catalog.add_permission",Change:"catalog.change_permission",Delete:"catalog.delete_permission"}
     reject:=&atomic.Bool{}
+    // Keep legitimate HTTP session touches at one instant, so complete durable
+    // snapshots can detect mutation failures without ignoring any session data.
+    now:=time.Now().UTC().Truncate(time.Microsecond)
+    clock:=func()time.Time{return now}
     runtimeConfig:=accountmodel.RuntimeConfig[fileAccount,@@GROUP@@,@@PERMISSION@@]{
-        Accounts:accountmodel.AccountManagementConfig[fileAccount]{ReadFields:readFields,CreateFields:baseFields,EditFields:editFields,Files:policies,Permissions:accountPermissions,
+        Sessions:sessions.Config{Clock:clock},
+        Accounts:accountmodel.AccountManagementConfig[fileAccount]{ReadFields:readFields,CreateFields:createFields,EditFields:editFields,Files:policies,Permissions:accountPermissions,
+            Now:clock,
             GroupPermissions:accountmodel.DeletionPermissions{Change:groupPermissions.Change,Delete:groupPermissions.Delete},
             PermissionPermissions:accountmodel.DeletionPermissions{Change:permissionPermissions.Change,Delete:permissionPermissions.Delete},
             ValidateEdit:func(context.Context,db.Queryer,fileAccount,fileAccount,accountmodel.RoleMemberships)(validation.Errors,error){
                 if reject.Load() { return validation.NewErrors(validation.New("document","rejected")),nil }; return validation.Errors{},nil
             }},
         Catalog:accountmodel.CatalogConfig[@@GROUP@@,@@PERMISSION@@]{
+            Now:clock,
             Group:accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields:[]string{role.Catalog.GroupName,role.Catalog.GroupPermissions},WriteFields:[]string{role.Catalog.GroupName,role.Catalog.GroupPermissions},Permissions:groupPermissions},
             Permission:accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},WriteFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},Permissions:permissionPermissions},
             AccountPermissions:accountmodel.DeletionPermissions{Change:accountPermissions.Change,Delete:accountPermissions.Delete}},
     }
     hasher,_:=accountPassword(t)
-    first,err:=project.NewFirstAccount(backend,hasher,accountmodel.FirstAccountConfig[fileAccount]{CreationPolicy:accountmodel.CreationPolicy[fileAccount]{Fields:baseFields},EvidenceSHA256:strings.Repeat("b",64)});fileCheck(t,err)
+    first,err:=project.NewFirstAccount(backend,hasher,accountmodel.FirstAccountConfig[fileAccount]{CreationPolicy:accountmodel.CreationPolicy[fileAccount]{Fields:baseFields,Now:clock},EvidenceSHA256:strings.Repeat("b",64)});fileCheck(t,err)
     initial,err:=objects.Input(map[string]query.Value{role.Login:query.String("first@example.test"),"@@PROFILE@@":query.String("NZ")});fileCheck(t,err)
     pending,err:=first.Prepare(t.Context(),initial,accountPasswordText);fileCheck(t,err)
     firstResult,err:=first.Commit(t.Context(),pending);fileCheck(t,err)
     composed,err:=project.NewAccountRuntime(t.Context(),backend,hasher,auth.PrincipalAuthorizer{},runtimeConfig);fileCheck(t,err)
     credential,err:=composed.Authenticator().Authenticate(t.Context(),"first@example.test",accountPasswordText);fileCheck(t,err)
     actor:=credential.Principal()
+    // The custom model requires nonempty Form collections. Provision real
+    // catalog choices and keep them selected instead of relaxing its Schema IR.
+    grantInput,err:=@@PERMISSION@@Objects.Input(map[string]query.Value{role.Catalog.PermissionName:query.String("Profile files"),role.Catalog.PermissionCode:query.String("profile.files")});fileCheck(t,err)
+    grant,err:=composed.Catalog().Permissions().Create(t.Context(),actor,grantInput);fileCheck(t,err)
+    groupInput,err:=@@GROUP@@Objects.Input(map[string]query.Value{role.Catalog.GroupName:query.String("Profile team")});fileCheck(t,err)
+    groupInput,err=groupInput.WithCollections(map[string][]int64{role.Catalog.GroupPermissions:{grant.ID}});fileCheck(t,err)
+    group,err:=composed.Catalog().Groups().Create(t.Context(),actor,groupInput);fileCheck(t,err)
     row:=func(t *testing.T,id int64)fileAccount{t.Helper();value,err:=objects.Using(native).Filter(key.Exact(id)).Get(t.Context());fileCheck(t,err);return value}
     values:=func(t *testing.T,value fileAccount)map[string]query.Value{t.Helper();result,err:=objects.ModelValues(value);fileCheck(t,err);return result}
     revision:=func(t *testing.T,id int64)int64{t.Helper();version,valid:=values(t,row(t,id))[role.Revision].Integer();if !valid{t.Fatal("missing stored revision")};return version}
     target:=func(t *testing.T,name string)int64{
         t.Helper();input,err:=objects.Input(map[string]query.Value{role.Login:query.String(name+"@example.test"),"@@PROFILE@@":query.String("NZ")});fileCheck(t,err)
+        input,err=input.WithCollections(map[string][]int64{role.Groups:{group.ID},role.Permissions:{grant.ID}});fileCheck(t,err)
         prepared,err:=composed.Accounts().Creator().Prepare(t.Context(),actor,input,accountPasswordText);fileCheck(t,err)
         created,err:=composed.Accounts().Creator().Commit(t.Context(),actor,prepared);fileCheck(t,err);return created.ID
     }
@@ -299,7 +315,7 @@ func TestGeneratedProfileFileLifecycle(t *testing.T) {
     builder:=admin.NewBuilder(configured.Apps());fileCheck(t,identityadmin.RegisterAccount(builder,composed.Accounts(),identityadmin.AccountRegistration{Slug:"accounts",ReportFileEdit:reports.record}))
     registry,err:=builder.Build();fileCheck(t,err)
     paths,err:=admin.SiteAllowedNextPaths(registry,"/admin");fileCheck(t,err)
-    sessionRuntime,err:=websession.New(websession.Config{Sessions:composed.Sessions(),Authenticator:composed.Authenticator(),Authorizer:auth.PrincipalAuthorizer{},LoginPersistence:composed.LoginPersistence(),SessionCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},CSRFCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},LoginPath:"/admin/login/",FallbackPath:"/admin/",AllowedNextPaths:paths});fileCheck(t,err)
+    sessionRuntime,err:=websession.New(websession.Config{Sessions:composed.Sessions(),Authenticator:composed.Authenticator(),Authorizer:auth.PrincipalAuthorizer{},LoginPersistence:composed.LoginPersistence(),Clock:clock,SessionCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},CSRFCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},LoginPath:"/admin/login/",FallbackPath:"/admin/",AllowedNextPaths:paths});fileCheck(t,err)
     site,err:=admin.NewSite(admin.SiteConfig{Apps:configured.Apps(),Namespace:"fileadmin",Registry:registry,Auth:sessionRuntime});fileCheck(t,err)
     authentication,err:=apisession.New(sessionRuntime,apisession.WithReadOnlyResolution());fileCheck(t,err)
     management,err:=identityapi.NewManagement(composed.Accounts(),composed.Catalog(),identityapi.ManagementConfig{Namespace:"fileapi",Authentication:authentication});fileCheck(t,err)
@@ -354,6 +370,13 @@ func TestGeneratedProfileFileLifecycle(t *testing.T) {
         if _,err:=editor.Update(t.Context(),actor,targetID,2,raw);!errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeInvalidInput}){t.Fatal("plain scalar input assigned a file reference",err)}
     })
     run("admin_upload",func(t *testing.T){
+        for _,field:=range metadata.ManyToMany{
+            if field.Blank||field.Name!=role.Groups&&field.Name!=role.Permissions{continue}
+            data:=editData(t,targetID);data.Del(field.Name);before:=snapshot(t);saves,names:=disk.saves.Load(),disk.names.Load()
+            status,body:=post(t,targetID,data,map[string][]byte{"document":content})
+            if status!=200||!strings.Contains(body,"required")||disk.saves.Load()!=saves||disk.names.Load()!=names{t.Fatal("required collection omission reached file publication",field.Name,status)}
+            assertSame(t,before)
+        }
         data:=editData(t,targetID);before:=disk.saves.Load();status,body:=post(t,targetID,data,map[string][]byte{"document":content,"portrait":portrait})
         if status!=302||strings.Contains(body,"private profile document")||disk.saves.Load()!=before+2{t.Fatal("real multipart account update failed or retried",status)}
         report,_:=reports.last();publications:=report.Publications()

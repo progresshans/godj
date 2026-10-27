@@ -2224,6 +2224,43 @@ HTTP 10초·전체 child 5분/10분·부모 생성/실행 기한, 원본 fixture
 새 파일 DB/HTTP·PostgreSQL·race/CGO0·generated drift·process/browser/platform과 독립 기준의 전체 수용은
 새 source의 자동 원격 CI에서 확인한다. I1과 전체 카탈로그는 미완료다.
 
+### 파일 편집 사전 조회와 macOS 실행 인자 수정
+
+2026-10-28, source `6837c217f6ac08af3470e9ba41404ee1014807f4`의
+[CI 40473369421](https://github.com/progresshans/godj/actions/runs/40473369421)는 135개 작업 중
+97개 성공·37개 실패·1개 skip으로 끝났다. 마지막 원본/capture 비교 작업이 실행되지 않았으며 전체 수용은 실패다.
+실패한 37개 작업의 전체 로그를 확인했다. 실제 checkout `79c468ed61c0684492d8e2476247852e3d86cfc1`의
+tree `a261b303a1d8189f91be559bae17910b5873bcf7`가 제출 source와 같고, base/head 부모도 일치한다.
+
+macOS 27개 작업은 Bash 3.2의 `set -u`에서 빈 `partition_flags` 배열을 펼치다가 테스트 실행 전에 실패했다.
+공통 배열에 필수 shard 인자를 함께 넣어 항상 비어 있지 않게 하고, 선택적인 계정 분리 인자는 그대로 추가한다.
+실제 workflow의 초기화·plan/verify 호출을 `/bin/bash`로 실행하는 회귀 검사를 추가했다. 수정 전 workflow는
+계정 분리를 하지 않는 좌표에서 같은 unbound-variable 오류를 내고, 수정 후에는 두 좌표 모두 각 인자와 공백을 포함한
+경로를 정확히 전달했다. 실행 분할·기한·필수 목록·no-skip 검사는 바꾸지 않았다.
+
+나머지 제품 작업 9개는 기본/custom 파일 소비자의 사전 조회에서 실패했고, 1개는 이 실패를 반영한 최종 집계다.
+동일 source의 기본 SQLite 소비자로 재현한 원인은 `First()`에 명시적인 정렬이 없다는 Query AST 오류였다.
+선택 계정의 실제 primary key 정렬을 넣었다. 현재 권한·credential·revision을 검사하는 read scope와 파일 게시 전 거부,
+게시 후 최종 native transaction 재검사는 유지한다.
+
+이후 드러난 소비자 문제도 수정했다. HTTP 인증의 정상적인 session touch가 시각을 바꾸므로 fixture의 계정·catalog·
+session·HTTP owner가 동일한 고정 clock을 사용하게 했다. 실패 전후 전체 session 행·payload 비교는 그대로 유지한다.
+Custom 모델의 필수 group/grant 선택은 실제 catalog 생성과 계정 생성 시 소속으로 준비했다. 해당 IR의 필수 조건을
+완화하지 않았으며 각 선택을 생략한 multipart 요청이 파일 이름 callback·게시·계정/소속/audit/session 변경 전에
+거부되는 부정 검사도 추가했다.
+
+최종 로컬 darwin/arm64 Go 1.26.5에서 확인된 실패 root `TestGeneratedAccountProfileFiles`만 재실행해 통과했다
+(명령 11.40초). 실제 생성된 두 module의 native SQLite·TCP Form/Admin/JSON·파일 저장과 실패/경합 본문에서
+각각 필수 root/child 29개의 run/pass가 정확히 한 번씩 있고 skip이 없음을 원본 JSON으로 대조했다. 임시 오류 진단과
+수정 중 compile 실패를 포함한 중간 결과도 보관하며, 현재 판정은 최종 source hash와 일치하는 마지막 실행에만 적용한다.
+제품·소비자 source는 마지막 실행 뒤 바뀌지 않았다.
+
+전체 원본 로그·수정 전후 재현·최종 child 대조와 변경 hash는 검증 보관소의
+`gdj0138-profile-files-ci-repair-v1/receipt-final.json`에 둔다
+(SHA-256 `a116d466e911739de46c4302777dbb0e897d35f2295d50bbd090302cdcd96a27`).
+새 source의 PostgreSQL·race/CGO0·generated drift·process/browser/platform과 마지막 원본/capture 비교는
+자동 전체 원격 CI에서 확인한다. 한정 로컬 통과로 I1 또는 전체 카탈로그 수용을 선언하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

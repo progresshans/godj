@@ -253,7 +253,7 @@ func prepareProfileFileChange[M any](ctx context.Context, store *CredentialStore
 	}, func(work context.Context, scope db.Queryer, namespace auth.CredentialDomain) (observation, bool, error) {
 		binding := store.state.binding
 		objects := binding.state.objects
-		current, present, err := objects.Using(scope).Filter(store.state.key.Exact(id)).First(work)
+		current, present, err := objects.Using(scope).Filter(store.state.key.Exact(id)).OrderBy(store.state.key.Asc()).First(work)
 		if err != nil || !present {
 			return observation{}, present, err
 		}
