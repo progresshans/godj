@@ -12,7 +12,7 @@ import (
 )
 
 const GoDjGeneratorVersion = "godj-codegen-current-v3"
-const GoDjSchemaSHA256 = "b308cf6c12981d2af7e2159487f2f951dab52b315ffad37c7c4646b27a896524"
+const GoDjSchemaSHA256 = "104f327ffe6dad3fdacfbaac712d5f40d9518f61dd16156db619ca1fb0988707"
 
 type Transition struct {
 	ID                    int64
@@ -22,6 +22,8 @@ type Transition struct {
 	RoleFingerprint       string
 	Generation            string
 	EvidenceSHA256        string
+	MappingCount          int64
+	MappingSHA256         string
 	TransitionedAt        _godjtime.Time
 	godjPrimaryKeyPresent bool
 }
@@ -40,7 +42,7 @@ func (TransitionDescriptor) Scan(row db.Row) (Transition, error) {
 	var value Transition
 	var scanPreviousID sql.NullInt64
 	var scanTransitionedAt orm.DateTimeScanner
-	if err := row.Scan(&value.ID, &value.OperationID, &value.Sequence, &scanPreviousID, &value.RoleFingerprint, &value.Generation, &value.EvidenceSHA256, &scanTransitionedAt); err != nil {
+	if err := row.Scan(&value.ID, &value.OperationID, &value.Sequence, &scanPreviousID, &value.RoleFingerprint, &value.Generation, &value.EvidenceSHA256, &value.MappingCount, &value.MappingSHA256, &scanTransitionedAt); err != nil {
 		return Transition{}, err
 	}
 	if scanPreviousID.Valid {
@@ -98,6 +100,10 @@ func (TransitionDescriptor) WriteFieldValue(value Transition, field ir.Field) (q
 		return query.String(value.Generation), true
 	case "evidence_sha256":
 		return query.String(value.EvidenceSHA256), true
+	case "mapping_count":
+		return query.Integer(value.MappingCount), true
+	case "mapping_sha256":
+		return query.String(value.MappingSHA256), true
 	case "transitioned_at":
 		return query.DateTime(value.TransitionedAt), true
 	default:
@@ -156,6 +162,20 @@ func (TransitionDescriptor) SetFieldValue(value *Transition, field ir.Field, inp
 		}
 		value.EvidenceSHA256 = assigned
 		return true
+	case "mapping_count":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.MappingCount = assigned
+		return true
+	case "mapping_sha256":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.MappingSHA256 = assigned
+		return true
 	case "transitioned_at":
 		assigned, ok := input.DateTime()
 		if !ok {
@@ -176,6 +196,8 @@ type TransitionFieldSet struct {
 	RoleFingerprint orm.StringField[Transition]
 	Generation      orm.StringField[Transition]
 	EvidenceSHA256  orm.StringField[Transition]
+	MappingCount    orm.IntegerField[Transition]
+	MappingSHA256   orm.StringField[Transition]
 	TransitionedAt  orm.DateTimeField[Transition]
 }
 
@@ -189,7 +211,9 @@ var TransitionFields = func() TransitionFieldSet {
 		RoleFingerprint: orm.NewStringField[Transition](metadata.Fields[4]),
 		Generation:      orm.NewStringField[Transition](metadata.Fields[5]),
 		EvidenceSHA256:  orm.NewStringField[Transition](metadata.Fields[6]),
-		TransitionedAt:  orm.NewDateTimeField[Transition](metadata.Fields[7]),
+		MappingCount:    orm.NewIntegerField[Transition](metadata.Fields[7]),
+		MappingSHA256:   orm.NewStringField[Transition](metadata.Fields[8]),
+		TransitionedAt:  orm.NewDateTimeField[Transition](metadata.Fields[9]),
 	}
 }()
 
@@ -222,6 +246,8 @@ type TransitionCreate struct {
 	roleFingerprint orm.Change[string]
 	generation      orm.Change[string]
 	evidenceSHA256  orm.Change[string]
+	mappingCount    orm.Change[int64]
+	mappingSHA256   orm.Change[string]
 	transitionedAt  orm.Change[_godjtime.Time]
 }
 
@@ -271,6 +297,16 @@ func (input TransitionCreate) WithEvidenceSHA256(value string) TransitionCreate 
 	return input
 }
 
+func (input TransitionCreate) WithMappingCount(value int64) TransitionCreate {
+	input.mappingCount = orm.Set(value)
+	return input
+}
+
+func (input TransitionCreate) WithMappingSHA256(value string) TransitionCreate {
+	input.mappingSHA256 = orm.Set(value)
+	return input
+}
+
 func (input TransitionCreate) WithTransitionedAt(value _godjtime.Time) TransitionCreate {
 	input.transitionedAt = orm.Set(value)
 	return input
@@ -278,7 +314,7 @@ func (input TransitionCreate) WithTransitionedAt(value _godjtime.Time) Transitio
 
 func (input TransitionCreate) BuildCreate() orm.Mutation[Transition] {
 	var value Transition
-	assignments := make([]query.Assignment, 0, 7)
+	assignments := make([]query.Assignment, 0, 9)
 	changedOperationID, changedOperationIDSet := input.operationID.Get()
 	if !changedOperationIDSet {
 		return orm.InvalidMutation[Transition](&query.Error{
@@ -354,6 +390,18 @@ func (input TransitionCreate) BuildCreate() orm.Mutation[Transition] {
 	}
 	value.EvidenceSHA256 = changedEvidenceSHA256
 	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("evidence_sha256", "evidence_sha256", query.FieldString, false), query.String(changedEvidenceSHA256)))
+	changedMappingCount, changedMappingCountSet := input.mappingCount.Get()
+	if !changedMappingCountSet {
+		changedMappingCount = int64(0)
+	}
+	value.MappingCount = changedMappingCount
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("mapping_count", "mapping_count", query.FieldInteger, false), query.Integer(changedMappingCount)))
+	changedMappingSHA256, changedMappingSHA256Set := input.mappingSHA256.Get()
+	if !changedMappingSHA256Set {
+		changedMappingSHA256 = ""
+	}
+	value.MappingSHA256 = changedMappingSHA256
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("mapping_sha256", "mapping_sha256", query.FieldString, false), query.String(changedMappingSHA256)))
 	changedTransitionedAt, changedTransitionedAtSet := input.transitionedAt.Get()
 	if !changedTransitionedAtSet {
 		return orm.InvalidMutation[Transition](&query.Error{
@@ -380,6 +428,8 @@ type TransitionPatch struct {
 	roleFingerprint orm.Change[string]
 	generation      orm.Change[string]
 	evidenceSHA256  orm.Change[string]
+	mappingCount    orm.Change[int64]
+	mappingSHA256   orm.Change[string]
 	transitionedAt  orm.Change[_godjtime.Time]
 }
 
@@ -418,6 +468,16 @@ func (input TransitionPatch) WithEvidenceSHA256(value string) TransitionPatch {
 	return input
 }
 
+func (input TransitionPatch) WithMappingCount(value int64) TransitionPatch {
+	input.mappingCount = orm.Set(value)
+	return input
+}
+
+func (input TransitionPatch) WithMappingSHA256(value string) TransitionPatch {
+	input.mappingSHA256 = orm.Set(value)
+	return input
+}
+
 func (input TransitionPatch) WithTransitionedAt(value _godjtime.Time) TransitionPatch {
 	input.transitionedAt = orm.Set(value)
 	return input
@@ -425,7 +485,7 @@ func (input TransitionPatch) WithTransitionedAt(value _godjtime.Time) Transition
 
 func (input TransitionPatch) BuildPatch(current Transition) orm.Mutation[Transition] {
 	value := current
-	assignments := make([]query.Assignment, 0, 7)
+	assignments := make([]query.Assignment, 0, 9)
 	if changedOperationID, ok := input.operationID.Get(); ok {
 		value.OperationID = changedOperationID
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("operation_id", "operation_id", query.FieldString, false), query.String(changedOperationID)))
@@ -463,6 +523,14 @@ func (input TransitionPatch) BuildPatch(current Transition) orm.Mutation[Transit
 	if changedEvidenceSHA256, ok := input.evidenceSHA256.Get(); ok {
 		value.EvidenceSHA256 = changedEvidenceSHA256
 		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("evidence_sha256", "evidence_sha256", query.FieldString, false), query.String(changedEvidenceSHA256)))
+	}
+	if changedMappingCount, ok := input.mappingCount.Get(); ok {
+		value.MappingCount = changedMappingCount
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("mapping_count", "mapping_count", query.FieldInteger, false), query.Integer(changedMappingCount)))
+	}
+	if changedMappingSHA256, ok := input.mappingSHA256.Get(); ok {
+		value.MappingSHA256 = changedMappingSHA256
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("mapping_sha256", "mapping_sha256", query.FieldString, false), query.String(changedMappingSHA256)))
 	}
 	if changedTransitionedAt, ok := input.transitionedAt.Get(); ok {
 		changedTransitionedAtCanonical, changedTransitionedAtValid := query.DateTime(changedTransitionedAt).DateTime()
@@ -541,6 +609,22 @@ func transitionMetadata() ir.Model {
 				MaxLength: 64,
 			},
 			{
+				Name:    "mapping_count",
+				GoName:  "MappingCount",
+				Column:  "mapping_count",
+				Kind:    ir.FieldInteger,
+				Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: 0},
+			},
+			{
+				Name:      "mapping_sha256",
+				GoName:    "MappingSHA256",
+				Column:    "mapping_sha256",
+				Kind:      ir.FieldChar,
+				Blank:     true,
+				MaxLength: 64,
+				Default:   &ir.Scalar{Kind: ir.ScalarString, String: ""},
+			},
+			{
 				Name:   "transitioned_at",
 				GoName: "TransitionedAt",
 				Column: "transitioned_at",
@@ -550,6 +634,244 @@ func transitionMetadata() ir.Model {
 	}
 }
 
-type GoDjAppPart0_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
+type Mapping struct {
+	ID                    int64
+	TransitionID          int64
+	Payload               string
+	godjPrimaryKeyPresent bool
+}
 
-type GoDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42 struct{}
+type MappingDescriptor struct{}
+
+var _ orm.ModelDescriptor[Mapping] = MappingDescriptor{}
+
+var _ orm.WriteDescriptor[Mapping] = MappingDescriptor{}
+
+func (MappingDescriptor) Metadata() ir.Model {
+	return mappingMetadata()
+}
+
+func (MappingDescriptor) Scan(row db.Row) (Mapping, error) {
+	var value Mapping
+	if err := row.Scan(&value.ID, &value.TransitionID, &value.Payload); err != nil {
+		return Mapping{}, err
+	}
+	value.godjPrimaryKeyPresent = true
+	return value, nil
+}
+
+func (MappingDescriptor) PrimaryKey(value Mapping) (query.Value, bool) {
+	return query.Integer(value.ID), value.godjPrimaryKeyPresent
+}
+
+func (MappingDescriptor) SetPrimaryKey(value *Mapping, key int64) {
+	value.ID = key
+	value.godjPrimaryKeyPresent = true
+}
+
+func (MappingDescriptor) ClearPrimaryKey(value *Mapping) {
+	value.ID = 0
+	value.godjPrimaryKeyPresent = false
+}
+
+func (MappingDescriptor) CloneModel(value Mapping) Mapping {
+	clone := value
+	return clone
+}
+
+func (descriptor MappingDescriptor) CloneWriteModel(value Mapping) Mapping {
+	return descriptor.CloneModel(value)
+}
+
+func (MappingDescriptor) WriteFieldValue(value Mapping, field ir.Field) (query.Value, bool) {
+	switch field.Name {
+	case "id":
+		return query.Integer(value.ID), true
+	case "transition":
+		return query.Integer(value.TransitionID), true
+	case "payload":
+		return query.String(value.Payload), true
+	default:
+		return query.Value{}, false
+	}
+}
+
+func (MappingDescriptor) SetFieldValue(value *Mapping, field ir.Field, input query.Value) bool {
+	if value == nil {
+		return false
+	}
+	switch field.Name {
+	case "transition":
+		assigned, ok := input.Integer()
+		if !ok {
+			return false
+		}
+		value.TransitionID = assigned
+		return true
+	case "payload":
+		assigned, ok := input.String()
+		if !ok {
+			return false
+		}
+		value.Payload = assigned
+		return true
+	default:
+		return false
+	}
+}
+
+type MappingFieldSet struct {
+	ID           orm.AutoField[Mapping]
+	TransitionID orm.ForeignKeyField[Mapping]
+	Payload      orm.StringField[Mapping]
+}
+
+var MappingFields = func() MappingFieldSet {
+	metadata := mappingMetadata()
+	return MappingFieldSet{
+		ID:           orm.NewAutoField[Mapping](metadata.Fields[0]),
+		TransitionID: orm.NewForeignKeyField[Mapping](metadata.Fields[1]),
+		Payload:      orm.NewStringField[Mapping](metadata.Fields[2]),
+	}
+}()
+
+var MappingObjects = orm.NewManager[Mapping](MappingDescriptor{})
+
+func NewMappingWithID(key int64) Mapping {
+	return Mapping{ID: key, godjPrimaryKeyPresent: true}
+}
+
+func MappingUpdateFields(fields ...orm.WritableField[Mapping]) orm.SaveOption[Mapping] {
+	return orm.UpdateFields(fields...)
+}
+
+func MappingUpdateFieldNames(names ...string) orm.SaveOption[Mapping] {
+	return orm.UpdateFieldNames[Mapping](names...)
+}
+
+func MappingForceInsert() orm.SaveOption[Mapping] {
+	return orm.ForceInsert[Mapping]()
+}
+
+func MappingForceUpdate() orm.SaveOption[Mapping] {
+	return orm.ForceUpdate[Mapping]()
+}
+
+type MappingCreate struct {
+	transitionID orm.Change[int64]
+	payload      orm.Change[string]
+}
+
+func NewMappingCreate(transitionID int64, payload string) MappingCreate {
+	return MappingCreate{
+		transitionID: orm.Set(transitionID),
+		payload:      orm.Set(payload),
+	}
+}
+
+func (input MappingCreate) WithTransitionID(value int64) MappingCreate {
+	input.transitionID = orm.Set(value)
+	return input
+}
+
+func (input MappingCreate) WithPayload(value string) MappingCreate {
+	input.payload = orm.Set(value)
+	return input
+}
+
+func (input MappingCreate) BuildCreate() orm.Mutation[Mapping] {
+	var value Mapping
+	assignments := make([]query.Assignment, 0, 2)
+	changedTransitionID, changedTransitionIDSet := input.transitionID.Get()
+	if !changedTransitionIDSet {
+		return orm.InvalidMutation[Mapping](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "transition",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.TransitionID = changedTransitionID
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("transition", "transition_id", query.FieldInteger, false), query.Integer(changedTransitionID)))
+	changedPayload, changedPayloadSet := input.payload.Get()
+	if !changedPayloadSet {
+		return orm.InvalidMutation[Mapping](&query.Error{
+			Category: query.CategoryField,
+			Code:     query.CodeRequiredField,
+			Field:    "payload",
+			Detail:   "required create field is omitted",
+		})
+	}
+	value.Payload = changedPayload
+	assignments = append(assignments, query.NewAssignment(query.NewFieldRef("payload", "payload", query.FieldString, false), query.String(changedPayload)))
+	return orm.NewCreateMutation(value, "godj_account_domain_mapping", assignments)
+}
+
+type MappingPatch struct {
+	transitionID orm.Change[int64]
+	payload      orm.Change[string]
+}
+
+func (input MappingPatch) WithTransitionID(value int64) MappingPatch {
+	input.transitionID = orm.Set(value)
+	return input
+}
+
+func (input MappingPatch) WithPayload(value string) MappingPatch {
+	input.payload = orm.Set(value)
+	return input
+}
+
+func (input MappingPatch) BuildPatch(current Mapping) orm.Mutation[Mapping] {
+	value := current
+	assignments := make([]query.Assignment, 0, 2)
+	if changedTransitionID, ok := input.transitionID.Get(); ok {
+		value.TransitionID = changedTransitionID
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("transition", "transition_id", query.FieldInteger, false), query.Integer(changedTransitionID)))
+	}
+	if changedPayload, ok := input.payload.Get(); ok {
+		value.Payload = changedPayload
+		assignments = append(assignments, query.NewAssignment(query.NewFieldRef("payload", "payload", query.FieldString, false), query.String(changedPayload)))
+	}
+	return orm.NewPatchMutation(value, "godj_account_domain_mapping", assignments)
+}
+
+func mappingMetadata() ir.Model {
+	return ir.Model{
+		Name:    "mapping",
+		GoName:  "Mapping",
+		DBTable: "godj_account_domain_mapping",
+		Fields: []ir.Field{
+			{
+				Name:       "id",
+				GoName:     "ID",
+				Column:     "id",
+				Kind:       ir.FieldAuto,
+				PrimaryKey: true,
+			},
+			{
+				Name:   "transition",
+				GoName: "TransitionID",
+				Column: "transition_id",
+				Kind:   ir.FieldForeignKey,
+				Unique: true,
+				Relation: &ir.ForeignKeyRelation{
+					Target:      ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
+					Cardinality: ir.RelationOneToOne,
+					Reverse:     ir.ReverseRelation{Name: "mapping"},
+					OnDelete:    ir.DeleteProtect,
+				},
+			},
+			{
+				Name:   "payload",
+				GoName: "Payload",
+				Column: "payload",
+				Kind:   ir.FieldText,
+			},
+		},
+	}
+}
+
+type GoDjAppPart0_5d4a5ee414e8dd952636670bc13cbee33d1ac3569ea49d3bf75c70111550ad3e struct{}
+
+type GoDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152 struct{}

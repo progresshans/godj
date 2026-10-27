@@ -519,6 +519,7 @@ func projectMigratePostgresAssertLatest(
 	t.Helper()
 	wantTables := []string{
 		"godj_account_audit_event",
+		"godj_account_domain_mapping",
 		"godj_account_domain_transition",
 		"godj_conformance_article",
 		"godj_identity_group",
@@ -566,6 +567,7 @@ func projectMigratePostgresAssertLatest(
 	wantCounts := map[string]int64{
 		"godj_account_audit_event":       0,
 		"godj_account_domain_transition": 0,
+		"godj_account_domain_mapping":    0,
 		"godj_sessions_session":          0,
 
 		"godj_conformance_article":        int64(len(articles)),
@@ -584,8 +586,8 @@ func projectMigratePostgresAssertLatest(
 	if !reflect.DeepEqual(snapshot.Articles, articles) {
 		t.Fatal("PostgreSQL Article rows did not match the exact durable fixture")
 	}
-	if len(snapshot.Sequences) != 10 {
-		t.Fatalf("PostgreSQL identity sequence count = %d, want 10", len(snapshot.Sequences))
+	if len(snapshot.Sequences) != 11 {
+		t.Fatalf("PostgreSQL identity sequence count = %d, want 11", len(snapshot.Sequences))
 	}
 	wantSequences := map[string]struct {
 		table  string
@@ -600,6 +602,7 @@ func projectMigratePostgresAssertLatest(
 	wantSequences["godj_seq_ae2450e02bb215e140cf9e7a87dd57e1001ae602e88ed739"] = struct{ table, column string }{"godj_identity_user_groups", "id"}
 	wantSequences["godj_seq_91de1d24fc1db736bd9e42f4478547ae544d60ee06eb479e"] = struct{ table, column string }{"godj_identity_user_permissions", "id"}
 	wantSequences["godj_seq_d2b8c377fb580654db07ed34f8a6da28cdb759fdb9e58928"] = struct{ table, column string }{"godj_account_audit_event", "id"}
+	wantSequences["godj_seq_b0c1cb9030cbc23f37875b82ebd3ccdbf069b7e43c533800"] = struct{ table, column string }{"godj_account_domain_mapping", "id"}
 	wantSequences["godj_seq_2ed1c272a282e9e6fce143c10bc885bbe01714987c1aa36e"] = struct{ table, column string }{"godj_account_domain_transition", "id"}
 	wantSequences["godj_seq_7f26d83966858dcf33cef370add9a8a9b03caacbacf2f27d"] = struct{ table, column string }{"godj_sessions_session", "id"}
 	seen := make(map[string]struct{}, len(snapshot.Sequences))
@@ -640,6 +643,9 @@ func projectMigratePostgresExpectedConstraints() []dbstate.PostgresConstraint {
 	}
 	out := []dbstate.PostgresConstraint{
 		primary("godj_account_audit_event", "godj_pk_0067f8eb0faed3a33957efab4d85b48638129f4404e98ef2", "1"),
+		primary("godj_account_domain_mapping", "godj_pk_c7eda9d368d978c6cbd84e344c0586500fd87894f78125e2", "1"),
+		{Table: "godj_account_domain_mapping", Name: "godj_uq_cd2994c1f2a3f5c651d3e7ef1b98831c03bab3f49028ee31", Kind: "u", Validated: true, Key: "2", IndexName: "godj_uq_cd2994c1f2a3f5c651d3e7ef1b98831c03bab3f49028ee31"},
+		{Table: "godj_account_domain_mapping", Name: "godj_fk_eb2ff12b46c20d8dfdcdaabbafcb5bd6ebe53b3f17fd2944", Kind: "f", Validated: true, Key: "2", IndexName: "godj_pk_97491d43d0d177d8a5b3a47b2e2fdb866232e3284ee58cd7", InternalTriggers: 4},
 		primary("godj_account_domain_transition", "godj_pk_97491d43d0d177d8a5b3a47b2e2fdb866232e3284ee58cd7", "1"),
 		{Table: "godj_account_domain_transition", Name: "godj_uq_3d4e18f281157da4d4728026be741f57d5a34ecbb9a79b09", Kind: "u", Validated: true, Key: "2", IndexName: "godj_uq_3d4e18f281157da4d4728026be741f57d5a34ecbb9a79b09"},
 		{Table: "godj_account_domain_transition", Name: "godj_uq_5f58a342c8cc4d75d13ebee1994e11841cf777e832d9e4ff", Kind: "u", Validated: true, Key: "3", IndexName: "godj_uq_5f58a342c8cc4d75d13ebee1994e11841cf777e832d9e4ff"},
@@ -700,6 +706,8 @@ func projectMigratePostgresExpectedIndexes() []dbstate.PostgresIndex {
 	out := []dbstate.PostgresIndex{
 		primary("godj_account_audit_event", "godj_pk_0067f8eb0faed3a33957efab4d85b48638129f4404e98ef2", "id", 1),
 		{Table: "godj_account_audit_event", Name: "godj_ix_ed8c26b00954b89ce83bd7954241e2422112383a564d4657", Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "domain", Method: "btree"},
+		primary("godj_account_domain_mapping", "godj_pk_c7eda9d368d978c6cbd84e344c0586500fd87894f78125e2", "id", 1),
+		{Table: "godj_account_domain_mapping", Name: "godj_uq_cd2994c1f2a3f5c651d3e7ef1b98831c03bab3f49028ee31", Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "transition_id", Method: "btree"},
 		primary("godj_account_domain_transition", "godj_pk_97491d43d0d177d8a5b3a47b2e2fdb866232e3284ee58cd7", "id", 1),
 		{Table: "godj_account_domain_transition", Name: "godj_uq_3d4e18f281157da4d4728026be741f57d5a34ecbb9a79b09", Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "operation_id", Method: "btree"},
 		{Table: "godj_account_domain_transition", Name: "godj_uq_5f58a342c8cc4d75d13ebee1994e11841cf777e832d9e4ff", Unique: true, Valid: true, Ready: true, Live: true, KeyCount: 1, AttributeCount: 1, Keys: "sequence", Method: "btree"},
@@ -756,6 +764,9 @@ func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
 		column("godj_account_audit_event", 6, "action", "character varying(16)", true, "", false),
 		column("godj_account_audit_event", 7, "changed_fields", "character varying(32768)", true, "", false),
 		column("godj_account_audit_event", 8, "recorded_at", "timestamp with time zone", true, "", false),
+		column("godj_account_domain_mapping", 1, "id", "bigint", true, "d", true),
+		column("godj_account_domain_mapping", 2, "transition_id", "bigint", true, "", false),
+		column("godj_account_domain_mapping", 3, "payload", "text", true, "", false),
 		column("godj_account_domain_transition", 1, "id", "bigint", true, "d", true),
 		column("godj_account_domain_transition", 2, "operation_id", "character varying(64)", true, "", false),
 		column("godj_account_domain_transition", 3, "sequence", "bigint", true, "", false),
@@ -764,6 +775,8 @@ func projectMigratePostgresExpectedColumns() []dbstate.PostgresColumn {
 		column("godj_account_domain_transition", 6, "generation", "character varying(64)", true, "", false),
 		column("godj_account_domain_transition", 7, "evidence_sha256", "character varying(64)", true, "", false),
 		column("godj_account_domain_transition", 8, "transitioned_at", "timestamp with time zone", true, "", false),
+		column("godj_account_domain_transition", 9, "mapping_count", "bigint", true, "", false),
+		column("godj_account_domain_transition", 10, "mapping_sha256", "character varying(64)", true, "", false),
 		column("godj_sessions_session", 1, "id", "bigint", true, "d", true),
 		column("godj_sessions_session", 2, "namespace", "character varying(128)", true, "", false),
 		column("godj_sessions_session", 3, "digest", "character varying(64)", true, "", false),

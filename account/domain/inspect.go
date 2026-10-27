@@ -49,6 +49,7 @@ func InspectIn(ctx context.Context, reader db.Queryer) (result Receipt, err erro
 		}
 	}()
 	var previous models.Transition
+	var mapped int64
 	started := false
 	for {
 		source := models.TransitionObjects.Using(reader).OrderBy(models.TransitionFields.Sequence.Asc(), models.TransitionFields.ID.Asc())
@@ -81,6 +82,9 @@ func InspectIn(ctx context.Context, reader db.Queryer) (result Receipt, err erro
 				return false, ErrCorrupt
 			}
 			result, previous, started = candidate, row, true
+			if candidate.MappingCount() > 0 {
+				mapped++
+			}
 			page++
 			return true, nil
 		})
@@ -89,9 +93,15 @@ func InspectIn(ctx context.Context, reader db.Queryer) (result Receipt, err erro
 		}
 		if page < inspectionBatchSize {
 			if !started {
+				if err := inspectMappings(ctx, reader, 0); err != nil {
+					return Receipt{}, err
+				}
 				return Receipt{}, ErrUninitialized
 			}
 			if err := inspectUniqueHistory(ctx, reader, result.Sequence()); err != nil {
+				return Receipt{}, err
+			}
+			if err := inspectMappings(ctx, reader, mapped); err != nil {
 				return Receipt{}, err
 			}
 			return result, nil

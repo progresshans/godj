@@ -13,7 +13,33 @@ const GoDjProjectRelationPrefetchGeneratorVersion = "godj-codegen-rel-prefetch-p
 
 type AccountdomainTransitionReversePrefetches struct {
 	objects    AccountdomainTransitionReverseObjectFactory
+	mapping    orm.ReverseOneToOnePrefetch[accountdomain.Transition, accountdomain.Mapping]
 	successors orm.ReversePrefetch[accountdomain.Transition, accountdomain.Transition]
+}
+
+func (_prefetches AccountdomainTransitionReversePrefetches) Mapping(
+	_ctx context.Context,
+	_backend db.Queryer,
+	_owners []accountdomain.Transition,
+) ([]*AccountdomainTransitionReverseObject, error) {
+	_snapshots := make([]accountdomain.Transition, len(_owners))
+	for _index := range _owners {
+		_snapshots[_index] = (accountdomain.TransitionDescriptor{}).CloneModel(_owners[_index])
+	}
+	_sets, _err := _prefetches.mapping.Load(_ctx, _backend, _snapshots)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*AccountdomainTransitionReverseObject, len(_snapshots))
+	for _index := range _snapshots {
+		_object, _err := _prefetches.objects.From(_backend, _snapshots[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_object.mapping = _sets[_index]
+		_results[_index] = _object
+	}
+	return _results, nil
 }
 
 func (_prefetches AccountdomainTransitionReversePrefetches) Successors(
@@ -50,16 +76,21 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
-	_prefetch0, _err := orm.BindReversePrefetch(_objects.AccountdomainTransition.successors)
+	_prefetch0, _err := orm.BindReverseOneToOnePrefetch(_objects.AccountdomainTransition.mapping)
+	if _err != nil {
+		return ReversePrefetches{}, _err
+	}
+	_prefetch1, _err := orm.BindReversePrefetch(_objects.AccountdomainTransition.successors)
 	if _err != nil {
 		return ReversePrefetches{}, _err
 	}
 	return ReversePrefetches{
 		AccountdomainTransition: AccountdomainTransitionReversePrefetches{
 			objects:    _objects.AccountdomainTransition,
-			successors: _prefetch0,
+			mapping:    _prefetch0,
+			successors: _prefetch1,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+var _ goDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

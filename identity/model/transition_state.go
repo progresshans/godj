@@ -251,7 +251,11 @@ func validateTransitionRow[M any](ctx context.Context, scope db.Queryer, objects
 	}
 	fields := make([]serializers.ModelField, len(metadata.Fields))
 	for i, field := range metadata.Fields {
-		fields[i] = serializers.ModelField{Name: field.Name, ReadOnly: true, AllowEmpty: field.Blank}
+		fields[i] = serializers.ModelField{Name: field.Name, ReadOnly: true}
+		switch field.Kind {
+		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage, ir.FieldText:
+			fields[i].AllowEmpty = field.Blank
+		}
 	}
 	spec, err := serializers.FromModel(metadata, fields...)
 	if err != nil {

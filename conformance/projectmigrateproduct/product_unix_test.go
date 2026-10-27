@@ -289,7 +289,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 		t.Fatalf("load expected Article catalog: %v", err)
 	}
 	if report.DocumentsReceived != 10 || report.HeadersValidated != 10 || report.OperationsDecoded != 18 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 10 || report.DefinitionSetsPublished != 1 {
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 11 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}
 	definitions := loaded.Definitions()
@@ -307,6 +307,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	wantHistory := []dbstate.HistoryRow{
 		{App: "godj_account_audit", Name: "0001_initial"},
 		{App: "godj_account_domain", Name: "0001_initial"},
+		{App: "godj_account_domain", Name: "0002_auto_fe206c392ab4"},
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_conformance", Name: "0002_alter_article_summary"},
 		{App: "godj_conformance", Name: "0003_article_slug"},
@@ -717,6 +718,7 @@ func assertLatestDatabase(t *testing.T, databasePath string, expected articleCat
 	snapshot := inspectDatabase(t, databasePath)
 	wantTables := []string{
 		"godj_account_audit_event",
+		"godj_account_domain_mapping",
 		"godj_account_domain_transition",
 		"godj_conformance_article",
 		"godj_identity_group",
@@ -818,6 +820,12 @@ func expectedColumns() map[string][]columnSnapshot {
 			{Name: "recorded_at", Type: "DATETIME", NotNull: 1},
 		},
 
+		"godj_account_domain_mapping": {
+			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
+			{Name: "transition_id", Type: "INTEGER", NotNull: 1},
+			{Name: "payload", Type: "TEXT", NotNull: 1},
+		},
+
 		"godj_account_domain_transition": {
 			{Name: "id", Type: "INTEGER", NotNull: 1, Primary: 1},
 			{Name: "operation_id", Type: "VARCHAR(64)", NotNull: 1},
@@ -826,6 +834,8 @@ func expectedColumns() map[string][]columnSnapshot {
 			{Name: "role_fingerprint", Type: "VARCHAR(64)", NotNull: 1},
 			{Name: "generation", Type: "VARCHAR(64)", NotNull: 1},
 			{Name: "evidence_sha256", Type: "VARCHAR(64)", NotNull: 1},
+			{Name: "mapping_count", Type: "BIGINT", NotNull: 1},
+			{Name: "mapping_sha256", Type: "VARCHAR(64)", NotNull: 1},
 			{Name: "transitioned_at", Type: "DATETIME", NotNull: 1},
 		},
 

@@ -22,7 +22,14 @@ func Schema() (ir.Schema, error) {
 			schema.CharField("role_fingerprint", "RoleFingerprint", 64),
 			schema.CharField("generation", "Generation", 64, schema.Unique()),
 			schema.CharField("evidence_sha256", "EvidenceSHA256", 64),
+			schema.IntegerField("mapping_count", "MappingCount", schema.Default(int64(0))),
+			schema.CharField("mapping_sha256", "MappingSHA256", 64, schema.Default(""), schema.Blank()),
 			schema.DateTimeField("transitioned_at", "TransitionedAt"),
+		},
+	}, {
+		Name: "mapping", GoName: "Mapping", Fields: []schema.Field{
+			schema.OneToOne("transition", "TransitionID", schema.Target(AppLabel, "transition"), schema.RelatedName("mapping"), schema.Protect),
+			schema.TextField("payload", "Payload"),
 		},
 	}}})
 }

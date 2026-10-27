@@ -14,7 +14,7 @@ import (
 )
 
 const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v29"
-const GoDjProjectRelationFacadeInputSHA256 = "7ef741d837fa151fe5685245a35fb9c91346277b96c6e8e51ac72cb1fcbc3567"
+const GoDjProjectRelationFacadeInputSHA256 = "60fbbac9b2612c9de535f1aeffeee04e742a4ba90b368270eeb8b36b96e5936c"
 
 type Backend interface {
 	db.Queryer
@@ -116,6 +116,7 @@ func relationFacadeRequiredRelated(_field string) error {
 }
 
 type relationFacadeBindings struct {
+	AccountdomainMapping    orm.BoundModel[accountdomain.Mapping]
 	AccountdomainTransition orm.BoundModel[accountdomain.Transition]
 }
 type relationFacadeSnapshotOwner[S any] interface {
@@ -413,6 +414,1731 @@ func (_selector relationFacadePrefetchPath[S]) relationFacadePrefetchValue() orm
 	return _selector.selection
 }
 
+type AccountdomainMappingQuery struct {
+	Related  AccountdomainMappingRelationSelectors
+	Prefetch AccountdomainMappingPrefetchSelectors
+	state    *relationFacadeState
+	query    orm.QuerySet[accountdomain.Mapping]
+}
+
+func newAccountdomainMappingQuery(_state *relationFacadeState, _query orm.QuerySet[accountdomain.Mapping]) AccountdomainMappingQuery {
+	_result := AccountdomainMappingQuery{state: _state, query: _query}
+	_result.Related = AccountdomainMappingRelationSelectors{
+		Transition: relationFacadeSelection[accountdomain.Mapping, accountdomain.Transition]{state: _state},
+	}
+	if _state != nil {
+		_result.Related.Transition.selection = _state.objects.AccountdomainMapping.SelectTransition()
+	}
+	if _state != nil {
+		_result.Prefetch.Transition = relationFacadeSinglePrefetch[accountdomain.Mapping, accountdomain.Transition]{state: _state, selection: orm.PrefetchRequiredForward(_state.objects.AccountdomainMapping.transition)}
+	}
+	return _result
+}
+
+func (_query AccountdomainMappingQuery) validate() error {
+	return _query.state.validate()
+}
+
+// Update applies one assignment set to matching rows and invalidates this query's cache.
+func (_query AccountdomainMappingQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accountdomain.Mapping]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Update(_ctx, _assignments...)
+}
+func (_query AccountdomainMappingQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.UpdateDynamic(_ctx, _inputs...)
+}
+
+// BulkUpdate writes selected fields while retaining the query predicate.
+// It returns the matched count without changing caller objects or read caches.
+func (_query AccountdomainMappingQuery) BulkUpdate(_ctx context.Context, _inputs []accountdomain.Mapping, _options ...orm.BulkUpdateOption[accountdomain.Mapping]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.BulkUpdate(_ctx, _inputs, _options...)
+}
+
+// BulkCreate writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query AccountdomainMappingQuery) BulkCreate(_ctx context.Context, _inputs []accountdomain.Mapping, _options ...orm.BulkCreateOption[accountdomain.Mapping]) (orm.BulkCreateResult[*AccountdomainMapping], error) {
+	var _zero orm.BulkCreateResult[*AccountdomainMapping]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreate(_ctx, _query.query, _query.state.models.AccountdomainMapping, _inputs, _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*AccountdomainMapping]{Objects: make([]*AccountdomainMapping, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeAccountdomainMapping(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+
+// BulkCreateInputs writes explicit inputs and returns owned objects in input order.
+// Read filters and eager-loading requests do not populate or constrain them.
+func (_query AccountdomainMappingQuery) BulkCreateInputs(_ctx context.Context, _inputs []accountdomain.MappingCreate, _options ...orm.BulkCreateOption[accountdomain.Mapping]) (orm.BulkCreateResult[*AccountdomainMapping], error) {
+	var _zero orm.BulkCreateResult[*AccountdomainMapping]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_result, _err := orm.MaterializeBulkCreateInputs(_ctx, _query.query, _query.state.models.AccountdomainMapping, orm.CreateInputs[accountdomain.Mapping](_inputs), _options...)
+	if _err != nil {
+		return _zero, _err
+	}
+	_wrapped := orm.BulkCreateResult[*AccountdomainMapping]{Objects: make([]*AccountdomainMapping, len(_result.Objects)), RowsAffected: _result.RowsAffected, ReturnedKeys: _result.ReturnedKeys}
+	for _index, _value := range _result.Objects {
+		_wrapped.Objects[_index], _err = _query.state.materializeAccountdomainMapping(context.WithoutCancel(_ctx), _value)
+		if _err != nil {
+			return _zero, _err
+		}
+	}
+	return _wrapped, nil
+}
+func (_query AccountdomainMappingQuery) New(_value accountdomain.Mapping) (*AccountdomainMapping, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapAccountdomainMapping(_value, true)
+}
+
+func (_query AccountdomainMappingQuery) Filter(_predicates ...orm.Predicate[accountdomain.Mapping]) AccountdomainMappingQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+
+func (_query AccountdomainMappingQuery) OrderBy(_orderings ...orm.Ordering[accountdomain.Mapping]) AccountdomainMappingQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+
+func (_query AccountdomainMappingQuery) Distinct() AccountdomainMappingQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+
+func (_query AccountdomainMappingQuery) Fresh() AccountdomainMappingQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+
+func (_query AccountdomainMappingQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accountdomain.Mapping]) AccountdomainMappingQuery {
+	_query.query = _query.query.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountdomainMappingQuery) LockTarget() orm.RowLockTarget[accountdomain.Mapping] {
+	return _query.query.LockTarget()
+}
+func (_query AccountdomainMappingQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountdomainMappingQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountdomainMapping, _paths...)
+	if _err != nil {
+		return AccountdomainMappingQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.query.ConfigurationError(); _err != nil {
+		return AccountdomainMappingQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountdomainMappingQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accountdomain.Mapping], _patch orm.PatchInput[accountdomain.Mapping]) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeUpdateOrCreate(_ctx, _query.query, _query.state.models.AccountdomainMapping, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountdomainMapping(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query AccountdomainMappingQuery) Limit(_limit int) (AccountdomainMappingQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingQuery{}, _err
+	}
+	_limited, _err := _query.query.Limit(_limit)
+	if _err != nil {
+		return AccountdomainMappingQuery{}, _err
+	}
+	_query.query = _limited
+	return _query, nil
+}
+
+func (_query AccountdomainMappingQuery) Offset(_offset int) (AccountdomainMappingQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingQuery{}, _err
+	}
+	_offsetQuery, _err := _query.query.Offset(_offset)
+	if _err != nil {
+		return AccountdomainMappingQuery{}, _err
+	}
+	_query.query = _offsetQuery
+	return _query, nil
+}
+
+func (_query AccountdomainMappingQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+
+func SelectAccountdomainMappingInto[R any](_ctx context.Context, _source AccountdomainMappingQuery, _projection orm.Projection[accountdomain.Mapping, R]) ([]R, error) {
+	if _err := _source.validate(); _err != nil {
+		return nil, _err
+	}
+	return orm.SelectInto(_ctx, _source.query, _projection)
+}
+
+func AggregateAccountdomainMappingInto[R any](_ctx context.Context, _source AccountdomainMappingQuery, _aggregate orm.Aggregate[accountdomain.Mapping, R]) (R, error) {
+	var _zero R
+	if _err := _source.validate(); _err != nil {
+		return _zero, _err
+	}
+	return orm.AggregateInto(_ctx, _source.query, _aggregate)
+}
+
+func SelectAccountdomainMappingQuery[R any](_source AccountdomainMappingQuery, _selection orm.Projection[accountdomain.Mapping, R]) (orm.ResultQuery[accountdomain.Mapping, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accountdomain.Mapping, R]{}, _err
+	}
+	return orm.SelectQuery(_source.query, _selection)
+}
+
+func AggregateAccountdomainMappingQuery[R any](_source AccountdomainMappingQuery, _selection orm.Aggregate[accountdomain.Mapping, R]) (orm.ResultQuery[accountdomain.Mapping, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accountdomain.Mapping, R]{}, _err
+	}
+	return orm.AggregateQuery(_source.query, _selection)
+}
+
+func GroupAccountdomainMappingBy[K, A, R any](_source AccountdomainMappingQuery, _keys orm.Projection[accountdomain.Mapping, K], _aggregate orm.Aggregate[accountdomain.Mapping, A], _build func(K, A) R) (orm.GroupedQuery[accountdomain.Mapping, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.GroupedQuery[accountdomain.Mapping, R]{}, _err
+	}
+	return orm.GroupBy(_source.query, _keys, _aggregate, _build)
+}
+
+func (_query AccountdomainMappingQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accountdomain.Mapping], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accountdomain.Mapping]{}, _err
+	}
+	return orm.BindExpressionIn(_query.query, _query.state.models.AccountdomainMapping, _input)
+}
+
+func (_query AccountdomainMappingQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accountdomain.Mapping, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accountdomain.Mapping, query.Value]{}, _err
+	}
+	return orm.BindAggregateExpressionIn(_query.query, _query.state.models.AccountdomainMapping, _kind, _input)
+}
+
+func (_query AccountdomainMappingQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accountdomain.Mapping], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accountdomain.Mapping]{}, _err
+	}
+	return orm.BindPredicateIn(_query.query, _query.state.models.AccountdomainMapping, _input)
+}
+
+func (_query AccountdomainMappingQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accountdomain.Mapping, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accountdomain.Mapping, []query.Value]{}, _err
+	}
+	return orm.ProjectDynamicIn(_query.query, _query.state.models.AccountdomainMapping, _inputs...)
+}
+
+func (_query AccountdomainMappingQuery) GroupValues(_keys []string, _aggregates []orm.DynamicAggregateInput) (orm.GroupedQuery[accountdomain.Mapping, orm.GroupRow], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.GroupedQuery[accountdomain.Mapping, orm.GroupRow]{}, _err
+	}
+	return orm.GroupValuesIn(_query.query, _query.state.models.AccountdomainMapping, _keys, _aggregates)
+}
+
+func (_query AccountdomainMappingQuery) Get(_ctx context.Context) (*AccountdomainMapping, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_value, _err := orm.MaterializeGet(_ctx, _query.query, _query.state.models.AccountdomainMapping)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.materializeAccountdomainMapping(_ctx, _value)
+}
+
+func (_query AccountdomainMappingQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[accountdomain.Mapping]) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := orm.MaterializeGetOrCreate(_ctx, _query.query, _query.state.models.AccountdomainMapping, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query AccountdomainMappingQuery) First(_ctx context.Context) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_value, _found, _err := orm.MaterializeFirst(_ctx, _query.query, _query.state.models.AccountdomainMapping)
+	if _err != nil || !_found {
+		return nil, _found, _err
+	}
+	_wrapped, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
+func (_query AccountdomainMappingQuery) All(_ctx context.Context) ([]*AccountdomainMapping, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_values, _err := orm.Materialize(_ctx, _query.query, _query.state.models.AccountdomainMapping)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*AccountdomainMapping, len(_values))
+	for _index := range _values {
+		_wrapped, _err := _query.state.materializeAccountdomainMapping(_ctx, _values[_index])
+		if _err != nil {
+			return nil, _err
+		}
+		_results[_index] = _wrapped
+	}
+	return _results, nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query AccountdomainMappingQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *AccountdomainMapping) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[accountdomain.Mapping]) (bool, error) {
+		_models := make([]*AccountdomainMapping, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.MaterializeBatches(_ctx, _query.query, _query.state.models.AccountdomainMapping, _size, _yield)
+}
+
+type AccountdomainMappingNamedQuery struct {
+	state *relationFacadeState
+	query orm.NamedQuery[accountdomain.Mapping, accountdomain.Mapping]
+}
+type AccountdomainMappingAnnotationSource interface {
+	relationFacadeAccountdomainMappingNames() (AccountdomainMappingNamedQuery, error)
+}
+
+func (_query AccountdomainMappingQuery) relationFacadeAccountdomainMappingNames() (AccountdomainMappingNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_named, _err := orm.NamesIn(_query.query, _query.state.models.AccountdomainMapping)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	return AccountdomainMappingNamedQuery{state: _query.state, query: _named}, nil
+}
+func (_query AccountdomainMappingNamedQuery) relationFacadeAccountdomainMappingNames() (AccountdomainMappingNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountdomainMappingNamedQuery) validate() error {
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	return _query.query.ConfigurationError()
+}
+func (_query AccountdomainMappingNamedQuery) All(_ctx context.Context) ([]orm.NamedRow[accountdomain.Mapping, *AccountdomainMapping], error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_rows, _err := _query.query.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.wrapRows(_rows)
+}
+func (_query AccountdomainMappingNamedQuery) wrapRows(_rows []orm.NamedRow[accountdomain.Mapping, accountdomain.Mapping]) ([]orm.NamedRow[accountdomain.Mapping, *AccountdomainMapping], error) {
+	_result := make([]orm.NamedRow[accountdomain.Mapping, *AccountdomainMapping], len(_rows))
+	for _index, _row := range _rows {
+		_wrapped, _err := orm.MapNamedRow(_row, func(_value accountdomain.Mapping) (*AccountdomainMapping, error) {
+			return _query.state.wrapAccountdomainMapping(_value, false)
+		})
+		if _err != nil {
+			return nil, _err
+		}
+		_result[_index] = _wrapped
+	}
+	return _result, nil
+}
+func (_query AccountdomainMappingNamedQuery) Page(_ctx context.Context, _limit, _offset int) (orm.ResultPage[orm.NamedRow[accountdomain.Mapping, *AccountdomainMapping]], error) {
+	var _zero orm.ResultPage[orm.NamedRow[accountdomain.Mapping, *AccountdomainMapping]]
+	if _err := _query.validate(); _err != nil {
+		return _zero, _err
+	}
+	_page, _err := _query.query.Page(_ctx, _limit, _offset)
+	if _err != nil {
+		return _zero, _err
+	}
+	_rows, _err := _query.wrapRows(_page.Rows)
+	if _err != nil {
+		return _zero, _err
+	}
+	return orm.ResultPage[orm.NamedRow[accountdomain.Mapping, *AccountdomainMapping]]{Total: _page.Total, Rows: _rows}, nil
+}
+func (_query AccountdomainMappingNamedQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.query.Count(_ctx)
+}
+func (_query AccountdomainMappingNamedQuery) Exists(_ctx context.Context) (bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return false, _err
+	}
+	return _query.query.Exists(_ctx)
+}
+func (_query AccountdomainMappingNamedQuery) Derive() (orm.ResultSource[accountdomain.Mapping], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.ResultSource[accountdomain.Mapping]{}, _err
+	}
+	return orm.Derive(_query.query)
+}
+func (_query AccountdomainMappingNamedQuery) Column(_name string) (orm.NamedColumn[accountdomain.Mapping, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.NamedColumn[accountdomain.Mapping, query.Value]{}, _err
+	}
+	return _query.query.Column(_name)
+}
+func (_query AccountdomainMappingNamedQuery) Expression(_input orm.DynamicExpression) (orm.DynamicScalar[accountdomain.Mapping], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.DynamicScalar[accountdomain.Mapping]{}, _err
+	}
+	return _query.query.Expression(_input)
+}
+func (_query AccountdomainMappingNamedQuery) AggregateExpression(_kind query.ResultExpressionKind, _input orm.DynamicExpression) (orm.AggregateExpression[accountdomain.Mapping, query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.AggregateExpression[accountdomain.Mapping, query.Value]{}, _err
+	}
+	return _query.query.AggregateExpression(_kind, _input)
+}
+func (_query AccountdomainMappingNamedQuery) ExpressionPredicate(_input orm.DynamicPredicate) (orm.Predicate[accountdomain.Mapping], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Predicate[accountdomain.Mapping]{}, _err
+	}
+	return _query.query.Predicate(_input)
+}
+func (_query AccountdomainMappingNamedQuery) ProjectExpressions(_inputs ...orm.DynamicExpression) (orm.Projection[accountdomain.Mapping, []query.Value], error) {
+	if _err := _query.validate(); _err != nil {
+		return orm.Projection[accountdomain.Mapping, []query.Value]{}, _err
+	}
+	return _query.query.ProjectExpressions(_inputs...)
+}
+func SelectAccountdomainMappingNamedQuery[R any](_source AccountdomainMappingNamedQuery, _projection orm.Projection[accountdomain.Mapping, R]) (orm.ResultQuery[accountdomain.Mapping, R], error) {
+	if _err := _source.validate(); _err != nil {
+		return orm.ResultQuery[accountdomain.Mapping, R]{}, _err
+	}
+	return orm.SelectNamed(_source.query, _projection)
+}
+func (_query AccountdomainMappingNamedQuery) Filter(_predicates ...orm.Predicate[accountdomain.Mapping]) AccountdomainMappingNamedQuery {
+	_query.query = _query.query.Filter(_predicates...)
+	return _query
+}
+func (_query AccountdomainMappingNamedQuery) OrderBy(_orderings ...orm.Ordering[accountdomain.Mapping]) AccountdomainMappingNamedQuery {
+	_query.query = _query.query.OrderBy(_orderings...)
+	return _query
+}
+func (_query AccountdomainMappingNamedQuery) Distinct() AccountdomainMappingNamedQuery {
+	_query.query = _query.query.Distinct()
+	return _query
+}
+func (_query AccountdomainMappingNamedQuery) Fresh() AccountdomainMappingNamedQuery {
+	_query.query = _query.query.Fresh()
+	return _query
+}
+func (_query AccountdomainMappingNamedQuery) Limit(_value int) (AccountdomainMappingNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Limit(_value)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountdomainMappingNamedQuery) Offset(_value int) (AccountdomainMappingNamedQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_rows, _err := _query.query.Offset(_value)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_query.query = _rows
+	return _query, nil
+}
+func (_query AccountdomainMappingQuery) Annotate(_values ...orm.NamedExpression) (AccountdomainMappingNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountdomainMappingQuery) Alias(_values ...orm.NamedExpression) (AccountdomainMappingNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountdomainMappingNamedQuery) Annotate(_values ...orm.NamedExpression) (AccountdomainMappingNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_rows, _err := orm.AnnotateDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func (_query AccountdomainMappingNamedQuery) Alias(_values ...orm.NamedExpression) (AccountdomainMappingNamedQuery, error) {
+	_source, _err := _query.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_rows, _err := orm.AliasDynamic(_source.query, _values...)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _err
+	}
+	_source.query = _rows
+	return _source, nil
+}
+func AnnotateAccountdomainMapping[V any](_input AccountdomainMappingAnnotationSource, _name string, _value orm.ScalarField[accountdomain.Mapping, V]) (AccountdomainMappingNamedQuery, orm.NamedColumn[accountdomain.Mapping, V], error) {
+	var _column orm.NamedColumn[accountdomain.Mapping, V]
+	if relationFacadeNil(_input) {
+		return AccountdomainMappingNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Annotate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AnnotateAccountdomainMappingAggregate[V any](_input AccountdomainMappingAnnotationSource, _name string, _value orm.AggregateExpression[accountdomain.Mapping, V]) (AccountdomainMappingNamedQuery, orm.NamedColumn[accountdomain.Mapping, V], error) {
+	var _column orm.NamedColumn[accountdomain.Mapping, V]
+	if relationFacadeNil(_input) {
+		return AccountdomainMappingNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AnnotateAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountdomainMapping[V any](_input AccountdomainMappingAnnotationSource, _name string, _value orm.ScalarField[accountdomain.Mapping, V]) (AccountdomainMappingNamedQuery, orm.NamedColumn[accountdomain.Mapping, V], error) {
+	var _column orm.NamedColumn[accountdomain.Mapping, V]
+	if relationFacadeNil(_input) {
+		return AccountdomainMappingNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.Alias(_source.query, _name, _value)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+func AliasAccountdomainMappingAggregate[V any](_input AccountdomainMappingAnnotationSource, _name string, _value orm.AggregateExpression[accountdomain.Mapping, V]) (AccountdomainMappingNamedQuery, orm.NamedColumn[accountdomain.Mapping, V], error) {
+	var _column orm.NamedColumn[accountdomain.Mapping, V]
+	if relationFacadeNil(_input) {
+		return AccountdomainMappingNamedQuery{}, _column, relationFacadeQueryInvalid("annotation source is nil")
+	}
+	_source, _err := _input.relationFacadeAccountdomainMappingNames()
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_rows, _column, _err := orm.AliasAggregate(_source.query, _name, _value)
+	if _err != nil {
+		return AccountdomainMappingNamedQuery{}, _column, _err
+	}
+	_source.query = _rows
+	return _source, _column, nil
+}
+
+type accountdomainMappingModel = accountdomain.Mapping
+
+type AccountdomainMapping struct {
+	accountdomainMappingModel
+	state                     *relationFacadeState
+	primaryKeySnapshot        int64
+	primaryKeySnapshotPresent bool
+	_prefetched               *orm.RelatedSelected[accountdomain.Mapping]
+	object                    *AccountdomainMappingObject
+	transitionCache           *orm.RelationCache[AccountdomainTransition]
+	transitionScalarSnapshot  int64
+	transitionScalarPresent   bool
+	_self                     *AccountdomainMapping
+}
+
+func (_state *relationFacadeState) wrapAccountdomainMapping(_value accountdomain.Mapping, _new bool) (*AccountdomainMapping, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	_cloned := (accountdomain.MappingDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _state.objects.AccountdomainMapping.From(_state.backend, _cloned)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &AccountdomainMapping{state: _state, accountdomainMappingModel: _cloned, object: _object}
+	_result.transitionCache = orm.NewRelationCache[AccountdomainTransition]()
+	_result.transitionScalarPresent = !_new || _value.TransitionID != 0
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_state *relationFacadeState) wrapAccountdomainMappingObject(_object *AccountdomainMappingObject) (*AccountdomainMapping, error) {
+	if _err := _state.validate(); _err != nil {
+		return nil, _err
+	}
+	if _object == nil {
+		return nil, relationFacadeQueryInvalid("generated low-level relation object is nil")
+	}
+	_model, _err := _object.Model()
+	if _err != nil {
+		return nil, _err
+	}
+	_cloned := (accountdomain.MappingDescriptor{}).CloneWriteModel(_model)
+	_result := &AccountdomainMapping{state: _state, accountdomainMappingModel: _cloned, object: _object}
+	_result.transitionCache = orm.NewRelationCache[AccountdomainTransition]()
+	_result.transitionScalarPresent = true
+	_result._self = _result
+	if _err := _result.relationFacadeRefreshSnapshots(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccountdomainMapping) validate() error {
+	if _model == nil || _model._self != _model {
+		return relationFacadeQueryInvalid("generated project model wrapper is nil, zero, or copied")
+	}
+	return _model.state.validate()
+}
+
+func (AccountdomainMapping) MarshalJSON() ([]byte, error) {
+	return nil, relationFacadeQueryInvalid("direct JSON marshal of generated project model wrapper is unsupported")
+}
+
+func (*AccountdomainMapping) UnmarshalJSON([]byte) error {
+	return relationFacadeQueryInvalid("direct JSON unmarshal of generated project model wrapper is unsupported")
+}
+
+func (_model *AccountdomainMapping) relationFacadeCurrentPrimaryKey() (int64, bool, error) {
+	_value, _present := (accountdomain.MappingDescriptor{}).PrimaryKey(_model.accountdomainMappingModel)
+	_key, _ok := _value.Integer()
+	if !_ok {
+		return 0, false, relationFacadeQueryInvalid("generated model descriptor returned a non-integer primary key")
+	}
+	return _key, _present, nil
+}
+
+func (_model *AccountdomainMapping) relationFacadePrimaryKey() (int64, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return 0, false, _err
+	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return 0, false, _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		return 0, false, relationFacadePrimaryKeyUpdate("id")
+	}
+	return _key, _present, nil
+}
+
+func (_model *AccountdomainMapping) relationFacadeSnapshotSource() (*relationFacadeState, *orm.RelatedSelected[accountdomain.Mapping], error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, nil, _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return nil, nil, _err
+	}
+	return _model.state, _model._prefetched, nil
+}
+func (_model *AccountdomainMapping) relationFacadeRefreshSnapshots() error {
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	_model.primaryKeySnapshot = _key
+	_model.primaryKeySnapshotPresent = _present
+	_model.transitionScalarSnapshot = _model.accountdomainMappingModel.TransitionID
+	return nil
+}
+
+func (_model *AccountdomainMapping) Unwrap() (accountdomain.Mapping, error) {
+	if _err := _model.validate(); _err != nil {
+		return accountdomain.Mapping{}, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return accountdomain.Mapping{}, _err
+	}
+	_, _, _transitionPending, _transitionErr := _model.transitionCache.Snapshot()
+	if _transitionErr != nil {
+		return accountdomain.Mapping{}, _transitionErr
+	}
+	if _transitionPending {
+		return accountdomain.Mapping{}, relationFacadeUnsavedRelated("transition")
+	}
+	if !_model.transitionScalarPresent {
+		return accountdomain.Mapping{}, relationFacadeRequiredRelated("transition")
+	}
+	return (accountdomain.MappingDescriptor{}).CloneModel(_model.accountdomainMappingModel), nil
+}
+
+func (_model *AccountdomainMapping) Save(_ctx context.Context) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
+	if _err := _model.relationFacadePrepareSave(); _err != nil {
+		return _err
+	}
+	if _err := accountdomain.MappingObjects.Save(_ctx, _mutator, &_model.accountdomainMappingModel); _err != nil {
+		return _err
+	}
+	return _model.relationFacadeRefreshSnapshots()
+}
+
+func (_model *AccountdomainMapping) relationFacadeDerived(_value accountdomain.Mapping) (*AccountdomainMapping, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	_value = (accountdomain.MappingDescriptor{}).CloneWriteModel(_value)
+	_object, _err := _model.state.objects.AccountdomainMapping.From(_model.state.backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &AccountdomainMapping{state: _model.state, accountdomainMappingModel: _value, object: _object}
+	_result._prefetched = _model._prefetched
+	_result.primaryKeySnapshot = _model.primaryKeySnapshot
+	_result.primaryKeySnapshotPresent = _model.primaryKeySnapshotPresent
+	_result.transitionScalarSnapshot = _model.transitionScalarSnapshot
+	_result.transitionScalarPresent = _model.transitionScalarPresent
+	_result.transitionCache, _err = _model.transitionCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+func (_model *AccountdomainMapping) relationFacadeReconcile() error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.transitionCache.Snapshot(); _err != nil {
+		return _err
+	}
+	_transitionCurrentKey := _model.accountdomainMappingModel.TransitionID
+	_transitionChanged := _transitionCurrentKey != _model.transitionScalarSnapshot
+	_transitionCurrentPresent := _model.transitionScalarPresent || _transitionChanged
+	_rebuild := false || _transitionChanged
+	if !_rebuild {
+		return nil
+	}
+	_nextModel := (accountdomain.MappingDescriptor{}).CloneWriteModel(_model.accountdomainMappingModel)
+	_nextObject, _err := _model.state.objects.AccountdomainMapping.From(_model.state.backend, _nextModel)
+	if _err != nil {
+		return _err
+	}
+	_nextTransitionCache := _model.transitionCache
+	if _transitionChanged {
+		_nextTransitionCache = orm.NewRelationCache[AccountdomainTransition]()
+	}
+	_model.accountdomainMappingModel = _nextModel
+	_model.object = _nextObject
+	if _transitionChanged {
+		_model.transitionCache = _nextTransitionCache
+		_model.transitionScalarSnapshot = _transitionCurrentKey
+		_model.transitionScalarPresent = _transitionCurrentPresent
+	}
+	return nil
+}
+
+func (_model *AccountdomainMapping) relationFacadePrepareSave() error {
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_transitionState, _transitionTarget, _transitionPending, _err := _model.transitionCache.Snapshot()
+	if _err != nil {
+		return _err
+	}
+	var _transitionKey int64
+	var _transitionPresent bool
+	if _transitionState == orm.RelationAssignedPresent {
+		if _transitionTarget == nil || _transitionTarget.state != _model.state {
+			return relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		_transitionKey, _transitionPresent, _err = _transitionTarget.relationFacadePrimaryKey()
+		if _err != nil {
+			return _err
+		}
+	}
+	if _transitionState == orm.RelationAssignedPresent && !_transitionPresent {
+		return relationFacadeUnsavedRelated("transition")
+	}
+	if _transitionState == orm.RelationAssignedAbsent || (_transitionState != orm.RelationAssignedPresent && !_model.transitionScalarPresent) {
+		return relationFacadeRequiredRelated("transition")
+	}
+	if _transitionState == orm.RelationAssignedPresent && !_transitionPending && !_model.transitionScalarPresent {
+		return relationFacadeQueryInvalid("assigned relation has no source scalar presence")
+	}
+	_transitionReconcile := _transitionState == orm.RelationAssignedPresent && _transitionPending
+	_nextModel := (accountdomain.MappingDescriptor{}).CloneWriteModel(_model.accountdomainMappingModel)
+	_rebuild := false
+	if _transitionReconcile {
+		_nextModel.TransitionID = _transitionKey
+		_rebuild = true
+	}
+	if _rebuild {
+		_nextObject, _err := _model.state.objects.AccountdomainMapping.From(_model.state.backend, _nextModel)
+		if _err != nil {
+			return _err
+		}
+		_nextTransitionCache := _model.transitionCache
+		if _transitionReconcile {
+			_nextTransitionCache, _err = _model.transitionCache.Clone()
+			if _err != nil {
+				return _err
+			}
+			if _err := _nextTransitionCache.Store(orm.RelationAssignedPresent, _transitionTarget, false); _err != nil {
+				return _err
+			}
+		}
+		_model.accountdomainMappingModel = _nextModel
+		_model.object = _nextObject
+		if _transitionReconcile {
+			_model.transitionCache = _nextTransitionCache
+			_model.transitionScalarSnapshot = _transitionKey
+			_model.transitionScalarPresent = true
+		}
+	}
+	return nil
+}
+
+func (_model *AccountdomainMapping) WithTransition(_target *AccountdomainTransition) (*AccountdomainMapping, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	if _err := _target.validate(); _err != nil {
+		return nil, _err
+	}
+	if _target.state != _model.state {
+		return nil, relationFacadeQueryInvalid("relation target belongs to another facade origin")
+	}
+	_key, _present, _err := _target.relationFacadePrimaryKey()
+	if _err != nil {
+		return nil, _err
+	}
+	_value := (accountdomain.MappingDescriptor{}).CloneWriteModel(_model.accountdomainMappingModel)
+	if _present {
+		_value.TransitionID = _key
+	} else {
+		_value.TransitionID = 0
+	}
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.transitionScalarSnapshot = _key
+	_result.transitionScalarPresent = _present
+	if _err := _result.transitionCache.Store(orm.RelationAssignedPresent, _target, !_present); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccountdomainMapping) WithTransitionID(_key int64) (*AccountdomainMapping, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (accountdomain.MappingDescriptor{}).CloneWriteModel(_model.accountdomainMappingModel)
+	_, _, _pending, _err := _model.transitionCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	_same := _model.transitionScalarPresent && !_pending && _value.TransitionID == _key
+	_value.TransitionID = _key
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.transitionScalarSnapshot = int64(_key)
+	_result.transitionScalarPresent = true
+	if !_same {
+		if _err := _result.transitionCache.Store(orm.RelationUnassigned, nil, false); _err != nil {
+			return nil, _err
+		}
+	}
+	return _result, nil
+}
+
+func (_model *AccountdomainMapping) ClearTransition() (*AccountdomainMapping, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_value := (accountdomain.MappingDescriptor{}).CloneWriteModel(_model.accountdomainMappingModel)
+	_value.TransitionID = 0
+	_result, _err := _model.relationFacadeDerived(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	_result.transitionScalarSnapshot = 0
+	_result.transitionScalarPresent = false
+	if _err := _result.transitionCache.Store(orm.RelationAssignedAbsent, nil, false); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+
+func (_model *AccountdomainMapping) Transition(_ctx context.Context) (*AccountdomainTransition, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, _err
+	}
+	_state, _target, _, _err := _model.transitionCache.Snapshot()
+	if _err != nil {
+		return nil, _err
+	}
+	if _state == orm.RelationAssignedPresent {
+		if _target == nil || _target.state != _model.state {
+			return nil, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, _err
+		}
+		return _target, nil
+	}
+	if !_model.transitionScalarPresent {
+		return nil, relationFacadeRequiredRelated("transition")
+	}
+	if _state == orm.RelationLoadedAbsent {
+		return nil, &query.Error{Category: query.CategoryModelState, Code: query.CodeRelatedObjectMissing, Field: "transition", Detail: "related object does not exist"}
+	}
+	_value, _err := _model.object.Transition(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	var _wrapped *AccountdomainTransition
+	_graph, _selected, _err := _model.object.transition.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAccountdomainTransition(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAccountdomainTransition(_value, false)
+	}
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := _model.transitionCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+
+type AccountdomainMappingPrefetchSelector = relationFacadePrefetchInput[accountdomain.Mapping]
+type AccountdomainMappingPrefetchSelectors struct {
+	Transition relationFacadeSinglePrefetch[accountdomain.Mapping, accountdomain.Transition]
+}
+type AccountdomainMappingPrefetchQuery struct {
+	state    *relationFacadeState
+	prefetch orm.PrefetchQuery[accountdomain.Mapping]
+}
+
+func (_query AccountdomainMappingPrefetchQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accountdomain.Mapping]) AccountdomainMappingPrefetchQuery {
+	_query.prefetch = _query.prefetch.SelectForUpdate(_options, _targets...)
+	return _query
+}
+func (_query AccountdomainMappingPrefetchQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountdomainMappingPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountdomainMapping, _paths...)
+	if _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountdomainMappingQuery) PrefetchRelated(_selectors ...AccountdomainMappingPrefetchSelector) AccountdomainMappingPrefetchQuery {
+	_result := AccountdomainMappingPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[accountdomain.Mapping], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.PrefetchRelated(_query.query, _inputs...)
+	return _result
+}
+func (_query AccountdomainMappingQuery) PrefetchRelatedPaths(_paths ...string) (AccountdomainMappingPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return AccountdomainMappingPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]orm.PrefetchSelection[accountdomain.Mapping], len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchAccountdomainMappingPath(_path, 1, &_remaining)
+		if _err != nil {
+			return AccountdomainMappingPrefetchQuery{}, _err
+		}
+		_inputs[_index] = _selection
+	}
+	_result := AccountdomainMappingPrefetchQuery{state: _query.state, prefetch: orm.PrefetchRelated(_query.query, _inputs...)}
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountdomainMappingQuery) PrefetchPath(_path string) (AccountdomainMappingPrefetchSelector, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_selection, _err := _query.state.prefetchAccountdomainMappingPath(_path, 1, &_remaining)
+	if _err != nil {
+		return nil, _err
+	}
+	return relationFacadePrefetchPath[accountdomain.Mapping]{state: _query.state, selection: _selection}, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) validate(_ctx context.Context) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return _err
+	}
+	return _query.state.validate()
+}
+func (_query AccountdomainMappingPrefetchQuery) Filter(_values ...orm.Predicate[accountdomain.Mapping]) AccountdomainMappingPrefetchQuery {
+	_query.prefetch = _query.prefetch.Filter(_values...)
+	return _query
+}
+func (_query AccountdomainMappingPrefetchQuery) OrderBy(_values ...orm.Ordering[accountdomain.Mapping]) AccountdomainMappingPrefetchQuery {
+	_query.prefetch = _query.prefetch.OrderBy(_values...)
+	return _query
+}
+func (_query AccountdomainMappingPrefetchQuery) Distinct() AccountdomainMappingPrefetchQuery {
+	_query.prefetch = _query.prefetch.Distinct()
+	return _query
+}
+func (_query AccountdomainMappingPrefetchQuery) Fresh() AccountdomainMappingPrefetchQuery {
+	_query.prefetch = _query.prefetch.Fresh()
+	return _query
+}
+func (_query AccountdomainMappingPrefetchQuery) Limit(_value int) (AccountdomainMappingPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Limit(_value)
+	if _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) Offset(_value int) (AccountdomainMappingPrefetchQuery, error) {
+	_next, _err := _query.prefetch.Offset(_value)
+	if _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	_query.prefetch = _next
+	return _query, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) All(_ctx context.Context) ([]*AccountdomainMapping, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_values, _err := _query.prefetch.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := make([]*AccountdomainMapping, len(_values))
+	for _index, _value := range _values {
+		_result[_index], _err = _query.state.materializeAccountdomainMapping(_ctx, _value)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) Get(_ctx context.Context) (*AccountdomainMapping, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _query.prefetch.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_result, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _err
+	}
+	return _result, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[accountdomain.Mapping]) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_result, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accountdomain.Mapping]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Update(_ctx, _assignments...)
+}
+func (_query AccountdomainMappingPrefetchQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.UpdateDynamic(_ctx, _inputs...)
+}
+func (_query AccountdomainMappingPrefetchQuery) BulkUpdate(_ctx context.Context, _inputs []accountdomain.Mapping, _options ...orm.BulkUpdateOption[accountdomain.Mapping]) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.BulkUpdate(_ctx, _inputs, _options...)
+}
+func (_query AccountdomainMappingPrefetchQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accountdomain.Mapping], _patch orm.PatchInput[accountdomain.Mapping]) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _created, _err := _query.prefetch.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountdomainMapping(context.WithoutCancel(_ctx), _value)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, _created, _err
+	}
+	return _result, _created, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) First(_ctx context.Context) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	_value, _present, _err := _query.prefetch.First(_ctx)
+	if _err != nil || !_present {
+		return nil, false, _err
+	}
+	_result, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return nil, false, _err
+	}
+	return _result, true, nil
+}
+func (_query AccountdomainMappingPrefetchQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := _query.validate(_ctx); _err != nil {
+		return 0, _err
+	}
+	return _query.prefetch.Count(_ctx)
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query AccountdomainMappingPrefetchQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *AccountdomainMapping) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(_ctx); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[accountdomain.Mapping]) (bool, error) {
+		_models := make([]*AccountdomainMapping, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return _query.prefetch.IterateBatches(_ctx, _size, _yield)
+}
+func (_query AccountdomainMappingPrefetchQuery) SelectRelated(_selectors ...AccountdomainMappingRelationSelector) AccountdomainMappingPrefetchQuery {
+	if _err := _query.state.validate(); _err != nil {
+		_query.prefetch = _query.prefetch.WithConfigurationError(_err)
+		return _query
+	}
+	_inputs := make([]orm.RelatedSelection[accountdomain.Mapping], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			_query.prefetch = _query.prefetch.WithConfigurationError(relationFacadeQueryInvalid("relation selector does not belong to this query"))
+			return _query
+		}
+		_inputs[_index] = _selector.relationFacadeSelectionValue()
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	return _query
+}
+func (_query AccountdomainMappingPrefetchQuery) SelectRelatedPaths(_paths ...string) (AccountdomainMappingPrefetchQuery, error) {
+	if _err := _query.state.validate(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.AccountdomainMapping.selectionInputs(_paths)
+	if _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	_query.prefetch = _query.prefetch.SelectRelated(_inputs...)
+	if _err := _query.prefetch.ConfigurationError(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	return _query, nil
+}
+func (_query AccountdomainMappingEagerQuery) PrefetchRelated(_selectors ...AccountdomainMappingPrefetchSelector) AccountdomainMappingPrefetchQuery {
+	_result := AccountdomainMappingPrefetchQuery{state: _query.state}
+	if _err := _query.validate(); _err != nil {
+		_result.prefetch = _result.prefetch.WithConfigurationError(_err)
+		return _result
+	}
+	_inputs := make([]orm.PrefetchSelection[accountdomain.Mapping], len(_selectors))
+	for _index, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadePrefetchOwner() != _query.state {
+			_result.prefetch = _result.prefetch.WithConfigurationError(relationFacadeQueryInvalid("prefetch selector belongs to another query origin"))
+			return _result
+		}
+		_inputs[_index] = _selector.relationFacadePrefetchValue()
+	}
+	_result.prefetch = orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.AccountdomainMapping).PrefetchRelated(_inputs...)
+	return _result
+}
+func (_query AccountdomainMappingEagerQuery) PrefetchRelatedPaths(_paths ...string) (AccountdomainMappingPrefetchQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	if len(_paths) > orm.MaximumRelatedSelectionNodes {
+		return AccountdomainMappingPrefetchQuery{}, relationFacadeQueryInvalid("prefetch selection budget exceeded")
+	}
+	_remaining := orm.MaximumRelatedSelectionNodes
+	_inputs := make([]AccountdomainMappingPrefetchSelector, len(_paths))
+	for _index, _path := range _paths {
+		_selection, _err := _query.state.prefetchAccountdomainMappingPath(_path, 1, &_remaining)
+		if _err != nil {
+			return AccountdomainMappingPrefetchQuery{}, _err
+		}
+		_inputs[_index] = relationFacadePrefetchPath[accountdomain.Mapping]{state: _query.state, selection: _selection}
+	}
+	_result := _query.PrefetchRelated(_inputs...)
+	if _err := _result.prefetch.ConfigurationError(); _err != nil {
+		return AccountdomainMappingPrefetchQuery{}, _err
+	}
+	return _result, nil
+}
+
+type AccountdomainMappingRelationSelector = relationFacadeSelectionInput[accountdomain.Mapping]
+type AccountdomainMappingRelationSelectors struct {
+	Transition relationFacadeSelection[accountdomain.Mapping, accountdomain.Transition]
+}
+
+func (_query AccountdomainMappingQuery) SelectRelated(_selectors ...AccountdomainMappingRelationSelector) AccountdomainMappingEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingEagerQuery{state: _query.state, source: _query.query, configurationErr: _err}
+	}
+	_inputs := make([]orm.RelatedSelection[accountdomain.Mapping], 0, len(_selectors))
+	for _, _selector := range _selectors {
+		if relationFacadeNil(_selector) || _selector.relationFacadeSelectionOwner() != _query.state {
+			return AccountdomainMappingEagerQuery{state: _query.state, source: _query.query, configurationErr: relationFacadeQueryInvalid("relation selector does not belong to this query")}
+		}
+		_inputs = append(_inputs, _selector.relationFacadeSelectionValue())
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_query.query, _inputs)
+}
+func (_query AccountdomainMappingQuery) SelectRelatedPaths(_paths ...string) (AccountdomainMappingEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	_inputs, _err := _query.state.objects.AccountdomainMapping.selectionInputs(_paths)
+	if _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	_result := _query.state.newAccountdomainMappingEagerQuery(_query.query, _inputs)
+	if _result.configurationErr != nil {
+		return AccountdomainMappingEagerQuery{}, _result.configurationErr
+	}
+	return _result, nil
+}
+
+type AccountdomainMappingEagerQuery struct {
+	state            *relationFacadeState
+	source           orm.QuerySet[accountdomain.Mapping]
+	selections       []orm.RelatedSelection[accountdomain.Mapping]
+	projection       relationSelectQuery[accountdomain.Mapping, AccountdomainMappingObject]
+	configurationErr error
+}
+
+func (_state *relationFacadeState) newAccountdomainMappingEagerQuery(_source orm.QuerySet[accountdomain.Mapping], _selections []orm.RelatedSelection[accountdomain.Mapping]) AccountdomainMappingEagerQuery {
+	_result := AccountdomainMappingEagerQuery{state: _state, source: _source}
+	if _err := _state.validate(); _err != nil {
+		_result.configurationErr = _err
+		return _result
+	}
+	if len(_selections) == 0 {
+		_result.configurationErr = relationFacadeQueryInvalid("relation selection is empty")
+		return _result
+	}
+	_result.selections = append([]orm.RelatedSelection[accountdomain.Mapping](nil), _selections...)
+	_projection := _state.objects.AccountdomainMapping.SelectRelated(_source).WithSelections(_result.selections...)
+	_result.projection = _projection
+	_result.configurationErr = _projection.configurationErr
+	return _result
+}
+func (_query AccountdomainMappingEagerQuery) validate() error {
+	if _query.configurationErr != nil {
+		return _query.configurationErr
+	}
+	if _err := _query.state.validate(); _err != nil {
+		return _err
+	}
+	if len(_query.selections) == 0 || relationFacadeNil(_query.projection) {
+		return relationFacadeQueryInvalid("generated eager query is zero or corrupt")
+	}
+	return nil
+}
+func (_query AccountdomainMappingEagerQuery) SelectForUpdate(_options orm.RowLockOptions, _targets ...orm.RowLockTarget[accountdomain.Mapping]) AccountdomainMappingEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_query.source.SelectForUpdate(_options, _targets...), _query.selections)
+}
+func (_query AccountdomainMappingEagerQuery) SelectForUpdatePaths(_options orm.RowLockOptions, _paths ...string) (AccountdomainMappingEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	_targets, _err := orm.ParseRowLockTargets(_query.state.models.AccountdomainMapping, _paths...)
+	if _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	_result := _query.SelectForUpdate(_options, _targets...)
+	if _err := _result.validate(); _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	return _result, nil
+}
+func (_query AccountdomainMappingEagerQuery) Filter(_values ...orm.Predicate[accountdomain.Mapping]) AccountdomainMappingEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_query.source.Filter(_values...), _query.selections)
+}
+func (_query AccountdomainMappingEagerQuery) OrderBy(_values ...orm.Ordering[accountdomain.Mapping]) AccountdomainMappingEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_query.source.OrderBy(_values...), _query.selections)
+}
+func (_query AccountdomainMappingEagerQuery) Distinct() AccountdomainMappingEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_query.source.Distinct(), _query.selections)
+}
+func (_query AccountdomainMappingEagerQuery) Fresh() AccountdomainMappingEagerQuery {
+	if _err := _query.validate(); _err != nil {
+		_query.configurationErr = _err
+		return _query
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_query.source.Fresh(), _query.selections)
+}
+func (_query AccountdomainMappingEagerQuery) Limit(_value int) (AccountdomainMappingEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Limit(_value)
+	if _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_source, _query.selections), nil
+}
+func (_query AccountdomainMappingEagerQuery) Offset(_value int) (AccountdomainMappingEagerQuery, error) {
+	if _err := _query.validate(); _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	_source, _err := _query.source.Offset(_value)
+	if _err != nil {
+		return AccountdomainMappingEagerQuery{}, _err
+	}
+	return _query.state.newAccountdomainMappingEagerQuery(_source, _query.selections), nil
+}
+
+// Iterate reads explicit batches without consulting or filling the full query cache.
+// Use the callback context for all interleaved ORM reads and writes.
+func (_query AccountdomainMappingEagerQuery) Iterate(_ctx context.Context, _size int, _callback func(context.Context, *AccountdomainMapping) (bool, error)) error {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return _err
+	}
+	if _size <= 0 || _callback == nil {
+		return &query.Error{Category: query.CategoryArgument, Code: query.CodeInvalidValue, Detail: "streaming requires a positive batch size and a non-nil callback"}
+	}
+	_yield := func(_ctx context.Context, _values []*orm.RelatedSelected[accountdomain.Mapping]) (bool, error) {
+		_models := make([]*AccountdomainMapping, len(_values))
+		for _index, _value := range _values {
+			_wrapped, _err := _query.state.materializeAccountdomainMapping(_ctx, _value)
+			if _err != nil {
+				return false, _err
+			}
+			_models[_index] = _wrapped
+		}
+		for _, _model := range _models {
+			if _err := relationFacadeContext(_ctx); _err != nil {
+				return false, _err
+			}
+			if _err := _query.state.validate(); _err != nil {
+				return false, _err
+			}
+			_more, _err := _callback(_ctx, _model)
+			if _err != nil || !_more {
+				return false, _err
+			}
+		}
+		return true, nil
+	}
+	return orm.SelectRelated(_query.source, _query.selections...).WithSourceBinding(_query.state.models.AccountdomainMapping).IterateBatches(_ctx, _size, _yield)
+}
+func (_query AccountdomainMappingEagerQuery) All(_ctx context.Context) ([]*AccountdomainMapping, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_objects, _err := _query.projection.All(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	_results := make([]*AccountdomainMapping, len(_objects))
+	for _index, _object := range _objects {
+		_results[_index], _err = _query.state.wrapSelectedAccountdomainMappingObject(_ctx, _object)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _results, nil
+}
+func (_query AccountdomainMappingEagerQuery) Get(_ctx context.Context) (*AccountdomainMapping, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, _err
+	}
+	_object, _err := _query.projection.Get(_ctx)
+	if _err != nil {
+		return nil, _err
+	}
+	return _query.state.wrapSelectedAccountdomainMappingObject(_ctx, _object)
+}
+func (_query AccountdomainMappingEagerQuery) GetOrCreate(_ctx context.Context, _input orm.CreateInput[accountdomain.Mapping]) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.GetOrCreate(_ctx, _input)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	if _created {
+		_ctx = context.WithoutCancel(_ctx)
+	}
+	_wrapped, _err := _query.state.wrapSelectedAccountdomainMappingObject(_ctx, _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query AccountdomainMappingEagerQuery) Update(_ctx context.Context, _assignments ...orm.UpdateAssignment[accountdomain.Mapping]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Update(_ctx, _assignments...)
+}
+func (_query AccountdomainMappingEagerQuery) UpdateDynamic(_ctx context.Context, _inputs ...orm.DynamicUpdateInput) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.UpdateDynamic(_ctx, _inputs...)
+}
+func (_query AccountdomainMappingEagerQuery) BulkUpdate(_ctx context.Context, _inputs []accountdomain.Mapping, _options ...orm.BulkUpdateOption[accountdomain.Mapping]) (int64, error) {
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.BulkUpdate(_ctx, _inputs, _options...)
+}
+func (_query AccountdomainMappingEagerQuery) UpdateOrCreate(_ctx context.Context, _create orm.CreateInput[accountdomain.Mapping], _patch orm.PatchInput[accountdomain.Mapping]) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _created, _err := _query.projection.UpdateOrCreate(_ctx, _create, _patch)
+	if _err != nil {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedAccountdomainMappingObject(context.WithoutCancel(_ctx), _object)
+	if _err != nil {
+		return nil, _created, _err
+	}
+	return _wrapped, _created, nil
+}
+func (_query AccountdomainMappingEagerQuery) First(_ctx context.Context) (*AccountdomainMapping, bool, error) {
+	if _err := _query.validate(); _err != nil {
+		return nil, false, _err
+	}
+	_object, _found, _err := _query.projection.First(_ctx)
+	if _err != nil || !_found {
+		return nil, false, _err
+	}
+	_wrapped, _err := _query.state.wrapSelectedAccountdomainMappingObject(_ctx, _object)
+	return _wrapped, _err == nil, _err
+}
+func (_query AccountdomainMappingEagerQuery) Count(_ctx context.Context) (int64, error) {
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return 0, _err
+	}
+	if _err := _query.validate(); _err != nil {
+		return 0, _err
+	}
+	return _query.projection.Count(_ctx)
+}
+func (_state *relationFacadeState) wrapSelectedAccountdomainMappingObject(_ctx context.Context, _object *AccountdomainMappingObject) (*AccountdomainMapping, error) {
+	_wrapped, _err := _state.wrapAccountdomainMappingObject(_object)
+	if _err != nil {
+		return nil, _err
+	}
+	if _object._selectedGraph == nil {
+		return nil, relationFacadeQueryInvalid("selected object has no graph")
+	}
+	_wrapped._prefetched = _object._selectedGraph
+	if _has, _err := _object._selectedGraph.HasSelection("transition"); _err != nil {
+		return nil, _err
+	} else if _has {
+		var _present bool
+		_, _present, _err = _object.transition.Get(_ctx)
+		if _err == nil {
+			if _present {
+				_, _err = _wrapped.Transition(_ctx)
+			} else {
+				_err = _wrapped.transitionCache.Store(orm.RelationLoadedAbsent, nil, false)
+			}
+		}
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	if _err := _ctx.Err(); _err != nil {
+		return nil, _err
+	}
+	return _wrapped, nil
+}
+func (_state *relationFacadeState) materializeAccountdomainMapping(_ctx context.Context, _value *orm.RelatedSelected[accountdomain.Mapping]) (*AccountdomainMapping, error) {
+	_object, _err := _state.objects.AccountdomainMapping.FromSelected(_value)
+	if _err != nil {
+		return nil, _err
+	}
+	return _state.wrapSelectedAccountdomainMappingObject(_ctx, _object)
+}
+func (_state *relationFacadeState) prefetchAccountdomainMappingPath(_path string, _depth int, _remaining *int) (orm.PrefetchSelection[accountdomain.Mapping], error) {
+	if _depth > query.MaximumRelationHops || *_remaining <= 0 {
+		return nil, relationFacadeQueryInvalid("prefetch path exceeds its depth or node bound")
+	}
+	*_remaining--
+	_head, _tail, _nested := strings.Cut(_path, "__")
+	switch _head {
+	case "transition":
+		_selection := orm.PrefetchRequiredForward(_state.objects.AccountdomainMapping.transition)
+		if _nested {
+			_child, _err := _state.prefetchAccountdomainTransitionPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
+	}
+	return nil, &query.Error{Category: query.CategoryField, Code: query.CodeUnknownRelation, Field: _path, Detail: "prefetch path is not a declared relation"}
+}
+
 type AccountdomainTransitionQuery struct {
 	Related  AccountdomainTransitionRelationSelectors
 	Prefetch AccountdomainTransitionPrefetchSelectors
@@ -423,12 +2149,15 @@ type AccountdomainTransitionQuery struct {
 func newAccountdomainTransitionQuery(_state *relationFacadeState, _query orm.QuerySet[accountdomain.Transition]) AccountdomainTransitionQuery {
 	_result := AccountdomainTransitionQuery{state: _state, query: _query}
 	_result.Related = AccountdomainTransitionRelationSelectors{
+		Mapping:  relationFacadeSelection[accountdomain.Transition, accountdomain.Mapping]{state: _state},
 		Previous: relationFacadeSelection[accountdomain.Transition, accountdomain.Transition]{state: _state},
 	}
 	if _state != nil {
+		_result.Related.Mapping.selection = _state.objects.AccountdomainTransition.SelectMapping()
 		_result.Related.Previous.selection = _state.objects.AccountdomainTransition.SelectPrevious()
 	}
 	if _state != nil {
+		_result.Prefetch.Mapping = relationFacadeSinglePrefetch[accountdomain.Transition, accountdomain.Mapping]{state: _state, selection: orm.PrefetchReverseOneToOne(_state.objects.AccountdomainTransition.mapping)}
 		_result.Prefetch.Previous = relationFacadeSinglePrefetch[accountdomain.Transition, accountdomain.Transition]{state: _state, selection: orm.PrefetchNullableForward(_state.objects.AccountdomainTransition.previous)}
 		_result.Prefetch.Successors = relationFacadeReversePrefetch[accountdomain.Transition, accountdomain.Transition, AccountdomainTransition]{state: _state, selection: _state.reverseCollections.AccountdomainTransition.successors.WithChildren(), materialize: _state.materializeAccountdomainTransition}
 	}
@@ -1049,6 +2778,7 @@ type AccountdomainTransition struct {
 	primaryKeySnapshotPresent bool
 	_prefetched               *orm.RelatedSelected[accountdomain.Transition]
 	object                    *AccountdomainTransitionObject
+	mappingCache              *orm.RelationCache[AccountdomainMapping]
 	previousCache             *orm.RelationCache[AccountdomainTransition]
 	previousScalarSnapshot    int64
 	previousScalarPresent     bool
@@ -1066,6 +2796,7 @@ func (_state *relationFacadeState) wrapAccountdomainTransition(_value accountdom
 		return nil, _err
 	}
 	_result := &AccountdomainTransition{state: _state, accountdomainTransitionModel: _cloned, object: _object}
+	_result.mappingCache = orm.NewRelationCache[AccountdomainMapping]()
 	_result.previousCache = orm.NewRelationCache[AccountdomainTransition]()
 	_result.previousScalarPresent = _value.PreviousID != nil
 	if _value.PreviousID == nil {
@@ -1091,6 +2822,7 @@ func (_state *relationFacadeState) wrapAccountdomainTransitionObject(_object *Ac
 	}
 	_cloned := (accountdomain.TransitionDescriptor{}).CloneWriteModel(_model)
 	_result := &AccountdomainTransition{state: _state, accountdomainTransitionModel: _cloned, object: _object}
+	_result.mappingCache = orm.NewRelationCache[AccountdomainMapping]()
 	_result.previousCache = orm.NewRelationCache[AccountdomainTransition]()
 	_result.previousScalarPresent = _model.PreviousID != nil
 	if _model.PreviousID == nil {
@@ -1202,6 +2934,17 @@ func (_model *AccountdomainTransition) Save(_ctx context.Context) error {
 	if _err := accountdomain.TransitionObjects.Save(_ctx, _mutator, &_model.accountdomainTransitionModel); _err != nil {
 		return _err
 	}
+	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
+	if _err != nil {
+		return _err
+	}
+	if _key != _model.primaryKeySnapshot || _present != _model.primaryKeySnapshotPresent {
+		_nextObject, _err := _model.state.objects.AccountdomainTransition.From(_model.state.backend, _model.accountdomainTransitionModel)
+		if _err != nil {
+			return _err
+		}
+		_model.object = _nextObject
+	}
 	return _model.relationFacadeRefreshSnapshots()
 }
 
@@ -1224,6 +2967,10 @@ func (_model *AccountdomainTransition) relationFacadeDerived(_value accountdomai
 	if _err != nil {
 		return nil, _err
 	}
+	_result.mappingCache, _err = _model.mappingCache.Clone()
+	if _err != nil {
+		return nil, _err
+	}
 	_result._reverseCollection0 = &orm.RelatedSetCache[accountdomain.Transition]{}
 	_result._self = _result
 	return _result, nil
@@ -1234,6 +2981,9 @@ func (_model *AccountdomainTransition) relationFacadeReconcile() error {
 		return _err
 	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
+		return _err
+	}
+	if _, _, _, _err := _model.mappingCache.Snapshot(); _err != nil {
 		return _err
 	}
 	if _, _, _, _err := _model.previousCache.Snapshot(); _err != nil {
@@ -1415,6 +3165,123 @@ func (_model *AccountdomainTransition) ClearPrevious() (*AccountdomainTransition
 	return _result, nil
 }
 
+// SetMapping assigns a reverse one-to-one relation without database I/O.
+// It changes this wrapper and the supplied child's forward relation in place.
+// A nil target clears only an already cached child; an unloaded relation is unchanged.
+// Save the affected child explicitly to persist its foreign key.
+func (_model *AccountdomainTransition) SetMapping(_target *AccountdomainMapping) error {
+	if _err := _model.validate(); _err != nil {
+		return _err
+	}
+	_nextOwner, _err := _model.relationFacadeDerived(_model.accountdomainTransitionModel)
+	if _err != nil {
+		return _err
+	}
+	if _err = _nextOwner.relationFacadeReconcile(); _err != nil {
+		return _err
+	}
+	_changedTarget := _target
+	if _target == nil {
+		_state, _cached, _, _err := _nextOwner.mappingCache.Snapshot()
+		if _err != nil {
+			return _err
+		}
+		if _state != orm.RelationAssignedPresent {
+			return nil
+		}
+		_changedTarget = _cached
+	}
+	var _nextTarget *AccountdomainMapping
+	if _changedTarget != nil {
+		if _err = _changedTarget.validate(); _err != nil {
+			return _err
+		}
+		if _changedTarget.state != _model.state {
+			return relationFacadeQueryInvalid("relation target belongs to another facade origin")
+		}
+		_candidate, _err := _changedTarget.relationFacadeDerived(_changedTarget.accountdomainMappingModel)
+		if _err != nil {
+			return _err
+		}
+
+		if _target == nil {
+			_nextTarget, _err = _candidate.ClearTransition()
+		} else {
+			_nextTarget, _err = _candidate.WithTransition(_model)
+		}
+		if _err != nil {
+			return _err
+		}
+	}
+
+	if _target == nil {
+		_err = _nextOwner.mappingCache.Store(orm.RelationAssignedAbsent, nil, false)
+	} else {
+		_err = _nextOwner.mappingCache.Store(orm.RelationAssignedPresent, _target, false)
+	}
+	if _err != nil {
+		return _err
+	}
+	if _changedTarget != nil {
+		*_changedTarget = *_nextTarget
+		_changedTarget._self = _changedTarget
+	}
+	*_model = *_nextOwner
+	_model._self = _model
+	return nil
+}
+func (_model *AccountdomainTransition) Mapping(_ctx context.Context) (*AccountdomainMapping, bool, error) {
+	if _err := _model.validate(); _err != nil {
+		return nil, false, _err
+	}
+	if _err := relationFacadeContext(_ctx); _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.relationFacadeReconcile(); _err != nil {
+		return nil, false, _err
+	}
+	_state, _target, _, _err := _model.mappingCache.Snapshot()
+	if _err != nil {
+		return nil, false, _err
+	}
+	switch _state {
+	case orm.RelationAssignedPresent:
+		if _target == nil || _target.state != _model.state {
+			return nil, false, relationFacadeQueryInvalid("assigned relation target is nil or belongs to another facade origin")
+		}
+		if _, _, _err := _target.relationFacadePrimaryKey(); _err != nil {
+			return nil, false, _err
+		}
+		return _target, true, nil
+	case orm.RelationAssignedAbsent, orm.RelationLoadedAbsent:
+		return nil, false, nil
+	}
+	_value, _present, _err := _model.object.Mapping(_ctx)
+	if _err != nil || !_present {
+		if _err == nil {
+			_err = _model.mappingCache.Store(orm.RelationLoadedAbsent, nil, false)
+		}
+		return nil, _present, _err
+	}
+	var _wrapped *AccountdomainMapping
+	_graph, _selected, _err := _model.object.mapping.SelectedGraph(_ctx)
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _selected {
+		_wrapped, _err = _model.state.materializeAccountdomainMapping(_ctx, _graph)
+	} else {
+		_wrapped, _err = _model.state.wrapAccountdomainMapping(_value, false)
+	}
+	if _err != nil {
+		return nil, false, _err
+	}
+	if _err := _model.mappingCache.Store(orm.RelationAssignedPresent, _wrapped, false); _err != nil {
+		return nil, false, _err
+	}
+	return _wrapped, true, nil
+}
+
 func (_model *AccountdomainTransition) Previous(_ctx context.Context) (*AccountdomainTransition, bool, error) {
 	if _err := _model.validate(); _err != nil {
 		return nil, false, _err
@@ -1543,6 +3410,7 @@ func (_view *AccountdomainTransitionSuccessorsCollection) Invalidate() error {
 
 type AccountdomainTransitionPrefetchSelector = relationFacadePrefetchInput[accountdomain.Transition]
 type AccountdomainTransitionPrefetchSelectors struct {
+	Mapping    relationFacadeSinglePrefetch[accountdomain.Transition, accountdomain.Mapping]
 	Previous   relationFacadeSinglePrefetch[accountdomain.Transition, accountdomain.Transition]
 	Successors relationFacadeReversePrefetch[accountdomain.Transition, accountdomain.Transition, AccountdomainTransition]
 }
@@ -1900,6 +3768,7 @@ func (_query AccountdomainTransitionEagerQuery) PrefetchRelatedPaths(_paths ...s
 
 type AccountdomainTransitionRelationSelector = relationFacadeSelectionInput[accountdomain.Transition]
 type AccountdomainTransitionRelationSelectors struct {
+	Mapping  relationFacadeSelection[accountdomain.Transition, accountdomain.Mapping]
 	Previous relationFacadeSelection[accountdomain.Transition, accountdomain.Transition]
 }
 
@@ -2190,6 +4059,14 @@ func (_state *relationFacadeState) wrapSelectedAccountdomainTransitionObject(_ct
 			return nil, _err
 		}
 	}
+	if _has, _err := _object._selectedGraph.HasSelection("mapping"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_, _, _err = _wrapped.Mapping(_ctx)
+		if _err != nil {
+			return nil, _err
+		}
+	}
 	if _has, _err := _object._selectedGraph.HasSelection("previous"); _err != nil {
 		return nil, _err
 	} else if _has {
@@ -2217,6 +4094,16 @@ func (_state *relationFacadeState) prefetchAccountdomainTransitionPath(_path str
 	*_remaining--
 	_head, _tail, _nested := strings.Cut(_path, "__")
 	switch _head {
+	case "mapping":
+		_selection := orm.PrefetchReverseOneToOne(_state.objects.AccountdomainTransition.mapping)
+		if _nested {
+			_child, _err := _state.prefetchAccountdomainMappingPath(_tail, _depth+1, _remaining)
+			if _err != nil {
+				return nil, _err
+			}
+			_selection = _selection.WithChildren(_child)
+		}
+		return _selection, nil
 	case "previous":
 		_selection := orm.PrefetchNullableForward(_state.objects.AccountdomainTransition.previous)
 		if _nested {
@@ -2242,6 +4129,7 @@ func (_state *relationFacadeState) prefetchAccountdomainTransitionPath(_path str
 }
 
 type Models struct {
+	AccountdomainMapping    AccountdomainMappingQuery
 	AccountdomainTransition AccountdomainTransitionQuery
 }
 
@@ -2282,13 +4170,22 @@ func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error)
 	_state := &relationFacadeState{backend: _backend, readOnly: _readOnly, objects: _objects, sessionScope: _scope}
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "mapping"},
+		accountdomain.MappingDescriptor{},
+	)
+	if _err != nil {
+		return Models{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
 		accountdomain.TransitionDescriptor{},
 	)
 	if _err != nil {
 		return Models{}, _err
 	}
-	_state.models.AccountdomainTransition = _model0
+	_state.models.AccountdomainMapping = _model0
+	_state.models.AccountdomainTransition = _model1
 	_reverse, _err := BindReverseObjectsIn(_binding)
 	if _err != nil {
 		return Models{}, _err
@@ -2296,8 +4193,9 @@ func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error)
 	_state.reverseCollections = _reverse
 	_state._self = _state
 	return Models{
+		AccountdomainMapping:    newAccountdomainMappingQuery(_state, accountdomain.MappingObjects.Using(_backend)),
 		AccountdomainTransition: newAccountdomainTransitionQuery(_state, accountdomain.TransitionObjects.Using(_backend)),
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+var _ goDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

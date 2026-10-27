@@ -46,6 +46,11 @@ func Run(t *testing.T, open Open) {
 		{"unknown_outcome_reconciliation", unknownOutcome},
 		{"inspect_scope", inspectScope},
 		{"lookup_contract", lookupContract},
+		{"mapping_history", mappingHistory},
+		{"mapping_pages", mappingPages},
+		{"mapping_failures", mappingFailures},
+		{"mapping_write_readback", mappingWriteReadback},
+		{"mapping_corruption", mappingCorruption},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)
@@ -64,6 +69,8 @@ func Run(t *testing.T, open Open) {
 		})
 	}
 	inspectLostUniqueness(t, open)
+	mappingUpgrade(t, open)
+	mappingLostConstraint(t, open)
 }
 
 var instant = time.Date(2026, 10, 24, 1, 2, 3, 456789000, time.UTC)

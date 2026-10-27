@@ -14,6 +14,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"slices"
 	"time"
 
 	"github.com/progresshans/godj/account/domain/models"
@@ -113,11 +114,13 @@ func (change Change) Generation() [sha256.Size]byte {
 type Receipt struct{ state *receiptState }
 
 type receiptState struct {
-	id         int64
-	sequence   int64
-	previousID int64
-	change     changeState
-	at         time.Time
+	id            int64
+	sequence      int64
+	previousID    int64
+	change        changeState
+	at            time.Time
+	mappingCount  int64
+	mappingSHA256 string
 }
 
 func (receipt Receipt) OperationID() string {
@@ -157,7 +160,20 @@ func (receipt Receipt) At() time.Time {
 	return receipt.state.at
 }
 
-// Follows compares two already validated receipts' actual durable linkage.
+func (receipt Receipt) MappingCount() int {
+	if receipt.state == nil {
+		return 0
+	}
+	return int(receipt.state.mappingCount)
+}
+func (receipt Receipt) MappingSHA256() string {
+	if receipt.state == nil {
+		return ""
+	}
+	return receipt.state.mappingSHA256
+}
+
+// Follows compares two receipts observed in the same database scope.
 // Sequence numbers alone do not identify a predecessor. This is evidence
 // comparison, not a current-domain check or permission to apply a transition.
 func (receipt Receipt) Follows(previous Receipt) bool {
@@ -196,6 +212,8 @@ func RequireIn(ctx context.Context, reader db.Queryer, roleFingerprint string) (
 // Lookup reads an exact operation receipt, including one superseded by a later
 // transition. A missing record is ErrUninitialized, not a confirmed rollback:
 // after an unknown write outcome the host must also reconcile its write fence.
+// This is header/predecessor metadata; a mapped operation's correspondence
+// must additionally pass LookupMappingsIn in the same snapshot used by its owner.
 func Lookup(ctx context.Context, backend db.SnapshotReader, operationID string) (Receipt, error) {
 	if err := checkContext(ctx); err != nil {
 		return Receipt{}, err
@@ -249,6 +267,25 @@ func InitializeIn(ctx context.Context, transaction db.Session, change Change, at
 // audit must share this transaction; errors require rollback, never a partial
 // commit or an automatic retry. It does not commit or publish an account.
 func TransitionIn(ctx context.Context, transaction db.Session, expected Receipt, change Change, at time.Time) (Receipt, error) {
+	return transitionIn(ctx, transaction, expected, change, at, nil)
+}
+
+// TransitionMappedIn appends ownership and its exact native key mapping in the
+// same borrowed transaction. The mapping is data, never authorization. Target
+// creation, source retirement, session policy and audit remain the outer
+// owner's responsibility. Propagate every error; no partial receipt is valid.
+func TransitionMappedIn(ctx context.Context, transaction db.Session, expected Receipt, change Change, at time.Time, mappings []Mapping) (Receipt, error) {
+	if err := validateWrite(ctx, transaction, change, at); err != nil {
+		return Receipt{}, err
+	}
+	prepared, err := prepareMappings(mappings)
+	if err != nil {
+		return Receipt{}, err
+	}
+	return transitionIn(ctx, transaction, expected, change, at, &prepared)
+}
+
+func transitionIn(ctx context.Context, transaction db.Session, expected Receipt, change Change, at time.Time, mappings *preparedMappings) (Receipt, error) {
 	if err := validateWrite(ctx, transaction, change, at); err != nil {
 		return Receipt{}, err
 	}
@@ -262,10 +299,14 @@ func TransitionIn(ctx context.Context, transaction db.Session, expected Receipt,
 	if *current.state != *expected.state || current.Sequence() == math.MaxInt64 {
 		return Receipt{}, ErrStale
 	}
-	return appendIn(ctx, transaction, current, change, at)
+	return appendMappedIn(ctx, transaction, current, change, at, mappings)
 }
 
 func appendIn(ctx context.Context, transaction db.Session, prior Receipt, change Change, at time.Time) (Receipt, error) {
+	return appendMappedIn(ctx, transaction, prior, change, at, nil)
+}
+
+func appendMappedIn(ctx context.Context, transaction db.Session, prior Receipt, change Change, at time.Time, mappings *preparedMappings) (Receipt, error) {
 	// Reusing an already committed preparation is an explicit stale error; do
 	// not return the earlier receipt as if this transaction applied the mapping.
 	exists, err := models.TransitionObjects.Using(transaction).Filter(models.TransitionFields.OperationID.Exact(change.OperationID())).Exists(ctx)
@@ -280,11 +321,34 @@ func appendIn(ctx context.Context, transaction db.Session, prior Receipt, change
 	if prior.state != nil {
 		input = input.WithPreviousID(prior.state.id)
 	}
+	if mappings != nil {
+		input = input.WithMappingCount(int64(len(mappings.rows))).WithMappingSHA256(mappings.digest)
+	}
 	row, err := models.TransitionObjects.Create(ctx, transaction, input)
 	if err != nil {
 		return Receipt{}, failure(err)
 	}
-	return fromRow(row)
+	receipt, err := fromRow(row)
+	if err != nil {
+		return Receipt{}, err
+	}
+	if mappings != nil {
+		stored, err := models.MappingObjects.Create(ctx, transaction, models.NewMappingCreate(row.ID, mappings.payload))
+		if err != nil {
+			return Receipt{}, failure(err)
+		}
+		if stored.ID <= 0 {
+			return Receipt{}, ErrCorrupt
+		}
+		actual, err := LookupMappingsIn(ctx, transaction, receipt)
+		if err != nil {
+			return Receipt{}, err
+		}
+		if !slices.Equal(actual, mappings.rows) {
+			return Receipt{}, ErrCorrupt
+		}
+	}
+	return receipt, nil
 }
 
 func currentIn(ctx context.Context, reader db.Queryer) (Receipt, error) {
@@ -330,6 +394,14 @@ func fromRow(row models.Transition) (Receipt, error) {
 			return Receipt{}, ErrCorrupt
 		}
 	}
+	if row.MappingCount < 0 || row.MappingCount > MaximumMappings || row.MappingCount == 0 && row.MappingSHA256 != "" {
+		return Receipt{}, ErrCorrupt
+	}
+	if row.MappingCount > 0 {
+		if _, ok := digest(row.MappingSHA256); !ok {
+			return Receipt{}, ErrCorrupt
+		}
+	}
 	previousID := int64(0)
 	if row.PreviousID != nil {
 		previousID = *row.PreviousID
@@ -338,8 +410,9 @@ func fromRow(row models.Transition) (Receipt, error) {
 		return Receipt{}, ErrCorrupt
 	}
 	return Receipt{state: &receiptState{id: row.ID, sequence: row.Sequence, previousID: previousID,
-		change: changeState{operationID: row.OperationID, role: row.RoleFingerprint, generation: generation, evidence: row.EvidenceSHA256},
-		at:     at,
+		change:       changeState{operationID: row.OperationID, role: row.RoleFingerprint, generation: generation, evidence: row.EvidenceSHA256},
+		at:           at,
+		mappingCount: row.MappingCount, mappingSHA256: row.MappingSHA256,
 	}}, nil
 }
 
@@ -411,7 +484,7 @@ func digest(value string) ([sha256.Size]byte, bool) {
 }
 
 func checkContext(ctx context.Context) error {
-	if ctx == nil {
+	if nilValue(ctx) {
 		return ErrInvalid
 	}
 	return ctx.Err()

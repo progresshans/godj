@@ -40,6 +40,7 @@ Admin/JSON·password/reset·공개 CLI·Article/scaffold와 Helpdesk 조립, 명
 추가 M2M의 명시적 선택 정책·생성/편집/조회·Form/Admin/JSON과 전체 수명 projection을 연결했으며 새 본문은 원격 확인 대상이다.
 공개 첫 계정 명령의 collection 입력/전송도 같은 typed Form·선택 owner에 연결했으며 실제 TTY/process·양 DB 본문은 원격 확인 대상이다.
 같은 catalog와 준비된 두 typed 모델의 명시적 mapping·source 퇴역·session 폐기·새 domain/receipt와 재시작 대조를 작성했다.
+대응표의 native 저장·receipt count/digest·새 migration·전체 이력/재시작 검사를 연결했다.
 새 본문은 원격 확인 대상이며 대상 생성·host 관계 mapping·역사 systemstate 전환은 남아 있다. 일반 collection의 선택 identity through 자동 생성·
 남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
 필수 목록에 연결했고 독립 OpenAPI 관리·자기 계정 소비자도 선택 runtime으로 전환했다. 새 본문의 원격 확인이 필요하다.

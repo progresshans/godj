@@ -11,9 +11,48 @@ import (
 const GoDjProjectRelationQueryGeneratorVersion = "godj-codegen-rel-query-project-v3"
 
 type relationQueryBindings struct {
-	edge0 orm.QueryRelation[accountdomain.Transition, accountdomain.Transition]
-	edge1 orm.QueryRelation[accountdomain.Transition, accountdomain.Transition]
+	edge0 orm.QueryRelation[accountdomain.Mapping, accountdomain.Transition]
+	edge1 orm.QueryRelation[accountdomain.Transition, accountdomain.Mapping]
+	edge2 orm.QueryRelation[accountdomain.Transition, accountdomain.Transition]
+	edge3 orm.QueryRelation[accountdomain.Transition, accountdomain.Transition]
 }
+type AccountdomainMappingRelatedFields[S any] struct {
+	bindings         *relationQueryBindings
+	route            orm.QueryRelation[S, accountdomain.Mapping]
+	configurationErr error
+	ID               orm.RelatedIntegerField[S]
+	Payload          orm.RelatedStringField[S]
+}
+
+func newAccountdomainMappingRelatedFields[S any](_bindings *relationQueryBindings, _route orm.QueryRelation[S, accountdomain.Mapping]) AccountdomainMappingRelatedFields[S] {
+	_result := AccountdomainMappingRelatedFields[S]{bindings: _bindings, route: _route}
+	_field0, _err := _route.Integer(accountdomain.MappingFields.ID)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field1, _err := _route.String(accountdomain.MappingFields.Payload)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_result.ID = _field0.WithConfigurationError(_result.configurationErr)
+	_result.Payload = _field1.WithConfigurationError(_result.configurationErr)
+	_result.route = _route.WithConfigurationError(_result.configurationErr)
+	return _result
+}
+func (_fields AccountdomainMappingRelatedFields[S]) IsNull(_value bool) orm.Predicate[S] {
+	return _fields.route.IsNull(_value)
+}
+func (_fields AccountdomainMappingRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
+	return _fields.route.LockTarget()
+}
+func (_fields AccountdomainMappingRelatedFields[S]) Transition() AccountdomainTransitionRelatedFields[S] {
+	var _next orm.QueryRelation[accountdomain.Mapping, accountdomain.Transition]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge0
+	}
+	return newAccountdomainTransitionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
+
 type AccountdomainTransitionRelatedFields[S any] struct {
 	bindings         *relationQueryBindings
 	route            orm.QueryRelation[S, accountdomain.Transition]
@@ -24,6 +63,8 @@ type AccountdomainTransitionRelatedFields[S any] struct {
 	RoleFingerprint  orm.RelatedStringField[S]
 	Generation       orm.RelatedStringField[S]
 	EvidenceSHA256   orm.RelatedStringField[S]
+	MappingCount     orm.RelatedIntegerField[S]
+	MappingSHA256    orm.RelatedStringField[S]
 	TransitionedAt   orm.RelatedDateTimeField[S]
 }
 
@@ -53,7 +94,15 @@ func newAccountdomainTransitionRelatedFields[S any](_bindings *relationQueryBind
 	if _result.configurationErr == nil {
 		_result.configurationErr = _err
 	}
-	_field6, _err := _route.DateTime(accountdomain.TransitionFields.TransitionedAt)
+	_field6, _err := _route.Integer(accountdomain.TransitionFields.MappingCount)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field7, _err := _route.String(accountdomain.TransitionFields.MappingSHA256)
+	if _result.configurationErr == nil {
+		_result.configurationErr = _err
+	}
+	_field8, _err := _route.DateTime(accountdomain.TransitionFields.TransitionedAt)
 	if _result.configurationErr == nil {
 		_result.configurationErr = _err
 	}
@@ -63,7 +112,9 @@ func newAccountdomainTransitionRelatedFields[S any](_bindings *relationQueryBind
 	_result.RoleFingerprint = _field3.WithConfigurationError(_result.configurationErr)
 	_result.Generation = _field4.WithConfigurationError(_result.configurationErr)
 	_result.EvidenceSHA256 = _field5.WithConfigurationError(_result.configurationErr)
-	_result.TransitionedAt = _field6.WithConfigurationError(_result.configurationErr)
+	_result.MappingCount = _field6.WithConfigurationError(_result.configurationErr)
+	_result.MappingSHA256 = _field7.WithConfigurationError(_result.configurationErr)
+	_result.TransitionedAt = _field8.WithConfigurationError(_result.configurationErr)
 	_result.route = _route.WithConfigurationError(_result.configurationErr)
 	return _result
 }
@@ -73,22 +124,39 @@ func (_fields AccountdomainTransitionRelatedFields[S]) IsNull(_value bool) orm.P
 func (_fields AccountdomainTransitionRelatedFields[S]) LockTarget() orm.RowLockTarget[S] {
 	return _fields.route.LockTarget()
 }
+func (_fields AccountdomainTransitionRelatedFields[S]) Mapping() AccountdomainMappingRelatedFields[S] {
+	var _next orm.QueryRelation[accountdomain.Transition, accountdomain.Mapping]
+	if _fields.bindings != nil {
+		_next = _fields.bindings.edge1
+	}
+	return newAccountdomainMappingRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
+}
 func (_fields AccountdomainTransitionRelatedFields[S]) Previous() AccountdomainTransitionRelatedFields[S] {
 	var _next orm.QueryRelation[accountdomain.Transition, accountdomain.Transition]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge0
+		_next = _fields.bindings.edge2
 	}
 	return newAccountdomainTransitionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 func (_fields AccountdomainTransitionRelatedFields[S]) Successors() AccountdomainTransitionRelatedFields[S] {
 	var _next orm.QueryRelation[accountdomain.Transition, accountdomain.Transition]
 	if _fields.bindings != nil {
-		_next = _fields.bindings.edge1
+		_next = _fields.bindings.edge3
 	}
 	return newAccountdomainTransitionRelatedFields[S](_fields.bindings, orm.ChainRelations(_fields.route, _next))
 }
 
+type AccountdomainMappingRelations struct {
+	Transition AccountdomainTransitionRelatedFields[accountdomain.Mapping]
+	model      orm.BoundModel[accountdomain.Mapping]
+}
+
+func (_relations AccountdomainMappingRelations) ParseDynamic(_policy orm.LookupPolicy, _inputs []orm.LookupInput) ([]orm.Predicate[accountdomain.Mapping], error) {
+	return orm.ParseDynamicRelations(_relations.model, _policy, _inputs)
+}
+
 type AccountdomainTransitionRelations struct {
+	Mapping    AccountdomainMappingRelatedFields[accountdomain.Transition]
 	Previous   AccountdomainTransitionRelatedFields[accountdomain.Transition]
 	Successors AccountdomainTransitionRelatedFields[accountdomain.Transition]
 	model      orm.BoundModel[accountdomain.Transition]
@@ -99,6 +167,7 @@ func (_relations AccountdomainTransitionRelations) ParseDynamic(_policy orm.Look
 }
 
 type Relations struct {
+	AccountdomainMapping    AccountdomainMappingRelations
 	AccountdomainTransition AccountdomainTransitionRelations
 }
 
@@ -109,6 +178,14 @@ func BindRelations() (Relations, error) {
 	}
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "mapping"},
+		accountdomain.MappingDescriptor{},
+	)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
 		accountdomain.TransitionDescriptor{},
 	)
@@ -116,30 +193,52 @@ func BindRelations() (Relations, error) {
 		return Relations{}, _err
 	}
 	_routes := &relationQueryBindings{}
-	_relation0, _err := orm.BindQueryRelation(_model0, "previous", _model0)
+	_relation0, _err := orm.BindQueryRelation(_model0, "transition", _model1)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge0 = _relation0
-	_relation1, _err := orm.BindQueryRelation(_model0, "successors", _model0)
+	_relation1, _err := orm.BindQueryRelation(_model1, "mapping", _model0)
 	if _err != nil {
 		return Relations{}, _err
 	}
 	_routes.edge1 = _relation1
-	_group0 := newAccountdomainTransitionRelatedFields[accountdomain.Transition](_routes, _routes.edge0)
+	_relation2, _err := orm.BindQueryRelation(_model1, "previous", _model1)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge2 = _relation2
+	_relation3, _err := orm.BindQueryRelation(_model1, "successors", _model1)
+	if _err != nil {
+		return Relations{}, _err
+	}
+	_routes.edge3 = _relation3
+	_group0 := newAccountdomainTransitionRelatedFields[accountdomain.Mapping](_routes, _routes.edge0)
 	if _group0.configurationErr != nil {
 		return Relations{}, _group0.configurationErr
 	}
-	_group1 := newAccountdomainTransitionRelatedFields[accountdomain.Transition](_routes, _routes.edge1)
+	_group1 := newAccountdomainMappingRelatedFields[accountdomain.Transition](_routes, _routes.edge1)
 	if _group1.configurationErr != nil {
 		return Relations{}, _group1.configurationErr
 	}
+	_group2 := newAccountdomainTransitionRelatedFields[accountdomain.Transition](_routes, _routes.edge2)
+	if _group2.configurationErr != nil {
+		return Relations{}, _group2.configurationErr
+	}
+	_group3 := newAccountdomainTransitionRelatedFields[accountdomain.Transition](_routes, _routes.edge3)
+	if _group3.configurationErr != nil {
+		return Relations{}, _group3.configurationErr
+	}
 	return Relations{
-		AccountdomainTransition: AccountdomainTransitionRelations{model: _model0,
-			Previous:   _group0,
-			Successors: _group1,
+		AccountdomainMapping: AccountdomainMappingRelations{model: _model0,
+			Transition: _group0,
+		},
+		AccountdomainTransition: AccountdomainTransitionRelations{model: _model1,
+			Mapping:    _group1,
+			Previous:   _group2,
+			Successors: _group3,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+var _ goDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

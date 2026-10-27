@@ -2538,6 +2538,47 @@ rollback/audit/receipt/late readback 실패·unknown commit/rollback·경합과 
 `gdj0138-staged-account-transition-v1/receipt-final.json`에 연결했다
 (SHA-256 `8f1552e3ab4b242754947458ab9be6c38f7383f25dcf2f8e4f696505678f5e41`).
 
+### 전환 대응표의 durable 저장과 기존 이력 upgrade
+
+2026-10-28, source `48dd579c20f8ab1fcdfd5be3fe9786aa2e540f2a` 위에서 source/target의 실제 key·검토 revision을
+receipt와 함께 저장하는 `TransitionMappedIn`·`LookupMappingsIn`을 작성했다. Canonical JSON·count/checksum·1:1 key와
+65,536쌍/16 MiB 한도를 적용한다. 저장 직후와 startup·restart에서 원본 receipt와 대응표를 다시 확인하고,
+header key는 page로, payload는 하나씩 읽는다. Decode도 행 수를 제한하며 cleanup 실패에는 대응표를 게시하지 않는다.
+선택 전환의 manifest v2와 reconciliation을 연결하고 기존 `0001`을 보존한 새 `0002` migration 및 생성물을 추가했다.
+
+양 DB의 domain 소비자에 기존 이력의 모든 값 보존·새 대응표 공존, signed key·사본/수명·257개 payload의 page 경계,
+쓰기/외부 rollback·정상 checksum과 payload의 동시 변조 readback·중복/손상/누락·lost unique constraint 검사를 작성했다.
+선택 모델의 외부 소비자에는 mapping INSERT 실패와 재접속 뒤 실제 대응표 대조를 추가했다. Migration/restart의 독립
+SQLite/PostgreSQL schema·recorder·빈 저장소·secret scan 및 source attestation도 갱신했다. 이 새 본문은 로컬에서
+실행하지 않았으며 새 source의 전체 원격 CI가 실제 DB·race/CGO0·process/platform 검증을 담당한다.
+
+선행 [CI 40593130751](https://github.com/progresshans/godj/actions/runs/40593130751), attempt 1의 실제 checkout
+`530ecd4480a63879a87c167201d28653823d8cd9`와 제출 head의 tree가
+`c939af7b06af63b102262298ee515c2fd2773649`로 같음을 확인했다. PostgreSQL normal/CGO0의 생성 소비자 작업
+`122502997313`·`122502997321`은 양 DB의 `TestGeneratedAccountTransition` 준비 단계에서 실패했다. 원인은 nullable
+`last_login`에도 문자열 전용 `AllowEmpty`를 넘긴 코드였다. 저장된 원 source/생성 소비자로 SQLite lifecycle 실패를
+재현한 뒤, 이 한 수정만 overlay로 적용해 기존 전환 child 29개를 실행했다. 모두 통과했다(12.13초, skip 없음).
+이 결과는 새 mapping 본문이나 PostgreSQL·race·전체 수용의 결과가 아니다.
+
+같은 run의 race 작업 `122502997250`은 package 누적 30분 제한으로 종료됐다. 원본 artifact
+`12777501480`의 digest `6602814d1917acb1f560671bc15825949b026b924e7dd052956b8f4fb503990f`를 확인했다.
+완료한 bindings/first-account root는 490.73/571.99초, 세 profile root는 합계 590.40초였고 profile relations 실행 중
+timeout이 발생했다. 전체 관계·collection·파일 편집/생성 root와 모든 child를 `core-account-profiles`로 나눴다.
+필수 실행을 삭제하지 않았고 30분/개별 제한·no-skip·capture owner를 유지한다. 세 mode의 19개 core coordinate가
+PostgreSQL 필수 5,686개를 각각 정확히 한 번 소유함을 대조했다. Relation 필수는 4,560개, portable core는 기존 274개다.
+새 domain 단위 검사는 기존 relation runtime owner에 배정했다. 초기 portable core 오배정을 정적 owner 검사로 발견해
+수정했으며 실제 제품 실행으로 계산하지 않는다.
+
+로컬 darwin/arm64 Go 1.26.5에서 최종 영향 4개 package의 compile-only가 통과했다(20.93초).
+새 template로 생성한 외부 module 4개 package의 compile-only도 통과했다(생성 포함 18.06초). 임시 driver는 보관 후
+제거했다. PostgreSQL 분할 12개 검사와 package 배정 16개 검사(실패한 owner 검사는 수정 뒤 한정 재실행), portable owner
+2개 검사를 통과했고 문서 링크·gofmt·diff와 최종 파일 hash를 대조했다. 이 정적 배정·compile을 새 제품 본문 PASS로 쓰지 않는다.
+
+원 source/CI jobs·원본 log/artifact와 tree, 한정 실패/수정 로그·overlay, 최종 생성 소비자·compile·필수 배정·파일 hash는
+검증 보관소의 `gdj0138-durable-account-mapping-v1/receipt-final.json`에 연결했다
+(SHA-256 `26ec84129b6912b8d17ddb222694597ff007f5c6c6f263025ebee09261384b13`).
+대상 행 자동 생성·catalog/host 관계 mapping·역사 systemstate 이행·남은 고정 소비자와 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

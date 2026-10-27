@@ -9,7 +9,7 @@ import (
 )
 
 const GoDjRelationProjectionGeneratorVersion = "godj-codegen-rel-projection-v1"
-const GoDjRelationProjectionSchemaSHA256 = "b308cf6c12981d2af7e2159487f2f951dab52b315ffad37c7c4646b27a896524"
+const GoDjRelationProjectionSchemaSHA256 = "104f327ffe6dad3fdacfbaac712d5f40d9518f61dd16156db619ca1fb0988707"
 
 var _ orm.ProjectionDescriptor[Transition] = TransitionDescriptor{}
 
@@ -25,6 +25,8 @@ type transitionProjectionScan struct {
 	scanRoleFingerprint sql.NullString
 	scanGeneration      sql.NullString
 	scanEvidenceSHA256  sql.NullString
+	scanMappingCount    sql.NullInt64
+	scanMappingSHA256   sql.NullString
 	scanTransitionedAt  orm.NullableDateTimeScanner
 }
 
@@ -40,6 +42,8 @@ func (_scan *transitionProjectionScan) Destinations() []any {
 		&_scan.scanRoleFingerprint,
 		&_scan.scanGeneration,
 		&_scan.scanEvidenceSHA256,
+		&_scan.scanMappingCount,
+		&_scan.scanMappingSHA256,
 		&_scan.scanTransitionedAt,
 	}
 }
@@ -48,7 +52,7 @@ func (_scan *transitionProjectionScan) Decode() (Transition, query.Value, orm.Pr
 	if _scan == nil {
 		return Transition{}, query.Value{}, orm.ProjectionInvalid
 	}
-	if !_scan.scanID.Valid && !_scan.scanOperationID.Valid && !_scan.scanSequence.Valid && !_scan.scanPreviousID.Valid && !_scan.scanRoleFingerprint.Valid && !_scan.scanGeneration.Valid && !_scan.scanEvidenceSHA256.Valid && !_scan.scanTransitionedAt.Valid {
+	if !_scan.scanID.Valid && !_scan.scanOperationID.Valid && !_scan.scanSequence.Valid && !_scan.scanPreviousID.Valid && !_scan.scanRoleFingerprint.Valid && !_scan.scanGeneration.Valid && !_scan.scanEvidenceSHA256.Valid && !_scan.scanMappingCount.Valid && !_scan.scanMappingSHA256.Valid && !_scan.scanTransitionedAt.Valid {
 		return Transition{}, query.Null(), orm.ProjectionAbsent
 	}
 	if !_scan.scanID.Valid {
@@ -69,6 +73,12 @@ func (_scan *transitionProjectionScan) Decode() (Transition, query.Value, orm.Pr
 	if !_scan.scanEvidenceSHA256.Valid {
 		return Transition{}, query.Value{}, orm.ProjectionInvalid
 	}
+	if !_scan.scanMappingCount.Valid {
+		return Transition{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanMappingSHA256.Valid {
+		return Transition{}, query.Value{}, orm.ProjectionInvalid
+	}
 	if !_scan.scanTransitionedAt.Valid {
 		return Transition{}, query.Value{}, orm.ProjectionInvalid
 	}
@@ -83,11 +93,60 @@ func (_scan *transitionProjectionScan) Decode() (Transition, query.Value, orm.Pr
 	_value.RoleFingerprint = _scan.scanRoleFingerprint.String
 	_value.Generation = _scan.scanGeneration.String
 	_value.EvidenceSHA256 = _scan.scanEvidenceSHA256.String
+	_value.MappingCount = _scan.scanMappingCount.Int64
+	_value.MappingSHA256 = _scan.scanMappingSHA256.String
 	_value.TransitionedAt = _scan.scanTransitionedAt.Time
 	_value.godjPrimaryKeyPresent = true
 	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
 }
 
-type GoDjAppPart3_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
+var _ orm.ProjectionDescriptor[Mapping] = MappingDescriptor{}
 
-var _ GoDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+func (MappingDescriptor) NewProjectionScan() orm.ProjectionScan[Mapping] {
+	return &mappingProjectionScan{}
+}
+
+type mappingProjectionScan struct {
+	scanID           sql.NullInt64
+	scanTransitionID sql.NullInt64
+	scanPayload      sql.NullString
+}
+
+func (_scan *mappingProjectionScan) Destinations() []any {
+	if _scan == nil {
+		return nil
+	}
+	return []any{
+		&_scan.scanID,
+		&_scan.scanTransitionID,
+		&_scan.scanPayload,
+	}
+}
+
+func (_scan *mappingProjectionScan) Decode() (Mapping, query.Value, orm.ProjectionPresence) {
+	if _scan == nil {
+		return Mapping{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanID.Valid && !_scan.scanTransitionID.Valid && !_scan.scanPayload.Valid {
+		return Mapping{}, query.Null(), orm.ProjectionAbsent
+	}
+	if !_scan.scanID.Valid {
+		return Mapping{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanTransitionID.Valid {
+		return Mapping{}, query.Value{}, orm.ProjectionInvalid
+	}
+	if !_scan.scanPayload.Valid {
+		return Mapping{}, query.Value{}, orm.ProjectionInvalid
+	}
+	_value := Mapping{}
+	_value.ID = _scan.scanID.Int64
+	_value.TransitionID = _scan.scanTransitionID.Int64
+	_value.Payload = _scan.scanPayload.String
+	_value.godjPrimaryKeyPresent = true
+	return _value, query.Integer(_scan.scanID.Int64), orm.ProjectionPresent
+}
+
+type GoDjAppPart3_5d4a5ee414e8dd952636670bc13cbee33d1ac3569ea49d3bf75c70111550ad3e struct{}
+
+var _ GoDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

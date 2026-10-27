@@ -7,7 +7,7 @@ import unittest
 
 from postgres_shards import (
     ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, HELPDESK_POSTGRES_ROOTS, MODULE, POSTGRES,
-    PROCESSES, RACE_PARTITIONS, WRITE_CONSUMER_ROOTS, audit, matches, partitions,
+    PROCESSES, PROFILE_CONSUMER_ROOTS, RACE_PARTITIONS, WRITE_CONSUMER_ROOTS, audit, matches, partitions,
     plan, required_entries,
 )
 
@@ -21,7 +21,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
-        self.assertEqual(16, result['core_coordinates'])
+        self.assertEqual(19, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assert_nonconsumer_core(mode, self.required)
             self.assertEqual(list((*FRAMEWORK, *POSTGRES, *PROCESSES)), plan(mode, 'core', self.required)['packages'])
@@ -155,8 +155,10 @@ class PostgreSQLPartitionTests(unittest.TestCase):
             self.assertFalse(set(expected) & set(reads))
 
     def test_selected_account_roots_and_future_children_have_their_own_owner_in_each_mode(self):
-        self.assertFalse(ACCOUNT_CONSUMER_ROOTS & WRITE_CONSUMER_ROOTS)
-        for root in ACCOUNT_CONSUMER_ROOTS:
+        self.assertFalse((ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS) & WRITE_CONSUMER_ROOTS)
+        self.assertFalse(ACCOUNT_CONSUMER_ROOTS & PROFILE_CONSUMER_ROOTS)
+        for root in ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS:
+            owner = 'core-account-profiles' if root in PROFILE_CONSUMER_ROOTS else 'core-account-consumers'
             prefix = MODULE + 'codegen/consumertest|' + root
             expected = [entry for entry in self.required if entry == prefix or entry.startswith(prefix + '/')]
             self.assertTrue(expected)
@@ -167,7 +169,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                 for shard in partitions(mode):
                     selected = plan(mode, shard, required)['required']
                     owned = set(expected + [added]) & set(selected)
-                    self.assertEqual(set(expected + [added]) if shard == 'core-account-consumers' else set(), owned)
+                    self.assertEqual(set(expected + [added]) if shard == owner else set(), owned)
 
     def test_invalid_missing_and_duplicate_manifest_entries_are_rejected(self):
         for entries in ([], [self.required[0], self.required[0]], [MODULE + 'foreign|TestMissing'],

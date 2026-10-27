@@ -50,7 +50,7 @@ func (s *transitionScope) Update(ctx context.Context,plan query.UpdatePlan)(int6
  count,err:=s.Session.Update(ctx,plan);if err==nil&&s.owner.mode=="rollback"&&plan.Table()=="godj_identity_user"{s.owner.faults.Add(1);return count,errors.New("failure after native retirement")};return count,err
 }
 func (s *transitionScope) Insert(ctx context.Context,plan query.InsertPlan)(int64,error){
- if s.owner.mode=="audit_failure"&&plan.Table()=="godj_account_audit_event"||s.owner.mode=="receipt_failure"&&plan.Table()=="godj_account_domain_transition"{s.owner.faults.Add(1);return 0,errors.New("private transition insertion failure")}
+ if s.owner.mode=="audit_failure"&&plan.Table()=="godj_account_audit_event"||s.owner.mode=="receipt_failure"&&plan.Table()=="godj_account_domain_transition"||s.owner.mode=="mapping_failure"&&plan.Table()=="godj_account_domain_mapping"{s.owner.faults.Add(1);return 0,errors.New("private transition insertion failure")}
  id,err:=s.Session.Insert(ctx,plan)
  if err==nil&&s.owner.mode=="late_target_change"&&plan.Table()=="godj_account_domain_transition"{
   s.owner.faults.Add(1)
@@ -74,7 +74,7 @@ func transitionStores(t *testing.T,backend database.Backend)(*accountmodel.Sessi
 }
 
 func TestAccountTransition(t *testing.T){
- for _,mode:=range []string{"lifecycle","signed_keys","round_trip","duplicate_mapping","incomplete_mapping","account_limit","wrong_password","wrong_principal","wrong_roles","wrong_membership","source_changed","target_changed","profile_collection_changed","new_source","new_target","grant_changed","policy_changed","permission_revoked","old_domain","canceled","read_cleanup","rollback","audit_failure","receipt_failure","late_target_change","unknown_commit","unknown_rollback","concurrent","configuration"}{
+ for _,mode:=range []string{"lifecycle","signed_keys","round_trip","duplicate_mapping","incomplete_mapping","account_limit","wrong_password","wrong_principal","wrong_roles","wrong_membership","source_changed","target_changed","profile_collection_changed","new_source","new_target","grant_changed","policy_changed","permission_revoked","old_domain","canceled","read_cleanup","rollback","audit_failure","receipt_failure","mapping_failure","late_target_change","unknown_commit","unknown_rollback","concurrent","configuration"}{
   t.Run(mode,func(t *testing.T){
    native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@)
    backend:=&transitionBackend{Backend:native};hasher,encoded:=accountPassword(t)
@@ -166,14 +166,14 @@ func TestAccountTransition(t *testing.T){
     successes:=0;for i:=range failures{if failures[i]==nil{successes++;if results[i].Ownership.Sequence()!=2{t.Fatal("bad competing receipt")}}else if results[i].Ownership.Sequence()!=0{t.Fatal("failed contender published receipt")}}
     if successes!=1{t.Fatal("transition did not have one winner",failures)};return
    }
-   if slices.Contains([]string{"rollback","audit_failure","receipt_failure","late_target_change","unknown_commit","unknown_rollback"},mode){backend.mode=mode}
+   if slices.Contains([]string{"rollback","audit_failure","receipt_failure","mapping_failure","late_target_change","unknown_commit","unknown_rollback"},mode){backend.mode=mode}
    work:=t.Context();if mode=="canceled"{var cancel context.CancelFunc;work,cancel=context.WithCancel(work);cancel()}
    completedBefore:=backend.completed.Load()
    result,failure:=owner.Commit(work,actor,prepared);backend.mode=""
-   if slices.Contains([]string{"rollback","audit_failure","receipt_failure","late_target_change"},mode)&&backend.faults.Load()!=1{t.Fatal("native failure boundary did not execute")}
+   if slices.Contains([]string{"rollback","audit_failure","receipt_failure","mapping_failure","late_target_change"},mode)&&backend.faults.Load()!=1{t.Fatal("native failure boundary did not execute")}
    if slices.Contains([]string{"unknown_commit","unknown_rollback"},mode)&&backend.completed.Load()!=completedBefore+1{t.Fatal("unknown result did not follow complete native write callback")}
    failed:=!slices.Contains([]string{"lifecycle","signed_keys","round_trip"},mode)
-   if failed{if failure==nil||!reflect.DeepEqual(result,accountmodel.TransitionResult{}){t.Fatal("failed transition published success",failure)}}else{transitionCheck(t,failure);if result.MappedAccounts!=2||result.RevokedSessions!=3||result.Ownership.Sequence()!=2{t.Fatal("transition report incomplete")}}
+   if failed{if failure==nil||!reflect.DeepEqual(result,accountmodel.TransitionResult{}){t.Fatal("failed transition published success",failure)}}else{transitionCheck(t,failure);if result.MappedAccounts!=2||result.RevokedSessions!=3||result.Ownership.Sequence()!=2||result.Ownership.MappingCount()!=2{t.Fatal("transition report incomplete")}}
    if _,err:=owner.Commit(t.Context(),actor,prepared);err==nil{t.Fatal("preparation was reused")}
    applied:=!failed||mode=="unknown_commit"
    if mode=="unknown_commit"||mode=="unknown_rollback"{if !errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown}){t.Fatal("unknown outcome lost",failure)}}
@@ -187,8 +187,9 @@ func TestAccountTransition(t *testing.T){
     target,err:=members.MemberObjects.Using(reopened).Filter(members.MemberFields.ID.Exact(newRows[i].ID)).Get(t.Context());transitionCheck(t,err)
     if applied{if stored.Revision!=2||stored.Active||stored.Staff||stored.Superuser||!strings.HasPrefix(stored.EncodedPassword,"!")||stored.PrincipalID!=old.PrincipalID||target.SecretHash!=encoded||target.Version!=1||target.FirstName!=newRows[i].FirstName{t.Fatal("retirement/target data mismatch")}}
     if !applied&&stored.EncodedPassword!=encoded{t.Fatal("refused transition retained tombstone")}
-    if slices.Contains([]string{"rollback","audit_failure","receipt_failure","late_target_change","unknown_rollback"},mode)&&(!reflect.DeepEqual(stored,old)||!reflect.DeepEqual(target,newRows[i])){t.Fatal("native rollback lost an original account value")}
+    if slices.Contains([]string{"rollback","audit_failure","receipt_failure","mapping_failure","late_target_change","unknown_rollback"},mode)&&(!reflect.DeepEqual(stored,old)||!reflect.DeepEqual(target,newRows[i])){t.Fatal("native rollback lost an original account value")}
    }
+   if applied{stored,err:=db.ReadSnapshotResult(t.Context(),reopened,func(ctx context.Context,scope db.Queryer)([]domain.Mapping,error){return domain.LookupMappingsIn(ctx,scope,receipt)});transitionCheck(t,err);if !slices.Equal(stored,retained.Mappings){t.Fatal("native mapping differs from retained correspondence")}}
    if !applied{return}
    nextVerifier,err:=freshNext.Authenticator(t.Context(),hasher);transitionCheck(t,err);nextCredential,err:=nextVerifier.Authenticate(t.Context(),"alice@example.test",accountPasswordText);transitionCheck(t,err)
    if nextCredential.MatchesSessionStamp(credential.SessionStamp())||nextCredential.Principal().ID()!=actor.ID(){t.Fatal("coincident credentials inherited old domain")}

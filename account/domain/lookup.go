@@ -13,22 +13,12 @@ import (
 // the outer owner confirms cleanup. Retained/root scopes and duplicate
 // operation rows are refused. No current-authority or rollback claim is made.
 func LookupIn(ctx context.Context, reader db.Queryer, operationID string) (receipt Receipt, found bool, err error) {
-	if nilValue(ctx) || nilValue(reader) {
-		return Receipt{}, false, ErrInvalid
-	}
 	if _, valid := digest(operationID); !valid {
 		return Receipt{}, false, ErrInvalid
 	}
-	validator, valid := reader.(db.SessionValidator)
-	if !valid || nilValue(validator) {
-		return Receipt{}, false, ErrInvalid
-	}
-	switch reader.(type) {
-	case db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader:
-		return Receipt{}, false, ErrInvalid
-	}
-	if err := errors.Join(ctx.Err(), validator.ValidateSession(ctx)); err != nil {
-		return Receipt{}, false, failure(err)
+	validator, err := lookupScope(ctx, reader)
+	if err != nil {
+		return Receipt{}, false, err
 	}
 	defer func() {
 		if completion := errors.Join(ctx.Err(), validator.ValidateSession(ctx)); completion != nil {
@@ -67,4 +57,22 @@ func LookupIn(ctx context.Context, reader db.Queryer, operationID string) (recei
 		}
 	}
 	return receipt, true, nil
+}
+
+func lookupScope(ctx context.Context, reader db.Queryer) (db.SessionValidator, error) {
+	if nilValue(ctx) || nilValue(reader) {
+		return nil, ErrInvalid
+	}
+	validator, valid := reader.(db.SessionValidator)
+	if !valid || nilValue(validator) {
+		return nil, ErrInvalid
+	}
+	switch reader.(type) {
+	case db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader:
+		return nil, ErrInvalid
+	}
+	if err := errors.Join(ctx.Err(), validator.ValidateSession(ctx)); err != nil {
+		return nil, failure(err)
+	}
+	return validator, nil
 }

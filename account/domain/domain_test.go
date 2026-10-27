@@ -3,7 +3,6 @@ package domain_test
 import (
 	"context"
 	"errors"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -22,7 +21,7 @@ func TestAccountDomainDefinitionAndGeneratedBinding(t *testing.T) {
 	}
 	sources := domain.MigrationSources()
 	loaded, _, err := definition.Load(sources...)
-	if err != nil || len(loaded.Definitions()) != 1 {
+	if err != nil {
 		t.Fatal("domain migration graph", err)
 	}
 	initial := loaded.Definitions()[0]
@@ -30,8 +29,30 @@ func TestAccountDomainDefinitionAndGeneratedBinding(t *testing.T) {
 		t.Fatal("domain depends on an account implementation")
 	}
 	create, ok := initial.Operations[0].(migrations.CreateModel)
-	if !ok || !reflect.DeepEqual(create.Model, selected.Models[0]) {
+	if !ok || create.Model.Name != "transition" {
 		t.Fatal("history does not implement the declared domain model")
+	}
+	for _, migration := range loaded.Definitions() {
+		if migration.App != modeldef.AppLabel {
+			t.Fatal("domain migration owns a foreign app")
+		}
+		for _, dependency := range migration.Dependencies {
+			if dependency.App != modeldef.AppLabel {
+				t.Fatal("domain migration depends on an account app")
+			}
+		}
+	}
+	reconstructor, err := migrations.NewStateReconstructor(loaded.Definitions()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, err := reconstructor.Reconstruct(migrations.LatestStateRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := migrations.NewProjectState(selected)
+	if err != nil || !actual.Equal(want) {
+		t.Fatal("owned migration graph does not reconstruct the declared domain schema", err)
 	}
 	sources[0].Document[0] = '!'
 	if domain.MigrationSources()[0].Document[0] != '{' {

@@ -5,7 +5,7 @@ package models
 import "github.com/progresshans/godj/schema/ir"
 
 const GoDjRelationMetadataGeneratorVersion = "godj-codegen-rel-metadata-current-v1"
-const GoDjRelationSchemaSHA256 = "b308cf6c12981d2af7e2159487f2f951dab52b315ffad37c7c4646b27a896524"
+const GoDjRelationSchemaSHA256 = "104f327ffe6dad3fdacfbaac712d5f40d9518f61dd16156db619ca1fb0988707"
 
 func GoDjRelationSchema() ir.Schema {
 	return ir.Schema{
@@ -76,6 +76,22 @@ func GoDjRelationSchema() ir.Schema {
 						MaxLength: 64,
 					},
 					{
+						Name:    "mapping_count",
+						GoName:  "MappingCount",
+						Column:  "mapping_count",
+						Kind:    ir.FieldInteger,
+						Default: &ir.Scalar{Kind: ir.ScalarInteger, Integer: 0},
+					},
+					{
+						Name:      "mapping_sha256",
+						GoName:    "MappingSHA256",
+						Column:    "mapping_sha256",
+						Kind:      ir.FieldChar,
+						Blank:     true,
+						MaxLength: 64,
+						Default:   &ir.Scalar{Kind: ir.ScalarString, String: ""},
+					},
+					{
 						Name:   "transitioned_at",
 						GoName: "TransitionedAt",
 						Column: "transitioned_at",
@@ -83,10 +99,43 @@ func GoDjRelationSchema() ir.Schema {
 					},
 				},
 			},
+			{
+				Name:    "mapping",
+				GoName:  "Mapping",
+				DBTable: "godj_account_domain_mapping",
+				Fields: []ir.Field{
+					{
+						Name:       "id",
+						GoName:     "ID",
+						Column:     "id",
+						Kind:       ir.FieldAuto,
+						PrimaryKey: true,
+					},
+					{
+						Name:   "transition",
+						GoName: "TransitionID",
+						Column: "transition_id",
+						Kind:   ir.FieldForeignKey,
+						Unique: true,
+						Relation: &ir.ForeignKeyRelation{
+							Target:      ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
+							Cardinality: ir.RelationOneToOne,
+							Reverse:     ir.ReverseRelation{Name: "mapping"},
+							OnDelete:    ir.DeleteProtect,
+						},
+					},
+					{
+						Name:   "payload",
+						GoName: "Payload",
+						Column: "payload",
+						Kind:   ir.FieldText,
+					},
+				},
+			},
 		},
 	}
 }
 
-type GoDjAppPart1_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
+type GoDjAppPart1_5d4a5ee414e8dd952636670bc13cbee33d1ac3569ea49d3bf75c70111550ad3e struct{}
 
-var _ GoDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+var _ GoDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

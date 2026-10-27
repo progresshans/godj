@@ -1199,14 +1199,15 @@ func assertRestartMigrationHistory(t *testing.T, ctx context.Context, backend mi
 		t.Fatalf("read restart migration history: %v", err)
 	}
 	want := map[migrations.MigrationKey]bool{
-		{App: "godj_conformance", Name: "0001_initial"}:          true,
-		{App: "godj_identity", Name: "0001_initial"}:             true,
-		{App: "godj_identity", Name: "0002_permission_revision"}: true,
-		{App: "godj_identity", Name: "0003_alter_user_email"}:    true,
-		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"}:   true,
-		{App: "godj_account_domain", Name: "0001_initial"}:       true,
-		{App: "godj_account_audit", Name: "0001_initial"}:        true,
-		{App: "godj_sessions", Name: "0001_initial"}:             true,
+		{App: "godj_conformance", Name: "0001_initial"}:              true,
+		{App: "godj_identity", Name: "0001_initial"}:                 true,
+		{App: "godj_identity", Name: "0002_permission_revision"}:     true,
+		{App: "godj_identity", Name: "0003_alter_user_email"}:        true,
+		{App: "godj_identity", Name: "0004_auto_1da4dbd173ec"}:       true,
+		{App: "godj_account_domain", Name: "0001_initial"}:           true,
+		{App: "godj_account_domain", Name: "0002_auto_fe206c392ab4"}: true,
+		{App: "godj_account_audit", Name: "0001_initial"}:            true,
+		{App: "godj_sessions", Name: "0001_initial"}:                 true,
 	}
 	if len(history) != len(want) {
 		t.Fatalf("restart migration history has %d entries, want exactly %d", len(history), len(want))
@@ -1326,7 +1327,8 @@ func assertPostgresArtifactsExcludeSensitive(
 		"godj_identity_user":             {"principal_id", "username", "encoded_password", "first_name", "last_name", "email"},
 		"godj_identity_group":            {"name"},
 		"godj_identity_permission":       {"code", "name"},
-		"godj_account_domain_transition": {"operation_id", "role_fingerprint", "generation", "evidence_sha256"},
+		"godj_account_domain_mapping":    {"payload"},
+		"godj_account_domain_transition": {"operation_id", "role_fingerprint", "generation", "evidence_sha256", "mapping_sha256"},
 		"godj_sessions_session":          {"namespace", "digest", "payload"},
 		"godj_account_audit_event":       {"domain", "actor_id", "model", "action", "changed_fields"},
 		"godj_conformance_article":       {"title", "summary", "slug"},

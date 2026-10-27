@@ -31,13 +31,13 @@ type authenticatedRestartGrantRow struct {
 	Revision             int64
 }
 type authenticatedRestartTransitionRow struct {
-	ID, Sequence                                             int64
-	Previous                                                 sql.NullInt64
-	OperationID, RoleFingerprint, Generation, EvidenceSHA256 string
-	At                                                       time.Time
+	ID, Sequence, MappingCount                                              int64
+	Previous                                                                sql.NullInt64
+	OperationID, RoleFingerprint, Generation, EvidenceSHA256, MappingSHA256 string
+	At                                                                      time.Time
 }
 type authenticatedRestartIdentityState struct {
-	Counts      [4]int64
+	Counts      [5]int64
 	Users       []authenticatedRestartIdentityRow
 	Grants      []authenticatedRestartGrantRow
 	Transitions []authenticatedRestartTransitionRow
@@ -81,21 +81,21 @@ func authenticatedRestartReadIdentity(t *testing.T, query authenticatedRestartQu
 		state.Grants = append(state.Grants, row)
 		return err
 	})
-	read(`SELECT "id","operation_id","sequence","previous_id","role_fingerprint","generation","evidence_sha256","transitioned_at" FROM `+table("godj_account_domain_transition")+` ORDER BY "id"`, func(rows authenticatedRestartRows) error {
+	read(`SELECT "id","operation_id","sequence","previous_id","role_fingerprint","generation","evidence_sha256","mapping_count","mapping_sha256","transitioned_at" FROM `+table("godj_account_domain_transition")+` ORDER BY "id"`, func(rows authenticatedRestartRows) error {
 		var row authenticatedRestartTransitionRow
-		err := rows.Scan(&row.ID, &row.OperationID, &row.Sequence, &row.Previous, &row.RoleFingerprint, &row.Generation, &row.EvidenceSHA256, &row.At)
+		err := rows.Scan(&row.ID, &row.OperationID, &row.Sequence, &row.Previous, &row.RoleFingerprint, &row.Generation, &row.EvidenceSHA256, &row.MappingCount, &row.MappingSHA256, &row.At)
 		state.Transitions = append(state.Transitions, row)
 		return err
 	})
-	read(`SELECT (SELECT COUNT(*) FROM `+table("godj_identity_permission")+`), (SELECT COUNT(*) FROM `+table("godj_identity_group")+`), (SELECT COUNT(*) FROM `+table("godj_identity_group_permissions")+`), (SELECT COUNT(*) FROM `+table("godj_identity_user_groups")+`)`, func(rows authenticatedRestartRows) error {
-		return rows.Scan(&state.Counts[0], &state.Counts[1], &state.Counts[2], &state.Counts[3])
+	read(`SELECT (SELECT COUNT(*) FROM `+table("godj_identity_permission")+`), (SELECT COUNT(*) FROM `+table("godj_identity_group")+`), (SELECT COUNT(*) FROM `+table("godj_identity_group_permissions")+`), (SELECT COUNT(*) FROM `+table("godj_identity_user_groups")+`), (SELECT COUNT(*) FROM `+table("godj_account_domain_mapping")+`)`, func(rows authenticatedRestartRows) error {
+		return rows.Scan(&state.Counts[0], &state.Counts[1], &state.Counts[2], &state.Counts[3], &state.Counts[4])
 	})
 	return state
 }
 
 func authenticatedRestartAssertIdentity(t *testing.T, snapshot authenticatedRestartDatabaseSnapshot, username, password string) {
 	t.Helper()
-	if snapshot.Identity.Counts != ([4]int64{}) || len(snapshot.Identity.Grants) != 0 {
+	if snapshot.Identity.Counts != ([5]int64{}) || len(snapshot.Identity.Grants) != 0 {
 		t.Fatal("first selected superuser unexpectedly copied catalog rows or grants")
 	}
 	rows := snapshot.Identity.Users
@@ -116,7 +116,7 @@ func authenticatedRestartAssertIdentity(t *testing.T, snapshot authenticatedRest
 		t.Fatal("read selected first-account policy evidence")
 	}
 	evidence := sha256.Sum256(policy)
-	if receipt.ID != 1 || receipt.Sequence != 1 || receipt.Previous.Valid || !authenticatedRestartDigest(receipt.OperationID) || !authenticatedRestartDigest(receipt.Generation) || receipt.EvidenceSHA256 != hex.EncodeToString(evidence[:]) || receipt.At.IsZero() || receipt.At.Before(row.DateJoined) || receipt.At.Nanosecond()%1000 != 0 {
+	if receipt.ID != 1 || receipt.Sequence != 1 || receipt.Previous.Valid || receipt.MappingCount != 0 || receipt.MappingSHA256 != "" || !authenticatedRestartDigest(receipt.OperationID) || !authenticatedRestartDigest(receipt.Generation) || receipt.EvidenceSHA256 != hex.EncodeToString(evidence[:]) || receipt.At.IsZero() || receipt.At.Before(row.DateJoined) || receipt.At.Nanosecond()%1000 != 0 {
 		t.Fatal("selected account ownership receipt differs")
 	}
 	namespace := authenticatedRestartDomain(t, snapshot)

@@ -1869,3 +1869,17 @@ Commit·cleanup·unknown 실패는 성공 receipt를 게시하지 않고 자동 
 미관측 결과는 rollback 확정이 아니다. Unknown fence는 호스트가 별도로 조정한다. `domain.LookupIn`의 부재는 외부 snapshot
 종료 전에는 데이터이며, `Lookup`도 cleanup 성공 뒤에만 정확한 `ErrUninitialized`를 반환한다. Scope 위반·중복 operation·
 cleanup 오류는 정상 부재가 아니며 `Receipt.Follows`는 sequence 값만으로 predecessor를 인정하지 않는다.
+
+대응표는 receipt에 `mapping_count`·`mapping_sha256`를 묶고 `godj_account_domain_mapping`의 단일 payload에 함께 저장한다.
+`TransitionMappedIn`은 실제 source/target key와 검토한 revision을 source key 순으로 정규화하며 65,536쌍·16 MiB를
+넘거나 source/target이 중복인 입력을 거부한다. 0/음수 key를 보존하고 principal·password·프로필 원문은 기록하지 않는다.
+저장 직후 receipt와 payload를 다시 읽어 정규 형식·checksum·개수·1:1 대응을 대조한다. 실패는 외부 native owner에
+반환해 receipt·대응표·계정 변경을 함께 rollback하며 잠정 receipt를 게시하지 않는다.
+
+`LookupMappingsIn`은 같은 borrowed snapshot/transaction에서 정확한 receipt metadata와 대응표를 대조하고 사본을 반환한다.
+Startup은 mapping을 선언한 모든 receipt와 실제 payload 목록을 독립 대조한다. Key만 256개씩 읽고 payload는 하나씩
+검증해 최대 크기의 여러 payload를 보관하지 않는다. JSON decode에도 행 수 한도를 적용하며, checksum이 일치해도
+중복 member·미지정 member·비정규 순서/공백·중복 key·누락/고아/중복 parent를 허용하지 않는다. 후속 전환으로 예전
+대응표가 지워지지 않으며 mapping 없는 역사 receipt는 빈 대응표로 읽는다. 기존 `0001_initial`은 보존하고 `0002`가
+mapping 저장소와 기본값을 가진 receipt 필드를 추가한다. 보관 `TransitionManifest` v2의 restart 대조는 실제 저장 대응표까지
+확인한다. 이 기반은 대상 행을 자동 생성하는 mapping owner의 선행 조건이며 그 기능의 완료를 뜻하지 않는다.

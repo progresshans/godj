@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 // Deliberately create damaged storage with a lost uniqueness constraint. The
@@ -26,13 +27,23 @@ func inspectLostUniqueness(t *testing.T, open Open) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				model := schema.Models[0]
+				var model ir.Model
+				for _, declared := range schema.Models {
+					if declared.Name == "transition" {
+						model = declared
+					}
+				}
 				for index := range model.Fields {
 					if model.Fields[index].Name == field {
 						model.Fields[index].Unique = false
 					}
 				}
 				migration := migrations.Migration{App: schema.AppLabel, Name: "0001_damaged_fixture", Operations: []migrations.Operation{migrations.CreateModel{AppLabel: schema.AppLabel, Model: model}}}
+				for _, declared := range schema.Models {
+					if declared.Name == "mapping" {
+						migration.Operations = append(migration.Operations, migrations.CreateModel{AppLabel: schema.AppLabel, Model: declared})
+					}
+				}
 				encoded, err := definition.Encode(definition.Producer{Name: "domain-corrupt-storage-test", Version: "1"}, migration)
 				if err != nil {
 					t.Fatal(err)

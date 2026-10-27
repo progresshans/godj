@@ -21,17 +21,12 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-const MaximumTransitionAccounts = 65536
+const MaximumTransitionAccounts = domain.MaximumMappings
 
 // AccountMapping explicitly pairs existing, staged target rows with every
 // source account. Keys include zero and negative values. Revisions are checked
 // alongside the complete observed rows and memberships, never instead of them.
-type AccountMapping struct {
-	SourceID       int64 `json:"source_id"`
-	SourceRevision int64 `json:"source_revision"`
-	TargetID       int64 `json:"target_id"`
-	TargetRevision int64 `json:"target_revision"`
-}
+type AccountMapping = domain.Mapping
 
 // TransitionConfig owns an explicit operator operation over two typed models.
 // Targets must already have been staged by the host's data migration. The
@@ -206,7 +201,7 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 	}
 	oldRole, _ := owner.old.state.credentials.state.binding.RoleFingerprint()
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
-	manifest := TransitionManifest{Version: 1, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
+	manifest := TransitionManifest{Version: 2, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
 		PriorSequence: observation.ownership.Sequence(), ProjectSHA256: owner.source, SourceRoleSHA256: oldRole,
 		TargetRoleSHA256: nextRole, StateSHA256: observation.digest, Mappings: owned}
 	evidence, err := manifest.evidence()
@@ -306,7 +301,7 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 		if err := owner.verifyRetirement(work, scope, current, state.manifest.Mappings); err != nil {
 			return TransitionResult{}, err
 		}
-		receipt, err := domain.TransitionIn(work, scope, state.expected, state.change, at)
+		receipt, err := domain.TransitionMappedIn(work, scope, state.expected, state.change, at, state.manifest.Mappings)
 		if err != nil {
 			return TransitionResult{}, err
 		}
@@ -315,7 +310,7 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 			return TransitionResult{}, err
 		}
 		ownership, err := domain.InspectIn(work, scope)
-		if err != nil || ownership.OperationID() != receipt.OperationID() || ownership.Generation() != receipt.Generation() {
+		if err != nil || ownership.OperationID() != receipt.OperationID() || ownership.Generation() != receipt.Generation() || ownership.MappingCount() != receipt.MappingCount() || ownership.MappingSHA256() != receipt.MappingSHA256() {
 			return TransitionResult{}, managementError(CodePersistence, err)
 		}
 		remaining, err := scoped.DeleteAll(work)
@@ -355,6 +350,13 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 			return observed{}, err
 		}
 		if !priorFound || !receipt.Follows(prior) || receipt.RoleFingerprint() != next || receipt.EvidenceSHA256() != evidence || receipt.Sequence() != manifest.PriorSequence+1 {
+			return observed{}, managementError(CodeConflict, nil)
+		}
+		mappings, err := domain.LookupMappingsIn(work, scope, receipt)
+		if err != nil {
+			return observed{}, err
+		}
+		if !slices.Equal(mappings, manifest.Mappings) {
 			return observed{}, managementError(CodeConflict, nil)
 		}
 		return observed{receipt, true}, nil
@@ -398,7 +400,7 @@ func compareInt64(a, b int64) int {
 }
 
 func (manifest TransitionManifest) evidence() (string, error) {
-	if manifest.Version != 1 || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || len(manifest.Mappings) == 0 || len(manifest.Mappings) > MaximumTransitionAccounts {
+	if manifest.Version != 2 || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || len(manifest.Mappings) == 0 || len(manifest.Mappings) > MaximumTransitionAccounts {
 		return "", managementError(CodeInvalidInput, nil)
 	}
 	for _, digest := range []string{manifest.OperationID, manifest.PriorOperationID, manifest.ProjectSHA256, manifest.SourceRoleSHA256, manifest.TargetRoleSHA256, manifest.StateSHA256} {

@@ -44,7 +44,7 @@ func BindRelationDeleters() (RelationDeleters, error) {
 		_binding,
 		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
 		accountdomain.TransitionDescriptor{},
-		"05113caa37cf96163ab767525d4c3343b2f644bc8cceedf58b1d67c380ae8c25",
+		"5c17bd8885a1f0fc08dc3f5eadf14588f2d1afc1b69f47c718fc2ea6e7ce41c0",
 	)
 	if _err != nil {
 		return RelationDeleters{}, _err
@@ -54,4 +54,4 @@ func BindRelationDeleters() (RelationDeleters, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+var _ goDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

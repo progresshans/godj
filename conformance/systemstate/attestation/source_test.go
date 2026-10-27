@@ -91,6 +91,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"account/audit/models/zz_godj_relation_object.go",
 		"account/audit/models/zz_godj_relation_projection.go",
 		"account/domain/migrations/godj_account_domain_0001_initial.godj.json",
+		"account/domain/migrations/godj_account_domain_0002_auto_fe206c392ab4.godj.json",
 		"account/domain/domain.go",
 		"account/domain/migrations.go",
 		"account/domain/models/zz_godj_generated.go",

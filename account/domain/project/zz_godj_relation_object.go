@@ -13,6 +13,87 @@ import (
 
 const GoDjProjectRelationObjectGeneratorVersion = "godj-codegen-rel-object-project-v6"
 
+type AccountdomainMappingObjectFactory struct {
+	_projectSelections *Objects
+	model              orm.BoundModel[accountdomain.Mapping]
+	transition         orm.RequiredForwardObject[accountdomain.Mapping, accountdomain.Transition]
+}
+
+func (_factory AccountdomainMappingObjectFactory) ParseDynamic(
+	_policy orm.LookupPolicy,
+	_inputs []orm.LookupInput,
+) ([]orm.Predicate[accountdomain.Mapping], error) {
+	return orm.ParseDynamicRelations(_factory.model, _policy, _inputs)
+}
+
+func (_factory AccountdomainMappingObjectFactory) From(_backend db.Queryer, _value accountdomain.Mapping) (*AccountdomainMappingObject, error) {
+	_snapshot := (accountdomain.MappingDescriptor{}).CloneModel(_value)
+	_related0, _err := _factory.transition.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_result := &AccountdomainMappingObject{
+		model:      _snapshot,
+		factory:    _factory,
+		backend:    _backend,
+		transition: _related0,
+	}
+	_result._self = _result
+	return _result, nil
+}
+
+type AccountdomainMappingObject struct {
+	_selectedGraph *orm.RelatedSelected[accountdomain.Mapping]
+	model          accountdomain.Mapping
+	factory        AccountdomainMappingObjectFactory
+	backend        db.Queryer
+	transition     *orm.RelatedObject[accountdomain.Transition]
+	_self          *AccountdomainMappingObject
+}
+
+func (_object *AccountdomainMappingObject) _validate() error {
+	if _object == nil || _object._self != _object {
+		return &query.Error{
+			Category: query.CategoryQuery,
+			Code:     query.CodeInvalidPlan,
+			Detail:   "generated relation object is nil, zero, or copied",
+		}
+	}
+	return nil
+}
+
+func (_object *AccountdomainMappingObject) Model() (accountdomain.Mapping, error) {
+	if _err := _object._validate(); _err != nil {
+		return accountdomain.Mapping{}, _err
+	}
+	return (accountdomain.MappingDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *AccountdomainMappingObject) Transition(_ctx context.Context) (accountdomain.Transition, error) {
+	if _err := _object._validate(); _err != nil {
+		return accountdomain.Transition{}, _err
+	}
+	_value, _ok, _err := _object.transition.Get(_ctx)
+	if _err != nil {
+		return accountdomain.Transition{}, _err
+	}
+	if !_ok {
+		return accountdomain.Transition{}, &query.Error{
+			Category: query.CategoryModelState,
+			Code:     query.CodeRelatedObjectMissing,
+			Detail:   "related object does not exist",
+		}
+	}
+	return _value, nil
+}
+
+func (_object *AccountdomainMappingObject) Fresh() (*AccountdomainMappingObject, error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.factory.From(_object.backend, _object.model)
+}
+
 type AccountdomainTransitionPreviousObjectRelation struct {
 	relation orm.NullableForwardObject[accountdomain.Transition, accountdomain.Transition]
 }
@@ -25,6 +106,7 @@ type AccountdomainTransitionObjectFactory struct {
 	_projectSelections *Objects
 	Previous           AccountdomainTransitionPreviousObjectRelation
 	model              orm.BoundModel[accountdomain.Transition]
+	mapping            orm.ReverseOneToOneObject[accountdomain.Transition, accountdomain.Mapping]
 	previous           orm.NullableForwardObject[accountdomain.Transition, accountdomain.Transition]
 }
 
@@ -37,7 +119,15 @@ func (_factory AccountdomainTransitionObjectFactory) ParseDynamic(
 
 func (_factory AccountdomainTransitionObjectFactory) From(_backend db.Queryer, _value accountdomain.Transition) (*AccountdomainTransitionObject, error) {
 	_snapshot := (accountdomain.TransitionDescriptor{}).CloneModel(_value)
-	_related0, _err := _factory.previous.From(_backend, _snapshot)
+	_, _ownerPresent := (accountdomain.TransitionDescriptor{}).PrimaryKey(_snapshot)
+	_related1, _err := _factory.mapping.From(_backend, _snapshot)
+	if _err != nil {
+		_cause, _ok := _err.(*query.Error)
+		if _ownerPresent || !_ok || _cause.Category != query.CategoryQuery || _cause.Code != query.CodeMissingPrimaryKey {
+			return nil, _err
+		}
+	}
+	_related2, _err := _factory.previous.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -45,7 +135,8 @@ func (_factory AccountdomainTransitionObjectFactory) From(_backend db.Queryer, _
 		model:    _snapshot,
 		factory:  _factory,
 		backend:  _backend,
-		previous: _related0,
+		mapping:  _related1,
+		previous: _related2,
 	}
 	_result._self = _result
 	return _result, nil
@@ -56,6 +147,7 @@ type AccountdomainTransitionObject struct {
 	model          accountdomain.Transition
 	factory        AccountdomainTransitionObjectFactory
 	backend        db.Queryer
+	mapping        *orm.RelatedObject[accountdomain.Mapping]
 	previous       *orm.RelatedObject[accountdomain.Transition]
 	_self          *AccountdomainTransitionObject
 }
@@ -78,6 +170,16 @@ func (_object *AccountdomainTransitionObject) Model() (accountdomain.Transition,
 	return (accountdomain.TransitionDescriptor{}).CloneModel(_object.model), nil
 }
 
+func (_object *AccountdomainTransitionObject) Mapping(_ctx context.Context) (accountdomain.Mapping, bool, error) {
+	if _err := _object._validate(); _err != nil {
+		return accountdomain.Mapping{}, false, _err
+	}
+	if _object.mapping == nil {
+		return accountdomain.Mapping{}, false, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Field: "id", Detail: "reverse relation owner has no explicit primary key state"}
+	}
+	return _object.mapping.Get(_ctx)
+}
+
 func (_object *AccountdomainTransitionObject) Previous(_ctx context.Context) (accountdomain.Transition, bool, error) {
 	if _err := _object._validate(); _err != nil {
 		return accountdomain.Transition{}, false, _err
@@ -93,6 +195,7 @@ func (_object *AccountdomainTransitionObject) Fresh() (*AccountdomainTransitionO
 }
 
 type Objects struct {
+	AccountdomainMapping    AccountdomainMappingObjectFactory
 	AccountdomainTransition AccountdomainTransitionObjectFactory
 }
 
@@ -108,25 +211,47 @@ func BindObjects() (Objects, error) {
 func BindObjectsIn(_binding orm.ProjectBinding) (Objects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "mapping"},
+		accountdomain.MappingDescriptor{},
+	)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
 		accountdomain.TransitionDescriptor{},
 	)
 	if _err != nil {
 		return Objects{}, _err
 	}
-	_relation0, _err := orm.BindNullableForwardObject(_model0, "previous", _model0)
+	_relation0, _err := orm.BindRequiredForwardObject(_model0, "transition", _model1)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation1, _err := orm.BindReverseOneToOneObject(_model1, "mapping", _model0)
+	if _err != nil {
+		return Objects{}, _err
+	}
+	_relation2, _err := orm.BindNullableForwardObject(_model1, "previous", _model1)
 	if _err != nil {
 		return Objects{}, _err
 	}
 	_objects := Objects{
+		AccountdomainMapping: AccountdomainMappingObjectFactory{
+			model:      _model0,
+			transition: _relation0,
+		},
 		AccountdomainTransition: AccountdomainTransitionObjectFactory{
-			Previous: AccountdomainTransitionPreviousObjectRelation{relation: _relation0},
-			model:    _model0,
-			previous: _relation0,
+			Previous: AccountdomainTransitionPreviousObjectRelation{relation: _relation2},
+			model:    _model1,
+			mapping:  _relation1,
+			previous: _relation2,
 		},
 	}
+	_objects.AccountdomainMapping._projectSelections = &_objects
 	_objects.AccountdomainTransition._projectSelections = &_objects
 	return _objects, nil
 }
 
-var _ goDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+var _ goDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

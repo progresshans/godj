@@ -12,17 +12,23 @@ import (
 
 const GoDjProjectRelationReverseGeneratorVersion = "godj-codegen-rel-reverse-project-v6"
 
+var _ orm.RelationObjectDescriptor[accountdomain.Mapping] = accountdomain.MappingDescriptor{}
 var _ orm.RelationObjectDescriptor[accountdomain.Transition] = accountdomain.TransitionDescriptor{}
 var _ orm.PrimaryKeyObjectDescriptor[accountdomain.Transition] = accountdomain.TransitionDescriptor{}
 
 type AccountdomainTransitionReverseObjectFactory struct {
 	model      orm.BoundModel[accountdomain.Transition]
+	mapping    orm.ReverseOneToOneObject[accountdomain.Transition, accountdomain.Mapping]
 	successors orm.ReverseObject[accountdomain.Transition, accountdomain.Transition]
 }
 
 func (_factory AccountdomainTransitionReverseObjectFactory) From(_backend db.Queryer, _value accountdomain.Transition) (*AccountdomainTransitionReverseObject, error) {
 	_snapshot := (accountdomain.TransitionDescriptor{}).CloneModel(_value)
-	_related0, _err := _factory.successors.From(_backend, _snapshot)
+	_related0, _err := _factory.mapping.From(_backend, _snapshot)
+	if _err != nil {
+		return nil, _err
+	}
+	_related1, _err := _factory.successors.From(_backend, _snapshot)
 	if _err != nil {
 		return nil, _err
 	}
@@ -30,16 +36,48 @@ func (_factory AccountdomainTransitionReverseObjectFactory) From(_backend db.Que
 		model:      _snapshot,
 		factory:    _factory,
 		backend:    _backend,
-		successors: _related0,
+		mapping:    _related0,
+		successors: _related1,
 	}
 	_result._self = _result
 	return _result, nil
+}
+
+func (_factory AccountdomainTransitionReverseObjectFactory) SelectMapping(_children ...orm.RelatedSelection[accountdomain.Mapping]) orm.RelatedSelect[accountdomain.Transition, accountdomain.Mapping] {
+	return orm.SelectReverseOneToOne(_factory.mapping).WithChildren(_children...)
+}
+func (_factory AccountdomainTransitionReverseObjectFactory) FromSelected(_selected *orm.RelatedSelected[accountdomain.Transition]) (*AccountdomainTransitionReverseObject, error) {
+	if _err := _selected.ValidateSourceBinding(_factory.model); _err != nil {
+		return nil, _err
+	}
+	_value, _err := _selected.Source()
+	if _err != nil {
+		return nil, _err
+	}
+	_backend, _err := _selected.Backend()
+	if _err != nil {
+		return nil, _err
+	}
+	_object, _err := _factory.From(_backend, _value)
+	if _err != nil {
+		return nil, _err
+	}
+	if _has, _err := _selected.HasSelection("mapping"); _err != nil {
+		return nil, _err
+	} else if _has {
+		_object.mapping, _err = _factory.SelectMapping().Related(_selected)
+		if _err != nil {
+			return nil, _err
+		}
+	}
+	return _object, nil
 }
 
 type AccountdomainTransitionReverseObject struct {
 	model      accountdomain.Transition
 	factory    AccountdomainTransitionReverseObjectFactory
 	backend    db.Queryer
+	mapping    *orm.RelatedObject[accountdomain.Mapping]
 	successors *orm.RelatedSet[accountdomain.Transition]
 	_self      *AccountdomainTransitionReverseObject
 }
@@ -60,6 +98,13 @@ func (_object *AccountdomainTransitionReverseObject) Model() (accountdomain.Tran
 		return accountdomain.Transition{}, _err
 	}
 	return (accountdomain.TransitionDescriptor{}).CloneModel(_object.model), nil
+}
+
+func (_object *AccountdomainTransitionReverseObject) Mapping() (*orm.RelatedObject[accountdomain.Mapping], error) {
+	if _err := _object._validate(); _err != nil {
+		return nil, _err
+	}
+	return _object.mapping, nil
 }
 
 func (_object *AccountdomainTransitionReverseObject) Successors() (*orm.RelatedSet[accountdomain.Transition], error) {
@@ -92,22 +137,35 @@ func BindReverseObjects() (ReverseObjects, error) {
 func BindReverseObjectsIn(_binding orm.ProjectBinding) (ReverseObjects, error) {
 	_model0, _err := orm.BindModel(
 		_binding,
+		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "mapping"},
+		accountdomain.MappingDescriptor{},
+	)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_model1, _err := orm.BindModel(
+		_binding,
 		ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
 		accountdomain.TransitionDescriptor{},
 	)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
-	_relation0, _err := orm.BindReverseObject(_model0, "successors", _model0)
+	_relation0, _err := orm.BindReverseOneToOneObject(_model1, "mapping", _model0)
+	if _err != nil {
+		return ReverseObjects{}, _err
+	}
+	_relation1, _err := orm.BindReverseObject(_model1, "successors", _model1)
 	if _err != nil {
 		return ReverseObjects{}, _err
 	}
 	return ReverseObjects{
 		AccountdomainTransition: AccountdomainTransitionReverseObjectFactory{
-			model:      _model0,
-			successors: _relation0,
+			model:      _model1,
+			mapping:    _relation0,
+			successors: _relation1,
 		},
 	}, nil
 }
 
-var _ goDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+var _ goDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

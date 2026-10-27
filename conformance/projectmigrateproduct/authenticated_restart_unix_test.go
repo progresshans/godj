@@ -1316,7 +1316,7 @@ func authenticatedRestartAssertMigratedSystemStateEmpty(
 	snapshot authenticatedRestartDatabaseSnapshot,
 ) {
 	t.Helper()
-	if snapshot.Identity.Counts != ([4]int64{}) || len(snapshot.Identity.Users) != 0 || len(snapshot.Identity.Grants) != 0 || len(snapshot.Identity.Transitions) != 0 || len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 {
+	if snapshot.Identity.Counts != ([5]int64{}) || len(snapshot.Identity.Users) != 0 || len(snapshot.Identity.Grants) != 0 || len(snapshot.Identity.Transitions) != 0 || len(snapshot.Articles) != 0 || len(snapshot.Sessions) != 0 || len(snapshot.Audits) != 0 {
 		t.Fatalf(
 			"authenticated migrate populated runtime state: articles=%d sessions=%d audits=%d credentials=%d",
 			len(snapshot.Articles),

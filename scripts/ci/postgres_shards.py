@@ -2,7 +2,7 @@
 """Own every PostgreSQL core sentinel exactly once in each execution mode.
 
 Race partitions separate framework, native PostgreSQL roots, the Helpdesk PostgreSQL consumer,
-generated read consumers, selected-account consumers, generated write consumers and process products.
+generated read consumers, selected-account/profile consumers, generated write consumers and process products.
 All modes separate generated consumers; the normal capture producer is stable.
 The required manifest stays authoritative for tests, including child-only roots.
 """
@@ -35,12 +35,14 @@ CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedFirstAccountUsesRequiredProfiles',
+    'TestGeneratedAccountThroughIdentityCreation',
+    'TestGeneratedAccountTransition',
+})
+PROFILE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountProfileRelations',
     'TestGeneratedAccountProfileCollections',
     'TestGeneratedAccountProfileFiles',
     'TestGeneratedAccountProfileFileCreation',
-    'TestGeneratedAccountThroughIdentityCreation',
-    'TestGeneratedAccountTransition',
 })
 WRITE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountResetUsesSelectedModels',
@@ -53,6 +55,7 @@ WRITE_CONSUMER_ROOTS = frozenset({
 CONSUMER_PARTITIONS = {
     'core-consumers': CONSUMERS,
     'core-account-consumers': CONSUMERS,
+    'core-account-profiles': CONSUMERS,
     'core-consumer-writes': CONSUMERS,
 }
 BASE_PARTITIONS = {
@@ -130,11 +133,16 @@ def plan(mode, shard, entries):
         # cumulative 30-minute deadline. The unsplit normal package also hit
         # 30 minutes before its whole job expired. Use these complete-root
         # owners in every mode, retaining reset with writes and all new roots.
+        # CI 40593130751 then reached 30 minutes after 490.73s + 571.99s
+        # in bindings/first-account and 590.40s in three profile roots. Keep
+        # every profile root and its future children in a separate owner.
         def consumer_owner(entry):
             package, _, test = entry.partition('|')
             root = test.split('/')[0]
             if package == CONSUMER_PACKAGE and root in ACCOUNT_CONSUMER_ROOTS:
                 return 'core-account-consumers'
+            if package == CONSUMER_PACKAGE and root in PROFILE_CONSUMER_ROOTS:
+                return 'core-account-profiles'
             if package == CONSUMER_PACKAGE and root in WRITE_CONSUMER_ROOTS:
                 return 'core-consumer-writes'
             return 'core-consumers'

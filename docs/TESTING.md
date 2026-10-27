@@ -298,13 +298,14 @@ root도 포함하며 모든 child를 부모와 함께 실행한다. 생성 소�
 단일 객체 생성·update-or-create·행 잠금의 전체 root는 core-consumer-writes가 맡는다. Helpdesk의 PostgreSQL 소비자 root는
 core-helpdesk-postgres에서 실행한다. 같은 Go package에 있는 SQLite 소비자와 helper는 core가 맡아
 두 DB 소비자가 하나의 package timeout을 공유하지 않게 한다. Normal과 CGO-disabled는 framework·native PostgreSQL·process를
-core에 유지하고 generated consumer만 아래 세 owner로 나눈다. Normal의 system-state capture owner도 core로 유지한다.
-세 mode의 core 계열은 총 열여섯 coordinate이고 별도 operator-target 세 coordinate는 유지한다.
+core에 유지하고 generated consumer만 아래 네 owner로 나눈다. Normal의 system-state capture owner도 core로 유지한다.
+세 mode의 core 계열은 총 열아홉 coordinate이고 별도 operator-target 세 coordinate는 유지한다.
 필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속하며 새 child sentinel도 해당 root의 owner를 따른다.
 누락·중복·모호한 package와 빈 partition, 같은 이름의 root가 다른 partition을 재선택하는 경우는 실패다.
 Package별 18분 timeout과 no-skip 검사를 유지하며,
 선택 계정의 일곱 HTTP 변형과 첫 계정 소비자 root는 모든 mode의 `core-account-consumers`가 맡는다.
-generated consumer의 core-consumers/core-account-consumers/core-consumer-writes는 모든 mode에서 기존 30분 한도를 사용한다.
+관계·collection·파일 편집/생성의 전체 프로필 소비자 root는 `core-account-profiles`가 맡는다.
+네 generated consumer owner는 모든 mode에서 기존 30분 한도를 사용한다.
 Normal의 해당 Go package vet는 core-consumers에서 한 번 실행한다.
 생성 소비자 자체의 짧은 실행 제한과 필수 하위 검사는 분할 전후 동일하며, 새로운 root는 기본 core-consumers가 맡는다.
 Helpdesk의 같은 DB를 이어 쓰는 소비자는 normal/CGO-disabled 10분, race 15분의 전체 context를 사용한다.

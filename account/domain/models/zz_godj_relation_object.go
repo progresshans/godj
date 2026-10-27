@@ -10,7 +10,7 @@ import (
 )
 
 const GoDjRelationObjectGeneratorVersion = "godj-codegen-rel-object-v2"
-const GoDjRelationObjectSchemaSHA256 = "b308cf6c12981d2af7e2159487f2f951dab52b315ffad37c7c4646b27a896524"
+const GoDjRelationObjectSchemaSHA256 = "104f327ffe6dad3fdacfbaac712d5f40d9518f61dd16156db619ca1fb0988707"
 
 var _ orm.RelationObjectDescriptor[Transition] = TransitionDescriptor{}
 
@@ -55,6 +55,45 @@ func (transitionPreviousIDRelationStorage) Value(value Transition) (query.Value,
 	return query.Integer(*value.PreviousID), true
 }
 
-type GoDjAppPart2_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
+var _ orm.RelationObjectDescriptor[Mapping] = MappingDescriptor{}
 
-var _ GoDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42
+func (MappingDescriptor) SnapshotRelationObjectDescriptor() orm.RelationObjectDescriptor[Mapping] {
+	return MappingDescriptor{}
+}
+
+func (MappingDescriptor) BindRelationStorage(field ir.Field) (orm.RelationStorage[Mapping], bool) {
+	switch {
+	case reflect.DeepEqual(field, (mappingTransitionIDRelationStorage{}).Field()):
+		return mappingTransitionIDRelationStorage{}, true
+	default:
+		return nil, false
+	}
+}
+
+type mappingTransitionIDRelationStorage struct{}
+
+var _ orm.RelationStorage[Mapping] = mappingTransitionIDRelationStorage{}
+
+func (mappingTransitionIDRelationStorage) Field() ir.Field {
+	return ir.Field{
+		Name:   "transition",
+		GoName: "TransitionID",
+		Column: "transition_id",
+		Kind:   ir.FieldForeignKey,
+		Unique: true,
+		Relation: &ir.ForeignKeyRelation{
+			Target:      ir.ModelIdentity{AppLabel: "godj_account_domain", ModelName: "transition"},
+			Cardinality: ir.RelationOneToOne,
+			Reverse:     ir.ReverseRelation{Name: "mapping"},
+			OnDelete:    ir.DeleteProtect,
+		},
+	}
+}
+
+func (mappingTransitionIDRelationStorage) Value(value Mapping) (query.Value, bool) {
+	return query.Integer(value.TransitionID), true
+}
+
+type GoDjAppPart2_5d4a5ee414e8dd952636670bc13cbee33d1ac3569ea49d3bf75c70111550ad3e struct{}
+
+var _ GoDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152

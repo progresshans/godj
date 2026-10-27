@@ -452,6 +452,12 @@ native scope에 두고, `AccountMemberships` validator에 실제 최종 프로�
 새 generation/receipt를 한 transaction에 묶고 최종 행/관계를 다시 읽는다. 보관 manifest와 실제 predecessor를 사용하는
 restart/unknown reconciliation도 작성했다. 작성·외부 생성/compile과 새 양 DB/race 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
+전환 대응표를 새 migration과 생성 model로 DB에 저장하도록 연결했다. Receipt의 count/digest와 canonical payload를
+같은 native transaction에 기록하고 저장 직후·재시작·전체 이력 검사에서 다시 대조한다. Signed key와 예전 mapping-free
+receipt를 보존하며 손상·누락·중복·실패/rollback을 거부한다. Key page와 개별 payload의 별도 한도를 적용한다.
+채운 기존 이력의 migration·양 DB 손상/rollback·페이지 경계와 재접속 검사를 작성했다. 최소 compile과 실제 본문·환경별
+수용은 TEST_EVIDENCE에서 구분한다.
+
 대상 행과 프로필은 명시적으로 미리 준비하는 경로다. 대상 자동 생성·catalog 변경·host 관계 재매핑과 역사 `systemstate`
 가져오기, 남은 고정 소비자 교체는 미완료이며 이 코드만으로 I1-07/08을 수용 완료로 처리하지 않는다.
 

@@ -735,6 +735,7 @@ func assertRunserverMigrationHistory(t *testing.T, history []migrationbackend.Ap
 	want := []migrationbackend.AppliedMigration{
 		{App: "godj_account_audit", Name: "0001_initial"},
 		{App: "godj_account_domain", Name: "0001_initial"},
+		{App: "godj_account_domain", Name: "0002_auto_fe206c392ab4"},
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0001_initial"},
 		{App: "godj_identity", Name: "0002_permission_revision"},
