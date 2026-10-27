@@ -66,4 +66,4 @@ func (_scan *postProjectionScan) Decode() (Post, query.Value, orm.ProjectionPres
 
 type GoDjAppPart3_8e50798cf955fe01d4f405e6ed4cf2beb207b880211f654aee2607f9451a076a struct{}
 
-var _ GoDjProjectSnapshot_660cf2f01c79c455e276ef8e05e7f41e6ea86fb608be2cbed01ec05f84e8611c
+var _ GoDjProjectSnapshot_a9030abe78aaa1943441635693de586db22a61d1b7f9ee516e486e912d8ba013

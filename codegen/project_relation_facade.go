@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
+const ProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v29"
 
 const projectRelationFacadeInputDomain = "godj-codegen-rel-facade-project-input-current-v4"
 
@@ -255,7 +255,8 @@ func renderProjectRelationFacadeFoundation(output *bytes.Buffer, hasModels, hasR
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
 	fmt.Fprintln(output, "type relationFacadeState struct {")
-	fmt.Fprintln(output, "\tbackend Backend")
+	fmt.Fprintln(output, "\tbackend db.Queryer")
+	fmt.Fprintln(output, "\treadOnly bool")
 	fmt.Fprintln(output, "\tobjects Objects")
 	fmt.Fprintln(output, "models relationFacadeBindings")
 	if hasReverseCollections {
@@ -820,6 +821,8 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 	fmt.Fprintln(output, "\tif _err := relationFacadeContext(_ctx); _err != nil {")
 	fmt.Fprintln(output, "\t\treturn _err")
 	fmt.Fprintln(output, "\t}")
+	fmt.Fprintln(output, "\t_mutator, _writable := _model.state.backend.(db.Mutator)")
+	fmt.Fprintln(output, "\tif !_writable || relationFacadeNil(_mutator) { return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: \"model Save requires a writable backend\"} }")
 	if model.source != nil {
 		fmt.Fprintln(output, "\tif _err := _model.relationFacadePrepareSave(); _err != nil {")
 		fmt.Fprintln(output, "\t\treturn _err")
@@ -829,7 +832,7 @@ func renderProjectRelationFacadeWrapper(output *bytes.Buffer, model projectRelat
 		fmt.Fprintln(output, "\t\treturn _err")
 		fmt.Fprintln(output, "\t}")
 	}
-	fmt.Fprintf(output, "\tif _err := %s.%sObjects.Save(_ctx, _model.state.backend, &_model.%s); _err != nil {\n", model.model.app.alias, model.model.model.GoName, model.rawAlias)
+	fmt.Fprintf(output, "\tif _err := %s.%sObjects.Save(_ctx, _mutator, &_model.%s); _err != nil {\n", model.model.app.alias, model.model.model.GoName, model.rawAlias)
 	fmt.Fprintln(output, "\t\treturn _err")
 	fmt.Fprintln(output, "\t}")
 	if model.source != nil && len(model.source.reverse) > 0 {
@@ -1512,10 +1515,12 @@ func renderProjectRelationFacadeAggregate(
 	}
 	fmt.Fprintln(output, "}")
 	fmt.Fprintln(output)
-	fmt.Fprintln(output, "func Using(_backend Backend) (Models, error) { return usingModels(_backend, false) }")
+	fmt.Fprintln(output, "func Using(_backend Backend) (Models, error) { return usingModels(_backend, false, false) }")
 	fmt.Fprintln(output, "// UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.")
-	fmt.Fprintln(output, "func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }")
-	fmt.Fprintln(output, "func usingModels(_backend Backend, _borrowed bool) (Models, error) {")
+	fmt.Fprintln(output, "func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true, false) }")
+	fmt.Fprintln(output, "// UsingReadScope binds models to the caller-owned read snapshot. Models and caches expire with that scope; publish detached values only after successful cleanup.")
+	fmt.Fprintln(output, "func UsingReadScope(_reader db.Queryer) (Models, error) { return usingModels(_reader, true, true) }")
+	fmt.Fprintln(output, "func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error) {")
 	if len(models) == 0 {
 		fmt.Fprintln(output, "\t_objects, _err := BindObjects()")
 	} else {
@@ -1530,8 +1535,9 @@ func renderProjectRelationFacadeAggregate(
 	fmt.Fprintln(output, "\t}")
 	fmt.Fprintln(output, "_scope, _scoped := _backend.(db.SessionValidator)")
 	fmt.Fprintln(output, "if _borrowed != _scoped { return Models{}, relationFacadeBackendInvalid(\"root and borrowed backend must use their matching constructor and session lifetime capability\") }")
+	fmt.Fprintln(output, "if _readOnly { switch _backend.(type) { case db.Mutator, db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader: return Models{}, relationFacadeBackendInvalid(\"read scope must not expose mutation or transaction capabilities\") } }")
 	fmt.Fprintln(output, "if _scoped { if _err := _scope.ValidateSession(context.Background()); _err != nil { return Models{}, _err } }")
-	fmt.Fprintln(output, "\t_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}")
+	fmt.Fprintln(output, "\t_state := &relationFacadeState{backend: _backend, readOnly: _readOnly, objects: _objects, sessionScope: _scope}")
 	boundModels := make([]*projectRelationModel, len(models))
 	for i, model := range models {
 		boundModels[i] = model.model

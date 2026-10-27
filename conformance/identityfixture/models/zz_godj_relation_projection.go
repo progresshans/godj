@@ -201,4 +201,4 @@ func (_scan *accessGuardProjectionScan) Decode() (AccessGuard, query.Value, orm.
 
 type GoDjAppPart3_13d3106f2d075c336dabe7dcab19ca4b5630a7ef037186119e522784b53532ec struct{}
 
-var _ GoDjProjectSnapshot_495c023a3466e60ebcc151260beb9b21fe3de0118b54cce94811485665a0f221
+var _ GoDjProjectSnapshot_5399eac3c3d95a3039fd6c0588b12f04454c2300e014c40c40e915e01c775e43

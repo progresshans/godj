@@ -125,4 +125,4 @@ func (_scan *grantLinkProjectionScan) Decode() (GrantLink, query.Value, orm.Proj
 
 type GoDjAppPart3_bec4d00d4a513ca78e447f44bf075168970bcf182f8bd74aa0945cbbcfb0b6f1 struct{}
 
-var _ GoDjProjectSnapshot_035cbe8f0a9976746f040b5a25437257289f97993e4c645af92e716b6da268a2
+var _ GoDjProjectSnapshot_584a8092e0fc2e250f487ee0c01d5cfe01d49aa0a7c51b5e72f5fa1cddabee8e

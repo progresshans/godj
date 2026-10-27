@@ -138,6 +138,14 @@ ordinary session도 relation capability를 제공하므로 callback 이름으로
 확인된 outer commit 이후에만 결과를 게시해야 한다. Savepoint 또는 자체 부분 rollback으로 가장하지 않는다.
 `CoordinatedAtomicRelation`의 session을 사용하면 그 기존 fence에 참여하며 일반 transaction으로 대체하지 않는다.
 
+읽기 전용 snapshot은 `UsingReadScope(reader)`와 `ManyToMany.InReadScope(reader, owner)`로 빌린다.
+실제 reader의 `Queryer`와 `SessionValidator`만 요구하며, root·만료된 scope 또는 mutation/transaction capability를
+노출하는 객체는 거부한다. 쓰기 인터페이스를 흉내 내거나 원래 backend를 복구하지 않는다. 같은 typed query·
+select-related·중첩 prefetch·정방향/역방향 collection을 사용할 수 있고, 생성 model과 warm/empty cache도 snapshot
+수명에 묶인다. `Save`는 관계의 pending 상태를 정리하기 전에 쓰기 capability를 검사한다. 빈 collection 변경·bulk
+입력도 기존 쓰기 경계에 따라 거부한다. `GetOrCreate`의 기존 행 조회는 조회 계약을 유지하지만 없는 행의 생성은
+입력을 평가하기 전에 거부한다. Detached 결과는 snapshot owner의 정상 cleanup을 확인한 뒤 게시한다.
+
 `db.SessionValidator.ValidateSession(ctx)`는 native session이 이미 소유한 active/lifetime/context 검사를 SQL 없이 노출한다.
 SQLite ordinary/relation/coordinated와 PostgreSQL의 모든 transaction session이 이 capability를 구현한다. Root backend의
 capability가 아니며, 빌린 collection/model binding은 없으면 명시적으로 거부한다. 임의 wrapper는 이 capability도 전달해야 한다.

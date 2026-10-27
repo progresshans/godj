@@ -4,4 +4,4 @@ package project
 
 const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v17"
 
-var _ goDjProjectSnapshot_895831f8b751dfde146b594484799e992f571db2184f93b76a13b680505ea1a3
+var _ goDjProjectSnapshot_0ecf1089c13b9dd9500eafc377785d0936076ac71d275e868f275335f1f38f64

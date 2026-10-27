@@ -2002,4 +2002,4 @@ func userPermissionsLinkMetadata() ir.Model {
 
 type GoDjAppPart0_0756f6bd70cd2f9a5970ac7c357b841b53b37087538faf5d645cbc9b67238c94 struct{}
 
-type GoDjProjectSnapshot_478dd49a152abea2006671f50de57a821a1f7db578cc7db5b700b653168dc724 struct{}
+type GoDjProjectSnapshot_28120c3f4d0539dfed7df716a9d2d80cbd9cff79217a92a5b55d3bb0b6a22e26 struct{}

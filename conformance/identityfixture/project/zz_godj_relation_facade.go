@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
-const GoDjProjectRelationFacadeInputSHA256 = "cb3e02853aa5f32336e4aad98a51e026c3845e1b0cdc72ddc1aa6bcbca087b97"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v29"
+const GoDjProjectRelationFacadeInputSHA256 = "f55b36ef63b082b948439542d79d1acdc25477a05fb9f4639e6bb53f81c09660"
 
 type Backend interface {
 	db.Queryer
@@ -23,7 +23,8 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend            Backend
+	backend            db.Queryer
+	readOnly           bool
 	objects            Objects
 	models             relationFacadeBindings
 	reverseCollections ReverseObjects
@@ -1159,10 +1160,14 @@ func (_model *AccountsGroup) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
-	if _err := accounts.GroupObjects.Save(_ctx, _model.state.backend, &_model.accountsGroupModel); _err != nil {
+	if _err := accounts.GroupObjects.Save(_ctx, _mutator, &_model.accountsGroupModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -1201,6 +1206,9 @@ func (_model *AccountsGroup) Permissions() (*AccountsGroupPermissionsCollection,
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[accounts.Permission, accounts.GroupPermissionsLink], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.AccountsGroupPermissions.InReadScope(_model.state.backend, _model.accountsGroupModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -1347,6 +1355,9 @@ func (_model *AccountsGroup) Users() (*AccountsGroupUsersCollection, error) {
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection1.Get(func() (*orm.ManyCollection[accounts.User, accounts.UserGroupsLink], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.AccountsGroupUsers.InReadScope(_model.state.backend, _model.accountsGroupModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -2788,10 +2799,14 @@ func (_model *AccountsGroupPermissionsLink) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := accounts.GroupPermissionsLinkObjects.Save(_ctx, _model.state.backend, &_model.accountsGroupPermissionsLinkModel); _err != nil {
+	if _err := accounts.GroupPermissionsLinkObjects.Save(_ctx, _mutator, &_model.accountsGroupPermissionsLinkModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -4665,10 +4680,14 @@ func (_model *AccountsPermission) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
-	if _err := accounts.PermissionObjects.Save(_ctx, _model.state.backend, &_model.accountsPermissionModel); _err != nil {
+	if _err := accounts.PermissionObjects.Save(_ctx, _mutator, &_model.accountsPermissionModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -4707,6 +4726,9 @@ func (_model *AccountsPermission) Groups() (*AccountsPermissionGroupsCollection,
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[accounts.Group, accounts.GroupPermissionsLink], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.AccountsPermissionGroups.InReadScope(_model.state.backend, _model.accountsPermissionModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -4853,6 +4875,9 @@ func (_model *AccountsPermission) Users() (*AccountsPermissionUsersCollection, e
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection1.Get(func() (*orm.ManyCollection[accounts.User, accounts.UserPermissionsLink], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.AccountsPermissionUsers.InReadScope(_model.state.backend, _model.accountsPermissionModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -6242,10 +6267,14 @@ func (_model *AccountsUser) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
-	if _err := accounts.UserObjects.Save(_ctx, _model.state.backend, &_model.accountsUserModel); _err != nil {
+	if _err := accounts.UserObjects.Save(_ctx, _mutator, &_model.accountsUserModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -6284,6 +6313,9 @@ func (_model *AccountsUser) Groups() (*AccountsUserGroupsCollection, error) {
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[accounts.Group, accounts.UserGroupsLink], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.AccountsUserGroups.InReadScope(_model.state.backend, _model.accountsUserModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -6430,6 +6462,9 @@ func (_model *AccountsUser) Permissions() (*AccountsUserPermissionsCollection, e
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection1.Get(func() (*orm.ManyCollection[accounts.Permission, accounts.UserPermissionsLink], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.AccountsUserPermissions.InReadScope(_model.state.backend, _model.accountsUserModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -7871,10 +7906,14 @@ func (_model *AccountsUserGroupsLink) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := accounts.UserGroupsLinkObjects.Save(_ctx, _model.state.backend, &_model.accountsUserGroupsLinkModel); _err != nil {
+	if _err := accounts.UserGroupsLinkObjects.Save(_ctx, _mutator, &_model.accountsUserGroupsLinkModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -9800,10 +9839,14 @@ func (_model *AccountsUserPermissionsLink) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := accounts.UserPermissionsLinkObjects.Save(_ctx, _model.state.backend, &_model.accountsUserPermissionsLinkModel); _err != nil {
+	if _err := accounts.UserPermissionsLinkObjects.Save(_ctx, _mutator, &_model.accountsUserPermissionsLinkModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -11743,10 +11786,14 @@ func (_model *WorkAccessGuard) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := work.AccessGuardObjects.Save(_ctx, _model.state.backend, &_model.workAccessGuardModel); _err != nil {
+	if _err := work.AccessGuardObjects.Save(_ctx, _mutator, &_model.workAccessGuardModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -13715,10 +13762,14 @@ func (_model *WorkAccessNote) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := work.AccessNoteObjects.Save(_ctx, _model.state.backend, &_model.workAccessNoteModel); _err != nil {
+	if _err := work.AccessNoteObjects.Save(_ctx, _mutator, &_model.workAccessNoteModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -15639,10 +15690,14 @@ func (_model *WorkGuard) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := work.GuardObjects.Save(_ctx, _model.state.backend, &_model.workGuardModel); _err != nil {
+	if _err := work.GuardObjects.Save(_ctx, _mutator, &_model.workGuardModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -17337,10 +17392,14 @@ func (_model *WorkNote) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := work.NoteObjects.Save(_ctx, _model.state.backend, &_model.workNoteModel); _err != nil {
+	if _err := work.NoteObjects.Save(_ctx, _mutator, &_model.workNoteModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -18283,11 +18342,14 @@ type Models struct {
 	WorkNote                     WorkNoteQuery
 }
 
-func Using(_backend Backend) (Models, error) { return usingModels(_backend, false) }
+func Using(_backend Backend) (Models, error) { return usingModels(_backend, false, false) }
 
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
-func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
-func usingModels(_backend Backend, _borrowed bool) (Models, error) {
+func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true, false) }
+
+// UsingReadScope binds models to the caller-owned read snapshot. Models and caches expire with that scope; publish detached values only after successful cleanup.
+func UsingReadScope(_reader db.Queryer) (Models, error) { return usingModels(_reader, true, true) }
+func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error) {
 	_binding, _err := Bind()
 	if _err != nil {
 		return Models{}, _err
@@ -18303,12 +18365,18 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	if _borrowed != _scoped {
 		return Models{}, relationFacadeBackendInvalid("root and borrowed backend must use their matching constructor and session lifetime capability")
 	}
+	if _readOnly {
+		switch _backend.(type) {
+		case db.Mutator, db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader:
+			return Models{}, relationFacadeBackendInvalid("read scope must not expose mutation or transaction capabilities")
+		}
+	}
 	if _scoped {
 		if _err := _scope.ValidateSession(context.Background()); _err != nil {
 			return Models{}, _err
 		}
 	}
-	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_state := &relationFacadeState{backend: _backend, readOnly: _readOnly, objects: _objects, sessionScope: _scope}
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "group"},
@@ -18424,4 +18492,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_495c023a3466e60ebcc151260beb9b21fe3de0118b54cce94811485665a0f221
+var _ goDjProjectSnapshot_5399eac3c3d95a3039fd6c0588b12f04454c2300e014c40c40e915e01c775e43

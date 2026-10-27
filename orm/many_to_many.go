@@ -178,7 +178,7 @@ type ManyCollection[T, L any] struct {
 
 func (r ManyToMany[O, T, L]) From(backend db.Queryer, owner O) (*ManyCollection[T, L], error) {
 	if _, borrowed := backend.(db.SessionValidator); borrowed {
-		return nil, relationInvalidPlan("use InSession to bind a borrowed collection session")
+		return nil, relationInvalidPlan("use InSession or InReadScope to bind a borrowed collection scope")
 	}
 	return r.from(backend, owner)
 }
@@ -189,11 +189,28 @@ func (r ManyToMany[O, T, L]) From(backend db.Queryer, owner O) (*ManyCollection[
 // error from the enclosing transaction callback; this is not a savepoint.
 // The independent handle and its query caches expire with the session.
 func (r ManyToMany[O, T, L]) InSession(session db.Session, owner O) (*ManyCollection[T, L], error) {
+	return r.inScope(session, owner, false)
+}
+
+// InReadScope borrows a live read-only snapshot without recovering mutation or
+// transaction capabilities. The collection and all derived caches expire with
+// that snapshot. The caller owns cleanup and publication of detached results.
+func (r ManyToMany[O, T, L]) InReadScope(reader db.Queryer, owner O) (*ManyCollection[T, L], error) {
+	return r.inScope(reader, owner, true)
+}
+
+func (r ManyToMany[O, T, L]) inScope(session db.Queryer, owner O, readOnly bool) (*ManyCollection[T, L], error) {
 	if interfaceIsNil(session) {
 		return nil, relationBackendInvalidPlan("collection session is nil")
 	}
 	if _, ok := session.(db.SessionValidator); !ok {
 		return nil, relationBackendInvalidPlan("borrowed collection requires session lifetime validation")
+	}
+	if readOnly {
+		switch session.(type) {
+		case db.Mutator, db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader:
+			return nil, relationBackendInvalidPlan("collection read scope must not expose mutation or transaction capabilities")
+		}
 	}
 	if err := validateQuerySession(context.Background(), session); err != nil {
 		return nil, err

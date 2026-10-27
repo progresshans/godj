@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
-const GoDjProjectRelationFacadeInputSHA256 = "46eb7deeb33f2f4bb814aed027fd018e1c0360d41d3604d25e61505be326c300"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v29"
+const GoDjProjectRelationFacadeInputSHA256 = "ddd0db3512c6ad72a820f947436224bd2a78269d998caf506b1878f434842152"
 
 type Backend interface {
 	db.Queryer
@@ -23,7 +23,8 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend            Backend
+	backend            db.Queryer
+	readOnly           bool
 	objects            Objects
 	models             relationFacadeBindings
 	reverseCollections ReverseObjects
@@ -1198,10 +1199,14 @@ func (_model *InventoryAsset) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := inventory.AssetObjects.Save(_ctx, _model.state.backend, &_model.inventoryAssetModel); _err != nil {
+	if _err := inventory.AssetObjects.Save(_ctx, _mutator, &_model.inventoryAssetModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -1477,6 +1482,9 @@ func (_model *InventoryAsset) Labels() (*InventoryAssetLabelsCollection, error) 
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[helpdesk.Label, inventory.AssetLabel], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.InventoryAssetLabels.InReadScope(_model.state.backend, _model.inventoryAssetModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -3179,10 +3187,14 @@ func (_model *InventoryAssetLabel) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := inventory.AssetLabelObjects.Save(_ctx, _model.state.backend, &_model.inventoryAssetLabelModel); _err != nil {
+	if _err := inventory.AssetLabelObjects.Save(_ctx, _mutator, &_model.inventoryAssetLabelModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -5033,10 +5045,14 @@ func (_model *InventoryAudit) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
-	if _err := inventory.AuditObjects.Save(_ctx, _model.state.backend, &_model.inventoryAuditModel); _err != nil {
+	if _err := inventory.AuditObjects.Save(_ctx, _mutator, &_model.inventoryAuditModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -5799,10 +5815,14 @@ func (_model *HelpdeskCategory) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
-	if _err := helpdesk.CategoryObjects.Save(_ctx, _model.state.backend, &_model.helpdeskCategoryModel); _err != nil {
+	if _err := helpdesk.CategoryObjects.Save(_ctx, _mutator, &_model.helpdeskCategoryModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -7188,10 +7208,14 @@ func (_model *HelpdeskLabel) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := helpdesk.LabelObjects.Save(_ctx, _model.state.backend, &_model.helpdeskLabelModel); _err != nil {
+	if _err := helpdesk.LabelObjects.Save(_ctx, _mutator, &_model.helpdeskLabelModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -7469,6 +7493,9 @@ func (_model *HelpdeskLabel) BrowserAssets() (*HelpdeskLabelBrowserAssetsCollect
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[inventory.Asset, inventory.AssetLabel], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.HelpdeskLabelBrowserAssets.InReadScope(_model.state.backend, _model.helpdeskLabelModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -7615,6 +7642,9 @@ func (_model *HelpdeskLabel) Tickets() (*HelpdeskLabelTicketsCollection, error) 
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection1.Get(func() (*orm.ManyCollection[helpdesk.Ticket, helpdesk.TicketLabel], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.HelpdeskLabelTickets.InReadScope(_model.state.backend, _model.helpdeskLabelModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -9408,10 +9438,14 @@ func (_model *HelpdeskServiceReport) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := helpdesk.ServiceReportObjects.Save(_ctx, _model.state.backend, &_model.helpdeskServiceReportModel); _err != nil {
+	if _err := helpdesk.ServiceReportObjects.Save(_ctx, _mutator, &_model.helpdeskServiceReportModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -11145,10 +11179,14 @@ func (_model *HelpdeskTicket) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := helpdesk.TicketObjects.Save(_ctx, _model.state.backend, &_model.helpdeskTicketModel); _err != nil {
+	if _err := helpdesk.TicketObjects.Save(_ctx, _mutator, &_model.helpdeskTicketModel); _err != nil {
 		return _err
 	}
 	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
@@ -11559,6 +11597,9 @@ func (_model *HelpdeskTicket) Labels() (*HelpdeskTicketLabelsCollection, error) 
 		return nil, &query.Error{Category: query.CategoryQuery, Code: query.CodeMissingPrimaryKey, Detail: "collection owner has no saved primary key"}
 	}
 	_relation, _err := _model._manyCollection0.Get(func() (*orm.ManyCollection[helpdesk.Label, helpdesk.TicketLabel], error) {
+		if _model.state.readOnly {
+			return _model.state.collections.HelpdeskTicketLabels.InReadScope(_model.state.backend, _model.helpdeskTicketModel)
+		}
 		if _model.state.sessionScope != nil {
 			_session, _ok := _model.state.backend.(db.Session)
 			if !_ok {
@@ -13281,10 +13322,14 @@ func (_model *HelpdeskTicketLabel) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := helpdesk.TicketLabelObjects.Save(_ctx, _model.state.backend, &_model.helpdeskTicketLabelModel); _err != nil {
+	if _err := helpdesk.TicketLabelObjects.Save(_ctx, _mutator, &_model.helpdeskTicketLabelModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -14433,11 +14478,14 @@ type Models struct {
 	HelpdeskTicketLabel   HelpdeskTicketLabelQuery
 }
 
-func Using(_backend Backend) (Models, error) { return usingModels(_backend, false) }
+func Using(_backend Backend) (Models, error) { return usingModels(_backend, false, false) }
 
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
-func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
-func usingModels(_backend Backend, _borrowed bool) (Models, error) {
+func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true, false) }
+
+// UsingReadScope binds models to the caller-owned read snapshot. Models and caches expire with that scope; publish detached values only after successful cleanup.
+func UsingReadScope(_reader db.Queryer) (Models, error) { return usingModels(_reader, true, true) }
+func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error) {
 	_binding, _err := Bind()
 	if _err != nil {
 		return Models{}, _err
@@ -14453,12 +14501,18 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	if _borrowed != _scoped {
 		return Models{}, relationFacadeBackendInvalid("root and borrowed backend must use their matching constructor and session lifetime capability")
 	}
+	if _readOnly {
+		switch _backend.(type) {
+		case db.Mutator, db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader:
+			return Models{}, relationFacadeBackendInvalid("read scope must not expose mutation or transaction capabilities")
+		}
+	}
 	if _scoped {
 		if _err := _scope.ValidateSession(context.Background()); _err != nil {
 			return Models{}, _err
 		}
 	}
-	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_state := &relationFacadeState{backend: _backend, readOnly: _readOnly, objects: _objects, sessionScope: _scope}
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "browser_inventory", ModelName: "asset"},
@@ -14554,4 +14608,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_9ceea4b11bb309f0d06675cd291fc4f09dd8712833dbe74602deff450298f8bb
+var _ goDjProjectSnapshot_8125caaa25d18cfcda82c7df3926bcb90ab1fda1158c2a43a2a9357ebb3678c1

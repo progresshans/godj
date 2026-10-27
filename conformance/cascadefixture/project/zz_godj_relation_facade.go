@@ -14,8 +14,8 @@ import (
 	strings "strings"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
-const GoDjProjectRelationFacadeInputSHA256 = "4d5ffb5148dc5bae58707dc559722d9ec1256389f4c0b661e8893b2e9888a6d6"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v29"
+const GoDjProjectRelationFacadeInputSHA256 = "8cb32a3408ea680c319a2e0933349f6492786fdf2eea68396fcac720f99ca919"
 
 type Backend interface {
 	db.Queryer
@@ -23,7 +23,8 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend            Backend
+	backend            db.Queryer
+	readOnly           bool
 	objects            Objects
 	models             relationFacadeBindings
 	reverseCollections ReverseObjects
@@ -1198,10 +1199,14 @@ func (_model *DetailsChild) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.ChildObjects.Save(_ctx, _model.state.backend, &_model.detailsChildModel); _err != nil {
+	if _err := details.ChildObjects.Save(_ctx, _mutator, &_model.detailsChildModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -2992,10 +2997,14 @@ func (_model *DetailsDetail) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.DetailObjects.Save(_ctx, _model.state.backend, &_model.detailsDetailModel); _err != nil {
+	if _err := details.DetailObjects.Save(_ctx, _mutator, &_model.detailsDetailModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -4713,10 +4722,14 @@ func (_model *DetailsGrandchild) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.GrandchildObjects.Save(_ctx, _model.state.backend, &_model.detailsGrandchildModel); _err != nil {
+	if _err := details.GrandchildObjects.Save(_ctx, _mutator, &_model.detailsGrandchildModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -6413,10 +6426,14 @@ func (_model *DetailsHidden) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.HiddenObjects.Save(_ctx, _model.state.backend, &_model.detailsHiddenModel); _err != nil {
+	if _err := details.HiddenObjects.Save(_ctx, _mutator, &_model.detailsHiddenModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -8134,10 +8151,14 @@ func (_model *DetailsOverlap) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.OverlapObjects.Save(_ctx, _model.state.backend, &_model.detailsOverlapModel); _err != nil {
+	if _err := details.OverlapObjects.Save(_ctx, _mutator, &_model.detailsOverlapModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -10042,10 +10063,14 @@ func (_model *DetailsProtected) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.ProtectedObjects.Save(_ctx, _model.state.backend, &_model.detailsProtectedModel); _err != nil {
+	if _err := details.ProtectedObjects.Save(_ctx, _mutator, &_model.detailsProtectedModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -11742,10 +11767,14 @@ func (_model *DetailsRequiredRight) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.RequiredRightObjects.Save(_ctx, _model.state.backend, &_model.detailsRequiredRightModel); _err != nil {
+	if _err := details.RequiredRightObjects.Save(_ctx, _mutator, &_model.detailsRequiredRightModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -13440,10 +13469,14 @@ func (_model *DetailsRight) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.RightObjects.Save(_ctx, _model.state.backend, &_model.detailsRightModel); _err != nil {
+	if _err := details.RightObjects.Save(_ctx, _mutator, &_model.detailsRightModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -15159,10 +15192,14 @@ func (_model *DetailsTwin) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.TwinObjects.Save(_ctx, _model.state.backend, &_model.detailsTwinModel); _err != nil {
+	if _err := details.TwinObjects.Save(_ctx, _mutator, &_model.detailsTwinModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -17074,10 +17111,14 @@ func (_model *DetailsWatcher) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := details.WatcherObjects.Save(_ctx, _model.state.backend, &_model.detailsWatcherModel); _err != nil {
+	if _err := details.WatcherObjects.Save(_ctx, _mutator, &_model.detailsWatcherModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -18736,10 +18777,14 @@ func (_model *ParentsLabel) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
-	if _err := parents.LabelObjects.Save(_ctx, _model.state.backend, &_model.parentsLabelModel); _err != nil {
+	if _err := parents.LabelObjects.Save(_ctx, _mutator, &_model.parentsLabelModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -19543,10 +19588,14 @@ func (_model *ParentsLeft) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := parents.LeftObjects.Save(_ctx, _model.state.backend, &_model.parentsLeftModel); _err != nil {
+	if _err := parents.LeftObjects.Save(_ctx, _mutator, &_model.parentsLeftModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -21266,10 +21315,14 @@ func (_model *ParentsNode) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := parents.NodeObjects.Save(_ctx, _model.state.backend, &_model.parentsNodeModel); _err != nil {
+	if _err := parents.NodeObjects.Save(_ctx, _mutator, &_model.parentsNodeModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -22984,10 +23037,14 @@ func (_model *ParentsRequiredLeft) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := parents.RequiredLeftObjects.Save(_ctx, _model.state.backend, &_model.parentsRequiredLeftModel); _err != nil {
+	if _err := parents.RequiredLeftObjects.Save(_ctx, _mutator, &_model.parentsRequiredLeftModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -24672,10 +24729,14 @@ func (_model *ParentsRoot) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := parents.RootObjects.Save(_ctx, _model.state.backend, &_model.parentsRootModel); _err != nil {
+	if _err := parents.RootObjects.Save(_ctx, _mutator, &_model.parentsRootModel); _err != nil {
 		return _err
 	}
 	_key, _present, _err := _model.relationFacadeCurrentPrimaryKey()
@@ -26404,10 +26465,14 @@ func (_model *ParentsRootLabels) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _err := _model.relationFacadePrepareSave(); _err != nil {
 		return _err
 	}
-	if _err := parents.RootLabelsObjects.Save(_ctx, _model.state.backend, &_model.parentsRootLabelsModel); _err != nil {
+	if _err := parents.RootLabelsObjects.Save(_ctx, _mutator, &_model.parentsRootLabelsModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -27564,11 +27629,14 @@ type Models struct {
 	ParentsRootLabels    ParentsRootLabelsQuery
 }
 
-func Using(_backend Backend) (Models, error) { return usingModels(_backend, false) }
+func Using(_backend Backend) (Models, error) { return usingModels(_backend, false, false) }
 
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
-func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
-func usingModels(_backend Backend, _borrowed bool) (Models, error) {
+func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true, false) }
+
+// UsingReadScope binds models to the caller-owned read snapshot. Models and caches expire with that scope; publish detached values only after successful cleanup.
+func UsingReadScope(_reader db.Queryer) (Models, error) { return usingModels(_reader, true, true) }
+func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error) {
 	_binding, _err := Bind()
 	if _err != nil {
 		return Models{}, _err
@@ -27584,12 +27652,18 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	if _borrowed != _scoped {
 		return Models{}, relationFacadeBackendInvalid("root and borrowed backend must use their matching constructor and session lifetime capability")
 	}
+	if _readOnly {
+		switch _backend.(type) {
+		case db.Mutator, db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader:
+			return Models{}, relationFacadeBackendInvalid("read scope must not expose mutation or transaction capabilities")
+		}
+	}
 	if _scoped {
 		if _err := _scope.ValidateSession(context.Background()); _err != nil {
 			return Models{}, _err
 		}
 	}
-	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_state := &relationFacadeState{backend: _backend, readOnly: _readOnly, objects: _objects, sessionScope: _scope}
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "cascadedetails", ModelName: "child"},
@@ -27760,4 +27834,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_9cc072630e93e523dd0afd7bc44e05a9ebd3a446df2d74689f2c3a3f8160798c
+var _ goDjProjectSnapshot_73633401d1ddd076397b9c243055fb0613ee522d765fa175c675a1dfd9a1ff6e

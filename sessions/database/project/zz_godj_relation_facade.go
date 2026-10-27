@@ -12,8 +12,8 @@ import (
 	reflect "reflect"
 )
 
-const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v28"
-const GoDjProjectRelationFacadeInputSHA256 = "1fceec6f1f8d200d327590f05c5ec650fdf5601aea52160dedb73b13f81d183e"
+const GoDjProjectRelationFacadeGeneratorVersion = "godj-codegen-rel-facade-project-current-v29"
+const GoDjProjectRelationFacadeInputSHA256 = "5619fc461d1e8b5bd952585df7201dd1cddcf6dfd0b8980c11f4a18a7bfabd7a"
 
 type Backend interface {
 	db.Queryer
@@ -21,7 +21,8 @@ type Backend interface {
 }
 
 type relationFacadeState struct {
-	backend      Backend
+	backend      db.Queryer
+	readOnly     bool
 	objects      Objects
 	models       relationFacadeBindings
 	sessionScope db.SessionValidator
@@ -789,10 +790,14 @@ func (_model *SessiondataSession) Save(_ctx context.Context) error {
 	if _err := relationFacadeContext(_ctx); _err != nil {
 		return _err
 	}
+	_mutator, _writable := _model.state.backend.(db.Mutator)
+	if !_writable || relationFacadeNil(_mutator) {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported, Detail: "model Save requires a writable backend"}
+	}
 	if _, _, _err := _model.relationFacadePrimaryKey(); _err != nil {
 		return _err
 	}
-	if _err := sessiondata.SessionObjects.Save(_ctx, _model.state.backend, &_model.sessiondataSessionModel); _err != nil {
+	if _err := sessiondata.SessionObjects.Save(_ctx, _mutator, &_model.sessiondataSessionModel); _err != nil {
 		return _err
 	}
 	return _model.relationFacadeRefreshSnapshots()
@@ -821,11 +826,14 @@ type Models struct {
 	SessiondataSession SessiondataSessionQuery
 }
 
-func Using(_backend Backend) (Models, error) { return usingModels(_backend, false) }
+func Using(_backend Backend) (Models, error) { return usingModels(_backend, false, false) }
 
 // UsingSession binds provisional models to the caller-owned transaction. Return errors from its callback and publish results only after confirmed commit.
-func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true) }
-func usingModels(_backend Backend, _borrowed bool) (Models, error) {
+func UsingSession(_session db.Session) (Models, error) { return usingModels(_session, true, false) }
+
+// UsingReadScope binds models to the caller-owned read snapshot. Models and caches expire with that scope; publish detached values only after successful cleanup.
+func UsingReadScope(_reader db.Queryer) (Models, error) { return usingModels(_reader, true, true) }
+func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error) {
 	_binding, _err := Bind()
 	if _err != nil {
 		return Models{}, _err
@@ -841,12 +849,18 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	if _borrowed != _scoped {
 		return Models{}, relationFacadeBackendInvalid("root and borrowed backend must use their matching constructor and session lifetime capability")
 	}
+	if _readOnly {
+		switch _backend.(type) {
+		case db.Mutator, db.Atomic, db.CoordinatedAtomic, db.RelationAtomic, db.CoordinatedRelationAtomic, db.SnapshotReader:
+			return Models{}, relationFacadeBackendInvalid("read scope must not expose mutation or transaction capabilities")
+		}
+	}
 	if _scoped {
 		if _err := _scope.ValidateSession(context.Background()); _err != nil {
 			return Models{}, _err
 		}
 	}
-	_state := &relationFacadeState{backend: _backend, objects: _objects, sessionScope: _scope}
+	_state := &relationFacadeState{backend: _backend, readOnly: _readOnly, objects: _objects, sessionScope: _scope}
 	_model0, _err := orm.BindModel(
 		_binding,
 		ir.ModelIdentity{AppLabel: "godj_sessions", ModelName: "session"},
@@ -862,4 +876,4 @@ func usingModels(_backend Backend, _borrowed bool) (Models, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_1259ae9eee8a0e7ef622bccd8f6a888846d8f1f0095cabbb0d2e7a7504100f28
+var _ goDjProjectSnapshot_82b24e2fbafeefc24a1471a4b6a3c0cce335cbab413b0e95b609d9535cc8a0ab

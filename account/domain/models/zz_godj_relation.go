@@ -89,4 +89,4 @@ func GoDjRelationSchema() ir.Schema {
 
 type GoDjAppPart1_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
 
-var _ GoDjProjectSnapshot_ff49d3cf11313aa69d7ff355dd8d46e70ab3a4c7cf02fbc6947992e67e43341d
+var _ GoDjProjectSnapshot_0baccb479a7bb1002f448218604e92af0e8079d7520b72b296eacff800e3c893

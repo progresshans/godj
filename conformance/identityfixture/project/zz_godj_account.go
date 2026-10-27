@@ -240,4 +240,4 @@ func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsess
 	return _godjaccountmodel.NewRuntime(ctx, backend, binding, accounts.GroupDescriptor{}, accounts.PermissionDescriptor{}, collections.AccountsUserGroups, collections.AccountsUserPermissions, collections.AccountsGroupPermissions, policies.AccountsUser, policies.AccountsGroup, policies.AccountsPermission, hasher, overlay, config)
 }
 
-var _ goDjProjectSnapshot_495c023a3466e60ebcc151260beb9b21fe3de0118b54cce94811485665a0f221
+var _ goDjProjectSnapshot_5399eac3c3d95a3039fd6c0588b12f04454c2300e014c40c40e915e01c775e43

@@ -11,10 +11,10 @@
 
 ## 다음
 
-1. 선택 계정 OpenAPI의 감사·PROTECT 처리 및 CI 실행 분할 수정을 #1에 반영하고 전체 원격 CI를 확인한다.
+1. 읽기 전용 생성 model 기반과 선택 계정 OpenAPI의 감사·PROTECT 후속 변경을 #1에서 전체 원격 검증한다.
    기본/custom 일곱 변형·독립 SDK·외부 operator·migration/restart·응답 유실과 현재 인가/감사의 필수 실행을 대조한다.
    실행 원본·로컬 캐시 재사용/정리와 판정은 TEST_EVIDENCE에 둔다.
-2. 남은 고정 Directory/Manager 소비자를 선택 계정 runtime으로 전환한다.
+2. Helpdesk의 현재 업무 인가·감사·browser를 포함한 남은 고정 Directory/Manager 소비자를 선택 계정 runtime으로 전환한다.
 3. 선택 모델-as-through의 identity 생성, 프로필 관계/파일·채운 DB mapping/retirement·복구/restart의 남은 요구를 완성한다.
 
 ## 검증 경계

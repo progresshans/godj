@@ -69,6 +69,7 @@ func runFacadeSessions(t *testing.T, b collectionBackend, open func() (collectio
 	check(t, err)
 	root, err := factory.OwnersOwnerLabels.From(b, owner)
 	check(t, err)
+	t.Run("read_scope", func(t *testing.T) { runFacadeReadScope(t, b, owner, a, bb) })
 	count := &countingCollectionBackend{collectionBackend: b}
 	api, err := project.Using(count)
 	check(t, err)

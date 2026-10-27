@@ -361,6 +361,12 @@ receipt와 22개 경로의 실제 호출을 작성했다. 기존 권한 회수·
 소스가 같은 임시 SDK module의 compile cache 재사용 검사와 현재 원격 실행 한도에 맞춘 필수 root 분할을 연결했다.
 한정 재현, 새 검사 및 전체 원격 수용을 TEST_EVIDENCE에서 구분한다.
 
+Helpdesk의 현재 계정 조회를 같은 native snapshot 안에서 실행하기 위해 생성 model에 `UsingReadScope`와
+다대다 관계의 `InReadScope`를 추가했다. 쓰기 기능 없이 typed query·select-related·중첩 prefetch와 관계를 읽으며
+model·warm/empty cache는 빌린 범위가 끝나면 만료된다. Root/쓰기 scope의 혼용·쓰기 시도·취소·cleanup 실패를
+SQLite/PostgreSQL 독립 생성 소비자의 필수 child로 연결했다. 생성물 갱신과 최소 compile을 실제 환경 실행과
+구분하며, Helpdesk의 선택 runtime·정책·업무 인가/감사 및 browser 전환은 계속 구현 중이다.
+
 프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 

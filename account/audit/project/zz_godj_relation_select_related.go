@@ -4,4 +4,4 @@ package project
 
 const GoDjProjectRelationSelectRelatedGeneratorVersion = "godj-codegen-rel-select-related-project-current-v9"
 
-var _ goDjProjectSnapshot_871c89a61739c59604bd7a5bd305d327d5fd23491073f2cd7cd4ce5fb21404d9
+var _ goDjProjectSnapshot_ac580065c020310a4720c1873705d623760cb49319be482d05a053ead5a81095

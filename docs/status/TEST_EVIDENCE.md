@@ -1988,6 +1988,28 @@ SDK source/lock 14개와 계정 프로젝트의 선택된 GoDj 의존 입력 557
 (SHA-256 `09125d823fb5485898e2b2326024e4166064a5ad5250ed0f55d7584f34bf075a`).
 새 source의 전체 DB·race/CGO0·process/platform·generated drift와 I1-01~08 수용은 계속 미완료다.
 
+### 읽기 전용 snapshot의 생성 model과 collection
+
+2026-10-27, 기준 source `a6d90fc59b4a288996b11ac37c71a402721e787e` 위에서 생성 facade v29의
+`UsingReadScope(reader)`와 `ManyToMany.InReadScope(reader, owner)`를 구현했다. `Queryer`와 live
+`SessionValidator`로 조회하며 root·쓰기/중첩 transaction capability·nil/만료된 scope를 거부한다.
+`Save`는 pending 관계를 조정하기 전에 쓰기 가능 여부를 검사하고, 기존 query/collection 쓰기 거부를 유지한다.
+
+독립 생성 소비자 `TestCollectionFacadeSessions`에 양 DB의 `read_scope`와 네 필수 child를 추가했다.
+실제 snapshot의 scalar·select-related·중첩 prefetch·정방향/역방향 collection, warm/empty cache 만료,
+없는 행의 `GetOrCreate` 입력 미평가·기존 행 조회, 빈 bulk/collection 쓰기 거부, 저장값 보존과 취소/cleanup의
+결과 비게시를 검사하도록 작성했다. 부모의 closed run/pass 목록에도 모두 추가했다. 기존 root·부정 검사는 유지했다.
+
+공개 `godj generate`로 Admin browser를 포함한 12개 프로젝트와 manifest를 갱신했다. Golden도 실제 생성기로 갱신했다.
+별도 module의 마지막 최소 compile은 8.12초에 통과했고, 부모 consumer와 진행 중인 Helpdesk의 최소 compile은
+4.33초에 통과했다. 두 명령 모두 `-run '^$'`이며 새 DB test body를 실행한 결과가 아니다. Helpdesk의 handwritten
+전환은 이번 게시 묶음에서 제외했고, 이 작업 트리의 compile 결과를 해당 기능의 수용 완료로 계산하지 않는다.
+
+검증 보관소 `gdj0138-readscope-v1/receipt.json`은 선별 source 199개 hash/patch, 실제 생성·compile 원본과
+제외한 Helpdesk source hash를 연결한다
+(SHA-256 `f2b742dbbc5fe9ff56e6dbb94e95dee92a767e668d408588705d0c1c44433d71`).
+이 source의 양 DB·race/CGO0·전체 platform/generated drift 및 I1 수용은 자동 전체 원격 CI에서 확인해야 한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

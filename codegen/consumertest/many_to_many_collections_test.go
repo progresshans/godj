@@ -63,6 +63,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/sessions_test.go", sessions)
+	readScope, err := os.ReadFile(filepath.Join("testdata", "manytomany", "read_scope_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/read_scope_test.go", readScope)
 	formSave, err := os.ReadFile(filepath.Join("testdata", "manytomany", "form_save_test.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -177,7 +182,7 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		for _, name := range []string{"reference", "nullable_and_self", "facade_query", "batch_and_failures", "concurrent_query", "ordinary_session_reads", "session"} {
 			required["TestCollectionPrefetch/"+backend+"/"+name] = false
 		}
-		for _, name := range []string{"facade_cache_and_origin", "borrowed_composition", "query_and_model_lifetime"} {
+		for _, name := range []string{"facade_cache_and_origin", "borrowed_composition", "query_and_model_lifetime", "read_scope", "read_scope/admission", "read_scope/reads_and_lifetime", "read_scope/writes_refused", "read_scope/cancel_and_cleanup"} {
 			required["TestCollectionFacadeSessions/"+backend+"/"+name] = false
 		}
 	}
