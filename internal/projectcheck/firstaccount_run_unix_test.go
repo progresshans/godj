@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/project/compatibility"
 	"github.com/progresshans/godj/project/firstaccount"
@@ -28,7 +29,7 @@ type firstAccountDescriptionBackend struct {
 func (*firstAccountDescriptionBackend) ToolInfo() compatibility.Info { return fixtureToolInfo() }
 func (backend *firstAccountDescriptionBackend) Execute(_ context.Context, _ <-chan struct{}, stage ProcessStage, command Command) ProcessResult {
 	backend.calls++
-	if stage != FirstAccountDescriptionStage || len(command.Argv) != 2 || command.Argv[1] != firstaccountwire.DescribeArgument || len(command.Stdin) != 0 {
+	if stage != FirstAccountDescriptionStage || len(command.Argv) != 2 || command.Argv[1] != firstaccountprotocol.DescribeArgument || len(command.Stdin) != 0 {
 		backend.t.Fatal("description used an ordinary or sensitive command", stage)
 	}
 	document := bytes.Clone(backend.document)
@@ -70,7 +71,7 @@ func TestFirstAccountParentChecksSourceClearsInputsAndPreservesCompletion(t *tes
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			description, spec := firstAccountParentDescription(t)
-			document, err := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountwire.Version, Description: &description})
+			document, err := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountprotocol.Version, Description: &description})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -184,7 +185,7 @@ func TestFirstAccountParentChecksSourceClearsInputsAndPreservesCompletion(t *tes
 				process: func(_ context.Context, _ <-chan struct{}, command createsuperuserProcessCommand, frame []byte, operation string) createsuperuserProcessResult {
 					processCalls++
 					assertCleared()
-					if len(command.argv) != 2 || command.argv[1] != firstaccountwire.ProvisionArgument || !reflect.DeepEqual(command.env, []string{"MODE=safe"}) {
+					if len(command.argv) != 2 || command.argv[1] != firstaccountprotocol.ProvisionArgument || !reflect.DeepEqual(command.env, []string{"MODE=safe"}) {
 						t.Fatal("secret operation used an ordinary transport")
 					}
 					request, err := firstaccountwire.DecodeRequest(frame)

@@ -110,6 +110,9 @@ func NewProfileEditor[M any](store *CredentialStore[M], overlay auth.Authorizer,
 	if err != nil {
 		return nil, err
 	}
+	if err := requireEditableProfileRelations(relations); err != nil {
+		return nil, err
+	}
 	files, dimensions, err := prepareProfileFiles(binding, config.Fields, config.Files)
 	if err != nil {
 		return nil, err

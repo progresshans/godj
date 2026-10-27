@@ -12,18 +12,15 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/project/firstaccount"
 )
 
 const (
-	Version            uint64 = 3
-	DescribeArgument          = "__godj_first_account_describe_v3"
-	ProvisionArgument         = "__godj_first_account_provision_v3"
-	Magic                     = "GODJFA3"
-	MaxPasswordBytes          = 4096
-	MaxNameBytes              = 128
-	requestHeaderBytes        = len(Magic) + 4 + 64 + 64 + 1 + 2
-	MaxRequestBytes           = requestHeaderBytes + firstaccount.MaxFields*(4+MaxNameBytes) + firstaccount.MaxInputBytes + MaxPasswordBytes + firstaccount.MaxUploadBytes + firstaccount.MaxFields*(6+firstaccount.MaxUploadNameBytes)
+	MaxPasswordBytes   = 4096
+	MaxNameBytes       = 128
+	requestHeaderBytes = len(firstaccountprotocol.Magic) + 4 + 64 + 64 + 1 + 2
+	MaxRequestBytes    = requestHeaderBytes + firstaccount.MaxFields*(4+MaxNameBytes) + firstaccount.MaxInputBytes + MaxPasswordBytes + firstaccount.MaxUploadBytes + firstaccount.MaxFields*(6+firstaccount.MaxUploadNameBytes)
 )
 
 var (
@@ -105,8 +102,8 @@ func EncodeRequest(request Request) ([]byte, error) {
 		return nil, ErrInvalidRequest
 	}
 	document := make([]byte, size)
-	copy(document, Magic)
-	offset := len(Magic)
+	copy(document, firstaccountprotocol.Magic)
+	offset := len(firstaccountprotocol.Magic)
 	binary.BigEndian.PutUint32(document[offset:], uint32(size))
 	offset += 4
 	copy(document[offset:], request.Fingerprint)
@@ -149,10 +146,10 @@ func EncodeRequest(request Request) ([]byte, error) {
 // buffers. In particular omission, exact field order, empty text and raw
 // password bytes are not normalized by a second input policy.
 func DecodeRequest(document []byte) (Request, error) {
-	if len(document) < requestHeaderBytes || len(document) > MaxRequestBytes || !bytes.Equal(document[:len(Magic)], []byte(Magic)) {
+	if len(document) < requestHeaderBytes || len(document) > MaxRequestBytes || !bytes.Equal(document[:len(firstaccountprotocol.Magic)], []byte(firstaccountprotocol.Magic)) {
 		return Request{}, ErrInvalidRequest
 	}
-	offset := len(Magic)
+	offset := len(firstaccountprotocol.Magic)
 	if binary.BigEndian.Uint32(document[offset:]) != uint32(len(document)) {
 		return Request{}, ErrInvalidRequest
 	}
@@ -239,7 +236,7 @@ func ReadRequest(reader io.Reader) (request Request, err error) {
 	if reader == nil {
 		return Request{}, ErrInputTransport
 	}
-	prefixBytes := len(Magic) + 4
+	prefixBytes := len(firstaccountprotocol.Magic) + 4
 	document = make([]byte, prefixBytes)
 	used, emptyReads, expected := 0, 0, 0
 	for {
@@ -255,10 +252,10 @@ func ReadRequest(reader io.Reader) (request Request, err error) {
 			return DecodeRequest(document[:used])
 		}
 		if expected == 0 && used == prefixBytes {
-			if !bytes.Equal(document[:len(Magic)], []byte(Magic)) {
+			if !bytes.Equal(document[:len(firstaccountprotocol.Magic)], []byte(firstaccountprotocol.Magic)) {
 				return Request{}, ErrInvalidRequest
 			}
-			announced := binary.BigEndian.Uint32(document[len(Magic):])
+			announced := binary.BigEndian.Uint32(document[len(firstaccountprotocol.Magic):])
 			if announced < uint32(requestHeaderBytes) || announced > uint32(MaxRequestBytes) {
 				return Request{}, ErrInvalidRequest
 			}

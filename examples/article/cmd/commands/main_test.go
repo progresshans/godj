@@ -17,6 +17,7 @@ import (
 	"github.com/progresshans/godj/examples/article/internal/accounts"
 	"github.com/progresshans/godj/examples/article/internal/commands"
 	"github.com/progresshans/godj/examples/article/modeldef"
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
@@ -31,7 +32,7 @@ func TestArticleCommandsProvisionSelectedAccountAndReopen(t *testing.T) {
 	registry, frame, operation := firstCommandFrame(t, path)
 	defer clear(frame)
 	var output bytes.Buffer
-	if err := registry.Serve(t.Context(), []string{firstaccountwire.ProvisionArgument}, command.Streams{Stdin: bytes.NewReader(frame), Stdout: &output}); err != nil {
+	if err := registry.Serve(t.Context(), []string{firstaccountprotocol.ProvisionArgument}, command.Streams{Stdin: bytes.NewReader(frame), Stdout: &output}); err != nil {
 		t.Fatal(err)
 	}
 	result, err := firstaccountwire.DecodeResponse(output.Bytes(), operation)
@@ -67,7 +68,7 @@ func TestArticleCommandsMainPreservesCreatedOutcomeOnBrokenStdout(t *testing.T) 
 	if err := reader.Close(); err != nil {
 		t.Fatal(err)
 	}
-	child := exec.CommandContext(t.Context(), binary, firstaccountwire.ProvisionArgument)
+	child := exec.CommandContext(t.Context(), binary, firstaccountprotocol.ProvisionArgument)
 	child.Dir, child.Env = root, commandEnvironment(path)
 	child.Stdin, child.Stdout = bytes.NewReader(frame), writer
 	var stderr bytes.Buffer
@@ -91,7 +92,7 @@ func firstCommandFrame(t *testing.T, path string) (command.Registry, []byte, str
 		t.Fatal(err)
 	}
 	var output bytes.Buffer
-	if err := registry.Serve(t.Context(), []string{firstaccountwire.DescribeArgument}, command.Streams{Stdout: &output}); err != nil {
+	if err := registry.Serve(t.Context(), []string{firstaccountprotocol.DescribeArgument}, command.Streams{Stdout: &output}); err != nil {
 		t.Fatal(err)
 	}
 	description, err := firstaccountwire.DecodeDescription(output.Bytes())

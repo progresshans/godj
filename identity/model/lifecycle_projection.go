@@ -19,6 +19,7 @@ type lifecycleMembershipKey struct {
 }
 type lifecycleMembershipSet struct{ before, after []int64 }
 type lifecycleProjection struct {
+	created *lifecycleEdit
 	effects map[deletionKey]orm.RelationDeleteEffect
 	sets    map[lifecycleMembershipKey]lifecycleMembershipSet
 	touches map[deletionKey]*deletionTouch
@@ -67,7 +68,8 @@ func (membership deletionMembership) project(ctx context.Context, scope db.Query
 				return managementError(CodePersistence, nil)
 			}
 			removed[row.key] = row
-			if row.sourceValid && row.targetValid {
+			insertedRoot := projection.created != nil && projection.created.key.model == membership.through && projection.created.key.id == row.key
+			if row.sourceValid && row.targetValid && !insertedRoot {
 				owners[row.source]++
 			}
 		}
@@ -90,6 +92,34 @@ func (membership deletionMembership) project(ctx context.Context, scope db.Query
 			}
 		}
 	}
+	// A typed root INSERT already exists in this transaction. When that
+	// identity row is itself a membership link, remove it from the logical
+	// before-set and project its endpoints as a new insertion. Otherwise a
+	// read made after INSERT would conceal the authority change.
+	var createdOwner int64
+	createdLink := false
+	if root := projection.created; root != nil && root.key.model == membership.through {
+		left, right := root.values[membership.source.Name()], root.values[membership.target.Name()]
+		effect := projection.effects[root.key]
+		if slices.Contains(effect.NullFields, membership.source.Name()) {
+			left = query.Null()
+		}
+		if slices.Contains(effect.NullFields, membership.target.Name()) {
+			right = query.Null()
+		}
+		source, sourceValid := left.Integer()
+		target, targetValid := right.Integer()
+		if !sourceValid && !(membership.source.Nullable() && left.IsNull()) || !targetValid && !(membership.target.Nullable() && right.IsNull()) {
+			return managementError(CodePersistence, nil)
+		}
+		if sourceValid && targetValid {
+			added[source] = append(added[source], target)
+			if _, found := owners[source]; !found {
+				owners[source] = 0
+			}
+			createdOwner, createdLink = source, true
+		}
+	}
 	ordered := make([]int64, 0, len(owners))
 	for id := range owners {
 		ordered = append(ordered, id)
@@ -102,7 +132,7 @@ func (membership deletionMembership) project(ctx context.Context, scope db.Query
 			}
 			continue
 		}
-		before, after, err := membership.projectedSets(ctx, scope, id, removed, owners[id])
+		before, after, err := membership.projectedSets(ctx, scope, id, removed, owners[id], projection.created)
 		if err != nil {
 			return err
 		}
@@ -125,13 +155,16 @@ func (membership deletionMembership) project(ctx context.Context, scope db.Query
 				touch = &deletionTouch{key: owner}
 				projection.touches[owner] = touch
 			}
+			if createdLink && id == createdOwner {
+				touch.direct = true
+			}
 			touch.collections = append(touch.collections, membership.field)
 		}
 	}
 	return nil
 }
 
-func (membership deletionMembership) projectedSets(ctx context.Context, scope db.Queryer, owner int64, removed map[int64]deletionLink, expected int) ([]int64, []int64, error) {
+func (membership deletionMembership) projectedSets(ctx context.Context, scope db.Queryer, owner int64, removed map[int64]deletionLink, expected int, created *lifecycleEdit) ([]int64, []int64, error) {
 	before, after := make(map[int64]bool), make(map[int64]bool)
 	var last int64
 	started, seen := false, 0
@@ -154,6 +187,9 @@ func (membership deletionMembership) projectedSets(ctx context.Context, scope db
 				return nil, nil, managementError(CodePersistence, nil)
 			}
 			if !row.targetValid {
+				continue
+			}
+			if created != nil && created.key.model == membership.through && row.key == created.key.id {
 				continue
 			}
 			before[row.target] = true

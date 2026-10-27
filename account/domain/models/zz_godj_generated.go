@@ -552,4 +552,4 @@ func transitionMetadata() ir.Model {
 
 type GoDjAppPart0_f7325da5814df4375abb72fbee7988036ce99e0c94a18f4fcdeefdb3d8904308 struct{}
 
-type GoDjProjectSnapshot_0baccb479a7bb1002f448218604e92af0e8079d7520b72b296eacff800e3c893 struct{}
+type GoDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42 struct{}

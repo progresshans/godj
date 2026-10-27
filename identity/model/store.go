@@ -26,6 +26,7 @@ type credentialStoreState[M any] struct {
 	relations        *accountRelationReader
 	probeSchema      func(context.Context, db.Queryer) (bool, error)
 	relatedLifecycle func(*SessionStore[M], Binding[M], auth.Authorizer, AccountDeleteConfig) (*deletionLifecycle[M], error)
+	firstLifecycle   func(*CredentialStore[M], Binding[M], AccountDeleteConfig) (*deletionLifecycle[M], error)
 }
 
 func (CredentialStore[M]) Format(state fmt.State, _ rune) {
@@ -80,6 +81,9 @@ func prepareCredentialStore[M, G, P any](binding Binding[M], groups orm.Relation
 		probeSchema: probe,
 		relatedLifecycle: func(sessions *SessionStore[M], expected Binding[M], overlay auth.Authorizer, config AccountDeleteConfig) (*deletionLifecycle[M], error) {
 			return newLifecycle(sessions, expected, groups, permissions, overlay, config, false)
+		},
+		firstLifecycle: func(store *CredentialStore[M], expected Binding[M], config AccountDeleteConfig) (*deletionLifecycle[M], error) {
+			return newLifecycleFromCredentials(store, expected, groups, permissions, auth.PrincipalAuthorizer{}, config, false, nil)
 		},
 	}, nil
 }

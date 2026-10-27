@@ -143,7 +143,7 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 		assertAccountRoleHTTP(t, backend, binding, authenticator, sessionStore, roleEditor, roleReader, actor.Principal(), "alice", roleTarget, team.ID, grants[0].ID, "first_name", "Managed")
 	})
 	creationConfig := creationConsumerConfig[models.User](role, "first_name")
-	creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, creationConfig)
+	creator, err := project.NewAccountCreator(sessionStore, auth.PrincipalAuthorizer{}, hasher, creationConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

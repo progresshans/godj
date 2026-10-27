@@ -24,6 +24,7 @@ import (
 
 	"github.com/creack/pty"
 	"github.com/progresshans/godj/codegen"
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/project/compatibility"
@@ -108,7 +109,7 @@ func main() {
 `))
 	parameters := struct{ ModelImport, ModelType, Profile, ProvisionArgument string }{
 		ModelImport: "example.com/godj-project-bundle/models", ModelType: "User", Profile: strconv.Quote("first_name"),
-		ProvisionArgument: strconv.Quote(firstaccountwire.ProvisionArgument),
+		ProvisionArgument: strconv.Quote(firstaccountprotocol.ProvisionArgument),
 	}
 	if custom {
 		parameters.ModelImport, parameters.ModelType, parameters.Profile = "example.com/godj-project-bundle/people", "Member", strconv.Quote("region")

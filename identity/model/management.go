@@ -91,8 +91,8 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 	if err != nil {
 		return nil, err
 	}
-	creator, err := NewCreator(store, expected, memberships, grants, overlay, verifier.hasher, CreationConfig[M]{
-		CreationPolicy: CreationPolicy[M]{Fields: config.CreateFields, Relations: selectProfileRelations(relations, config.CreateFields), Files: selectProfileFiles(files, config.CreateFields), Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
+	creator, err := NewCreator(sessions, expected, memberships, grants, overlay, verifier.hasher, CreationConfig[M]{
+		CreationPolicy: CreationPolicy[M]{RelatedPermissions: RelatedRowPermissions{Account: DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}, Group: config.GroupPermissions, Permission: config.PermissionPermissions}, Fields: config.CreateFields, Relations: selectProfileRelations(relations, config.CreateFields), Files: selectProfileFiles(files, config.CreateFields), Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
 			MaxPasswordBytes: config.MaxPasswordBytes, CaseInsensitiveLogin: config.CaseInsensitiveCreationLogin, PrincipalID: config.PrincipalID, Now: config.Now},
 		AddPermission: policy.Add, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 	})

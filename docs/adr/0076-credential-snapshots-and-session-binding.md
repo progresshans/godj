@@ -1100,7 +1100,7 @@ deny overlay는 같은 scope에서 계속 확인한다. 이 생성 의미와 별
 
 ## 선택 계정의 typed 생성과 해시 준비
 
-생성 `NewAccountCreator`와 `identity/model.Creator[M]`는 기존 credential store와 같은 전체 host source·역할 정책·
+생성 `NewAccountCreator`와 `identity/model.Creator[M]`는 명시적으로 받은 동일 `SessionStore[M]`의 전체 host source·역할 정책·
 실제 account Groups/Permissions capability를 사용한다. `CreationPolicy.Fields`는 login·scalar/FK/OneToOne/file profile·editable role flag와
 직접 소속을 명시한다. 관계 프로필에는 명시적 `Relations`, 파일에는 `Files` 정책과 아래의 Form 생성 경로가 필요하다.
 Principal identity·encoded password·revision·선택된 서버 시각은 입력으로 받지 않는다. 일반 ModelInput은 파일 참조·이미지 크기를 대입하지 못한다.
@@ -1127,8 +1127,22 @@ commit 시도를 공유한다. 다른 owner/actor/domain 또는 진입 전 취�
 unique(실제 hash 포함)와 typed/password policy를 native write fence 안에서 다시 검사한다. Callback은 별도 모델 사본을 받고
 password 필드는 비워 전달하며, 소속 getter도 사본을 반환한다. Callback은 reader를 보관/변경/재진입하거나 외부 효과를 내지 않는다.
 
-Force insert·두 membership·현재 domain의 값 없는 audit를 같은 relation transaction으로 확정한다. 공개 결과에는 ID·revision·
-변경 필드만 있고 implicit profile 조회 권한은 없다. Cleanup/rollback/unknown 실패는 결과를 버리고 자동 재시도하지 않는다.
+Force insert로 얻은 실제 key는 잠정 값이다. 두 membership을 하나의 collection batch로 준비하고, INSERT 직후 존재한
+관계까지 포함한 삭제·NULL·삽입 효과를 편집과 같은 수명 owner에서 검증한다. 추가 selected-model 효과에는
+`CreationPolicy.RelatedPermissions`의 해당 change/delete·추가 권한이 필요하다. 같은 fence에서 INSERT 전에 확인한
+actor만 효과 인가에 사용하며, INSERT가 새로 부여한 권한으로 추가 효과를 승인하지 않는다.
+
+실제 typed 계정 행이 catalog 권한 관계의 through인 경우 그 행을 논리적인 이전 소속에서 제외하고 최종 소속에 반영한다.
+현재/최종 권한 합집합·필요한 owner revision·값 없는 audit를 대조한다. 동일한 물리 link가 하나 늘어도 논리 소속이 같으면
+추가 membership revision/audit를 만들지 않으며, 해당 owner의 현재 change 권한은 계속 필요하다. 이 endpoint의
+`ProfileRelation`은 생성에서만 사용할 수 있고 ProfileEditor/AccountEditor의 scalar 편집에서는 구성 시 거부한다.
+일반 collection setter가 선택 계정/catalog identity 행을 자동 생성하는 조립은 별도의 미완료 요구다.
+
+관계·동반 scalar·세션 폐기·audit를 적용한 뒤 typed/password policy와 unique를 최종 그래프에서 다시 확인한다. 이 시점의
+candidate에는 실제 key가 있고, 자기 행은 unique/IExact 조회에서 제외한다. Hash는 늘 한 번이며 validator에는 비밀번호를
+비운 사본을 전달한다. 최종 scalar 저장과 전체 그래프 readback까지 같은 native transaction에서 확인한다.
+공개 결과에는 ID·revision·변경 필드·폐기한 세션 수만 있고 implicit profile 조회 권한은 없다.
+Cleanup/rollback/unknown 실패는 결과를 버리고 자동 재시도하지 않는다.
 확정 commit 뒤 취소는 성공을 지우지 않는다. 시도를 가져올 때 공개 준비 객체의 비밀 참조를 해제하고 실제 callback 소유의
 지역 값으로 넘겨, 잘못된 backend가 callback 종료 전에 반환해도 cleanup과 callback의 데이터 경합을 만들지 않는다.
 Go 문자열 메모리의 강제 소거를 보장하는 API는 아니다. 준비 결과를 포기하면 참조를 버린다.
@@ -1156,6 +1170,9 @@ Active·staff·superuser는 서버가 모두 true로 고정한다. 해당 역할
 
 `Commit`은 fresh-state 및 실제 hash를 포함한 최종 검증, domain 초기화, typed account insert·소속 저장·첫 audit를
 하나의 coordinated relation transaction에 묶는다. 처음 생성한 domain-bound active/staff/superuser가 첫 감사의 actor다.
+같은 생성 collection/lifecycle 경로로 through endpoint의 catalog 소속도 검증한다. 기존 계정이 없는 새 domain의
+operator owner는 session revocation capability를 만들지 않으며, 예상 밖의 계정 폐기가 필요하면 실패한다.
+관계 선택 callback에는 최종 검증에서도 인증 actor를 전달하지 않고 명시적 FirstAccount origin을 유지한다.
 확정된 계정 metadata와 ownership receipt만 게시하며 실패/unknown 결과에는 잠정 계정이나 receipt가 없다.
 준비 객체의 operation ID는 시도 뒤에도 남는다. Unknown 뒤에는 그 receipt와 write fence를 명시적으로 대조해야 하며,
 조회에서 receipt가 없다는 사실만으로 rollback을 확정하거나 같은 입력을 자동 재실행하지 않는다.
@@ -1173,7 +1190,7 @@ backend를 받은 뒤 독립적인 최초 생성 owner를 만든다. 선언을 �
 `ProjectBinding.SourceSHA256()`은 정규화된 전체 모델과 incoming/forward/reverse/M2M 정책을 식별한다.
 독립 binding과 schema 입력 순서가 달라도 같은 source는 같은 digest를 갖는다. 이 metadata digest는 인증이나 capability가
 아니며 실제 typed 기능의 완전한 `ValidateSource` 검사를 대체하지 않는다. 선언 fingerprint는 이 source와 account role,
-선택 필드·password 한도·대소문자 생성 정책·호스트의 `EvidenceSHA256`을 묶는다. Go closure의 실제 동작을 주소로
+선택 필드·password 한도·대소문자 생성 정책·관련 효과 권한·호스트의 `EvidenceSHA256`을 묶는다. Go closure의 실제 동작을 주소로
 해시하거나 검증했다고 주장하지 않는다. 호스트는 callback 정책이 바뀌면 그에 해당하는 evidence도 갱신한다.
 
 `project/firstaccount.Command`는 생성 선언에서 실제 ModelForm을 만들어 DB 연결 전 입력을 준비한다. Description은

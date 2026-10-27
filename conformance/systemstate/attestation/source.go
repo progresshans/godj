@@ -97,6 +97,7 @@ var productSourcePrefixes = []string{
 	"internal/projectcheck/failurecode/",
 	"internal/projectcheck/createsuperuserprotocol/",
 	"internal/firstaccountwire/",
+	"internal/firstaccountprotocol/",
 	"internal/projectcheck/migrateprotocol/",
 	"internal/projectcheck/protocol/",
 	"internal/projectcheck/showmigrationsprotocol/",

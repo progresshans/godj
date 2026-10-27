@@ -13,6 +13,7 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/project/firstaccount"
@@ -189,7 +190,7 @@ func runFirstAccount(input FirstAccountInvocation, hooks firstAccountParentHooks
 		return finish()
 	}
 	command := newCreatesuperuserProcessCommand(prepared.command.selected.rootPath,
-		[]string{prepared.binary, firstaccountwire.ProvisionArgument}, prepared.command.workspace.environment)
+		[]string{prepared.binary, firstaccountprotocol.ProvisionArgument}, prepared.command.workspace.environment)
 	report.RunnerCalls++
 	expected := len(frame)
 	process := hooks.process(input.Context, input.Interrupt, command, frame, operationID)
@@ -258,7 +259,7 @@ func describeFirstAccount(input FirstAccountInvocation, prepared preparedProject
 	report.DescriptionCalls++
 	report.RunnerCalls++
 	process := input.Backend.Execute(ctx, input.Interrupt, FirstAccountDescriptionStage, cloneCommand(Command{
-		Dir: prepared.command.selected.rootPath, Argv: []string{prepared.binary, firstaccountwire.DescribeArgument},
+		Dir: prepared.command.selected.rootPath, Argv: []string{prepared.binary, firstaccountprotocol.DescribeArgument},
 		Env: prepared.command.workspace.environment,
 	}))
 	recordProcess(&report.Report, FirstAccountDescriptionStage, process)

@@ -876,4 +876,4 @@ func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error)
 	}, nil
 }
 
-var _ goDjProjectSnapshot_ac580065c020310a4720c1873705d623760cb49319be482d05a053ead5a81095
+var _ goDjProjectSnapshot_2b8ec1a68948e1bd1fe54398949cfb230137c21f02837623d0f8815f5b8eee38

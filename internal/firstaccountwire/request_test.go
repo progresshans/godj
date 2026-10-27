@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/project/firstaccount"
 )
@@ -72,16 +73,16 @@ func TestRequestChecksWholeFrameAndBounds(t *testing.T) {
 			t.Fatalf("truncation at byte %d accepted", n)
 		}
 	}
-	header := len(firstaccountwire.Magic) + 4 + 64 + 64 + 1 + 2
+	header := len(firstaccountprotocol.Magic) + 4 + 64 + 64 + 1 + 2
 	for _, test := range []struct {
 		name   string
 		change func([]byte) []byte
 	}{
 		{"trailing", func(b []byte) []byte { return append(b, 0) }},
 		{"magic", func(b []byte) []byte { b[0] = '!'; return b }},
-		{"version", func(b []byte) []byte { b[len(firstaccountwire.Magic)-1] = '1'; return b }},
-		{"zero_fingerprint", func(b []byte) []byte { copy(b[len(firstaccountwire.Magic)+4:], strings.Repeat("0", 64)); return b }},
-		{"invalid_operation", func(b []byte) []byte { b[len(firstaccountwire.Magic)+4+64] = 'B'; return b }},
+		{"version", func(b []byte) []byte { b[len(firstaccountprotocol.Magic)-1] = '1'; return b }},
+		{"zero_fingerprint", func(b []byte) []byte { copy(b[len(firstaccountprotocol.Magic)+4:], strings.Repeat("0", 64)); return b }},
+		{"invalid_operation", func(b []byte) []byte { b[len(firstaccountprotocol.Magic)+4+64] = 'B'; return b }},
 		{"zero_fields", func(b []byte) []byte { b[header-3] = 0; return b }},
 		{"too_many_fields", func(b []byte) []byte { b[header-3] = firstaccount.MaxFields + 1; return b }},
 		{"zero_password", func(b []byte) []byte { binary.BigEndian.PutUint16(b[header-2:], 0); return b }},
@@ -232,7 +233,7 @@ func FuzzRequest(f *testing.F) {
 	files, _ := firstaccountwire.EncodeRequest(uploadRequest())
 	f.Add(files)
 	f.Add([]byte{})
-	f.Add([]byte(firstaccountwire.Magic))
+	f.Add([]byte(firstaccountprotocol.Magic))
 	f.Fuzz(func(t *testing.T, document []byte) {
 		request, err := firstaccountwire.DecodeRequest(document)
 		if err != nil {

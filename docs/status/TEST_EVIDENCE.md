@@ -2344,6 +2344,54 @@ capture source 범위에도 포함했다. 이 목록 대조는 계획 검사이�
 push로 시작하는 자동 전체 CI에서 확인한다. I1의 추가 M2M·선택 모델-as-through 생성·채운 DB 전환/복구/restart와
 전체 카탈로그 수용은 미완료다.
 
+### 선택 계정 생성의 관계 수명과 선행 ABI·재시작 실패 수정
+
+2026-10-28, source `3375a01575cb33938861d93a77b493fb6970b93f` 위에 일반/첫 계정 생성의 collection·수명 처리를 연결했다.
+일반 Creator는 같은 SessionStore를 명시적으로 받고, 두 소속의 삭제·NULL·삽입 전체와 관련 계정/catalog의 현재 권한·
+revision·session·audit를 함께 검증한다. 실제 typed 계정 행 자체가 권한 관계의 through인 경우 INSERT 이전의 논리 소속과
+최종 소속을 구분한다. 신규 identity가 부여한 grant를 추가 효과 인가에 쓰지 않으며, endpoint의 일반 scalar 편집은 거부한다.
+최종 그래프에서 validation·unique와 현재 행 제외·전체 readback을 확인하고, 일반 생성은 확정된 폐기 session 수도 반환한다.
+첫 operator는 명시적 origin과 새 domain을 유지하며 예상 밖의 계정 폐기 요구는 실패한다.
+
+생성 팩토리 ABI v18의 관리 중인 12개 bundle을 갱신했다. API 교체의 상호 참조 때문에 각 프로젝트를 독립적으로 먼저
+컴파일할 수 없어 전체 후보 overlay를 compile-only로 확인한 뒤, 동일 byte의 후보/manifest를 기존 publisher에 전달했다.
+임시 bootstrap 수정은 원복한 뒤 게시했고, 다른 코드나 생성물 보호 조건을 우회하는 제품 fallback을 추가하지 않았다.
+
+양 DB native 소비자에는 생성 직후 실제 scope의 link·계정 관계를 만든 뒤 전체 효과를 검사하는 8개 경우를 작성했다.
+확정 저장·누락된 효과 정책·INSERT로 얻은 권한 거부·자기 삭제 거부·최종 validation rollback·unknown rollback/commit·
+cleanup 실패를 실제 세션/감사/재접속 상태로 대조한다. 이 probe는 backend별 trigger DDL의 실행 증거가 아니다.
+별도 기본/custom 생성 module에는 초기 계정과 일반 계정-as-through 생성, 중복 physical pair의 논리 no-op,
+권한/정책/validator 거부·unknown·0/음수 target key·scalar 편집 거부·restart와 독립 감사 조회 11개 경우를 작성했다.
+새 수명·DB 테스트 본문은 로컬에서 실행하지 않았다.
+
+선행 [CI 40565478013](https://github.com/progresshans/godj/actions/runs/40565478013)에서 두 실패 계열을 확인했다.
+원본 checkout `196c8cd5f26abcc71fded1b3d564508ac5430c2f`의 tree `de34faf2c0fba68d0a4724d5198e81bf72d90ac6`는
+제출 3375 source와 같고 그 parent를 포함한다. Project check `122406528108`와 conformance `122406528480`의
+MIG-137은 metadata-only compatibility가 첫 계정 실행 패키지를 import하며 이미지/S3 의존성을 요구한 실패였다.
+네트워크와 module cache가 없는 동일 경계를 선행 source에서 재현했고, ABI 선언을 독립 `internal/firstaccountprotocol`로
+옮긴 뒤 같은 executable compile이 성공했다. 실제 MIG-137 전체 본문의 로컬 재실행으로 계산하지 않는다.
+새 독립 offline build 회귀 검사를 원격 필수 목록에 연결했다.
+
+Portable product `122406528526`와 PostgreSQL product `122406528747`은 실제 초기 계정 결과의 새로운
+`file_report_failed`를 닫힌 소비자 decoder가 반영하지 않아 실패했다. 필드를 필수 형태/성공 조건에 포함하며 unknown-field·
+canonical frame 검사는 유지했다. 선행 source의 별도 checkout snapshot에서 실제
+`TestGlobalMigrateAuthenticatedArticleRestartDurability` 실패를 재현하고, 해당 수정만 적용한 snapshot에서 통과했다
+(명령 39.95초/30.51초). 이 결과는 SQLite의 한정 재시작 검사이며 새 생성 수명 소스나 PostgreSQL 전체 수용 결과가 아니다.
+
+로컬 darwin/arm64 Go 1.26.5에서 실제 외부 생성 module 12개를 compile-only로 확인했다(232.44초).
+최종 감사 검사 보강 뒤 새 through module 두 개도 다시 compile-only로 확인했다(5.80초).
+영향 package 17개의 compile/실제 binary 목록 확인은 148.27초이며 새 기능 본문을 실행하지 않았다.
+임시 driver는 보관 후 제거했고 최종 consumer binary의 discovery를 다시 확인했다.
+Relation 필수 4,532개·PostgreSQL 필수 5,661개·portable core 270개·TTY/process 25개에서 기존 항목을 삭제하지 않았다.
+실제 consumer root 115개와 12개 native 좌표/세 PostgreSQL mode의 단일 실행 담당 대조는 아래 보관된 실행 계획을 따른다.
+이 목록 검사는 실제 본문의 run/pass를 대신하지 않는다.
+
+원본 로그·source 결합, 선행 실패의 한정 재현/수정, 생성 overlay·외부 module/native compile·실행 목록과 변경 hash는
+검증 보관소의 `gdj0138-creation-graph-v1/receipt-final.json`에 둔다(SHA-256 `68aaa9c2522d1fe2e8672f37269eac3dac1b980ab116ba198fb09defd38a216d`).
+새 source의 SQLite/PostgreSQL·race/CGO0·generated drift·TTY/process/browser/platform 전체 실행과 원본/capture 대조는
+push로 시작하는 자동 전체 CI 확인 대상이다. 추가 M2M profile, 일반 collection의 선택 identity through 자동 생성,
+채운 DB 전환·복구/restart와 남은 고정 소비자 및 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

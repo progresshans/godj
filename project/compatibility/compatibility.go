@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/progresshans/godj/codegen"
-	"github.com/progresshans/godj/internal/firstaccountwire"
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/migrateprotocol"
 	"github.com/progresshans/godj/internal/projectcheck/protocol"
 	"github.com/progresshans/godj/internal/projectcheck/showmigrationsprotocol"
@@ -54,7 +54,7 @@ func Current() Info {
 		Schema: ir.CurrentFormatVersion, Bundle: codegen.ProjectBundleFormatVersion, Generator: codegen.ProjectGeneratorABI(),
 		MigrationCheck: protocol.Version, Generate: generateprotocol.Version, MakeMigrations: migrationprotocol.Version,
 		Migrate: migrateprotocol.Version, ShowMigrations: showmigrationsprotocol.Version, SQLMigrate: sqlmigrateprotocol.Version,
-		CreateSuperuser: firstaccountwire.Version, Commands: CommandVersion, Runserver: runservercontrol.Version,
+		CreateSuperuser: firstaccountprotocol.Version, Commands: CommandVersion, Runserver: runservercontrol.Version,
 	}}
 }
 

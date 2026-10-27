@@ -1123,4 +1123,4 @@ func accessGuardMetadata() ir.Model {
 
 type GoDjAppPart0_13d3106f2d075c336dabe7dcab19ca4b5630a7ef037186119e522784b53532ec struct{}
 
-type GoDjProjectSnapshot_5399eac3c3d95a3039fd6c0588b12f04454c2300e014c40c40e915e01c775e43 struct{}
+type GoDjProjectSnapshot_3c9df213f38faa69111b2c5b8eec0f72687e78731cd140bf4a571d89601b9b80 struct{}

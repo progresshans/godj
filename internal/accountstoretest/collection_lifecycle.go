@@ -45,6 +45,15 @@ func runCollectionLifecycle(t *testing.T, open Open, storedKey StoredKeyFixture)
 			}
 		})
 	}
+	t.Run("collection_account_creation", func(t *testing.T) {
+		for _, mode := range []string{"effects_allowed", "new_authority_denied", "missing_effect_policy", "root_deleted", "validator_rollback", "unknown_rollback", "unknown_commit", "cleanup_failure"} {
+			t.Run(mode, func(t *testing.T) {
+				backend, reopen := open(t)
+				migrateDeletion(t, backend)
+				collectionAccountCreation(t, backend, reopen, mode)
+			})
+		}
+	})
 	t.Run("collection_catalog_creation", func(t *testing.T) {
 		for _, mode := range []string{"effects_allowed", "new_authority_denied", "validator_rollback"} {
 			t.Run(mode, func(t *testing.T) {

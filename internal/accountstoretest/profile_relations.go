@@ -205,7 +205,7 @@ func profileRelationRecheck(t *testing.T, backend Backend, reopen func(*testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, accountmodel.CreationConfig[people.Member]{
+	creator, err := project.NewAccountCreator(f.store, auth.PrincipalAuthorizer{}, hasher, accountmodel.CreationConfig[people.Member]{
 		CreationPolicy: accountmodel.CreationPolicy[people.Member]{Fields: []string{"contact", "region", "sponsor"}, Relations: []accountmodel.ProfileRelation[people.Member]{sponsorRelation(t, f.binding)}},
 		AddPermission:  "account.add", ChangePermission: "account.change",
 	})

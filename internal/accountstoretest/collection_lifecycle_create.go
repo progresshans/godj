@@ -27,6 +27,7 @@ type lifecycleCreationScope struct {
 	db.RelationSession
 	afterInsert func(context.Context, db.RelationSession, int64) error
 	createdID   int64
+	table       string
 	called      bool
 }
 
@@ -38,7 +39,11 @@ func (scope *lifecycleCreationScope) InsertOnConflict(ctx context.Context, plan 
 }
 func (scope *lifecycleCreationScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	key, err := scope.RelationSession.Insert(ctx, plan)
-	if err != nil || plan.Table() != "access_team" {
+	table := scope.table
+	if table == "" {
+		table = "access_team"
+	}
+	if err != nil || plan.Table() != table {
 		return key, err
 	}
 	if scope.called {

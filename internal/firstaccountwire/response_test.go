@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/project/firstaccount"
 )
@@ -29,7 +30,7 @@ func descriptionFixture(t testing.TB) firstaccount.Description {
 
 func TestDescriptionRetainsTypedDeclarationAndRejectsOpenShapes(t *testing.T) {
 	description := descriptionFixture(t)
-	document, err := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountwire.Version, Description: &description})
+	document, err := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountprotocol.Version, Description: &description})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +55,7 @@ func TestDescriptionRetainsTypedDeclarationAndRejectsOpenShapes(t *testing.T) {
 		}
 	}
 	for _, code := range []firstaccountwire.Code{firstaccountwire.InvalidConfig, firstaccountwire.Canceled, firstaccountwire.InternalError} {
-		encoded, err := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountwire.Version, Code: code})
+		encoded, err := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountprotocol.Version, Code: code})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -67,7 +68,7 @@ func TestDescriptionRetainsTypedDeclarationAndRejectsOpenShapes(t *testing.T) {
 func TestResponseBindsOperationAndPreservesCommitUnknownCleanup(t *testing.T) {
 	for _, outcome := range []firstaccountwire.Outcome{firstaccountwire.Created, firstaccountwire.Unknown, firstaccountwire.NotCreated} {
 		for _, cleanup := range []bool{false, true} {
-			response := firstaccountwire.Response{Version: firstaccountwire.Version, OperationID: operationID, Outcome: outcome, CleanupFailed: cleanup}
+			response := firstaccountwire.Response{Version: firstaccountprotocol.Version, OperationID: operationID, Outcome: outcome, CleanupFailed: cleanup}
 			if outcome == firstaccountwire.Unknown {
 				response.Code = firstaccountwire.OutcomeUnknown
 			}
@@ -87,7 +88,7 @@ func TestResponseBindsOperationAndPreservesCommitUnknownCleanup(t *testing.T) {
 			}
 		}
 	}
-	response := firstaccountwire.Response{Version: firstaccountwire.Version, OperationID: operationID, Outcome: firstaccountwire.Created}
+	response := firstaccountwire.Response{Version: firstaccountprotocol.Version, OperationID: operationID, Outcome: firstaccountwire.Created}
 	document, _ := firstaccountwire.EncodeResponse(response)
 	for _, bad := range [][]byte{
 		bytes.Replace(document, []byte(`"outcome":"created"`), []byte(`"outcome":"unknown"`), 1),
@@ -107,7 +108,7 @@ func TestResponseBindsOperationAndPreservesCommitUnknownCleanup(t *testing.T) {
 		t.Fatal("response without parent operation accepted")
 	}
 	for _, code := range []firstaccountwire.Code{firstaccountwire.InvalidRequest, firstaccountwire.InputTransportFailed, firstaccountwire.Canceled} {
-		document, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountwire.Version, Outcome: firstaccountwire.NotCreated, Code: code})
+		document, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountprotocol.Version, Outcome: firstaccountwire.NotCreated, Code: code})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -118,7 +119,7 @@ func TestResponseBindsOperationAndPreservesCommitUnknownCleanup(t *testing.T) {
 }
 
 func FuzzResponse(f *testing.F) {
-	document, _ := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountwire.Version, OperationID: operationID, Outcome: firstaccountwire.Created})
+	document, _ := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountprotocol.Version, OperationID: operationID, Outcome: firstaccountwire.Created})
 	f.Add(document)
 	f.Add([]byte(`{}`))
 	f.Fuzz(func(t *testing.T, input []byte) {
@@ -135,7 +136,7 @@ func FuzzResponse(f *testing.F) {
 
 func FuzzDescription(f *testing.F) {
 	description := descriptionFixture(f)
-	document, _ := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountwire.Version, Description: &description})
+	document, _ := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountprotocol.Version, Description: &description})
 	f.Add(document)
 	f.Add([]byte(`{}`))
 	f.Fuzz(func(t *testing.T, input []byte) {

@@ -12,6 +12,7 @@ import (
 
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/internal/callback"
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/project/firstaccount"
 	"github.com/progresshans/godj/query"
@@ -71,20 +72,20 @@ func (err *Error) ExitCode() int {
 // closes every returned resource before its sole result publication.
 // No ordinary command handler, logger, argv parser or retry sees the input.
 func Serve(ctx context.Context, command firstaccount.Command, argv []string, stdin io.Reader, stdout io.Writer) (handled bool, err error) {
-	if len(argv) == 0 || argv[0] != firstaccountwire.DescribeArgument && argv[0] != firstaccountwire.ProvisionArgument {
+	if len(argv) == 0 || argv[0] != firstaccountprotocol.DescribeArgument && argv[0] != firstaccountprotocol.ProvisionArgument {
 		return false, nil
 	}
-	if len(argv) != 1 || nilValue(ctx) || nilValue(stdout) || argv[0] == firstaccountwire.ProvisionArgument && nilValue(stdin) {
+	if len(argv) != 1 || nilValue(ctx) || nilValue(stdout) || argv[0] == firstaccountprotocol.ProvisionArgument && nilValue(stdin) {
 		return true, &Error{code: "invalid_invocation"}
 	}
-	if argv[0] == firstaccountwire.DescribeArgument {
+	if argv[0] == firstaccountprotocol.DescribeArgument {
 		return true, describe(ctx, command, stdout)
 	}
 	return true, provision(ctx, command, stdin, stdout)
 }
 
 func describe(ctx context.Context, command firstaccount.Command, stdout io.Writer) error {
-	response := firstaccountwire.DescriptionResponse{Version: firstaccountwire.Version}
+	response := firstaccountwire.DescriptionResponse{Version: firstaccountprotocol.Version}
 	if ctx.Err() != nil {
 		response.Code = firstaccountwire.Canceled
 	} else {
@@ -103,7 +104,7 @@ func describe(ctx context.Context, command firstaccount.Command, stdout io.Write
 }
 
 func provision(ctx context.Context, command firstaccount.Command, stdin io.Reader, stdout io.Writer) error {
-	response := firstaccountwire.Response{Version: firstaccountwire.Version, Outcome: firstaccountwire.NotCreated}
+	response := firstaccountwire.Response{Version: firstaccountprotocol.Version, Outcome: firstaccountwire.NotCreated}
 	complete := func() error {
 		document, err := firstaccountwire.EncodeResponse(response)
 		if err != nil {

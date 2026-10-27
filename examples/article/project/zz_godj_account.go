@@ -14,7 +14,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v17"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v18"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -91,12 +91,8 @@ func NewAccountPasswordResetter(store *_godjaccountmodel.SessionStore[identity.U
 }
 
 // NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.
-func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[identity.User]) (*_godjaccountmodel.Creator[identity.User], error) {
+func NewAccountCreator(store *_godjaccountmodel.SessionStore[identity.User], overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[identity.User]) (*_godjaccountmodel.Creator[identity.User], error) {
 	binding, err := BindAccount()
-	if err != nil {
-		return nil, err
-	}
-	store, err := _godjaccountmodel.NewCredentialStore(backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{})
 	if err != nil {
 		return nil, err
 	}
@@ -240,4 +236,4 @@ func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsess
 	return _godjaccountmodel.NewRuntime(ctx, backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, collections.IdentityGroupPermissions, policies.IdentityUser, policies.IdentityGroup, policies.IdentityPermission, hasher, overlay, config)
 }
 
-var _ goDjProjectSnapshot_d2805fd6269fdb9817f2804da0d57c011fec254f9315bca579a93562c3b3c01c
+var _ goDjProjectSnapshot_ad1ed6999a1b0674462e4460c9f5abee09306f8764ce5e1f95fe9e0358e8a8bf

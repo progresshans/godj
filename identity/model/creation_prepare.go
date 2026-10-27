@@ -171,7 +171,16 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 			return err
 		}
 		login, _ := values[role.Login].String()
-		exists, err := binding.state.objects.Using(scope).Filter(state.store.state.login.IExact(login)).Exists(ctx)
+		selected := binding.state.objects.Using(scope).Filter(state.store.state.login.IExact(login))
+		if candidate.stored {
+			key, present, err := binding.state.objects.PrimaryKey(candidate.row)
+			id, integer := key.Integer()
+			if err != nil || !present || !integer {
+				return invalidAccountCredential()
+			}
+			selected = selected.Filter(orm.Not(state.store.state.key.Exact(id)))
+		}
+		exists, err := selected.Exists(ctx)
 		if err != nil {
 			return err
 		}

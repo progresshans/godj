@@ -125,7 +125,7 @@ func firstAccountLifecycle(t *testing.T, backend Backend, reopen func(*testing.T
 		t.Fatal("pre-entry cancel lost", err)
 	}
 	result, err := owner.Commit(t.Context(), pending)
-	if err != nil || result.Account.Revision != 1 || result.Ownership.Sequence() != 1 || result.Ownership.OperationID() != operationID || result.Ownership.EvidenceSHA256() != config.EvidenceSHA256 || hasher.calls.Load() != 1 || validations != 2 || strengths != 2 {
+	if err != nil || result.Account.Revision != 1 || result.Ownership.Sequence() != 1 || result.Ownership.OperationID() != operationID || result.Ownership.EvidenceSHA256() != config.EvidenceSHA256 || hasher.calls.Load() != 1 || validations != 3 || strengths != 3 {
 		t.Fatal("first commit did not coordinate ownership/policy", err)
 	}
 	row := profileRow(t, reopen(t), result.Account.ID)

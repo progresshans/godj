@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/internal/projectcheck/createsuperuserprotocol"
 	"github.com/progresshans/godj/project/firstaccount"
@@ -27,7 +28,7 @@ func firstAccountResponse(t *testing.T, operation string, outcome firstaccountwi
 	} else if outcome == firstaccountwire.NotCreated {
 		code = firstaccountwire.InvalidInput
 	}
-	document, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountwire.Version,
+	document, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountprotocol.Version,
 		OperationID: operation, Outcome: outcome, Code: code, CleanupFailed: cleanup})
 	if err != nil {
 		t.Fatal(err)
@@ -287,7 +288,7 @@ func TestFirstAccountProcessHelper(t *testing.T) {
 	}
 	operation := request.OperationID
 	request.Clear()
-	response, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountwire.Version, OperationID: operation, Outcome: firstaccountwire.Created})
+	response, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountprotocol.Version, OperationID: operation, Outcome: firstaccountwire.Created})
 	if err != nil || firstaccountwire.Write(os.Stdout, response) != nil {
 		os.Exit(93)
 	}

@@ -6,10 +6,9 @@ import (
 	"slices"
 	"time"
 
-	accountaudit "github.com/progresshans/godj/account/audit"
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/validation"
 )
@@ -55,14 +54,16 @@ func (state *creationState[M]) encodeCandidate(ctx context.Context, namespace au
 	return nil
 }
 
-// All results from insertIn are provisional. The owning operation must append
-// audit and confirm the SAME native transaction before publishing anything.
-func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSession, namespace auth.CredentialDomain, candidate *creationCandidate[M]) (M, Creation, error) {
+// The typed INSERT supplies a key but is still provisional. All requested
+// memberships are collected together, including deletions caused by a database
+// rule. The same lifecycle validates affected account/catalog rows, revisions,
+// sessions and audit; authority is the actor observed before this INSERT.
+func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSession, namespace auth.CredentialDomain, actor auth.Principal, candidate *creationCandidate[M], at time.Time, operator bool) (M, Creation, error) {
 	var zero M
-	if candidate == nil || candidate.form != nil || len(candidate.pendingFiles) != 0 {
+	if candidate == nil || candidate.form != nil || len(candidate.pendingFiles) != 0 || state.lifecycle == nil {
 		return zero, Creation{}, managementError(CodeInvalidInput, nil)
 	}
-	objects := state.store.state.binding.state.objects
+	objects := state.binding.state.objects
 	row, err := objects.ApplyValues(candidate.row, nil)
 	if err != nil {
 		return zero, Creation{}, err
@@ -70,17 +71,14 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 	if err := candidate.prepared.Save(ctx, scope, &row); err != nil {
 		return zero, Creation{}, err
 	}
-	if _, err := state.store.state.binding.prepareCredentialForDomain(namespace, row, nil); err != nil {
+	credential, err := state.binding.prepareCredentialForDomain(namespace, row, nil)
+	if err != nil {
 		return zero, Creation{}, err
 	}
-	if len(candidate.groups) != 0 {
-		if err := state.saveGroups(ctx, scope, row, candidate.groups); err != nil {
-			return zero, Creation{}, err
-		}
-	}
-	if len(candidate.permissions) != 0 {
-		if err := state.savePermissions(ctx, scope, row, candidate.permissions); err != nil {
-			return zero, Creation{}, err
+	if operator {
+		actor = credential.Principal()
+		if !actor.Active() || !actor.Staff() || !actor.Superuser() || !credential.HasUsablePassword() {
+			return zero, Creation{}, invalidAccountCredential()
 		}
 	}
 	key, present, err := objects.PrimaryKey(row)
@@ -88,17 +86,73 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 	if err != nil || !present || !integer {
 		return zero, Creation{}, invalidAccountCredential()
 	}
-	return row, Creation{ID: id, Revision: 1, ChangedFields: slices.Clone(state.auditFields)}, nil
-}
-func (state *creationState[M]) auditIn(ctx context.Context, scope db.Session, actor auth.Principal, result Creation) error {
-	return state.auditAtIn(ctx, scope, actor, result, state.config.Now())
-}
-func (state *creationState[M]) auditAtIn(ctx context.Context, scope db.Session, actor auth.Principal, result Creation, at time.Time) error {
-	role := state.store.state.binding.state.role
-	event, err := accountaudit.Prepare(actor, role.Model.AppLabel+"."+role.Model.ModelName, result.ID, admin.ActionAdd, result.ChangedFields, at)
-	if err != nil {
-		return err
+	var changes []orm.CollectionChange
+	for _, collection := range []struct {
+		keys    []int64
+		prepare func(M, []int64) (orm.CollectionChange, error)
+	}{{candidate.groups, state.groupsChange}, {candidate.permissions, state.permissionsChange}} {
+		change, err := collection.prepare(row, collection.keys)
+		if err != nil {
+			return zero, Creation{}, err
+		}
+		changes = append(changes, change)
 	}
-	_, err = accountaudit.AppendIn(ctx, scope, event)
-	return err
+	batch, err := orm.PrepareCollectionChangesInSession(ctx, scope, changes...)
+	if err != nil {
+		return zero, Creation{}, err
+	}
+	if err := batch.ValidateSource(state.binding.state.project); err != nil {
+		return zero, Creation{}, err
+	}
+	values, err := objects.ModelValues(row)
+	if err != nil {
+		return zero, Creation{}, err
+	}
+	effects := batch.Effects()
+	plan, err := state.lifecycle.prepare(ctx, scope, actor, effects.Deletions(), effects.Insertions(), &lifecycleEdit{
+		key: deletionKey{state.binding.state.role.Model, id}, revision: 1, required: state.required,
+		fields: slices.Clone(state.auditFields), values: values, created: true, operator: operator, at: at,
+	})
+	if err != nil {
+		return zero, Creation{}, err
+	}
+	final := map[string]query.Value{state.binding.state.role.Revision: query.Integer(plan.rootRevision)}
+	for _, field := range plan.root.nulls {
+		final[field] = query.Null()
+	}
+	prepared, err := objects.PrepareValues(&row, final)
+	if err != nil {
+		return zero, Creation{}, err
+	}
+	finalRow, err := prepared.Model()
+	if err != nil {
+		return zero, Creation{}, err
+	}
+	revoked := 0
+	if err := batch.Apply(ctx, func(work context.Context, _ orm.CollectionChangeEffects) error {
+		var err error
+		revoked, err = plan.apply(work, scope)
+		return err
+	}); err != nil {
+		return zero, Creation{}, err
+	}
+	// Validators and uniqueness now see the final collected graph. The
+	// candidate's key excludes its own provisional row from uniqueness.
+	checked := *candidate
+	checked.row, checked.prepared, checked.stored = finalRow, prepared, true
+	operation := ProfileRelationCreate
+	if operator {
+		operation = ProfileRelationFirstAccount
+		actor = auth.Principal{}
+	}
+	if err := state.checkCandidate(ctx, scope, namespace, actor, operation, &checked, true); err != nil {
+		return zero, Creation{}, err
+	}
+	if err := prepared.Save(ctx, scope, &finalRow); err != nil {
+		return zero, Creation{}, err
+	}
+	if err := plan.verify(ctx, scope); err != nil {
+		return zero, Creation{}, err
+	}
+	return finalRow, Creation{ID: id, Revision: plan.rootRevision, RevokedSessions: revoked, ChangedFields: lifecycleChangedFields(state.metadata, plan.root)}, nil
 }

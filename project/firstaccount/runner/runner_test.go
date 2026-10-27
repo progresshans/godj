@@ -21,6 +21,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
@@ -111,7 +112,7 @@ func runRequest(t *testing.T, command firstaccount.Command, ctx context.Context,
 	}
 	defer clear(document)
 	var output bytes.Buffer
-	handled, err := runner.Serve(ctx, command, []string{firstaccountwire.ProvisionArgument}, bytes.NewReader(document), &output)
+	handled, err := runner.Serve(ctx, command, []string{firstaccountprotocol.ProvisionArgument}, bytes.NewReader(document), &output)
 	if !handled || err != nil {
 		t.Fatal("private invocation failed", err)
 	}
@@ -135,7 +136,7 @@ func TestDescriptionAndRejectedInputNeverAcquireBackend(t *testing.T) {
 	command := commandFixture(t, func(context.Context) (firstaccount.Backend, error) { opens.Add(1); return backend, nil })
 	reader := &forbiddenReader{}
 	var output bytes.Buffer
-	handled, err := runner.Serve(t.Context(), command, []string{firstaccountwire.DescribeArgument}, reader, &output)
+	handled, err := runner.Serve(t.Context(), command, []string{firstaccountprotocol.DescribeArgument}, reader, &output)
 	if !handled || err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +164,7 @@ func TestDescriptionAndRejectedInputNeverAcquireBackend(t *testing.T) {
 			}
 		})
 	}
-	for _, args := range [][]string{{firstaccountwire.ProvisionArgument, "password"}, {firstaccountwire.DescribeArgument, "extra"}} {
+	for _, args := range [][]string{{firstaccountprotocol.ProvisionArgument, "password"}, {firstaccountprotocol.DescribeArgument, "extra"}} {
 		if handled, err := runner.Serve(t.Context(), command, args, reader, &output); !handled || err == nil {
 			t.Fatal("private argv accepted extra input")
 		}
@@ -174,14 +175,14 @@ func TestDescriptionAndRejectedInputNeverAcquireBackend(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 	output.Reset()
-	if handled, err := runner.Serve(ctx, command, []string{firstaccountwire.ProvisionArgument}, reader, &output); !handled || err != nil {
+	if handled, err := runner.Serve(ctx, command, []string{firstaccountprotocol.ProvisionArgument}, reader, &output); !handled || err != nil {
 		t.Fatal("pre-entry cancellation failed", err)
 	}
 	if response, err := firstaccountwire.DecodeResponse(output.Bytes(), operation); err != nil || response.Code != firstaccountwire.Canceled || response.OperationID != "" {
 		t.Fatal("pre-entry cancellation read the frame")
 	}
 	output.Reset()
-	if _, err := runner.Serve(t.Context(), command, []string{firstaccountwire.ProvisionArgument}, strings.NewReader("malformed private frame"), &output); err != nil {
+	if _, err := runner.Serve(t.Context(), command, []string{firstaccountprotocol.ProvisionArgument}, strings.NewReader("malformed private frame"), &output); err != nil {
 		t.Fatal(err)
 	}
 	if response, err := firstaccountwire.DecodeResponse(output.Bytes(), operation); err != nil || response.Code != firstaccountwire.InvalidRequest || response.OperationID != "" {
@@ -365,7 +366,7 @@ func TestNativeOutcomeSurvivesCleanupCancellationAndPublication(t *testing.T) {
 			if outputFailed {
 				writer = fault
 			}
-			err = registry.Serve(ctx, []string{firstaccountwire.ProvisionArgument}, projectcommand.Streams{Stdin: bytes.NewReader(document), Stdout: writer, Stderr: &logs})
+			err = registry.Serve(ctx, []string{firstaccountprotocol.ProvisionArgument}, projectcommand.Streams{Stdin: bytes.NewReader(document), Stdout: writer, Stderr: &logs})
 			if outputFailed {
 				wantExit := firstaccountwire.KnownCreatedResponseFailureExitCode
 				if mode == "close_error_output_error" {

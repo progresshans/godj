@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 )
 
@@ -20,7 +21,7 @@ func TestFirstAccountFileReportsPreserveCommitUnknownCleanupAndHandoff(t *testin
 			if outcome == firstaccountwire.Unknown {
 				code = firstaccountwire.OutcomeUnknown
 			}
-			document, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountwire.Version, OperationID: operation, Outcome: outcome, Code: code, CleanupFailed: cleanup, FileReportFailed: true})
+			document, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountprotocol.Version, OperationID: operation, Outcome: outcome, Code: code, CleanupFailed: cleanup, FileReportFailed: true})
 			if err != nil {
 				t.Fatal(err)
 			}

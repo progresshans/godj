@@ -35,6 +35,8 @@ type CreationValidator[M any] func(context.Context, db.Queryer, M, RoleMembershi
 type CreationPolicy[M any] struct {
 	Fields    []string
 	Relations []ProfileRelation[M]
+	// RelatedPermissions governs selected-model effects of the collected creation graph.
+	RelatedPermissions RelatedRowPermissions
 	// Files configures selected file fields for CreateForm. Raw ModelInput
 	// never acquires permission to assign file references or image dimensions.
 	Files            []ProfileFile[M]
@@ -66,25 +68,26 @@ type CreationConfig[M any] struct {
 type Creator[M any] struct{ state *creationState[M] }
 type creationState[M any] struct {
 	*creationDefinition[M]
-	store    *CredentialStore[M]
-	backend  db.CoordinatedRelationAtomic
-	overlay  auth.Authorizer
-	required []auth.Permission
+	store     *CredentialStore[M]
+	backend   db.CoordinatedRelationAtomic
+	overlay   auth.Authorizer
+	required  []auth.Permission
+	lifecycle *deletionLifecycle[M]
 }
 
 type creationDefinition[M any] struct {
-	binding                     Binding[M]
-	hasher                      auth.PasswordHasher
-	metadata                    ir.Model
-	fields                      []string
-	allowed                     map[string]bool
-	relations                   []ProfileRelation[M]
-	files                       []ProfileFile[M]
-	dimensions                  map[string]string
-	config                      CreationPolicy[M]
-	forced                      map[string]query.Value
-	auditFields                 []string
-	saveGroups, savePermissions func(context.Context, db.Session, M, []int64) error
+	binding                         Binding[M]
+	hasher                          auth.PasswordHasher
+	metadata                        ir.Model
+	fields                          []string
+	allowed                         map[string]bool
+	relations                       []ProfileRelation[M]
+	files                           []ProfileFile[M]
+	dimensions                      map[string]string
+	config                          CreationPolicy[M]
+	forced                          map[string]query.Value
+	auditFields                     []string
+	groupsChange, permissionsChange func(M, []int64) (orm.CollectionChange, error)
 }
 
 func (Creator[M]) Format(state fmt.State, _ rune) {
@@ -92,18 +95,26 @@ func (Creator[M]) Format(state fmt.State, _ rune) {
 }
 
 // NewCreator is normally called by the generated project factory. The selected
-// role and both actual collection capabilities must match the credential
-// store's complete source. Construction performs no I/O or password work.
-func NewCreator[M, G, P, GL, PL any](store *CredentialStore[M], expected Binding[M], groups orm.ManyToMany[M, G, GL], permissions orm.ManyToMany[M, P, PL], overlay auth.Authorizer, hasher auth.PasswordHasher, config CreationConfig[M]) (*Creator[M], error) {
-	if nilModelValue(overlay) {
+// role and both actual collection capabilities must match the session
+// owner's complete source. Construction performs no I/O or password work.
+func NewCreator[M, G, P, GL, PL any](sessions *SessionStore[M], expected Binding[M], groups orm.ManyToMany[M, G, GL], permissions orm.ManyToMany[M, P, PL], overlay auth.Authorizer, hasher auth.PasswordHasher, config CreationConfig[M]) (*Creator[M], error) {
+	if sessions == nil || sessions.state == nil || nilModelValue(overlay) {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
+	store := sessions.state.credentials
 	required, err := auth.RequiredPermissions(config.AddPermission, append([]auth.Permission{config.ChangePermission}, config.AdditionalPermissions...)...)
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 
 	state, err := newCreationState(store, expected, groups, permissions, hasher, config.CreationPolicy, nil)
+	if err != nil {
+		return nil, err
+	}
+	if store.state.relatedLifecycle == nil {
+		return nil, managementError(CodeInvalidConfig, nil)
+	}
+	state.lifecycle, err = store.state.relatedLifecycle(sessions, expected, overlay, creationLifecycleConfig(state.config))
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +153,18 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 		if err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
+	}
+	if err := validateAccountCollectionStorage(project, role, []string{role.Groups, role.Permissions}); err != nil {
+		return nil, managementError(CodeInvalidConfig, err)
+	}
+	for _, policy := range []*DeletionPermissions{&config.RelatedPermissions.Account, &config.RelatedPermissions.Group, &config.RelatedPermissions.Permission} {
+		if _, err := lifecycleRequiredPermissions(policy.Change, policy.Additional, false); err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
+		if _, err := lifecycleRequiredPermissions(policy.Delete, policy.Additional, false); err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
+		policy.Additional = slices.Clone(policy.Additional)
 	}
 	metadata, err := binding.state.objects.Metadata()
 	if err != nil {
@@ -221,20 +244,8 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 	config.Relations = nil
 	config.Files = nil
 	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, files: files, dimensions: dimensions, config: config, forced: maps.Clone(forced), auditFields: auditFields}
-	state.saveGroups = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
-		collection, err := groups.InSession(scope, row)
-		if err != nil {
-			return err
-		}
-		return collection.SetKeys(ctx, keys)
-	}
-	state.savePermissions = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
-		collection, err := permissions.InSession(scope, row)
-		if err != nil {
-			return err
-		}
-		return collection.SetKeys(ctx, keys)
-	}
+	state.groupsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return groups.SetKeysChange(row, keys) }
+	state.permissionsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return permissions.SetKeysChange(row, keys) }
 	return state, nil
 }
 
@@ -279,6 +290,7 @@ type creationCandidate[M any] struct {
 	unusable            bool
 	form                *formmodel.BoundForm
 	pendingFiles        []string
+	stored              bool
 }
 
 func (PreparedCreation[M]) Format(state fmt.State, _ rune) {
@@ -367,8 +379,9 @@ func (creator *Creator[M]) prepare(ctx context.Context, actor auth.Principal, in
 
 // Creation publishes only confirmed metadata, without granting profile access.
 type Creation struct {
-	ID, Revision  int64
-	ChangedFields []string
+	RevokedSessions int
+	ID, Revision    int64
+	ChangedFields   []string
 }
 
 // Commit binds copies to one creator, actor AND domain, and one write attempt.
@@ -402,13 +415,11 @@ func (creator *Creator[M]) Commit(ctx context.Context, actor auth.Principal, pre
 			return Creation{}, err
 		}
 		namespace, _ := currentActor.CredentialDomain()
-		_, result, err := state.insertIn(work, scope, namespace, input)
-		if err != nil {
-			return Creation{}, err
-		}
-		if err := state.auditIn(work, scope, currentActor, result); err != nil {
-			return Creation{}, err
-		}
-		return result, nil
+		_, result, err := state.insertIn(work, scope, namespace, currentActor, input, time.Time{}, false)
+		return result, err
 	})
+}
+
+func creationLifecycleConfig[M any](policy CreationPolicy[M]) AccountDeleteConfig {
+	return AccountDeleteConfig{Account: policy.RelatedPermissions.Account, Group: policy.RelatedPermissions.Group, Permission: policy.RelatedPermissions.Permission, Now: policy.Now}
 }

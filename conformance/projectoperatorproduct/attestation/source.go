@@ -87,6 +87,7 @@ var productSourcePrefixes = []string{
 	"internal/callback/",
 	"internal/diagnosticlog/",
 	"internal/firstaccountwire/",
+	"internal/firstaccountprotocol/",
 	"internal/runservercontrol/",
 	"events/",
 	"admin/",

@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/sessions"
 )
 
 // DeletionPermissions covers direct row effects on one selected model. A
@@ -61,7 +62,8 @@ type deletionModel struct {
 	load           func(context.Context, db.Session, auth.CredentialDomain, int64) (deletionStored, error)
 }
 type deletionLifecycle[M any] struct {
-	sessions    *SessionStore[M]
+	credentials *CredentialStore[M]
+	revoke      func(context.Context, db.Session, string, sessions.ID) (int, error)
 	overlay     auth.Authorizer
 	models      map[ir.ModelIdentity]deletionModel
 	memberships []deletionMembership
@@ -73,10 +75,19 @@ func newDeletionLifecycle[M, G, P any](sessionStore *SessionStore[M], expected B
 }
 
 func newLifecycle[M, G, P any](sessionStore *SessionStore[M], expected Binding[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P], overlay auth.Authorizer, config AccountDeleteConfig, requireAll bool) (*deletionLifecycle[M], error) {
-	if sessionStore == nil || sessionStore.state == nil || expected.state == nil || nilModelValue(overlay) {
+	if sessionStore == nil || sessionStore.state == nil {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
-	store := sessionStore.state.credentials
+	return newLifecycleFromCredentials(sessionStore.state.credentials, expected, groups, permissions, overlay, config, requireAll, sessionStore.RevokeIn)
+}
+
+// First-account provisioning has no older accounts in its new domain. It uses
+// the same collector with no revocation capability; an unexpected revocation
+// is an error, never an ignored effect or a fabricated session owner.
+func newLifecycleFromCredentials[M, G, P any](store *CredentialStore[M], expected Binding[M], groups orm.RelationObjectDescriptor[G], permissions orm.RelationObjectDescriptor[P], overlay auth.Authorizer, config AccountDeleteConfig, requireAll bool, revoke func(context.Context, db.Session, string, sessions.ID) (int, error)) (*deletionLifecycle[M], error) {
+	if expected.state == nil || nilModelValue(overlay) {
+		return nil, managementError(CodeInvalidConfig, nil)
+	}
 	if err := store.valid(); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
@@ -101,7 +112,7 @@ func newLifecycle[M, G, P any](sessionStore *SessionStore[M], expected Binding[M
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
-	state := &deletionLifecycle[M]{sessions: sessionStore, overlay: overlay, models: make(map[ir.ModelIdentity]deletionModel), now: config.Now}
+	state := &deletionLifecycle[M]{credentials: store, revoke: revoke, overlay: overlay, models: make(map[ir.ModelIdentity]deletionModel), now: config.Now}
 	if state.now == nil {
 		state.now = time.Now
 	}

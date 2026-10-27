@@ -70,7 +70,7 @@ func (deleter *AccountDeleter[M]) Delete(ctx context.Context, actor auth.Princip
 		return AccountDeletion{}, managementError(CodePermission, nil)
 	}
 	state := deleter.state
-	store := state.lifecycle.sessions.state.credentials
+	store := state.lifecycle.credentials
 	binding := store.state.binding
 	return managementRelationWrite(ctx, state.backend, func(work context.Context, scope db.RelationSession) (AccountDeletion, error) {
 		current, allowed, err := store.AuthorizeIn(work, scope, actor, state.lifecycle.overlay, state.required[0], state.required[1:]...)

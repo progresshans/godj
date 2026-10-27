@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/wirejson"
 	"github.com/progresshans/godj/project/firstaccount"
 )
@@ -53,7 +54,7 @@ type Response struct {
 }
 
 func validResponse(response Response) bool {
-	if response.Version != Version {
+	if response.Version != firstaccountprotocol.Version {
 		return false
 	}
 	if response.OperationID == "" {
@@ -104,7 +105,7 @@ type DescriptionResponse struct {
 }
 
 func validDescriptionResponse(response DescriptionResponse) bool {
-	if response.Version != Version {
+	if response.Version != firstaccountprotocol.Version {
 		return false
 	}
 	if response.Description != nil {

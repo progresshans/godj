@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 )
 
@@ -17,7 +18,7 @@ func TestFileReportFailurePreservesDatabaseOutcomeAndRequiresCanonicalField(t *t
 			code = firstaccountwire.OutcomeUnknown
 		}
 		for _, cleanup := range []bool{false, true} {
-			response := firstaccountwire.Response{Version: firstaccountwire.Version, OperationID: operationID, Outcome: outcome, Code: code, CleanupFailed: cleanup, FileReportFailed: true}
+			response := firstaccountwire.Response{Version: firstaccountprotocol.Version, OperationID: operationID, Outcome: outcome, Code: code, CleanupFailed: cleanup, FileReportFailed: true}
 			document, err := firstaccountwire.EncodeResponse(response)
 			if err != nil {
 				t.Fatal(err)
@@ -37,7 +38,7 @@ func TestFileReportFailurePreservesDatabaseOutcomeAndRequiresCanonicalField(t *t
 			}
 		}
 	}
-	if _, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountwire.Version, Outcome: firstaccountwire.NotCreated, Code: firstaccountwire.InvalidRequest, FileReportFailed: true}); err == nil {
+	if _, err := firstaccountwire.EncodeResponse(firstaccountwire.Response{Version: firstaccountprotocol.Version, Outcome: firstaccountwire.NotCreated, Code: firstaccountwire.InvalidRequest, FileReportFailed: true}); err == nil {
 		t.Fatal("pre-input rejection claimed a publication report")
 	}
 }

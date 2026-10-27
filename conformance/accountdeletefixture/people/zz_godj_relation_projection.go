@@ -179,4 +179,4 @@ func (_scan *memberGrantsLinkProjectionScan) Decode() (MemberGrantsLink, query.V
 
 type GoDjAppPart3_de3d33afc5b22cb7560f7b19d73e7792c578f5a02dce131437bb07e42e083cae struct{}
 
-var _ GoDjProjectSnapshot_584a8092e0fc2e250f487ee0c01d5cfe01d49aa0a7c51b5e72f5fa1cddabee8e
+var _ GoDjProjectSnapshot_bdd3a1262d28901571fe0ba2b836208551bc09df9b3124de36c26c8965a9ef30

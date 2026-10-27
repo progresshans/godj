@@ -78,6 +78,7 @@ func TestComputeSourceBindingStalesOnMigrationQueryAndSchemaMutation(t *testing.
 		"project/firstaccount/files.go",
 		"uploads/buffer.go",
 		"internal/firstaccountwire/request.go",
+		"internal/firstaccountprotocol/protocol.go",
 		"account/audit/migrations/godj_account_audit_0001_initial.godj.json",
 		"sessions/database/migrations/godj_sessions_0001_initial.godj.json",
 		"sessions/database/store.go",

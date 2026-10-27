@@ -20,6 +20,7 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -32,7 +33,15 @@ func creationInput(t *testing.T, login string) orm.ModelInput[models.User] {
 }
 func accountCreator(t *testing.T, backend db.SnapshotReader, hasher auth.PasswordHasher, config accountmodel.CreationConfig[models.User]) *accountmodel.Creator[models.User] {
 	t.Helper()
-	creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, config)
+	credentials, err := project.NewAccountCredentialStore(backend)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions, err := accountmodel.NewSessionStore(credentials, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	creator, err := project.NewAccountCreator(sessions, auth.PrincipalAuthorizer{}, hasher, config)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +102,11 @@ func creationLifecycle(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 	validations, passwordValidations := 0, 0
 	config.Validate = func(_ context.Context, _ db.Queryer, row models.User, selection accountmodel.RoleMemberships) (validation.Errors, error) {
 		validations++
-		if row.Username != "new-user" || row.ID != 0 || row.Revision != 1 || row.EncodedPassword != "" || row.LastLogin != nil || !row.DateJoined.Equal(joined) {
+		_, stored, err := models.UserObjects.PrimaryKey(row)
+		if err != nil || stored != (validations == 3) {
+			t.Fatal("creation validation did not preserve pre-insert and final-key stages", err)
+		}
+		if row.Username != "new-user" || row.Revision != 1 || row.EncodedPassword != "" || row.LastLogin != nil || !row.DateJoined.Equal(joined) {
 			t.Fatal("typed creation policy lost normalized/server state")
 		}
 		if groups := selection.Groups(); len(groups) > 0 {
@@ -134,7 +147,7 @@ func creationLifecycle(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 		t.Fatal("pre-entry cancellation lost", err)
 	}
 	result, err := creator.Commit(t.Context(), actor, prepared)
-	if err != nil || result.Revision != 1 || hasher.calls.Load() != 1 || validations != 2 || passwordValidations != 2 {
+	if err != nil || result.Revision != 1 || hasher.calls.Load() != 1 || validations != 3 || passwordValidations != 3 {
 		t.Fatal("commit did not recheck or rehashed", result, err)
 	}
 	row := profileRow(t, reopen(t), result.ID)

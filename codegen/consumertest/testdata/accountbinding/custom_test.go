@@ -210,10 +210,10 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	}
 	missingProfile := creationConfig
 	missingProfile.Fields = []string{role.Login, role.Groups, role.Permissions}
-	if creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, missingProfile); creator != nil || err == nil {
+	if creator, err := project.NewAccountCreator(sessionStore, auth.PrincipalAuthorizer{}, hasher, missingProfile); creator != nil || err == nil {
 		t.Fatal("required custom profile field was silently omitted")
 	}
-	creator, err := project.NewAccountCreator(backend, auth.PrincipalAuthorizer{}, hasher, creationConfig)
+	creator, err := project.NewAccountCreator(sessionStore, auth.PrincipalAuthorizer{}, hasher, creationConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

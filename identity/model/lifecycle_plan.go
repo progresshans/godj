@@ -25,6 +25,8 @@ type lifecycleEdit struct {
 	values     map[string]query.Value
 	deactivate bool
 	created    bool
+	operator   bool
+	at         time.Time
 }
 
 type lifecycleWritePlan interface {
@@ -108,14 +110,39 @@ func (state *deletionLifecycle[M]) prepare(ctx context.Context, scope db.Relatio
 		}
 		touch.root, touch.direct, touch.fields, touch.created = true, true, slices.Clone(root.fields), root.created
 	}
-	if len(required) == 0 {
+	if root != nil && root.created {
+		projection.created = root
+		for _, membership := range state.memberships {
+			if membership.through != root.key.model {
+				continue
+			}
+			source, sourceValid := root.values[membership.source.Name()].Integer()
+			_, targetValid := root.values[membership.target.Name()].Integer()
+			if !sourceValid || !targetValid {
+				continue
+			}
+			owner := deletionKey{membership.owner, source}
+			if owner == root.key {
+				continue
+			}
+			grants := state.models[membership.owner].change
+			if len(grants) == 0 {
+				return nil, managementError(CodePermission, nil)
+			}
+			required = append(required, grants...)
+		}
+	}
+	if len(required) == 0 && !(root != nil && root.created && root.operator) {
 		return nil, managementError(CodePersistence, nil)
 	}
 	slices.Sort(required)
 	required = slices.Compact(required)
-	required, err := auth.RequiredPermissions(required[0], required[1:]...)
-	if err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
+	var err error
+	if len(required) != 0 {
+		required, err = auth.RequiredPermissions(required[0], required[1:]...)
+		if err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
 	}
 	current, allowed, err := state.authorizeEffects(ctx, scope, actor, required, root != nil && root.created)
 	if err != nil {
@@ -133,7 +160,7 @@ func (state *deletionLifecycle[M]) prepare(ctx context.Context, scope db.Relatio
 			return nil, err
 		}
 	}
-	role := state.sessions.state.credentials.state.binding.state.role
+	role := state.credentials.state.binding.state.role
 	for _, membership := range state.memberships {
 		if err := membership.affectedGroupMembers(ctx, scope, projection, role); err != nil {
 			return nil, err
@@ -148,7 +175,11 @@ func (state *deletionLifecycle[M]) prepare(ctx context.Context, scope db.Relatio
 	var now time.Time
 	for _, touch := range plan.ordered {
 		if touch.direct && touch.changed() {
-			now = state.now()
+			if root != nil && !root.at.IsZero() {
+				now = root.at
+			} else {
+				now = state.now()
+			}
 			break
 		}
 	}
@@ -202,7 +233,7 @@ func (state *deletionLifecycle[M]) prepare(ctx context.Context, scope db.Relatio
 }
 
 func (state *deletionLifecycle[M]) authorizeEffects(ctx context.Context, scope db.RelationSession, actor auth.Principal, required []auth.Permission, created bool) (auth.Principal, bool, error) {
-	store := state.sessions.state.credentials
+	store := state.credentials
 	if !created {
 		return store.AuthorizeIn(ctx, scope, actor, state.overlay, required[0], required[1:]...)
 	}
@@ -250,7 +281,10 @@ func (plan *lifecyclePlan[M]) apply(ctx context.Context, scope db.RelationSessio
 			}
 		}
 		if row.principalID != "" && (touch.deleted || touch.root && plan.deactivate) {
-			count, err := plan.owner.sessions.RevokeIn(ctx, scope, row.principalID, sessions.ID{})
+			if plan.owner.revoke == nil {
+				return 0, managementError(CodePersistence, nil)
+			}
+			count, err := plan.owner.revoke(ctx, scope, row.principalID, sessions.ID{})
 			if err != nil {
 				return 0, err
 			}

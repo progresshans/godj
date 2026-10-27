@@ -406,7 +406,14 @@ TTY에서 지정한 regular file을 한 번 읽어 v3 private pipe로 전송한�
 TTY/별도 process/재접속 소비자, 입력 한도·부분 게시·rollback·unknown·보고 실패 검사를 필수 목록에 연결했다.
 새 본문의 환경별 실행과 최소 compile, 선행 CI에서 확인한 선택 목록 누락의 한정 수정은 TEST_EVIDENCE에서 구분한다.
 
-추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
+계정 생성 owner를 같은 SessionStore와 collection/lifecycle 처리에 연결했다. 실제 INSERT의 key를 잠정 값으로 두고
+두 소속의 전체 삭제·NULL·삽입과 관련 계정/catalog의 권한·revision·session·audit를 함께 검증한다. 생성된 계정 행 자체가
+권한 관계의 through일 때 논리적 이전 소속에서 제외해 최종 영향을 관측하며, INSERT로 얻은 권한을 효과 인가에 쓰지 않는다.
+최종 그래프에서 validation·unique와 독립 readback을 확인하며, 해당 endpoint의 일반 scalar 편집은 거부한다.
+기본/custom의 생성 소비자와 양 DB native 수명 소비자를 작성했고 첫 operator도 같은 경로를 사용한다.
+작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 일반 collection의 선택 identity through 자동 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

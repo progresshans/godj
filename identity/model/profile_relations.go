@@ -61,6 +61,7 @@ type ProfileRelationConfig[T any] struct {
 type ProfileRelation[M any] struct{ state *profileRelationState }
 type profileRelationState struct {
 	field        ir.Field
+	creationOnly bool
 	source       string
 	role         [32]byte
 	check        func(context.Context, db.Queryer, auth.Principal, ProfileRelationOrigin, query.Value) error
@@ -89,14 +90,15 @@ func NewProfileRelation[M, T any](binding Binding[M], field string, target orm.M
 		return zero, managementError(CodeInvalidConfig, nil)
 	}
 	// A selected account may itself be a through model. Its membership
-	// endpoints change other owners' authority and are never plain profile
-	// assignments, even when they look like ordinary FK fields in the IR.
+	// endpoints change other owners' authority. They are accepted only by
+	// collected creation, never as ordinary scalar profile edits.
 	role := binding.state.role
+	creationOnly := false
 	for _, relation := range binding.state.project.ManyToManyRelations() {
 		critical := relation.Source == role.Model && (relation.Field == role.Groups || relation.Field == role.Permissions) ||
 			relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions
 		if critical && relation.Through.Model == role.Model && (relation.Through.SourceField == field || relation.Through.TargetField == field) {
-			return zero, managementError(CodeInvalidConfig, nil)
+			creationOnly = true
 		}
 	}
 	choices, err := formmodel.NewRelationChoices(binding.state.project, binding.state.role.Model, field, target, config.Choices)
@@ -121,7 +123,7 @@ func NewProfileRelation[M, T any](binding Binding[M], field string, target orm.M
 		}
 		return slices.Clone(predicates), nil
 	}
-	state := &profileRelationState{field: declared.Clone(), source: source, role: binding.state.roleFingerprint}
+	state := &profileRelationState{creationOnly: creationOnly, field: declared.Clone(), source: source, role: binding.state.roleFingerprint}
 	state.check = func(ctx context.Context, scope db.Queryer, actor auth.Principal, origin ProfileRelationOrigin, value query.Value) error {
 		predicates, err := filter(ctx, scope, actor, origin)
 		if err != nil {
@@ -221,6 +223,9 @@ func selectProfileRelations[M any](relations []ProfileRelation[M], fields []stri
 func checkProfileRelations[M any](ctx context.Context, scope db.Queryer, actor auth.Principal, origin ProfileRelationOrigin, relations []ProfileRelation[M], values map[string]query.Value) error {
 	var failures validation.Errors
 	for _, relation := range relations {
+		if relation.state.creationOnly && origin.operation == ProfileRelationChange {
+			return managementError(CodeInvalidConfig, nil)
+		}
 		value, present := values[relation.state.field.Name]
 		if !present { // Partial-invalid Form fields are not empty assignments.
 			continue
@@ -234,4 +239,13 @@ func checkProfileRelations[M any](ctx context.Context, scope db.Queryer, actor a
 		}
 	}
 	return validation.Reject(failures, nil)
+}
+
+func requireEditableProfileRelations[M any](relations []ProfileRelation[M]) error {
+	for _, relation := range relations {
+		if relation.state.creationOnly {
+			return managementError(CodeInvalidConfig, nil)
+		}
+	}
+	return nil
 }

@@ -7,6 +7,10 @@ contracts compiled into the executable. The generator token hashes the same
 roster used in project snapshots and manifests. It is not a source integrity hash.
 The `createsuperuser` contract identifies the selected-account private wire used
 by the public command, including its file-input frame and result fields.
+Its ABI constants are owned by the dependency-free `internal/firstaccountprotocol`
+package. Querying compatibility does not import the account execution, upload or
+storage packages, and a probe-only executable can build with an empty external
+module cache and network resolution disabled.
 
 `Serve` answers only its exact metadata probe, without settings, app callbacks,
 declaration loaders or backend opening. Call it at the beginning of an entrypoint.

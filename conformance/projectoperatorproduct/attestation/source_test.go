@@ -58,6 +58,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"account/domain/models/zz_godj_relation_projection.go",
 		"internal/diagnosticlog/log.go",
 		"internal/firstaccountwire/request.go",
+		"internal/firstaccountprotocol/protocol.go",
 		"internal/firstaccountwire/response.go",
 		"project/firstaccount/command.go",
 		"project/firstaccount/runner/runner.go",

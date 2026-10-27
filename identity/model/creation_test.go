@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
 type creationNoHash struct{ calls int }
@@ -40,13 +41,17 @@ func TestAccountCreationCompositionAndInputRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	sessionStore, err := accountmodel.NewSessionStore(store, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	collections, err := project.BindCollections()
 	if err != nil {
 		t.Fatal(err)
 	}
 	config := accountmodel.CreationConfig[models.User]{CreationPolicy: accountmodel.CreationPolicy[models.User]{Fields: []string{"username", "first_name", "email", "active", "groups", "permissions"}}, AddPermission: "account.add", ChangePermission: "account.change"}
 	build := func(c accountmodel.CreationConfig[models.User]) (*accountmodel.Creator[models.User], error) {
-		return accountmodel.NewCreator(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, hasher, c)
+		return accountmodel.NewCreator(sessionStore, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, hasher, c)
 	}
 	for _, fields := range [][]string{nil, {"first_name"}, {"username", "username"}, {"username", "unknown"}, {"username", "principal_id"}, {"username", "encoded_password"}, {"username", "revision"}, {"username", "last_login"}, {"username", "date_joined"}, {"username", "id"}} {
 		invalid := config
@@ -73,7 +78,7 @@ func TestAccountCreationCompositionAndInputRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result, err := accountmodel.NewCreator(store, binding, host.AccountsUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, hasher, config); result != nil || err == nil {
+	if result, err := accountmodel.NewCreator(sessionStore, binding, host.AccountsUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, hasher, config); result != nil || err == nil {
 		t.Fatal("foreign host collection accepted")
 	}
 	role := modeldef.AccountRole()
@@ -82,7 +87,7 @@ func TestAccountCreationCompositionAndInputRejectBeforeIO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result, err := accountmodel.NewCreator(store, other, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, hasher, config); result != nil || err == nil {
+	if result, err := accountmodel.NewCreator(sessionStore, other, collections.IdentityUserGroups, collections.IdentityUserPermissions, auth.PrincipalAuthorizer{}, hasher, config); result != nil || err == nil {
 		t.Fatal("foreign selected policy accepted")
 	}
 	creator, err := build(config)

@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v17"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v18"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -164,10 +164,8 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\treturn _godjaccountmodel.NewPasswordResetter(store, binding, manager, verifier, config)")
 	fmt.Fprintln(&output, "}")
 	fmt.Fprintln(&output, "\n// NewAccountCreator binds typed creation, current authority, membership and audit to the selected account.")
-	fmt.Fprintf(&output, "func NewAccountCreator(backend _godjaccountdb.SnapshotReader, overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[%s.%s]) (*_godjaccountmodel.Creator[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
+	fmt.Fprintf(&output, "func NewAccountCreator(store *_godjaccountmodel.SessionStore[%s.%s], overlay _godjaccountauth.Authorizer, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.CreationConfig[%s.%s]) (*_godjaccountmodel.Creator[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)
 	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
-	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
-	fmt.Fprintf(&output, "\tstore, err := _godjaccountmodel.NewCredentialStore(backend, binding, %s.%sDescriptor{}, %s.%sDescriptor{})\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")
 	fmt.Fprintln(&output, "\tsource, err := binding.Project()")
 	fmt.Fprintln(&output, "\tif err != nil { return nil, err }")

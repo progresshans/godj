@@ -60,11 +60,12 @@ func NewFirstAccountDefinition[M, G, P, GL, PL any](binding Binding[M], groupDes
 		Fields                 []string
 		PasswordBytes          int
 		IExact                 bool
-	}{source, fingerprint, config.EvidenceSHA256, creation.fields, creation.config.MaxPasswordBytes, creation.config.CaseInsensitiveLogin})
+		Related                RelatedRowPermissions
+	}{source, fingerprint, config.EvidenceSHA256, creation.fields, creation.config.MaxPasswordBytes, creation.config.CaseInsensitiveLogin, creation.config.RelatedPermissions})
 	if err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
-	digest := sha256.Sum256(append([]byte("godj.first-account-definition.v1\x00"), encoded...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-definition.v2\x00"), encoded...))
 	return FirstAccountDefinition[M]{state: &firstAccountDefinitionState[M]{creation: creation, credentials: credentials, fingerprint: fingerprint, evidence: config.EvidenceSHA256, declaration: hex.EncodeToString(digest[:])}}, nil
 }
 
@@ -124,5 +125,10 @@ func (definition FirstAccountDefinition[M]) Bind(backend db.SnapshotReader) (*Fi
 	credentials := definition.state.credentials
 	credentials.backend = backend
 	creation := &creationState[M]{creationDefinition: definition.state.creation, store: &CredentialStore[M]{state: &credentials}, backend: writer}
+	var err error
+	creation.lifecycle, err = credentials.firstLifecycle(creation.store, creation.binding, creationLifecycleConfig(creation.config))
+	if err != nil {
+		return nil, err
+	}
 	return &FirstAccount[M]{state: &firstAccountState[M]{creation, definition.state.fingerprint, definition.state.evidence}}, nil
 }

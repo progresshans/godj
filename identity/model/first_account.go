@@ -53,6 +53,10 @@ func NewFirstAccount[M, G, P, GL, PL any](store *CredentialStore[M], expected Bi
 	if err != nil {
 		return nil, err
 	}
+	state.lifecycle, err = store.state.firstLifecycle(store, expected, creationLifecycleConfig(state.config))
+	if err != nil {
+		return nil, err
+	}
 	fingerprint, err := store.state.binding.RoleFingerprint()
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
@@ -277,19 +281,8 @@ func (owner *FirstAccount[M]) Commit(ctx context.Context, prepared PreparedFirst
 		if err != nil {
 			return FirstAccountCreation{}, err
 		}
-		row, result, err := state.insertIn(work, scope, namespace, candidate)
+		_, result, err := state.insertIn(work, scope, namespace, auth.Principal{}, candidate, at, true)
 		if err != nil {
-			return FirstAccountCreation{}, err
-		}
-		credential, err := binding.prepareCredentialForDomain(namespace, row, nil)
-		if err != nil {
-			return FirstAccountCreation{}, err
-		}
-		actor := credential.Principal()
-		if !actor.Active() || !actor.Staff() || !actor.Superuser() || !credential.HasUsablePassword() {
-			return FirstAccountCreation{}, invalidAccountCredential()
-		}
-		if err := state.auditAtIn(work, scope, actor, result, at); err != nil {
 			return FirstAccountCreation{}, err
 		}
 		return FirstAccountCreation{Account: result, Ownership: receipt}, nil

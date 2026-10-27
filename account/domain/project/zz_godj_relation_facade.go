@@ -2300,4 +2300,4 @@ func usingModels(_backend db.Queryer, _borrowed, _readOnly bool) (Models, error)
 	}, nil
 }
 
-var _ goDjProjectSnapshot_0baccb479a7bb1002f448218604e92af0e8079d7520b72b296eacff800e3c893
+var _ goDjProjectSnapshot_a4ba8488b9d27aa10b9c38a3ed76f51e4c1b8f852a1eb9b964f6d63ed3131a42

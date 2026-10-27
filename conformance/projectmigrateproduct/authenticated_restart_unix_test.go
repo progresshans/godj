@@ -262,14 +262,14 @@ func authenticatedRestartProvisionOperator(
 		!strings.Contains(transcript, `"Username": `) ||
 		!strings.Contains(transcript, "Password: ") ||
 		!strings.Contains(transcript, "Password (again): ") ||
-		!strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`) {
+		!strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false,"file_report_failed":false`) {
 		t.Fatalf(
 			"explicit operator provision shape = exit-ok:%t prompts:%t/%t/%t success:%t bytes:%d truncated:%t",
 			waitErr == nil,
 			strings.Contains(transcript, `"Username": `),
 			strings.Contains(transcript, "Password: "),
 			strings.Contains(transcript, "Password (again): "),
-			strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`),
+			strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false,"file_report_failed":false`),
 			len(transcript),
 			output.Truncated(),
 		)
@@ -286,10 +286,11 @@ func authenticatedRestartProvisionOperator(
 	}
 	document := strings.ReplaceAll(transcript[offset:], "\r\n", "\n")
 	var result struct {
-		OperationID   string `json:"operation_id"`
-		Status        string `json:"status"`
-		Code          string `json:"code"`
-		CleanupFailed bool   `json:"cleanup_failed"`
+		OperationID      string `json:"operation_id"`
+		Status           string `json:"status"`
+		Code             string `json:"code"`
+		CleanupFailed    bool   `json:"cleanup_failed"`
+		FileReportFailed bool   `json:"file_report_failed"`
 	}
 	decoder := json.NewDecoder(strings.NewReader(document))
 	decoder.DisallowUnknownFields()
@@ -297,7 +298,7 @@ func authenticatedRestartProvisionOperator(
 		t.Fatal("decode operator result")
 	}
 	encoded, err := json.Marshal(result)
-	if err != nil || document != string(encoded)+"\n" || result.Status != "created" || result.Code != "" || result.CleanupFailed {
+	if err != nil || document != string(encoded)+"\n" || result.Status != "created" || result.Code != "" || result.CleanupFailed || result.FileReportFailed {
 		t.Fatal("operator result is not one closed confirmed creation")
 	}
 	operation, err := hex.DecodeString(result.OperationID)

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/progresshans/godj/internal/firstaccountprotocol"
 	"github.com/progresshans/godj/internal/firstaccountwire"
 	"github.com/progresshans/godj/project/firstaccount"
 )
@@ -69,10 +70,10 @@ func TestRequestUploadEnvelopeRejectsMixedKindsAndForgedLengths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	header := len(firstaccountwire.Magic) + 4 + 64 + 64 + 1 + 2
+	header := len(firstaccountprotocol.Magic) + 4 + 64 + 64 + 1 + 2
 	for _, mutate := range []func([]byte){
-		func(b []byte) { binary.BigEndian.PutUint32(b[len(firstaccountwire.Magic):], uint32(len(b)+1)) },
-		func(b []byte) { binary.BigEndian.PutUint32(b[len(firstaccountwire.Magic):], ^uint32(0)) },
+		func(b []byte) { binary.BigEndian.PutUint32(b[len(firstaccountprotocol.Magic):], uint32(len(b)+1)) },
+		func(b []byte) { binary.BigEndian.PutUint32(b[len(firstaccountprotocol.Magic):], ^uint32(0)) },
 		func(b []byte) { binary.BigEndian.PutUint16(b[header+2:], 1) },
 		func(b []byte) { binary.BigEndian.PutUint16(b[header+4+4:], firstaccount.MaxUploadNameBytes+1) },
 		func(b []byte) { binary.BigEndian.PutUint32(b[header+4+4+2:], ^uint32(0)) },
