@@ -2123,6 +2123,57 @@ Response.Code와 한 번의 전송을 계속 검사한다. 독립 SDK build는 2
 원본 네 job·재현/수정 단계·최종 source 연결은 `gdj0138-helpdesk-selected-v1/ci-35-repair/receipt.json`에 둔다
 (SHA-256 `841cae9d5afcd9f6551cd1462e7cc75845a428d279d71ce70b85e96b123d73c9`).
 
+### FK/OneToOne 프로필과 독립 SDK 실행 기한
+
+2026-10-27, source `ea31bab19a262a00c077b77cff7a4101350690a0` 위에 `ProfileRelation[M]`을 작성했다.
+완전한 project/role source·실제 typed target·명시적 선택 정책을 Creator/FirstAccount, ProfileEditor/AccountEditor,
+공통 Admin의 bounded 선택·partial Form과 관리 JSON에 연결했다. 첫 계정 명령은 관계 key의 문법·NULL/default를
+DB 획득 전에 검사하고 현재 선택 허가는 typed owner가 수행한다. Role collection의 through endpoint를 일반 프로필로
+노출하지 않으며 credential·서버 필드·현재 인가·revision·unique·audit·session·unknown/no-retry 경계를 유지한다.
+
+실제 native 양 DB에는 FK 생성/수정/조회·생략/no-op·clear, 현재 선택과 actor 회수, scope/label/잘못된 predicate·취소,
+감사 실패·cleanup/unknown·stale와 0/음수 key의 durable 대조를 추가했다. 독립 생성 기본/custom 두 앱은 필수 FK와
+optional OneToOne의 첫 명령·Admin/JSON·bounded 선택·중복·부분 오류·NULL과 native DB 재접속/runtime 재조립을
+검사하도록 작성했다. 이 재조립을 별도 OS process restart나 채운 DB 전환 수용으로 계산하지 않는다.
+
+로컬 darwin/arm64 Go 1.26.5에서 두 외부 module의 생성·`go test -run '^$'` compile을 확인했고,
+마지막 외부 compile 명령은 11.19초였다. 최종 변경 source 21개의 hash를 고정한 일곱 영향 package의
+`go test -trimpath -mod=readonly -run '^$'`는 최종 8.10초에 통과했다. 임시 compile driver는 별도 보관하고 저장소에서
+제거했다. 관계 프로필의 새 DB/HTTP 검사 본문은 로컬 실행하지 않았다. Relation 필수 목록은 4,498개,
+PostgreSQL core는 5,630개이며 기존 항목은 제거하지 않았다. 새 생성 root는 모든 mode의 account-consumer owner에
+속한다. Portable core 258개는 유지했다. Python syntax·필수 목록 중복/owner 대조·244개 문서 링크·diff 검사를 확인했다.
+
+선행 [CI 40454660304](https://github.com/progresshans/godj/actions/runs/40454660304)의 실제 checkout
+`00141d8c86d3c571f36f7e925ae74ab415fb6ec0`은 base `f8a5e20c`와 head `ea31bab1`을 부모로 가지며
+제출 tree `6c715020956ab4c3cc88f451c9b35633d34378c9`와 같다. Race integration job `122025734316`은
+SDK의 calendar 검사에서 공유 child context 기한 초과로 실패했다. 같은 job의 Helpdesk package는 988.94초에
+통과했지만 job/전체 CI는 성공이 아니다. 정상·CGO0 성공이나 다른 source의 성공으로 이 실패를 대체하지 않는다.
+
+SDK는 모든 흐름이 하나의 45초/2분 기한을 공유하고 있었다. 각 flow에 같은 45초/2분 기한을 적용하고,
+전체 child의 5분/10분 상한·부모의 별도 생성/빌드 5분과 실행/회수 상한을 명시했다. 요청별 10초 제한,
+전체 필수 receipt·고정 생성기/drift·독립 저장값 대조와 비밀값 없는 단계/기한 진단은 유지했다.
+`ea31bab1` 전체를 별도 export한 로컬 race 재실행은 수정 전에도 통과했다(root 58.43초).
+따라서 CI의 시간 초과 자체를 로컬에서 재현했다고 주장하지 않는다. 같은 export에 SDK harness 두 파일만 적용한
+수정 후 실행도 통과했다(root 57.05초). 모든 나머지 export 파일이 원 Git blob과 같음을 대조했다.
+두 수치는 CI 성능 개선 측정이 아니며 이 SDK 실행에는 새 관계 프로필 제품 코드가 포함되지 않는다.
+
+같은 CI의 Linux amd64 race relation job `122025735151`은 generated-consumer package의 누적 35분 한도에
+도달했다. 원본 artifact `12713254219`의 archive SHA-256
+`81f1aece2705103790edf3b4a8f3a4488b409c8e7266badbe0a644f619cba27b`와 전체 JSON을 대조했다.
+완료한 25개 root가 2,088.26초였고 종료 당시 root는 12초만 실행한 상태였다. 완료한 first-account·reset root만
+각각 581.16초·425.40초였다. 잘린 요약 로그를 전체 성공으로 쓰지 않으며 실제 checkout도 같은 `00141d8c`로 확인했다.
+
+Linux 양 아키텍처 race의 계정 binding·first-account·reset 세 root를 각각 별도 job에 두고, 나머지는 기존 네 consumer
+owner로 분할했다. 35분 test·45분 job 한도, runtime 한 owner, 필수 child·no-skip·중복/미실행 거부는 유지했다.
+현재 binary의 실제 `-list`로 얻은 112개 root와 필수 목록이 정확히 한 번씩 배정되는지 대조했다.
+영향받은 relation/PostgreSQL 분할 검사 24개가 로컬에서 통과했다(8.61초). 실제 새 job의 실행·소요 시간은 원격 확인 대상이다.
+
+원본 CI 로그·정확한 export 차이·전후 SDK 실행·외부/최종 compile과 최종 변경 hash는 검증 보관소의
+`gdj0138-profile-relations-v1/receipt-final.json`에 둔다
+(SHA-256 `34140235fc24b40f4c1eacf2ec08de22885380d7ea6230a26ac714862e83e01d`).
+새 관계 프로필과 SDK 기한 변경의 전체 PostgreSQL·race/CGO0·generated drift·process/browser/platform 수용은
+새 source의 자동 원격 CI에서 확인한다. I1과 전체 카탈로그는 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

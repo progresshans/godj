@@ -35,6 +35,7 @@ CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedFirstAccountUsesRequiredProfiles',
+    'TestGeneratedAccountProfileRelations',
 })
 WRITE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountResetUsesSelectedModels',

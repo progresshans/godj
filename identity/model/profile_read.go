@@ -14,7 +14,7 @@ import (
 
 const MaximumProfilePageSize = 100
 
-// ProfileReadConfig explicitly selects readable scalar fields and the role's
+// ProfileReadConfig explicitly selects readable scalar/FK/OneToOne fields and the role's
 // direct group/permission collections for detail reads. Principal
 // identity and encoded passwords cannot be selected. Server-owned timestamps,
 // revision, role flags or the row key are not exposed automatically: they may

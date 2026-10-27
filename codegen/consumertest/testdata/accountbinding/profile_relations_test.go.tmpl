@@ -1,0 +1,235 @@
+package consumer
+
+import (
+    "context"
+    "encoding/json"
+    "errors"
+    "html"
+    "io"
+    "net/http"
+    "net/http/cookiejar"
+    "net/http/httptest"
+    "net/url"
+    "reflect"
+    "regexp"
+    "strconv"
+    "strings"
+    "testing"
+    "time"
+
+    @@IMPORTS@@
+    "example.com/godj-project-bundle/project"
+    "github.com/progresshans/godj/account/domain"
+    "github.com/progresshans/godj/admin"
+    "github.com/progresshans/godj/api"
+    apisession "github.com/progresshans/godj/api/sessionauth"
+    "github.com/progresshans/godj/apps"
+    "github.com/progresshans/godj/auth"
+    "github.com/progresshans/godj/db"
+    formmodel "github.com/progresshans/godj/forms/model"
+    identityadmin "github.com/progresshans/godj/identity/admin"
+    identityapi "github.com/progresshans/godj/identity/api"
+    accountmodel "github.com/progresshans/godj/identity/model"
+    "github.com/progresshans/godj/orm"
+    "github.com/progresshans/godj/project/firstaccount"
+    "github.com/progresshans/godj/query"
+    "github.com/progresshans/godj/settings"
+    "github.com/progresshans/godj/settings/database"
+    "github.com/progresshans/godj/web"
+    websession "github.com/progresshans/godj/web/sessionauth"
+)
+
+// The parent generates two independent account shapes with a required FK and
+// an optional OneToOne. This consumer imports only their public typed output.
+func TestGeneratedProfileRelationLifecycle(t *testing.T) {
+    check := func(err error) { t.Helper(); if err != nil { t.Fatal(err) } }
+    run := func(name string, body func(*testing.T)) { t.Helper(); if !t.Run(name, body) { t.FailNow() } }
+    binding, err := project.BindAccount(); check(err)
+    role, err := binding.Role(); check(err)
+    objects, err := binding.Objects(); check(err)
+    metadata, err := objects.Metadata(); check(err)
+    keyField, err := objects.PrimaryKeyField(); check(err)
+    key := orm.NewAutoField[@@ACCOUNT@@](keyField)
+    backend, selected := accountDatabaseWithConfig(t, @@SCHEMAS@@)
+    hasher, _ := accountPassword(t)
+    department, err := @@PROFILES@@DepartmentObjects.Create(t.Context(), backend, @@PROFILES@@NewDepartmentCreate("First department")); check(err)
+    next, err := @@PROFILES@@DepartmentObjects.Create(t.Context(), backend, @@PROFILES@@NewDepartmentCreate("Second department")); check(err)
+    denied, err := @@PROFILES@@DepartmentObjects.Create(t.Context(), backend, @@PROFILES@@NewDepartmentCreate("Hidden department").WithEnabled(false)); check(err)
+    badge, err := @@PROFILES@@BadgeObjects.Create(t.Context(), backend, @@PROFILES@@NewBadgeCreate("ONE")); check(err)
+    departmentPolicy, err := accountmodel.NewProfileRelation(binding, "department", @@PROFILES@@DepartmentObjects, accountmodel.ProfileRelationConfig[@@DEPARTMENT@@]{
+        Choices: formmodel.ModelChoiceConfig[@@DEPARTMENT@@]{Label: func(row @@DEPARTMENT@@) (string, error) { return row.Title, nil },
+            Search: func(term string) ([]orm.Predicate[@@DEPARTMENT@@], error) { return []orm.Predicate[@@DEPARTMENT@@]{@@PROFILES@@DepartmentFields.Title.IContains(term)}, nil }},
+        Filter: func(_ context.Context, _ db.Queryer, actor auth.Principal, origin accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@DEPARTMENT@@], error) {
+            if origin.Operation() != accountmodel.ProfileRelationFirstAccount && !actor.Authenticated() { return nil, &accountmodel.Error{Code: accountmodel.CodePermission} }
+            return []orm.Predicate[@@DEPARTMENT@@]{@@PROFILES@@DepartmentFields.Enabled.Exact(true)}, nil
+        },
+    }); check(err)
+    badgePolicy, err := accountmodel.NewProfileRelation(binding, "badge", @@PROFILES@@BadgeObjects, accountmodel.ProfileRelationConfig[@@BADGE@@]{
+        Choices: formmodel.ModelChoiceConfig[@@BADGE@@]{Label: func(row @@BADGE@@) (string, error) { return row.Code, nil }},
+        Filter: func(context.Context, db.Queryer, auth.Principal, accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@BADGE@@], error) { return nil, nil },
+    }); check(err)
+    relations := []accountmodel.ProfileRelation[@@ACCOUNT@@]{departmentPolicy, badgePolicy}
+    fields := []string{role.Login, "@@PROFILE@@", "department", "badge"}
+    login := "first@example.test"
+    managedLogin := "managed@example.test"
+    run("first_command", func(t *testing.T) {
+        incomplete := accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: []string{role.Login, "@@PROFILE@@"}}, EvidenceSHA256: strings.Repeat("d", 64)}
+        if _, err := project.NewFirstAccountDefinition(hasher, incomplete); err == nil { t.Fatal("required relation profile disappeared from provisioning policy") }
+        definition, err := project.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[@@ACCOUNT@@]{
+            CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: fields, Relations: relations}, EvidenceSHA256: strings.Repeat("d", 64),
+        }); check(err)
+        opened := 0
+        command, err := firstaccount.New(definition, func(ctx context.Context) (firstaccount.Backend, error) { opened++; return database.Open(ctx, selected) }); check(err)
+        description, err := command.Description(); check(err)
+        if description.Fields[0].Name != role.Login { t.Fatal("first account prompt lost selected login") }
+        inputs := func(key string) []firstaccount.Value {
+            raw := map[string]string{role.Login: login, "@@PROFILE@@": "NZ", "department": key}
+            var values []firstaccount.Value
+            for _, field := range description.Fields {
+                text, present := raw[field.Name]
+                values = append(values, firstaccount.Value{Name: field.Name, Present: present, Text: []byte(text)})
+            }
+            return values
+        }
+        if prepared, err := command.Prepare(t.Context(), description.Fingerprint, inputs("not-an-integer")); err == nil { prepared.Clear(); t.Fatal("malformed FK reached backend acquisition") }
+        if opened != 0 { t.Fatal("pure key cleaning opened the DB") }
+        for index, selectedKey := range []int64{denied.ID, department.ID} {
+            prepared, err := command.Prepare(t.Context(), description.Fingerprint, inputs(strconv.FormatInt(selectedKey, 10))); check(err)
+            native, err := command.Open(t.Context()); check(err)
+            result, failure := command.Provision(t.Context(), native, strings.Repeat(strconv.Itoa(index+1), 64), prepared, accountPasswordText)
+            check(native.Close())
+            prepared.Clear()
+            if index == 0 {
+                if failure == nil || result.Account.Revision != 0 { t.Fatal("operator key parsing bypassed the current relation policy") }
+                count, err := objects.Using(backend).Count(t.Context()); check(err)
+                if count != 0 { t.Fatal("denied first relation left a partial account") }
+                if receipt, err := domain.Lookup(t.Context(), backend, strings.Repeat("1", 64)); !errors.Is(err, domain.ErrUninitialized) || receipt.Sequence() != 0 { t.Fatal("denied first relation left ownership history", err) }
+            } else {
+                check(failure)
+                if result.Account.Revision != 1 || result.Ownership.Sequence() != 1 { t.Fatal("first relation account lacks ownership receipt") }
+            }
+        }
+        if opened != 2 { t.Fatal("operator acquisition retried or disappeared") }
+    })
+    accountPermissions := accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"}
+    groupPermissions := accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}
+    permissionPermissions := accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}
+    runtimeConfig := accountmodel.RuntimeConfig[@@ACCOUNT@@, @@GROUP@@, @@PERMISSION@@]{
+        Accounts: accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields: fields, CreateFields: fields, EditFields: fields, Relations: relations, Permissions: accountPermissions,
+            GroupPermissions: accountmodel.DeletionPermissions{Change: groupPermissions.Change, Delete: groupPermissions.Delete},
+            PermissionPermissions: accountmodel.DeletionPermissions{Change: permissionPermissions.Change, Delete: permissionPermissions.Delete}},
+        Catalog: accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]{
+            Group: accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields: []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}, WriteFields: []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}, Permissions: groupPermissions},
+            Permission: accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, WriteFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, Permissions: permissionPermissions},
+            AccountPermissions: accountmodel.DeletionPermissions{Change: accountPermissions.Change, Delete: accountPermissions.Delete},
+        },
+    }
+    composed, err := project.NewAccountRuntime(t.Context(), backend, hasher, auth.PrincipalAuthorizer{}, runtimeConfig); check(err)
+    credential, err := composed.Authenticator().Authenticate(t.Context(), login, accountPasswordText); check(err)
+    actor := credential.Principal()
+    configured, err := settings.New(settings.Definition{ProjectName: "profile_relations", InstalledApps: append(project.InstalledApps(),
+        apps.Config{Name: "example.com/godj-project-bundle/relationadmin", Label: "relationadmin"}, apps.Config{Name: "example.com/godj-project-bundle/relationapi", Label: "relationapi"})}); check(err)
+    builder := admin.NewBuilder(configured.Apps())
+    check(identityadmin.RegisterAccount(builder, composed.Accounts(), identityadmin.AccountRegistration{Slug: "accounts"}))
+    registry, err := builder.Build(); check(err)
+    paths, err := admin.SiteAllowedNextPaths(registry, "/admin"); check(err)
+    sessionRuntime, err := websession.New(websession.Config{Sessions: composed.Sessions(), Authenticator: composed.Authenticator(), Authorizer: auth.PrincipalAuthorizer{}, LoginPersistence: composed.LoginPersistence(),
+        SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
+        LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: paths}); check(err)
+    site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "relationadmin", Registry: registry, Auth: sessionRuntime}); check(err)
+    authentication, err := apisession.New(sessionRuntime, apisession.WithReadOnlyResolution()); check(err)
+    management, err := identityapi.NewManagement(composed.Accounts(), composed.Catalog(), identityapi.ManagementConfig{Namespace: "relationapi", Authentication: authentication}); check(err)
+    document, err := management.OpenAPI(); check(err)
+    if !strings.Contains(string(document.Bytes()), `"department"`) || !strings.Contains(string(document.Bytes()), `"badge"`) { t.Fatal("relation fields missing from public schema") }
+    application, err := web.NewApplication(web.Config{Settings: configured, Routes: append(site.Routes(), management.Routes()...), Middleware: management.Middleware()}); check(err)
+    server := httptest.NewServer(application); t.Cleanup(server.Close)
+    jar, err := cookiejar.New(nil); check(err)
+    client := &http.Client{Transport: server.Client().Transport, Jar: jar, Timeout: 30*time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+    send := func(method, path, contentType, body, revision, token string) (int, http.Header, string) {
+        t.Helper()
+        request, err := http.NewRequestWithContext(t.Context(), method, server.URL+path, strings.NewReader(body)); check(err)
+        if contentType != "" { request.Header.Set("Content-Type", contentType) }
+        if revision != "" { request.Header.Set("If-Revision", revision) }
+        if token != "" { request.Header.Set(websession.DefaultCSRFHeader, token); request.Header.Set("Origin", server.URL) }
+        response, err := client.Do(request); check(err)
+        raw, err := io.ReadAll(response.Body); check(err); check(response.Body.Close())
+        return response.StatusCode, response.Header, string(raw)
+    }
+    get := func(path string) string { status, _, body := send("GET", path, "", "", "", ""); if status != 200 { t.Fatal("relation page", path, status) }; return body }
+    token := func(path string) string { match := regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`).FindStringSubmatch(get(path)); if len(match) != 2 { t.Fatal("missing relation CSRF") }; return html.UnescapeString(match[1]) }
+    loginValues := url.Values{"username": {login}, "password": {accountPasswordText}, "csrfmiddlewaretoken": {token("/admin/login/")}}
+    status, _, _ := send("POST", "/admin/login/", "application/x-www-form-urlencoded", loginValues.Encode(), "", "")
+    if status != 302 { t.Fatal("real selected login failed", status) }
+    snapshot := func() []@@ACCOUNT@@ { rows, err := objects.Using(backend).OrderBy(key.Asc()).All(t.Context()); check(err); return rows }
+    encode := func(value any) string { raw, err := json.Marshal(value); check(err); return string(raw) }
+    jsonSend := func(method, path, body, revision string) (int, http.Header, string) { return send(method, path, api.JSONContentType, body, revision, token("/admin/accounts/add/")) }
+    form := func(name string) url.Values { return url.Values{role.Login: {name}, "@@PROFILE@@": {"NZ"}, "department": {strconv.FormatInt(department.ID, 10)}, "badge": {strconv.FormatInt(badge.ID, 10)}} }
+    var targetID int64
+    run("bounded_choices", func(t *testing.T) {
+        status, headers, body := send("GET", "/admin/accounts/add/choices/department/?limit=1", "", "", "", "")
+        var page struct { Items []struct{Value, Label string}; More bool; Limit int }
+        check(json.Unmarshal([]byte(body), &page))
+        if status != 200 || headers.Get("Cache-Control") != "no-store" || len(page.Items) != 1 || !page.More || page.Limit != 1 { t.Fatal("relation choice page is not bounded", status) }
+        status, _, body = send("GET", "/admin/accounts/add/choices/department/?q=Hidden&limit=1", "", "", "", "")
+        check(json.Unmarshal([]byte(body), &page))
+        if status != 200 || len(page.Items) != 0 || page.More { t.Fatal("relation choice leaked a forbidden target") }
+    })
+    run("admin_create", func(t *testing.T) {
+        data := form(managedLogin)
+        data.Set("password1", accountPasswordText); data.Set("password2", accountPasswordText); data.Set("csrfmiddlewaretoken", token("/admin/accounts/add/"))
+        status, _, _ := send("POST", "/admin/accounts/add/", "application/x-www-form-urlencoded", data.Encode(), "", "")
+        if status != 302 { t.Fatal("typed relation Admin create", status) }
+        for _, row := range snapshot() { values, err := objects.ModelValues(row); check(err); if name, _ := values[role.Login].String(); name == managedLogin { primary, present, err := objects.PrimaryKey(row); check(err); if !present { t.Fatal("stored account lacks key") }; targetID, _ = primary.Integer() } }
+        if targetID == 0 || len(snapshot()) != 2 { t.Fatal("relation creation introduced a hidden row") }
+        _, err = composed.Authenticator().Authenticate(t.Context(), managedLogin, accountPasswordText); check(err)
+    })
+    path := "/api/identity/accounts/"+strconv.FormatInt(targetID, 10)+"/"
+    changePath := "/admin/accounts/change/?id="+strconv.FormatInt(targetID, 10)
+    run("one_to_one_unique", func(t *testing.T) {
+        before := snapshot()
+        fields := map[string]any{role.Login: "duplicate@example.test", "@@PROFILE@@": "NZ", "department": department.ID, "badge": badge.ID}
+        status, _, body := jsonSend("POST", "/api/identity/accounts/", encode(map[string]any{"fields": fields, "credential": map[string]any{"password": accountPasswordText}}), "")
+        if status != 400 || !strings.Contains(body, "badge") || !reflect.DeepEqual(before, snapshot()) { t.Fatal("OneToOne duplicate was accepted or wrote partial state", status) }
+    })
+    run("json_edit", func(t *testing.T) {
+        status, headers, body := jsonSend("PATCH", path, encode(map[string]any{"fields": map[string]any{"department": next.ID}}), "1")
+        var receipt struct { ID, Revision int64 }; check(json.Unmarshal([]byte(body), &receipt))
+        if status != 200 || receipt.ID != targetID || receipt.Revision != 2 || headers.Get("Revision") != "2" { t.Fatal("relation JSON receipt", status) }
+        row, err := composed.Accounts().Reader().Get(t.Context(), actor, targetID); check(err)
+        value, present := row.View().Get("department")
+        if !present || !value.Equal(query.Integer(next.ID)) { t.Fatal("relation JSON did not store its typed key") }
+    })
+    run("current_choice", func(t *testing.T) {
+        next, err = @@PROFILES@@DepartmentObjects.Patch(t.Context(), backend, next, @@PROFILES@@DepartmentPatch{}.WithEnabled(false)); check(err)
+        before := snapshot()
+        status, _, body := jsonSend("PATCH", path, encode(map[string]any{"fields": map[string]any{"@@PROFILE@@": "JP"}}), "2")
+        if status != 400 || !strings.Contains(body, "department") || !reflect.DeepEqual(before, snapshot()) { t.Fatal("later edit reused stale relation choices", status) }
+    })
+    run("partial_form", func(t *testing.T) {
+        before := snapshot()
+        data := form(""); data.Set("badge", "9223372036854775807"); data.Set("expected_revision", "2"); data.Set("csrfmiddlewaretoken", token(changePath))
+        status, _, body := send("POST", changePath, "application/x-www-form-urlencoded", data.Encode(), "", "")
+        if status != 200 || !strings.Contains(body, "badge") || !strings.Contains(body, role.Login) || !reflect.DeepEqual(before, snapshot()) { t.Fatal("partial-invalid relation form wrote or lost its fields", status) }
+    })
+    run("nullable_clear", func(t *testing.T) {
+        status, _, _ := jsonSend("PATCH", path, encode(map[string]any{"fields": map[string]any{"department": department.ID, "badge": nil}}), "2")
+        if status != 200 { t.Fatal("nullable OneToOne clear", status) }
+        row, err := composed.Accounts().Reader().Get(t.Context(), actor, targetID); check(err)
+        value, present := row.View().Get("badge")
+        if !present || !value.IsNull() || row.Revision() != 3 { t.Fatal("relation clear lost null/revision") }
+        events, err := composed.Accounts().Reader().History(t.Context(), actor, targetID, 100); check(err)
+        if len(events) != 3 { t.Fatal("relation operations lost atomic one-event auditing") }
+    })
+    run("restart", func(t *testing.T) {
+        reopened, err := database.Open(t.Context(), selected); check(err)
+        defer func() { check(reopened.Close()) }()
+        restarted, err := project.NewAccountRuntime(t.Context(), reopened, hasher, auth.PrincipalAuthorizer{}, runtimeConfig); check(err)
+        inspection, err := restarted.InspectStartup(t.Context()); check(err)
+        if !inspection.Ready() { t.Fatal("relation account runtime did not reopen ready") }
+        _, err = restarted.Authenticator().Authenticate(t.Context(), managedLogin, accountPasswordText); check(err)
+        row, err := restarted.Accounts().Reader().Get(t.Context(), actor, targetID); check(err)
+        value, present := row.View().Get("department")
+        if row.Revision() != 3 || !present || !value.Equal(query.Integer(department.ID)) { t.Fatal("relation profile did not survive runtime reassembly") }
+        if source, present := row.View().Model(); !present || !source.Equal(metadata) { t.Fatal("relation read source drifted across reopen") }
+    })
+}

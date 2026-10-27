@@ -26,7 +26,7 @@ import (
 // The callback must be safe for concurrent calls to this immutable editor.
 type ProfileValidator[M any] func(context.Context, db.Queryer, M, M) (validation.Errors, error)
 
-// ProfileConfig selects scalar profile fields explicitly. Credential secrets,
+// ProfileConfig selects scalar and single-valued relation fields explicitly. Credential secrets,
 // principal identity, revision, server timestamps, role and permission fields
 // cannot be selected. A new model field is never automatically writable.
 //
@@ -35,6 +35,7 @@ type ProfileValidator[M any] func(context.Context, db.Queryer, M, M) (validation
 // not repeat transport parsing or silently treat collection intent as scalars.
 type ProfileConfig[M any] struct {
 	Fields                []string
+	Relations             []ProfileRelation[M]
 	ChangePermission      auth.Permission
 	AdditionalPermissions []auth.Permission
 	Validate              ProfileValidator[M]
@@ -43,21 +44,22 @@ type ProfileConfig[M any] struct {
 	Now func() time.Time
 }
 
-// ProfileEditor performs selected-account scalar edits. It owns authorization,
+// ProfileEditor performs selected-account profile edits. It owns authorization,
 // revision and domain-qualified audit in one coordinated native transaction.
 // Credential/role/catalog writes and collection edits have separate policies;
 // this editor rejects them and does not implement account creation or deletion.
 type ProfileEditor[M any] struct{ state *profileState[M] }
 type profileState[M any] struct {
-	store    *CredentialStore[M]
-	backend  db.CoordinatedAtomic
-	overlay  auth.Authorizer
-	resource crud.Resource[M]
-	metadata ir.Model
-	allowed  map[string]bool
-	required []auth.Permission
-	validate ProfileValidator[M]
-	now      func() time.Time
+	store     *CredentialStore[M]
+	backend   db.CoordinatedAtomic
+	overlay   auth.Authorizer
+	resource  crud.Resource[M]
+	metadata  ir.Model
+	allowed   map[string]bool
+	relations []ProfileRelation[M]
+	required  []auth.Permission
+	validate  ProfileValidator[M]
+	now       func() time.Time
 }
 
 func (ProfileEditor[M]) Format(state fmt.State, _ rune) {
@@ -96,10 +98,14 @@ func NewProfileEditor[M any](store *CredentialStore[M], overlay auth.Authorizer,
 	allowed := make(map[string]bool, len(config.Fields))
 	for _, name := range config.Fields {
 		field, found := namedField(metadata, name)
-		if !found || protected[name] || allowed[name] || field.PrimaryKey || field.NonEditable || field.Kind.IsFile() || field.Relation != nil {
+		if !found || protected[name] || allowed[name] || field.PrimaryKey || field.NonEditable || field.Kind.IsFile() {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 		allowed[name] = true
+	}
+	relations, err := prepareProfileRelations(binding, config.Fields, config.Relations)
+	if err != nil {
+		return nil, err
 	}
 	resource, err := crud.New(binding.state.objects, crud.Config{Fields: config.Fields})
 	if err != nil {
@@ -110,7 +116,7 @@ func NewProfileEditor[M any](store *CredentialStore[M], overlay auth.Authorizer,
 		now = time.Now
 	}
 	return &ProfileEditor[M]{state: &profileState[M]{store: store, backend: backend, overlay: overlay, resource: resource,
-		metadata: metadata, allowed: allowed, required: required, validate: config.Validate, now: now}}, nil
+		metadata: metadata, allowed: allowed, relations: relations, required: required, validate: config.Validate, now: now}}, nil
 }
 
 // Fields returns an owned selection for building the model Form and serializer.
@@ -168,7 +174,7 @@ func (editor *ProfileEditor[M]) Update(ctx context.Context, actor auth.Principal
 		namespace, _ := currentActor.CredentialDomain()
 		mutation, err := state.resource.UpdateInSession(work, session, id, prepared, crud.SaveOptions[M]{
 			Before: func(work context.Context, session db.Session, current, candidate *M) error {
-				return editor.beforeUpdate(work, session, namespace, expectedRevision, current, candidate)
+				return editor.beforeUpdate(work, session, currentActor, namespace, expectedRevision, current, candidate)
 			},
 		})
 		if err == crud.ErrNotFound {
@@ -200,7 +206,7 @@ func (editor *ProfileEditor[M]) Update(ctx context.Context, actor auth.Principal
 	})
 }
 
-func (editor *ProfileEditor[M]) beforeUpdate(ctx context.Context, session db.Session, namespace auth.CredentialDomain, revision int64, current, candidate *M) error {
+func (editor *ProfileEditor[M]) beforeUpdate(ctx context.Context, session db.Session, actor auth.Principal, namespace auth.CredentialDomain, revision int64, current, candidate *M) error {
 	if current == nil || candidate == nil {
 		return managementError(CodePersistence, nil)
 	}
@@ -233,6 +239,15 @@ func (editor *ProfileEditor[M]) beforeUpdate(ctx context.Context, session db.Ses
 	}
 	if _, err := binding.prepareCredentialForDomain(namespace, *current, permissions); err != nil {
 		return err
+	}
+	if len(state.relations) != 0 {
+		proposed, err := objects.ModelValues(*candidate)
+		if err != nil {
+			return err
+		}
+		if err := checkProfileRelations(ctx, session, actor, ProfileRelationOrigin{operation: ProfileRelationChange, id: id}, state.relations, proposed); err != nil {
+			return err
+		}
 	}
 	if state.validate != nil {
 		ownedCurrent, err := objects.ApplyValues(*current, nil)

@@ -96,21 +96,21 @@ func entrypoint() (status int) {
 		fmt.Fprintln(os.Stderr, "consumer input rejected")
 		return status
 	}
-	// The independent flows share one process budget. Race instrumentation
-	// needs room for their cumulative work; each HTTP request still has its
-	// own 10-second deadline and the parent owns the five-minute process bound.
-	budget := 45 * time.Second
+	// Keep the complete process bounded independently of each logical flow.
+	// A later protocol must not inherit time already spent in unrelated flows.
+	// Each HTTP request retains its own ten-second transport deadline.
+	budget := 5 * time.Minute
 	if raceEnabled {
-		budget = 2 * time.Minute
+		budget = 10 * time.Minute
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), budget)
 	defer cancel()
 	checks, err := run(ctx, config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
 			fmt.Fprintln(os.Stderr, "consumer context: deadline exceeded")
-		} else if errors.Is(ctx.Err(), context.Canceled) {
+		} else if errors.Is(ctx.Err(), context.Canceled) || errors.Is(err, context.Canceled) {
 			fmt.Fprintln(os.Stderr, "consumer context: canceled")
 		}
 		return status
@@ -175,35 +175,49 @@ func readInput(reader io.Reader) (input, error) {
 func run(ctx context.Context, config input) ([]string, error) {
 	completed := make(map[string]bool, len(requiredChecks))
 	flows := []struct {
-		run    func() error
+		run    func(ctx context.Context) error
 		checks []string
 	}{
-		{func() error { return checkAccountSession(ctx, config.AccountSession) }, []string{"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry"}},
-		{func() error { return checkAccountReset(ctx, config.AccountSession) }, []string{"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry"}},
-		{func() error { return checkArticleBearer(ctx, config.ArticleBearer) }, []string{
+		{func(ctx context.Context) error { return checkAccountSession(ctx, config.AccountSession) }, []string{"account_session_product_login", "account_session_password_csrf", "account_session_rotation_revocation", "account_session_product_logout", "generated_account_unknown_no_retry"}},
+		{func(ctx context.Context) error { return checkAccountReset(ctx, config.AccountSession) }, []string{"account_reset_anonymous_csrf", "account_reset_mail_and_hidden_proof", "account_reset_atomic_completion", "generated_reset_unknown_no_retry"}},
+		{func(ctx context.Context) error { return checkArticleBearer(ctx, config.ArticleBearer) }, []string{
 			"article_bearer_bulk", "article_bearer_slug", "article_bearer_crud", "article_bearer_patch_presence", "article_bearer_put_defaults", "article_bearer_auth_errors", "pre_canceled_request",
 		}},
-		{func() error { return checkArticleSession(ctx, config.ArticleSession) }, []string{
+		{func(ctx context.Context) error { return checkArticleSession(ctx, config.ArticleSession) }, []string{
 			"article_session_bulk", "article_session_slug", "article_session_csrf_crud", "article_session_invalid_csrf",
 		}},
-		{func() error { return checkHelpdeskSession(ctx, config.HelpdeskSession) }, []string{
+		{func(ctx context.Context) error { return checkHelpdeskSession(ctx, config.HelpdeskSession) }, []string{
 			"helpdesk_session_relations", "helpdesk_session_create_defaults", "helpdesk_session_integer_values", "helpdesk_session_multiline_text", "helpdesk_session_datetime_values", "helpdesk_session_calendar_dates", "helpdesk_session_clock_times", "helpdesk_session_durations", "helpdesk_session_float_values", "helpdesk_session_decimal_values", "helpdesk_session_uuid_values", "helpdesk_session_url_values", "helpdesk_session_binary_digest", "helpdesk_session_uniqueness", "helpdesk_session_json_values", "helpdesk_session_json_search", "helpdesk_service_reports", "helpdesk_report_save", "helpdesk_bulk_tickets", "helpdesk_bulk_ticket_updates", "helpdesk_priority_raise", "helpdesk_ticket_summary", "helpdesk_report_status", "helpdesk_label_usage", "helpdesk_cost_preview", "helpdesk_deadline_preview", "helpdesk_deadline_calendar", "helpdesk_zoned_deadline_calendar", "helpdesk_service_preview", "helpdesk_category_labels", "helpdesk_label_ensure", "helpdesk_ticket_label_links", "helpdesk_ticket_collections", "helpdesk_session_read_only_denied",
 			"helpdesk_session_choices", "helpdesk_nullable_boolean_presence", "helpdesk_put_patch",
 		}},
-		{func() error { return checkGeneratedWire(ctx) }, []string{
+		{func(ctx context.Context) error { return checkGeneratedWire(ctx) }, []string{
 			"generated_no_content_wire",
 			"generated_article_bulk_wire", "generated_slug_wire", "generated_int64_wire", "generated_response_rejections",
 			"generated_choice_response_domain", "generated_nullable_boolean_wire", "generated_calendar_date_wire", "generated_clock_time_wire", "generated_duration_wire", "generated_float_wire", "generated_decimal_wire", "generated_uuid_wire", "generated_url_wire", "generated_binary_wire", "generated_json_wire", "generated_collection_wire", "generated_label_ensure_wire", "generated_report_save_wire", "generated_bulk_tickets_wire", "generated_bulk_ticket_updates_wire", "generated_priority_raise_wire", "generated_ticket_summary_wire", "generated_report_status_wire", "generated_label_usage_wire", "generated_cost_preview_wire", "generated_deadline_preview_wire", "generated_deadline_calendar_wire", "generated_service_preview_wire",
 		}},
-		{func() error { return checkIdentityBearer(ctx, config.IdentityBearer) }, []string{"identity_bearer_typed_headers", "identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login", "identity_bearer_email"}},
-		{func() error { return checkIdentitySession(ctx, config.IdentitySession) }, []string{
+		{func(ctx context.Context) error { return checkIdentityBearer(ctx, config.IdentityBearer) }, []string{"identity_bearer_typed_headers", "identity_bearer_crud", "identity_bearer_auth_errors", "identity_bearer_unusable_password", "identity_bearer_password_status", "identity_bearer_last_login", "identity_bearer_email"}},
+		{func(ctx context.Context) error { return checkIdentitySession(ctx, config.IdentitySession) }, []string{
 			"identity_session_typed_headers", "identity_session_crud", "identity_session_conditions_csrf", "identity_session_collection_presence", "identity_session_password_revocation", "identity_session_unusable_password", "identity_session_password_status", "identity_session_last_login", "identity_session_email", "identity_host_deletion", "identity_selected_history",
 		}},
-		{func() error { return checkIdentityStaleBearer(ctx, config.IdentityBearer) }, []string{"identity_stale_bearer_current_authorization"}},
-		{func() error { return checkGeneratedIdentityWire(ctx) }, []string{"generated_identity_revision_wire", "generated_identity_receipt_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire"}},
+		{func(ctx context.Context) error { return checkIdentityStaleBearer(ctx, config.IdentityBearer) }, []string{"identity_stale_bearer_current_authorization"}},
+		{func(ctx context.Context) error { return checkGeneratedIdentityWire(ctx) }, []string{"generated_identity_revision_wire", "generated_identity_receipt_wire", "generated_identity_collection_rejections", "generated_identity_unknown_no_retry", "generated_identity_unusable_password_wire", "generated_identity_password_status_wire"}},
+	}
+	budget := 45 * time.Second
+	if raceEnabled {
+		budget = 2 * time.Minute
 	}
 	for _, flow := range flows {
-		if err := flow.run(); err != nil {
+		work, cancel := context.WithTimeout(ctx, budget)
+		err := flow.run(work)
+		cause := work.Err()
+		cancel()
+		if cause != nil {
+			if err == nil {
+				err = fail("flow context ended")
+			}
+			return nil, flowFailure{stage: err, cause: cause}
+		}
+		if err != nil {
 			return nil, err
 		}
 		for _, check := range flow.checks {
@@ -227,3 +241,11 @@ func run(ctx context.Context, config input) ([]string, error) {
 }
 
 func fail(stage string) error { return errors.New("consumer check failed: " + stage) }
+
+// Preserve the fixed stage line while retaining the flow's actual context
+// cause for the separate redacted diagnostic. A joined Error string would
+// introduce uncontrolled multiline stderr and lose the parent's stage match.
+type flowFailure struct{ stage, cause error }
+
+func (failure flowFailure) Error() string   { return failure.stage.Error() }
+func (failure flowFailure) Unwrap() []error { return []error{failure.stage, failure.cause} }

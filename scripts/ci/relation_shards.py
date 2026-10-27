@@ -16,6 +16,14 @@ from go_test_events import discover_roots, events, inspect
 
 
 CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
+# These complete seven-model HTTP roots each own hundreds of seconds of
+# native/race work. Keep each on its own Linux race job; all other discovered
+# roots still use the ordinary complete-root distribution.
+ISOLATED_ACCOUNT_ROOTS = (
+    'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
+    'TestGeneratedFirstAccountUsesRequiredProfiles',
+    'TestGeneratedAccountResetUsesSelectedModels',
+)
 PLATFORMS = (
     ('ubuntu-24.04', 'linux', 'amd64'),
     ('ubuntu-24.04-arm', 'linux', 'arm64'),
@@ -36,6 +44,12 @@ def matrix():
             # one consumer owner on those coordinates; retain their deadlines
             # and discover/assign every complete root with the same algorithm.
             count = 4 if goos == 'linux' and mode == 'race' else 3
+            isolate_accounts = goos == 'linux' and mode == 'race'
+            # CI 40454660304 reached 35 minutes with a 12-second root still
+            # running: first-account and reset alone had used 581 + 425 sec.
+            # Retain four ordinary owners and isolate the three long roots.
+            if isolate_accounts:
+                count += len(ISOLATED_ACCOUNT_ROOTS)
             # CI 40248295204 exhausted two macOS cumulative package budgets
             # while short individual roots were still progressing. Its full
             # root timings show four Intel/CGO0 owners would already exceed
@@ -54,22 +68,28 @@ def matrix():
                 rows.append({
                     'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
                     'mode': mode, 'shard': shard, 'shards': count,
+                    'isolate_accounts': isolate_accounts,
                     'job_timeout': 90 if darwin_race else 45,
                     'test_timeout': '70m' if darwin_race else '35m',
                 })
     return {'include': rows}
 
 
-def partition(roots, shard, count):
+def partition(roots, shard, count, isolate_accounts=False):
     if (not 1 <= count <= len(roots) or not 0 <= shard <= count
             or (shard == 0 and count == 1) or len(roots) != len(set(roots))):
         raise ValueError('invalid or empty consumer partition')
+    isolated = ISOLATED_ACCOUNT_ROOTS if isolate_accounts else ()
+    if isolated and (count <= len(isolated) or not set(isolated) <= set(roots)):
+        raise ValueError('isolated account roots or ordinary owners are missing')
     if shard == 0:
         return []
+    if shard <= len(isolated):
+        return [isolated[shard - 1]]
     # Mix related names before round-robin assignment so expensive feature
     # families do not cluster. This needs no stale timing file or allowlist.
-    ordered = sorted(roots, key=lambda name: (hashlib.sha256(name.encode()).digest(), name))
-    return sorted(ordered[shard - 1::count])
+    ordered = sorted((root for root in roots if root not in isolated), key=lambda name: (hashlib.sha256(name.encode()).digest(), name))
+    return sorted(ordered[shard - len(isolated) - 1::count - len(isolated)])
 
 
 def read_lines(path):
@@ -79,8 +99,8 @@ def read_lines(path):
     return result
 
 
-def plan(roots, required, packages, shard, count):
-    chosen = partition(roots, shard, count)
+def plan(roots, required, packages, shard, count, isolate_accounts=False):
+    chosen = partition(roots, shard, count, isolate_accounts)
     if CONSUMER not in packages or len(packages) != len(set(packages)):
         raise ValueError('consumer package is missing or package inventory is duplicated')
     runtime_owner = count == 1 or shard == 0
@@ -109,6 +129,7 @@ def plan(roots, required, packages, shard, count):
     selected_required = sorted(set(selected_required) | {CONSUMER + '|' + root for root in chosen})
     return {
         'shard': shard, 'shards': count,
+        'isolate_accounts': isolate_accounts,
         'discovered_roots': len(roots),
         'discovery_sha256': hashlib.sha256(('\n'.join(sorted(roots)) + '\n').encode()).hexdigest(),
         'roots': chosen, 'required': selected_required, 'packages': owned,
@@ -116,8 +137,8 @@ def plan(roots, required, packages, shard, count):
     }
 
 
-def verify(path, roots, shard, count, packages):
-    expected = Counter({root: 1 for root in partition(roots, shard, count)})
+def verify(path, roots, shard, count, packages, isolate_accounts=False):
+    expected = Counter({root: 1 for root in partition(roots, shard, count, isolate_accounts)})
     runs, passes = Counter(), Counter()
     inventory = inspect(path)
     errors = inventory.verify(packages=packages, no_skips=True)
@@ -149,6 +170,7 @@ def main():
         command.add_argument('--shard', type=int, required=True)
         command.add_argument('--shards', type=int, required=True)
         command.add_argument('--packages', required=True)
+        command.add_argument('--isolate-accounts', action='store_true')
         if action == 'plan':
             command.add_argument('--required', required=True)
             command.add_argument('--output-dir', required=True)
@@ -158,7 +180,7 @@ def main():
     try:
         roots = discover_roots(args.discovery, CONSUMER)
         if args.action == 'plan':
-            result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards)
+            result = plan(roots, read_lines(args.required), read_lines(args.packages), args.shard, args.shards, args.isolate_accounts)
             destination = Path(args.output_dir)
             destination.mkdir(parents=True, exist_ok=True)
             for name in ('required', 'packages'):
@@ -169,7 +191,7 @@ def main():
             result = {**{key: value for key, value in result.items() if key not in ('required', 'run')},
                       'required_tests': len(result['required'])}
         else:
-            result = verify(args.log, roots, args.shard, args.shards, read_lines(args.packages))
+            result = verify(args.log, roots, args.shard, args.shards, read_lines(args.packages), args.isolate_accounts)
         print(json.dumps(result, sort_keys=True))
     except (ValueError, OSError) as error:
         parser.exit(1, str(error) + '\n')

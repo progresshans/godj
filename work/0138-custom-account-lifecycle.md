@@ -62,9 +62,10 @@ login/인증/email의 명시적 정규화 정책을 같은 역할 fingerprint에
 해싱 한도와 검증 뒤 현재 credential/domain/active/권한 재검사를 유지한다. `AuthorizeIn`은 오래된 domain을 먼저
 거부하고 같은 borrowed scope의 현재 actor와 deny overlay를 확인한다.
 
-공통 `ProfileEditor[M]`와 생성 팩토리는 명시한 scalar profile 필드의 Form/JSON 입력을 받아 현재 권한·target revision·
+공통 `ProfileEditor[M]`와 생성 팩토리는 명시한 profile 필드의 Form/JSON 입력을 받아 현재 권한·target revision·
 typed unique 검증·강제 update·audit를 같은 native coordinated transaction에서 처리한다. 실제 변경만 revision과
-감사를 추가하고 no-op도 현재 권한·대상 무결성을 확인한다. Credential·서버 시각·role·관계·파일 입력은 거부한다.
+감사를 추가하고 no-op도 현재 권한·대상 무결성을 확인한다. Credential·서버 시각·role·collection·파일 입력은 거부한다.
+FK/OneToOne은 아래의 명시적 선택 정책 확장을 따른다.
 기본/사용자 정의 외부 소비자는 ModelForm과 API body binding으로 실제 typed 입력을 준비한다.
 
 독립 `godj_account_audit` 앱과 초기 migration은 기본 User 없이 domain별 감사 기록을 저장한다. 현재 actor를 사용한
@@ -378,7 +379,14 @@ export해 Helpdesk만 갱신하고 고정 ogen으로 재생성했다. Native 양
 폼/inline/collection, 범위 소유권, 감사 실패/unknown·최종 fence 재검사와 일관된 동시 읽기를 필수 목록에 추가했다.
 새 본문과 실제 browser/SDK의 실행 및 전체 환경 수용은 자동 원격 CI 확인 대상이다.
 
-프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
+`ProfileRelation[M]`으로 명시적 FK/OneToOne 정책을 완전한 선택 source에 묶고 Creator/FirstAccount·프로필/통합 편집,
+공통 Admin 선택·부분 Form·관리 JSON에 연결했다. 현재 actor·권한·revision과 같은 native 범위에서 선택을 재검사하고,
+생략/no-op·NULL clear·unique·한 번의 감사와 기존 rollback/unknown 경계를 유지한다. 첫 계정 명령의 관계 key 파싱은
+DB 획득 전이며 최종 선택 허가는 typed owner에 있다. 두 독립 생성 앱의 필수 FK/optional OneToOne과 실제 명령·
+Admin/JSON·재조립 소비자, 양 DB native 실패·signed key 검사를 추가했다. 작성/최소 compile과 본문 실행은
+TEST_EVIDENCE에서 구분하며 새 source의 원격 수용은 확인 대상이다.
+
+프로필 파일·추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

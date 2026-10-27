@@ -94,7 +94,17 @@ func TestGeneratedOpenAPIClientContract(t *testing.T) {
 	if err != nil {
 		t.Fatal("encode the private fixture input")
 	}
-	client := exec.CommandContext(ctx, executable)
+	// Generation/build and the complete protocol consumer have separate
+	// owners. The child's per-flow/request deadlines remain authoritative;
+	// this parent bound also joins a child that fails to terminate itself.
+	cancel()
+	executionBudget := 5*time.Minute + 30*time.Second
+	if consumerRaceEnabled {
+		executionBudget = 10*time.Minute + 30*time.Second
+	}
+	execution, stop := context.WithTimeout(t.Context(), executionBudget)
+	defer stop()
+	client := exec.CommandContext(execution, executable)
 	client.Dir = module
 	client.Env = testenv.With(os.Environ(), map[string]string{"GODEBUG": "", "GORACE": ""})
 	client.Stdin = bytes.NewReader(encoded)

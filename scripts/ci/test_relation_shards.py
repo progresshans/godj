@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 from go_test_events import discover_roots
-from relation_shards import CONSUMER, matrix, partition, plan, verify
+from relation_shards import CONSUMER, ISOLATED_ACCOUNT_ROOTS, matrix, partition, plan, verify
 
 
 class RelationShardTest(unittest.TestCase):
@@ -117,8 +117,8 @@ class RelationShardTest(unittest.TestCase):
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
         expected_counts = {
-            ('ubuntu-24.04', 'normal'): 3, ('ubuntu-24.04', 'race'): 4, ('ubuntu-24.04', 'cgo0'): 3,
-            ('ubuntu-24.04-arm', 'normal'): 3, ('ubuntu-24.04-arm', 'race'): 4, ('ubuntu-24.04-arm', 'cgo0'): 3,
+            ('ubuntu-24.04', 'normal'): 3, ('ubuntu-24.04', 'race'): 7, ('ubuntu-24.04', 'cgo0'): 3,
+            ('ubuntu-24.04-arm', 'normal'): 3, ('ubuntu-24.04-arm', 'race'): 7, ('ubuntu-24.04-arm', 'cgo0'): 3,
             ('macos-15-intel', 'normal'): 3, ('macos-15-intel', 'race'): 3, ('macos-15-intel', 'cgo0'): 5,
             ('macos-26', 'normal'): 3, ('macos-26', 'race'): 4, ('macos-26', 'cgo0'): 3,
         }
@@ -138,23 +138,46 @@ class RelationShardTest(unittest.TestCase):
 
         # Every emitted coordinate must still assign the complete root and
         # child inventory once, with runtime/compile checks on one owner.
+        self.roots += list(ISOLATED_ACCOUNT_ROOTS)
         runtime = 'github.com/progresshans/godj/internal/compiletest'
         required = [CONSUMER + '|' + root + '/child' for root in self.roots] + [runtime + '|TestExternalConsumerCompiles']
         for coordinate in expected:
             selected = [row for row in actual['include'] if (
                 row['platform']['runs_on'], row['platform']['expected_goos'],
                 row['platform']['expected_goarch'], row['mode']) == coordinate]
-            plans = [plan(self.roots, required, [CONSUMER, runtime], row['shard'], row['shards']) for row in selected]
+            plans = [plan(self.roots, required, [CONSUMER, runtime], row['shard'], row['shards'], row['isolate_accounts']) for row in selected]
             self.assertEqual(Counter(root for item in plans for root in item['roots']), Counter(self.roots))
             self.assertEqual(Counter(entry for item in plans for entry in item['required']),
                              Counter(required + [CONSUMER + '|' + root for root in self.roots]))
             self.assertEqual(sum(runtime in item['packages'] for item in plans), 1)
 
-    def test_linux_race_has_an_additional_consumer_owner_without_longer_deadlines(self):
+    def test_linux_race_isolates_long_account_roots_without_longer_deadlines(self):
         for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm'):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == 'race']
-            self.assertEqual([0, 1, 2, 3, 4], [row['shard'] for row in rows])
-            self.assertTrue(all(row['shards'] == 4 and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
+            self.assertEqual(list(range(8)), [row['shard'] for row in rows])
+            self.assertTrue(all(row['shards'] == 7 and row['isolate_accounts'] and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
+
+    def test_isolated_account_roots_keep_all_children_and_reject_wrong_execution(self):
+        roots = self.roots + list(ISOLATED_ACCOUNT_ROOTS)
+        required = [CONSUMER + '|' + root + '/current_child/deep_check' for root in roots]
+        ordinary = []
+        for shard in range(1, 8):
+            result = plan(roots, required, [CONSUMER], shard, 7, True)
+            chosen = result['roots']
+            if shard <= len(ISOLATED_ACCOUNT_ROOTS):
+                self.assertEqual(chosen, [ISOLATED_ACCOUNT_ROOTS[shard - 1]])
+                self.assertIn(CONSUMER + '|' + chosen[0] + '/current_child/deep_check', result['required'])
+            else:
+                ordinary.extend(chosen)
+            log = self.write('isolated.json', self.execution(chosen))
+            self.assertEqual(verify(log, roots, shard, 7, [CONSUMER], True)['consumer_roots_verified'], len(chosen))
+            other = next(root for root in roots if root not in chosen)
+            with self.assertRaises(ValueError):
+                verify(self.write('wrong-owner.json', self.execution(chosen + [other])), roots, shard, 7, [CONSUMER], True)
+        self.assertEqual(Counter(ordinary), Counter(self.roots))
+        for candidates, count in ((self.roots, 4), (roots, 3)):
+            with self.assertRaises(ValueError):
+                partition(candidates, 1, count, True)
 
     def test_arm64_normal_and_cgo0_keep_the_same_complete_consumer_sharding(self):
         for mode in ('normal', 'cgo0'):

@@ -112,15 +112,24 @@ func (state *creationState[M]) preflight(ctx context.Context, scope db.Queryer, 
 		return auth.Principal{}, managementError(CodePermission, nil)
 	}
 	namespace, _ := current.CredentialDomain()
-	if err := state.checkCandidate(ctx, scope, namespace, candidate, encoded); err != nil {
+	if err := state.checkCandidate(ctx, scope, namespace, current, ProfileRelationCreate, candidate, encoded); err != nil {
 		return auth.Principal{}, err
 	}
 	return current, nil
 }
 
-func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Queryer, namespace auth.CredentialDomain, candidate *creationCandidate[M], encoded bool) error {
+func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Queryer, namespace auth.CredentialDomain, actor auth.Principal, operation ProfileRelationOperation, candidate *creationCandidate[M], encoded bool) error {
 	binding := state.store.state.binding
 	role := binding.state.role
+	if len(state.relations) != 0 {
+		values, err := binding.state.objects.ModelValues(candidate.row)
+		if err != nil {
+			return err
+		}
+		if err := checkProfileRelations(ctx, scope, actor, ProfileRelationOrigin{operation: operation}, state.relations, values); err != nil {
+			return err
+		}
+	}
 	grants, err := state.store.state.relations.proposed(ctx, scope, candidate.groups, candidate.permissions)
 	if errors.Is(err, errAccountGrantLimit) {
 		return profileInputError(role.Permissions, "max_items")

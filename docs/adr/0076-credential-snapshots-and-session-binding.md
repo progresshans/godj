@@ -952,10 +952,10 @@ Principal 없이 error로 반환하며 다른 권한의 대안으로 넘어갈 �
 
 ## 선택 계정의 typed profile 수정
 
-생성 `NewAccountProfileEditor`와 공통 `identity/model.ProfileEditor[M]`은 선택한 모델의 scalar profile 수정을 소유한다.
+생성 `NewAccountProfileEditor`와 공통 `identity/model.ProfileEditor[M]`은 선택한 모델의 scalar·FK·OneToOne profile 수정을 소유한다.
 서버가 명시한 field 목록만 허용하며 새 필드를 자동 노출하지 않는다. Password·principal identity·revision·선택한
-서버 시각·active/staff/superuser·권한 관계와 NonEditable 필드는 입력에서 제외한다. FK·M2M·파일도 이 scalar owner에
-넣지 않으며 해당 편집의 관계·파일 수명 정책은 별도 구현한다. 생성·삭제와 role/catalog 변경도 별도 작업이다.
+서버 시각·active/staff/superuser·권한 관계와 NonEditable 필드는 입력에서 제외한다. FK·OneToOne은 아래의 명시적
+`ProfileRelation` 정책을 요구한다. M2M·파일의 수명 정책, 생성·삭제와 role/catalog 변경은 별도 owner의 작업이다.
 
 입력은 Form/JSON의 cleaning을 거친 `orm.ModelInput[M]`이다. 준비 단계에서 현재 모델 source·허용 필드·기존 target
 binding과 collection 의도를 확인한다. 이 owner는 transport parsing을 반복하지 않는다. 쓰기 전 고정 login/email
@@ -1099,8 +1099,8 @@ deny overlay는 같은 scope에서 계속 확인한다. 이 생성 의미와 별
 ## 선택 계정의 typed 생성과 해시 준비
 
 생성 `NewAccountCreator`와 `identity/model.Creator[M]`는 기존 credential store와 같은 전체 host source·역할 정책·
-실제 account Groups/Permissions capability를 사용한다. `CreationPolicy.Fields`는 login·scalar profile·editable role flag와
-직접 소속을 명시한다. Principal identity·encoded password·revision·선택된 서버 시각과 임의 FK/파일 입력은 받지 않는다.
+실제 account Groups/Permissions capability를 사용한다. `CreationPolicy.Fields`는 login·scalar/FK/OneToOne profile·editable role flag와
+직접 소속을 명시한다. 관계 프로필에는 명시적 `Relations` 정책이 필요하다. Principal identity·encoded password·revision·선택된 서버 시각과 파일 입력은 받지 않는다.
 새 필수 profile을 쓰기 목록에서 빠뜨려 초기 값이 필수 NULL/빈 문자열로 남으면 구성 시 거부한다. 나머지 생략 값은
 Schema IR default를 사용한다. 전송 계층은 먼저 실제 ModelForm/JSON cleaning을 수행하고 서비스에 `ModelInput[M]`을 넘긴다.
 
@@ -1180,7 +1180,8 @@ password를 포함하지 않는다. 최대 31개 필드·각 4,096 bytes·총 �
 
 입력은 같은 description fingerprint와 정확한 필드 순서를 요구한다. 생략과 명시적인 빈 문자열을 구분하고 실제
 `BindInstance`/`PrepareInput`을 거쳐 typed 입력을 보존한다. 임의 `map[string]any`나 기본 User DTO로 바꾸지 않는다.
-선택한 관계·파일의 입력/조회 수명은 아직 구현하지 않았으며 구성 시 명시적으로 거부한다. 필수 profile을 조용히 빼지 않는다.
+FK/OneToOne key는 IR 기반 integer/null/default 규칙으로 파싱하고, 아래의 `ProfileRelation` 정책이 실제 DB의
+현재 선택을 검증한다. 파일·collection 입력은 구성 시 명시적으로 거부하며 필수 profile을 조용히 빼지 않는다.
 준비 객체는 하나의 Command에 속하며 복사본도 한 번의 실행 시도를 공유한다. `Clear`는 아직 시작하지 않은 준비만
 포기하고 진행 중인 typed 입력을 변경하지 않는다. 실패 원인의 보존과 진단 비노출을 함께 유지한다.
 
@@ -1287,13 +1288,35 @@ Fresh startup은 공개 페이지를, Ready는 명시적으로 허용한 개발 
 ## 선택 계정의 프로필과 역할 통합 편집
 
 생성 `NewAccountEditor`와 `identity/model.AccountEditor[M]`는 기존 `SessionStore[M]`를 받아 같은 계정
-binding·backend·현재 domain의 session 정책을 사용한다. `AccountEditConfig.Fields`로 scalar profile과
+binding·backend·현재 domain의 session 정책을 사용한다. `AccountEditConfig.Fields`로 scalar·FK·OneToOne profile과
 active/staff/superuser의 실제 editable 필드, Groups/Permissions를 명시한다. 새 필드를 자동 노출하지 않는다.
-Credential·principal identity·revision·선택 서버 시각·파일·다른 관계는 거부한다. 역할을 상수로 선언하면 그 역할의
+Credential·principal identity·revision·선택 서버 시각·파일·다른 collection은 거부한다. 역할을 상수로 선언하면 그 역할의
 입력 필드는 없다. 같은 이름의 일반 Boolean을 명시적으로 profile에 선택해도 상수의 인증 의미를 바꾸지 않는다.
 생성 factory의 예상 role fingerprint와 실제 collection의 완전한 host source가 세션 owner와 맞아야 한다.
-이 통합 owner가 기존 RoleEditor를 대체한다. Scalar만 선택하며 session 변경 권한을 갖지 않는 ProfileEditor는
+이 통합 owner가 기존 RoleEditor를 대체한다. Profile만 선택하며 session 변경 권한을 갖지 않는 ProfileEditor는
 별도 용도로 유지한다. ProfileEditor와 역할 저장을 차례로 호출하는 방식으로 통합 수정을 구현하지 않는다.
+
+### 단일값 프로필 관계의 선택 정책
+
+`NewProfileRelation[M,T]`는 선택 계정 binding·명시적 FK/OneToOne field·실제 typed target manager와
+`ModelChoiceConfig[T]`를 받는다. 완전한 project source와 role fingerprint에 묶이며 backend·actor·조회 결과를
+보관하지 않는다. 선택한 관계마다 정확히 하나의 정책을 요구하고 중복·외국 source·미노출 field의 정책을 거부한다.
+선택 계정이 권한 collection의 through인 경우 그 endpoint FK는 일반 프로필로 변경할 수 없다.
+
+필수 `Filter` callback은 현재 인가된 actor·첫 생성/일반 생성/수정 operation·명시적 대상 key와 borrowed native
+reader를 받는다. Predicate가 없는 반환은 모든 현재 대상 행을 허용한다는 명시적 정책이다. Callback은 읽기만 하며
+scope 보관·중첩 owner·쓰기·외부 효과를 수행하지 않는다. 0·음수 대상 key의 존재를 boolean과 구분한다.
+
+공통 AccountManagement의 bounded Admin 검색/Resolve와 partial-invalid Form 검사, JSON·직접 typed 쓰기는
+같은 정책을 사용한다. 조회 결과는 이후 쓰기의 허가가 아니다. Creator/FirstAccount는 해싱 전과 최종 transaction에서,
+ProfileEditor/AccountEditor는 현재 domain·actor·revision·전체 후보를 확인한 transaction에서 선택을 다시 읽는다.
+생략한 기존 FK와 no-op도 현재 선택 정책을 확인한다. Nullable clear는 NULL을 유지하며 scope/predicate 오류를 숨기지 않는다.
+OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·audit·session 효과는 기존 owner의 원자성을 따른다.
+
+첫 계정 명령은 DB를 열기 전에 실제 IR의 integer/null/default/static-choice 의미로 관계 key를 파싱한다.
+이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
+선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일·추가 M2M profile과 selected-model
+through identity 생성은 이 capability의 완료 범위가 아니며 I1에 남는다. 환경별 실행 결과는 TEST_EVIDENCE를 따른다.
 
 입력의 source·선택 필드·target binding과 login/email의 고정 저장 정규화·문자/byte 한도를 I/O 전에 확인한다.
 `Update`는 전체 수정에 대해 현재 change 권한과 모든 추가 권한·deny overlay를 요구하며, 대상의 현재

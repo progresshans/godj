@@ -449,6 +449,8 @@ jobs:
           mode="${{ matrix.mode }}"
           shard="${{ matrix.shard }}"
           shards="${{ matrix.shards }}"
+          partition_flags=()
+          if [ "${{ matrix.isolate_accounts }}" = true ]; then partition_flags+=(--isolate-accounts); fi
           consumer_package=github.com/progresshans/godj/codegen/consumertest
           relation_godjcheck='^(TestRunMatchesTwelveContractRelationProductBeforePublishingActualOutput|TestRunLeavesMigrationRelationReferenceNotImplementedWithoutProductHandlers|TestRunRejectsMigrationRelationFalseGreenBeforePublishingActualOutput|TestRunDoesNotPublishRelationActualBeforePayloadComparison|TestRunRejectsRelationRegistryStatusFalseGreensBeforeActualOutput|TestRunRejectsUnknownRelationStatusBeforeActualOutput)$'
           # Partitioned coordinates split generated consumers across jobs.
@@ -482,7 +484,7 @@ jobs:
           discovery="$RUNNER_TEMP/relation-consumer-discovery.json"
           go test "${test_flags[@]}" -list . "$consumer_package" > "$discovery"
           shard_dir="$RUNNER_TEMP/relation-shard"
-          python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --shard "$shard" --shards "$shards" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir"
+          python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --shard "$shard" --shards "$shards" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir" "${partition_flags[@]}"
           required="$shard_dir/required.txt"
           expected_packages="$shard_dir/packages.txt"
           if grep -Fqx "$consumer_package|TestGeneratedModelResources" "$required"; then
@@ -512,7 +514,7 @@ jobs:
             exit "$status"
           fi
           python3 scripts/ci/go_test_events.py "$log" --required "$required" --packages "$expected_packages" --no-skips
-          python3 scripts/ci/relation_shards.py verify --discovery "$discovery" --shard "$shard" --shards "$shards" --packages "$expected_packages" --log "$log"
+          python3 scripts/ci/relation_shards.py verify --discovery "$discovery" --shard "$shard" --shards "$shards" --packages "$expected_packages" --log "$log" "${partition_flags[@]}"
           if [ "$mode" = normal ] && [ "$runtime_owner" = true ] && [ "$PORTABLE_COVERED" != true ]; then
             go vet ./migrations ./db/sqlite
           fi

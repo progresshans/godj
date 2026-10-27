@@ -71,8 +71,11 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 		}
 	}
 	allowed, required := state.editor.state.allowed, state.editor.state.required
+	relations := state.editor.state.relations
+	origin := ProfileRelationOrigin{operation: ProfileRelationChange, id: id}
 	if create {
 		allowed, required = state.creator.state.allowed, state.creator.state.required
+		relations, origin = state.creator.state.relations, ProfileRelationOrigin{operation: ProfileRelationCreate}
 	}
 	values, err := bound.ValidationValues()
 	if err != nil {
@@ -93,8 +96,11 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 			return managementError(CodeInvalidInput, nil)
 		}
 	}
+	var currentActor auth.Principal
 	result, err := managementSnapshot(ctx, store.state.backend, func(work context.Context, scope db.Queryer) (auth.Principal, bool, error) {
-		return store.AuthorizeIn(work, scope, actor, state.reader.state.overlay, required[0], required[1:]...)
+		current, allowed, err := store.AuthorizeIn(work, scope, actor, state.reader.state.overlay, required[0], required[1:]...)
+		currentActor = current
+		return current, allowed, err
 	}, func(work context.Context, scope db.Queryer, namespace auth.CredentialDomain) (catalogFormCheck, bool, error) {
 		var current *M
 		var memberships accountMemberships
@@ -124,6 +130,13 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 			current = &row
 		}
 		var failures validation.Errors
+		if err := checkProfileRelations(work, scope, currentActor, origin, relations, values); err != nil {
+			diagnostics, rejected := validation.Rejected(err)
+			if !rejected || errors.Unwrap(err) != nil {
+				return catalogFormCheck{}, true, err
+			}
+			failures = validation.Join(failures, diagnostics)
+		}
 		for _, field := range metadata.Fields {
 			value, selected := values[field.Name]
 			if !selected {

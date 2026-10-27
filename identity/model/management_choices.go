@@ -15,8 +15,17 @@ func bindAccountChoices[M, G, P any](management *AccountManagement[M], groups or
 	role := state.reader.state.store.state.binding.state.role
 	for _, action := range []admin.Action{admin.ActionAdd, admin.ActionChange} {
 		allowed := state.editor.state.allowed
+		relations, required := state.editor.state.relations, state.editor.state.required
 		if action == admin.ActionAdd {
 			allowed = state.creator.state.allowed
+			relations, required = state.creator.state.relations, state.creator.state.required
+		}
+		for _, relation := range relations {
+			choice, err := relation.state.adminChoices(required[0], management.profileRelationChoiceScope(action))
+			if err != nil {
+				return err
+			}
+			state.choices[action] = append(state.choices[action], choice)
 		}
 		if allowed[role.Groups] {
 			choice, err := accountChoiceSource(management, action, role.Groups, role.Catalog.GroupName, "", role.Catalog.GroupRevision, orm.NewManager[G](groups))
@@ -34,6 +43,33 @@ func bindAccountChoices[M, G, P any](management *AccountManagement[M], groups or
 		}
 	}
 	return nil
+}
+
+func (management *AccountManagement[M]) profileRelationChoiceScope(action admin.Action) profileRelationChoiceScope {
+	state := management.state
+	store := state.reader.state.store
+	required, operation, relationOperation := state.editor.state.required, admin.ChoiceChange, ProfileRelationChange
+	if action == admin.ActionAdd {
+		required, operation, relationOperation = state.creator.state.required, admin.ChoiceAdd, ProfileRelationCreate
+	}
+	return func(ctx context.Context, actor auth.Principal, origin admin.ChoiceOrigin, visit func(db.Queryer, auth.Principal, ProfileRelationOrigin) error) error {
+		if err := management.validCall(ctx, actor); err != nil {
+			return catalogChoiceError(err)
+		}
+		if origin.Source() != store.state.binding.state.role.Model || origin.Operation() != operation {
+			return managementError(CodeInvalidInput, nil)
+		}
+		var currentActor auth.Principal
+		_, err := managementSnapshot(ctx, store.state.backend, func(work context.Context, scope db.Queryer) (auth.Principal, bool, error) {
+			current, allowed, err := store.AuthorizeIn(work, scope, actor, state.reader.state.overlay, required[0], required[1:]...)
+			currentActor = current
+			return current, allowed, err
+		}, func(_ context.Context, scope db.Queryer, _ auth.CredentialDomain) (struct{}, bool, error) {
+			id, _ := origin.ObjectID()
+			return struct{}{}, true, visit(scope, currentActor, ProfileRelationOrigin{operation: relationOperation, id: id})
+		})
+		return catalogChoiceError(err)
+	}
 }
 
 func accountChoiceSource[M, T any](management *AccountManagement[M], action admin.Action, collection, name, code, revision string, objects orm.Manager[T]) (admin.RelatedChoices, error) {

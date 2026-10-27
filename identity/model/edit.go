@@ -46,13 +46,15 @@ func (selection RoleMemberships) Permissions() []int64 {
 // The validator and clock must be safe for concurrent calls.
 type AccountEditValidator[M any] func(context.Context, db.Queryer, M, M, RoleMemberships) (validation.Errors, error)
 
-// AccountEditConfig explicitly selects scalar profile fields, stored role flags
+// AccountEditConfig explicitly selects scalar and single-valued profile fields, stored role flags
 // and direct group/permission collections. No new field is automatically writable.
 // Credential secrets, principal identity, revision, selected server timestamps,
-// files and other relations are excluded. ChangePermission and every Additional
+// files and other collections are excluded. Every selected FK/OneToOne needs
+// an explicit Relations policy. ChangePermission and every Additional
 // grant cover the whole edit; a partial input cannot bypass either grant.
 type AccountEditConfig[M any] struct {
 	Fields                []string
+	Relations             []ProfileRelation[M]
 	ChangePermission      auth.Permission
 	AdditionalPermissions []auth.Permission
 	RelatedPermissions    RelatedRowPermissions
@@ -65,7 +67,7 @@ type AccountEditConfig[M any] struct {
 // have one audit and deleted/deactivated accounts lose their sessions in one
 // native coordinated relation
 // transaction. It uses the exact SessionStore's backend, credential binding
-// and namespace policy. ProfileEditor remains a narrower scalar-only owner.
+// and namespace policy. ProfileEditor does not change roles or memberships.
 type AccountEditor[M any] struct{ state *accountEditState[M] }
 type accountEditState[M any] struct {
 	sessions                        *SessionStore[M]
@@ -74,6 +76,7 @@ type accountEditState[M any] struct {
 	resource                        crud.Resource[M]
 	metadata                        ir.Model
 	allowed                         map[string]bool
+	relations                       []ProfileRelation[M]
 	required                        []auth.Permission
 	validate                        AccountEditValidator[M]
 	groupsChange, permissionsChange func(M, []int64) (orm.CollectionChange, error)
@@ -132,11 +135,15 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 		}
 		if name != role.Groups && name != role.Permissions {
 			field, found := namedField(metadata, name)
-			if !found || field.NonEditable || field.PrimaryKey || field.Kind.IsFile() || field.Relation != nil {
+			if !found || field.NonEditable || field.PrimaryKey || field.Kind.IsFile() {
 				return nil, managementError(CodeInvalidConfig, nil)
 			}
 		}
 		allowed[name] = true
+	}
+	relations, err := prepareProfileRelations(binding, config.Fields, config.Relations)
+	if err != nil {
+		return nil, err
 	}
 	resource, err := crud.New(binding.state.objects, crud.Config{Fields: config.Fields})
 	if err != nil {
@@ -146,7 +153,7 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 	if now == nil {
 		now = time.Now
 	}
-	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, required: required, validate: config.Validate}
+	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, relations: relations, required: required, validate: config.Validate}
 	if store.state.relatedLifecycle == nil {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
@@ -303,6 +310,15 @@ func (editor *AccountEditor[M]) Update(ctx context.Context, actor auth.Principal
 		candidate, err = objects.ApplyValues(candidate, final)
 		if err != nil {
 			return AccountChange{}, err
+		}
+		if len(state.relations) != 0 {
+			finalValues, err := objects.ModelValues(candidate)
+			if err != nil {
+				return AccountChange{}, err
+			}
+			if err := checkProfileRelations(work, scope, currentActor, ProfileRelationOrigin{operation: ProfileRelationChange, id: id}, state.relations, finalValues); err != nil {
+				return AccountChange{}, err
+			}
 		}
 		groups := plan.projection.keys(role.Model, id, role.Groups, memberships.groups)
 		direct := plan.projection.keys(role.Model, id, role.Permissions, memberships.direct)

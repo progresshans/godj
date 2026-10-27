@@ -43,7 +43,7 @@ type Backend interface {
 	Close() error
 }
 
-// Field describes a selected scalar using its actual model/form meaning.
+// Field describes a selected scalar or relation key using its actual model/form meaning.
 // Submitted values and application callbacks are never part of a description.
 type Field struct {
 	Name       string   `json:"name"`
@@ -104,9 +104,10 @@ func (Command) Format(state fmt.State, _ rune) {
 }
 
 // New validates the complete declaration without opening a backend or hashing.
-// The initial command currently accepts the selected scalar fields; a relation
-// or file declaration must have its own input/choice lifetime implemented and
-// fails explicitly here instead of being omitted from required profile input.
+// The command parses scalar fields and FK/OneToOne keys before acquiring a DB.
+// Key parsing is not choice authorization: the typed FirstAccount owner applies
+// its explicit relation policy before hashing and again in the native write.
+// Files and collections require their own input lifetime and fail explicitly.
 func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(context.Context) (Backend, error)) (Command, error) {
 	if open == nil {
 		return Command{}, failure(InvalidConfig, nil)
@@ -134,7 +135,7 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 	}
 	for _, name := range selected {
 		field, present := byName[name]
-		if !present || field.Kind.IsFile() || field.Relation != nil {
+		if !present || field.Kind.IsFile() {
 			return Command{}, failure(InvalidConfig, &query.Error{Code: query.CodeUnsupported})
 		}
 	}
@@ -143,6 +144,33 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 		return Command{}, failure(InvalidConfig, err)
 	}
 	form, err := formDefinition.Spec(metadata)
+	if err != nil {
+		return Command{}, failure(InvalidConfig, err)
+	}
+	inputFields := form.Fields()
+	for index, field := range inputFields {
+		if byName[field.Name()].Relation == nil {
+			continue
+		}
+		// A terminal supplies a key, not a displayed choice snapshot. Keep
+		// the canonical model's integer/null/default/static-choice policy;
+		// existence and operation-specific scope belong to FirstAccount.
+		options := []forms.FieldOption{forms.WithLabel(field.Label()), forms.WithRequired(field.Required())}
+		if field.Nullable() {
+			options = append(options, forms.WithNullable())
+		}
+		if value, present := field.Default(); present {
+			options = append(options, forms.WithDefault(value))
+		}
+		if choices := field.Choices(); len(choices) != 0 {
+			options = append(options, forms.WithChoices(choices...))
+		}
+		inputFields[index], err = forms.IntegerField(field.Name(), options...)
+		if err != nil {
+			return Command{}, failure(InvalidConfig, err)
+		}
+	}
+	form, err = forms.NewSpec(inputFields)
 	if err != nil {
 		return Command{}, failure(InvalidConfig, err)
 	}
@@ -257,7 +285,7 @@ func ValidateDescription(description Description) error {
 			choices[choice.Value] = true
 		}
 		switch ir.FieldKind(field.Kind) {
-		case ir.FieldInteger, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldBinary, ir.FieldJSON, ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText, ir.FieldDuration, ir.FieldTime, ir.FieldDate, ir.FieldDateTime, ir.FieldBoolean:
+		case ir.FieldInteger, ir.FieldForeignKey, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldBinary, ir.FieldJSON, ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText, ir.FieldDuration, ir.FieldTime, ir.FieldDate, ir.FieldDateTime, ir.FieldBoolean:
 		default:
 			return failure(InvalidConfig, nil)
 		}

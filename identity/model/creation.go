@@ -25,13 +25,14 @@ import (
 // password field is deliberately redacted in this callback's model copy.
 type CreationValidator[M any] func(context.Context, db.Queryer, M, RoleMemberships) (validation.Errors, error)
 
-// CreationPolicy explicitly selects login, scalar profile, editable role flags
+// CreationPolicy explicitly selects login, scalar and FK/OneToOne profile, editable role flags
 // and group/direct-permission collections. Model defaults apply to omitted
 // fields. Principal ID, encoded password, revision and selected timestamps are
 // server-owned. Inputs must already have passed their Form/JSON cleaning policy.
 // All callbacks must be safe for concurrent use.
 type CreationPolicy[M any] struct {
 	Fields           []string
+	Relations        []ProfileRelation[M]
 	Validate         CreationValidator[M]
 	ValidatePassword PasswordValidator[M]
 	// MaxPasswordBytes defaults to 1024; the supported bound is 1..4096. The
@@ -72,6 +73,7 @@ type creationDefinition[M any] struct {
 	metadata                    ir.Model
 	fields                      []string
 	allowed                     map[string]bool
+	relations                   []ProfileRelation[M]
 	config                      CreationPolicy[M]
 	forced                      map[string]query.Value
 	auditFields                 []string
@@ -149,11 +151,15 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 		}
 		if name != role.Groups && name != role.Permissions {
 			field, found := namedField(metadata, name)
-			if !found || field.PrimaryKey || field.NonEditable || field.Kind.IsFile() || field.Relation != nil {
+			if !found || field.PrimaryKey || field.NonEditable || field.Kind.IsFile() {
 				return nil, managementError(CodeInvalidConfig, nil)
 			}
 		}
 		allowed[name] = true
+	}
+	relations, err := prepareProfileRelations(binding, config.Fields, config.Relations)
+	if err != nil {
+		return nil, err
 	}
 	if !allowed[role.Login] {
 		return nil, managementError(CodeInvalidConfig, nil)
@@ -201,7 +207,8 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 		config.PrincipalID = newAccountPrincipalID
 	}
 	config.Fields = nil
-	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, config: config, forced: maps.Clone(forced), auditFields: auditFields}
+	config.Relations = nil
+	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, config: config, forced: maps.Clone(forced), auditFields: auditFields}
 	state.saveGroups = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
 		collection, err := groups.InSession(scope, row)
 		if err != nil {

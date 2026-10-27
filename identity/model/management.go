@@ -29,6 +29,7 @@ type AccountPermissions struct {
 // concurrent calls. PrincipalID supplies server identity before the write.
 type AccountManagementConfig[M any] struct {
 	ReadFields, CreateFields, EditFields    []string
+	Relations                               []ProfileRelation[M]
 	Permissions                             AccountPermissions
 	GroupPermissions, PermissionPermissions DeletionPermissions
 	ValidateCreate                          CreationValidator[M]
@@ -73,6 +74,10 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 		return nil, err
 	}
 	store := sessions.state.credentials
+	relations, err := prepareProfileRelations(expected, append(slices.Clone(config.CreateFields), config.EditFields...), config.Relations)
+	if err != nil {
+		return nil, err
+	}
 	reader, err := NewProfileReader(store, overlay, ProfileReadConfig{
 		Fields: config.ReadFields, ViewPermission: policy.View, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 	})
@@ -80,7 +85,7 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 		return nil, err
 	}
 	creator, err := NewCreator(store, expected, memberships, grants, overlay, verifier.hasher, CreationConfig[M]{
-		CreationPolicy: CreationPolicy[M]{Fields: config.CreateFields, Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
+		CreationPolicy: CreationPolicy[M]{Fields: config.CreateFields, Relations: selectProfileRelations(relations, config.CreateFields), Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
 			MaxPasswordBytes: config.MaxPasswordBytes, CaseInsensitiveLogin: config.CaseInsensitiveCreationLogin, PrincipalID: config.PrincipalID, Now: config.Now},
 		AddPermission: policy.Add, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 	})
@@ -89,7 +94,7 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 	}
 	account := DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}
 	editor, err := NewAccountEditor(sessions, expected, memberships, grants, overlay, AccountEditConfig[M]{
-		Fields: config.EditFields, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
+		Fields: config.EditFields, Relations: selectProfileRelations(relations, config.EditFields), ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 		RelatedPermissions: RelatedRowPermissions{Account: account, Group: config.GroupPermissions, Permission: config.PermissionPermissions},
 		Validate:           config.ValidateEdit, Now: config.Now,
 	})
