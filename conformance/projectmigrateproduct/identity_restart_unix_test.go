@@ -130,8 +130,13 @@ func authenticatedRestartAssertIdentity(t *testing.T, snapshot authenticatedRest
 		t.Fatal("first selected account audit count differs")
 	}
 	event := accountAudits[0]
-	if event.Sequence != 1 || event.Domain != namespace || event.ActorID != row.PrincipalID || event.ObjectID != row.ID || event.Action != "add" || event.ChangedFields != `["username","email","active","staff","superuser","encoded_password"]` || !event.RecordedAt.Equal(receipt.At) {
+	if event.Sequence != 1 || event.Domain != namespace || event.ActorID != row.PrincipalID || event.ObjectID != row.ID || event.Action != "add" || !event.RecordedAt.Equal(receipt.At) {
 		t.Fatal("first selected account audit differs")
+	}
+	// Collected creation records selected field names in schema order, just
+	// like collected edits. The encoded credential itself is never audit data.
+	if event.ChangedFields != `["username","encoded_password","email","active","staff","superuser"]` {
+		t.Fatalf("first selected account audit field order differs: %s", event.ChangedFields)
 	}
 }
 

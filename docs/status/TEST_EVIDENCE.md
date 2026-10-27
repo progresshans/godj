@@ -2392,6 +2392,25 @@ Relation 필수 4,532개·PostgreSQL 필수 5,661개·portable core 270개·TTY/
 push로 시작하는 자동 전체 CI 확인 대상이다. 추가 M2M profile, 일반 collection의 선택 identity through 자동 생성,
 채운 DB 전환·복구/restart와 남은 고정 소비자 및 I1 전체 수용은 미완료다.
 
+### 생성 감사의 선언 순서와 재시작 소비자
+
+2026-10-28, source `554eb75a97c63de0d910583ac58bef64a31ae74a`의
+[CI 40573227285](https://github.com/progresshans/godj/actions/runs/40573227285) normal/CGO0 product·conformance에서
+두 재시작 root가 첫 계정 감사의 변경 필드 순서 때문에 실패했다. 원본 checkout `df636ad0e71d1ef33886eb6f19bb6833cd1bfc75`의
+tree `75794c1c41e1ab99f2890ab5479909d92fa939e9`가 제출 source와 같고, 네 실패 job의 원본을 대조했다.
+공통 lifecycle은 같은 Schema IR 선언 순서로 생성/편집의 감사 필드를 정렬하지만 두 소비자는 비밀번호 이름을 마지막에
+붙이던 이전 생성 순서를 기대했다. 값 없는 필드 집합은 동일하며 제품 코드는 바꾸지 않았다.
+
+darwin/arm64 Go 1.26.5에서 `TestSystemStateSQLiteDistinctProcessRestartSentinel`과
+`TestGlobalMigrateAuthenticatedArticleRestartDurability` 두 root만 실행해 동일한 실패를 재현했다(명령 28.97초).
+기대값을 `username, encoded_password, email, active, staff, superuser`의 선언 순서로 바꾸고 감사 identity·domain·
+actor·object·action·receipt 시각 검사와 정확한 필드 집합 검사를 유지했다. 같은 두 root의 초기 생성·실제 HTTP 인증·
+독립 process 재시작·durable 상태 대조가 모두 통과했다(명령 30.51초, skip 없음). 이 한정 SQLite 실행은 새 PostgreSQL·
+race/CGO0·전체 platform 수용으로 계산하지 않는다. 원본·source·수정 patch와 전후 실행 기록은 검증 보관소의
+`gdj0138-audit-order-v1/receipt.json`에 연결한다
+(SHA-256 `d0d84a136eb4d52b390c357b955dfbb11dbe619320251d682fc2c2432cfdf58f`).
+새 source의 전체 CI와 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

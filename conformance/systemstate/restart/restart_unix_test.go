@@ -1108,8 +1108,13 @@ func assertRestartDatabaseState(
 	event := state.firstAudit
 	if event == nil || event.id != 1 || event.domain != provision.namespace || event.actorID != expected.PrincipalID ||
 		event.objectID != expected.ID || event.model != "godj_identity.user" || event.action != "add" ||
-		event.changedFields != `["username","email","active","staff","superuser","encoded_password"]` || !event.recordedAt.Equal(want.At()) {
+		!event.recordedAt.Equal(want.At()) {
 		t.Fatal(phase, "changed or omitted the first-account audit")
+	}
+	// The common lifecycle emits the complete selected field set in schema
+	// order, including the password field name without its encoded value.
+	if event.changedFields != `["username","encoded_password","email","active","staff","superuser"]` {
+		t.Fatalf("%s first-account audit field order differs: %s", phase, event.changedFields)
 	}
 }
 

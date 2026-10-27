@@ -14,8 +14,8 @@
 1. 읽기 전용 생성 model·선택 계정 OpenAPI·Helpdesk 전환과 FK/OneToOne·파일 프로필 편집/Form 생성·초기 계정 CLI 파일 입력·생성 관계 수명을 #1에서 전체 원격 검증한다.
    기본/custom 일곱 변형·독립 SDK·실제 browser·외부 operator·migration/restart와 현재 인가/감사의 필수 실행을 대조한다.
    확인된 실패의 한정 재현·수정과 실행 원본·판정은 TEST_EVIDENCE에 둔다.
-2. 남은 고정 Directory/Manager 소비자와 선택 계정 조립의 미완료 요구를 점검해 전환한다.
-3. 선택 identity를 through로 자동 생성하는 조립, 추가 M2M·채운 DB mapping/retirement·복구/restart의 남은 요구를 완성한다.
+2. 활성 I1 작업의 추가 M2M 프로필 정책과 collection/lifecycle projection을 연결한다. 생성·편집·조회·Form/Admin/API와 실패 검증을 함께 완성한다.
+3. 남은 고정 Directory/Manager 소비자, 선택 identity를 through로 자동 생성하는 조립, 채운 DB mapping/retirement·복구/restart를 완성한다.
 
 ## 검증 경계
 

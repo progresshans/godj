@@ -416,6 +416,21 @@ TTY/별도 process/재접속 소비자, 입력 한도·부분 게시·rollback·
 추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 일반 collection의 선택 identity through 자동 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 
+### 다음 구현: 추가 M2M 프로필
+
+계정 생성의 collection/lifecycle 기반에 명시적 프로필 collection 정책을 연결하는 설계를 확인 중이다. 아직 새 제품 코드가 아니다.
+선택한 계정 source·역할·실제 typed M2M/target capability와 현재 선택 Filter를 함께 묶고, scalar/FK·권한용 소속과 같은
+생성/편집 경로에서 다룬다. 단순 key 목록 저장만 추가하지 않는다. 필요한 범위는 다음과 같다.
+
+- 명시적 노출·입력 수/실제 저장 소속의 한도, 생략/빈 목록/no-op·0/음수 key·현재 선택 재검사를 유지한다.
+- Create/FirstAccount·AccountEditor·ProfileReader·관리 Form/Admin/JSON을 같은 정책에 연결한다. 일반 ProfileEditor의
+  scalar 책임과 구분하며, model-wide validator에도 실제 최종 collection 제안을 관측할 경로가 필요하다.
+- 모든 선택 collection을 한 batch에서 준비한다. 다른 collection 삭제로 생기는 누락 필드의 소속 변경, 관련 계정의
+  revision·권한·session·audit와 최종 readback도 함께 처리한다. 선택 identity를 자동 through INSERT하는 기능은 별도 owner가 필요하다.
+- 기존 lifecycle의 `deletionMembership` projection을 일반 프로필에 재사용/확장할 수 있는지 확인한다. 단순한 제출 목록 비교로
+  cross-collection cascade와 대칭 관계의 다른 계정 효과를 놓치지 않는다. 새 read 정책도 완전한 source와 bounded scope에 묶는다.
+- 독립 기본/custom 앱의 실제 Form/Admin/API·양 DB·실패/경합/재접속 소비자와 필수 실행을 함께 작성하고 원격으로 확인한다.
+
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
 3. 공개 명령·Form/Admin/API·password/reset·host 삭제·restart 소비자와 실패 검사를 완성한다.

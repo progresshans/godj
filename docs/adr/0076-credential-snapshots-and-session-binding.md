@@ -1142,6 +1142,8 @@ actor만 효과 인가에 사용하며, INSERT가 새로 부여한 권한으로 
 candidate에는 실제 key가 있고, 자기 행은 unique/IExact 조회에서 제외한다. Hash는 늘 한 번이며 validator에는 비밀번호를
 비운 사본을 전달한다. 최종 scalar 저장과 전체 그래프 readback까지 같은 native transaction에서 확인한다.
 공개 결과에는 ID·revision·변경 필드·폐기한 세션 수만 있고 implicit profile 조회 권한은 없다.
+생성과 편집의 변경 필드 및 감사에는 같은 Schema IR 선언 순서를 사용한다. 저장 field 뒤에 collection을 두며,
+강제 역할·password도 그 위치의 필드 이름만 기록한다. Password 값을 감사에 복사하지 않는다.
 Cleanup/rollback/unknown 실패는 결과를 버리고 자동 재시도하지 않는다.
 확정 commit 뒤 취소는 성공을 지우지 않는다. 시도를 가져올 때 공개 준비 객체의 비밀 참조를 해제하고 실제 callback 소유의
 지역 값으로 넘겨, 잘못된 backend가 callback 종료 전에 반환해도 cleanup과 callback의 데이터 경합을 만들지 않는다.
