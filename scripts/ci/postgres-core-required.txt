@@ -5664,3 +5664,7 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCol
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/default/postgres
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/custom
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/custom/postgres
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountTransition
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountTransition/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountTransition/postgres
+github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/lookup_contract

@@ -157,6 +157,14 @@ func (receipt Receipt) At() time.Time {
 	return receipt.state.at
 }
 
+// Follows compares two already validated receipts' actual durable linkage.
+// Sequence numbers alone do not identify a predecessor. This is evidence
+// comparison, not a current-domain check or permission to apply a transition.
+func (receipt Receipt) Follows(previous Receipt) bool {
+	return receipt.state != nil && previous.state != nil && receipt.state.previousID == previous.state.id &&
+		receipt.state.sequence-1 == previous.state.sequence && receipt.state.change.generation != previous.state.change.generation
+}
+
 // Read publishes only after one successful native read snapshot has closed.
 // It does not hold that snapshot open for subsequent account operations.
 func Read(ctx context.Context, backend db.SnapshotReader, roleFingerprint string) (Receipt, error) {
@@ -189,32 +197,30 @@ func RequireIn(ctx context.Context, reader db.Queryer, roleFingerprint string) (
 // transition. A missing record is ErrUninitialized, not a confirmed rollback:
 // after an unknown write outcome the host must also reconcile its write fence.
 func Lookup(ctx context.Context, backend db.SnapshotReader, operationID string) (Receipt, error) {
+	if err := checkContext(ctx); err != nil {
+		return Receipt{}, err
+	}
+	if nilValue(backend) {
+		return Receipt{}, ErrInvalid
+	}
 	if _, ok := digest(operationID); !ok {
 		return Receipt{}, ErrInvalid
 	}
-	return readSnapshot(ctx, backend, func(reader db.Queryer) (Receipt, error) {
-		row, found, err := models.TransitionObjects.Using(reader).Filter(models.TransitionFields.OperationID.Exact(operationID)).OrderBy(models.TransitionFields.ID.Asc()).First(ctx)
-		if err != nil {
-			return Receipt{}, failure(err)
-		}
-		if !found {
-			return Receipt{}, ErrUninitialized
-		}
-		receipt, err := fromRow(row)
-		if err != nil {
-			return Receipt{}, err
-		}
-		if row.Sequence > 1 {
-			prior, found, err := models.TransitionObjects.Using(reader).Filter(models.TransitionFields.ID.Exact(*row.PreviousID)).OrderBy(models.TransitionFields.ID.Asc()).First(ctx)
-			if err != nil {
-				return Receipt{}, failure(err)
-			}
-			if !found || validatePredecessor(row, prior) != nil {
-				return Receipt{}, ErrCorrupt
-			}
-		}
-		return receipt, nil
+	type observation struct {
+		receipt Receipt
+		found   bool
+	}
+	result, err := db.ReadSnapshotResult(ctx, backend, func(work context.Context, reader db.Queryer) (observation, error) {
+		receipt, found, err := LookupIn(work, reader, operationID)
+		return observation{receipt, found}, err
 	})
+	if err != nil {
+		return Receipt{}, failure(err)
+	}
+	if !result.found {
+		return Receipt{}, ErrUninitialized
+	}
+	return result.receipt, nil
 }
 
 // InitializeIn records the first ownership. The host must verify an eligible

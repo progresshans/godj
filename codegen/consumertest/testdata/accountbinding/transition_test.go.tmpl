@@ -1,0 +1,214 @@
+package consumer
+
+import (
+ "context"
+ "encoding/json"
+ "errors"
+ "fmt"
+ "reflect"
+ "slices"
+ "strings"
+ "sync"
+ "sync/atomic"
+ "testing"
+ "time"
+
+ "example.com/godj-project-bundle/models"
+ "example.com/godj-project-bundle/members"
+ "example.com/godj-project-bundle/project"
+ accountaudit "github.com/progresshans/godj/account/audit"
+ "github.com/progresshans/godj/account/domain"
+ "github.com/progresshans/godj/auth"
+ "github.com/progresshans/godj/db"
+ accountmodel "github.com/progresshans/godj/identity/model"
+ "github.com/progresshans/godj/migrations/definition"
+ "github.com/progresshans/godj/orm"
+ "github.com/progresshans/godj/query"
+ "github.com/progresshans/godj/schema/ir"
+ "github.com/progresshans/godj/sessions"
+ sessiondb "github.com/progresshans/godj/sessions/database"
+ "github.com/progresshans/godj/settings/database"
+ "github.com/progresshans/godj/validation"
+)
+
+type transitionBackend struct { database.Backend; mode string; target int64; completed, faults atomic.Int32 }
+func (b *transitionBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+ err:=b.Backend.ReadSnapshot(ctx,read);if err==nil&&b.mode=="read_cleanup" { return errors.New("private transition read cleanup") };return err
+}
+func (b *transitionBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
+ err:=b.Backend.CoordinatedAtomic(ctx,func(scope db.Session)error{
+  if err:=write(&transitionScope{Session:scope, owner:b});err!=nil{return err}
+  b.completed.Add(1)
+  if b.mode=="unknown_rollback" {return errors.New("native rollback after mapping")};return nil
+ })
+ if b.mode=="unknown_rollback"||err==nil&&b.mode=="unknown_commit"{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}}
+ return err
+}
+type transitionScope struct { db.Session; owner *transitionBackend }
+func (s *transitionScope) ValidateSession(ctx context.Context)error{return s.Session.(db.SessionValidator).ValidateSession(ctx)}
+func (s *transitionScope) Update(ctx context.Context,plan query.UpdatePlan)(int64,error){
+ count,err:=s.Session.Update(ctx,plan);if err==nil&&s.owner.mode=="rollback"&&plan.Table()=="godj_identity_user"{s.owner.faults.Add(1);return count,errors.New("failure after native retirement")};return count,err
+}
+func (s *transitionScope) Insert(ctx context.Context,plan query.InsertPlan)(int64,error){
+ if s.owner.mode=="audit_failure"&&plan.Table()=="godj_account_audit_event"||s.owner.mode=="receipt_failure"&&plan.Table()=="godj_account_domain_transition"{s.owner.faults.Add(1);return 0,errors.New("private transition insertion failure")}
+ id,err:=s.Session.Insert(ctx,plan)
+ if err==nil&&s.owner.mode=="late_target_change"&&plan.Table()=="godj_account_domain_transition"{
+  s.owner.faults.Add(1)
+  row,e:=members.MemberObjects.Using(s.Session).Filter(members.MemberFields.ID.Exact(s.owner.target)).Get(ctx);if e!=nil{return 0,e}
+  prepared,e:=members.MemberObjects.PrepareValues(&row,map[string]query.Value{"first_name":query.String("late-rule")});if e!=nil{return 0,e};row,e=prepared.Model();if e!=nil{return 0,e};if e=prepared.Save(ctx,s.Session,&row);e!=nil{return 0,e}
+ }
+ return id,err
+}
+type transitionOverlay struct{denied bool}
+func (o *transitionOverlay)Allowed(_ context.Context,p auth.Principal,permission auth.Permission)(bool,error){return p.Has(permission)&&!o.denied,nil}
+func transitionCheck(t *testing.T,err error){t.Helper();if err!=nil{t.Fatal(err)}}
+func transitionPatch[M any](t *testing.T,backend db.Mutator,objects orm.Manager[M],row M,values map[string]query.Value)M{
+ t.Helper();prepared,err:=objects.PrepareValues(&row,values);transitionCheck(t,err);result,err:=prepared.Model();transitionCheck(t,err);transitionCheck(t,prepared.Save(t.Context(),backend,&result));return result
+}
+func transitionStores(t *testing.T,backend database.Backend)(*accountmodel.SessionStore[models.User],*accountmodel.SessionStore[members.Member]){
+ t.Helper();old,err:=project.NewAccountCredentialStore(backend);transitionCheck(t,err)
+ var role ir.AccountRole;transitionCheck(t,json.Unmarshal([]byte(`@@ROLE@@`),&role))
+ binding,err:=accountmodel.Bind(role,members.MemberDescriptor{},models.GoDjRelationSchema(),members.GoDjRelationSchema());transitionCheck(t,err)
+ next,err:=accountmodel.NewCredentialStore(backend,binding,models.GroupDescriptor{},models.PermissionDescriptor{});transitionCheck(t,err)
+ source,err:=accountmodel.NewSessionStore(old,sessiondb.Config{});transitionCheck(t,err);target,err:=accountmodel.NewSessionStore(next,sessiondb.Config{});transitionCheck(t,err);return source,target
+}
+
+func TestAccountTransition(t *testing.T){
+ for _,mode:=range []string{"lifecycle","signed_keys","round_trip","duplicate_mapping","incomplete_mapping","account_limit","wrong_password","wrong_principal","wrong_roles","wrong_membership","source_changed","target_changed","profile_collection_changed","new_source","new_target","grant_changed","policy_changed","permission_revoked","old_domain","canceled","read_cleanup","rollback","audit_failure","receipt_failure","late_target_change","unknown_commit","unknown_rollback","concurrent","configuration"}{
+  t.Run(mode,func(t *testing.T){
+   native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@)
+   backend:=&transitionBackend{Backend:native};hasher,encoded:=accountPassword(t)
+   joined:=time.Date(2026,10,28,1,2,3,0,time.UTC)
+   var oldRows []models.User;var newRows []members.Member
+   for i,name:=range []string{"alice","bob"}{
+    old,err:=models.UserObjects.Create(t.Context(),native,models.NewUserCreate("principal-"+name,name,encoded,joined).WithStaff(i==0).WithSuperuser(i==0).WithFirstName("original-"+name));transitionCheck(t,err)
+    next,err:=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate("principal-"+name,name+"@example.test",encoded,joined).WithStaff(i==0).WithSuperuser(i==0).WithFirstName("mapped-"+name));transitionCheck(t,err)
+    if mode=="signed_keys"&&i==0{
+     accountStoredKey(t,native,selected,"godj_identity_user","id",old.ID,0);old.ID=0
+     accountStoredKey(t,native,selected,"members_member","id",next.ID,-9);next.ID=-9
+    }
+    oldRows=append(oldRows,old);newRows=append(newRows,next)
+   }
+   backend.target=newRows[0].ID
+   group,err:=models.GroupObjects.Create(t.Context(),native,models.NewGroupCreate("group"));transitionCheck(t,err)
+   permission,err:=models.PermissionObjects.Create(t.Context(),native,models.NewPermissionCreate("app.read","Read"));transitionCheck(t,err)
+   _,err=models.GroupPermissionsLinkObjects.Create(t.Context(),native,models.NewGroupPermissionsLinkCreate(group.ID,permission.ID));transitionCheck(t,err)
+   for i:=range oldRows{
+    _,err=models.UserGroupsLinkObjects.Create(t.Context(),native,models.NewUserGroupsLinkCreate(oldRows[i].ID,group.ID));transitionCheck(t,err)
+    _,err=members.MemberGroupsLinkObjects.Create(t.Context(),native,members.NewMemberGroupsLinkCreate(newRows[i].ID,group.ID));transitionCheck(t,err)
+    _,err=models.UserPermissionsLinkObjects.Create(t.Context(),native,models.NewUserPermissionsLinkCreate(oldRows[i].ID,permission.ID));transitionCheck(t,err)
+    _,err=models.UserTopicsLinkObjects.Create(t.Context(),native,models.NewUserTopicsLinkCreate(oldRows[i].ID,permission.ID));transitionCheck(t,err)
+    _,err=members.MemberInterestsLinkObjects.Create(t.Context(),native,members.NewMemberInterestsLinkCreate(newRows[i].ID,permission.ID));transitionCheck(t,err)
+    _,err=members.MemberPermissionsLinkObjects.Create(t.Context(),native,members.NewMemberPermissionsLinkCreate(newRows[i].ID,permission.ID));transitionCheck(t,err)
+   }
+   binding,err:=project.BindAccount();transitionCheck(t,err);role,err:=binding.RoleFingerprint();transitionCheck(t,err)
+   first,err:=domain.Prepare(t.Context(),role,strings.Repeat("a",64));transitionCheck(t,err)
+   var initial domain.Receipt;transitionCheck(t,native.CoordinatedAtomic(t.Context(),func(scope db.Session)error{var err error;initial,err=domain.InitializeIn(t.Context(),scope,first,joined);return err}))
+   oldStore,nextStore:=transitionStores(t,backend)
+   verifier,err:=oldStore.Authenticator(t.Context(),hasher);transitionCheck(t,err);credential,err:=verifier.Authenticate(t.Context(),"alice",accountPasswordText);transitionCheck(t,err);actor:=credential.Principal()
+   manager,err:=sessions.NewManager(oldStore,sessions.Config{});transitionCheck(t,err)
+   var ids []sessions.ID
+   for _,values:=range []map[string]string{{auth.SessionPrincipalIDKey:actor.ID(),auth.SessionCredentialStampKey:credential.SessionStamp()},{auth.SessionResetPrincipalIDKey:actor.ID(),auth.SessionResetTokenKey:"proof"},{"anonymous":"keep-only-until-transition"}}{
+    record,err:=manager.Create(t.Context(),values);transitionCheck(t,err);ids=append(ids,record.ID())
+   }
+   storage,err:=sessiondb.New(backend,sessiondb.Config{});transitionCheck(t,err);foreign,err:=storage.Store("foreign-application");transitionCheck(t,err);foreignManager,err:=sessions.NewManager(foreign,sessions.Config{});transitionCheck(t,err);foreignRecord,err:=foreignManager.Create(t.Context(),nil);transitionCheck(t,err)
+   overlay:=&transitionOverlay{};rejectPolicy:=false
+   config:=accountmodel.TransitionConfig[models.User,members.Member]{Permission:"account.transition",Authorizer:overlay,MaxAccounts:2,Now:func()time.Time{return joined.Add(time.Hour)},Validate:func(_ context.Context,_ db.Queryer,a models.User,b members.Member,left,right accountmodel.AccountMemberships)(validation.Errors,error){
+    if a.EncodedPassword!=""||b.SecretHash!=""{t.Error("mapping policy received password encoding")}
+    if !slices.Equal(left.Groups(),right.Groups())||!slices.Equal(left.Permissions(),right.Permissions()){t.Error("policy memberships differ")}
+    leftProfile,leftPresent:=left.Collection("topics");rightProfile,rightPresent:=right.Collection("interests");if !leftPresent||!rightPresent||!slices.Equal(leftProfile,rightProfile){return validation.NewErrors(validation.New("interests","mapping_profile")),nil}
+    if rejectPolicy{return validation.NewErrors(validation.New("first_name","mapping_policy")),nil};return validation.Errors{},nil
+   }}
+   owner,err:=accountmodel.NewTransition(oldStore,nextStore,config);transitionCheck(t,err)
+   mapping:=[]accountmodel.AccountMapping{{oldRows[1].ID,1,newRows[1].ID,1},{oldRows[0].ID,1,newRows[0].ID,1}}
+   operation:=strings.Repeat("b",64)
+   if mode=="configuration"{
+    if _,err:=accountmodel.NewTransition(oldStore,oldStore,accountmodel.TransitionConfig[models.User,models.User]{Permission:"account.transition",Authorizer:overlay});err==nil{t.Fatal("same model accepted")}
+    other,err:=database.Open(t.Context(),selected);transitionCheck(t,err);defer other.Close();_,foreignTarget:=transitionStores(t,other)
+    if _,err:=accountmodel.NewTransition(oldStore,foreignTarget,config);err==nil{t.Fatal("foreign backend accepted")}
+    for _,maximum:=range []int{-1,accountmodel.MaximumTransitionAccounts+1}{bad:=config;bad.MaxAccounts=maximum;if _,err:=accountmodel.NewTransition(oldStore,nextStore,bad);err==nil{t.Fatal("bad limit")}}
+    for _,id:=range []string{"",strings.Repeat("0",64),strings.Repeat("B",64)}{if _,err:=owner.Prepare(t.Context(),actor,id,mapping);err==nil{t.Fatal("invalid operation")}};return
+   }
+   switch mode{
+   case "duplicate_mapping":mapping[1].TargetID=mapping[0].TargetID
+   case "incomplete_mapping":mapping=mapping[:1]
+   case "account_limit":config.MaxAccounts=1;owner,err=accountmodel.NewTransition(oldStore,nextStore,config);transitionCheck(t,err)
+   case "wrong_password":newRows[1]=transitionPatch(t,native,members.MemberObjects,newRows[1],map[string]query.Value{"secret_hash":query.String("!different")})
+   case "wrong_principal":newRows[1]=transitionPatch(t,native,members.MemberObjects,newRows[1],map[string]query.Value{"subject":query.String("unreviewed-owner")})
+   case "wrong_roles":newRows[1]=transitionPatch(t,native,members.MemberObjects,newRows[1],map[string]query.Value{"superuser":query.Boolean(true)})
+   case "wrong_membership":link,err:=members.MemberGroupsLinkObjects.Using(native).Filter(members.MemberGroupsLinkFields.SourceID.Exact(newRows[1].ID)).Get(t.Context());transitionCheck(t,err);_,err=members.MemberGroupsLinkObjects.Delete(t.Context(),native,&link);transitionCheck(t,err)
+   case "read_cleanup":backend.mode=mode
+   }
+   prepared,prepareErr:=owner.Prepare(t.Context(),actor,operation,mapping)
+   early:=slices.Contains([]string{"duplicate_mapping","incomplete_mapping","account_limit","wrong_password","wrong_principal","wrong_roles","wrong_membership","read_cleanup"},mode)
+   if early{if prepareErr==nil||prepared.Manifest().OperationID!=""{t.Fatal("invalid mapping published preparation")};backend.mode="";current,err:=domain.Read(t.Context(),native,role);transitionCheck(t,err);if current.OperationID()!=initial.OperationID(){t.Fatal("preparation wrote ownership")};return};transitionCheck(t,prepareErr)
+   manifest:=prepared.Manifest();mapping[0].TargetID=99999
+   exported,err:=json.Marshal(manifest);transitionCheck(t,err)
+   for _,private:=range []string{encoded,"principal-alice","original-alice","mapped-alice",accountPasswordText}{if strings.Contains(string(exported),private)||strings.Contains(fmt.Sprintf("%#v",prepared),private){t.Fatal("transition diagnostic leaked values")}}
+   var retained accountmodel.TransitionManifest;transitionCheck(t,json.Unmarshal(exported,&retained))
+   exposed:=prepared.Manifest();exposed.Mappings[0].TargetID=99999
+   if _,found,err:=owner.Reconcile(t.Context(),retained);err!=nil||found{t.Fatal("uncommitted operation observed",err)}
+   switch mode{
+   case "source_changed":transitionPatch(t,native,models.UserObjects,oldRows[1],map[string]query.Value{"first_name":query.String("changed-without-revision")})
+   case "target_changed":transitionPatch(t,native,members.MemberObjects,newRows[1],map[string]query.Value{"first_name":query.String("changed-without-revision")})
+   case "profile_collection_changed":link,err:=members.MemberInterestsLinkObjects.Using(native).Filter(members.MemberInterestsLinkFields.SourceID.Exact(newRows[1].ID)).Get(t.Context());transitionCheck(t,err);_,err=members.MemberInterestsLinkObjects.Delete(t.Context(),native,&link);transitionCheck(t,err)
+   case "new_source":_,err=models.UserObjects.Create(t.Context(),native,models.NewUserCreate("extra-source","extra",encoded,joined));transitionCheck(t,err)
+   case "new_target":_,err=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate("extra-target","extra",encoded,joined));transitionCheck(t,err)
+   case "grant_changed":transitionPatch(t,native,models.PermissionObjects,permission,map[string]query.Value{"code":query.String("app.changed")})
+   case "policy_changed":rejectPolicy=true
+   case "permission_revoked":overlay.denied=true
+   case "old_domain":change,err:=domain.Prepare(t.Context(),role,strings.Repeat("d",64));transitionCheck(t,err);transitionCheck(t,native.CoordinatedAtomic(t.Context(),func(scope db.Session)error{_,err:=domain.TransitionIn(t.Context(),scope,initial,change,joined);return err}))
+   }
+   if mode=="concurrent"{
+    second,err:=owner.Prepare(t.Context(),actor,strings.Repeat("c",64),retained.Mappings);transitionCheck(t,err)
+    var results [2]accountmodel.TransitionResult;var failures [2]error;start:=make(chan struct{});var wg sync.WaitGroup
+    for i,pending:=range []accountmodel.PreparedTransition[models.User,members.Member]{prepared,second}{wg.Add(1);go func(){defer wg.Done();<-start;results[i],failures[i]=owner.Commit(t.Context(),actor,pending)}()};close(start);wg.Wait()
+    successes:=0;for i:=range failures{if failures[i]==nil{successes++;if results[i].Ownership.Sequence()!=2{t.Fatal("bad competing receipt")}}else if results[i].Ownership.Sequence()!=0{t.Fatal("failed contender published receipt")}}
+    if successes!=1{t.Fatal("transition did not have one winner",failures)};return
+   }
+   if slices.Contains([]string{"rollback","audit_failure","receipt_failure","late_target_change","unknown_commit","unknown_rollback"},mode){backend.mode=mode}
+   work:=t.Context();if mode=="canceled"{var cancel context.CancelFunc;work,cancel=context.WithCancel(work);cancel()}
+   completedBefore:=backend.completed.Load()
+   result,failure:=owner.Commit(work,actor,prepared);backend.mode=""
+   if slices.Contains([]string{"rollback","audit_failure","receipt_failure","late_target_change"},mode)&&backend.faults.Load()!=1{t.Fatal("native failure boundary did not execute")}
+   if slices.Contains([]string{"unknown_commit","unknown_rollback"},mode)&&backend.completed.Load()!=completedBefore+1{t.Fatal("unknown result did not follow complete native write callback")}
+   failed:=!slices.Contains([]string{"lifecycle","signed_keys","round_trip"},mode)
+   if failed{if failure==nil||!reflect.DeepEqual(result,accountmodel.TransitionResult{}){t.Fatal("failed transition published success",failure)}}else{transitionCheck(t,failure);if result.MappedAccounts!=2||result.RevokedSessions!=3||result.Ownership.Sequence()!=2{t.Fatal("transition report incomplete")}}
+   if _,err:=owner.Commit(t.Context(),actor,prepared);err==nil{t.Fatal("preparation was reused")}
+   applied:=!failed||mode=="unknown_commit"
+   if mode=="unknown_commit"||mode=="unknown_rollback"{if !errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown}){t.Fatal("unknown outcome lost",failure)}}
+   reopened,err:=database.Open(t.Context(),selected);transitionCheck(t,err);defer reopened.Close();freshOld,freshNext:=transitionStores(t,reopened);freshOwner,err:=accountmodel.NewTransition(freshOld,freshNext,config);transitionCheck(t,err)
+   receipt,found,err:=freshOwner.Reconcile(t.Context(),retained);transitionCheck(t,err);if found!=applied||found&&receipt.OperationID()!=operation{t.Fatal("reconciliation disagrees with native durable outcome")}
+   if _,present,err:=foreign.Load(t.Context(),foreignRecord.ID());err!=nil||!present{t.Fatal("foreign session was altered",err)}
+   oldNamespace,err:=binding.CredentialDomain(initial.Generation());transitionCheck(t,err);historical,err:=storage.Store(oldNamespace.Identifier());transitionCheck(t,err)
+   for _,id:=range ids{_,present,err:=historical.Load(t.Context(),id);transitionCheck(t,err);if present==applied{t.Fatal("old session/reset/anonymous record retirement mismatch")}}
+   for i,old:=range oldRows{
+    stored,err:=models.UserObjects.Using(reopened).Filter(models.UserFields.ID.Exact(old.ID)).Get(t.Context());transitionCheck(t,err)
+    target,err:=members.MemberObjects.Using(reopened).Filter(members.MemberFields.ID.Exact(newRows[i].ID)).Get(t.Context());transitionCheck(t,err)
+    if applied{if stored.Revision!=2||stored.Active||stored.Staff||stored.Superuser||!strings.HasPrefix(stored.EncodedPassword,"!")||stored.PrincipalID!=old.PrincipalID||target.SecretHash!=encoded||target.Version!=1||target.FirstName!=newRows[i].FirstName{t.Fatal("retirement/target data mismatch")}}
+    if !applied&&stored.EncodedPassword!=encoded{t.Fatal("refused transition retained tombstone")}
+    if slices.Contains([]string{"rollback","audit_failure","receipt_failure","late_target_change","unknown_rollback"},mode)&&(!reflect.DeepEqual(stored,old)||!reflect.DeepEqual(target,newRows[i])){t.Fatal("native rollback lost an original account value")}
+   }
+   if !applied{return}
+   nextVerifier,err:=freshNext.Authenticator(t.Context(),hasher);transitionCheck(t,err);nextCredential,err:=nextVerifier.Authenticate(t.Context(),"alice@example.test",accountPasswordText);transitionCheck(t,err)
+   if nextCredential.MatchesSessionStamp(credential.SessionStamp())||nextCredential.Principal().ID()!=actor.ID(){t.Fatal("coincident credentials inherited old domain")}
+   if _,err:=verifier.Authenticate(t.Context(),"alice",accountPasswordText);err==nil{t.Fatal("old runtime authenticated retired source")}
+   if _,err:=freshNext.InspectStartup(t.Context());err!=nil{t.Fatal("new domain did not restart",err)}
+   if _,err:=freshOld.InspectStartup(t.Context());err==nil{t.Fatal("old selection restarted")}
+   history,err:=db.ReadSnapshotResult(t.Context(),reopened,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,oldNamespace,"godj_identity.user",oldRows[0].ID,10)});transitionCheck(t,err)
+   if len(history)!=1||history[0].ActorID()!=actor.ID()||!slices.Contains(history[0].ChangedFields(),"encoded_password"){t.Fatal("retirement audit was not in source domain")}
+   nextNamespace,_:=nextCredential.Principal().CredentialDomain();newHistory,err:=db.ReadSnapshotResult(t.Context(),reopened,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,nextNamespace,"members.member",newRows[0].ID,10)});transitionCheck(t,err);if len(newHistory)!=0{t.Fatal("audit history silently inherited")}
+   bad:=retained;bad.StateSHA256=strings.Repeat("f",64);if _,_,err:=freshOwner.Reconcile(t.Context(),bad);err==nil{t.Fatal("wrong retained evidence accepted")}
+   backend.mode="read_cleanup";missing:=retained;missing.OperationID=strings.Repeat("e",64);if _,found,err:=owner.Reconcile(t.Context(),missing);err==nil||found{t.Fatal("missing lookup cleanup treated as confirmed absence")};backend.mode=""
+   if mode=="round_trip"{
+    var reverse []accountmodel.AccountMapping
+    for i,original:=range oldRows{stored,err:=models.UserObjects.Using(reopened).Filter(models.UserFields.ID.Exact(original.ID)).Get(t.Context());transitionCheck(t,err);transitionPatch(t,reopened,models.UserObjects,stored,map[string]query.Value{"encoded_password":query.String(encoded),"active":query.Boolean(original.Active),"staff":query.Boolean(original.Staff),"superuser":query.Boolean(original.Superuser)});reverse=append(reverse,accountmodel.AccountMapping{newRows[i].ID,1,original.ID,2})}
+    back,err:=accountmodel.NewTransition(freshNext,freshOld,accountmodel.TransitionConfig[members.Member,models.User]{Permission:"account.transition",Authorizer:auth.PrincipalAuthorizer{}});transitionCheck(t,err)
+    pending,err:=back.Prepare(t.Context(),nextCredential.Principal(),strings.Repeat("c",64),reverse);transitionCheck(t,err);returned,err:=back.Commit(t.Context(),nextCredential.Principal(),pending);transitionCheck(t,err)
+    if returned.Ownership.Sequence()!=3||returned.Ownership.Generation()==initial.Generation(){t.Fatal("return to old model resurrected generation")}
+    finalVerifier,err:=freshOld.Authenticator(t.Context(),hasher);transitionCheck(t,err);final,err:=finalVerifier.Authenticate(t.Context(),"alice",accountPasswordText);transitionCheck(t,err);if final.MatchesSessionStamp(credential.SessionStamp()){t.Fatal("return restored original session stamp")}
+    if got,found,err:=freshOwner.Reconcile(t.Context(),retained);err!=nil||!found||got.OperationID()!=operation{t.Fatal("historical operation not reconcilable",err)}
+   }
+  })
+ }
+}

@@ -1835,3 +1835,37 @@ Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무
 선택하여 업무 transaction 안에서 기록한다. 표시명/업무 필드 값을 감사에 복사하지 않는다.
 별도 base 업무 adapter와 역사 adoption 검사는 기존 계약을 검증하는 소비자로 유지하며 새 선택 조립의
 인가·DB session·이력 증거로 대신하지 않는다.
+
+## 준비된 두 선택 모델 사이의 명시적 계정 전환
+
+`identity/model.NewTransition[S,T]`는 같은 실제 backend·전체 host source·권한 catalog를 사용하는 서로 다른
+계정 table을 묶는다. 대상 행과 프로필은 호스트의 명시적 data migration이 먼저 준비한다. `AccountMapping`은 양쪽
+전체 inventory를 1:1로 대응시키며, 같은 row key·principal·hash만으로 대응이나 소유권 이전을 추론하지 않는다.
+현재 구현은 catalog 변경·대상 행 생성·host FK 재매핑·기존 `godj_system` adoption을 수행하지 않는다.
+이 범위는 I1의 잔여 작업이며 해당 기능이나 전체 제품 수용을 완료로 처리하지 않는다.
+
+`Prepare`는 framework migration identity를 확인한 뒤 한 native snapshot에서 현재 source actor의 명시적 전환 권한과
+추가 권한·deny overlay, 전체 domain 이력·감사·session inventory, 두 typed 모델의 전체 행을 검사한다.
+그룹/직접/유효 권한은 shared catalog에서 정확히 같아야 하고, principal·encoded password·active/staff/superuser도
+보존되어야 한다. 로그인/email은 target의 정규화 정책에 이미 맞아야 하며 조용히 수정하지 않는다. Scalar 표현/한도·
+전체 unique와 추가 M2M의 존재/집합을 확인하고, 선택적 typed mapping validator에 password를 지운 사본을 제공한다.
+새 프로필의 업무 정책·필드 선택 의미는 이 validator와 앞선 data migration이 소유한다.
+
+기본 inventory 한도는 4,096개이며 명시적으로 최대 65,536개까지 정한다. 전체 행을 256개 이하 page로 읽으며
+signed key를 건너뛰지 않는다. 검토할 scalar/collection 상태의 framing 포함 한도는 64 MiB다. 한도를 넘는 행이나
+값을 버리고 계속하지 않는다. 반환 preparation은 원래 owner·actor·operation과 전체 source/target 상태에 묶인다.
+호스트는 commit 전에 값·hash·session 원문이 없는 `TransitionManifest`를 보관한다. Manifest의 operation별 상태 digest와
+정규화한 mapping의 digest는 증거 식별자이며 권한이나 비밀값이 아니다.
+
+`Commit`은 사본 사이에서도 한 번만 시도하며 같은 native fence에서 현재 인가·전체 mapping·profile/권한과 policy를
+다시 검사한다. Source의 password를 계정/operation별 unusable 표식으로 바꾸고 저장된 boolean role을 false로 만들며
+revision을 증가시킨다. 기존 host FK와 소속은 퇴역한 source 행에 남는다. 현재 source domain의 인증·익명·reset proof
+session 전체를 제거하되 다른 namespace는 보존한다. Source domain의 퇴역 감사와 새 generation/receipt를 같은 transaction에
+확정하며 과거 감사나 session namespace를 target에 복사하지 않는다. Receipt 전후 전체 typed 행/관계 readback을 확인한다.
+같은 이전 모델로 돌아가도 새 generation을 사용한다. Schema migration 동시성 잠금은 별도의 프로젝트 migration owner 책임이다.
+
+Commit·cleanup·unknown 실패는 성공 receipt를 게시하지 않고 자동 재시도하지 않는다. `Reconcile`은 보관한 manifest를
+정확한 operation·evidence·실제 predecessor 링크와 한 snapshot에서 대조하므로 restart·후속 전환 뒤에도 조회할 수 있다.
+미관측 결과는 rollback 확정이 아니다. Unknown fence는 호스트가 별도로 조정한다. `domain.LookupIn`의 부재는 외부 snapshot
+종료 전에는 데이터이며, `Lookup`도 cleanup 성공 뒤에만 정확한 `ErrUninitialized`를 반환한다. Scope 위반·중복 operation·
+cleanup 오류는 정상 부재가 아니며 `Receipt.Follows`는 sequence 값만으로 predecessor를 인정하지 않는다.

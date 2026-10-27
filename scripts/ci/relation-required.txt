@@ -4537,3 +4537,6 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCol
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/custom/sqlite
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountParentDefault/invalid_collection
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedFirstAccountParentCustom/invalid_collection
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountTransition
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountTransition/sqlite
+github.com/progresshans/godj/db/sqlite|TestSQLiteAccountDomainOwnership/lookup_contract

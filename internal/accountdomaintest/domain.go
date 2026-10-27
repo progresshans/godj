@@ -45,6 +45,7 @@ func Run(t *testing.T, open Open) {
 		{"invalid_history", invalidHistory},
 		{"unknown_outcome_reconciliation", unknownOutcome},
 		{"inspect_scope", inspectScope},
+		{"lookup_contract", lookupContract},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)

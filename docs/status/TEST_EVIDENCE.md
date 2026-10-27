@@ -2497,6 +2497,47 @@ TTY/process/browser/독립 관측·원본/capture 수용은 아직 완료되지 
 (SHA-256 `3e389f550a4ab160407fa848172c8ceb5ee5104a9ef5d00c96d2213e16d7bf3c`).
 일반 collection의 선택 identity through 자동 생성, 채운 DB 전환/복구와 남은 고정 소비자 및 I1 전체 수용은 미완료다.
 
+### 준비된 typed 모델의 mapping·퇴역과 domain 전환
+
+2026-10-28, source `51f68ad1a5ec0eb93f64c7569c06f840fa55b973` 위에서 `Transition[S,T]`를 작성했다.
+동일 backend·전체 source·catalog의 서로 다른 두 모델에 대해 명시적 전체 1:1 mapping과 현재 전환 권한을 검사한다.
+Principal/hash/role·직접/그룹/유효 권한을 대조하고 전체 scalar/추가 M2M 상태를 준비와 최종 native fence에 묶는다.
+Source unusable/boolean 퇴역·revision·현재 domain session 전체 폐기·source audit·새 generation/receipt와 독립 readback을
+같은 transaction에서 수행한다. 보관 manifest와 정확한 operation/predecessor를 이용한 restart reconciliation을 작성했다.
+대상 행 생성·catalog 변경·host FK 재매핑·역사 systemstate 이행은 이 API의 구현 범위가 아니며 I1에 남아 있다.
+
+기본 User와 renamed Member를 같은 외부 생성 module에 선언하고 29개 child 검사를 양 DB 필수 실행에 연결했다.
+Signed key·같은 principal/hash의 domain 격리·이전 모델 복귀·추가 profile collection·한도·불완전/중복 mapping,
+준비 후 scalar/권한/행/domain 변경·policy/인가 거부·취소·한 번의 시도·foreign namespace 보존·실제 native write 뒤
+rollback/audit/receipt/late readback 실패·unknown commit/rollback·경합과 재접속을 확인하도록 작성했다.
+실패 주입은 실제 callback 완료/지정 phase의 실행 counter를 확인하며 네트워크 단절 실험으로 집계하지 않는다.
+새 본문은 이 로컬 작업에서 실행하지 않았다.
+
+`domain.LookupIn`·`Receipt.Follows`와 공개 Lookup의 정확한 부재/cleanup 경계를 연결했다. 두 DB의 기존 domain 소유권
+검사에 실제 predecessor·root/만료 scope·누락/중복/무시된 callback·정상 부재/조회 뒤 cleanup 실패 검사를 추가했다.
+기존 필수 실행은 삭제하지 않았다. Relation 4,542개·PostgreSQL 5,670개의 중복 없는 필수 목록과 PostgreSQL 세 mode의
+16개 실행 배정, 실제 compiled binary에서 찾은 consumer 117개 root의 12개 native 좌표별 단일 담당을 대조했다.
+이 확인은 실행 배정이며 product run/pass를 뜻하지 않는다.
+
+로컬 darwin/arm64 Go 1.26.5에서 최종 영향 6개 package의 `go test -run '^$' -count=1 -json` compile-only는 exit 0이었다
+(50.05초). 생성된 외부 module 네 package의 최종 compile-only도 exit 0이었다(생성 포함 4.32초).
+초기 미사용 import와 새 fixture schema의 누락된 format version을 compile/생성 단계에서 고쳤다.
+추가 M2M·실패 counter를 포함한 최종 소비자를 별도로 생성/compile했고 임시 compile driver는 보관 후 제거했다.
+배정 점검 driver가 matrix wrapper를 행으로 잘못 읽은 오류는 준비된 binary를 재사용해 수정했으며 product 실행은 추가하지 않았다.
+문서 링크·gofmt·diff 검사와 실행 전후 11개 코드/선언 파일 hash 일치를 확인했다. 새 migration이나 기존 생성물 변경은 없다.
+새 domain 전환/lookup·양 DB/race/CGO0·process/browser/독립 관측의 실제 본문 및 전체 원격 수용은 아직 완료되지 않았다.
+
+선행 [CI 40588244339](https://github.com/progresshans/godj/actions/runs/40588244339), attempt 1의 전체 132개 작업 중
+확인 시점에 성공 56·실행 중 40·대기 35·실패 1개였다. 실패 job `122486234200`은 macOS Intel normal의
+`TestProjectLinkedTargetedMigrateSQLite` 준비 중 `pgx/v5@v5.10.0` 검증을 위한 `proxy.golang.org` DNS가 timeout되어
+30.06초 뒤 중단됐다. 제품 본문이나 새 전환 코드의 실패로 추론하지 않으며 이 실행을 전체 PASS로 사용하지 않는다.
+원본 log SHA-256은 `9445829ba5bbc3dfa480a455164b38e99fc6f0d09396bcaee1be6f9bf27dd3ae`다.
+새 source의 push로 자동 전체 CI를 요청하며 이전 부분 성공을 재사용하지 않는다.
+
+원본 run/jobs/log·외부 생성 module·compile 로그·최종 source hash·변경 patch·실행 배정은 검증 보관소
+`gdj0138-staged-account-transition-v1/receipt-final.json`에 연결했다
+(SHA-256 `8f1552e3ab4b242754947458ab9be6c38f7383f25dcf2f8e4f696505678f5e41`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

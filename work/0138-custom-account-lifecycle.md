@@ -443,6 +443,18 @@ native scope에 두고, `AccountMemberships` validator에 실제 최종 프로�
 기본/custom의 양 DB command 소비자와 실제 TTY·별도 runtime·파일 결합·재접속 검사를 연결했다. 새 본문 작성·최소 compile과
 실제 환경별 실행은 TEST_EVIDENCE에서 구분하며 전체 원격 수용은 확인 대상이다.
 
+
+### 준비된 선택 모델의 전환
+
+서로 다른 typed 계정 모델의 전체 행을 명시적 1:1 mapping으로 대조하는 `Transition[S,T]`를 작성했다.
+같은 backend·전체 host source·catalog를 요구하고 현재 전환 인가·scalar/추가 collection·principal/hash/role/권한과
+기존 domain 이력을 준비/최종 fence에서 검사한다. Source unusable/role 퇴역·revision·기존 domain session 전체 폐기·감사와
+새 generation/receipt를 한 transaction에 묶고 최종 행/관계를 다시 읽는다. 보관 manifest와 실제 predecessor를 사용하는
+restart/unknown reconciliation도 작성했다. 작성·외부 생성/compile과 새 양 DB/race 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+대상 행과 프로필은 명시적으로 미리 준비하는 경로다. 대상 자동 생성·catalog 변경·host 관계 재매핑과 역사 `systemstate`
+가져오기, 남은 고정 소비자 교체는 미완료이며 이 코드만으로 I1-07/08을 수용 완료로 처리하지 않는다.
+
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
 3. 공개 명령·Form/Admin/API·password/reset·host 삭제·restart 소비자와 실패 검사를 완성한다.
