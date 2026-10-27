@@ -2027,6 +2027,21 @@ skip 0). 실제 참조한 framework 입력 470개는 제출 source와 byte-ident
 (SHA-256 `f69cc8e0c935f91f48b8c560b98837cfe99c11b461ce7447ecec10678f395c93`).
 수정 뒤 PostgreSQL·race/CGO0와 전체 환경은 새 자동 CI에서 확인하며, 한정 SQLite 재현을 전체 PASS로 계산하지 않는다.
 
+후속 source `82355c5646e3975bc8741ee9b372fbbc165e1d30`의
+[CI 40445008077](https://github.com/progresshans/godj/actions/runs/40445008077)에서는 PostgreSQL core-consumers의
+normal/race/CGO0 job이 모두 통과했다. 실제 checkout은 `44621ff26f4145aff00d74663fdd8fd090bee511`이고,
+tree `476ed8610fd07699d2515de5132e58c7a20a9fe7`은 제출 source와 같다. 전체 CI는 PASS가 아니다.
+Linux의 다른 relation shard에서 `TestGeneratedFilteredPrefetchComposition`, `TestGeneratedMaterializedStream`,
+`TestGeneratedCustomSinglePrefetch`가 공통 `sessions_test.go`에서 호출하는 `runFacadeReadScope`의 파일을
+복사하지 않아 빌드에 실패했다. 관측한 실패 job 9개의 원본에서 같은 원인을 확인했다.
+
+세 소비자의 격리 module 구성에 `read_scope_test.go`를 포함했다. 제품 코드·생성물·필수 실행 목록과 각 소비자의
+기존 test selector는 바꾸지 않았다. 로컬 darwin/arm64 normal에서 실패한 세 root만 `-count=1`로 실행해 모두
+통과했다(42.87초, skip 0). 이 명령의 저장소 입력 1,546개 중 세 수정 파일 이외는 `82355c56`과 동일하며,
+진행 중인 Helpdesk를 import하지 않는다. 원본·source 대조는 `gdj0138-readscope-v1/ci-fixture-packet.json`에 둔다
+(SHA-256 `bf015778a1a4dd26e06b2ddeeb12f3c71b761bde0a8817f15fdb0e63968d8860`).
+수정 source의 PostgreSQL·race/CGO0·전체 환경과 generated drift는 다음 자동 전체 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

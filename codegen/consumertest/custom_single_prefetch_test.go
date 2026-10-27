@@ -28,7 +28,7 @@ func TestGeneratedCustomSinglePrefetch(t *testing.T) {
 		t.Fatal(err)
 	}
 	root := writeProjectBundleModule(t, bundle)
-	for _, name := range []string{"consumer_test.go", "sessions_test.go", "queries_test.go", "prefetch_test.go", "prefetch_tree_test.go", "prefetch_filtered_test.go", "prefetch_custom_single_test.go"} {
+	for _, name := range []string{"consumer_test.go", "sessions_test.go", "read_scope_test.go", "queries_test.go", "prefetch_test.go", "prefetch_tree_test.go", "prefetch_filtered_test.go", "prefetch_custom_single_test.go"} {
 		data, err := os.ReadFile(filepath.Join("testdata", "manytomany", name))
 		if err != nil {
 			t.Fatal(err)
