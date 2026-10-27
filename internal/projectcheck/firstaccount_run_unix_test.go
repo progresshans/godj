@@ -150,7 +150,7 @@ func TestFirstAccountParentChecksSourceClearsInputsAndPreservesCompletion(t *tes
 					}
 					return prepared, nil
 				},
-				terminal: func(context.Context, <-chan struct{}, *os.File, io.Writer, firstaccount.Description, *FirstAccountTerminalReport) (firstaccountwire.Request, string) {
+				terminal: func(context.Context, <-chan struct{}, *os.File, io.Writer, firstaccount.Description, *FirstAccountTerminalReport, string) (firstaccountwire.Request, string) {
 					terminalCalls++
 					profile, password = []byte("private-profile"), []byte("private-password")
 					request := firstaccountwire.Request{Fingerprint: description.Fingerprint, Password: password}

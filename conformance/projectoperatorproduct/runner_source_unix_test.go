@@ -389,7 +389,7 @@ import (
 const markerEnvironment = "GODJ_OPERATOR_PRODUCT_MARKER"
 // Deliberate transport fault injection belongs only to the private provision
 // invocation. Compatibility and description must stay resource-free.
-const provisionArgument = "__godj_first_account_provision_v2"
+const provisionArgument = "__godj_first_account_provision_v3"
 type closeFailureBackend struct { database.Backend }
 func (backend closeFailureBackend) Close() error {
  return errors.Join(backend.Backend.Close(), errors.New("external operator backend close failed"))
@@ -578,7 +578,7 @@ func FirstAccount(open func(context.Context) (firstaccount.Backend, error)) (fir
 		}
 		_, err = store.InspectStartup(ctx)
 		return backend, err
-	})
+	}, firstaccount.Config{})
 }
 `
 

@@ -2303,6 +2303,47 @@ Portable core 필수 항목은 259개다. 기존 필수 항목의 삭제/중복�
 새 본문의 SQLite/PostgreSQL·race/CGO0·generated drift·process/browser/platform과 전체 원본 대조는
 새 source의 자동 원격 CI에서 확인한다. I1과 전체 카탈로그는 미완료다.
 
+### 공개 초기 계정 CLI의 파일 입력·게시 보고와 선행 CI 수정
+
+2026-10-28, source `0f4e01bdcfa5996553138b00fb34cd2f4ea84606` 위에 공개 초기 계정 CLI의 파일 경로를 작성했다.
+`firstaccount.Config`의 명시적 파일당/합계 byte 한도와 필수 `ReportFiles`, 같은 typed Form의 File/Image/choices를
+TTY·private v3 frame·최초 생성 owner에 연결했다. 입력한 regular file은 한 번 읽고 basename/bytes만 전달한다.
+준비가 소유한 `uploads.Buffer`와 모든 reader는 포기/한 번의 시도 뒤 만료되며 원본 입력 변경·복사본 재실행을 막는다.
+파일 게시 결과와 DB 생성 결과·보고 실패·resource close·응답 실패를 분리한다. 보고 오류/panic/Goexit 뒤에도 확정 commit을
+유지하며 88/89 private exit가 응답 유실과 보고 실패의 조합을 보존한다. 공개 결과에는 `file_report_failed`를 추가했다.
+실제 `createsuperuser` ABI도 이 선택 계정 wire를 식별한다. 생성 팩토리 ABI와 생산 Go 생성물은 변경하지 않았다.
+
+기본/custom 파일 생성 module에 command의 입력 한도·이미지·빈/생략·원본 변경·단일 시도, 부분 게시·validation/hash·
+감사 rollback·cleanup/unknown·취소와 보고 오류/panic/Goexit 검사를 추가했다. 기존 37개를 유지한 내부 필수 root/child는
+63개다. 별도 기본/custom 프로젝트의 실제 TTY→private pipe→생성 runtime→SQLite→독립 process 재접속 소비자는
+필수 File/Image와 파일 bytes/크기·DB 참조·operation별 보고를 대조하도록 확장했다. 기존 초기 계정/관계·scaffold·Article·
+외부 operator 소비자도 새 API/응답으로 전환했다. 이 새 테스트 본문은 로컬 실행하지 않았다.
+
+선행 [CI 40553230555](https://github.com/progresshans/godj/actions/runs/40553230555)의 PostgreSQL account consumer
+normal/race/CGO0 `122363303752`/`122363303685`/`122363303834`와 Linux 관계 consumer
+`122363305610`/`122363305673`/`122363305925`에서 파일 생성 root의 같은 `invalid_input`을 확인했다.
+원본 checkout `7f50494503735847d1ab34102c5f763a9d1c42e3`의 tree `c303c2d836d5bfdeaad61943421783ee14a8f03e`는
+제출 0f4 source와 같고 그 parent를 포함한다. 최초 계정은 통과하지만 뒤 typed 생성의 Form에서 `groups`/`permissions`가
+`invalid_choice`였다. 소비자가 실제로 생성한 catalog 행을 ModelMultipleChoice의 선택 목록에 연결하지 않은 원인이었다.
+그 실제 fixture key만 명시적으로 연결했다. 제품 Form의 선택 거부나 최종 현재 권한/소속 검사를 완화하지 않았다.
+
+로컬 darwin/arm64 Go 1.26.5에서 이 확인된 실패의 `first_account|typed_creation`만 재현하고 수정 후 기본/custom
+두 module에서 각각 root와 두 child의 run/pass를 확인했다(명령 5.11초/10.86초). 최초 격리 실행·실패/진단 원본도 보관했다.
+이 결과는 SQLite의 해당 경로에 한정하며 PostgreSQL/race/CGO0나 새 command/TTY 본문의 실행 PASS가 아니다.
+
+최종 실제 생성 module 8개(파일 생성·상위 CLI runtime·기존 초기 계정·FK/OneToOne × 기본/custom)의 compile-only는
+최종 28.65초에 통과했다. 영향 package 16개의 compile/실제 binary 목록 확인은 6.02초이며 feature body를 실행하지 않았다.
+임시 재현/compile driver는 검증 보관소로 옮기고 작업 트리에서 제거했다. 실제 consumer root는 114개이며 12개 native 좌표의
+배정에서 각 root와 Relation 필수 4,518개가 한 번씩 담당된다. PostgreSQL 필수 5,645개는 세 mode에서 단일 담당을 유지한다.
+Portable core 269개와 TTY/process 필수 25개를 연결했고 기존 필수 항목의 삭제/중복은 없다. 새로운 실행 목록과 입력 owner는
+capture source 범위에도 포함했다. 이 목록 대조는 계획 검사이며 테스트 본문 실행 근거가 아니다.
+
+원본 CI 로그/normal artifact·소스 결합, 한정 재현, 생성 module compile·binary discovery·실행 목록과 변경 hash는
+검증 보관소의 `gdj0138-first-cli-files-v1/receipt-final.json`에 둔다(SHA-256 `bda8e50e249faa1cfeebd8a1dce3f09258e3d4c3388c6cde3a84dd035de75676`).
+새 source의 전체 SQLite/PostgreSQL·race/CGO0·generated drift·TTY/process/browser/platform과 원본/capture 대조는
+push로 시작하는 자동 전체 CI에서 확인한다. I1의 추가 M2M·선택 모델-as-through 생성·채운 DB 전환/복구/restart와
+전체 카탈로그 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -24,9 +24,10 @@ var callbackAborted = errors.New("first account runner: callback aborted")
 // cause. Product outcomes travel in the bounded response. A process entrypoint
 // must use ExitCode and keep SIGPIPE observable until Serve has returned.
 type Error struct {
-	code          string
-	outcome       firstaccountwire.Outcome
-	cleanupFailed bool
+	code             string
+	outcome          firstaccountwire.Outcome
+	cleanupFailed    bool
+	fileReportFailed bool
 }
 
 func (err *Error) Error() string {
@@ -43,13 +44,19 @@ func (err *Error) Error() string {
 func (err Error) Format(state fmt.State, _ rune) { _, _ = state.Write([]byte(err.Error())) }
 
 // ExitCode preserves a known commit even if its response could not be written.
-// These two private exits must never be interpreted as an ordinary retryable
+// These private exits must never be interpreted as an ordinary retryable
 // failure. The parent still requires the complete single request handoff.
 func (err *Error) ExitCode() int {
 	if err == nil {
 		return 0
 	}
 	if err.outcome == firstaccountwire.Created {
+		if err.fileReportFailed {
+			if err.cleanupFailed {
+				return firstaccountwire.KnownCreatedCleanupFileReportResponseFailureExitCode
+			}
+			return firstaccountwire.KnownCreatedFileReportResponseFailureExitCode
+		}
 		if err.cleanupFailed {
 			return firstaccountwire.KnownCreatedCleanupResponseFailureExitCode
 		}
@@ -92,7 +99,7 @@ func describe(ctx context.Context, command firstaccount.Command, stdout io.Write
 	if err != nil {
 		return &Error{code: "internal_error"}
 	}
-	return publish(stdout, document, firstaccountwire.NotCreated, false)
+	return publish(stdout, document, firstaccountwire.NotCreated, false, false)
 }
 
 func provision(ctx context.Context, command firstaccount.Command, stdin io.Reader, stdout io.Writer) error {
@@ -100,9 +107,9 @@ func provision(ctx context.Context, command firstaccount.Command, stdin io.Reade
 	complete := func() error {
 		document, err := firstaccountwire.EncodeResponse(response)
 		if err != nil {
-			return &Error{code: "internal_error", outcome: response.Outcome, cleanupFailed: response.CleanupFailed}
+			return &Error{code: "internal_error", outcome: response.Outcome, cleanupFailed: response.CleanupFailed, fileReportFailed: response.FileReportFailed}
 		}
-		return publish(stdout, document, response.Outcome, response.CleanupFailed)
+		return publish(stdout, document, response.Outcome, response.CleanupFailed, response.FileReportFailed)
 	}
 	if ctx.Err() != nil {
 		response.Code = firstaccountwire.Canceled
@@ -134,11 +141,10 @@ func provision(ctx context.Context, command firstaccount.Command, stdin io.Reade
 	prepared, err := callback.Invoke(func() (firstaccount.Prepared, error) {
 		return command.Prepare(ctx, request.Fingerprint, request.Values)
 	}, callbackAborted)
-	// Typed preparation now owns its detached strings. Drop all mutable profile
-	// buffers before resource acquisition, retaining only the password until use.
+	// Preparation owns detached scalars and expiring upload buffers. Clear the
+	// transport copies before acquiring a backend; retain only the password.
 	for i := range request.Values {
-		clear(request.Values[i].Text)
-		request.Values[i] = firstaccount.Value{}
+		request.Values[i].Clear()
 	}
 	request.Values = nil
 	if err != nil {
@@ -166,10 +172,11 @@ func provision(ctx context.Context, command firstaccount.Command, stdin io.Reade
 	// joined callback owns that reference until it returns, including its defers.
 	password := string(request.Password)
 	request.Clear()
-	result, provisionErr := callback.Invoke(func() (accountmodel.FirstAccountCreation, error) {
+	result, provisionErr := callback.Invoke(func() (firstaccount.Result, error) {
 		return command.Provision(ctx, backend, response.OperationID, prepared, password)
 	}, callbackAborted)
 	password = ""
+	response.FileReportFailed = result.ReportErr() != nil
 	if provisionErr == nil {
 		// A nil error is a confirmed commit; do not let later cancellation/cleanup
 		// downgrade it. An impossible source/receipt mismatch requires inspection.
@@ -227,10 +234,10 @@ func classify(err error, fallback firstaccountwire.Code) firstaccountwire.Code {
 	return code
 }
 
-func publish(stdout io.Writer, document []byte, outcome firstaccountwire.Outcome, cleanup bool) error {
+func publish(stdout io.Writer, document []byte, outcome firstaccountwire.Outcome, cleanup, fileReport bool) error {
 	_, err := callback.Invoke(func() (struct{}, error) { return struct{}{}, firstaccountwire.Write(stdout, document) }, firstaccountwire.ErrOutputTransport)
 	if err != nil {
-		return &Error{code: "output_failed", outcome: outcome, cleanupFailed: cleanup}
+		return &Error{code: "output_failed", outcome: outcome, cleanupFailed: cleanup, fileReportFailed: fileReport}
 	}
 	return nil
 }

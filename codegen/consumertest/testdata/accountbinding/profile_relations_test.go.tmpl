@@ -79,7 +79,7 @@ func TestGeneratedProfileRelationLifecycle(t *testing.T) {
             CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: fields, Relations: relations}, EvidenceSHA256: strings.Repeat("d", 64),
         }); check(err)
         opened := 0
-        command, err := firstaccount.New(definition, func(ctx context.Context) (firstaccount.Backend, error) { opened++; return database.Open(ctx, selected) }); check(err)
+        command, err := firstaccount.New(definition, func(ctx context.Context) (firstaccount.Backend, error) { opened++; return database.Open(ctx, selected) }, firstaccount.Config{}); check(err)
         description, err := command.Description(); check(err)
         if description.Fields[0].Name != role.Login { t.Fatal("first account prompt lost selected login") }
         inputs := func(key string) []firstaccount.Value {

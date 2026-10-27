@@ -105,7 +105,7 @@ func assertFirstAccountConsumer[M any](t *testing.T, backend database.Backend, s
 			return nil, err
 		}
 		return &firstCommandBackend{Backend: opened, closes: &closes}, nil
-	})
+	}, firstaccount.Config{})
 	check(err)
 	description, err := command.Description()
 	check(err)
@@ -259,7 +259,7 @@ func assertFirstCommandRuntime(t *testing.T, command firstaccount.Command, descr
 		t.Fatal(err)
 	}
 	var output, stderr bytes.Buffer
-	if err := registry.Serve(t.Context(), []string{"__godj_first_account_describe_v2"}, projectcommand.Streams{Stdin: firstNoInput{}, Stdout: &output, Stderr: &stderr}); err != nil {
+	if err := registry.Serve(t.Context(), []string{"__godj_first_account_describe_v3"}, projectcommand.Streams{Stdin: firstNoInput{}, Stdout: &output, Stderr: &stderr}); err != nil {
 		t.Fatal(err)
 	}
 	var described struct {
@@ -272,11 +272,12 @@ func assertFirstCommandRuntime(t *testing.T, command firstaccount.Command, descr
 	if err := decoder.Decode(&described); err != nil {
 		t.Fatal(err)
 	}
-	if described.Version != 2 || described.Code != "" || described.Description.Fingerprint != description.Fingerprint || firstaccount.ValidateDescription(described.Description) != nil {
+	if described.Version != 3 || described.Code != "" || described.Description.Fingerprint != description.Fingerprint || firstaccount.ValidateDescription(described.Description) != nil {
 		t.Fatal("runtime changed the selected declaration")
 	}
 	var request bytes.Buffer
-	request.WriteString("GODJFA2")
+	request.WriteString("GODJFA3")
+	request.Write(make([]byte, 4))
 	request.WriteString(described.Description.Fingerprint)
 	request.WriteString(operation)
 	request.WriteByte(byte(len(values)))
@@ -298,24 +299,26 @@ func assertFirstCommandRuntime(t *testing.T, command firstaccount.Command, descr
 	}
 	request.WriteString(accountPasswordText)
 	frame := request.Bytes()
+	binary.BigEndian.PutUint32(frame[len("GODJFA3"):], uint32(len(frame)))
 	defer clear(frame)
 	output.Reset()
-	if err := registry.Serve(t.Context(), []string{"__godj_first_account_provision_v2"}, projectcommand.Streams{Stdin: bytes.NewReader(frame), Stdout: &output, Stderr: &stderr}); err != nil {
+	if err := registry.Serve(t.Context(), []string{"__godj_first_account_provision_v3"}, projectcommand.Streams{Stdin: bytes.NewReader(frame), Stdout: &output, Stderr: &stderr}); err != nil {
 		t.Fatal(err)
 	}
 	var result struct {
-		Version       uint64 `json:"version"`
-		OperationID   string `json:"operation_id"`
-		Outcome       string `json:"outcome"`
-		Code          string `json:"code"`
-		CleanupFailed bool   `json:"cleanup_failed"`
+		Version          uint64 `json:"version"`
+		OperationID      string `json:"operation_id"`
+		Outcome          string `json:"outcome"`
+		Code             string `json:"code"`
+		CleanupFailed    bool   `json:"cleanup_failed"`
+		FileReportFailed bool   `json:"file_report_failed"`
 	}
 	decoder = json.NewDecoder(bytes.NewReader(output.Bytes()))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {
 		t.Fatal(err)
 	}
-	if result.Version != 2 || result.OperationID != operation || result.Outcome != "created" || result.Code != "" || result.CleanupFailed || stderr.Len() != 0 {
+	if result.Version != 3 || result.OperationID != operation || result.Outcome != "created" || result.Code != "" || result.CleanupFailed || result.FileReportFailed || stderr.Len() != 0 {
 		t.Fatal("runtime did not publish its confirmed outcome", result)
 	}
 	if strings.Contains(output.String(), accountPasswordText) || strings.Contains(output.String(), "first@example.test") {

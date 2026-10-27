@@ -1177,15 +1177,15 @@ backend를 받은 뒤 독립적인 최초 생성 owner를 만든다. 선언을 �
 해시하거나 검증했다고 주장하지 않는다. 호스트는 callback 정책이 바뀌면 그에 해당하는 evidence도 갱신한다.
 
 `project/firstaccount.Command`는 생성 선언에서 실제 ModelForm을 만들어 DB 연결 전 입력을 준비한다. Description은
-login을 첫 필드로, 나머지를 IR 선언 순서로 제공하며 필수/nullable/default 여부·scalar kind·정적인 선택값과 한도를
+login을 첫 필드로, 나머지를 IR 선언 순서로 제공하며 필수/nullable/default 여부·입력 kind·정적인 선택값과 한도를
 보존한다. 값은 선택값의 정확한 Form 표현이며 문자열 trim과 구분한다. Description은 복사본이고 제출 profile이나
 password를 포함하지 않는다. 최대 31개 필드·각 4,096 bytes·총 입력 65,536 bytes, 필드당 256개 선택값과 description
 65,536 bytes의 한도를 적용한다. 이 전송 상한은 모델의 더 좁은 validation을 대신하지 않는다.
 
 입력은 같은 description fingerprint와 정확한 필드 순서를 요구한다. 생략과 명시적인 빈 문자열을 구분하고 실제
-`BindInstance`/`PrepareInput`을 거쳐 typed 입력을 보존한다. 임의 `map[string]any`나 기본 User DTO로 바꾸지 않는다.
+`BindInstance`와 `BoundForm`을 거쳐 typed 입력을 보존한다. 임의 `map[string]any`나 기본 User DTO로 바꾸지 않는다.
 FK/OneToOne key는 IR 기반 integer/null/default 규칙으로 파싱하고, 아래의 `ProfileRelation` 정책이 실제 DB의
-현재 선택을 검증한다. 파일·collection 입력은 구성 시 명시적으로 거부하며 필수 profile을 조용히 빼지 않는다.
+현재 선택을 검증한다. 파일은 명시적 한도·보고 owner와 아래 수명 계약을 사용한다. Collection 입력은 구성 시 명시적으로 거부한다.
 준비 객체는 하나의 Command에 속하며 복사본도 한 번의 실행 시도를 공유한다. `Clear`는 아직 시작하지 않은 준비만
 포기하고 진행 중인 typed 입력을 변경하지 않는다. 실패 원인의 보존과 진단 비노출을 함께 유지한다.
 
@@ -1202,8 +1202,8 @@ argv 값 파싱·로그·출력 proxy와 분리한다. 선언용 project runner�
 선언 조회는 실제 typed Description을 반환하며 stdin을 읽거나 DB를 연결하지 않는다. 아래의 상위 process가 이 경로를
 사용한다. 공개 `createsuperuser`와 Article/scaffold의 현재 조립은 아래의 공개 통합 경계를 따른다.
 
-현재 private v2 wire의 단일 binary frame은 선언 fingerprint·상위 process가 먼저 보관한 operation ID·정확한 순서의
-scalar 이름/존재 여부/값·raw password를 포함한다. 전체 bytes·개별 길이·중복·UTF-8/NUL scalar·EOF를 검사한 뒤
+현재 private v3 wire의 단일 binary frame은 전체 길이·선언 fingerprint·상위 process가 먼저 보관한 operation ID·정확한 순서의
+scalar 이름/존재 여부/값, 구분된 파일 basename/길이/bytes와 raw password를 포함한다. 전체 bytes·개별 길이·중복·UTF-8/NUL scalar·EOF를 검사한 뒤
 분리된 가변 버퍼를 만들며, 제출 값을 JSON·argv·환경에 싣지 않는다. 생략과 빈 값, 정확한 choice 표현을 유지한다.
 Raw password의 전송 한도는 4,096 bytes이고 실제 선언의 더 좁은 한도와 정책을 다시 적용한다. 전송 단계가 별도의
 문자 정리나 password 정책을 만들지 않는다. JSON Description/결과는 canonical closed shape와 한도를 검사한다.
@@ -1213,10 +1213,11 @@ Runner는 `Command.Prepare`로 실제 ModelForm을 DB 전에 검증하고 profil
 close·writer와 오류 분류 callback은 panic/Goexit를 포함한 defer 종료까지 기다린다. 입력과 panic/오류 원인은 출력하지 않는다.
 호출이 자원을 반환하기 전까지는 callback이 그 자원의 정리를 소유한다. 자동 재시도·adoption·receipt 기반 재실행은 없다.
 
-응답은 같은 operation의 `not_created`, `created`, `unknown`과 별도 `cleanup_failed`만 게시한다. 실제 source/receipt와
+응답은 같은 operation의 `not_created`, `created`, `unknown`과 별도 `cleanup_failed`/`file_report_failed`를 게시한다. 실제 source/receipt와
 일치하는 확정 commit은 이후 취소·close 실패로 지우지 않는다. Provision 중 비정상 callback 종료나 outcome-unknown은
 잠정 성공을 게시하지 않으며 operation ID를 retained parent에 남긴다. Close는 유일한 결과 쓰기보다 먼저 끝난다.
-확정 commit 뒤 응답을 못 쓰면 process는 private exit 86, close까지 실패하면 87을 보존한다. Entry point는
+확정 commit 뒤 응답을 못 쓰면 process는 private exit 86, close까지 실패하면 87을 보존한다. 파일 보고도 실패했으면
+각각 88/89로 두 결과를 보존한다. Entry point는
 `command.ExitCode`를 사용하고 Serve가 반환할 때까지 SIGPIPE 처리를 유지한다. 상위 process는 완전한 단일 request
 전달·프로세스 종료 근거와 함께 판정해야 하며 이 exit 값만으로 임의 child의 성공을 만들지 않는다.
 
@@ -1228,7 +1229,7 @@ close·writer와 오류 분류 callback은 panic/Goexit를 포함한 defer 종�
 `ProjectSpec`과 대조한다. `identity/model.RoleFingerprint`는 이 대조를 위한 순수 metadata이며 typed binding이나
 쓰기 권한을 대신하지 않는다. 일치하지 않으면 TTY를 읽거나 기본 User로 우회하지 않는다.
 
-TTY는 실제 선언 순서의 scalar·static choice와 비밀번호를 한도 안에서 읽는다. 기본값/선택 필드의 생략은 별도 질문으로
+TTY는 실제 선언 순서의 scalar·static choice·명시적 local file path와 비밀번호를 한도 안에서 읽는다. 기본값/선택 필드의 생략은 별도 질문으로
 명시하여 빈 문자열을 제출한 경우와 구분한다. 터미널에서 값의 정규화나 model validation을 다시 구현하지 않으며,
 runtime의 실제 ModelForm이 이를 수행한다. 같은 터미널로 보낼 때만 profile을 echo하고 비밀번호는 echo하지 않는다.
 비밀번호 확인은 원문 bytes를 비교한다. 삭제한 rune 저장 영역·실패 입력·전달 frame을 비우고 terminal 상태를 복구하며,
@@ -1321,7 +1322,7 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 첫 계정 명령은 DB를 열기 전에 실제 IR의 integer/null/default/static-choice 의미로 관계 key를 파싱한다.
 이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
 선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일 편집은 아래 계약을 따르고,
-파일의 Form 생성은 아래 계약을 따르며, 공개 첫 명령의 파일 전송·추가 M2M profile과 selected-model through identity 생성은 I1에 남는다.
+파일의 Form 생성과 공개 첫 명령의 입력/전송은 아래 계약을 따르며, 추가 M2M profile과 selected-model through identity 생성은 I1에 남는다.
 환경별 실행 결과는 TEST_EVIDENCE를 따른다.
 
 입력의 source·선택 필드·target binding과 login/email의 고정 저장 정규화·문자/byte 한도를 I/O 전에 확인한다.
@@ -1408,7 +1409,33 @@ receipt를 대조한다. 다른 첫 생성이 게시 사이에 완료되면 원�
 Admin 생성에 업로드가 있으면 `ReportFileCreate`가 필수다. `AccountFileCreationReport`는 확정 Creation, 파일별 결과와
 오류를 별도로 소유한다. Callback·오류 변환·취소·요청 수명과 보고 실패는 편집 보고와 같은 계약이며, 확정 commit 뒤 보고
 실패는 성공한 DB 결과를 취소하지 않는다. Choices-only 생성에는 파일 게시 보고 callback을 요구하지 않는다.
-공개 첫 명령의 파일 입력·private process 전송은 아직 연결하지 않았으며, 추가 M2M·채운 DB 전환과 함께 활성 I1 요구에 유지한다.
+공개 첫 명령의 파일 입력·private process 전송은 아래 계약을 따른다. 추가 M2M·채운 DB 전환은 활성 I1 요구에 유지한다.
+
+### 공개 첫 명령의 파일 입력과 보고
+
+`firstaccount.New`는 upload 필드가 있으면 `Config.MaxFileBytes`/`MaxFilesBytes`와 `ReportFiles`를 요구한다.
+두 한도는 양수·파일당 ≤ 합계 ≤ 64 MiB이며 실제 Description digest에 포함된다. 파일 choices는 같은 Form의 정적인
+문자열 선택이고 임의 저장 이름·local 경로를 받는 upload와 구분한다. 이미지 소유 크기는 독립 CLI 입력으로 노출하지 않는다.
+
+TTY의 파일 경로는 명령 작업 디렉터리 기준으로 한 번 열고 그 regular file handle에서 제한된 bytes를 읽는다.
+FIFO/device/directory·한도 초과·관측한 크기/시각 변경·읽기/닫기 실패는 입력 실패다. 읽기 사이에 context/interrupt를
+확인하며 local path를 child에 전달하지 않는다. 새 frame은 선언된 전체 길이를 확인한 뒤 해당 크기만큼 할당한다.
+Scalar-only 요청 때문에 파일 상한 전체를 할당하지 않는다. 파일의 존재·basename·bytes와 scalar/password 예산을 따로 검사한다.
+
+`Command.Prepare`는 `uploads.NewBuffer`로 복사한 입력과 실제 파일 Form을 연결한다. 이미지 검사는 DB 획득 전이며
+Form 정책과 원문/default 의미를 유지한다. 준비를 포기하거나 한 번의 시도가 끝나면 소유 bytes와 이미 열린 reader까지
+만료된다. 호출자 원본 변경이 준비를 바꾸지 않고, 복사한 준비를 재실행하거나 기존 요청 upload 수명을 연장하지 않는다.
+
+`Command.Provision`은 같은 `FirstAccount.CreateForm`을 사용한다. `Result`는 확정 FirstAccountCreation·모든 파일 시도와
+별도 ReportErr를 보관한다. 파일 시도가 있으면 upload를 만료시킨 뒤 `FileReport`를 한 번 보고하며 DB 오류도 함께 전달한다.
+이 보고는 native DB scope 밖에서 같은 context를 사용한다. 애플리케이션이 operation ID·실제 이름·게시 outcome·생성 outcome을
+보관하고 명시적 오류를 반환한다. Callback은 동시 호출에 안전해야 하며 panic/Goexit/오류를 closed 보고 실패로 분류한다.
+보고 실패가 확정 commit을 취소하지 않는다. CLI/runner는 파일 이름이나 원인 오류를 공개 JSON에 복제하지 않는다.
+
+부모는 `file_report_failed`와 DB/cleanup 결과를 따로 유지한다. 응답 유실의 unknown에서 false flag를 보고 성공으로
+해석하지 않는다. 보관한 operation receipt와 파일 보고로 명시적으로 대조하며 자동 재시도·파일 삭제는 없다.
+기본/custom의 실제 생성 module과 TTY/process/DB 재접속, 양 DB command 소비자는 이 계약의 검증 대상이며
+작성/최소 compile/확인된 실패 재현을 전체 환경 수용으로 바꾸지 않는다. [공개 API](../../project/firstaccount/README.md)를 따른다.
 
 반환값은 확정된 ID·revision·변경 필드와 폐기 수뿐이다. 후속 relation/session/audit 실패는 앞선 변경과 함께 rollback하고,
 unknown 결과는 공개 값을 버리고 자동 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 되돌리지 않는다.
@@ -1599,7 +1626,7 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 사라져도 commit 뒤 재조회로 성공을 잃지 않는다. ProfileReader의 선택 ModelView와 현재 domain의 값 없는 durable audit만
 화면에 투영한다. 공통 Admin의 active staff·CSRF·최종 current authority 경계와 기존 host graph/rollback/unknown 의미를 유지한다.
 
-공개 첫 계정 명령/scaffold/runtime과 FK/OneToOne·파일 편집/Form 생성은 각 현행 절의 계약을 따른다. 공개 첫 명령의 파일 전송,
+공개 첫 계정 명령/scaffold/runtime과 FK/OneToOne·파일 편집/Form 생성·CLI 전송은 각 현행 절의 계약을 따른다.
 추가 M2M·선택 모델-as-through identity 생성, 채운 DB의 명시적 mapping/retirement와 통합 restart는 남아 있다.
 Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
 경계를 완료했다고 계산하지 않는다. 구현·최소 compile·환경별 본문 실행은 TEST_EVIDENCE에서 구분한다.

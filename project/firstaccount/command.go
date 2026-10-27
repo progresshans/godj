@@ -4,7 +4,6 @@
 package firstaccount
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -23,6 +22,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/uploads"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -32,6 +32,8 @@ const (
 	MaxInputBytes       = 65536
 	MaxChoices          = 256
 	MaxDescriptionBytes = 65536
+	MaxUploadNameBytes  = 1020
+	MaxUploadBytes      = 64 << 20
 )
 
 // Backend is one real resource acquired for an explicit operator invocation.
@@ -43,7 +45,7 @@ type Backend interface {
 	Close() error
 }
 
-// Field describes a selected scalar or relation key using its actual model/form meaning.
+// Field describes a selected scalar, relation key or file using its actual form meaning.
 // Submitted values and application callbacks are never part of a description.
 type Field struct {
 	Name       string   `json:"name"`
@@ -54,6 +56,7 @@ type Field struct {
 	HasDefault bool     `json:"has_default"`
 	MaxBytes   int      `json:"max_bytes"`
 	Choices    []Choice `json:"choices"`
+	Upload     bool     `json:"upload"`
 }
 
 // Choice is a declared, static model choice. Its value is the exact ModelForm
@@ -75,15 +78,18 @@ type Description struct {
 	Model            string  `json:"model"`
 	Login            string  `json:"login"`
 	MaxPasswordBytes int     `json:"max_password_bytes"`
+	MaxFileBytes     int     `json:"max_file_bytes"`
+	MaxFilesBytes    int     `json:"max_files_bytes"`
 	Fields           []Field `json:"fields"`
 }
 
-// Value preserves omission separately from an explicitly submitted empty
-// scalar. The caller owns Text and should clear it after transport/cleaning.
+// Value preserves omission separately from an explicitly empty scalar or file.
+// The caller owns Text/Upload and clears them after transport or preparation.
 type Value struct {
 	Name    string
 	Present bool
 	Text    []byte
+	Upload  *Upload
 }
 
 func (Value) Format(state fmt.State, _ rune) {
@@ -91,12 +97,13 @@ func (Value) Format(state fmt.State, _ rune) {
 }
 func (Value) MarshalJSON() ([]byte, error) { return []byte(`"firstaccount.Value{redacted}"`), nil }
 
-type provision func(context.Context, Backend, string, string) (accountmodel.FirstAccountCreation, error)
+type provision func(context.Context, Backend, string, string) (accountmodel.FirstAccountCreation, []formmodel.FilePublication, error)
 type Command struct{ state *commandState }
 type commandState struct {
 	description Description
 	open        func(context.Context) (Backend, error)
 	clean       func(context.Context, forms.Data) (provision, error)
+	config      Config
 }
 
 func (Command) Format(state fmt.State, _ rune) {
@@ -107,8 +114,9 @@ func (Command) Format(state fmt.State, _ rune) {
 // The command parses scalar fields and FK/OneToOne keys before acquiring a DB.
 // Key parsing is not choice authorization: the typed FirstAccount owner applies
 // its explicit relation policy before hashing and again in the native write.
-// Files and collections require their own input lifetime and fail explicitly.
-func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(context.Context) (Backend, error)) (Command, error) {
+// Upload input has explicit byte limits and a publication report owner.
+// Collections still require a distinct input contract and fail explicitly.
+func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(context.Context) (Backend, error), config Config) (Command, error) {
 	if open == nil {
 		return Command{}, failure(InvalidConfig, nil)
 	}
@@ -134,12 +142,12 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 		byName[field.Name] = field
 	}
 	for _, name := range selected {
-		field, present := byName[name]
-		if !present || field.Kind.IsFile() {
+		_, present := byName[name]
+		if !present {
 			return Command{}, failure(InvalidConfig, &query.Error{Code: query.CodeUnsupported})
 		}
 	}
-	formDefinition, err := binding.FormDefinition(selected)
+	formDefinition, err := definition.FormDefinition()
 	if err != nil {
 		return Command{}, failure(InvalidConfig, err)
 	}
@@ -170,7 +178,7 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 			return Command{}, failure(InvalidConfig, err)
 		}
 	}
-	form, err = forms.NewSpec(inputFields)
+	form, err = forms.NewSpec(inputFields, formDefinition.Validators...)
 	if err != nil {
 		return Command{}, failure(InvalidConfig, err)
 	}
@@ -186,7 +194,10 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 	if err != nil {
 		return Command{}, failure(InvalidConfig, err)
 	}
-	description := Description{SourceSHA256: source, RoleSHA256: roleSHA, PolicySHA256: definition.Fingerprint(), EvidenceSHA256: definition.EvidenceSHA256(), Model: role.Model.AppLabel + "." + role.Model.ModelName, Login: role.Login, MaxPasswordBytes: definition.MaxPasswordBytes()}
+	description := Description{SourceSHA256: source, RoleSHA256: roleSHA, PolicySHA256: definition.Fingerprint(), EvidenceSHA256: definition.EvidenceSHA256(), Model: role.Model.AppLabel + "." + role.Model.ModelName, Login: role.Login, MaxPasswordBytes: definition.MaxPasswordBytes(), MaxFileBytes: config.MaxFileBytes, MaxFilesBytes: config.MaxFilesBytes}
+	if form.IsMultipart() && config.ReportFiles == nil || !form.IsMultipart() && (config.MaxFileBytes != 0 || config.MaxFilesBytes != 0 || config.ReportFiles != nil) {
+		return Command{}, failure(InvalidConfig, nil)
+	}
 	for _, field := range form.Fields() {
 		if !safeName(field.Name()) || !safeLabel(field.Label()) {
 			return Command{}, failure(InvalidConfig, nil)
@@ -200,7 +211,7 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 		if field.MaxInputBytes() > 0 {
 			maximum = min(maximum, field.MaxInputBytes())
 		}
-		description.Fields = append(description.Fields, Field{Name: field.Name(), Label: field.Label(), Kind: string(byName[field.Name()].Kind), Required: field.Required(), Nullable: field.Nullable(), HasDefault: hasDefault, MaxBytes: maximum, Choices: choices})
+		description.Fields = append(description.Fields, Field{Name: field.Name(), Label: field.Label(), Kind: string(byName[field.Name()].Kind), Required: field.Required(), Nullable: field.Nullable(), HasDefault: hasDefault, MaxBytes: maximum, Choices: choices, Upload: field.AcceptsUpload()})
 	}
 	// The login prompt precedes profile fields; the remaining order is the IR
 	// declaration order, independent of a caller's selection-slice order.
@@ -217,29 +228,21 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 	if err := ValidateDescription(description); err != nil {
 		return Command{}, err
 	}
-	state := &commandState{description: description, open: open}
+	state := &commandState{description: description, open: open, config: config}
 	state.clean = func(ctx context.Context, data forms.Data) (provision, error) {
-		bound, err := formmodel.BindInstance(ctx, objects, form, data, nil, formmodel.PostClean{})
+		bound, err := formmodel.BindInstance(ctx, objects, form, data, nil, formDefinition.PostClean)
 		if err != nil {
 			return nil, failure(InvalidInput, err)
 		}
 		if !bound.BoundForm().Form().Valid() {
 			return nil, validation.Reject(bound.BoundForm().Form().Errors(), nil)
 		}
-		input, err := formmodel.PrepareInput(objects, bound.BoundForm())
-		if err != nil {
-			return nil, failure(InvalidInput, err)
-		}
-		return func(ctx context.Context, backend Backend, operationID, password string) (accountmodel.FirstAccountCreation, error) {
+		return func(ctx context.Context, backend Backend, operationID, password string) (accountmodel.FirstAccountCreation, []formmodel.FilePublication, error) {
 			owner, err := definition.Bind(backend)
 			if err != nil {
-				return accountmodel.FirstAccountCreation{}, err
+				return accountmodel.FirstAccountCreation{}, nil, err
 			}
-			pending, err := owner.PrepareOperation(ctx, operationID, input, password)
-			if err != nil {
-				return accountmodel.FirstAccountCreation{}, err
-			}
-			return owner.Commit(ctx, pending)
+			return owner.CreateForm(ctx, operationID, bound.BoundForm(), password)
 		}, nil
 	}
 	return Command{state}, nil
@@ -269,11 +272,17 @@ func ValidateDescription(description Description) error {
 		return failure(InvalidConfig, nil)
 	}
 	names := make(map[string]bool, len(description.Fields))
+	hasUpload := false
 	for _, field := range description.Fields {
 		if names[field.Name] || !safeName(field.Name) || !safeLabel(field.Label) || field.MaxBytes < 1 || field.MaxBytes > MaxFieldBytes {
 			return failure(InvalidConfig, nil)
 		}
 		names[field.Name] = true
+		fileKind := ir.FieldKind(field.Kind).IsFile()
+		if field.Upload && (!fileKind || len(field.Choices) != 0) || field.Name == description.Login && fileKind {
+			return failure(InvalidConfig, nil)
+		}
+		hasUpload = hasUpload || field.Upload
 		if len(field.Choices) > MaxChoices {
 			return failure(InvalidConfig, nil)
 		}
@@ -285,10 +294,13 @@ func ValidateDescription(description Description) error {
 			choices[choice.Value] = true
 		}
 		switch ir.FieldKind(field.Kind) {
-		case ir.FieldInteger, ir.FieldForeignKey, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldBinary, ir.FieldJSON, ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText, ir.FieldDuration, ir.FieldTime, ir.FieldDate, ir.FieldDateTime, ir.FieldBoolean:
+		case ir.FieldInteger, ir.FieldForeignKey, ir.FieldFloat, ir.FieldDecimal, ir.FieldUUID, ir.FieldBinary, ir.FieldJSON, ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText, ir.FieldDuration, ir.FieldTime, ir.FieldDate, ir.FieldDateTime, ir.FieldBoolean, ir.FieldFile, ir.FieldImage:
 		default:
 			return failure(InvalidConfig, nil)
 		}
+	}
+	if hasUpload && (description.MaxFileBytes < 1 || description.MaxFilesBytes < description.MaxFileBytes || description.MaxFilesBytes > MaxUploadBytes) || !hasUpload && (description.MaxFileBytes != 0 || description.MaxFilesBytes != 0) {
+		return failure(InvalidConfig, nil)
 	}
 	digest, err := descriptionFingerprint(description)
 	if err != nil || digest != description.Fingerprint {
@@ -305,7 +317,7 @@ func descriptionFingerprint(description Description) (string, error) {
 	if len(encoded)+64 > MaxDescriptionBytes {
 		return "", failure(InvalidConfig, nil)
 	}
-	digest := sha256.Sum256(append([]byte("godj.first-account-command.v1\x00"), encoded...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-command.v2\x00"), encoded...))
 	return hex.EncodeToString(digest[:]), nil
 }
 func (command Command) Open(ctx context.Context) (Backend, error) {
@@ -330,6 +342,7 @@ type preparedState struct {
 	owner     *commandState
 	provision provision
 	attempted atomic.Bool
+	uploads   []*uploads.Buffer
 }
 
 func (Prepared) Format(state fmt.State, _ rune) {
@@ -344,6 +357,7 @@ func (Prepared) MarshalJSON() ([]byte, error) {
 func (prepared Prepared) Clear() {
 	if prepared.state != nil && prepared.state.attempted.CompareAndSwap(false, true) {
 		prepared.state.provision = nil
+		prepared.state.closeUploads()
 	}
 }
 
@@ -357,44 +371,64 @@ func (command Command) Prepare(ctx context.Context, fingerprint string, values [
 	if fingerprint != command.state.description.Fingerprint || len(values) != len(command.state.description.Fields) {
 		return Prepared{}, failure(InvalidInput, nil)
 	}
+	if err := ValidateValues(command.state.description, values); err != nil {
+		return Prepared{}, err
+	}
 	data := make(map[string][]string, len(values))
-	total := 0
+	files := make(map[string][]uploads.File)
+	state := &preparedState{owner: command.state}
+	accepted := false
+	defer func() {
+		if !accepted {
+			state.closeUploads()
+		}
+	}()
 	for i, value := range values {
 		field := command.state.description.Fields[i]
-		if value.Name != field.Name || !value.Present && len(value.Text) != 0 || len(value.Text) > field.MaxBytes || !utf8.Valid(value.Text) || bytes.IndexByte(value.Text, 0) >= 0 {
-			return Prepared{}, failure(InvalidInput, nil)
-		}
-		total += len(value.Text)
-		if total > MaxInputBytes {
-			return Prepared{}, failure(InvalidInput, nil)
+		if field.Upload && value.Upload != nil {
+			buffer, err := uploads.NewBuffer(value.Upload.Name, "", value.Upload.Content)
+			if err != nil {
+				return Prepared{}, failure(InvalidInput, err)
+			}
+			state.uploads = append(state.uploads, buffer)
+			files[value.Name] = []uploads.File{buffer.File()}
+			continue
 		}
 		if value.Present {
 			data[value.Name] = []string{string(value.Text)}
 		}
 	}
-	call, err := command.state.clean(ctx, forms.NewData(data))
+	call, err := command.state.clean(ctx, forms.NewDataWithFiles(data, files))
 	if err != nil {
 		return Prepared{}, err
 	}
-	return Prepared{&preparedState{owner: command.state, provision: call}}, nil
+	state.provision, accepted = call, true
+	return Prepared{state}, nil
 }
 
 // Provision claims this command's input once and uses the real selected-model
 // owner. Acquisition/closing remain with the caller, which must preserve a
 // confirmed result if a later close or response write fails.
-func (command Command) Provision(ctx context.Context, backend Backend, operationID string, prepared Prepared, password string) (accountmodel.FirstAccountCreation, error) {
+func (command Command) Provision(ctx context.Context, backend Backend, operationID string, prepared Prepared, password string) (Result, error) {
 	if err := command.valid(ctx); err != nil {
-		return accountmodel.FirstAccountCreation{}, err
+		return Result{}, err
 	}
 	if nilValue(backend) || prepared.state == nil || prepared.state.owner != command.state || !validDigest(operationID) || len(password) == 0 || len(password) > command.state.description.MaxPasswordBytes {
-		return accountmodel.FirstAccountCreation{}, failure(InvalidInput, nil)
+		return Result{}, failure(InvalidInput, nil)
 	}
 	if !prepared.state.attempted.CompareAndSwap(false, true) {
-		return accountmodel.FirstAccountCreation{}, failure(Consumed, nil)
+		return Result{}, failure(Consumed, nil)
 	}
 	call := prepared.state.provision
 	prepared.state.provision = nil
-	return call(ctx, backend, operationID, password)
+	defer prepared.state.closeUploads()
+	created, publications, err := call(ctx, backend, operationID, password)
+	prepared.state.closeUploads()
+	result := Result{FirstAccountCreation: cloneCreation(created), files: slices.Clone(publications)}
+	if len(publications) != 0 {
+		result.reportErr = command.reportFiles(ctx, operationID, created, publications, err)
+	}
+	return result, err
 }
 
 func (command Command) valid(ctx context.Context) error {

@@ -72,7 +72,7 @@ func writeAccountProfileFileSource(t *testing.T, custom, requiredFiles bool, bod
 	}
 	var imports, schemas []string
 	if requiredFiles {
-		imports = append(imports, `accountdomain "github.com/progresshans/godj/account/domain"`)
+		imports = append(imports, `accountdomain "github.com/progresshans/godj/account/domain"`, `"github.com/progresshans/godj/project/firstaccount"`, `"runtime"`)
 	}
 	types := make(map[ir.ModelIdentity]string)
 	for i := range spec.Apps {

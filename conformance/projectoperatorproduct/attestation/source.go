@@ -23,6 +23,7 @@ var exactSourcePaths = map[string]struct{}{
 	"conformance/catalog.py":                                                   {},
 	"scripts/ci/portable_tests.py":                                             {},
 	"scripts/ci/portable-core-required.txt":                                    {},
+	"scripts/ci/first-account-platform-required.txt":                           {},
 	"scripts/ci/capture_artifact.py":                                           {},
 	"scripts/ci/go_test_events.py":                                             {},
 	"scripts/ci/packages.py":                                                   {},

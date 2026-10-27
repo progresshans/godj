@@ -9,10 +9,12 @@ import (
 )
 
 const (
-	MaxDescriptionResponseBytes                = firstaccount.MaxDescriptionBytes + 512
-	MaxResponseBytes                           = 4096
-	KnownCreatedResponseFailureExitCode        = 86
-	KnownCreatedCleanupResponseFailureExitCode = 87
+	MaxDescriptionResponseBytes                          = firstaccount.MaxDescriptionBytes + 512
+	MaxResponseBytes                                     = 4096
+	KnownCreatedResponseFailureExitCode                  = 86
+	KnownCreatedCleanupResponseFailureExitCode           = 87
+	KnownCreatedFileReportResponseFailureExitCode        = 88
+	KnownCreatedCleanupFileReportResponseFailureExitCode = 89
 )
 
 type Code string
@@ -42,11 +44,12 @@ const (
 // cannot erase either a confirmed commit or a reconciliation requirement.
 // A response with no operation ID is valid only for a rejected request frame.
 type Response struct {
-	Version       uint64  `json:"version"`
-	OperationID   string  `json:"operation_id"`
-	Outcome       Outcome `json:"outcome"`
-	Code          Code    `json:"code"`
-	CleanupFailed bool    `json:"cleanup_failed"`
+	Version          uint64  `json:"version"`
+	OperationID      string  `json:"operation_id"`
+	Outcome          Outcome `json:"outcome"`
+	Code             Code    `json:"code"`
+	CleanupFailed    bool    `json:"cleanup_failed"`
+	FileReportFailed bool    `json:"file_report_failed"`
 }
 
 func validResponse(response Response) bool {
@@ -54,7 +57,7 @@ func validResponse(response Response) bool {
 		return false
 	}
 	if response.OperationID == "" {
-		return response.Outcome == NotCreated && !response.CleanupFailed && (response.Code == InvalidRequest || response.Code == InputTransportFailed || response.Code == Canceled)
+		return response.Outcome == NotCreated && !response.CleanupFailed && !response.FileReportFailed && (response.Code == InvalidRequest || response.Code == InputTransportFailed || response.Code == Canceled)
 	}
 	if !ValidDigest(response.OperationID) {
 		return false
@@ -88,7 +91,7 @@ func EncodeResponse(response Response) ([]byte, error) {
 // parent's operation. An empty operation is only a pre-acquisition rejection.
 func DecodeResponse(document []byte, operationID string) (Response, error) {
 	var response Response
-	if !ValidDigest(operationID) || wirejson.Scan(document, wirejson.Limits{Bytes: MaxResponseBytes, Containers: 1, Values: 7, ObjectKeys: 6, KeyBytes: 32, StringBytes: 128, RejectArrays: true, RejectNull: true}) != nil || wirejson.DecodeCanonical(document, &response) != nil || !validResponse(response) || response.OperationID != "" && response.OperationID != operationID {
+	if !ValidDigest(operationID) || wirejson.Scan(document, wirejson.Limits{Bytes: MaxResponseBytes, Containers: 1, Values: 8, ObjectKeys: 7, KeyBytes: 32, StringBytes: 128, RejectArrays: true, RejectNull: true}) != nil || wirejson.DecodeCanonical(document, &response) != nil || !validResponse(response) || response.OperationID != "" && response.OperationID != operationID {
 		return Response{}, ErrInvalidResponse
 	}
 	return response, nil

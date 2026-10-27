@@ -20,14 +20,14 @@ import (
 // password bytes, prompt replies or a terminal transcript are retained here.
 type FirstAccountTerminalReport struct {
 	Checks, FieldPrompts, OmissionPrompts, PasswordPrompts, ConfirmationPrompts, RestoreAttempts int
+	FileReads, FileBytes                                                                         int
 }
 
-// The terminal only transports the selected declaration's scalar inputs. The
-// actual ModelForm in the compiled runtime owns cleaning, defaults and model
-// constraints. An explicit omission question avoids reserving magic strings
-// inside a model field and preserves an intentionally submitted empty value.
+// The terminal transports declared scalars and explicit local file bytes. The
+// compiled ModelForm owns cleaning, defaults and image/model constraints.
+// An omission question preserves an intentionally empty scalar or file.
 func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, stdin *os.File, stderr io.Writer,
-	description firstaccount.Description, report *FirstAccountTerminalReport,
+	description firstaccount.Description, report *FirstAccountTerminalReport, directory string,
 ) (request firstaccountwire.Request, code string) {
 	if ctx == nil || report == nil || firstaccount.ValidateDescription(description) != nil {
 		return request, "invalid_config"
@@ -75,7 +75,7 @@ func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, st
 		}
 		return value, ""
 	}
-	inputBytes := 0
+	inputBytes, fileBytes := 0, 0
 	for index, field := range description.Fields {
 		request.Values[index].Name = field.Name
 		label := strconv.Quote(field.Label)
@@ -109,12 +109,32 @@ func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, st
 			}
 		}
 		report.FieldPrompts++
-		value, failure := read(label+": ", field.MaxBytes, visible)
+		prompt, maximum := label+": ", field.MaxBytes
+		if field.Upload {
+			prompt, maximum = label+" (file path): ", firstaccount.MaxFieldBytes
+		}
+		value, failure := read(prompt, maximum, visible)
 		if failure != "" {
 			return request, failure
 		}
+		if !utf8.Valid(value) || bytes.IndexByte(value, 0) >= 0 {
+			clear(value)
+			return request, "invalid_input"
+		}
+		if field.Upload {
+			report.FileReads++
+			upload, failure := readFirstAccountFile(ctx, interrupt, directory, value, min(description.MaxFileBytes, description.MaxFilesBytes-fileBytes))
+			clear(value)
+			if failure != "" {
+				return request, failure
+			}
+			fileBytes += len(upload.Content)
+			report.FileBytes = fileBytes
+			request.Values[index].Present, request.Values[index].Upload = true, upload
+			continue
+		}
 		inputBytes += len(value)
-		if !utf8.Valid(value) || bytes.IndexByte(value, 0) >= 0 || inputBytes > firstaccount.MaxInputBytes {
+		if inputBytes > firstaccount.MaxInputBytes {
 			clear(value)
 			return request, "invalid_input"
 		}

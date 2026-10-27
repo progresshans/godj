@@ -56,6 +56,11 @@ Content-Transfer-Encoding은 명시적으로 거부한다. 브라우저의 빈 �
 정리 실패는 `Form.Close()`에서 반환한다. Web runtime은 이미 결정된 handler 결과를 재시도 가능한 실패로 바꾸지 않고 별도
 정리 오류를 기록한다. 저장된 DB/파일의 결과와 임시 자원 정리를 같은 성공 표식으로 합치지 않는다.
 
+HTTP 밖에서 한 번의 작업이 소유하는 메모리 업로드는 `NewBuffer(name, contentType, content)`로 만든다. 입력 bytes를
+복사하고 `File()`로 capability를 제공한다. `Close()`는 열린 reader도 만료시키고 소유 bytes를 비운다. 구조체 사본은 같은
+수명을 공유하며 닫기는 반복 가능하다. 크기 한도는 호출자가 먼저 적용한다. 별도 수명이 없는 `NewFile`과 구분하며,
+초기 계정 CLI는 [명시적 입력 한도와 작업 수명](../project/firstaccount/README.md)에 이 owner를 사용한다.
+
 ## Form과 Formset
 
 `forms.FileField`는 기본적으로 required이며 `ClearableFileInput`을 사용한다. `WithRequired(false)`,

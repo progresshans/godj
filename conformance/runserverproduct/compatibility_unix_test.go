@@ -47,7 +47,7 @@ func main(){
 		wantStderr := category + "/framework_incompatible\n"
 		if args[0] == "createsuperuser" {
 			exit = 3
-			wantStderr = `{"operation_id":"","status":"not_created","code":"framework_incompatible","cleanup_failed":false}` + "\n"
+			wantStderr = `{"operation_id":"","status":"not_created","code":"framework_incompatible","cleanup_failed":false,"file_report_failed":false}` + "\n"
 		}
 		if result.ExitCode != exit || result.Stdout != "" || result.Stderr != wantStderr {
 			t.Fatalf("%s bypassed compatibility: exit=%d stdout=%q stderr=%q", args[0], result.ExitCode, result.Stdout, result.Stderr)

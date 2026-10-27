@@ -72,7 +72,7 @@ func TestRequestChecksWholeFrameAndBounds(t *testing.T) {
 			t.Fatalf("truncation at byte %d accepted", n)
 		}
 	}
-	header := len(firstaccountwire.Magic) + 64 + 64 + 1 + 2
+	header := len(firstaccountwire.Magic) + 4 + 64 + 64 + 1 + 2
 	for _, test := range []struct {
 		name   string
 		change func([]byte) []byte
@@ -80,8 +80,8 @@ func TestRequestChecksWholeFrameAndBounds(t *testing.T) {
 		{"trailing", func(b []byte) []byte { return append(b, 0) }},
 		{"magic", func(b []byte) []byte { b[0] = '!'; return b }},
 		{"version", func(b []byte) []byte { b[len(firstaccountwire.Magic)-1] = '1'; return b }},
-		{"zero_fingerprint", func(b []byte) []byte { copy(b[len(firstaccountwire.Magic):], strings.Repeat("0", 64)); return b }},
-		{"invalid_operation", func(b []byte) []byte { b[len(firstaccountwire.Magic)+64] = 'B'; return b }},
+		{"zero_fingerprint", func(b []byte) []byte { copy(b[len(firstaccountwire.Magic)+4:], strings.Repeat("0", 64)); return b }},
+		{"invalid_operation", func(b []byte) []byte { b[len(firstaccountwire.Magic)+4+64] = 'B'; return b }},
 		{"zero_fields", func(b []byte) []byte { b[header-3] = 0; return b }},
 		{"too_many_fields", func(b []byte) []byte { b[header-3] = firstaccount.MaxFields + 1; return b }},
 		{"zero_password", func(b []byte) []byte { binary.BigEndian.PutUint16(b[header-2:], 0); return b }},
@@ -91,7 +91,7 @@ func TestRequestChecksWholeFrameAndBounds(t *testing.T) {
 		}},
 		{"zero_name", func(b []byte) []byte { b[header] = 0; return b }},
 		{"long_name", func(b []byte) []byte { b[header] = firstaccountwire.MaxNameBytes + 1; return b }},
-		{"invalid_presence", func(b []byte) []byte { b[header+1] = 2; return b }},
+		{"invalid_presence", func(b []byte) []byte { b[header+1] = 3; return b }},
 		{"absent_with_text", func(b []byte) []byte { b[header+1] = 0; return b }},
 		{"long_text", func(b []byte) []byte {
 			binary.BigEndian.PutUint16(b[header+2:], firstaccount.MaxFieldBytes+1)
@@ -131,7 +131,7 @@ func TestRequestChecksWholeFrameAndBounds(t *testing.T) {
 		}
 	}
 	encoded, err := firstaccountwire.EncodeRequest(maximum)
-	if err != nil || len(encoded) != firstaccountwire.MaxRequestBytes {
+	if err != nil || len(encoded) != header+firstaccount.MaxFields*(4+firstaccountwire.MaxNameBytes)+firstaccount.MaxInputBytes+firstaccountwire.MaxPasswordBytes {
 		t.Fatal("full legal request bound is not reachable", err)
 	}
 	if decoded, err := firstaccountwire.DecodeRequest(encoded); err != nil {
@@ -229,6 +229,8 @@ func (errorReader) Read([]byte) (int, error) {
 func FuzzRequest(f *testing.F) {
 	document, _ := firstaccountwire.EncodeRequest(requestFixture())
 	f.Add(document)
+	files, _ := firstaccountwire.EncodeRequest(uploadRequest())
+	f.Add(files)
 	f.Add([]byte{})
 	f.Add([]byte(firstaccountwire.Magic))
 	f.Fuzz(func(t *testing.T, document []byte) {

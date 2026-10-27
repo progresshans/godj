@@ -19,7 +19,7 @@ func descriptionFixture(t testing.TB) firstaccount.Description {
 		{Name: "region", Label: "Region", Kind: "char", Required: true, HasDefault: true, MaxBytes: firstaccount.MaxFieldBytes, Choices: []firstaccount.Choice{{Value: "NZ", Label: "New Zealand"}, {Value: "line\nchoice", Label: "Quoted choice"}}},
 	}}
 	document, _ := json.Marshal(description)
-	digest := sha256.Sum256(append([]byte("godj.first-account-command.v1\x00"), document...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-command.v2\x00"), document...))
 	description.Fingerprint = hex.EncodeToString(digest[:])
 	if err := firstaccount.ValidateDescription(description); err != nil {
 		t.Fatal(err)
@@ -39,9 +39,9 @@ func TestDescriptionRetainsTypedDeclarationAndRejectsOpenShapes(t *testing.T) {
 	}
 	for _, bad := range [][]byte{
 		append(bytes.Clone(document), '\n'),
-		bytes.Replace(document, []byte(`"version":2`), []byte(`"version":2,"version":2`), 1),
-		bytes.Replace(document, []byte(`"version":2`), []byte(`"version":2.0`), 1),
-		bytes.Replace(document, []byte(`"version":2`), []byte(`"version":1`), 1),
+		bytes.Replace(document, []byte(`"version":3`), []byte(`"version":3,"version":3`), 1),
+		bytes.Replace(document, []byte(`"version":3`), []byte(`"version":3.0`), 1),
+		bytes.Replace(document, []byte(`"version":3`), []byte(`"version":1`), 1),
 		bytes.Replace(document, []byte(`"required":true`), []byte(`"required":null`), 1),
 		bytes.Replace(document, []byte(`"required":true,`), nil, 1),
 		bytes.Replace(document, []byte(`"label":"Contact"`), []byte(`"label":"\ud800"`), 1),

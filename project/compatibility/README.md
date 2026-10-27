@@ -5,6 +5,8 @@ the exact Schema IR, project-bundle, generator-roster, private-command and
 development-server control
 contracts compiled into the executable. The generator token hashes the same
 roster used in project snapshots and manifests. It is not a source integrity hash.
+The `createsuperuser` contract identifies the selected-account private wire used
+by the public command, including its file-input frame and result fields.
 
 `Serve` answers only its exact metadata probe, without settings, app callbacks,
 declaration loaders or backend opening. Call it at the beginning of an entrypoint.

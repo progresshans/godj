@@ -34,6 +34,10 @@ func TestComputeSourceBindingUsesExactSortedFrames(t *testing.T) {
 
 func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 	paths := []string{
+		"scripts/ci/first-account-platform-required.txt",
+		"project/firstaccount/files.go",
+		"uploads/buffer.go",
+		"internal/projectcheck/firstaccount_file_unix.go",
 		"account/audit/migrations/godj_account_audit_0001_initial.godj.json",
 		"sessions/database/migrations/godj_sessions_0001_initial.godj.json",
 		"sessions/database/store.go",

@@ -99,7 +99,7 @@ func TestExecuteDispatchesCreatesuperuserBeforeProjectOrTerminalIO(t *testing.T)
 		&stderr,
 		nil,
 	)
-	want := "{\"operation_id\":\"\",\"status\":\"not_created\",\"code\":\"invalid_arguments\",\"cleanup_failed\":false}\n"
+	want := "{\"operation_id\":\"\",\"status\":\"not_created\",\"code\":\"invalid_arguments\",\"cleanup_failed\":false,\"file_report_failed\":false}\n"
 	if exit != 2 || stdout.Len() != 0 || stderr.String() != want || strings.Contains(stderr.String(), secretMarker) {
 		t.Fatalf("createsuperuser dispatch exit=%d stdout=%q stderr=%q", exit, stdout.String(), stderr.String())
 	}

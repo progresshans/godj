@@ -933,7 +933,7 @@ func explicitlyProvisionRestartOperator(
 	if err != nil {
 		t.Fatal("construct restart first-account declaration", err)
 	}
-	command, err := firstaccount.New(definition, func(work context.Context) (firstaccount.Backend, error) { return openBackend(work) })
+	command, err := firstaccount.New(definition, func(work context.Context) (firstaccount.Backend, error) { return openBackend(work) }, firstaccount.Config{})
 	if err != nil {
 		t.Fatal("construct restart first-account command", err)
 	}

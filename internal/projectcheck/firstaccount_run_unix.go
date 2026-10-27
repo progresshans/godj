@@ -38,10 +38,11 @@ type FirstAccountInvocation struct {
 // outcome separately from resource cleanup and public delivery. A failure or
 // a missing receipt must never be treated as permission to retry this input.
 type FirstAccountResult struct {
-	OperationID   string `json:"operation_id"`
-	Status        string `json:"status"`
-	Code          string `json:"code"`
-	CleanupFailed bool   `json:"cleanup_failed"`
+	OperationID      string `json:"operation_id"`
+	Status           string `json:"status"`
+	Code             string `json:"code"`
+	CleanupFailed    bool   `json:"cleanup_failed"`
+	FileReportFailed bool   `json:"file_report_failed"`
 }
 
 type FirstAccountReport struct {
@@ -58,7 +59,7 @@ type FirstAccountReport struct {
 
 type firstAccountParentHooks struct {
 	prepare       func(RunServerInvocation, string, runtimeTarget, *RunServerReport) (preparedProjectRuntime, *RunServerFailure)
-	terminal      func(context.Context, <-chan struct{}, *os.File, io.Writer, firstaccount.Description, *FirstAccountTerminalReport) (firstaccountwire.Request, string)
+	terminal      func(context.Context, <-chan struct{}, *os.File, io.Writer, firstaccount.Description, *FirstAccountTerminalReport, string) (firstaccountwire.Request, string)
 	operationID   func() (string, error)
 	process       func(context.Context, <-chan struct{}, createsuperuserProcessCommand, []byte, string) createsuperuserProcessResult
 	beforePublish func()
@@ -150,7 +151,7 @@ func runFirstAccount(input FirstAccountInvocation, hooks firstAccountParentHooks
 		preparationFailure(failure)
 		return finish()
 	}
-	request, code := hooks.terminal(input.Context, input.Interrupt, input.Stdin, input.Stderr, description, &report.Terminal)
+	request, code := hooks.terminal(input.Context, input.Interrupt, input.Stdin, input.Stderr, description, &report.Terminal, input.CWD)
 	defer request.Clear()
 	if code != "" {
 		report.Result.Code = firstAccountInputCode(code)
@@ -248,12 +249,7 @@ func firstAccountInputMatches(description firstaccount.Description, request firs
 		len(request.Password) == 0 || len(request.Password) > description.MaxPasswordBytes {
 		return false
 	}
-	for i, value := range request.Values {
-		if value.Name != description.Fields[i].Name || len(value.Text) > description.Fields[i].MaxBytes {
-			return false
-		}
-	}
-	return true
+	return firstaccount.ValidateValues(description, request.Values) == nil
 }
 
 func describeFirstAccount(input FirstAccountInvocation, prepared preparedProjectRuntime, report *FirstAccountReport) (firstaccount.Description, string) {
@@ -302,7 +298,7 @@ func publishFirstAccount(input FirstAccountInvocation, report *FirstAccountRepor
 		before()
 	}
 	report.ExitCode = 3
-	if report.Result.Status == string(firstaccountwire.Created) && report.Result.Code == "" && !report.Result.CleanupFailed {
+	if report.Result.Status == string(firstaccountwire.Created) && report.Result.Code == "" && !report.Result.CleanupFailed && !report.Result.FileReportFailed {
 		report.ExitCode = 0
 	} else if !report.Result.CleanupFailed && report.Result.Status == string(firstaccountwire.NotCreated) {
 		switch report.Result.Code {

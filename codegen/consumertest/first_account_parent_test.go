@@ -9,6 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"os"
 	"path/filepath"
@@ -26,6 +28,8 @@ import (
 	"github.com/progresshans/godj/internal/projectcheck"
 	"github.com/progresshans/godj/project/compatibility"
 	"github.com/progresshans/godj/project/firstaccount"
+	"github.com/progresshans/godj/schema"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/version"
 	"golang.org/x/term"
 )
@@ -46,6 +50,27 @@ func TestGeneratedFirstAccountParentCustom(t *testing.T) {
 func writeFirstAccountParentModule(t *testing.T, custom bool) string {
 	t.Helper()
 	spec := firstAccountConsumerSpec(t, accountLoginVariant{custom: custom})
+	extra, err := schema.Build(schema.Definition{AppLabel: "parent_file_fields", Models: []schema.Model{{Name: "fields", GoName: "Fields", Fields: []schema.Field{
+		schema.FileField("document", "Document"),
+		schema.ImageField("portrait", "Portrait", schema.ImageDimensions("portrait_width", "portrait_height")),
+		schema.IntegerField("portrait_width", "PortraitWidth", schema.Nullable(), schema.Editable(false)),
+		schema.IntegerField("portrait_height", "PortraitHeight", schema.Nullable(), schema.Editable(false)),
+	}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range spec.Apps {
+		for j := range spec.Apps[i].Schema.Models {
+			model := &spec.Apps[i].Schema.Models[j]
+			if (ir.ModelIdentity{AppLabel: spec.Apps[i].Schema.AppLabel, ModelName: model.Name}) == spec.Account.Model {
+				for _, field := range extra.Models[0].Fields {
+					if !field.PrimaryKey {
+						model.Fields = append(model.Fields, field.Clone())
+					}
+				}
+			}
+		}
+	}
 	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
 		t.Fatal(err)
@@ -119,13 +144,41 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 		{"unknown_after_commit", "unknown", "unknown", "outcome_unknown", 3, false, true, true},
 		{"created_cleanup", "cleanup", "created", "created_cleanup_failed", 3, true, true, true},
 		{"lost_response", "response_loss", "created", "created_output_failed", 3, false, true, true},
+		{"invalid_image", "", "not_created", "invalid_input", 2, false, false, true},
+		{"partial_publication", "file_partial", "not_created", "persistence_failed", 3, false, false, true},
+		{"file_report_failed", "file_report", "created", "created_file_report_failed", 3, false, true, true},
+		{"file_report_response_loss", "file_report_response_loss", "created", "created_file_report_failed", 3, false, true, true},
+		{"file_report_cleanup", "file_report_cleanup", "created", "created_cleanup_failed", 3, true, true, true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			state := t.TempDir()
 			tracePath := filepath.Join(state, "runtime-events")
+			uploadSource := filepath.Join(state, "local-input")
+			if err := os.Mkdir(uploadSource, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Mkdir(filepath.Join(state, "published"), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(uploadSource, "private-document.txt"), []byte("parent private document"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			var portrait bytes.Buffer
+			if err := png.Encode(&portrait, image.NewRGBA(image.Rect(0, 0, 2, 3))); err != nil {
+				t.Fatal(err)
+			}
+			if test.name == "invalid_image" {
+				portrait.Reset()
+				portrait.WriteString("private invalid image")
+			}
+			if err := os.WriteFile(filepath.Join(uploadSource, "private-photo.png"), portrait.Bytes(), 0600); err != nil {
+				t.Fatal(err)
+			}
 			descriptionPath := filepath.Join(state, "description.json")
 			environment := append(generatedTestEnvironment(os.Environ()),
 				"GODJ_PARENT_DATABASE="+filepath.Join(state, "db.sqlite"), "GODJ_PARENT_TRACE="+tracePath,
+				"GODJ_PARENT_STORAGE="+filepath.Join(state, "published"), "GODJ_PARENT_FILE_REPORTS="+state,
+				"GODJ_PARENT_UPLOAD_SOURCE="+uploadSource,
 				"GODJ_PARENT_DESCRIPTION="+descriptionPath, "GODJ_PARENT_MODE=")
 			run := func(arguments ...string) {
 				t.Helper()
@@ -158,7 +211,7 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 			}
 			environment[len(environment)-1] = "GODJ_PARENT_MODE=" + test.mode
 			report := invokeGeneratedFirstAccountParent(t, root, environment, description, test.tty, test.name == "invalid_profile", custom)
-			if report.Result.Status != test.status || report.Result.Code != test.code || report.ExitCode != test.exit || report.Result.CleanupFailed != test.cleanup {
+			if report.Result.Status != test.status || report.Result.Code != test.code || report.ExitCode != test.exit || report.Result.CleanupFailed != test.cleanup || report.Result.FileReportFailed != strings.HasPrefix(test.mode, "file_report") {
 				t.Fatalf("native parent outcome = %+v", report)
 			}
 			if report.DescriptionCalls != 1 || report.CompatibilityChecks != 2 || report.RuntimeBuildCalls != 1 || report.BuildCalls != 2 ||
@@ -168,14 +221,14 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 			}
 			if test.tty {
 				if !firstaccountwire.ValidDigest(report.Result.OperationID) || report.Terminal.Checks != 1 || report.Terminal.RestoreAttempts != 1 ||
-					report.SensitiveRequestWriteAttempts != 1 || report.SensitiveRequestBytesWritten == 0 {
+					report.SensitiveRequestWriteAttempts != 1 || report.SensitiveRequestBytesWritten == 0 || report.Terminal.FileReads != 2 || report.Terminal.FileBytes != len("parent private document")+portrait.Len() {
 					t.Fatalf("native private handoff = %+v", report)
 				}
 			} else if report.Terminal.Checks != 0 || report.SensitiveRequestWriteAttempts != 0 || report.Result.OperationID != "" {
 				t.Fatalf("foreign source reached input: %+v", report)
 			}
 			wantTrace := ""
-			if test.created {
+			if test.created || test.name == "partial_publication" {
 				wantTrace = "open\nclose\n"
 			}
 			if test.name == "not_fresh" {
@@ -185,6 +238,44 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 				}
 			}
 			assertFirstAccountParentTrace(t, tracePath, wantTrace)
+			fileReportPath := filepath.Join(state, report.Result.OperationID+".json")
+			fileDocument, fileErr := os.ReadFile(fileReportPath)
+			attempted := test.created && test.name != "not_fresh" || test.name == "partial_publication"
+			if attempted {
+				var observed struct {
+					Operation       string `json:"operation"`
+					Created, Failed bool
+					Files           []struct {
+						Field, Name, Outcome string
+						Size                 int64
+						Failed               bool
+					}
+				}
+				if fileErr != nil || json.Unmarshal(fileDocument, &observed) != nil || observed.Operation != report.Result.OperationID || len(observed.Files) != 2 || observed.Created != (test.created && test.name != "unknown_after_commit") || observed.Failed != (test.name == "unknown_after_commit" || test.name == "partial_publication") {
+					t.Fatal("native process lost publication report", fileErr)
+				}
+				for _, file := range observed.Files {
+					if file.Outcome == "not_published" {
+						if test.name != "partial_publication" || file.Field != "portrait" || !file.Failed {
+							t.Fatal("unexpected rejected publication")
+						}
+						continue
+					}
+					content, err := os.ReadFile(filepath.Join(state, "published", filepath.FromSlash(file.Name)))
+					if err != nil {
+						t.Fatal(err)
+					}
+					want := []byte("parent private document")
+					if file.Field == "portrait" {
+						want = portrait.Bytes()
+					}
+					if !bytes.Equal(content, want) || file.Size != int64(len(content)) || file.Outcome != "published" {
+						t.Fatal("process publication lost exact file bytes")
+					}
+				}
+			} else if !errors.Is(fileErr, os.ErrNotExist) {
+				t.Fatal("unattempted request published a file report", fileErr)
+			}
 			// Inspect through a fresh process and backend. Fault probes affect the
 			// actual provisioning owner only, never this durable-state observation.
 			environment[len(environment)-1] = "GODJ_PARENT_MODE="
@@ -310,7 +401,7 @@ func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []
 	if withTTY {
 		for _, field := range description.Fields {
 			label := strconv.Quote(field.Label)
-			omit := !custom && !invalidProfile && field.Name != description.Login
+			omit := !custom && !invalidProfile && field.Name != description.Login && !field.Upload
 			if field.HasDefault || !field.Required {
 				prompt := "Omit " + label + "? [Y/n]: "
 				if field.HasDefault {
@@ -322,6 +413,21 @@ func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []
 					continue
 				}
 				write("n")
+			}
+			if field.Upload {
+				wait(label + " (file path): ")
+				directory := ""
+				for _, value := range environment {
+					if strings.HasPrefix(value, "GODJ_PARENT_UPLOAD_SOURCE=") {
+						directory = strings.TrimPrefix(value, "GODJ_PARENT_UPLOAD_SOURCE=")
+					}
+				}
+				filename := "private-document.txt"
+				if field.Name == "portrait" {
+					filename = "private-photo.png"
+				}
+				write(filepath.Join(directory, filename))
+				continue
 			}
 			wait(label + ": ")
 			value := "  NZ  "
@@ -366,7 +472,7 @@ func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []
 		report.ExitCode != 0 && (stdout.String() != "" || !strings.HasSuffix(stderr.String(), want)) {
 		t.Fatalf("parent did not publish its sole closed result: %+v", report)
 	}
-	for _, secret := range []string{rawLogin, "parent@example.test", rawPassword, "private cleanup failure"} {
+	for _, secret := range []string{rawLogin, "parent@example.test", rawPassword, "private cleanup failure", "private-document.txt", "private-photo.png", "parent private document"} {
 		if strings.Contains(stdout.String()+stderr.String(), secret) {
 			t.Fatal("parent published private input or child diagnostic")
 		}

@@ -89,7 +89,7 @@ func commandWithOpener(t *testing.T, open func(context.Context) (firstaccount.Ba
 	if err != nil {
 		t.Fatal(err)
 	}
-	command, err := firstaccount.New(definition, open)
+	command, err := firstaccount.New(definition, open, firstaccount.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

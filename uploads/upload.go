@@ -199,6 +199,7 @@ func (o *owner) close() error {
 	}
 	o.readers = nil
 	for _, file := range o.files {
+		clear(file.data)
 		file.data = nil
 	}
 	o.files = nil

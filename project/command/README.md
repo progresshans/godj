@@ -44,10 +44,12 @@ protocol separately from ordinary commands, checks, output proxies and logging.
 The runner cleans the actual ModelForm before opening a database, owns one
 resource/attempt/close, and publishes an operation-bound durable outcome after
 closing. Keep `command.ExitCode` in the process entrypoint: a confirmed creation
-whose response failed has a private exit distinct from ordinary failure, including
-a separate exit when backend cleanup also failed. Keep SIGPIPE handling active
-until `Serve` returns. The public `createsuperuser` and starter runtime cutover are
-still tracked in [GDJ-0138](../../work/0138-custom-account-lifecycle.md).
+whose response failed has a private exit distinct from ordinary failure, preserving
+backend cleanup and file-report failures independently. Keep SIGPIPE handling active
+until `Serve` returns. File input limits, owned upload lifetimes and the required
+publication reporter are described in [firstaccount](../firstaccount/README.md).
+The public command and starter runtime use this owner; remaining acceptance is
+tracked in [GDJ-0138](../../work/0138-custom-account-lifecycle.md).
 
 ```sh
 godj help

@@ -183,7 +183,7 @@ renamed Member·기본 키/별도 Text email·Email/LastLogin 부재·상수 act
 가진 다른 실제 모델의 부정 검사는 채운 DB 전환 제품의 완료가 아니다. Compile과 새 본문의 환경별 실행은 TEST_EVIDENCE에서
 구분한다. 이 소비자의 재접속은 별도 process restart나 공통 scaffold/runtime 전체 조립을 대신하지 않는다.
 
-선택 계정의 private v2 wire와 `project/firstaccount/runner`를 실제 명령 Registry에 연결했다. 선언 조회는 자원을 열지 않으며,
+선택 계정의 private wire와 `project/firstaccount/runner`를 실제 명령 Registry에 연결했다. 선언 조회는 자원을 열지 않으며,
 정확한 source·생략/빈 값·typed ModelForm 검사를 DB 연결 전에 수행한다. 한 번의 입력 전달/생성/close와 operation에 묶인
 확정·unknown·cleanup 결과를 분리하며 panic/Goexit·늦은 취소·출력 실패를 포함한다. 기본/custom/LastLogin 없는 생성
 소비자는 실제 별도 DB 연결과 이 Registry 경로를 통해 첫 계정·receipt·HTTP 로그인을 확인하도록 전환했다.
@@ -399,7 +399,14 @@ TEST_EVIDENCE에서 구분하며 새 source의 원격 수용은 확인 대상이
 기본/custom의 별도 생성 소비자는 필수 파일·이미지·choices, 실제 multipart와 요청 수명, 첫 생성 경합·unknown receipt,
 소속/감사·권한 회수·실패/동시 생성·DB 재접속을 검사하도록 작성했다. 본문 실행과 최소 compile은 TEST_EVIDENCE에서 구분한다.
 
-공개 첫 명령의 파일 입력/전송·추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
+공개 초기 계정 CLI에 필수/선택 File/Image와 choices를 연결했다. 명시적 byte 한도와 보고 owner를 선언에 묶고,
+TTY에서 지정한 regular file을 한 번 읽어 v3 private pipe로 전송한다. 실제 typed Form의 이미지 검사·원문/default 의미를
+유지하며 준비된 upload와 reader는 포기/한 번의 시도 뒤 만료된다. 파일 게시 결과와 DB 결과·보고 실패를 구분하고,
+보고 callback의 오류/panic/Goexit나 응답 유실이 확정 commit을 지우지 않게 한다. 실제 두 생성 모델·양 DB command와
+TTY/별도 process/재접속 소비자, 입력 한도·부분 게시·rollback·unknown·보고 실패 검사를 필수 목록에 연결했다.
+새 본문의 환경별 실행과 최소 compile, 선행 CI에서 확인한 선택 목록 누락의 한정 수정은 TEST_EVIDENCE에서 구분한다.
+
+추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

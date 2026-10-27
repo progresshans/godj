@@ -123,6 +123,11 @@ func (f *creationFileFixture) data(t *testing.T,login string,second bool)forms.D
 }
 func (f *creationFileFixture) form(t *testing.T,definition formmodel.Definition,data forms.Data)formmodel.BoundForm{
     t.Helper();spec,err:=definition.Spec(f.metadata);fileCheck(t,err)
+    // These selections are the actual catalog rows created by start. A model
+    // multiple-choice field deliberately accepts nothing until its caller
+    // supplies a selection; the lifecycle owner still rechecks grants in DB.
+    if f.groupID!=0&&slices.Contains(definition.Fields,f.role.Groups){spec,err=spec.WithModelChoices(f.role.Groups,forms.Choice{Value:forms.Integer(f.groupID),Label:"Profile readers"});fileCheck(t,err)}
+    if f.grantID!=0&&slices.Contains(definition.Fields,f.role.Permissions){spec,err=spec.WithModelChoices(f.role.Permissions,forms.Choice{Value:forms.Integer(f.grantID),Label:"Profile reader"});fileCheck(t,err)}
     form,err:=formmodel.BindInstance(t.Context(),f.objects,spec,data,nil,definition.PostClean);fileCheck(t,err);return form.BoundForm()
 }
 func (f *creationFileFixture) first(t *testing.T,ctx context.Context,operationID,login string,second bool)(accountmodel.FirstAccountCreation,[]formmodel.FilePublication,error){
@@ -173,6 +178,7 @@ func (f *creationFileFixture) confirmed(t *testing.T,result accountmodel.Creatio
 
 func TestGeneratedProfileFileCreation(t *testing.T){
     run:=func(name string,body func(*testing.T)){t.Helper();if !t.Run(name,body){t.FailNow()}}
+    run("command",testProfileFileCommand)
     f:=newCreationFileFixture(t)
     run("construction",func(t *testing.T){
         before:=f.snapshot(t);names,saves,hashes:=f.disk.names.Load(),f.disk.saves.Load(),f.hasher.calls.Load()

@@ -37,5 +37,6 @@ func Provision(ctx context.Context, backend firstaccount.Backend, username, pass
 	if _, err := rand.Read(operation[:]); err != nil {
 		return accountmodel.FirstAccountCreation{}, err
 	}
-	return command.Provision(ctx, opened, hex.EncodeToString(operation[:]), prepared, password)
+	result, err := command.Provision(ctx, opened, hex.EncodeToString(operation[:]), prepared, password)
+	return result.FirstAccountCreation, err
 }

@@ -9,6 +9,7 @@ const (
 	InvalidInput  Code = "invalid_input"
 	OpenFailed    Code = "open_failed"
 	Consumed      Code = "input_consumed"
+	ReportFailed  Code = "file_report_failed"
 )
 
 // Error formats only the closed code. Causes remain available to the trusted

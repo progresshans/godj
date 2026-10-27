@@ -73,5 +73,5 @@ func FirstAccount(open func(context.Context) (firstaccount.Backend, error)) (fir
 		}
 		_, err = store.InspectStartup(ctx)
 		return backend, err
-	})
+	}, firstaccount.Config{})
 }

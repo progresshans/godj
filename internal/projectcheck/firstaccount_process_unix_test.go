@@ -163,6 +163,7 @@ func TestFirstAccountProcessLargeFrameOwnsActualPipeAndClearsInput(t *testing.T)
 	for i := 0; i < 16; i++ {
 		request.Values = append(request.Values, firstaccount.Value{Name: "field" + string(rune('a'+i)), Present: true, Text: bytes.Repeat([]byte("v"), 4096)})
 	}
+	request.Values = append(request.Values, firstaccount.Value{Name: "document", Present: true, Upload: &firstaccount.Upload{Name: "binary.dat", Content: bytes.Repeat([]byte{0, 255, 10}, 1<<19)}})
 	frame, err := firstaccountwire.EncodeRequest(request)
 	request.Clear()
 	if err != nil {
@@ -190,6 +191,7 @@ func TestFirstAccountProcessClosesBlockedInputAndReapsChild(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		request.Values = append(request.Values, firstaccount.Value{Name: "field" + string(rune('a'+i)), Present: true, Text: bytes.Repeat([]byte("v"), 4096)})
 	}
+	request.Values = append(request.Values, firstaccount.Value{Name: "document", Present: true, Upload: &firstaccount.Upload{Name: "binary.dat", Content: bytes.Repeat([]byte{0, 255, 10}, 1<<19)}})
 	frame, err := firstaccountwire.EncodeRequest(request)
 	request.Clear()
 	if err != nil {

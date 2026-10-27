@@ -30,6 +30,12 @@ func firstAccountProcessOutcome(process createsuperuserProcessResult, expected i
 		process.requestWriteAttempts < 0 || process.requestWriteAttempts > 1 || process.requestWriteAttempts == 0 && process.requestBytesWritten != 0)
 	if possible && process.exited && process.directReaps == 1 {
 		switch process.exitCode {
+		case firstaccountwire.KnownCreatedFileReportResponseFailureExitCode:
+			result.Status, result.Code, result.FileReportFailed = string(firstaccountwire.Created), "created_file_report_failed", true
+			return result
+		case firstaccountwire.KnownCreatedCleanupFileReportResponseFailureExitCode:
+			result.Status, result.Code, result.CleanupFailed, result.FileReportFailed = string(firstaccountwire.Created), "created_cleanup_failed", true, true
+			return result
 		case firstaccountwire.KnownCreatedResponseFailureExitCode:
 			result.Status, result.Code = string(firstaccountwire.Created), "created_output_failed"
 			return result
@@ -45,6 +51,10 @@ func firstAccountProcessOutcome(process createsuperuserProcessResult, expected i
 		response, err := firstaccountwire.DecodeResponse(process.response, operationID)
 		if err == nil {
 			result.Status, result.Code, result.CleanupFailed = string(response.Outcome), string(response.Code), response.CleanupFailed
+			result.FileReportFailed = response.FileReportFailed
+			if result.Status == string(firstaccountwire.Created) && result.FileReportFailed {
+				result.Code = "created_file_report_failed"
+			}
 			if result.Status == string(firstaccountwire.Created) && result.CleanupFailed {
 				result.Code = "created_cleanup_failed"
 			}

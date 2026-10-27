@@ -40,7 +40,7 @@ func firstAccountParentDescription(t *testing.T) (firstaccount.Description, code
 	command, err := firstaccount.New(definition, func(context.Context) (firstaccount.Backend, error) {
 		t.Error("description acquired a database")
 		return nil, errors.New("private opener")
-	})
+	}, firstaccount.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestFirstAccountTerminalPreservesRawFieldsOmissionEmptyAndPassword(t *testi
 	done := make(chan firstAccountTerminalResult, 1)
 	go func() {
 		var result firstAccountTerminalResult
-		result.request, result.code = readFirstAccountTerminal(ctx, nil, slave, prompts, description, &result.report)
+		result.request, result.code = readFirstAccountTerminal(ctx, nil, slave, prompts, description, &result.report, "")
 		done <- result
 	}()
 	login := "  ｐｒｏｆｉｌｅ＠ｅｘａｍｐｌｅ．ｔｅｓｔ  "
@@ -147,7 +147,7 @@ func TestFirstAccountTerminalFailuresClearAllInputAndRestoreTTY(t *testing.T) {
 			done := make(chan firstAccountTerminalResult, 1)
 			go func() {
 				var result firstAccountTerminalResult
-				result.request, result.code = readFirstAccountTerminal(ctx, nil, slave, prompts, description, &result.report)
+				result.request, result.code = readFirstAccountTerminal(ctx, nil, slave, prompts, description, &result.report, "")
 				done <- result
 			}()
 			want := "invalid_input"
@@ -210,10 +210,10 @@ func TestFirstAccountTerminalRejectsInvalidDeclarationBeforeTTY(t *testing.T) {
 	var report FirstAccountTerminalReport
 	invalid := description
 	invalid.Fingerprint = strings.Repeat("f", 64)
-	if request, code := readFirstAccountTerminal(t.Context(), nil, nil, nil, invalid, &report); code != "invalid_config" || report.Checks != 0 || len(request.Values) != 0 {
+	if request, code := readFirstAccountTerminal(t.Context(), nil, nil, nil, invalid, &report, ""); code != "invalid_config" || report.Checks != 0 || len(request.Values) != 0 {
 		t.Fatal("invalid declaration reached terminal input")
 	}
-	if _, code := readFirstAccountTerminal(t.Context(), nil, nil, nil, description, &report); code != "input_not_terminal" || report.Checks != 1 || report.RestoreAttempts != 0 {
+	if _, code := readFirstAccountTerminal(t.Context(), nil, nil, nil, description, &report, ""); code != "input_not_terminal" || report.Checks != 1 || report.RestoreAttempts != 0 {
 		t.Fatal("nonterminal input was accepted")
 	}
 }

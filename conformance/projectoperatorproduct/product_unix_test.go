@@ -353,10 +353,11 @@ func (project *operatorExternalProject) runProvision(
 }
 
 type operatorPublicProvisionResult struct {
-	OperationID   string `json:"operation_id"`
-	Status        string `json:"status"`
-	Code          string `json:"code"`
-	CleanupFailed bool   `json:"cleanup_failed"`
+	OperationID      string `json:"operation_id"`
+	Status           string `json:"status"`
+	Code             string `json:"code"`
+	CleanupFailed    bool   `json:"cleanup_failed"`
+	FileReportFailed bool   `json:"file_report_failed"`
 }
 
 func operatorDecodeProvisionTranscript(t *testing.T, transcript, username string) operatorPublicProvisionResult {
@@ -372,6 +373,9 @@ func operatorDecodeProvisionTranscript(t *testing.T, transcript, username string
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {
 		t.Fatal("decode closed operator result")
+	}
+	if result.FileReportFailed {
+		t.Fatal("scalar operator reported a file publication failure")
 	}
 	canonical, err := json.Marshal(result)
 	if err != nil || document != string(canonical)+"\n" {

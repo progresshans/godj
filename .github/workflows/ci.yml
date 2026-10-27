@@ -689,7 +689,7 @@ jobs:
             python3 scripts/ci/go_test_events.py "$platform_log" --diagnostics --stderr "$platform_stderr" || true
             exit "$status"
           fi
-          python3 scripts/ci/go_test_events.py "$platform_log" --packages "$evidence_dir/platform-packages.txt"
+          python3 scripts/ci/go_test_events.py "$platform_log" --packages "$evidence_dir/platform-packages.txt" --required scripts/ci/first-account-platform-required.txt
           # This complete runner execution also owns relation sentinels.
           # Missing/skipped execution must fail.
           runner_log="$evidence_dir/conformance-runner.json"

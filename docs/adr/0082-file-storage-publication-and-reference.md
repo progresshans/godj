@@ -40,6 +40,9 @@ IR 순서로 저장한 뒤 **실제로 반환된 이름**을 가진 새 준비�
 업로드를 게시한 뒤 실제 이름을 가진 전체 후보를 다시 검사한다. 일반 `PrepareInput`의 pending 거부는 유지한다.
 선택 계정의 파일 편집과 생성은 [계정 수명 계약](0076-credential-snapshots-and-session-binding.md#프로필-파일의-편집과-게시-결과)의
 사전 인가·별도 게시·최종 DB 재검사와 결과 보관을 따른다.
+초기 계정 CLI는 명시적 한도로 읽은 local file bytes를 private frame으로 전달하고 `uploads.Buffer`의 작업 수명 안에서
+같은 최초 생성 owner를 사용한다. 실제 게시 시도는 operation ID와 함께 필수 보고 owner에 보관하며,
+DB 결과·파일 보고 실패·process 정리/응답 실패를 분리한다. [명령의 입력/보고 계약](../../project/firstaccount/README.md)을 따른다.
 
 이름 callback은 다른 준비 값과 기존/default 파일 참조를 담은 분리된 모델을 받는다. Backend alias나 I/O 객체를 Schema IR에
 직렬화하지 않는다. 등록되지 않은 implicit storage, 전역 설정 조회, template에서의 숨은 파일 I/O는 없다. JSON serializer의
