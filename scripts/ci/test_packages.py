@@ -318,9 +318,12 @@ class ExecutionOwnerTests(unittest.TestCase):
         entries = required_entries(root / 'scripts/ci/postgres-core-required.txt')
         helpdesk = MODULE + 'examples/helpdesk|'
         all_roots = {entry.removeprefix(helpdesk).split('/')[0] for entry in entries if entry.startswith(helpdesk)}
-        postgres = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
+        postgres = {
+            'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance',
+            'TestSelectedAccountHelpdeskPostgresScopeLifecycle',
+        }
         seen = set()
-        for shard, expected in (('core', all_roots - {postgres}), ('core-helpdesk-postgres', {postgres})):
+        for shard, expected in (('core', all_roots - postgres), ('core-helpdesk-postgres', postgres)):
             with self.subTest(shard=shard):
                 required = plan('race', shard, entries)['required']
                 script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'

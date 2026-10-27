@@ -2079,6 +2079,20 @@ gofmt 72개 Go 파일, Python 4개 파일 syntax, Markdown 244개 링크와 diff
 원본과 최종 비-Markdown source 79개 hash는 `gdj0138-helpdesk-selected-v1/receipt.json`에 둔다
 (SHA-256 `d329f573d376eacace445d8a5340ad3c807f3eb050ab6ca35646ae8f4897b5e2`).
 
+게시 source `e694b453366afe3a7b7f793bda3696740364dd5b`의
+[CI 40450980318](https://github.com/progresshans/godj/actions/runs/40450980318) 실제 checkout은
+`91262ef0ec022da63b36dff0f39e6a6af17d9f41`이며 tree `064f15c870e20bba90a99dcd91bd1f0f94835306`이
+제출 source와 같다. `Portable Go (normal, core-vet)`의 도구 검사에서 기존 workflow 소비자의 기대 목록이
+Helpdesk PostgreSQL root를 하나로 가정해 실패했다. 새 partition의 실행 목록에는 두 root가 모두 포함되어 있었다.
+
+`test_postgres_race_helpdesk_roots_run_in_separate_workflow_invocations`의 독립 기대 목록에 새 root를 추가했다.
+실제 workflow shell이 만든 selector, 다른 partition 제외와 전체 root의 정확한 한 번 실행 검사는 유지했다.
+같은 source에서 해당 실패를 로컬 재현한 뒤 동일 검사 하나만 다시 실행해 통과했다(0.45초).
+제품 코드·새 native 테스트 본문·실행 partition/필수 목록은 바꾸지 않았다. 원본/전후 대조는
+`gdj0138-helpdesk-selected-v1/partition-repair.json`에 둔다
+(SHA-256 `62c91c3448e995017510256771720bcad5fc3bb55ef12dd159d298d4ca311f2d`).
+이전 CI는 전체 PASS가 아니며 수정 source의 전체 원격 실행은 새 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
