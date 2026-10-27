@@ -8,12 +8,24 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/validation"
 )
 
-func (state *creationState[M]) prepareInput(ctx context.Context, input orm.ModelInput[M]) (*creationCandidate[M], error) {
+func (state *creationState[M]) prepareInput(ctx context.Context, input orm.ModelInput[M], form *formmodel.BoundForm) (*creationCandidate[M], error) {
+	var pendingFiles []string
+	if form != nil {
+		if err := state.checkFileForm(*form); err != nil {
+			return nil, err
+		}
+		var err error
+		input, pendingFiles, err = formmodel.PrepareInputBeforeFiles(state.binding.state.objects, *form)
+		if err != nil {
+			return nil, managementError(CodeInvalidInput, err)
+		}
+	}
 	metadata, valid := input.Model()
 	if !valid || !metadata.Equal(state.metadata) {
 		return nil, managementError(CodeInvalidInput, nil)
@@ -23,7 +35,9 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 	}
 	values := input.Values()
 	for name := range values {
-		if !state.allowed[name] {
+		field, found := namedField(state.metadata, name)
+		allowed := state.allowed[name] || form != nil && state.allowed[state.dimensions[name]]
+		if !found || !allowed || form == nil && (field.Kind.IsFile() || state.dimensions[name] != "") {
 			return nil, managementError(CodeInvalidInput, nil)
 		}
 	}
@@ -63,7 +77,7 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 	// Validate incomplete required profile state before calling a server source.
 	// Excluded defaults remain actual IR defaults, never fabricated Go zeroes.
 	for _, field := range metadata.Fields {
-		if field.PrimaryKey || field.Name == role.PrincipalID || field.Name == role.Password || field.Name == role.Revision || field.Name == role.CreatedAt || field.Name == role.LastLogin {
+		if field.PrimaryKey || field.Name == role.PrincipalID || field.Name == role.Password || field.Name == role.Revision || field.Name == role.CreatedAt || field.Name == role.LastLogin || slices.Contains(pendingFiles, field.Name) {
 			continue
 		}
 		value := initial[field.Name]
@@ -100,7 +114,7 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 	if err != nil {
 		return nil, managementError(CodeInvalidInput, err)
 	}
-	return &creationCandidate[M]{prepared: prepared, row: row, groups: collections[role.Groups], permissions: collections[role.Permissions]}, nil
+	return &creationCandidate[M]{prepared: prepared, row: row, groups: collections[role.Groups], permissions: collections[role.Permissions], form: form, pendingFiles: pendingFiles}, nil
 }
 
 func (state *creationState[M]) preflight(ctx context.Context, scope db.Queryer, actor auth.Principal, candidate *creationCandidate[M], encoded bool) (auth.Principal, error) {
@@ -140,9 +154,9 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 	if _, err := binding.prepareCandidateCredential(namespace, candidate.row, grants); err != nil {
 		return err
 	}
-	var excluded []string
+	excluded := slices.Clone(candidate.pendingFiles)
 	if !encoded {
-		excluded = []string{role.Password}
+		excluded = append(excluded, role.Password)
 	}
 	diagnostics, err := candidate.prepared.ValidateUniqueExcluding(ctx, scope, candidate.row, excluded...)
 	if err != nil {
@@ -168,6 +182,12 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 	validator, ok := scope.(db.SessionValidator)
 	if !ok || nilModelValue(validator) {
 		return invalidAuthorityScope()
+	}
+	// Before publication only actual scalar/choice/grant authority and partial
+	// uniqueness are meaningful. Validators receive the actual storage names
+	// in the next read snapshot, still before hashing, and again at commit.
+	if len(candidate.pendingFiles) != 0 {
+		return validateAuthorityScope(ctx, validator)
 	}
 	// Each callback gets its own copy; a callback cannot alter later policy,
 	// the actual hash, the prepared row or memberships by mutating its argument.

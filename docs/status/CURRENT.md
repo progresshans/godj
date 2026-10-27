@@ -11,11 +11,11 @@
 
 ## 다음
 
-1. 파일 편집 사전 조회와 macOS 실행 경로의 수정을 #1에 반영하고, 읽기 전용 생성 model·선택 계정 OpenAPI·Helpdesk 전환과 FK/OneToOne·파일 프로필 편집을 전체 원격 검증한다.
+1. 읽기 전용 생성 model·선택 계정 OpenAPI·Helpdesk 전환과 FK/OneToOne·파일 프로필 편집/Form 생성을 #1에서 전체 원격 검증한다.
    기본/custom 일곱 변형·독립 SDK·실제 browser·외부 operator·migration/restart와 현재 인가/감사의 필수 실행을 대조한다.
    확인된 실패의 한정 재현·수정과 실행 원본·판정은 TEST_EVIDENCE에 둔다.
 2. 남은 고정 Directory/Manager 소비자와 선택 계정 조립의 미완료 요구를 점검해 전환한다.
-3. 선택 모델-as-through의 identity 생성, 파일을 포함한 계정 생성/첫 명령·추가 M2M·채운 DB mapping/retirement·복구/restart의 남은 요구를 완성한다.
+3. 선택 모델-as-through의 identity 생성, 공개 첫 명령의 파일 입력/전송·추가 M2M·채운 DB mapping/retirement·복구/restart의 남은 요구를 완성한다.
 
 ## 검증 경계
 

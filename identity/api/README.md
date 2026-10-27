@@ -99,8 +99,10 @@ Unknown outcome은 503 `outcome_unknown`이며 Retry-After나 자동 재시도�
 선택 계정 runtime을 조립하며, 별도 ogen module의 Session/Bearer 관리 소비자도 같은 소유자·22개 경로와
 새 receipt/선택 필드 계약을 사용한다. 구현·최소 compile과 실제 환경별 실행 범위는
 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
-명시적인 File/Image 참조와 소유 크기는 읽기 전용 출력이다. 편집 정책에 파일이 있어도 JSON 요청 schema에서는 제외하고
+명시적인 File/Image 참조와 소유 크기는 읽기 전용 출력이다. 생성/편집 정책에 파일이 있어도 JSON 요청 schema에서는 제외하고
 저장 이름 문자열이나 크기 입력을 거부한다. 실제 업로드·clear는 계정 owner의 검증된 Form 경로가 수행하며 파일 게시와 DB
 결과를 따로 보관한다. 조회는 저장소 Open이나 URL/다운로드 권한을 만들지 않는다.
 
-남은 고정 Directory/Manager host 교체, 파일을 포함한 계정 생성/첫 명령·추가 M2M·채운 DB 전환·복구와 전체 환경 수용은 I1에 남아 있다.
+필수 파일을 공급하는 생성은 `Creator.CreateForm`과 Admin multipart 경로를 사용한다. 파일을 생략한 JSON 생성은 필수 입력
+거부이며 문자열 이름을 업로드로 취급하지 않는다. 첫 계정의 typed Form owner도 별도 명시적 operation ID를 받는다.
+남은 고정 Directory/Manager host 교체, 공개 첫 명령의 파일 전송·추가 M2M·채운 DB 전환·복구와 전체 환경 수용은 I1에 남아 있다.

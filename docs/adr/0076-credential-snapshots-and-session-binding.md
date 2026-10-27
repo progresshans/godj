@@ -1101,8 +1101,9 @@ deny overlay는 같은 scope에서 계속 확인한다. 이 생성 의미와 별
 ## 선택 계정의 typed 생성과 해시 준비
 
 생성 `NewAccountCreator`와 `identity/model.Creator[M]`는 기존 credential store와 같은 전체 host source·역할 정책·
-실제 account Groups/Permissions capability를 사용한다. `CreationPolicy.Fields`는 login·scalar/FK/OneToOne profile·editable role flag와
-직접 소속을 명시한다. 관계 프로필에는 명시적 `Relations` 정책이 필요하다. Principal identity·encoded password·revision·선택된 서버 시각과 파일 입력은 받지 않는다.
+실제 account Groups/Permissions capability를 사용한다. `CreationPolicy.Fields`는 login·scalar/FK/OneToOne/file profile·editable role flag와
+직접 소속을 명시한다. 관계 프로필에는 명시적 `Relations`, 파일에는 `Files` 정책과 아래의 Form 생성 경로가 필요하다.
+Principal identity·encoded password·revision·선택된 서버 시각은 입력으로 받지 않는다. 일반 ModelInput은 파일 참조·이미지 크기를 대입하지 못한다.
 새 필수 profile을 쓰기 목록에서 빠뜨려 초기 값이 필수 NULL/빈 문자열로 남으면 구성 시 거부한다. 나머지 생략 값은
 Schema IR default를 사용한다. 전송 계층은 먼저 실제 ModelForm/JSON cleaning을 수행하고 서비스에 `ModelInput[M]`을 넘긴다.
 
@@ -1113,7 +1114,8 @@ Schema IR default를 사용한다. 전송 계층은 먼저 실제 ModelForm/JSON
 
 현재 domain·add **및** change·추가 권한·deny overlay, 관계 선택과 저장된 catalog revision/code·유효 합집합·unique와
 application/password policy를 한 native snapshot에서 검증한다. 해시가 아직 없는 사전 검사에서는 `PreparedModel.ValidateUniqueExcluding`
-으로 password 필드와 그 필드를 포함한 **전체** 제약만 미룬다. 미지정·중복 제외 이름은 I/O 전에 거부하며, 임시 hash 값으로
+으로 password 필드와 그 필드를 포함한 **전체** 제약을 미룬다. 파일 게시 전의 추가 단계는 아래 계약을 따른다.
+미지정·중복 제외 이름은 I/O 전에 거부하며, 임시 hash 값으로
 다른 계정과 충돌시키지 않는다. 선택적인 생성 IExact 중복 정책은 write/authentication 정규화와 별개의 명시적 설정이다.
 
 Snapshot 종료 성공 뒤 DB 밖에서 한 번만 hash하고 encoded profile·credential usability·저장 길이를 검증한다. Hasher의 직접적이고
@@ -1319,7 +1321,7 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 첫 계정 명령은 DB를 열기 전에 실제 IR의 integer/null/default/static-choice 의미로 관계 key를 파싱한다.
 이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
 선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일 편집은 아래 계약을 따르고,
-파일을 포함한 생성/첫 명령·추가 M2M profile과 selected-model through identity 생성은 I1에 남는다.
+파일의 Form 생성은 아래 계약을 따르며, 공개 첫 명령의 파일 전송·추가 M2M profile과 selected-model through identity 생성은 I1에 남는다.
 환경별 실행 결과는 TEST_EVIDENCE를 따른다.
 
 입력의 source·선택 필드·target binding과 login/email의 고정 저장 정규화·문자/byte 한도를 I/O 전에 확인한다.
@@ -1342,7 +1344,8 @@ relation transaction에 속한다. 모델/정책 거부가 프로필 또는 역�
 `NewProfileFile[M]`은 선택 계정 binding·파일 field와 명시적 capability를 완전한 project source/role에 묶는다.
 파일을 선택한 ProfileEditor/AccountEditor는 필드마다 정확히 하나의 정책을 요구하며 missing/duplicate/foreign source와
 미노출 정책을 구성 시 거부한다. 일반 업로드는 빌린 storage backend와 pure Name callback을 사용한다. Callback은
-다른 준비 값과 기존 파일 참조를 가진 분리된 모델을 받되 password hash·principal identity는 비운다. Backend를 닫거나
+다른 준비 값과 기존/default 파일 참조를 가진 분리된 모델을 받되 password hash·principal identity는 비운다.
+생성 후보에는 아직 저장된 PK가 없으며 이를 임의로 예약하거나 꾸며내지 않는다. Backend를 닫거나
 global storage를 찾아 주지 않는다. 파일 choices는 canonical 이름 선택이며 업로드 saver를 선언하지 않는다.
 Image choices에는 명시적 inspector가 필요하고 `FormDefinition`은 그 capability와 bounded image 정책을 같은 ModelForm에 넣는다.
 
@@ -1370,9 +1373,42 @@ metadata는 0이지만 파일별 결과는 남는다. Clear·교체·실패에�
 Callback은 취소된 context도 받을 수 있다. 보관·복구와 그 채널의 내구성은 application 책임이며 보고 실패는 별도 실행 오류다.
 보고가 실패했다고 이미 확인한 DB commit이나 파일 게시를 실패 전 상태로 바꾸지 않는다.
 
-관리 JSON의 파일·이미지 크기는 명시적인 read-only 출력이다. 요청 schema에서는 제외하고 문자열/크기 입력은 거부한다.
-파일의 내용·URL·다운로드 권한을 JSON 저장 이름에 결합하지 않는다. 파일 생성과 필수 파일을 포함한 첫 계정/공개 명령,
-추가 M2M·채운 DB 전환은 이 편집 기능의 수용으로 계산하지 않으며 활성 I1 요구에 유지한다.
+관리 JSON의 파일·이미지 크기는 명시적인 read-only 출력이다. 생성/편집 요청 schema에서는 제외하고 문자열/크기 입력은 거부한다.
+파일의 내용·URL·다운로드 권한을 JSON 저장 이름에 결합하지 않는다. 필수 파일이 있는 모델은 해당 파일을 공급하는 Form
+경로를 사용해야 한다. 필수 파일을 생략한 JSON 생성은 입력 거부이며 저장 이름을 임의로 만들어 쓰지 않는다.
+
+### 프로필 파일을 포함한 계정 생성
+
+`CreationPolicy.Files`는 선택 파일마다 동일 source의 명시적 `ProfileFile`을 요구한다. `AccountManagementConfig.Files`는
+CreateFields/EditFields의 합집합에 대해 검증하고 각 owner에는 해당 선택만 전달한다. 이미지 소유 크기는 독립 입력이 아니며,
+그 이미지를 선택하면 파생 저장/감사 필드로 포함한다. `Creator`와 `FirstAccountDefinition`/`FirstAccount`의 FormDefinition은
+같은 정규화·이미지 검사 정책을 제공한다. 생성은 새로운 Form이므로 기존 key나 조작된 초기 파일 참조를 받아들이지 않는다.
+IR default와 canonical choices의 선택은 새 업로드와 구분한다.
+
+`Creator.CreateForm`/`CreateUnusableForm`은 현재 요청 안에서 한 번의 준비·게시·commit을 수행한다. 유효한 Form에서
+pending file만 제외한 typed 입력으로 서버 identity·시각·고정 역할과 다른 값을 준비한다. 첫 native snapshot은 현재
+domain·add/change·추가 권한·관계/소속과 실제로 준비된 값의 unique를 검사한다. Pending 파일 및 그것을 포함한 전체 unique
+제약은 여기서 미루고, 업로드 client filename을 DB 저장 이름으로 검사하지 않는다. Admin의 부분 unique 검사도 같은 경계를 따른다.
+
+Snapshot 종료 뒤 모든 이름 정책을 검사하고 DB 밖에서 파일을 게시한다. 이름 callback에는 정규화된 생성 후보의 사본을
+전달한다. 실제 반환 이름과 파생 크기만 후보에 합쳐, 일반 scalar 정규화와 서버 identity를 이전 Form 값으로 덮지 않는다.
+다시 새 snapshot에서 현재 인가와 **실제 이름**의 unique·typed/password policy를 확인한 뒤 한 번만 hash한다.
+최종 native write fence에서 전체 권한·선택·unique·policy를 재검사하고 계정·소속·audit를 함께 확정한다. 파일이 없는
+경로는 기존 사전 검사/해싱 단계를 유지한다. Unusable 생성은 hash/strength policy를 호출하지 않는다.
+
+파일 의존 validator는 실제 이름이 준비된 뒤, 여전히 해싱 전에 호출한다. 따라서 파일 게시 뒤 validation·hash 실패가 날 수
+있으며 모든 `FilePublication`을 반환한다. 불완전/불확실 게시에서 DB 단계로 진행하지 않는다. 업로드 수명을 준비 객체로
+연장하지 않으며 자동 재시도·파일 삭제·DB/파일 분산 원자성을 제공하지 않는다.
+
+`FirstAccount.CreateForm(ctx, operationID, bound, password)`는 호출자가 게시 전에 보관한 명시적 operation ID를 요구한다.
+파일 게시 전·후와 최종 transaction에서 계정/domain의 부재를 확인한다. 마지막 단계의 domain·계정·첫 감사는 원자적이며,
+unknown에서는 확정 계정 결과를 반환하지 않고 게시 결과를 보존한다. 보관한 operation ID와 `domain.Lookup`으로 실제
+receipt를 대조한다. 다른 첫 생성이 게시 사이에 완료되면 원래 요청은 새 domain/계정을 쓰지 않고 파일 결과만 돌려준다.
+
+Admin 생성에 업로드가 있으면 `ReportFileCreate`가 필수다. `AccountFileCreationReport`는 확정 Creation, 파일별 결과와
+오류를 별도로 소유한다. Callback·오류 변환·취소·요청 수명과 보고 실패는 편집 보고와 같은 계약이며, 확정 commit 뒤 보고
+실패는 성공한 DB 결과를 취소하지 않는다. Choices-only 생성에는 파일 게시 보고 callback을 요구하지 않는다.
+공개 첫 명령의 파일 입력·private process 전송은 아직 연결하지 않았으며, 추가 M2M·채운 DB 전환과 함께 활성 I1 요구에 유지한다.
 
 반환값은 확정된 ID·revision·변경 필드와 폐기 수뿐이다. 후속 relation/session/audit 실패는 앞선 변경과 함께 rollback하고,
 unknown 결과는 공개 값을 버리고 자동 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 되돌리지 않는다.
@@ -1563,7 +1599,7 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 사라져도 commit 뒤 재조회로 성공을 잃지 않는다. ProfileReader의 선택 ModelView와 현재 domain의 값 없는 durable audit만
 화면에 투영한다. 공통 Admin의 active staff·CSRF·최종 current authority 경계와 기존 host graph/rollback/unknown 의미를 유지한다.
 
-공개 첫 계정 명령/scaffold/runtime과 FK/OneToOne·파일 편집은 각 현행 절의 계약을 따른다. 파일을 포함한 생성/첫 명령,
+공개 첫 계정 명령/scaffold/runtime과 FK/OneToOne·파일 편집/Form 생성은 각 현행 절의 계약을 따른다. 공개 첫 명령의 파일 전송,
 추가 M2M·선택 모델-as-through identity 생성, 채운 DB의 명시적 mapping/retirement와 통합 restart는 남아 있다.
 Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
 경계를 완료했다고 계산하지 않는다. 구현·최소 compile·환경별 본문 실행은 TEST_EVIDENCE에서 구분한다.

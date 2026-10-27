@@ -15,18 +15,37 @@ import (
 // Pending uploads require PrepareInstance and its explicit file publication
 // phase; this function rejects them instead of storing an upload filename.
 func PrepareInput[M any](manager orm.Manager[M], bound BoundForm) (orm.ModelInput[M], error) {
+	input, _, err := prepareInput(manager, bound, false)
+	return input, err
+}
+
+// PrepareInputBeforeFiles projects a valid form's selected scalar/collection
+// intent while explicitly deferring pending upload fields. Derived image sizes
+// remain selected. Each returned deferred name is omitted from the input; an
+// upload's client filename never becomes a stored name.
+//
+// This input is incomplete and is only for prepublication admission. Owners
+// must retain BoundForm, publish through PrepareInstance/SaveFiles outside a DB
+// scope, then validate and save the actual returned names. Neither this input
+// nor a successful admission authorizes storing the incomplete candidate.
+func PrepareInputBeforeFiles[M any](manager orm.Manager[M], bound BoundForm) (orm.ModelInput[M], []string, error) {
+	return prepareInput(manager, bound, true)
+}
+
+func prepareInput[M any](manager orm.Manager[M], bound BoundForm, deferUploads bool) (orm.ModelInput[M], []string, error) {
 	metadata, err := manager.Metadata()
 	if err != nil {
-		return orm.ModelInput[M]{}, err
+		return orm.ModelInput[M]{}, nil, err
 	}
 	if !metadata.Equal(bound.model) {
-		return orm.ModelInput[M]{}, &Error{Path: "model", Code: "mismatch"}
+		return orm.ModelInput[M]{}, nil, &Error{Path: "model", Code: "mismatch"}
 	}
 	input, err := bound.Input()
 	if err != nil {
-		return orm.ModelInput[M]{}, err
+		return orm.ModelInput[M]{}, nil, err
 	}
 	values := make(map[string]query.Value)
+	var deferred []string
 	for _, field := range metadata.Fields {
 		value, present := input.Get(field.Name)
 		if !present {
@@ -35,7 +54,11 @@ func PrepareInput[M any](manager orm.Manager[M], bound BoundForm) (orm.ModelInpu
 		if field.Kind.IsFile() {
 			if file, ok := value.AsFile(); ok {
 				if _, pending := file.Upload(); pending {
-					return orm.ModelInput[M]{}, &Error{Path: "input." + field.Name, Code: "pending_file"}
+					if !deferUploads {
+						return orm.ModelInput[M]{}, nil, &Error{Path: "input." + field.Name, Code: "pending_file"}
+					}
+					deferred = append(deferred, field.Name)
+					continue
 				}
 				values[field.Name] = query.String(file.Name())
 				continue
@@ -43,13 +66,13 @@ func PrepareInput[M any](manager orm.Manager[M], bound BoundForm) (orm.ModelInpu
 		}
 		scalar, valid := queryValue(value)
 		if !valid {
-			return orm.ModelInput[M]{}, &Error{Path: "input." + field.Name, Code: "type_mismatch"}
+			return orm.ModelInput[M]{}, nil, &Error{Path: "input." + field.Name, Code: "type_mismatch"}
 		}
 		values[field.Name] = scalar
 	}
 	result, err := manager.Input(values)
 	if err != nil {
-		return orm.ModelInput[M]{}, err
+		return orm.ModelInput[M]{}, nil, err
 	}
 	for _, field := range metadata.Fields {
 		if !field.PrimaryKey {
@@ -58,11 +81,11 @@ func PrepareInput[M any](manager orm.Manager[M], bound BoundForm) (orm.ModelInpu
 		value, present := bound.candidate.Get(field.Name)
 		key, valid := queryValue(value)
 		if !present || !valid {
-			return orm.ModelInput[M]{}, &Error{Path: "instance." + field.Name, Code: "mismatch"}
+			return orm.ModelInput[M]{}, nil, &Error{Path: "instance." + field.Name, Code: "mismatch"}
 		}
 		result, err = result.WithTargetKey(key)
 		if err != nil {
-			return orm.ModelInput[M]{}, err
+			return orm.ModelInput[M]{}, nil, err
 		}
 	}
 	collections := make(map[string][]int64)
@@ -70,12 +93,16 @@ func PrepareInput[M any](manager orm.Manager[M], bound BoundForm) (orm.ModelInpu
 		if value, present := input.Get(field.Name); present {
 			keys, valid := value.AsIntegers()
 			if !valid {
-				return orm.ModelInput[M]{}, &Error{Path: "input." + field.Name, Code: "type_mismatch"}
+				return orm.ModelInput[M]{}, nil, &Error{Path: "input." + field.Name, Code: "type_mismatch"}
 			}
 			collections[field.Name] = keys
 		}
 	}
-	return result.WithCollections(collections)
+	result, err = result.WithCollections(collections)
+	if err != nil {
+		return orm.ModelInput[M]{}, nil, err
+	}
+	return result, deferred, nil
 }
 
 // ModelInput transfers this preparation's selected intent to a fresh write

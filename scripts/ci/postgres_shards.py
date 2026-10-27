@@ -37,6 +37,7 @@ ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedFirstAccountUsesRequiredProfiles',
     'TestGeneratedAccountProfileRelations',
     'TestGeneratedAccountProfileFiles',
+    'TestGeneratedAccountProfileFileCreation',
 })
 WRITE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountResetUsesSelectedModels',

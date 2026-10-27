@@ -18,8 +18,9 @@ import (
 )
 
 // ProfileFileConfig declares the explicit publication capability for an upload
-// field. Name is pure and receives a detached candidate with old file references
-// and no password hash or principal identity. Backend is borrowed and never
+// field. Name is pure and receives a detached candidate with old/default file
+// references and no password hash or principal identity. Creation candidates
+// have no stored primary key. Backend is borrowed and never
 // closed by an owner.
 // All callbacks must be safe for concurrent use.
 //
@@ -161,6 +162,16 @@ func profileFileOverrides[M any](files []ProfileFile[M]) []formmodel.Override {
 		overrides = append(overrides, file.state.override...)
 	}
 	return overrides
+}
+
+func selectProfileFiles[M any](files []ProfileFile[M], fields []string) []ProfileFile[M] {
+	var selected []ProfileFile[M]
+	for _, file := range files {
+		if slices.Contains(fields, file.state.field.Name) {
+			selected = append(selected, file)
+		}
+	}
+	return selected
 }
 
 func profileFileNames[M any](files []ProfileFile[M]) []string {

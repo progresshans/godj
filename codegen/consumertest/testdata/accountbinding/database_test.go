@@ -62,6 +62,49 @@ func accountDatabaseWithConfig(t *testing.T, schemas ...ir.Schema) (database.Bac
 	return backend, selected
 }
 
+// accountStoredKey installs an already-stored signed key on a fresh,
+// unreferenced fixture row. Product creation still uses the generated key.
+// This does not exercise PostgreSQL's separately unsupported explicit identity
+// INSERT/sequence-reconciliation API. All subsequent reads/edits use the ORM.
+func accountStoredKey(t *testing.T, backend database.Backend, selected database.Config, table, column string, previous, next int64) {
+	t.Helper()
+	if table == "" || column == "" || previous <= 0 || next > 0 {
+		t.Fatal("invalid signed-key fixture")
+	}
+	quotedColumn := pgx.Identifier{column}.Sanitize()
+	if native, ok := backend.(*sqlitedb.Backend); ok {
+		statement := "UPDATE " + pgx.Identifier{table}.Sanitize() + " SET " + quotedColumn + " = ? WHERE " + quotedColumn + " = ?"
+		result, err := native.ExecContext(t.Context(), statement, next, previous)
+		if err != nil {
+			t.Fatal(err)
+		}
+		count, err := result.RowsAffected()
+		if err != nil || count != 1 {
+			t.Fatal("signed-key fixture did not move exactly one row", err)
+		}
+		return
+	}
+	if _, ok := backend.(*postgresdb.Backend); !ok {
+		t.Fatal("signed-key fixture requires a native backend")
+	}
+	connection, err := pgx.Connect(t.Context(), selected.PostgresURL())
+	if err != nil {
+		t.Fatal("connect signed-key fixture")
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := connection.Close(ctx); err != nil {
+			t.Error("close signed-key fixture")
+		}
+	}()
+	statement := "UPDATE " + pgx.Identifier{selected.PostgresSchema(), table}.Sanitize() + " SET " + quotedColumn + " = $1 WHERE " + quotedColumn + " = $2"
+	result, err := connection.Exec(t.Context(), statement, next, previous)
+	if err != nil || result.RowsAffected() != 1 {
+		t.Fatal("signed-key fixture did not move exactly one row", err)
+	}
+}
+
 var accountSchemaSequence atomic.Uint64
 
 func accountDatabaseConfig(t *testing.T) (database.Config, string) {

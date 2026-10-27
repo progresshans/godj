@@ -59,6 +59,9 @@ func (state *creationState[M]) encodeCandidate(ctx context.Context, namespace au
 // audit and confirm the SAME native transaction before publishing anything.
 func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSession, namespace auth.CredentialDomain, candidate *creationCandidate[M]) (M, Creation, error) {
 	var zero M
+	if candidate == nil || candidate.form != nil || len(candidate.pendingFiles) != 0 {
+		return zero, Creation{}, managementError(CodeInvalidInput, nil)
+	}
 	objects := state.store.state.binding.state.objects
 	row, err := objects.ApplyValues(candidate.row, nil)
 	if err != nil {

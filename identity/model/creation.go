@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -25,14 +26,18 @@ import (
 // password field is deliberately redacted in this callback's model copy.
 type CreationValidator[M any] func(context.Context, db.Queryer, M, RoleMemberships) (validation.Errors, error)
 
-// CreationPolicy explicitly selects login, scalar and FK/OneToOne profile, editable role flags
-// and group/direct-permission collections. Model defaults apply to omitted
+// CreationPolicy explicitly selects login, scalar/FK/OneToOne/file profile,
+// editable role flags and group/direct-permission collections. Files require
+// their explicit policy and the Form entry point. Model defaults apply to omitted
 // fields. Principal ID, encoded password, revision and selected timestamps are
 // server-owned. Inputs must already have passed their Form/JSON cleaning policy.
 // All callbacks must be safe for concurrent use.
 type CreationPolicy[M any] struct {
-	Fields           []string
-	Relations        []ProfileRelation[M]
+	Fields    []string
+	Relations []ProfileRelation[M]
+	// Files configures selected file fields for CreateForm. Raw ModelInput
+	// never acquires permission to assign file references or image dimensions.
+	Files            []ProfileFile[M]
 	Validate         CreationValidator[M]
 	ValidatePassword PasswordValidator[M]
 	// MaxPasswordBytes defaults to 1024; the supported bound is 1..4096. The
@@ -74,6 +79,8 @@ type creationDefinition[M any] struct {
 	fields                      []string
 	allowed                     map[string]bool
 	relations                   []ProfileRelation[M]
+	files                       []ProfileFile[M]
+	dimensions                  map[string]string
 	config                      CreationPolicy[M]
 	forced                      map[string]query.Value
 	auditFields                 []string
@@ -140,7 +147,7 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
-	dimensions, err := ir.ImageDimensionOwners(metadata)
+	files, dimensions, err := prepareProfileFiles(binding, config.Fields, config.Files)
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
@@ -155,7 +162,7 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 		}
 		if name != role.Groups && name != role.Permissions {
 			field, found := namedField(metadata, name)
-			if !found || field.PrimaryKey || field.NonEditable || field.Kind.IsFile() {
+			if !found || field.PrimaryKey || field.NonEditable {
 				return nil, managementError(CodeInvalidConfig, nil)
 			}
 		}
@@ -173,7 +180,7 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	for _, field := range metadata.Fields {
-		if field.PrimaryKey || protected[field.Name] || allowed[field.Name] {
+		if field.PrimaryKey || protected[field.Name] || allowed[field.Name] || allowed[dimensions[field.Name]] {
 			continue
 		}
 		value := initial[field.Name]
@@ -185,7 +192,7 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 		}
 	}
 	fields := slices.Clone(config.Fields)
-	auditFields := slices.Clone(fields)
+	auditFields := profileStoredFields(metadata, fields, dimensions)
 	for _, field := range metadata.Fields {
 		if _, present := forced[field.Name]; present {
 			auditFields = append(auditFields, field.Name)
@@ -212,7 +219,8 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 	}
 	config.Fields = nil
 	config.Relations = nil
-	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, config: config, forced: maps.Clone(forced), auditFields: auditFields}
+	config.Files = nil
+	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, files: files, dimensions: dimensions, config: config, forced: maps.Clone(forced), auditFields: auditFields}
 	state.saveGroups = func(ctx context.Context, scope db.Session, row M, keys []int64) error {
 		collection, err := groups.InSession(scope, row)
 		if err != nil {
@@ -269,6 +277,8 @@ type creationCandidate[M any] struct {
 	groups, permissions []int64
 	raw                 string
 	unusable            bool
+	form                *formmodel.BoundForm
+	pendingFiles        []string
 }
 
 func (PreparedCreation[M]) Format(state fmt.State, _ rune) {
@@ -282,13 +292,15 @@ func (PreparedCreation[M]) MarshalJSON() ([]byte, error) {
 // It writes nothing. Drop an abandoned candidate; it retains private material
 // needed for final policy validation until Commit consumes its sole attempt.
 func (creator *Creator[M]) Prepare(ctx context.Context, actor auth.Principal, input orm.ModelInput[M], password string) (PreparedCreation[M], error) {
-	return creator.prepare(ctx, actor, input, password, false)
+	prepared, _, err := creator.prepare(ctx, actor, input, password, false, nil)
+	return prepared, err
 }
 
 // PrepareUnusable explicitly creates a credential that cannot authenticate.
 // It never invokes the password hasher or strength policy.
 func (creator *Creator[M]) PrepareUnusable(ctx context.Context, actor auth.Principal, input orm.ModelInput[M]) (PreparedCreation[M], error) {
-	return creator.prepare(ctx, actor, input, "", true)
+	prepared, _, err := creator.prepare(ctx, actor, input, "", true, nil)
+	return prepared, err
 }
 func (creator *Creator[M]) validCall(ctx context.Context, actor auth.Principal) error {
 	if creator == nil || creator.state == nil {
@@ -305,38 +317,52 @@ func (creator *Creator[M]) validCall(ctx context.Context, actor auth.Principal) 
 	}
 	return nil
 }
-func (creator *Creator[M]) prepare(ctx context.Context, actor auth.Principal, input orm.ModelInput[M], raw string, unusable bool) (PreparedCreation[M], error) {
+func (creator *Creator[M]) prepare(ctx context.Context, actor auth.Principal, input orm.ModelInput[M], raw string, unusable bool, form *formmodel.BoundForm) (PreparedCreation[M], []formmodel.FilePublication, error) {
 	if err := creator.validCall(ctx, actor); err != nil {
-		return PreparedCreation[M]{}, err
+		return PreparedCreation[M]{}, nil, err
 	}
 	state := creator.state
 	if !unusable {
 		if raw == "" {
-			return PreparedCreation[M]{}, passwordInputError("required")
+			return PreparedCreation[M]{}, nil, passwordInputError("required")
 		}
 		if len(raw) > state.config.MaxPasswordBytes {
-			return PreparedCreation[M]{}, passwordInputError("max_length")
+			return PreparedCreation[M]{}, nil, passwordInputError("max_length")
 		}
 	}
-	candidate, err := state.prepareInput(ctx, input)
+	candidate, err := state.prepareInput(ctx, input, form)
 	if err != nil {
-		return PreparedCreation[M]{}, err
+		return PreparedCreation[M]{}, nil, err
 	}
 	candidate.raw, candidate.unusable = raw, unusable
 	namespace, _ := actor.CredentialDomain()
 	if _, err := state.store.state.binding.prepareCandidateCredential(namespace, candidate.row, nil); err != nil {
-		return PreparedCreation[M]{}, managementError(CodeInvalidConfig, err)
+		return PreparedCreation[M]{}, nil, managementError(CodeInvalidConfig, err)
 	}
-	if err := creationSnapshot(ctx, state.store.state.backend, func(work context.Context, scope db.Queryer) error {
+	check := func(work context.Context, scope db.Queryer) error {
 		_, err := state.preflight(work, scope, actor, candidate, false)
 		return err
-	}); err != nil {
-		return PreparedCreation[M]{}, err
 	}
+	if err := creationSnapshot(ctx, state.store.state.backend, check); err != nil {
+		return PreparedCreation[M]{}, nil, err
+	}
+	var publications []formmodel.FilePublication
+	if len(candidate.pendingFiles) != 0 {
+		publications, err = state.publishFiles(ctx, candidate)
+		if err != nil {
+			return PreparedCreation[M]{}, publications, err
+		}
+		// Publication can run arbitrary storage I/O while account authority
+		// changes. Check the actual stored names and current policy before hash.
+		if err := creationSnapshot(ctx, state.store.state.backend, check); err != nil {
+			return PreparedCreation[M]{}, publications, err
+		}
+	}
+	candidate.form = nil
 	if err := state.encodeCandidate(ctx, namespace, candidate); err != nil {
-		return PreparedCreation[M]{}, err
+		return PreparedCreation[M]{}, publications, err
 	}
-	return PreparedCreation[M]{state: &preparedCreation[M]{owner: creator, actorID: actor.ID(), domain: namespace, input: candidate}}, nil
+	return PreparedCreation[M]{state: &preparedCreation[M]{owner: creator, actorID: actor.ID(), domain: namespace, input: candidate}}, publications, nil
 }
 
 // Creation publishes only confirmed metadata, without granting profile access.

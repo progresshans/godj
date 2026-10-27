@@ -498,6 +498,12 @@ err = backend.AtomicRelation(ctx, func(tx db.RelationSession) error {
 유지하고, 제외한 필드나 command 입력을 쓰기 값으로 바꾸지 않는다. Owner는 fresh row에 이 입력을 다시 적용하고
 현재 권한·revision·unique와 최종 DB 결과를 확인한다. 이 입력을 전달해도 `publications` 보관 책임은 사라지지 않는다.
 
+생성의 게시 전 인가에는 `PrepareInputBeforeFiles(manager, bound)`를 쓸 수 있다. 유효한 Form의 선택 scalar·collection·
+파생 이미지 크기와 원래 target/source를 보존하고 pending upload 필드는 입력에서 제외한 뒤 그 이름들을 별도로 반환한다.
+이 결과는 불완전한 사전 검사 입력이다. Client filename을 저장 이름으로 쓰지 않으며, owner는 원래 BoundForm으로
+게시를 완료한 뒤 실제 이름을 포함한 전체 validation·unique·권한 검사와 DB 저장을 수행해야 한다. 일반 `PrepareInput`과
+`PreparedInstance.ModelInput()`의 pending upload 거부는 그대로 유지한다.
+
 `FilePublication.Field()/Info()/Err()/Outcome()`으로 부분 실패를 확인한다. 새 파일 게시 후 DB rollback이 되면 DB의 이전
 참조와 새 파일이 각각 남을 수 있다. Clear·모델 삭제·교체 역시 이전 파일을 자동 삭제하지 않는다. 이름은 공유될 수 있고
 불확실한 DB 결과나 파일 소유권을 참조 문자열만으로 확정할 수 없기 때문이다. 권한·revision과 transaction admission은

@@ -30,6 +30,9 @@ type AccountRegistration struct {
 	// runs outside every DB scope, including on a canceled request, and must be
 	// safe for concurrent calls. A reporting error remains an execution error.
 	ReportFileEdit func(context.Context, AccountFileEditReport) error
+	// ReportFileCreate has the same retention/failure contract for creation.
+	// It is required only when the creation form accepts actual uploads.
+	ReportFileCreate func(context.Context, AccountFileCreationReport) error
 }
 
 // RegisterAccount binds the actual selected account and all lifecycle owners
@@ -85,6 +88,15 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 	creation, err := management.FormDefinition(admin.ActionAdd)
 	if err != nil {
 		return err
+	}
+	creationSpec, err := creation.Spec(metadata)
+	if err != nil {
+		return err
+	}
+	for _, field := range creationSpec.Fields() {
+		if field.AcceptsUpload() && presentation.ReportFileCreate == nil {
+			return &admin.ConfigError{Path: "account.create_files", Code: "missing_reporter"}
+		}
 	}
 	passwords, err := accountCreationForm(metadata, creation, management.Passwords().MaxPasswordBytes())
 	if err != nil {
@@ -192,10 +204,6 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return operationError(management.CheckChangeForm(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
 		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
-			input, err := formmodel.PrepareInput(objects, bound)
-			if err != nil {
-				return admin.MutationResult{}, err
-			}
 			values, err := bound.Input()
 			if err != nil {
 				return admin.MutationResult{}, err
@@ -204,21 +212,24 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			if !present {
 				return admin.MutationResult{}, invalidInput()
 			}
-			var prepared accountmodel.PreparedCreation[M]
+			var result accountmodel.Creation
+			var publications []formmodel.FilePublication
 			if unusable {
-				prepared, err = creator.PrepareUnusable(ctx, actor, input)
+				result, publications, err = creator.CreateUnusableForm(ctx, actor, bound)
 			} else {
 				raw, a := values.String(passwords.first)
 				confirm, b := values.String(passwords.confirm)
 				if !a || !b || raw != confirm {
 					return admin.MutationResult{}, invalidInput()
 				}
-				prepared, err = creator.Prepare(ctx, actor, input, raw)
+				result, publications, err = creator.CreateForm(ctx, actor, bound, raw)
 			}
-			if err != nil {
-				return admin.MutationResult{}, selectedPasswordInputError(err, passwords.confirm)
+			if len(publications) != 0 {
+				report := newAccountFileCreationReport(result, publications, err)
+				if reported := presentation.ReportFileCreate(ctx, report); reported != nil {
+					err = errors.Join(err, reported)
+				}
 			}
-			result, err := creator.Commit(ctx, actor, prepared)
 			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, selectedPasswordInputError(err, passwords.confirm)
 		},
 		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {

@@ -5635,3 +5635,11 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFil
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/custom
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/custom/sqlite
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/custom/postgres
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/default
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/default/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/default/postgres
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/custom
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/custom/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/custom/postgres
+github.com/progresshans/godj/forms/model|TestModelFileAdmissionInputDefersOnlyUploadsAndPreservesSource

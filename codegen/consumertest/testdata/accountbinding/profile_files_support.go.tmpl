@@ -1,0 +1,174 @@
+package consumer
+
+import (
+    "bytes"
+    "context"
+    "encoding/json"
+    "errors"
+    "fmt"
+    "html"
+    "image"
+    "image/color"
+    "image/png"
+    "io"
+    "mime/multipart"
+    "net/http"
+    "net/http/cookiejar"
+    "net/http/httptest"
+    "net/url"
+    "reflect"
+    "regexp"
+    "slices"
+    "strconv"
+    "strings"
+    "sync"
+    "sync/atomic"
+    "testing"
+    "time"
+
+    @@IMPORTS@@
+    "example.com/godj-project-bundle/project"
+    auditmodels "github.com/progresshans/godj/account/audit/models"
+    domainmodels "github.com/progresshans/godj/account/domain/models"
+    "github.com/progresshans/godj/admin"
+    "github.com/progresshans/godj/api"
+    apisession "github.com/progresshans/godj/api/sessionauth"
+    "github.com/progresshans/godj/apps"
+    "github.com/progresshans/godj/auth"
+    "github.com/progresshans/godj/db"
+    "github.com/progresshans/godj/forms"
+    formmodel "github.com/progresshans/godj/forms/model"
+    identityadmin "github.com/progresshans/godj/identity/admin"
+    identityapi "github.com/progresshans/godj/identity/api"
+    accountmodel "github.com/progresshans/godj/identity/model"
+    "github.com/progresshans/godj/orm"
+    "github.com/progresshans/godj/query"
+    "github.com/progresshans/godj/schema"
+    "github.com/progresshans/godj/schema/ir"
+    "github.com/progresshans/godj/sessions"
+    sessionmodels "github.com/progresshans/godj/sessions/database/models"
+    "github.com/progresshans/godj/settings"
+    "github.com/progresshans/godj/settings/database"
+    "github.com/progresshans/godj/storage"
+    "github.com/progresshans/godj/uploads"
+    "github.com/progresshans/godj/validation"
+    "github.com/progresshans/godj/web"
+    websession "github.com/progresshans/godj/web/sessionauth"
+)
+
+type fileAccount = @@ACCOUNT@@
+
+func fileCheck(t *testing.T, err error) { t.Helper(); if err != nil { t.Fatal(err) } }
+
+// Faults surround actual native completion. The unknown acknowledgement is
+// injected after a real commit; audit/cleanup failures perform real rollback.
+type fileDatabase struct {
+    database.Backend
+    readFailure atomic.Bool
+    mode atomic.Value
+    writes atomic.Int64
+}
+func (backend *fileDatabase) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+    err := backend.Backend.ReadSnapshot(ctx, read)
+    if backend.readFailure.Swap(false) { return errors.Join(err, errors.New("private file snapshot cleanup")) }
+    return err
+}
+func (backend *fileDatabase) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
+    backend.writes.Add(1)
+    return backend.Backend.(db.CoordinatedAtomic).CoordinatedAtomic(ctx, write)
+}
+func (backend *fileDatabase) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+    backend.writes.Add(1)
+    mode, _ := backend.mode.Swap("").(string)
+    err := backend.Backend.(db.CoordinatedRelationAtomic).CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+        if mode == "audit" { scope = &fileAuditFailure{RelationSession: scope} }
+        if err := write(scope); err != nil { return err }
+        if mode == "cleanup" { return errors.New("private failure after native file writes") }
+        return nil
+    })
+    if mode == "cleanup" { return errors.Join(err, errors.New("private file write cleanup")) }
+    if err == nil && mode == "unknown" { return &query.Error{Code: query.CodeCommitOutcomeUnknown} }
+    return err
+}
+type fileAuditFailure struct { db.RelationSession }
+func (scope *fileAuditFailure) ValidateSession(ctx context.Context) error { return scope.RelationSession.(db.SessionValidator).ValidateSession(ctx) }
+func (scope *fileAuditFailure) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+    id, err := scope.RelationSession.Insert(ctx, plan)
+    if err == nil && plan.Table() == "godj_account_audit_event" { err = errors.New("private file audit failure") }
+    return id, err
+}
+func (scope *fileAuditFailure) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+    return scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
+}
+
+type fileStorage struct {
+    storage.Backend
+    saves, opens, deletes, names atomic.Int64
+    mu sync.Mutex
+    mode string
+    after func() error
+    retained []uploads.File
+}
+func (backend *fileStorage) set(mode string, after func() error) {
+    backend.mu.Lock(); defer backend.mu.Unlock()
+    backend.mode, backend.after = mode, after
+}
+func (backend *fileStorage) Save(ctx context.Context, name string, source io.Reader, options storage.SaveOptions) (storage.Info, error) {
+    backend.saves.Add(1)
+    backend.mu.Lock()
+    mode, after := backend.mode, backend.after
+    backend.after = nil
+    backend.mu.Unlock()
+    if mode == "not_published" || mode == "partial" && strings.Contains(name, "second_document/") {
+        return storage.Info{}, &storage.Error{Code: "fixture_refused", Outcome: storage.NotPublished}
+    }
+    info, err := backend.Backend.Save(ctx, name, source, options)
+    if err != nil { return info, err }
+    if after != nil {
+        if err := after(); err != nil { return info, &storage.Error{Code: "fixture_after_publication", Outcome: storage.Published, Cause: err} }
+    }
+    if mode == "published_cleanup" { return info, &storage.Error{Code: "fixture_cleanup", Outcome: storage.Published} }
+    if mode == "uncertain" { return info, &storage.Error{Code: "fixture_acknowledgement", Outcome: storage.Uncertain} }
+    return info, nil
+}
+func (backend *fileStorage) Open(ctx context.Context, name string) (io.ReadCloser, error) {
+    backend.opens.Add(1)
+    return backend.Backend.Open(ctx, name)
+}
+func (backend *fileStorage) Delete(ctx context.Context, name string) error {
+    backend.deletes.Add(1)
+    return backend.Backend.Delete(ctx, name)
+}
+func (backend *fileStorage) retain(file uploads.File) {
+    backend.mu.Lock(); defer backend.mu.Unlock()
+    backend.retained = append(backend.retained, file)
+}
+func (backend *fileStorage) lastUpload() uploads.File {
+    backend.mu.Lock(); defer backend.mu.Unlock()
+    return backend.retained[len(backend.retained)-1]
+}
+
+type fileReports struct {
+    mu sync.Mutex
+    reports []identityadmin.AccountFileEditReport
+    fail atomic.Bool
+}
+func (reports *fileReports) record(_ context.Context, report identityadmin.AccountFileEditReport) error {
+    reports.mu.Lock(); reports.reports = append(reports.reports, report); reports.mu.Unlock()
+    if reports.fail.Load() { return errors.New("private publication report failure") }
+    return nil
+}
+func (reports *fileReports) last() (identityadmin.AccountFileEditReport, int) {
+    reports.mu.Lock(); defer reports.mu.Unlock()
+    if len(reports.reports)==0 { return identityadmin.AccountFileEditReport{}, 0 }
+    return reports.reports[len(reports.reports)-1], len(reports.reports)
+}
+
+func filePNG(t *testing.T, width, height int) []byte {
+    t.Helper()
+    content := image.NewNRGBA(image.Rect(0,0,width,height))
+    content.SetNRGBA(0,0,color.NRGBA{R:91,G:63,B:22,A:255})
+    var buffer bytes.Buffer
+    fileCheck(t,png.Encode(&buffer,content))
+    return buffer.Bytes()
+}

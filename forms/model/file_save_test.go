@@ -182,6 +182,51 @@ func TestModelFilePreparationCannotDiscardPendingUploads(t *testing.T) {
 	}
 }
 
+func TestModelFileAdmissionInputDefersOnlyUploadsAndPreservesSource(t *testing.T) {
+	manager, spec := fileModel(t)
+	current := models.NewArticleWithID(0)
+	current.Title, current.Summary = "retained/title.txt", new("retained/summary.txt")
+	upload, err := uploads.NewFile("client.txt", "text/plain", []byte("pending"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	form, err := formmodel.BindInstance(t.Context(), manager, spec, forms.NewDataWithFiles(nil, map[string][]uploads.File{"title": {upload}}), &current, formmodel.PostClean{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, deferred, err := formmodel.PrepareInputBeforeFiles(manager, form.BoundForm())
+	if err != nil || !reflect.DeepEqual(deferred, []string{"title"}) {
+		t.Fatal("file admission lost explicit deferred input", err)
+	}
+	if _, present := input.Get("title"); present {
+		t.Fatal("pending filename became a stored assignment")
+	}
+	if value, present := input.Get("summary"); !present || !value.Equal(query.String("retained/summary.txt")) {
+		t.Fatal("non-pending selected file reference was omitted")
+	}
+	if _, present := input.Get("published"); present {
+		t.Fatal("admission exposed an excluded field")
+	}
+	metadata, _ := manager.Metadata()
+	if source, present := input.Model(); !present || !source.Equal(metadata) {
+		t.Fatal("admission lost complete model policy")
+	}
+	if key, present := input.TargetKey(); !present || !key.Equal(query.Integer(0)) {
+		t.Fatal("admission lost a present zero target key")
+	}
+	deferred[0] = "changed"
+	_, again, err := formmodel.PrepareInputBeforeFiles(manager, form.BoundForm())
+	if err != nil || !reflect.DeepEqual(again, []string{"title"}) {
+		t.Fatal("deferred names alias another preparation", err)
+	}
+	if _, err := formmodel.PrepareInput(manager, form.BoundForm()); err == nil {
+		t.Fatal("ordinary input silently accepted pending upload")
+	}
+	if invalid, pending, err := formmodel.PrepareInputBeforeFiles(manager, formmodel.BoundForm{}); err == nil || len(pending) != 0 {
+		t.Fatal("invalid prepublication input became usable", invalid, err)
+	}
+}
+
 func TestModelFileSaverPreflightRunsBeforeAnyPublication(t *testing.T) {
 	prepared := prepareFiles(t, true)
 	for _, mode := range []string{"missing", "duplicate", "unselected", "nil_backend", "typed_nil", "nil_namer", "name_error", "invalid_name", "canceled"} {

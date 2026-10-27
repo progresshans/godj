@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -142,7 +143,8 @@ func (prepared PreparedFirstAccount[M]) OperationID() string {
 // Prepare creates a fresh operation ID, validates a fresh domain and typed
 // candidate in one snapshot, closes it, then hashes once outside the DB.
 func (owner *FirstAccount[M]) Prepare(ctx context.Context, input orm.ModelInput[M], password string) (PreparedFirstAccount[M], error) {
-	return owner.prepare(ctx, "", input, password)
+	prepared, _, err := owner.prepare(ctx, "", input, password, nil)
+	return prepared, err
 }
 
 // PrepareOperation accepts an operator-created ID so a parent process can
@@ -152,22 +154,23 @@ func (owner *FirstAccount[M]) PrepareOperation(ctx context.Context, operationID 
 	if !validFirstAccountDigest(operationID) {
 		return PreparedFirstAccount[M]{}, managementError(CodeInvalidInput, nil)
 	}
-	return owner.prepare(ctx, operationID, input, password)
+	prepared, _, err := owner.prepare(ctx, operationID, input, password, nil)
+	return prepared, err
 }
-func (owner *FirstAccount[M]) prepare(ctx context.Context, operationID string, input orm.ModelInput[M], password string) (PreparedFirstAccount[M], error) {
+func (owner *FirstAccount[M]) prepare(ctx context.Context, operationID string, input orm.ModelInput[M], password string, form *formmodel.BoundForm) (PreparedFirstAccount[M], []formmodel.FilePublication, error) {
 	if err := owner.valid(ctx); err != nil {
-		return PreparedFirstAccount[M]{}, err
+		return PreparedFirstAccount[M]{}, nil, err
 	}
 	state := owner.state.creation
 	if password == "" {
-		return PreparedFirstAccount[M]{}, profileInputError("password", "required")
+		return PreparedFirstAccount[M]{}, nil, profileInputError("password", "required")
 	}
 	if len(password) > state.config.MaxPasswordBytes {
-		return PreparedFirstAccount[M]{}, profileInputError("password", "max_length")
+		return PreparedFirstAccount[M]{}, nil, profileInputError("password", "max_length")
 	}
-	candidate, err := state.prepareInput(ctx, input)
+	candidate, err := state.prepareInput(ctx, input, form)
 	if err != nil {
-		return PreparedFirstAccount[M]{}, err
+		return PreparedFirstAccount[M]{}, nil, err
 	}
 	candidate.raw = password
 	var change domain.Change
@@ -177,27 +180,39 @@ func (owner *FirstAccount[M]) prepare(ctx context.Context, operationID string, i
 		change, err = domain.PrepareOperation(ctx, operationID, owner.state.fingerprint, owner.state.evidence)
 	}
 	if err != nil {
-		return PreparedFirstAccount[M]{}, managementError(CodeInvalidInput, err)
+		return PreparedFirstAccount[M]{}, nil, managementError(CodeInvalidInput, err)
 	}
 	namespace, err := state.store.state.binding.CredentialDomain(change.Generation())
 	if err != nil {
-		return PreparedFirstAccount[M]{}, err
+		return PreparedFirstAccount[M]{}, nil, err
 	}
 	if _, err := state.store.state.binding.prepareCandidateCredential(namespace, candidate.row, nil); err != nil {
-		return PreparedFirstAccount[M]{}, managementError(CodeInvalidConfig, err)
+		return PreparedFirstAccount[M]{}, nil, managementError(CodeInvalidConfig, err)
 	}
-	if err := creationSnapshot(ctx, state.store.state.backend, func(work context.Context, scope db.Queryer) error {
+	check := func(work context.Context, scope db.Queryer) error {
 		if err := owner.state.requireFresh(work, scope); err != nil {
 			return err
 		}
 		return state.checkCandidate(work, scope, namespace, auth.Principal{}, ProfileRelationFirstAccount, candidate, false)
-	}); err != nil {
-		return PreparedFirstAccount[M]{}, err
 	}
+	if err := creationSnapshot(ctx, state.store.state.backend, check); err != nil {
+		return PreparedFirstAccount[M]{}, nil, err
+	}
+	var publications []formmodel.FilePublication
+	if len(candidate.pendingFiles) != 0 {
+		publications, err = state.publishFiles(ctx, candidate)
+		if err != nil {
+			return PreparedFirstAccount[M]{}, publications, err
+		}
+		if err := creationSnapshot(ctx, state.store.state.backend, check); err != nil {
+			return PreparedFirstAccount[M]{}, publications, err
+		}
+	}
+	candidate.form = nil
 	if err := state.encodeCandidate(ctx, namespace, candidate); err != nil {
-		return PreparedFirstAccount[M]{}, err
+		return PreparedFirstAccount[M]{}, publications, err
 	}
-	return PreparedFirstAccount[M]{state: &preparedFirstAccount[M]{owner: owner, change: change, input: candidate}}, nil
+	return PreparedFirstAccount[M]{state: &preparedFirstAccount[M]{owner: owner, change: change, input: candidate}}, publications, nil
 }
 
 func (state *firstAccountState[M]) requireFresh(ctx context.Context, scope db.Queryer) error {

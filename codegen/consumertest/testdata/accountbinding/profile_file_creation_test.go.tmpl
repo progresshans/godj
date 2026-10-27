@@ -1,0 +1,405 @@
+type creationFileHasher struct {
+    auth.PasswordHasher
+    calls atomic.Int64
+    fail atomic.Bool
+    mu sync.Mutex
+    after func() error
+}
+func (hasher *creationFileHasher) Hash(ctx context.Context, raw string)(string,error){
+    hasher.calls.Add(1)
+    if hasher.fail.Load(){return "",errors.New("private creation hash failure")}
+    encoded,err:=hasher.PasswordHasher.Hash(ctx,raw)
+    hasher.mu.Lock();after:=hasher.after;hasher.after=nil;hasher.mu.Unlock()
+    if err==nil&&after!=nil{err=after()};return encoded,err
+}
+func (hasher *creationFileHasher) setAfter(after func()error){hasher.mu.Lock();hasher.after=after;hasher.mu.Unlock()}
+
+type creationFileReports struct{
+    mu sync.Mutex
+    reports []identityadmin.AccountFileCreationReport
+    fail atomic.Bool
+}
+func (reports *creationFileReports) record(_ context.Context,report identityadmin.AccountFileCreationReport)error{
+    reports.mu.Lock();reports.reports=append(reports.reports,report);reports.mu.Unlock()
+    if reports.fail.Load(){return errors.New("private creation report failure")};return nil
+}
+func (reports *creationFileReports) last()(identityadmin.AccountFileCreationReport,int){
+    reports.mu.Lock();defer reports.mu.Unlock()
+    if len(reports.reports)==0{return identityadmin.AccountFileCreationReport{},0}
+    return reports.reports[len(reports.reports)-1],len(reports.reports)
+}
+
+type creationFileFixture struct{
+    native database.Backend
+    backend *fileDatabase
+    selected database.Config
+    root storage.Backend
+    disk *fileStorage
+    hasher *creationFileHasher
+    binding accountmodel.Binding[fileAccount]
+    role ir.AccountRole
+    objects orm.Manager[fileAccount]
+    metadata ir.Model
+    key orm.AutoField[fileAccount]
+    login orm.StringField[fileAccount]
+    fields []string
+    files []accountmodel.ProfileFile[fileAccount]
+    definition accountmodel.FirstAccountDefinition[fileAccount]
+    config accountmodel.RuntimeConfig[fileAccount,@@GROUP@@,@@PERMISSION@@]
+    runtime *accountmodel.Runtime[fileAccount,@@GROUP@@,@@PERMISSION@@]
+    actor auth.Principal
+    firstID,groupID,grantID int64
+    reject,rejectPassword atomic.Bool
+    reports creationFileReports
+    clock func()time.Time
+    document,portrait []byte
+}
+
+func newCreationFileFixture(t *testing.T)*creationFileFixture{
+    t.Helper();f:=&creationFileFixture{}
+    var err error
+    f.binding,err=project.BindAccount();fileCheck(t,err)
+    f.role,err=f.binding.Role();fileCheck(t,err)
+    f.objects,err=f.binding.Objects();fileCheck(t,err)
+    f.metadata,err=f.objects.Metadata();fileCheck(t,err)
+    key,err:=f.objects.PrimaryKeyField();fileCheck(t,err);f.key=orm.NewAutoField[fileAccount](key)
+    for _,field:=range f.metadata.Fields{if field.Name==f.role.Login{f.login=orm.NewStringField[fileAccount](field)}}
+    f.native,f.selected=accountDatabaseWithConfig(t,@@SCHEMAS@@)
+    f.backend=&fileDatabase{Backend:f.native};f.backend.mode.Store("")
+    root,err:=storage.OpenFilesystem(t.Context(),storage.FilesystemConfig{Directory:t.TempDir()});fileCheck(t,err)
+    t.Cleanup(func(){fileCheck(t,root.Close())});f.root=root;f.disk=&fileStorage{Backend:root}
+    base,_:=accountPassword(t);f.hasher=&creationFileHasher{PasswordHasher:base}
+    now:=time.Now().UTC().Truncate(time.Microsecond);f.clock=func()time.Time{return now}
+    f.document=[]byte("private created account document");f.portrait=filePNG(t,4,6)
+    for _,name:=range []string{"presets/first.png","presets/second.png"}{_,err=root.Save(t.Context(),name,bytes.NewReader(filePNG(t,2,3)),storage.SaveOptions{});fileCheck(t,err)}
+    for _,name:=range []string{"document","second_document","portrait"}{f.files=append(f.files,f.policy(t,name,f.disk))}
+    inspector,err:=storage.NewImageInspector(f.disk);fileCheck(t,err)
+    preset,err:=accountmodel.NewProfileFile(f.binding,"preset",accountmodel.ProfileFileConfig[fileAccount]{ImageChoices:inspector.Inspect});fileCheck(t,err);f.files=append(f.files,preset)
+    f.fields=[]string{f.role.Login,"@@PROFILE@@","document","second_document","portrait","preset"}
+    create:=append(slices.Clone(f.fields),f.role.Groups,f.role.Permissions)
+    edit:=slices.Clone(create)
+    for _,name:=range []string{f.role.Active.Field,f.role.Staff.Field,f.role.Superuser.Field}{if name!=""{edit=append(edit,name)}}
+    read:=append(slices.Clone(edit),"portrait_width","portrait_height","preset_width","preset_height")
+    accounts:=accountmodel.AccountPermissions{View:"account.view",Add:"account.add",Change:"account.change",Delete:"account.delete"}
+    groups:=accountmodel.CatalogPermissions{View:"catalog.view_group",Add:"catalog.add_group",Change:"catalog.change_group",Delete:"catalog.delete_group"}
+    permissions:=accountmodel.CatalogPermissions{View:"catalog.view_permission",Add:"catalog.add_permission",Change:"catalog.change_permission",Delete:"catalog.delete_permission"}
+    validate:=func(_ context.Context,_ db.Queryer,row fileAccount,_ accountmodel.RoleMemberships)(validation.Errors,error){
+        values,err:=f.objects.ModelValues(row);if err!=nil{return validation.Errors{},err}
+        secret,_:=values[f.role.Password].String();document,_:=values["document"].String()
+        if secret!=""||!strings.HasPrefix(document,"document/"){return validation.Errors{},errors.New("validator did not receive redacted actual storage names")}
+        if f.reject.Load(){return validation.NewErrors(validation.New("document","rejected")),nil};return validation.Errors{},nil
+    }
+    passwordPolicy:=func(context.Context,string,fileAccount)(validation.Errors,error){if f.rejectPassword.Load(){return validation.NewErrors(validation.New(validation.NonField,"rejected_password")),nil};return validation.Errors{},nil}
+    f.config=accountmodel.RuntimeConfig[fileAccount,@@GROUP@@,@@PERMISSION@@]{Sessions:sessions.Config{Clock:f.clock},
+        Accounts:accountmodel.AccountManagementConfig[fileAccount]{ReadFields:read,CreateFields:create,EditFields:edit,Files:f.files,Permissions:accounts,Now:f.clock,ValidateCreate:validate,ValidatePassword:passwordPolicy,
+            GroupPermissions:accountmodel.DeletionPermissions{Change:groups.Change,Delete:groups.Delete},PermissionPermissions:accountmodel.DeletionPermissions{Change:permissions.Change,Delete:permissions.Delete}},
+        Catalog:accountmodel.CatalogConfig[@@GROUP@@,@@PERMISSION@@]{Now:f.clock,
+            Group:accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields:[]string{f.role.Catalog.GroupName,f.role.Catalog.GroupPermissions},WriteFields:[]string{f.role.Catalog.GroupName,f.role.Catalog.GroupPermissions},Permissions:groups},
+            Permission:accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields:[]string{f.role.Catalog.PermissionName,f.role.Catalog.PermissionCode},WriteFields:[]string{f.role.Catalog.PermissionName,f.role.Catalog.PermissionCode},Permissions:permissions},
+            AccountPermissions:accountmodel.DeletionPermissions{Change:accounts.Change,Delete:accounts.Delete}},
+    }
+    f.definition,err=project.NewFirstAccountDefinition(f.hasher,accountmodel.FirstAccountConfig[fileAccount]{CreationPolicy:accountmodel.CreationPolicy[fileAccount]{Fields:f.fields,Files:f.files,Now:f.clock,Validate:validate,ValidatePassword:passwordPolicy},EvidenceSHA256:strings.Repeat("b",64)});fileCheck(t,err)
+    return f
+}
+func (f *creationFileFixture) policy(t *testing.T,field string,backend storage.Backend)accountmodel.ProfileFile[fileAccount]{
+    t.Helper();policy,err:=accountmodel.NewProfileFile(f.binding,field,accountmodel.ProfileFileConfig[fileAccount]{Backend:backend,Name:func(candidate fileAccount,file uploads.File)(string,error){
+        f.disk.names.Add(1)
+        values,err:=f.objects.ModelValues(candidate);if err!=nil{return "",err}
+        for _,name:=range []string{f.role.Password,f.role.PrincipalID}{if value,_:=values[name].String();value!=""{return "",errors.New("creation namer received credential identity")}}
+        if _,present,err:=f.objects.PrimaryKey(candidate);err!=nil||present{return "",errors.New("creation namer received a stored target")}
+        login,valid:=values[f.role.Login].String();if !valid||login==""{return "",errors.New("creation namer lost typed login")}
+        f.disk.retain(file);return f.name(field,login,file.Name()),nil
+    }});fileCheck(t,err);return policy
+}
+func (f *creationFileFixture) name(field,login,filename string)string{return field+"/"+strings.ReplaceAll(login,"@","_")+"/"+filename}
+func (f *creationFileFixture) data(t *testing.T,login string,second bool)forms.Data{
+    t.Helper();document,err:=uploads.NewFile("same.txt","text/plain",f.document);fileCheck(t,err)
+    portrait,err:=uploads.NewFile("photo.png","image/png",f.portrait);fileCheck(t,err)
+    values:=map[string][]string{f.role.Login:{login},"@@PROFILE@@":{"NZ"},"preset":{"presets/first.png"}}
+    if f.groupID!=0{values[f.role.Groups]=[]string{strconv.FormatInt(f.groupID,10)};values[f.role.Permissions]=[]string{strconv.FormatInt(f.grantID,10)}}
+    files:=map[string][]uploads.File{"document":{document},"portrait":{portrait}}
+    if second{files["second_document"]=[]uploads.File{document}}
+    return forms.NewDataWithFiles(values,files)
+}
+func (f *creationFileFixture) form(t *testing.T,definition formmodel.Definition,data forms.Data)formmodel.BoundForm{
+    t.Helper();spec,err:=definition.Spec(f.metadata);fileCheck(t,err)
+    form,err:=formmodel.BindInstance(t.Context(),f.objects,spec,data,nil,definition.PostClean);fileCheck(t,err);return form.BoundForm()
+}
+func (f *creationFileFixture) first(t *testing.T,ctx context.Context,operationID,login string,second bool)(accountmodel.FirstAccountCreation,[]formmodel.FilePublication,error){
+    t.Helper();owner,err:=f.definition.Bind(f.backend);fileCheck(t,err)
+    definition,err:=owner.FormDefinition();fileCheck(t,err)
+    bound:=f.form(t,definition,f.data(t,login,second));return owner.CreateForm(ctx,operationID,bound,accountPasswordText)
+}
+func (f *creationFileFixture) start(t *testing.T,first accountmodel.FirstAccountCreation){
+    t.Helper();f.firstID=first.Account.ID;var err error
+    f.runtime,err=project.NewAccountRuntime(t.Context(),f.backend,f.hasher,auth.PrincipalAuthorizer{},f.config);fileCheck(t,err)
+    values:=f.values(t,first.Account.ID);login,_:=values[f.role.Login].String()
+    credential,err:=f.runtime.Authenticator().Authenticate(t.Context(),login,accountPasswordText);fileCheck(t,err);f.actor=credential.Principal()
+    permission,err:=@@PERMISSION@@Objects.Input(map[string]query.Value{f.role.Catalog.PermissionName:query.String("Profile reader"),f.role.Catalog.PermissionCode:query.String("profile.read")});fileCheck(t,err)
+    grant,err:=f.runtime.Catalog().Permissions().Create(t.Context(),f.actor,permission);fileCheck(t,err);f.grantID=grant.ID
+    group,err:=@@GROUP@@Objects.Input(map[string]query.Value{f.role.Catalog.GroupName:query.String("Profile readers")});fileCheck(t,err)
+    group,err=group.WithCollections(map[string][]int64{f.role.Catalog.GroupPermissions:{grant.ID}});fileCheck(t,err)
+    created,err:=f.runtime.Catalog().Groups().Create(t.Context(),f.actor,group);fileCheck(t,err);f.groupID=created.ID
+}
+func (f *creationFileFixture) row(t *testing.T,id int64)fileAccount{t.Helper();row,err:=f.objects.Using(f.native).Filter(f.key.Exact(id)).Get(t.Context());fileCheck(t,err);return row}
+func (f *creationFileFixture) values(t *testing.T,id int64)map[string]query.Value{t.Helper();values,err:=f.objects.ModelValues(f.row(t,id));fileCheck(t,err);return values}
+func (f *creationFileFixture) patch(t *testing.T,id int64,values map[string]query.Value)error{t.Helper();row:=f.row(t,id);prepared,err:=f.objects.PrepareValues(&row,values);if err!=nil{return err};row,err=prepared.Model();if err!=nil{return err};return prepared.Save(t.Context(),f.native,&row)}
+func (f *creationFileFixture) snapshot(t *testing.T)map[string]any{
+    t.Helper();accounts,err:=f.objects.Using(f.native).OrderBy(f.key.Asc()).All(t.Context());fileCheck(t,err)
+    audits,err:=auditmodels.EventObjects.Using(f.native).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context());fileCheck(t,err)
+    domains,err:=domainmodels.TransitionObjects.Using(f.native).OrderBy(domainmodels.TransitionFields.ID.Asc()).All(t.Context());fileCheck(t,err)
+    records,err:=sessionmodels.SessionObjects.Using(f.native).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context());fileCheck(t,err)
+    groups,err:=@@GROUP@@Objects.Using(f.native).All(t.Context());fileCheck(t,err)
+    grants,err:=@@PERMISSION@@Objects.Using(f.native).All(t.Context());fileCheck(t,err)
+    collections:=map[int64]map[string][]int64{}
+    if f.runtime!=nil{for _,row:=range accounts{key,_,err:=f.objects.PrimaryKey(row);fileCheck(t,err);id,_:=key.Integer();profile,err:=f.runtime.Accounts().Reader().Get(t.Context(),f.actor,id);fileCheck(t,err);collections[id]=profile.View().Collections()}}
+    return map[string]any{"accounts":accounts,"audits":audits,"domains":domains,"sessions":records,"groups":groups,"permissions":grants,"collections":collections}
+}
+func (f *creationFileFixture) same(t *testing.T,before map[string]any){t.Helper();after:=f.snapshot(t);for name,value:=range before{if !reflect.DeepEqual(value,after[name]){t.Fatalf("failed file creation changed durable %s",name)}}}
+func (f *creationFileFixture) stored(t *testing.T,publications []formmodel.FilePublication){
+    t.Helper();for _,publication:=range publications{
+        if publication.Outcome()==storage.NotPublished{continue}
+        reader,err:=f.root.Open(t.Context(),publication.Info().Name());fileCheck(t,err);content,err:=io.ReadAll(reader);fileCheck(t,err);fileCheck(t,reader.Close())
+        wanted:=f.document;if publication.Field()=="portrait"{wanted=f.portrait};if !bytes.Equal(content,wanted){t.Fatal("creation publication bytes were lost or removed")}
+    };if f.disk.deletes.Load()!=0{t.Fatal("creation attempted automatic file deletion")}
+}
+func (f *creationFileFixture) confirmed(t *testing.T,result accountmodel.Creation,publications []formmodel.FilePublication,login string){
+    t.Helper();if result.Revision!=1||result.ID<=0||len(publications)!=2{t.Fatal("creation lost confirmed metadata or publication")}
+    values:=f.values(t,result.ID);if !values[f.role.Login].Equal(query.String(login))||!values["portrait_width"].Equal(query.Integer(4))||!values["portrait_height"].Equal(query.Integer(6)){t.Fatal("creation stored wrong typed profile or dimensions")}
+    for _,publication:=range publications{if !values[publication.Field()].Equal(query.String(publication.Info().Name())){t.Fatal("creation persisted a proposed file name")}}
+    for _,name:=range []string{"document","portrait","portrait_width","portrait_height"}{if !slices.Contains(result.ChangedFields,name){t.Fatal("creation audit omitted a derived field",name)}}
+    f.stored(t,publications)
+}
+
+func TestGeneratedProfileFileCreation(t *testing.T){
+    run:=func(name string,body func(*testing.T)){t.Helper();if !t.Run(name,body){t.FailNow()}}
+    f:=newCreationFileFixture(t)
+    run("construction",func(t *testing.T){
+        before:=f.snapshot(t);names,saves,hashes:=f.disk.names.Load(),f.disk.saves.Load(),f.hasher.calls.Load()
+        for _,files:=range [][]accountmodel.ProfileFile[fileAccount]{nil,{f.files[0]},append(slices.Clone(f.files),f.files[0]),append(slices.Clone(f.files),accountmodel.ProfileFile[fileAccount]{})}{
+            _,err:=project.NewFirstAccountDefinition(f.hasher,accountmodel.FirstAccountConfig[fileAccount]{CreationPolicy:accountmodel.CreationPolicy[fileAccount]{Fields:f.fields,Files:files},EvidenceSHA256:strings.Repeat("b",64)})
+            if err==nil{t.Fatal("incomplete creation file policy accepted")}
+        }
+        invalid:=append(slices.Clone(f.fields),"portrait_width")
+        if _,err:=project.NewFirstAccountDefinition(f.hasher,accountmodel.FirstAccountConfig[fileAccount]{CreationPolicy:accountmodel.CreationPolicy[fileAccount]{Fields:invalid,Files:f.files},EvidenceSHA256:strings.Repeat("b",64)});err==nil{t.Fatal("creation allowed independent image dimensions")}
+        extra,err:=schema.Build(schema.Definition{AppLabel:"unrelated_creation_host",Models:[]schema.Model{{Name:"record",GoName:"Record",Fields:[]schema.Field{schema.CharField("title","Title",24)}}}});fileCheck(t,err)
+        foreign,err:=accountmodel.Bind(f.role,@@ACCOUNT@@Descriptor{},append([]ir.Schema{@@SCHEMAS@@},extra)...);fileCheck(t,err)
+        foreignFile,err:=accountmodel.NewProfileFile(foreign,"document",accountmodel.ProfileFileConfig[fileAccount]{Backend:f.disk,Name:func(fileAccount,uploads.File)(string,error){return "never",nil}});fileCheck(t,err)
+        files:=slices.Clone(f.files);files[0]=foreignFile
+        if _,err:=project.NewFirstAccountDefinition(f.hasher,accountmodel.FirstAccountConfig[fileAccount]{CreationPolicy:accountmodel.CreationPolicy[fileAccount]{Fields:f.fields,Files:files},EvidenceSHA256:strings.Repeat("b",64)});err==nil{t.Fatal("foreign full source acquired creation file policy")}
+        if names!=f.disk.names.Load()||saves!=f.disk.saves.Load()||hashes!=f.hasher.calls.Load(){t.Fatal("creation declaration performed callbacks or I/O")};f.same(t,before)
+    })
+    run("first_account",func(t *testing.T){
+        owner,err:=f.definition.Bind(f.backend);fileCheck(t,err)
+        raw,err:=f.objects.Input(map[string]query.Value{f.role.Login:query.String("forged@example.test"),"@@PROFILE@@":query.String("NZ"),"document":query.String("private/existing"),"portrait":query.String("private/image")});fileCheck(t,err)
+        if _,err:=owner.Prepare(t.Context(),raw,accountPasswordText);!errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeInvalidInput}){t.Fatal("scalar first-account input acquired file authority",err)}
+        definition,err:=f.definition.FormDefinition();fileCheck(t,err);spec,err:=definition.Spec(f.metadata);fileCheck(t,err)
+        forged,err:=formmodel.Bind(t.Context(),f.metadata,spec,forms.NewData(map[string][]string{f.role.Login:{"forged@example.test"},"@@PROFILE@@":{"NZ"}}),map[string]forms.Value{"document":forms.String("private/existing"),"portrait":forms.String("private/image")},formmodel.PostClean{});fileCheck(t,err)
+        if _,files,err:=owner.CreateForm(t.Context(),strings.Repeat("a",64),forged,accountPasswordText);err==nil||len(files)!=0{t.Fatal("fabricated initial file became creation authority")}
+        collision:=f.name("document","first@example.test","same.txt");_,err=f.root.Save(t.Context(),collision,bytes.NewReader([]byte("retained collision")),storage.SaveOptions{});fileCheck(t,err)
+        before:=f.hasher.calls.Load();result,files,err:=f.first(t,t.Context(),strings.Repeat("a",64),"first@example.test",false);fileCheck(t,err)
+        if f.hasher.calls.Load()!=before+1||result.Ownership.OperationID()!=strings.Repeat("a",64)||files[0].Info().Name()==collision{t.Fatal("first creation lost single hash, operation or actual collision name")}
+        f.confirmed(t,result.Account,files,"first@example.test")
+        receipt,err:=accountdomain.Lookup(t.Context(),f.native,result.Ownership.OperationID());fileCheck(t,err);if receipt.Generation()!=result.Ownership.Generation(){t.Fatal("first creation receipt does not match committed domain")}
+        f.start(t,result)
+        beforeState:=f.snapshot(t);beforeSaves,beforeHashes:=f.disk.saves.Load(),f.hasher.calls.Load()
+        result,files,err=f.first(t,t.Context(),strings.Repeat("c",64),"another@example.test",false)
+        if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeNotFresh})||!reflect.DeepEqual(result,accountmodel.FirstAccountCreation{})||len(files)!=0||f.disk.saves.Load()!=beforeSaves||f.hasher.calls.Load()!=beforeHashes{t.Fatal("populated first owner published files or retried",err)};f.same(t,beforeState)
+    })
+    run("first_failures",func(t *testing.T){
+        for _,mode:=range []string{"invalid","read_cleanup","partial","validation","hash","audit","cleanup","unknown_commit","competing_first"}{t.Run(mode,func(t *testing.T){
+            fresh:=newCreationFileFixture(t);owner,err:=fresh.definition.Bind(fresh.backend);fileCheck(t,err);definition,err:=owner.FormDefinition();fileCheck(t,err)
+            data:=fresh.data(t,"first-failure@example.test",mode=="partial")
+            if mode=="invalid"{data=forms.NewData(map[string][]string{fresh.role.Login:{"first-failure@example.test"},"@@PROFILE@@":{"NZ"}})}
+            bound:=fresh.form(t,definition,data);before:=fresh.snapshot(t)
+            var concurrent map[string]any
+            switch mode{
+            case "read_cleanup":fresh.backend.readFailure.Store(true)
+            case "partial":fresh.disk.set("partial",nil)
+            case "validation":fresh.reject.Store(true)
+            case "hash":fresh.hasher.fail.Store(true)
+            case "audit":fresh.backend.mode.Store("audit")
+            case "cleanup":fresh.backend.mode.Store("cleanup")
+            case "unknown_commit":fresh.backend.mode.Store("unknown")
+            case "competing_first":fresh.disk.set("",func()error{
+                _,files,err:=fresh.first(t,t.Context(),strings.Repeat("d",64),"winner@example.test",false)
+                if err==nil{fresh.stored(t,files);concurrent=fresh.snapshot(t)};return err
+            })
+            }
+            result,files,err:=owner.CreateForm(t.Context(),strings.Repeat("e",64),bound,accountPasswordText)
+            if err==nil||!reflect.DeepEqual(result,accountmodel.FirstAccountCreation{}){t.Fatal("failed first file creation published confirmed account",mode,err)}
+            if mode=="invalid"||mode=="read_cleanup"{if len(files)!=0||fresh.disk.saves.Load()!=0||fresh.disk.names.Load()!=0||fresh.hasher.calls.Load()!=0{t.Fatal("early first refusal performed private work")}}else{if len(files)!=2{t.Fatal("first failure lost file attempts",mode,len(files))};fresh.stored(t,files)}
+            if mode=="unknown_commit"{
+                if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeOutcomeUnknown}){t.Fatal("first unknown outcome flattened",err)}
+                receipt,err:=accountdomain.Lookup(t.Context(),fresh.native,strings.Repeat("e",64));fileCheck(t,err);if receipt.OperationID()!=strings.Repeat("e",64){t.Fatal("first unknown receipt was lost")}
+                after:=fresh.snapshot(t);if len(after["accounts"].([]fileAccount))!=1||len(after["audits"].([]auditmodels.Event))!=1||len(after["domains"].([]domainmodels.Transition))!=1{t.Fatal("first unknown commit was partial")}
+            }else if mode=="competing_first"{if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeNotFresh})||concurrent==nil{t.Fatal("first freshness was not rechecked after publication",err)};fresh.same(t,concurrent)}else{fresh.same(t,before)}
+            if mode=="validation"&&fresh.hasher.calls.Load()!=0{t.Fatal("rejected actual file candidate was hashed")}
+        })}
+    })
+    var typedID int64
+    run("typed_creation",func(t *testing.T){
+        creator:=f.runtime.Accounts().Creator();definition,err:=creator.FormDefinition();fileCheck(t,err)
+        raw,err:=f.objects.Input(map[string]query.Value{f.role.Login:query.String("forged-native@example.test"),"@@PROFILE@@":query.String("NZ"),"document":query.String("private/existing")});fileCheck(t,err)
+        beforeSaves,beforeNames,beforeRawHashes:=f.disk.saves.Load(),f.disk.names.Load(),f.hasher.calls.Load()
+        if _,err:=creator.Prepare(t.Context(),f.actor,raw,accountPasswordText);!errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeInvalidInput}){t.Fatal("raw creation acquired file-reference authority",err)}
+        if f.disk.saves.Load()!=beforeSaves||f.disk.names.Load()!=beforeNames||f.hasher.calls.Load()!=beforeRawHashes{t.Fatal("raw file injection performed private work")}
+        bound:=f.form(t,definition,f.data(t,"typed@example.test",false));beforeHashes:=f.hasher.calls.Load()
+        result,files,err:=creator.CreateForm(t.Context(),f.actor,bound,accountPasswordText);fileCheck(t,err)
+        if f.hasher.calls.Load()!=beforeHashes+1{t.Fatal("typed creation repeated hashing")};typedID=result.ID;f.confirmed(t,result,files,"typed@example.test")
+        profile,err:=f.runtime.Accounts().Reader().Get(t.Context(),f.actor,result.ID);fileCheck(t,err)
+        if keys,_:=profile.View().Collection(f.role.Groups);!slices.Equal(keys,[]int64{f.groupID}){t.Fatal("creation lost selected group")}
+        history,err:=f.runtime.Accounts().Reader().History(t.Context(),f.actor,result.ID,10);fileCheck(t,err);if len(history)!=1||!slices.Equal(history[0].ChangedFields(),result.ChangedFields){t.Fatal("creation audit was not atomic")}
+        other:=f.form(t,definition,f.data(t,"unusable@example.test",false));beforeHashes=f.hasher.calls.Load()
+        unusable,files,err:=creator.CreateUnusableForm(t.Context(),f.actor,other);fileCheck(t,err);f.confirmed(t,unusable,files,"unusable@example.test")
+        if f.hasher.calls.Load()!=beforeHashes{t.Fatal("unusable file creation hashed a password")}
+        if _,err:=f.runtime.Authenticator().Authenticate(t.Context(),"unusable@example.test",accountPasswordText);err==nil{t.Fatal("unusable creation authenticated")}
+        names:=creator.FileFields();names[0]="mutated";if creator.FileFields()[0]!="document"{t.Fatal("creation file policy aliases caller slice")}
+    })
+    run("admin_creation",func(t *testing.T){
+        configured:=f.settings(t)
+        if err:=identityadmin.RegisterAccount(admin.NewBuilder(configured.Apps()),f.runtime.Accounts(),identityadmin.AccountRegistration{Slug:"accounts",ReportFileEdit:func(context.Context,identityadmin.AccountFileEditReport)error{return nil}});err==nil{t.Fatal("creation discarded file outcomes without reporter")}
+        client,endpoint,_:=f.http(t)
+        // This stored reference matches the client's basename, but storage
+        // publishes a different authorized path. Advisory checks must defer it.
+        fileCheck(t,f.patch(t,f.firstID,map[string]query.Value{"document":query.String("same.txt")}))
+        beforeHashes:=f.hasher.calls.Load();status,body:=f.post(t,client,endpoint,"admin@example.test",false)
+        if status!=302||strings.Contains(body,"private created account document")||f.hasher.calls.Load()!=beforeHashes+1{t.Fatal("multipart creation failed or hashed again",status)}
+        report,count:=f.reports.last();if report.Err()!=nil||count!=1{t.Fatal("creation report lost confirmed outcome")};f.confirmed(t,report.Creation(),report.Publications(),"admin@example.test")
+        copy:=report.Creation();copy.ChangedFields[0]="mutated";publications:=report.Publications();publications[0]=formmodel.FilePublication{}
+        if report.Creation().ChangedFields[0]=="mutated"||!report.Publications()[0].Info().Valid()||strings.Contains(fmt.Sprintf("%#v",report),"same.txt"){t.Fatal("creation report aliases or discloses private state")}
+        if reader,err:=f.disk.lastUpload().Open(t.Context());err==nil{_ = reader.Close();t.Fatal("creation extended HTTP upload lifetime")}
+        status,_=f.post(t,client,endpoint,"admin-unusable@example.test",true);if status!=302{t.Fatal("unusable multipart creation failed",status)}
+    })
+    run("json_read_only",func(t *testing.T){
+        client,endpoint,management:=f.http(t);before:=f.snapshot(t);saves,hashes:=f.disk.saves.Load(),f.hasher.calls.Load()
+        csrf:=f.token(t,client,endpoint,"/admin/accounts/add/")
+        for _,field:=range []string{"document","portrait","portrait_width","portrait_height"}{
+            payload,_:=json.Marshal(map[string]any{"fields":map[string]any{f.role.Login:"json@example.test","@@PROFILE@@":"NZ",field:"private/file"},"credential":map[string]any{"password":accountPasswordText}})
+            status,body:=f.send(t,client,endpoint,"POST","/api/identity/accounts/",api.JSONContentType,bytes.NewReader(payload),csrf)
+            if status!=400||!strings.Contains(body,field){t.Fatal("JSON acquired creation file authority",field,status)}
+        }
+        if f.disk.saves.Load()!=saves||f.hasher.calls.Load()!=hashes{t.Fatal("JSON file rejection performed private work")};f.same(t,before)
+        document,err:=management.OpenAPI();fileCheck(t,err);var schema map[string]any;fileCheck(t,json.Unmarshal(document.Bytes(),&schema))
+        components:=schema["components"].(map[string]any)["schemas"].(map[string]any)
+        fields:=components["AccountCreate"].(map[string]any)["properties"].(map[string]any)["fields"].(map[string]any)["properties"].(map[string]any)
+        for _,field:=range []string{"document","portrait","portrait_width","portrait_height"}{if _,present:=fields[field];present{t.Fatal("file entered JSON creation input schema",field)}}
+    })
+    run("failures",func(t *testing.T){
+        for _,mode:=range []string{"invalid","denied","read_cleanup","not_published","published_cleanup","uncertain","partial","unique","validator","password_policy","hash","revoked_after_publication","revoked_after_hash","audit","write_cleanup","unknown_commit","canceled_after_publication","reporter"}{t.Run(mode,func(t *testing.T){
+            login:="failure-"+mode+"@example.test";creator:=f.runtime.Accounts().Creator();definition,err:=creator.FormDefinition();fileCheck(t,err)
+            data:=f.data(t,login,mode=="partial");if mode=="invalid"{data=forms.NewData(map[string][]string{f.role.Login:{login},"@@PROFILE@@":{"NZ"}})}
+            bound:=f.form(t,definition,data)
+            acting:=f.actor
+            if mode=="denied"{principal,_:=f.values(t,typedID)[f.role.PrincipalID].String();credential,present,err:=f.runtime.Credentials().CredentialByID(t.Context(),principal);fileCheck(t,err);if !present{t.Fatal("denied principal missing")};acting=credential.Principal()}
+            if mode=="unique"{fileCheck(t,f.patch(t,f.firstID,map[string]query.Value{"document":query.String(f.name("document",login,"same.txt"))}))}
+            ctx,cancel:=context.WithCancel(t.Context());defer cancel()
+            var client *http.Client;var endpoint string
+            if mode=="reporter"{client,endpoint,_=f.http(t)}
+            before:=f.snapshot(t);saves,names,hashes,writes:=f.disk.saves.Load(),f.disk.names.Load(),f.hasher.calls.Load(),f.backend.writes.Load()
+            revision,_:=f.values(t,f.firstID)[f.role.Revision].Integer()
+            revoke:=func()error{return f.patch(t,f.firstID,map[string]query.Value{f.role.Active.Field:query.Boolean(false),f.role.Revision:query.Integer(revision+1)})}
+            switch mode{
+            case "read_cleanup":f.backend.readFailure.Store(true)
+            case "not_published","published_cleanup","uncertain","partial":f.disk.set(mode,nil)
+            case "validator":f.reject.Store(true)
+            case "password_policy":f.rejectPassword.Store(true)
+            case "hash":f.hasher.fail.Store(true)
+            case "revoked_after_publication":f.disk.set("",revoke)
+            case "revoked_after_hash":f.hasher.setAfter(revoke)
+            case "audit":f.backend.mode.Store("audit")
+            case "write_cleanup":f.backend.mode.Store("cleanup")
+            case "unknown_commit":f.backend.mode.Store("unknown")
+            case "canceled_after_publication":f.disk.set("",func()error{cancel();return nil})
+            case "reporter":f.reports.fail.Store(true)
+            }
+            var result accountmodel.Creation;var publications []formmodel.FilePublication;var failure error
+            if mode=="reporter"{status,body:=f.post(t,client,endpoint,login,false);if status!=500||strings.Contains(body,"private"){t.Fatal("creation report failure was hidden or exposed",status)};report,_:=f.reports.last();result,publications,failure=report.Creation(),report.Publications(),report.Err()}else{result,publications,failure=creator.CreateForm(ctx,acting,bound,accountPasswordText)}
+            f.disk.set("",nil);f.reject.Store(false);f.rejectPassword.Store(false);f.hasher.fail.Store(false);f.hasher.setAfter(nil);f.backend.mode.Store("");f.backend.readFailure.Store(false);f.reports.fail.Store(false)
+            if mode=="revoked_after_publication"||mode=="revoked_after_hash"{
+                changes:=map[string]query.Value{f.role.Active.Field:query.Boolean(true),f.role.Revision:query.Integer(revision+2)};fileCheck(t,f.patch(t,f.firstID,changes))
+                accounts:=before["accounts"].([]fileAccount);for i,row:=range accounts{key,_,err:=f.objects.PrimaryKey(row);fileCheck(t,err);id,_:=key.Integer();if id==f.firstID{accounts[i],err=f.objects.ApplyValues(row,changes);fileCheck(t,err)}}
+                if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodePermission}){t.Fatal("current creation authority was not rechecked",failure)}
+            }
+            if mode!="reporter"&&(failure==nil||!reflect.DeepEqual(result,accountmodel.Creation{})){t.Fatal("failed creation published account metadata",mode,failure)}
+            early:=mode=="invalid"||mode=="denied"||mode=="read_cleanup"
+            if early{if len(publications)!=0||f.disk.saves.Load()!=saves||f.disk.names.Load()!=names||f.hasher.calls.Load()!=hashes||f.backend.writes.Load()!=writes{t.Fatal("early creation refusal performed private work")}}else{
+                wanted:=2;if mode=="not_published"||mode=="published_cleanup"||mode=="uncertain"{wanted=1};if len(publications)!=wanted{t.Fatal("creation file attempts lost or retried",mode,len(publications))};f.stored(t,publications)
+                if mode=="not_published"&&publications[0].Outcome()!=storage.NotPublished||mode=="published_cleanup"&&publications[0].Outcome()!=storage.Published||mode=="uncertain"&&publications[0].Outcome()!=storage.Uncertain{t.Fatal("creation storage outcome flattened")}
+                if mode=="partial"&&(publications[0].Outcome()!=storage.Published||publications[1].Outcome()!=storage.NotPublished){t.Fatal("creation partial publication lost")}
+            }
+            if mode=="reporter"{if failure!=nil{t.Fatal("reporter lost confirmed commit",failure)};f.confirmed(t,result,publications,login)}else if mode=="unknown_commit"{
+                if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodeOutcomeUnknown}){t.Fatal("creation unknown commit flattened",failure)}
+                rows,err:=f.objects.Using(f.native).Filter(f.login.Exact(login)).All(t.Context());fileCheck(t,err)
+                if len(rows)!=1{t.Fatal("unknown creation did not commit exactly one row")};key,_,err:=f.objects.PrimaryKey(rows[0]);fileCheck(t,err);id,_:=key.Integer()
+                history,err:=f.runtime.Accounts().Reader().History(t.Context(),f.actor,id,10);fileCheck(t,err);if len(history)!=1{t.Fatal("unknown creation lost atomic audit")}
+            }else{f.same(t,before)}
+            if mode=="unique"{failures,rejected:=validation.Rejected(failure);if !rejected||failures.ByField("document").Empty(){t.Fatal("actual stored name bypassed final uniqueness",failure)}}
+            if mode=="validator"||mode=="password_policy"||mode=="unique"||mode=="revoked_after_publication"{if f.hasher.calls.Load()!=hashes{t.Fatal("rejected published candidate was hashed",mode)}}
+        })}
+    })
+    run("concurrent_login",func(t *testing.T){
+        gate:=make(chan struct{});var arrivals atomic.Int64
+        backend:=&creationFileGate{Backend:f.disk,gate:gate,arrivals:&arrivals}
+        config:=f.config.Accounts;config.Files=slices.Clone(f.files);config.Files[0]=f.policy(t,"document",backend)
+        owner,err:=project.NewAccountManagement(f.runtime.SessionStore(),f.runtime.Authenticator(),auth.PrincipalAuthorizer{},config);fileCheck(t,err)
+        creator:=owner.Creator();definition,err:=creator.FormDefinition();fileCheck(t,err)
+        first:=f.form(t,definition,f.data(t,"concurrent@example.test",false));second:=f.form(t,definition,f.data(t,"concurrent@example.test",false))
+        type outcome struct{result accountmodel.Creation;files []formmodel.FilePublication;err error};results:=make(chan outcome,2)
+        ctx,cancel:=context.WithTimeout(t.Context(),30*time.Second);defer cancel()
+        for _,bound:=range []formmodel.BoundForm{first,second}{go func(){result,files,err:=creator.CreateForm(ctx,f.actor,bound,accountPasswordText);results<-outcome{result,files,err}}()}
+        committed,rejected:=0,0;var names []string
+        for range 2{result:=<-results;if len(result.files)!=2{t.Fatal("concurrent creation lost file attempts")};f.stored(t,result.files);names=append(names,result.files[0].Info().Name())
+            if result.err==nil&&result.result.Revision==1{committed++}else if _,valid:=validation.Rejected(result.err);valid&&result.result.Revision==0{rejected++}else{t.Fatal("concurrent creation failed outside unique fence",result.err)}}
+        if committed!=1||rejected!=1||names[0]==names[1]{t.Fatal("concurrent creation bypassed native uniqueness")}
+    })
+    run("restart",func(t *testing.T){
+        before:=f.snapshot(t);reopened,err:=database.Open(t.Context(),f.selected);fileCheck(t,err);defer func(){fileCheck(t,reopened.Close())}()
+        restarted,err:=project.NewAccountRuntime(t.Context(),reopened,f.hasher,auth.PrincipalAuthorizer{},f.config);fileCheck(t,err)
+        inspection,err:=restarted.InspectStartup(t.Context());fileCheck(t,err);if !inspection.Ready(){t.Fatal("created account domain did not reopen ready")}
+        current,err:=restarted.Accounts().Reader().Get(t.Context(),f.actor,typedID);fileCheck(t,err)
+        if width,present:=current.View().Get("portrait_width");!present||!width.Equal(query.Integer(4)){t.Fatal("creation image dimensions lost on restart")};f.same(t,before)
+    })
+}
+
+func (f *creationFileFixture) settings(t *testing.T)settings.Settings{
+    t.Helper();configured,err:=settings.New(settings.Definition{ProjectName:"file_creation",InstalledApps:append(project.InstalledApps(),apps.Config{Name:"example.com/godj-project-bundle/fileadmin",Label:"fileadmin"},apps.Config{Name:"example.com/godj-project-bundle/fileapi",Label:"fileapi"})});fileCheck(t,err);return configured
+}
+func (f *creationFileFixture) http(t *testing.T)(*http.Client,string,*identityapi.Management){
+    t.Helper();configured:=f.settings(t);builder:=admin.NewBuilder(configured.Apps())
+    fileCheck(t,identityadmin.RegisterAccount(builder,f.runtime.Accounts(),identityadmin.AccountRegistration{Slug:"accounts",ReportFileEdit:func(context.Context,identityadmin.AccountFileEditReport)error{return nil},ReportFileCreate:f.reports.record}))
+    registry,err:=builder.Build();fileCheck(t,err);paths,err:=admin.SiteAllowedNextPaths(registry,"/admin");fileCheck(t,err)
+    authentication,err:=websession.New(websession.Config{Sessions:f.runtime.Sessions(),Authenticator:f.runtime.Authenticator(),Authorizer:auth.PrincipalAuthorizer{},LoginPersistence:f.runtime.LoginPersistence(),Clock:f.clock,SessionCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},CSRFCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},LoginPath:"/admin/login/",FallbackPath:"/admin/",AllowedNextPaths:paths});fileCheck(t,err)
+    site,err:=admin.NewSite(admin.SiteConfig{Apps:configured.Apps(),Namespace:"fileadmin",Registry:registry,Auth:authentication});fileCheck(t,err)
+    sessionAuthentication,err:=apisession.New(authentication,apisession.WithReadOnlyResolution());fileCheck(t,err)
+    management,err:=identityapi.NewManagement(f.runtime.Accounts(),f.runtime.Catalog(),identityapi.ManagementConfig{Namespace:"fileapi",Authentication:sessionAuthentication});fileCheck(t,err)
+    application,err:=web.NewApplication(web.Config{Settings:configured,Routes:append(site.Routes(),management.Routes()...),Middleware:management.Middleware()});fileCheck(t,err)
+    server:=httptest.NewServer(application);t.Cleanup(server.Close);jar,err:=cookiejar.New(nil);fileCheck(t,err)
+    client:=&http.Client{Transport:server.Client().Transport,Jar:jar,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}}
+    login:=url.Values{"username":{"first@example.test"},"password":{accountPasswordText},"csrfmiddlewaretoken":{f.token(t,client,server.URL,"/admin/login/")}}
+    status,_:=f.send(t,client,server.URL,"POST","/admin/login/","application/x-www-form-urlencoded",strings.NewReader(login.Encode()),"");if status!=302{t.Fatal("creation HTTP login failed",status)}
+    return client,server.URL,management
+}
+func (f *creationFileFixture) send(t *testing.T,client *http.Client,endpoint,method,path,contentType string,body io.Reader,csrf string)(int,string){
+    t.Helper();request,err:=http.NewRequestWithContext(t.Context(),method,endpoint+path,body);fileCheck(t,err)
+    if contentType!=""{request.Header.Set("Content-Type",contentType)};if csrf!=""{request.Header.Set(websession.DefaultCSRFHeader,csrf);request.Header.Set("Origin",endpoint)}
+    response,err:=client.Do(request);fileCheck(t,err);content,err:=io.ReadAll(response.Body);fileCheck(t,err);fileCheck(t,response.Body.Close());return response.StatusCode,string(content)
+}
+func (f *creationFileFixture) token(t *testing.T,client *http.Client,endpoint,path string)string{
+    t.Helper();status,body:=f.send(t,client,endpoint,"GET",path,"",nil,"");if status!=200{t.Fatal("creation Form GET failed",status)}
+    match:=regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`).FindStringSubmatch(body);if len(match)!=2{t.Fatal("creation CSRF missing")};return html.UnescapeString(match[1])
+}
+func (f *creationFileFixture) post(t *testing.T,client *http.Client,endpoint,login string,unusable bool)(int,string){
+    t.Helper();values:=url.Values{f.role.Login:{login},"@@PROFILE@@":{"NZ"},"preset":{"presets/first.png"},f.role.Groups:{strconv.FormatInt(f.groupID,10)},f.role.Permissions:{strconv.FormatInt(f.grantID,10)},"csrfmiddlewaretoken":{f.token(t,client,endpoint,"/admin/accounts/add/")}}
+    if unusable{values.Set("unusable_password","on")}else{values.Set("password1",accountPasswordText);values.Set("password2",accountPasswordText)}
+    var body bytes.Buffer;writer:=multipart.NewWriter(&body);names:=make([]string,0,len(values));for name:=range values{names=append(names,name)};slices.Sort(names)
+    for _,name:=range names{for _,value:=range values[name]{fileCheck(t,writer.WriteField(name,value))}}
+    for _,file:=range []struct{field,name string;content []byte}{{"document","same.txt",f.document},{"portrait","photo.png",f.portrait}}{part,err:=writer.CreateFormFile(file.field,file.name);fileCheck(t,err);_,err=part.Write(file.content);fileCheck(t,err)}
+    fileCheck(t,writer.Close());return f.send(t,client,endpoint,"POST","/admin/accounts/add/",writer.FormDataContentType(),&body,"")
+}
+type creationFileGate struct{storage.Backend;gate chan struct{};arrivals *atomic.Int64}
+func (backend *creationFileGate) Save(ctx context.Context,name string,source io.Reader,options storage.SaveOptions)(storage.Info,error){
+    if backend.arrivals.Add(1)==2{close(backend.gate)}
+    select{case <-backend.gate:case <-ctx.Done():return storage.Info{},&storage.Error{Code:"canceled",Outcome:storage.NotPublished,Cause:ctx.Err()}}
+    return backend.Backend.Save(ctx,name,source,options)
+}

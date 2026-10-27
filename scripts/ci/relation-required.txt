@@ -4501,3 +4501,8 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFil
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/default/sqlite
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/custom
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/custom/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/default
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/default/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/custom
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFileCreation/custom/sqlite

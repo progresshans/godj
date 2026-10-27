@@ -15,6 +15,9 @@ import (
 //go:embed testdata/accountbinding/profile_files_test.go.tmpl
 var profileFilesConsumer string
 
+//go:embed testdata/accountbinding/profile_files_support.go.tmpl
+var profileFilesSupport string
+
 func TestGeneratedAccountProfileFiles(t *testing.T) {
 	for _, custom := range []bool{false, true} {
 		name := "default"
@@ -36,6 +39,10 @@ func TestGeneratedAccountProfileFiles(t *testing.T) {
 }
 
 func writeAccountProfileFileConsumer(t *testing.T, custom bool) string {
+	return writeAccountProfileFileSource(t, custom, false, profileFilesConsumer)
+}
+
+func writeAccountProfileFileSource(t *testing.T, custom, requiredFiles bool, body string) string {
 	t.Helper()
 	spec := accountBindingConsumerSpec(t, custom)
 	if custom {
@@ -55,7 +62,18 @@ func writeAccountProfileFileConsumer(t *testing.T, custom bool) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if requiredFiles {
+		for i := range extra.Models[0].Fields {
+			field := &extra.Models[0].Fields[i]
+			if field.Name == "document" || field.Name == "portrait" {
+				field.Blank, field.Nullable = false, false
+			}
+		}
+	}
 	var imports, schemas []string
+	if requiredFiles {
+		imports = append(imports, `accountdomain "github.com/progresshans/godj/account/domain"`)
+	}
 	types := make(map[ir.ModelIdentity]string)
 	for i := range spec.Apps {
 		app := &spec.Apps[i]
@@ -85,7 +103,7 @@ func writeAccountProfileFileConsumer(t *testing.T, custom bool) string {
 		profile = "region"
 	}
 	source := strings.NewReplacer("@@IMPORTS@@", strings.Join(imports, "\n"), "@@SCHEMAS@@", strings.Join(schemas, ","),
-		"@@ACCOUNT@@", types[spec.Account.Model], "@@GROUP@@", types[spec.Account.Catalog.Group], "@@PERMISSION@@", types[spec.Account.Catalog.Permission], "@@PROFILE@@", profile).Replace(profileFilesConsumer)
+		"@@ACCOUNT@@", types[spec.Account.Model], "@@GROUP@@", types[spec.Account.Catalog.Group], "@@PERMISSION@@", types[spec.Account.Catalog.Permission], "@@PROFILE@@", profile).Replace(profileFilesSupport + body)
 	formatted, err := format.Source([]byte(source))
 	if err != nil {
 		t.Fatal(err)

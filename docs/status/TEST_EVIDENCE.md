@@ -2261,6 +2261,48 @@ Custom 모델의 필수 group/grant 선택은 실제 catalog 생성과 계정 �
 새 source의 PostgreSQL·race/CGO0·generated drift·process/browser/platform과 마지막 원본/capture 비교는
 자동 전체 원격 CI에서 확인한다. 한정 로컬 통과로 I1 또는 전체 카탈로그 수용을 선언하지 않는다.
 
+### 파일 Form 생성과 첫 계정 owner
+
+2026-10-28, source `c44a97398709f90ab9a4abb4dfeb9a0f43ebbd9c` 위에 선택 계정의 파일 Form 생성을 작성했다.
+`CreationPolicy.Files`와 `Creator.CreateForm`/`CreateUnusableForm`, 명시적 operation ID를 받는
+`FirstAccount.CreateForm`은 현재 인가/첫 계정 부재를 읽고 scope를 닫은 뒤 파일을 게시한다. 실제 이름을 가진 전체
+후보의 정책을 새 snapshot에서 검사하고 해싱한 다음, 최종 native transaction에서 다시 검사하고 저장한다.
+미해결 파일의 unique는 게시 전 미루며 다른 필드·관계·소속의 검사는 유지한다. 모든 게시 결과는 validation/hash/DB
+실패·unknown에도 보존하고, 자동 삭제·재시도·요청 수명 연장을 하지 않는다. 초기/제출 문자열 참조와 독립 이미지 크기
+입력은 파일 쓰기 권한이 아니며, 이름 callback에는 저장된 PK와 credential identity가 없는 분리된 후보를 준다.
+
+Admin 생성은 업로드가 있을 때 `ReportFileCreate`를 요구하며 확정 Creation과 파일 결과를 분리한다.
+관리 JSON은 생성에서도 파일 이름/크기를 read-only로 유지한다. 공개 첫 명령의 파일 입력/private process 전송은 아직
+연결하지 않았다. Typed 최초 생성 owner의 구현을 공개 CLI의 파일 지원이나 I1 전체 수용으로 계산하지 않는다.
+
+독립 기본/custom 생성 소비자는 필수 File/Image·이미지 choices·실제 TCP multipart·CSRF와 요청 만료,
+actual collision 이름·해싱 횟수·소속/감사·JSON 거부·동시 생성·native 재접속을 검사하도록 작성했다.
+각 module의 내부 필수 root/child 37개에는 첫 계정의 9개 실패/경합과 일반 생성의 18개 실패가 포함된다.
+파일 게시 이후 인가 회수, validation/strength/hash 실패, 부분·불확실 게시, 감사 rollback·cleanup·unknown receipt,
+취소와 확정 저장 후 보고 실패를 실제 DB/파일 상태로 대조한다. 새 테스트 본문은 로컬 실행하지 않았다.
+
+진행 중인 [CI 40539146691](https://github.com/progresshans/godj/actions/runs/40539146691)의 PostgreSQL account consumer
+normal/race/CGO0 작업 `122312594115`/`122312594377`/`122312594422`에서는 기존 파일 편집의 signed-key 준비가 실패했다.
+세 원본 로그의 checkout은 `02360c75f8f237b47df8631c9daa44ec4829912e`이며 tree
+`13fb46d67bdf4820d347e47cbfb9de357a9bb466`가 제출 c44 source와 같다. 원인은 별도로 미지원인 PostgreSQL 명시적
+identity INSERT였다. 기존 `StoredKeyFixture`와 같이 생성 ORM으로 미참조 행을 넣고 native SQL로 그 행의 key만 0/-9로
+옮기도록 준비를 수정했다. 이후 조회·파일 편집·revision·audit는 실제 owner를 사용하고 필수 signed-key 검사를 유지한다.
+로컬 PostgreSQL 연결은 구성되어 있지 않아 해당 DB 재실행은 원격 확인 대상이다. 이 수정으로 명시적 identity INSERT나
+sequence reconciliation 제품 API를 구현했다고 주장하지 않는다.
+
+로컬 darwin/arm64 Go 1.26.5에서 기존 편집/새 생성 × 기본/custom 네 실제 생성 module을 compile-only로 확인했다
+(최종 명령 9.59초). 임시 driver는 보관 후 제거했다. 최종 일곱 영향 package의 `go test -trimpath -mod=readonly -run '^$'`도
+통과했다(1.55초, 변경 없는 package의 Go cache 포함). 생성/컴파일을 DB·HTTP·실패 경로 실행으로 계산하지 않는다.
+실제 consumer binary의 114개 root를 발견하여 12개 native 좌표에서 root와 Relation 필수 4,508개가 한 번씩 배정되는지
+대조했다. PostgreSQL 필수 5,645개는 세 mode에서 단일 owner를 가지며 새 생성 root는 account-consumer owner에 속한다.
+Portable core 필수 항목은 259개다. 기존 필수 항목의 삭제/중복은 없으며 문서 244개의 링크·gofmt·diff를 확인했다.
+
+변경 source와 compile/discovery/분할 계획, 기존 PostgreSQL 원본 로그는 검증 보관소의
+`gdj0138-file-creation-v1/receipt-final.json`에 둔다
+(SHA-256 `e5f3d9ab56633d868b12ae2cd2b511c5beb6defedd86c6ef1d5292e4913ed066`).
+새 본문의 SQLite/PostgreSQL·race/CGO0·generated drift·process/browser/platform과 전체 원본 대조는
+새 source의 자동 원격 CI에서 확인한다. I1과 전체 카탈로그는 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

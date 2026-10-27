@@ -393,7 +393,13 @@ TEST_EVIDENCE에서 구분하며 새 source의 원격 수용은 확인 대상이
 세션 폐기·signed key·경합·권한 회수·unique/audit/cleanup/unknown과 DB 재접속 검사를 작성했다.
 작성·최소 compile과 새 본문/환경별 실행은 TEST_EVIDENCE에서 구분한다.
 
-파일을 포함한 계정 생성/첫 명령·추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
+파일을 포함한 `Creator.CreateForm`/`CreateUnusableForm`, 명시적 operation ID를 받는 `FirstAccount.CreateForm`과 Admin 생성
+보고를 연결했다. 현재 인가/첫 계정 부재를 확인하고 scope를 닫은 뒤 게시하며, 실제 저장 이름으로 전체 정책을 재검사한 뒤
+해싱·최종 native transaction을 수행한다. 모든 파일 시도는 뒤 validation/hash/commit/cleanup 실패에도 보존한다.
+기본/custom의 별도 생성 소비자는 필수 파일·이미지·choices, 실제 multipart와 요청 수명, 첫 생성 경합·unknown receipt,
+소속/감사·권한 회수·실패/동시 생성·DB 재접속을 검사하도록 작성했다. 본문 실행과 최소 compile은 TEST_EVIDENCE에서 구분한다.
+
+공개 첫 명령의 파일 입력/전송·추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

@@ -35,7 +35,10 @@ IR 순서로 저장한 뒤 **실제로 반환된 이름**을 가진 새 준비�
 
 해결된 준비의 `ModelInput()`은 실제 저장 이름·선택 scalar의 존재·이미지 크기·collection과 원래 target/source를
 최종 owner에 전달한다. 미해결 upload를 filename으로 바꾸거나 현재 snapshot의 제외 필드까지 입력에 넣지 않는다.
-선택 계정의 파일 편집은 [계정 수명 계약](0076-credential-snapshots-and-session-binding.md#프로필-파일의-편집과-게시-결과)의
+게시 전 admission에는 `PrepareInputBeforeFiles`로 pending field를 제외한 불완전한 입력과 명시적 deferred 목록을 얻는다.
+다른 선택 값·collection·이미지 크기와 source/target을 보존하지만 이것으로 DB 저장을 완료하지 않는다. 원래 BoundForm의
+업로드를 게시한 뒤 실제 이름을 가진 전체 후보를 다시 검사한다. 일반 `PrepareInput`의 pending 거부는 유지한다.
+선택 계정의 파일 편집과 생성은 [계정 수명 계약](0076-credential-snapshots-and-session-binding.md#프로필-파일의-편집과-게시-결과)의
 사전 인가·별도 게시·최종 DB 재검사와 결과 보관을 따른다.
 
 이름 callback은 다른 준비 값과 기존/default 파일 참조를 담은 분리된 모델을 받는다. Backend alias나 I/O 객체를 Schema IR에

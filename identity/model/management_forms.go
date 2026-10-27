@@ -22,16 +22,14 @@ func (management *AccountManagement[M]) FormDefinition(action admin.Action) (for
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
 	state := management.state
-	fields := state.editor.Fields()
 	switch action {
 	case admin.ActionAdd:
-		fields = state.creator.Fields()
+		return state.creator.FormDefinition()
 	case admin.ActionChange:
 		return state.editor.FormDefinition()
 	default:
 		return formmodel.Definition{}, managementError(CodeInvalidInput, nil)
 	}
-	return state.reader.state.store.state.binding.FormDefinition(fields)
 }
 
 // CheckCreateForm performs read-only, current-authorized advisory checks even
@@ -95,6 +93,20 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 		}
 		if modelField && !allowed[name] {
 			return managementError(CodeInvalidInput, nil)
+		}
+	}
+	// A cleaned upload filename is not its eventual storage name. Keep its
+	// ordinary Form validation, but defer field/compound uniqueness involving
+	// that file until the lifecycle owner has actual publication results.
+	var pendingFiles []string
+	for _, field := range metadata.Fields {
+		if !field.Kind.IsFile() {
+			continue
+		}
+		value, _ := bound.Form().Cleaned().Get(field.Name)
+		file, _ := value.AsFile()
+		if _, pending := file.Upload(); pending {
+			pendingFiles = append(pendingFiles, field.Name)
 		}
 	}
 	var currentActor auth.Principal
@@ -201,6 +213,9 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 		}
 		unique, err := checked.CheckDatabase(work, formmodel.DatabaseChecks{
 			UniqueFields: func(ctx context.Context, values map[string]query.Value) (validation.Errors, error) {
+				for _, name := range pendingFiles {
+					delete(values, name)
+				}
 				if err := normalizeAccountInput(metadata, role, values); err != nil {
 					return validation.Errors{}, err
 				}
@@ -222,6 +237,9 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 				return diagnostics, nil
 			},
 			Constraints: func(ctx context.Context, values map[string]query.Value) (validation.Errors, error) {
+				for _, name := range pendingFiles {
+					delete(values, name)
+				}
 				if err := normalizeAccountInput(metadata, role, values); err != nil {
 					return validation.Errors{}, err
 				}

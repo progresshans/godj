@@ -55,3 +55,41 @@ func (report AccountFileEditReport) Err() error {
 func (AccountFileEditReport) Format(state fmt.State, _ rune) {
 	_, _ = fmt.Fprint(state, "identityadmin.AccountFileEditReport{redacted}")
 }
+
+// AccountFileCreationReport separates file publication from a confirmed new
+// account. A failed/unknown creation has a zero Creation, while Publications
+// retains every attempted file. Reports own metadata, not upload lifetimes.
+type AccountFileCreationReport struct{ state *accountFileCreationReport }
+type accountFileCreationReport struct {
+	creation     accountmodel.Creation
+	publications []formmodel.FilePublication
+	err          error
+}
+
+func newAccountFileCreationReport(creation accountmodel.Creation, publications []formmodel.FilePublication, err error) AccountFileCreationReport {
+	creation.ChangedFields = slices.Clone(creation.ChangedFields)
+	return AccountFileCreationReport{state: &accountFileCreationReport{creation, slices.Clone(publications), err}}
+}
+func (report AccountFileCreationReport) Creation() accountmodel.Creation {
+	if report.state == nil {
+		return accountmodel.Creation{}
+	}
+	creation := report.state.creation
+	creation.ChangedFields = slices.Clone(creation.ChangedFields)
+	return creation
+}
+func (report AccountFileCreationReport) Publications() []formmodel.FilePublication {
+	if report.state == nil {
+		return nil
+	}
+	return slices.Clone(report.state.publications)
+}
+func (report AccountFileCreationReport) Err() error {
+	if report.state == nil {
+		return &accountmodel.Error{Code: accountmodel.CodeInvalidInput}
+	}
+	return report.state.err
+}
+func (AccountFileCreationReport) Format(state fmt.State, _ rune) {
+	_, _ = fmt.Fprint(state, "identityadmin.AccountFileCreationReport{redacted}")
+}
