@@ -11,7 +11,7 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
 
 현재 계정 조립은 `modeldef.ProjectSpec`의 명시적 기본 User 역할과 `accounts.Policy()`를 사용한다.
-Host는 `modeldef.MigrationSources()`와 업무 `MigrationSources()`로 새 DB를 준비하고, 생성된
+Host는 `migrationdefs.MigrationSources()`와 업무 `MigrationSources()`로 새 DB를 준비하고, 생성된
 `project.NewFirstAccount`로 최초 계정/domain을 만든 뒤 `project.NewAccountRuntime`을 조립한다.
 기존 계정 DB의 mapping·retirement는 별도 수명 작업이며 이 조립이 이전 domain을 자동 승계하지 않는다.
 

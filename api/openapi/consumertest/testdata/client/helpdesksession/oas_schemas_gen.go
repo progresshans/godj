@@ -4944,12 +4944,8 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 	s.Errors = val
 }
 
-func (*GoDjAPIError) helpdeskCostPreviewRes()         {}
-func (*GoDjAPIError) helpdeskDeadlinePreviewRes()     {}
 func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
-func (*GoDjAPIError) helpdeskLabelUsageRes()          {}
-func (*GoDjAPIError) helpdeskServicePreviewRes()      {}
 func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
 func (*GoDjAPIError) helpdeskTicketDetailRes()        {}
@@ -5058,6 +5054,10 @@ func (*GoDjAPIErrorHeaders) helpdeskTicketServiceReportRes() {}
 type HelpdeskCostPreviewBadRequest GoDjAPIErrorHeaders
 
 func (*HelpdeskCostPreviewBadRequest) helpdeskCostPreviewRes() {}
+
+type HelpdeskCostPreviewForbidden GoDjAPIErrorHeaders
+
+func (*HelpdeskCostPreviewForbidden) helpdeskCostPreviewRes() {}
 
 type HelpdeskCostPreviewInternalServerError struct {
 	Data io.Reader
@@ -9386,6 +9386,10 @@ type HelpdeskDeadlinePreviewBadRequest GoDjAPIErrorHeaders
 
 func (*HelpdeskDeadlinePreviewBadRequest) helpdeskDeadlinePreviewRes() {}
 
+type HelpdeskDeadlinePreviewForbidden GoDjAPIErrorHeaders
+
+func (*HelpdeskDeadlinePreviewForbidden) helpdeskDeadlinePreviewRes() {}
+
 type HelpdeskDeadlinePreviewInternalServerError struct {
 	Data io.Reader
 }
@@ -9627,6 +9631,10 @@ type HelpdeskLabelUsageBadRequest GoDjAPIErrorHeaders
 
 func (*HelpdeskLabelUsageBadRequest) helpdeskLabelUsageRes() {}
 
+type HelpdeskLabelUsageForbidden GoDjAPIErrorHeaders
+
+func (*HelpdeskLabelUsageForbidden) helpdeskLabelUsageRes() {}
+
 type HelpdeskLabelUsageInternalServerError struct {
 	Data io.Reader
 }
@@ -9698,6 +9706,10 @@ func (s *HelpdeskLabelUsageUsage) UnmarshalText(data []byte) error {
 type HelpdeskServicePreviewBadRequest GoDjAPIErrorHeaders
 
 func (*HelpdeskServicePreviewBadRequest) helpdeskServicePreviewRes() {}
+
+type HelpdeskServicePreviewForbidden GoDjAPIErrorHeaders
+
+func (*HelpdeskServicePreviewForbidden) helpdeskServicePreviewRes() {}
 
 type HelpdeskServicePreviewInternalServerError struct {
 	Data io.Reader

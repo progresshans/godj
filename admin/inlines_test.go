@@ -11,9 +11,9 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/helpdesk/models"
-	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	identitymodels "github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -22,7 +22,7 @@ import (
 
 func reportInlineFixture(t *testing.T) (InlineConfig[models.Ticket, models.ServiceReport], auth.Principal) {
 	t.Helper()
-	binding, err := project.Bind()
+	binding, err := orm.BindProject(identitymodels.GoDjRelationSchema(), models.GoDjRelationSchema())
 	if err != nil {
 		t.Fatal(err)
 	}

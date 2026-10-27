@@ -2173,6 +2173,14 @@ func (s *HelpdeskCostPreviewBadRequest) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskCostPreviewForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskCostPreviewNotFound) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
@@ -3433,6 +3441,14 @@ func (s *HelpdeskDeadlinePreviewBadRequest) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskDeadlinePreviewForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskDeadlinePreviewNotFound) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
@@ -3649,6 +3665,14 @@ func (s *HelpdeskLabelUsageBadRequest) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskLabelUsageForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskLabelUsageNotFound) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
@@ -3671,6 +3695,14 @@ func (s HelpdeskLabelUsageUsage) Validate() error {
 }
 
 func (s *HelpdeskServicePreviewBadRequest) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskServicePreviewForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err

@@ -28,7 +28,7 @@ import (
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/examples/helpdesk"
-	helpdeskdef "github.com/progresshans/godj/examples/helpdesk/modeldef"
+	helpdeskmigrations "github.com/progresshans/godj/examples/helpdesk/migrationdefs"
 	helpdeskmodels "github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
@@ -99,7 +99,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	articleSessionAuth, articleSession, articleViewSession := newConsumerSessionAuthentication(t, articleAll, articleView, apiapp.ListPath)
 	sessionURL, sessionDocument := newArticleConsumerAPI(t, sessionBackend, articleSessionAuth)
 
-	helpdeskBackend := newConsumerBackend(t, "helpdesk-session", append(helpdeskdef.MigrationSources(), helpdesk.MigrationSources()...)...)
+	helpdeskBackend := newConsumerBackend(t, "helpdesk-session", append(helpdeskmigrations.MigrationSources(), helpdesk.MigrationSources()...)...)
 	category, err := helpdeskmodels.CategoryObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewCategoryCreate("Hardware & repairs"))
 	if err != nil {
 		t.Fatal("seed selected Helpdesk category:", err)

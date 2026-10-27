@@ -147,7 +147,7 @@ func runSelectedHelpdeskScope(t *testing.T, f *selectedHelpdeskFixture) {
 			t.Fatal("selected native priority result", err)
 		}
 		events := f.history(t, actor, "helpdesk.ticket", created.ID)
-		if len(events) != 2 || events[0].Action() != admin.ActionChange || !slices.Equal(events[0].ChangedFields(), []string{"priority"}) || events[1].Action() != admin.ActionAdd {
+		if len(events) != 2 || events[0].Action() != admin.ActionAdd || events[1].Action() != admin.ActionChange || !slices.Equal(events[1].ChangedFields(), []string{"priority"}) {
 			t.Fatal("bulk and priority audit sequence differs")
 		}
 		selectedHelpdeskStatus(t, client.requestContext(t.Context(), "PUT", fmt.Sprintf("/api/tickets/%d/service-report/", f.ticket.ID), `{"summary":"selected updated report"}`, true), http.StatusOK)
@@ -465,6 +465,9 @@ func selectedHelpdeskAdminAuthority(t *testing.T, f *selectedHelpdeskFixture) {
 	change := fmt.Sprintf("/admin/tickets/change/?id=%d", f.ticket.ID)
 	// Save the real parent/inline controls through the selected Admin owner.
 	values, action := adminFormSubmission(t, client.requestContext(t.Context(), "GET", change, "", false), change)
+	if !values.Has("resolution") || values.Get("resolution") != "" {
+		t.Fatal("Admin omitted the actual empty TextField control")
+	}
 	values.Set("subject", "selected Admin ticket")
 	values.Set("reports-0-summary", "selected Admin report")
 	beforeSave := f.state(t)
@@ -477,6 +480,9 @@ func selectedHelpdeskAdminAuthority(t *testing.T, f *selectedHelpdeskFixture) {
 	for index := range beforeSave.tickets {
 		if beforeSave.tickets[index].ID == f.ticket.ID {
 			beforeSave.tickets[index].Subject = "selected Admin ticket"
+			// The full HTML form submits empty text for the nullable TextField.
+			// Its established cleaning policy stores that value as an empty string.
+			beforeSave.tickets[index].Resolution = new("")
 		}
 	}
 	for index := range beforeSave.reports {
@@ -485,9 +491,31 @@ func selectedHelpdeskAdminAuthority(t *testing.T, f *selectedHelpdeskFixture) {
 		}
 	}
 	if !reflect.DeepEqual(afterSave, beforeSave) {
+		if len(afterSave.tickets) == len(beforeSave.tickets) {
+			for index, expected := range beforeSave.tickets {
+				before, _ := models.TicketObjects.ModelValues(expected)
+				after, _ := models.TicketObjects.ModelValues(afterSave.tickets[index])
+				for field, value := range before {
+					if !value.Equal(after[field]) {
+						t.Logf("ticket %d differs in %s", expected.ID, field)
+					}
+				}
+			}
+		}
+		if len(afterSave.reports) == len(beforeSave.reports) {
+			for index, expected := range beforeSave.reports {
+				before, _ := models.ServiceReportObjects.ModelValues(expected)
+				after, _ := models.ServiceReportObjects.ModelValues(afterSave.reports[index])
+				for field, value := range before {
+					if !value.Equal(after[field]) {
+						t.Logf("report %d differs in %s", expected.ID, field)
+					}
+				}
+			}
+		}
 		t.Fatal("selected Admin lost parent/inline state or changed unrelated values")
 	}
-	if events := f.history(t, f.credential.Principal(), "helpdesk.ticket", f.ticket.ID); len(events) != 1 || events[0].Action() != admin.ActionChange || !slices.Equal(events[0].ChangedFields(), []string{"subject", "reports"}) {
+	if events := f.history(t, f.credential.Principal(), "helpdesk.ticket", f.ticket.ID); len(events) != 1 || events[0].Action() != admin.ActionChange || !slices.Equal(events[0].ChangedFields(), []string{"subject", "resolution", "reports"}) {
 		t.Fatal("selected Admin parent audit differs")
 	}
 	if events := f.history(t, f.credential.Principal(), "helpdesk.service_report", f.report.ID); len(events) != 2 || events[0].Action() != admin.ActionChange || !slices.Equal(events[0].ChangedFields(), []string{"summary"}) {

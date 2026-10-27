@@ -227,7 +227,47 @@ func decodeHelpdeskCostPreviewResponse(resp *http.Response) (res HelpdeskCostPre
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			var wrapper HelpdeskCostPreviewForbidden
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "X-Godj-Csrftoken" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "X-Godj-Csrftoken",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							var wrapperDotXGodjCsrftokenVal string
+							if err := func() error {
+								val, err := d.DecodeValue()
+								if err != nil {
+									return err
+								}
+
+								c, err := conv.ToString(val)
+								if err != nil {
+									return err
+								}
+
+								wrapperDotXGodjCsrftokenVal = c
+								return nil
+							}(); err != nil {
+								return err
+							}
+							wrapper.XGodjCsrftoken.SetTo(wrapperDotXGodjCsrftokenVal)
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse X-Godj-Csrftoken header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
@@ -909,7 +949,47 @@ func decodeHelpdeskDeadlinePreviewResponse(resp *http.Response) (res HelpdeskDea
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			var wrapper HelpdeskDeadlinePreviewForbidden
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "X-Godj-Csrftoken" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "X-Godj-Csrftoken",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							var wrapperDotXGodjCsrftokenVal string
+							if err := func() error {
+								val, err := d.DecodeValue()
+								if err != nil {
+									return err
+								}
+
+								c, err := conv.ToString(val)
+								if err != nil {
+									return err
+								}
+
+								wrapperDotXGodjCsrftokenVal = c
+								return nil
+							}(); err != nil {
+								return err
+							}
+							wrapper.XGodjCsrftoken.SetTo(wrapperDotXGodjCsrftokenVal)
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse X-Godj-Csrftoken header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
@@ -3064,7 +3144,47 @@ func decodeHelpdeskLabelUsageResponse(resp *http.Response) (res HelpdeskLabelUsa
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			var wrapper HelpdeskLabelUsageForbidden
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "X-Godj-Csrftoken" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "X-Godj-Csrftoken",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							var wrapperDotXGodjCsrftokenVal string
+							if err := func() error {
+								val, err := d.DecodeValue()
+								if err != nil {
+									return err
+								}
+
+								c, err := conv.ToString(val)
+								if err != nil {
+									return err
+								}
+
+								wrapperDotXGodjCsrftokenVal = c
+								return nil
+							}(); err != nil {
+								return err
+							}
+							wrapper.XGodjCsrftoken.SetTo(wrapperDotXGodjCsrftokenVal)
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse X-Godj-Csrftoken header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
@@ -3385,7 +3505,47 @@ func decodeHelpdeskServicePreviewResponse(resp *http.Response) (res HelpdeskServ
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			var wrapper HelpdeskServicePreviewForbidden
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "X-Godj-Csrftoken" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "X-Godj-Csrftoken",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							var wrapperDotXGodjCsrftokenVal string
+							if err := func() error {
+								val, err := d.DecodeValue()
+								if err != nil {
+									return err
+								}
+
+								c, err := conv.ToString(val)
+								if err != nil {
+									return err
+								}
+
+								wrapperDotXGodjCsrftokenVal = c
+								return nil
+							}(); err != nil {
+								return err
+							}
+							wrapper.XGodjCsrftoken.SetTo(wrapperDotXGodjCsrftokenVal)
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse X-Godj-Csrftoken header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}

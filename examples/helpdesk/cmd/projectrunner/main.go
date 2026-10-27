@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/progresshans/godj/examples/helpdesk/migrationdefs"
 	"github.com/progresshans/godj/examples/helpdesk/modeldef"
 	godjproject "github.com/progresshans/godj/project"
 )
@@ -14,7 +15,7 @@ func main() {
 	err := godjproject.Run(context.Background(), godjproject.Config{
 		LoadProjectSpec:            modeldef.ProjectSpec,
 		MigrationDefinitionRoots:   []string{"migrations"},
-		MigrationDefinitionSources: modeldef.MigrationSources(),
+		MigrationDefinitionSources: migrationdefs.MigrationSources(),
 	}, os.Args[1:], os.Stdin, os.Stdout)
 	if err != nil {
 		code := godjproject.RunnerExitCode(err)

@@ -10,9 +10,9 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/helpdesk/models"
-	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	identitymodels "github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
@@ -23,7 +23,9 @@ func collectionSetFixture(t *testing.T) (CollectionFormSetConfig[models.Ticket],
 	policy := forms.DefaultSetConfig()
 	policy.Prefix, policy.MinForms, policy.ExtraForms, policy.MaxForms, policy.AbsoluteMax = "tickets", 1, 1, 4, 4
 	policy.ValidateMin, policy.ValidateMax = true, true
-	binding, err := project.Bind()
+	// Core Admin tests bind the complete generated model graph directly. The
+	// host's account runtime itself composes Admin and belongs in consumer tests.
+	binding, err := orm.BindProject(identitymodels.GoDjRelationSchema(), models.GoDjRelationSchema())
 	if err != nil {
 		t.Fatal(err)
 	}

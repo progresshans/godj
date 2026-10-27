@@ -27,7 +27,7 @@ import (
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk"
-	"github.com/progresshans/godj/examples/helpdesk/modeldef"
+	"github.com/progresshans/godj/examples/helpdesk/migrationdefs"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
@@ -55,7 +55,7 @@ func run() error {
 		return err
 	}
 	defer backend.Close()
-	sources := append(modeldef.MigrationSources(), helpdesk.MigrationSources()...)
+	sources := append(migrationdefs.MigrationSources(), helpdesk.MigrationSources()...)
 	graph, _, err := definition.Load(sources...)
 	if err != nil {
 		return err

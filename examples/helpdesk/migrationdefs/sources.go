@@ -1,4 +1,6 @@
-package modeldef
+// Package migrationdefs composes the host's account storage migrations without
+// introducing runtime imports into the pure model declaration package.
+package migrationdefs
 
 import (
 	"github.com/progresshans/godj/account/audit"

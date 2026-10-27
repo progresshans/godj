@@ -25,7 +25,7 @@ import (
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/examples/helpdesk/accounts"
-	"github.com/progresshans/godj/examples/helpdesk/modeldef"
+	"github.com/progresshans/godj/examples/helpdesk/migrationdefs"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/examples/helpdesk/project"
 	identitymodels "github.com/progresshans/godj/identity/models"
@@ -122,7 +122,7 @@ func TestSelectedAccountHelpdeskPostgresScopeLifecycle(t *testing.T) {
 func newSelectedHelpdeskFixture(t *testing.T, backend selectedHelpdeskBackend, open func(context.Context) (selectedHelpdeskBackend, error)) *selectedHelpdeskFixture {
 	t.Helper()
 	ctx := t.Context()
-	loaded, _, err := definition.Load(append(modeldef.MigrationSources(), helpdesk.MigrationSources()...)...)
+	loaded, _, err := definition.Load(append(migrationdefs.MigrationSources(), helpdesk.MigrationSources()...)...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +251,10 @@ func newSelectedHelpdeskFixture(t *testing.T, backend selectedHelpdeskBackend, o
 // The transport intentionally keeps an earlier *real* credential. Native
 // authorization must reject revoked grants even when admission has approved it.
 // Production session/login persistence is exercised by the browser and SDK.
-type selectedHelpdeskEarlierAuthenticator struct{ credential auth.Credential }
+type selectedHelpdeskEarlierAuthenticator struct {
+	auth.LoginInputProvider
+	credential auth.Credential
+}
 
 func (a selectedHelpdeskEarlierAuthenticator) Resolve(_ context.Context, id string) (auth.Credential, error) {
 	if id != a.credential.Principal().ID() {
@@ -303,7 +306,7 @@ func (f *selectedHelpdeskFixture) client(t *testing.T, backend helpdesk.Selected
 	if err != nil {
 		t.Fatal(err)
 	}
-	webAuth, err := websessionauth.New(websessionauth.Config{Sessions: manager, Authenticator: selectedHelpdeskEarlierAuthenticator{f.credential}, Authorizer: auth.PrincipalAuthorizer{}, SessionCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: append(allowed, pages...)})
+	webAuth, err := websessionauth.New(websessionauth.Config{Sessions: manager, Authenticator: selectedHelpdeskEarlierAuthenticator{LoginInputProvider: f.runtime.Authenticator(), credential: f.credential}, Authorizer: auth.PrincipalAuthorizer{}, SessionCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: append(allowed, pages...)})
 	if err != nil {
 		t.Fatal(err)
 	}

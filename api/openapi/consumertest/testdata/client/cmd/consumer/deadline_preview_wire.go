@@ -110,7 +110,7 @@ func checkGeneratedDeadlinePreviewWire(ctx context.Context) error {
 		return err
 	}
 	response, err = forbidden.HelpdeskDeadlinePreview(ctx, params)
-	if value, ok := response.(*hs.GoDjAPIError); err != nil || !ok || value.Code != "permission_denied" || calls != 1 {
+	if value, ok := response.(*hs.HelpdeskDeadlinePreviewForbidden); err != nil || !ok || value.Response.Code != "permission_denied" || calls != 1 {
 		return fail("deadline preview generated permission response")
 	}
 	calls = 0

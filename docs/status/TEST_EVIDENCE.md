@@ -2093,6 +2093,36 @@ Helpdesk PostgreSQL root를 하나로 가정해 실패했다. 새 partition의 �
 (SHA-256 `62c91c3448e995017510256771720bcad5fc3bb55ef12dd159d298d4ca311f2d`).
 이전 CI는 전체 PASS가 아니며 수정 source의 전체 원격 실행은 새 CI에서 확인한다.
 
+후속 source `35f9807e6bdb5aa939a105f8887df2a6250bdbb9`의
+[CI 40451672603](https://github.com/progresshans/godj/actions/runs/40451672603) 실제 checkout은
+`5d643c829946b691b0355992d2fea5d7e6c65aff`, tree는 제출 source와 같은
+`f81df5a59d4cb46e357ce2524d866e22b8bc5a54`다. Core normal/race/CGO0에서 Admin 내부 테스트의 import cycle,
+CGO0 integration에서 선택 Helpdesk fixture의 로그인 입력 선언 누락을 확인했다. 같은 integration의 독립 SDK
+package는 80.12초에 통과했지만 전체 job/CI는 실패했다. 이 SDK 결과를 이후 403 문서 변경의 성공으로 재사용하지 않는다.
+
+Migration 조립을 `examples/helpdesk/migrationdefs`로 옮겨 `modeldef`의 선언이 계정 runtime/Admin을 import하지 않게 했다.
+Core Admin의 inline/collection fixture는 같은 두 생성 model schema 전체를 `orm.BindProject`로 직접 묶는다.
+선택 계정 runtime과 실제 생성 project factory는 외부 Helpdesk 소비자가 계속 검증한다. 모델/역할 선언, migration bytes,
+생성 Go 파일과 검사의 권한·무결성 조건은 유지했다. 과거 credential을 전달하는 fixture에도 같은 실제 authenticator의
+`LoginInputProvider`를 연결했다. 임의 로그인 메타데이터나 credential을 새로 만들지 않았다.
+
+초기 오류를 로컬에서 재현하고 고친 뒤, native 권한 검사에서 cost/deadline/service preview와 label usage의 확정 거부가
+500이 되는 실제 오류를 발견했다. 네 typed endpoint의 403 선언 누락을 보완했다. Native fixture의 감사 기대 순서는
+기존 `HistoryIn`의 오름차순 계약으로 고쳤다. 실제 full HTML form의 빈 nullable TextField가 빈 문자열로 저장되는
+기존 의미도 기대 저장값/변경 필드에 명시했으며, 전체 행·관계·감사 대조는 유지했다.
+
+마지막 로컬 darwin/arm64 normal에서 실패했던 `TestSelectedAccountHelpdeskSQLiteScopeLifecycle`의 필수 run/pass
+25개가 모두 일치하고 skip 없이 통과했다(명령 12.01초, root 0.94초). 37개 API의 개별 현재 권한 거부,
+Admin parent/inline 저장·choice/collection/editor·역할 회수, read owner/cleanup, 감사 rollback/unknown·no-retry,
+fence 직전 회수·동시 snapshot과 domain 이력을 포함한다. Admin 최소 compile과 영향 inline/collection 두 root도 통과했다.
+이 재현의 저장소 build 입력 980개 중 수정된 일곱 입력 외에는 기준 source와 같은 bytes임을 대조했다.
+
+공개 export에서 Helpdesk만 바뀌었고 고정 ogen으로 SDK를 다시 생성했다. 네 wire 소비자는 실제 생성된 403 응답형의
+Response.Code와 한 번의 전송을 계속 검사한다. 독립 SDK build는 2.20초, runner/browser/부모 SDK/export의 최소 compile은
+36.54초에 통과했다. 수정 후 PostgreSQL·race/CGO0·browser·SDK HTTP·generated drift·전체 CI는 원격 확인 대상이다.
+원본 네 job·재현/수정 단계·최종 source 연결은 `gdj0138-helpdesk-selected-v1/ci-35-repair/receipt.json`에 둔다
+(SHA-256 `841cae9d5afcd9f6551cd1462e7cc75845a428d279d71ce70b85e96b123d73c9`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
