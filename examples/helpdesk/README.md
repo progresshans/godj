@@ -10,6 +10,28 @@ Ticket Form/Admin은 Category 내 모든 후보의 다중 선택을 제공하고
 
 `New(backend, categoryID)`는 선택 Category와 Admin 구성을 만들고 I/O를 수행하지 않는다.
 
+현재 계정 조립은 `modeldef.ProjectSpec`의 명시적 기본 User 역할과 `accounts.Policy()`를 사용한다.
+Host는 `modeldef.MigrationSources()`와 업무 `MigrationSources()`로 새 DB를 준비하고, 생성된
+`project.NewFirstAccount`로 최초 계정/domain을 만든 뒤 `project.NewAccountRuntime`을 조립한다.
+기존 계정 DB의 mapping·retirement는 별도 수명 작업이며 이 조립이 이전 domain을 자동 승계하지 않는다.
+
+`NewSelected(backend, runtime.Credentials(), denyOverlay, categoryID)`는 같은 업무 모델과 표현을 사용하면서
+각 조회 snapshot과 coordinated 쓰기 transaction에서 현재 domain·active·필요한 권한을 다시 확인한다.
+Admin은 현재 staff도 확인한다. API의 View 권한과 Admin의 View 또는 Change 정책, 편집기의 추가·삭제 권한은
+각 표면의 기존 정책을 유지한다. 생성 facade의 `UsingReadScope`로 현재 인가와 eager/collection 조회를 같은
+읽기 범위에 묶고, 종료 실패를 확정 거부나 정상 응답으로 바꾸지 않는다.
+
+선택 조립의 `AdminConfig`, `APIConfig`, `TicketEditorConfig`에는 `AppendAudit`를 전달하지 않는다.
+기존에 감사하던 bulk·priority·ensure·report save·Admin inline/editor 작업이 업무 변경과 같은 transaction에서
+전체 Principal의 현재 domain에 감사를 추가한다. 감사에는 actor/model/object/action/변경 필드/시각을 기록하며
+subject·표시명·필드 값은 저장하지 않는다. 감사 실패는 전체 rollback, commit 결과 불확실성은 결과 비게시와
+자동 재시도 금지로 처리한다. 일반 API CRUD의 기존 감사 정책을 암묵적으로 확장하지 않는다.
+
+브라우저와 독립 OpenAPI 소비자는 이 조립의 실제 DB session·LoginPersistence를 사용한다.
+최초 superuser로 명시적 권한을 준비한 뒤 일반 계정으로 실제 HTTP에 로그인한다. 현재 계정 권한·native scope·
+감사 실패 검사는 SQLite/PostgreSQL 필수 목록에 연결하며, 구현/compile과 원격 실행 상태는
+[TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)를 따른다.
+
 ## 라벨 사용 현황
 
 `application.LabelUsage(webAuth)`는 GET `/labels/usage/`, API는 GET `/api/labels/usage/`를 제공한다.

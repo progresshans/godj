@@ -21,8 +21,9 @@ const reportInlinePrefix = "reports"
 // AdminConfig enables the Ticket / ServiceReport inline editor and Label
 // collection command, report saving and multiple ticket creation. AppendAudit
 // must use the supplied session and propagate every error to the caller.
-// The immutable principal and Site deny-overlay admission are retained; the
-// writer re-reads the current category, parent and children in its transaction.
+// Selected-account applications own domain audit directly and require a nil
+// callback. Their native scopes recheck current staff authority and grants
+// together with the category, parent and children.
 type AdminConfig struct {
 	AppendAudit func(context.Context, db.Session, admin.PreparedEvent) error
 }
@@ -30,7 +31,7 @@ type AdminConfig struct {
 // AdminRegistry builds an independent registration with the audited workflows.
 // It does no I/O and does not change the application's standalone registry.
 func (a *Application) AdminRegistry(config AdminConfig) (admin.Registry, error) {
-	if a == nil || interfaceNil(a.backend) || config.AppendAudit == nil {
+	if a == nil || interfaceNil(a.backend) || !a.validAuditConfiguration(config.AppendAudit) {
 		return admin.Registry{}, errors.New("helpdesk: Admin workflows require application and transactional audit")
 	}
 	installed, err := apps.New(InstalledApps())
@@ -38,6 +39,7 @@ func (a *Application) AdminRegistry(config AdminConfig) (admin.Registry, error) 
 		return admin.Registry{}, err
 	}
 	scoped := *a
+	scoped.administrative = true
 	scoped.adminAudit = config.AppendAudit
 	builder := admin.NewBuilder(installed)
 	if err := scoped.register(builder); err != nil {
@@ -54,7 +56,7 @@ func reportInlineConfig() forms.SetConfig {
 }
 
 func (a *Application) ticketAdminInlines() ([]admin.Inline, error) {
-	if a.adminAudit == nil {
+	if !a.auditEnabled(a.adminAudit) {
 		return nil, nil
 	}
 	binding, err := project.Bind()
@@ -68,11 +70,13 @@ func (a *Application) ticketAdminInlines() ([]admin.Inline, error) {
 		Set:         reportInlineConfig(),
 		Permissions: admin.Permissions{View: ViewServiceReport, Add: AddServiceReport, Change: ChangeServiceReport, Delete: DeleteServiceReport},
 		Load: func(ctx context.Context, actor auth.Principal, id int64) (admin.InlineSnapshot[models.ServiceReport], error) {
-			current, err := a.adminReports(ctx, a.backend, id)
-			return admin.InlineSnapshot[models.ServiceReport]{Current: current}, err
+			return readApplication(ctx, a, actor, allAccess(readAccess(ViewTicket, ChangeTicket), readAccess(ViewServiceReport, ChangeServiceReport)), func(work context.Context, scope db.Queryer, _ auth.Principal) (admin.InlineSnapshot[models.ServiceReport], error) {
+				current, err := a.adminReports(work, scope, id)
+				return admin.InlineSnapshot[models.ServiceReport]{Current: current}, err
+			})
 		},
 		Validate: func(ctx context.Context, actor auth.Principal, set formmodel.InlineSet[models.Ticket, models.ServiceReport]) error {
-			return a.checkAdminReports(ctx, a.backend, set)
+			return a.validateAdminReports(ctx, actor, set)
 		},
 	})
 	if err != nil {
@@ -80,6 +84,48 @@ func (a *Application) ticketAdminInlines() ([]admin.Inline, error) {
 	}
 	a.reportInline = inline
 	return []admin.Inline{inline.View()}, nil
+}
+
+func (a *Application) validateAdminReports(ctx context.Context, actor auth.Principal, set formmodel.InlineSet[models.Ticket, models.ServiceReport]) error {
+	if a.selected == nil {
+		return a.checkAdminReports(ctx, a.backend, set)
+	}
+	parent, present := set.ParentIdentity().AsInteger()
+	permission := AddTicket
+	if present && parent != 0 {
+		permission = ChangeTicket
+	}
+	required := []auth.Permission{permission}
+	for _, row := range set.FormSet().Forms() {
+		if row.Form().ReadOnly() || len(row.Form().Changed()) == 0 && !row.DeletionRequested() {
+			continue
+		}
+		_, existing, err := set.Current(row.Index())
+		if err != nil {
+			return err
+		}
+		operation := AddServiceReport
+		if existing {
+			operation = ChangeServiceReport
+		}
+		if row.DeletionRequested() {
+			operation = DeleteServiceReport
+		}
+		required = append(required, operation)
+	}
+	var rejection error
+	_, err := readApplication(ctx, a, actor, requireAccess(required...), func(work context.Context, scope db.Queryer, _ auth.Principal) (struct{}, error) {
+		err := a.checkAdminReports(work, scope, set)
+		if failure, ok := err.(*admin.InlineRejection); ok && failure != nil && failure.Unwrap() == nil {
+			rejection = err
+			return struct{}{}, nil
+		}
+		return struct{}{}, err
+	})
+	if err != nil {
+		return err
+	}
+	return rejection
 }
 
 func (a *Application) adminReports(ctx context.Context, reader db.Queryer, id int64) ([]models.ServiceReport, error) {
@@ -141,7 +187,7 @@ func (a *Application) bindAdminReports(ctx context.Context, session db.RelationS
 	if _, _, present := submission.Lookup(reportInlinePrefix); !present {
 		return adminReportSet{}, false, nil
 	}
-	if a.adminAudit == nil {
+	if !a.auditEnabled(a.adminAudit) {
 		return adminReportSet{}, false, errors.New("helpdesk: inline audit is missing")
 	}
 	bound, present, err := a.reportInline.BindCurrent(ctx, actor, submission, func(work context.Context, access admin.InlineAccess) (admin.InlineCurrent[models.Ticket, models.ServiceReport], error) {
@@ -199,7 +245,7 @@ func (a *Application) saveAdminReports(ctx context.Context, session db.RelationS
 			if err != nil {
 				return err
 			}
-			if err := a.adminAudit(ctx, session, event); err != nil {
+			if err := a.appendAuditIn(ctx, session, actor, event, a.adminAudit); err != nil {
 				return err
 			}
 			return nil
@@ -255,7 +301,7 @@ func (a *Application) saveAdminReports(ctx context.Context, session db.RelationS
 			if err != nil {
 				return err
 			}
-			if err = a.adminAudit(ctx, session, event); err != nil {
+			if err = a.appendAuditIn(ctx, session, actor, event, a.adminAudit); err != nil {
 				return err
 			}
 			return nil

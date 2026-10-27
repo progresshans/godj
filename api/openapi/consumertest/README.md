@@ -3,7 +3,9 @@
 `TestGeneratedOpenAPIClientContract`는 실제 Article Bearer·Article Session·Helpdesk Session·Identity Session/Bearer·Account API의 문서를
 `testdata/client/specs`와 비교하고, 별도 Go module에서 고정된 `ogen`으로 재생성한 파일이 저장된 생성물과 같은지 확인한다.
 이후 생성 client를 build하고 실제 HTTP로 실행하여 응답·인증·CSRF·관계·DB 변경을 검증한다.
-Article/Helpdesk는 메모리 session을, 선택 계정 관리와 Account는 같은 typed runtime의 실제 credential domain·stamp와 DB session을 사용한다.
+Article의 일반 transport fixture는 메모리 session을 사용한다. Helpdesk·선택 계정 관리·Account는 같은 typed runtime의
+실제 credential domain·stamp와 DB session을 사용한다. Helpdesk의 두 계정은 superuser/staff 없이 명시적인 업무 권한만
+갖고 실제 HTTP login/CSRF로 session을 수립한다. 기본 User 역할·첫 계정/domain·LastLogin과 저장 session은 부모가 독립 확인한다.
 Admin 로그인 전체 흐름의 검증은 별도 예제가 소유한다.
 
 Helpdesk 서비스 일정의 `helpdesk_service_preview`는 원래 Ticket을 보존하고 Date/Time/Duration/DateTime fixture를
@@ -105,8 +107,9 @@ Helpdesk 자체의 실제 SQLite/PostgreSQL HTTP·migration·실패 검사는 `e
 
 Label 확보는 `POST /api/labels/ensure/`를 사용한다. 실제 서버에서 새 이름의 201/created=true와 반복 호출의
 200/false·같은 ID를 확인하고, 일반 생성의 중복 거부·조회 전용 역할·CSRF 거부를 별도로 확인한다.
-부모 fixture는 Helpdesk에 실제 systemstate Runtime과 borrowed audit callback을 연결하고, 최종 DB의 Label과
-최초 add event 하나를 직접 조회한다. 원래 생성 이름은 이후 일반 이름 수정 뒤에도 감사 이력에 보존된다.
+부모 fixture는 Helpdesk에 실제 선택 계정 Runtime과 native backend를 연결하고, 최종 DB의 Label과
+최초 add event 하나를 직접 조회한다. 이력의 domain·actor/model/object·action/변경 필드를 대조하며
+라벨 이름과 표시명 값은 감사에 저장하지 않는다.
 `helpdesk_label_ensure` receipt는 이 흐름의 완료를 뜻한다. `generated_label_ensure_wire`는 큰 int64 ID와
 두 성공 응답형·필수 label/created·null/누락/잘못된 bool 거부 및 고정 500 응답의 단일 전송을 검사한다.
 Synthetic 500은 실제 DB의 실패 증거가 아니며, 부모/자식 transaction·audit rollback과 unknown outcome은 Helpdesk 양 DB 검사가 소유한다.

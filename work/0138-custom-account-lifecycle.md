@@ -365,7 +365,18 @@ Helpdesk의 현재 계정 조회를 같은 native snapshot 안에서 실행하�
 다대다 관계의 `InReadScope`를 추가했다. 쓰기 기능 없이 typed query·select-related·중첩 prefetch와 관계를 읽으며
 model·warm/empty cache는 빌린 범위가 끝나면 만료된다. Root/쓰기 scope의 혼용·쓰기 시도·취소·cleanup 실패를
 SQLite/PostgreSQL 독립 생성 소비자의 필수 child로 연결했다. 생성물 갱신과 최소 compile을 실제 환경 실행과
-구분하며, Helpdesk의 선택 runtime·정책·업무 인가/감사 및 browser 전환은 계속 구현 중이다.
+구분하며 원격 실행 상세는 TEST_EVIDENCE를 따른다.
+
+Helpdesk에 명시적 계정 역할·typed 정책과 독립 migration/domain/audit/session 조립을 추가했다.
+`NewSelected`의 API·Admin·여덟 HTML 화면은 현재 인가를 업무 조회 snapshot/쓰기 fence에서 재검사한다.
+기존 View/Change·staff·선택 후보/inline/collection/editor 정책을 유지하며 감사 작업은 같은 domain/transaction을 쓴다.
+이력에 표시명·필드 값을 넣지 않고, cleanup 실패·rollback·unknown 결과를 확정 거부/성공과 구분한다.
+
+Browser는 명시적인 18개 권한의 일반 staff, 독립 SDK는 업무 16개/조회 4개 권한의 일반 계정으로 실제 HTTP에
+로그인한다. 선택 domain·LastLogin·DB session과 업무 저장값/감사를 부모가 독립 대조한다. 실제 여섯 문서를
+export해 Helpdesk만 갱신하고 고정 ogen으로 재생성했다. Native 양 DB의 오래된 admission, 권한/역할/domain 회수,
+폼/inline/collection, 범위 소유권, 감사 실패/unknown·최종 fence 재검사와 일관된 동시 읽기를 필수 목록에 추가했다.
+새 본문과 실제 browser/SDK의 실행 및 전체 환경 수용은 자동 원격 CI 확인 대상이다.
 
 프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.

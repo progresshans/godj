@@ -39,13 +39,13 @@ func reportSavePermission(ctx context.Context, actor auth.Principal) error {
 }
 
 func (a *Application) saveServiceReport(ctx context.Context, actor auth.Principal, input serviceReportInput, appendAudit appendReportAudit) (savedServiceReport, error) {
-	if ctx == nil || appendAudit == nil {
+	if ctx == nil || !a.auditEnabled(appendAudit) {
 		return savedServiceReport{}, errors.New("helpdesk: report save requires context and transactional audit")
 	}
 	if err := reportSavePermission(ctx, actor); err != nil {
 		return savedServiceReport{}, err
 	}
-	return runApplicationAtomic(ctx, a.backend, func(ctx context.Context, session db.Session) (savedServiceReport, error) {
+	return writeApplication(ctx, a, actor, a.reportWritePolicy(ViewServiceReport, AddServiceReport, ChangeServiceReport), func(ctx context.Context, session db.Session, actor auth.Principal) (savedServiceReport, error) {
 		return a.saveServiceReportInSession(ctx, session, actor, input, appendAudit)
 	})
 }
@@ -145,7 +145,7 @@ func (a *Application) saveServiceReportInSession(ctx context.Context, session db
 		if err != nil {
 			return savedServiceReport{}, err
 		}
-		if err := appendAudit(ctx, session, event); err != nil {
+		if err := a.appendAuditIn(ctx, session, actor, event, appendAudit); err != nil {
 			return savedServiceReport{}, err
 		}
 	}
@@ -156,7 +156,7 @@ func (a *Application) saveServiceReportInSession(ctx context.Context, session db
 }
 
 func (a *Application) reportSaveCommands(form forms.Spec, ticketChoices admin.RelatedChoices) []admin.CollectionCommandConfig {
-	if a.adminAudit == nil {
+	if !a.auditEnabled(a.adminAudit) {
 		return nil
 	}
 	return []admin.CollectionCommandConfig{{Name: "save", Label: "Save report for a ticket", Permission: ChangeServiceReport,

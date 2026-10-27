@@ -111,7 +111,7 @@ func (a *Application) readDeadlineCalendar(ctx context.Context, actor auth.Princ
 	if err != nil {
 		return zero, err
 	}
-	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (deadlineCalendarPage, error) {
+	value, err := readApplication(ctx, a, actor, requireAccess(ViewTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (deadlineCalendarPage, error) {
 		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil deadline calendar reader")
 		}

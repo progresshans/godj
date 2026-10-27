@@ -66,7 +66,7 @@ func (change ticketBulkChange) prepare(current models.Ticket) (models.Ticket, []
 }
 
 func (a *Application) updateTickets(ctx context.Context, actor auth.Principal, changes []ticketBulkChange, appendAudit appendTicketAudit) (updatedTickets, error) {
-	if ctx == nil || appendAudit == nil {
+	if ctx == nil || !a.auditEnabled(appendAudit) {
 		return updatedTickets{}, errors.New("helpdesk: bulk update requires context and transactional audit")
 	}
 	if err := ticketWritePermission(ctx, actor, ChangeTicket); err != nil {
@@ -75,7 +75,7 @@ func (a *Application) updateTickets(ctx context.Context, actor auth.Principal, c
 	if len(changes) < 1 || len(changes) > ticketBulkMaximum {
 		return updatedTickets{}, bulkCountFailure()
 	}
-	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (updatedTickets, error) {
+	return writeApplicationRelations(ctx, a, actor, requireAccess(ChangeTicket, ViewLabel), func(ctx context.Context, session db.RelationSession, actor auth.Principal) (updatedTickets, error) {
 		return a.updateTicketsInSession(ctx, session, actor, changes, appendAudit)
 	})
 }
@@ -84,7 +84,7 @@ func (a *Application) updateTickets(ctx context.Context, actor auth.Principal, c
 // all-or-nothing rule is stronger than the ORM's valid missing-key/count policy.
 // A borrowed success remains provisional until its parent commits.
 func (a *Application) updateTicketsInSession(ctx context.Context, session db.RelationSession, actor auth.Principal, changes []ticketBulkChange, appendAudit appendTicketAudit) (updatedTickets, error) {
-	if ctx == nil || appendAudit == nil || interfaceNil(session) {
+	if ctx == nil || !a.auditEnabled(appendAudit) || interfaceNil(session) {
 		return updatedTickets{}, errors.New("helpdesk: bulk update requires a live owner and audit")
 	}
 	if err := ticketWritePermission(ctx, actor, ChangeTicket); err != nil {
@@ -266,7 +266,7 @@ func (a *Application) updateTicketsInSession(ctx context.Context, session db.Rel
 		return updatedTickets{}, err
 	}
 	for _, event := range events {
-		if err := appendAudit(ctx, session, event); err != nil {
+		if err := a.appendAuditIn(ctx, session, actor, event, appendAudit); err != nil {
 			return updatedTickets{}, err
 		}
 	}

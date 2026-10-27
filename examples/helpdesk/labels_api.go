@@ -64,7 +64,7 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 		operation openapi.Operation
 		handler   api.AuthenticatedHandler
 	}{
-		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-list", Method: http.MethodGet, Path: "/api/labels/"}, Summary: "List category labels", Permission: ViewLabel, Description: fmt.Sprintf("Returns labels in ID order within the assigned category. Count is the matching total before pagination. Search is a literal case-insensitive name substring; empty means no filter. Unknown/duplicate parameters, invalid encoding, NUL and query strings over %d bytes return 400. Authentication and permission precede query parsing. Count and items are separate reads, so concurrent changes can shift pages.", a.queries.labels.MaxBytes()), Parameters: a.queries.labels.Parameters(), Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiLabelList},
+		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-list", Method: http.MethodGet, Path: "/api/labels/"}, Summary: "List category labels", Permission: ViewLabel, Description: fmt.Sprintf("Returns labels in ID order within the assigned category. Count is the matching total before pagination. Search is a literal case-insensitive name substring; empty means no filter. Unknown/duplicate parameters, invalid encoding, NUL and query strings over %d bytes return 400. Authentication and permission precede query parsing. %s", a.queries.labels.MaxBytes(), a.pageConsistencyDescription()), Parameters: a.queries.labels.Parameters(), Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiLabelList},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-create", Method: http.MethodPost, Path: "/api/labels/"}, Summary: "Create a category label", Permission: AddLabel, Description: labelWritePolicy, RequestBody: &openapi.RequestBody{Schema: inputRef, Required: true, Description: "One JSON object; unknown/duplicate members, null name and trailing data are rejected."}, Responses: writes(http.StatusCreated)}, a.apiLabelCreate},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:label-detail", Method: http.MethodGet, Path: "/api/labels/<int64:id>/"}, Summary: "Read a category label", Permission: ViewLabel, Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The label.", labelRef), notFound}}, a.apiLabelDetail},
 	}
@@ -79,7 +79,7 @@ func (a *Application) labelOperations(protect func(openapi.Operation, api.Authen
 	return operations, []openapi.NamedSchema{{Name: "LabelList", Schema: list}}, nil
 }
 
-func (a *Application) apiLabelList(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiLabelList(request *web.Request, actor auth.Principal) (web.Response, error) {
 	options, diagnostics, err := a.queries.labels.Parse(request.HTTP().URL.RawQuery)
 	if err != nil {
 		return web.Response{}, err
@@ -87,7 +87,7 @@ func (a *Application) apiLabelList(request *web.Request, _ auth.Principal) (web.
 	if !diagnostics.Empty() {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
 	}
-	page, err := a.listLabels(request.Context(), options)
+	page, err := a.listLabels(request.Context(), actor, options)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -117,24 +117,24 @@ func (a *Application) labelResponse(status int, value models.Label) (web.Respons
 	return api.JSON(status, encoded)
 }
 
-func (a *Application) apiLabelCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiLabelCreate(request *web.Request, actor auth.Principal) (web.Response, error) {
 	values, response, handled, err := bindTypedInput(request, a.labelInput, serializers.ModeFull)
 	if handled || err != nil {
 		return response, err
 	}
-	created, err := a.createLabel(request.Context(), values)
+	created, err := a.createLabel(request.Context(), actor, values)
 	if err != nil {
 		return objectFailure(err)
 	}
 	return a.labelResponse(http.StatusCreated, created)
 }
 
-func (a *Application) apiLabelDetail(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiLabelDetail(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
 	}
-	value, found, err := a.label(request.Context(), a.backend, id)
+	value, found, err := a.getLabel(request.Context(), actor, id)
 	if err != nil {
 		return web.Response{}, err
 	}

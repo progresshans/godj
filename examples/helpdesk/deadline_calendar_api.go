@@ -31,6 +31,7 @@ func (a *Application) deadlineCalendarEndpoint(authentication api.Authentication
 		Admission:   endpoint.All(ViewTicket), Input: input, Output: a.responses.deadlineCalendar,
 		Success: []endpoint.Status{{Code: http.StatusOK, Description: "The current category's deadline periods at the supplied reference time."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: http.StatusBadRequest, Description: "Invalid reference time, period, time zone, calendar date, period-start range or page."},
 			{Code: http.StatusNotFound, Description: "The application's category no longer exists."},
 		},

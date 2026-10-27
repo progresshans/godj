@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
-	"github.com/progresshans/godj/systemstate"
 )
 
 type labelUsageSnapshot struct {
@@ -15,12 +16,12 @@ type labelUsageSnapshot struct {
 	links  []models.TicketLabel
 }
 
-func seedLabelUsage(ctx context.Context, runtime *systemstate.Runtime, category models.Category, tickets []models.Ticket) (labelUsageSnapshot, error) {
+func seedLabelUsage(ctx context.Context, backend db.Session, category models.Category, tickets []models.Ticket) (labelUsageSnapshot, error) {
 	var zero labelUsageSnapshot
 	if len(tickets) != 30 {
 		return zero, errors.New("label usage fixture requires retained summary tickets")
 	}
-	labels, err := models.LabelObjects.Using(runtime).OrderBy(models.LabelFields.ID.Asc()).All(ctx)
+	labels, err := models.LabelObjects.Using(backend).OrderBy(models.LabelFields.ID.Asc()).All(ctx)
 	if err != nil {
 		return zero, err
 	}
@@ -28,24 +29,24 @@ func seedLabelUsage(ctx context.Context, runtime *systemstate.Runtime, category 
 		return zero, errors.New("label usage fixture initial labels differ")
 	}
 	for number := 3; number <= 25; number++ {
-		value, err := models.LabelObjects.Create(ctx, runtime, models.NewLabelCreate(fmt.Sprintf("Usage label %02d", number), category.ID))
+		value, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate(fmt.Sprintf("Usage label %02d", number), category.ID))
 		if err != nil {
 			return zero, err
 		}
 		labels = append(labels, value)
 	}
-	outside, err := models.CategoryObjects.Create(ctx, runtime, models.NewCategoryCreate("Private outside category"))
+	outside, err := models.CategoryObjects.Create(ctx, backend, models.NewCategoryCreate("Private outside category"))
 	if err != nil {
 		return zero, err
 	}
-	foreign, err := models.LabelObjects.Create(ctx, runtime, models.NewLabelCreate("Private outside label", outside.ID))
+	foreign, err := models.LabelObjects.Create(ctx, backend, models.NewLabelCreate("Private outside label", outside.ID))
 	if err != nil {
 		return zero, err
 	}
 	labels = append(labels, foreign)
 	var links []models.TicketLabel
 	link := func(ticket, label int64) error {
-		value, err := models.TicketLabelObjects.Create(ctx, runtime, models.NewTicketLabelCreate(ticket, label))
+		value, err := models.TicketLabelObjects.Create(ctx, backend, models.NewTicketLabelCreate(ticket, label))
 		if err == nil {
 			links = append(links, value)
 		}
@@ -63,8 +64,8 @@ func seedLabelUsage(ctx context.Context, runtime *systemstate.Runtime, category 
 	}
 	return labelUsageSnapshot{labels: labels, links: links}, nil
 }
-func (before labelUsageSnapshot) verify(ctx context.Context, runtime *systemstate.Runtime, links []models.TicketLabel) ([]map[string]any, error) {
-	labels, err := models.LabelObjects.Using(runtime).OrderBy(models.LabelFields.ID.Asc()).All(ctx)
+func (before labelUsageSnapshot) verify(ctx context.Context, backend browserReadBackend, actor auth.Principal, links []models.TicketLabel) ([]map[string]any, error) {
+	labels, err := models.LabelObjects.Using(backend).OrderBy(models.LabelFields.ID.Asc()).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func (before labelUsageSnapshot) verify(ctx context.Context, runtime *systemstat
 	}
 	evidence := make([]map[string]any, len(labels))
 	for index, label := range labels {
-		history, err := runtime.AuditHistory(ctx, "helpdesk.label", label.ID, 10)
+		history, err := browserAuditHistory(ctx, backend, actor, "helpdesk.label", label.ID, 10)
 		if err != nil {
 			return nil, err
 		}
@@ -83,7 +84,7 @@ func (before labelUsageSnapshot) verify(ctx context.Context, runtime *systemstat
 		evidence[index] = map[string]any{"id": label.ID, "name": label.Name, "category": label.CategoryID, "audit": history}
 	}
 	for _, link := range links {
-		history, err := runtime.AuditHistory(ctx, "helpdesk.ticket_label", link.ID, 10)
+		history, err := browserAuditHistory(ctx, backend, actor, "helpdesk.ticket_label", link.ID, 10)
 		if err != nil {
 			return nil, err
 		}

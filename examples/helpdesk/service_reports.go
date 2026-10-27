@@ -64,11 +64,11 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 		ListFields:     []string{"id", "ticket", "summary", "completed"}, SearchFields: []string{"summary"},
 		Permissions:        admin.Permissions{View: ViewServiceReport, Add: AddServiceReport, Change: ChangeServiceReport, Delete: DeleteServiceReport},
 		CollectionCommands: a.reportSaveCommands(form, ticketChoices),
-		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {
-			return a.listReports(ctx, request)
+		List: func(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {
+			return a.listReports(ctx, actor, request)
 		},
-		Get: func(ctx context.Context, _ auth.Principal, id int64) (models.ServiceReport, bool, error) {
-			return a.report(ctx, a.backend, id)
+		Get: func(ctx context.Context, actor auth.Principal, id int64) (models.ServiceReport, bool, error) {
+			return a.getReport(ctx, actor, id)
 		},
 		Snapshot: func(value models.ServiceReport) (admin.Object, error) {
 			return projector.Project(value, value.ID, fmt.Sprintf("Report #%d", value.ID))
@@ -82,7 +82,7 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkReportForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
+		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				return admin.MutationResult{}, inputErr
@@ -100,10 +100,10 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 			if !ok {
 				return admin.MutationResult{}, errors.New("helpdesk: invalid report completed")
 			}
-			value, err := a.createReport(ctx, serviceReportInput{ticketID: key, summary: summary, completed: completed})
+			value, err := a.createReport(ctx, actor, serviceReportInput{ticketID: key, summary: summary, completed: completed})
 			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				return admin.MutationResult{}, nil, inputErr
@@ -122,36 +122,38 @@ func (a *Application) registerReports(builder *admin.Builder) error {
 			if !ok {
 				return admin.MutationResult{}, nil, errors.New("helpdesk: invalid report completed")
 			}
-			value, changed, err := a.updateReport(ctx, id, models.ServiceReportPatch{}.WithTicketID(key).WithSummary(summary).WithCompleted(completed))
+			value, changed, err := a.updateReport(ctx, actor, id, models.ServiceReportPatch{}.WithTicketID(key).WithSummary(summary).WithCompleted(completed))
 			return admin.MutationResult{ID: value.ID}, changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
+		Delete: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			value, err := a.deleteReport(ctx, id)
+			value, err := a.deleteReport(ctx, actor, id)
 			return admin.MutationResult{ID: value.ID}, err
 		},
 	})
 }
 
-func (a *Application) listReports(ctx context.Context, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {
-	rows := models.ServiceReportObjects.Using(a.backend).Filter(a.relations.ModelsServiceReport.Ticket.Category().ID.Exact(a.categoryID)).OrderBy(models.ServiceReportFields.ID.Asc())
-	if request.Search != "" {
-		rows = rows.Filter(models.ServiceReportFields.Summary.IContains(request.Search))
-	}
-	total, err := rows.Count(ctx)
-	if err != nil {
-		return admin.Page[models.ServiceReport]{}, err
-	}
-	rows, err = rows.Offset(request.Offset)
-	if err != nil {
-		return admin.Page[models.ServiceReport]{}, err
-	}
-	rows, err = rows.Limit(request.Limit)
-	if err != nil {
-		return admin.Page[models.ServiceReport]{}, err
-	}
-	values, err := rows.All(ctx)
-	return admin.Page[models.ServiceReport]{Items: values, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+func (a *Application) listReports(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[models.ServiceReport], error) {
+	return readBusiness(ctx, a, actor, a.readPolicy(ViewServiceReport, ChangeServiceReport), func(ctx context.Context, reader db.Queryer, _ auth.Principal) (admin.Page[models.ServiceReport], error) {
+		rows := models.ServiceReportObjects.Using(reader).Filter(a.relations.ModelsServiceReport.Ticket.Category().ID.Exact(a.categoryID)).OrderBy(models.ServiceReportFields.ID.Asc())
+		if request.Search != "" {
+			rows = rows.Filter(models.ServiceReportFields.Summary.IContains(request.Search))
+		}
+		total, err := rows.Count(ctx)
+		if err != nil {
+			return admin.Page[models.ServiceReport]{}, err
+		}
+		rows, err = rows.Offset(request.Offset)
+		if err != nil {
+			return admin.Page[models.ServiceReport]{}, err
+		}
+		rows, err = rows.Limit(request.Limit)
+		if err != nil {
+			return admin.Page[models.ServiceReport]{}, err
+		}
+		values, err := rows.All(ctx)
+		return admin.Page[models.ServiceReport]{Items: values, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+	})
 }
 
 func (a *Application) report(ctx context.Context, backend db.Queryer, id int64) (models.ServiceReport, bool, error) {
@@ -177,26 +179,29 @@ type serviceReportInput struct {
 	completed bool
 }
 
-func (a *Application) createReport(ctx context.Context, values serviceReportInput) (models.ServiceReport, error) {
+func (a *Application) createReport(ctx context.Context, actor auth.Principal, values serviceReportInput) (models.ServiceReport, error) {
 	input := models.NewServiceReportCreate(values.ticketID, values.summary).WithCompleted(values.completed)
 	var created models.ServiceReport
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		if err := a.requireReportTicket(ctx, session, values.ticketID); err != nil {
+	_, err := writeApplication(ctx, a, actor, a.reportWritePolicy(AddServiceReport), func(ctx context.Context, session db.Session, actor auth.Principal) (struct{}, error) {
+		failure := func() error {
+			if err := a.requireReportTicket(ctx, session, values.ticketID); err != nil {
+				return err
+			}
+			violations, err := models.ServiceReportObjects.ValidateUniqueCreate(ctx, session, input)
+			if err != nil {
+				return err
+			}
+			if !violations.Empty() {
+				return validation.Reject(violations, nil)
+			}
+			created, err = models.ServiceReportObjects.Create(ctx, session, input)
+			if err != nil {
+				return writeRejection(err)
+			}
+			created, err = a.publishableReport(ctx, session, created.ID)
 			return err
-		}
-		violations, err := models.ServiceReportObjects.ValidateUniqueCreate(ctx, session, input)
-		if err != nil {
-			return err
-		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		created, err = models.ServiceReportObjects.Create(ctx, session, input)
-		if err != nil {
-			return writeRejection(err)
-		}
-		created, err = a.publishableReport(ctx, session, created.ID)
-		return err
+		}()
+		return struct{}{}, failure
 	})
 	if err != nil {
 		return models.ServiceReport{}, operationError(ctx, err)
@@ -204,64 +209,67 @@ func (a *Application) createReport(ctx context.Context, values serviceReportInpu
 	return created, nil
 }
 
-func (a *Application) updateReport(ctx context.Context, id int64, patch models.ServiceReportPatch) (models.ServiceReport, []string, error) {
+func (a *Application) updateReport(ctx context.Context, actor auth.Principal, id int64, patch models.ServiceReportPatch) (models.ServiceReport, []string, error) {
 	var updated models.ServiceReport
 	var changed []string
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		current, found, err := a.report(ctx, session, id)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return admin.ErrObjectNotFound
-		}
-		mutation := patch.BuildPatch(current)
-		if err := mutation.Err(); err != nil {
-			return err
-		}
-		descriptor := models.ServiceReportDescriptor{}
-		ticketID := current.TicketID
-		for _, field := range descriptor.Metadata().Fields {
-			for _, assignment := range mutation.Assignments() {
-				if assignment.Field().Name() != field.Name {
-					continue
-				}
-				before, valid := descriptor.WriteFieldValue(current, field)
-				if !valid {
-					return errors.New("helpdesk: unreadable report field")
-				}
-				if !before.Equal(assignment.Value()) {
-					changed = append(changed, field.Name)
-				}
-				if field.Name == "ticket" {
-					var ok bool
-					ticketID, ok = assignment.Value().Integer()
-					if !ok {
-						return errors.New("helpdesk: invalid report key")
+	_, err := writeApplication(ctx, a, actor, a.reportWritePolicy(ChangeServiceReport), func(ctx context.Context, session db.Session, actor auth.Principal) (struct{}, error) {
+		failure := func() error {
+			current, found, err := a.report(ctx, session, id)
+			if err != nil {
+				return err
+			}
+			if !found {
+				return admin.ErrObjectNotFound
+			}
+			mutation := patch.BuildPatch(current)
+			if err := mutation.Err(); err != nil {
+				return err
+			}
+			descriptor := models.ServiceReportDescriptor{}
+			ticketID := current.TicketID
+			for _, field := range descriptor.Metadata().Fields {
+				for _, assignment := range mutation.Assignments() {
+					if assignment.Field().Name() != field.Name {
+						continue
+					}
+					before, valid := descriptor.WriteFieldValue(current, field)
+					if !valid {
+						return errors.New("helpdesk: unreadable report field")
+					}
+					if !before.Equal(assignment.Value()) {
+						changed = append(changed, field.Name)
+					}
+					if field.Name == "ticket" {
+						var ok bool
+						ticketID, ok = assignment.Value().Integer()
+						if !ok {
+							return errors.New("helpdesk: invalid report key")
+						}
 					}
 				}
 			}
-		}
-		if err := a.requireReportTicket(ctx, session, ticketID); err != nil {
+			if err := a.requireReportTicket(ctx, session, ticketID); err != nil {
+				return err
+			}
+			if len(changed) == 0 {
+				updated = current
+				return nil
+			}
+			violations, err := models.ServiceReportObjects.ValidateUniqueUpdate(ctx, session, current, patch)
+			if err != nil {
+				return err
+			}
+			if !violations.Empty() {
+				return validation.Reject(violations, nil)
+			}
+			updated, err = models.ServiceReportObjects.Patch(ctx, session, current, patch)
+			if err != nil {
+				return writeRejection(err)
+			}
+			updated, err = a.publishableReport(ctx, session, updated.ID)
 			return err
-		}
-		if len(changed) == 0 {
-			updated = current
-			return nil
-		}
-		violations, err := models.ServiceReportObjects.ValidateUniqueUpdate(ctx, session, current, patch)
-		if err != nil {
-			return err
-		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		updated, err = models.ServiceReportObjects.Patch(ctx, session, current, patch)
-		if err != nil {
-			return writeRejection(err)
-		}
-		updated, err = a.publishableReport(ctx, session, updated.ID)
-		return err
+		}()
+		return struct{}{}, failure
 	})
 	if err != nil {
 		return models.ServiceReport{}, nil, operationError(ctx, err)
@@ -291,19 +299,22 @@ func (a *Application) publishableReport(ctx context.Context, backend db.Queryer,
 	return value, nil
 }
 
-func (a *Application) deleteReport(ctx context.Context, id int64) (models.ServiceReport, error) {
+func (a *Application) deleteReport(ctx context.Context, actor auth.Principal, id int64) (models.ServiceReport, error) {
 	var removed models.ServiceReport
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		current, found, err := a.report(ctx, session, id)
-		if err != nil {
+	_, err := writeApplication(ctx, a, actor, requireAccess(DeleteServiceReport), func(ctx context.Context, session db.Session, actor auth.Principal) (struct{}, error) {
+		failure := func() error {
+			current, found, err := a.report(ctx, session, id)
+			if err != nil {
+				return err
+			}
+			if !found {
+				return admin.ErrObjectNotFound
+			}
+			removed = current
+			_, err = models.ServiceReportObjects.Delete(ctx, session, &current)
 			return err
-		}
-		if !found {
-			return admin.ErrObjectNotFound
-		}
-		removed = current
-		_, err = models.ServiceReportObjects.Delete(ctx, session, &current)
-		return err
+		}()
+		return struct{}{}, failure
 	})
 	if err != nil {
 		return models.ServiceReport{}, operationError(ctx, err)

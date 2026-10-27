@@ -15,11 +15,10 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-// The application retains the immutable principal admitted by authentication.
-// All parent, row, relation and uniqueness reads below use one borrowed read
-// snapshot. Diagnostics are published only after its cleanup succeeds.
-func (a *Application) readFormValidation(ctx context.Context, actor auth.Principal, permissions []auth.Permission, check func(db.Queryer) (validation.Errors, error)) error {
-	if ctx == nil {
+// Parent, relation and unique checks share one read snapshot with the current
+// selected-account authorization. Publish diagnostics only after cleanup.
+func (a *Application) readFormValidation(ctx context.Context, actor auth.Principal, permissions []auth.Permission, check func(context.Context, db.Queryer) (validation.Errors, error)) error {
+	if interfaceNil(ctx) {
 		return errors.New("helpdesk: missing validation context")
 	}
 	if err := ctx.Err(); err != nil {
@@ -33,42 +32,28 @@ func (a *Application) readFormValidation(ctx context.Context, actor auth.Princip
 			return errors.New("helpdesk: model validation lacks admitted permission")
 		}
 	}
-	var failures validation.Errors
-	var callbackErr error
-	notFound := false
-	calls := 0
-	err := a.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-		calls++
-		if calls != 1 || interfaceNil(reader) {
-			callbackErr = errors.New("helpdesk: invalid read snapshot callback")
-			return callbackErr
+	type result struct {
+		failures validation.Errors
+		found    bool
+	}
+	checked, err := readApplication(ctx, a, actor, requireAccess(permissions...), func(work context.Context, reader db.Queryer, _ auth.Principal) (result, error) {
+		present, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Exists(work)
+		if err != nil || !present {
+			return result{}, err
 		}
-		present, err := models.CategoryObjects.Using(reader).Filter(models.CategoryFields.ID.Exact(a.categoryID)).Exists(ctx)
-		if err != nil {
-			callbackErr = err
-			return err
+		failures, err := check(work, reader)
+		if err == admin.ErrObjectNotFound {
+			return result{}, nil
 		}
-		if !present {
-			notFound = true
-			return nil
-		}
-		failures, callbackErr = check(reader)
-		if callbackErr == admin.ErrObjectNotFound {
-			notFound = true
-			callbackErr = nil
-		}
-		return callbackErr
+		return result{failures: failures, found: true}, err
 	})
-	if err = errors.Join(err, callbackErr, ctx.Err()); err != nil {
+	if err != nil {
 		return err
 	}
-	if calls != 1 {
-		return errors.New("helpdesk: missing read snapshot callback")
-	}
-	if notFound {
+	if !checked.found {
 		return admin.ErrObjectNotFound
 	}
-	return validation.Reject(failures, nil)
+	return validation.Reject(checked.failures, nil)
 }
 
 func interfaceNil(reader any) bool {
@@ -100,7 +85,7 @@ func (a *Application) checkTicketForm(ctx context.Context, actor auth.Principal,
 	if id != 0 {
 		permission = ChangeTicket
 	}
-	return a.readFormValidation(ctx, actor, []auth.Permission{permission, ViewLabel}, func(reader db.Queryer) (validation.Errors, error) {
+	return a.readFormValidation(ctx, actor, []auth.Permission{permission, ViewLabel}, func(ctx context.Context, reader db.Queryer) (validation.Errors, error) {
 		var current *models.Ticket
 		if id != 0 {
 			row, present, err := models.TicketObjects.Using(reader).Filter(models.TicketFields.ID.Exact(id), a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
@@ -121,7 +106,7 @@ func (a *Application) checkTicketLabelForm(ctx context.Context, actor auth.Princ
 	if id != 0 {
 		permission = ChangeTicketLabel
 	}
-	return a.readFormValidation(ctx, actor, []auth.Permission{permission, ViewTicket, ViewLabel}, func(reader db.Queryer) (validation.Errors, error) {
+	return a.readFormValidation(ctx, actor, []auth.Permission{permission, ViewTicket, ViewLabel}, func(ctx context.Context, reader db.Queryer) (validation.Errors, error) {
 		var current *models.TicketLabel
 		if id != 0 {
 			row, present, err := a.ticketLabel(ctx, reader, id)
@@ -172,7 +157,7 @@ func (a *Application) checkLabelForm(ctx context.Context, actor auth.Principal, 
 	if id != 0 {
 		permission = ChangeLabel
 	}
-	return a.readFormValidation(ctx, actor, []auth.Permission{permission}, func(reader db.Queryer) (validation.Errors, error) {
+	return a.readFormValidation(ctx, actor, []auth.Permission{permission}, func(ctx context.Context, reader db.Queryer) (validation.Errors, error) {
 		var current *models.Label
 		if id != 0 {
 			row, present, err := a.label(ctx, reader, id)
@@ -204,7 +189,7 @@ func (a *Application) checkReportForm(ctx context.Context, actor auth.Principal,
 	if id != 0 {
 		permission = ChangeServiceReport
 	}
-	return a.readFormValidation(ctx, actor, []auth.Permission{permission, ViewTicket}, func(reader db.Queryer) (validation.Errors, error) {
+	return a.readFormValidation(ctx, actor, []auth.Permission{permission, ViewTicket}, func(ctx context.Context, reader db.Queryer) (validation.Errors, error) {
 		var current *models.ServiceReport
 		if id != 0 {
 			row, present, err := a.report(ctx, reader, id)

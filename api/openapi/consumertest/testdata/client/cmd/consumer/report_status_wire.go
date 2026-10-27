@@ -95,7 +95,7 @@ func checkGeneratedReportStatusWire(ctx context.Context) error {
 		return err
 	}
 	response, err = forbidden.HelpdeskServiceReportStatus(ctx, params)
-	if value, ok := response.(*hs.GoDjAPIError); err != nil || !ok || value.Code != "permission_denied" || calls != 1 {
+	if value, ok := response.(*hs.HelpdeskServiceReportStatusForbidden); err != nil || !ok || value.Response.Code != "permission_denied" || calls != 1 {
 		return fail("report status generated permission response")
 	}
 	calls = 0

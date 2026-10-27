@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from postgres_shards import (
-    ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, MODULE, POSTGRES,
+    ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, HELPDESK_POSTGRES_ROOTS, MODULE, POSTGRES,
     PROCESSES, RACE_PARTITIONS, WRITE_CONSUMER_ROOTS, audit, matches, partitions,
     plan, required_entries,
 )
@@ -57,6 +57,8 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         root = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
         for package, test, owner in (
             ('examples/helpdesk', root + '/new_capability/deep_child', 'core-helpdesk-postgres'),
+            ('examples/helpdesk', 'TestSelectedAccountHelpdeskPostgresScopeLifecycle/new_capability', 'core-helpdesk-postgres'),
+            ('examples/helpdesk', 'TestSelectedAccountHelpdeskPostgresScopeLifecycleExtra/new_child', 'core'),
             ('examples/helpdesk', root + 'Extra/new_child', 'core'),
             ('examples/article', root + 'Extra/another_package', 'core'),
         ):
@@ -71,7 +73,9 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         postgres = MODULE + 'examples/helpdesk|' + root
         selected = plan('race', 'core-helpdesk-postgres', self.required)
         self.assertEqual(['./examples/helpdesk'], selected['packages'])
-        self.assertEqual([entry for entry in self.required if entry == postgres or entry.startswith(postgres + '/')],
+        self.assertEqual([entry for entry in self.required
+                          if entry.partition('|')[0] == MODULE + 'examples/helpdesk'
+                          and entry.partition('|')[2].split('/')[0] in HELPDESK_POSTGRES_ROOTS],
                          selected['required'])
         self.assertIn(postgres, selected['required'])
         self.assertNotIn(postgres, plan('race', 'core', self.required)['required'])

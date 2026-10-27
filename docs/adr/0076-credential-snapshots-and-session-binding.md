@@ -1628,3 +1628,10 @@ owned migration은 `schema_unavailable`이다. 기존 `godj_system` 이력은 �
 빈 결과와 비밀값 없는 오류를 반환한다. Borrowed `domain.InspectIn`, `audit.InspectIn`, `database.InspectIn`의 결과는 외부 scope
 성공 전까지 잠정 값이다. 공개 명령·Article/scaffold 서버는 이 경로와 선택 계정 Admin/HTTP를 함께 조립한다.
 이 구현은 채운 DB의 명시적 전환·환경별 실행 및 I1 전체 수용을 대신하지 않는다.
+
+Helpdesk의 선택 계정 조립도 같은 현재 인가 경계를 사용한다. API의 View와 Admin의 View 또는 Change,
+Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무 snapshot/fence에서 확인한다.
+읽기는 생성 `UsingReadScope`로 native reader만 빌리고, 기존 감사 작업은 전체 current Principal로 domain을
+선택하여 업무 transaction 안에서 기록한다. 표시명/업무 필드 값을 감사에 복사하지 않는다.
+별도 base 업무 adapter와 역사 adoption 검사는 기존 계약을 검증하는 소비자로 유지하며 새 선택 조립의
+인가·DB session·이력 증거로 대신하지 않는다.

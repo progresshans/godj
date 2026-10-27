@@ -67,7 +67,7 @@ func bulkCountFailure() error {
 // application still owns scope, current uniqueness/relations, stored output
 // and audit. BulkCreate itself never runs those per-object policies.
 func (a *Application) createTickets(ctx context.Context, actor auth.Principal, candidates []ticketBulkCandidate, appendAudit appendTicketAudit) (createdTickets, error) {
-	if ctx == nil || appendAudit == nil {
+	if ctx == nil || !a.auditEnabled(appendAudit) {
 		return createdTickets{}, errors.New("helpdesk: bulk create requires context and transactional audit")
 	}
 	if err := ticketWritePermission(ctx, actor, AddTicket); err != nil {
@@ -76,7 +76,7 @@ func (a *Application) createTickets(ctx context.Context, actor auth.Principal, c
 	if len(candidates) < 1 || len(candidates) > ticketBulkMaximum {
 		return createdTickets{}, bulkCountFailure()
 	}
-	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (createdTickets, error) {
+	return writeApplicationRelations(ctx, a, actor, requireAccess(AddTicket, ViewLabel), func(ctx context.Context, session db.RelationSession, actor auth.Principal) (createdTickets, error) {
 		return a.createTicketsInSession(ctx, session, actor, candidates, appendAudit)
 	})
 }
@@ -85,7 +85,7 @@ func (a *Application) createTickets(ctx context.Context, actor auth.Principal, c
 // commits. Any error must leave that callback so all rows, links and audit
 // entries roll back together. No key or response is published on failure.
 func (a *Application) createTicketsInSession(ctx context.Context, session db.RelationSession, actor auth.Principal, candidates []ticketBulkCandidate, appendAudit appendTicketAudit) (createdTickets, error) {
-	if ctx == nil || appendAudit == nil {
+	if ctx == nil || !a.auditEnabled(appendAudit) {
 		return createdTickets{}, errors.New("helpdesk: bulk create requires context and transactional audit")
 	}
 	if err := ticketWritePermission(ctx, actor, AddTicket); err != nil {
@@ -198,7 +198,7 @@ func (a *Application) createTicketsInSession(ctx context.Context, session db.Rel
 		return createdTickets{}, err
 	}
 	for _, event := range events {
-		if err := appendAudit(ctx, session, event); err != nil {
+		if err := a.appendAuditIn(ctx, session, actor, event, appendAudit); err != nil {
 			return createdTickets{}, err
 		}
 	}

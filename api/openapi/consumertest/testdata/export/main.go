@@ -10,15 +10,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/bearerauth"
 	apisessionauth "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/apiapp"
-	"github.com/progresshans/godj/examples/helpdesk"
 	"github.com/progresshans/godj/sessions"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
 )
@@ -100,21 +97,11 @@ func documents(ctx context.Context) (files []schemaFile, err error) {
 		}
 		files = append(files, schemaFile{name: profile.name + ".json", data: document.Bytes()})
 	}
-	application, err := helpdesk.New(backend, 1)
-	if err != nil {
-		return nil, fmt.Errorf("construct Helpdesk application: %w", err)
-	}
-	adapter, err := application.API(helpdesk.APIConfig{Authentication: session, AppendAudit: func(context.Context, db.Session, admin.PreparedEvent) error {
-		return errors.New("schema export cannot append audit")
-	}})
-	if err != nil {
-		return nil, fmt.Errorf("construct Helpdesk API: %w", err)
-	}
-	document, err := adapter.OpenAPI()
+	helpdeskFile, err := helpdeskDocument(ctx, backend, guard, session)
 	if err != nil {
 		return nil, fmt.Errorf("describe Helpdesk API: %w", err)
 	}
-	files = append(files, schemaFile{name: "helpdesksession.json", data: document.Bytes()})
+	files = append(files, helpdeskFile)
 	identityFiles, err := identityDocuments(ctx, backend, guard, session, bearer)
 	if err != nil {
 		return nil, fmt.Errorf("describe identity APIs: %w", err)

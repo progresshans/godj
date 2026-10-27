@@ -126,8 +126,8 @@ type Invoker interface {
 	// Returns labels in ID order within the assigned category. Count is the matching total before
 	// pagination. Search is a literal case-insensitive name substring; empty means no filter.
 	// Unknown/duplicate parameters, invalid encoding, NUL and query strings over 2048 bytes return 400.
-	// Authentication and permission precede query parsing. Count and items are separate reads, so
-	// concurrent changes can shift pages.
+	// Authentication and permission precede query parsing. Current account authority, count and items
+	// share one read snapshot.
 	//
 	// GET /api/labels/
 	HelpdeskLabelList(ctx context.Context, params HelpdeskLabelListParams) (HelpdeskLabelListRes, error)
@@ -366,8 +366,8 @@ type Invoker interface {
 	//
 	// Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs
 	// are exposed. Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and
-	// queries over 2048 bytes return 400. Count and items are separate reads, so concurrent changes can
-	// shift pages.
+	// queries over 2048 bytes return 400. Current account authority, count and items share one read
+	// snapshot.
 	//
 	// GET /api/ticket-labels/
 	HelpdeskTicketLabelList(ctx context.Context, params HelpdeskTicketLabelListParams) (HelpdeskTicketLabelListRes, error)
@@ -1500,8 +1500,8 @@ func (c *Client) sendHelpdeskLabelEnsure(ctx context.Context, request *LabelCrea
 // Returns labels in ID order within the assigned category. Count is the matching total before
 // pagination. Search is a literal case-insensitive name substring; empty means no filter.
 // Unknown/duplicate parameters, invalid encoding, NUL and query strings over 2048 bytes return 400.
-// Authentication and permission precede query parsing. Count and items are separate reads, so
-// concurrent changes can shift pages.
+// Authentication and permission precede query parsing. Current account authority, count and items
+// share one read snapshot.
 //
 // GET /api/labels/
 func (c *Client) HelpdeskLabelList(ctx context.Context, params HelpdeskLabelListParams) (HelpdeskLabelListRes, error) {
@@ -3871,8 +3871,8 @@ func (c *Client) sendHelpdeskTicketLabelDetail(ctx context.Context, params Helpd
 //
 // Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs
 // are exposed. Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and
-// queries over 2048 bytes return 400. Count and items are separate reads, so concurrent changes can
-// shift pages.
+// queries over 2048 bytes return 400. Current account authority, count and items share one read
+// snapshot.
 //
 // GET /api/ticket-labels/
 func (c *Client) HelpdeskTicketLabelList(ctx context.Context, params HelpdeskTicketLabelListParams) (HelpdeskTicketLabelListRes, error) {

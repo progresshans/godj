@@ -43,7 +43,7 @@ func raisedPriorityExpression() orm.NumericExpression[models.Ticket, int64] {
 }
 
 func (a *Application) raiseTicketPriority(ctx context.Context, actor auth.Principal, ids []int64, appendAudit appendTicketAudit) (updatedTickets, error) {
-	if ctx == nil || appendAudit == nil {
+	if ctx == nil || !a.auditEnabled(appendAudit) {
 		return updatedTickets{}, errors.New("helpdesk: priority raise requires context and transactional audit")
 	}
 	if err := ticketWritePermission(ctx, actor, ChangeTicket); err != nil {
@@ -53,13 +53,13 @@ func (a *Application) raiseTicketPriority(ctx context.Context, actor auth.Princi
 		return updatedTickets{}, err
 	}
 	keys := slices.Clone(ids)
-	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (updatedTickets, error) {
+	return writeApplicationRelations(ctx, a, actor, requireAccess(ChangeTicket, ViewLabel), func(ctx context.Context, session db.RelationSession, actor auth.Principal) (updatedTickets, error) {
 		return a.raiseTicketPriorityInSession(ctx, session, actor, keys, appendAudit)
 	})
 }
 
 func (a *Application) raiseTicketPriorityInSession(ctx context.Context, session db.RelationSession, actor auth.Principal, ids []int64, appendAudit appendTicketAudit) (updatedTickets, error) {
-	if ctx == nil || appendAudit == nil || interfaceNil(session) {
+	if ctx == nil || !a.auditEnabled(appendAudit) || interfaceNil(session) {
 		return updatedTickets{}, errors.New("helpdesk: priority raise requires a live owner and audit")
 	}
 	if err := ticketWritePermission(ctx, actor, ChangeTicket); err != nil {
@@ -160,7 +160,7 @@ func (a *Application) raiseTicketPriorityInSession(ctx context.Context, session 
 		return updatedTickets{}, err
 	}
 	for _, event := range events {
-		if err := appendAudit(ctx, session, event); err != nil {
+		if err := a.appendAuditIn(ctx, session, actor, event, appendAudit); err != nil {
 			return updatedTickets{}, err
 		}
 	}

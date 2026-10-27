@@ -30,13 +30,13 @@ type ensuredLabel struct {
 // preparation and audit. GetOrCreate borrows that parent's savepoint; its
 // provisional created result is never exposed before the parent commits.
 func (a *Application) ensureLabel(ctx context.Context, actor auth.Principal, name string, appendAudit appendLabelAudit) (ensuredLabel, error) {
-	if ctx == nil || appendAudit == nil {
+	if ctx == nil || !a.auditEnabled(appendAudit) {
 		return ensuredLabel{}, errors.New("helpdesk: label ensure requires context and transactional audit")
 	}
 	if err := labelEnsurePermission(ctx, actor); err != nil {
 		return ensuredLabel{}, err
 	}
-	return runApplicationAtomic(ctx, a.backend, func(workContext context.Context, session db.Session) (ensuredLabel, error) {
+	return writeApplication(ctx, a, actor, requireAccess(AddLabel, ViewLabel), func(workContext context.Context, session db.Session, actor auth.Principal) (ensuredLabel, error) {
 		return a.ensureLabelInSession(workContext, session, actor, name, appendAudit)
 	})
 }
@@ -87,7 +87,7 @@ func (a *Application) ensureLabelInSession(ctx context.Context, session db.Sessi
 		if err != nil {
 			return ensuredLabel{}, err
 		}
-		if err := appendAudit(ctx, session, event); err != nil {
+		if err := a.appendAuditIn(ctx, session, actor, event, appendAudit); err != nil {
 			return ensuredLabel{}, err
 		}
 	}
@@ -98,7 +98,7 @@ func (a *Application) ensureLabelInSession(ctx context.Context, session db.Sessi
 }
 
 func (a *Application) labelEnsureCommands(form forms.Spec) []admin.CollectionCommandConfig {
-	if a.adminAudit == nil {
+	if !a.auditEnabled(a.adminAudit) {
 		return nil
 	}
 	return []admin.CollectionCommandConfig{{
@@ -128,6 +128,7 @@ func (a *Application) labelEnsureEndpoint(authentication api.Authentication, app
 		Output:      a.responses.labelEnsure,
 		Success:     []endpoint.Status{{Code: http.StatusOK, Description: "The existing scoped label; created is false."}, {Code: http.StatusCreated, Description: "The newly committed scoped label; created is true."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: http.StatusBadRequest, Description: "Invalid name, body or query parameters. A native unique conflict with no matching visible label uses __all__/unique after confirmed rollback."},
 			{Code: http.StatusNotFound, Description: "The label or assigned category does not exist in the selected scope."},
 			{Code: http.StatusRequestEntityTooLarge, Description: "The JSON body exceeds 4096 bytes."},

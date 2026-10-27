@@ -43,7 +43,7 @@ func (summary *TicketSummary) Routes() []web.Route {
 	return []web.Route{{Name: "helpdesk:ticket-summary-page", Method: http.MethodGet, Path: TicketSummaryPath, Handler: summary.auth.Require(ViewTicket, summary.get)}}
 }
 
-func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (summary *TicketSummary) get(request *web.Request, actor auth.Principal) (web.Response, error) {
 	input, diagnostics, err := summary.app.queries.summary.Parse(request.HTTP().URL.RawQuery)
 	if err != nil {
 		return web.Response{}, err
@@ -51,7 +51,7 @@ func (summary *TicketSummary) get(request *web.Request, _ auth.Principal) (web.R
 	if !diagnostics.Empty() {
 		return ticketEditorText(http.StatusBadRequest)
 	}
-	page, err := summary.app.readTicketSummary(request.Context(), input)
+	page, err := summary.app.readTicketSummary(request.Context(), actor, input)
 	if err != nil {
 		return ticketEditorOperationError(err)
 	}

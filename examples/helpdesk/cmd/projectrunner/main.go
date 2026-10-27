@@ -8,14 +8,13 @@ import (
 
 	"github.com/progresshans/godj/examples/helpdesk/modeldef"
 	godjproject "github.com/progresshans/godj/project"
-	"github.com/progresshans/godj/systemstate"
 )
 
 func main() {
 	err := godjproject.Run(context.Background(), godjproject.Config{
 		LoadProjectSpec:            modeldef.ProjectSpec,
 		MigrationDefinitionRoots:   []string{"migrations"},
-		MigrationDefinitionSources: systemstate.IdentityMigrationSources(),
+		MigrationDefinitionSources: modeldef.MigrationSources(),
 	}, os.Args[1:], os.Stdin, os.Stdout)
 	if err != nil {
 		code := godjproject.RunnerExitCode(err)

@@ -28,12 +28,12 @@ import (
 	"github.com/progresshans/godj/examples/article/articleapp"
 	articlemodels "github.com/progresshans/godj/examples/article/models"
 	"github.com/progresshans/godj/examples/helpdesk"
+	helpdeskdef "github.com/progresshans/godj/examples/helpdesk/modeldef"
 	helpdeskmodels "github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
-	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/uuid"
 	"github.com/progresshans/godj/web"
 	websessionauth "github.com/progresshans/godj/web/sessionauth"
@@ -99,7 +99,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	articleSessionAuth, articleSession, articleViewSession := newConsumerSessionAuthentication(t, articleAll, articleView, apiapp.ListPath)
 	sessionURL, sessionDocument := newArticleConsumerAPI(t, sessionBackend, articleSessionAuth)
 
-	helpdeskBackend := newConsumerBackend(t, "helpdesk-session", append(systemstate.IdentityMigrationSources(), helpdesk.MigrationSources()...)...)
+	helpdeskBackend := newConsumerBackend(t, "helpdesk-session", append(helpdeskdef.MigrationSources(), helpdesk.MigrationSources()...)...)
 	category, err := helpdeskmodels.CategoryObjects.Create(t.Context(), helpdeskBackend, helpdeskmodels.NewCategoryCreate("Hardware & repairs"))
 	if err != nil {
 		t.Fatal("seed selected Helpdesk category:", err)
@@ -124,28 +124,15 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 	if err != nil {
 		t.Fatal("seed other link", err)
 	}
-	// Ticket viewing includes the category summary. Neither principal receives
-	// ViewCategory, which protects the separate Category Admin surface.
-	helpdeskAll := consumerPrincipal(t, "helpdesk-client-all", helpdesk.ViewTicket, helpdesk.AddTicket, helpdesk.ChangeTicket, helpdesk.ViewServiceReport, helpdesk.AddServiceReport, helpdesk.ChangeServiceReport, helpdesk.DeleteServiceReport, helpdesk.ViewLabel, helpdesk.AddLabel, helpdesk.ChangeLabel, helpdesk.DeleteLabel, helpdesk.DeleteTicket, helpdesk.ViewTicketLabel, helpdesk.AddTicketLabel, helpdesk.ChangeTicketLabel, helpdesk.DeleteTicketLabel)
-	helpdeskView := consumerPrincipal(t, "helpdesk-client-view", helpdesk.ViewTicket, helpdesk.ViewServiceReport, helpdesk.ViewLabel, helpdesk.ViewTicketLabel)
-	helpdeskAuth, helpdeskSession, helpdeskViewSession := newConsumerSessionAuthentication(t, helpdeskAll, helpdeskView, "/api/tickets/")
-
-	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10000})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := systemstate.ProvisionIdentity(t.Context(), helpdeskBackend, systemstate.ProvisionIdentityConfig{Principal: helpdeskAll, Username: "helpdesk-client", Password: consumerToken(t), PasswordHasher: hasher}); err != nil {
-		t.Fatal(err)
-	}
-	helpdeskRuntime, err := systemstate.OpenIdentity(t.Context(), helpdeskBackend, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher})
-	if err != nil {
-		t.Fatal(err)
-	}
-	helpdeskApplication, err := helpdesk.New(helpdeskRuntime, category.ID)
+	helpdeskAccounts := newHelpdeskAccountFixture(t, helpdeskBackend)
+	helpdeskAll := helpdeskAccounts.actor
+	helpdeskAuth := helpdeskAccounts.authentication
+	helpdeskSession, helpdeskViewSession := helpdeskAccounts.actorSession.ID().Encoded(), helpdeskAccounts.viewerSession.ID().Encoded()
+	helpdeskApplication, err := helpdesk.NewSelected(helpdeskBackend, helpdeskAccounts.runtime.Credentials(), auth.PrincipalAuthorizer{}, category.ID)
 	if err != nil {
 		t.Fatal("construct Helpdesk application:", err)
 	}
-	helpdeskAPI, err := helpdeskApplication.API(helpdesk.APIConfig{Authentication: helpdeskAuth, AppendAudit: helpdeskRuntime.AppendAudit})
+	helpdeskAPI, err := helpdeskApplication.API(helpdesk.APIConfig{Authentication: helpdeskAuth})
 	if err != nil {
 		t.Fatal("construct Helpdesk API:", err)
 	}
@@ -180,6 +167,7 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		t.Helper()
 		verifyIdentity(t)
 		verifyAccount(t)
+		helpdeskAccounts.verify(t)
 		for _, fixture := range []struct {
 			name    string
 			backend *sqlite.Backend
@@ -218,8 +206,8 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 				singleTickets = append(singleTickets, stored)
 			}
 		}
-		verifyGeneratedPriorityEffects(t, helpdeskRuntime, category.ID, helpdeskAll.ID(), priorityTickets)
-		bulkIDs := verifyGeneratedBulkTicketEffects(t, helpdeskRuntime, category.ID, helpdeskAll.ID(), bulkTickets)
+		verifyGeneratedPriorityEffects(t, helpdeskBackend, category.ID, helpdeskAll, priorityTickets)
+		bulkIDs := verifyGeneratedBulkTicketEffects(t, helpdeskBackend, category.ID, helpdeskAll, bulkTickets)
 		selectedCount, createdCount := 0, 0
 		var collectionOwnerID int64
 		wantJSON := map[string]string{"Consumer ticket": `{"":340282366920938463463374607431768211455,"nested":[null,false,"\u003cscript\u003edata\u003c/script\u003e"]}`, "Urgent priority": "", "Low priority": "", "Zero priority": "", "Null priority": ""}
@@ -349,12 +337,12 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 		if err != nil || len(reports) != 1 || reports[0].TicketID != ticket.ID || reports[0].Summary != "Client retained report" || reports[0].Completed {
 			t.Fatal("generated report save final storage differs", err)
 		}
-		reportHistory, err := helpdeskRuntime.AuditHistory(t.Context(), "helpdesk.service_report", reports[0].ID, 100)
-		if err != nil || len(reportHistory) != 2 || reportHistory[1].Action != admin.ActionChange || reportHistory[0].Action != admin.ActionAdd || !slices.Equal(reportHistory[1].ChangedFields, []string{"summary", "completed"}) || len(reportHistory[0].ChangedFields) != 0 {
+		reportHistory, err := helpdeskDomainHistory(t, helpdeskBackend, helpdeskAll, "helpdesk.service_report", reports[0].ID, 100)
+		if err != nil || len(reportHistory) != 2 || reportHistory[1].Action() != admin.ActionChange || reportHistory[0].Action() != admin.ActionAdd || !slices.Equal(reportHistory[1].ChangedFields(), []string{"summary", "completed"}) || len(reportHistory[0].ChangedFields()) != 0 {
 			t.Fatal("generated report save did not retain exactly its add/change audits", err)
 		}
 		for _, event := range reportHistory {
-			if event.ActorID != helpdeskAll.ID() {
+			if event.ActorID() != helpdeskAll.ID() {
 				t.Fatal("generated report audit lost its admitted actor")
 			}
 		}
@@ -363,8 +351,8 @@ func newConsumerFixtures(t *testing.T) (consumerInput, map[string][]byte, func(*
 			t.Errorf("generated Label CRUD/scope final state differs: %v", err)
 		}
 		if len(labels) == 2 {
-			history, err := helpdeskRuntime.AuditHistory(t.Context(), "helpdesk.label", labels[1].ID, 100)
-			if err != nil || len(history) != 1 || history[0].ActorID != helpdeskAll.ID() || history[0].DisplayLabel != "Client shared label" || history[0].Action != admin.ActionAdd || len(history[0].ChangedFields) != 0 {
+			history, err := helpdeskDomainHistory(t, helpdeskBackend, helpdeskAll, "helpdesk.label", labels[1].ID, 100)
+			if err != nil || len(history) != 1 || history[0].ActorID() != helpdeskAll.ID() || history[0].Action() != admin.ActionAdd || len(history[0].ChangedFields()) != 0 {
 				t.Fatal("generated ensure did not persist exactly one original add event", err)
 			}
 		}

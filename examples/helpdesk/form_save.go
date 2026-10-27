@@ -18,7 +18,11 @@ import (
 // intent. Current admission/row/category, complete write uniqueness, relation
 // endpoints and publishable output all remain in the original write scope.
 func (a *Application) saveTicketForm(ctx context.Context, principal auth.Principal, id int64, bound formmodel.BoundForm, inlines admin.InlineSubmission) (ticketRecord, []string, error) {
-	result, err := runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (updatedTicket, error) {
+	permission := ChangeTicket
+	if id == 0 {
+		permission = AddTicket
+	}
+	result, err := writeApplicationRelations(ctx, a, principal, requireAccess(permission, ViewLabel), func(work context.Context, session db.RelationSession, principal auth.Principal) (updatedTicket, error) {
 		inline, present, err := a.bindAdminReports(work, session, principal, id, inlines)
 		if err != nil {
 			return updatedTicket{}, err
@@ -36,7 +40,7 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 				changed = append(changed, reportInlinePrefix)
 			}
 		}
-		if a.adminAudit != nil && (id == 0 || len(changed) > 0) {
+		if a.auditEnabled(a.adminAudit) && (id == 0 || len(changed) > 0) {
 			action := admin.ActionChange
 			if id == 0 {
 				action = admin.ActionAdd
@@ -45,7 +49,7 @@ func (a *Application) saveTicketForm(ctx context.Context, principal auth.Princip
 			if err != nil {
 				return updatedTicket{}, err
 			}
-			if err := a.adminAudit(work, session, event); err != nil {
+			if err := a.appendAuditIn(work, session, principal, event, a.adminAudit); err != nil {
 				return updatedTicket{}, err
 			}
 		}

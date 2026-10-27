@@ -32,13 +32,14 @@ func (a *Application) labelUpdateEndpoint(authentication api.Authentication, mod
 		Admission: endpoint.All(ChangeLabel), Input: endpoint.Sequence(id, endpoint.JSONBody(component, a.labelInput, mode, "")), Output: a.responses.label,
 		Success: []endpoint.Status{{Code: 200, Description: "The saved label."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: 400, Description: "Invalid input or duplicate name in this category. Preflight duplicates use __all__/unique_together; a concurrent native conflict uses __all__/unique."},
 			{Code: 404, Description: "The label or assigned category does not exist in the selected scope."},
 			{Code: 413, Description: "The JSON body exceeds 4096 bytes."},
 			{Code: 415, Description: "The body is not application/json."},
 		},
-		Handle: func(request *web.Request, _ auth.Principal, value endpoint.Pair[int64, orm.ModelInput[models.Label]]) (output.Prepared[models.Label], error) {
-			result, err := a.updateLabel(request.Context(), value.First, value.Second)
+		Handle: func(request *web.Request, actor auth.Principal, value endpoint.Pair[int64, orm.ModelInput[models.Label]]) (output.Prepared[models.Label], error) {
+			result, err := a.updateLabel(request.Context(), actor, value.First, value.Second)
 			if err != nil {
 				return output.Prepared[models.Label]{}, typedEndpointFailure(err)
 			}

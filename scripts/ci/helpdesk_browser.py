@@ -17,6 +17,13 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURE = ROOT / 'examples/helpdesk/testdata/browser'
+BROWSER_PERMISSIONS = (
+    'godj.admin.access', 'helpdesk.view_category',
+    'helpdesk.view_ticket', 'helpdesk.add_ticket', 'helpdesk.change_ticket', 'helpdesk.delete_ticket',
+    'helpdesk.view_service_report', 'helpdesk.add_service_report', 'helpdesk.change_service_report', 'helpdesk.delete_service_report',
+    'helpdesk.view_label', 'helpdesk.add_label', 'helpdesk.change_label', 'helpdesk.delete_label',
+    'helpdesk.view_ticket_label', 'helpdesk.add_ticket_label', 'helpdesk.change_ticket_label', 'helpdesk.delete_ticket_label',
+)
 SUMMARY_CHECKS = (
     'summary navigation',
     'twenty groups on first page',
@@ -374,7 +381,25 @@ def verify_report_status(result):
     return result
 
 
+def verify_selected_account(value):
+    selected = value.get('selected_account')
+    keys = {'model', 'domain', 'role_fingerprint', 'actor_id', 'active', 'staff', 'superuser', 'permissions', 'session_records'}
+    if not isinstance(selected, dict) or set(selected) != keys:
+        raise ValueError('browser omitted the selected-account native observation')
+    hashes = (selected['domain'], selected['role_fingerprint'])
+    grants = selected['permissions']
+    if (selected['model'] != 'godj_identity.user'
+            or any(not isinstance(item, str) or not re.fullmatch(r'[0-9a-f]{64}', item) or item == '0' * 64 for item in hashes)
+            or not isinstance(selected['actor_id'], str) or not re.fullmatch(r'user-[0-9a-f]{64}', selected['actor_id'])
+            or selected['active'] is not True or selected['staff'] is not True or selected['superuser'] is not False
+            or type(selected['session_records']) is not int or not 1 <= selected['session_records'] <= 256
+            or not isinstance(grants, list) or len(grants) != len(BROWSER_PERMISSIONS)
+            or any(not isinstance(grant, str) for grant in grants) or set(grants) != set(BROWSER_PERMISSIONS)):
+        raise ValueError('browser did not retain the selected staff account, explicit grants and native session')
+
+
 def verify_committed(value):
+    verify_selected_account(value)
     rows, links = value.get('committed_tickets'), value.get('committed_links')
     if (value.get('summary_read_only_unchanged') is not True
             or value.get('initial_summary_tickets') != 30

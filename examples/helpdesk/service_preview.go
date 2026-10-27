@@ -59,7 +59,7 @@ func (a *Application) readServicePreview(ctx context.Context, actor auth.Princip
 			return zero, errors.New("helpdesk: service preview minimum was not validated")
 		}
 	}
-	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (servicePreviewPage, error) {
+	value, err := readApplication(ctx, a, actor, requireAccess(ViewTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (servicePreviewPage, error) {
 		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil service preview reader")
 		}

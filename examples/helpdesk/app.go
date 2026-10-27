@@ -57,6 +57,8 @@ type Backend interface {
 }
 
 type Application struct {
+	selected        *selectedAccounts
+	administrative  bool
 	resources       modelResources
 	adminAudit      func(context.Context, db.Session, admin.PreparedEvent) error
 	reportInline    admin.ModelInline[models.Ticket, models.ServiceReport]
@@ -188,16 +190,8 @@ func (a *Application) register(builder *admin.Builder) error {
 	if err := admin.RegisterModel(builder, admin.ModelConfig[models.Category]{
 		AppLabel: "helpdesk", Slug: "categories", Model: categoryDescriptor.Metadata(), ReadOnly: true,
 		ListFields: []string{"id", "name"}, SearchFields: []string{"name"}, Permissions: admin.Permissions{View: ViewCategory},
-		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Category], error) {
-			var filters []orm.Predicate[models.Category]
-			if request.Search != "" {
-				filters = append(filters, models.CategoryFields.Name.IContains(request.Search))
-			}
-			page, err := a.resources.category.List(ctx, a.backend, crud.ListOptions[models.Category]{Filter: filters, Offset: request.Offset, Limit: request.Limit})
-			if err != nil {
-				return admin.Page[models.Category]{}, err
-			}
-			return admin.Page[models.Category]{Items: page.Items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
+		List: func(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[models.Category], error) {
+			return a.listCategories(ctx, actor, request)
 		},
 		Snapshot: func(value models.Category) (admin.Object, error) {
 			return categoryProjector.Project(value, value.ID, value.Name)
@@ -250,11 +244,11 @@ func (a *Application) register(builder *admin.Builder) error {
 		RelatedChoices: []admin.RelatedChoices{labelChoices},
 		ListFields:     []string{"id", "subject", "category", "closed", "priority", "due_at", "reviewed", "service_on", "service_at", "elapsed", "effort", "expected_cost", "external_reference", "external_payload", "external_url", "external_payload_digest"}, SearchFields: []string{"subject", "external_payload"},
 		Permissions: admin.Permissions{View: ViewTicket, Add: AddTicket, Change: ChangeTicket, Delete: DeleteTicket},
-		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[ticketRecord], error) {
-			return a.list(ctx, request)
+		List: func(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[ticketRecord], error) {
+			return a.list(ctx, actor, request)
 		},
-		Get: func(ctx context.Context, _ auth.Principal, id int64) (ticketRecord, bool, error) {
-			return a.readTicketRecord(ctx, a.objects, id)
+		Get: func(ctx context.Context, actor auth.Principal, id int64) (ticketRecord, bool, error) {
+			return a.getTicket(ctx, actor, id)
 		},
 		Snapshot: func(value ticketRecord) (admin.Object, error) {
 			return ticketSnapshot(value, ticketProjector)
@@ -276,9 +270,9 @@ func (a *Application) register(builder *admin.Builder) error {
 			value, changed, err := a.saveTicketForm(ctx, principal, mutation.ID, bound, inlines)
 			return admin.MutationResult{ID: value.ID}, changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
+		Delete: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			value, err := a.delete(ctx, id)
+			value, err := a.delete(ctx, actor, id)
 			return admin.MutationResult{ID: value.ID}, err
 		},
 	}); err != nil {
@@ -293,38 +287,45 @@ func (a *Application) register(builder *admin.Builder) error {
 	return a.registerTicketLabels(builder)
 }
 
-func (a *Application) list(ctx context.Context, request admin.ListRequest) (admin.Page[ticketRecord], error) {
-	return a.listMatching(ctx, request, "")
+func (a *Application) list(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[ticketRecord], error) {
+	return a.listMatching(ctx, actor, request, "")
 }
 
-func (a *Application) listMatching(ctx context.Context, request admin.ListRequest, source string) (admin.Page[ticketRecord], error) {
-	rows := a.objects.ModelsTicket.Filter(a.resources.ticket.Predicates()...).OrderBy(models.TicketFields.ID.Asc())
-	if request.Search != "" {
-		rows = rows.Filter(orm.Or(models.TicketFields.Subject.IContains(request.Search), models.TicketFields.ExternalPayload.IContains(request.Search)))
-	}
-	if source != "" {
-		rows = rows.Filter(models.TicketFields.ExternalPayload.At(query.JSONKey("source")).IContains(source))
-	}
-	page, err := crud.ListQuery(ctx, a.withTicketLabels(rows), request.Offset, request.Limit)
-	if err != nil {
-		return admin.Page[ticketRecord]{}, err
-	}
-	selected := page.Items
-	items := make([]ticketRecord, len(selected))
-	for index, row := range selected {
-		items[index], err = ticketRecordFromModel(ctx, row)
+func (a *Application) listMatching(ctx context.Context, actor auth.Principal, request admin.ListRequest, source string) (admin.Page[ticketRecord], error) {
+	return readBusiness(ctx, a, actor, a.readPolicy(ViewTicket, ChangeTicket), func(ctx context.Context, reader db.Queryer, _ auth.Principal) (admin.Page[ticketRecord], error) {
+		objects, err := a.modelsForRead(reader)
 		if err != nil {
 			return admin.Page[ticketRecord]{}, err
 		}
-	}
-	return admin.Page[ticketRecord]{Items: items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
+
+		rows := objects.ModelsTicket.Filter(a.resources.ticket.Predicates()...).OrderBy(models.TicketFields.ID.Asc())
+		if request.Search != "" {
+			rows = rows.Filter(orm.Or(models.TicketFields.Subject.IContains(request.Search), models.TicketFields.ExternalPayload.IContains(request.Search)))
+		}
+		if source != "" {
+			rows = rows.Filter(models.TicketFields.ExternalPayload.At(query.JSONKey("source")).IContains(source))
+		}
+		page, err := crud.ListQuery(ctx, a.withTicketLabels(rows), request.Offset, request.Limit)
+		if err != nil {
+			return admin.Page[ticketRecord]{}, err
+		}
+		selected := page.Items
+		items := make([]ticketRecord, len(selected))
+		for index, row := range selected {
+			items[index], err = ticketRecordFromModel(ctx, row)
+			if err != nil {
+				return admin.Page[ticketRecord]{}, err
+			}
+		}
+		return admin.Page[ticketRecord]{Items: items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
+	})
 }
 
 func ticket(ctx context.Context, backend db.Queryer, id int64) (models.Ticket, bool, error) {
 	return models.TicketObjects.Using(backend).Filter(models.TicketFields.ID.Exact(id)).OrderBy(models.TicketFields.ID.Asc()).First(ctx)
 }
 func (a *Application) createTicket(ctx context.Context, principal auth.Principal, input orm.ModelInput[models.Ticket]) (output.Prepared[ticketRecord], error) {
-	return runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (output.Prepared[ticketRecord], error) {
+	return writeApplicationRelations(ctx, a, principal, requireAccess(AddTicket, ViewLabel), func(ctx context.Context, session db.RelationSession, principal auth.Principal) (output.Prepared[ticketRecord], error) {
 		created, err := a.createTicketInSession(ctx, session, principal, input)
 		if err != nil {
 			return output.Prepared[ticketRecord]{}, err
@@ -353,7 +354,7 @@ type updatedTicket struct {
 // Resolve the current row and selected collection inside the owned write.
 // Response preparation and digest synchronization complete before commit.
 func (a *Application) updateTicket(ctx context.Context, principal auth.Principal, id int64, input orm.ModelInput[models.Ticket]) (updatedTicket, error) {
-	return runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (updatedTicket, error) {
+	return writeApplicationRelations(ctx, a, principal, requireAccess(ChangeTicket, ViewLabel), func(work context.Context, session db.RelationSession, principal auth.Principal) (updatedTicket, error) {
 		if err := ticketWritePermission(work, principal, ChangeTicket); err != nil {
 			return updatedTicket{}, err
 		}
@@ -443,8 +444,8 @@ func externalPayloadErrors(document jsonvalue.Value) validation.Errors {
 	return validation.NewErrors()
 }
 
-func (a *Application) delete(ctx context.Context, id int64) (ticketRecord, error) {
-	return runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (ticketRecord, error) {
+func (a *Application) delete(ctx context.Context, actor auth.Principal, id int64) (ticketRecord, error) {
+	return writeApplicationRelations(ctx, a, actor, requireAccess(DeleteTicket), func(work context.Context, session db.RelationSession, actor auth.Principal) (ticketRecord, error) {
 		var removed ticketRecord
 		_, err := a.resources.ticket.DeleteInSession(work, session, id, crud.DeleteOptions[models.Ticket]{
 			Before: func(ctx context.Context, backend db.Session, value models.Ticket) error {
@@ -477,12 +478,12 @@ func (a *Application) delete(ctx context.Context, id int64) (ticketRecord, error
 	})
 }
 
-func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiList(request *web.Request, actor auth.Principal) (web.Response, error) {
 	filters, diagnostics := parseTicketListQuery(request.HTTP().URL.RawQuery)
 	if !diagnostics.Empty() {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, diagnostics)
 	}
-	page, err := a.listMatching(request.Context(), admin.ListRequest{Limit: 20, Search: filters.search}, filters.source)
+	page, err := a.listMatching(request.Context(), actor, admin.ListRequest{Limit: 20, Search: filters.search}, filters.source)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -505,30 +506,19 @@ func (a *Application) apiList(request *web.Request, _ auth.Principal) (web.Respo
 
 // Viewing a ticket includes its assigned category's identity and label. The
 // standalone Category Admin remains protected by ViewCategory.
-func (a *Application) detail(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) detail(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := request.Int64Parameter("id")
 	if !valid || id <= 0 {
 		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
 	}
-	selected, found, err := a.withTicketLabels(a.objects.ModelsTicket.
-		Filter(models.TicketFields.ID.Exact(id), a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).
-		OrderBy(models.TicketFields.ID.Asc())).
-		SelectRelated(a.objects.ModelsTicket.Related.Category).First(request.Context())
+	value, found, err := a.readTicketDetail(request.Context(), actor, id)
 	if err != nil {
 		return web.Response{}, err
 	}
 	if !found {
-		return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
+		return objectNotFound()
 	}
-	category, err := selected.Category(request.Context())
-	if err != nil {
-		return web.Response{}, err
-	}
-	raw, err := ticketRecordFromModel(request.Context(), selected)
-	if err != nil {
-		return web.Response{}, err
-	}
-	return a.responses.detail.JSON(request.Context(), http.StatusOK, ticketDetailResponse{ticket: raw, category: models.Category{ID: category.ID, Name: category.Name}})
+	return a.responses.detail.JSON(request.Context(), http.StatusOK, value)
 }
 
 // Business values use numeric equality for Float and Decimal, including zero's

@@ -513,4 +513,4 @@ func BindCollectionsIn(_binding orm.ProjectBinding) (Collections, error) {
 	}, nil
 }
 
-var _ goDjProjectSnapshot_0ecf1089c13b9dd9500eafc377785d0936076ac71d275e868f275335f1f38f64
+var _ goDjProjectSnapshot_b9deb70f7d70c17024ddebe74b8c680b3e7057e3d2cc0fb6a34db25556e8f998

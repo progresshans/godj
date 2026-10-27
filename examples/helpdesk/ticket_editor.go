@@ -58,7 +58,7 @@ type TicketEditor struct {
 }
 
 func (a *Application) TicketEditor(config TicketEditorConfig) (*TicketEditor, error) {
-	if a == nil || interfaceNil(a.backend) || config.Auth == nil || config.AppendAudit == nil {
+	if a == nil || interfaceNil(a.backend) || config.Auth == nil || !a.validAuditConfiguration(config.AppendAudit) {
 		return nil, errors.New("helpdesk: ticket editor requires application, authentication and transactional audit")
 	}
 	if !config.Auth.CookiesApplyTo(TicketEditorPath) || !config.Auth.AllowsNext(TicketEditorPath) {
@@ -92,8 +92,8 @@ func (editor *TicketEditor) Routes() []web.Route {
 
 type ticketEditorPermissions struct{ add, delete bool }
 
-// Like the existing ticket writer, the transaction consumes this request's
-// admitted immutable principal. Authorizer is a deny overlay, not a grant.
+// Transport admission controls the presented form. Selected-account work
+// rechecks the required and optional grants in its own native scope.
 func (editor *TicketEditor) permissions(ctx context.Context, actor auth.Principal) (ticketEditorPermissions, bool, error) {
 	var result ticketEditorPermissions
 	for _, permission := range []auth.Permission{ChangeTicket, ViewLabel} {
@@ -117,6 +117,22 @@ type ticketEditorPage struct {
 	next        bool
 	page        int
 	permissions ticketEditorPermissions
+}
+
+// Required change/label grants were checked by the native owner. Optional
+// row actions use that same current principal and this surface's deny overlay.
+func (editor *TicketEditor) currentPermissions(ctx context.Context, actor auth.Principal, admitted ticketEditorPermissions) (ticketEditorPermissions, error) {
+	if editor.app.selected == nil {
+		return admitted, nil
+	}
+	var result ticketEditorPermissions
+	var err error
+	result.add, err = editor.auth.Authorized(ctx, actor, AddTicket)
+	if err != nil {
+		return result, err
+	}
+	result.delete, err = editor.auth.Authorized(ctx, actor, DeleteTicket)
+	return result, err
 }
 
 func (editor *TicketEditor) load(ctx context.Context, reader db.Queryer, page int, permissions ticketEditorPermissions, submitted *forms.Data) (ticketEditorPage, error) {
@@ -220,27 +236,15 @@ func (editor *TicketEditor) get(request *web.Request, actor auth.Principal) (web
 	if err != nil {
 		return ticketEditorText(http.StatusBadRequest)
 	}
-	var view ticketEditorPage
-	calls := 0
-	var callbackErr error
-	err = editor.app.backend.ReadSnapshot(request.Context(), func(reader db.Queryer) error {
-		calls++
-		if calls != 1 {
-			return errors.New("helpdesk: repeated editor read callback")
+	view, err := readApplication(request.Context(), editor.app, actor, requireAccess(ViewTicket, ChangeTicket, ViewLabel), func(work context.Context, scope db.Queryer, current auth.Principal) (ticketEditorPage, error) {
+		selected, err := editor.currentPermissions(work, current, permissions)
+		if err != nil {
+			return ticketEditorPage{}, err
 		}
-		var err error
-		view, err = editor.load(request.Context(), reader, page, permissions, nil)
-		callbackErr = err
-		return err
+		return editor.load(work, scope, page, selected, nil)
 	})
-	if callbackErr != nil && (err == nil || !errors.Is(err, callbackErr)) {
-		return web.Response{}, errors.Join(errors.New("helpdesk: editor read failure was suppressed"), err, callbackErr)
-	}
 	if err != nil {
 		return ticketEditorOperationError(err)
-	}
-	if calls != 1 {
-		return web.Response{}, errors.New("helpdesk: missing editor read callback")
 	}
 	return editor.render(request, view)
 }
@@ -286,18 +290,26 @@ func (editor *TicketEditor) save(ctx context.Context, actor auth.Principal, page
 	var view ticketEditorPage
 	var callbackErr error
 	calls := 0
-	err := editor.app.backend.AtomicRelation(ctx, func(session db.RelationSession) error {
+	presented := permissions
+	_, err := writeApplicationRelations(ctx, editor.app, actor, requireAccess(ViewTicket, ChangeTicket, ViewLabel), func(ctx context.Context, session db.RelationSession, actor auth.Principal) (struct{}, error) {
 		calls++
 		if calls != 1 {
 			callbackErr = errors.New("helpdesk: repeated editor transaction callback")
-			return callbackErr
+			return struct{}{}, callbackErr
 		}
 		callbackErr = func() error {
 			if err := ticketWritePermission(ctx, actor, ChangeTicket); err != nil {
 				return err
 			}
-			var err error
-			view, err = editor.load(ctx, session, page, permissions, &data)
+			current, err := editor.currentPermissions(ctx, actor, presented)
+			if err != nil {
+				return err
+			}
+			permissions = current
+			// Preserve submitted intent from the admitted form and apply the
+			// current grants below; revocation cannot silently drop a delete.
+			view, err = editor.load(ctx, session, page, presented, &data)
+			view.permissions = current
 			if err != nil {
 				return err
 			}
@@ -341,7 +353,7 @@ func (editor *TicketEditor) save(ctx context.Context, actor auth.Principal, page
 				if err != nil {
 					return err
 				}
-				if err = editor.appendAudit(ctx, session, event); err != nil {
+				if err = editor.app.appendAuditIn(ctx, session, actor, event, editor.appendAudit); err != nil {
 					return err
 				}
 			}
@@ -397,7 +409,7 @@ func (editor *TicketEditor) save(ctx context.Context, actor auth.Principal, page
 			}
 			return nil
 		}()
-		return callbackErr
+		return struct{}{}, callbackErr
 	})
 	if calls > 1 || calls == 0 && err == nil || callbackErr != nil && (err == nil || !errors.Is(err, callbackErr)) {
 		return ticketEditorPage{}, errors.Join(errors.New("helpdesk: invalid editor transaction ownership"), err, callbackErr)
@@ -412,7 +424,7 @@ func ticketEditorOperationError(err error) (web.Response, error) {
 	if err == admin.ErrObjectNotFound {
 		return ticketEditorText(http.StatusNotFound)
 	}
-	if err == errTicketEditorPermission {
+	if err == errTicketEditorPermission || accountAccessDenied(err) {
 		return ticketEditorText(http.StatusForbidden)
 	}
 	return web.Response{}, err

@@ -34,6 +34,7 @@ func (a *Application) bulkTicketEndpoint(authentication api.Authentication, appe
 		SummarizeValidationErrors: true,
 		Success:                   []endpoint.Status{{Code: http.StatusCreated, Description: "All created tickets in input order; shared 1 MiB, depth 16 and 65536-value response budget."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: http.StatusBadRequest, Description: "Malformed input, invalid count, indexed validation or uniqueness rejection; nothing is created."},
 			{Code: http.StatusNotFound, Description: "The selected category no longer exists."},
 			{Code: http.StatusRequestEntityTooLarge, Description: "The whole request exceeds its byte limit."},

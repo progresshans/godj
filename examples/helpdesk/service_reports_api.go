@@ -115,7 +115,7 @@ func (a *Application) reportResponse(status int, value models.ServiceReport) (we
 	return api.JSON(status, encoded)
 }
 
-func (a *Application) apiReportList(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiReportList(request *web.Request, actor auth.Principal) (web.Response, error) {
 	// The collection has a fixed bounded page. Reject undeclared parameters
 	// instead of accepting an accidental filtering or authorization surface.
 	raw := request.HTTP().URL.RawQuery
@@ -126,7 +126,7 @@ func (a *Application) apiReportList(request *web.Request, _ auth.Principal) (web
 	if err != nil || len(values) != 0 {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
 	}
-	page, err := a.listReports(request.Context(), admin.ListRequest{Limit: 20})
+	page, err := a.listReports(request.Context(), actor, admin.ListRequest{Limit: 20})
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -143,7 +143,7 @@ func (a *Application) apiReportList(request *web.Request, _ auth.Principal) (web
 	}
 	return api.JSON(http.StatusOK, list)
 }
-func (a *Application) apiReportCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiReportCreate(request *web.Request, actor auth.Principal) (web.Response, error) {
 	values, response, handled, err := bindTypedInput(request, a.reportInput, serializers.ModeFull)
 	if handled || err != nil {
 		return response, err
@@ -151,18 +151,18 @@ func (a *Application) apiReportCreate(request *web.Request, _ auth.Principal) (w
 	key, _ := values.ticketID.Get()
 	summary, _ := values.summary.Get()
 	completed, _ := values.completed.Get()
-	created, err := a.createReport(request.Context(), serviceReportInput{ticketID: key, summary: summary, completed: completed})
+	created, err := a.createReport(request.Context(), actor, serviceReportInput{ticketID: key, summary: summary, completed: completed})
 	if err != nil {
 		return objectFailure(err)
 	}
 	return a.reportResponse(http.StatusCreated, created)
 }
-func (a *Application) apiReportDetail(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiReportDetail(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
 	}
-	value, found, err := a.report(request.Context(), a.backend, id)
+	value, found, err := a.getReport(request.Context(), actor, id)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -171,13 +171,13 @@ func (a *Application) apiReportDetail(request *web.Request, _ auth.Principal) (w
 	}
 	return a.reportResponse(http.StatusOK, value)
 }
-func (a *Application) apiReportUpdate(request *web.Request, _ auth.Principal) (web.Response, error) {
-	return a.apiReportUpdateMode(request, serializers.ModeFull)
+func (a *Application) apiReportUpdate(request *web.Request, actor auth.Principal) (web.Response, error) {
+	return a.apiReportUpdateMode(request, actor, serializers.ModeFull)
 }
-func (a *Application) apiReportPatch(request *web.Request, _ auth.Principal) (web.Response, error) {
-	return a.apiReportUpdateMode(request, serializers.ModePartial)
+func (a *Application) apiReportPatch(request *web.Request, actor auth.Principal) (web.Response, error) {
+	return a.apiReportUpdateMode(request, actor, serializers.ModePartial)
 }
-func (a *Application) apiReportUpdateMode(request *web.Request, mode serializers.Mode) (web.Response, error) {
+func (a *Application) apiReportUpdateMode(request *web.Request, actor auth.Principal, mode serializers.Mode) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
@@ -196,44 +196,36 @@ func (a *Application) apiReportUpdateMode(request *web.Request, mode serializers
 	if completed, present := values.completed.Get(); present {
 		patch = patch.WithCompleted(completed)
 	}
-	updated, _, err := a.updateReport(request.Context(), id, patch)
+	updated, _, err := a.updateReport(request.Context(), actor, id, patch)
 	if err != nil {
 		return objectFailure(err)
 	}
 	return a.reportResponse(http.StatusOK, updated)
 }
-func (a *Application) apiReportDelete(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiReportDelete(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
 	}
-	if _, err := a.deleteReport(request.Context(), id); err != nil {
+	if _, err := a.deleteReport(request.Context(), actor, id); err != nil {
 		return objectFailure(err)
 	}
 	return web.NewResponse(http.StatusNoContent, nil, nil)
 }
-func (a *Application) apiTicketReport(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiTicketReport(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
 	}
-	owner, found, err := a.objects.ModelsTicket.Filter(models.TicketFields.ID.Exact(id), a.relations.ModelsTicket.Category.ID.Exact(a.categoryID)).OrderBy(models.TicketFields.ID.Asc()).SelectRelated(a.objects.ModelsTicket.Related.ServiceReport).First(request.Context())
+	report, found, err := a.readTicketReport(request.Context(), actor, id)
 	if err != nil {
 		return web.Response{}, err
 	}
 	if !found {
 		return objectNotFound()
 	}
-	child, present, err := owner.ServiceReport(request.Context())
-	if err != nil {
-		return web.Response{}, err
-	}
-	if !present {
+	if report == nil {
 		return api.JSON(http.StatusOK, serializers.Null())
 	}
-	raw, err := child.Unwrap()
-	if err != nil {
-		return web.Response{}, err
-	}
-	return a.reportResponse(http.StatusOK, raw)
+	return a.reportResponse(http.StatusOK, *report)
 }

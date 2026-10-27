@@ -64,11 +64,11 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		RelatedChoices: []admin.RelatedChoices{ticketChoices, labelChoices},
 		ListFields:     []string{"id", "ticket", "label"},
 		Permissions:    admin.Permissions{View: ViewTicketLabel, Add: AddTicketLabel, Change: ChangeTicketLabel, Delete: DeleteTicketLabel},
-		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.TicketLabel], error) {
-			return a.listTicketLabels(ctx, request)
+		List: func(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[models.TicketLabel], error) {
+			return a.listTicketLabels(ctx, actor, request)
 		},
-		Get: func(ctx context.Context, _ auth.Principal, id int64) (models.TicketLabel, bool, error) {
-			return a.ticketLabel(ctx, a.backend, id)
+		Get: func(ctx context.Context, actor auth.Principal, id int64) (models.TicketLabel, bool, error) {
+			return a.getTicketLabel(ctx, actor, id)
 		},
 		Snapshot: func(value models.TicketLabel) (admin.Object, error) {
 			return projector.Project(value, value.ID, fmt.Sprintf("Ticket label #%d", value.ID))
@@ -82,7 +82,7 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkTicketLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
+		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				return admin.MutationResult{}, inputErr
@@ -92,10 +92,10 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 			if err != nil {
 				return admin.MutationResult{}, err
 			}
-			value, err := a.createTicketLabel(ctx, ticket, label)
+			value, err := a.createTicketLabel(ctx, actor, ticket, label)
 			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			values, inputErr := bound.Input()
 			if inputErr != nil {
 				return admin.MutationResult{}, nil, inputErr
@@ -106,12 +106,12 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 			if err != nil {
 				return admin.MutationResult{}, nil, err
 			}
-			value, changed, err := a.updateTicketLabel(ctx, id, models.TicketLabelPatch{}.WithTicketID(ticket).WithLabelID(label))
+			value, changed, err := a.updateTicketLabel(ctx, actor, id, models.TicketLabelPatch{}.WithTicketID(ticket).WithLabelID(label))
 			return admin.MutationResult{ID: value.ID}, changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
+		Delete: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			value, err := a.deleteTicketLabel(ctx, id)
+			value, err := a.deleteTicketLabel(ctx, actor, id)
 			return admin.MutationResult{ID: value.ID}, err
 		},
 	})
@@ -120,22 +120,24 @@ func (a *Application) registerTicketLabels(builder *admin.Builder) error {
 // The category is the trusted scope of both endpoints, not a third mutable
 // copy on the association. Even malformed cross-category rows written outside
 // this application remain invisible through every link read and mutation.
-func (a *Application) listTicketLabels(ctx context.Context, request admin.ListRequest) (admin.Page[models.TicketLabel], error) {
-	rows := models.TicketLabelObjects.Using(a.backend).Filter(a.relations.ModelsTicketLabel.Ticket.Category().ID.Exact(a.categoryID), a.relations.ModelsTicketLabel.Label.Category().ID.Exact(a.categoryID)).OrderBy(models.TicketLabelFields.ID.Asc())
-	total, err := rows.Count(ctx)
-	if err != nil {
-		return admin.Page[models.TicketLabel]{}, err
-	}
-	rows, err = rows.Offset(request.Offset)
-	if err != nil {
-		return admin.Page[models.TicketLabel]{}, err
-	}
-	rows, err = rows.Limit(request.Limit)
-	if err != nil {
-		return admin.Page[models.TicketLabel]{}, err
-	}
-	values, err := rows.All(ctx)
-	return admin.Page[models.TicketLabel]{Items: values, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+func (a *Application) listTicketLabels(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[models.TicketLabel], error) {
+	return readBusiness(ctx, a, actor, a.readPolicy(ViewTicketLabel, ChangeTicketLabel), func(ctx context.Context, reader db.Queryer, _ auth.Principal) (admin.Page[models.TicketLabel], error) {
+		rows := models.TicketLabelObjects.Using(reader).Filter(a.relations.ModelsTicketLabel.Ticket.Category().ID.Exact(a.categoryID), a.relations.ModelsTicketLabel.Label.Category().ID.Exact(a.categoryID)).OrderBy(models.TicketLabelFields.ID.Asc())
+		total, err := rows.Count(ctx)
+		if err != nil {
+			return admin.Page[models.TicketLabel]{}, err
+		}
+		rows, err = rows.Offset(request.Offset)
+		if err != nil {
+			return admin.Page[models.TicketLabel]{}, err
+		}
+		rows, err = rows.Limit(request.Limit)
+		if err != nil {
+			return admin.Page[models.TicketLabel]{}, err
+		}
+		values, err := rows.All(ctx)
+		return admin.Page[models.TicketLabel]{Items: values, Total: total, Offset: request.Offset, Limit: request.Limit}, err
+	})
 }
 
 func (a *Application) ticketLabel(ctx context.Context, backend db.Queryer, id int64) (models.TicketLabel, bool, error) {
@@ -177,26 +179,29 @@ func (a *Application) requireTicketLabelEndpoints(ctx context.Context, backend d
 	return nil
 }
 
-func (a *Application) createTicketLabel(ctx context.Context, ticketID, labelID int64) (models.TicketLabel, error) {
+func (a *Application) createTicketLabel(ctx context.Context, actor auth.Principal, ticketID, labelID int64) (models.TicketLabel, error) {
 	input := models.NewTicketLabelCreate(ticketID, labelID)
 	var created models.TicketLabel
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		if err := a.requireTicketLabelEndpoints(ctx, session, ticketID, labelID); err != nil {
+	_, err := writeApplication(ctx, a, actor, requireAccess(AddTicketLabel, ViewTicket, ViewLabel), func(ctx context.Context, session db.Session, actor auth.Principal) (struct{}, error) {
+		failure := func() error {
+			if err := a.requireTicketLabelEndpoints(ctx, session, ticketID, labelID); err != nil {
+				return err
+			}
+			violations, err := models.TicketLabelObjects.ValidateUniqueCreate(ctx, session, input)
+			if err != nil {
+				return err
+			}
+			if !violations.Empty() {
+				return validation.Reject(violations, nil)
+			}
+			created, err = models.TicketLabelObjects.Create(ctx, session, input)
+			if err != nil {
+				return writeRejection(err)
+			}
+			created, err = a.publishableTicketLabel(ctx, session, created.ID)
 			return err
-		}
-		violations, err := models.TicketLabelObjects.ValidateUniqueCreate(ctx, session, input)
-		if err != nil {
-			return err
-		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		created, err = models.TicketLabelObjects.Create(ctx, session, input)
-		if err != nil {
-			return writeRejection(err)
-		}
-		created, err = a.publishableTicketLabel(ctx, session, created.ID)
-		return err
+		}()
+		return struct{}{}, failure
 	})
 	if err != nil {
 		return models.TicketLabel{}, operationError(ctx, err)
@@ -204,63 +209,66 @@ func (a *Application) createTicketLabel(ctx context.Context, ticketID, labelID i
 	return created, nil
 }
 
-func (a *Application) updateTicketLabel(ctx context.Context, id int64, patch models.TicketLabelPatch) (models.TicketLabel, []string, error) {
+func (a *Application) updateTicketLabel(ctx context.Context, actor auth.Principal, id int64, patch models.TicketLabelPatch) (models.TicketLabel, []string, error) {
 	var updated models.TicketLabel
 	var changed []string
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		current, found, err := a.ticketLabel(ctx, session, id)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return admin.ErrObjectNotFound
-		}
-		mutation := patch.BuildPatch(current)
-		if err := mutation.Err(); err != nil {
-			return err
-		}
-		ticketID, labelID := current.TicketID, current.LabelID
-		for _, assignment := range mutation.Assignments() {
-			value, ok := assignment.Value().Integer()
-			if !ok {
-				return errors.New("helpdesk: invalid ticket label key")
+	_, err := writeApplication(ctx, a, actor, requireAccess(ChangeTicketLabel, ViewTicket, ViewLabel), func(ctx context.Context, session db.Session, actor auth.Principal) (struct{}, error) {
+		failure := func() error {
+			current, found, err := a.ticketLabel(ctx, session, id)
+			if err != nil {
+				return err
 			}
-			switch assignment.Field().Name() {
-			case "ticket":
-				if value != ticketID {
-					changed = append(changed, "ticket")
-				}
-				ticketID = value
-			case "label":
-				if value != labelID {
-					changed = append(changed, "label")
-				}
-				labelID = value
-			default:
-				return errors.New("helpdesk: unexpected ticket label assignment")
+			if !found {
+				return admin.ErrObjectNotFound
 			}
-		}
-		// Omitted and self-assigned keys receive the same scoped check as new keys.
-		if err := a.requireTicketLabelEndpoints(ctx, session, ticketID, labelID); err != nil {
+			mutation := patch.BuildPatch(current)
+			if err := mutation.Err(); err != nil {
+				return err
+			}
+			ticketID, labelID := current.TicketID, current.LabelID
+			for _, assignment := range mutation.Assignments() {
+				value, ok := assignment.Value().Integer()
+				if !ok {
+					return errors.New("helpdesk: invalid ticket label key")
+				}
+				switch assignment.Field().Name() {
+				case "ticket":
+					if value != ticketID {
+						changed = append(changed, "ticket")
+					}
+					ticketID = value
+				case "label":
+					if value != labelID {
+						changed = append(changed, "label")
+					}
+					labelID = value
+				default:
+					return errors.New("helpdesk: unexpected ticket label assignment")
+				}
+			}
+			// Omitted and self-assigned keys receive the same scoped check as new keys.
+			if err := a.requireTicketLabelEndpoints(ctx, session, ticketID, labelID); err != nil {
+				return err
+			}
+			if len(changed) == 0 {
+				updated = current
+				return nil
+			}
+			violations, err := models.TicketLabelObjects.ValidateUniqueUpdate(ctx, session, current, patch)
+			if err != nil {
+				return err
+			}
+			if !violations.Empty() {
+				return validation.Reject(violations, nil)
+			}
+			updated, err = models.TicketLabelObjects.Patch(ctx, session, current, patch)
+			if err != nil {
+				return writeRejection(err)
+			}
+			updated, err = a.publishableTicketLabel(ctx, session, updated.ID)
 			return err
-		}
-		if len(changed) == 0 {
-			updated = current
-			return nil
-		}
-		violations, err := models.TicketLabelObjects.ValidateUniqueUpdate(ctx, session, current, patch)
-		if err != nil {
-			return err
-		}
-		if !violations.Empty() {
-			return validation.Reject(violations, nil)
-		}
-		updated, err = models.TicketLabelObjects.Patch(ctx, session, current, patch)
-		if err != nil {
-			return writeRejection(err)
-		}
-		updated, err = a.publishableTicketLabel(ctx, session, updated.ID)
-		return err
+		}()
+		return struct{}{}, failure
 	})
 	if err != nil {
 		return models.TicketLabel{}, nil, operationError(ctx, err)
@@ -286,19 +294,22 @@ func (a *Application) publishableTicketLabel(ctx context.Context, backend db.Que
 	return value, nil
 }
 
-func (a *Application) deleteTicketLabel(ctx context.Context, id int64) (models.TicketLabel, error) {
+func (a *Application) deleteTicketLabel(ctx context.Context, actor auth.Principal, id int64) (models.TicketLabel, error) {
 	var removed models.TicketLabel
-	err := a.backend.Atomic(ctx, func(session db.Session) error {
-		current, found, err := a.ticketLabel(ctx, session, id)
-		if err != nil {
+	_, err := writeApplication(ctx, a, actor, requireAccess(DeleteTicketLabel), func(ctx context.Context, session db.Session, actor auth.Principal) (struct{}, error) {
+		failure := func() error {
+			current, found, err := a.ticketLabel(ctx, session, id)
+			if err != nil {
+				return err
+			}
+			if !found {
+				return admin.ErrObjectNotFound
+			}
+			removed = current
+			_, err = models.TicketLabelObjects.Delete(ctx, session, &current)
 			return err
-		}
-		if !found {
-			return admin.ErrObjectNotFound
-		}
-		removed = current
-		_, err = models.TicketLabelObjects.Delete(ctx, session, &current)
-		return err
+		}()
+		return struct{}{}, failure
 	})
 	if err != nil {
 		return models.TicketLabel{}, operationError(ctx, err)

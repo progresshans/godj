@@ -20,6 +20,7 @@ func (a *Application) serviceReportStatusEndpoint(authentication api.Authenticat
 		Output:      a.responses.reportStatus,
 		Success:     []endpoint.Status{{Code: http.StatusOK, Description: "The current category and filtered report status page."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: http.StatusBadRequest, Description: "Invalid report status query parameters."},
 			{Code: http.StatusNotFound, Description: "The application's category no longer exists."},
 		},

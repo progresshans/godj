@@ -548,7 +548,47 @@ func decodeHelpdeskDeadlineCalendarResponse(resp *http.Response) (res HelpdeskDe
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			var wrapper HelpdeskDeadlineCalendarForbidden
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "X-Godj-Csrftoken" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "X-Godj-Csrftoken",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							var wrapperDotXGodjCsrftokenVal string
+							if err := func() error {
+								val, err := d.DecodeValue()
+								if err != nil {
+									return err
+								}
+
+								c, err := conv.ToString(val)
+								if err != nil {
+									return err
+								}
+
+								wrapperDotXGodjCsrftokenVal = c
+								return nil
+							}(); err != nil {
+								return err
+							}
+							wrapper.XGodjCsrftoken.SetTo(wrapperDotXGodjCsrftokenVal)
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse X-Godj-Csrftoken header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
@@ -4859,7 +4899,47 @@ func decodeHelpdeskServiceReportStatusResponse(resp *http.Response) (res Helpdes
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			var wrapper HelpdeskServiceReportStatusForbidden
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "X-Godj-Csrftoken" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "X-Godj-Csrftoken",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							var wrapperDotXGodjCsrftokenVal string
+							if err := func() error {
+								val, err := d.DecodeValue()
+								if err != nil {
+									return err
+								}
+
+								c, err := conv.ToString(val)
+								if err != nil {
+									return err
+								}
+
+								wrapperDotXGodjCsrftokenVal = c
+								return nil
+							}(); err != nil {
+								return err
+							}
+							wrapper.XGodjCsrftoken.SetTo(wrapperDotXGodjCsrftokenVal)
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse X-Godj-Csrftoken header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}
@@ -9607,7 +9687,47 @@ func decodeHelpdeskTicketSummaryResponse(resp *http.Response) (res HelpdeskTicke
 			}(); err != nil {
 				return res, errors.Wrap(err, "validate")
 			}
-			return &response, nil
+			var wrapper HelpdeskTicketSummaryForbidden
+			wrapper.Response = response
+			h := uri.NewHeaderDecoder(resp.Header)
+			// Parse "X-Godj-Csrftoken" header.
+			{
+				cfg := uri.HeaderParameterDecodingConfig{
+					Name:    "X-Godj-Csrftoken",
+					Explode: false,
+				}
+				if err := func() error {
+					if err := h.HasParam(cfg); err == nil {
+						if err := h.DecodeParam(cfg, func(d uri.Decoder) error {
+							var wrapperDotXGodjCsrftokenVal string
+							if err := func() error {
+								val, err := d.DecodeValue()
+								if err != nil {
+									return err
+								}
+
+								c, err := conv.ToString(val)
+								if err != nil {
+									return err
+								}
+
+								wrapperDotXGodjCsrftokenVal = c
+								return nil
+							}(); err != nil {
+								return err
+							}
+							wrapper.XGodjCsrftoken.SetTo(wrapperDotXGodjCsrftokenVal)
+							return nil
+						}); err != nil {
+							return err
+						}
+					}
+					return nil
+				}(); err != nil {
+					return res, errors.Wrap(err, "parse X-Godj-Csrftoken header")
+				}
+			}
+			return &wrapper, nil
 		default:
 			return res, validate.InvalidContentType(ct)
 		}

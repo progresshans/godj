@@ -2042,6 +2042,43 @@ Linux의 다른 relation shard에서 `TestGeneratedFilteredPrefetchComposition`,
 (SHA-256 `bf015778a1a4dd26e06b2ddeeb12f3c71b761bde0a8817f15fdb0e63968d8860`).
 수정 source의 PostgreSQL·race/CGO0·전체 환경과 generated drift는 다음 자동 전체 CI에서 확인한다.
 
+### Helpdesk의 선택 계정·현재 업무 인가·domain 감사
+
+2026-10-27, 기준 source `5444e5c68c89a43ae8b2ac80a4c7b7c69b68f684` 위에서 Helpdesk의 명시적 AccountRole,
+typed 계정/첫 계정 정책과 독립 domain·audit·session migration 조립을 작성했다. `NewSelected`는 실제 계정의
+현재 domain·active·업무 권한과 Admin staff를 조회 snapshot/쓰기 fence 안에서 확인한다. 기본 업무 adapter와 역사
+adoption 검사는 유지한다. 기존 감사 대상의 변경과 현재 Principal의 domain 감사를 같은 transaction에 넣고,
+표시명/업무 값은 저장하지 않는다. Read-only 생성 facade, View/Change·choice/inline/collection/editor 정책과
+확정 거부·cleanup 실패·rollback·unknown 결과의 구분을 연결했다.
+
+Browser는 첫 계정으로 준비한 일반 staff와 18개 명시적 권한, 공유 DB session/LoginPersistence를 사용한다.
+최종 native 관측의 model/domain/role/actor·권한·역할·session 근거와 부정 verifier를 추가했다. 독립 SDK fixture는
+업무 16개/조회 4개 권한의 일반 계정 두 개로 실제 HTTP login/CSRF를 수행하고 domain/LastLogin/저장 session과
+기존 업무 scalar/관계·domain 감사의 정확한 actor/model/object/action/변경 필드를 대조하도록 전환했다.
+
+SQLite/PostgreSQL의 새 공개 HTTP/Admin root와 필수 child 50개를 PostgreSQL core 목록에 추가했다.
+일반 계정의 실제 과거 credential로 admission을 유지한 채 API 37개 작업의 개별 권한 회수, Admin parent/inline 저장과
+회수·choice·collection/editor의 제출 의도, active/staff/deny overlay와 domain 교체를 검사한다.
+Root I/O·일반 transaction fallback을 거부하는 관측 wrapper가 실제 native read/write handle과 필요한 선택 기능을
+보존한다. Read callback/cleanup·만료/쓰기 scope 거부, 감사 실패 뒤 저장값 전체 보존, 실제 commit 뒤 unknown 주입과
+no-retry, admission 후 fence 직전 회수, 두 native 연결의 일관된 권한/업무 snapshot을 검사하도록 작성했다.
+새 PostgreSQL root는 race의 Helpdesk partition에 묶었다. 필수 목록 대조에서 전체 5,609개가 세 mode의 16개
+coordinate에 정확히 한 번 배정됐고 새 50개도 누락/중복이 없다. 이 대조는 DB 테스트 본문 실행이 아니다.
+
+공개 생성 명령으로 Helpdesk의 13개 생성 파일/manifest를 갱신했다(snapshot
+`b9deb70f7d70c17024ddebe74b8c680b3e7057e3d2cc0fb6a34db25556e8f998`). 실제 여섯 API 문서를 export했고
+Helpdesk만 달라졌다. 고정 ogen v1.24.0으로 해당 SDK를 재생성해 4개 생성 파일을 갱신했다. 독립 module의 첫 compile에서
+새 403 응답형을 이전 공통 error로 단언하던 두 wire 소비자가 실패했다. 실제 생성 타입의 Response.Code를 확인하도록
+수정했으며 기존 단일 요청/오류 코드 검사를 유지했다. 마지막 독립 SDK build는 0.66초에 통과했다.
+
+최종 Helpdesk·browser·부모 SDK·export의 `go test -trimpath -mod=readonly -run '^$'`는 107.00초에 통과했다.
+gofmt 72개 Go 파일, Python 4개 파일 syntax, Markdown 244개 링크와 diff를 확인했다. 새 테스트 본문은 로컬에서
+실행하지 않았다. 새 실제 SQLite/PostgreSQL·race/CGO0·browser·SDK HTTP·generated drift·전체 platform은 push 후
+자동 원격 CI의 확인 대상이며 이 작성/생성/compile을 I1 수용 완료로 계산하지 않는다.
+
+원본과 최종 비-Markdown source 79개 hash는 `gdj0138-helpdesk-selected-v1/receipt.json`에 둔다
+(SHA-256 `d329f573d376eacace445d8a5340ad3c807f3eb050ab6ca35646ae8f4897b5e2`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -50,7 +50,7 @@ func (a *Application) readServiceReportStatus(ctx context.Context, actor auth.Pr
 	if !actor.Authenticated() || !actor.Has(ViewServiceReport) || !actor.Has(ViewTicket) {
 		return zero, errors.New("helpdesk: report status lacks admitted permissions")
 	}
-	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (serviceReportStatusPage, error) {
+	value, err := readApplication(ctx, a, actor, requireAccess(ViewServiceReport, ViewTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (serviceReportStatusPage, error) {
 		return a.serviceReportStatusInSnapshot(work, reader, input)
 	})
 	if err != nil {

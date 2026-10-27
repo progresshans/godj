@@ -52,27 +52,12 @@ func (a *Application) ticketEditFormSet(fields []string, overrides []formmodel.O
 		},
 		Set: policy,
 		Load: func(ctx context.Context, actor auth.Principal, access admin.CollectionSetAccess) (admin.CollectionSetSnapshot[models.Ticket], error) {
-			var snapshot admin.CollectionSetSnapshot[models.Ticket]
-			var callbackErr error
-			calls := 0
-			err := a.backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-				calls++
-				if calls != 1 {
-					return errors.New("helpdesk: repeated collection snapshot callback")
-				}
-				snapshot, callbackErr = a.ticketAdminCohort(ctx, reader)
-				return callbackErr
+			return readApplication(ctx, a, actor, readAccess(ViewTicket, ChangeTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (admin.CollectionSetSnapshot[models.Ticket], error) {
+				return a.ticketAdminCohort(work, reader)
 			})
-			if calls != 1 || callbackErr != nil && (err == nil || !errors.Is(err, callbackErr)) {
-				err = errors.Join(errors.New("helpdesk: invalid collection snapshot owner"), err, callbackErr)
-			}
-			if err != nil {
-				return admin.CollectionSetSnapshot[models.Ticket]{}, err
-			}
-			return snapshot, nil
 		},
 		Run: func(ctx context.Context, actor auth.Principal, submission admin.CollectionSetSubmission) (admin.CollectionSetResult, error) {
-			result, err := runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (admin.CollectionSetResult, error) {
+			result, err := writeApplicationRelations(ctx, a, actor, readAccess(ViewTicket, ChangeTicket), func(ctx context.Context, session db.RelationSession, actor auth.Principal) (admin.CollectionSetResult, error) {
 				bound, err := declaration.BindCurrent(ctx, actor, submission, func(work context.Context, access admin.CollectionSetAccess) (admin.CollectionSetCurrent[models.Ticket], error) {
 					rows, err := a.ticketAdminCohort(work, session)
 					if err != nil {
@@ -187,7 +172,7 @@ func (a *Application) ticketEditFormSet(fields []string, overrides []formmodel.O
 						if err != nil {
 							return err
 						}
-						if err := a.adminAudit(work, session, event); err != nil {
+						if err := a.appendAuditIn(work, session, actor, event, a.adminAudit); err != nil {
 							return err
 						}
 						writes = append(writes, admin.CollectionSetWrite{Index: row.Index(), Kind: "delete", ID: current.ID})

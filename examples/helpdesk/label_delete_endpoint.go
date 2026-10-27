@@ -25,15 +25,16 @@ func (a *Application) labelDeleteEndpoint(authentication api.Authentication) (en
 		Admission:   endpoint.All(DeleteLabel), Input: id, Output: empty,
 		Success: []endpoint.Status{{Code: 204, Description: "The label and its ticket links were deleted."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: 400, Description: "The deletion was rejected by application validation."},
 			{Code: 404, Description: "The label or assigned category does not exist in the selected scope."},
 		},
-		Handle: func(request *web.Request, _ auth.Principal, id int64) (output.Prepared[struct{}], error) {
+		Handle: func(request *web.Request, actor auth.Principal, id int64) (output.Prepared[struct{}], error) {
 			prepared, err := empty.Prepare(request.Context(), http.StatusNoContent, struct{}{})
 			if err != nil {
 				return output.Prepared[struct{}]{}, err
 			}
-			if _, err := a.deleteLabel(request.Context(), id); err != nil {
+			if _, err := a.deleteLabel(request.Context(), actor, id); err != nil {
 				return output.Prepared[struct{}]{}, typedEndpointFailure(err)
 			}
 			return prepared, nil

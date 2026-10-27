@@ -111,7 +111,7 @@ func checkGeneratedDeadlineCalendarWire(ctx context.Context) error {
 		return err
 	}
 	response, err = forbidden.HelpdeskDeadlineCalendar(ctx, params)
-	if value, ok := response.(*hs.GoDjAPIError); err != nil || !ok || value.Code != "permission_denied" || calls != 1 {
+	if value, ok := response.(*hs.HelpdeskDeadlineCalendarForbidden); err != nil || !ok || value.Response.Code != "permission_denied" || calls != 1 {
 		return fail("calendar generated permission response")
 	}
 	calls = 0

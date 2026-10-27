@@ -21,6 +21,7 @@ func (a *Application) ticketSummaryEndpoint(authentication api.Authentication) (
 		Output:      a.responses.summary,
 		Success:     []endpoint.Status{{Code: http.StatusOK, Description: "The current category and consistent filtered group page."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: http.StatusBadRequest, Description: "Invalid summary query parameters."},
 			{Code: http.StatusNotFound, Description: "The application's current category no longer exists."},
 		},
@@ -28,8 +29,8 @@ func (a *Application) ticketSummaryEndpoint(authentication api.Authentication) (
 	})
 }
 
-func (a *Application) apiTicketSummary(request *web.Request, _ auth.Principal, query ticketSummaryQuery) (output.Prepared[ticketSummaryPage], error) {
-	page, err := a.readTicketSummary(request.Context(), query)
+func (a *Application) apiTicketSummary(request *web.Request, actor auth.Principal, query ticketSummaryQuery) (output.Prepared[ticketSummaryPage], error) {
+	page, err := a.readTicketSummary(request.Context(), actor, query)
 	if err != nil {
 		return output.Prepared[ticketSummaryPage]{}, typedEndpointFailure(err)
 	}

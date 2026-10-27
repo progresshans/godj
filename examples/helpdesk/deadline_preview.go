@@ -52,7 +52,7 @@ func (a *Application) readDeadlinePreview(ctx context.Context, actor auth.Princi
 	if err != nil || reference != input.asOf || input.page < 1 || input.page > deadlinePreviewMaximumPage || !input.shift.Valid() || input.minimum != nil && !input.minimum.Valid() {
 		return zero, errors.New("helpdesk: deadline preview input was not validated")
 	}
-	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (deadlinePreviewPage, error) {
+	value, err := readApplication(ctx, a, actor, requireAccess(ViewTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (deadlinePreviewPage, error) {
 		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil deadline preview reader")
 		}

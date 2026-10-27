@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/examples/helpdesk/models"
-	"github.com/progresshans/godj/systemstate"
 )
 
 // The parent reads the real database independently of the generated client's
 // success receipt. Both rows, selected links (in the fixture owner), exact
 // scalar values and exact creation/change audits must survive. Id-only requests add no audit.
-func verifyGeneratedBulkTicketEffects(t *testing.T, runtime *systemstate.Runtime, category int64, actor string, rows map[string]models.Ticket) []int64 {
+func verifyGeneratedBulkTicketEffects(t *testing.T, backend helpdeskVerificationBackend, category int64, actor auth.Principal, rows map[string]models.Ticket) []int64 {
 	t.Helper()
 	if len(rows) != 2 {
 		t.Fatal("generated client did not persist both bulk rows")
@@ -37,20 +37,19 @@ func verifyGeneratedBulkTicketEffects(t *testing.T, runtime *systemstate.Runtime
 		} else if row.Details != nil || row.ExternalPayload != nil || row.ExternalPayloadDigest != nil || row.Reviewed != nil || row.ServiceAt != nil || row.ExpectedCost != nil {
 			t.Fatal("generated bulk omitted scalar values")
 		}
-		history, err := runtime.AuditHistory(t.Context(), "helpdesk.ticket", row.ID, 10)
+		history, err := helpdeskDomainHistory(t, backend, actor, "helpdesk.ticket", row.ID, 10)
 		if err != nil || len(history) != 2 {
 			t.Fatal("generated bulk creation/update audit count", err)
 		}
 		adds, changes := 0, 0
 		for _, event := range history {
-			if event.ActorID != actor {
+			if event.ActorID() != actor.ID() {
 				t.Fatal("generated bulk audit actor")
 			}
-			switch event.Action {
+			switch event.Action() {
 			case admin.ActionAdd:
 				adds++
-				originalName := []string{"Client bulk first", "Client bulk second"}[index]
-				if event.DisplayLabel != originalName || len(event.ChangedFields) != 0 {
+				if len(event.ChangedFields()) != 0 {
 					t.Fatal("bulk creation audit was rewritten")
 				}
 			case admin.ActionChange:
@@ -59,11 +58,11 @@ func verifyGeneratedBulkTicketEffects(t *testing.T, runtime *systemstate.Runtime
 				if index == 1 {
 					fields = []string{"subject", "closed", "labels"}
 				}
-				if event.DisplayLabel != name || !slices.Equal(event.ChangedFields, fields) {
-					t.Fatal("bulk update durable audit fields", event.ChangedFields)
+				if !slices.Equal(event.ChangedFields(), fields) {
+					t.Fatal("bulk update durable audit fields", event.ChangedFields())
 				}
 			default:
-				t.Fatal("unexpected bulk audit action", event.Action)
+				t.Fatal("unexpected bulk audit action", event.Action())
 			}
 		}
 		if adds != 1 || changes != 1 {

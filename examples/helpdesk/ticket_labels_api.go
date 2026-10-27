@@ -82,7 +82,7 @@ func (a *Application) ticketLabelOperations(protect func(openapi.Operation, api.
 		operation openapi.Operation
 		handler   api.AuthenticatedHandler
 	}{
-		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-list", Method: http.MethodGet, Path: "/api/ticket-labels/"}, Summary: "List ticket-label links", Permission: ViewTicketLabel, Description: fmt.Sprintf("Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs are exposed. Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over %d bytes return 400. Count and items are separate reads, so concurrent changes can shift pages.", a.queries.links.MaxBytes()), Parameters: a.queries.links.Parameters(), Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiTicketLabelList},
+		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-list", Method: http.MethodGet, Path: "/api/ticket-labels/"}, Summary: "List ticket-label links", Permission: ViewTicketLabel, Description: fmt.Sprintf("Links whose ticket and label both belong to the selected category, ordered by ID. Only endpoint IDs are exposed. Count precedes pagination. Unknown/duplicate parameters, invalid encoding, NUL and queries over %d bytes return 400. %s", a.queries.links.MaxBytes(), a.pageConsistencyDescription()), Parameters: a.queries.links.Parameters(), Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped page.", listRef), badInput}}, a.apiTicketLabelList},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-create", Method: http.MethodPost, Path: "/api/ticket-labels/"}, Summary: "Link a label to a ticket", Permission: AddTicketLabel, AdditionalPermissions: []auth.Permission{ViewTicket, ViewLabel}, Description: writePolicy, RequestBody: &openapi.RequestBody{Schema: createRef, Required: true, Description: "One JSON object. Unknown/duplicate members, null keys and trailing data are rejected."}, Responses: writes(http.StatusCreated)}, a.apiTicketLabelCreate},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-detail", Method: http.MethodGet, Path: "/api/ticket-labels/<int64:id>/"}, Summary: "Read a ticket-label link", Permission: ViewTicketLabel, Description: "Link view permission covers its endpoint IDs; endpoint names are not exposed.", Responses: []openapi.Response{helpdeskJSONResponse(http.StatusOK, "The scoped link.", linkRef), notFound}}, a.apiTicketLabelDetail},
 		{openapi.Operation{Route: web.Route{Name: "helpdesk:ticket-label-update", Method: http.MethodPut, Path: "/api/ticket-labels/<int64:id>/"}, Summary: "Replace a ticket-label link's endpoints", Permission: ChangeTicketLabel, AdditionalPermissions: []auth.Permission{ViewTicket, ViewLabel}, Description: writePolicy, RequestBody: &openapi.RequestBody{Schema: updateRef, Required: true}, Responses: writes(http.StatusOK)}, a.apiTicketLabelUpdate},
@@ -107,7 +107,7 @@ func (a *Application) ticketLabelResponse(status int, value models.TicketLabel) 
 	}
 	return api.JSON(status, encoded)
 }
-func (a *Application) apiTicketLabelList(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiTicketLabelList(request *web.Request, actor auth.Principal) (web.Response, error) {
 	options, diagnostics, err := a.queries.links.Parse(request.HTTP().URL.RawQuery)
 	if err != nil {
 		return web.Response{}, err
@@ -115,7 +115,7 @@ func (a *Application) apiTicketLabelList(request *web.Request, _ auth.Principal)
 	if !diagnostics.Empty() {
 		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, validation.NewErrors(validation.New(validation.NonField, "invalid")))
 	}
-	page, err := a.listTicketLabels(request.Context(), options)
+	page, err := a.listTicketLabels(request.Context(), actor, options)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -136,7 +136,7 @@ func (a *Application) apiTicketLabelList(request *web.Request, _ auth.Principal)
 	}
 	return api.JSON(http.StatusOK, result.Value())
 }
-func (a *Application) apiTicketLabelCreate(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiTicketLabelCreate(request *web.Request, actor auth.Principal) (web.Response, error) {
 	values, response, handled, err := a.bindInputSpec(request, a.linkInput, serializers.ModeFull)
 	if handled || err != nil {
 		return response, err
@@ -145,18 +145,18 @@ func (a *Application) apiTicketLabelCreate(request *web.Request, _ auth.Principa
 	ticketID, _ := ticketValue.AsInteger()
 	labelValue, _ := values.Get("label")
 	labelID, _ := labelValue.AsInteger()
-	created, err := a.createTicketLabel(request.Context(), ticketID, labelID)
+	created, err := a.createTicketLabel(request.Context(), actor, ticketID, labelID)
 	if err != nil {
 		return objectFailure(err)
 	}
 	return a.ticketLabelResponse(http.StatusCreated, created)
 }
-func (a *Application) apiTicketLabelDetail(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiTicketLabelDetail(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
 	}
-	value, found, err := a.ticketLabel(request.Context(), a.backend, id)
+	value, found, err := a.getTicketLabel(request.Context(), actor, id)
 	if err != nil {
 		return web.Response{}, err
 	}
@@ -165,13 +165,13 @@ func (a *Application) apiTicketLabelDetail(request *web.Request, _ auth.Principa
 	}
 	return a.ticketLabelResponse(http.StatusOK, value)
 }
-func (a *Application) apiTicketLabelUpdate(request *web.Request, _ auth.Principal) (web.Response, error) {
-	return a.apiTicketLabelUpdateMode(request, serializers.ModeFull)
+func (a *Application) apiTicketLabelUpdate(request *web.Request, actor auth.Principal) (web.Response, error) {
+	return a.apiTicketLabelUpdateMode(request, actor, serializers.ModeFull)
 }
-func (a *Application) apiTicketLabelPatch(request *web.Request, _ auth.Principal) (web.Response, error) {
-	return a.apiTicketLabelUpdateMode(request, serializers.ModePartial)
+func (a *Application) apiTicketLabelPatch(request *web.Request, actor auth.Principal) (web.Response, error) {
+	return a.apiTicketLabelUpdateMode(request, actor, serializers.ModePartial)
 }
-func (a *Application) apiTicketLabelUpdateMode(request *web.Request, mode serializers.Mode) (web.Response, error) {
+func (a *Application) apiTicketLabelUpdateMode(request *web.Request, actor auth.Principal, mode serializers.Mode) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
@@ -190,28 +190,28 @@ func (a *Application) apiTicketLabelUpdateMode(request *web.Request, mode serial
 			patch = patch.WithLabelID(value)
 		}
 	}
-	updated, _, err := a.updateTicketLabel(request.Context(), id, patch)
+	updated, _, err := a.updateTicketLabel(request.Context(), actor, id, patch)
 	if err != nil {
 		return objectFailure(err)
 	}
 	return a.ticketLabelResponse(http.StatusOK, updated)
 }
-func (a *Application) apiTicketLabelDelete(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiTicketLabelDelete(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
 	}
-	if _, err := a.deleteTicketLabel(request.Context(), id); err != nil {
+	if _, err := a.deleteTicketLabel(request.Context(), actor, id); err != nil {
 		return objectFailure(err)
 	}
 	return api.NoContent()
 }
-func (a *Application) apiTicketDelete(request *web.Request, _ auth.Principal) (web.Response, error) {
+func (a *Application) apiTicketDelete(request *web.Request, actor auth.Principal) (web.Response, error) {
 	id, valid := objectRequestID(request)
 	if !valid {
 		return objectNotFound()
 	}
-	if _, err := a.delete(request.Context(), id); err != nil {
+	if _, err := a.delete(request.Context(), actor, id); err != nil {
 		// Only the exact confirmed diagnostic is a normal denial. A joined cleanup
 		// error or canceled request must never be published as confirmed protection.
 		if protected, ok := err.(*query.ProtectedForeignKeyError); ok && protected.ProtectedSourceRows() > 0 && request.Context().Err() == nil {

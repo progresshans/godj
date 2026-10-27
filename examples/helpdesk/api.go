@@ -16,6 +16,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
 
@@ -37,6 +38,7 @@ type API struct {
 // AppendAudit must use the supplied session, propagate errors and
 // never open or commit a separate transaction. Other API writes retain their
 // existing audit policies; this callback does not add generic write auditing.
+// A NewSelected application instead owns domain audit and requires nil here.
 type APIConfig struct {
 	Authentication api.Authentication
 	AppendAudit    func(context.Context, db.Session, admin.PreparedEvent) error
@@ -47,7 +49,7 @@ type APIConfig struct {
 // choose the listener, middleware, and whether to publish the OpenAPI document.
 func (a *Application) API(config APIConfig) (*API, error) {
 	authentication := config.Authentication
-	if a == nil || nilAuthentication(authentication) || config.AppendAudit == nil {
+	if a == nil || nilAuthentication(authentication) || !a.validAuditConfiguration(config.AppendAudit) {
 		return nil, fmt.Errorf("helpdesk API: application, authentication and transactional audit are required")
 	}
 	input, err := openapi.RequestSchema(a.input, serializers.ModeFull)
@@ -78,7 +80,14 @@ func (a *Application) API(config APIConfig) (*API, error) {
 	}
 	notFound := helpdeskJSONResponse(http.StatusNotFound, "The ticket does not exist in the selected category or its identifier is not positive.", errorSchema)
 	protect := func(operation openapi.Operation, handler api.AuthenticatedHandler) (openapi.Operation, error) {
-		protected, err := authentication.Require(operation.Permission, handler, operation.AdditionalPermissions...)
+		execute := func(request *web.Request, actor auth.Principal) (web.Response, error) {
+			response, err := handler(request, actor)
+			if accountAccessDenied(err) {
+				return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
+			}
+			return response, err
+		}
+		protected, err := authentication.Require(operation.Permission, execute, operation.AdditionalPermissions...)
 		if err != nil {
 			return openapi.Operation{}, fmt.Errorf("helpdesk API authentication route %q: %w", operation.Route.Name, err)
 		}
@@ -117,7 +126,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		Route:   web.Route{Name: "helpdesk:ticket-create", Method: http.MethodPost, Path: "/api/tickets/"},
 		Summary: "Create a ticket", Description: "The application assigns the selected category and checks its existence within the create transaction. Authentication, CSRF when required, and permission checks precede body parsing. Structural input validation precedes the category lookup; uniqueness checks follow it in the same transaction. External_payload_digest is a server-owned SHA-256 of the stored JSON, returned as padded base64 or null and rejected in requests. Existing rows retain null until a real ticket scalar write refreshes the digest; read and no-op requests preserve it. SQL null payload has no digest, while a stored JSON null has its own digest.",
 		Admission: endpoint.All(AddTicket, ViewLabel), Output: a.responses.ticket,
-		Input: endpoint.Resolve(ticketBody, func(request *web.Request, _ auth.Principal, value orm.ModelInput[models.Ticket]) (orm.ModelInput[models.Ticket], error) {
+		Input: endpoint.Resolve(ticketBody, func(request *web.Request, actor auth.Principal, value orm.ModelInput[models.Ticket]) (orm.ModelInput[models.Ticket], error) {
 			diagnostics, err := validateTicketAPIInput(request.Context(), value)
 			if err != nil {
 				return orm.ModelInput[models.Ticket]{}, err
@@ -129,6 +138,7 @@ func (a *Application) API(config APIConfig) (*API, error) {
 		}),
 		Success: []endpoint.Status{{Code: http.StatusCreated, Description: "The created ticket."}},
 		Errors: []endpoint.Status{
+			{Code: http.StatusForbidden, Description: "The current account no longer permits this operation."},
 			{Code: http.StatusBadRequest, Description: "The body cannot be parsed, a supplied field is invalid, or a non-null external reference is already in use. A concurrent uniqueness conflict uses the __all__ diagnostic field."},
 			{Code: http.StatusNotFound, Description: "The application's selected category no longer exists."},
 			{Code: http.StatusRequestEntityTooLarge, Description: fmt.Sprintf("The request body exceeds %d bytes.", maximumJSONBodyBytes)},

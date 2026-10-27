@@ -49,7 +49,7 @@ func (a *Application) readLabelUsage(ctx context.Context, actor auth.Principal, 
 	if !actor.Authenticated() || !actor.Has(ViewLabel) || !actor.Has(ViewTicket) {
 		return zero, errors.New("helpdesk: label usage lacks admitted permissions")
 	}
-	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (labelUsagePage, error) {
+	value, err := readApplication(ctx, a, actor, requireAccess(ViewLabel, ViewTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (labelUsagePage, error) {
 		return a.labelUsageInSnapshot(work, reader, input)
 	})
 	if err != nil {

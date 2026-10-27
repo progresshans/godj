@@ -45,7 +45,7 @@ func (a *Application) readCostPreview(ctx context.Context, actor auth.Principal,
 	if input.page < 1 || input.page > costPreviewMaximumPage || !input.factor.Fits(6, 4) || !input.delta.Fits(14, 2) || input.minimum != nil && !input.minimum.Fits(21, 6) {
 		return zero, errors.New("helpdesk: cost preview input was not validated")
 	}
-	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (costPreviewPage, error) {
+	value, err := readApplication(ctx, a, actor, requireAccess(ViewTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (costPreviewPage, error) {
 		if interfaceNil(reader) {
 			return zero, errors.New("helpdesk: nil cost preview reader")
 		}

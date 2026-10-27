@@ -27,7 +27,10 @@ PROCESSES = (
     './conformance/runserverproduct',
 )
 HELPDESK_POSTGRES_PACKAGE = MODULE + 'examples/helpdesk'
-HELPDESK_POSTGRES_ROOT = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
+HELPDESK_POSTGRES_ROOTS = frozenset({
+    'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance',
+    'TestSelectedAccountHelpdeskPostgresScopeLifecycle',
+})
 CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
@@ -111,7 +114,7 @@ def plan(mode, shard, entries):
         # Move the whole PostgreSQL root, including future child sentinels.
         def is_helpdesk_postgres(entry):
             package, _, test = entry.partition('|')
-            return package == HELPDESK_POSTGRES_PACKAGE and test.split('/')[0] == HELPDESK_POSTGRES_ROOT
+            return package == HELPDESK_POSTGRES_PACKAGE and test.split('/')[0] in HELPDESK_POSTGRES_ROOTS
 
         selected = [entry for entry in selected if is_helpdesk_postgres(entry) == (shard == 'core-helpdesk-postgres')]
     if shard in CONSUMER_PARTITIONS:

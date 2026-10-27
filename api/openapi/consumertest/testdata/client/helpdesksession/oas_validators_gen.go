@@ -2189,6 +2189,14 @@ func (s *HelpdeskDeadlineCalendarBadRequest) Validate() error {
 	return nil
 }
 
+func (s *HelpdeskDeadlineCalendarForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskDeadlineCalendarNotFound) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
@@ -3835,6 +3843,14 @@ func (s HelpdeskServiceReportStatusComparison) Validate() error {
 	}
 }
 
+func (s *HelpdeskServiceReportStatusForbidden) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *HelpdeskServiceReportStatusNotFound) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
@@ -4439,6 +4455,14 @@ func (s *HelpdeskTicketServiceReportSaveUnsupportedMediaType) Validate() error {
 }
 
 func (s *HelpdeskTicketSummaryBadRequest) Validate() error {
+	alias := (*GoDjAPIErrorHeaders)(s)
+	if err := alias.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *HelpdeskTicketSummaryForbidden) Validate() error {
 	alias := (*GoDjAPIErrorHeaders)(s)
 	if err := alias.Validate(); err != nil {
 		return err

@@ -54,11 +54,11 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 		ListFields: []string{"id", "name"}, SearchFields: []string{"name"},
 		Permissions:        admin.Permissions{View: ViewLabel, Add: AddLabel, Change: ChangeLabel, Delete: DeleteLabel},
 		CollectionCommands: a.labelEnsureCommands(form),
-		List: func(ctx context.Context, _ auth.Principal, request admin.ListRequest) (admin.Page[models.Label], error) {
-			return a.listLabels(ctx, request)
+		List: func(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[models.Label], error) {
+			return a.listLabels(ctx, actor, request)
 		},
-		Get: func(ctx context.Context, _ auth.Principal, id int64) (models.Label, bool, error) {
-			return a.label(ctx, a.backend, id)
+		Get: func(ctx context.Context, actor auth.Principal, id int64) (models.Label, bool, error) {
+			return a.getLabel(ctx, actor, id)
 		},
 		Snapshot: func(value models.Label) (admin.Object, error) { return projector.Project(value, value.ID, value.Name) },
 		Initial: func(value models.Label) (map[string]forms.Value, error) {
@@ -70,48 +70,50 @@ func (a *Application) registerLabels(builder *admin.Builder) error {
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return a.checkLabelForm(ctx, actor, mutation.ID, bound)
 		},
-		Create: func(ctx context.Context, _ auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
+		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
 			input, err := formmodel.PrepareInput(models.LabelObjects, bound)
 			if err != nil {
 				return admin.MutationResult{}, err
 			}
-			value, err := a.createLabel(ctx, input)
+			value, err := a.createLabel(ctx, actor, input)
 			return admin.MutationResult{ID: value.ID}, err
 		},
-		Update: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
+		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			input, err := formmodel.PrepareInput(models.LabelObjects, bound)
 			if err != nil {
 				return admin.MutationResult{}, nil, err
 			}
-			result, err := a.updateLabel(ctx, mutation.ID, input)
+			result, err := a.updateLabel(ctx, actor, mutation.ID, input)
 			return admin.MutationResult{ID: result.value.ID}, result.changed, err
 		},
-		Delete: func(ctx context.Context, _ auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
+		Delete: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {
 			id := mutation.ID
-			value, err := a.deleteLabel(ctx, id)
+			value, err := a.deleteLabel(ctx, actor, id)
 			return admin.MutationResult{ID: value.ID}, err
 		},
 	})
 }
 
-func (a *Application) listLabels(ctx context.Context, request admin.ListRequest) (admin.Page[models.Label], error) {
-	var filters []orm.Predicate[models.Label]
-	if request.Search != "" {
-		filters = append(filters, models.LabelFields.Name.IContains(request.Search))
-	}
-	page, err := a.resources.label.List(ctx, a.backend, crud.ListOptions[models.Label]{Filter: filters, Offset: request.Offset, Limit: request.Limit})
-	if err != nil {
-		return admin.Page[models.Label]{}, err
-	}
-	return admin.Page[models.Label]{Items: page.Items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
+func (a *Application) listLabels(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[models.Label], error) {
+	return readBusiness(ctx, a, actor, a.readPolicy(ViewLabel, ChangeLabel), func(ctx context.Context, reader db.Queryer, _ auth.Principal) (admin.Page[models.Label], error) {
+		var filters []orm.Predicate[models.Label]
+		if request.Search != "" {
+			filters = append(filters, models.LabelFields.Name.IContains(request.Search))
+		}
+		page, err := a.resources.label.List(ctx, reader, crud.ListOptions[models.Label]{Filter: filters, Offset: request.Offset, Limit: request.Limit})
+		if err != nil {
+			return admin.Page[models.Label]{}, err
+		}
+		return admin.Page[models.Label]{Items: page.Items, Total: page.Total, Offset: page.Offset, Limit: page.Limit}, nil
+	})
 }
 
 func (a *Application) label(ctx context.Context, backend db.Queryer, id int64) (models.Label, bool, error) {
 	return a.resources.label.Get(ctx, backend, id)
 }
 
-func (a *Application) createLabel(ctx context.Context, input orm.ModelInput[models.Label]) (models.Label, error) {
-	return runApplicationAtomic(ctx, a.backend, func(work context.Context, session db.Session) (models.Label, error) {
+func (a *Application) createLabel(ctx context.Context, actor auth.Principal, input orm.ModelInput[models.Label]) (models.Label, error) {
+	return writeApplication(ctx, a, actor, requireAccess(AddLabel), func(work context.Context, session db.Session, actor auth.Principal) (models.Label, error) {
 		mutation, err := a.resources.label.CreateInSession(work, session, input, crud.SaveOptions[models.Label]{
 			ServerValues: map[string]query.Value{"category": query.Integer(a.categoryID)},
 			Before: func(ctx context.Context, session db.Session, _, _ *models.Label) error {
@@ -138,8 +140,8 @@ type updatedLabel struct {
 	response output.Prepared[models.Label]
 }
 
-func (a *Application) updateLabel(ctx context.Context, id int64, input orm.ModelInput[models.Label]) (updatedLabel, error) {
-	return runApplicationAtomic(ctx, a.backend, func(work context.Context, session db.Session) (updatedLabel, error) {
+func (a *Application) updateLabel(ctx context.Context, actor auth.Principal, id int64, input orm.ModelInput[models.Label]) (updatedLabel, error) {
+	return writeApplication(ctx, a, actor, requireAccess(ChangeLabel), func(work context.Context, session db.Session, actor auth.Principal) (updatedLabel, error) {
 		mutation, err := a.resources.label.UpdateInSession(work, session, id, input, crud.SaveOptions[models.Label]{})
 		if err != nil {
 			return updatedLabel{}, resourceError(err)
@@ -185,8 +187,8 @@ func (a *Application) publishableLabel(ctx context.Context, backend db.Queryer, 
 	return value, nil
 }
 
-func (a *Application) deleteLabel(ctx context.Context, id int64) (models.Label, error) {
-	return runApplicationRelationAtomic(ctx, a.backend, func(work context.Context, session db.RelationSession) (models.Label, error) {
+func (a *Application) deleteLabel(ctx context.Context, actor auth.Principal, id int64) (models.Label, error) {
+	return writeApplicationRelations(ctx, a, actor, requireAccess(DeleteLabel), func(work context.Context, session db.RelationSession, actor auth.Principal) (models.Label, error) {
 		removed, err := a.resources.label.DeleteInSession(work, session, id, crud.DeleteOptions[models.Label]{Delete: func(ctx context.Context, backend db.Session, value models.Label) (int64, error) {
 			relations, ok := backend.(db.RelationSession)
 			if !ok {

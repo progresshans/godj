@@ -4945,7 +4945,6 @@ func (s *GoDjAPIError) SetErrors(val []GoDjAPIErrorErrorsItem) {
 }
 
 func (*GoDjAPIError) helpdeskCostPreviewRes()         {}
-func (*GoDjAPIError) helpdeskDeadlineCalendarRes()    {}
 func (*GoDjAPIError) helpdeskDeadlinePreviewRes()     {}
 func (*GoDjAPIError) helpdeskLabelDetailRes()         {}
 func (*GoDjAPIError) helpdeskLabelListRes()           {}
@@ -4953,13 +4952,11 @@ func (*GoDjAPIError) helpdeskLabelUsageRes()          {}
 func (*GoDjAPIError) helpdeskServicePreviewRes()      {}
 func (*GoDjAPIError) helpdeskServiceReportDetailRes() {}
 func (*GoDjAPIError) helpdeskServiceReportListRes()   {}
-func (*GoDjAPIError) helpdeskServiceReportStatusRes() {}
 func (*GoDjAPIError) helpdeskTicketDetailRes()        {}
 func (*GoDjAPIError) helpdeskTicketLabelDetailRes()   {}
 func (*GoDjAPIError) helpdeskTicketLabelListRes()     {}
 func (*GoDjAPIError) helpdeskTicketListRes()          {}
 func (*GoDjAPIError) helpdeskTicketServiceReportRes() {}
-func (*GoDjAPIError) helpdeskTicketSummaryRes()       {}
 
 type GoDjAPIErrorErrorsItem struct {
 	Field  string                             `json:"field"`
@@ -5085,6 +5082,10 @@ func (*HelpdeskCostPreviewNotFound) helpdeskCostPreviewRes() {}
 type HelpdeskDeadlineCalendarBadRequest GoDjAPIErrorHeaders
 
 func (*HelpdeskDeadlineCalendarBadRequest) helpdeskDeadlineCalendarRes() {}
+
+type HelpdeskDeadlineCalendarForbidden GoDjAPIErrorHeaders
+
+func (*HelpdeskDeadlineCalendarForbidden) helpdeskDeadlineCalendarRes() {}
 
 type HelpdeskDeadlineCalendarInternalServerError struct {
 	Data io.Reader
@@ -9931,6 +9932,10 @@ func (s *HelpdeskServiceReportStatusComparison) UnmarshalText(data []byte) error
 	}
 }
 
+type HelpdeskServiceReportStatusForbidden GoDjAPIErrorHeaders
+
+func (*HelpdeskServiceReportStatusForbidden) helpdeskServiceReportStatusRes() {}
+
 type HelpdeskServiceReportStatusInternalServerError struct {
 	Data io.Reader
 }
@@ -10504,6 +10509,10 @@ func (*HelpdeskTicketServiceReportSaveUnsupportedMediaType) helpdeskTicketServic
 type HelpdeskTicketSummaryBadRequest GoDjAPIErrorHeaders
 
 func (*HelpdeskTicketSummaryBadRequest) helpdeskTicketSummaryRes() {}
+
+type HelpdeskTicketSummaryForbidden GoDjAPIErrorHeaders
+
+func (*HelpdeskTicketSummaryForbidden) helpdeskTicketSummaryRes() {}
 
 type HelpdeskTicketSummaryInternalServerError struct {
 	Data io.Reader

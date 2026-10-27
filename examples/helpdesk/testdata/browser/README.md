@@ -4,6 +4,11 @@
 실제 Helpdesk Admin/API·티켓 편집기, identity·session·audit 저장소를 사용한다. Fixture 로그인은
 `operator` / `demo-password`다. 배포용 서비스나 운영 자격 증명의 예제가 아니다.
 
+선택 계정의 첫 계정 명령 owner로 domain을 초기화한 뒤, 명시적인 Helpdesk 권한을 가진 일반 staff 계정을 만든다.
+브라우저의 operator는 superuser가 아니며 실제 DB session과 동일 runtime의 LoginPersistence로 로그인한다.
+종료 JSON의 `selected_account`는 실제 model/domain/role fingerprint·actor·현재 역할·정확한 권한 집합과 DB session 수를
+확인한다. 읽기 CI는 누락된 계정 근거, 기존 고정 actor, unbound domain, superuser와 불완전한 권한 목록을 거부한다.
+
 Node.js와 Playwright 브라우저가 준비된 환경에서 새 세션을 열고 네 probe를 순서대로 실행한다.
 
 ```sh
@@ -25,7 +30,8 @@ UUID 별칭 중복 거부와 전체 rollback, 수정 후 함께 commit된 scalar
 서버를 Ctrl-C로 종료하면 listener를 닫고 committed Ticket·TicketLabel과 티켓별 durable audit를 stdout에 출력한 뒤
 자신의 DB 디렉터리를 정리한다. 네 probe 뒤 최종 티켓은 5개, 링크는 4개이며 durable audit는 13개다.
 기존 티켓은 change 2개, 우선순위를 올린 두 티켓은 각각 add 1개/change 2개와 add 1개/change 3개,
-나머지 두 티켓은 각각 add 1개/change 1개가 `browser-operator` actor로 남아야 한다. 우선순위는 두 번째·세 번째
+나머지 두 티켓은 각각 add 1개/change 1개가 `selected_account.actor_id`와 같은 actor/domain으로 남아야 한다.
+이 actor ID는 실제 계정 생성 시 발급된다. 감사에는 티켓 subject와 표시명 값을 저장하지 않는다. 우선순위는 두 번째·세 번째
 티켓만 Urgent이고 나머지는 NULL이다. 최종 조회는 브라우저 결과와 독립적이다. 이 SQLite 브라우저 검사는
 양 DB의 취소·rollback/commit unknown·native batch 실패·동시 요청 검사를 대신하지 않는다.
 

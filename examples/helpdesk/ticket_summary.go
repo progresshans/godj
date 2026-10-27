@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
@@ -56,7 +57,7 @@ type ticketSummaryPage struct {
 // All observations, including category existence/name and the single-statement
 // group page, use one borrowed read snapshot. Nothing is published until its
 // owner confirms cleanup. Reads never load ticket bodies, labels or digests.
-func (a *Application) readTicketSummary(ctx context.Context, input ticketSummaryQuery) (ticketSummaryPage, error) {
+func (a *Application) readTicketSummary(ctx context.Context, actor auth.Principal, input ticketSummaryQuery) (ticketSummaryPage, error) {
 	var zero ticketSummaryPage
 	if ctx == nil {
 		return zero, errors.New("helpdesk: ticket summary requires context")
@@ -64,7 +65,7 @@ func (a *Application) readTicketSummary(ctx context.Context, input ticketSummary
 	if err := ctx.Err(); err != nil {
 		return zero, err
 	}
-	value, err := readSnapshotValue(ctx, a.backend, func(work context.Context, reader db.Queryer) (ticketSummaryPage, error) {
+	value, err := readApplication(ctx, a, actor, requireAccess(ViewTicket), func(work context.Context, reader db.Queryer, _ auth.Principal) (ticketSummaryPage, error) {
 		return a.ticketSummaryInSnapshot(work, reader, input)
 	})
 	if err != nil {

@@ -2,9 +2,35 @@ import json
 import unittest
 
 from helpdesk_browser import SERVICE_PREVIEW_CHECKS, verify_service_preview, expected_service_values, DEADLINE_CALENDAR_CHECKS, verify_deadline_calendar, DEADLINE_PREVIEW_CHECKS, verify_deadline_preview, COST_PREVIEW_CHECKS, verify_cost_preview, LABEL_USAGE_CHECKS, verify_label_usage, REPORT_STATUS_CHECKS, SUMMARY_CHECKS, result_document, verify_committed, verify_report_status, verify_summary
+from helpdesk_browser import BROWSER_PERMISSIONS, verify_selected_account
+
+
+def selected_account():
+    return {'model': 'godj_identity.user', 'domain': 'a' * 64, 'role_fingerprint': 'b' * 64,
+            'actor_id': 'user-' + 'c' * 64, 'active': True, 'staff': True, 'superuser': False,
+            'permissions': list(BROWSER_PERMISSIONS), 'session_records': 1}
 
 
 class BrowserEvidenceTest(unittest.TestCase):
+    def test_native_account_proof_rejects_legacy_unbound_or_superuser_substitutes(self):
+        valid = selected_account()
+        verify_selected_account({'selected_account': valid})
+        for missing in valid:
+            with self.subTest(missing=missing), self.assertRaises(ValueError):
+                verify_selected_account({'selected_account': {key: value for key, value in valid.items() if key != missing}})
+        for bad in (None, {}, dict(valid, model='other.user'), dict(valid, domain=''), dict(valid, domain='0' * 64),
+                    dict(valid, role_fingerprint='A' * 64), dict(valid, actor_id='browser-operator'),
+                    dict(valid, active=False), dict(valid, staff=False), dict(valid, superuser=True),
+                    dict(valid, session_records=0), dict(valid, session_records=True), dict(valid, session_records=257),
+                    dict(valid, permissions=['foreign.permission'] * len(BROWSER_PERMISSIONS)),
+                    dict(valid, permissions=list(BROWSER_PERMISSIONS[:-1])),
+                    dict(valid, permissions=list(BROWSER_PERMISSIONS) + ['foreign.permission']),
+                    dict(valid, credential='must not be evidence')):
+            with self.subTest(value=bad), self.assertRaises(ValueError):
+                verify_selected_account({'selected_account': bad})
+        with self.assertRaises(ValueError):
+            verify_selected_account({})
+
     def test_cli_process_success_cannot_hide_a_tool_error_or_missing_result(self):
         result = {'passed': 30, 'cases': list(SUMMARY_CHECKS)}
         output = '### Result\n' + json.dumps(result) + '\n### Ran Playwright code\nprobe();\n'
@@ -19,7 +45,7 @@ class BrowserEvidenceTest(unittest.TestCase):
                 verify_summary(bad)
 
     def test_stored_result_requires_full_read_only_proof_and_no_audit(self):
-        result = {'service_preview_read_only_unchanged': True, 'deadline_calendar_read_only_unchanged': True, 'deadline_preview_read_only_unchanged': True, 'cost_preview_read_only_unchanged': True, 'summary_read_only_unchanged': True, 'initial_summary_tickets': 30,
+        result = {'selected_account': selected_account(), 'service_preview_read_only_unchanged': True, 'deadline_calendar_read_only_unchanged': True, 'deadline_preview_read_only_unchanged': True, 'cost_preview_read_only_unchanged': True, 'summary_read_only_unchanged': True, 'initial_summary_tickets': 30,
                   'committed_tickets': [{**expected_service_values(i + 1), 'id': i + 1, 'audit': [], 'expected_cost': {2: '0.1', 3: '0.2'}.get(i + 1),
                                          'due_at': {2: '2024-02-28T23:59:59.999999Z', 3: '2024-02-29T00:00:00.000001Z'}.get(i + 1)} for i in range(30)],
                   'committed_links': [{'ID': index + 1, 'TicketID': ticket, 'LabelID': label}

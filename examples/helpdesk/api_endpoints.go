@@ -10,6 +10,9 @@ import (
 )
 
 func typedEndpointFailure(err error) error {
+	if accountAccessDenied(err) {
+		return endpoint.Reject(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
+	}
 	if err == admin.ErrObjectNotFound {
 		return endpoint.Reject(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
 	}

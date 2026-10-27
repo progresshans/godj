@@ -1,5 +1,5 @@
 // Command browser exercises the real Helpdesk Admin and ticket editor against
-// its own SQLite identity, session and audit stores. It never uses a deployed
+// its own SQLite selected-account domain, session and audit stores. It never uses a deployed
 // service. The sole fixture login is operator / demo-password.
 package main
 
@@ -27,12 +27,11 @@ import (
 	"github.com/progresshans/godj/decimal"
 	"github.com/progresshans/godj/duration"
 	"github.com/progresshans/godj/examples/helpdesk"
+	"github.com/progresshans/godj/examples/helpdesk/modeldef"
 	"github.com/progresshans/godj/examples/helpdesk/models"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
-	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -56,7 +55,7 @@ func run() error {
 		return err
 	}
 	defer backend.Close()
-	sources := append([]definition.Source{systemstate.InitialDefinitionSource()}, helpdesk.MigrationSources()...)
+	sources := append(modeldef.MigrationSources(), helpdesk.MigrationSources()...)
 	graph, _, err := definition.Load(sources...)
 	if err != nil {
 		return err
@@ -68,38 +67,20 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "browser-operator", Active: true, Permissions: append([]auth.Permission{"godj.admin.access"}, helpdesk.Permissions()...)})
+	runtime, actor, err := provisionBrowserAccounts(ctx, backend, hasher)
 	if err != nil {
 		return err
 	}
-	policy := systemstate.CredentialPolicy{Principal: principal, PasswordHasher: hasher}
-	if err = systemstate.ProvisionOperator(ctx, backend, systemstate.ProvisionOperatorConfig{Username: "operator", Password: "demo-password", CredentialPolicy: policy}); err != nil {
-		return err
-	}
-	graph, _, err = definition.Load(append(systemstate.IdentityMigrationSources(), helpdesk.MigrationSources()...)...)
-	if err != nil {
-		return err
-	}
-	if _, err = (migrations.Executor{Backend: backend}).Migrate(ctx, graph, migrations.LatestLifecycleRequest()); err != nil {
-		return err
-	}
-	if _, err = systemstate.AdoptOperator(ctx, backend, systemstate.AdoptOperatorConfig{Expected: systemstate.RuntimeConfig{CredentialPolicy: policy}, Staff: true}); err != nil {
-		return err
-	}
-	runtime, err := systemstate.OpenIdentity(ctx, backend, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher})
-	if err != nil {
-		return err
-	}
-	category, err := models.CategoryObjects.Create(ctx, runtime, models.NewCategoryCreate("Browser category"))
+	category, err := models.CategoryObjects.Create(ctx, backend, models.NewCategoryCreate("Browser category"))
 	if err != nil {
 		return err
 	}
 	for _, name := range []string{"Desk & <one>", "Spare __prefix__"} {
-		if _, err = models.LabelObjects.Create(ctx, runtime, models.NewLabelCreate(name, category.ID)); err != nil {
+		if _, err = models.LabelObjects.Create(ctx, backend, models.NewLabelCreate(name, category.ID)); err != nil {
 			return err
 		}
 	}
-	if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Existing browser ticket", category.ID)); err != nil {
+	if _, err = models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Existing browser ticket", category.ID)); err != nil {
 		return err
 	}
 	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
@@ -114,20 +95,20 @@ func run() error {
 			if err != nil {
 				return err
 			}
-			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Unset summary", category.ID).WithClosed(closed).WithExpectedCost(amount).WithEffort(effort).WithElapsed(duration.FromMicroseconds(microseconds)).WithDueAt(dueAt)); err != nil {
+			if _, err = models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Unset summary", category.ID).WithClosed(closed).WithExpectedCost(amount).WithEffort(effort).WithElapsed(duration.FromMicroseconds(microseconds)).WithDueAt(dueAt)); err != nil {
 				return err
 			}
 		}
 		for _, priority := range []int64{-1, 0, 1, math.MinInt64, math.MaxInt64} {
-			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Summary priority", category.ID).WithPriority(priority).WithClosed(priority == 0)); err != nil {
+			if _, err = models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Summary priority", category.ID).WithPriority(priority).WithClosed(priority == 0)); err != nil {
 				return err
 			}
 		}
-		if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Closed low", category.ID).WithPriority(-1).WithClosed(true)); err != nil {
+		if _, err = models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Closed low", category.ID).WithPriority(-1).WithClosed(true)); err != nil {
 			return err
 		}
 		for priority := int64(10); priority <= 30; priority++ {
-			if _, err = models.TicketObjects.Create(ctx, runtime, models.NewTicketCreate("Legacy summary", category.ID).WithPriority(priority)); err != nil {
+			if _, err = models.TicketObjects.Create(ctx, backend, models.NewTicketCreate("Legacy summary", category.ID).WithPriority(priority)); err != nil {
 				return err
 			}
 		}
@@ -136,12 +117,12 @@ func run() error {
 	var reportsBefore []models.ServiceReport
 	var usageBefore labelUsageSnapshot
 	if os.Getenv("GODJ_BROWSER_SUMMARY") == "1" {
-		if err = runtime.Atomic(ctx, func(session db.Session) error {
+		if err = backend.Atomic(ctx, func(session db.Session) error {
 			return seedServicePreview(ctx, session)
 		}); err != nil {
 			return err
 		}
-		summaryBefore, err = models.TicketObjects.Using(runtime).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
+		summaryBefore, err = models.TicketObjects.Using(backend).OrderBy(models.TicketFields.ID.Asc()).All(ctx)
 		if err != nil {
 			return err
 		}
@@ -150,7 +131,7 @@ func run() error {
 			if index < 25 {
 				completed = !completed
 			}
-			report, err := models.ServiceReportObjects.Create(ctx, runtime, models.NewServiceReportCreate(ticket.ID, fmt.Sprintf("Report <script>& #%d", index+1)).WithCompleted(completed))
+			report, err := models.ServiceReportObjects.Create(ctx, backend, models.NewServiceReportCreate(ticket.ID, fmt.Sprintf("Report <script>& #%d", index+1)).WithCompleted(completed))
 			if err != nil {
 				return err
 			}
@@ -158,16 +139,16 @@ func run() error {
 		}
 	}
 	if summaryBefore != nil {
-		usageBefore, err = seedLabelUsage(ctx, runtime, category, summaryBefore)
+		usageBefore, err = seedLabelUsage(ctx, backend, category, summaryBefore)
 		if err != nil {
 			return err
 		}
 	}
-	application, err := helpdesk.New(runtime, category.ID)
+	application, err := helpdesk.NewSelected(backend, runtime.Credentials(), auth.PrincipalAuthorizer{}, category.ID)
 	if err != nil {
 		return err
 	}
-	registry, err := application.AdminRegistry(helpdesk.AdminConfig{AppendAudit: runtime.AppendAudit})
+	registry, err := application.AdminRegistry(helpdesk.AdminConfig{})
 	if err != nil {
 		return err
 	}
@@ -175,19 +156,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	manager, err := sessions.NewManager(runtime.SessionStore(), sessions.Config{})
-	if err != nil {
-		return err
-	}
+	manager := runtime.Sessions()
 	allowed, err := admin.SiteAllowedNextPaths(registry, "/admin")
 	if err != nil {
 		return err
 	}
 	allowed = append(allowed, helpdesk.TicketEditorPath, helpdesk.TicketSummaryPath, helpdesk.ServiceReportStatusPath, helpdesk.LabelUsagePath, helpdesk.CostPreviewPath, helpdesk.DeadlinePreviewPath, helpdesk.DeadlineCalendarPath, helpdesk.ServicePreviewPath)
-	persistence, err := runtime.LoginPersistence(manager)
-	if err != nil {
-		return err
-	}
+	persistence := runtime.LoginPersistence()
 	authentication, err := sessionauth.New(sessionauth.Config{Sessions: manager, Authenticator: runtime.Authenticator(), LoginPersistence: persistence, Authorizer: auth.PrincipalAuthorizer{}, SessionCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: sessionauth.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowed})
 	if err != nil {
 		return err
@@ -200,11 +175,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	api, err := application.API(helpdesk.APIConfig{Authentication: apiAuth, AppendAudit: runtime.AppendAudit})
+	api, err := application.API(helpdesk.APIConfig{Authentication: apiAuth})
 	if err != nil {
 		return err
 	}
-	editor, err := application.TicketEditor(helpdesk.TicketEditorConfig{Auth: authentication, AppendAudit: runtime.AppendAudit})
+	editor, err := application.TicketEditor(helpdesk.TicketEditorConfig{Auth: authentication})
 	if err != nil {
 		return err
 	}
@@ -272,7 +247,7 @@ func run() error {
 			return err
 		}
 		// Read committed rows and durable audit independently of browser claims.
-		rows, err := models.TicketObjects.Using(runtime).OrderBy(models.TicketFields.ID.Asc()).All(shutdown)
+		rows, err := models.TicketObjects.Using(backend).OrderBy(models.TicketFields.ID.Asc()).All(shutdown)
 		if err != nil {
 			return err
 		}
@@ -281,7 +256,7 @@ func run() error {
 		}
 		evidence := make([]map[string]any, len(rows))
 		for index, row := range rows {
-			history, err := runtime.AuditHistory(shutdown, "helpdesk.ticket", row.ID, 10)
+			history, err := browserAuditHistory(shutdown, backend, actor, "helpdesk.ticket", row.ID, 10)
 			if err != nil {
 				return err
 			}
@@ -308,18 +283,18 @@ func run() error {
 				evidence[index]["elapsed"] = row.Elapsed.String()
 			}
 		}
-		links, err := models.TicketLabelObjects.Using(runtime).OrderBy(models.TicketLabelFields.ID.Asc()).All(shutdown)
+		links, err := models.TicketLabelObjects.Using(backend).OrderBy(models.TicketLabelFields.ID.Asc()).All(shutdown)
 		if err != nil {
 			return err
 		}
 		var labelEvidence []map[string]any
 		if summaryBefore != nil {
-			labelEvidence, err = usageBefore.verify(shutdown, runtime, links)
+			labelEvidence, err = usageBefore.verify(shutdown, backend, actor, links)
 			if err != nil {
 				return err
 			}
 		}
-		reports, err := models.ServiceReportObjects.Using(runtime).OrderBy(models.ServiceReportFields.ID.Asc()).All(shutdown)
+		reports, err := models.ServiceReportObjects.Using(backend).OrderBy(models.ServiceReportFields.ID.Asc()).All(shutdown)
 		if err != nil {
 			return err
 		}
@@ -328,7 +303,7 @@ func run() error {
 		}
 		reportEvidence := make([]map[string]any, len(reports))
 		for index, report := range reports {
-			history, err := runtime.AuditHistory(shutdown, "helpdesk.service_report", report.ID, 10)
+			history, err := browserAuditHistory(shutdown, backend, actor, "helpdesk.service_report", report.ID, 10)
 			if err != nil {
 				return err
 			}
@@ -337,7 +312,11 @@ func run() error {
 			}
 			reportEvidence[index] = map[string]any{"id": report.ID, "ticket": report.TicketID, "completed": report.Completed, "summary": report.Summary, "audit": history}
 		}
-		return json.NewEncoder(os.Stdout).Encode(map[string]any{"committed_tickets": evidence, "committed_links": links,
+		selected, err := browserAccountEvidence(shutdown, runtime, actor)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(os.Stdout).Encode(map[string]any{"selected_account": selected, "committed_tickets": evidence, "committed_links": links,
 			"service_preview_read_only_unchanged":   summaryBefore != nil,
 			"deadline_calendar_read_only_unchanged": summaryBefore != nil,
 			"deadline_preview_read_only_unchanged":  summaryBefore != nil,

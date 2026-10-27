@@ -17,7 +17,7 @@ import (
 )
 
 func (a *Application) ticketBulkActions() []admin.ActionConfig {
-	if a.adminAudit == nil {
+	if !a.auditEnabled(a.adminAudit) {
 		return nil
 	}
 	result := make([]admin.ActionConfig, 0, 3)
@@ -69,7 +69,7 @@ func AdminRenderLimits() templates.Limits {
 }
 
 func (a *Application) ticketBulkFormSets(fields []string, overrides []formmodel.Override) ([]admin.CollectionFormSet, error) {
-	if a.adminAudit == nil {
+	if !a.auditEnabled(a.adminAudit) {
 		return nil, nil
 	}
 	policy := forms.DefaultSetConfig()
@@ -105,7 +105,7 @@ func (a *Application) ticketBulkFormSets(fields []string, overrides []formmodel.
 			return admin.CollectionSetSnapshot[models.Ticket]{}, nil
 		},
 		Run: func(ctx context.Context, actor auth.Principal, submission admin.CollectionSetSubmission) (admin.CollectionSetResult, error) {
-			result, err := runApplicationRelationAtomic(ctx, a.backend, func(ctx context.Context, session db.RelationSession) (admin.CollectionSetResult, error) {
+			result, err := writeApplicationRelations(ctx, a, actor, readAccess(ViewTicket, ChangeTicket, AddTicket, ViewLabel), func(ctx context.Context, session db.RelationSession, actor auth.Principal) (admin.CollectionSetResult, error) {
 				bound, err := definition.BindCurrent(ctx, actor, submission, func(context.Context, admin.CollectionSetAccess) (admin.CollectionSetCurrent[models.Ticket], error) {
 					return admin.CollectionSetCurrent[models.Ticket]{ResolveChoices: func(work context.Context, input formmodel.SetPreflight[models.Ticket]) (forms.RowModelChoices, error) {
 						selections := make(map[int]map[string][]forms.Choice)
