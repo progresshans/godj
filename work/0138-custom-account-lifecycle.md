@@ -429,8 +429,19 @@ native scope에 두고, `AccountMemberships` validator에 실제 최종 프로�
 
 기본/custom 독립 생성 소비자에 실제 Form/Admin/API·현재 선택·대칭/연쇄 효과·late readback/rollback/unknown·경합·
 재접속과 source/구성 거부 검사를 작성했다. 코드 작성·compile과 양 DB/race/HTTP 본문 실행은 TEST_EVIDENCE에서 구분한다.
-공개 `createsuperuser`의 collection 입력/전송과 selected identity를 일반 through setter로 생성하는 조립은 아직 남아 있다.
-이 미완료 경로는 명시적으로 거부하며 이번 코드로 I1 전체 수용을 완료 처리하지 않는다.
+공개 `createsuperuser`의 collection 입력/전송은 아래 구현을 따른다. Selected identity를 일반 through setter로 생성하는
+조립은 아직 명시적으로 거부하며 이번 코드로 I1 전체 수용을 완료 처리하지 않는다.
+
+### 공개 첫 계정의 collection 입력
+
+실제 `FirstAccountDefinition.CollectionLimits()`와 Command Description에 필드별 collection kind·개수/원문 byte 한도를
+연결했다. TTY는 canonical signed int64 목록을 받고, private v4가 key 순서·반복·0/음수와 생략/빈 목록을 보존한다.
+원 입력 반복 수와 scalar/key 합계 예산, 정확한 선언/source·필드 순서·종류를 DB 획득 전에 확인한다.
+
+같은 ModelForm이 문법상 후보를 준비하고 실제 FirstAccount가 target 존재·현재 선택을 해싱 전과 최종 native scope에서
+재검사한다. 입력/준비의 사본·한 번의 시도·취소·resource 종료와 기존 파일 게시 보고·확정/unknown receipt 경계를 유지한다.
+기본/custom의 양 DB command 소비자와 실제 TTY·별도 runtime·파일 결합·재접속 검사를 연결했다. 새 본문 작성·최소 compile과
+실제 환경별 실행은 TEST_EVIDENCE에서 구분하며 전체 원격 수용은 확인 대상이다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

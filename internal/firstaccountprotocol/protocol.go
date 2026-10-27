@@ -4,8 +4,8 @@
 package firstaccountprotocol
 
 const (
-	Version           uint64 = 3
-	DescribeArgument         = "__godj_first_account_describe_v3"
-	ProvisionArgument        = "__godj_first_account_provision_v3"
-	Magic                    = "GODJFA3"
+	Version           uint64 = 4
+	DescribeArgument         = "__godj_first_account_describe_v4"
+	ProvisionArgument        = "__godj_first_account_provision_v4"
+	Magic                    = "GODJFA4"
 )

@@ -69,6 +69,9 @@ func writeFirstAccountParentModule(t *testing.T, custom bool) string {
 						model.Fields = append(model.Fields, field.Clone())
 					}
 				}
+				model.ManyToMany = append(model.ManyToMany,
+					ir.ManyToManyField{Name: "interests", GoName: "Interests", Target: spec.Account.Catalog.Permission, Reverse: ir.ReverseRelation{Disabled: true}},
+					ir.ManyToManyField{Name: "optional_interests", GoName: "OptionalInterests", Target: spec.Account.Catalog.Permission, Blank: true, Reverse: ir.ReverseRelation{Disabled: true}})
 			}
 		}
 	}
@@ -107,12 +110,25 @@ func main() {
 	if err != nil { os.Exit(project.RunnerExitCode(err)) }
 }
 `))
-	parameters := struct{ ModelImport, ModelType, Profile, ProvisionArgument string }{
+	parameters := struct{ ModelImport, ModelType, Profile, ProvisionArgument, CatalogImport, PermissionType, CollectionPrefix, MigrationSources string }{
 		ModelImport: "example.com/godj-project-bundle/models", ModelType: "User", Profile: strconv.Quote("first_name"),
 		ProvisionArgument: strconv.Quote(firstaccountprotocol.ProvisionArgument),
+		CollectionPrefix:  "IdentityUser", MigrationSources: accountConsumerMigrationSources(t, spec),
 	}
 	if custom {
 		parameters.ModelImport, parameters.ModelType, parameters.Profile = "example.com/godj-project-bundle/people", "Member", strconv.Quote("region")
+		parameters.CollectionPrefix = "PeopleMember"
+	}
+	for _, app := range spec.Apps {
+		for _, model := range app.Schema.Models {
+			if (ir.ModelIdentity{AppLabel: app.Schema.AppLabel, ModelName: model.Name}) == spec.Account.Catalog.Permission {
+				alias := "selectedmodel"
+				if app.Package.ImportPath != parameters.ModelImport {
+					alias, parameters.CatalogImport = "catalogmodel", app.Package.ImportPath
+				}
+				parameters.PermissionType = alias + "." + model.GoName
+			}
+		}
 	}
 	renderer, err := template.New("runtime").Parse(firstAccountParentRuntime)
 	if err != nil {
@@ -140,6 +156,7 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 	}{
 		{"foreign_source", "foreign", "not_created", "first_account_source_mismatch", 3, false, false, false},
 		{"invalid_profile", "", "not_created", "invalid_input", 2, false, false, true},
+		{"invalid_collection", "", "not_created", "invalid_input", 2, false, false, true},
 		{"create_and_reopen", "", "created", "", 0, false, true, true},
 		{"not_fresh", "", "not_created", "account_domain_not_fresh", 1, false, true, true},
 		{"unknown_after_commit", "unknown", "unknown", "outcome_unknown", 3, false, true, true},
@@ -202,7 +219,7 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 			}
 			var firstOperation string
 			if test.name == "not_fresh" {
-				created := invokeGeneratedFirstAccountParent(t, root, environment, description, true, false, custom)
+				created := invokeGeneratedFirstAccountParent(t, root, environment, description, true, false, custom, "2, 1, 2")
 				if created.ExitCode != 0 || created.Result.Status != "created" {
 					t.Fatalf("nonfresh control was not created: %+v", created)
 				}
@@ -211,7 +228,11 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 				assertFirstAccountParentTrace(t, tracePath, "open\nclose\n")
 			}
 			environment[len(environment)-1] = "GODJ_PARENT_MODE=" + test.mode
-			report := invokeGeneratedFirstAccountParent(t, root, environment, description, test.tty, test.name == "invalid_profile", custom)
+			collectionInput := "2, 1, 2"
+			if test.name == "invalid_collection" {
+				collectionInput = "99999"
+			}
+			report := invokeGeneratedFirstAccountParent(t, root, environment, description, test.tty, test.name == "invalid_profile", custom, collectionInput)
 			if report.Result.Status != test.status || report.Result.Code != test.code || report.ExitCode != test.exit || report.Result.CleanupFailed != test.cleanup || report.Result.FileReportFailed != strings.HasPrefix(test.mode, "file_report") {
 				t.Fatalf("native parent outcome = %+v", report)
 			}
@@ -229,7 +250,7 @@ func assertGeneratedFirstAccountParent(t *testing.T, custom bool) {
 				t.Fatalf("foreign source reached input: %+v", report)
 			}
 			wantTrace := ""
-			if test.created || test.name == "partial_publication" {
+			if test.created || test.name == "partial_publication" || test.name == "invalid_collection" {
 				wantTrace = "open\nclose\n"
 			}
 			if test.name == "not_fresh" {
@@ -332,7 +353,7 @@ func (output *firstAccountParentOutput) String() string {
 }
 
 func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []string, description firstaccount.Description,
-	withTTY, invalidProfile, custom bool,
+	withTTY, invalidProfile, custom bool, collectionInput string,
 ) projectcheck.FirstAccountReport {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -402,7 +423,7 @@ func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []
 	if withTTY {
 		for _, field := range description.Fields {
 			label := strconv.Quote(field.Label)
-			omit := !custom && !invalidProfile && field.Name != description.Login && !field.Upload
+			omit := !custom && !invalidProfile && field.Name != description.Login && !field.Upload && field.Kind != firstaccount.CollectionKind
 			if field.HasDefault || !field.Required {
 				prompt := "Omit " + label + "? [Y/n]: "
 				if field.HasDefault {
@@ -428,6 +449,15 @@ func invokeGeneratedFirstAccountParent(t *testing.T, root string, environment []
 					filename = "private-photo.png"
 				}
 				write(filepath.Join(directory, filename))
+				continue
+			}
+			if field.Kind == firstaccount.CollectionKind {
+				wait(label + " (comma-separated integer keys; empty for none): ")
+				value := collectionInput
+				if field.Name == "optional_interests" {
+					value = ""
+				}
+				write(value)
 				continue
 			}
 			wait(label + ": ")

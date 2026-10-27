@@ -167,9 +167,9 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			for _, member := range members {
 				values[member.Name()] = member.Value()
 			}
-			for _, name := range []string{description.GroupsField, description.PermissionsField} {
-				if keys, loaded := row.View().Collection(name); loaded {
-					values[name] = integerValues(keys)
+			for _, field := range metadata.ManyToMany {
+				if keys, loaded := row.View().ReadCollection(field); loaded {
+					values[field.Name] = integerValues(keys)
 				}
 			}
 			return admin.NewObject(row.ID(), label, values)

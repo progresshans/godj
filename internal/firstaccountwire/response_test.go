@@ -20,7 +20,7 @@ func descriptionFixture(t testing.TB) firstaccount.Description {
 		{Name: "region", Label: "Region", Kind: "char", Required: true, HasDefault: true, MaxBytes: firstaccount.MaxFieldBytes, Choices: []firstaccount.Choice{{Value: "NZ", Label: "New Zealand"}, {Value: "line\nchoice", Label: "Quoted choice"}}},
 	}}
 	document, _ := json.Marshal(description)
-	digest := sha256.Sum256(append([]byte("godj.first-account-command.v2\x00"), document...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-command.v3\x00"), document...))
 	description.Fingerprint = hex.EncodeToString(digest[:])
 	if err := firstaccount.ValidateDescription(description); err != nil {
 		t.Fatal(err)
@@ -40,9 +40,9 @@ func TestDescriptionRetainsTypedDeclarationAndRejectsOpenShapes(t *testing.T) {
 	}
 	for _, bad := range [][]byte{
 		append(bytes.Clone(document), '\n'),
-		bytes.Replace(document, []byte(`"version":3`), []byte(`"version":3,"version":3`), 1),
-		bytes.Replace(document, []byte(`"version":3`), []byte(`"version":3.0`), 1),
-		bytes.Replace(document, []byte(`"version":3`), []byte(`"version":1`), 1),
+		bytes.Replace(document, []byte(`"version":4`), []byte(`"version":4,"version":4`), 1),
+		bytes.Replace(document, []byte(`"version":4`), []byte(`"version":4.0`), 1),
+		bytes.Replace(document, []byte(`"version":4`), []byte(`"version":1`), 1),
 		bytes.Replace(document, []byte(`"required":true`), []byte(`"required":null`), 1),
 		bytes.Replace(document, []byte(`"required":true,`), nil, 1),
 		bytes.Replace(document, []byte(`"label":"Contact"`), []byte(`"label":"\ud800"`), 1),
@@ -61,6 +61,52 @@ func TestDescriptionRetainsTypedDeclarationAndRejectsOpenShapes(t *testing.T) {
 		}
 		if response, err := firstaccountwire.DecodeDescription(encoded); err != nil || response.Description != nil || response.Code != code {
 			t.Fatal("closed description failure lost")
+		}
+	}
+}
+
+func TestDescriptionCollectionBoundsAndKindsAreCanonical(t *testing.T) {
+	seal := func(description *firstaccount.Description) {
+		description.Fingerprint = ""
+		document, err := json.Marshal(description)
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(append([]byte("godj.first-account-command.v3\x00"), document...))
+		description.Fingerprint = hex.EncodeToString(digest[:])
+	}
+	description := descriptionFixture(t)
+	description.Fields = append(description.Fields, firstaccount.Field{Name: "topics", Label: "Topics", Kind: firstaccount.CollectionKind, Required: true, MaxBytes: 63, MaxItems: 3, Choices: []firstaccount.Choice{}})
+	seal(&description)
+	document, err := firstaccountwire.EncodeDescription(firstaccountwire.DescriptionResponse{Version: firstaccountprotocol.Version, Description: &description})
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := firstaccountwire.DecodeDescription(document)
+	if err != nil || decoded.Description == nil || decoded.Description.Fields[2].MaxItems != 3 || decoded.Description.Fields[2].Kind != firstaccount.CollectionKind {
+		t.Fatal("collection description lost kind/limit", err)
+	}
+	for _, mutate := range []func(*firstaccount.Field){
+		func(f *firstaccount.Field) { f.MaxItems = 0 }, func(f *firstaccount.Field) {
+			f.MaxItems = firstaccount.MaxCollectionItems + 1
+			f.MaxBytes = 21 * f.MaxItems
+		},
+		func(f *firstaccount.Field) { f.MaxBytes-- }, func(f *firstaccount.Field) { f.Nullable = true }, func(f *firstaccount.Field) { f.HasDefault = true },
+		func(f *firstaccount.Field) { f.Upload = true }, func(f *firstaccount.Field) { f.Kind = "integer" },
+		func(f *firstaccount.Field) { f.Choices = []firstaccount.Choice{{Value: "1", Label: "One"}} },
+	} {
+		candidate := description
+		candidate.Fields = append([]firstaccount.Field(nil), description.Fields...)
+		mutate(&candidate.Fields[2])
+		seal(&candidate)
+		if firstaccount.ValidateDescription(candidate) == nil {
+			t.Fatal("digest hid invalid collection shape")
+		}
+	}
+	for _, replacement := range []string{`"max_items":null`, `"max_items":3,"max_items":3`, `"max_items":3.0`} {
+		bad := bytes.Replace(document, []byte(`"max_items":3`), []byte(replacement), 1)
+		if _, err := firstaccountwire.DecodeDescription(bad); err == nil {
+			t.Fatal("noncanonical collection limit accepted")
 		}
 	}
 }

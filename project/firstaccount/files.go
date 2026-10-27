@@ -47,6 +47,7 @@ func (value *Value) Clear() {
 		return
 	}
 	clear(value.Text)
+	clear(value.Keys)
 	if value.Upload != nil {
 		clear(value.Upload.Content)
 	}
@@ -63,7 +64,17 @@ func ValidateValues(description Description, values []Value) error {
 	textBytes, fileBytes := 0, 0
 	for i, value := range values {
 		field := description.Fields[i]
-		if value.Name != field.Name || !value.Present && (len(value.Text) != 0 || value.Upload != nil) {
+		if value.Name != field.Name || !value.Present && (len(value.Text) != 0 || value.Keys != nil || value.Upload != nil) {
+			return failure(InvalidInput, nil)
+		}
+		if field.Kind == CollectionKind {
+			if len(value.Text) != 0 || value.Upload != nil || value.Present != (value.Keys != nil) || len(value.Keys) > field.MaxItems || len(value.Keys) > (MaxInputBytes-textBytes)/8 {
+				return failure(InvalidInput, nil)
+			}
+			textBytes += 8 * len(value.Keys)
+			continue
+		}
+		if value.Keys != nil {
 			return failure(InvalidInput, nil)
 		}
 		if field.Upload {

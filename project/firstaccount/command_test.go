@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -72,6 +73,10 @@ func TestCommandNormalizesBeforeModelChecksAndPreservesRawByteEnvelope(t *testin
 }
 
 func commandWithOpener(t *testing.T, open func(context.Context) (firstaccount.Backend, error)) firstaccount.Command {
+	return commandWithFields(t, open, []string{"first_name", "username"})
+}
+
+func commandWithFields(t *testing.T, open func(context.Context) (firstaccount.Backend, error), fields []string) firstaccount.Command {
 	t.Helper()
 	binding, err := project.BindAccount()
 	if err != nil {
@@ -85,7 +90,7 @@ func commandWithOpener(t *testing.T, open func(context.Context) (firstaccount.Ba
 	if err != nil {
 		t.Fatal(err)
 	}
-	definition, err := accountmodel.NewFirstAccountDefinition(binding, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, hasher, accountmodel.FirstAccountConfig[models.User]{CreationPolicy: accountmodel.CreationPolicy[models.User]{Fields: []string{"first_name", "username"}}, EvidenceSHA256: strings.Repeat("d", 64)})
+	definition, err := accountmodel.NewFirstAccountDefinition(binding, models.GroupDescriptor{}, models.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, hasher, accountmodel.FirstAccountConfig[models.User]{CreationPolicy: accountmodel.CreationPolicy[models.User]{Fields: fields}, EvidenceSHA256: strings.Repeat("d", 64)})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,6 +99,62 @@ func commandWithOpener(t *testing.T, open func(context.Context) (firstaccount.Ba
 		t.Fatal(err)
 	}
 	return command
+}
+
+func TestCommandCollectionKeysKeepTypedBoundsBeforeAcquisition(t *testing.T) {
+	backend, opens := &probeBackend{}, &atomic.Int64{}
+	command := commandWithFields(t, func(context.Context) (firstaccount.Backend, error) {
+		opens.Add(1)
+		return backend, nil
+	}, []string{"username", "groups", "permissions"})
+	description, err := command.Description()
+	if err != nil || len(description.Fields) != 3 || description.Fields[1].Kind != firstaccount.CollectionKind || description.Fields[1].MaxItems != accountmodel.MaximumAccountGroups || description.Fields[2].MaxItems != auth.MaximumPermissions {
+		t.Fatal("selected collection declaration lost its actual limits", err)
+	}
+	values := func() []firstaccount.Value {
+		return []firstaccount.Value{
+			{Name: "username", Present: true, Text: []byte("operator")},
+			{Name: "groups", Present: true, Keys: []int64{math.MinInt64, 0, math.MaxInt64, 0}},
+			{Name: "permissions", Present: true, Keys: []int64{}},
+		}
+	}
+	for _, omitted := range []bool{false, true} {
+		input := values()
+		if omitted {
+			input[2] = firstaccount.Value{Name: "permissions"}
+		}
+		prepared, err := command.Prepare(t.Context(), description.Fingerprint, input)
+		if err != nil {
+			t.Fatal("syntactically valid keys required premature choice I/O", err)
+		}
+		prepared.Clear()
+		for i := range input {
+			input[i].Clear()
+		}
+	}
+	for _, change := range []func([]firstaccount.Value){
+		func(v []firstaccount.Value) { v[1].Keys = make([]int64, accountmodel.MaximumAccountGroups+1) },
+		func(v []firstaccount.Value) { v[1].Text = []byte("0") },
+		func(v []firstaccount.Value) { v[1].Keys = nil },
+		func(v []firstaccount.Value) { v[1].Present = false },
+		func(v []firstaccount.Value) {
+			v[1].Upload = &firstaccount.Upload{Name: "x", Content: []byte("private")}
+		},
+		func(v []firstaccount.Value) { v[0].Keys = []int64{} },
+		func(v []firstaccount.Value) { v[1], v[2] = v[2], v[1] },
+	} {
+		input := values()
+		change(input)
+		if _, err := command.Prepare(t.Context(), description.Fingerprint, input); err == nil {
+			t.Fatal("invalid collection kind, order or raw repetition bound accepted")
+		}
+		for i := range input {
+			input[i].Clear()
+		}
+	}
+	if opens.Load() != 0 || backend.reads.Load() != 0 || backend.writes.Load() != 0 || backend.closes.Load() != 0 {
+		t.Fatal("collection description/preparation acquired storage")
+	}
 }
 
 type readOnlyBackend struct{ closes int }

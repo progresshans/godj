@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"unicode"
@@ -34,6 +35,10 @@ const (
 	MaxDescriptionBytes = 65536
 	MaxUploadNameBytes  = 1020
 	MaxUploadBytes      = 64 << 20
+	MaxCollectionItems  = accountmodel.MaximumProfileCollectionItems
+	// A canonical int64 key occupies at most 20 bytes, plus one separator.
+	MaxCollectionBytes = 21 * MaxCollectionItems
+	CollectionKind     = "many_to_many"
 )
 
 // Backend is one real resource acquired for an explicit operator invocation.
@@ -45,7 +50,7 @@ type Backend interface {
 	Close() error
 }
 
-// Field describes a selected scalar, relation key or file using its actual form meaning.
+// Field describes a selected scalar, relation key, collection or file using its actual form meaning.
 // Submitted values and application callbacks are never part of a description.
 type Field struct {
 	Name       string   `json:"name"`
@@ -55,6 +60,7 @@ type Field struct {
 	Nullable   bool     `json:"nullable"`
 	HasDefault bool     `json:"has_default"`
 	MaxBytes   int      `json:"max_bytes"`
+	MaxItems   int      `json:"max_items"`
 	Choices    []Choice `json:"choices"`
 	Upload     bool     `json:"upload"`
 }
@@ -83,12 +89,14 @@ type Description struct {
 	Fields           []Field `json:"fields"`
 }
 
-// Value preserves omission separately from an explicitly empty scalar or file.
-// The caller owns Text/Upload and clears them after transport or preparation.
+// Value preserves omission separately from an explicitly empty scalar, key
+// collection or file. A non-nil Keys slice selects collection input; duplicate
+// keys and order survive transport. The caller owns and clears every buffer.
 type Value struct {
 	Name    string
 	Present bool
 	Text    []byte
+	Keys    []int64
 	Upload  *Upload
 }
 
@@ -111,11 +119,10 @@ func (Command) Format(state fmt.State, _ rune) {
 }
 
 // New validates the complete declaration without opening a backend or hashing.
-// The command parses scalar fields and FK/OneToOne keys before acquiring a DB.
+// The command parses scalar fields and single/multiple relation keys before acquiring a DB.
 // Key parsing is not choice authorization: the typed FirstAccount owner applies
 // its explicit relation policy before hashing and again in the native write.
 // Upload input has explicit byte limits and a publication report owner.
-// Collections still require a distinct input contract and fail explicitly.
 func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(context.Context) (Backend, error), config Config) (Command, error) {
 	if open == nil {
 		return Command{}, failure(InvalidConfig, nil)
@@ -141,9 +148,15 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 	for _, field := range metadata.Fields {
 		byName[field.Name] = field
 	}
+	limits := definition.CollectionLimits()
+	collections := make(map[string]ir.ManyToManyField, len(metadata.ManyToMany))
+	for _, field := range metadata.ManyToMany {
+		collections[field.Name] = field
+	}
 	for _, name := range selected {
 		_, present := byName[name]
-		if !present {
+		_, collection := collections[name]
+		if !present && (!collection || limits[name] < 1 || limits[name] > MaxCollectionItems) {
 			return Command{}, failure(InvalidConfig, &query.Error{Code: query.CodeUnsupported})
 		}
 	}
@@ -211,7 +224,12 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 		if field.MaxInputBytes() > 0 {
 			maximum = min(maximum, field.MaxInputBytes())
 		}
-		description.Fields = append(description.Fields, Field{Name: field.Name(), Label: field.Label(), Kind: string(byName[field.Name()].Kind), Required: field.Required(), Nullable: field.Nullable(), HasDefault: hasDefault, MaxBytes: maximum, Choices: choices, Upload: field.AcceptsUpload()})
+		kind, items := string(byName[field.Name()].Kind), 0
+		if _, collection := collections[field.Name()]; collection {
+			kind, items = CollectionKind, limits[field.Name()]
+			maximum = 21 * items
+		}
+		description.Fields = append(description.Fields, Field{Name: field.Name(), Label: field.Label(), Kind: kind, Required: field.Required(), Nullable: field.Nullable(), HasDefault: hasDefault, MaxBytes: maximum, MaxItems: items, Choices: choices, Upload: field.AcceptsUpload()})
 	}
 	// The login prompt precedes profile fields; the remaining order is the IR
 	// declaration order, independent of a caller's selection-slice order.
@@ -230,7 +248,31 @@ func New[M any](definition accountmodel.FirstAccountDefinition[M], open func(con
 	}
 	state := &commandState{description: description, open: open, config: config}
 	state.clean = func(ctx context.Context, data forms.Data) (provision, error) {
-		bound, err := formmodel.BindInstance(ctx, objects, form, data, nil, formDefinition.PostClean)
+		// These are syntax-only candidate choices for the ordinary ModelForm.
+		// They confer no selection authority: FirstAccount checks every actual
+		// target and current Filter before hashing and under its final fence.
+		inputForm := form
+		for _, field := range form.Fields() {
+			if field.Kind() != forms.FieldIntegerList {
+				continue
+			}
+			keys, valid, err := field.ModelChoiceKeys(data)
+			if err != nil {
+				return nil, failure(InvalidConfig, err)
+			}
+			if !valid {
+				continue // Bind retains the original malformed-input diagnostic.
+			}
+			choices := make([]forms.Choice, len(keys))
+			for index, key := range keys {
+				choices[index] = forms.Choice{Value: forms.Integer(key)}
+			}
+			inputForm, err = inputForm.WithModelChoices(field.Name(), choices...)
+			if err != nil {
+				return nil, failure(InvalidConfig, err)
+			}
+		}
+		bound, err := formmodel.BindInstance(ctx, objects, inputForm, data, nil, formDefinition.PostClean)
 		if err != nil {
 			return nil, failure(InvalidInput, err)
 		}
@@ -274,10 +316,20 @@ func ValidateDescription(description Description) error {
 	names := make(map[string]bool, len(description.Fields))
 	hasUpload := false
 	for _, field := range description.Fields {
-		if names[field.Name] || !safeName(field.Name) || !safeLabel(field.Label) || field.MaxBytes < 1 || field.MaxBytes > MaxFieldBytes {
+		if names[field.Name] || !safeName(field.Name) || !safeLabel(field.Label) {
 			return failure(InvalidConfig, nil)
 		}
 		names[field.Name] = true
+		if field.Kind == CollectionKind {
+			if field.Name == description.Login || field.MaxItems < 1 || field.MaxItems > MaxCollectionItems || field.MaxBytes != 21*field.MaxItems ||
+				field.Nullable || field.HasDefault || field.Upload || len(field.Choices) != 0 {
+				return failure(InvalidConfig, nil)
+			}
+			continue
+		}
+		if field.MaxItems != 0 || field.MaxBytes < 1 || field.MaxBytes > MaxFieldBytes {
+			return failure(InvalidConfig, nil)
+		}
 		fileKind := ir.FieldKind(field.Kind).IsFile()
 		if field.Upload && (!fileKind || len(field.Choices) != 0) || field.Name == description.Login && fileKind {
 			return failure(InvalidConfig, nil)
@@ -317,7 +369,7 @@ func descriptionFingerprint(description Description) (string, error) {
 	if len(encoded)+64 > MaxDescriptionBytes {
 		return "", failure(InvalidConfig, nil)
 	}
-	digest := sha256.Sum256(append([]byte("godj.first-account-command.v2\x00"), encoded...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-command.v3\x00"), encoded...))
 	return hex.EncodeToString(digest[:]), nil
 }
 func (command Command) Open(ctx context.Context) (Backend, error) {
@@ -385,6 +437,14 @@ func (command Command) Prepare(ctx context.Context, fingerprint string, values [
 	}()
 	for i, value := range values {
 		field := command.state.description.Fields[i]
+		if value.Keys != nil {
+			keys := make([]string, len(value.Keys))
+			for index, key := range value.Keys {
+				keys[index] = strconv.FormatInt(key, 10)
+			}
+			data[value.Name] = keys
+			continue
+		}
 		if field.Upload && value.Upload != nil {
 			buffer, err := uploads.NewBuffer(value.Upload.Name, "", value.Upload.Content)
 			if err != nil {

@@ -104,6 +104,25 @@ func (definition FirstAccountDefinition[M]) MaxPasswordBytes() int {
 	}
 	return definition.state.creation.config.MaxPasswordBytes
 }
+
+// CollectionLimits returns detached bounds for the declaration's selected
+// role and profile collections. It performs no selection or database access.
+func (definition FirstAccountDefinition[M]) CollectionLimits() map[string]int {
+	if definition.state == nil {
+		return nil
+	}
+	creation := definition.state.creation
+	limits := profileCollectionLimits(creation.collections)
+	role := creation.binding.state.role
+	if creation.allowed[role.Groups] {
+		limits[role.Groups] = MaximumAccountGroups
+	}
+	if creation.allowed[role.Permissions] {
+		limits[role.Permissions] = auth.MaximumPermissions
+	}
+	return limits
+}
+
 func (definition FirstAccountDefinition[M]) EvidenceSHA256() string {
 	if definition.state == nil {
 		return ""

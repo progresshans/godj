@@ -2,7 +2,7 @@
 
 `New(definition, open, config)`는 생성된 `FirstAccountDefinition[M]`과 실제 backend opener를 조립한다.
 선언은 Schema IR·선택 역할·정규화·필수/default·파일 검사 정책을 유지하고 DB나 파일 저장소를 열지 않는다.
-Scalar/FK/OneToOne과 파일 choices만 받는 명령은 `Config{}`를 사용한다. 업로드 필드가 있으면 한도와 보고 함수를 명시한다.
+Scalar/FK/OneToOne·M2M과 파일 choices만 받는 명령은 `Config{}`를 사용한다. 업로드 필드가 있으면 한도와 보고 함수를 명시한다.
 
 ```go
 command, err := firstaccount.New(definition, open, firstaccount.Config{
@@ -15,15 +15,28 @@ command, err := firstaccount.New(definition, open, firstaccount.Config{
 `ReportFiles`는 `func(context.Context, firstaccount.FileReport) error`이며 애플리케이션이 구현한다.
 선택 파일의 storage·이름 생성·이미지 정책은 선언의 `CreationPolicy.Files`에 있다. 이 명령 설정이 저장 권한을 만들지는 않는다.
 호스트의 `EvidenceSHA256`은 callback 정책을 식별한다. 파일당/합계 한도도 Description fingerprint에 묶인다.
-두 한도는 양수이고 파일당 ≤ 합계 ≤ 64 MiB여야 한다. Scalar는 기존 필드당 4,096 bytes·합계 65,536 bytes 한도를 유지한다.
+두 한도는 양수이고 파일당 ≤ 합계 ≤ 64 MiB여야 한다. Scalar는 필드당 4,096 bytes다. Scalar bytes와 정수 key의 8-byte
+표현을 합한 입력은 65,536 bytes까지 허용한다. 터미널의 원 입력에도 별도의 65,536-byte 합계 한도를 적용한다.
+
+선택한 M2M은 `Description.Fields`의 `kind: "many_to_many"`와 `max_items`로 구분한다. 프로필은 선언의
+`ProfileCollectionConfig.MaximumItems`를, 그룹/직접 권한은 해당 owner의 한도를 사용한다. 필드별 상한은 1,024개이며
+반복한 key도 입력 수에 포함한다. 터미널은 쉼표로 구분한 canonical int64 key를 받는다. 예를 들어 `-7, 0, 42, -7`은
+네 입력이고, 저장 전 같은 ModelForm이 중복을 정리한다. 구분자 주변 공백은 허용하며 `+1`, `01`, `-0`, `1.0`은 거부한다.
+필드의 원문 한도는 `21 * max_items` bytes로, 최대 길이의 signed key와 구분자를 모두 담을 수 있다.
+
+직접 호출은 `Value{Name: "topics", Present: true, Keys: []int64{-7, 0}}`를 사용한다. `Keys: []int64{}`는 명시적 빈 목록,
+`Value{Name: "topics"}`는 생략이다. 키의 존재·현재 Filter는 입력 파싱과 다르다. Command는 DB 없이 문법상 후보 key를
+같은 ModelForm으로 준비하고, 실제 FirstAccount owner가 해싱 전과 최종 native transaction에서 선택을 다시 확인한다.
+필수 collection의 생략/빈 목록과 잘못된 종류·개수는 backend 획득 전에 거부한다.
 
 공개 `createsuperuser`는 실제 runtime의 선언과 프로젝트 source를 확인한 뒤 TTY에서 값을 받는다. 업로드 필드는 local
 file path를 묻고 선택 필드의 생략을 별도로 확인한다. 상대 경로는 명령의 작업 디렉터리를 기준으로 하며 shell 확장은 하지 않는다.
 한 번 연 regular file의 handle에서 크기와 bytes를 읽고 닫는다. FIFO·device·directory, 한도 초과, 읽는 동안 관측한 크기/시각
 변경과 읽기/닫기 오류는 입력 실패다. 읽기 사이에 context/interrupt를 확인한다. 자식에게 local path를 전달하지 않는다.
 
-Private v3 frame은 scalar의 존재 여부·정확한 bytes, 파일의 basename·길이·bytes와 원문 비밀번호를 구분한다.
-빈 파일과 생략은 다르다. 전체 길이 prefix를 먼저 제한하고 실제 크기만큼 할당하며 EOF·중복·종류·개별/합계 한도를 검사한다.
+Private v4 frame은 scalar의 존재 여부·정확한 bytes, collection의 개수·signed big-endian int64 key,
+파일의 basename·길이·bytes와 원문 비밀번호를 구분한다. Collection의 입력 순서·중복·0/음수를 보존하며 생략과 빈 목록은 다르다.
+빈 파일과 생략도 다르다. 전체 길이 prefix를 먼저 제한하고 실제 크기만큼 할당하며 EOF·중복·종류·개별/합계 한도를 검사한다.
 문자열 값·파일 bytes·password는 argv, 환경 또는 JSON으로 전달하지 않는다. 정적인 파일 choices는 선언된 문자열 선택이다.
 
 직접 호출하는 코드는 `Value{Upload: &Upload{Name: basename, Content: bytes}, Present: true}`를 사용한다.
@@ -47,5 +60,6 @@ Private v3 frame은 scalar의 존재 여부·정확한 bytes, 파일의 basename
 보존한다. 부모는 완전한 한 번의 전달과 child 종료를 확인한 경우에만 이 exit를 사용한다. `unknown`의 false flag가 보고 성공을
 증명하지는 않는다. 보관한 operation과 `domain.Lookup`·게시 보고를 대조하며 자동 생성 재시도나 파일 삭제를 하지 않는다.
 
-일반 M2M profile 입력과 채운 DB의 계정 모델 전환은 [활성 I1 작업](../../work/0138-custom-account-lifecycle.md)에 남는다.
+일반 collection이 선택 계정/catalog identity를 through로 자동 생성하는 조립과 채운 DB의 계정 모델 전환은
+[활성 I1 작업](../../work/0138-custom-account-lifecycle.md)에 남는다.
 구현·컴파일·실제 환경별 수용은 [TEST_EVIDENCE](../../docs/status/TEST_EVIDENCE.md)에서 구분한다.

@@ -95,7 +95,7 @@ func terminalFileDescription(t *testing.T) firstaccount.Description {
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest := sha256.Sum256(append([]byte("godj.first-account-command.v2\x00"), document...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-command.v3\x00"), document...))
 	description.Fingerprint = hex.EncodeToString(digest[:])
 	if err := firstaccount.ValidateDescription(description); err != nil {
 		t.Fatal(err)

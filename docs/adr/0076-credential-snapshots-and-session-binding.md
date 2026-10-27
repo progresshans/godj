@@ -1198,13 +1198,13 @@ backend를 받은 뒤 독립적인 최초 생성 owner를 만든다. 선언을 �
 `project/firstaccount.Command`는 생성 선언에서 실제 ModelForm을 만들어 DB 연결 전 입력을 준비한다. Description은
 login을 첫 필드로, 나머지를 IR 선언 순서로 제공하며 필수/nullable/default 여부·입력 kind·정적인 선택값과 한도를
 보존한다. 값은 선택값의 정확한 Form 표현이며 문자열 trim과 구분한다. Description은 복사본이고 제출 profile이나
-password를 포함하지 않는다. 최대 31개 필드·각 4,096 bytes·총 입력 65,536 bytes, 필드당 256개 선택값과 description
+password를 포함하지 않는다. 최대 31개 필드·scalar 각 4,096 bytes·총 입력 65,536 bytes, 필드당 256개 정적 선택값과 description
 65,536 bytes의 한도를 적용한다. 이 전송 상한은 모델의 더 좁은 validation을 대신하지 않는다.
 
 입력은 같은 description fingerprint와 정확한 필드 순서를 요구한다. 생략과 명시적인 빈 문자열을 구분하고 실제
 `BindInstance`와 `BoundForm`을 거쳐 typed 입력을 보존한다. 임의 `map[string]any`나 기본 User DTO로 바꾸지 않는다.
 FK/OneToOne key는 IR 기반 integer/null/default 규칙으로 파싱하고, 아래의 `ProfileRelation` 정책이 실제 DB의
-현재 선택을 검증한다. 파일은 명시적 한도·보고 owner와 아래 수명 계약을 사용한다. Collection 입력은 구성 시 명시적으로 거부한다.
+현재 선택을 검증한다. 파일은 명시적 한도·보고 owner와 아래 수명 계약을 사용한다. Collection은 아래의 명시적 정수 목록 계약을 사용한다.
 준비 객체는 하나의 Command에 속하며 복사본도 한 번의 실행 시도를 공유한다. `Clear`는 아직 시작하지 않은 준비만
 포기하고 진행 중인 typed 입력을 변경하지 않는다. 실패 원인의 보존과 진단 비노출을 함께 유지한다.
 
@@ -1221,8 +1221,8 @@ argv 값 파싱·로그·출력 proxy와 분리한다. 선언용 project runner�
 선언 조회는 실제 typed Description을 반환하며 stdin을 읽거나 DB를 연결하지 않는다. 아래의 상위 process가 이 경로를
 사용한다. 공개 `createsuperuser`와 Article/scaffold의 현재 조립은 아래의 공개 통합 경계를 따른다.
 
-현재 private v3 wire의 단일 binary frame은 전체 길이·선언 fingerprint·상위 process가 먼저 보관한 operation ID·정확한 순서의
-scalar 이름/존재 여부/값, 구분된 파일 basename/길이/bytes와 raw password를 포함한다. 전체 bytes·개별 길이·중복·UTF-8/NUL scalar·EOF를 검사한 뒤
+현재 private v4 wire의 단일 binary frame은 전체 길이·선언 fingerprint·상위 process가 먼저 보관한 operation ID·정확한 순서의
+scalar 이름/존재 여부/값, collection 개수/signed int64 key, 구분된 파일 basename/길이/bytes와 raw password를 포함한다. 전체 bytes·개별 길이·중복·UTF-8/NUL scalar·EOF를 검사한 뒤
 분리된 가변 버퍼를 만들며, 제출 값을 JSON·argv·환경에 싣지 않는다. 생략과 빈 값, 정확한 choice 표현을 유지한다.
 Raw password의 전송 한도는 4,096 bytes이고 실제 선언의 더 좁은 한도와 정책을 다시 적용한다. 전송 단계가 별도의
 문자 정리나 password 정책을 만들지 않는다. JSON Description/결과는 canonical closed shape와 한도를 검사한다.
@@ -1342,7 +1342,7 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
 선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일 편집은 아래 계약을 따르고,
 파일의 Form 생성과 공개 첫 명령의 입력/전송은 아래 계약을 따른다. 추가 M2M profile은 다음 절의 명시적 정책을 사용하며,
-공개 첫 명령의 collection 입력과 selected-model through identity 생성은 I1에 남는다.
+공개 첫 명령도 아래 collection 정책을 사용한다. 일반 setter의 selected-model through identity 생성은 I1에 남는다.
 환경별 실행 결과는 TEST_EVIDENCE를 따른다.
 
 ### 추가 프로필 collection
@@ -1376,8 +1376,25 @@ owner revision을 한 번 올리며, 별도의 직접 편집 audit를 꾸며내�
 ProfileReader의 명시적 Fields 선택은 추가 M2M의 저장 key를 노출할 수 있다. 실제 canonical through와 target의 존재·한도·
 scope 종료를 확인하며 0·음수 key를 보존한다. 쓰기의 선택 Filter로 기존 저장값을 숨기지 않는다. 목록은 scalar만 읽는다.
 공통 AccountManagement의 Form/Admin 선택·부분 유효 Form 검사와 관리 JSON/OpenAPI는 같은 정책과 생성/편집/조회 owner를 쓴다.
-FirstAccount의 typed/Form 경로는 같은 기능을 사용한다. 공개 `createsuperuser`의 collection 입력/전송은 별도 후속 구현이며
-현재 명령은 해당 선언을 명시적으로 거부한다. 이 구현 계약과 실제 환경별 실행·수용은 구분한다.
+FirstAccount의 typed/Form과 공개 `createsuperuser` 경로는 같은 기능을 사용한다. 명령의 입력/전송은 다음 계약을 따른다.
+이 구현 계약과 실제 환경별 실행·수용은 구분한다.
+
+### 공개 첫 명령의 collection 입력
+
+`FirstAccountDefinition.CollectionLimits()`는 선택한 프로필과 그룹/직접 권한의 개수 한도를 사본으로 반환한다.
+Command Description은 `many_to_many` kind·`max_items`와 `21 * max_items` 원문 byte 한도를 fingerprint에 묶는다.
+Collection에는 NULL·default·upload·정적 표시 선택을 허용하지 않으며 login은 scalar로 유지한다. 최대 1,024개 key,
+scalar bytes와 key당 8 bytes를 합한 65,536-byte 전송 예산을 검사한다. 터미널 원문도 별도의 같은 합계 예산을 지킨다.
+
+TTY는 쉼표로 구분된 canonical int64와 구분자 주변 공백을 받는다. 생략 질문과 명시적 빈 줄을 구분하고, 입력 반복 수를
+중복 제거 전에 검사한다. `Value.Keys`는 순서·반복·0/음수 key를 보관하는 별도 가변 버퍼다. 비어 있는 non-nil slice가
+명시적 빈 collection이며 nil은 목록 입력이 아니다. 종류 혼합·개수/byte 초과·순서/source 불일치는 DB 획득 전에 거부한다.
+
+명령은 문법상 key로만 ModelForm의 후보 choice를 구성하여 같은 필수/빈 집합·모델 준비 경로를 사용한다. 이 후보는 DB 조회나
+선택 허가가 아니다. 실제 FirstAccount가 같은 native 범위에서 target 존재·현재 Filter를 해싱 전과 최종 저장 때 재검사한다.
+Caller buffer를 지워도 준비한 입력은 독립적이며 한 번의 시도·소비/취소·파일 결과·unknown/확정 receipt의 기존 소유권을 유지한다.
+Private v4는 목록 개수와 signed big-endian int64를 전달하고, 전체 frame을 검증한 뒤 분리된 key 버퍼를 만든다.
+새 ABI는 이전 frame을 명시적으로 거부하며 runtime의 선언과 실제 source를 확인하기 전에는 터미널을 읽지 않는다.
 
 입력의 source·선택 필드·target binding과 login/email의 고정 저장 정규화·문자/byte 한도를 I/O 전에 확인한다.
 `Update`는 전체 수정에 대해 현재 change 권한과 모든 추가 권한·deny overlay를 요구하며, 대상의 현재
@@ -1463,7 +1480,7 @@ receipt를 대조한다. 다른 첫 생성이 게시 사이에 완료되면 원�
 Admin 생성에 업로드가 있으면 `ReportFileCreate`가 필수다. `AccountFileCreationReport`는 확정 Creation, 파일별 결과와
 오류를 별도로 소유한다. Callback·오류 변환·취소·요청 수명과 보고 실패는 편집 보고와 같은 계약이며, 확정 commit 뒤 보고
 실패는 성공한 DB 결과를 취소하지 않는다. Choices-only 생성에는 파일 게시 보고 callback을 요구하지 않는다.
-공개 첫 명령의 파일 입력·private process 전송은 아래 계약을 따른다. 추가 M2M·채운 DB 전환은 활성 I1 요구에 유지한다.
+공개 첫 명령의 파일 입력·private process 전송은 아래 계약을 따른다. 채운 DB 전환과 새 경로의 환경별 수용은 활성 I1 요구에 유지한다.
 
 ### 공개 첫 명령의 파일 입력과 보고
 
@@ -1681,7 +1698,8 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 화면에 투영한다. 공통 Admin의 active staff·CSRF·최종 current authority 경계와 기존 host graph/rollback/unknown 의미를 유지한다.
 
 공개 첫 계정 명령/scaffold/runtime과 FK/OneToOne·파일 편집/Form 생성·CLI 전송은 각 현행 절의 계약을 따른다.
-추가 M2M·선택 모델-as-through identity 생성, 채운 DB의 명시적 mapping/retirement와 통합 restart는 남아 있다.
+추가 M2M은 위 명시적 정책을 사용하며, 일반 collection의 선택 모델-as-through identity 생성,
+채운 DB의 명시적 mapping/retirement와 통합 restart는 남아 있다.
 Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
 경계를 완료했다고 계산하지 않는다. 구현·최소 compile·환경별 본문 실행은 TEST_EVIDENCE에서 구분한다.
 

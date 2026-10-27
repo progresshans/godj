@@ -23,9 +23,9 @@ type FirstAccountTerminalReport struct {
 	FileReads, FileBytes                                                                         int
 }
 
-// The terminal transports declared scalars and explicit local file bytes. The
+// The terminal transports declared scalars, integer key lists and explicit local file bytes. The
 // compiled ModelForm owns cleaning, defaults and image/model constraints.
-// An omission question preserves an intentionally empty scalar or file.
+// An omission question preserves an intentionally empty scalar, collection or file.
 func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, stdin *os.File, stderr io.Writer,
 	description firstaccount.Description, report *FirstAccountTerminalReport, directory string,
 ) (request firstaccountwire.Request, code string) {
@@ -75,7 +75,7 @@ func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, st
 		}
 		return value, ""
 	}
-	inputBytes, fileBytes := 0, 0
+	inputBytes, transportBytes, fileBytes := 0, 0, 0
 	for index, field := range description.Fields {
 		request.Values[index].Name = field.Name
 		label := strconv.Quote(field.Label)
@@ -112,6 +112,8 @@ func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, st
 		prompt, maximum := label+": ", field.MaxBytes
 		if field.Upload {
 			prompt, maximum = label+" (file path): ", firstaccount.MaxFieldBytes
+		} else if field.Kind == firstaccount.CollectionKind {
+			prompt = label + " (comma-separated integer keys; empty for none): "
 		}
 		value, failure := read(prompt, maximum, visible)
 		if failure != "" {
@@ -138,6 +140,22 @@ func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, st
 			clear(value)
 			return request, "invalid_input"
 		}
+		if field.Kind == firstaccount.CollectionKind {
+			keys, valid := parseFirstAccountCollection(value, field.MaxItems)
+			clear(value)
+			if !valid || len(keys) > (firstaccount.MaxInputBytes-transportBytes)/8 {
+				clear(keys)
+				return request, "invalid_input"
+			}
+			transportBytes += 8 * len(keys)
+			request.Values[index].Present, request.Values[index].Keys = true, keys
+			continue
+		}
+		transportBytes += len(value)
+		if transportBytes > firstaccount.MaxInputBytes {
+			clear(value)
+			return request, "invalid_input"
+		}
 		request.Values[index].Present, request.Values[index].Text = true, value
 	}
 	report.PasswordPrompts++
@@ -161,6 +179,33 @@ func readFirstAccountTerminal(ctx context.Context, interrupt <-chan struct{}, st
 		return request, code
 	}
 	return request, ""
+}
+
+// Commas separate canonical int64 keys; surrounding whitespace belongs to the
+// terminal grammar, not the key. Keep repetitions until the command's actual
+// ModelForm binds them, so deduplication cannot bypass the submitted-key limit.
+func parseFirstAccountCollection(value []byte, maximum int) ([]int64, bool) {
+	if maximum < 1 || maximum > firstaccount.MaxCollectionItems || len(value) > 21*maximum {
+		return nil, false
+	}
+	if len(bytes.TrimSpace(value)) == 0 {
+		return []int64{}, true
+	}
+	if bytes.Count(value, []byte{','}) >= maximum {
+		return nil, false
+	}
+	parts := bytes.Split(value, []byte{','})
+	keys := make([]int64, len(parts))
+	for index, part := range parts {
+		text := string(bytes.TrimSpace(part))
+		key, err := strconv.ParseInt(text, 10, 64)
+		if err != nil || strconv.FormatInt(key, 10) != text {
+			clear(keys)
+			return nil, false
+		}
+		keys[index] = key
+	}
+	return keys, true
 }
 
 func firstAccountOmission(answer []byte) (omit, valid bool) {

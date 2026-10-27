@@ -38,7 +38,8 @@ I1 구현은 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 계�
 Admin/JSON·password/reset·공개 CLI·Article/scaffold와 Helpdesk 조립, 명시적 FK/OneToOne 정책과 프로필 파일 편집/Form 생성·초기 CLI 파일 입력을 작성했다.
 계정 생성의 관계 수명과 typed 계정-as-through 생성도 추가했으며 새 본문은 원격 확인 대상이다.
 추가 M2M의 명시적 선택 정책·생성/편집/조회·Form/Admin/JSON과 전체 수명 projection을 연결했으며 새 본문은 원격 확인 대상이다.
-채운 DB 전환·공개 첫 계정 명령의 collection 입력·일반 collection의 선택 identity through 자동 생성·
+공개 첫 계정 명령의 collection 입력/전송도 같은 typed Form·선택 owner에 연결했으며 실제 TTY/process·양 DB 본문은 원격 확인 대상이다.
+채운 DB 전환·일반 collection의 선택 identity through 자동 생성·
 남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
 필수 목록에 연결했고 독립 OpenAPI 관리·자기 계정 소비자도 선택 runtime으로 전환했다. 새 본문의 원격 확인이 필요하다.
 C1의 성공을 사용자 정의 계정 지원의 완료로 사용하지 않는다.

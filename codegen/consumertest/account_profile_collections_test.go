@@ -24,10 +24,10 @@ func TestGeneratedAccountProfileCollections(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := writeAccountProfileCollectionsConsumer(t, custom)
 			required := []string{"TestGeneratedProfileCollections", "TestGeneratedProfileCollectionHTTP"}
-			for _, child := range []string{"configuration", "first_form", "create", "required", "raw_limit", "current_choice", "partial_omission", "no_op", "symmetric", "cross_collection", "related_deletion", "validator", "policy_failure", "late_choice", "late_readback", "rollback", "unknown_commit", "read_cleanup", "read_overflow", "zero_key", "negative_key", "revision_race", "restart"} {
+			for _, child := range []string{"configuration", "first_form", "first_command", "command_limit", "command_choice", "create", "required", "raw_limit", "current_choice", "partial_omission", "no_op", "symmetric", "cross_collection", "related_deletion", "validator", "policy_failure", "late_choice", "late_readback", "rollback", "unknown_commit", "read_cleanup", "read_overflow", "zero_key", "negative_key", "revision_race", "restart"} {
 				required = append(required, "TestGeneratedProfileCollections/"+child)
 			}
-			for _, child := range []string{"choice_scope", "admin_create", "admin_edit", "json_create", "json_edit", "invalid_choice", "partial_form", "raw_form_limit", "selected_reads", "stale", "revoked_authority"} {
+			for _, child := range []string{"choice_scope", "admin_create", "admin_edit", "json_create", "json_edit", "invalid_choice", "partial_form", "raw_form_limit", "selected_reads", "readonly_detail", "stale", "revoked_authority"} {
 				required = append(required, "TestGeneratedProfileCollectionHTTP/"+child)
 			}
 			runAccountConsumerDatabases(t, root, required)

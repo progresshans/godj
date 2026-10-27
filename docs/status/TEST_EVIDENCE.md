@@ -2455,6 +2455,48 @@ Relation 필수 4,537개·PostgreSQL 필수 5,666개에서 이전 필수 항목�
 (SHA-256 `7b02e7bf7c1937e993f0beeaf6019e07cb72c535ae1521a5242041e76fc1dc00`).
 공개 첫 명령의 collection 조립·채운 DB 전환/복구·남은 고정 소비자와 I1 전체 수용은 미완료다.
 
+### 공개 첫 계정의 collection 입력과 Admin snapshot 보완
+
+2026-10-28, `7f37923f166e3749cb8836dbb141191de0191040` 위에서 공개 초기 계정 명령의 M2M 입력/전송을 작성했다.
+실제 선언의 필드별 한도를 Description의 `many_to_many`·`max_items`와 fingerprint에 묶고, `Value.Keys`와 private v4에
+개수·signed int64 key를 연결했다. 생략/빈 목록·입력 순서·중복·0/음수, 개별/합계 예산과 source/order/kind를 유지한다.
+TTY 문법 파싱과 같은 ModelForm의 후보 준비는 DB 획득 전이며, 실제 FirstAccount가 target 존재·현재 Filter를 해싱 전과
+최종 native scope에서 다시 검사한다. 새 프로토콜은 이전 frame을 명시적으로 거부한다.
+
+양 DB의 기본/custom 생성 소비자에 첫 command의 실제 프로필 저장·원 반복 입력 한도·준비 후 입력 변경과 현재 선택 거부를
+추가했다. 기존 두 TTY/process 소비자에도 필수/선택 M2M과 파일 입력을 함께 연결했다. 실제 migration 생성 정의를 적용하고,
+별도 process가 저장된 key와 빈 목록·인증·domain/receipt를 대조한다. 새 wire/description·terminal의 종류/개수/byte·
+canonical key·취소/버퍼 해제 검사와 필수 실행을 작성했다. 이 새 본문의 실제 환경 실행은 원격 CI 확인 대상이다.
+
+선행 [CI 40582671835](https://github.com/progresshans/godj/actions/runs/40582671835)의 PostgreSQL normal 계정 소비자와
+Linux arm64 normal/race relation 소비자에서 기본/custom Admin 변경 Form의 GET이 `500`으로 실패했다. 세 작업 원본의
+checkout `7db76b104677c58c7bd6cfa07684639db3f66ffa`와 tree `a8a11cd167d6755d23f60ad1545a93551ab0b0b9`가
+제출 source와 같음을 대조했다. 원본 source의 별도 사본에서 HTTP 부분만 실행하고 진단 logger로
+`admin: snapshot.topics: missing_field`를 확인했다(13.59초). 초기 재현 driver의 module 준비 오류는 이 실행에서 제외한다.
+
+Account Admin의 Snapshot이 기존 그룹/권한만 복사하고 명시적으로 읽은 추가 M2M을 빠뜨린 것이 원인이었다.
+동일 model metadata에 바인딩된 `ReadCollection`으로 실제 로드된 모든 관계를 투영하도록 수정했다. 선택하지 않은 관계를
+추가로 읽거나 공개하지 않는다. HTTP helper도 실패를 현재 child에 보고하도록 바꿨으며, read-only 상세의 저장 key 표시와
+선택 검색 거부를 추가했다. 새 CLI 코드와 분리한 원본 source에 이 수정/소비자 변경만 적용하여 두 모델의 12개 HTTP child씩,
+총 24개가 통과했다(12.10초, skip 없음). 중간 read-only 검사에서 `data-field-name`을 입력의 `name`으로 오인한 판정을
+수정했다. 이 로컬 SQLite 한정 결과는 PostgreSQL·race·새 CLI 본문 또는 전체 환경 수용이 아니다.
+
+로컬 darwin/arm64 Go 1.26.5에서 처음 영향 package 11개의 compile-only를 확인했다(29.59초). 이후 Admin snapshot과
+소비자 변경에 대해 두 package를 다시 컴파일했다(4.21초). 중복을 제외한 12개 package이며 protocol 선언 package는
+자체 test file이 없고 새 기능 본문을 실행한 것으로 계산하지 않는다. 최종 기본/custom 모델 소비자 두 개와 실제 선언 runner/
+commands module 두 개의 compile-only는 통과했다(15.26초). 임시 driver는 보관 뒤 제거했고 최종 code hash와 binary의
+116개 consumer root를 대조했다. 문서 링크·gofmt·diff 검사도 통과했다.
+
+Relation 필수 4,539개·PostgreSQL 필수 5,666개·portable core 274개·첫 계정 platform 32개에서 기존 필수 항목을 유지했다.
+새 root의 실제 binary discovery와 116개 consumer root의 12개 native 좌표 단일 담당, PostgreSQL 세 mode의 실행 배정을
+대조했다. 이 배정 확인은 실제 테스트의 run/pass가 아니다. 새 source의 자동 전체 CI·양 DB/race/CGO0·generated drift·
+TTY/process/browser/독립 관측·원본/capture 수용은 아직 완료되지 않았다.
+
+원격 원본/checkout, 분리한 HTTP 재현과 수정 patch·24개 child 결과, native/외부 compile·변경 hash·실행 목록은 검증 보관소의
+`gdj0138-first-account-collections-v1/receipt-final.json`에 연결했다
+(SHA-256 `3e389f550a4ab160407fa848172c8ceb5ee5104a9ef5d00c96d2213e16d7bf3c`).
+일반 collection의 선택 identity through 자동 생성, 채운 DB 전환/복구와 남은 고정 소비자 및 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

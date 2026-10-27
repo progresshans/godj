@@ -7,7 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -25,13 +27,17 @@ import (
 )
 
 func firstAccountParentDescription(t *testing.T) (firstaccount.Description, codegen.ProjectSpec) {
+	return firstAccountParentDescriptionFields(t, []string{"username", "first_name", "email"})
+}
+
+func firstAccountParentDescriptionFields(t *testing.T, fields []string) (firstaccount.Description, codegen.ProjectSpec) {
 	t.Helper()
 	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
 	if err != nil {
 		t.Fatal(err)
 	}
 	definition, err := identityproject.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[models.User]{
-		CreationPolicy: accountmodel.CreationPolicy[models.User]{Fields: []string{"username", "first_name", "email"}, MaxPasswordBytes: 64},
+		CreationPolicy: accountmodel.CreationPolicy[models.User]{Fields: fields, MaxPasswordBytes: 64},
 		EvidenceSHA256: strings.Repeat("d", 64),
 	})
 	if err != nil {
@@ -62,6 +68,9 @@ type firstAccountTerminalResult struct {
 }
 
 func firstAccountFieldPrompt(field firstaccount.Field) string {
+	if field.Kind == firstaccount.CollectionKind {
+		return strconv.Quote(field.Label) + " (comma-separated integer keys; empty for none): "
+	}
 	return strconv.Quote(field.Label) + ": "
 }
 func firstAccountOmissionPrompt(field firstaccount.Field) string {
@@ -215,6 +224,129 @@ func TestFirstAccountTerminalRejectsInvalidDeclarationBeforeTTY(t *testing.T) {
 	}
 	if _, code := readFirstAccountTerminal(t.Context(), nil, nil, nil, description, &report, ""); code != "input_not_terminal" || report.Checks != 1 || report.RestoreAttempts != 0 {
 		t.Fatal("nonterminal input was accepted")
+	}
+}
+
+func TestFirstAccountTerminalCollectionPreservesSignedDuplicatesAndEmpty(t *testing.T) {
+	description, _ := firstAccountParentDescriptionFields(t, []string{"username", "groups", "permissions"})
+	master, slave, err := pty.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer master.Close()
+	defer slave.Close()
+	before, err := term.GetState(int(slave.Fd()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	prompts := newObservedPromptWriter()
+	done := make(chan firstAccountTerminalResult, 1)
+	go func() {
+		var result firstAccountTerminalResult
+		result.request, result.code = readFirstAccountTerminal(ctx, nil, slave, prompts, description, &result.report, "")
+		done <- result
+	}()
+	waitForPrompt(t, prompts, firstAccountFieldPrompt(description.Fields[0]))
+	writePTYInput(t, master, "private-operator\n")
+	for index, raw := range []string{" -7, 0, 42, -7 ", ""} {
+		field := description.Fields[index+1]
+		waitForPrompt(t, prompts, firstAccountOmissionPrompt(field))
+		writePTYInput(t, master, "n\n")
+		waitForPrompt(t, prompts, firstAccountFieldPrompt(field))
+		writePTYInput(t, master, raw+"\n")
+	}
+	waitForPrompt(t, prompts, "Password: ")
+	writePTYInput(t, master, "private-password\n")
+	waitForPrompt(t, prompts, "Password (again): ")
+	writePTYInput(t, master, "private-password\n")
+	result := awaitTerminalResult(t, done)
+	defer result.request.Clear()
+	if result.code != "" || len(result.request.Values) != 3 || !slices.Equal(result.request.Values[1].Keys, []int64{-7, 0, 42, -7}) ||
+		!result.request.Values[2].Present || result.request.Values[2].Keys == nil || len(result.request.Values[2].Keys) != 0 || result.report.RestoreAttempts != 1 {
+		t.Fatal("collection terminal collapsed input presence/order/repetitions", result.code)
+	}
+	after, err := term.GetState(int(slave.Fd()))
+	if err != nil || !reflect.DeepEqual(before, after) {
+		t.Fatal("collection terminal state was not restored", err)
+	}
+	if strings.Contains(prompts.String(), "-7, 0") || strings.Contains(string(readAvailablePTY(t, master)), "private-password") {
+		t.Fatal("redirected collection prompt retained input")
+	}
+}
+
+func TestFirstAccountTerminalCollectionRejectsBeforePasswordAndClearsOnCancel(t *testing.T) {
+	for _, name := range []string{"alias", "trailing", "overflow", "cancel"} {
+		t.Run(name, func(t *testing.T) {
+			description, _ := firstAccountParentDescriptionFields(t, []string{"username", "groups", "permissions"})
+			master, slave, err := pty.Open()
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer master.Close()
+			defer slave.Close()
+			before, err := term.GetState(int(slave.Fd()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			prompts := newObservedPromptWriter()
+			done := make(chan firstAccountTerminalResult, 1)
+			go func() {
+				var result firstAccountTerminalResult
+				result.request, result.code = readFirstAccountTerminal(ctx, nil, slave, prompts, description, &result.report, "")
+				done <- result
+			}()
+			waitForPrompt(t, prompts, firstAccountFieldPrompt(description.Fields[0]))
+			writePTYInput(t, master, "private-operator\n")
+			waitForPrompt(t, prompts, firstAccountOmissionPrompt(description.Fields[1]))
+			writePTYInput(t, master, "n\n")
+			waitForPrompt(t, prompts, firstAccountFieldPrompt(description.Fields[1]))
+			raw, want := "+1", "invalid_input"
+			switch name {
+			case "trailing":
+				raw = "0,"
+			case "overflow":
+				raw = strings.Repeat("0,", description.Fields[1].MaxItems) + "0"
+			case "cancel":
+				raw = "-7,0"
+				want = "project_canceled"
+			}
+			writePTYInput(t, master, raw+"\n")
+			if name == "cancel" {
+				waitForPrompt(t, prompts, firstAccountOmissionPrompt(description.Fields[2]))
+				cancel()
+			}
+			result := awaitTerminalResult(t, done)
+			if result.code != want || len(result.request.Values) != 0 || len(result.request.Password) != 0 || result.report.PasswordPrompts != 0 || result.report.RestoreAttempts != 1 {
+				t.Fatal("failed collection input survived or reached password", result.code, result.report)
+			}
+			after, err := term.GetState(int(slave.Fd()))
+			if err != nil || !reflect.DeepEqual(before, after) {
+				t.Fatal("collection failure changed terminal state", err)
+			}
+		})
+	}
+}
+
+func TestFirstAccountCollectionGrammarKeepsCanonicalInt64AndRawCount(t *testing.T) {
+	for _, test := range []struct {
+		raw     string
+		maximum int
+		want    []int64
+		valid   bool
+	}{
+		{"", 1, []int64{}, true}, {"  ", 1, []int64{}, true}, {"-9223372036854775808,9223372036854775807", 2, []int64{math.MinInt64, math.MaxInt64}, true},
+		{"0, 0, -7", 3, []int64{0, 0, -7}, true}, {"0,0,0,0", 3, nil, false}, {"1,,2", 3, nil, false}, {"+1", 1, nil, false}, {"-0", 1, nil, false},
+		{"01", 1, nil, false}, {"1.0", 1, nil, false}, {"9223372036854775808", 1, nil, false}, {"0", 0, nil, false}, {strings.Repeat(" ", 22), 1, nil, false},
+	} {
+		keys, valid := parseFirstAccountCollection([]byte(test.raw), test.maximum)
+		if valid != test.valid || valid && (keys == nil || !slices.Equal(keys, test.want)) {
+			t.Fatal("canonical collection grammar mismatch", test.raw, valid)
+		}
+		clear(keys)
 	}
 }
 

@@ -30,7 +30,7 @@ var (
 	ErrOutputTransport = errors.New("first account wire: output transport failed")
 )
 
-// Request owns mutable scalar/file/password buffers. Clear releases them after one
+// Request owns mutable scalar/collection/file/password buffers. Clear releases them after one
 // attempt. Formatting and JSON never expose the input or the declaration.
 type Request struct {
 	Fingerprint string
@@ -66,8 +66,11 @@ func validName(value string) bool {
 }
 
 func validValue(value firstaccount.Value) bool {
-	if !validName(value.Name) || !value.Present && (len(value.Text) != 0 || value.Upload != nil) {
+	if !validName(value.Name) || !value.Present && (len(value.Text) != 0 || value.Keys != nil || value.Upload != nil) {
 		return false
+	}
+	if value.Keys != nil {
+		return len(value.Text) == 0 && value.Upload == nil && len(value.Keys) <= firstaccount.MaxCollectionItems
 	}
 	if value.Upload != nil {
 		return len(value.Text) == 0 && firstaccount.ValidUploadName(value.Upload.Name) && len(value.Upload.Content) <= firstaccount.MaxUploadBytes
@@ -88,8 +91,9 @@ func EncodeRequest(request Request) ([]byte, error) {
 			return nil, ErrInvalidRequest
 		}
 		names[value.Name] = true
-		inputBytes += len(value.Text)
-		size += 4 + len(value.Name) + len(value.Text)
+		payloadBytes := len(value.Text) + 8*len(value.Keys)
+		inputBytes += payloadBytes
+		size += 4 + len(value.Name) + payloadBytes
 		if value.Upload != nil {
 			if len(value.Upload.Content) > firstaccount.MaxUploadBytes-fileBytes {
 				return nil, ErrInvalidRequest
@@ -116,18 +120,25 @@ func EncodeRequest(request Request) ([]byte, error) {
 	offset += 2
 	for _, value := range request.Values {
 		document[offset] = byte(len(value.Name))
+		length := len(value.Text)
 		if value.Present {
 			document[offset+1] = 1
 			if value.Upload != nil {
 				document[offset+1] = 2
+			} else if value.Keys != nil {
+				document[offset+1], length = 3, len(value.Keys)
 			}
 		}
-		binary.BigEndian.PutUint16(document[offset+2:], uint16(len(value.Text)))
+		binary.BigEndian.PutUint16(document[offset+2:], uint16(length))
 		offset += 4
 		copy(document[offset:], value.Name)
 		offset += len(value.Name)
 		copy(document[offset:], value.Text)
 		offset += len(value.Text)
+		for _, key := range value.Keys {
+			binary.BigEndian.PutUint64(document[offset:], uint64(key))
+			offset += 8
+		}
 		if value.Upload != nil {
 			binary.BigEndian.PutUint16(document[offset:], uint16(len(value.Upload.Name)))
 			binary.BigEndian.PutUint32(document[offset+2:], uint32(len(value.Upload.Content)))
@@ -166,29 +177,48 @@ func DecodeRequest(document []byte) (Request, error) {
 		return Request{}, ErrInvalidRequest
 	}
 	var views [firstaccount.MaxFields]firstaccount.Value
+	var keyPayloads [firstaccount.MaxFields][]byte
 	names := make(map[string]bool, count)
 	inputBytes, fileBytes := 0, 0
 	for i := range count {
 		if len(document)-offset < 4 {
 			return Request{}, ErrInvalidRequest
 		}
-		nameBytes, present, textBytes := int(document[offset]), document[offset+1], int(binary.BigEndian.Uint16(document[offset+2:]))
+		nameBytes, kind, length := int(document[offset]), document[offset+1], int(binary.BigEndian.Uint16(document[offset+2:]))
 		offset += 4
-		if present > 2 || nameBytes > MaxNameBytes || textBytes > firstaccount.MaxFieldBytes || len(document)-offset < nameBytes+textBytes {
+		payloadBytes := length
+		if kind == 3 {
+			if length > firstaccount.MaxCollectionItems {
+				return Request{}, ErrInvalidRequest
+			}
+			payloadBytes = 8 * length
+		} else if length > firstaccount.MaxFieldBytes {
 			return Request{}, ErrInvalidRequest
 		}
-		value := firstaccount.Value{Name: string(document[offset : offset+nameBytes]), Present: present != 0, Text: document[offset+nameBytes : offset+nameBytes+textBytes]}
+		if kind > 3 || nameBytes > MaxNameBytes || len(document)-offset < nameBytes+payloadBytes {
+			return Request{}, ErrInvalidRequest
+		}
+		value := firstaccount.Value{Name: string(document[offset : offset+nameBytes]), Present: kind != 0}
+		payload := document[offset+nameBytes : offset+nameBytes+payloadBytes]
+		if kind == 3 {
+			// Keep only a view until the entire frame is valid. Empty, present
+			// collections retain a non-nil marker independently of omission.
+			value.Keys = []int64{}
+			keyPayloads[i] = payload
+		} else {
+			value.Text = payload
+		}
 		if !validValue(value) || names[value.Name] {
 			return Request{}, ErrInvalidRequest
 		}
 		names[value.Name] = true
-		inputBytes += textBytes
+		inputBytes += payloadBytes
 		if inputBytes > firstaccount.MaxInputBytes {
 			return Request{}, ErrInvalidRequest
 		}
-		offset += nameBytes + textBytes
-		if present == 2 {
-			if textBytes != 0 || len(document)-offset < 6 {
+		offset += nameBytes + payloadBytes
+		if kind == 2 {
+			if length != 0 || len(document)-offset < 6 {
 				return Request{}, ErrInvalidRequest
 			}
 			filenameBytes := int(binary.BigEndian.Uint16(document[offset:]))
@@ -213,6 +243,13 @@ func DecodeRequest(document []byte) (Request, error) {
 	for i := range count {
 		request.Values[i] = views[i]
 		request.Values[i].Text = bytes.Clone(views[i].Text)
+		if views[i].Keys != nil {
+			payload := keyPayloads[i]
+			request.Values[i].Keys = make([]int64, len(payload)/8)
+			for index := range request.Values[i].Keys {
+				request.Values[i].Keys[index] = int64(binary.BigEndian.Uint64(payload[index*8:]))
+			}
+		}
 		if views[i].Upload != nil {
 			request.Values[i].Upload = &firstaccount.Upload{Name: views[i].Upload.Name, Content: bytes.Clone(views[i].Upload.Content)}
 		}

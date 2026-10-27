@@ -92,7 +92,7 @@ func TestRequestChecksWholeFrameAndBounds(t *testing.T) {
 		}},
 		{"zero_name", func(b []byte) []byte { b[header] = 0; return b }},
 		{"long_name", func(b []byte) []byte { b[header] = firstaccountwire.MaxNameBytes + 1; return b }},
-		{"invalid_presence", func(b []byte) []byte { b[header+1] = 3; return b }},
+		{"invalid_presence", func(b []byte) []byte { b[header+1] = 4; return b }},
 		{"absent_with_text", func(b []byte) []byte { b[header+1] = 0; return b }},
 		{"long_text", func(b []byte) []byte {
 			binary.BigEndian.PutUint16(b[header+2:], firstaccount.MaxFieldBytes+1)
@@ -232,6 +232,8 @@ func FuzzRequest(f *testing.F) {
 	f.Add(document)
 	files, _ := firstaccountwire.EncodeRequest(uploadRequest())
 	f.Add(files)
+	collections, _ := firstaccountwire.EncodeRequest(collectionRequest())
+	f.Add(collections)
 	f.Add([]byte{})
 	f.Add([]byte(firstaccountprotocol.Magic))
 	f.Fuzz(func(t *testing.T, document []byte) {
