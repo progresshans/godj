@@ -20,8 +20,9 @@ const MaximumProfilePageSize = 100
 // revision, role flags or the row key are not exposed automatically: they may
 // be selected deliberately under this read policy and remain non-writable in
 // ProfileEditor. File references are names only: reading them never opens a
-// storage backend or grants a download capability. Other collections have
-// separate policies. List
+// storage backend or grants a download capability. Explicitly selected profile
+// M2Ms expose their complete stored key sets up to MaximumProfileCollectionItems;
+// the assignment filter does not silently hide existing memberships. List
 // returns only ListFields and performs no per-row membership queries.
 //
 // Reads require ViewPermission or, when configured, ChangePermission, together
@@ -41,6 +42,7 @@ type profileReadState[M any] struct {
 	fields              []string
 	listFields          []string
 	groups, permissions bool
+	collections         []deletionMembership
 	view, change        []auth.Permission
 }
 
@@ -70,7 +72,7 @@ func NewProfileReader[M any](store *CredentialStore[M], overlay auth.Authorizer,
 		}
 	}
 	metadata, err := store.state.binding.state.objects.Metadata()
-	if err != nil || len(config.Fields) > len(metadata.Fields)+2 {
+	if err != nil || len(config.Fields) > len(metadata.Fields)+len(metadata.ManyToMany) {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	role := store.state.binding.state.role
@@ -84,6 +86,10 @@ func NewProfileReader[M any](store *CredentialStore[M], overlay auth.Authorizer,
 			selected[name] = true
 			continue
 		}
+		if _, found := namedCollection(metadata, name); found {
+			selected[name] = true
+			continue
+		}
 		_, found := namedField(metadata, name)
 		if !found || selected[name] || name == role.Password || name == role.PrincipalID {
 			return nil, managementError(CodeInvalidConfig, nil)
@@ -91,8 +97,13 @@ func NewProfileReader[M any](store *CredentialStore[M], overlay auth.Authorizer,
 		selected[name] = true
 		listFields = append(listFields, name)
 	}
+	memberships, err := bindDeletionMemberships(store.state.binding.state.project, role)
+	if err != nil {
+		return nil, managementError(CodeInvalidConfig, err)
+	}
+	collections := slices.DeleteFunc(profileMemberships(memberships), func(value deletionMembership) bool { return !selected[value.field] })
 	return &ProfileReader[M]{state: &profileReadState[M]{store: store, overlay: overlay,
-		fields: slices.Clone(config.Fields), listFields: listFields, groups: selected[role.Groups], permissions: selected[role.Permissions], view: view, change: change}}, nil
+		fields: slices.Clone(config.Fields), listFields: listFields, groups: selected[role.Groups], permissions: selected[role.Permissions], collections: collections, view: view, change: change}}, nil
 }
 
 func (reader *ProfileReader[M]) Fields() []string {
@@ -176,9 +187,12 @@ func (reader *ProfileReader[M]) Get(ctx context.Context, actor auth.Principal, i
 			return Profile[M]{}, false, err
 		}
 		profile, err := reader.project(namespace, row, permissions)
-		if err == nil && (reader.state.groups || reader.state.permissions) {
+		if err == nil && (reader.state.groups || reader.state.permissions || len(reader.state.collections) != 0) {
 			role := reader.state.store.state.binding.state.role
-			collections := make(map[string][]int64, 2)
+			collections, failure := readProfileMemberships(work, scope, reader.state.collections, id, nil)
+			if failure != nil {
+				return Profile[M]{}, false, failure
+			}
 			if reader.state.groups {
 				collections[role.Groups] = memberships.groups
 			}

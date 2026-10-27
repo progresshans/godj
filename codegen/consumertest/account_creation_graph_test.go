@@ -37,17 +37,17 @@ func writeAccountCreationGraphConsumer(t *testing.T, custom bool) string {
 	if custom {
 		*spec.Account.Staff.Constant = true
 	}
-	var imports, schemas []string
+	var imports []string
 	types := make(map[ir.ModelIdentity]string)
 	for i := range spec.Apps {
 		app := &spec.Apps[i]
 		alias := fmt.Sprintf("model%d", i)
-		imports = append(imports, fmt.Sprintf("%s %q", alias, app.Package.ImportPath))
-		schemas = append(schemas, alias+".GoDjRelationSchema()")
+		used := false
 		for j := range app.Schema.Models {
 			model := &app.Schema.Models[j]
 			identity := ir.ModelIdentity{AppLabel: app.Schema.AppLabel, ModelName: model.Name}
 			types[identity] = alias + "." + model.GoName
+			used = used || identity == spec.Account.Model || identity == spec.Account.Catalog.Group || identity == spec.Account.Catalog.Permission
 			if identity == spec.Account.Model {
 				for _, field := range []struct {
 					name, goName string
@@ -67,6 +67,9 @@ func writeAccountCreationGraphConsumer(t *testing.T, custom bool) string {
 				}
 			}
 		}
+		if used {
+			imports = append(imports, fmt.Sprintf("%s %q", alias, app.Package.ImportPath))
+		}
 	}
 	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
@@ -77,7 +80,8 @@ func writeAccountCreationGraphConsumer(t *testing.T, custom bool) string {
 	if custom {
 		profile = "region"
 	}
-	source := strings.NewReplacer("@@IMPORTS@@", strings.Join(imports, "\n"), "@@SCHEMAS@@", strings.Join(schemas, ","),
+	source := strings.NewReplacer("@@IMPORTS@@", strings.Join(imports, "\n"),
+		"@@MIGRATIONS@@", accountConsumerMigrationSources(t, spec),
 		"@@ACCOUNT@@", types[spec.Account.Model], "@@GROUP@@", types[spec.Account.Catalog.Group], "@@PERMISSION@@", types[spec.Account.Catalog.Permission], "@@PROFILE@@", profile).Replace(accountCreationGraphConsumer)
 	formatted, err := format.Source([]byte(source))
 	if err != nil {

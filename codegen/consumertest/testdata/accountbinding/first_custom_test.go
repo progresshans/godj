@@ -47,7 +47,7 @@ func firstCustomAccount(t *testing.T, adminMode string) {
 	}
 	hasher, _ := accountPassword(t)
 	config := firstConsumerConfig[people.Member](role, "region")
-	config.Validate = func(_ context.Context, _ db.Queryer, candidate people.Member, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.Validate = func(_ context.Context, _ db.Queryer, candidate people.Member, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 		if candidate.Region != "NZ" || !candidate.Enabled || !candidate.Root || candidate.Secret != "" {
 			return validation.NewErrors(validation.New("region", "policy")), nil
 		}

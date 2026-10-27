@@ -96,7 +96,7 @@ func collectionAccountCreation(t *testing.T, backend Backend, reopen func(*testi
 		config.RelatedPermissions.Account = accountmodel.DeletionPermissions{}
 	}
 	finalChecks := 0
-	config.Validate = func(ctx context.Context, scope db.Queryer, row people.Member, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.Validate = func(ctx context.Context, scope db.Queryer, row people.Member, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 		if observed == nil || !observed.called {
 			return validation.Errors{}, nil
 		}

@@ -61,11 +61,12 @@ func NewFirstAccountDefinition[M, G, P, GL, PL any](binding Binding[M], groupDes
 		PasswordBytes          int
 		IExact                 bool
 		Related                RelatedRowPermissions
-	}{source, fingerprint, config.EvidenceSHA256, creation.fields, creation.config.MaxPasswordBytes, creation.config.CaseInsensitiveLogin, creation.config.RelatedPermissions})
+		Collections            map[string]int
+	}{source, fingerprint, config.EvidenceSHA256, creation.fields, creation.config.MaxPasswordBytes, creation.config.CaseInsensitiveLogin, creation.config.RelatedPermissions, profileCollectionLimits(creation.collections)})
 	if err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
-	digest := sha256.Sum256(append([]byte("godj.first-account-definition.v2\x00"), encoded...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-definition.v3\x00"), encoded...))
 	return FirstAccountDefinition[M]{state: &firstAccountDefinitionState[M]{creation: creation, credentials: credentials, fingerprint: fingerprint, evidence: config.EvidenceSHA256, declaration: hex.EncodeToString(digest[:])}}, nil
 }
 

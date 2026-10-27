@@ -2411,6 +2411,50 @@ race/CGO0·전체 platform 수용으로 계산하지 않는다. 원본·source·
 (SHA-256 `d0d84a136eb4d52b390c357b955dfbb11dbe619320251d682fc2c2432cfdf58f`).
 새 source의 전체 CI와 I1 전체 수용은 미완료다.
 
+### 추가 M2M 프로필 작성과 생성 소비자의 실패 수정
+
+2026-10-28, `6f3d203d706d96b2acb6433631c117be14a70f03` 위에서 명시적 `ProfileCollection[M]`과
+생성/첫 계정 typed·Form, AccountEditor·ProfileReader·관리 Form/Admin/JSON의 연결을 작성했다. 현재 선택·입력/저장 한도,
+생략/빈 집합/no-op과 전체 collection/lifecycle projection을 사용한다. 다른 관계의 연쇄 삭제·대칭 관계·중복 physical pair가
+만드는 최종 소속, 관련 revision·권한·session·audit와 최종 through/target readback을 같은 native scope에서 처리한다.
+`AccountMemberships`는 validator에 제출에서 빠진 필드까지 포함한 최종 집합의 사본을 제공한다.
+
+별도 기본/custom 생성 소비자에는 typed/Form 생성·Admin/JSON·bounded 선택·현재 정책·필수/원 반복 입력 한도,
+signed owner/target key·대칭/연쇄 효과·validation·late choice/readback·rollback/unknown·revision 경합·재접속을 작성했다.
+조회는 필드별 전체 저장 소속의 1,024개 한도와 scope 종료를 확인하며 목록은 scalar만 읽는다. 이 새 본문은 원격 실행 대상이다.
+공개 `createsuperuser`의 collection 입력/전송과 일반 setter의 selected identity through 생성은 아직 명시적으로 거부한다.
+
+선행 [CI 40575515981](https://github.com/progresshans/godj/actions/runs/40575515981)의 관측 시점 실패 작업 14개에서
+두 원인을 확인했다. 각 원본 checkout은 `01cbb9850f4076b9517403ef6390715e9a29e00b`이고 tree
+`a1e80f0a4f951699fa1c90cb1227525fca0fd10c`가 제출 source와 같다. 실행 전체는 아직 완료되지 않았으며 이 부분 대조를
+현재 M2M source의 전체 성공으로 사용하지 않는다.
+
+- 생성 감사 실패 주입 검사가 이전 저장 순서를 전제했다. 공통 lifecycle의 account→audit→group link→direct link 순서에
+  맞춰 실제 실행/미실행 쓰기를 모두 대조하도록 바꿨다. 마지막 direct-link 실패는 모든 native 쓰기 뒤의 rollback을 계속 검사한다.
+  원본 source의 별도 사본에서 두 audit child 실패를 재현한 뒤, 수정만 적용한 생성/첫 계정의 9개 실패 child가 통과했다
+  (39.29초→12.43초, skip 없음).
+- 계정 자체를 catalog through로 쓰는 외부 소비자는 수동 migration의 모델 순서·앱 의존성이 올바르지 않았다.
+  실제 migration autodetector의 정의를 외부 module에 전달하고 공통 native 준비 helper에서 적용한다. 기본/custom 두
+  소비자의 초기 실패를 원본 source에서 재현했다(4.37초). 중간 unused import를 정리한 뒤 두 소비자의 22개 필수 child가
+  모두 통과했다(4.97초, skip 없음). 첫 계정·현재 효과 인가·중복 pair·validation·unknown·signed key·재접속 검사를 유지했다.
+  두 재현은 새 M2M 제품 변경과 분리한 SQLite 실행이며 PostgreSQL·race/CGO0·전체 환경 수용은 아니다.
+
+로컬 darwin/arm64 Go 1.26.5에서 영향 package 7개의 `go test -run '^$'` compile을 확인했다(60.67초).
+이때의 `identity/model`·`internal/accountstoretest` bytes가 최종 코드와 같음을 대조했다. 이후 수정한 소비자와 공통 준비
+helper는 기본/custom M2M·through의 실제 외부 module 4개에서 `go test -c`로 다시 컴파일했다(25.78초).
+임시 compile driver는 보관 뒤 제거했고, 최종 binary discovery의 116개 root가 기존 목록과 같은지 확인했다.
+이 compile 실행에서 새 M2M DB·HTTP 테스트 본문을 실행하지 않았다.
+
+Relation 필수 4,537개·PostgreSQL 필수 5,666개에서 이전 필수 항목을 모두 유지했다. 실제 116개 consumer root와 필수 항목의
+단일 실행 담당을 workflow와 같은 package/portable 필터로 12개 native 좌표, PostgreSQL 세 mode에서 대조했다.
+이 배정 검사는 실제 run/pass 증거가 아니다. 새 테스트와 source의 SQLite/PostgreSQL·race/CGO0·generated drift·process/browser/
+전체 platform 및 원본/capture 대조는 push로 시작하는 자동 전체 CI에서 확인한다.
+
+원격 실패 원본·checkout 결합, 분리한 전후 재현·patch, native/외부 compile·최종 변경 hash와 실행 목록은 검증 보관소의
+`gdj0138-profile-collections-v1/receipt-final.json`에 연결했다
+(SHA-256 `7b02e7bf7c1937e993f0beeaf6019e07cb72c535ae1521a5242041e76fc1dc00`).
+공개 첫 명령의 collection 조립·채운 DB 전환/복구·남은 고정 소비자와 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

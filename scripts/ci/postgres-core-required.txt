@@ -5659,3 +5659,8 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountThroughIde
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountThroughIdentityCreation/custom
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountThroughIdentityCreation/custom/sqlite
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountThroughIdentityCreation/custom/postgres
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/default
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/default/postgres
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/custom
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileCollections/custom/postgres

@@ -97,6 +97,13 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 		}
 		changes = append(changes, change)
 	}
+	for _, collection := range state.collections {
+		change, err := collection.state.prepare(row, candidate.profile[collection.state.field.Name])
+		if err != nil {
+			return zero, Creation{}, err
+		}
+		changes = append(changes, change)
+	}
 	batch, err := orm.PrepareCollectionChangesInSession(ctx, scope, changes...)
 	if err != nil {
 		return zero, Creation{}, err
@@ -140,6 +147,15 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 	// candidate's key excludes its own provisional row from uniqueness.
 	checked := *candidate
 	checked.row, checked.prepared, checked.stored = finalRow, prepared, true
+	checked.profile, err = readProfileMemberships(ctx, scope, state.lifecycle.memberships, id, plan.projection)
+	if err != nil {
+		return zero, Creation{}, err
+	}
+	actualMemberships, err := state.store.state.relations.memberships(ctx, scope, id)
+	if err != nil {
+		return zero, Creation{}, err
+	}
+	checked.groups, checked.permissions = actualMemberships.groups, actualMemberships.direct
 	operation := ProfileRelationCreate
 	if operator {
 		operation = ProfileRelationFirstAccount
@@ -149,6 +165,9 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 		return zero, Creation{}, err
 	}
 	if err := prepared.Save(ctx, scope, &finalRow); err != nil {
+		return zero, Creation{}, err
+	}
+	if err := checkProfileCollections(ctx, scope, actor, ProfileRelationOrigin{operation: operation}, state.collections, checked.profile); err != nil {
 		return zero, Creation{}, err
 	}
 	if err := plan.verify(ctx, scope); err != nil {

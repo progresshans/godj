@@ -16,6 +16,7 @@ import (
  "github.com/progresshans/godj/db"
  formmodel "github.com/progresshans/godj/forms/model"
  accountmodel "github.com/progresshans/godj/identity/model"
+ "github.com/progresshans/godj/migrations/definition"
  "github.com/progresshans/godj/orm"
  "github.com/progresshans/godj/query"
  "github.com/progresshans/godj/settings/database"
@@ -45,7 +46,7 @@ func TestGeneratedAccountThroughIdentity(t *testing.T){
    check:=func(err error){t.Helper();if err!=nil{t.Fatal(err)}}
    binding,err:=project.BindAccount();check(err);role,err:=binding.Role();check(err);objects,err:=binding.Objects();check(err)
    groups:=orm.NewManager[@@GROUP@@](@@GROUP@@Descriptor{});permissions:=orm.NewManager[@@PERMISSION@@](@@PERMISSION@@Descriptor{})
-   native,selected:=accountDatabaseWithConfig(t,@@SCHEMAS@@);backend:=&graphBackend{Backend:native}
+   native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@);backend:=&graphBackend{Backend:native}
    hasher,_:=accountPassword(t)
    group:=graphInsert(t,native,groups,map[string]query.Value{role.Catalog.GroupName:query.String("Grant owner"),role.Catalog.GroupRevision:query.Integer(1)})
    permission:=graphInsert(t,native,permissions,map[string]query.Value{role.Catalog.PermissionName:query.String("Selected grant"),role.Catalog.PermissionCode:query.String("app.selected"),role.Catalog.PermissionRevision:query.Integer(1)})
@@ -90,7 +91,7 @@ func TestGeneratedAccountThroughIdentity(t *testing.T){
    runtime,err:=project.NewAccountRuntime(t.Context(),backend,hasher,overlay,accountmodel.RuntimeConfig[@@ACCOUNT@@,@@GROUP@@,@@PERMISSION@@]{
     Accounts:accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields:fields,CreateFields:fields,EditFields:[]string{role.Login,"@@PROFILE@@"},Relations:relations,Permissions:accountPermissions,
      GroupPermissions:accountmodel.DeletionPermissions{Change:groupPermissions.Change,Delete:groupPermissions.Delete},PermissionPermissions:accountmodel.DeletionPermissions{Change:permissionPermissions.Change,Delete:permissionPermissions.Delete},
-     ValidateCreate:func(_ context.Context,_ db.Queryer,row @@ACCOUNT@@,_ accountmodel.RoleMemberships)(validation.Errors,error){_,stored,err:=objects.PrimaryKey(row);if err!=nil{return validation.Errors{},err};if mode=="validator"&&stored{return validation.NewErrors(validation.New("@@PROFILE@@","final_graph")),nil};return validation.Errors{},nil},
+     ValidateCreate:func(_ context.Context,_ db.Queryer,row @@ACCOUNT@@,_ accountmodel.AccountMemberships)(validation.Errors,error){_,stored,err:=objects.PrimaryKey(row);if err!=nil{return validation.Errors{},err};if mode=="validator"&&stored{return validation.NewErrors(validation.New("@@PROFILE@@","final_graph")),nil};return validation.Errors{},nil},
     },
     Catalog:accountmodel.CatalogConfig[@@GROUP@@,@@PERMISSION@@]{AccountPermissions:accountmodel.DeletionPermissions{Change:accountPermissions.Change,Delete:accountPermissions.Delete},
      Group:accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields:[]string{role.Catalog.GroupName,role.Catalog.GroupPermissions},WriteFields:[]string{role.Catalog.GroupName},Permissions:groupPermissions},

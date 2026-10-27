@@ -202,7 +202,7 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 		t.Fatal("constant staff=false was silently accepted by createsuperuser capability", err)
 	}
 	creationConfig := creationConsumerConfig[people.Member](role, "region")
-	creationConfig.Validate = func(_ context.Context, _ db.Queryer, candidate people.Member, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+	creationConfig.Validate = func(_ context.Context, _ db.Queryer, candidate people.Member, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 		if candidate.Region != "NZ" || candidate.Secret != "" {
 			return validation.NewErrors(validation.New("region", "custom_policy")), nil
 		}

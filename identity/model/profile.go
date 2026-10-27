@@ -406,7 +406,7 @@ func (editor *ProfileEditor[M]) UpdateForm(ctx context.Context, actor auth.Princ
 		result, err := editor.Update(ctx, actor, id, revision, input)
 		return result, nil, err
 	}
-	prepared, err := prepareProfileFileChange(ctx, state.store, actor, state.overlay, state.required, state.relations, id, revision, bound)
+	prepared, err := prepareProfileFileChange(ctx, state.store, actor, state.overlay, state.required, state.relations, nil, id, revision, bound)
 	if err != nil {
 		return ProfileChange{}, nil, err
 	}

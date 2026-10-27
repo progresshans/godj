@@ -44,7 +44,7 @@ func combinedProfileAndRoles(t *testing.T, backend Backend, reopen func(*testing
 	config := accountEditConfig()
 	config.AdditionalPermissions = []auth.Permission{"account.team"}
 	validated := 0
-	config.Validate = func(ctx context.Context, reader db.Queryer, current, candidate models.User, memberships accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.Validate = func(ctx context.Context, reader db.Queryer, current, candidate models.User, memberships accountmodel.AccountMemberships) (validation.Errors, error) {
 		validated++
 		if current.ID != target.ID || candidate.ID != target.ID || candidate.Username != "edited" || candidate.Email != "Local@example.test" {
 			return validation.Errors{}, errors.New("validator did not receive the complete normalized candidate")

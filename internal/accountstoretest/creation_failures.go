@@ -58,7 +58,7 @@ func creationCommitFailures(t *testing.T, backend Backend, reopen func(*testing.
 			}
 			commit := false
 			config := creationConfig()
-			config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
+			config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 				if !commit {
 					return validation.Errors{}, nil
 				}
@@ -134,10 +134,19 @@ func creationCommitFailures(t *testing.T, backend Backend, reopen func(*testing.
 			if exists := creationExists(t, backend, "failure-"+mode); exists != committed {
 				t.Fatal("durable creation differs from outcome", mode)
 			}
-			for _, table := range []string{"godj_identity_user", "godj_identity_user_groups", "godj_identity_user_permissions", "godj_account_audit_event"} {
-				must := mode == "write_failure" && table == "godj_identity_user" || mode == "group_failure" && (table == "godj_identity_user" || table == "godj_identity_user_groups") || mode == "direct_failure" && table != "godj_account_audit_event" || mode == "audit_failure"
-				if must && effects[table] != 1 {
-					t.Fatal("failure did not follow actual native effect", mode, table, effects)
+			// Lifecycle companions (including audit) precede the collected links.
+			// The final direct-link fault still follows every native write.
+			tables := []string{"godj_identity_user", "godj_account_audit_event", "godj_identity_user_groups", "godj_identity_user_permissions"}
+			failing := map[string]int{"write_failure": 0, "audit_failure": 1, "group_failure": 2, "direct_failure": 3}
+			if last, injected := failing[mode]; injected {
+				for index, table := range tables {
+					want := 0
+					if index <= last {
+						want = 1
+					}
+					if effects[table] != want {
+						t.Fatal("creation fault native effect prefix differs", mode, table, effects)
+					}
 				}
 			}
 		})

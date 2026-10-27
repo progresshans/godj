@@ -82,11 +82,11 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 	calls := 0
 	config := managementConfig()
 	config.PrincipalID = func(context.Context) (string, error) { calls++; return "unexpected", nil }
-	config.ValidateCreate = func(context.Context, db.Queryer, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.ValidateCreate = func(context.Context, db.Queryer, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 		calls++
 		return validation.Errors{}, nil
 	}
-	config.ValidateEdit = func(context.Context, db.Queryer, models.User, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.ValidateEdit = func(context.Context, db.Queryer, models.User, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 		calls++
 		return validation.Errors{}, nil
 	}

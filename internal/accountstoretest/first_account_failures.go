@@ -51,7 +51,7 @@ func firstAccountFailureCase(t *testing.T, backend Backend, reopen func(*testing
 	}
 	config := firstAccountConfig()
 	commit := false
-	config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 		if commit && (mode == "validator_rejection" || mode == "validator_failure" || mode == "cleanup_failure" || mode == "swallowed_rejection") {
 			result := validation.NewErrors(validation.New("first_name", "policy"))
 			if mode == "validator_failure" {
@@ -132,12 +132,19 @@ func firstAccountFailureCase(t *testing.T, backend Backend, reopen func(*testing
 	} else if !errors.Is(lookupError, domain.ErrUninitialized) || receipt.Sequence() != 0 {
 		t.Fatal("rolled-back first write left receipt", lookupError)
 	}
-	tables := []string{"godj_account_domain_transition", "godj_identity_user", "godj_identity_user_groups", "godj_identity_user_permissions", "godj_account_audit_event"}
-	failing := map[string]int{"domain_failure": 0, "write_failure": 1, "group_failure": 2, "direct_failure": 3, "audit_failure": 4}
-	if last, ok := failing[mode]; ok {
-		for _, table := range tables[:last+1] {
-			if effects[table] != 1 {
-				t.Fatal("first fault not after actual native effect", mode, table, effects)
+	// The same lifecycle records its audit before inserting collected links.
+	// Assert the full executed/unexecuted prefix; direct_failure covers rollback
+	// after domain, account, audit and both actual membership writes.
+	tables := []string{"godj_account_domain_transition", "godj_identity_user", "godj_account_audit_event", "godj_identity_user_groups", "godj_identity_user_permissions"}
+	failing := map[string]int{"domain_failure": 0, "write_failure": 1, "audit_failure": 2, "group_failure": 3, "direct_failure": 4}
+	if last, injected := failing[mode]; injected {
+		for index, table := range tables {
+			want := 0
+			if index <= last {
+				want = 1
+			}
+			if effects[table] != want {
+				t.Fatal("first fault native effect prefix differs", mode, table, effects)
 			}
 		}
 	}
@@ -173,7 +180,7 @@ func firstAccountReadFailures(t *testing.T, backend Backend, _ func(*testing.T) 
 			})}
 			config := firstAccountConfig()
 			if mode == "validation_cleanup" {
-				config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
+				config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 					return validation.NewErrors(validation.New("first_name", "policy")), nil
 				}
 			}

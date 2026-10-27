@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"slices"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -19,7 +20,10 @@ type deletionMembership struct {
 	through, owner, targetModel ir.ModelIdentity
 	field, table                string
 	key, source, target         query.FieldRef
+	targetTable                 string
+	targetKey                   query.FieldRef
 	maximum                     int
+	profile                     bool
 }
 type deletionLink struct {
 	key, source, target      int64
@@ -28,11 +32,18 @@ type deletionLink struct {
 
 func bindDeletionMemberships(project orm.ProjectBinding, role ir.AccountRole) ([]deletionMembership, error) {
 	var result []deletionMembership
+	critical := 0
 	for _, relation := range project.ManyToManyRelations() {
 		maximum := auth.MaximumPermissions
 		selected := relation.Source == role.Model && relation.Field == role.Permissions || relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions
 		if relation.Source == role.Model && relation.Field == role.Groups {
 			selected, maximum = true, MaximumAccountGroups
+		}
+		profile := relation.Source == role.Model && relation.Field != role.Groups && relation.Field != role.Permissions
+		if selected {
+			critical++
+		} else if profile {
+			selected, maximum = true, MaximumProfileCollectionItems
 		}
 		if !selected {
 			continue
@@ -41,18 +52,102 @@ func bindDeletionMemberships(project orm.ProjectBinding, role ir.AccountRole) ([
 		key, keyPresent := primaryField(model)
 		source, sourcePresent := namedField(model, relation.Through.SourceField)
 		target, targetPresent := namedField(model, relation.Through.TargetField)
+		targetModel, targetFound := project.Model(relation.Target)
+		targetKey, targetKeyFound := primaryField(targetModel)
 		if !present || !keyPresent || !sourcePresent || !targetPresent || source.Relation == nil || target.Relation == nil ||
-			source.Relation.Target != relation.Source || target.Relation.Target != relation.Target {
+			source.Relation.Target != relation.Source || target.Relation.Target != relation.Target || !targetFound || !targetKeyFound {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 		field := func(value ir.Field) query.FieldRef {
 			return query.NewFieldRef(value.Name, value.Column, query.FieldInteger, value.Nullable)
 		}
 		result = append(result, deletionMembership{through: relation.Through.Model, owner: relation.Source, targetModel: relation.Target, field: relation.Field, table: model.DBTable,
-			key: field(key), source: field(source), target: field(target), maximum: maximum})
+			key: field(key), source: field(source), target: field(target), targetTable: targetModel.DBTable, targetKey: field(targetKey), maximum: maximum, profile: profile})
 	}
-	if len(result) != 3 {
+	if critical != 3 {
 		return nil, managementError(CodeInvalidConfig, nil)
+	}
+	return result, nil
+}
+
+// readKeys validates the complete stored logical set, including its target
+// existence. Nullable physical links do not become zero-valued memberships;
+// distinct zero/negative target keys remain ordinary present keys.
+func (membership deletionMembership) readKeys(ctx context.Context, scope db.Queryer, owner int64) ([]int64, error) {
+	keys, _, err := membership.projectedSets(ctx, scope, owner, nil, 0, nil)
+	if err != nil || len(keys) == 0 {
+		return keys, err
+	}
+	values := make([]query.Value, len(keys))
+	for index, key := range keys {
+		values[index] = query.Integer(key)
+	}
+	condition, err := query.NewInCondition(membership.targetKey, values)
+	if err != nil {
+		return nil, err
+	}
+	expression, err := query.NewExpression(condition)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := query.NewPlan(membership.targetTable, []query.FieldRef{membership.targetKey}).WithWhere(expression)
+	if err != nil {
+		return nil, err
+	}
+	plan = plan.WithOrderings(query.NewOrdering(membership.targetKey, query.Ascending))
+	plan, err = plan.WithLimit(len(keys) + 1)
+	if err != nil {
+		return nil, err
+	}
+	actual := make([]int64, 0, len(keys))
+	failure := func(err error) error { return managementError(CodePersistence, err) }
+	err = rowset.Scan(ctx, scope, plan, failure, func(rows db.Rows) (bool, error) {
+		var raw any
+		if err := rows.Scan(&raw); err != nil {
+			return false, failure(err)
+		}
+		key, valid := raw.(int64)
+		if !valid || len(actual) >= len(keys) || key != keys[len(actual)] {
+			return false, failure(nil)
+		}
+		actual = append(actual, key)
+		return true, nil
+	})
+	if err != nil || !slices.Equal(keys, actual) {
+		return nil, failure(err)
+	}
+	return keys, nil
+}
+
+func profileMemberships(memberships []deletionMembership) []deletionMembership {
+	var result []deletionMembership
+	for _, membership := range memberships {
+		if membership.profile {
+			result = append(result, membership)
+		}
+	}
+	return result
+}
+
+func readProfileMemberships(ctx context.Context, scope db.Queryer, memberships []deletionMembership, owner int64, projection *lifecycleProjection) (map[string][]int64, error) {
+	result := make(map[string][]int64, len(memberships))
+	for _, membership := range memberships {
+		if !membership.profile {
+			continue
+		}
+		keys, err := membership.readKeys(ctx, scope, owner)
+		if err != nil {
+			return nil, err
+		}
+		if projection != nil {
+			key := lifecycleMembershipKey{deletionKey{membership.owner, owner}, membership.field}
+			if expected, present := projection.sets[key]; present {
+				keys = slices.Clone(expected.after)
+			} else {
+				projection.sets[key] = lifecycleMembershipSet{slices.Clone(keys), slices.Clone(keys)}
+			}
+		}
+		result[membership.field] = keys
 	}
 	return result, nil
 }

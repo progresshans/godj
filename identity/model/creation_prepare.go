@@ -20,6 +20,9 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 		if err := state.checkFileForm(*form); err != nil {
 			return nil, err
 		}
+		if err := checkAccountCollectionForm(state.binding.state.role, state.collections, *form); err != nil {
+			return nil, err
+		}
 		var err error
 		input, pendingFiles, err = formmodel.PrepareInputBeforeFiles(state.binding.state.objects, *form)
 		if err != nil {
@@ -50,19 +53,8 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 		return nil, err
 	}
 	collections := input.Collections()
-	for name, keys := range collections {
-		if !state.allowed[name] || (name != role.Groups && name != role.Permissions) {
-			return nil, managementError(CodeInvalidInput, nil)
-		}
-		maximum := auth.MaximumPermissions
-		if name == role.Groups {
-			maximum = MaximumAccountGroups
-		}
-		if len(keys) > maximum {
-			return nil, profileInputError(name, "max_items")
-		}
-		slices.Sort(keys)
-		collections[name] = slices.Compact(keys)
+	if err := normalizeAccountCollections(role, state.allowed, state.collections, collections); err != nil {
+		return nil, err
 	}
 	for name, value := range state.forced {
 		values[name] = value
@@ -114,7 +106,13 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 	if err != nil {
 		return nil, managementError(CodeInvalidInput, err)
 	}
-	return &creationCandidate[M]{prepared: prepared, row: row, groups: collections[role.Groups], permissions: collections[role.Permissions], form: form, pendingFiles: pendingFiles}, nil
+	profile := make(map[string][]int64)
+	for _, field := range metadata.ManyToMany {
+		if field.Name != role.Groups && field.Name != role.Permissions {
+			profile[field.Name] = slices.Clone(collections[field.Name])
+		}
+	}
+	return &creationCandidate[M]{prepared: prepared, row: row, groups: collections[role.Groups], permissions: collections[role.Permissions], profile: profile, form: form, pendingFiles: pendingFiles}, nil
 }
 
 func (state *creationState[M]) preflight(ctx context.Context, scope db.Queryer, actor auth.Principal, candidate *creationCandidate[M], encoded bool) (auth.Principal, error) {
@@ -135,6 +133,9 @@ func (state *creationState[M]) preflight(ctx context.Context, scope db.Queryer, 
 func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Queryer, namespace auth.CredentialDomain, actor auth.Principal, operation ProfileRelationOperation, candidate *creationCandidate[M], encoded bool) error {
 	binding := state.store.state.binding
 	role := binding.state.role
+	if err := checkProfileCollections(ctx, scope, actor, ProfileRelationOrigin{operation: operation}, state.collections, candidate.profile); err != nil {
+		return err
+	}
 	if len(state.relations) != 0 {
 		values, err := binding.state.objects.ModelValues(candidate.row)
 		if err != nil {
@@ -208,7 +209,7 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 		if err != nil {
 			return err
 		}
-		selection := RoleMemberships{state: &roleMembershipState{slices.Clone(candidate.groups), slices.Clone(candidate.permissions)}}
+		selection := AccountMemberships{state: &accountMembershipState{slices.Clone(candidate.groups), slices.Clone(candidate.permissions), candidate.profile}}
 		diagnostics, failure := state.config.Validate(ctx, scope, row, selection)
 		if err := errors.Join(failure, validateAuthorityScope(ctx, validator)); err != nil {
 			return err

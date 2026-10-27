@@ -93,7 +93,7 @@ func roleCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T) B
 			}
 			config := accountEditConfig()
 			if mode == "validator_rejection" || mode == "validator_failure" || mode == "cleanup_failure" || mode == "swallowed_rejection" {
-				config.Validate = func(context.Context, db.Queryer, models.User, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
+				config.Validate = func(context.Context, db.Queryer, models.User, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 					diagnostics := validation.NewErrors(validation.New("staff", "rejected"))
 					if mode == "validator_failure" {
 						return diagnostics, fault

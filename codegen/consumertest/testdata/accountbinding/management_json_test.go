@@ -130,7 +130,7 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 		GroupPermissions:      accountmodel.DeletionPermissions{Delete: "catalog.delete_group", Change: "catalog.change_group", Additional: []auth.Permission{"catalog.manage"}},
 		PermissionPermissions: accountmodel.DeletionPermissions{Delete: "catalog.delete_permission", Change: "catalog.change_permission", Additional: []auth.Permission{"catalog.manage"}},
 		MaxPasswordBytes:      64, Now: clock,
-		ValidateCreate: func(_ context.Context, _ db.Queryer, candidate M, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+		ValidateCreate: func(_ context.Context, _ db.Queryer, candidate M, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 			values, err := objects.ModelValues(candidate)
 			if err != nil {
 				return validation.Errors{}, err
@@ -153,7 +153,7 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			}
 			return validation.Errors{}, nil
 		},
-		ValidateEdit: func(_ context.Context, _ db.Queryer, _, candidate M, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+		ValidateEdit: func(_ context.Context, _ db.Queryer, _, candidate M, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 			values, err := objects.ModelValues(candidate)
 			if err != nil {
 				return validation.Errors{}, err

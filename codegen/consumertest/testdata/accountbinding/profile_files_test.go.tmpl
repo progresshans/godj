@@ -53,7 +53,7 @@ func TestGeneratedProfileFileLifecycle(t *testing.T) {
             Now:clock,
             GroupPermissions:accountmodel.DeletionPermissions{Change:groupPermissions.Change,Delete:groupPermissions.Delete},
             PermissionPermissions:accountmodel.DeletionPermissions{Change:permissionPermissions.Change,Delete:permissionPermissions.Delete},
-            ValidateEdit:func(context.Context,db.Queryer,fileAccount,fileAccount,accountmodel.RoleMemberships)(validation.Errors,error){
+            ValidateEdit:func(context.Context,db.Queryer,fileAccount,fileAccount,accountmodel.AccountMemberships)(validation.Errors,error){
                 if reject.Load() { return validation.NewErrors(validation.New("document","rejected")),nil }; return validation.Errors{},nil
             }},
         Catalog:accountmodel.CatalogConfig[@@GROUP@@,@@PERMISSION@@]{

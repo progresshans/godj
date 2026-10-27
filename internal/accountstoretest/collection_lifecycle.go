@@ -142,7 +142,7 @@ func collectionLifecycle(t *testing.T, backend Backend, reopen func(*testing.T) 
 		if mode == "additional_denial" {
 			config.RelatedPermissions.Account.Additional = []auth.Permission{"effects.extra"}
 		}
-		config.Validate = func(_ context.Context, _ db.Queryer, current, candidate people.Member, selection accountmodel.RoleMemberships) (validation.Errors, error) {
+		config.Validate = func(_ context.Context, _ db.Queryer, current, candidate people.Member, selection accountmodel.AccountMemberships) (validation.Errors, error) {
 			validations++
 			if !reflect.DeepEqual(current, tree.member) || candidate.ID != tree.member.ID || candidate.Version != 2 || candidate.Region != "JP" || candidate.Subject != tree.member.Subject || candidate.Secret != tree.member.Secret {
 				t.Fatal("account validator did not receive detached current and final typed state")

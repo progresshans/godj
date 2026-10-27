@@ -19,25 +19,50 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-// RoleMemberships owns a complete proposed selection. Its accessors return
+// AccountMemberships owns the complete proposed roles and additional profile
+// selections, including fields omitted from the input. Its accessors return
 // copies, and diagnostic formatting never prints membership keys.
-type RoleMemberships struct{ state *roleMembershipState }
-type roleMembershipState struct{ groups, permissions []int64 }
-
-func (RoleMemberships) Format(state fmt.State, _ rune) {
-	_, _ = state.Write([]byte("identity.model.RoleMemberships{redacted}"))
+type AccountMemberships struct{ state *accountMembershipState }
+type accountMembershipState struct {
+	groups, permissions []int64
+	profile             map[string][]int64
 }
-func (selection RoleMemberships) Groups() []int64 {
+
+func (AccountMemberships) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte("identity.model.AccountMemberships{redacted}"))
+}
+func (selection AccountMemberships) Groups() []int64 {
 	if selection.state == nil {
 		return nil
 	}
 	return slices.Clone(selection.state.groups)
 }
-func (selection RoleMemberships) Permissions() []int64 {
+func (selection AccountMemberships) Permissions() []int64 {
 	if selection.state == nil {
 		return nil
 	}
 	return slices.Clone(selection.state.permissions)
+}
+
+// Collection returns a detached complete proposed profile membership. False
+// means the field is not an additional profile collection; an empty existing
+// field is present with an empty slice. Role membership uses Groups/Permissions.
+func (selection AccountMemberships) Collection(field string) ([]int64, bool) {
+	if selection.state == nil {
+		return nil, false
+	}
+	keys, present := selection.state.profile[field]
+	return slices.Clone(keys), present
+}
+
+func (selection AccountMemberships) Collections() map[string][]int64 {
+	result := make(map[string][]int64)
+	if selection.state != nil {
+		for name, keys := range selection.state.profile {
+			result[name] = slices.Clone(keys)
+		}
+	}
+	return result
 }
 
 // AccountEditValidator receives detached current/final models and final distinct
@@ -45,12 +70,13 @@ func (selection RoleMemberships) Permissions() []int64 {
 // includes collected NULLs and its next revision. The reader is borrowed;
 // it must not be retained, mutated, re-entered or used for external effects.
 // The validator and clock must be safe for concurrent calls.
-type AccountEditValidator[M any] func(context.Context, db.Queryer, M, M, RoleMemberships) (validation.Errors, error)
+type AccountEditValidator[M any] func(context.Context, db.Queryer, M, M, AccountMemberships) (validation.Errors, error)
 
 // AccountEditConfig explicitly selects scalar and single-valued profile fields, stored role flags
-// and direct group/permission collections. No new field is automatically writable.
+// and direct group/permission or explicitly bound profile collections. No new
+// field is automatically writable.
 // Credential secrets, principal identity, revision, selected server timestamps,
-// image-owned dimensions and other collections are excluded. File fields
+// image-owned dimensions are excluded. Each profile M2M needs Collections policy. File fields
 // require Files policy and use UpdateForm; plain scalar input cannot assign
 // their storage names. Every selected FK/OneToOne needs
 // an explicit Relations policy. ChangePermission and every Additional
@@ -58,6 +84,7 @@ type AccountEditValidator[M any] func(context.Context, db.Queryer, M, M, RoleMem
 type AccountEditConfig[M any] struct {
 	Fields                []string
 	Relations             []ProfileRelation[M]
+	Collections           []ProfileCollection[M]
 	Files                 []ProfileFile[M]
 	ChangePermission      auth.Permission
 	AdditionalPermissions []auth.Permission
@@ -81,6 +108,7 @@ type accountEditState[M any] struct {
 	metadata                        ir.Model
 	allowed                         map[string]bool
 	relations                       []ProfileRelation[M]
+	collections                     []ProfileCollection[M]
 	files                           []ProfileFile[M]
 	dimensions                      map[string]string
 	required                        []auth.Permission
@@ -136,7 +164,7 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 		if name == "" || allowed[name] || protected[name] {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
-		if name != role.Groups && name != role.Permissions {
+		if _, collection := namedCollection(metadata, name); !collection {
 			field, found := namedField(metadata, name)
 			if !found || field.NonEditable || field.PrimaryKey {
 				return nil, managementError(CodeInvalidConfig, nil)
@@ -149,6 +177,10 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 		return nil, err
 	}
 	if err := requireEditableProfileRelations(relations); err != nil {
+		return nil, err
+	}
+	collections, err := prepareProfileCollections(binding, config.Fields, config.Collections)
+	if err != nil {
 		return nil, err
 	}
 	files, dimensions, err := prepareProfileFiles(binding, config.Fields, config.Files)
@@ -166,7 +198,7 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 	if now == nil {
 		now = time.Now
 	}
-	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, relations: relations, files: files, dimensions: dimensions, required: required, validate: config.Validate}
+	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, relations: relations, collections: collections, files: files, dimensions: dimensions, required: required, validate: config.Validate}
 	if store.state.relatedLifecycle == nil {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
@@ -302,6 +334,15 @@ func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal
 				changes = append(changes, change)
 			}
 		}
+		for _, collection := range state.collections {
+			if keys, selected := prepared.Collection(collection.state.field.Name); selected {
+				change, err := collection.state.prepare(current, keys)
+				if err != nil {
+					return AccountChange{}, err
+				}
+				changes = append(changes, change)
+			}
+		}
 		var batch orm.PreparedCollectionChanges
 		var effects orm.CollectionChangeEffects
 		if len(changes) != 0 {
@@ -339,7 +380,14 @@ func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal
 		}
 		groups := plan.projection.keys(role.Model, id, role.Groups, memberships.groups)
 		direct := plan.projection.keys(role.Model, id, role.Permissions, memberships.direct)
-		if err := state.validateCandidate(work, scope, current, candidate, groups, direct); err != nil {
+		profile, err := readProfileMemberships(work, scope, state.lifecycle.memberships, id, plan.projection)
+		if err != nil {
+			return AccountChange{}, err
+		}
+		if err := checkProfileCollections(work, scope, currentActor, ProfileRelationOrigin{operation: ProfileRelationChange, id: id}, state.collections, profile); err != nil {
+			return AccountChange{}, err
+		}
+		if err := state.validateCandidate(work, scope, current, candidate, groups, direct, profile); err != nil {
 			return AccountChange{}, err
 		}
 		revoked := 0
@@ -366,6 +414,20 @@ func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal
 		}
 		if err := model.Save(work, scope, &candidate); err != nil {
 			return AccountChange{}, err
+		}
+		// A target's selection predicate can change as part of the collected
+		// graph. Check actual final choices as well as the prepared proposal.
+		if err := checkProfileCollections(work, scope, currentActor, ProfileRelationOrigin{operation: ProfileRelationChange, id: id}, state.collections, profile); err != nil {
+			return AccountChange{}, err
+		}
+		if len(state.relations) != 0 {
+			finalValues, err := objects.ModelValues(candidate)
+			if err != nil {
+				return AccountChange{}, err
+			}
+			if err := checkProfileRelations(work, scope, currentActor, ProfileRelationOrigin{operation: ProfileRelationChange, id: id}, state.relations, finalValues); err != nil {
+				return AccountChange{}, err
+			}
 		}
 		if err := plan.verify(work, scope); err != nil {
 			return AccountChange{}, err
@@ -395,19 +457,8 @@ func (editor *AccountEditor[M]) prepareInput(id int64, input orm.ModelInput[M], 
 		return orm.ModelInput[M]{}, err
 	}
 	collections := input.Collections()
-	for name, keys := range collections {
-		if !state.allowed[name] || (name != role.Groups && name != role.Permissions) {
-			return orm.ModelInput[M]{}, managementError(CodeInvalidInput, nil)
-		}
-		maximum := auth.MaximumPermissions
-		if name == role.Groups {
-			maximum = MaximumAccountGroups
-		}
-		if len(keys) > maximum {
-			return orm.ModelInput[M]{}, profileInputError(name, "max_items")
-		}
-		slices.Sort(keys)
-		collections[name] = slices.Compact(keys)
+	if err := normalizeAccountCollections(role, state.allowed, state.collections, collections); err != nil {
+		return orm.ModelInput[M]{}, err
 	}
 	prepared, err := state.resource.Manager().Input(values)
 	if err != nil {
@@ -469,6 +520,9 @@ func (editor *AccountEditor[M]) UpdateForm(ctx context.Context, actor auth.Princ
 	if err := checkProfileFileForm(state.metadata, state.allowed, state.dimensions, store.state.binding.state.role.Revision, id, revision, bound); err != nil {
 		return AccountChange{}, nil, err
 	}
+	if err := checkAccountCollectionForm(store.state.binding.state.role, state.collections, bound); err != nil {
+		return AccountChange{}, nil, err
+	}
 	if len(state.files) == 0 {
 		input, err := formmodel.PrepareInput(editor.Manager(), bound)
 		if err != nil {
@@ -477,7 +531,7 @@ func (editor *AccountEditor[M]) UpdateForm(ctx context.Context, actor auth.Princ
 		result, err := editor.Update(ctx, actor, id, revision, input)
 		return result, nil, err
 	}
-	prepared, err := prepareProfileFileChange(ctx, store, actor, state.overlay, state.required, state.relations, id, revision, bound)
+	prepared, err := prepareProfileFileChange(ctx, store, actor, state.overlay, state.required, state.relations, state.collections, id, revision, bound)
 	if err != nil {
 		return AccountChange{}, nil, err
 	}
@@ -493,7 +547,7 @@ func (editor *AccountEditor[M]) UpdateForm(ctx context.Context, actor auth.Princ
 	return result, publications, err
 }
 
-func (state *accountEditState[M]) validateCandidate(ctx context.Context, scope db.Session, current, candidate M, groups, permissions []int64) error {
+func (state *accountEditState[M]) validateCandidate(ctx context.Context, scope db.Session, current, candidate M, groups, permissions []int64, profile map[string][]int64) error {
 	validator, ok := scope.(db.SessionValidator)
 	if !ok || nilModelValue(validator) {
 		return managementError(CodeInvalidConfig, nil)
@@ -510,7 +564,7 @@ func (state *accountEditState[M]) validateCandidate(ctx context.Context, scope d
 	if err != nil {
 		return err
 	}
-	selection := RoleMemberships{state: &roleMembershipState{slices.Clone(groups), slices.Clone(permissions)}}
+	selection := AccountMemberships{state: &accountMembershipState{slices.Clone(groups), slices.Clone(permissions), profile}}
 	diagnostics, err := state.validate(ctx, scope, ownedCurrent, ownedCandidate, selection)
 	if err := errors.Join(err, ctx.Err(), validator.ValidateSession(ctx)); err != nil {
 		return err

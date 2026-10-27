@@ -112,7 +112,7 @@ func roleEditAndDeactivation(t *testing.T, backend Backend, reopen func(*testing
 	}
 	calls := 0
 	config := roleConfig()
-	config.Validate = func(_ context.Context, _ db.Queryer, current, candidate models.User, selection accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.Validate = func(_ context.Context, _ db.Queryer, current, candidate models.User, selection accountmodel.AccountMemberships) (validation.Errors, error) {
 		calls++
 		if current.ID != target.ID || candidate.ID != target.ID {
 			t.Fatal("validator lost typed target")

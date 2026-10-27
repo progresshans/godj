@@ -24,17 +24,19 @@ import (
 // under current authority, both before hashing and under the final write fence.
 // The reader is borrowed and must not be retained, mutated or re-entered. The
 // password field is deliberately redacted in this callback's model copy.
-type CreationValidator[M any] func(context.Context, db.Queryer, M, RoleMemberships) (validation.Errors, error)
+type CreationValidator[M any] func(context.Context, db.Queryer, M, AccountMemberships) (validation.Errors, error)
 
 // CreationPolicy explicitly selects login, scalar/FK/OneToOne/file profile,
-// editable role flags and group/direct-permission collections. Files require
+// editable role flags and group/direct-permission or explicitly bound profile
+// collections. Each selected profile M2M requires Collections policy. Files require
 // their explicit policy and the Form entry point. Model defaults apply to omitted
 // fields. Principal ID, encoded password, revision and selected timestamps are
 // server-owned. Inputs must already have passed their Form/JSON cleaning policy.
 // All callbacks must be safe for concurrent use.
 type CreationPolicy[M any] struct {
-	Fields    []string
-	Relations []ProfileRelation[M]
+	Fields      []string
+	Relations   []ProfileRelation[M]
+	Collections []ProfileCollection[M]
 	// RelatedPermissions governs selected-model effects of the collected creation graph.
 	RelatedPermissions RelatedRowPermissions
 	// Files configures selected file fields for CreateForm. Raw ModelInput
@@ -82,6 +84,7 @@ type creationDefinition[M any] struct {
 	fields                          []string
 	allowed                         map[string]bool
 	relations                       []ProfileRelation[M]
+	collections                     []ProfileCollection[M]
 	files                           []ProfileFile[M]
 	dimensions                      map[string]string
 	config                          CreationPolicy[M]
@@ -154,7 +157,7 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
-	if err := validateAccountCollectionStorage(project, role, []string{role.Groups, role.Permissions}); err != nil {
+	if err := validateAccountCollectionStorage(project, role, append(slices.Clone(config.Fields), role.Groups, role.Permissions)); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	for _, policy := range []*DeletionPermissions{&config.RelatedPermissions.Account, &config.RelatedPermissions.Group, &config.RelatedPermissions.Permission} {
@@ -183,7 +186,7 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 		if name == "" || allowed[name] || protected[name] || dimensions[name] != "" {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
-		if name != role.Groups && name != role.Permissions {
+		if _, collection := namedCollection(metadata, name); !collection {
 			field, found := namedField(metadata, name)
 			if !found || field.PrimaryKey || field.NonEditable {
 				return nil, managementError(CodeInvalidConfig, nil)
@@ -194,6 +197,15 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 	relations, err := prepareProfileRelations(binding, config.Fields, config.Relations)
 	if err != nil {
 		return nil, err
+	}
+	collections, err := prepareProfileCollections(binding, config.Fields, config.Collections)
+	if err != nil {
+		return nil, err
+	}
+	for _, field := range metadata.ManyToMany {
+		if field.Name != role.Groups && field.Name != role.Permissions && !field.Blank && !allowed[field.Name] {
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
 	}
 	if !allowed[role.Login] {
 		return nil, managementError(CodeInvalidConfig, nil)
@@ -242,8 +254,9 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 	}
 	config.Fields = nil
 	config.Relations = nil
+	config.Collections = nil
 	config.Files = nil
-	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, files: files, dimensions: dimensions, config: config, forced: maps.Clone(forced), auditFields: auditFields}
+	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, collections: collections, files: files, dimensions: dimensions, config: config, forced: maps.Clone(forced), auditFields: auditFields}
 	state.groupsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return groups.SetKeysChange(row, keys) }
 	state.permissionsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return permissions.SetKeysChange(row, keys) }
 	return state, nil
@@ -286,6 +299,7 @@ type creationCandidate[M any] struct {
 	prepared            orm.PreparedModel[M]
 	row                 M
 	groups, permissions []int64
+	profile             map[string][]int64
 	raw                 string
 	unusable            bool
 	form                *formmodel.BoundForm

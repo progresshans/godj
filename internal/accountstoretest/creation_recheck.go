@@ -38,7 +38,7 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 			case "missing_permission":
 				input = roleInput(t, map[string]query.Value{"username": query.String(login)}, map[string][]int64{"permissions": {mathMaxKey}})
 			case "model_policy":
-				config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.RoleMemberships) (validation.Errors, error) {
+				config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 					return validation.NewErrors(validation.New("first_name", "policy")), nil
 				}
 			case "password_policy":

@@ -1341,18 +1341,53 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 첫 계정 명령은 DB를 열기 전에 실제 IR의 integer/null/default/static-choice 의미로 관계 key를 파싱한다.
 이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
 선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일 편집은 아래 계약을 따르고,
-파일의 Form 생성과 공개 첫 명령의 입력/전송은 아래 계약을 따르며, 추가 M2M profile과 selected-model through identity 생성은 I1에 남는다.
+파일의 Form 생성과 공개 첫 명령의 입력/전송은 아래 계약을 따른다. 추가 M2M profile은 다음 절의 명시적 정책을 사용하며,
+공개 첫 명령의 collection 입력과 selected-model through identity 생성은 I1에 남는다.
 환경별 실행 결과는 TEST_EVIDENCE를 따른다.
+
+### 추가 프로필 collection
+
+`NewProfileCollection`은 선택 계정의 실제 typed `ManyToMany`와 target manager, 명시한 field를 전체 project source/role에
+묶는다. `ProfileCollectionConfig`는 현재 선택 Filter·bounded 선택의 label/search/order와 양수 `MaximumItems`를 요구한다.
+그룹/직접 권한은 기존 권한 정책을 계속 사용하며 프로필 정책으로 바꾸지 못한다. 잘못된 source·역방향 accessor·누락/중복
+정책과 선택하지 않은 정책은 구성 단계에서 거부한다. 일반 setter가 계정/catalog identity 자체를 through 행으로 생성하는
+조립은 별도 owner가 필요하므로 계속 명시적으로 거부한다.
+
+계정 관리의 추가 collection은 필드별로 전체 소속을 최대 1,024개까지 관측한다. 이를 넘는 저장 소속은 잘린 목록으로 게시하지 않고 오류로 처리한다.
+필드별 입력 정책은 1~1,024 사이에서 더 작은 한도를 정할 수 있다. JSON/typed 입력은 정렬·중복 제거 전 길이를 검사하며,
+Form은 원 제출의 반복 key 수도 함께 검사한다. 실제 최종 집합도 필드별 한도를 지킨다. 필수 M2M은 빈 생성/편집을 거부하며,
+기존 추가 필수 필드를 선택하지 않은 Creator/FirstAccount 선언이 이를 빈 집합으로 숨기지 못한다.
+
+Creator/FirstAccount·AccountEditor는 프로필과 권한 collection을 하나의 collection batch로 준비한다. 현재 선택은 해싱 전과
+최종 생성 scope, 편집의 현재 인가·revision 확인 뒤 최종 그래프에서 다시 검사한다. 생략은 이전 값을 유지하고 명시한 빈 목록은
+선택적인 관계를 비운다. No-op도 현재 선택 정책을 확인한다. 선택 Filter는 FK 정책과 같은 origin·빌린 scope 계약을 사용하고
+첫 계정은 인증 actor 없는 명시적인 operator origin을 유지한다. 파일을 함께 편집할 때는 게시 전에도 제안 선택을 검사한다.
+
+수명 projection은 입력에서 빠진 계정 M2M을 포함하여 삭제/NULL/삽입이 만드는 논리 소속 변경을 추적한다. 대칭 관계의 다른
+계정, 여러 collection이 공유하는 through와 연쇄 삭제, 중복 physical pair의 남은 논리 소속을 함께 계산한다. 영향을 받은
+계정의 revision·현재 권한/credential·session 폐기와 직접 효과의 audit는 기존 native owner가 처리한다. 순수 간접 소속 변경은
+owner revision을 한 번 올리며, 별도의 직접 편집 audit를 꾸며내지 않는다. 모든 생존 대상의 추가 소속을 예상 집합에 포함하고
+최종 scalar 저장 뒤 실제 through/target을 다시 조회하여 불일치·뒤 단계 오류를 원자적으로 rollback한다.
+
+`AccountMemberships`는 validator에 그룹/직접 권한과 추가 M2M의 최종 제안을 제공한다. 추가 field의 부재와 존재하는 빈 집합을
+구분하며 accessor는 사본을 반환한다. 다른 collection의 연쇄 삭제로 바뀐 생략 필드도 관측한다. 진단에 key를 출력하지 않으며,
+일반 ProfileEditor의 scalar 책임은 바꾸지 않는다. FirstAccount 선언 fingerprint는 필드별 collection 한도도 포함한다.
+
+ProfileReader의 명시적 Fields 선택은 추가 M2M의 저장 key를 노출할 수 있다. 실제 canonical through와 target의 존재·한도·
+scope 종료를 확인하며 0·음수 key를 보존한다. 쓰기의 선택 Filter로 기존 저장값을 숨기지 않는다. 목록은 scalar만 읽는다.
+공통 AccountManagement의 Form/Admin 선택·부분 유효 Form 검사와 관리 JSON/OpenAPI는 같은 정책과 생성/편집/조회 owner를 쓴다.
+FirstAccount의 typed/Form 경로는 같은 기능을 사용한다. 공개 `createsuperuser`의 collection 입력/전송은 별도 후속 구현이며
+현재 명령은 해당 선언을 명시적으로 거부한다. 이 구현 계약과 실제 환경별 실행·수용은 구분한다.
 
 입력의 source·선택 필드·target binding과 login/email의 고정 저장 정규화·문자/byte 한도를 I/O 전에 확인한다.
 `Update`는 전체 수정에 대해 현재 change 권한과 모든 추가 권한·deny overlay를 요구하며, 대상의 현재
 revision/credential/소속 무결성을 먼저 확인한다. Scalar만 또는 collection만 보냈어도 같은 권한 정책을 적용한다.
-생략한 소속은 유지하고 명시한 빈 집합은 지운다. 정렬/중복 제거 전 원 입력을 256개로 제한하며 현재와 제안 그룹 수,
+생략한 소속은 유지하고 명시한 빈 집합은 지운다. 그룹/직접 권한은 정렬/중복 제거 전 원 입력을 256개로 제한하며 현재와 제안 그룹 수,
 직접 권한 수와 그룹/직접 권한의 유효 합집합을 각각 검증한다. 비활성 후보도 한도를 우회하지 않는다. Typed validator는
 분리된 현재 모델과 프로필·역할·수집된 NULL·다음 revision을 함께 반영한 최종 후보, 사본을 반환하는 최종 소속을 받는다. Callback 뒤 scope 수명과
 취소를 재검사하고 typed 모델의 unique 검증을 같은 scope에서 수행한다.
 
-프로필·역할 scalar와 두 collection·한 번의 revision 증가·전체 변경 필드의 한 audit는 같은 native coordinated
+프로필·역할 scalar와 권한/추가 프로필 collection·한 번의 revision 증가·전체 변경 필드의 한 audit는 같은 native coordinated
 relation transaction에 속한다. 모델/정책 거부가 프로필 또는 역할만 먼저 남겨서는 안 된다.
 권한과 flag 변경은 principal/hash/session stamp를 바꾸지 않는다. Active가 true에서 false로 바뀔 때만 같은 scope에서
 현재 domain의 대상 principal 세션을 모두 폐기하며 다른 계정·익명·역사 domain의 세션은 유지한다. 재활성화는 삭제한

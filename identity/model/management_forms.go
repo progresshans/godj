@@ -71,10 +71,12 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 	}
 	allowed, required := state.editor.state.allowed, state.editor.state.required
 	relations := state.editor.state.relations
+	collections := state.editor.state.collections
 	origin := ProfileRelationOrigin{operation: ProfileRelationChange, id: id}
 	if create {
 		allowed, required = state.creator.state.allowed, state.creator.state.required
 		relations, origin = state.creator.state.relations, ProfileRelationOrigin{operation: ProfileRelationCreate}
+		collections = state.creator.state.collections
 	}
 	values, err := bound.ValidationValues()
 	if err != nil {
@@ -143,6 +145,28 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 			current = &row
 		}
 		var failures validation.Errors
+		if err := checkAccountCollectionForm(role, collections, bound); err != nil {
+			diagnostics, rejected := validation.Rejected(err)
+			if !rejected {
+				return catalogFormCheck{}, true, err
+			}
+			failures = validation.Join(failures, diagnostics)
+		}
+		profile := make(map[string][]int64)
+		for _, collection := range collections {
+			name := collection.state.field.Name
+			if keys, selected := bound.Form().Cleaned().Integers(name); selected && failures.ByField(validation.Field(name)).Empty() {
+				slices.Sort(keys)
+				profile[name] = slices.Compact(keys)
+			}
+		}
+		if err := checkProfileCollections(work, scope, currentActor, origin, collections, profile); err != nil {
+			diagnostics, rejected := validation.Rejected(err)
+			if !rejected || errors.Unwrap(err) != nil {
+				return catalogFormCheck{}, true, err
+			}
+			failures = validation.Join(failures, diagnostics)
+		}
 		if err := checkProfileRelations(work, scope, currentActor, origin, relations, values); err != nil {
 			diagnostics, rejected := validation.Rejected(err)
 			if !rejected || errors.Unwrap(err) != nil {

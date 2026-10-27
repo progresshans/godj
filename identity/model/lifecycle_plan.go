@@ -184,6 +184,11 @@ func (state *deletionLifecycle[M]) prepare(ctx context.Context, scope db.Relatio
 		}
 	}
 	for _, touch := range plan.ordered {
+		if touch.key.model == role.Model && !touch.deleted {
+			if _, err := readProfileMemberships(ctx, scope, state.memberships, touch.key.id, projection); err != nil {
+				return nil, err
+			}
+		}
 		row, err := state.models[touch.key.model].load(ctx, scope, domain, touch.key.id)
 		if err != nil {
 			return nil, err
@@ -310,6 +315,23 @@ func (plan *lifecyclePlan[M]) verify(ctx context.Context, scope db.RelationSessi
 		}
 		if err := verify(ctx, scope); err != nil {
 			return err
+		}
+	}
+	// The typed credential verifiers own the three authority memberships.
+	// Additional profile sets use the same canonical through projection and
+	// must match after every deletion, insertion and companion/root write.
+	for _, membership := range plan.owner.memberships {
+		if !membership.profile {
+			continue
+		}
+		for key, expected := range plan.projection.sets {
+			if key.owner.model != membership.owner || key.field != membership.field {
+				continue
+			}
+			actual, err := membership.readKeys(ctx, scope, key.owner.id)
+			if err != nil || !slices.Equal(actual, expected.after) {
+				return managementError(CodePersistence, err)
+			}
 		}
 	}
 	return nil

@@ -85,7 +85,7 @@ func assertAccountAdminMutationHTTP[M any](t *testing.T, backend database.Backen
 	}
 	actor := actorCredential.Principal()
 	fields := []string{profileField, role.Active.Field}
-	owner, err := factory(selected, auth.PrincipalAuthorizer{}, accountmodel.AccountEditConfig[M]{Fields: fields, ChangePermission: "account.change", Validate: func(_ context.Context, _ db.Queryer, _, candidate M, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+	owner, err := factory(selected, auth.PrincipalAuthorizer{}, accountmodel.AccountEditConfig[M]{Fields: fields, ChangePermission: "account.change", Validate: func(_ context.Context, _ db.Queryer, _, candidate M, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 		values, err := objects.ModelValues(candidate)
 		if err != nil {
 			return validation.Errors{}, err

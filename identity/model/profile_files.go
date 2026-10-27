@@ -250,7 +250,7 @@ func checkProfileFileForm(metadata ir.Model, allowed map[string]bool, dimensions
 // prepareProfileFileChange reads current authority, target integrity and revision
 // before any publication. The native snapshot closes before returning the typed
 // preparation; no transaction or upload lifetime escapes through this result.
-func prepareProfileFileChange[M any](ctx context.Context, store *CredentialStore[M], actor auth.Principal, overlay auth.Authorizer, required []auth.Permission, relations []ProfileRelation[M], id, revision int64, bound formmodel.BoundForm) (formmodel.PreparedInstance[M], error) {
+func prepareProfileFileChange[M any](ctx context.Context, store *CredentialStore[M], actor auth.Principal, overlay auth.Authorizer, required []auth.Permission, relations []ProfileRelation[M], collections []ProfileCollection[M], id, revision int64, bound formmodel.BoundForm) (formmodel.PreparedInstance[M], error) {
 	type observation struct {
 		prepared formmodel.PreparedInstance[M]
 		conflict bool
@@ -308,6 +308,30 @@ func prepareProfileFileChange[M any](ctx context.Context, store *CredentialStore
 				return err
 			}
 			role := binding.state.role
+			if len(collections) != 0 {
+				declared, err := bindDeletionMemberships(binding.state.project, role)
+				if err != nil {
+					return err
+				}
+				profile, err := readProfileMemberships(work, scope, declared, id, nil)
+				if err != nil {
+					return err
+				}
+				for _, collection := range collections {
+					name := collection.state.field.Name
+					if value, present := input.Get(name); present {
+						keys, valid := value.AsIntegers()
+						if !valid {
+							return managementError(CodeInvalidInput, nil)
+						}
+						slices.Sort(keys)
+						profile[name] = slices.Compact(keys)
+					}
+				}
+				if err := checkProfileCollections(work, scope, currentActor, ProfileRelationOrigin{operation: ProfileRelationChange, id: id}, collections, profile); err != nil {
+					return err
+				}
+			}
 			for _, selection := range []struct {
 				name        string
 				maximum     int

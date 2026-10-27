@@ -100,7 +100,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			}
 			return validation.Errors{}, nil
 		},
-		ValidateEdit: func(_ context.Context, _ db.Queryer, _, candidate M, _ accountmodel.RoleMemberships) (validation.Errors, error) {
+		ValidateEdit: func(_ context.Context, _ db.Queryer, _, candidate M, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 			values, err := objects.ModelValues(candidate)
 			if err != nil {
 				return validation.Errors{}, err

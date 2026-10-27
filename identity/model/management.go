@@ -30,6 +30,7 @@ type AccountPermissions struct {
 type AccountManagementConfig[M any] struct {
 	ReadFields, CreateFields, EditFields []string
 	Relations                            []ProfileRelation[M]
+	Collections                          []ProfileCollection[M]
 	// Files configures the union of CreateFields and EditFields. Each owner
 	// receives only its selected policy; Form uploads retain the caller's lifetime.
 	Files                                   []ProfileFile[M]
@@ -85,6 +86,10 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 	if err != nil {
 		return nil, err
 	}
+	collections, err := prepareProfileCollections(expected, append(slices.Clone(config.CreateFields), config.EditFields...), config.Collections)
+	if err != nil {
+		return nil, err
+	}
 	reader, err := NewProfileReader(store, overlay, ProfileReadConfig{
 		Fields: config.ReadFields, ViewPermission: policy.View, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 	})
@@ -92,7 +97,7 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 		return nil, err
 	}
 	creator, err := NewCreator(sessions, expected, memberships, grants, overlay, verifier.hasher, CreationConfig[M]{
-		CreationPolicy: CreationPolicy[M]{RelatedPermissions: RelatedRowPermissions{Account: DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}, Group: config.GroupPermissions, Permission: config.PermissionPermissions}, Fields: config.CreateFields, Relations: selectProfileRelations(relations, config.CreateFields), Files: selectProfileFiles(files, config.CreateFields), Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
+		CreationPolicy: CreationPolicy[M]{RelatedPermissions: RelatedRowPermissions{Account: DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}, Group: config.GroupPermissions, Permission: config.PermissionPermissions}, Fields: config.CreateFields, Relations: selectProfileRelations(relations, config.CreateFields), Collections: selectProfileCollections(collections, config.CreateFields), Files: selectProfileFiles(files, config.CreateFields), Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
 			MaxPasswordBytes: config.MaxPasswordBytes, CaseInsensitiveLogin: config.CaseInsensitiveCreationLogin, PrincipalID: config.PrincipalID, Now: config.Now},
 		AddPermission: policy.Add, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 	})
@@ -101,7 +106,7 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 	}
 	account := DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}
 	editor, err := NewAccountEditor(sessions, expected, memberships, grants, overlay, AccountEditConfig[M]{
-		Fields: config.EditFields, Relations: selectProfileRelations(relations, config.EditFields), Files: selectProfileFiles(files, config.EditFields), ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
+		Fields: config.EditFields, Relations: selectProfileRelations(relations, config.EditFields), Collections: selectProfileCollections(collections, config.EditFields), Files: selectProfileFiles(files, config.EditFields), ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 		RelatedPermissions: RelatedRowPermissions{Account: account, Group: config.GroupPermissions, Permission: config.PermissionPermissions},
 		Validate:           config.ValidateEdit, Now: config.Now,
 	})

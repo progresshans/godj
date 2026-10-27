@@ -100,7 +100,7 @@ func creationLifecycle(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 	}}
 	config := creationConfig()
 	validations, passwordValidations := 0, 0
-	config.Validate = func(_ context.Context, _ db.Queryer, row models.User, selection accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.Validate = func(_ context.Context, _ db.Queryer, row models.User, selection accountmodel.AccountMemberships) (validation.Errors, error) {
 		validations++
 		_, stored, err := models.UserObjects.PrimaryKey(row)
 		if err != nil || stored != (validations == 3) {

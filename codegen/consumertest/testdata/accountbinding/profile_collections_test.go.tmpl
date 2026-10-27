@@ -1,0 +1,332 @@
+package consumer
+
+import (
+ "context"
+ "encoding/json"
+ "errors"
+ "fmt"
+ "html"
+ "io"
+ "net/http"
+ "net/http/cookiejar"
+ "net/http/httptest"
+ "net/url"
+ "reflect"
+ "regexp"
+ "slices"
+ "strconv"
+ "strings"
+ "sync"
+ "sync/atomic"
+ "testing"
+ "time"
+
+ @@IMPORTS@@
+ "example.com/godj-project-bundle/project"
+ accountaudit "github.com/progresshans/godj/account/audit"
+ "github.com/progresshans/godj/admin"
+ "github.com/progresshans/godj/api"
+ apisession "github.com/progresshans/godj/api/sessionauth"
+ "github.com/progresshans/godj/apps"
+ "github.com/progresshans/godj/auth"
+ "github.com/progresshans/godj/db"
+ "github.com/progresshans/godj/forms"
+ formmodel "github.com/progresshans/godj/forms/model"
+ identityadmin "github.com/progresshans/godj/identity/admin"
+ identityapi "github.com/progresshans/godj/identity/api"
+ accountmodel "github.com/progresshans/godj/identity/model"
+ "github.com/progresshans/godj/migrations/definition"
+ "github.com/progresshans/godj/orm"
+ "github.com/progresshans/godj/query"
+ "github.com/progresshans/godj/schema"
+ "github.com/progresshans/godj/schema/ir"
+ "github.com/progresshans/godj/settings"
+ "github.com/progresshans/godj/settings/database"
+ "github.com/progresshans/godj/validation"
+ "github.com/progresshans/godj/web"
+ websession "github.com/progresshans/godj/web/sessionauth"
+)
+
+type collectionBackend struct {
+ database.Backend
+ mode string
+ readFailure atomic.Bool
+ reads atomic.Int64
+ rootTable string
+ afterRoot func(context.Context,db.RelationSession)error
+}
+func (backend *collectionBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+ backend.reads.Add(1)
+ err:=backend.Backend.ReadSnapshot(ctx,read)
+ if backend.readFailure.Swap(false) {return errors.Join(err,errors.New("private profile read cleanup"))}
+ return err
+}
+func (backend *collectionBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+ err:=backend.Backend.CoordinatedAtomicRelation(ctx,func(scope db.RelationSession)error{
+  if backend.afterRoot!=nil{conflict,ok:=scope.(db.ConflictInserter);if !ok{return errors.New("native conflict inserter missing")};scope=&collectionTamperScope{RelationSession:scope,conflict:conflict,table:backend.rootTable,after:backend.afterRoot}}
+  if err:=write(scope);err!=nil{return err}
+  if backend.mode=="rollback"{return errors.New("private failure after native profile writes")}
+  return nil
+ })
+ if err==nil&&backend.mode=="unknown"{return &query.Error{Code:query.CodeCommitOutcomeUnknown}}
+ return err
+}
+type collectionTamperScope struct{db.RelationSession;conflict db.ConflictInserter;table string;after func(context.Context,db.RelationSession)error;fired bool}
+func(scope *collectionTamperScope) ValidateSession(ctx context.Context)error{return scope.RelationSession.(db.SessionValidator).ValidateSession(ctx)}
+func(scope *collectionTamperScope) InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan)(bool,error){return scope.conflict.InsertOnConflict(ctx,plan)}
+func(scope *collectionTamperScope) Update(ctx context.Context,plan query.UpdatePlan)(int64,error){n,err:=scope.RelationSession.Update(ctx,plan);if err==nil&&!scope.fired&&plan.Table()==scope.table{scope.fired=true;err=scope.after(ctx,scope.RelationSession)};return n,err}
+type collectionProbe struct {mu sync.Mutex; last map[string][]int64; reject,filterFailure atomic.Bool}
+func(probe *collectionProbe) validate(_ context.Context,_ db.Queryer,_,_ @@ACCOUNT@@, selection accountmodel.AccountMemberships)(validation.Errors,error){
+ probe.mu.Lock();probe.last=selection.Collections();probe.mu.Unlock()
+ if keys,present:=selection.Collection("topics");present&&len(keys)>0{
+  keys[0]=-9999
+  again,_:=selection.Collection("topics");if len(again)>0&&again[0]==-9999{return validation.Errors{},errors.New("membership accessor borrowed validator memory")}
+ }
+ if probe.reject.Load(){return validation.NewErrors(validation.New("topics","rejected")),nil}
+ return validation.Errors{},nil
+}
+type collectionFixture struct {
+ backend *collectionBackend
+ config database.Config
+ binding accountmodel.Binding[@@ACCOUNT@@]
+ role ir.AccountRole
+ objects orm.Manager[@@ACCOUNT@@]
+ key orm.AutoField[@@ACCOUNT@@]
+ runtime *accountmodel.Runtime[@@ACCOUNT@@,@@GROUP@@,@@PERMISSION@@]
+ runtimeConfig accountmodel.RuntimeConfig[@@ACCOUNT@@,@@GROUP@@,@@PERMISSION@@]
+ hasher auth.PasswordHasher
+ actor auth.Principal
+ first accountmodel.FirstAccountCreation
+ topic,next,denied @@TOPIC@@
+ policies []accountmodel.ProfileCollection[@@ACCOUNT@@]
+ topicConfig accountmodel.ProfileCollectionConfig[@@TOPIC@@]
+ probe *collectionProbe
+}
+func collectionCheck(t *testing.T,err error){t.Helper();if err!=nil{t.Fatal(err)}}
+func newCollectionFixture(t *testing.T,firstForm bool)*collectionFixture{
+ t.Helper();check:=func(err error){t.Helper();collectionCheck(t,err)}
+ binding,err:=project.BindAccount();check(err);role,err:=binding.Role();check(err);objects,err:=binding.Objects();check(err)
+ keyField,err:=objects.PrimaryKeyField();check(err)
+ native,config:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@);backend:=&collectionBackend{Backend:native}
+ first,err:=@@PROFILES@@TopicObjects.Create(t.Context(),native,@@PROFILES@@NewTopicCreate("First"));check(err)
+ next,err:=@@PROFILES@@TopicObjects.Create(t.Context(),native,@@PROFILES@@NewTopicCreate("Second"));check(err)
+ denied,err:=@@PROFILES@@TopicObjects.Create(t.Context(),native,@@PROFILES@@NewTopicCreate("Hidden").WithEnabled(false));check(err)
+ collections,err:=project.BindCollections();check(err)
+ probe:=&collectionProbe{}
+ topicConfig:=accountmodel.ProfileCollectionConfig[@@TOPIC@@]{MaximumItems:3,
+  Choices:formmodel.ModelChoiceConfig[@@TOPIC@@]{Label:func(row @@TOPIC@@)(string,error){return row.Title,nil},Search:func(term string)([]orm.Predicate[@@TOPIC@@],error){return []orm.Predicate[@@TOPIC@@]{@@PROFILES@@TopicFields.Title.IContains(term)},nil}},
+  Filter:func(_ context.Context,_ db.Queryer,actor auth.Principal,origin accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@TOPIC@@],error){
+   if probe.filterFailure.Load(){return nil,errors.New("private profile choice policy failure")}
+   if origin.Operation()==accountmodel.ProfileRelationFirstAccount&&actor.Authenticated(){return nil,errors.New("operator collection acquired a login actor")}
+   if origin.Operation()!=accountmodel.ProfileRelationFirstAccount&&!actor.Authenticated(){return nil,errors.New("managed collection lost current actor")}
+   return []orm.Predicate[@@TOPIC@@]{@@PROFILES@@TopicFields.Enabled.Exact(true)},nil
+  },
+ }
+ topics,err:=accountmodel.NewProfileCollection(binding,"topics",collections.@@COLLECTION@@Topics,@@PROFILES@@TopicObjects,topicConfig);check(err)
+ categories,err:=accountmodel.NewProfileCollection(binding,"categories",collections.@@COLLECTION@@Categories,@@PROFILES@@TopicObjects,topicConfig);check(err)
+ peers,err:=accountmodel.NewProfileCollection(binding,"peers",collections.@@COLLECTION@@Peers,objects,accountmodel.ProfileCollectionConfig[@@ACCOUNT@@]{MaximumItems:3,
+  Choices:formmodel.ModelChoiceConfig[@@ACCOUNT@@]{Label:func(@@ACCOUNT@@)(string,error){return "Account",nil}},
+  Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@ACCOUNT@@],error){return nil,nil},
+ });check(err)
+ hasher,_:=accountPassword(t)
+ firstFields:=[]string{role.Login,"@@PROFILE@@","topics"}
+ initial,err:=project.NewFirstAccount(backend,hasher,accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy:accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields:firstFields,Collections:[]accountmodel.ProfileCollection[@@ACCOUNT@@]{topics}},EvidenceSHA256:strings.Repeat("a",64)});check(err)
+ var boot accountmodel.FirstAccountCreation
+ if firstForm{
+  definition,err:=initial.FormDefinition();check(err);metadata,err:=objects.Metadata();check(err);spec,err:=definition.Spec(metadata);check(err)
+  spec,err=spec.WithModelChoices("topics",forms.Choice{Value:forms.Integer(first.ID),Label:"First"});check(err)
+  bound,err:=formmodel.BindInstance(t.Context(),objects,spec,forms.NewData(map[string][]string{role.Login:{"operator@example.test"},"@@PROFILE@@":{"KR"},"topics":{strconv.FormatInt(first.ID,10)}}),nil,definition.PostClean);check(err)
+  var publications []formmodel.FilePublication
+  boot,publications,err=initial.CreateForm(t.Context(),strings.Repeat("b",64),bound.BoundForm(),accountPasswordText);check(err)
+  if len(publications)!=0{t.Fatal("collection-only provisioning published a file")}
+ }else{
+  input,err:=objects.Input(map[string]query.Value{role.Login:query.String("operator@example.test"),"@@PROFILE@@":query.String("KR")});check(err)
+  input,err=input.WithCollections(map[string][]int64{"topics":{first.ID}});check(err)
+  prepared,err:=initial.Prepare(t.Context(),input,accountPasswordText);check(err);boot,err=initial.Commit(t.Context(),prepared);check(err)
+ }
+ accountPolicy:=accountmodel.AccountPermissions{View:"account.view",Add:"account.add",Change:"account.change",Delete:"account.delete"}
+ groupPolicy:=accountmodel.CatalogPermissions{View:"catalog.view_group",Add:"catalog.add_group",Change:"catalog.change_group",Delete:"catalog.delete_group"}
+ permissionPolicy:=accountmodel.CatalogPermissions{View:"catalog.view_permission",Add:"catalog.add_permission",Change:"catalog.change_permission",Delete:"catalog.delete_permission"}
+ fields:=[]string{role.Login,"@@PROFILE@@","topics","categories","peers"};policies:=[]accountmodel.ProfileCollection[@@ACCOUNT@@]{topics,categories,peers}
+ runtimeConfig:=accountmodel.RuntimeConfig[@@ACCOUNT@@,@@GROUP@@,@@PERMISSION@@]{
+  Accounts:accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields:fields,CreateFields:fields,EditFields:fields,Collections:policies,Permissions:accountPolicy,ValidateEdit:probe.validate,
+   GroupPermissions:accountmodel.DeletionPermissions{Change:groupPolicy.Change,Delete:groupPolicy.Delete},PermissionPermissions:accountmodel.DeletionPermissions{Change:permissionPolicy.Change,Delete:permissionPolicy.Delete}},
+  Catalog:accountmodel.CatalogConfig[@@GROUP@@,@@PERMISSION@@]{AccountPermissions:accountmodel.DeletionPermissions{Change:accountPolicy.Change,Delete:accountPolicy.Delete},
+   Group:accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields:[]string{role.Catalog.GroupName,role.Catalog.GroupPermissions},WriteFields:[]string{role.Catalog.GroupName,role.Catalog.GroupPermissions},Permissions:groupPolicy},
+   Permission:accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},WriteFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},Permissions:permissionPolicy}},
+ }
+ runtime,err:=project.NewAccountRuntime(t.Context(),backend,hasher,auth.PrincipalAuthorizer{},runtimeConfig);check(err)
+ credential,err:=runtime.Authenticator().Authenticate(t.Context(),"operator@example.test",accountPasswordText);check(err)
+ return &collectionFixture{backend:backend,config:config,binding:binding,role:role,objects:objects,key:orm.NewAutoField[@@ACCOUNT@@](keyField),runtime:runtime,runtimeConfig:runtimeConfig,hasher:hasher,actor:credential.Principal(),first:boot,topic:first,next:next,denied:denied,policies:policies,topicConfig:topicConfig,probe:probe}
+}
+func(f *collectionFixture) input(t *testing.T,values map[string]query.Value,collections map[string][]int64)orm.ModelInput[@@ACCOUNT@@]{
+ t.Helper();input,err:=f.objects.Input(values);collectionCheck(t,err);input,err=input.WithCollections(collections);collectionCheck(t,err);return input
+}
+func(f *collectionFixture) create(t *testing.T,name string,collections map[string][]int64)int64{
+ t.Helper();if collections==nil{collections=map[string][]int64{"topics":{f.topic.ID}}}
+ input:=f.input(t,map[string]query.Value{f.role.Login:query.String(name+"@example.test"),"@@PROFILE@@":query.String("KR")},collections)
+ pending,err:=f.runtime.Accounts().Creator().Prepare(t.Context(),f.actor,input,accountPasswordText);collectionCheck(t,err)
+ created,err:=f.runtime.Accounts().Creator().Commit(t.Context(),f.actor,pending);collectionCheck(t,err)
+ if created.Revision!=1{t.Fatal("collection creation changed initial revision")};return created.ID
+}
+func(f *collectionFixture) read(t *testing.T,id int64)accountmodel.Profile[@@ACCOUNT@@]{t.Helper();row,err:=f.runtime.Accounts().Reader().Get(t.Context(),f.actor,id);collectionCheck(t,err);return row}
+func(f *collectionFixture) keys(t *testing.T,id int64,name string,want ...int64){
+ t.Helper();got,present:=f.read(t,id).View().Collection(name);slices.Sort(want)
+ if !present||!slices.Equal(got,want){t.Fatalf("profile %s keys %v want %v",name,got,want)}
+ // Independently read the generated typed through rows. The account reader
+ // and its own lifecycle readback are not each other's storage oracle.
+ var durable []int64
+ switch name{
+ case "topics":rows,err:=@@PROFILES@@TagLinkObjects.Using(f.backend).Filter(@@PROFILES@@TagLinkFields.OwnerID.Exact(id)).OrderBy(@@PROFILES@@TagLinkFields.ID.Asc()).All(t.Context());collectionCheck(t,err);for _,row:=range rows{durable=append(durable,row.TopicID)}
+ case "categories":rows,err:=@@PROFILES@@CategoryLinkObjects.Using(f.backend).Filter(@@PROFILES@@CategoryLinkFields.OwnerID.Exact(id)).OrderBy(@@PROFILES@@CategoryLinkFields.ID.Asc()).All(t.Context());collectionCheck(t,err);for _,row:=range rows{durable=append(durable,row.TopicID)}
+ case "peers":row,err:=f.objects.Using(f.backend).Filter(f.key.Exact(id)).Get(t.Context());collectionCheck(t,err);capabilities,err:=project.BindCollections();collectionCheck(t,err);related,err:=capabilities.@@COLLECTION@@Peers.From(f.backend,row);collectionCheck(t,err);rows,err:=related.All(t.Context());collectionCheck(t,err);for _,row:=range rows{value,ok,err:=f.objects.PrimaryKey(row);collectionCheck(t,err);if !ok{t.Fatal("typed peer has no key")};key,valid:=value.Integer();if !valid{t.Fatal("typed peer key is not integer")};durable=append(durable,key)}
+ default:t.Fatal("unowned collection oracle",name)
+ }
+ slices.Sort(durable);durable=slices.Compact(durable);if !slices.Equal(durable,want){t.Fatalf("typed durable %s keys %v want %v",name,durable,want)}
+}
+func(f *collectionFixture) events(t *testing.T,id int64)[]accountaudit.Entry{
+ t.Helper();namespace,_:=f.actor.CredentialDomain()
+ result,err:=db.ReadSnapshotResult(t.Context(),f.backend,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,namespace,f.role.Model.AppLabel+"."+f.role.Model.ModelName,id,100)})
+ collectionCheck(t,err);return result
+}
+
+func TestGeneratedProfileCollections(t *testing.T){
+ for _,mode:=range []string{"configuration","first_form","create","required","raw_limit","current_choice","partial_omission","no_op","symmetric","cross_collection","related_deletion","validator","policy_failure","late_choice","late_readback","rollback","unknown_commit","read_cleanup","read_overflow","zero_key","negative_key","revision_race","restart"}{
+  t.Run(mode,func(t *testing.T){
+   f:=newCollectionFixture(t,mode=="first_form");check:=func(err error){t.Helper();collectionCheck(t,err)}
+   if mode=="configuration"{
+    capabilities,err:=project.BindCollections();check(err);before:=f.backend.reads.Load()
+    for _,maximum:=range []int{0,-1,accountmodel.MaximumProfileCollectionItems+1}{bad:=f.topicConfig;bad.MaximumItems=maximum;if _,err:=accountmodel.NewProfileCollection(f.binding,"topics",capabilities.@@COLLECTION@@Topics,@@PROFILES@@TopicObjects,bad);err==nil{t.Fatal("invalid profile collection bound admitted")}}
+    bad:=f.topicConfig;bad.Filter=nil;if _,err:=accountmodel.NewProfileCollection(f.binding,"topics",capabilities.@@COLLECTION@@Topics,@@PROFILES@@TopicObjects,bad);err==nil{t.Fatal("missing current choice policy admitted")}
+    for _,policies:=range [][]accountmodel.ProfileCollection[@@ACCOUNT@@]{nil,{{}},{f.policies[0],f.policies[0]}}{if _,err:=project.NewAccountEditor(f.runtime.SessionStore(),auth.PrincipalAuthorizer{},accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields:[]string{"topics"},Collections:policies,ChangePermission:"account.change"});err==nil{t.Fatal("missing/zero/duplicate collection policy admitted")}}
+    if _,err:=project.NewAccountEditor(f.runtime.SessionStore(),auth.PrincipalAuthorizer{},accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields:[]string{"@@PROFILE@@"},Collections:f.policies[:1],ChangePermission:"account.change"});err==nil{t.Fatal("unselected collection silently expanded exposure")}
+    extra,err:=schema.Build(schema.Definition{AppLabel:"foreign",Models:[]schema.Model{{Name:"item",GoName:"Item",Fields:[]schema.Field{schema.CharField("title","Title",20)}}}});check(err)
+    foreign,err:=accountmodel.Bind(f.role,@@ACCOUNT@@Descriptor{},append([]ir.Schema{@@SCHEMAS@@},extra)...);check(err)
+    if _,err:=accountmodel.NewProfileCollection(foreign,"topics",capabilities.@@COLLECTION@@Topics,@@PROFILES@@TopicObjects,f.topicConfig);err==nil{t.Fatal("same-shaped foreign host capability admitted")}
+    configured:=accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy:accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields:[]string{f.role.Login,"@@PROFILE@@"}},EvidenceSHA256:strings.Repeat("c",64)}
+    if _,err:=project.NewFirstAccountDefinition(f.hasher,configured);err==nil{t.Fatal("required M2M disappeared from first account declaration")}
+    configured.Fields=append(configured.Fields,"topics");configured.Collections=f.policies[:1];a,err:=project.NewFirstAccountDefinition(f.hasher,configured);check(err)
+    narrow:=f.topicConfig;narrow.MaximumItems=2;policy,err:=accountmodel.NewProfileCollection(f.binding,"topics",capabilities.@@COLLECTION@@Topics,@@PROFILES@@TopicObjects,narrow);check(err);configured.Collections=[]accountmodel.ProfileCollection[@@ACCOUNT@@]{policy};b,err:=project.NewFirstAccountDefinition(f.hasher,configured);check(err)
+    if a.Fingerprint()==b.Fingerprint(){t.Fatal("first account policy omitted collection limit")};if f.backend.reads.Load()!=before{t.Fatal("pure profile declaration accessed database")};return
+   }
+   if mode=="first_form"{f.keys(t,f.first.Account.ID,"topics",f.topic.ID);if f.first.Ownership.Sequence()!=1||len(f.events(t,f.first.Account.ID))!=1{t.Fatal("first collection/form lost atomic ownership and audit")};return}
+   if mode=="required"||mode=="raw_limit"||mode=="current_choice"{
+    collections:=map[string][]int64{"topics":{f.next.ID}}
+    if mode=="required"{delete(collections,"topics")};if mode=="raw_limit"{collections["topics"]=[]int64{f.next.ID,f.next.ID,f.next.ID,f.next.ID}}
+    input:=f.input(t,map[string]query.Value{f.role.Login:query.String("invalid@example.test"),"@@PROFILE@@":query.String("KR")},collections)
+    pending,err:=f.runtime.Accounts().Creator().Prepare(t.Context(),f.actor,input,accountPasswordText)
+    if mode=="current_choice"{check(err);_,err=@@PROFILES@@TopicObjects.Patch(t.Context(),f.backend,f.next,@@PROFILES@@TopicPatch{}.WithEnabled(false));check(err);var result accountmodel.Creation;result,err=f.runtime.Accounts().Creator().Commit(t.Context(),f.actor,pending);if result.Revision!=0{t.Fatal("stale collection published an account")}}
+    if err==nil{t.Fatal("invalid profile collection accepted",mode)};count,e:=f.objects.Using(f.backend).Count(t.Context());check(e);if count!=1{t.Fatal("invalid collection left a partial account")};return
+   }
+   if mode=="zero_key"||mode=="negative_key"{
+    topic,err:=@@PROFILES@@TopicObjects.Create(t.Context(),f.backend,@@PROFILES@@NewTopicCreate("Signed"));check(err);metadata,err:=@@PROFILES@@TopicObjects.Metadata();check(err);key,err:=@@PROFILES@@TopicObjects.PrimaryKeyField();check(err);id:=int64(0);if mode=="negative_key"{id=-7};accountStoredKey(t,f.backend.Backend,f.config,metadata.DBTable,key.Column,topic.ID,id)
+    // Install an already-stored signed account key before it has any links.
+    // This fixture does not claim public explicit-identity INSERT support.
+    source,err:=f.objects.Using(f.backend).Filter(f.key.Exact(f.first.Account.ID)).Get(t.Context());check(err);values,err:=f.objects.ModelValues(source);check(err);accountKey,err:=f.objects.PrimaryKeyField();check(err);delete(values,accountKey.Name);values[f.role.PrincipalID]=query.String("signed-profile-owner");values[f.role.Login]=query.String("signed-owner@example.test")
+    prepared,err:=f.objects.PrepareValues(nil,values);check(err);row,err:=prepared.Model();check(err);check(prepared.Save(t.Context(),f.backend,&row));primary,present,err:=f.objects.PrimaryKey(row);check(err);previous,valid:=primary.Integer();if !present||!valid{t.Fatal("signed fixture lacks generated account key")};accountMetadata,err:=f.objects.Metadata();check(err);accountStoredKey(t,f.backend.Backend,f.config,accountMetadata.DBTable,accountKey.Column,previous,id)
+    _,err=@@PROFILES@@TagLinkObjects.Create(t.Context(),f.backend,@@PROFILES@@NewTagLinkCreate(id,id));check(err);f.keys(t,id,"topics",id)
+    changed,err:=f.runtime.Accounts().Editor().Update(t.Context(),f.actor,id,1,f.input(t,nil,map[string][]int64{"topics":{id,f.next.ID}}));check(err);if changed.ID!=id||changed.Revision!=2{t.Fatal("signed profile owner was treated as absent")};f.keys(t,id,"topics",id,f.next.ID);return
+   }
+   id:=f.create(t,"target",map[string][]int64{"topics":{f.topic.ID,f.next.ID},"categories":{f.topic.ID}})
+   if mode=="create"{f.keys(t,id,"topics",f.topic.ID,f.next.ID);f.keys(t,id,"categories",f.topic.ID);if len(f.events(t,id))!=1{t.Fatal("collection create did not append one audit")};return}
+   input:=f.input(t,nil,map[string][]int64{"topics":{f.next.ID}})
+   if mode=="partial_omission"{input=f.input(t,map[string]query.Value{"@@PROFILE@@":query.String("NZ")},nil)}
+   if mode=="no_op"{input=f.input(t,nil,map[string][]int64{"topics":{f.next.ID,f.topic.ID,f.topic.ID}})}
+   if mode=="symmetric"{
+    peer:=f.create(t,"peer",nil);change,err:=f.runtime.Accounts().Editor().Update(t.Context(),f.actor,id,1,f.input(t,nil,map[string][]int64{"peers":{peer}}));check(err)
+    if change.Revision!=2||f.read(t,peer).Revision()!=2{t.Fatal("symmetric profile omitted peer revision")};f.keys(t,id,"peers",peer);f.keys(t,peer,"peers",id)
+    _,err=f.runtime.Accounts().Editor().Update(t.Context(),f.actor,id,2,f.input(t,nil,map[string][]int64{"peers":{}}));check(err);f.keys(t,peer,"peers");if f.read(t,peer).Revision()!=3{t.Fatal("symmetric clear lost peer revision")};return
+   }
+   if mode=="cross_collection"||mode=="related_deletion"{
+    link,err:=@@PROFILES@@CategoryLinkObjects.Using(f.backend).Filter(@@PROFILES@@CategoryLinkFields.OwnerID.Exact(id)).Get(t.Context());check(err)
+    other:=f.create(t,"affected",map[string][]int64{"topics":{f.topic.ID,f.next.ID}})
+    if mode=="related_deletion"{
+     row,err:=f.objects.Using(f.backend).Filter(f.key.Exact(other)).Get(t.Context());check(err)
+     values,err:=f.objects.ModelValues(row);check(err);subject,_:=values[f.role.PrincipalID].String()
+     prepared,err:=f.objects.PrepareValues(&row,map[string]query.Value{"category_anchor":query.Integer(link.ID)});check(err);row,err=prepared.Model();check(err);check(prepared.Save(t.Context(),f.backend,&row))
+     session,err:=f.runtime.Sessions().Create(t.Context(),map[string]string{auth.SessionPrincipalIDKey:subject,"preserve":"exact value"});check(err)
+     changed,err:=f.runtime.Accounts().Editor().Update(t.Context(),f.actor,id,1,f.input(t,nil,map[string][]int64{"categories":{}}));check(err)
+     if changed.Revision!=2||changed.RevokedSessions!=1{t.Fatal("profile cascade lost session/revision",changed)}
+     exists,err:=f.objects.Using(f.backend).Filter(f.key.Exact(other)).Exists(t.Context());check(err);if exists{t.Fatal("profile cascade kept referenced account")}
+     _,found,err:=f.runtime.Sessions().Peek(t.Context(),session.ID());check(err);if found{t.Fatal("profile cascade kept deleted account session")}
+     history:=f.events(t,other);if len(history)!=2||history[1].Action()!=admin.ActionDelete{t.Fatal("profile cascade omitted account deletion audit")}
+    }else{
+     for _,owner:=range []int64{id,other}{tag,err:=@@PROFILES@@TagLinkObjects.Using(f.backend).Filter(@@PROFILES@@TagLinkFields.OwnerID.Exact(owner),@@PROFILES@@TagLinkFields.TopicID.Exact(f.next.ID)).Get(t.Context());check(err);_,err=@@PROFILES@@TagLinkObjects.Patch(t.Context(),f.backend,tag,@@PROFILES@@TagLinkPatch{}.WithDependsOnID(link.ID));check(err)}
+     _,err=@@PROFILES@@TagLinkObjects.Create(t.Context(),f.backend,@@PROFILES@@NewTagLinkCreate(other,f.topic.ID).WithDependsOnID(link.ID));check(err)
+     changed,err:=f.runtime.Accounts().Editor().Update(t.Context(),f.actor,id,1,f.input(t,nil,map[string][]int64{"categories":{}}));check(err)
+     if changed.Revision!=2||!slices.Equal(changed.ChangedFields,[]string{"topics","categories"})||f.read(t,other).Revision()!=2{t.Fatal("cross-collection cascade missed omitted field/other owner")}
+     f.keys(t,id,"topics",f.topic.ID);f.keys(t,other,"topics",f.topic.ID);f.keys(t,id,"categories")
+     f.probe.mu.Lock();proposal:=f.probe.last;f.probe.mu.Unlock();if !slices.Equal(proposal["topics"],[]int64{f.topic.ID})||len(proposal["categories"])!=0{t.Fatal("validator received submitted instead of final graph memberships")}
+     history:=f.events(t,id);if len(history)!=2||!slices.Equal(history[1].ChangedFields(),changed.ChangedFields){t.Fatal("profile cascade lost coordinated audit")}
+    }
+    return
+   }
+   if mode=="validator"{f.probe.reject.Store(true)}
+   if mode=="policy_failure"{f.probe.filterFailure.Store(true)}
+   if mode=="late_readback"{metadata,err:=f.objects.Metadata();check(err);f.backend.rootTable=metadata.DBTable;f.backend.afterRoot=func(ctx context.Context,scope db.RelationSession)error{_,err:=@@PROFILES@@TagLinkObjects.Create(ctx,scope,@@PROFILES@@NewTagLinkCreate(id,f.topic.ID));return err}}
+   if mode=="late_choice"{metadata,err:=f.objects.Metadata();check(err);f.backend.rootTable=metadata.DBTable;f.backend.afterRoot=func(ctx context.Context,scope db.RelationSession)error{_,err:=@@PROFILES@@TopicObjects.Patch(ctx,scope,f.next,@@PROFILES@@TopicPatch{}.WithEnabled(false));return err}}
+   if mode=="rollback"{f.backend.mode="rollback"}
+   if mode=="unknown_commit"{f.backend.mode="unknown"}
+   if mode=="read_cleanup"{f.backend.readFailure.Store(true);row,err:=f.runtime.Accounts().Reader().Get(t.Context(),f.actor,id);if err==nil||row.Revision()!=0{t.Fatal("read cleanup published partial collection")};f.keys(t,id,"topics",f.topic.ID,f.next.ID);return}
+   if mode=="read_overflow"{
+    check(f.backend.CoordinatedAtomic(t.Context(),func(scope db.Session)error{for i:=0;i<accountmodel.MaximumProfileCollectionItems;i++{topic,err:=@@PROFILES@@TopicObjects.Create(t.Context(),scope,@@PROFILES@@NewTopicCreate(fmt.Sprintf("Overflow %04d",i)));if err!=nil{return err};if _,err=@@PROFILES@@TagLinkObjects.Create(t.Context(),scope,@@PROFILES@@NewTagLinkCreate(id,topic.ID));err!=nil{return err}};return nil}))
+    row,err:=f.runtime.Accounts().Reader().Get(t.Context(),f.actor,id);if err==nil||row.Revision()!=0{t.Fatal("oversized stored collection was truncated or exposed")};return
+   }
+   if mode=="revision_race"{
+    inputs:=[]orm.ModelInput[@@ACCOUNT@@]{f.input(t,nil,map[string][]int64{"categories":{f.next.ID}}),f.input(t,nil,map[string][]int64{"categories":{}})}
+    errorsOut:=make(chan error,2);start:=make(chan struct{});for _,input:=range inputs{go func(input orm.ModelInput[@@ACCOUNT@@]){<-start;_,err:=f.runtime.Accounts().Editor().Update(t.Context(),f.actor,id,1,input);errorsOut<-err}(input)};close(start)
+    success,refused:=0,0;for range 2{if err:=<-errorsOut;err==nil{success++}else if errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeConflict}){refused++}else{t.Fatal("profile race returned unrelated failure",err)}};if success!=1||refused!=1||f.read(t,id).Revision()!=2||len(f.events(t,id))!=2{t.Fatal("concurrent profile edits lost revision fence")};return
+   }
+   change,err:=f.runtime.Accounts().Editor().Update(t.Context(),f.actor,id,1,input)
+   switch mode{
+   case "validator","policy_failure","late_choice","late_readback","rollback":
+    if err==nil||!reflect.DeepEqual(change,accountmodel.AccountChange{}){t.Fatal("rejected profile edit published success")};f.backend.mode="";f.backend.afterRoot=nil;f.probe.filterFailure.Store(false);f.keys(t,id,"topics",f.topic.ID,f.next.ID);if f.read(t,id).Revision()!=1||len(f.events(t,id))!=1{t.Fatal("failed profile edit left revision/audit")};if mode=="late_choice"{topic,e:=@@PROFILES@@TopicObjects.Using(f.backend).Filter(@@PROFILES@@TopicFields.ID.Exact(f.next.ID)).Get(t.Context());check(e);if !topic.Enabled{t.Fatal("final choice rejection did not roll back its target effect")}}
+   case "unknown_commit":
+    if !errors.Is(err,&query.Error{Code:query.CodeCommitOutcomeUnknown})||change.Revision!=0{t.Fatal("unknown profile commit published success",err)};f.backend.mode="";f.keys(t,id,"topics",f.next.ID);if f.read(t,id).Revision()!=2||len(f.events(t,id))!=2{t.Fatal("unknown test did not actually commit")}
+   case "no_op":
+    check(err);if change.Revision!=1||len(change.ChangedFields)!=0||len(f.events(t,id))!=1{t.Fatal("logical collection no-op wrote revision/audit")};f.keys(t,id,"topics",f.topic.ID,f.next.ID)
+   case "partial_omission":
+    check(err);if change.Revision!=2||!slices.Equal(change.ChangedFields,[]string{"@@PROFILE@@"}){t.Fatal("scalar edit changed omitted collections")};f.keys(t,id,"topics",f.topic.ID,f.next.ID);f.keys(t,id,"categories",f.topic.ID)
+   case "restart":
+    check(err);reopened,e:=database.Open(t.Context(),f.config);check(e);defer reopened.Close();runtime,e:=project.NewAccountRuntime(t.Context(),reopened,f.hasher,auth.PrincipalAuthorizer{},f.runtimeConfig);check(e);row,e:=runtime.Accounts().Reader().Get(t.Context(),f.actor,id);check(e);keys,present:=row.View().Collection("topics");if !present||!slices.Equal(keys,[]int64{f.next.ID})||row.Revision()!=2{t.Fatal("profile membership did not survive reassembly")};_,e=runtime.Authenticator().Authenticate(t.Context(),"target@example.test",accountPasswordText);check(e)
+   default:check(err)
+   }
+  })
+ }
+}
+
+func TestGeneratedProfileCollectionHTTP(t *testing.T){
+ f:=newCollectionFixture(t,false);check:=func(err error){t.Helper();collectionCheck(t,err)}
+ run:=func(name string,body func(*testing.T)){t.Helper();if !t.Run(name,body){t.FailNow()}}
+ configured,err:=settings.New(settings.Definition{ProjectName:"profile_collections",InstalledApps:append(project.InstalledApps(),apps.Config{Name:"example.com/collectionadmin",Label:"collectionadmin"},apps.Config{Name:"example.com/collectionapi",Label:"collectionapi"})});check(err)
+ builder:=admin.NewBuilder(configured.Apps());check(identityadmin.RegisterAccount(builder,f.runtime.Accounts(),identityadmin.AccountRegistration{Slug:"accounts"}));registry,err:=builder.Build();check(err);paths,err:=admin.SiteAllowedNextPaths(registry,"/admin");check(err)
+ sessionRuntime,err:=websession.New(websession.Config{Sessions:f.runtime.Sessions(),Authenticator:f.runtime.Authenticator(),Authorizer:auth.PrincipalAuthorizer{},LoginPersistence:f.runtime.LoginPersistence(),SessionCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},CSRFCookie:websession.CookieConfig{Path:"/",AllowInsecure:true},LoginPath:"/admin/login/",FallbackPath:"/admin/",AllowedNextPaths:paths});check(err)
+ site,err:=admin.NewSite(admin.SiteConfig{Apps:configured.Apps(),Namespace:"collectionadmin",Registry:registry,Auth:sessionRuntime});check(err)
+ authentication,err:=apisession.New(sessionRuntime,apisession.WithReadOnlyResolution());check(err)
+ management,err:=identityapi.NewManagement(f.runtime.Accounts(),f.runtime.Catalog(),identityapi.ManagementConfig{Namespace:"collectionapi",Authentication:authentication});check(err)
+ document,err:=management.OpenAPI();check(err);if !strings.Contains(string(document.Bytes()),`"topics"`){t.Fatal("profile collection omitted from public schema")}
+ application,err:=web.NewApplication(web.Config{Settings:configured,Routes:append(site.Routes(),management.Routes()...),Middleware:management.Middleware()});check(err)
+ server:=httptest.NewServer(application);t.Cleanup(server.Close);jar,err:=cookiejar.New(nil);check(err)
+ client:=&http.Client{Transport:server.Client().Transport,Jar:jar,Timeout:30*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}}
+ send:=func(method,path,contentType,body,revision,token string)(int,http.Header,string){t.Helper();request,err:=http.NewRequestWithContext(t.Context(),method,server.URL+path,strings.NewReader(body));check(err);if contentType!=""{request.Header.Set("Content-Type",contentType)};if revision!=""{request.Header.Set("If-Revision",revision)};if token!=""{request.Header.Set(websession.DefaultCSRFHeader,token);request.Header.Set("Origin",server.URL)};response,err:=client.Do(request);check(err);raw,err:=io.ReadAll(response.Body);check(err);check(response.Body.Close());return response.StatusCode,response.Header,string(raw)}
+ token:=func(path string)string{t.Helper();status,_,body:=send("GET",path,"","","","");if status!=200{t.Fatal("collection form page",status)};match:=regexp.MustCompile(`name="csrfmiddlewaretoken" value="([^"]+)"`).FindStringSubmatch(body);if len(match)!=2{t.Fatal("missing collection CSRF")};return html.UnescapeString(match[1])}
+ login:=url.Values{"username":{"operator@example.test"},"password":{accountPasswordText},"csrfmiddlewaretoken":{token("/admin/login/")}}
+ status,_,_:=send("POST","/admin/login/","application/x-www-form-urlencoded",login.Encode(),"","");if status!=302{t.Fatal("selected collection HTTP login",status)}
+ encode:=func(value any)string{raw,err:=json.Marshal(value);check(err);return string(raw)}
+ jsonSend:=func(method,path,body,revision string)(int,http.Header,string){return send(method,path,api.JSONContentType,body,revision,token("/admin/accounts/add/"))}
+ count:=func()int64{n,err:=f.objects.Using(f.backend).Count(t.Context());check(err);return n}
+ var id int64
+ run("choice_scope",func(t *testing.T){status,headers,body:=send("GET","/admin/accounts/add/choices/topics/?limit=1","","","","");var page struct{Items []struct{Value,Label string};More bool};check(json.Unmarshal([]byte(body),&page));if status!=200||headers.Get("Cache-Control")!="no-store"||len(page.Items)!=1||!page.More{t.Fatal("profile choice page not bounded",status)};status,_,body=send("GET","/admin/accounts/add/choices/topics/?q=Hidden&limit=1","","","","");check(json.Unmarshal([]byte(body),&page));if status!=200||len(page.Items)!=0{t.Fatal("profile choice leaked forbidden target")}})
+ form:=func(login string,topics ...int64)url.Values{data:=url.Values{f.role.Login:{login},"@@PROFILE@@":{"KR"}};for _,key:=range topics{data.Add("topics",strconv.FormatInt(key,10))};return data}
+ run("admin_create",func(t *testing.T){data:=form("admin-created@example.test",f.topic.ID,f.next.ID);data.Set("password1",accountPasswordText);data.Set("password2",accountPasswordText);data.Set("csrfmiddlewaretoken",token("/admin/accounts/add/"));status,_,_:=send("POST","/admin/accounts/add/","application/x-www-form-urlencoded",data.Encode(),"","");if status!=302||count()!=2{t.Fatal("profile Admin create",status)};rows,err:=f.objects.Using(f.backend).OrderBy(f.key.Asc()).All(t.Context());check(err);key,present,err:=f.objects.PrimaryKey(rows[1]);check(err);if !present{t.Fatal("created account has no key")};id,_=key.Integer();f.keys(t,id,"topics",f.topic.ID,f.next.ID)})
+ path:=func()string{return "/api/identity/accounts/"+strconv.FormatInt(id,10)+"/"};changePath:=func()string{return "/admin/accounts/change/?id="+strconv.FormatInt(id,10)}
+ run("admin_edit",func(t *testing.T){data:=form("admin-created@example.test",f.next.ID);data.Set("expected_revision","1");data.Set("csrfmiddlewaretoken",token(changePath()));status,_,_:=send("POST",changePath(),"application/x-www-form-urlencoded",data.Encode(),"","");if status!=302{t.Fatal("profile Admin edit",status)};f.keys(t,id,"topics",f.next.ID)})
+ run("json_create",func(t *testing.T){status,_,body:=jsonSend("POST","/api/identity/accounts/",encode(map[string]any{"fields":map[string]any{f.role.Login:"json-created@example.test","@@PROFILE@@":"KR","topics":[]int64{f.topic.ID}},"credential":map[string]any{"password":accountPasswordText}}),"");var receipt struct{ID,Revision int64};check(json.Unmarshal([]byte(body),&receipt));if status!=201||receipt.Revision!=1||count()!=3{t.Fatal("profile JSON create",status)};f.keys(t,receipt.ID,"topics",f.topic.ID)})
+ run("json_edit",func(t *testing.T){status,headers,_:=jsonSend("PATCH",path(),encode(map[string]any{"fields":map[string]any{"categories":[]int64{f.topic.ID},"topics":[]int64{f.topic.ID,f.next.ID}}}),"2");if status!=200||headers.Get("Revision")!="3"{t.Fatal("profile JSON edit",status)};f.keys(t,id,"topics",f.topic.ID,f.next.ID)})
+ run("invalid_choice",func(t *testing.T){status,_,body:=jsonSend("PATCH",path(),encode(map[string]any{"fields":map[string]any{"topics":[]int64{f.denied.ID}}}),"3");if status!=400||!strings.Contains(body,"topics")||f.read(t,id).Revision()!=3{t.Fatal("forbidden JSON collection changed durable state",status)}})
+ run("partial_form",func(t *testing.T){data:=form("",f.denied.ID);data.Set("expected_revision","3");data.Set("csrfmiddlewaretoken",token(changePath()));status,_,body:=send("POST",changePath(),"application/x-www-form-urlencoded",data.Encode(),"","");if status!=200||!strings.Contains(body,"topics")||!strings.Contains(body,f.role.Login)||f.read(t,id).Revision()!=3{t.Fatal("partial-invalid collection form wrote or hid diagnostics",status)}})
+ run("raw_form_limit",func(t *testing.T){data:=form("admin-created@example.test",f.next.ID,f.next.ID,f.next.ID,f.next.ID);data.Set("expected_revision","3");data.Set("csrfmiddlewaretoken",token(changePath()));status,_,body:=send("POST",changePath(),"application/x-www-form-urlencoded",data.Encode(),"","");if status!=200||!strings.Contains(body,"topics")||f.read(t,id).Revision()!=3{t.Fatal("deduplication bypassed raw collection limit",status)}})
+ run("selected_reads",func(t *testing.T){status,_,body:=send("GET",path(),"","","","");if status!=200||!strings.Contains(body,`"topics":[`){t.Fatal("profile detail omitted collection",status)};page,err:=f.runtime.Accounts().Reader().List(t.Context(),f.actor,0,20);check(err);for _,row:=range page.Items{if _,present:=row.View().Collection("topics");present{t.Fatal("scalar list implicitly loaded profile collections")}}})
+ run("stale",func(t *testing.T){status,_,_:=jsonSend("PATCH",path(),encode(map[string]any{"fields":map[string]any{"topics":[]int64{f.next.ID}}}),"2");if status!=412||f.read(t,id).Revision()!=3{t.Fatal("stale collection update crossed revision fence",status)}})
+ run("revoked_authority",func(t *testing.T){row,err:=f.objects.Using(f.backend).Filter(f.key.Exact(f.first.Account.ID)).Get(t.Context());check(err);prepared,err:=f.objects.PrepareValues(&row,map[string]query.Value{f.role.Active.Field:query.Boolean(false)});check(err);row,err=prepared.Model();check(err);check(prepared.Save(t.Context(),f.backend,&row));request,err:=http.NewRequestWithContext(t.Context(),"GET",server.URL+path(),nil);check(err);response,err:=client.Do(request);check(err);check(response.Body.Close());if response.StatusCode!=401&&response.StatusCode!=403{t.Fatal("old browser retained collection authority",response.StatusCode)}})
+}

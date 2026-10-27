@@ -78,7 +78,7 @@ func firstAccountLifecycle(t *testing.T, backend Backend, reopen func(*testing.T
 	group, permission := firstAccountChoices(t, backend)
 	config := firstAccountConfig()
 	validations, strengths := 0, 0
-	config.Validate = func(_ context.Context, _ db.Queryer, row models.User, selection accountmodel.RoleMemberships) (validation.Errors, error) {
+	config.Validate = func(_ context.Context, _ db.Queryer, row models.User, selection accountmodel.AccountMemberships) (validation.Errors, error) {
 		validations++
 		if row.Username != "first-admin" || !row.Active || !row.Staff || !row.Superuser || row.Revision != 1 || row.EncodedPassword != "" {
 			t.Fatal("first account lost fixed roles or typed policy")

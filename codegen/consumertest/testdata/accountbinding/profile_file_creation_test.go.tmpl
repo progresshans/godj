@@ -83,7 +83,7 @@ func newCreationFileFixture(t *testing.T)*creationFileFixture{
     accounts:=accountmodel.AccountPermissions{View:"account.view",Add:"account.add",Change:"account.change",Delete:"account.delete"}
     groups:=accountmodel.CatalogPermissions{View:"catalog.view_group",Add:"catalog.add_group",Change:"catalog.change_group",Delete:"catalog.delete_group"}
     permissions:=accountmodel.CatalogPermissions{View:"catalog.view_permission",Add:"catalog.add_permission",Change:"catalog.change_permission",Delete:"catalog.delete_permission"}
-    validate:=func(_ context.Context,_ db.Queryer,row fileAccount,_ accountmodel.RoleMemberships)(validation.Errors,error){
+    validate:=func(_ context.Context,_ db.Queryer,row fileAccount,_ accountmodel.AccountMemberships)(validation.Errors,error){
         values,err:=f.objects.ModelValues(row);if err!=nil{return validation.Errors{},err}
         secret,_:=values[f.role.Password].String();document,_:=values["document"].String()
         if secret!=""||!strings.HasPrefix(document,"document/"){return validation.Errors{},errors.New("validator did not receive redacted actual storage names")}

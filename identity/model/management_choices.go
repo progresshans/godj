@@ -16,12 +16,21 @@ func bindAccountChoices[M, G, P any](management *AccountManagement[M], groups or
 	for _, action := range []admin.Action{admin.ActionAdd, admin.ActionChange} {
 		allowed := state.editor.state.allowed
 		relations, required := state.editor.state.relations, state.editor.state.required
+		collections := state.editor.state.collections
 		if action == admin.ActionAdd {
 			allowed = state.creator.state.allowed
 			relations, required = state.creator.state.relations, state.creator.state.required
+			collections = state.creator.state.collections
 		}
 		for _, relation := range relations {
 			choice, err := relation.state.adminChoices(required[0], management.profileRelationChoiceScope(action))
+			if err != nil {
+				return err
+			}
+			state.choices[action] = append(state.choices[action], choice)
+		}
+		for _, collection := range collections {
+			choice, err := collection.state.adminChoices(required[0], management.profileRelationChoiceScope(action))
 			if err != nil {
 				return err
 			}

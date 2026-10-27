@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	_ "embed"
+	"fmt"
 	"os"
 	"slices"
 	"strings"
@@ -12,8 +13,11 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/identity/modeldef"
+	"github.com/progresshans/godj/internal/migrationautodetect"
 	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/internal/testschema"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/schema/ir"
 )
 
@@ -344,4 +348,36 @@ func runAccountConsumerDatabases(t *testing.T, root string, required []string) {
 			t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)
 		})
 	}
+}
+
+// Complex through graphs can require deferred relations and cross-app
+// dependencies. The external consumer applies the real detector's definitions;
+// declaration order alone is not a migration plan.
+func accountConsumerMigrationSources(t *testing.T, spec codegen.ProjectSpec) string {
+	t.Helper()
+	var schemas []ir.Schema
+	for _, app := range spec.Apps {
+		schemas = append(schemas, app.Schema)
+	}
+	desired, err := migrations.NewProjectState(schemas...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	empty, _, err := definition.Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := migrationautodetect.Detect(migrationautodetect.Request{Definitions: empty, Desired: desired, ManagedApps: desired.Apps()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var sources []string
+	for _, migration := range plan.Migrations() {
+		wire, err := definition.Encode(definition.Producer{Name: "account-binding-consumer", Version: "1"}, migration)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sources = append(sources, fmt.Sprintf("definition.Source{SourceID:%q, Document:[]byte(%q)}", migration.App+"/"+migration.Name, wire))
+	}
+	return strings.Join(sources, ",")
 }

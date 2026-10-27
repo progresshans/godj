@@ -90,12 +90,12 @@ func NewProfileRelation[M, T any](binding Binding[M], field string, target orm.M
 		return zero, managementError(CodeInvalidConfig, nil)
 	}
 	// A selected account may itself be a through model. Its membership
-	// endpoints change other owners' authority. They are accepted only by
+	// endpoints change other owners' memberships and possibly authority. They are accepted only by
 	// collected creation, never as ordinary scalar profile edits.
 	role := binding.state.role
 	creationOnly := false
 	for _, relation := range binding.state.project.ManyToManyRelations() {
-		critical := relation.Source == role.Model && (relation.Field == role.Groups || relation.Field == role.Permissions) ||
+		critical := relation.Source == role.Model ||
 			relation.Source == role.Catalog.Group && relation.Field == role.Catalog.GroupPermissions
 		if critical && relation.Through.Model == role.Model && (relation.Through.SourceField == field || relation.Through.TargetField == field) {
 			creationOnly = true

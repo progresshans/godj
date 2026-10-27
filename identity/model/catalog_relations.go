@@ -152,23 +152,22 @@ func validateCatalogCollectionStorage(project orm.ProjectBinding, role ir.Accoun
 }
 
 func validateAccountCollectionStorage(project orm.ProjectBinding, role ir.AccountRole, fields []string) error {
-	found := 0
+	found := make(map[string]bool)
 	for _, relation := range project.ManyToManyRelations() {
-		if relation.Source == role.Model && (relation.Field == role.Groups || relation.Field == role.Permissions) && slices.Contains(fields, relation.Field) {
+		if relation.Source == role.Model && slices.Contains(fields, relation.Field) {
 			if err := validateLifecycleThroughStorage(role, relation.Through.Model); err != nil {
 				return err
 			}
-			found++
+			found[relation.Field] = true
 		}
 	}
-	expected := 0
+	// Scalar fields are checked by their model input owner; the two role
+	// relations are always required when selected. Extra M2M capabilities are
+	// bound and checked by prepareProfileCollections.
 	for _, field := range []string{role.Groups, role.Permissions} {
-		if slices.Contains(fields, field) {
-			expected++
+		if slices.Contains(fields, field) && !found[field] {
+			return managementError(CodeInvalidConfig, nil)
 		}
-	}
-	if found != expected {
-		return managementError(CodeInvalidConfig, nil)
 	}
 	return nil
 }

@@ -37,6 +37,13 @@ func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
 
 func accountDatabaseWithConfig(t *testing.T, schemas ...ir.Schema) (database.Backend, database.Config) {
 	t.Helper()
+	backend, selected := openAccountDatabase(t)
+	migrateAccountDatabase(t, backend, schemas...)
+	return backend, selected
+}
+
+func openAccountDatabase(t *testing.T) (database.Backend, database.Config) {
+	t.Helper()
 	selected, vendor := accountDatabaseConfig(t)
 	backend, err := database.Open(t.Context(), selected)
 	if err != nil {
@@ -58,7 +65,6 @@ func accountDatabaseWithConfig(t *testing.T, schemas ...ir.Schema) (database.Bac
 			t.Error(err)
 		}
 	})
-	migrateAccountDatabase(t, backend, schemas...)
 	return backend, selected
 }
 
@@ -161,9 +167,7 @@ func accountDatabaseConfig(t *testing.T) (database.Config, string) {
 
 func migrateAccountDatabase(t *testing.T, backend database.Backend, schemas ...ir.Schema) {
 	t.Helper()
-	sources := domain.MigrationSources()
-	sources = append(sources, accountaudit.MigrationSources()...)
-	sources = append(sources, sessiondb.MigrationSources()...)
+	var sources []definition.Source
 	var previous *migrations.MigrationKey
 	for _, app := range schemas {
 		migration := migrations.Migration{App: app.AppLabel, Name: "0001_initial"}
@@ -181,6 +185,15 @@ func migrateAccountDatabase(t *testing.T, backend database.Backend, schemas ...i
 		key := migrations.MigrationKey{App: app.AppLabel, Name: "0001_initial"}
 		previous = &key
 	}
+	migrateAccountDefinitions(t, backend, sources...)
+}
+
+func migrateAccountDefinitions(t *testing.T, backend database.Backend, generated ...definition.Source) {
+	t.Helper()
+	sources := domain.MigrationSources()
+	sources = append(sources, accountaudit.MigrationSources()...)
+	sources = append(sources, sessiondb.MigrationSources()...)
+	sources = append(sources, generated...)
 	loaded, _, err := definition.Load(sources...)
 	if err != nil {
 		t.Fatal(err)
