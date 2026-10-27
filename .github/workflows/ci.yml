@@ -1307,6 +1307,15 @@ jobs:
             shard: core
             timeout_minutes: 60
           - mode: normal
+            shard: core-consumers
+            timeout_minutes: 40
+          - mode: normal
+            shard: core-account-consumers
+            timeout_minutes: 40
+          - mode: normal
+            shard: core-consumer-writes
+            timeout_minutes: 40
+          - mode: normal
             shard: operator-target
             timeout_minutes: 35
           - mode: race
@@ -1325,6 +1334,9 @@ jobs:
             shard: core-consumers
             timeout_minutes: 40
           - mode: race
+            shard: core-account-consumers
+            timeout_minutes: 40
+          - mode: race
             shard: core-consumer-writes
             timeout_minutes: 40
           - mode: race
@@ -1336,6 +1348,15 @@ jobs:
           - mode: cgo0
             shard: core
             timeout_minutes: 60
+          - mode: cgo0
+            shard: core-consumers
+            timeout_minutes: 40
+          - mode: cgo0
+            shard: core-account-consumers
+            timeout_minutes: 40
+          - mode: cgo0
+            shard: core-consumer-writes
+            timeout_minutes: 40
           - mode: cgo0
             shard: operator-target
             timeout_minutes: 35
@@ -1494,7 +1515,7 @@ jobs:
           )
           go mod download all
           case "$shard" in
-            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-consumer-writes|core-processes)
+            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-account-consumers|core-consumer-writes|core-processes)
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
               python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
                 --required scripts/ci/postgres-core-required.txt --output-dir "$partition"
@@ -1529,9 +1550,9 @@ jobs:
           required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
           test_timeout=18m
           if { [ "$shard" = core ] && [ "$mode" != race ]; } ||
-             { [ "$mode" = race ] && { [ "$shard" = core-consumers ] || [ "$shard" = core-consumer-writes ]; }; }; then
+             [ "$shard" = core-consumers ] || [ "$shard" = core-account-consumers ] || [ "$shard" = core-consumer-writes ]; then
             # The generated roots share one package deadline, including the
-            # unsplit normal/CGO-disabled core owners. Individual consumer
+            # complete child sets of each consumer partition. Individual
             # deadlines and the complete required inventory remain unchanged.
             test_timeout=30m
           fi
@@ -1572,6 +1593,10 @@ jobs:
           if [ "$mode" != "normal" ]; then
             exit 0
           fi
+          case "$shard" in
+            core-consumers) go vet "${packages[@]}"; exit 0 ;;
+            core-account-consumers|core-consumer-writes) exit 0 ;;
+          esac
           if [ "$shard" = "core" ]; then
             test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
             export GODJ_TEST_POSTGRES_SCHEMA="godj_postgresproduct_ci${{ github.run_id }}${{ github.run_attempt }}"
@@ -1616,7 +1641,7 @@ jobs:
           go vet "${packages[@]}"
 
       - name: Package current PostgreSQL capture
-        if: matrix.mode == 'normal'
+        if: matrix.mode == 'normal' && (matrix.shard == 'core' || matrix.shard == 'operator-target')
         env:
           SHARD: ${{ matrix.shard }}
         run: |

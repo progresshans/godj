@@ -46,10 +46,11 @@ func TestGeneratedOpenAPIClientContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	locks := make(map[string][]byte)
+	profiles := []string{"articlebearer", "articlesession", "helpdesksession", "identitysession", "identitybearer", "accountsession"}
 	for _, name := range []string{"go.mod", "go.sum", "ogen.yml"} {
 		locks[name] = readConsumerFile(t, filepath.Join(module, name))
 	}
-	for _, name := range []string{"articlebearer", "articlesession", "helpdesksession", "identitysession", "identitybearer", "accountsession"} {
+	for _, name := range profiles {
 		actual, found := documents[name]
 		if !found || len(actual) == 0 {
 			t.Fatalf("actual schema %s is missing", name)
@@ -69,7 +70,7 @@ func TestGeneratedOpenAPIClientContract(t *testing.T) {
 			t.Fatalf("generated %s drift: %v", name, err)
 		}
 	}
-	flags := "-mod=readonly"
+	flags := "-mod=readonly -trimpath"
 	if consumerRaceEnabled {
 		flags += " -race"
 	}
@@ -88,6 +89,7 @@ func TestGeneratedOpenAPIClientContract(t *testing.T) {
 			t.Fatalf("generation or compilation changed locked input %s", name)
 		}
 	}
+	verifyGeneratedClientBuildReuse(t, ctx, fixtureRoot, build.Env, profiles)
 	encoded, err := json.Marshal(input)
 	if err != nil {
 		t.Fatal("encode the private fixture input")
@@ -104,6 +106,33 @@ func TestGeneratedOpenAPIClientContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	verifyDatabase(t)
+}
+
+func verifyGeneratedClientBuildReuse(t *testing.T, ctx context.Context, original string, environment, profiles []string) {
+	t.Helper()
+	// The completed build used a fresh TempDir. The byte-identical libraries
+	// in the original module must now hit the same build cache. Listing only
+	// staleness performs no compilation or link, so a miss cannot warm itself.
+	arguments := []string{"list", "-f", "{{.ImportPath}}|{{.Stale}}"}
+	want := make([]string, len(profiles))
+	for index, name := range profiles {
+		arguments = append(arguments, "./"+name)
+		want[index] = "example.com/godj-openapi-client/" + name + "|false"
+	}
+	command := exec.CommandContext(ctx, "go", arguments...)
+	command.Dir = original
+	command.Env = append([]string(nil), environment...)
+	output, err := runConsumerCommand(command, false)
+	if err != nil {
+		t.Fatalf("inspect external SDK build reuse: %v", err)
+	}
+	got := strings.Split(strings.TrimSpace(string(output)), "\n")
+	slices.Sort(got)
+	slices.Sort(want)
+	if !slices.Equal(got, want) {
+		t.Fatal("identical external SDK packages did not reuse the TempDir build cache")
+	}
+	t.Logf("external SDK build cache reused across module directories for all %d profiles", len(profiles))
 }
 
 func repositoryRoot(t *testing.T) string {

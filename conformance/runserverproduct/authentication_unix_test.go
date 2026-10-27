@@ -123,6 +123,7 @@ func provisionRunserverOperator(
 	username, password string,
 ) {
 	t.Helper()
+	environment = ensureRunserverGoAuditEnvironment(t, environment)
 	assertRunserverOperatorEnvironment(t, environment, password)
 
 	master, slave, err := pty.Open()
@@ -177,13 +178,22 @@ func provisionRunserverOperator(
 		}
 	}()
 
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `"Username": `)
+	// The first prompt follows declaration/command-runtime compilation and
+	// bundle checks. Give that phase the existing preparation budget and retain
+	// its actual Go progress even if it fails before any terminal input.
+	func() {
+		started := time.Now()
+		defer func() {
+			t.Logf("createsuperuser preparation: %s", runserverPreparationProgress(environment, started, time.Now()))
+		}()
+		awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `"Username": `, runserverPreparationTimeout)
+	}()
 	writeRunserverProvisionLine(t, master, username)
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `Use model default for "Email"? [Y/n]: `)
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `Use model default for "Email"? [Y/n]: `, 2*time.Minute)
 	writeRunserverProvisionLine(t, master, "y")
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password: ")
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password: ", 2*time.Minute)
 	writeRunserverProvisionLine(t, master, password)
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password (again): ")
+	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password (again): ", 2*time.Minute)
 	writeRunserverProvisionLine(t, master, password)
 
 	select {
@@ -234,9 +244,10 @@ func awaitRunserverProvisionPrompt(
 	exited <-chan struct{},
 	waitErr *error,
 	marker string,
+	timeout time.Duration,
 ) {
 	t.Helper()
-	deadline := time.Now().Add(2 * time.Minute)
+	deadline := time.Now().Add(timeout)
 	for {
 		transcript, truncated := output.Snapshot()
 		if strings.Contains(transcript, marker) {

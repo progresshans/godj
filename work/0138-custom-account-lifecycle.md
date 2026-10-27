@@ -356,6 +356,11 @@ receipt와 22개 경로의 실제 호출을 작성했다. 기존 권한 회수·
 이력 및 receipt 필수 metadata 검사를 추가했다. 원본 문서와 고정 생성물을 함께 갱신했으며 최소 compile과 실제 HTTP/DB·
 전체 환경 수용은 TEST_EVIDENCE에서 구분한다.
 
+실제 SDK 실패를 재현하며 선택 password 역할의 감사 필드·borrowed 감사 조회·생성 decoder의 검증 오류 분류를 바로잡았다.
+전체 host PROTECT가 정확한 callback 오류로 롤백된 경우에만 입력 거부로 전달하며 cleanup·unknown 실패 경계를 유지한다.
+소스가 같은 임시 SDK module의 compile cache 재사용 검사와 현재 원격 실행 한도에 맞춘 필수 root 분할을 연결했다.
+한정 재현, 새 검사 및 전체 원격 수용을 TEST_EVIDENCE에서 구분한다.
+
 프로필 관계/파일과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 

@@ -215,16 +215,22 @@ class ExecutionOwnerTests(unittest.TestCase):
             self.assertTrue(package.startswith(MODULE))
             self.assertTrue(name.startswith('Test'))
         import sys
-        with tempfile.TemporaryDirectory() as directory:
-            result = subprocess.run([sys.executable, 'scripts/ci/postgres_shards.py', '--mode', 'normal',
-                                     '--shard', 'core', '--required', 'scripts/ci/postgres-core-required.txt',
-                                     '--output-dir', directory], cwd=root, capture_output=True, text=True, timeout=10)
-            self.assertEqual(0, result.returncode, result.stderr)
-            script = 'required_passes=()\nwhile IFS= read -r sentinel; do required_passes+=("$sentinel"); done\nprintf "%s\\n" "${required_passes[@]}"\n'
-            result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=root,
-                                    input=(Path(directory) / 'required.txt').read_text(), capture_output=True, text=True, timeout=10)
-            self.assertEqual(0, result.returncode, result.stderr)
-            self.assertEqual(expected, result.stdout)
+        observed = []
+        for shard in ('core', 'core-consumers', 'core-account-consumers', 'core-consumer-writes'):
+            with tempfile.TemporaryDirectory() as directory:
+                result = subprocess.run([sys.executable, 'scripts/ci/postgres_shards.py', '--mode', 'normal',
+                                         '--shard', shard, '--required', 'scripts/ci/postgres-core-required.txt',
+                                         '--output-dir', directory], cwd=root, capture_output=True, text=True, timeout=10)
+                self.assertEqual(0, result.returncode, result.stderr)
+                required = (Path(directory) / 'required.txt').read_text()
+                script = 'required_passes=()\nwhile IFS= read -r sentinel; do required_passes+=("$sentinel"); done\nprintf "%s\\n" "${required_passes[@]}"\n'
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=root,
+                                        input=required, capture_output=True, text=True, timeout=10)
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual(required, result.stdout)
+                observed.extend(result.stdout.splitlines())
+        self.assertEqual(sorted(lines), sorted(observed))
+        self.assertEqual(len(observed), len(set(observed)))
 
     def test_required_relation_inventory_has_an_execution_owner(self):
         from packages import relation_owned
@@ -273,12 +279,17 @@ class ExecutionOwnerTests(unittest.TestCase):
         child_only = [entry for entry in entries if '/ticket_editor/' in entry]
         self.assertTrue(child_only)
         coordinates = [('normal', 'core', '30m'), ('normal', 'operator-target', '18m'),
+                       ('normal', 'core-consumers', '30m'), ('normal', 'core-account-consumers', '30m'),
+                       ('normal', 'core-consumer-writes', '30m'),
                        ('race', 'core', '18m'), ('race', 'core-helpdesk-postgres', '18m'),
                        ('race', 'core-postgres-1', '18m'), ('race', 'core-postgres-2', '18m'),
                        ('race', 'core-consumers', '30m'),
+                       ('race', 'core-account-consumers', '30m'),
                        ('race', 'core-consumer-writes', '30m'),
                        ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),
-                       ('cgo0', 'core', '30m'), ('cgo0', 'operator-target', '18m')]
+                       ('cgo0', 'core', '30m'), ('cgo0', 'operator-target', '18m'),
+                       ('cgo0', 'core-consumers', '30m'), ('cgo0', 'core-account-consumers', '30m'),
+                       ('cgo0', 'core-consumer-writes', '30m')]
         for required, (mode, shard, timeout) in ((required, coordinate) for required in [entries, child_only] for coordinate in coordinates):
             with self.subTest(child_only=required is child_only, mode=mode, shard=shard):
                 script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'

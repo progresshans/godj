@@ -91,5 +91,11 @@ func managementCompletion[T any](result T, err, callback error) (T, error) {
 	if classified, ok := err.(*Error); ok && err == callback {
 		return zero, classified
 	}
+	// The collector's concrete refusal is input only after the native owner
+	// confirms the same callback error. Wrapped/joined cleanup failures and
+	// backend errors with a matching query code remain execution failures.
+	if protected, ok := err.(*query.ProtectedForeignKeyError); ok && protected.ProtectedSourceRows() > 0 && err == callback {
+		return zero, validation.Reject(validation.NewErrors(validation.New(validation.NonField, "protected")), protected)
+	}
 	return zero, managementError(CodePersistence, err)
 }

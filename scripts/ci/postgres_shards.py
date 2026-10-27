@@ -2,8 +2,8 @@
 """Own every PostgreSQL core sentinel exactly once in each execution mode.
 
 Race partitions separate framework, native PostgreSQL roots, the Helpdesk PostgreSQL consumer,
-generated read consumers, generated write consumers and process products.
-Normal/CGO-disabled retain one core owner; the normal capture producer is stable.
+generated read consumers, selected-account consumers, generated write consumers and process products.
+All modes separate generated consumers; the normal capture producer is stable.
 The required manifest stays authoritative for tests, including child-only roots.
 """
 import argparse
@@ -29,6 +29,10 @@ PROCESSES = (
 HELPDESK_POSTGRES_PACKAGE = MODULE + 'examples/helpdesk'
 HELPDESK_POSTGRES_ROOT = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
 CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
+ACCOUNT_CONSUMER_ROOTS = frozenset({
+    'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
+    'TestGeneratedFirstAccountUsesRequiredProfiles',
+})
 WRITE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountResetUsesSelectedModels',
     'TestGeneratedBulkCreate', 'TestGeneratedBulkCreateReference',
@@ -37,16 +41,30 @@ WRITE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedSingleObjectCreation', 'TestGeneratedSingleObjectReference',
     'TestGeneratedUpdateOrCreate', 'TestGeneratedRowLocking',
 })
-PARTITIONS = {
+CONSUMER_PARTITIONS = {
+    'core-consumers': CONSUMERS,
+    'core-account-consumers': CONSUMERS,
+    'core-consumer-writes': CONSUMERS,
+}
+BASE_PARTITIONS = {
+    'core': (*FRAMEWORK, *POSTGRES, *PROCESSES),
+    **CONSUMER_PARTITIONS,
+}
+RACE_PARTITIONS = {
     'core': FRAMEWORK,
     'core-postgres-1': POSTGRES,
     'core-postgres-2': POSTGRES,
     'core-helpdesk-postgres': ('./examples/helpdesk',),
-    'core-consumers': CONSUMERS,
-    'core-consumer-writes': CONSUMERS,
+    **CONSUMER_PARTITIONS,
     'core-processes': PROCESSES,
 }
 ALL_PACKAGES = (*FRAMEWORK, *POSTGRES, *CONSUMERS, *PROCESSES)
+
+
+def partitions(mode):
+    if mode not in ('normal', 'race', 'cgo0'):
+        raise ValueError('unknown PostgreSQL execution mode')
+    return RACE_PARTITIONS if mode == 'race' else BASE_PARTITIONS
 
 
 def matches(package, pattern):
@@ -73,11 +91,10 @@ def required_entries(path):
 
 
 def plan(mode, shard, entries):
-    if mode not in ('normal', 'race', 'cgo0') or shard not in PARTITIONS:
+    owners = partitions(mode)
+    if shard not in owners:
         raise ValueError('unknown PostgreSQL core mode or partition')
-    if mode != 'race' and shard != 'core':
-        raise ValueError('only race core has multiple partitions')
-    packages = ALL_PACKAGES if mode != 'race' else PARTITIONS[shard]
+    packages = owners[shard]
     selected = [entry for entry in entries if any(matches(entry.partition('|')[0], pattern) for pattern in packages)]
     if mode == 'race' and shard in ('core-postgres-1', 'core-postgres-2'):
         # CI 40248295204 reached the native package's cumulative 18-minute
@@ -97,17 +114,23 @@ def plan(mode, shard, entries):
             return package == HELPDESK_POSTGRES_PACKAGE and test.split('/')[0] == HELPDESK_POSTGRES_ROOT
 
         selected = [entry for entry in selected if is_helpdesk_postgres(entry) == (shard == 'core-helpdesk-postgres')]
-    if mode == 'race' and shard in ('core-consumers', 'core-consumer-writes'):
+    if shard in CONSUMER_PARTITIONS:
         # A complete generated root and all its children have one owner. The
-        # selected-account reset performs HTTP/token/session writes across its
-        # model variants; keep it with writes rather than exhausting the read
-        # consumers' shared package deadline. New roots default to read consumers
-        # until their execution cost is known.
-        def is_write_consumer(entry):
+        # seven selected-account HTTP variants and first-account flows consumed
+        # 543 + 616 seconds in CI 40417732116 before the read package reached its
+        # cumulative 30-minute deadline. The unsplit normal package also hit
+        # 30 minutes before its whole job expired. Use these complete-root
+        # owners in every mode, retaining reset with writes and all new roots.
+        def consumer_owner(entry):
             package, _, test = entry.partition('|')
-            return package == CONSUMER_PACKAGE and test.split('/')[0] in WRITE_CONSUMER_ROOTS
+            root = test.split('/')[0]
+            if package == CONSUMER_PACKAGE and root in ACCOUNT_CONSUMER_ROOTS:
+                return 'core-account-consumers'
+            if package == CONSUMER_PACKAGE and root in WRITE_CONSUMER_ROOTS:
+                return 'core-consumer-writes'
+            return 'core-consumers'
 
-        selected = [entry for entry in selected if is_write_consumer(entry) == (shard == 'core-consumer-writes')]
+        selected = [entry for entry in selected if consumer_owner(entry) == shard]
     if not selected:
         raise ValueError('PostgreSQL partition has no required execution')
     return {'mode': mode, 'shard': shard, 'packages': list(packages), 'required': selected,
@@ -116,12 +139,12 @@ def plan(mode, shard, entries):
 
 def audit(entries):
     for mode in ('normal', 'race', 'cgo0'):
-        shards = PARTITIONS if mode == 'race' else ('core',)
-        partitions = [plan(mode, shard, entries) for shard in shards]
-        owned = Counter(entry for partition in partitions for entry in partition['required'])
+        shards = partitions(mode)
+        plans = [plan(mode, shard, entries) for shard in shards]
+        owned = Counter(entry for partition in plans for entry in partition['required'])
         if owned != Counter({entry: 1 for entry in entries}):
             raise ValueError('PostgreSQL mode does not own every required test exactly once')
-        for partition in partitions:
+        for partition in plans:
             # Go applies one root regex to every selected package. A repeated
             # root name in another package must not reselect an excluded root.
             roots = {entry.partition('|')[2].split('/')[0] for entry in partition['required']}
@@ -130,13 +153,14 @@ def audit(entries):
                         and any(matches(entry.partition('|')[0], pattern) for pattern in partition['packages'])]
             if selected != partition['required']:
                 raise ValueError('PostgreSQL test selector reaches another partition')
-    return {'required_tests': len(entries), 'modes_verified': 3, 'core_coordinates': len(PARTITIONS) + 2}
+    return {'required_tests': len(entries), 'modes_verified': 3,
+            'core_coordinates': sum(len(partitions(mode)) for mode in ('normal', 'race', 'cgo0'))}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--mode', choices=('normal', 'race', 'cgo0'), required=True)
-    parser.add_argument('--shard', choices=tuple(PARTITIONS), required=True)
+    parser.add_argument('--shard', choices=tuple(RACE_PARTITIONS), required=True)
     parser.add_argument('--required', required=True)
     parser.add_argument('--output-dir', required=True)
     args = parser.parse_args()

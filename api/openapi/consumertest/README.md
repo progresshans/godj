@@ -78,6 +78,8 @@ Helpdesk summary는 같은 generated 응답에 `expected_cost_total`·`effort_av
 `testdata/client`에는 framework module을 import하거나 replace하는 연결이 없다. 생성기와 client runtime 버전은
 그 디렉터리의 `go.mod`·`go.sum`이 고정한다. 네트워크를 사용하는 의존성 준비는 `make api-client-dependencies`가 소유하며,
 부모 테스트의 생성·build는 준비된 module cache를 사용해 offline으로 실행한다.
+SDK build는 `-trimpath`를 사용한다. 새 임시 module에서 빌드한 뒤 같은 소스의 원래 module에서 여섯 library의
+`go list` staleness를 확인해 경로가 바뀌어도 compile cache가 재사용되는지 검사한다. 이 조회는 새로 컴파일하지 않는다.
 
 DateTime은 표준 `format: date-time`과 `x-ogen-time-format` RFC3339Nano를 사용한다. 고정 ogen v1.24.0의 기본 encoder가
 소수초를 생략하므로 실제 게시 문서가 precision 보존 extension을 제공한다. Consumer는 offset·nanosecond 입력의 UTC microsecond

@@ -19,6 +19,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/validation"
 )
 
 func deletionAssign[M any](t *testing.T, backend db.Session, objects orm.Manager[M], row M, values map[string]query.Value) M {
@@ -134,20 +135,17 @@ func accountDeletionAuthority(t *testing.T, backend Backend, reopen func(*testin
 				want = accountmodel.CodeConflict
 			case "not_found":
 				want = accountmodel.CodeNotFound
-			case "overlay_failure", "corrupt_dependent", "overflow_survivor", "protected_descendant":
+			case "overlay_failure", "corrupt_dependent", "overflow_survivor":
 				want = accountmodel.CodePersistence
 			}
-			if !errors.Is(err, &accountmodel.Error{Code: want}) || result != (accountmodel.AccountDeletion{}) {
+			if result != (accountmodel.AccountDeletion{}) || mode != "protected_descendant" && !errors.Is(err, &accountmodel.Error{Code: want}) {
 				t.Fatal("collected deletion authority failure was misclassified or published", mode, err)
 			}
 			if mode == "overlay_failure" && !errors.Is(err, fault) {
 				t.Fatal("private authority cause lost")
 			}
 			if mode == "protected_descendant" {
-				var protected *query.ProtectedForeignKeyError
-				if !errors.As(err, &protected) || protected.ProtectedSourceRows() != 1 {
-					t.Fatal("descendant protection missing", err)
-				}
+				requireProtectedDeletionInput(t, err, 1)
 			}
 			requireDeletionUnchanged(t, reopen(t), before)
 			if mode == "inactive_actor" {
@@ -214,4 +212,15 @@ func accountDeletionAuthority(t *testing.T, backend Backend, reopen func(*testin
 		}
 		requireDeletionUnchanged(t, reopen(t), before)
 	})
+}
+
+func requireProtectedDeletionInput(t *testing.T, err error, count int64) {
+	t.Helper()
+	diagnostics, rejected := validation.Rejected(err)
+	items := diagnostics.All()
+	var protected *query.ProtectedForeignKeyError
+	if !rejected || len(items) != 1 || items[0].Field() != validation.NonField || items[0].Code() != "protected" || len(items[0].Params()) != 0 ||
+		!errors.As(err, &protected) || protected.ProtectedSourceRows() != count {
+		t.Fatal("confirmed protection lost its input diagnostic or structured cause", err)
+	}
 }

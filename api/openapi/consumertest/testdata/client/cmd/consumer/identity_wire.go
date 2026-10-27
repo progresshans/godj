@@ -11,6 +11,7 @@ import (
 
 	ib "example.com/godj-openapi-client/identitybearer"
 	"github.com/ogen-go/ogen/ogenerrors"
+	"github.com/ogen-go/ogen/validate"
 )
 
 const identityWireBase = `{"id":9223372036854775807,"revision":1152921504606846977,"password_usable":true,"fields":{"username":"wire","first_name":"","last_name":"","email":"","active":true,"staff":false,"superuser":false,"date_joined":"2026-09-27T00:00:00Z","last_login":null`
@@ -68,7 +69,7 @@ func checkGeneratedIdentityWire(ctx context.Context) error {
 			return fail("generated selected read required collection rejection")
 		}
 	}
-	for _, body := range []string{`{}`, `{"id":1}`, `{"revision":1}`, `{"id":"1","revision":1}`, `{"id":9223372036854775808,"revision":1}`, `{"id":1,"revision":0}`} {
+	for _, body := range []string{`{}`, `{"id":1}`, `{"revision":1}`, `{"id":"1","revision":1}`, `{"id":9223372036854775808,"revision":1}`} {
 		calls := 0
 		client, err := identityWireClient("PATCH", body, `{"fields":{}}`, "1152921504606846977", 200, &calls)
 		if err != nil {
@@ -78,6 +79,20 @@ func checkGeneratedIdentityWire(ctx context.Context) error {
 		var decode *ogenerrors.DecodeBodyError
 		if calls != 1 || !errors.As(err, &decode) {
 			return fail("generated selected mutation required metadata rejection")
+		}
+	}
+	// A well-formed int64 outside the schema range reaches ogen's response
+	// validator after decoding. It must still return no receipt and no retry.
+	for _, revision := range []string{"0", "-1"} {
+		calls := 0
+		client, err := identityWireClient("PATCH", `{"id":1,"revision":`+revision+`}`, `{"fields":{}}`, "1152921504606846977", 200, &calls)
+		if err != nil {
+			return err
+		}
+		response, err := client.GodjIdentityAccountsPatch(ctx, &ib.AccountPatch{Fields: ib.AccountPatchFields{}}, ib.GodjIdentityAccountsPatchParams{ID: identityID(math.MaxInt64), IfRevision: identityWireRevision})
+		var invalid *validate.Error
+		if calls != 1 || response != nil || !errors.As(err, &invalid) {
+			return fail("generated selected mutation revision range rejection")
 		}
 	}
 	for _, revision := range []string{"", "0", "-1", "1.0", "9223372036854775808", "invalid"} {

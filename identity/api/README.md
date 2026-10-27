@@ -89,6 +89,8 @@ catalog 생성은 add와 모든 추가 권한을 요구한다. 수정·password�
 입력 진단은 JSON Pointer를 사용한다. 모델 오류는 `/fields/...`, credential 오류는 `/credential/...`다.
 Owner의 `PasswordInputDiagnostics`는 직접 반환된 확정 password 거부만 식별하므로 실제 모델의 `password` 필드와
 혼동하지 않는다. 출처는 `validation.RejectionOrigin`의 진단 metadata이고 실행 오류 원인으로 보관하지 않는다.
+전체 host 관계의 PROTECT 거부는 동일한 collector 오류로 롤백이 확정된 뒤 400 `validation_error`와
+`/fields/__all__`의 `protected` 진단으로 전달한다. 보호한 행의 값이나 DB 진단은 응답에 포함하지 않는다.
 Wrapped/joined 오류·rollback/cleanup 실패는 일반 입력 오류로 낮추지 않는다.
 Unknown outcome은 503 `outcome_unknown`이며 Retry-After나 자동 재시도가 없다. 클라이언트가 durable 상태를 확인해야 한다.
 출력과 오류는 완전하게 준비하고 일부 JSON이나 잘린 진단을 성공으로 게시하지 않는다. Cache-Control은 no-store다.

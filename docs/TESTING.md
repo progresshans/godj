@@ -48,12 +48,17 @@ locked project에서 새 process로 관측하며 Go actual·expected를 공통 �
 일반 CI는 dependency/build cache를 재사용할 수 있다. 실제 DB/process 검증은 `-count=1`로 test-result cache를 끄더라도
 다운로드와 compile cache를 재사용한다. Cold build나 private workspace 격리가 검증 대상일 때만 그 경계를 따로 실행한다.
 Credential·사용자 입력·secret을 포함한 임시 workspace는 공유 cache로 저장하지 않는다.
+동일 소스를 다른 디렉터리에서 재현하는 일반 compile에는 `-trimpath`를 사용한다. 소스 경로 자체나 cold/private
+build가 검증 대상이면 그 검사의 원래 조건을 유지한다. 소스·의존성·모델·module version·race/CGO 조건이 다른 결과는
+같은 cache로 간주하지 않는다. OpenAPI SDK는 실제 임시 module 빌드 뒤 원래 경로에서도 여섯 library가 재사용되는지 검사한다.
 
 외부 build가 많은 conformance runner/godjcheck와 명령별 제품 흐름은 순수 core loop에서 분리한다.
 Operator fixture의 module 준비·global build·generated project 검증은 compiler 비용을 포함하는 준비 예산을 사용한다.
 준비 단계별 시작/완료 시간과 timeout·일반 종료 실패·출력 한도를 구분한다. 실제 제품 명령/PTY와 취소·잠금/cleanup
 시나리오의 별도 짧은 제한은 유지하며, 준비 timeout도 소유 process tree를 회수한다.
 Runserver의 readiness 전 준비에는 declaration/runtime 두 readonly 빌드와 생성물 검사가 포함되므로 별도 5분 예산을 둔다.
+인증된 Article의 최초 계정도 첫 입력 prompt 전에 선언·commands runtime을 준비하므로 같은 5분 예산과 Go audit를 사용한다.
+그 뒤의 입력·저장·출력 drain·자손 회수 제한은 별도로 유지한다.
 Go audit는 시작 시각을 기록하고 준비 진단은 고정 phase 이름·명령 시작 수·경과 시간만 표시한다. 시작 기록을 완료로
 간주하지 않으며 private 경로·환경 값·child 출력을 진단에 복사하지 않는다. HTTP·shutdown·자손 회수 제한은 별개다.
 새 프로젝트·고정 module·Notes의 최초 `startproject`도 같은 Go audit를 사용한다. 실패 전에 HTTP runtime이 없더라도
@@ -292,12 +297,15 @@ generated consumer, process product를 나눈다. Framework는 core, process는 
 root도 포함하며 모든 child를 부모와 함께 실행한다. 생성 소비자 중 bulk create/update·query update·
 단일 객체 생성·update-or-create·행 잠금의 전체 root는 core-consumer-writes가 맡는다. Helpdesk의 PostgreSQL 소비자 root는
 core-helpdesk-postgres에서 실행한다. 같은 Go package에 있는 SQLite 소비자와 helper는 core가 맡아
-두 DB 소비자가 하나의 package timeout을 공유하지 않게 한다. Normal과 CGO-disabled는 기존 core 하나를 유지한다.
-세 mode의 core 계열은 총 아홉 coordinate이고 별도 operator-target 세 coordinate는 유지한다.
+두 DB 소비자가 하나의 package timeout을 공유하지 않게 한다. Normal과 CGO-disabled는 framework·native PostgreSQL·process를
+core에 유지하고 generated consumer만 아래 세 owner로 나눈다. Normal의 system-state capture owner도 core로 유지한다.
+세 mode의 core 계열은 총 열여섯 coordinate이고 별도 operator-target 세 coordinate는 유지한다.
 필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속하며 새 child sentinel도 해당 root의 owner를 따른다.
 누락·중복·모호한 package와 빈 partition, 같은 이름의 root가 다른 partition을 재선택하는 경우는 실패다.
 Package별 18분 timeout과 no-skip 검사를 유지하며,
-generated consumer의 core-consumers/core-consumer-writes race는 각각 기존 30분 한도를 사용한다.
+선택 계정의 일곱 HTTP 변형과 첫 계정 소비자 root는 모든 mode의 `core-account-consumers`가 맡는다.
+generated consumer의 core-consumers/core-account-consumers/core-consumer-writes는 모든 mode에서 기존 30분 한도를 사용한다.
+Normal의 해당 Go package vet는 core-consumers에서 한 번 실행한다.
 생성 소비자 자체의 짧은 실행 제한과 필수 하위 검사는 분할 전후 동일하며, 새로운 root는 기본 core-consumers가 맡는다.
 Helpdesk의 같은 DB를 이어 쓰는 소비자는 normal/CGO-disabled 10분, race 15분의 전체 context를 사용한다.
 개별 동시성·취소 검사의 짧은 제한과 PostgreSQL 정리 20초는 별도로 유지한다.

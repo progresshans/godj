@@ -1,6 +1,7 @@
 package consumertest_test
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -24,6 +25,7 @@ import (
 	hostdef "github.com/progresshans/godj/conformance/identityfixture/modeldef"
 	hostmodels "github.com/progresshans/godj/conformance/identityfixture/models"
 	hostproject "github.com/progresshans/godj/conformance/identityfixture/project"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	identityapi "github.com/progresshans/godj/identity/api"
 	"github.com/progresshans/godj/identity/models"
@@ -442,10 +444,10 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 			fields [][]string
 		}{
 			{"user", root.ID, [][]string{{"active"}}},
-			{"user", target.ID, [][]string{{"password"}, {"password"}, {"password"}, {"password"}, {"active"}, {"active"}}},
+			{"user", target.ID, [][]string{{"encoded_password"}, {"encoded_password"}, {"encoded_password"}, {"encoded_password"}, {"active"}, {"active"}}},
 			{"user", protectedUser.ID, nil}, {"group", protectedGroup.ID, nil}, {"permission", protectedPermission.ID, nil},
 		} {
-			history, err := accountaudit.HistoryIn(ctx, backend, namespace, "godj_identity."+expected.model, expected.id, 100)
+			history, err := selectedAuditHistory(ctx, backend, namespace, "godj_identity."+expected.model, expected.id, 100)
 			if expected.model == "user" && expected.id == root.ID && err == nil {
 				if len(history) == 0 || history[0].Action() != admin.ActionAdd || history[0].ActorID() != actor.ID() || history[0].Sequence() != 1 || history[0].Domain().Identifier() != namespace.Identifier() || !slices.Equal(history[0].ChangedFields(), initial.Account.ChangedFields) {
 					t.Fatal("selected first-account audit missing")
@@ -453,7 +455,7 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 				history = history[1:]
 			}
 			if err != nil || len(history) != len(expected.fields) {
-				t.Fatal("identity client audit count differs")
+				t.Fatalf("identity client %s audit count differs: got %d, want %d: %v", expected.model, len(history), len(expected.fields), err)
 			}
 			for index, event := range history {
 				if event.ActorID() != actor.ID() || event.Action() != admin.ActionChange || !slices.Equal(event.ChangedFields(), expected.fields[index]) {
@@ -461,11 +463,11 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 				}
 			}
 		}
-		history, err := accountaudit.HistoryIn(ctx, backend, namespace, "godj_identity.user", created.ID, 100)
+		history, err := selectedAuditHistory(ctx, backend, namespace, "godj_identity.user", created.ID, 100)
 		// The two catalog deletions advance the User revision, but their audit
 		// events belong to the deleted catalog resources, not each affected user.
 		if err != nil || len(history) != 5 {
-			t.Fatalf("created identity audit/no-op inventory differs: got %d events, want 5", len(history))
+			t.Fatalf("created identity audit/no-op inventory differs: got %d events, want 5: %v", len(history), err)
 		}
 		for index, event := range history {
 			action := admin.ActionChange
@@ -480,11 +482,17 @@ func newIdentityConsumerFixtures(t *testing.T) (identityServerInput, identitySer
 			model string
 			id    int64
 		}{{"user", cascadeUser.ID}, {"group", cascadeGroup.ID}, {"permission", cascadePermission.ID}} {
-			history, err := accountaudit.HistoryIn(ctx, backend, namespace, "godj_identity."+deleted.model, deleted.id, 100)
+			history, err := selectedAuditHistory(ctx, backend, namespace, "godj_identity."+deleted.model, deleted.id, 100)
 			if err != nil || len(history) != 1 || history[0].Action() != admin.ActionDelete || history[0].ActorID() != actor.ID() || len(history[0].ChangedFields()) != 0 {
 				t.Fatal("identity host deletion audit differs")
 			}
 		}
 	}
 	return sessionInput, bearerInput, documents, verify
+}
+
+func selectedAuditHistory(ctx context.Context, backend db.SnapshotReader, namespace auth.CredentialDomain, model string, id int64, limit int) ([]accountaudit.Entry, error) {
+	return db.ReadSnapshotResult(ctx, backend, func(work context.Context, scope db.Queryer) ([]accountaudit.Entry, error) {
+		return accountaudit.HistoryIn(work, scope, namespace, model, id, limit)
+	})
 }

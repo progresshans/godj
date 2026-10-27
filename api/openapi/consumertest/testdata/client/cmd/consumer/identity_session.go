@@ -268,7 +268,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 		return fail("selected account history")
 	}
 	for i, event := range events.Response {
-		field := "password"
+		field := "encoded_password"
 		if i >= 4 {
 			field = "active"
 		}

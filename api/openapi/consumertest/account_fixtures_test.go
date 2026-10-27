@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	accountaudit "github.com/progresshans/godj/account/audit"
 	accountdomain "github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
@@ -223,7 +222,7 @@ func newAccountConsumerFixture(t *testing.T) (accountServerInput, []byte, func(*
 		if err != nil || !found || !reflect.DeepEqual(retained, unrelated) {
 			t.Fatal("generated account changed unrelated session", err)
 		}
-		history, err := accountaudit.HistoryIn(ctx, backend, namespace, "godj_identity.user", row.ID, 10)
+		history, err := selectedAuditHistory(ctx, backend, namespace, "godj_identity.user", row.ID, 10)
 		if err != nil || len(history) != 4 {
 			t.Fatal("generated account audit count", err)
 		}
@@ -231,7 +230,7 @@ func newAccountConsumerFixture(t *testing.T) (accountServerInput, []byte, func(*
 			t.Fatal("selected reset fixture creation audit")
 		}
 		for _, event := range history[1:] {
-			if event.ActorID() != principal.ID() || event.Action() != admin.ActionChange || !reflect.DeepEqual(event.ChangedFields(), []string{"password"}) {
+			if event.ActorID() != principal.ID() || event.Action() != admin.ActionChange || !reflect.DeepEqual(event.ChangedFields(), []string{"encoded_password"}) {
 				t.Fatal("generated account audit disclosure")
 			}
 		}

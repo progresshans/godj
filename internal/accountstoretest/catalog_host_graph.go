@@ -1,7 +1,6 @@
 package accountstoretest
 
 import (
-	"errors"
 	"reflect"
 	"testing"
 
@@ -97,8 +96,8 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 			} else {
 				result, err = catalog.Permissions().Delete(t.Context(), actor, permission.ID, 1)
 			}
-			var protected *query.ProtectedForeignKeyError
-			if !errors.As(err, &protected) || protected.ProtectedSourceRows() != 1 || result != (accountmodel.CatalogDeletion{}) {
+			requireProtectedDeletionInput(t, err, 1)
+			if result != (accountmodel.CatalogDeletion{}) {
 				t.Fatal("host protection missing", err)
 			}
 			if got := profileRow(t, reopen(t), f.user.ID); !reflect.DeepEqual(got, before) {

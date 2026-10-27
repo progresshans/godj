@@ -23,6 +23,7 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/validation"
@@ -330,6 +331,11 @@ func TestSelectedManagementFailureKeepsCommandAndModelDiagnosticsDistinct(t *tes
 	}
 	_, password := owner.Creator().Prepare(t.Context(), credential.Principal(), orm.ModelInput[models.User]{}, "")
 	model := validation.Reject(validation.NewErrors(validation.New("password", "model_choice")), nil)
+	protectedCause, err := query.NewProtectedForeignKeyError(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	protected := validation.Reject(validation.NewErrors(validation.New(validation.NonField, "protected")), protectedCause)
 	for _, test := range []struct {
 		name    string
 		failure error
@@ -338,6 +344,7 @@ func TestSelectedManagementFailureKeepsCommandAndModelDiagnosticsDistinct(t *tes
 	}{
 		{"password", password, "/credential/password", 400},
 		{"profile_password", model, "/fields/password", 400},
+		{"protected_relation", protected, "/fields/__all__", 400},
 		{"permission", &accountmodel.Error{Code: accountmodel.CodePermission}, "", 403},
 		{"missing", &accountmodel.Error{Code: accountmodel.CodeNotFound}, "", 404},
 		{"conflict", &accountmodel.Error{Code: accountmodel.CodeConflict}, "", 412},
@@ -357,7 +364,7 @@ func TestSelectedManagementFailureKeepsCommandAndModelDiagnosticsDistinct(t *tes
 			}
 		})
 	}
-	for _, failure := range []error{errors.Join(model), errors.Join(password, context.Canceled), fmt.Errorf("private: %w", &accountmodel.Error{Code: accountmodel.CodePermission}), &accountmodel.Error{Code: accountmodel.CodePersistence}} {
+	for _, failure := range []error{errors.Join(model), errors.Join(password, context.Canceled), errors.Join(protected, context.Canceled), protectedCause, fmt.Errorf("private: %w", &accountmodel.Error{Code: accountmodel.CodePermission}), &accountmodel.Error{Code: accountmodel.CodePersistence}} {
 		if response, err := selectedFailure(failure); err != failure || response.Status() != 0 {
 			t.Fatal("execution failure classified as input", err)
 		}

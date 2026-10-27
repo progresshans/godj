@@ -232,10 +232,7 @@ func collectionLifecycle(t *testing.T, backend Backend, reopen func(*testing.T) 
 				t.Fatal("composed candidate lost its validation failure", err)
 			}
 		case "protected":
-			var protected *query.ProtectedForeignKeyError
-			if !errors.As(err, &protected) || protected.ProtectedSourceRows() != 1 {
-				t.Fatal("collection PROTECT was lost", err)
-			}
+			requireProtectedDeletionInput(t, err, 1)
 		default:
 			code := accountmodel.CodePersistence
 			if mode == "root_deleted" {

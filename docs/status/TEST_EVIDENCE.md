@@ -1934,6 +1934,60 @@ push 뒤 전체 원격 CI에서 확인한다. 생성·compile을 본문 실행�
 `121892101688`의 원본과 Git 객체는 `gdj0138-646c5726-ci-40413979065/`에 보존했다. 그 부분 성공을 이 새 소비자나 I1 전체
 수용으로 전이하지 않는다. 남은 고정 소비자·프로필 관계/파일·채운 DB 전환과 환경별 검증은 활성 work에 유지한다.
 
+### 선택 계정 SDK 실패 수정·CI 분할과 compile cache 재사용
+
+2026-10-27, source `79b0b52a87e47f0191914f3a5d09ce4ae0ac63f2`의
+[CI 40417732116](https://github.com/progresshans/godj/actions/runs/40417732116) 실제 checkout은
+`52c9104861ffba49622dd738d15d48adb2a4793f`, tree는 `98cf47416ba214bf799ccef649fe9ff58e335186`으로 source와 같다.
+Portable normal/race/CGO=0의 SDK root는 선택 password 역할의 감사 필드를 legacy `password`로 기대하여 실패했다.
+정확한 source archive에서 같은 실패를 재현하고 기대값을 실제 `encoded_password`로 고쳤다. 뒤 단계에서 확인한
+PROTECT의 실행 오류 오분류, 부모 fixture의 borrowed scope 없는 감사 조회와 생성 decoder의 범위 오류 기대값도 수정했다.
+
+관리 owner는 유효한 concrete PROTECT 오류를 native transaction이 그대로 반환하여 롤백을 확인한 경우에만
+값 없는 `protected` 입력 진단으로 바꾼다. Callback 외부 오류·다른 인스턴스·wrapped/joined·cleanup·취소·zero/nil·
+query code만 같은 오류와 unknown 결과는 실행 실패로 유지한다. 단위 부정 검사와 실제 양 DB 삭제·catalog·collection의
+보존 검사를 연결했다. 새 root/child 13개와 API의 PROTECT child를 Relation 필수 목록에 추가하여 **4,478개**로 늘렸다.
+
+진행 중인 Helpdesk 변경을 제외한 archive에 선별 수정만 적용한 로컬 darwin/arm64 normal에서 실제 SDK root가
+9.82초에 통과했다(compile을 포함한 명령 46.85초). 실제 HTTP/CSRF·현재 인가·22개 경로·host 관계·session 폐기·wire와
+최종 native 계정/관계/domain/audit 대조를 모두 마쳤으며 skip은 없다. PROTECT 분류 및 API 진단 단위도 통과했다.
+이 SDK 실행은 뒤에 추가한 cache 재사용 검사 이전 source이며, 새 source의 전체 원격 성공으로 계산하지 않는다.
+
+원격 PostgreSQL race의 생성 read consumer는 계정 일곱 변형 root 543.40초와 최초 계정 root 616.18초를 통과한 뒤
+package의 누적 30분 한도에서 종료됐다. Normal core도 원본 artifact에서 생성 consumer package의 30분 실패를 확인했다.
+이후 process 검사를 진행하던 전체 작업이 60분에 취소되어 capture·필수 실행 완료를 게시하지 못했다.
+세 mode 모두 생성 소비자를 read·선택 계정·write의 전체 root 단위로 나눴다. Normal/CGO=0의 framework·native PostgreSQL·
+process는 core에, normal capture 생산도 기존 core에 남긴다. 해당 consumer package의 normal vet는 read owner에서 한 번 실행한다.
+PostgreSQL 필수 **5,559개**는 줄이지 않았으며 모든 child가 mode마다 정확히 한 owner에 속한다. Package 한도와 no-skip
+검사도 유지한다. 실제 shell 분기·capture/vet owner를 포함한 Python 28개 및 Relation 분할 11개 검사가 통과했다.
+
+macOS Intel race의 인증된 Article root는 최초 계정의 첫 prompt 전 2분 준비 제한에서 실패했다.
+선언·commands runtime 빌드와 bundle 검사가 끝나기 전 단계이므로 기존 5분 준비 예산과 실제 Go phase 진단을 연결했다.
+후속 입력·저장·drain·자손 회수 제한은 유지한다. 변경 package의 최소 compile만 로컬에서 확인했고 실제 Intel race는 원격 대상이다.
+추가 native fixture의 최소 compile은 종료 1과 빈 로그로 실패했다. 이후 극심한 디스크 부족을 확인했지만 이 명령의 원인은
+확정하지 않았으며 PASS로 계산하지 않는다. 새 native 본문과 전체 환경은 다음 CI에서 확인한다.
+
+사용자의 용량 조사 요청에 따라 캐시 내용과 실제 Go cache key를 확인했다. 초기 source 경로 분류를 객체의 package-init
+심볼로 세분화하면 1MiB 이상 GoDj 아카이브 1,155개가 63.013GiB, 그중 `identity/project` 84개가 10.756GiB였다.
+SDK source/lock 14개와 계정 프로젝트의 선택된 GoDj 의존 입력 557개가 각각 두 경로에서 byte-identical이어도,
+`-trimpath` 없이는 cache key가 달랐고 적용하면 같았다. 계정 프로젝트의 한 경로에는 실제 132.17MiB 캐시가 있었지만
+다른 경로는 재사용하지 못했다. 이 조사는 `go list`의 staleness/hash로 수행하여 컴파일하지 않았다.
+
+임시 SDK module build에 누락된 `-trimpath`를 추가하고, 빌드 뒤 원래 경로의 여섯 library가 모두 cache hit인지 검사한다.
+별도 빈 임시 cache에서 해당 여섯 library를 한 번 실제 빌드한 뒤 다른 경로에서 모두 재사용됨을 확인했다. 옵션을 뺀
+부정 조회에서는 모두 재빌드 대상이었다. 원본 73개 파일은 동일했고 사용한 임시 cache 183.10MiB는 검사 뒤 제거했다.
+같은 source의 불필요한 경로 차이와 실제 source·의존성·mode/version 변경을 구분한다. 모든 과거 cache를 불필요한 중복으로
+판정하지 않으며 큰 생성 package의 compile 비용 자체를 해결한 것으로 계산하지 않는다.
+
+사용자의 명시적 정리 요청 후 실행 중인 Go build/test가 없음을 확인하고 공식 `go clean -cache`로 공유 build cache를
+정리했다. APFS 실제 여유는 0.258GiB에서 90.419GiB로 늘었다. 변경 파일 56개의 hash와 module cache 크기는 그대로였다.
+검증 원본·프로젝트 데이터는 보존했다. Cache 재사용 검증은 한정된 native 실험이며 새 부모 root·모든 mode의 실행은 원격 대상이다.
+
+검증 보관소 `gdj0138-ci79-sdk-audit-v1/receipt.json`은 선별 source 17개 hash/patch, 실행한 archive source,
+전후 원본·CI artifact와 cache 조사/정리/재사용 receipt를 연결한다
+(SHA-256 `09125d823fb5485898e2b2326024e4166064a5ad5250ed0f55d7584f34bf075a`).
+새 source의 전체 DB·race/CGO0·process/platform·generated drift와 I1-01~08 수용은 계속 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
