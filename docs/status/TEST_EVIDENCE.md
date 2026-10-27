@@ -2010,6 +2010,23 @@ SDK source/lock 14개와 계정 프로젝트의 선택된 GoDj 의존 입력 557
 (SHA-256 `f2b742dbbc5fe9ff56e6dbb94e95dee92a767e668d408588705d0c1c44433d71`).
 이 source의 양 DB·race/CGO0·전체 platform/generated drift 및 I1 수용은 자동 전체 원격 CI에서 확인해야 한다.
 
+`6709e243c0813126826ffd160d3213cc9378ebbd`의
+[CI 40441637241](https://github.com/progresshans/godj/actions/runs/40441637241)에서 PostgreSQL 생성 read 소비자의
+normal/race/CGO0가 같은 두 fixture 오류로 실패했다. 세 job의 실제 checkout은
+`c01f0efe943e7252fe425768e69be3fbaa2af947`, tree는 제출 source와 같은
+`91e92c828473015c30675fdca256f4bdfcb06616`이다. 각 job의 SQLite/PostgreSQL `read_scope` 중
+`reads_and_lifetime`과 `cancel_and_cleanup`은 통과했고, admission과 최종 저장값 대조가 실패했다.
+
+`db.Atomic` embedded field가 같은 이름의 메서드를 가려 부정 fixture가 실제 `db.Atomic`을 구현하지 않았다.
+명시적 위임 메서드와 compile-time interface 검사를 넣었다. 저장값 대조의 raw `First`에는 필수 정렬을 추가했다.
+제품 runtime·생성기·생성물과 거부 조건은 바꾸지 않았다. 동일한 생성 소비자로 로컬 darwin/arm64 normal의 두 실패를
+재현한 뒤 수정한 `TestCollectionFacadeSessions/sqlite/read_scope`의 네 child가 모두 통과했다(명령 7.76초, subtree 0.01초,
+skip 0). 실제 참조한 framework 입력 470개는 제출 source와 byte-identical이고 진행 중인 Helpdesk를 import하지 않는다.
+
+전후 원본·세 원격 job 원본과 source 결합은 같은 보관소의 `ci-repair.json`에 둔다
+(SHA-256 `f69cc8e0c935f91f48b8c560b98837cfe99c11b461ce7447ecec10678f395c93`).
+수정 뒤 PostgreSQL·race/CGO0와 전체 환경은 새 자동 CI에서 확인하며, 한정 SQLite 재현을 전체 PASS로 계산하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

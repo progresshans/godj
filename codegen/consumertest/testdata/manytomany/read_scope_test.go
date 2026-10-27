@@ -37,8 +37,15 @@ type nestedReadScope struct {
 
 type atomicReadScope struct {
 	*observedReadScope
-	db.Atomic
+	owner db.Atomic
 }
+
+func (scope atomicReadScope) Atomic(ctx context.Context, run func(db.Session) error) error {
+	return scope.owner.Atomic(ctx, run)
+}
+
+var _ db.Atomic = atomicReadScope{}
+var _ db.SnapshotReader = nestedReadScope{}
 
 type failedReadCleanup struct {
 	db.SnapshotReader
@@ -300,7 +307,7 @@ func runFacadeReadScope(t *testing.T, backend collectionBackend, owner owners.Ow
 			}
 			return nil
 		}))
-		actual, found, err := owners.OwnerObjects.Using(backend).Filter(owners.OwnerFields.ID.Exact(owner.ID)).First(ctx)
+		actual, found, err := owners.OwnerObjects.Using(backend).Filter(owners.OwnerFields.ID.Exact(owner.ID)).OrderBy(owners.OwnerFields.ID.Asc()).First(ctx)
 		check(t, err)
 		if !found || actual.Name != owner.Name {
 			t.Fatal("read-only work changed stored owner")
