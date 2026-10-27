@@ -2174,6 +2174,56 @@ owner로 분할했다. 35분 test·45분 job 한도, runtime 한 owner, 필수 c
 새 관계 프로필과 SDK 기한 변경의 전체 PostgreSQL·race/CGO0·generated drift·process/browser/platform 수용은
 새 source의 자동 원격 CI에서 확인한다. I1과 전체 카탈로그는 미완료다.
 
+### 프로필 파일 편집과 게시/DB 결과의 분리
+
+2026-10-27, source `5ef4c0e31972eba127c9113ef984f5caa0dfb724` 위에 선택 계정의 파일 편집을 작성했다.
+`ProfileFile[M]`은 실제 account source와 명시적 backend/이름 정책을 묶는다. `UpdateForm`은 현재 인가·대상·revision을
+확인한 read scope를 닫고 파일을 게시한 뒤, 실제 반환 이름과 이미지 크기를 기존 native 편집 owner에 전달한다.
+최종 권한/revision·관계 효과·unique/validator·session·audit를 재검사하며 파일별 결과는 DB 실패/unknown에도 보존한다.
+파일 생성/첫 명령은 이 변경에 포함하지 않고 기존 구성 오류를 유지한다. 자동 파일 삭제·재시도·업로드 수명 연장은 없다.
+
+공통 Admin은 업로드를 받는 편집에 결과 보관 callback을 요구하고, 이미지 소유 크기를 서버 값으로 처리한다.
+관리 JSON은 저장 이름/크기의 읽기 전용 투영과 입력 거부를 유지한다. `PreparedInstance.ModelInput()`은 pending upload를
+거부하고 해결된 실제 이름·선택 presence·collection·target/source를 보존하며 제외 필드나 command 입력을 쓰기 값으로 만들지 않는다.
+
+기본/custom 두 실제 생성 앱에 nullable unique File·두 번째 파일·Image/크기·Image choices를 선언했다.
+필수 child는 구성/source·typed BindView·실제 TCP multipart/CSRF·collision/요청 수명·keep/clear·이미지 선택·JSON,
+파일+비활성화/session·게시 뒤 권한/revision 회수·0/음수 key·동시 revision과 native 재접속/runtime 재조립을 포함한다.
+15개 실패 child는 저장 전 거부, 부분/확정/불확실 게시, 실제 이름의 unique, validator/audit/cleanup/unknown와 취소·보고 실패를
+전체 계정·소속·catalog·domain·session·audit snapshot 및 실제 파일 bytes로 대조한다. 재조립을 별도 OS process restart로
+계산하지 않는다. 새 본문은 로컬 실행하지 않았으며 원격 필수 목록에 연결한 상태다.
+
+로컬 darwin/arm64 Go 1.26.5에서 실제 두 module의 생성과 compile-only child를 확인했다(마지막 명령 14.23초).
+처음 임시 driver가 fixture module에 잘못 지정한 `-mod=readonly`로 실패했고, 실제 consumer와 같은 `generatedGoCommand`의
+`-mod=mod -run '^$'`로 고쳤다. Root 저장소의 dependency 정책을 바꾸지 않았고 driver는 별도 보관 후 제거했다.
+최종 변경 입력 21개의 hash를 고정한 여덟 영향 package의 `go test -trimpath -mod=readonly -run '^$'`도 통과했다
+(512.51초). 생성 프로젝트 재컴파일 시간을 포함하며 기능 실행이나 성능 개선 측정이 아니다.
+
+실제 consumer binary의 `-list`로 113개 root를 확인했다. 12개 platform/mode 분할 계획에서 모든 root와 Relation 필수
+4,503개가 한 번씩 배정되고 runtime owner가 하나인지 대조했다. PostgreSQL 필수 5,637개도 세 mode에서 각각 한 번씩
+배정되며 새 파일 root는 account-consumer owner에 속한다. Portable core 258개와 기존 필수 항목은 유지했다.
+이 검사는 discovery/소유권 계획 검사이며 DB/race/CGO0 테스트 본문의 실행 성공이 아니다. 244개 문서의 로컬 링크,
+gofmt·diff·Python syntax와 필수 목록 중복 검사를 확인했다.
+
+선행 [CI 40461483475](https://github.com/progresshans/godj/actions/runs/40461483475)의 race integration
+job `122047389659`는 SDK의 deadline-preview 검사에서 공유 Helpdesk flow 기한 초과로 실패했다(root 268.84초).
+실제 checkout `939427ce3a812c0e6907f80e4eb2858fab02594d`은 제출 tree
+`f59e482656fb6686c407ed6810f026d2ea3db22e`와 같다. 같은 job의 Helpdesk package 1,111.47초 성공은 job/전체 CI 성공이 아니다.
+원본 전체 로그의 SHA-256은 `b647744b34ddc9cb3abc9e1e943752e7781d292fdb6c60e39d4265f337e259b9`다.
+
+SDK의 Helpdesk는 서로 다른 27개 scalar/collection/report/preview 검사를 하나의 2분 flow로 감싸고 있었다.
+각 프로토콜에 같은 normal 45초/race 2분 제한을 적용했다. 유한 초기/최종 요청은 요청별/전체 기한을 따르며,
+HTTP 10초·전체 child 5분/10분·부모 생성/실행 기한, 원본 fixture 복원과 모든 필수 receipt/독립 DB 대조는 유지했다.
+정확한 `5ef4c0e3` export의 해당 SDK root만 로컬 race로 실행한 결과 수정 전 55.09초, harness 두 파일만 변경한 뒤
+54.17초에 통과했다. CI 시간 초과는 로컬에서 재현되지 않았고 두 수치를 성능 개선으로 해석하지 않는다.
+다른 모든 export의 추적 파일이 그대로임을 대조했으며 이 재실행에 새 파일 편집 제품 코드는 포함되지 않는다.
+
+현재 변경 29개 파일, 원본 CI 로그·source export 차이·SDK 전후·외부/최종 compile 및 실행 소유권 계획의 hash는
+검증 보관소 `gdj0138-profile-files-v1/receipt-final.json`에 둔다
+(SHA-256 `850765361ab7f3c7fae3a260e97133ef8c9827e89780132f80d3c68cfb7f1ea7`).
+새 파일 DB/HTTP·PostgreSQL·race/CGO0·generated drift·process/browser/platform과 독립 기준의 전체 수용은
+새 source의 자동 원격 CI에서 확인한다. I1과 전체 카탈로그는 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

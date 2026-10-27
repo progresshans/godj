@@ -28,8 +28,11 @@ type AccountPermissions struct {
 // Validators and the clock must be pure; all callbacks must be safe for
 // concurrent calls. PrincipalID supplies server identity before the write.
 type AccountManagementConfig[M any] struct {
-	ReadFields, CreateFields, EditFields    []string
-	Relations                               []ProfileRelation[M]
+	ReadFields, CreateFields, EditFields []string
+	Relations                            []ProfileRelation[M]
+	// Files configures EditFields. File-bearing account creation and first
+	// provisioning retain their separate, currently unsupported input lifetime.
+	Files                                   []ProfileFile[M]
 	Permissions                             AccountPermissions
 	GroupPermissions, PermissionPermissions DeletionPermissions
 	ValidateCreate                          CreationValidator[M]
@@ -78,6 +81,10 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 	if err != nil {
 		return nil, err
 	}
+	files, _, err := prepareProfileFiles(expected, config.EditFields, config.Files)
+	if err != nil {
+		return nil, err
+	}
 	reader, err := NewProfileReader(store, overlay, ProfileReadConfig{
 		Fields: config.ReadFields, ViewPermission: policy.View, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 	})
@@ -94,7 +101,7 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 	}
 	account := DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}
 	editor, err := NewAccountEditor(sessions, expected, memberships, grants, overlay, AccountEditConfig[M]{
-		Fields: config.EditFields, Relations: selectProfileRelations(relations, config.EditFields), ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
+		Fields: config.EditFields, Relations: selectProfileRelations(relations, config.EditFields), Files: files, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 		RelatedPermissions: RelatedRowPermissions{Account: account, Group: config.GroupPermissions, Permission: config.PermissionPermissions},
 		Validate:           config.ValidateEdit, Now: config.Now,
 	})

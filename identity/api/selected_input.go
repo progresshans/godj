@@ -28,6 +28,9 @@ func selectedModelFields(model ir.Model, names []string, readOnly bool) []serial
 				continue
 			}
 			field.Optional = scalar.Blank || scalar.Nullable
+			if scalar.Kind.IsFile() {
+				field.ReadOnly, field.AllowEmpty = true, true
+			}
 			switch scalar.Kind {
 			case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldText:
 				field.AllowEmpty = readOnly || scalar.Blank

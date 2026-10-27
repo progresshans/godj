@@ -35,8 +35,8 @@ GDJ-0137은 project/app scaffold·불변 설정과 앱 수명·사용자 command
 SQLite/PostgreSQL·고정 module 설치·cold/race·독립 Django 관측·브라우저 원본을 대조해 C1-01~08을 완료했다.
 운영 topology·향후 릴리스 upgrade 정책은 O1, Web/static/media 확장은 C2, durable event 전달은 R2에 남는다.
 I1 구현은 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 계속 모은다. 선택 계정 역할·domain·typed 관리·
-Admin/JSON·password/reset·공개 CLI·Article/scaffold와 Helpdesk 조립, 명시적 FK/OneToOne 프로필 정책을 작성했으며,
-채운 DB 전환·프로필 파일/추가 M2M·선택 모델-as-through의 identity 생성·
+Admin/JSON·password/reset·공개 CLI·Article/scaffold와 Helpdesk 조립, 명시적 FK/OneToOne 정책과 프로필 파일 편집을 작성했으며,
+채운 DB 전환·파일을 포함한 계정 생성/첫 명령·추가 M2M·선택 모델-as-through의 identity 생성·
 남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
 필수 목록에 연결했고 독립 OpenAPI 관리·자기 계정 소비자도 선택 runtime으로 전환했다. 새 본문의 원격 확인이 필요하다.
 C1의 성공을 사용자 정의 계정 지원의 완료로 사용하지 않는다.

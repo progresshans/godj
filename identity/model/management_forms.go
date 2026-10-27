@@ -27,6 +27,7 @@ func (management *AccountManagement[M]) FormDefinition(action admin.Action) (for
 	case admin.ActionAdd:
 		fields = state.creator.Fields()
 	case admin.ActionChange:
+		return state.editor.FormDefinition()
 	default:
 		return formmodel.Definition{}, managementError(CodeInvalidInput, nil)
 	}

@@ -14,6 +14,10 @@ import (
 // checks; their raw byte envelopes run before normalization. It performs no
 // I/O or callback evaluation and does not grant authority to save these fields.
 func (binding Binding[M]) FormDefinition(fields []string) (formmodel.Definition, error) {
+	return binding.formDefinition(fields, nil)
+}
+
+func (binding Binding[M]) formDefinition(fields []string, overrides []formmodel.Override) (formmodel.Definition, error) {
 	if binding.state == nil {
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
@@ -22,7 +26,7 @@ func (binding Binding[M]) FormDefinition(fields []string) (formmodel.Definition,
 		return formmodel.Definition{}, err
 	}
 	role := binding.state.role
-	definition := formmodel.Definition{Fields: slices.Clone(fields)}
+	definition := formmodel.Definition{Fields: slices.Clone(fields), Overrides: slices.Clone(overrides)}
 	for _, name := range fields {
 		_, maximum := accountStringInputPolicy(role, name)
 		if maximum == 0 {

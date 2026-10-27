@@ -4496,3 +4496,8 @@ github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileRel
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/profile_relations/failures/invalid_predicate_null
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/profile_relations/failures/label_error
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/profile_relations/failures/canceled_policy
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/default
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/default/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/custom
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileFiles/custom/sqlite

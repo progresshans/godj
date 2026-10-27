@@ -2,6 +2,7 @@ package identityadmin
 
 import (
 	"context"
+	"errors"
 	"slices"
 
 	"github.com/progresshans/godj/admin"
@@ -22,6 +23,13 @@ import (
 type AccountRegistration struct {
 	Slug       string
 	ListFields []string
+	// ReportFileEdit is required when the edit owner accepts uploads. It
+	// receives every attempted publication and the final account outcome before
+	// HTTP error mapping can discard either. The application owns retention and
+	// reconciliation; this callback does not authorize deletion or retry. It
+	// runs outside every DB scope, including on a canceled request, and must be
+	// safe for concurrent calls. A reporting error remains an execution error.
+	ReportFileEdit func(context.Context, AccountFileEditReport) error
 }
 
 // RegisterAccount binds the actual selected account and all lifecycle owners
@@ -52,6 +60,15 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return &admin.ConfigError{Path: "account.list_fields", Code: "not_readable_scalar"}
 		}
 	}
+	dimensions, err := ir.ImageDimensionOwners(metadata)
+	if err != nil {
+		return err
+	}
+	for dimension, owner := range dimensions {
+		if (slices.Contains(editor.Fields(), owner) || slices.Contains(list, owner)) && !slices.Contains(reader.ListFields(), dimension) {
+			return &admin.ConfigError{Path: "account.read_fields", Code: "missing_image_dimension"}
+		}
+	}
 	change, err := management.FormDefinition(admin.ActionChange)
 	if err != nil {
 		return err
@@ -59,6 +76,11 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 	changeSpec, err := change.Spec(metadata)
 	if err != nil {
 		return err
+	}
+	for _, field := range changeSpec.Fields() {
+		if field.AcceptsUpload() && presentation.ReportFileEdit == nil {
+			return &admin.ConfigError{Path: "account.files", Code: "missing_reporter"}
+		}
 	}
 	creation, err := management.FormDefinition(admin.ActionAdd)
 	if err != nil {
@@ -141,7 +163,27 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return admin.NewObject(row.ID(), label, values)
 		},
 		Initial: func(row accountmodel.Profile[M]) (map[string]forms.Value, error) {
-			return formmodel.InitialView(objects, changeSpec, row.View())
+			initial, err := formmodel.InitialView(objects, changeSpec, row.View())
+			if err != nil {
+				return nil, err
+			}
+			for dimension, owner := range dimensions {
+				if !slices.Contains(change.Fields, owner) {
+					continue
+				}
+				value, present := row.View().Get(dimension)
+				if !present {
+					return nil, &admin.ConfigError{Path: "account.initial", Code: "missing_image_dimension"}
+				}
+				if value.IsNull() {
+					initial[dimension] = forms.Null()
+				} else if integer, valid := value.Integer(); valid {
+					initial[dimension] = forms.Integer(integer)
+				} else {
+					return nil, &admin.ConfigError{Path: "account.initial", Code: "invalid_image_dimension"}
+				}
+			}
+			return initial, nil
 		},
 		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
 			return operationError(management.CheckCreateForm(ctx, actor, bound))
@@ -180,11 +222,13 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, selectedPasswordInputError(err, passwords.confirm)
 		},
 		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
-			input, err := formmodel.PrepareInput(objects, bound)
-			if err != nil {
-				return admin.MutationResult{}, nil, err
+			result, publications, err := editor.UpdateForm(ctx, actor, mutation.ID, mutation.Revision, bound)
+			if len(publications) != 0 {
+				report := newAccountFileEditReport(mutation.ID, result, publications, err)
+				if reported := presentation.ReportFileEdit(ctx, report); reported != nil {
+					err = errors.Join(err, reported)
+				}
 			}
-			result, err := editor.Update(ctx, actor, mutation.ID, mutation.Revision, input)
 			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, result.ChangedFields, operationError(err)
 		},
 		Delete: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation) (admin.MutationResult, error) {

@@ -64,8 +64,8 @@ login/인증/email의 명시적 정규화 정책을 같은 역할 fingerprint에
 
 공통 `ProfileEditor[M]`와 생성 팩토리는 명시한 profile 필드의 Form/JSON 입력을 받아 현재 권한·target revision·
 typed unique 검증·강제 update·audit를 같은 native coordinated transaction에서 처리한다. 실제 변경만 revision과
-감사를 추가하고 no-op도 현재 권한·대상 무결성을 확인한다. Credential·서버 시각·role·collection·파일 입력은 거부한다.
-FK/OneToOne은 아래의 명시적 선택 정책 확장을 따른다.
+감사를 추가하고 no-op도 현재 권한·대상 무결성을 확인한다. Credential·서버 시각·role·collection 입력은 거부한다.
+FK/OneToOne과 파일 편집은 아래의 명시적 정책 확장을 따른다.
 기본/사용자 정의 외부 소비자는 ModelForm과 API body binding으로 실제 typed 입력을 준비한다.
 
 독립 `godj_account_audit` 앱과 초기 migration은 기본 User 없이 domain별 감사 기록을 저장한다. 현재 actor를 사용한
@@ -386,7 +386,14 @@ DB 획득 전이며 최종 선택 허가는 typed owner에 있다. 두 독립 �
 Admin/JSON·재조립 소비자, 양 DB native 실패·signed key 검사를 추가했다. 작성/최소 compile과 본문 실행은
 TEST_EVIDENCE에서 구분하며 새 source의 원격 수용은 확인 대상이다.
 
-프로필 파일·추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
+`ProfileFile[M]`과 `UpdateForm`으로 선택 계정 파일 편집을 연결했다. 저장 전 현재 인가/대상/revision을 읽고 scope를 닫은 뒤
+명시적 storage로 게시한다. 실제 이름·검증한 이미지 크기·scalar/role/collection은 최종 native owner의 재검사와 함께
+저장한다. 부분/불확실 게시나 DB 실패 뒤 파일별 결과를 보존하고 자동 삭제·재시도를 하지 않는다. Admin은 결과 보관 callback을
+요구하며 JSON은 파일 참조·크기의 read-only 투영을 유지한다. 기본/custom의 독립 생성 소비자에 실제 multipart·이미지 선택,
+세션 폐기·signed key·경합·권한 회수·unique/audit/cleanup/unknown과 DB 재접속 검사를 작성했다.
+작성·최소 compile과 새 본문/환경별 실행은 TEST_EVIDENCE에서 구분한다.
+
+파일을 포함한 계정 생성/첫 명령·추가 M2M과 남은 고정 Directory/Manager 소비자 교체, 선택 모델-as-through의 identity 생성,
 채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

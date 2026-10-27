@@ -466,7 +466,7 @@ choices가 없는 IR에서는 multipart FileField와 clearable widget을 투영�
 최종 DB unique 제약을 항상 유지한다. Scalar `PostClean.Fields`로 파일 이름을 변경하지 않고 아래 `Name`에서 결정한다.
 
 `InstanceForm.Prepare()`와 `PreparedSetRow.Prepared()`는 파일을 읽거나 저장하지 않는다. `PendingFiles()`가 비어 있지
-않으면 `Model()`, `Save()`, `SaveCollections()`는 `upload_pending` 오류를 반환한다. 요청 수명 안에서 먼저 처리한다.
+않으면 `Model()`, `ModelInput()`, `Save()`, `SaveCollections()`는 `upload_pending` 오류를 반환한다. 요청 수명 안에서 먼저 처리한다.
 
 ```go
 resolved, publications, err := prepared.SaveFiles(ctx, formmodel.FileSaver[models.Document]{
@@ -492,6 +492,11 @@ err = backend.AtomicRelation(ctx, func(tx db.RelationSession) error {
 이름을 먼저 확인한 뒤 IR 순서로 저장한다. Backend가 반환한 이름과 크기, 모델 이름 길이 제약을 검사하며 그 실제 이름으로
 모델을 준비한다. `SaveFiles`는 원래 준비나 제출을 바꾸지 않는다. 같은 준비를 다시 저장하면 별도 파일이 생길 수 있으므로
 에러 뒤 무조건 재호출하지 않는다. 파일이 만료된 요청 이후에는 그 capability로 저장할 수 없다.
+
+최종 저장을 별도의 현재 인가 owner에 맡길 때는 `resolved.ModelInput()`으로 실제 저장 이름을 가진 typed 입력을
+전달한다. 원래 선택한 scalar의 존재·이미지에서 파생한 크기·collection 의도·target key와 완전한 model source를
+유지하고, 제외한 필드나 command 입력을 쓰기 값으로 바꾸지 않는다. Owner는 fresh row에 이 입력을 다시 적용하고
+현재 권한·revision·unique와 최종 DB 결과를 확인한다. 이 입력을 전달해도 `publications` 보관 책임은 사라지지 않는다.
 
 `FilePublication.Field()/Info()/Err()/Outcome()`으로 부분 실패를 확인한다. 새 파일 게시 후 DB rollback이 되면 DB의 이전
 참조와 새 파일이 각각 남을 수 있다. Clear·모델 삭제·교체 역시 이전 파일을 자동 삭제하지 않는다. 이름은 공유될 수 있고

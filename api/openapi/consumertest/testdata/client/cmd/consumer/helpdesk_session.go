@@ -64,10 +64,14 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if created.ExternalReference.Null || created.ExternalReference.Value != reference || string(created.ExternalPayload) != `{"":340282366920938463463374607431768211455}` {
 		return fail("helpdesk UUID create value")
 	}
-	if err := checkHelpdeskUniqueness(ctx, client, transport, state, seed, *created, target.OtherTicketID); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskUniqueness(work, client, transport, state, seed, *created, target.OtherTicketID)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskJSONSearch(ctx, client, transport, state, *created); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskJSONSearch(work, client, transport, state, *created)
+	}); err != nil {
 		return err
 	}
 	expected := []hs.Ticket{seed, *created}
@@ -150,43 +154,61 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if err := requireHelpdeskTickets(ctx, client, transport, state, expected...); err != nil {
 		return err
 	}
-	updated, err := checkHelpdeskNullableUpdates(ctx, client, transport, state, *created, target.OtherTicketID)
+	updated, err := runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskNullableUpdates(work, client, transport, state, *created, target.OtherTicketID)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskCalendarDateUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskCalendarDateUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskClockTimeUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskClockTimeUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskDurationUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskDurationUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskFloatUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskFloatUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskDecimalUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskDecimalUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskUUIDUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskUUIDUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskURLUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskURLUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	updated, err = checkHelpdeskJSONUpdates(ctx, client, transport, updated)
+	updated, err = runConsumerValue(ctx, func(work context.Context) (hs.Ticket, error) {
+		return checkHelpdeskJSONUpdates(work, client, transport, updated)
+	})
 	if err != nil {
 		return err
 	}
-	if err := checkHelpdeskBinaryDigest(ctx, client, transport, updated); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error { return checkHelpdeskBinaryDigest(work, client, transport, updated) }); err != nil {
 		return err
 	}
 	expected[1] = updated
@@ -217,16 +239,24 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 	if value, ok := putDenied.(*hs.HelpdeskTicketUpdateForbidden); err != nil || !ok || value.Code != "permission_denied" {
 		return fail("helpdesk read-only put permission before input validation")
 	}
-	if err := checkHelpdeskServiceReports(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, seed, created.ID, target.OtherTicketID); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskServiceReports(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, seed, created.ID, target.OtherTicketID)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskLabels(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, target.OtherLabelID); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskLabels(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, target.OtherLabelID)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskTicketLabels(ctx, client, readOnly, transport, state, readOnlyState, seed.ID, created.ID, target.OtherTicketID, target.OtherLabelID, target.OtherTicketLabelID); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskTicketLabels(work, client, readOnly, transport, state, readOnlyState, seed.ID, created.ID, target.OtherTicketID, target.OtherLabelID, target.OtherTicketLabelID)
+	}); err != nil {
 		return err
 	}
-	retainedLabel, err := checkHelpdeskTicketCollections(ctx, client, readOnly, transport, state, created.ID, target.OtherTicketID, target.OtherLabelID)
+	retainedLabel, err := runConsumerValue(ctx, func(work context.Context) (int64, error) {
+		return checkHelpdeskTicketCollections(work, client, readOnly, transport, state, created.ID, target.OtherTicketID, target.OtherLabelID)
+	})
 	if err != nil {
 		return err
 	}
@@ -235,42 +265,64 @@ func checkHelpdeskSession(ctx context.Context, target endpoint) error {
 			expected[index].Labels = []int64{retainedLabel}
 		}
 	}
-	if err := checkHelpdeskReportSave(ctx, client, readOnly, transport, state, seed.ID, target.OtherTicketID); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskReportSave(work, client, readOnly, transport, state, seed.ID, target.OtherTicketID)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskServicePreview(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskServicePreview(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskZonedDeadlineCalendar(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskZonedDeadlineCalendar(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected)
+	}); err != nil {
 		return err
 	}
-	bulk, err := checkHelpdeskBulkTickets(ctx, client, readOnly, transport, state, target.CategoryID, retainedLabel, target.OtherLabelID, updated.ExternalReference.Value)
+	bulk, err := runConsumerValue(ctx, func(work context.Context) ([]hs.Ticket, error) {
+		return checkHelpdeskBulkTickets(work, client, readOnly, transport, state, target.CategoryID, retainedLabel, target.OtherLabelID, updated.ExternalReference.Value)
+	})
 	if err != nil {
 		return err
 	}
-	bulk, err = checkHelpdeskBulkUpdates(ctx, client, readOnly, transport, state, bulk, target.OtherTicketID, target.OtherLabelID, updated.ExternalReference.Value)
+	bulk, err = runConsumerValue(ctx, func(work context.Context) ([]hs.Ticket, error) {
+		return checkHelpdeskBulkUpdates(work, client, readOnly, transport, state, bulk, target.OtherTicketID, target.OtherLabelID, updated.ExternalReference.Value)
+	})
 	if err != nil {
 		return err
 	}
 	expected = append(expected, bulk...)
-	priorityRows, err := checkHelpdeskPriorityRaise(ctx, client, readOnly, transport, state, target.OtherTicketID)
+	priorityRows, err := runConsumerValue(ctx, func(work context.Context) ([]hs.Ticket, error) {
+		return checkHelpdeskPriorityRaise(work, client, readOnly, transport, state, target.OtherTicketID)
+	})
 	if err != nil {
 		return err
 	}
 	expected = append(expected, priorityRows...)
-	if err := checkHelpdeskSummary(ctx, client, readOnly, transport, state, target.CategoryID, expected); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskSummary(work, client, readOnly, transport, state, target.CategoryID, expected)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskLabelUsage(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskLabelUsage(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskCostPreview(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskCostPreview(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskDeadlinePreview(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskDeadlinePreview(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected)
+	}); err != nil {
 		return err
 	}
-	if err := checkHelpdeskDeadlineCalendar(ctx, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected); err != nil {
+	if err := runConsumerPhase(ctx, func(work context.Context) error {
+		return checkHelpdeskDeadlineCalendar(work, client, readOnly, transport, readOnlyTransport, state, readOnlyState, target.CategoryID, expected)
+	}); err != nil {
 		return err
 	}
 	return requireHelpdeskTickets(ctx, client, transport, state, expected...)

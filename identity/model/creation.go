@@ -140,13 +140,17 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
+	dimensions, err := ir.ImageDimensionOwners(metadata)
+	if err != nil {
+		return nil, managementError(CodeInvalidConfig, err)
+	}
 	protected := map[string]bool{role.PrincipalID: true, role.Password: true, role.Revision: true, role.LastLogin: true, role.CreatedAt: true}
 	for name := range forced {
 		protected[name] = true
 	}
 	allowed := make(map[string]bool, len(config.Fields))
 	for _, name := range config.Fields {
-		if name == "" || allowed[name] || protected[name] {
+		if name == "" || allowed[name] || protected[name] || dimensions[name] != "" {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 		if name != role.Groups && name != role.Permissions {

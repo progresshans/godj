@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/crud"
 	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -49,12 +50,15 @@ type AccountEditValidator[M any] func(context.Context, db.Queryer, M, M, RoleMem
 // AccountEditConfig explicitly selects scalar and single-valued profile fields, stored role flags
 // and direct group/permission collections. No new field is automatically writable.
 // Credential secrets, principal identity, revision, selected server timestamps,
-// files and other collections are excluded. Every selected FK/OneToOne needs
+// image-owned dimensions and other collections are excluded. File fields
+// require Files policy and use UpdateForm; plain scalar input cannot assign
+// their storage names. Every selected FK/OneToOne needs
 // an explicit Relations policy. ChangePermission and every Additional
 // grant cover the whole edit; a partial input cannot bypass either grant.
 type AccountEditConfig[M any] struct {
 	Fields                []string
 	Relations             []ProfileRelation[M]
+	Files                 []ProfileFile[M]
 	ChangePermission      auth.Permission
 	AdditionalPermissions []auth.Permission
 	RelatedPermissions    RelatedRowPermissions
@@ -77,6 +81,8 @@ type accountEditState[M any] struct {
 	metadata                        ir.Model
 	allowed                         map[string]bool
 	relations                       []ProfileRelation[M]
+	files                           []ProfileFile[M]
+	dimensions                      map[string]string
 	required                        []auth.Permission
 	validate                        AccountEditValidator[M]
 	groupsChange, permissionsChange func(M, []int64) (orm.CollectionChange, error)
@@ -124,9 +130,6 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
-	if _, err := admin.PrepareEventTemplate("role-startup", role.Model.AppLabel+"."+role.Model.ModelName, admin.ActionChange, config.Fields, ""); err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
-	}
 	protected := map[string]bool{role.PrincipalID: true, role.Password: true, role.Revision: true, role.LastLogin: true, role.CreatedAt: true}
 	allowed := make(map[string]bool, len(config.Fields))
 	for _, name := range config.Fields {
@@ -135,7 +138,7 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 		}
 		if name != role.Groups && name != role.Permissions {
 			field, found := namedField(metadata, name)
-			if !found || field.NonEditable || field.PrimaryKey || field.Kind.IsFile() {
+			if !found || field.NonEditable || field.PrimaryKey {
 				return nil, managementError(CodeInvalidConfig, nil)
 			}
 		}
@@ -145,6 +148,13 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 	if err != nil {
 		return nil, err
 	}
+	files, dimensions, err := prepareProfileFiles(binding, config.Fields, config.Files)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := admin.PrepareEventTemplate("role-startup", role.Model.AppLabel+"."+role.Model.ModelName, admin.ActionChange, profileStoredFields(metadata, config.Fields, dimensions), ""); err != nil {
+		return nil, managementError(CodeInvalidConfig, err)
+	}
 	resource, err := crud.New(binding.state.objects, crud.Config{Fields: config.Fields})
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
@@ -153,7 +163,7 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 	if now == nil {
 		now = time.Now
 	}
-	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, relations: relations, required: required, validate: config.Validate}
+	state := &accountEditState[M]{sessions: sessionStore, backend: backend, overlay: overlay, resource: resource, metadata: metadata, allowed: allowed, relations: relations, files: files, dimensions: dimensions, required: required, validate: config.Validate}
 	if store.state.relatedLifecycle == nil {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
@@ -198,6 +208,10 @@ type AccountChange struct {
 // stamp; an active-to-inactive transition revokes this domain's target sessions.
 // Results are published only after confirmed commit, without automatic retry.
 func (editor *AccountEditor[M]) Update(ctx context.Context, actor auth.Principal, id, revision int64, input orm.ModelInput[M]) (AccountChange, error) {
+	return editor.update(ctx, actor, id, revision, input, false)
+}
+
+func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal, id, revision int64, input orm.ModelInput[M], files bool) (AccountChange, error) {
 	if editor == nil || editor.state == nil {
 		return AccountChange{}, managementError(CodeInvalidConfig, nil)
 	}
@@ -210,7 +224,7 @@ func (editor *AccountEditor[M]) Update(ctx context.Context, actor auth.Principal
 	if !actor.Authenticated() {
 		return AccountChange{}, managementError(CodePermission, nil)
 	}
-	prepared, err := editor.prepareInput(id, input)
+	prepared, err := editor.prepareInput(id, input, files)
 	if err != nil {
 		return AccountChange{}, err
 	}
@@ -357,7 +371,7 @@ func (editor *AccountEditor[M]) Update(ctx context.Context, actor auth.Principal
 	})
 }
 
-func (editor *AccountEditor[M]) prepareInput(id int64, input orm.ModelInput[M]) (orm.ModelInput[M], error) {
+func (editor *AccountEditor[M]) prepareInput(id int64, input orm.ModelInput[M], files bool) (orm.ModelInput[M], error) {
 	state := editor.state
 	model, valid := input.Model()
 	if !valid || !model.Equal(state.metadata) {
@@ -368,7 +382,8 @@ func (editor *AccountEditor[M]) prepareInput(id int64, input orm.ModelInput[M]) 
 	}
 	values := input.Values()
 	for name := range values {
-		if !state.allowed[name] {
+		field, _ := namedField(state.metadata, name)
+		if !state.allowed[name] && !(files && state.allowed[state.dimensions[name]]) || !files && (field.Kind.IsFile() || state.dimensions[name] != "") {
 			return orm.ModelInput[M]{}, managementError(CodeInvalidInput, nil)
 		}
 	}
@@ -403,6 +418,76 @@ func (editor *AccountEditor[M]) prepareInput(id int64, input orm.ModelInput[M]) 
 		return prepared.WithTargetKey(key)
 	}
 	return prepared, nil
+}
+
+// FileFields returns the explicitly configured Form file fields. JSON and plain
+// ModelInput keep these references read-only, including explicit clears.
+func (editor *AccountEditor[M]) FileFields() []string {
+	if editor == nil || editor.state == nil {
+		return nil
+	}
+	return profileFileNames(editor.state.files)
+}
+
+// FormDefinition includes this owner's image inspection policy as well as the
+// selected account's input normalization. It performs no I/O.
+func (editor *AccountEditor[M]) FormDefinition() (formmodel.Definition, error) {
+	if editor == nil || editor.state == nil {
+		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
+	}
+	return editor.state.sessions.state.credentials.state.binding.formDefinition(editor.Fields(), profileFileOverrides(editor.state.files))
+}
+
+// UpdateForm retains verified upload/clear/keep and image dimension intent.
+// Before publication it checks current authority, target integrity and revision
+// in a native read scope, then closes that scope. Explicit SaveFiles runs outside
+// the database. The final write repeats current admission, revision, full graph
+// policy, uniqueness and audit using the actual published names.
+//
+// Publications survive every later error, even when the returned account change
+// is zero. File and database outcomes are separate: no old/new file is deleted,
+// no failed or uncertain attempt is retried, and the request upload lifetime is
+// not extended. Callers must preserve every publication result.
+func (editor *AccountEditor[M]) UpdateForm(ctx context.Context, actor auth.Principal, id, revision int64, bound formmodel.BoundForm) (AccountChange, []formmodel.FilePublication, error) {
+	if editor == nil || editor.state == nil {
+		return AccountChange{}, nil, managementError(CodeInvalidConfig, nil)
+	}
+	if nilModelValue(ctx) || revision <= 0 || revision == math.MaxInt64 {
+		return AccountChange{}, nil, managementError(CodeInvalidInput, nil)
+	}
+	if err := ctx.Err(); err != nil {
+		return AccountChange{}, nil, managementError(CodeInvalidInput, err)
+	}
+	if !actor.Authenticated() {
+		return AccountChange{}, nil, managementError(CodePermission, nil)
+	}
+	state := editor.state
+	store := state.sessions.state.credentials
+	if err := checkProfileFileForm(state.metadata, state.allowed, state.dimensions, store.state.binding.state.role.Revision, id, revision, bound); err != nil {
+		return AccountChange{}, nil, err
+	}
+	if len(state.files) == 0 {
+		input, err := formmodel.PrepareInput(editor.Manager(), bound)
+		if err != nil {
+			return AccountChange{}, nil, err
+		}
+		result, err := editor.Update(ctx, actor, id, revision, input)
+		return result, nil, err
+	}
+	prepared, err := prepareProfileFileChange(ctx, store, actor, state.overlay, state.required, state.relations, id, revision, bound)
+	if err != nil {
+		return AccountChange{}, nil, err
+	}
+	resolved, publications, err := prepared.SaveFiles(ctx, profileFileSavers(state.files, prepared.PendingFiles())...)
+	if err != nil {
+		return AccountChange{}, publications, managementError(CodePersistence, err)
+	}
+	input, err := resolved.ModelInput()
+	if err != nil {
+		return AccountChange{}, publications, managementError(CodeInvalidInput, err)
+	}
+	result, err := editor.update(ctx, actor, id, revision, input, true)
+	return result, publications, err
 }
 
 func (state *accountEditState[M]) validateCandidate(ctx context.Context, scope db.Session, current, candidate M, groups, permissions []int64) error {

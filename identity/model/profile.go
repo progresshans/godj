@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/crud"
 	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
@@ -26,7 +27,9 @@ import (
 // The callback must be safe for concurrent calls to this immutable editor.
 type ProfileValidator[M any] func(context.Context, db.Queryer, M, M) (validation.Errors, error)
 
-// ProfileConfig selects scalar and single-valued relation fields explicitly. Credential secrets,
+// ProfileConfig explicitly selects scalar, single-valued relation and file
+// fields. Files require a ProfileFile policy and the UpdateForm path; raw
+// ModelInput cannot assign their stored names. Credential secrets,
 // principal identity, revision, server timestamps, role and permission fields
 // cannot be selected. A new model field is never automatically writable.
 //
@@ -36,6 +39,7 @@ type ProfileValidator[M any] func(context.Context, db.Queryer, M, M) (validation
 type ProfileConfig[M any] struct {
 	Fields                []string
 	Relations             []ProfileRelation[M]
+	Files                 []ProfileFile[M]
 	ChangePermission      auth.Permission
 	AdditionalPermissions []auth.Permission
 	Validate              ProfileValidator[M]
@@ -50,16 +54,18 @@ type ProfileConfig[M any] struct {
 // this editor rejects them and does not implement account creation or deletion.
 type ProfileEditor[M any] struct{ state *profileState[M] }
 type profileState[M any] struct {
-	store     *CredentialStore[M]
-	backend   db.CoordinatedAtomic
-	overlay   auth.Authorizer
-	resource  crud.Resource[M]
-	metadata  ir.Model
-	allowed   map[string]bool
-	relations []ProfileRelation[M]
-	required  []auth.Permission
-	validate  ProfileValidator[M]
-	now       func() time.Time
+	store      *CredentialStore[M]
+	backend    db.CoordinatedAtomic
+	overlay    auth.Authorizer
+	resource   crud.Resource[M]
+	metadata   ir.Model
+	allowed    map[string]bool
+	relations  []ProfileRelation[M]
+	files      []ProfileFile[M]
+	dimensions map[string]string
+	required   []auth.Permission
+	validate   ProfileValidator[M]
+	now        func() time.Time
 }
 
 func (ProfileEditor[M]) Format(state fmt.State, _ rune) {
@@ -90,15 +96,12 @@ func NewProfileEditor[M any](store *CredentialStore[M], overlay auth.Authorizer,
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	role := binding.state.role
-	if _, err := admin.PrepareEventTemplate("profile-startup", role.Model.AppLabel+"."+role.Model.ModelName, admin.ActionChange, config.Fields, ""); err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
-	}
 	protected := map[string]bool{role.PrincipalID: true, role.Password: true, role.Revision: true, role.LastLogin: true, role.CreatedAt: true,
 		role.Active.Field: true, role.Staff.Field: true, role.Superuser.Field: true, role.Groups: true, role.Permissions: true}
 	allowed := make(map[string]bool, len(config.Fields))
 	for _, name := range config.Fields {
 		field, found := namedField(metadata, name)
-		if !found || protected[name] || allowed[name] || field.PrimaryKey || field.NonEditable || field.Kind.IsFile() {
+		if !found || protected[name] || allowed[name] || field.PrimaryKey || field.NonEditable {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 		allowed[name] = true
@@ -106,6 +109,14 @@ func NewProfileEditor[M any](store *CredentialStore[M], overlay auth.Authorizer,
 	relations, err := prepareProfileRelations(binding, config.Fields, config.Relations)
 	if err != nil {
 		return nil, err
+	}
+	files, dimensions, err := prepareProfileFiles(binding, config.Fields, config.Files)
+	if err != nil {
+		return nil, err
+	}
+	storedFields := profileStoredFields(metadata, config.Fields, dimensions)
+	if _, err := admin.PrepareEventTemplate("profile-startup", role.Model.AppLabel+"."+role.Model.ModelName, admin.ActionChange, storedFields, ""); err != nil {
+		return nil, managementError(CodeInvalidConfig, err)
 	}
 	resource, err := crud.New(binding.state.objects, crud.Config{Fields: config.Fields})
 	if err != nil {
@@ -116,7 +127,7 @@ func NewProfileEditor[M any](store *CredentialStore[M], overlay auth.Authorizer,
 		now = time.Now
 	}
 	return &ProfileEditor[M]{state: &profileState[M]{store: store, backend: backend, overlay: overlay, resource: resource,
-		metadata: metadata, allowed: allowed, relations: relations, required: required, validate: config.Validate, now: now}}, nil
+		metadata: metadata, allowed: allowed, relations: relations, files: files, dimensions: dimensions, required: required, validate: config.Validate, now: now}}, nil
 }
 
 // Fields returns an owned selection for building the model Form and serializer.
@@ -146,6 +157,10 @@ type ProfileChange struct {
 // Unknown transaction outcomes remain errors and are never retried. Confirmed
 // commit wins over a cancellation arriving after the owner reports success.
 func (editor *ProfileEditor[M]) Update(ctx context.Context, actor auth.Principal, id, expectedRevision int64, input orm.ModelInput[M]) (ProfileChange, error) {
+	return editor.update(ctx, actor, id, expectedRevision, input, false)
+}
+
+func (editor *ProfileEditor[M]) update(ctx context.Context, actor auth.Principal, id, expectedRevision int64, input orm.ModelInput[M], files bool) (ProfileChange, error) {
 	if editor == nil || editor.state == nil {
 		return ProfileChange{}, managementError(CodeInvalidConfig, nil)
 	}
@@ -158,11 +173,34 @@ func (editor *ProfileEditor[M]) Update(ctx context.Context, actor auth.Principal
 	if !actor.Authenticated() {
 		return ProfileChange{}, managementError(CodePermission, nil)
 	}
-	prepared, err := editor.prepareInput(id, input)
+	prepared, err := editor.prepareInput(id, input, files)
 	if err != nil {
 		return ProfileChange{}, err
 	}
 	state := editor.state
+	// Image dimensions are server-derived changes, never CRUD's exposed form
+	// fields. Apply them in Before so validation sees the actual final candidate,
+	// including noneditable dimension columns, without making those writable.
+	derived := make(map[string]query.Value)
+	if files {
+		values := prepared.Values()
+		for name := range state.dimensions {
+			if value, present := values[name]; present {
+				derived[name] = value
+				delete(values, name)
+			}
+		}
+		if len(derived) != 0 {
+			prepared, err = state.resource.Manager().Input(values)
+			if err != nil {
+				return ProfileChange{}, err
+			}
+			prepared, err = prepared.WithTargetKey(query.Integer(id))
+			if err != nil {
+				return ProfileChange{}, err
+			}
+		}
+	}
 	return managementWrite(ctx, state.backend, func(work context.Context, session db.Session) (ProfileChange, error) {
 		currentActor, allowed, err := state.store.AuthorizeIn(work, session, actor, state.overlay, state.required[0], state.required[1:]...)
 		if err != nil {
@@ -174,6 +212,13 @@ func (editor *ProfileEditor[M]) Update(ctx context.Context, actor auth.Principal
 		namespace, _ := currentActor.CredentialDomain()
 		mutation, err := state.resource.UpdateInSession(work, session, id, prepared, crud.SaveOptions[M]{
 			Before: func(work context.Context, session db.Session, current, candidate *M) error {
+				if len(derived) != 0 {
+					updated, err := state.resource.Manager().ApplyValues(*candidate, derived)
+					if err != nil {
+						return err
+					}
+					*candidate = updated
+				}
 				return editor.beforeUpdate(work, session, currentActor, namespace, expectedRevision, current, candidate)
 			},
 		})
@@ -283,7 +328,7 @@ func (editor *ProfileEditor[M]) beforeUpdate(ctx context.Context, session db.Ses
 	return nil
 }
 
-func (editor *ProfileEditor[M]) prepareInput(id int64, input orm.ModelInput[M]) (orm.ModelInput[M], error) {
+func (editor *ProfileEditor[M]) prepareInput(id int64, input orm.ModelInput[M], files bool) (orm.ModelInput[M], error) {
 	state := editor.state
 	model, valid := input.Model()
 	if !valid || !model.Equal(state.metadata) || len(input.Collections()) != 0 {
@@ -294,7 +339,8 @@ func (editor *ProfileEditor[M]) prepareInput(id int64, input orm.ModelInput[M]) 
 	}
 	values := input.Values()
 	for name := range values {
-		if !state.allowed[name] {
+		field, _ := namedField(state.metadata, name)
+		if !state.allowed[name] && !(files && state.allowed[state.dimensions[name]]) || !files && (field.Kind.IsFile() || state.dimensions[name] != "") {
 			return orm.ModelInput[M]{}, managementError(CodeInvalidInput, nil)
 		}
 	}
@@ -310,6 +356,67 @@ func (editor *ProfileEditor[M]) prepareInput(id int64, input orm.ModelInput[M]) 
 		return result.WithTargetKey(key)
 	}
 	return result, nil
+}
+
+func (editor *ProfileEditor[M]) FileFields() []string {
+	if editor == nil || editor.state == nil {
+		return nil
+	}
+	return profileFileNames(editor.state.files)
+}
+
+// FormDefinition retains the selected input and explicit image policy.
+func (editor *ProfileEditor[M]) FormDefinition() (formmodel.Definition, error) {
+	if editor == nil || editor.state == nil {
+		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
+	}
+	return editor.state.store.state.binding.formDefinition(editor.Fields(), profileFileOverrides(editor.state.files))
+}
+
+// UpdateForm keeps file publication separate from the final account write.
+// Current authority, target integrity and revision are checked before storage
+// I/O and again at the final native write. The returned publication list must be
+// retained on success, rejection and uncertain database outcomes. No file is
+// automatically deleted or retried, and upload lifetime remains request-owned.
+func (editor *ProfileEditor[M]) UpdateForm(ctx context.Context, actor auth.Principal, id, revision int64, bound formmodel.BoundForm) (ProfileChange, []formmodel.FilePublication, error) {
+	if editor == nil || editor.state == nil {
+		return ProfileChange{}, nil, managementError(CodeInvalidConfig, nil)
+	}
+	if nilModelValue(ctx) || revision <= 0 || revision == math.MaxInt64 {
+		return ProfileChange{}, nil, managementError(CodeInvalidInput, nil)
+	}
+	if err := ctx.Err(); err != nil {
+		return ProfileChange{}, nil, managementError(CodeInvalidInput, err)
+	}
+	if !actor.Authenticated() {
+		return ProfileChange{}, nil, managementError(CodePermission, nil)
+	}
+	state := editor.state
+	if err := checkProfileFileForm(state.metadata, state.allowed, state.dimensions, state.store.state.binding.state.role.Revision, id, revision, bound); err != nil {
+		return ProfileChange{}, nil, err
+	}
+	if len(state.files) == 0 {
+		input, err := formmodel.PrepareInput(state.resource.Manager(), bound)
+		if err != nil {
+			return ProfileChange{}, nil, err
+		}
+		result, err := editor.Update(ctx, actor, id, revision, input)
+		return result, nil, err
+	}
+	prepared, err := prepareProfileFileChange(ctx, state.store, actor, state.overlay, state.required, state.relations, id, revision, bound)
+	if err != nil {
+		return ProfileChange{}, nil, err
+	}
+	resolved, publications, err := prepared.SaveFiles(ctx, profileFileSavers(state.files, prepared.PendingFiles())...)
+	if err != nil {
+		return ProfileChange{}, publications, managementError(CodePersistence, err)
+	}
+	input, err := resolved.ModelInput()
+	if err != nil {
+		return ProfileChange{}, publications, managementError(CodeInvalidInput, err)
+	}
+	result, err := editor.update(ctx, actor, id, revision, input, true)
+	return result, publications, err
 }
 
 func profileInputError(field, code string) error {

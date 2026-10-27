@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/storage"
 	"github.com/progresshans/godj/uploads"
@@ -105,6 +106,7 @@ func TestModelFilePreparationCannotDiscardPendingUploads(t *testing.T) {
 	instance := models.NewArticleWithID(42)
 	for _, err := range []error{
 		func() error { _, err := prepared.Model(); return err }(),
+		func() error { _, err := prepared.ModelInput(); return err }(),
 		prepared.Save(t.Context(), backend, &instance),
 		prepared.SaveCollections(t.Context(), backend, instance),
 	} {
@@ -135,6 +137,37 @@ func TestModelFilePreparationCannotDiscardPendingUploads(t *testing.T) {
 	}
 	if value.Title != "documents/same.txt" || len(resolved.PendingFiles()) != 0 {
 		t.Fatal("proposal persisted instead of actual name")
+	}
+	input, err := resolved.ModelInput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if key, bound := input.TargetKey(); !bound || !key.Equal(query.Integer(42)) {
+		t.Fatal("resolved intent lost original target")
+	}
+	if name, present := input.Get("title"); !present || !name.Equal(query.String(results[0].Info().Name())) {
+		t.Fatal("resolved intent stored the upload filename")
+	}
+	if _, present := input.Get("published"); present {
+		t.Fatal("resolved intent exposed an excluded model value")
+	}
+	manager, _ := fileModel(t)
+	fresh := models.NewArticleWithID(42)
+	fresh.Published = true
+	rebased, err := manager.PrepareInput(input, &fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebasedModel, err := rebased.Model()
+	if err != nil || !rebasedModel.Published || rebasedModel.Title != results[0].Info().Name() {
+		t.Fatal("resolved intent restored stale excluded state", err)
+	}
+	wrongTarget := models.NewArticleWithID(43)
+	if _, err := manager.PrepareInput(input, &wrongTarget); err == nil {
+		t.Fatal("resolved file intent changed its target")
+	}
+	if _, err := (formmodel.PreparedInstance[models.Article]{}).ModelInput(); err == nil {
+		t.Fatal("zero file preparation became a valid empty input")
 	}
 	if _, err := prepared.Model(); err == nil {
 		t.Fatal("SaveFiles mutated original preparation")

@@ -25,7 +25,11 @@ func (management *AccountManagement[M]) InputSpec(action admin.Action, fields ..
 		return serializers.Spec{}, managementError(CodeInvalidConfig, nil)
 	}
 	for _, field := range fields {
-		if field.ReadOnly || !slices.Contains(allowed, field.Name) {
+		if !slices.Contains(allowed, field.Name) {
+			return serializers.Spec{}, managementError(CodeInvalidConfig, nil)
+		}
+		metadata, found := namedField(management.state.creator.state.metadata, field.Name)
+		if field.ReadOnly && (!found || !metadata.Kind.IsFile()) {
 			return serializers.Spec{}, managementError(CodeInvalidConfig, nil)
 		}
 	}

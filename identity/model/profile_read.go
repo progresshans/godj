@@ -19,7 +19,9 @@ const MaximumProfilePageSize = 100
 // identity and encoded passwords cannot be selected. Server-owned timestamps,
 // revision, role flags or the row key are not exposed automatically: they may
 // be selected deliberately under this read policy and remain non-writable in
-// ProfileEditor. Files and other collections have separate policies. List
+// ProfileEditor. File references are names only: reading them never opens a
+// storage backend or grants a download capability. Other collections have
+// separate policies. List
 // returns only ListFields and performs no per-row membership queries.
 //
 // Reads require ViewPermission or, when configured, ChangePermission, together
@@ -82,8 +84,8 @@ func NewProfileReader[M any](store *CredentialStore[M], overlay auth.Authorizer,
 			selected[name] = true
 			continue
 		}
-		field, found := namedField(metadata, name)
-		if !found || selected[name] || name == role.Password || name == role.PrincipalID || field.Kind.IsFile() {
+		_, found := namedField(metadata, name)
+		if !found || selected[name] || name == role.Password || name == role.PrincipalID {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 		selected[name] = true

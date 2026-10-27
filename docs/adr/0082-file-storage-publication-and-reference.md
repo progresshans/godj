@@ -33,6 +33,11 @@ IR 순서로 저장한 뒤 **실제로 반환된 이름**을 가진 새 준비�
 실행하며 파일 게시와 DB commit의 결과를 각각 보존한다. 일부 파일만 게시되거나 게시 응답이 불확실하면 준비 결과는 무효지만
 이미 시도한 모든 파일의 Info/error/outcome은 남는다. 호출은 재시도에 대해 멱등하지 않고 업로드 수명을 늘리지 않는다.
 
+해결된 준비의 `ModelInput()`은 실제 저장 이름·선택 scalar의 존재·이미지 크기·collection과 원래 target/source를
+최종 owner에 전달한다. 미해결 upload를 filename으로 바꾸거나 현재 snapshot의 제외 필드까지 입력에 넣지 않는다.
+선택 계정의 파일 편집은 [계정 수명 계약](0076-credential-snapshots-and-session-binding.md#프로필-파일의-편집과-게시-결과)의
+사전 인가·별도 게시·최종 DB 재검사와 결과 보관을 따른다.
+
 이름 callback은 다른 준비 값과 기존/default 파일 참조를 담은 분리된 모델을 받는다. Backend alias나 I/O 객체를 Schema IR에
 직렬화하지 않는다. 등록되지 않은 implicit storage, 전역 설정 조회, template에서의 숨은 파일 I/O는 없다. JSON serializer의
 File/ImageField와 이미지 소유 크기의 투영은 명시적인 read-only 값에 한정한다. JSON 문자열을 upload로 받거나 참조를 URL/다운로드 권한으로 바꾸지 않는다.

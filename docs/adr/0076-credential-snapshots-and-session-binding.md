@@ -955,7 +955,8 @@ Principal 없이 error로 반환하며 다른 권한의 대안으로 넘어갈 �
 생성 `NewAccountProfileEditor`와 공통 `identity/model.ProfileEditor[M]`은 선택한 모델의 scalar·FK·OneToOne profile 수정을 소유한다.
 서버가 명시한 field 목록만 허용하며 새 필드를 자동 노출하지 않는다. Password·principal identity·revision·선택한
 서버 시각·active/staff/superuser·권한 관계와 NonEditable 필드는 입력에서 제외한다. FK·OneToOne은 아래의 명시적
-`ProfileRelation` 정책을 요구한다. M2M·파일의 수명 정책, 생성·삭제와 role/catalog 변경은 별도 owner의 작업이다.
+`ProfileRelation` 정책을 요구한다. 파일은 아래의 명시적 `ProfileFile`·`UpdateForm` 계약을 따른다.
+M2M·생성·삭제와 role/catalog 변경은 별도 owner의 작업이다.
 
 입력은 Form/JSON의 cleaning을 거친 `orm.ModelInput[M]`이다. 준비 단계에서 현재 모델 source·허용 필드·기존 target
 binding과 collection 의도를 확인한다. 이 owner는 transport parsing을 반복하지 않는다. 쓰기 전 고정 login/email
@@ -983,7 +984,8 @@ identity·권한 집합을 보관하지 않는다. Password와 principal identit
 금지를 해제하지 않는다. 선택 계정 역할의 Groups/Permissions만 명시적으로 상세 조회에 넣을 수 있으며,
 `Fields`는 전체 선택을, `ListFields`는 scalar 선택만 반환한다. 그룹과 직접 권한의 ID는 실제 source에 묶이고
 빈 집합과 미로드를 구분한다. Collection만 선택한 상세도 유효하며 scalar 값은 노출하지 않는다.
-File·그 밖의 M2M 표현과 과거 domain 조회는 각각 별도의 정책이 필요하다.
+File/Image도 명시적으로 선택한 저장 이름만 읽으며 저장소를 열거나 URL·다운로드 권한을 만들지 않는다.
+그 밖의 M2M 표현과 과거 domain 조회는 각각 별도의 정책이 필요하다.
 
 View permission 또는 명시한 change permission 중 하나와 모든 추가 권한이 필요하다. 현재 actor·domain·실제
 권한을 같은 native snapshot에서 읽으며, 확정된 view 거부에서만 change 대안을 검사한다. 조회/overlay 오류는
@@ -1290,7 +1292,8 @@ Fresh startup은 공개 페이지를, Ready는 명시적으로 허용한 개발 
 생성 `NewAccountEditor`와 `identity/model.AccountEditor[M]`는 기존 `SessionStore[M]`를 받아 같은 계정
 binding·backend·현재 domain의 session 정책을 사용한다. `AccountEditConfig.Fields`로 scalar·FK·OneToOne profile과
 active/staff/superuser의 실제 editable 필드, Groups/Permissions를 명시한다. 새 필드를 자동 노출하지 않는다.
-Credential·principal identity·revision·선택 서버 시각·파일·다른 collection은 거부한다. 역할을 상수로 선언하면 그 역할의
+Credential·principal identity·revision·선택 서버 시각·이미지 소유 크기와 다른 collection은 독립 입력으로 거부한다.
+파일은 아래의 별도 게시 단계로 편집하며 일반 `ModelInput`으로 저장 이름을 대입하지 않는다. 역할을 상수로 선언하면 그 역할의
 입력 필드는 없다. 같은 이름의 일반 Boolean을 명시적으로 profile에 선택해도 상수의 인증 의미를 바꾸지 않는다.
 생성 factory의 예상 role fingerprint와 실제 collection의 완전한 host source가 세션 owner와 맞아야 한다.
 이 통합 owner가 기존 RoleEditor를 대체한다. Profile만 선택하며 session 변경 권한을 갖지 않는 ProfileEditor는
@@ -1315,8 +1318,9 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 
 첫 계정 명령은 DB를 열기 전에 실제 IR의 integer/null/default/static-choice 의미로 관계 key를 파싱한다.
 이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
-선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일·추가 M2M profile과 selected-model
-through identity 생성은 이 capability의 완료 범위가 아니며 I1에 남는다. 환경별 실행 결과는 TEST_EVIDENCE를 따른다.
+선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일 편집은 아래 계약을 따르고,
+파일을 포함한 생성/첫 명령·추가 M2M profile과 selected-model through identity 생성은 I1에 남는다.
+환경별 실행 결과는 TEST_EVIDENCE를 따른다.
 
 입력의 source·선택 필드·target binding과 login/email의 고정 저장 정규화·문자/byte 한도를 I/O 전에 확인한다.
 `Update`는 전체 수정에 대해 현재 change 권한과 모든 추가 권한·deny overlay를 요구하며, 대상의 현재
@@ -1332,6 +1336,43 @@ relation transaction에 속한다. 모델/정책 거부가 프로필 또는 역�
 현재 domain의 대상 principal 세션을 모두 폐기하며 다른 계정·익명·역사 domain의 세션은 유지한다. 재활성화는 삭제한
 세션을 되살리지 않는다. LoginPersistence도 같은 DB fence와 현재 active 재검사를 사용하므로 동시 로그인이 비활성화 뒤
 세션을 남길 수 없다. No-op도 현재 권한/무결성/validation을 확인하고 revision·감사는 늘리지 않는다.
+
+### 프로필 파일의 편집과 게시 결과
+
+`NewProfileFile[M]`은 선택 계정 binding·파일 field와 명시적 capability를 완전한 project source/role에 묶는다.
+파일을 선택한 ProfileEditor/AccountEditor는 필드마다 정확히 하나의 정책을 요구하며 missing/duplicate/foreign source와
+미노출 정책을 구성 시 거부한다. 일반 업로드는 빌린 storage backend와 pure Name callback을 사용한다. Callback은
+다른 준비 값과 기존 파일 참조를 가진 분리된 모델을 받되 password hash·principal identity는 비운다. Backend를 닫거나
+global storage를 찾아 주지 않는다. 파일 choices는 canonical 이름 선택이며 업로드 saver를 선언하지 않는다.
+Image choices에는 명시적 inspector가 필요하고 `FormDefinition`은 그 capability와 bounded image 정책을 같은 ModelForm에 넣는다.
+
+`UpdateForm`은 성공한 BoundForm의 완전한 source·선언된 선택·target key와 이미지에서 파생한 값을 확인한다.
+읽기 projection이 로드한 revision은 expected revision과 같아야 하며, revision을 로드하지 않은 ModelView에는 그 값을
+만들어 넣지 않는다. 어떤 경우에도 호출자가 expected revision을 직접 전달하고 실제 DB에서 이를 확인한다.
+저장 전 native snapshot에서 현재 domain/actor/change 권한·target credential/revision·관계 선택과 제안 grant 한도를
+검사한 뒤 scope를 닫는다. 파일 I/O는 DB 밖에서 실행하고 실제 storage 반환 이름을 가진 `ModelInput`으로 최종 편집을 요청한다.
+
+최종 native fence는 현재 인가·revision·전체 관계 효과·typed validator·실제 이름의 unique를 다시 검사한다.
+파일 참조·이미지 크기·일반 profile·role/collection·revision·session 폐기·audit의 **DB 변경**은 하나의 기존 owner에서
+확정한다. 이미지 소유 크기는 일반 Form/JSON/계정 입력으로 노출하지 않으며, ProfileEditor의 CRUD 경계에서도 server 값으로
+적용한다. 업로드 생략은 이전 참조를 유지하고 clear는 nullable 파일도 빈 문자열, 소유 nullable 크기는 NULL을 저장한다.
+기존 참조를 보여 주거나 유지하는 작업에 숨은 파일 Open을 넣지 않는다.
+
+파일 게시와 DB commit은 분산 transaction이 아니다. 저장 후 권한 회수·revision 경합·unique/validator 거부·감사 실패가
+발생할 수 있고 DB rollback이 이미 게시한 파일을 되돌리지는 않는다. 반환한 모든 `FilePublication`은 마지막 오류와 함께
+보관한다. 일부 파일만 게시되거나 저장 응답이 불확실하면 DB 단계로 진행하지 않는다. DB 결과가 unknown이면 확정 계정
+metadata는 0이지만 파일별 결과는 남는다. Clear·교체·실패에서 이전/새 파일을 자동 삭제하거나 작업을 재시도하지 않는다.
+요청 업로드 capability의 수명을 늘리지 않으며 동일 준비의 수동 재호출을 멱등 작업으로 취급하지 않는다.
+
+공통 Admin 등록은 업로드를 받는 편집 필드가 있을 때 `ReportFileEdit`를 요구한다. 기존 이름만 선택하는 choices에는 요구하지 않는다.
+실제 파일을 시도한 모든 요청에 대해 DB scope가
+끝난 뒤 파일 결과와 계정의 확정 성공/실패를 전달하며, HTTP 오류 변환 전에 application이 보관할 수 있게 한다.
+Callback은 취소된 context도 받을 수 있다. 보관·복구와 그 채널의 내구성은 application 책임이며 보고 실패는 별도 실행 오류다.
+보고가 실패했다고 이미 확인한 DB commit이나 파일 게시를 실패 전 상태로 바꾸지 않는다.
+
+관리 JSON의 파일·이미지 크기는 명시적인 read-only 출력이다. 요청 schema에서는 제외하고 문자열/크기 입력은 거부한다.
+파일의 내용·URL·다운로드 권한을 JSON 저장 이름에 결합하지 않는다. 파일 생성과 필수 파일을 포함한 첫 계정/공개 명령,
+추가 M2M·채운 DB 전환은 이 편집 기능의 수용으로 계산하지 않으며 활성 I1 요구에 유지한다.
 
 반환값은 확정된 ID·revision·변경 필드와 폐기 수뿐이다. 후속 relation/session/audit 실패는 앞선 변경과 함께 rollback하고,
 unknown 결과는 공개 값을 버리고 자동 재시도하지 않는다. 확정 commit 뒤 취소는 성공을 되돌리지 않는다.
@@ -1486,7 +1527,7 @@ UI/registry의 검사는 선행 admission이고 최종 권한·도메인·대상
 
 Admin은 Create/Update/Delete를 같은 owner에 위임하고 확정된 ID/revision/변경 field만 반환한다. 성공 뒤 row/권한을 다시
 읽지 않는다. History는 현재 domain의 durable event를 값 없는 Admin event로 투영한다. Account 자체는 아래의 등록을 사용한다.
-관리 JSON은 아래의 공통 조립을 사용하며 공개 CLI/scaffold/runtime·profile 관계/파일은 남아 있다. 현재 공통 Admin 객체 URL의 양수 key 경계를 native
+관리 JSON과 공개 CLI/scaffold/runtime은 각각의 공통 조립을 사용한다. 현재 공통 Admin 객체 URL의 양수 key 경계를 native
 Catalog/Form owner의 signed key 지원으로 완료했다고 해석하지 않는다.
 
 ## 선택 계정의 관리 owner와 공통 Admin 등록
@@ -1522,8 +1563,9 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 사라져도 commit 뒤 재조회로 성공을 잃지 않는다. ProfileReader의 선택 ModelView와 현재 domain의 값 없는 durable audit만
 화면에 투영한다. 공통 Admin의 active staff·CSRF·최종 current authority 경계와 기존 host graph/rollback/unknown 의미를 유지한다.
 
-공개 첫 계정 명령/scaffold/runtime 전환, profile 관계/파일, 선택 모델-as-through identity 생성, 채운 DB의
-명시적 mapping/retirement와 통합 restart는 남아 있다. Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
+공개 첫 계정 명령/scaffold/runtime과 FK/OneToOne·파일 편집은 각 현행 절의 계약을 따른다. 파일을 포함한 생성/첫 명령,
+추가 M2M·선택 모델-as-through identity 생성, 채운 DB의 명시적 mapping/retirement와 통합 restart는 남아 있다.
+Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
 경계를 완료했다고 계산하지 않는다. 구현·최소 compile·환경별 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
 ## 선택 계정의 관리 JSON 조립

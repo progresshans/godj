@@ -77,3 +77,57 @@ func PrepareInput[M any](manager orm.Manager[M], bound BoundForm) (orm.ModelInpu
 	}
 	return result.WithCollections(collections)
 }
+
+// ModelInput transfers this preparation's selected intent to a fresh write
+// owner. Pending uploads must first pass SaveFiles. File fields then contain
+// the actual returned storage names, including collision renames; command
+// inputs and excluded model fields never become scalar assignments. Image
+// dimensions derived during binding and collection presence are preserved.
+//
+// The returned input retains the original target and complete model source.
+// It does not attest to current authorization, revision, file freshness or a
+// database commit. In particular, callers must retain FilePublication results
+// separately if a subsequent write is refused or has an uncertain outcome.
+func (prepared PreparedInstance[M]) ModelInput() (orm.ModelInput[M], error) {
+	if err := prepared.requireStoredFiles(); err != nil {
+		return orm.ModelInput[M]{}, err
+	}
+	metadata, err := prepared.manager.Metadata()
+	if err != nil {
+		return orm.ModelInput[M]{}, err
+	}
+	actual, err := prepared.manager.ModelValues(prepared.value)
+	if err != nil {
+		return orm.ModelInput[M]{}, err
+	}
+	values := make(map[string]query.Value)
+	var key query.Value
+	for _, field := range metadata.Fields {
+		if field.PrimaryKey {
+			key = actual[field.Name]
+			continue
+		}
+		if _, present := prepared.input.Get(field.Name); present {
+			values[field.Name] = actual[field.Name]
+		}
+	}
+	result, err := prepared.manager.Input(values)
+	if err != nil {
+		return orm.ModelInput[M]{}, err
+	}
+	result, err = result.WithTargetKey(key)
+	if err != nil {
+		return orm.ModelInput[M]{}, err
+	}
+	collections := make(map[string][]int64)
+	for _, field := range metadata.ManyToMany {
+		if value, present := prepared.collections.Get(field.Name); present {
+			keys, valid := value.AsIntegers()
+			if !valid {
+				return orm.ModelInput[M]{}, &Error{Path: "input." + field.Name, Code: "type_mismatch"}
+			}
+			collections[field.Name] = keys
+		}
+	}
+	return result.WithCollections(collections)
+}

@@ -297,6 +297,8 @@ CI integration target의 normal/race/CGO=0이 갱신한 문서·고정 생성기
 Client 실패는 소스에 선언된 고정 단계명으로 진단한다. 전체 context가 종료됐으면 정해진 deadline/cancel 상태만
 덧붙이며 부모는 정확한 조합만 인정한다. 요청 URL·인증정보·응답 body나 임의의 오류 문자열은 진단에 추가하지 않는다.
 Child의 각 독립 flow는 normal/CGO=0 45초, race 2분 한도를 가지며 뒤 flow가 앞 작업의 사용 시간을 물려받지 않는다.
+같은 fixture를 이어 쓰는 Helpdesk는 scalar·collection·report·preview별 검사에 이 한도를 각각 적용한다.
+유한 초기 요청과 마지막 원본 대조는 요청별/전체 기한을 따르며, 전체 Helpdesk를 또 하나의 2분 기한으로 감싸지 않는다.
 개별 HTTP 요청의 10초 한도를 유지하고 전체 child에는 각각 5분/10분 상한을 적용한다. 부모의 생성·빌드는 5분,
 실행·회수는 child 상한보다 30초 긴 별도 기한이다. 어떤 flow의 기한 실패도 부분 receipt를 게시하지 않으며
 현재 flow의 context 원인과 고정 실패 단계만 진단한다. 전체 완료 영수증과 부모의 native DB 대조를 모두 요구한다.
