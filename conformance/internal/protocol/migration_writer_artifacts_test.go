@@ -197,7 +197,7 @@ func assertMigrationWriterProvenance(t *testing.T, contract Contract, djangoAuth
 	}
 	proposal := "GDJ-0050"
 	if contract.ID == "MIG-107" {
-		proposal = "GDJ-0085"
+		proposal = "GDJ-0138"
 	}
 	for index, want := range []struct{ kind, reference string }{{"proposal", proposal}, {"documentation", "ADR-0052"}} {
 		got := contract.Provenance[index]

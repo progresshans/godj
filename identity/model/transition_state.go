@@ -40,11 +40,12 @@ type transitionPair[S, T any] struct {
 	next transitionRow[T]
 }
 type transitionObservation[S, T any] struct {
-	ownership domain.Receipt
-	actor     auth.Principal
-	pairs     []transitionPair[S, T]
-	digest    string
-	rejection error
+	ownership  domain.Receipt
+	actor      auth.Principal
+	pairs      []transitionPair[S, T]
+	digest     string
+	rejection  error
+	references []transitionReferenceObservation
 }
 
 func expectedTransitionRefusal(err error) bool {
@@ -102,6 +103,14 @@ func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, ac
 	}
 	if digest.err != nil {
 		return zero, digest.err
+	}
+	sources, targets := make(map[int64]bool, len(mappings)), make(map[int64]int64, len(mappings))
+	for _, mapping := range mappings {
+		sources[mapping.SourceID], targets[mapping.SourceID] = true, mapping.TargetID
+	}
+	result.references, err = owner.observeReferences(ctx, scope, operation, sources, targets, digest)
+	if err != nil {
+		return zero, err
 	}
 	result.digest = hex.EncodeToString(digest.hash.Sum(nil))
 	return result, validateAccountSessionScope(ctx, scope)
@@ -300,8 +309,19 @@ func validateTransitionValues[M any](ctx context.Context, scope db.Queryer, obje
 	if _, err := encoder.Encode(row); err != nil {
 		return err
 	}
+	uniqueValues, current := values, &row
+	if candidate {
+		// An unsaved target has no row to exclude from advisory uniqueness.
+		// Its absent primary key is not a supplied uniqueness candidate either.
+		uniqueValues, current = maps.Clone(values), nil
+		for _, field := range metadata.Fields {
+			if field.PrimaryKey {
+				delete(uniqueValues, field.Name)
+			}
+		}
+	}
 	for _, check := range []func(context.Context, db.Queryer, map[string]query.Value, *M) (validation.Errors, error){objects.ValidateUniqueFields, objects.ValidateUniqueConstraints} {
-		diagnostics, err := check(ctx, scope, values, &row)
+		diagnostics, err := check(ctx, scope, uniqueValues, current)
 		if err != nil {
 			return err
 		}
@@ -327,7 +347,7 @@ func transitionRetirement[M any](binding Binding[M], row transitionRow[M], opera
 	return binding.state.objects.PrepareValues(&row.row, values)
 }
 
-func (owner *Transition[S, T]) verifyRetirement(ctx context.Context, scope db.Queryer, expected transitionObservation[S, T], mappings []AccountMapping) error {
+func (owner *Transition[S, T]) verifyRows(ctx context.Context, scope db.Queryer, expected transitionObservation[S, T], mappings []AccountMapping) error {
 	before, err := readTransitionRows(ctx, scope, owner.old.state.credentials, owner.oldMemberships, owner.config.MaxAccounts, expected.ownership.Generation())
 	if err != nil {
 		return err

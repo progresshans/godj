@@ -72,7 +72,7 @@ def deterministic_candidate(contract_id: str) -> dict[str, Any]:
 def unsupported_delta_fail_closed(contract_id: str) -> dict[str, Any]:
     cases = [
         {"case": "model_removal", "code": "unsupported_delta"},
-        {"case": "field_removal", "code": "unsupported_delta"},
+        {"case": "primary_key_replacement", "code": "unsupported_delta"},
         {"case": "field_reorder", "code": "unsupported_delta"},
         {"case": "field_rename", "code": "unsupported_delta"},
         {"case": "field_alter", "code": "unsupported_delta"},

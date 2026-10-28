@@ -1841,7 +1841,8 @@ Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무
 `identity/model.NewTransition[S,T]`는 같은 실제 backend·전체 host source·권한 catalog를 사용하는 서로 다른
 계정 table을 묶는다. `Prepare`는 호스트의 명시적 data migration이 먼저 준비한 대상 행을 받는다. `AccountMapping`은 양쪽
 전체 inventory를 1:1로 대응시키며, 같은 row key·principal·hash만으로 대응이나 소유권 이전을 추론하지 않는다.
-`PrepareCreation`은 빈 대상 모델에 새 행을 생성하는 명시적 입력을 받는다. 현재 구현은 catalog 변경·host FK 재매핑·기존 `godj_system` adoption을 수행하지 않는다.
+`PrepareCreation`은 빈 대상 모델에 새 행을 생성하는 명시적 입력을 받는다. 일반 host FK/OneToOne의 명시적 재매핑은 아래
+staged reference 계약을 따른다. Catalog 변경·기존 `godj_system` adoption은 아직 수행하지 않는다.
 이 범위는 I1의 잔여 작업이며 해당 기능이나 전체 제품 수용을 완료로 처리하지 않는다.
 
 `Prepare`는 framework migration identity를 확인한 뒤 한 native snapshot에서 현재 source actor의 명시적 전환 권한과
@@ -1859,7 +1860,7 @@ signed key를 건너뛰지 않는다. 검토할 scalar/collection 상태의 fram
 
 `Commit`은 사본 사이에서도 한 번만 시도하며 같은 native fence에서 현재 인가·전체 mapping·profile/권한과 policy를
 다시 검사한다. Source의 password를 계정/operation별 unusable 표식으로 바꾸고 저장된 boolean role을 false로 만들며
-revision을 증가시킨다. 기존 host FK와 소속은 퇴역한 source 행에 남는다. 현재 source domain의 인증·익명·reset proof
+revision을 증가시킨다. 기존 host의 source FK와 소속은 퇴역한 source 행에 남고, 선택한 target FK만 아래 계약으로 채운다. 현재 source domain의 인증·익명·reset proof
 session 전체를 제거하되 다른 namespace는 보존한다. Source domain의 퇴역 감사와 새 generation/receipt를 같은 transaction에
 확정하며 과거 감사나 session namespace를 target에 복사하지 않는다. Receipt 전후 전체 typed 행/관계 readback을 확인한다.
 같은 이전 모델로 돌아가도 새 generation을 사용한다. Schema migration 동시성 잠금은 별도의 프로젝트 migration owner 책임이다.
@@ -1881,7 +1882,7 @@ Startup은 mapping을 선언한 모든 receipt와 실제 payload 목록을 독�
 검증해 최대 크기의 여러 payload를 보관하지 않는다. JSON decode에도 행 수 한도를 적용하며, checksum이 일치해도
 중복 member·미지정 member·비정규 순서/공백·중복 key·누락/고아/중복 parent를 허용하지 않는다. 후속 전환으로 예전
 대응표가 지워지지 않으며 mapping 없는 역사 receipt는 빈 대응표로 읽는다. 기존 `0001_initial`은 보존하고 `0002`가
-mapping 저장소와 기본값을 가진 receipt 필드를 추가한다. 보관 `TransitionManifest` v3의 restart 대조는 실제 저장 대응표까지
+mapping 저장소와 기본값을 가진 receipt 필드를 추가한다. 보관 `TransitionManifest` v4의 restart 대조는 실제 저장 대응표까지
 확인한다. 사전 준비 mapping과 생성 source 목록 중 하나만 선언한다.
 
 생성 경로의 `TransitionTarget[T]`는 전체 source와 실제 typed collection capability, 로그인/프로필 allowlist와 FK/M2M 선택
@@ -1906,3 +1907,29 @@ non-NULL FK 부재를 검사한다. 빈 table에 남은 orphan reference가 새 
 commit 안에서 대응표에 저장하며 확정 결과의 `Mappings`로 반환한다. Unknown이나 cleanup 실패에는 잠정 key를 게시하지 않는다.
 재시작 대조는 보관 source 목록을 저장 대응표의 source/revision·초기 target revision 및 receipt의 count/checksum과 확인한다.
 새 `Reconcile` 조회는 생성 capability 없이도 같은 source·역할·backend로 수행할 수 있으며, 미관측을 재시도 허가로 사용하지 않는다.
+
+### 일반 host 참조의 단계적 전환
+
+`NewTransitionReference[S,T,H]`는 두 선택 계정 binding과 같은 전체 source의 typed host descriptor를 묶는다.
+호스트는 schema migration으로 source 모델을 가리키는 기존 FK와 target 모델을 가리키는 새 FK를 함께 준비한다.
+`Fields`의 명시적 쌍은 실제 FK/OneToOne이어야 하며 기존 열의 target 의미를 암묵적으로 바꾸지 않는다. 대상 열은 NULL이거나
+명시적 계정 대응표의 값과 같아야 한다. Source NULL에는 target NULL만 허용하며 이미 다른 계정이 들어 있으면 거부한다.
+준비된 target과 새로 생성한 target 모두 실제 저장 key를 사용한다.
+
+모델마다 전체 행을 256개 이하 page로 읽고 기본 4,096개·최대 65,536개를 명시한다. 최대 64개 host model과 전체 account/host
+관측의 64 MiB 한도를 공유하며 초과를 생략하지 않는다. Source key·전체 scalar 값·추가/삭제된 행과 선택적 revision을 준비
+snapshot과 최종 fence에서 대조한다. Revision이 없는 모델도 전체 행 관측으로 변경을 탐지한다. 모델별 필수/추가 권한은
+계정 전환 인가에 합치고 현재 source actor로 다시 검사한다. Typed validator는 실제 target key가 있는 원본/최종 행의 사본을
+받고 쓰기 전 및 최종 readback에서 실행한다. 빌린 reader의 재진입·보관·효과 게시는 허용하지 않는다.
+
+같은 행의 여러 쌍은 한 번의 optional revision 증가와 값 없는 한 감사로 저장한다. No-op은 revision·감사를 만들지 않는다.
+Host 쓰기 뒤 계정/catalog 권한·소속과 전체 source/target 상태를 확인하며 source 퇴역·session 폐기·receipt/대응표 전후에도
+전체 host 행을 다시 읽는다. 감사나 최종 대조 실패는 대상 생성과 모든 host 쓰기까지 함께 rollback한다. Known/unknown 결과
+경계를 유지하고 확정 결과만 `RemappedRows`를 반환한다. Manifest v4는 모델/필드 쌍·revision field·전체 행 수와 operation별
+salted 상태 digest를 보관한다. 원문 값은 포함하지 않는다. 보관한 원래 binding/source와 manifest로 이후 schema 정리 뒤에도
+역사 receipt를 대조할 수 있으며 `Reconcile`은 현재 host 상태가 영구히 같다는 주장이 아니다.
+
+업무 M2M의 명시적 through 행은 이 일반 host로 처리할 수 있다. 선택 계정·catalog 행 자체와 선택 계정 소속/추가 프로필·
+catalog 권한 M2M endpoint를 이 경로로 바꾸는 것은 해당 수명 owner가 필요해 거부한다. Schema expansion → data transition →
+source FK/M2M contraction은 별도의 명시적 migration 단계다. Contracted 생성 모델로 새 계정 runtime을 다시 조립하며,
+역사 source를 퇴역 행으로 남기는 현재 의미와 실제 row 삭제/역사 systemstate 이행은 구분한다.

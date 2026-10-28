@@ -174,7 +174,10 @@ RemoveConstraint도 전체 제약을 보존하여 같은 이름의 다른 member
 모든 operation의 이전·이후 모델과 backend 인자는 분리된 snapshot이다. Backend 인자의 변경이 이력이나 다음 operation으로 새지 않는다.
 동등성·digest에서 제약을 생략하지 않고, 필드 변경이 제약까지 변경하는 것을 허용하지 않는다.
 Autodetect는 이름·member·member 순서 변경을 remove/add로 만들고, 빠진 field나 지연된 FK를 먼저 추가한다. 순환 관계의 각 게시 prefix에서도
-다음 후보를 다시 계산하므로 중단·재개가 제약을 누락하거나 미완성 조합을 게시하지 않는다. 일반 forward field removal은 아직 지원하지 않는다.
+다음 후보를 다시 계산하므로 중단·재개가 제약을 누락하거나 미완성 조합을 게시하지 않는다.
+GDJ-0138의 non-PK `RemoveField`는 해당 field를 사용하는 named 제약을 먼저 명시적으로 제거한다. 남아 있는 제약의 member는
+삭제할 수 없다. Column 고유성과 FK/OneToOne도 전체 field preimage에 포함되며, 다른 열·inbound FK·sequence를 보존하는 기존
+native schema editor를 사용한다. 역방향은 선언과 nullable column을 복원하지만 삭제한 데이터나 일반 backfill을 제공하지 않는다.
 Named 제약의 물리 이름은 table/logical constraint name에 별도 `godj/sqlite/model-unique/v1`·`godj/postgres/model-unique/v1` domain을 적용한다.
 Column Unique의 기존 이름과 혼동하지 않으며, 같은 이름의 member 교체는 같은 owner를 remove/add로 재생성한다.
 SQLite의 intent hash도 이름·member 순서·모든 중첩 경계의 제약을 포함한다. FK remake는 해당 operation의 After에 남은 named index를 복원한다.

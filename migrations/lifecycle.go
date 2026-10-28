@@ -665,6 +665,10 @@ func migrationContainsRelation(migration Migration) bool {
 			if fieldContainsRelation(value.Field) {
 				return true
 			}
+		case RemoveField:
+			if fieldContainsRelation(value.Field) {
+				return true
+			}
 		}
 	}
 	return false

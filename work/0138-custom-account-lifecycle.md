@@ -473,7 +473,24 @@ Manifest v3는 사전 준비 mapping 또는 생성 source 목록을 보관하고
 기본→custom과 custom→생성된 기본 팩토리 소비자에 양 DB의 실패/rollback·unknown·경합·재접속 검사를 연결했다.
 작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
-Catalog 변경·host 관계 재매핑·전환 대상의 through 수명과 역사 `systemstate` 가져오기, 남은 고정 소비자 교체는 미완료이며
+### 일반 host 관계와 schema 단계의 전환
+
+`TransitionReference[S,T]`는 같은 전체 source에서 typed host의 기존/대상 FK·OneToOne 쌍을 명시한다.
+전체 행의 bounded 관측·현재 계정 대응표와 새 실제 key를 사용하고, 기존 참조를 보존하면서 target 참조를 채운다.
+모델별 필수 권한과 optional revision, 사본을 받는 최종 정책·원문 없는 감사를 계정 생성/퇴역·session 폐기·receipt와
+같은 native transaction에 묶었다. 행 추가/삭제·revision 없는 값 변경과 late write를 전체 readback으로 대조한다.
+일반 업무 M2M through는 지원하며 계정/catalog 소속의 endpoint 변경은 해당 수명 owner 없이는 거부한다.
+Manifest v4는 원문 없는 host inventory digest와 선언을 보관하고 unknown/restart에서 원래 source의 receipt와 대조한다.
+
+독립 생성 소비자에 기존/확장/정리된 세 프로젝트를 함께 생성했다. 채운 legacy DB에 실제 확장 migration을 적용하고,
+staged/created 계정 전환 뒤 기존 FK·M2M을 제거한 다음 contracted model로 재조립하여 계정·관계·이력·재시작을 확인하도록
+작성했다. 이 소비자가 발견한 forward field removal 미지원은 I1의 실제 선행 의존성이므로 non-PK `RemoveField`를
+definition·historical state·autodetector·SQL projection·native lifecycle에 연결했다. Constraint/M2M/image 의존 순서와
+전체 field preimage/anchor를 보존하며, 역방향의 데이터 소실과 required/default backfill 거부를 명시한다.
+이는 M1 전체 완료가 아니다. 양 DB의 실제 column/값·FK/OneToOne/unique·sequence·이력, 실패/unknown·재접속 검사를
+필수 목록에 연결했으며 작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+Catalog 변경·선택 identity의 through 수명과 역사 `systemstate` 가져오기, 남은 고정 소비자 교체는 미완료이며
 이 코드만으로 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

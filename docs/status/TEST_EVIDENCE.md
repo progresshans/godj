@@ -2618,6 +2618,62 @@ overlay한 재실행에서 migration과 runserver root는 각각 80.21초·44.69
 새 전환/구성 본문·PostgreSQL·race/CGO0·generated drift·process/platform은 현재 source의 원격 확인 대상이다.
 Catalog/host 관계 mapping·전환 대상 through 수명·역사 systemstate 이행·남은 고정 소비자와 I1 전체 수용은 미완료다.
 
+### 일반 host 참조 전환과 실제 schema 정리
+
+2026-10-28, source `b41f9d6143e77c69c682de416a418d80239b70b5` 위에서 `TransitionReference[S,T]`를 작성했다.
+기존/대상 FK·OneToOne 쌍과 업무 M2M through의 전체 행을 관측하고 실제 계정 대응표로 target 참조를 채운다.
+현재 모델별 인가·optional revision·typed 정책과 감사, 대상 생성/기존 계정 퇴역·session 폐기·receipt를 같은 native
+transaction에 묶었다. Manifest v4는 선언/행 수/operation별 digest를 보관하며 원문은 담지 않는다.
+
+기존 외부 계정 전환 owner에 staged 32개·created 30개의 필수 host 사례를 추가했다. 실제 저장값·인가/정책 변경,
+새 행/삭제/무revision 변경·페이지/한도·signed key·no-op·다중 쓰기/감사/최종 대조 실패·unknown·경합과 재접속을 검사하도록
+작성했다. 각 전략의 schema lifecycle은 채운 legacy 생성 모델 → 실제 확장 migration → 계정/host 전환 → source FK/M2M
+정리 migration → contracted 생성 모델·선택 계정 runtime의 재조립을 사용한다. 수동 SQL로 schema 단계를 우회하지 않는다.
+
+이 생성 소비자가 forward field removal 미지원을 실제로 발견했다. 필요한 non-PK `RemoveField`를 strict definition·
+사본/digest/한도·historical state·autodetection·SQL projection·revision-fenced lifecycle에 연결했다. 전체 field preimage와
+논리 위치, constraint/M2M/image 의존 순서를 보존한다. 양 DB에 각각 10개 필수 native 사례를 작성하여 column/데이터·
+inbound FK/OneToOne/unique·sequence·이력, forward/reverse 중간 실패·recorder 실패·취소·unknown·재접속을 검사한다.
+Nullable/no-default 역방향은 NULL을 복원하고 삭제한 값은 되살리지 않는다. 채운 table의 required/default-bearing 복원은
+기존 backfill 미지원 경계에서 거부한다. 실제 commit/rollback 뒤 응답 오류를 주입한 검사를 네트워크 단절 실험으로 표현하지 않는다.
+
+일반 field removal을 더 이상 미지원으로 취급하지 않도록 MIG-107의 GoDj-owned 거부 항목을 primary key replacement로
+갱신했다. Go 구현의 출력과 독립인 Python decision에서 해당 관찰만 재생성했다. 같은 artifact의 나머지 11개 관찰과
+Django profile은 동일함을 대조하고 manifest·checksum/byte lock을 함께 갱신했다. 신규 제품 본문·고정 환경 재생은 원격 대상이다.
+
+선행 [CI 40607067557](https://github.com/progresshans/godj/actions/runs/40607067557), attempt 1의 실제 checkout
+`169990c2e91e63d22352e0b943234a2293340b1e`와 제출 source의 tree가
+`aaccbe3ef2184ef3a9a6457c02cc613de3c12f53`로 같음을 확인했다. 관측한 실패 작업 12개의 원본에서 다음 두 경로를 확인했다.
+새 source의 성공이나 전체 CI PASS로 사용하지 않는다.
+
+- 생성 target의 unique 사전 검사가 아직 저장되지 않은 행을 기존 행으로 제외하려 하면서 missing primary key로 실패했다.
+  후보 검사는 기존 행 포인터와 absent PK를 전달하지 않도록 고쳤다. 이를 고친 한정 재현에서 fixture가 native
+  `ConflictInserter`를 가려 collection이 실패하는 경로도 확인해 전달하고 실제 collection 쓰기 뒤 fault를 유지했다.
+  Unknown 검사의 commit counter는 이전 session 초기화가 아닌 전환 시작에서 세도록 수정했다.
+- Article PostgreSQL의 정확한 expected constraint 목록은 새 대응표 FK를 포함했지만 총 trigger 수만 28로 남아
+  실제 32와 달랐다. 독립적으로 명시한 8개 FK의 `InternalTriggers` 합계와 전체 수를 대조하도록 고쳐, 선언 밖 trigger·
+  policy/rule 및 개별 제약 검사를 유지했다. 이 수정의 실제 PostgreSQL 본문 재실행은 원격 대상이다.
+
+선행 source를 보존한 외부 소비자에서 생성 lifecycle 실패를 한정 재현했다. Product unique 수정과 두 fixture 수정만
+overlay한 SQLite 재실행에서 생성 root의 38개 child와 두 root, 총 40개 test가 skip 없이 통과했다(본문 2.060초).
+이는 새 host reference/RemoveField 본문이나 PostgreSQL/race 성공을 뜻하지 않는다. 최종 product와 한정 overlay의
+unique 검사 함수가 같음을 확인했다.
+
+로컬은 변경 package 10개의 `go test -run '^$'`와 외부 legacy/expanded/contracted 소비자의 생성·13개 package compile을
+확인했다. 외부 compile은 `GOWORK=off GOPROXY=off GOSUMDB=off`에서 실행했고 마지막 생성/compile driver는 45.185초에
+통과했다. 앞선 시도는 디스크 공간 부족으로 compile이 실패했으며 재생 가능한 Go build cache를 정리한 뒤 다시 완료했다.
+실패 log도 보존했다. 신규 단위/DB/host 소비자 본문은 로컬에서 실행하지 않았다.
+
+최종 compile 전후 제품/검증 39개 파일 hash가 같았다. 임시 driver를 제거하고 현재 binary에서 117개 소비자 root를 발견했다.
+CI의 실제 배정 규칙으로 12개 relation 좌표와 PostgreSQL 3개 mode·19개 core 좌표 및 portable core의 새 sentinel 소유권을
+정적으로 확인했다. 이는 필수 본문의 원격 실행 확인을 대신하지 않는다. Gofmt·diff·문서 링크 검사를 적용했다.
+
+실패 source/tree·12개 원본, 한정 재현/overlay와 결과, 신규 소비자·최소 compile·독립 decision·필수 배정/source hash는
+검증 보관소의 `gdj0138-host-reference-transition-v1/receipt-final.json`에 연결했다
+(SHA-256 `ba7c2fa9fa8adc104d659b03290ed70361f605162df539fcb11bae017118efc3`).
+신규 본문·양 DB/race/CGO0·generated drift/process/platform과 같은 source의 전체 원격 수용은 확인 대상이다.
+Catalog 전환·선택 identity through 수명·역사 systemstate 이행·남은 고정 소비자와 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

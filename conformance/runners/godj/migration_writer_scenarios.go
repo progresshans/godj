@@ -1112,7 +1112,8 @@ func migrationWriterUnsupportedCases() ([]struct {
 	if err != nil {
 		return nil, err
 	}
-	articleTitleOnly := ir.Model{Name: "article", GoName: "Article", Fields: []ir.Field{{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200}}}
+	replacedKey := migrationWriterArticle()
+	replacedKey.Fields = append([]ir.Field{{Name: "key", GoName: "Key", Kind: ir.FieldAuto, PrimaryKey: true}}, replacedKey.Fields...)
 	reordered := ir.Model{Name: "article", GoName: "Article", Fields: []ir.Field{
 		{Name: "published", GoName: "Published", Kind: ir.FieldBoolean, Default: &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: false}},
 		{Name: "title", GoName: "Title", Kind: ir.FieldChar, MaxLength: 200},
@@ -1133,7 +1134,7 @@ func migrationWriterUnsupportedCases() ([]struct {
 		desired codegen.ProjectSpec
 	}{
 		{name: "model_removal", history: modelHistory, desired: migrationWriterBaseSpec()},
-		{name: "field_removal", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", articleTitleOnly))},
+		{name: "primary_key_replacement", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", replacedKey))},
 		{name: "field_reorder", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", reordered))},
 		{name: "field_rename", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", renamed))},
 		{name: "field_alter", history: baseHistory, desired: migrationWriterSpec(migrationWriterApp("blog", altered))},

@@ -25,6 +25,8 @@ import (
 // observations and profile locks remain unchanged.
 // GDJ-0118 adds the Article bulk route to both API-011 profiles and increments
 // shared_routes; the independent oracle and all-scenario digest own this delta.
+// GDJ-0138 adopts only the independently generated MIG-107 primary-key
+// replacement refusal; forward non-PK removal is now a supported operation.
 func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 	t.Parallel()
 	root := conformanceRepositoryRoot(t)
@@ -51,7 +53,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/contracts/migration-restart-manifest.json":                                         {-1, "79dda328b9b65c532178db62f289340a5ffd06445b7095aec5f215134b65c290"},
 		"conformance/contracts/migration-state-reconstruction-manifest.json":                            {-1, "85398c217e19dbd77747f2abfeafc5d69f166cab154e49d9e1f0bcf8f91e6d5c"},
 		"conformance/contracts/migration-status-manifest.json":                                          {5263, "dcb86295e683ea083cc57dca155284f9b26018d5d5a30c9606141bee8946fcc6"},
-		"conformance/contracts/migration-writer-manifest.json":                                          {9219, "b74863e81417fbf142d7c50685a5b84f86f0534fefd400e9bf2e970d724f3eef"},
+		"conformance/contracts/migration-writer-manifest.json":                                          {9241, "2438140878186d891c42e85c6d6f3603c4554cd4787be7531afde0d746f12ff7"},
 		"conformance/contracts/parameter-routing-manifest.json":                                         {4689, "85365b3670df5fa5a0d51241dd958d25816d9a285a5070e416120423793a264e"},
 		"conformance/contracts/query-breadth-manifest.json":                                             {11282, "04665808db8f775096c07ac1705e6e10f139ac233f71a10c2892403005245167"},
 		"conformance/contracts/query-cache-manifest.json":                                               {-1, "35f808e361d85228fe3048ae2510cf296f3127bee5572ce3ed9e66c6fd3eb3e2"},
@@ -96,7 +98,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/fixtures/godj-template-form-deviation-expected.json":                               {1472, "0f9b10539677c07aa18c058f0e78925b3388299be853506324325c2af11d2ff3"},
 		"conformance/fixtures/godj-template-form-not-implemented.json":                                  {1863, "b1e426264c53dc4885f70aa0f6d2f2231ade201da0fa9fd980d11400960cc1f5"},
 		"conformance/fixtures/godj-write-migration-not-implemented.json":                                {-1, "c565c877278032637b75f99c9490c5e7e02169c8730628069533f16da6d8e707"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "2aa8c8f00be1240f4272a39e1d8cd869d2fb78af1676c8f57ec5e1d416ee8616"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/SHA256SUMS":                                 {2279, "26ccafe6ebf1026a848fca2b66db065f2a6ac58148a6b93ca2714e2e9d9abfe1"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/article-admin-oracle.json":                  {17711, "112c5da2e2a2c1393c9f52ac058b87dfb9f76f20b4111edb735e5fa17ca641cf"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/auth-session-oracle.json":                   {6916, "9eb0bfd37e7aeabac9250374af250ba0b74d2cf4c657cd2543e5dc9626fc36dc"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-command-oracle.json":              {12690, "30b1b5c109c9da98a3fce2236ee9faf1f6fe9f4ae31ebdd640b74728160313ee"},
@@ -109,7 +111,7 @@ func TestReferenceArtifactsMatchLockedBytes(t *testing.T) {
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-restart-oracle.json":              {-1, "90a920a195cd8e1cde1cdab62be0092cfd436e96bb0045cac8259c4d293c0727"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-state-reconstruction-oracle.json": {-1, "bce71e26f1e919edbfc2d1acc7de9a3bfb8934efeab6e6656c8bcdc38d19a6a9"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-status-oracle.json":               {39478, "5a7a7827b37594b5084a25567fedd65152bfb05b5783cdf9e052bdc4d6d9355f"},
-		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json":               {25991, "b5c800ce23b238f4532b3f99b7a1466eb38e4b8884948f6a8376d0aca7bfa1a6"},
+		"conformance/oracles/django-6.1-sqlite-darwin-arm64/migration-writer-oracle.json":               {26001, "5c0008ace15b48f72674d940b7bd60810bca5e1c3adc5a10845da7e0161511f5"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/oracle.json":                                {-1, "b0e1c178c3d8f999fa606d67eaadda178e910f62f3eb5fbf6b2cd881cafd5cd0"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-breadth-oracle.json":                  {41943, "0236bdab23ad8d6c9fc3c65a810badcb7048ec5b4da6c8ad7fd5387245cccf94"},
 		"conformance/oracles/django-6.1-sqlite-darwin-arm64/query-cache-oracle.json":                    {-1, "d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682"},

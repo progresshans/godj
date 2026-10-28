@@ -92,6 +92,7 @@ class MigrationWriterDecisionTests(unittest.TestCase):
             decisions.unsupported_delta_fail_closed("MIG-107")["result"]
         )
         self.assertFalse(unsupported["partial_success"])
+        self.assertEqual(unsupported["cases"][1]["case"], "primary_key_replacement")
         self.assertEqual(
             unsupported["cases"][5]["case"], "required_field_without_backfill"
         )

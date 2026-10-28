@@ -16,6 +16,7 @@ import (
  "example.com/godj-project-bundle/models"
  "example.com/godj-project-bundle/members"
  "example.com/godj-project-bundle/project"
+ "example.com/godj-project-bundle/host"
  accountaudit "github.com/progresshans/godj/account/audit"
  "github.com/progresshans/godj/account/domain"
  "github.com/progresshans/godj/auth"
@@ -68,6 +69,11 @@ func(s transitionReferenceRead)Query(ctx context.Context,plan query.Plan)(db.Row
 }
 type transitionScope struct { db.Session; owner *transitionBackend }
 func(s *transitionScope)RelationSetNull(ctx context.Context,plan query.RelationSetNullPlan)(int64,error){return s.Session.(db.RelationSession).RelationSetNull(ctx,plan)}
+func(s *transitionScope)InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan)(bool,error){
+ inserted,err:=s.Session.(db.ConflictInserter).InsertOnConflict(ctx,plan)
+ if err==nil&&s.owner.mode=="collection_after_write"&&plan.Table()=="members_member_interests"{s.owner.faults.Add(1);return inserted,errors.New("failure after native dependent conflict INSERT")}
+ return inserted,err
+}
 
 func (s *transitionScope) ValidateSession(ctx context.Context)error{return s.Session.(db.SessionValidator).ValidateSession(ctx)}
 func (s *transitionScope) Update(ctx context.Context,plan query.UpdatePlan)(int64,error){
@@ -103,7 +109,7 @@ func transitionPatch[M any](t *testing.T,backend db.Mutator,objects orm.Manager[
 }
 func transitionTargetBinding(t *testing.T)accountmodel.Binding[members.Member]{
  t.Helper();var role ir.AccountRole;transitionCheck(t,json.Unmarshal([]byte(`@@ROLE@@`),&role))
- binding,err:=accountmodel.Bind(role,members.MemberDescriptor{},models.GoDjRelationSchema(),members.GoDjRelationSchema());transitionCheck(t,err);return binding
+ binding,err:=accountmodel.Bind(role,members.MemberDescriptor{},models.GoDjRelationSchema(),members.GoDjRelationSchema(),host.GoDjRelationSchema());transitionCheck(t,err);return binding
 }
 func transitionStores(t *testing.T,backend database.Backend)(*accountmodel.SessionStore[models.User],*accountmodel.SessionStore[members.Member]){
  t.Helper();old,err:=project.NewAccountCredentialStore(backend);transitionCheck(t,err)

@@ -40,6 +40,21 @@ func TestSQLiteMigrationFieldPositionProduct(t *testing.T) {
 	})
 }
 
+func TestSQLiteMigrationFieldRemovalProduct(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	root := t.TempDir()
+	migrationgraphtest.RunFieldRemoval(t, ctx, func(caseName string) migrationgraphtest.Binding {
+		backend, err := Open(ctx, filepath.Join(root, caseName+".sqlite3"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		backend.database.SetMaxOpenConns(1)
+		t.Cleanup(func() { _ = backend.Close() })
+		return migrationgraphtest.Binding{Backend: backend, Database: backend.database, Renderer: NewMigrationSQLRenderer(), Close: backend.Close, Table: func(name string) string { return `"main"."` + name + `"` }}
+	})
+}
+
 func TestSQLiteAutomaticRelationGraphProduct(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()

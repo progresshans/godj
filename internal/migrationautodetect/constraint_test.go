@@ -3,7 +3,6 @@ package migrationautodetect
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"os"
 	"reflect"
 	"slices"
@@ -130,15 +129,25 @@ func TestDetectNamedConstraintsAgainstIndependentDjangoPlanningObservations(t *t
 			})
 		}
 	}
-	// Forward field removal remains outside the current operation domain. Do
-	// not publish the preceding RemoveConstraint as a misleading partial plan.
+	// Field removal must include its preceding constraint removal in one
+	// complete candidate, preserving the remaining columns and field order.
 	before := state(all, first)
 	after := state([]string{"first", "third"})
 	plan, err := Detect(Request{Definitions: mustLoadDefinitions(t, initialMigrationsFromState(t, before)...), Desired: after, ManagedApps: []string{"compound"}})
-	var unsupported *Error
-	if !errors.As(err, &unsupported) || unsupported.Code != CodeUnsupportedChange || !plan.Empty() {
-		t.Fatal("unsupported field removal published a partial constraint plan", err)
+	if err != nil {
+		t.Fatal(err)
 	}
+	changes := plan.Migrations()
+	if len(changes) != 1 || len(changes[0].Operations) != 2 {
+		t.Fatal("field removal published a partial constraint plan")
+	}
+	if _, ok := changes[0].Operations[0].(migrations.RemoveConstraint); !ok {
+		t.Fatal("field was removed before its named constraint")
+	}
+	if removed, ok := changes[0].Operations[1].(migrations.RemoveField); !ok || removed.Field.Name != "second" {
+		t.Fatal("wrong constrained field removal")
+	}
+	assertGeneratedState(t, mustLoadDefinitions(t, initialMigrationsFromState(t, before)...), changes, after)
 }
 
 func TestDetectNamedConstraintsWaitForCyclicMembersAndPreserveEveryPublishedPrefix(t *testing.T) {

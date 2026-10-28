@@ -32,8 +32,9 @@ type AccountMapping = domain.Mapping
 // Targets may be staged explicitly or created with TargetCreation and
 // PrepareCreation. The operation preserves principal/password/roles and the
 // shared catalog's exact group/direct/effective grants. It does not infer a
-// mapping or profile conversion, rewrite host references or adopt historical
-// systemstate storage.
+// mapping or profile conversion or adopt historical systemstate storage.
+// Explicit References may populate staged host FK/OneToOne destination fields
+// while retaining their source fields and declared schema meanings.
 //
 // Validate is optional application policy over detached, password-redacted
 // source/target rows and complete profile memberships. It runs in preparation
@@ -48,6 +49,7 @@ type TransitionConfig[S, T any] struct {
 	Validate              func(context.Context, db.Queryer, S, T, AccountMemberships, AccountMemberships) (validation.Errors, error)
 	Now                   func() time.Time
 	TargetCreation        TransitionTarget[T]
+	References            []TransitionReference[S, T]
 }
 
 func (TransitionConfig[S, T]) Format(state fmt.State, _ rune) {
@@ -112,6 +114,31 @@ func NewTransition[S, T any](source *SessionStore[S], target *SessionStore[T], c
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
 	config.AdditionalPermissions = slices.Clone(config.AdditionalPermissions)
+	if len(config.References) > MaximumTransitionReferenceModels {
+		return nil, managementError(CodeInvalidConfig, nil)
+	}
+	config.References = slices.Clone(config.References)
+	for _, reference := range config.References {
+		if reference.state == nil || reference.state.source != left || reference.state.oldRole != a.roleFingerprint || reference.state.nextRole != b.roleFingerprint {
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
+		for _, permission := range reference.state.required {
+			if !slices.Contains(required, permission) {
+				required = append(required, permission)
+			}
+		}
+	}
+	if _, err := auth.RequiredPermissions(required[0], required[1:]...); err != nil {
+		return nil, managementError(CodeInvalidConfig, err)
+	}
+	slices.SortFunc(config.References, func(a, b TransitionReference[S, T]) int {
+		return compareTransitionReferenceIdentity(a.state.model, b.state.model)
+	})
+	for i := 1; i < len(config.References); i++ {
+		if config.References[i-1].state.model == config.References[i].state.model {
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
+	}
 	if config.Now == nil {
 		config.Now = time.Now
 	}
@@ -144,16 +171,17 @@ func NewTransition[S, T any](source *SessionStore[S], target *SessionStore[T], c
 // credentials or session data. Retain it BEFORE Commit, including on unknown
 // outcomes. The digest is evidence identity, not authorization or a bearer key.
 type TransitionManifest struct {
-	Version          int              `json:"version"`
-	OperationID      string           `json:"operation_id"`
-	PriorOperationID string           `json:"prior_operation_id"`
-	PriorSequence    int64            `json:"prior_sequence"`
-	ProjectSHA256    string           `json:"project_sha256"`
-	SourceRoleSHA256 string           `json:"source_role_sha256"`
-	TargetRoleSHA256 string           `json:"target_role_sha256"`
-	StateSHA256      string           `json:"state_sha256"`
-	Mappings         []AccountMapping `json:"mappings,omitempty"`
-	CreationSources  []SourceAccount  `json:"creation_sources,omitempty"`
+	Version          int                           `json:"version"`
+	OperationID      string                        `json:"operation_id"`
+	PriorOperationID string                        `json:"prior_operation_id"`
+	PriorSequence    int64                         `json:"prior_sequence"`
+	ProjectSHA256    string                        `json:"project_sha256"`
+	SourceRoleSHA256 string                        `json:"source_role_sha256"`
+	TargetRoleSHA256 string                        `json:"target_role_sha256"`
+	StateSHA256      string                        `json:"state_sha256"`
+	Mappings         []AccountMapping              `json:"mappings,omitempty"`
+	CreationSources  []SourceAccount               `json:"creation_sources,omitempty"`
+	References       []TransitionReferenceManifest `json:"references,omitempty"`
 }
 
 func (TransitionManifest) Format(state fmt.State, _ rune) {
@@ -181,6 +209,7 @@ func (prepared PreparedTransition[S, T]) Manifest() TransitionManifest {
 	result := prepared.state.manifest
 	result.Mappings = slices.Clone(result.Mappings)
 	result.CreationSources = slices.Clone(result.CreationSources)
+	result.References = cloneTransitionReferenceManifests(result.References)
 	return result
 }
 
@@ -219,9 +248,9 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 	}
 	oldRole, _ := owner.old.state.credentials.state.binding.RoleFingerprint()
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
-	manifest := TransitionManifest{Version: 3, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
+	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
 		PriorSequence: observation.ownership.Sequence(), ProjectSHA256: owner.source, SourceRoleSHA256: oldRole,
-		TargetRoleSHA256: nextRole, StateSHA256: observation.digest, Mappings: owned}
+		TargetRoleSHA256: nextRole, StateSHA256: observation.digest, Mappings: owned, References: transitionReferenceManifests(observation.references)}
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return PreparedTransition[S, T]{}, err
@@ -239,6 +268,7 @@ type TransitionResult struct {
 	CreatedAccounts int
 	Mappings        []AccountMapping
 	RevokedSessions int
+	RemappedRows    int
 }
 
 func (TransitionResult) Format(state fmt.State, _ rune) {
@@ -247,8 +277,9 @@ func (TransitionResult) Format(state fmt.State, _ rune) {
 
 // Commit consumes the preparation once. Current authority, the full mapping,
 // all scalar/collection values and application policy are rechecked under one
-// native fence. Source rows become unusable tombstones; host references and
-// historical memberships remain attached to those rows. All old-domain
+// native fence. Source rows become unusable tombstones; original host fields
+// and historical memberships remain attached to those rows. Explicit target
+// reference fields, their revisions and audit are coordinated here. All old-domain
 // sessions (including anonymous reset proofs), retirement audit and the new
 // ownership receipt commit atomically. Existing audit is never reassigned.
 func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal, prepared PreparedTransition[S, T]) (TransitionResult, error) {
@@ -285,6 +316,34 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 }
 
 func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session, current transitionObservation[S, T], expected domain.Receipt, change domain.Change, mappings []AccountMapping, at time.Time) (TransitionResult, error) {
+	var references []transitionReferenceApplied
+	remapped := 0
+	for _, observed := range current.references {
+		applied, err := observed.apply(ctx, scope, current.actor, mappings, at)
+		if err != nil {
+			return TransitionResult{}, err
+		}
+		references = append(references, applied)
+		remapped += applied.changed
+	}
+	if len(references) > 0 {
+		// Host changes cannot manufacture authority or silently alter an
+		// account/catalog graph before the explicit retirement is performed.
+		if _, _, err := owner.inspectAuthority(ctx, scope, current.actor); err != nil {
+			return TransitionResult{}, err
+		}
+		if err := owner.verifyRows(ctx, scope, current, mappings); err != nil {
+			return TransitionResult{}, err
+		}
+	}
+	verifyReferences := func() error {
+		for _, applied := range references {
+			if err := applied.verify(ctx, scope); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	bound, err := owner.old.namespaceIn(ctx, scope)
 	if err != nil {
 		return TransitionResult{}, err
@@ -326,7 +385,10 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 	}
 	// Database rules must not resurrect a credential or change a staged
 	// target/profile/grant after retirement and its audit have executed.
-	if err := owner.verifyRetirement(ctx, scope, current, mappings); err != nil {
+	if err := owner.verifyRows(ctx, scope, current, mappings); err != nil {
+		return TransitionResult{}, err
+	}
+	if err := verifyReferences(); err != nil {
 		return TransitionResult{}, err
 	}
 	receipt, err := domain.TransitionMappedIn(ctx, scope, expected, change, at, mappings)
@@ -334,7 +396,7 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 		return TransitionResult{}, err
 	}
 	// Receipt insertion is also inside the independent final readback.
-	if err := owner.verifyRetirement(ctx, scope, current, mappings); err != nil {
+	if err := owner.verifyRows(ctx, scope, current, mappings); err != nil {
 		return TransitionResult{}, err
 	}
 	ownership, err := domain.InspectIn(ctx, scope)
@@ -345,7 +407,10 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 	if err != nil || remaining != 0 {
 		return TransitionResult{}, managementError(CodePersistence, err)
 	}
-	return TransitionResult{Ownership: receipt, MappedAccounts: len(current.pairs), Mappings: slices.Clone(mappings), RevokedSessions: revoked}, nil
+	if err := verifyReferences(); err != nil {
+		return TransitionResult{}, err
+	}
+	return TransitionResult{Ownership: receipt, MappedAccounts: len(current.pairs), Mappings: slices.Clone(mappings), RevokedSessions: revoked, RemappedRows: remapped}, nil
 }
 
 // Reconcile reads an exact immutable receipt using retained evidence. false
@@ -436,8 +501,11 @@ func compareInt64(a, b int64) int {
 }
 
 func (manifest TransitionManifest) evidence() (string, error) {
-	if manifest.Version != 3 || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts {
+	if manifest.Version != 4 || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts {
 		return "", managementError(CodeInvalidInput, nil)
+	}
+	if err := validateTransitionReferenceManifests(manifest.References); err != nil {
+		return "", err
 	}
 	for _, digest := range []string{manifest.OperationID, manifest.PriorOperationID, manifest.ProjectSHA256, manifest.SourceRoleSHA256, manifest.TargetRoleSHA256, manifest.StateSHA256} {
 		if !transitionDigest(digest) {
@@ -464,6 +532,9 @@ func (manifest TransitionManifest) evidence() (string, error) {
 }
 
 func transitionDigest(text string) bool {
+	if len(text) != sha256.Size*2 {
+		return false
+	}
 	decoded, err := hex.DecodeString(text)
 	return err == nil && len(decoded) == sha256.Size && hex.EncodeToString(decoded) == text && !slices.Equal(decoded, make([]byte, sha256.Size))
 }

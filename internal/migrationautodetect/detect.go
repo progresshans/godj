@@ -318,15 +318,12 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 
 	change := appChange{}
 	addedFields := make([]migrations.Operation, 0)
-	var removedConstraints, addedConstraints, manyOperations []migrations.Operation
+	var removedConstraints, removedFields, addedConstraints, manyOperations []migrations.Operation
 	for index := range before.Models {
 		oldModel := before.Models[index]
 		newModel := after.Models[index]
 		if oldModel.Name != newModel.Name || oldModel.GoName != newModel.GoName || oldModel.DBTable != newModel.DBTable {
 			return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, "", fmt.Errorf("existing model identity/order changed at index %d", index))
-		}
-		if len(newModel.Fields) < len(oldModel.Fields) {
-			return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, "", fmt.Errorf("field removal is unsupported"))
 		}
 		many, err := manyChanges(app, oldModel, newModel)
 		if err != nil {
@@ -340,10 +337,33 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 		for index, field := range oldModel.Fields {
 			oldNames[field.Name] = index
 		}
+		newNames := fieldNameSet(newModel.Fields)
+		var retainedNames []string
+		for _, field := range oldModel.Fields {
+			if newNames[field.Name] {
+				retainedNames = append(retainedNames, field.Name)
+				continue
+			}
+			if field.PrimaryKey {
+				return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("primary key removal is unsupported"))
+			}
+			for _, addition := range newModel.Fields {
+				if _, exists := oldNames[addition.Name]; exists {
+					continue
+				}
+				renamed := addition.Clone()
+				renamed.Name, renamed.GoName, renamed.Column = field.Name, field.GoName, field.Column
+				if addition.Column == field.Column || renamed.Equal(field) {
+					return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("ambiguous field replacement requires an explicit migration"))
+				}
+			}
+			removedFields = append(removedFields, migrations.RemoveField{AppLabel: app, ModelName: newModel.Name, Field: field.Clone()})
+			collectRelationReference(&change.relations, app, newModel.Name, field)
+		}
 		retained := 0
 		for _, field := range newModel.Fields {
 			if oldIndex, exists := oldNames[field.Name]; exists {
-				if oldIndex != retained {
+				if retained >= len(retainedNames) || retainedNames[retained] != field.Name {
 					return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, field.Name, fmt.Errorf("existing field order changed"))
 				}
 				before := oldModel.Fields[oldIndex]
@@ -365,9 +385,6 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 			collectRelationReference(&change.relations, app, newModel.Name, field)
 			addedFields = append(addedFields, migrations.AddField{AppLabel: app, ModelName: newModel.Name, Field: field.Clone()})
 		}
-		if retained != len(oldModel.Fields) {
-			return appChange{}, false, detectionError(CodeUnsupportedChange, app, newModel.Name, "", fmt.Errorf("field removal is unsupported"))
-		}
 	}
 
 	for modelIndex := len(before.Models); modelIndex < len(after.Models); modelIndex++ {
@@ -387,6 +404,7 @@ func detectAppChange(app string, current, desired migrations.ProjectState) (appC
 		change.operations = append(change.operations, migrations.CreateModel{AppLabel: app, Model: model})
 	}
 	change.operations = append(removedConstraints, change.operations...)
+	change.operations = append(change.operations, removedFields...)
 	change.operations = append(change.operations, addedFields...)
 	change.operations = append(change.operations, addedConstraints...)
 	change.operations = append(change.operations, manyOperations...)
@@ -512,6 +530,12 @@ func operationSlug(operations []migrations.Operation) string {
 			}
 		case migrations.AddField:
 			return operation.ModelName + "_" + operation.Field.Name
+		case migrations.RemoveField:
+			return "remove_" + operation.ModelName + "_" + operation.Field.Name
+		case *migrations.RemoveField:
+			if operation != nil {
+				return "remove_" + operation.ModelName + "_" + operation.Field.Name
+			}
 		case migrations.AddManyToMany:
 			return "add_" + operation.ModelName + "_" + operation.Field.Name
 		case migrations.RemoveManyToMany:
@@ -570,6 +594,9 @@ func operationSlug(operations []migrations.Operation) string {
 		case migrations.AddField:
 			field := value.Field.Clone()
 			values = append(values, change{Kind: "add_field", App: value.AppLabel, Model: value.ModelName, Field: &field, BeforeField: value.BeforeField})
+		case migrations.RemoveField:
+			field := value.Field.Clone()
+			values = append(values, change{Kind: "remove_field", App: value.AppLabel, Model: value.ModelName, Field: &field, BeforeField: value.BeforeField})
 		case migrations.AddConstraint:
 			constraint := value.Constraint.Clone()
 			values = append(values, change{Kind: "add_constraint", App: value.AppLabel, Model: value.ModelName, Constraint: &constraint})
@@ -673,6 +700,15 @@ func cloneOperations(input []migrations.Operation) []migrations.Operation {
 			value.Field = value.Field.Clone()
 			result[index] = value
 		case *migrations.AddField:
+			if value != nil {
+				copy := *value
+				copy.Field = value.Field.Clone()
+				result[index] = &copy
+			}
+		case migrations.RemoveField:
+			value.Field = value.Field.Clone()
+			result[index] = value
+		case *migrations.RemoveField:
 			if value != nil {
 				copy := *value
 				copy.Field = value.Field.Clone()

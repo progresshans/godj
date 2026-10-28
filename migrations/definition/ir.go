@@ -42,6 +42,10 @@ func operationValue(operation migrations.Operation) migrations.Operation {
 		if value != nil {
 			return *value
 		}
+	case *migrations.RemoveField:
+		if value != nil {
+			return *value
+		}
 	case *migrations.AddConstraint:
 		if value != nil {
 			return *value
@@ -76,6 +80,9 @@ func cloneOperation(operation migrations.Operation) migrations.Operation {
 		value.Model = value.Model.Clone()
 		return value
 	case migrations.AddField:
+		value.Field = value.Field.Clone()
+		return value
+	case migrations.RemoveField:
 		value.Field = value.Field.Clone()
 		return value
 	case migrations.AddConstraint:

@@ -2,6 +2,7 @@ package migrationautodetect
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/progresshans/godj/migrations"
@@ -148,6 +149,8 @@ func nextCandidate(changes map[string]appChange, current, desired migrations.Pro
 			}
 		case migrations.AddField:
 			collectRelationReference(&references, selected, value.ModelName, value.Field)
+		case migrations.RemoveField:
+			collectRelationReference(&references, selected, value.ModelName, value.Field)
 		}
 	}
 	for _, reference := range references {
@@ -230,7 +233,7 @@ func candidateOperations(app string, change appChange, current, desired migratio
 			constraintAdds = append(constraintAdds, value)
 		case migrations.RemoveConstraint:
 			removals = append(removals, value)
-		case migrations.AlterField:
+		case migrations.AlterField, migrations.RemoveField:
 			existing = append(existing, value)
 		default:
 			return nil, detectionError(CodeInvalidGeneratedPlan, app, "", "", fmt.Errorf("unsupported candidate operation %T", operation))
@@ -243,12 +246,16 @@ func candidateOperations(app string, change appChange, current, desired migratio
 	// Anchors refer only to fields already present at this exact operation.
 	// Deferring an earlier FK therefore cannot move a following scalar field.
 	available := make(map[string]map[string]bool)
+	orderedFields := make(map[string][]string)
 	before, err := projectStorageSchema(current, app)
 	if err != nil {
 		return nil, err
 	}
 	for _, model := range before.Models {
 		available[model.Name] = fieldNameSet(model.Fields)
+		for _, field := range model.Fields {
+			orderedFields[model.Name] = append(orderedFields[model.Name], field.Name)
+		}
 	}
 	operations, err = orderImageOperations(operations, before.Models)
 	if err != nil {
@@ -265,9 +272,28 @@ func candidateOperations(app string, change appChange, current, desired migratio
 			if value.Field.Through == nil {
 				id := value.Field.StorageThrough(ir.ModelIdentity{AppLabel: app, ModelName: value.ModelName}).Model
 				delete(available, id.ModelName)
+				delete(orderedFields, id.ModelName)
 			}
 		case migrations.CreateModel:
 			available[value.Model.Name] = fieldNameSet(value.Model.Fields)
+			orderedFields[value.Model.Name] = nil
+			for _, field := range value.Model.Fields {
+				orderedFields[value.Model.Name] = append(orderedFields[value.Model.Name], field.Name)
+			}
+		case migrations.RemoveField:
+			fields, exists := available[value.ModelName]
+			order := orderedFields[value.ModelName]
+			position := slices.Index(order, value.Field.Name)
+			if !exists || !fields[value.Field.Name] || position < 0 {
+				return nil, detectionError(CodeInvalidGeneratedPlan, app, value.ModelName, value.Field.Name, fmt.Errorf("RemoveField source is not available"))
+			}
+			value.BeforeField = ""
+			if position+1 < len(order) {
+				value.BeforeField = order[position+1]
+			}
+			orderedFields[value.ModelName] = slices.Delete(order, position, position+1)
+			delete(fields, value.Field.Name)
+			operations[index] = value
 		case migrations.AddField:
 			fields, exists := available[value.ModelName]
 			if !exists {
@@ -287,6 +313,15 @@ func candidateOperations(app string, change appChange, current, desired migratio
 			if !found {
 				return nil, detectionError(CodeInvalidGeneratedPlan, app, value.ModelName, value.Field.Name, fmt.Errorf("AddField lacks desired declaration"))
 			}
+			order := orderedFields[value.ModelName]
+			position := len(order)
+			if value.BeforeField != "" {
+				position = slices.Index(order, value.BeforeField)
+			}
+			if position < 0 {
+				return nil, detectionError(CodeInvalidGeneratedPlan, app, value.ModelName, value.Field.Name, fmt.Errorf("field insertion anchor is unavailable"))
+			}
+			orderedFields[value.ModelName] = slices.Insert(order, position, value.Field.Name)
 			fields[value.Field.Name] = true
 			operations[index] = value
 		}
@@ -344,10 +379,12 @@ func orderImageOperations(operations []migrations.Operation, before []ir.Model) 
 		switch value := operation.(type) {
 		case migrations.AddField:
 			field = value.Field
+		case migrations.RemoveField:
+			needed = true
 		case migrations.AlterField:
 			field = value.After
 		}
-		if field.WidthField != "" || field.HeightField != "" {
+		if needed || field.WidthField != "" || field.HeightField != "" {
 			needed = true
 			break
 		}
@@ -359,6 +396,7 @@ func orderImageOperations(operations []migrations.Operation, before []ir.Model) 
 	type key struct{ model, field string }
 	additions := map[key]int{}
 	alterations := map[key]int{}
+	removals := map[key]int{}
 	owners := map[key]string{}
 	for _, model := range before {
 		dimensions, err := ir.ImageDimensionOwners(model)
@@ -375,6 +413,8 @@ func orderImageOperations(operations []migrations.Operation, before []ir.Model) 
 			additions[key{value.ModelName, value.Field.Name}] = index
 		case migrations.AlterField:
 			alterations[key{value.ModelName, value.After.Name}] = index
+		case migrations.RemoveField:
+			removals[key{value.ModelName, value.Field.Name}] = index
 		}
 	}
 	dependencies := make([][]int, len(operations))
@@ -386,6 +426,18 @@ func orderImageOperations(operations []migrations.Operation, before []ir.Model) 
 			model, field = value.ModelName, value.Field
 		case migrations.AlterField:
 			model, field = value.ModelName, value.After
+		case migrations.RemoveField:
+			if owner := owners[key{value.ModelName, value.Field.Name}]; owner != "" {
+				release, found := removals[key{value.ModelName, owner}]
+				if !found {
+					release, found = alterations[key{value.ModelName, owner}]
+				}
+				if !found {
+					return nil, fmt.Errorf("image dimension %s.%s has a retained owner", value.ModelName, value.Field.Name)
+				}
+				dependencies[index] = append(dependencies[index], release)
+			}
+			continue
 		default:
 			continue
 		}
@@ -398,6 +450,9 @@ func orderImageOperations(operations []migrations.Operation, before []ir.Model) 
 			}
 			if owner := owners[key{model, dimension}]; owner != "" && owner != field.Name {
 				release, found := alterations[key{model, owner}]
+				if !found {
+					release, found = removals[key{model, owner}]
+				}
 				if !found {
 					return nil, fmt.Errorf("image dimension %s.%s still belongs to %s", model, dimension, owner)
 				}

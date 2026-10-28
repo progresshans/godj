@@ -215,7 +215,7 @@ func onlyAppliedSteps(steps []PlanStep, applied AppliedState) []PlanStep {
 
 func cloneReconstructorOperation(operation Operation) (Operation, string, bool) {
 	switch operation := cloneMigrationOperation(operation).(type) {
-	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
+	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 		return operation, operation.Kind(), true
 	default:
 		return nil, "", false
@@ -669,6 +669,10 @@ func collectLoadedStateGraph(
 				if fieldContainsRelation(value.Field) {
 					declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: loadedModelIdentity{app: value.AppLabel, model: value.ModelName}, field: value.Field.Clone()})
 				}
+			case RemoveField:
+				if fieldContainsRelation(value.Field) {
+					declarations = append(declarations, loadedRelationDeclaration{key: key, operationIndex: index, operationKind: value.Kind(), source: loadedModelIdentity{app: value.AppLabel, model: value.ModelName}, field: value.Field.Clone()})
+				}
 			}
 		}
 	}
@@ -940,6 +944,16 @@ func (r loadedStateReconstructor) applyLoadedOperation(
 			err = builder.addField(value)
 		} else {
 			err = builder.removeField(value)
+		}
+	case RemoveField:
+		var inverse AddField
+		inverse, err = value.inverse()
+		if err == nil {
+			if direction == DirectionForward {
+				err = builder.removeField(inverse)
+			} else {
+				err = builder.addField(inverse)
+			}
 		}
 	case AddConstraint:
 		err = builder.changeConstraint(value.AppLabel, value.ModelName, value.Constraint, direction == DirectionForward)
@@ -1995,6 +2009,11 @@ func loadedBackendOperationKind(operation Operation, direction Direction) (loade
 			return loadedRelationAddField, nil
 		}
 		return loadedRelationRemoveField, nil
+	case RemoveField:
+		if direction == DirectionForward {
+			return loadedRelationRemoveField, nil
+		}
+		return loadedRelationAddField, nil
 	case AddConstraint:
 		if direction == DirectionForward {
 			return loadedRelationAddConstraint, nil
@@ -2101,6 +2120,8 @@ func operationSourceModel(operation Operation) (string, string) {
 		return value.AppLabel, value.Model.Name
 	case AddField:
 		return value.AppLabel, value.ModelName
+	case RemoveField:
+		return value.AppLabel, value.ModelName
 	case AddConstraint:
 		return value.AppLabel, value.ModelName
 	case RemoveConstraint:
@@ -2125,6 +2146,10 @@ func operationRelationFieldViews(operation Operation) []ir.Field {
 	case CreateModel:
 		appendRelations(value.Model.Fields)
 	case AddField:
+		if fieldContainsRelation(value.Field) {
+			fields = append(fields, value.Field)
+		}
+	case RemoveField:
 		if fieldContainsRelation(value.Field) {
 			fields = append(fields, value.Field)
 		}
@@ -2272,7 +2297,7 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	// without invoking any methods on an embedding wrapper while scanning.
 	operation = operationValue(operation)
 	switch operation.(type) {
-	case CreateModel, AddField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
+	case CreateModel, AddField, RemoveField, AlterField, AddConstraint, RemoveConstraint, AddManyToMany, RemoveManyToMany, RenameManyToMany, AlterManyToMany:
 	default:
 		return
 	}
@@ -2292,6 +2317,14 @@ func loadedScanOperationResource(budget *loadedResourceBudget, migration Migrati
 	case CreateModel:
 		loadedScanModelResource(budget, migration, index, kind, value.Model)
 	case AddField:
+		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
+		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].before_field", index), value.BeforeField, false)
+		loadedConsumeNodes(budget, 1)
+		if budget.nodeOverflow {
+			return
+		}
+		loadedScanFieldResource(budget, migration, index, kind, fmt.Sprintf("operations[%d].field", index), value.Field)
+	case RemoveField:
 		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].model_name", index), value.ModelName, false)
 		loadedConsumeString(budget, migration, index, kind, fmt.Sprintf("operations[%d].before_field", index), value.BeforeField, false)
 		loadedConsumeNodes(budget, 1)
@@ -2328,6 +2361,8 @@ func loadedOperationWireKind(operation Operation) string {
 		return "create_model"
 	case AddField, *AddField:
 		return "add_field"
+	case RemoveField, *RemoveField:
+		return "remove_field"
 	case AddConstraint, *AddConstraint:
 		return "add_constraint"
 	case RemoveConstraint, *RemoveConstraint:

@@ -541,18 +541,27 @@ func projectMigratePostgresAssertLatest(
 	if !reflect.DeepEqual(snapshot.Columns, projectMigratePostgresExpectedColumns()) {
 		t.Fatal("PostgreSQL latest column shape did not match the exact current Article/system/control schema")
 	}
-	if !reflect.DeepEqual(snapshot.Constraints, projectMigratePostgresExpectedConstraints()) {
+	wantConstraints := projectMigratePostgresExpectedConstraints()
+	if !reflect.DeepEqual(snapshot.Constraints, wantConstraints) {
 		t.Fatal("PostgreSQL latest constraints did not match the exact current constraint/index profile")
 	}
 	if !reflect.DeepEqual(snapshot.Indexes, projectMigratePostgresExpectedIndexes()) {
 		t.Fatal("PostgreSQL latest indexes did not match the exact current constraint/index profile")
 	}
-	if snapshot.Triggers != 28 || snapshot.Policies != 0 || snapshot.Rules != 0 {
+	// Count only the internal triggers owned by the explicit expected FK
+	// inventory, including the durable account-mapping reference. The total
+	// still rejects any additional trigger outside those exact constraints.
+	wantTriggers := 0
+	for _, constraint := range wantConstraints {
+		wantTriggers += constraint.InternalTriggers
+	}
+	if snapshot.Triggers != wantTriggers || snapshot.Policies != 0 || snapshot.Rules != 0 {
 		t.Fatalf(
-			"PostgreSQL latest schema trigger/policy/rule counts = %d/%d/%d, want 28/0/0",
+			"PostgreSQL latest schema trigger/policy/rule counts = %d/%d/%d, want %d/0/0",
 			snapshot.Triggers,
 			snapshot.Policies,
 			snapshot.Rules,
+			wantTriggers,
 		)
 	}
 	if !reflect.DeepEqual(snapshot.History, expected.History) {

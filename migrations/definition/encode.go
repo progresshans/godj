@@ -66,6 +66,14 @@ func Encode(producer Producer, migration migrations.Migration) ([]byte, error) {
 				Field:       encodeField(value.Field),
 				BeforeField: value.BeforeField,
 			}
+		case migrations.RemoveField:
+			document.Migration.Operations[index] = addFieldDocument{
+				Kind:        "remove_field",
+				AppLabel:    value.AppLabel,
+				ModelName:   value.ModelName,
+				Field:       encodeField(value.Field),
+				BeforeField: value.BeforeField,
+			}
 		case migrations.AddConstraint:
 			document.Migration.Operations[index] = constraintDocument{Kind: "add_constraint", AppLabel: value.AppLabel, ModelName: value.ModelName, Constraint: value.Constraint}
 		case migrations.RemoveConstraint:
@@ -183,6 +191,22 @@ func validateEncodingInput(producer Producer, migration migrations.Migration) er
 			}
 			if value.BeforeField != "" && (!identifiers.SQL(value.BeforeField) || value.BeforeField == value.Field.Name) {
 				return encodeFailure(path+".before_field", "invalid AddField insertion anchor %q", value.BeforeField)
+			}
+			if err := validateFieldWireRange(value.Field, path+".field"); err != nil {
+				return err
+			}
+		case migrations.RemoveField:
+			if value.AppLabel != migration.App {
+				return encodeFailure(path+".app_label", "operation app %q does not match migration app %q", value.AppLabel, migration.App)
+			}
+			if !identifiers.SQL(value.ModelName) {
+				return encodeFailure(path+".model_name", "invalid current model identity %q", value.ModelName)
+			}
+			if !fullyNormalizedAddField(value.AppLabel, value.Field) {
+				return encodeFailure(path+".field", "field is not exact current normalized IR")
+			}
+			if value.BeforeField != "" && (!identifiers.SQL(value.BeforeField) || value.BeforeField == value.Field.Name) {
+				return encodeFailure(path+".before_field", "invalid RemoveField insertion anchor %q", value.BeforeField)
 			}
 			if err := validateFieldWireRange(value.Field, path+".field"); err != nil {
 				return err

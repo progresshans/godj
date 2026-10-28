@@ -163,6 +163,7 @@ func TestAccountTransitionCreation(t *testing.T){
     count,err:=members.MemberObjects.Using(native).Count(t.Context());transitionCheck(t,err);if count!=2{t.Fatal("competing transition duplicated targets")};return
    }
    faultModes:=[]string{"unknown_commit","unknown_rollback","insert_after_write","collection_after_write","creation_audit","receipt_failure","mapping_failure","late_target_change","target_rewrite","rollback","late_choice_change"}
+   backend.completed.Store(0)
    if slices.Contains(faultModes,mode){backend.mode=mode}
    work:=t.Context();if mode=="canceled"{var cancel context.CancelFunc;work,cancel=context.WithCancel(work);cancel()}
    result,failure:=owner.Commit(work,actor,prepared);backend.mode=""

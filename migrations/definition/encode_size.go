@@ -111,6 +111,15 @@ func preflightEncodingResources(producer Producer, migration migrations.Migratio
 			}
 		case *migrations.AddField:
 			return encodeFailure(path, "nil *migrations.AddField")
+		case migrations.RemoveField:
+			if err := scanner.scanAddField(path, migrations.AddField{AppLabel: value.AppLabel, ModelName: value.ModelName, Field: value.Field, BeforeField: value.BeforeField}); err != nil {
+				return err
+			}
+			if err := scanner.addStructural(path, uint64(len("remove_field")-len("add_field"))); err != nil {
+				return err
+			}
+		case *migrations.RemoveField:
+			return encodeFailure(path, "nil *migrations.RemoveField")
 		case migrations.AddConstraint:
 			if err := scanner.scanConstraintOperation(path, "add_constraint", value.AppLabel, value.ModelName, value.Constraint); err != nil {
 				return err

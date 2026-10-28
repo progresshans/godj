@@ -170,7 +170,7 @@ func knownMaxLengthLexicalCandidates(migration jsonValue, sourceID string) []fai
 					candidates = append(candidates, maxLengthLexicalCandidate(field, sourceID, operationPointer+"/"+member)...)
 				}
 			}
-		case "add_field":
+		case "add_field", "remove_field":
 			field, exists := operation.member("field")
 			if exists {
 				candidates = append(candidates, maxLengthLexicalCandidate(field, sourceID, operationPointer+"/field")...)
@@ -481,13 +481,13 @@ func collectOperationCandidates(value jsonValue, sourceID, app, name string, ope
 	if !exists || kind.kind != jsonString {
 		return append(candidates, semanticFailure(CodeInvalidOperation, sourceID, pointer+"/kind", app, name, operationIndex, "invalid_operation"))
 	}
-	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "alter_field" && kind.string != "add_constraint" && kind.string != "remove_constraint" && kind.string != "add_many_to_many" && kind.string != "remove_many_to_many" && kind.string != "rename_many_to_many" && kind.string != "alter_many_to_many" {
+	if kind.string != "create_model" && kind.string != "add_field" && kind.string != "remove_field" && kind.string != "alter_field" && kind.string != "add_constraint" && kind.string != "remove_constraint" && kind.string != "add_many_to_many" && kind.string != "remove_many_to_many" && kind.string != "rename_many_to_many" && kind.string != "alter_many_to_many" {
 		return append(candidates, semanticFailure(CodeUnsupportedOperation, sourceID, pointer+"/kind", app, name, operationIndex, "unsupported_operation"))
 	}
 
 	fields := []string{"app_label", "kind", "model"}
 	var optional []string
-	if kind.string == "add_field" || kind.string == "add_many_to_many" || kind.string == "remove_many_to_many" {
+	if kind.string == "add_field" || kind.string == "remove_field" || kind.string == "add_many_to_many" || kind.string == "remove_many_to_many" {
 		fields = []string{"app_label", "field", "kind", "model_name"}
 		optional = []string{"before_field"}
 	}
@@ -1203,7 +1203,7 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 			return nil, false
 		}
 		return migrations.CreateModel{AppLabel: appLabel.string, Model: model.Clone()}, true
-	case "add_field":
+	case "add_field", "remove_field":
 		modelName, modelExists := value.member("model_name")
 		fieldValue, fieldExists := value.member("field")
 		if !modelExists || !fieldExists || modelName.kind != jsonString || !identifiers.SQL(modelName.string) {
@@ -1216,6 +1216,9 @@ func materializeOperation(value jsonValue, migrationApp string) (migrations.Oper
 		before, valid := materializeBeforeField(value)
 		if !valid {
 			return nil, false
+		}
+		if kind.string == "remove_field" {
+			return migrations.RemoveField{AppLabel: appLabel.string, ModelName: modelName.string, Field: cloneField(field), BeforeField: before}, true
 		}
 		return migrations.AddField{AppLabel: appLabel.string, ModelName: modelName.string, Field: cloneField(field), BeforeField: before}, true
 	case "add_many_to_many", "remove_many_to_many", "rename_many_to_many", "alter_many_to_many":
