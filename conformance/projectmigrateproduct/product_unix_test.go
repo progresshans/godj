@@ -288,7 +288,7 @@ func expectedArticleCatalog(t *testing.T, repository string) articleCatalogExpec
 	if err != nil {
 		t.Fatalf("load expected Article catalog: %v", err)
 	}
-	if report.DocumentsReceived != 10 || report.HeadersValidated != 10 || report.OperationsDecoded != 18 ||
+	if report.DocumentsReceived != 11 || report.HeadersValidated != 11 || report.OperationsDecoded != 21 ||
 		report.PlannerConstruction != 1 || report.DefinitionsPublished != 11 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("expected Article catalog report = %+v", report)
 	}

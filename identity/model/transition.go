@@ -23,16 +23,17 @@ import (
 
 const MaximumTransitionAccounts = domain.MaximumMappings
 
-// AccountMapping explicitly pairs existing, staged target rows with every
-// source account. Keys include zero and negative values. Revisions are checked
+// AccountMapping explicitly pairs actual target rows with every source
+// account. Keys include zero and negative values. Revisions are checked
 // alongside the complete observed rows and memberships, never instead of them.
 type AccountMapping = domain.Mapping
 
 // TransitionConfig owns an explicit operator operation over two typed models.
-// Targets must already have been staged by the host's data migration. The
-// operation preserves principal/password/roles and the shared catalog's exact
-// group/direct/effective grants. It does not infer a mapping, copy profile data,
-// rewrite host references or adopt historical systemstate storage.
+// Targets may be staged explicitly or created with TargetCreation and
+// PrepareCreation. The operation preserves principal/password/roles and the
+// shared catalog's exact group/direct/effective grants. It does not infer a
+// mapping or profile conversion, rewrite host references or adopt historical
+// systemstate storage.
 //
 // Validate is optional application policy over detached, password-redacted
 // source/target rows and complete profile memberships. It runs in preparation
@@ -46,6 +47,7 @@ type TransitionConfig[S, T any] struct {
 	MaxAccounts           int
 	Validate              func(context.Context, db.Queryer, S, T, AccountMemberships, AccountMemberships) (validation.Errors, error)
 	Now                   func() time.Time
+	TargetCreation        TransitionTarget[T]
 }
 
 func (TransitionConfig[S, T]) Format(state fmt.State, _ rune) {
@@ -63,6 +65,7 @@ type Transition[S, T any] struct {
 	required        []auth.Permission
 	oldMemberships  []deletionMembership
 	nextMemberships []deletionMembership
+	creationBackend db.CoordinatedRelationAtomic
 }
 
 func (*Transition[S, T]) Format(state fmt.State, _ rune) {
@@ -120,8 +123,20 @@ func NewTransition[S, T any](source *SessionStore[S], target *SessionStore[T], c
 	if err != nil {
 		return nil, err
 	}
+	var creationBackend db.CoordinatedRelationAtomic
+	if creation := config.TargetCreation.state; creation != nil {
+		boundSource, err := creation.binding.state.project.SourceSHA256()
+		if err != nil || boundSource != right || creation.binding.state.roleFingerprint != b.roleFingerprint {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
+		var ok bool
+		creationBackend, ok = source.state.backend.(db.CoordinatedRelationAtomic)
+		if !ok || nilModelValue(creationBackend) {
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
+	}
 	return &Transition[S, T]{source: left, old: source, next: target, config: config, required: required,
-		oldMemberships: oldMemberships, nextMemberships: nextMemberships}, nil
+		oldMemberships: oldMemberships, nextMemberships: nextMemberships, creationBackend: creationBackend}, nil
 }
 
 // TransitionManifest is deliberately exportable reconciliation evidence. It
@@ -137,7 +152,8 @@ type TransitionManifest struct {
 	SourceRoleSHA256 string           `json:"source_role_sha256"`
 	TargetRoleSHA256 string           `json:"target_role_sha256"`
 	StateSHA256      string           `json:"state_sha256"`
-	Mappings         []AccountMapping `json:"mappings"`
+	Mappings         []AccountMapping `json:"mappings,omitempty"`
+	CreationSources  []SourceAccount  `json:"creation_sources,omitempty"`
 }
 
 func (TransitionManifest) Format(state fmt.State, _ rune) {
@@ -152,6 +168,7 @@ type preparedTransition[S, T any] struct {
 	expected domain.Receipt
 	change   domain.Change
 	consumed atomic.Bool
+	creation *preparedTransitionCreation[T]
 }
 
 func (PreparedTransition[S, T]) Format(state fmt.State, _ rune) {
@@ -163,6 +180,7 @@ func (prepared PreparedTransition[S, T]) Manifest() TransitionManifest {
 	}
 	result := prepared.state.manifest
 	result.Mappings = slices.Clone(result.Mappings)
+	result.CreationSources = slices.Clone(result.CreationSources)
 	return result
 }
 
@@ -201,7 +219,7 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 	}
 	oldRole, _ := owner.old.state.credentials.state.binding.RoleFingerprint()
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
-	manifest := TransitionManifest{Version: 2, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
+	manifest := TransitionManifest{Version: 3, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
 		PriorSequence: observation.ownership.Sequence(), ProjectSHA256: owner.source, SourceRoleSHA256: oldRole,
 		TargetRoleSHA256: nextRole, StateSHA256: observation.digest, Mappings: owned}
 	evidence, err := manifest.evidence()
@@ -218,6 +236,8 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 type TransitionResult struct {
 	Ownership       domain.Receipt
 	MappedAccounts  int
+	CreatedAccounts int
+	Mappings        []AccountMapping
 	RevokedSessions int
 }
 
@@ -245,6 +265,9 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 	if err := owner.requireMigrations(ctx); err != nil {
 		return TransitionResult{}, err
 	}
+	if state.creation != nil {
+		return owner.commitCreation(ctx, actor, state)
+	}
 	return managementWrite(ctx, owner.old.state.backend, func(work context.Context, scope db.Session) (TransitionResult, error) {
 		current, err := owner.observe(work, scope, actor, state.manifest.OperationID, state.manifest.Mappings)
 		if err != nil {
@@ -257,68 +280,72 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 		if at.IsZero() || at.Year() < 1 || at.Year() > 9999 {
 			return TransitionResult{}, managementError(CodeInvalidConfig, nil)
 		}
-		bound, err := owner.old.namespaceIn(work, scope)
-		if err != nil {
-			return TransitionResult{}, err
-		}
-		scoped, err := bound.InSession(work, scope)
-		if err != nil {
-			return TransitionResult{}, err
-		}
-		revoked, err := scoped.DeleteAll(work)
-		if err != nil {
-			return TransitionResult{}, err
-		}
-		binding := owner.old.state.credentials.state.binding
-		for index, pair := range current.pairs {
-			retired, err := transitionRetirement(binding, pair.old, state.manifest.OperationID)
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			row, err := retired.Model()
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			if err := retired.Save(work, scope, &row); err != nil {
-				return TransitionResult{}, err
-			}
-			current.pairs[index].old.row = row
-			current.pairs[index].old.values, err = binding.state.objects.ModelValues(row)
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			fields := slices.DeleteFunc(retired.ChangedFields(), func(field string) bool { return field == binding.state.role.Revision })
-			event, err := accountaudit.Prepare(current.actor, binding.state.role.Model.AppLabel+"."+binding.state.role.Model.ModelName, pair.old.id, admin.ActionChange, fields, at)
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			if _, err := accountaudit.AppendIn(work, scope, event); err != nil {
-				return TransitionResult{}, err
-			}
-		}
-		// Database rules must not resurrect a credential or change a staged
-		// target/profile/grant after retirement and its audit have executed.
-		if err := owner.verifyRetirement(work, scope, current, state.manifest.Mappings); err != nil {
-			return TransitionResult{}, err
-		}
-		receipt, err := domain.TransitionMappedIn(work, scope, state.expected, state.change, at, state.manifest.Mappings)
-		if err != nil {
-			return TransitionResult{}, err
-		}
-		// Receipt insertion is also inside the independent final readback.
-		if err := owner.verifyRetirement(work, scope, current, state.manifest.Mappings); err != nil {
-			return TransitionResult{}, err
-		}
-		ownership, err := domain.InspectIn(work, scope)
-		if err != nil || ownership.OperationID() != receipt.OperationID() || ownership.Generation() != receipt.Generation() || ownership.MappingCount() != receipt.MappingCount() || ownership.MappingSHA256() != receipt.MappingSHA256() {
-			return TransitionResult{}, managementError(CodePersistence, err)
-		}
-		remaining, err := scoped.DeleteAll(work)
-		if err != nil || remaining != 0 {
-			return TransitionResult{}, managementError(CodePersistence, err)
-		}
-		return TransitionResult{Ownership: receipt, MappedAccounts: len(current.pairs), RevokedSessions: revoked}, nil
+		return owner.completeIn(work, scope, current, state.expected, state.change, state.manifest.Mappings, at)
 	})
+}
+
+func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session, current transitionObservation[S, T], expected domain.Receipt, change domain.Change, mappings []AccountMapping, at time.Time) (TransitionResult, error) {
+	bound, err := owner.old.namespaceIn(ctx, scope)
+	if err != nil {
+		return TransitionResult{}, err
+	}
+	scoped, err := bound.InSession(ctx, scope)
+	if err != nil {
+		return TransitionResult{}, err
+	}
+	revoked, err := scoped.DeleteAll(ctx)
+	if err != nil {
+		return TransitionResult{}, err
+	}
+	binding := owner.old.state.credentials.state.binding
+	for index, pair := range current.pairs {
+		retired, err := transitionRetirement(binding, pair.old, change.OperationID())
+		if err != nil {
+			return TransitionResult{}, err
+		}
+		row, err := retired.Model()
+		if err != nil {
+			return TransitionResult{}, err
+		}
+		if err := retired.Save(ctx, scope, &row); err != nil {
+			return TransitionResult{}, err
+		}
+		current.pairs[index].old.row = row
+		current.pairs[index].old.values, err = binding.state.objects.ModelValues(row)
+		if err != nil {
+			return TransitionResult{}, err
+		}
+		fields := slices.DeleteFunc(retired.ChangedFields(), func(field string) bool { return field == binding.state.role.Revision })
+		event, err := accountaudit.Prepare(current.actor, binding.state.role.Model.AppLabel+"."+binding.state.role.Model.ModelName, pair.old.id, admin.ActionChange, fields, at)
+		if err != nil {
+			return TransitionResult{}, err
+		}
+		if _, err := accountaudit.AppendIn(ctx, scope, event); err != nil {
+			return TransitionResult{}, err
+		}
+	}
+	// Database rules must not resurrect a credential or change a staged
+	// target/profile/grant after retirement and its audit have executed.
+	if err := owner.verifyRetirement(ctx, scope, current, mappings); err != nil {
+		return TransitionResult{}, err
+	}
+	receipt, err := domain.TransitionMappedIn(ctx, scope, expected, change, at, mappings)
+	if err != nil {
+		return TransitionResult{}, err
+	}
+	// Receipt insertion is also inside the independent final readback.
+	if err := owner.verifyRetirement(ctx, scope, current, mappings); err != nil {
+		return TransitionResult{}, err
+	}
+	ownership, err := domain.InspectIn(ctx, scope)
+	if err != nil || ownership.OperationID() != receipt.OperationID() || ownership.Generation() != receipt.Generation() || ownership.MappingCount() != receipt.MappingCount() || ownership.MappingSHA256() != receipt.MappingSHA256() {
+		return TransitionResult{}, managementError(CodePersistence, err)
+	}
+	remaining, err := scoped.DeleteAll(ctx)
+	if err != nil || remaining != 0 {
+		return TransitionResult{}, managementError(CodePersistence, err)
+	}
+	return TransitionResult{Ownership: receipt, MappedAccounts: len(current.pairs), Mappings: slices.Clone(mappings), RevokedSessions: revoked}, nil
 }
 
 // Reconcile reads an exact immutable receipt using retained evidence. false
@@ -356,7 +383,16 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 		if err != nil {
 			return observed{}, err
 		}
-		if !slices.Equal(mappings, manifest.Mappings) {
+		if len(manifest.CreationSources) > 0 {
+			if len(mappings) != len(manifest.CreationSources) {
+				return observed{}, managementError(CodeConflict, nil)
+			}
+			for i, source := range manifest.CreationSources {
+				if mappings[i].SourceID != source.ID || mappings[i].SourceRevision != source.Revision || mappings[i].TargetRevision != 1 {
+					return observed{}, managementError(CodeConflict, nil)
+				}
+			}
+		} else if !slices.Equal(mappings, manifest.Mappings) {
 			return observed{}, managementError(CodeConflict, nil)
 		}
 		return observed{receipt, true}, nil
@@ -400,7 +436,7 @@ func compareInt64(a, b int64) int {
 }
 
 func (manifest TransitionManifest) evidence() (string, error) {
-	if manifest.Version != 2 || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || len(manifest.Mappings) == 0 || len(manifest.Mappings) > MaximumTransitionAccounts {
+	if manifest.Version != 3 || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts {
 		return "", managementError(CodeInvalidInput, nil)
 	}
 	for _, digest := range []string{manifest.OperationID, manifest.PriorOperationID, manifest.ProjectSHA256, manifest.SourceRoleSHA256, manifest.TargetRoleSHA256, manifest.StateSHA256} {
@@ -408,9 +444,16 @@ func (manifest TransitionManifest) evidence() (string, error) {
 			return "", managementError(CodeInvalidInput, nil)
 		}
 	}
-	normalized, err := normalizeAccountMappings(manifest.Mappings)
-	if err != nil || !slices.Equal(normalized, manifest.Mappings) {
-		return "", managementError(CodeInvalidInput, err)
+	if len(manifest.CreationSources) > 0 {
+		normalized, err := normalizeSourceAccounts(manifest.CreationSources)
+		if err != nil || !slices.Equal(normalized, manifest.CreationSources) {
+			return "", managementError(CodeInvalidInput, err)
+		}
+	} else {
+		normalized, err := normalizeAccountMappings(manifest.Mappings)
+		if err != nil || !slices.Equal(normalized, manifest.Mappings) {
+			return "", managementError(CodeInvalidInput, err)
+		}
 	}
 	encoded, err := json.Marshal(manifest)
 	if err != nil {

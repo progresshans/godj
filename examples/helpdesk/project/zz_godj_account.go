@@ -107,6 +107,24 @@ func NewAccountCreator(store *_godjaccountmodel.SessionStore[identity.User], ove
 	return _godjaccountmodel.NewCreator(store, binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, overlay, hasher, config)
 }
 
+// NewAccountTransitionTarget binds typed target creation for an explicit account-model transition.
+func NewAccountTransitionTarget(config _godjaccountmodel.TransitionTargetConfig[identity.User]) (_godjaccountmodel.TransitionTarget[identity.User], error) {
+	var zero _godjaccountmodel.TransitionTarget[identity.User]
+	binding, err := BindAccount()
+	if err != nil {
+		return zero, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return zero, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return zero, err
+	}
+	return _godjaccountmodel.NewTransitionTarget(binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, config)
+}
+
 // NewFirstAccount prepares privileged provisioning of a fresh selected account domain.
 func NewFirstAccount(backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.FirstAccountConfig[identity.User]) (*_godjaccountmodel.FirstAccount[identity.User], error) {
 	definition, err := NewFirstAccountDefinition(hasher, config)

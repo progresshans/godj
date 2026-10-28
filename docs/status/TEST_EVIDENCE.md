@@ -2579,6 +2579,45 @@ PostgreSQL 필수 5,686개를 각각 정확히 한 번 소유함을 대조했다
 (SHA-256 `26ec84129b6912b8d17ddb222694597ff007f5c6c6f263025ebee09261384b13`).
 대상 행 자동 생성·catalog/host 관계 mapping·역사 systemstate 이행·남은 고정 소비자와 I1 전체 수용은 미완료다.
 
+### 전환 대상 생성과 실제 key 대응표 작성
+
+2026-10-28, source `246289028a53c02cc000cc6c6ef31de4564a15fd` 위에서 `TransitionTarget[T]`와 생성 팩토리,
+`PrepareCreation`을 작성했다. 전체 source key/revision과 typed target 로그인·프로필/FK/M2M·기존 파일 참조를 받는다.
+Source principal·password encoding·role/catalog 소속을 보존하고 실제 INSERT key로 대응표를 저장한다. 한 relation
+transaction 안에서 모든 대상·collection·생성/퇴역 감사·source 퇴역·session 폐기·receipt를 확정하고 전체 상태를 재조회한다.
+빈 target의 실제 column과 incoming reference를 검사하며, 다른 M2M의 through인 target 생성은 수명 owner 부재로 거부한다.
+Manifest v3의 생성 source 목록·실제 저장 대응표로 unknown/restart를 대조하며 실패에는 잠정 key를 게시하지 않는다.
+
+기존 외부 `TestGeneratedAccountTransition` owner에 새 생성 root의 38개 필수 child와 custom→생성된 기본 팩토리 root를
+연결했다. 기존 staged 30개 child를 보존한다. 기본→custom의 FK·추가 collection·파일 참조·signed key·default/입력 거부,
+준비 이후 source/권한/선택 변경, 두 번째 INSERT/collection/감사 이후 실패·receipt/mapping 실패·target readback,
+unknown commit/rollback·경합과 재접속의 독립 source/target·session·감사·대응표 검사를 작성했다.
+Incoming reference 검사는 native 행을 이용한 모순 조회 주입이며 실제 물리 FK 손상 실험으로 표현하지 않는다.
+별도 구성 검사의 일반 account/catalog/host through 세 child도 relation 필수 목록에 추가했다.
+
+선행 [CI 40599062826](https://github.com/progresshans/godj/actions/runs/40599062826), attempt 1의 실제 checkout
+`d1883767ebf8e4ee9b3dc5aec891b3487fd5e1b5`와 제출 source의 tree가
+`b756eb1bcf811033dce6ceb16c12dc9787f0ae99`로 같음을 확인했다. 새 domain `0002`를 반영하지 못한 migration 문서/operation
+개수와 Article runner의 적용 이력 기대값 때문에 제품 기동·migration·integration 작업이 실패했다. 대표 normal과
+PostgreSQL race 작업의 원본도 같은 기대값 불일치를 확인했으며 이 run은 전체 PASS가 아니다.
+
+선행 source를 별도로 보존해 SQLite migration·runserver·Article runner 세 root의 실패를 재현했다. 기대값 네 파일만
+overlay한 재실행에서 migration과 runserver root는 각각 80.21초·44.69초에 통과했다. Runner의 남은 `0002` 적용 이력
+기대값을 보완하고 그 root만 다시 실행해 통과했다(본문 0.04초). Skip은 없으며 PostgreSQL/race나 새 생성 전환의
+실행 결과로 확대하지 않는다. 원 source/overlay 파일과 현재 수정 파일 bytes가 일치함을 확인했다.
+
+로컬 darwin/arm64에서는 새 단위 본문을 실행하지 않고 `identity/model` compile-only를 확인했다. 외부 소비자 생성 중
+누락된 import·변경된 Member constructor 인자 오류를 수정했다. 최종 외부 module 4개 package의 compile-only는
+`GOWORK=off GOPROXY=off GOSUMDB=off`에서 통과했다(15.05초). 대상 through 제한과 최종 template를 포함한 source를
+전후 hash로 대조했다. 다섯 프로젝트의 생성 manifest 77개 파일 checksum, gofmt·diff·문서 링크와 relation 실행 owner
+정적 검사를 통과했다. 임시 compile driver는 보관 사본과 대조한 뒤 제거했다.
+
+원격 source/tree·실패 log, 한정 수정의 전후 원본/overlay, 생성 소비자·compile·필수 배정과 source hash는
+검증 보관소의 `gdj0138-created-account-transition-v1/receipt-final.json`에 연결했다
+(SHA-256 `22737cd891781a96d470c6df5f66a6a004c8cd0720698ba4319614d95f93c7d2`).
+새 전환/구성 본문·PostgreSQL·race/CGO0·generated drift·process/platform은 현재 source의 원격 확인 대상이다.
+Catalog/host 관계 mapping·전환 대상 through 수명·역사 systemstate 이행·남은 고정 소비자와 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -458,8 +458,23 @@ receipt를 보존하며 손상·누락·중복·실패/rollback을 거부한다.
 채운 기존 이력의 migration·양 DB 손상/rollback·페이지 경계와 재접속 검사를 작성했다. 최소 compile과 실제 본문·환경별
 수용은 TEST_EVIDENCE에서 구분한다.
 
-대상 행과 프로필은 명시적으로 미리 준비하는 경로다. 대상 자동 생성·catalog 변경·host 관계 재매핑과 역사 `systemstate`
-가져오기, 남은 고정 소비자 교체는 미완료이며 이 코드만으로 I1-07/08을 수용 완료로 처리하지 않는다.
+위 경로는 대상 행과 프로필을 명시적으로 미리 준비한다. 빈 대상 모델에 행을 생성하는 경로는 다음과 같다.
+
+### 전환 대상 계정의 생성
+
+`TransitionTarget[T]`와 생성 팩토리·`PrepareCreation`을 작성했다. 현재 source 전체의 key/revision과 typed 로그인·추가
+프로필/FK/M2M·기존 파일 참조를 명시적으로 받아, source의 principal·password encoding·boolean role·catalog 소속을
+보존한 target 후보를 준비한다. 저장 key는 예상하지 않으며 실제 INSERT 뒤 한 collection batch와 전체 readback을 확인한다.
+대상 생성·source 퇴역·session 폐기·양쪽 감사·새 receipt와 실제 대응표는 같은 native transaction에 속한다.
+
+Manifest v3는 사전 준비 mapping 또는 생성 source 목록을 보관하고, restart/unknown 대조는 실제 저장 key까지 확인한다.
+빈 대상 table의 실제 column과 incoming reference, 현재 선택 정책·전체 source/target 상태·unique·예산을 준비/최종 fence에서
+검사한다. 대상 계정 자체가 다른 M2M의 through인 조립은 관련 owner의 revision/인가/감사 처리가 아직 없어 명시적으로 거부한다.
+기본→custom과 custom→생성된 기본 팩토리 소비자에 양 DB의 실패/rollback·unknown·경합·재접속 검사를 연결했다.
+작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+Catalog 변경·host 관계 재매핑·전환 대상의 through 수명과 역사 `systemstate` 가져오기, 남은 고정 소비자 교체는 미완료이며
+이 코드만으로 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.

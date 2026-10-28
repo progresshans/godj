@@ -48,7 +48,7 @@ type transitionObservation[S, T any] struct {
 }
 
 func expectedTransitionRefusal(err error) bool {
-	if classified, ok := err.(*Error); ok && classified.Unwrap() == nil && (classified.Code == CodePermission || classified.Code == CodeConflict || classified.Code == CodeInvalidInput) {
+	if classified, ok := err.(*Error); ok && classified.Unwrap() == nil && (classified.Code == CodePermission || classified.Code == CodeConflict || classified.Code == CodeInvalidInput || classified.Code == CodeNotFresh) {
 		return true
 	}
 	_, rejected := validation.Rejected(err)
@@ -63,28 +63,8 @@ func transitionBoolean(values map[string]query.Value, role ir.AccountBoolean) bo
 func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, actor auth.Principal, operation string, mappings []AccountMapping) (transitionObservation[S, T], error) {
 	var zero transitionObservation[S, T]
 	old, next := owner.old.state.credentials, owner.next.state.credentials
-	current, allowed, err := old.AuthorizeIn(ctx, scope, actor, owner.config.Authorizer, owner.required[0], owner.required[1:]...)
+	ownership, current, err := owner.inspectAuthority(ctx, scope, actor)
 	if err != nil {
-		return zero, err
-	}
-	if !allowed {
-		return zero, managementError(CodePermission, nil)
-	}
-	ownership, err := domain.InspectIn(ctx, scope)
-	if err != nil {
-		return zero, err
-	}
-	role, _ := old.state.binding.RoleFingerprint()
-	if ownership.RoleFingerprint() != role {
-		return zero, domain.ErrMismatch
-	}
-	if _, err := accountaudit.InspectIn(ctx, scope); err != nil {
-		return zero, err
-	}
-	if _, err := owner.old.state.database.InspectIn(ctx, scope); err != nil {
-		return zero, err
-	}
-	if _, err := owner.next.state.database.InspectIn(ctx, scope); err != nil {
 		return zero, err
 	}
 	before, err := readTransitionRows(ctx, scope, old, owner.oldMemberships, owner.config.MaxAccounts, ownership.Generation())
@@ -109,62 +89,8 @@ func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, ac
 		if !oldPresent || !nextPresent || a.revision != mapping.SourceRevision || b.revision != mapping.TargetRevision {
 			return zero, managementError(CodeConflict, nil)
 		}
-		left, right := old.state.binding.state.role, next.state.binding.state.role
-		if !a.values[left.PrincipalID].Equal(b.values[right.PrincipalID]) || !a.values[left.Password].Equal(b.values[right.Password]) ||
-			!slices.Equal(a.memberships.groups, b.memberships.groups) || !slices.Equal(a.memberships.direct, b.memberships.direct) || !slices.Equal(a.memberships.grants, b.memberships.grants) {
-			return zero, managementError(CodeConflict, nil)
-		}
-		for _, equal := range []struct{ a, b bool }{
-			{transitionBoolean(a.values, left.Active), transitionBoolean(b.values, right.Active)},
-			{transitionBoolean(a.values, left.Staff), transitionBoolean(b.values, right.Staff)},
-			{transitionBoolean(a.values, left.Superuser), transitionBoolean(b.values, right.Superuser)},
-		} {
-			if equal.a != equal.b {
-				return zero, managementError(CodeConflict, nil)
-			}
-		}
-		// Validate the proposed tombstone before touching a session or row.
-		retired, err := transitionRetirement(old.state.binding, a, operation)
-		if err != nil {
+		if err := owner.validatePair(ctx, scope, operation, a, b); err != nil {
 			return zero, err
-		}
-		retiredRow, err := retired.Model()
-		if err != nil {
-			return zero, err
-		}
-		retiredValues, err := old.state.binding.state.objects.ModelValues(retiredRow)
-		if err != nil {
-			return zero, err
-		}
-		if err := validateTransitionRow(ctx, scope, old.state.binding.state.objects, retiredRow, retiredValues); err != nil {
-			return zero, err
-		}
-		// The staged target must already satisfy its selected write policy.
-		// A switch must never silently normalize or change reviewed data.
-		canonical := maps.Clone(b.values)
-		metadata, _ := next.state.binding.state.objects.Metadata()
-		if err := normalizeAccountInput(metadata, right, canonical); err != nil {
-			return zero, err
-		}
-		if !maps.Equal(canonical, b.values) {
-			return zero, managementError(CodeConflict, nil)
-		}
-		if owner.config.Validate != nil {
-			oldCopy, err := old.state.binding.state.objects.ApplyValues(a.row, map[string]query.Value{left.Password: query.String("")})
-			if err != nil {
-				return zero, err
-			}
-			newCopy, err := next.state.binding.state.objects.ApplyValues(b.row, map[string]query.Value{right.Password: query.String("")})
-			if err != nil {
-				return zero, err
-			}
-			diagnostics, err := owner.config.Validate(ctx, scope, oldCopy, newCopy, transitionMembershipCopy(a.memberships, a.profile), transitionMembershipCopy(b.memberships, b.profile))
-			if err := errors.Join(err, validateAccountSessionScope(ctx, scope)); err != nil {
-				return zero, err
-			}
-			if !diagnostics.Empty() {
-				return zero, validation.Reject(diagnostics, nil)
-			}
 		}
 		if err := writeTransitionRow(digest, a); err != nil {
 			return zero, err
@@ -181,6 +107,99 @@ func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, ac
 	return result, validateAccountSessionScope(ctx, scope)
 }
 
+func (owner *Transition[S, T]) inspectAuthority(ctx context.Context, scope db.Queryer, actor auth.Principal) (domain.Receipt, auth.Principal, error) {
+	old := owner.old.state.credentials
+	current, allowed, err := old.AuthorizeIn(ctx, scope, actor, owner.config.Authorizer, owner.required[0], owner.required[1:]...)
+	if err != nil {
+		return domain.Receipt{}, auth.Principal{}, err
+	}
+	if !allowed {
+		return domain.Receipt{}, auth.Principal{}, managementError(CodePermission, nil)
+	}
+	ownership, err := domain.InspectIn(ctx, scope)
+	if err != nil {
+		return domain.Receipt{}, auth.Principal{}, err
+	}
+	role, _ := old.state.binding.RoleFingerprint()
+	if ownership.RoleFingerprint() != role {
+		return domain.Receipt{}, auth.Principal{}, domain.ErrMismatch
+	}
+	if _, err := accountaudit.InspectIn(ctx, scope); err != nil {
+		return domain.Receipt{}, auth.Principal{}, err
+	}
+	if _, err := owner.old.state.database.InspectIn(ctx, scope); err != nil {
+		return domain.Receipt{}, auth.Principal{}, err
+	}
+	if _, err := owner.next.state.database.InspectIn(ctx, scope); err != nil {
+		return domain.Receipt{}, auth.Principal{}, err
+	}
+
+	return ownership, current, nil
+}
+
+func (owner *Transition[S, T]) validatePair(ctx context.Context, scope db.Queryer, operation string, a transitionRow[S], b transitionRow[T]) error {
+	old, next := owner.old.state.credentials, owner.next.state.credentials
+	left, right := old.state.binding.state.role, next.state.binding.state.role
+	if !a.values[left.PrincipalID].Equal(b.values[right.PrincipalID]) || !a.values[left.Password].Equal(b.values[right.Password]) ||
+		!slices.Equal(a.memberships.groups, b.memberships.groups) || !slices.Equal(a.memberships.direct, b.memberships.direct) || !slices.Equal(a.memberships.grants, b.memberships.grants) {
+		return managementError(CodeConflict, nil)
+	}
+	for _, equal := range []struct{ a, b bool }{
+		{transitionBoolean(a.values, left.Active), transitionBoolean(b.values, right.Active)},
+		{transitionBoolean(a.values, left.Staff), transitionBoolean(b.values, right.Staff)},
+		{transitionBoolean(a.values, left.Superuser), transitionBoolean(b.values, right.Superuser)},
+	} {
+		if equal.a != equal.b {
+			return managementError(CodeConflict, nil)
+		}
+	}
+	// Validate the proposed tombstone before touching a session or row.
+	retired, err := transitionRetirement(old.state.binding, a, operation)
+	if err != nil {
+		return err
+	}
+	retiredRow, err := retired.Model()
+	if err != nil {
+		return err
+	}
+	retiredValues, err := old.state.binding.state.objects.ModelValues(retiredRow)
+	if err != nil {
+		return err
+	}
+	if err := validateTransitionRow(ctx, scope, old.state.binding.state.objects, retiredRow, retiredValues); err != nil {
+		return err
+	}
+	// The staged target must already satisfy its selected write policy.
+	// A switch must never silently normalize or change reviewed data.
+	canonical := maps.Clone(b.values)
+	metadata, _ := next.state.binding.state.objects.Metadata()
+	if err := normalizeAccountInput(metadata, right, canonical); err != nil {
+		return err
+	}
+	if !maps.Equal(canonical, b.values) {
+		return managementError(CodeConflict, nil)
+	}
+	if owner.config.Validate != nil {
+		oldCopy, err := old.state.binding.state.objects.ApplyValues(a.row, map[string]query.Value{left.Password: query.String("")})
+		if err != nil {
+			return err
+		}
+		newCopy, err := next.state.binding.state.objects.ApplyValues(b.row, map[string]query.Value{right.Password: query.String("")})
+		if err != nil {
+			return err
+		}
+		diagnostics, err := owner.config.Validate(ctx, scope, oldCopy, newCopy, transitionMembershipCopy(a.memberships, a.profile), transitionMembershipCopy(b.memberships, b.profile))
+		if err := errors.Join(err, validateAccountSessionScope(ctx, scope)); err != nil {
+			return err
+		}
+		if !diagnostics.Empty() {
+			return validation.Reject(diagnostics, nil)
+		}
+	}
+
+	return validateAccountSessionScope(ctx, scope)
+}
+
 func transitionMembershipCopy(membership accountMemberships, profile map[string][]int64) AccountMemberships {
 	owned := make(map[string][]int64, len(profile))
 	for name, keys := range profile {
@@ -192,6 +211,7 @@ func transitionMembershipCopy(membership accountMemberships, profile map[string]
 func readTransitionRows[M any](ctx context.Context, scope db.Queryer, store *CredentialStore[M], memberships []deletionMembership, maximum int, generation [sha256.Size]byte) (map[int64]transitionRow[M], error) {
 	objects, role := store.state.binding.state.objects, store.state.binding.state.role
 	result := make(map[int64]transitionRow[M])
+	budget := &transitionDigestWriter{hash: sha256.New()}
 	var last int64
 	started := false
 	for {
@@ -238,24 +258,36 @@ func readTransitionRows[M any](ctx context.Context, scope db.Queryer, store *Cre
 			if err != nil {
 				return nil, err
 			}
-			result[id] = transitionRow[M]{row: row, id: id, revision: revision, values: values, memberships: stored, profile: profile}
+			observed := transitionRow[M]{row: row, id: id, revision: revision, values: values, memberships: stored, profile: profile}
+			if err := writeTransitionRow(budget, observed); err != nil {
+				return nil, err
+			}
+			result[id] = observed
 			last, started = id, true
 		}
 	}
 }
 
 func validateTransitionRow[M any](ctx context.Context, scope db.Queryer, objects orm.Manager[M], row M, values map[string]query.Value) error {
+	return validateTransitionValues(ctx, scope, objects, row, values, false)
+}
+
+func validateTransitionValues[M any](ctx context.Context, scope db.Queryer, objects orm.Manager[M], row M, values map[string]query.Value, candidate bool) error {
 	metadata, err := objects.Metadata()
 	if err != nil {
 		return err
 	}
-	fields := make([]serializers.ModelField, len(metadata.Fields))
-	for i, field := range metadata.Fields {
-		fields[i] = serializers.ModelField{Name: field.Name, ReadOnly: true}
+	fields := make([]serializers.ModelField, 0, len(metadata.Fields))
+	for _, field := range metadata.Fields {
+		if candidate && field.PrimaryKey {
+			continue
+		}
+		selected := serializers.ModelField{Name: field.Name, ReadOnly: true}
 		switch field.Kind {
 		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage, ir.FieldText:
-			fields[i].AllowEmpty = field.Blank
+			selected.AllowEmpty = field.Blank
 		}
+		fields = append(fields, selected)
 	}
 	spec, err := serializers.FromModel(metadata, fields...)
 	if err != nil {

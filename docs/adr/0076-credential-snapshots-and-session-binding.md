@@ -1836,12 +1836,12 @@ Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무
 별도 base 업무 adapter와 역사 adoption 검사는 기존 계약을 검증하는 소비자로 유지하며 새 선택 조립의
 인가·DB session·이력 증거로 대신하지 않는다.
 
-## 준비된 두 선택 모델 사이의 명시적 계정 전환
+## 두 선택 모델 사이의 명시적 계정 전환
 
 `identity/model.NewTransition[S,T]`는 같은 실제 backend·전체 host source·권한 catalog를 사용하는 서로 다른
-계정 table을 묶는다. 대상 행과 프로필은 호스트의 명시적 data migration이 먼저 준비한다. `AccountMapping`은 양쪽
+계정 table을 묶는다. `Prepare`는 호스트의 명시적 data migration이 먼저 준비한 대상 행을 받는다. `AccountMapping`은 양쪽
 전체 inventory를 1:1로 대응시키며, 같은 row key·principal·hash만으로 대응이나 소유권 이전을 추론하지 않는다.
-현재 구현은 catalog 변경·대상 행 생성·host FK 재매핑·기존 `godj_system` adoption을 수행하지 않는다.
+`PrepareCreation`은 빈 대상 모델에 새 행을 생성하는 명시적 입력을 받는다. 현재 구현은 catalog 변경·host FK 재매핑·기존 `godj_system` adoption을 수행하지 않는다.
 이 범위는 I1의 잔여 작업이며 해당 기능이나 전체 제품 수용을 완료로 처리하지 않는다.
 
 `Prepare`는 framework migration identity를 확인한 뒤 한 native snapshot에서 현재 source actor의 명시적 전환 권한과
@@ -1881,5 +1881,28 @@ Startup은 mapping을 선언한 모든 receipt와 실제 payload 목록을 독�
 검증해 최대 크기의 여러 payload를 보관하지 않는다. JSON decode에도 행 수 한도를 적용하며, checksum이 일치해도
 중복 member·미지정 member·비정규 순서/공백·중복 key·누락/고아/중복 parent를 허용하지 않는다. 후속 전환으로 예전
 대응표가 지워지지 않으며 mapping 없는 역사 receipt는 빈 대응표로 읽는다. 기존 `0001_initial`은 보존하고 `0002`가
-mapping 저장소와 기본값을 가진 receipt 필드를 추가한다. 보관 `TransitionManifest` v2의 restart 대조는 실제 저장 대응표까지
-확인한다. 이 기반은 대상 행을 자동 생성하는 mapping owner의 선행 조건이며 그 기능의 완료를 뜻하지 않는다.
+mapping 저장소와 기본값을 가진 receipt 필드를 추가한다. 보관 `TransitionManifest` v3의 restart 대조는 실제 저장 대응표까지
+확인한다. 사전 준비 mapping과 생성 source 목록 중 하나만 선언한다.
+
+생성 경로의 `TransitionTarget[T]`는 전체 source와 실제 typed collection capability, 로그인/프로필 allowlist와 FK/M2M 선택
+정책을 묶는다. 입력은 일반 typed Creator와 같이 먼저 정리된 `ModelInput[T]`이며 저장 target key를 가질 수 없다.
+현재 source 전체를 빠짐없이 key/revision으로 지정하고, principal·password encoding·boolean role·그룹/직접 권한은 source에서
+보존한다. Target revision은 1로 시작하며 CreatedAt/LastLogin은 source에 해당 역할이 있으면 보존한다. 로그인과 추가
+프로필은 명시적 입력 및 target의 IR default·정규화·validation을 사용한다. Password를 입력받거나 다시 해싱하지 않는다.
+이미 게시된 파일 참조·이미지 크기도 명시적으로 고를 수 있지만 이 작업은 upload·storage 삭제를 수행하지 않는다.
+
+준비 snapshot과 최종 relation fence는 대상의 부재, 모든 column의 실제 조회 가능성과 전체 host source의 incoming
+non-NULL FK 부재를 검사한다. 빈 table에 남은 orphan reference가 새 key를 우연히 승계할 수 없게 한다. 전체 source의
+현재 인가·프로필·소속과 입력 후보·선택 정책을 대조한 뒤 target들을 INSERT하고, 얻은 key로 소속/프로필 collection을
+한 batch에서 저장한다. 기존 링크 삭제가 필요하면 거부한다. Source/target 전체의 독립 readback·현재 선택·unique를
+확인하고, source domain의 대상 생성 감사와 기존 퇴역·session 폐기·receipt/실제 대응표를 하나의 transaction에 묶는다.
+퇴역과 receipt 저장 뒤에도 target 상태와 선택을 다시 검사한다. 생성된 계정이 주는 권한으로 전환 인가를 확장하지 않는다.
+
+대상 계정 자체가 어떤 M2M의 through로도 쓰이면 이 생성 경로는 구성 시 `unsupported`로 거부한다. 계정 INSERT가
+다른 owner의 관계를 변경하는 경우의 revision·인가·감사는 별도의 수명 통합이 필요하며 현재 전환 코드가 대신하지 않는다.
+정상적인 별도 through를 가진 target 소속/프로필 collection은 지원한다.
+
+생성 preparation의 manifest에는 예상 target key 없이 source key/revision과 검토한 상태 digest를 보관한다. 실제 target key는
+commit 안에서 대응표에 저장하며 확정 결과의 `Mappings`로 반환한다. Unknown이나 cleanup 실패에는 잠정 key를 게시하지 않는다.
+재시작 대조는 보관 source 목록을 저장 대응표의 source/revision·초기 target revision 및 receipt의 count/checksum과 확인한다.
+새 `Reconcile` 조회는 생성 capability 없이도 같은 source·역할·backend로 수행할 수 있으며, 미관측을 재시도 허가로 사용하지 않는다.

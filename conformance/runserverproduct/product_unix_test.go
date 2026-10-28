@@ -452,8 +452,8 @@ func prepareRunserverArticleDatabase(t *testing.T, repository, databasePath stri
 	if err != nil {
 		t.Fatalf("load Article and system initial migrations: %v", err)
 	}
-	if report.DocumentsReceived != 8 || report.HeadersValidated != 8 || report.OperationsDecoded != 16 ||
-		report.PlannerConstruction != 1 || report.DefinitionsPublished != 8 || report.DefinitionSetsPublished != 1 {
+	if report.DocumentsReceived != 9 || report.HeadersValidated != 9 || report.OperationsDecoded != 19 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 9 || report.DefinitionSetsPublished != 1 {
 		t.Fatalf("Article and system initial migration load report = %+v", report)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

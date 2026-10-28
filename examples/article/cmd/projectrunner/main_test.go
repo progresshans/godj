@@ -51,7 +51,7 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 			t.Fatalf("project migrate invocation %d response=%+v failure=%+v", invocation+1, response, failure)
 		}
 		if response.Result.Mode != migrateprotocol.ModeExecute || response.Result.Plan != nil ||
-			response.Result.Execute.SourceCount != 10 || response.Result.Execute.DefinitionCount != 10 {
+			response.Result.Execute.SourceCount != 11 || response.Result.Execute.DefinitionCount != 11 {
 			t.Fatalf("project migrate invocation %d result=%+v", invocation+1, response.Result)
 		}
 		if invocation == 0 {
@@ -97,6 +97,7 @@ func TestArticleProjectRunnerMigratesFreshSQLiteAndSecondRunIsNoop(t *testing.T)
 	want := []migrationbackend.AppliedMigration{
 		{App: "godj_account_audit", Name: "0001_initial"},
 		{App: "godj_account_domain", Name: "0001_initial"},
+		{App: "godj_account_domain", Name: "0002_auto_fe206c392ab4"},
 		{App: "godj_conformance", Name: "0001_initial"},
 		{App: "godj_conformance", Name: "0002_alter_article_summary"},
 		{App: "godj_conformance", Name: "0003_article_slug"},

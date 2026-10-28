@@ -24,6 +24,7 @@ type ProfileRelationOperation string
 const (
 	ProfileRelationFirstAccount ProfileRelationOperation = "first-account"
 	ProfileRelationCreate       ProfileRelationOperation = "create"
+	ProfileRelationTransition   ProfileRelationOperation = "transition"
 	ProfileRelationChange       ProfileRelationOperation = "change"
 )
 

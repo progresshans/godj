@@ -31,9 +31,11 @@ import (
  "github.com/progresshans/godj/validation"
 )
 
-type transitionBackend struct { database.Backend; mode string; target int64; completed, faults atomic.Int32 }
+type transitionBackend struct { database.Backend; mode string; target int64; completed, faults, created atomic.Int32; creationTarget atomic.Int64; choiceDenied atomic.Bool }
 func (b *transitionBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
- err:=b.Backend.ReadSnapshot(ctx,read);if err==nil&&b.mode=="read_cleanup" { return errors.New("private transition read cleanup") };return err
+ visit:=read
+ if b.mode=="unexpected_reference_read"{visit=func(scope db.Queryer)error{return read(transitionReferenceRead{Queryer:scope,owner:b})}}
+ err:=b.Backend.ReadSnapshot(ctx,visit);if err==nil&&b.mode=="read_cleanup" { return errors.New("private transition read cleanup") };return err
 }
 func (b *transitionBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
  err:=b.Backend.CoordinatedAtomic(ctx,func(scope db.Session)error{
@@ -44,7 +46,29 @@ func (b *transitionBackend) CoordinatedAtomic(ctx context.Context, write func(db
  if b.mode=="unknown_rollback"||err==nil&&b.mode=="unknown_commit"{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}}
  return err
 }
+func (b *transitionBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession)error)error{
+ err:=b.Backend.CoordinatedAtomicRelation(ctx,func(scope db.RelationSession)error{
+  if err:=write(&transitionScope{Session:scope,owner:b});err!=nil{return err}
+  b.completed.Add(1)
+  if b.mode=="unknown_rollback"{return errors.New("native rollback after created mapping")};return nil
+ })
+ if b.mode=="unknown_rollback"||err==nil&&b.mode=="unknown_commit"{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}}
+ return err
+}
+type transitionReferenceRead struct{db.Queryer;owner *transitionBackend}
+func(s transitionReferenceRead)ValidateSession(ctx context.Context)error{return s.Queryer.(db.SessionValidator).ValidateSession(ctx)}
+func(s transitionReferenceRead)Query(ctx context.Context,plan query.Plan)(db.Rows,error){
+ if plan.Table()=="members_member_groups"{
+  s.owner.faults.Add(1)
+  // Inject a contradictory incoming-key observation using an actual native
+  // source row; this is a read fault, not a claim of physically broken FKs.
+  native,err:=query.NewPlan("godj_identity_user",[]query.FieldRef{query.NewFieldRef("id","id",query.FieldInteger,false)}).WithLimit(1);if err!=nil{return nil,err};return s.Queryer.Query(ctx,native)
+ }
+ return s.Queryer.Query(ctx,plan)
+}
 type transitionScope struct { db.Session; owner *transitionBackend }
+func(s *transitionScope)RelationSetNull(ctx context.Context,plan query.RelationSetNullPlan)(int64,error){return s.Session.(db.RelationSession).RelationSetNull(ctx,plan)}
+
 func (s *transitionScope) ValidateSession(ctx context.Context)error{return s.Session.(db.SessionValidator).ValidateSession(ctx)}
 func (s *transitionScope) Update(ctx context.Context,plan query.UpdatePlan)(int64,error){
  count,err:=s.Session.Update(ctx,plan);if err==nil&&s.owner.mode=="rollback"&&plan.Table()=="godj_identity_user"{s.owner.faults.Add(1);return count,errors.New("failure after native retirement")};return count,err
@@ -52,9 +76,21 @@ func (s *transitionScope) Update(ctx context.Context,plan query.UpdatePlan)(int6
 func (s *transitionScope) Insert(ctx context.Context,plan query.InsertPlan)(int64,error){
  if s.owner.mode=="audit_failure"&&plan.Table()=="godj_account_audit_event"||s.owner.mode=="receipt_failure"&&plan.Table()=="godj_account_domain_transition"||s.owner.mode=="mapping_failure"&&plan.Table()=="godj_account_domain_mapping"{s.owner.faults.Add(1);return 0,errors.New("private transition insertion failure")}
  id,err:=s.Session.Insert(ctx,plan)
+ if err==nil&&plan.Table()=="members_member"{
+  n:=s.owner.created.Add(1);if n==1{s.owner.creationTarget.Store(id)}
+  if s.owner.mode=="insert_after_write"&&n==2{s.owner.faults.Add(1);return id,errors.New("failure after second native target INSERT")}
+  if s.owner.mode=="target_rewrite"&&n==1{
+   row,e:=members.MemberObjects.Using(s.Session).Filter(members.MemberFields.ID.Exact(id)).Get(ctx);if e!=nil{return 0,e}
+   prepared,e:=members.MemberObjects.PrepareValues(&row,map[string]query.Value{"first_name":query.String("native target rewrite")});if e!=nil{return 0,e};row,e=prepared.Model();if e!=nil{return 0,e};if e=prepared.Save(ctx,s.Session,&row);e!=nil{return 0,e};s.owner.faults.Add(1)
+  }
+ }
+ if err==nil&&(s.owner.mode=="collection_after_write"&&plan.Table()=="members_member_interests"||s.owner.mode=="creation_audit"&&plan.Table()=="godj_account_audit_event"){s.owner.faults.Add(1);return id,errors.New("failure after native dependent INSERT")}
+ if err==nil&&s.owner.mode=="late_choice_change"&&plan.Table()=="godj_account_domain_transition"{s.owner.faults.Add(1);s.owner.choiceDenied.Store(true)}
+
  if err==nil&&s.owner.mode=="late_target_change"&&plan.Table()=="godj_account_domain_transition"{
   s.owner.faults.Add(1)
-  row,e:=members.MemberObjects.Using(s.Session).Filter(members.MemberFields.ID.Exact(s.owner.target)).Get(ctx);if e!=nil{return 0,e}
+  target:=s.owner.target;if s.owner.created.Load()>0{target=s.owner.creationTarget.Load()}
+  row,e:=members.MemberObjects.Using(s.Session).Filter(members.MemberFields.ID.Exact(target)).Get(ctx);if e!=nil{return 0,e}
   prepared,e:=members.MemberObjects.PrepareValues(&row,map[string]query.Value{"first_name":query.String("late-rule")});if e!=nil{return 0,e};row,e=prepared.Model();if e!=nil{return 0,e};if e=prepared.Save(ctx,s.Session,&row);e!=nil{return 0,e}
  }
  return id,err
@@ -65,10 +101,13 @@ func transitionCheck(t *testing.T,err error){t.Helper();if err!=nil{t.Fatal(err)
 func transitionPatch[M any](t *testing.T,backend db.Mutator,objects orm.Manager[M],row M,values map[string]query.Value)M{
  t.Helper();prepared,err:=objects.PrepareValues(&row,values);transitionCheck(t,err);result,err:=prepared.Model();transitionCheck(t,err);transitionCheck(t,prepared.Save(t.Context(),backend,&result));return result
 }
+func transitionTargetBinding(t *testing.T)accountmodel.Binding[members.Member]{
+ t.Helper();var role ir.AccountRole;transitionCheck(t,json.Unmarshal([]byte(`@@ROLE@@`),&role))
+ binding,err:=accountmodel.Bind(role,members.MemberDescriptor{},models.GoDjRelationSchema(),members.GoDjRelationSchema());transitionCheck(t,err);return binding
+}
 func transitionStores(t *testing.T,backend database.Backend)(*accountmodel.SessionStore[models.User],*accountmodel.SessionStore[members.Member]){
  t.Helper();old,err:=project.NewAccountCredentialStore(backend);transitionCheck(t,err)
- var role ir.AccountRole;transitionCheck(t,json.Unmarshal([]byte(`@@ROLE@@`),&role))
- binding,err:=accountmodel.Bind(role,members.MemberDescriptor{},models.GoDjRelationSchema(),members.GoDjRelationSchema());transitionCheck(t,err)
+ binding:=transitionTargetBinding(t)
  next,err:=accountmodel.NewCredentialStore(backend,binding,models.GroupDescriptor{},models.PermissionDescriptor{});transitionCheck(t,err)
  source,err:=accountmodel.NewSessionStore(old,sessiondb.Config{});transitionCheck(t,err);target,err:=accountmodel.NewSessionStore(next,sessiondb.Config{});transitionCheck(t,err);return source,target
 }
@@ -82,7 +121,7 @@ func TestAccountTransition(t *testing.T){
    var oldRows []models.User;var newRows []members.Member
    for i,name:=range []string{"alice","bob"}{
     old,err:=models.UserObjects.Create(t.Context(),native,models.NewUserCreate("principal-"+name,name,encoded,joined).WithStaff(i==0).WithSuperuser(i==0).WithFirstName("original-"+name));transitionCheck(t,err)
-    next,err:=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate("principal-"+name,name+"@example.test",encoded,joined).WithStaff(i==0).WithSuperuser(i==0).WithFirstName("mapped-"+name));transitionCheck(t,err)
+    next,err:=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate("principal-"+name,name+"@example.test",encoded,joined,"").WithStaff(i==0).WithSuperuser(i==0).WithFirstName("mapped-"+name));transitionCheck(t,err)
     if mode=="signed_keys"&&i==0{
      accountStoredKey(t,native,selected,"godj_identity_user","id",old.ID,0);old.ID=0
      accountStoredKey(t,native,selected,"members_member","id",next.ID,-9);next.ID=-9
@@ -153,7 +192,7 @@ func TestAccountTransition(t *testing.T){
    case "target_changed":transitionPatch(t,native,members.MemberObjects,newRows[1],map[string]query.Value{"first_name":query.String("changed-without-revision")})
    case "profile_collection_changed":link,err:=members.MemberInterestsLinkObjects.Using(native).Filter(members.MemberInterestsLinkFields.SourceID.Exact(newRows[1].ID)).Get(t.Context());transitionCheck(t,err);_,err=members.MemberInterestsLinkObjects.Delete(t.Context(),native,&link);transitionCheck(t,err)
    case "new_source":_,err=models.UserObjects.Create(t.Context(),native,models.NewUserCreate("extra-source","extra",encoded,joined));transitionCheck(t,err)
-   case "new_target":_,err=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate("extra-target","extra",encoded,joined));transitionCheck(t,err)
+   case "new_target":_,err=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate("extra-target","extra",encoded,joined,""));transitionCheck(t,err)
    case "grant_changed":transitionPatch(t,native,models.PermissionObjects,permission,map[string]query.Value{"code":query.String("app.changed")})
    case "policy_changed":rejectPolicy=true
    case "permission_revoked":overlay.denied=true
