@@ -107,7 +107,11 @@ func mappingPages(t *testing.T, backend Backend, reopen func(*testing.T) Backend
 			if err != nil {
 				return domain.Receipt{}, err
 			}
-			prior, err = domain.TransitionMappedIn(ctx, scope, prior, change, instant, []domain.Mapping{{SourceID: index, SourceRevision: 1, TargetID: -index, TargetRevision: 1}})
+			var catalog []domain.CatalogMappings
+			if index%2 == 0 {
+				catalog = append(catalog, catalogMappingRows())
+			}
+			prior, err = domain.TransitionMappedIn(ctx, scope, prior, change, instant, []domain.Mapping{{SourceID: index, SourceRevision: 1, TargetID: -index, TargetRevision: 1}}, catalog...)
 			if err != nil {
 				return domain.Receipt{}, err
 			}
@@ -161,12 +165,28 @@ func (scope mappingRewrite) Insert(ctx context.Context, plan query.InsertPlan) (
 	if err != nil {
 		return 0, err
 	}
-	var rows []domain.Mapping
-	if err := json.Unmarshal([]byte(row.Payload), &rows); err != nil {
-		return 0, err
+	prefix := "godj.account-mapping.v1\x00"
+	var rewritten any
+	if strings.HasPrefix(row.Payload, "{") {
+		var envelope struct {
+			Version  int                    `json:"version"`
+			Accounts []domain.Mapping       `json:"accounts"`
+			Catalog  domain.CatalogMappings `json:"catalog"`
+		}
+		if err := json.Unmarshal([]byte(row.Payload), &envelope); err != nil {
+			return 0, err
+		}
+		envelope.Catalog.Groups[0].TargetID = 333
+		rewritten, prefix = envelope, "godj.account-mapping.v2\x00"
+	} else {
+		var rows []domain.Mapping
+		if err := json.Unmarshal([]byte(row.Payload), &rows); err != nil {
+			return 0, err
+		}
+		rows[0].TargetID = 333
+		rewritten = rows
 	}
-	rows[0].TargetID = 333
-	payload, err := json.Marshal(rows)
+	payload, err := json.Marshal(rewritten)
 	if err != nil {
 		return 0, err
 	}
@@ -185,7 +205,7 @@ func (scope mappingRewrite) Insert(ctx context.Context, plan query.InsertPlan) (
 	if err != nil {
 		return 0, err
 	}
-	digest := sha256.Sum256(append([]byte("godj.account-mapping.v1\x00"), payload...))
+	digest := sha256.Sum256(append([]byte(prefix), payload...))
 	updated, err := models.TransitionObjects.PrepareValues(&header, map[string]query.Value{"mapping_sha256": query.String(hex.EncodeToString(digest[:]))})
 	if err != nil {
 		return 0, err

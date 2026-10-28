@@ -43,7 +43,7 @@ func normalizeSourceAccounts(sources []SourceAccount) ([]SourceAccount, error) {
 // one snapshot. Inputs are owned typed login/profile intent; the actual native
 // target keys will be written to the durable mapping at Commit. Retain the
 // returned manifest before attempting Commit, including across unknown outcomes.
-func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.Principal, operationID string, requests []AccountCreation[T]) (PreparedTransition[S, T], error) {
+func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.Principal, operationID string, requests []AccountCreation[T], catalogs ...CatalogMappings) (PreparedTransition[S, T], error) {
 	var zero PreparedTransition[S, T]
 	if owner == nil || owner.config.TargetCreation.state == nil || nilModelValue(owner.creationBackend) {
 		return zero, managementError(CodeInvalidConfig, nil)
@@ -63,6 +63,10 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	if _, err := normalizeSourceAccounts(sources); err != nil {
 		return zero, err
 	}
+	catalog, err := owner.prepareCatalogMappings(catalogs)
+	if err != nil {
+		return zero, err
+	}
 	if err := owner.requireMigrations(ctx); err != nil {
 		return zero, err
 	}
@@ -71,7 +75,7 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 		return zero, managementError(CodeInvalidConfig, nil)
 	}
 	observation, err := db.ReadSnapshotResult(ctx, owner.old.state.backend, func(work context.Context, scope db.Queryer) (transitionCreationObservation[S, T], error) {
-		result, failure := owner.observeCreation(work, scope, actor, operationID, owned, createdAt)
+		result, failure := owner.observeCreation(work, scope, actor, operationID, owned, createdAt, catalog)
 		if expectedTransitionRefusal(failure) {
 			return transitionCreationObservation[S, T]{transitionObservation: transitionObservation[S, T]{rejection: failure}}, nil
 		}
@@ -86,7 +90,10 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	oldRole, _ := owner.old.state.credentials.state.binding.RoleFingerprint()
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
 	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(), PriorSequence: observation.ownership.Sequence(),
-		ProjectSHA256: owner.source, SourceRoleSHA256: oldRole, TargetRoleSHA256: nextRole, StateSHA256: observation.digest, CreationSources: sources, References: transitionReferenceManifests(observation.references)}
+		ProjectSHA256: owner.source, SourceRoleSHA256: oldRole, TargetRoleSHA256: nextRole, StateSHA256: observation.digest, CreationSources: sources, References: transitionReferenceManifests(observation.references), Catalog: catalog}
+	if catalog != nil {
+		manifest.Version = 5
+	}
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return zero, err
@@ -99,9 +106,13 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 		creation: &preparedTransitionCreation[T]{requests: owned, createdAt: createdAt}}}, nil
 }
 
-func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Queryer, actor auth.Principal, operation string, requests []AccountCreation[T], createdAt time.Time) (transitionCreationObservation[S, T], error) {
+func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Queryer, actor auth.Principal, operation string, requests []AccountCreation[T], createdAt time.Time, catalog *CatalogMappings) (transitionCreationObservation[S, T], error) {
 	var zero transitionCreationObservation[S, T]
 	ownership, current, err := owner.inspectAuthority(ctx, scope, actor)
+	if err != nil {
+		return zero, err
+	}
+	observedCatalog, err := owner.observeCatalog(ctx, scope, operation, catalog)
 	if err != nil {
 		return zero, err
 	}
@@ -145,21 +156,28 @@ func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Que
 	if len(before) != len(requests) {
 		return zero, managementError(CodeConflict, nil)
 	}
-	result := transitionCreationObservation[S, T]{transitionObservation: transitionObservation[S, T]{ownership: ownership, actor: current}}
+	result := transitionCreationObservation[S, T]{transitionObservation: transitionObservation[S, T]{ownership: ownership, actor: current, catalog: observedCatalog}}
 	digest := &transitionDigestWriter{hash: sha256.New()}
 	digest.part([]byte("godj.account-created-transition-state.v1"))
 	digest.part([]byte(operation))
 	digest.part([]byte(current.ID()))
+	if err := appendTransitionCatalogDigest(digest, observedCatalog); err != nil {
+		return zero, err
+	}
 	for _, request := range requests {
 		source, present := before[request.Source.ID]
 		if !present || source.revision != request.Source.Revision {
 			return zero, managementError(CodeConflict, nil)
 		}
-		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, old.state.binding.state.role, request.Input, createdAt, ownership.Generation())
+		mapped, err := observedCatalog.memberships(source.memberships)
 		if err != nil {
 			return zero, err
 		}
-		if err := owner.validatePair(ctx, scope, operation, source, candidate.row); err != nil {
+		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, mapped, old.state.binding.state.role, request.Input, createdAt, ownership.Generation())
+		if err != nil {
+			return zero, err
+		}
+		if err := owner.validatePair(ctx, scope, operation, source, candidate.row, observedCatalog); err != nil {
 			return zero, err
 		}
 		if err := writeTransitionRow(digest, source); err != nil {
@@ -188,7 +206,7 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 		return TransitionResult{}, managementError(CodeInvalidConfig, nil)
 	}
 	return managementRelationWrite(ctx, owner.creationBackend, func(work context.Context, scope db.RelationSession) (TransitionResult, error) {
-		current, err := owner.observeCreation(work, scope, actor, state.manifest.OperationID, state.creation.requests, state.creation.createdAt)
+		current, err := owner.observeCreation(work, scope, actor, state.manifest.OperationID, state.creation.requests, state.creation.createdAt, state.manifest.Catalog)
 		if err != nil {
 			return TransitionResult{}, err
 		}
@@ -255,12 +273,15 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 		if err := batch.Apply(work, nil); err != nil {
 			return TransitionResult{}, err
 		}
-		observed, err := owner.observe(work, scope, actor, state.manifest.OperationID, mappings)
+		observed, err := owner.observe(work, scope, actor, state.manifest.OperationID, mappings, state.manifest.Catalog)
 		if err != nil {
 			return TransitionResult{}, err
 		}
 		if len(observed.pairs) != len(current.pairs) {
 			return TransitionResult{}, managementError(CodePersistence, nil)
+		}
+		if observed.catalog.digest != current.catalog.digest {
+			return TransitionResult{}, managementError(CodeConflict, nil)
 		}
 		if !sameTransitionReferenceManifests(transitionReferenceManifests(observed.references), transitionReferenceManifests(current.references)) {
 			return TransitionResult{}, managementError(CodeConflict, nil)

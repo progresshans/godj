@@ -1,0 +1,510 @@
+package consumer
+
+import (
+ "context"
+ "crypto/sha256"
+ "encoding/hex"
+ "encoding/json"
+ "errors"
+ "fmt"
+ "reflect"
+ "slices"
+ "strings"
+ "sync"
+ "sync/atomic"
+ "testing"
+ "time"
+
+ "example.com/godj-project-bundle/catalog"
+ "example.com/godj-project-bundle/host"
+ "example.com/godj-project-bundle/members"
+ "example.com/godj-project-bundle/models"
+ "example.com/godj-project-bundle/project"
+ accountaudit "github.com/progresshans/godj/account/audit"
+ "github.com/progresshans/godj/account/domain"
+ domainmodels "github.com/progresshans/godj/account/domain/models"
+ "github.com/progresshans/godj/auth"
+ "github.com/progresshans/godj/db"
+ accountmodel "github.com/progresshans/godj/identity/model"
+ "github.com/progresshans/godj/migrations/definition"
+ "github.com/progresshans/godj/orm"
+ "github.com/progresshans/godj/query"
+ "github.com/progresshans/godj/schema/ir"
+ "github.com/progresshans/godj/sessions"
+ sessiondb "github.com/progresshans/godj/sessions/database"
+ "github.com/progresshans/godj/settings/database"
+ "github.com/progresshans/godj/validation"
+)
+
+func ctMust(t *testing.T, err error) { t.Helper(); if err != nil { t.Fatal(err) } }
+
+func ctPatchIn[M any](ctx context.Context, scope db.Mutator, objects orm.Manager[M], row M, values map[string]query.Value) error {
+ prepared, err := objects.PrepareValues(&row, values); if err != nil { return err }
+ value, err := prepared.Model(); if err != nil { return err }
+ return prepared.Save(ctx, scope, &value)
+}
+
+type ctBackend struct {
+ database.Backend
+ mode string
+ team, grant int64
+ faults, completed, snapshots atomic.Int32
+ policy atomic.Bool
+}
+
+func (b *ctBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+ b.snapshots.Add(1)
+ err := b.Backend.ReadSnapshot(ctx, read)
+ if err == nil && b.mode == "read_cleanup" { return errors.New("private catalog transition cleanup") }
+ return err
+}
+
+func (b *ctBackend) finish(completed bool, err error) error {
+ if completed && (b.mode == "unknown_rollback" || err == nil && b.mode == "unknown_commit") {
+  return &query.Error{Category:query.CategoryBackend, Code:query.CodeCommitOutcomeUnknown}
+ }
+ return err
+}
+
+func (b *ctBackend) write(scope db.Session, write func(db.Session) error) (bool, error) {
+ if err := write(&ctScope{Session:scope, owner:b}); err != nil { return false, err }
+ b.completed.Add(1)
+ if b.mode == "unknown_rollback" { return true, errors.New("rollback after complete native catalog transition") }
+ return true, nil
+}
+
+func (b *ctBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
+ completed := false
+ err := b.Backend.CoordinatedAtomic(ctx, func(scope db.Session) error { var err error; completed, err = b.write(scope, write); return err })
+ return b.finish(completed, err)
+}
+
+func (b *ctBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+ completed := false
+ err := b.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+  var err error
+  completed, err = b.write(scope, func(wrapped db.Session) error { return write(wrapped.(*ctScope)) })
+  return err
+ })
+ return b.finish(completed, err)
+}
+
+type ctScope struct { db.Session; owner *ctBackend }
+func (s *ctScope) ValidateSession(ctx context.Context) error { return s.Session.(db.SessionValidator).ValidateSession(ctx) }
+func (s *ctScope) RelationSetNull(ctx context.Context, plan query.RelationSetNullPlan) (int64,error) { return s.Session.(db.RelationSession).RelationSetNull(ctx,plan) }
+func (s *ctScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool,error) {
+ inserted,err:=s.Session.(db.ConflictInserter).InsertOnConflict(ctx,plan)
+ if err==nil&&inserted&&plan.Table()=="members_member_permissions"&&s.owner.mode=="same_effective_wrong_direct"{err=s.loseDirect(ctx)}
+ return inserted,err
+}
+func (s *ctScope) loseDirect(ctx context.Context)error{
+ if !s.owner.faults.CompareAndSwap(0,1){return nil}
+ row,found,err:=members.MemberPermissionsLinkObjects.Using(s.Session).OrderBy(members.MemberPermissionsLinkFields.ID.Desc()).First(ctx);if err!=nil{return err};if !found{return errors.New("no actual direct grant to remove")}
+ _,err=members.MemberPermissionsLinkObjects.Delete(ctx,s.Session,&row);return err
+}
+func (s *ctScope) changeCatalog(ctx context.Context, link bool) error {
+ if !s.owner.faults.CompareAndSwap(0,1) { return nil }
+ if link {
+  _,err:=catalog.TeamGrantsLinkObjects.Create(ctx,s.Session,catalog.NewTeamGrantsLinkCreate(s.owner.team,s.owner.grant));return err
+ }
+ row,err:=catalog.TeamObjects.Using(s.Session).Filter(catalog.TeamFields.ID.Exact(s.owner.team)).Get(ctx);if err!=nil{return err}
+ return ctPatchIn(ctx,s.Session,catalog.TeamObjects,row,map[string]query.Value{"note":query.String("native rule changed unused catalog")})
+}
+func (s *ctScope) Update(ctx context.Context, plan query.UpdatePlan)(int64,error){
+ count,err:=s.Session.Update(ctx,plan);if err!=nil{return count,err}
+ if plan.Table()=="godj_identity_user" {
+  if s.owner.mode=="rollback" { s.owner.faults.Add(1);return count,errors.New("failure after native source retirement") }
+  if s.owner.mode=="retirement_catalog_change" { if err:=s.changeCatalog(ctx,false);err!=nil{return count,err} }
+ }
+ return count,nil
+}
+func (s *ctScope) Insert(ctx context.Context,plan query.InsertPlan)(int64,error){
+ id,err:=s.Session.Insert(ctx,plan);if err!=nil{return id,err}
+ if plan.Table()=="members_member_permissions"&&s.owner.mode=="same_effective_wrong_direct"{if err:=s.loseDirect(ctx);err!=nil{return id,err}}
+ if s.owner.mode=="audit_failure"&&plan.Table()=="godj_account_audit_event" || s.owner.mode=="mapping_failure"&&plan.Table()=="godj_account_domain_mapping" || s.owner.mode=="receipt_failure"&&plan.Table()=="godj_account_domain_transition" {
+  s.owner.faults.Add(1);return id,errors.New("failure after native catalog transition dependency INSERT")
+ }
+ if plan.Table()=="godj_account_domain_transition" && (s.owner.mode=="late_catalog_change"||s.owner.mode=="late_link_change") {
+  if err:=s.changeCatalog(ctx,s.owner.mode=="late_link_change");err!=nil{return id,err}
+ }
+ if plan.Table()=="members_member"&&s.owner.mode=="target_insert_catalog_change" { if err:=s.changeCatalog(ctx,false);err!=nil{return id,err} }
+ return id,nil
+}
+
+type ctFixture struct {
+ native database.Backend
+ backend *ctBackend
+ selected database.Config
+ strategy, mode string
+ role ir.AccountRole
+ sourceBinding accountmodel.Binding[models.User]
+ targetBinding accountmodel.Binding[members.Member]
+ oldStore *accountmodel.SessionStore[models.User]
+ nextStore *accountmodel.SessionStore[members.Member]
+ oldRows []models.User
+ newRows []members.Member
+ oldGroups []models.Group
+ teams []catalog.Team
+ oldPermissions []models.Permission
+ grants []catalog.Grant
+ mapping []accountmodel.AccountMapping
+ catalogMapping accountmodel.CatalogMappings
+ requests []accountmodel.AccountCreation[members.Member]
+ actor auth.Principal
+ credential auth.Credential
+ hasher *auth.PBKDF2
+ encoded string
+ initial domain.Receipt
+ joined time.Time
+ session sessions.ID
+ sourceGroup, targetGroup int64
+ config accountmodel.TransitionConfig[models.User,members.Member]
+ owner *accountmodel.Transition[models.User,members.Member]
+ ticket host.Ticket
+}
+
+func ctStores(t *testing.T,backend database.Backend,role ir.AccountRole)(accountmodel.Binding[members.Member],*accountmodel.SessionStore[models.User],*accountmodel.SessionStore[members.Member]){
+ t.Helper()
+ source,err:=project.NewAccountCredentialStore(backend);ctMust(t,err)
+ binding,err:=accountmodel.Bind(role,members.MemberDescriptor{},models.GoDjRelationSchema(),members.GoDjRelationSchema(),host.GoDjRelationSchema(),catalog.GoDjRelationSchema());ctMust(t,err)
+ var target *accountmodel.CredentialStore[members.Member]
+ if role.Catalog.Group.AppLabel=="godj_identity" {
+  target,err=accountmodel.NewCredentialStore(backend,binding,models.GroupDescriptor{},catalog.GrantDescriptor{})
+ } else if role.Catalog.Permission.AppLabel=="godj_identity" {
+  target,err=accountmodel.NewCredentialStore(backend,binding,catalog.TeamDescriptor{},models.PermissionDescriptor{})
+ } else { target,err=accountmodel.NewCredentialStore(backend,binding,catalog.TeamDescriptor{},catalog.GrantDescriptor{}) }
+ ctMust(t,err)
+ oldStore,err:=accountmodel.NewSessionStore(source,sessiondb.Config{});ctMust(t,err)
+ nextStore,err:=accountmodel.NewSessionStore(target,sessiondb.Config{});ctMust(t,err)
+ return binding,oldStore,nextStore
+}
+
+func newCTFixture(t *testing.T,strategy,mode string)*ctFixture{
+ t.Helper()
+ native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@)
+ f:=&ctFixture{native:native,selected:selected,strategy:strategy,mode:mode,backend:&ctBackend{Backend:native},joined:time.Date(2026,10,28,2,3,4,123456000,time.UTC)}
+ f.hasher,f.encoded=accountPassword(t)
+ ctMust(t,json.Unmarshal([]byte(`@@ROLE@@`),&f.role))
+ if strings.HasPrefix(mode,"shared_group") { f.role.Catalog.Group=ir.ModelIdentity{AppLabel:"godj_identity",ModelName:"group"};f.role.Catalog.GroupName="name";f.role.Catalog.GroupRevision="revision";f.role.Catalog.GroupPermissions="new_permissions";f.role.Groups="legacy_groups" }
+ if mode=="shared_permission" { f.role.Catalog.Permission=ir.ModelIdentity{AppLabel:"godj_identity",ModelName:"permission"};f.role.Catalog.PermissionCode="code";f.role.Catalog.PermissionName="name";f.role.Catalog.PermissionRevision="revision";f.role.Catalog.GroupPermissions="legacy_permissions";f.role.Permissions="legacy_permissions" }
+ var err error
+ f.sourceBinding,err=project.BindAccount();ctMust(t,err)
+ f.targetBinding,f.oldStore,f.nextStore=ctStores(t,f.backend,f.role)
+ if mode!="explicit_empty" { f.seedCatalog(t) }
+ f.oldRows=make([]models.User,2)
+ for i,name:=range []string{"alice","bob"}{
+  row,err:=models.UserObjects.Create(t.Context(),native,models.NewUserCreate("catalog-subject-"+name,name,f.encoded,f.joined).WithStaff(i==0).WithSuperuser(mode=="explicit_empty"&&i==0).WithFirstName("source-"+name));ctMust(t,err)
+  if mode=="signed_keys"{key:=int64(-7);if i==1{key=0};accountStoredKey(t,native,selected,"godj_identity_user","id",row.ID,key);row.ID=key}
+  f.oldRows[i]=row
+  if mode!="explicit_empty" {
+   _,err=models.UserGroupsLinkObjects.Create(t.Context(),native,models.NewUserGroupsLinkCreate(row.ID,f.sourceGroup));ctMust(t,err)
+   _,err=models.UserPermissionsLinkObjects.Create(t.Context(),native,models.NewUserPermissionsLinkCreate(row.ID,f.oldPermissions[i].ID));ctMust(t,err)
+  }
+  input,err:=members.MemberObjects.Input(map[string]query.Value{"handle":query.String(name+"@example.test"),"first_name":query.String("catalog-"+name),"portrait":query.String("")});ctMust(t,err)
+  f.requests=append(f.requests,accountmodel.AccountCreation[members.Member]{Source:accountmodel.SourceAccount{ID:row.ID,Revision:row.Revision},Input:input})
+ }
+ if strategy=="staged"{
+  f.newRows=make([]members.Member,2)
+  for _,i:=range []int{1,0}{
+   old:=f.oldRows[i]
+   row,err:=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate(old.PrincipalID,old.Username+"@example.test",f.encoded,f.joined,"").WithStaff(old.Staff).WithSuperuser(old.Superuser).WithFirstName("catalog-"+old.Username));ctMust(t,err)
+   if mode=="signed_keys"{key:=int64(0);if i==1{key=-9};accountStoredKey(t,native,selected,"members_member","id",row.ID,key);row.ID=key}
+   f.newRows[i]=row
+   f.mapping=append(f.mapping,accountmodel.AccountMapping{SourceID:old.ID,SourceRevision:old.Revision,TargetID:row.ID,TargetRevision:row.Version})
+   if mode!="explicit_empty" { f.seedTargetMembership(t,row.ID,i) }
+  }
+ }
+ role,err:=f.sourceBinding.RoleFingerprint();ctMust(t,err)
+ initial,err:=domain.Prepare(t.Context(),role,strings.Repeat("a",64));ctMust(t,err)
+ ctMust(t,native.CoordinatedAtomic(t.Context(),func(scope db.Session)error{var err error;f.initial,err=domain.InitializeIn(t.Context(),scope,initial,f.joined);return err}))
+ verifier,err:=f.oldStore.Authenticator(t.Context(),f.hasher);ctMust(t,err)
+ f.credential,err=verifier.Authenticate(t.Context(),"alice",accountPasswordText);ctMust(t,err);f.actor=f.credential.Principal()
+ manager,err:=sessions.NewManager(f.oldStore,sessions.Config{});ctMust(t,err)
+ record,err:=manager.Create(t.Context(),map[string]string{auth.SessionPrincipalIDKey:f.actor.ID(),auth.SessionCredentialStampKey:f.credential.SessionStamp()});ctMust(t,err);f.session=record.ID()
+ f.config=accountmodel.TransitionConfig[models.User,members.Member]{Permission:"account.transition",Authorizer:auth.PrincipalAuthorizer{},MaxAccounts:2,MaxCatalogRows:1024,Now:func()time.Time{return f.joined.Add(time.Hour)},Validate:func(_ context.Context,_ db.Queryer,left models.User,right members.Member,a,b accountmodel.AccountMemberships)(validation.Errors,error){
+  if left.EncodedPassword!=""||right.SecretHash!=""{t.Error("catalog transition policy received password encoding")}
+  if mode!="explicit_empty"&&(!slices.Equal(a.Groups(),[]int64{f.sourceGroup})||!slices.Equal(b.Groups(),[]int64{f.targetGroup})){t.Error("policy received unmapped catalog group keys")}
+  if keys:=b.Groups();len(keys)>0{keys[0]=9999}
+  if f.backend.policy.Load(){return validation.NewErrors(validation.New("first_name","catalog_policy")),nil};return validation.Errors{},nil
+ }}
+ if strategy=="created" {
+  collections,err:=project.BindCollections();ctMust(t,err)
+  options:=accountmodel.TransitionTargetConfig[members.Member]{Fields:[]string{"handle","first_name","portrait"}}
+  if strings.HasPrefix(mode,"shared_group") {f.config.TargetCreation,err=accountmodel.NewTransitionTarget(f.targetBinding,collections.MembersMemberLegacyGroups,collections.MembersMemberPermissions,options)
+  } else if mode=="shared_permission" {f.config.TargetCreation,err=accountmodel.NewTransitionTarget(f.targetBinding,collections.MembersMemberGroups,collections.MembersMemberLegacyPermissions,options)
+  } else {f.config.TargetCreation,err=accountmodel.NewTransitionTarget(f.targetBinding,collections.MembersMemberGroups,collections.MembersMemberPermissions,options)}
+  ctMust(t,err)
+ }
+ if mode=="host_references" {
+  f.ticket,err=host.TicketObjects.Create(t.Context(),native,host.NewTicketCreate("catalog reference").WithOldOwnerID(f.oldRows[0].ID));ctMust(t,err)
+  reference,err:=accountmodel.NewTransitionReference(f.sourceBinding,f.targetBinding,ir.ModelIdentity{AppLabel:"host",ModelName:"ticket"},host.TicketDescriptor{},accountmodel.TransitionReferenceConfig[host.Ticket]{Fields:[]accountmodel.TransitionReferenceFields{{Source:"old_owner",Target:"owner"}},RevisionField:"revision",Permission:"account.transition"});ctMust(t,err)
+  f.config.References=[]accountmodel.TransitionReference[models.User,members.Member]{reference}
+ }
+ if mode=="catalog_limit"{f.config.MaxCatalogRows=1}
+ if mode=="catalog_inventory_limit"{f.config.MaxCatalogRows=2;f.catalogMapping.Permissions=f.catalogMapping.Permissions[:2]}
+ f.owner,err=accountmodel.NewTransition(f.oldStore,f.nextStore,f.config);ctMust(t,err)
+ return f
+}
+
+func(f *ctFixture)seedCatalog(t *testing.T){
+ t.Helper()
+ var err error
+ for _,name:=range []string{"primary","unused"}{row,e:=models.GroupObjects.Create(t.Context(),f.native,models.NewGroupCreate(name));ctMust(t,e);f.oldGroups=append(f.oldGroups,row)}
+ for _,code:=range []string{"app.read","account.transition","app.unused"}{row,e:=models.PermissionObjects.Create(t.Context(),f.native,models.NewPermissionCreate(code,"source "+code));ctMust(t,e);f.oldPermissions=append(f.oldPermissions,row)}
+ f.teams=make([]catalog.Team,2);f.grants=make([]catalog.Grant,3)
+ for _,i:=range []int{1,0}{row,e:=catalog.TeamObjects.Create(t.Context(),f.native,catalog.NewTeamCreate("mapped-"+f.oldGroups[i].Name).WithVersion(4));ctMust(t,e);f.teams[i]=row}
+ for _,i:=range []int{2,1,0}{row,e:=catalog.GrantObjects.Create(t.Context(),f.native,catalog.NewGrantCreate(f.oldPermissions[i].Code,"mapped "+f.oldPermissions[i].Code).WithVersion(6));ctMust(t,e);f.grants[i]=row}
+ if f.mode=="signed_keys"{
+  accountStoredKey(t,f.native,f.selected,"godj_identity_group","id",f.oldGroups[0].ID,0);f.oldGroups[0].ID=0
+  accountStoredKey(t,f.native,f.selected,"catalog_team","id",f.teams[0].ID,-9);f.teams[0].ID=-9
+  accountStoredKey(t,f.native,f.selected,"godj_identity_permission","id",f.oldPermissions[0].ID,-5);f.oldPermissions[0].ID=-5
+  accountStoredKey(t,f.native,f.selected,"catalog_grant","id",f.grants[0].ID,0);f.grants[0].ID=0
+ }
+ f.sourceGroup,f.targetGroup=f.oldGroups[0].ID,f.teams[0].ID
+ if strings.HasPrefix(f.mode,"shared_group"){f.targetGroup=f.sourceGroup}
+ for i,old:=range f.oldGroups{
+  target,revision:=f.teams[i].ID,f.teams[i].Version;if strings.HasPrefix(f.mode,"shared_group"){target,revision=old.ID,old.Revision}
+  f.catalogMapping.Groups=append(f.catalogMapping.Groups,domain.Mapping{SourceID:old.ID,SourceRevision:old.Revision,TargetID:target,TargetRevision:revision})
+ }
+ for i,old:=range f.oldPermissions{
+  target,revision:=f.grants[i].ID,f.grants[i].Version;if f.mode=="shared_permission"{target,revision=old.ID,old.Revision}
+  f.catalogMapping.Permissions=append(f.catalogMapping.Permissions,domain.Mapping{SourceID:old.ID,SourceRevision:old.Revision,TargetID:target,TargetRevision:revision})
+ }
+ groups:=[]int{0};if f.mode=="shared_group_nonidentity"{groups=append(groups,1)}
+ for _,group:=range groups{for _,permission:=range []int{0,1}{
+  _,err=models.GroupPermissionsLinkObjects.Create(t.Context(),f.native,models.NewGroupPermissionsLinkCreate(f.oldGroups[group].ID,f.oldPermissions[permission].ID));ctMust(t,err)
+  _,err=catalog.TeamGrantsLinkObjects.Create(t.Context(),f.native,catalog.NewTeamGrantsLinkCreate(f.teams[group].ID,f.grants[permission].ID));ctMust(t,err)
+  _,err=models.GroupNewPermissionsLinkObjects.Create(t.Context(),f.native,models.NewGroupNewPermissionsLinkCreate(f.oldGroups[group].ID,f.grants[permission].ID));ctMust(t,err)
+  _,err=catalog.TeamLegacyPermissionsLinkObjects.Create(t.Context(),f.native,catalog.NewTeamLegacyPermissionsLinkCreate(f.teams[group].ID,f.oldPermissions[permission].ID));ctMust(t,err)
+ }}
+ if f.mode=="page_boundary"{
+  for i:=0;i<255;i++{
+   old,e:=models.GroupObjects.Create(t.Context(),f.native,models.NewGroupCreate(fmt.Sprintf("page-%03d",i)));ctMust(t,e)
+   next,e:=catalog.TeamObjects.Create(t.Context(),f.native,catalog.NewTeamCreate(fmt.Sprintf("mapped-page-%03d",i)));ctMust(t,e)
+   _,e=models.GroupPermissionsLinkObjects.Create(t.Context(),f.native,models.NewGroupPermissionsLinkCreate(old.ID,f.oldPermissions[0].ID));ctMust(t,e)
+   _,e=catalog.TeamGrantsLinkObjects.Create(t.Context(),f.native,catalog.NewTeamGrantsLinkCreate(next.ID,f.grants[0].ID));ctMust(t,e)
+   f.catalogMapping.Groups=append(f.catalogMapping.Groups,domain.Mapping{SourceID:old.ID,SourceRevision:old.Revision,TargetID:next.ID,TargetRevision:next.Version})
+   permission,e:=models.PermissionObjects.Create(t.Context(),f.native,models.NewPermissionCreate(fmt.Sprintf("page.p%03d",i),"unused page"));ctMust(t,e)
+   grant,e:=catalog.GrantObjects.Create(t.Context(),f.native,catalog.NewGrantCreate(permission.Code,"mapped unused page"));ctMust(t,e)
+   f.catalogMapping.Permissions=append(f.catalogMapping.Permissions,domain.Mapping{SourceID:permission.ID,SourceRevision:permission.Revision,TargetID:grant.ID,TargetRevision:grant.Version})
+  }
+ }
+ f.backend.team,f.backend.grant=f.teams[1].ID,f.grants[0].ID
+}
+
+func(f *ctFixture)seedTargetMembership(t *testing.T,id int64,person int){
+ t.Helper();var err error
+ if strings.HasPrefix(f.mode,"shared_group"){_,err=members.MemberLegacyGroupsLinkObjects.Create(t.Context(),f.native,members.NewMemberLegacyGroupsLinkCreate(id,f.targetGroup))
+ }else{_,err=members.MemberGroupsLinkObjects.Create(t.Context(),f.native,members.NewMemberGroupsLinkCreate(id,f.targetGroup))};ctMust(t,err)
+ if f.mode=="shared_permission"{_,err=members.MemberLegacyPermissionsLinkObjects.Create(t.Context(),f.native,members.NewMemberLegacyPermissionsLinkCreate(id,f.oldPermissions[person].ID))
+ }else{_,err=members.MemberPermissionsLinkObjects.Create(t.Context(),f.native,members.NewMemberPermissionsLinkCreate(id,f.grants[person].ID))};ctMust(t,err)
+}
+
+func(f *ctFixture)prepare(t *testing.T,operation string,catalogs ...accountmodel.CatalogMappings)(accountmodel.PreparedTransition[models.User,members.Member],error){
+ t.Helper()
+ if f.strategy=="created"{return f.owner.PrepareCreation(t.Context(),f.actor,operation,f.requests,catalogs...)}
+ return f.owner.Prepare(t.Context(),f.actor,operation,f.mapping,catalogs...)
+}
+
+func TestAccountCatalogTransition(t *testing.T){
+ for _,strategy:=range []string{"staged","created"}{t.Run(strategy,func(t *testing.T){
+  cases:=[]string{@@STAGED_CASES@@};if strategy=="created"{cases=[]string{@@CREATED_CASES@@}}
+  for _,mode:=range cases{t.Run(mode,func(t *testing.T){testAccountCatalogTransition(t,strategy,mode)})}
+ })}
+}
+
+func testAccountCatalogTransition(t *testing.T,strategy,mode string){
+ f:=newCTFixture(t,strategy,mode)
+ if mode=="configuration"{
+  for _,maximum:=range []int{-1,accountmodel.MaximumTransitionCatalogRows+1}{config:=f.config;config.MaxCatalogRows=maximum;if _,err:=accountmodel.NewTransition(f.oldStore,f.nextStore,config);err==nil{t.Fatal("invalid catalog limit accepted")}}
+  if _,err:=f.prepare(t,strings.Repeat("b",64),f.catalogMapping,f.catalogMapping);err==nil{t.Fatal("multiple catalog mappings accepted")}
+  return
+ }
+ mapping:=accountmodel.CatalogMappings{Groups:slices.Clone(f.catalogMapping.Groups),Permissions:slices.Clone(f.catalogMapping.Permissions)}
+ switch mode{
+ case "duplicate_mapping":mapping.Groups=append(mapping.Groups,mapping.Groups[0])
+ case "incomplete_mapping":mapping.Groups=mapping.Groups[:len(mapping.Groups)-1]
+ case "mapping_revision":mapping.Permissions[0].TargetRevision++
+ case "shared_group_nonidentity":mapping.Groups[0].TargetID,mapping.Groups[1].TargetID=mapping.Groups[1].TargetID,mapping.Groups[0].TargetID
+ case "wrong_code":ctMust(t,ctPatchIn(t.Context(),f.native,catalog.GrantObjects,f.grants[2],map[string]query.Value{"symbol":query.String("app.other")}))
+ case "invalid_unused_code":ctMust(t,ctPatchIn(t.Context(),f.native,catalog.GrantObjects,f.grants[2],map[string]query.Value{"symbol":query.String("invalid permission")}))
+ case "invalid_unused_revision":ctMust(t,ctPatchIn(t.Context(),f.native,catalog.TeamObjects,f.teams[1],map[string]query.Value{"version":query.Integer(0)}))
+ case "wrong_unused_group_grants":_,err:=catalog.TeamGrantsLinkObjects.Create(t.Context(),f.native,catalog.NewTeamGrantsLinkCreate(f.teams[1].ID,f.grants[2].ID));ctMust(t,err)
+ case "same_effective_wrong_direct":
+  if strategy=="staged"{row,err:=members.MemberPermissionsLinkObjects.Using(f.native).Filter(members.MemberPermissionsLinkFields.SourceID.Exact(f.newRows[0].ID)).Get(t.Context());ctMust(t,err);_,err=members.MemberPermissionsLinkObjects.Delete(t.Context(),f.native,&row);ctMust(t,err)}
+ }
+ if mode=="read_cleanup"{f.backend.mode=mode}
+ operation:=strings.Repeat("b",64)
+ snapshots:=f.backend.snapshots.Load()
+ catalogs:=[]accountmodel.CatalogMappings{mapping};if mode=="missing_mapping"{catalogs=nil}
+ prepared,err:=f.prepare(t,operation,catalogs...);f.backend.mode=""
+ early:=slices.Contains([]string{"missing_mapping","duplicate_mapping","incomplete_mapping","mapping_revision","shared_group_nonidentity","catalog_limit","catalog_inventory_limit","wrong_code","invalid_unused_code","invalid_unused_revision","wrong_unused_group_grants","read_cleanup"},mode)||strategy=="staged"&&mode=="same_effective_wrong_direct"
+ if early{
+  if err==nil||prepared.Manifest().OperationID!=""{t.Fatal("invalid catalog preparation published evidence")}
+  if mode=="missing_mapping"&&f.backend.snapshots.Load()!=snapshots{t.Fatal("missing explicit catalog mapping reached a snapshot")}
+  f.verifyUnapplied(t,f.native)
+  return
+ }
+ ctMust(t,err)
+ manifest:=prepared.Manifest()
+ if manifest.Version!=5||manifest.Catalog==nil||len(manifest.Catalog.Groups)!=len(f.catalogMapping.Groups)||len(manifest.Catalog.Permissions)!=len(f.catalogMapping.Permissions){t.Fatal("catalog manifest incomplete")}
+ wire,err:=json.Marshal(manifest);ctMust(t,err)
+ for _,secret:=range []string{f.encoded,"catalog-subject-alice","catalog-alice","mapped-primary",accountPasswordText}{if strings.Contains(string(wire),secret)||strings.Contains(fmt.Sprintf("%#v",prepared),secret){t.Fatal("catalog transition evidence leaked private values")}}
+ var retained accountmodel.TransitionManifest;ctMust(t,json.Unmarshal(wire,&retained))
+ if _,found,err:=f.owner.Reconcile(t.Context(),retained);err!=nil||found{t.Fatal("uncommitted catalog operation observed",err)}
+ if mode=="owned_mapping"{
+  mapping.Groups[0].TargetID=99999;mapping.Permissions[0].TargetID=99999
+  exposed:=prepared.Manifest();exposed.Catalog.Groups[0].TargetID=88888;exposed.Catalog.Permissions[0].TargetID=88888
+  if strategy=="created"{f.requests[0].Source.ID=99999;f.requests[0].Input=orm.ModelInput[members.Member]{}}
+ }
+ switch mode{
+ case "catalog_changed":ctMust(t,ctPatchIn(t.Context(),f.native,catalog.TeamObjects,f.teams[1],map[string]query.Value{"note":query.String("concurrent profile without revision")}))
+ case "source_catalog_changed":ctMust(t,ctPatchIn(t.Context(),f.native,models.GroupObjects,f.oldGroups[1],map[string]query.Value{"name":query.String("changed unused source without revision")}))
+ case "catalog_revision_changed":ctMust(t,ctPatchIn(t.Context(),f.native,catalog.GrantObjects,f.grants[2],map[string]query.Value{"version":query.Integer(f.grants[2].Version+1)}))
+ case "catalog_link_changed":_,err=catalog.TeamGrantsLinkObjects.Create(t.Context(),f.native,catalog.NewTeamGrantsLinkCreate(f.teams[1].ID,f.grants[2].ID));ctMust(t,err)
+ case "new_catalog_row":_,err=catalog.TeamObjects.Create(t.Context(),f.native,catalog.NewTeamCreate("concurrent catalog"));ctMust(t,err)
+ case "deleted_catalog_row":_,err=catalog.TeamObjects.Delete(t.Context(),f.native,&f.teams[1]);ctMust(t,err)
+ case "permission_revoked":ctMust(t,ctPatchIn(t.Context(),f.native,models.PermissionObjects,f.oldPermissions[1],map[string]query.Value{"code":query.String("account.revoked")}))
+ case "policy_changed":f.backend.policy.Store(true)
+ }
+ var result accountmodel.TransitionResult
+ var failure error
+ if mode=="concurrent"{
+  otherNative,err:=database.Open(t.Context(),f.selected);ctMust(t,err);defer otherNative.Close()
+  otherBackend:=&ctBackend{Backend:otherNative};_,old,next:=ctStores(t,otherBackend,f.role)
+  otherOwner,err:=accountmodel.NewTransition(old,next,f.config);ctMust(t,err)
+  var other accountmodel.PreparedTransition[models.User,members.Member]
+  if strategy=="created"{other,err=otherOwner.PrepareCreation(t.Context(),f.actor,strings.Repeat("c",64),f.requests,f.catalogMapping)}else{other,err=otherOwner.Prepare(t.Context(),f.actor,strings.Repeat("c",64),f.mapping,f.catalogMapping)};ctMust(t,err)
+  pending:=[]accountmodel.PreparedTransition[models.User,members.Member]{prepared,other}
+  owners:=[]*accountmodel.Transition[models.User,members.Member]{f.owner,otherOwner}
+  var results [2]accountmodel.TransitionResult;var failures [2]error;var wait sync.WaitGroup;start:=make(chan struct{})
+  for i:=range pending{wait.Add(1);go func(){defer wait.Done();<-start;results[i],failures[i]=owners[i].Commit(t.Context(),f.actor,pending[i])}()};close(start);wait.Wait()
+  wins:=0
+  for i,err:=range failures{if err==nil{wins++;result=results[i];retained=pending[i].Manifest();operation=retained.OperationID}else if !reflect.DeepEqual(results[i],accountmodel.TransitionResult{}){t.Fatal("losing catalog transition published state")}}
+  if wins!=1{t.Fatal("catalog transition did not have one native winner",failures)}
+ }else{
+  if slices.Contains([]string{"rollback","audit_failure","mapping_failure","receipt_failure","late_catalog_change","late_link_change","retirement_catalog_change","unknown_commit","unknown_rollback","target_insert_catalog_change"},mode)||mode=="same_effective_wrong_direct"&&strategy=="created"{f.backend.mode=mode}
+  work:=t.Context();if mode=="canceled"{var cancel context.CancelFunc;work,cancel=context.WithCancel(work);cancel()}
+  result,failure=f.owner.Commit(work,f.actor,prepared);f.backend.mode=""
+ }
+ successful:=slices.Contains([]string{"lifecycle","round_trip","signed_keys","shared_group","shared_permission","page_boundary","explicit_empty","owned_mapping","concurrent","reconcile_after_edit","stored_mapping_rewrite","host_references"},mode)
+ if successful{
+  ctMust(t,failure)
+  if result.Ownership.Sequence()!=2||result.MappedAccounts!=2||result.RevokedSessions!=1||result.Catalog==nil||!slices.Equal(result.Catalog.Groups,retained.Catalog.Groups)||!slices.Equal(result.Catalog.Permissions,retained.Catalog.Permissions){t.Fatal("catalog transition report incomplete")}
+  wantCreated:=0;if strategy=="created"{wantCreated=2};if result.CreatedAccounts!=wantCreated{t.Fatal("wrong created account report")}
+ }else if failure==nil||!reflect.DeepEqual(result,accountmodel.TransitionResult{}){t.Fatal("failed catalog transition published provisional state",failure)}
+ if slices.Contains([]string{"rollback","audit_failure","mapping_failure","receipt_failure","late_catalog_change","late_link_change","retirement_catalog_change","target_insert_catalog_change"},mode)||mode=="same_effective_wrong_direct"&&strategy=="created"{
+  if f.backend.faults.Load()!=1{t.Fatal("catalog failure boundary did not execute exactly once")}
+ }
+ if mode=="unknown_commit"||mode=="unknown_rollback"{if f.backend.completed.Load()!=1||!errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown}){t.Fatal("unknown outcome did not follow complete native write",failure)}}
+ if _,err:=f.owner.Commit(t.Context(),f.actor,prepared);err==nil{t.Fatal("catalog preparation was reusable")}
+ applied:=successful||mode=="unknown_commit"
+ reopened,err:=database.Open(t.Context(),f.selected);ctMust(t,err);defer reopened.Close()
+ _,freshOld,freshNext:=ctStores(t,reopened,f.role)
+ freshConfig:=f.config;freshConfig.TargetCreation=accountmodel.TransitionTarget[members.Member]{};freshConfig.Validate=nil;freshConfig.References=nil
+ freshOwner,err:=accountmodel.NewTransition(freshOld,freshNext,freshConfig);ctMust(t,err)
+ receipt,found,err:=freshOwner.Reconcile(t.Context(),retained);ctMust(t,err)
+ if found!=applied||found&&receipt.OperationID()!=operation{t.Fatal("catalog restart reconciliation disagrees with durable outcome")}
+ storage,err:=sessiondb.New(reopened,sessiondb.Config{});ctMust(t,err)
+ oldDomain,err:=f.sourceBinding.CredentialDomain(f.initial.Generation());ctMust(t,err)
+ historical,err:=storage.Store(oldDomain.Identifier());ctMust(t,err)
+ _,present,err:=historical.Load(t.Context(),f.session);ctMust(t,err);if present==applied{t.Fatal("old domain session retirement mismatch")}
+ if !applied{
+  f.verifyUnapplied(t,reopened)
+  if f.backend.faults.Load()>0||mode=="unknown_rollback"{
+   row,err:=catalog.TeamObjects.Using(reopened).Filter(catalog.TeamFields.ID.Exact(f.teams[1].ID)).Get(t.Context());ctMust(t,err)
+   if !reflect.DeepEqual(row,f.teams[1]){t.Fatal("native rollback retained catalog profile mutation")}
+   links,err:=catalog.TeamGrantsLinkObjects.Using(reopened).Filter(catalog.TeamGrantsLinkFields.SourceID.Exact(f.teams[1].ID)).Count(t.Context());ctMust(t,err);if links!=0{t.Fatal("native rollback retained catalog grant mutation")}
+  }
+  return
+ }
+ f.verifyApplied(t,reopened,receipt,retained,freshOld,freshNext)
+ if mode=="round_trip"{
+  verifier,err:=freshNext.Authenticator(t.Context(),f.hasher);ctMust(t,err);current,err:=verifier.Authenticate(t.Context(),"alice@example.test",accountPasswordText);ctMust(t,err)
+  actual,err:=db.ReadSnapshotResult(t.Context(),reopened,func(ctx context.Context,scope db.Queryer)([]domain.Mapping,error){return domain.LookupMappingsIn(ctx,scope,receipt)});ctMust(t,err)
+  var reverse []accountmodel.AccountMapping
+  for _,pair:=range actual{
+   originalIndex:=slices.IndexFunc(f.oldRows,func(row models.User)bool{return row.ID==pair.SourceID});if originalIndex<0{t.Fatal("unexpected durable source")};original:=f.oldRows[originalIndex]
+   target,err:=models.UserObjects.Using(reopened).Filter(models.UserFields.ID.Exact(original.ID)).Get(t.Context());ctMust(t,err)
+   ctMust(t,ctPatchIn(t.Context(),reopened,models.UserObjects,target,map[string]query.Value{"encoded_password":query.String(f.encoded),"active":query.Boolean(original.Active),"staff":query.Boolean(original.Staff),"superuser":query.Boolean(original.Superuser)}))
+   reverse=append(reverse,accountmodel.AccountMapping{SourceID:pair.TargetID,SourceRevision:1,TargetID:original.ID,TargetRevision:target.Revision})
+  }
+  reverseCatalog:=accountmodel.CatalogMappings{}
+  for _,item:=range []struct{source []domain.Mapping;target *[]domain.Mapping}{{retained.Catalog.Groups,&reverseCatalog.Groups},{retained.Catalog.Permissions,&reverseCatalog.Permissions}}{for _,pair:=range item.source{*item.target=append(*item.target,domain.Mapping{SourceID:pair.TargetID,SourceRevision:pair.TargetRevision,TargetID:pair.SourceID,TargetRevision:pair.SourceRevision})}}
+  back,err:=accountmodel.NewTransition(freshNext,freshOld,accountmodel.TransitionConfig[members.Member,models.User]{Permission:"account.transition",Authorizer:auth.PrincipalAuthorizer{}});ctMust(t,err)
+  pending,err:=back.Prepare(t.Context(),current.Principal(),strings.Repeat("d",64),reverse,reverseCatalog);ctMust(t,err)
+  returned,err:=back.Commit(t.Context(),current.Principal(),pending);ctMust(t,err)
+  if returned.Ownership.Sequence()!=3||returned.Ownership.Generation()==f.initial.Generation()||returned.Catalog==nil{t.Fatal("return to original catalog restored an old domain")}
+  finalVerifier,err:=freshOld.Authenticator(t.Context(),f.hasher);ctMust(t,err);final,err:=finalVerifier.Authenticate(t.Context(),"alice",accountPasswordText);ctMust(t,err)
+  if final.MatchesSessionStamp(f.credential.SessionStamp())||!slices.Equal(final.Principal().Permissions(),f.actor.Permissions()){t.Fatal("return to original catalog lost current authority or reused session stamp")}
+  if got,found,err:=freshOwner.Reconcile(t.Context(),retained);err!=nil||!found||got.OperationID()!=operation{t.Fatal("historical catalog operation lost after a later transition",err)}
+ }
+ if mode=="reconcile_after_edit"{
+  ctMust(t,ctPatchIn(t.Context(),reopened,catalog.TeamObjects,f.teams[1],map[string]query.Value{"note":query.String("legitimate later catalog edit")}))
+  if got,found,err:=freshOwner.Reconcile(t.Context(),retained);err!=nil||!found||got.OperationID()!=operation{t.Fatal("historical reconciliation required frozen current catalog",err)}
+ }
+ if mode=="stored_mapping_rewrite"{
+  header,err:=domainmodels.TransitionObjects.Using(reopened).Filter(domainmodels.TransitionFields.OperationID.Exact(operation)).Get(t.Context());ctMust(t,err)
+  row,err:=domainmodels.MappingObjects.Using(reopened).Filter(domainmodels.MappingFields.TransitionID.Exact(header.ID)).Get(t.Context());ctMust(t,err)
+  var payload struct{Version int `json:"version"`;Accounts []domain.Mapping `json:"accounts"`;Catalog domain.CatalogMappings `json:"catalog"`};ctMust(t,json.Unmarshal([]byte(row.Payload),&payload))
+  payload.Catalog.Groups[0].TargetID=99999;wire,err:=json.Marshal(payload);ctMust(t,err);sum:=sha256.Sum256(append([]byte("godj.account-mapping.v2\x00"),wire...))
+  ctMust(t,ctPatchIn(t.Context(),reopened,domainmodels.MappingObjects,row,map[string]query.Value{"payload":query.String(string(wire))}))
+  ctMust(t,ctPatchIn(t.Context(),reopened,domainmodels.TransitionObjects,header,map[string]query.Value{"mapping_sha256":query.String(hex.EncodeToString(sum[:]))}))
+  if _,found,err:=freshOwner.Reconcile(t.Context(),retained);err==nil||found{t.Fatal("rewritten catalog table and checksum matched retained evidence")}
+ }
+ if mode!="explicit_empty"{
+  bad:=retained;bad.Catalog=&accountmodel.CatalogMappings{Groups:slices.Clone(retained.Catalog.Groups),Permissions:slices.Clone(retained.Catalog.Permissions)};bad.Catalog.Groups[0].TargetID=99999
+  if _,found,err:=freshOwner.Reconcile(t.Context(),bad);err==nil||found{t.Fatal("wrong retained catalog correspondence accepted")}
+ }
+}
+
+func(f *ctFixture)verifyUnapplied(t *testing.T,backend database.Backend){
+ t.Helper()
+ for _,old:=range f.oldRows{
+  row,err:=models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(old.ID)).Get(t.Context());ctMust(t,err)
+  if !reflect.DeepEqual(row,old){t.Fatal("refused catalog transition changed source account")}
+ }
+ count,err:=members.MemberObjects.Using(backend).Count(t.Context());ctMust(t,err)
+ expected:=int64(0);if f.strategy=="staged"{expected=2};if count!=expected{t.Fatal("refused catalog transition left target accounts")}
+ for _,next:=range f.newRows{row,err:=members.MemberObjects.Using(backend).Filter(members.MemberFields.ID.Exact(next.ID)).Get(t.Context());ctMust(t,err);if !reflect.DeepEqual(row,next){t.Fatal("refused transition changed staged target")}}
+ current,err:=db.ReadSnapshotResult(t.Context(),backend,domain.InspectIn);ctMust(t,err);if current.OperationID()!=f.initial.OperationID(){t.Fatal("refused transition changed ownership")}
+ namespace,err:=f.sourceBinding.CredentialDomain(f.initial.Generation());ctMust(t,err)
+ events,err:=db.ReadSnapshotResult(t.Context(),backend,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,namespace,"godj_identity.user",f.oldRows[0].ID,10)});ctMust(t,err);if len(events)!=0{t.Fatal("refused transition retained retirement audit")}
+}
+
+func(f *ctFixture)verifyApplied(t *testing.T,backend database.Backend,receipt domain.Receipt,manifest accountmodel.TransitionManifest,oldStore *accountmodel.SessionStore[models.User],nextStore *accountmodel.SessionStore[members.Member]){
+ t.Helper()
+ type evidence struct{accounts []domain.Mapping;catalog domain.CatalogMappings;found bool}
+ stored,err:=db.ReadSnapshotResult(t.Context(),backend,func(ctx context.Context,scope db.Queryer)(evidence,error){
+  accounts,err:=domain.LookupMappingsIn(ctx,scope,receipt);if err!=nil{return evidence{},err};catalog,found,err:=domain.LookupCatalogMappingsIn(ctx,scope,receipt);return evidence{accounts,catalog,found},err
+ });ctMust(t,err)
+ if !stored.found||len(stored.accounts)!=2||!slices.Equal(stored.catalog.Groups,manifest.Catalog.Groups)||!slices.Equal(stored.catalog.Permissions,manifest.Catalog.Permissions){t.Fatal("durable catalog/account mapping mismatch")}
+ sourceDomain,err:=f.sourceBinding.CredentialDomain(f.initial.Generation());ctMust(t,err)
+ for i,old:=range f.oldRows{
+  retired,err:=models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(old.ID)).Get(t.Context());ctMust(t,err)
+  if retired.Revision!=old.Revision+1||retired.Active||retired.Staff||retired.Superuser||!strings.HasPrefix(retired.EncodedPassword,"!")||retired.PrincipalID!=old.PrincipalID{t.Fatal("catalog transition did not retire original account")}
+  var mapping domain.Mapping;found:=false;for _,pair:=range stored.accounts{if pair.SourceID==old.ID{mapping,found=pair,true}}
+  if !found||mapping.SourceRevision!=old.Revision||mapping.TargetRevision!=1{t.Fatal("durable account revision mapping differs")}
+  next,err:=members.MemberObjects.Using(backend).Filter(members.MemberFields.ID.Exact(mapping.TargetID)).Get(t.Context());ctMust(t,err)
+  if next.Subject!=old.PrincipalID||next.SecretHash!=f.encoded||next.Version!=1||next.Active!=old.Active||next.Staff!=old.Staff||next.Superuser!=old.Superuser||next.FirstName!="catalog-"+old.Username{t.Fatal("mapped account changed identity, authority or reviewed profile")}
+  if f.mode!="explicit_empty"{
+   var groups,direct []int64
+   if strings.HasPrefix(f.mode,"shared_group"){rows,err:=members.MemberLegacyGroupsLinkObjects.Using(backend).Filter(members.MemberLegacyGroupsLinkFields.SourceID.Exact(next.ID)).All(t.Context());ctMust(t,err);for _,row:=range rows{groups=append(groups,row.TargetID)}}else{rows,err:=members.MemberGroupsLinkObjects.Using(backend).Filter(members.MemberGroupsLinkFields.SourceID.Exact(next.ID)).All(t.Context());ctMust(t,err);for _,row:=range rows{groups=append(groups,row.TargetID)}}
+   if f.mode=="shared_permission"{rows,err:=members.MemberLegacyPermissionsLinkObjects.Using(backend).Filter(members.MemberLegacyPermissionsLinkFields.SourceID.Exact(next.ID)).All(t.Context());ctMust(t,err);for _,row:=range rows{direct=append(direct,row.TargetID)}}else{rows,err:=members.MemberPermissionsLinkObjects.Using(backend).Filter(members.MemberPermissionsLinkFields.SourceID.Exact(next.ID)).All(t.Context());ctMust(t,err);for _,row:=range rows{direct=append(direct,row.TargetID)}}
+   permission:=f.grants[i].ID;if f.mode=="shared_permission"{permission=f.oldPermissions[i].ID}
+   if !slices.Equal(groups,[]int64{f.targetGroup})||!slices.Equal(direct,[]int64{permission}){t.Fatal("native target retained source catalog keys or lost exact direct/group membership")}
+  }
+  history,err:=db.ReadSnapshotResult(t.Context(),backend,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,sourceDomain,"godj_identity.user",old.ID,10)});ctMust(t,err)
+  if len(history)!=1||history[0].ActorID()!=f.actor.ID()||!slices.Contains(history[0].ChangedFields(),"encoded_password"){t.Fatal("catalog transition retirement audit incomplete")}
+  creations,err:=db.ReadSnapshotResult(t.Context(),backend,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,sourceDomain,"members.member",next.ID,10)});ctMust(t,err)
+  expected:=0;if f.strategy=="created"{expected=1};if len(creations)!=expected{t.Fatal("catalog transition creation audit mismatch")}
+  if f.mode=="host_references"&&i==0{ticket,err:=host.TicketObjects.Using(backend).Filter(host.TicketFields.ID.Exact(f.ticket.ID)).Get(t.Context());ctMust(t,err);if ticket.OwnerID==nil||*ticket.OwnerID!=next.ID||ticket.OldOwnerID==nil||*ticket.OldOwnerID!=old.ID||ticket.Revision!=2{t.Fatal("catalog transition did not coordinate actual host keys")}}
+ }
+ nextVerifier,err:=nextStore.Authenticator(t.Context(),f.hasher);ctMust(t,err)
+ credential,err:=nextVerifier.Authenticate(t.Context(),"alice@example.test",accountPasswordText);ctMust(t,err)
+ if credential.Principal().ID()!=f.actor.ID()||credential.MatchesSessionStamp(f.credential.SessionStamp())||!slices.Equal(credential.Principal().Permissions(),f.actor.Permissions()){t.Fatal("new catalog authentication changed grants or inherited session domain")}
+ oldVerifier,err:=oldStore.Authenticator(t.Context(),f.hasher);ctMust(t,err)
+ if _,err:=oldVerifier.Authenticate(t.Context(),"alice",accountPasswordText);err==nil{t.Fatal("retired catalog/source authenticated")}
+ if _,err:=nextStore.InspectStartup(t.Context());err!=nil{t.Fatal("mapped catalog runtime did not restart",err)}
+ if _,err:=oldStore.InspectStartup(t.Context());err==nil{t.Fatal("old account selection restarted after catalog transition")}
+}

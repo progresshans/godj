@@ -57,40 +57,7 @@ func accountTransitionReferenceCases(strategy string) []string {
 
 func writeAccountTransitionConsumer(t *testing.T) string {
 	t.Helper()
-	spec := accountBindingConsumerSpec(t, false)
-	var member ir.Model
-	for _, model := range spec.Apps[0].Schema.Models {
-		if model.Name == spec.Account.Model.ModelName {
-			member = model.Clone()
-		}
-	}
-	member.Name, member.GoName, member.DBTable = "member", "Member", "members_member"
-	names := map[string][2]string{"username": {"handle", "Handle"}, "principal_id": {"subject", "Subject"}, "encoded_password": {"secret_hash", "SecretHash"}, "revision": {"version", "Version"}}
-	for i := range member.Fields {
-		if renamed, ok := names[member.Fields[i].Name]; ok {
-			member.Fields[i].Name, member.Fields[i].Column, member.Fields[i].GoName = renamed[0], renamed[0], renamed[1]
-		}
-	}
-	for i := range member.ManyToMany {
-		member.ManyToMany[i].Reverse = ir.ReverseRelation{Disabled: true}
-	}
-	member.Fields = append(member.Fields,
-		ir.Field{Name: "department", GoName: "DepartmentID", Column: "department_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Relation: &ir.ForeignKeyRelation{Target: spec.Account.Catalog.Group, Cardinality: ir.RelationManyToOne, Reverse: ir.ReverseRelation{Disabled: true}, OnDelete: ir.DeleteProtect}},
-		ir.Field{Name: "portrait", GoName: "Portrait", Column: "portrait", Kind: ir.FieldFile, MaxLength: 100, Blank: true},
-		ir.Field{Name: "region", GoName: "Region", Column: "region", Kind: ir.FieldChar, MaxLength: 32, Default: &ir.Scalar{Kind: ir.ScalarString, String: "earth"}},
-	)
-	member.ManyToMany = append(member.ManyToMany, ir.ManyToManyField{Name: "interests", GoName: "Interests", Target: spec.Account.Catalog.Permission, Reverse: ir.ReverseRelation{Disabled: true}, Blank: true})
-	for i := range spec.Apps[0].Schema.Models {
-		model := &spec.Apps[0].Schema.Models[i]
-		if model.Name == spec.Account.Model.ModelName {
-			model.ManyToMany = append(model.ManyToMany, ir.ManyToManyField{Name: "topics", GoName: "Topics", Target: spec.Account.Catalog.Permission, Reverse: ir.ReverseRelation{Disabled: true}, Blank: true})
-		}
-	}
-	spec.Apps = append(spec.Apps, codegen.AppSpec{Alias: "members", Package: codegen.PackageSpec{PackageName: "members", ImportPath: "example.com/godj-project-bundle/members", Directory: "members"}, Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "members", Models: []ir.Model{member}}})
-	addAccountTransitionHostModels(&spec)
-	role := spec.Account.Clone()
-	role.Model = ir.ModelIdentity{AppLabel: "members", ModelName: "member"}
-	role.Login, role.PrincipalID, role.Password, role.Revision = "handle", "subject", "secret_hash", "version"
+	spec, role := accountTransitionConsumerSpec(t)
 	encoded, err := json.Marshal(role)
 	if err != nil {
 		t.Fatal(err)
@@ -132,6 +99,45 @@ func writeAccountTransitionConsumer(t *testing.T) string {
 	writeGeneratedTestFile(t, root, "consumer/transition_references_test.go", formatted)
 	writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 	return root
+}
+
+func accountTransitionConsumerSpec(t *testing.T) (codegen.ProjectSpec, ir.AccountRole) {
+	t.Helper()
+	spec := accountBindingConsumerSpec(t, false)
+	var member ir.Model
+	for _, model := range spec.Apps[0].Schema.Models {
+		if model.Name == spec.Account.Model.ModelName {
+			member = model.Clone()
+		}
+	}
+	member.Name, member.GoName, member.DBTable = "member", "Member", "members_member"
+	names := map[string][2]string{"username": {"handle", "Handle"}, "principal_id": {"subject", "Subject"}, "encoded_password": {"secret_hash", "SecretHash"}, "revision": {"version", "Version"}}
+	for i := range member.Fields {
+		if renamed, ok := names[member.Fields[i].Name]; ok {
+			member.Fields[i].Name, member.Fields[i].Column, member.Fields[i].GoName = renamed[0], renamed[0], renamed[1]
+		}
+	}
+	for i := range member.ManyToMany {
+		member.ManyToMany[i].Reverse = ir.ReverseRelation{Disabled: true}
+	}
+	member.Fields = append(member.Fields,
+		ir.Field{Name: "department", GoName: "DepartmentID", Column: "department_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Relation: &ir.ForeignKeyRelation{Target: spec.Account.Catalog.Group, Cardinality: ir.RelationManyToOne, Reverse: ir.ReverseRelation{Disabled: true}, OnDelete: ir.DeleteProtect}},
+		ir.Field{Name: "portrait", GoName: "Portrait", Column: "portrait", Kind: ir.FieldFile, MaxLength: 100, Blank: true},
+		ir.Field{Name: "region", GoName: "Region", Column: "region", Kind: ir.FieldChar, MaxLength: 32, Default: &ir.Scalar{Kind: ir.ScalarString, String: "earth"}},
+	)
+	member.ManyToMany = append(member.ManyToMany, ir.ManyToManyField{Name: "interests", GoName: "Interests", Target: spec.Account.Catalog.Permission, Reverse: ir.ReverseRelation{Disabled: true}, Blank: true})
+	for i := range spec.Apps[0].Schema.Models {
+		model := &spec.Apps[0].Schema.Models[i]
+		if model.Name == spec.Account.Model.ModelName {
+			model.ManyToMany = append(model.ManyToMany, ir.ManyToManyField{Name: "topics", GoName: "Topics", Target: spec.Account.Catalog.Permission, Reverse: ir.ReverseRelation{Disabled: true}, Blank: true})
+		}
+	}
+	spec.Apps = append(spec.Apps, codegen.AppSpec{Alias: "members", Package: codegen.PackageSpec{PackageName: "members", ImportPath: "example.com/godj-project-bundle/members", Directory: "members"}, Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "members", Models: []ir.Model{member}}})
+	addAccountTransitionHostModels(&spec)
+	role := spec.Account.Clone()
+	role.Model = ir.ModelIdentity{AppLabel: "members", ModelName: "member"}
+	role.Login, role.PrincipalID, role.Password, role.Revision = "handle", "subject", "secret_hash", "version"
+	return spec, role
 }
 
 func accountTransitionSchemaVariant(spec codegen.ProjectSpec, phase string) codegen.ProjectSpec {

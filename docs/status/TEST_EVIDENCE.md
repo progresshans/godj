@@ -2711,6 +2711,54 @@ Python payload·현재 source hash는 검증 보관소 `gdj0138-324c2bbb-ci-repa
 (SHA-256 `b1b9c79f42e47a7ff390c41b8d7f0c6dbfb5a0d34ccb745a25af950ece5bc0e4`).
 새 source의 전체 원격 검증과 I1의 catalog/역사 systemstate·선택 identity through·남은 소비자 수용은 계속 미완료다.
 
+### 준비된 권한 catalog의 전체 대응과 저장 이력 작성
+
+2026-10-28, source `613b7e27bdcc05bdfac4115ce50358c7fb815a86` 위에서 서로 다른 Group/Permission의 전체 대응표를
+계정 전환에 연결했다. `Prepare`·`PrepareCreation`은 명시적인 catalog key/revision 대응표를 받고 canonical 권한 코드,
+미사용 행을 포함한 group 권한과 계정의 group/직접/유효 권한을 대조한다. 부분 공유 모델의 row identity를 유지하며
+새 계정 생성에는 재매핑한 catalog key를 사용한다. 전체 typed scalar·revision·unique와 실제 through key/FK를
+관측 예산에 포함하고 계정·host 변경/퇴역·감사·receipt 전후 다시 읽는다. Source/target catalog 행 자체는 변경하지 않는다.
+
+Manifest v5와 payload v2는 account/group/permission 대응표를 같은 receipt·checksum·transaction에 묶는다.
+Catalog별 배열 한도·전체 payload 한도와 streaming canonical decode, 저장 직후 전체 비교·이력 scan·재시작 대조를
+연결했다. 기존 mapping v1·manifest v4의 이력을 읽으며 account 부분 조회도 catalog 손상을 숨기지 않는다. 별도 schema
+migration이나 생성 ABI 변경은 없다. Catalog target 자동 생성·일반 host의 catalog 참조 재매핑·역사 systemstate와
+선택 identity through 수명·남은 고정 소비자 및 I1 전체 수용은 미완료다.
+
+독립 생성 앱은 다른 모델/필드 이름·추가 scalar를 가진 Team/Grant를 사용한다. Staged 44개·created 45개 child와 두 strategy,
+root의 92개 필수 이벤트를 SQLite/PostgreSQL 실행에 연결했다. Signed key·부분 공유·원래 catalog로의 복귀·빈 catalog·
+페이지 경계·완전한 대응/한도·미사용 행/권한/관계 변경·현재 인가·scope/취소·사본·실제 쓰기 뒤 실패·rollback·unknown·
+두 connection의 경합·host 참조·이력 손상/후속 편집·재접속을 검사하도록 작성했다. 합집합이 같아도 직접 소속이 달라진
+경우를 따로 거부한다. Unknown 주입은 native callback이 완전히 실행된 뒤 commit/rollback 응답을 바꾼 검사이며
+물리 네트워크 장애 실험은 아니다. 새 본문은 이 로컬 작업에서 실행하지 않았다.
+
+Domain native suite에 catalog 이력/실패/손상의 root/child 14개씩을 추가하고, 257개 mapping 이력의 기존 page 검사를
+v1/v2 혼합 payload로 확장했다. Pure canonical/소유권·shared identity·합산 state 예산 검사도 작성했다. 이전 필수 항목을
+보존하면서 relation 목록은 4,578→4,597, PostgreSQL core는 5,698→5,715로 늘렸고 새 생성 root를 account consumer owner에
+배정했다. 목록의 중복·이전 항목 보존과 child 수를 정적으로 확인했으며 CI 배정 Python 검사 12개도 통과했다.
+
+로컬 Go 1.26.5·darwin/arm64·CGO=1에서 `account/domain`·`identity/model`·native 공통 helper·consumer harness의 최소 compile을
+확인했다. 생성만 하는 별도 임시 harness로 새 catalog 및 기존 shared-catalog 외부 module을 준비했다. 최종 catalog module과
+기존 legacy/expanded/contracted module의 모든 package는 `go test -run '^$' -mod=mod`를 통과했다. 기존 소비자의 Go 파일
+68개는 보존한 변경 전 생성물과 byte가 모두 같다. 생성물과 실제 compile이 정규화한 module metadata를 함께 보존했다.
+이 결과는 새 catalog의 DB/HTTP·race·원격 전체 본문 PASS가 아니다.
+
+같은 이전 source의 [CI 40628515739](https://github.com/progresshans/godj/actions/runs/40628515739), attempt 1에서
+PostgreSQL 17.10 normal·CGO0·race 작업 `122619628396`·`122619628430`·`122619628474`가 모두 field-removal 10개 child에서
+`cached plan must not change result type` (`0A000`)로 실패했다. 세 원본의 checkout은
+`c2b447b27725f6a536534cd02a9c1a1c62e7574f`이며 tree `7c217e173c1056d402a6aa2421224bfc26a01568`이 제출 source와 같다.
+이 run은 전체 PASS가 아니며 관측 시점에 다른 작업이 실행/대기 중이고 최종 capture 검증은 skip 상태였다.
+
+현재 작업트리의 변경 전 `SELECT *` 열 검사에서 로컬 PostgreSQL 17.5로 같은 오류를 한정 재현했다. 삭제·복원 뒤 매번 새
+statement identity로 실제 열을 describe하도록 하고 rowset의 최종 오류도 확인한다. 열/값/제약/sequence·이력·원자성의
+기대는 유지했다. 수정 뒤 이전에 실패한 10개 child와 root가 pass 11·fail 0·skip 0으로 완료됐다. 이 결과는 PostgreSQL 17.10,
+race나 새 catalog 본문의 성공이 아니다. 이 한정 재현에만 만든 UTF8/C 데이터베이스는 사용 후 삭제했다.
+
+Source hash, 새/기존 생성 module·최소 compile, 필수 배정, 세 CI 실패 원본과 PostgreSQL 한정 재현은 검증 보관소의
+`gdj0138-catalog-transition-v1/receipt-final.json`에 연결했다
+(SHA-256 `597a32e8afdce9103d95c810a8067dec0feea58e9f04ad3c3efdf041e1ab1e49`). 새 source의 필수 본문·양 DB·generated drift·독립 HTTP/browser/process·
+race/platform과 원본/capture를 포함한 전체 원격 수용은 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -51,6 +51,9 @@ func Run(t *testing.T, open Open) {
 		{"mapping_failures", mappingFailures},
 		{"mapping_write_readback", mappingWriteReadback},
 		{"mapping_corruption", mappingCorruption},
+		{"catalog_mapping_history", catalogMappingHistory},
+		{"catalog_mapping_failures", catalogMappingFailures},
+		{"catalog_mapping_corruption", catalogMappingCorruption},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)

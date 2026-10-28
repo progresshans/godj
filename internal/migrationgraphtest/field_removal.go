@@ -3,6 +3,7 @@ package migrationgraphtest
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"slices"
 	"strings"
@@ -55,16 +56,22 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 				assertState(state, []ir.Model{initial, contracted}[index])
 				return state
 			}
+			columnObservation := 0
 			columns := func(removed bool) {
 				t.Helper()
-				rows, err := binding.Database.QueryContext(ctx, expand(`SELECT * FROM {record} WHERE 1=0`))
+				// The wildcard is an independent physical-schema observation.
+				// Give each observation a fresh statement identity so pgx describes
+				// the post-DDL result instead of reusing its previous column shape.
+				columnObservation++
+				statement := fmt.Sprintf(`SELECT * FROM {record} WHERE 1=0 /* column observation %d */`, columnObservation)
+				rows, err := binding.Database.QueryContext(ctx, expand(statement))
 				if err != nil {
 					t.Fatal(err)
 				}
 				actual, columnsErr := rows.Columns()
 				closeErr := rows.Close()
-				if columnsErr != nil || closeErr != nil {
-					t.Fatal(columnsErr, closeErr)
+				if err := errors.Join(columnsErr, closeErr, rows.Err()); err != nil {
+					t.Fatal(err)
 				}
 				want := []string{"label", "key", "keep_parent_id", "tail"}
 				if !removed {

@@ -185,7 +185,7 @@ type transitionCreationCandidate[M any] struct {
 	row      transitionRow[M]
 }
 
-func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, actor auth.Principal, target *transitionTarget[T], source transitionRow[S], sourceRole ir.AccountRole, input orm.ModelInput[T], createdAt time.Time, generation [32]byte) (transitionCreationCandidate[T], error) {
+func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, actor auth.Principal, target *transitionTarget[T], source transitionRow[S], memberships accountMemberships, sourceRole ir.AccountRole, input orm.ModelInput[T], createdAt time.Time, generation [32]byte) (transitionCreationCandidate[T], error) {
 	var zero transitionCreationCandidate[T]
 	metadata, valid := input.Model()
 	if !valid || !metadata.Equal(target.metadata) {
@@ -285,9 +285,9 @@ func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, ac
 	if err != nil {
 		return zero, err
 	}
-	if _, err := target.binding.prepareCandidateCredential(namespace, row, source.memberships.grants); err != nil {
+	if _, err := target.binding.prepareCandidateCredential(namespace, row, memberships.grants); err != nil {
 		return zero, err
 	}
 	return transitionCreationCandidate[T]{prepared: prepared, row: transitionRow[T]{row: row, revision: 1, values: values, memberships: accountMemberships{
-		groups: slices.Clone(source.memberships.groups), direct: slices.Clone(source.memberships.direct), grants: slices.Clone(source.memberships.grants)}, profile: maps.Clone(profile)}}, nil
+		groups: slices.Clone(memberships.groups), direct: slices.Clone(memberships.direct), grants: slices.Clone(memberships.grants)}, profile: maps.Clone(profile)}}, nil
 }

@@ -273,12 +273,21 @@ func TransitionIn(ctx context.Context, transaction db.Session, expected Receipt,
 // TransitionMappedIn appends ownership and its exact native key mapping in the
 // same borrowed transaction. The mapping is data, never authorization. Target
 // creation, source retirement, session policy and audit remain the outer
-// owner's responsibility. Propagate every error; no partial receipt is valid.
-func TransitionMappedIn(ctx context.Context, transaction db.Session, expected Receipt, change Change, at time.Time, mappings []Mapping) (Receipt, error) {
+// owner's responsibility. An optional catalog records explicit group and
+// permission correspondence in the same canonical payload and checksum.
+// Propagate every error; no partial receipt is valid.
+func TransitionMappedIn(ctx context.Context, transaction db.Session, expected Receipt, change Change, at time.Time, mappings []Mapping, catalogs ...CatalogMappings) (Receipt, error) {
 	if err := validateWrite(ctx, transaction, change, at); err != nil {
 		return Receipt{}, err
 	}
-	prepared, err := prepareMappings(mappings)
+	if len(catalogs) > 1 {
+		return Receipt{}, ErrInvalid
+	}
+	var catalog *CatalogMappings
+	if len(catalogs) == 1 {
+		catalog = &catalogs[0]
+	}
+	prepared, err := prepareMappingSet(mappings, catalog)
 	if err != nil {
 		return Receipt{}, err
 	}
@@ -340,11 +349,11 @@ func appendMappedIn(ctx context.Context, transaction db.Session, prior Receipt, 
 		if stored.ID <= 0 {
 			return Receipt{}, ErrCorrupt
 		}
-		actual, err := LookupMappingsIn(ctx, transaction, receipt)
+		actual, err := lookupMappingSetIn(ctx, transaction, receipt)
 		if err != nil {
 			return Receipt{}, err
 		}
-		if !slices.Equal(actual, mappings.rows) {
+		if actual.payload != mappings.payload || actual.digest != mappings.digest || !slices.Equal(actual.rows, mappings.rows) {
 			return Receipt{}, ErrCorrupt
 		}
 	}

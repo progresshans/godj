@@ -1838,16 +1838,16 @@ Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무
 
 ## 두 선택 모델 사이의 명시적 계정 전환
 
-`identity/model.NewTransition[S,T]`는 같은 실제 backend·전체 host source·권한 catalog를 사용하는 서로 다른
+`identity/model.NewTransition[S,T]`는 같은 실제 backend·전체 host source를 사용하는 서로 다른
 계정 table을 묶는다. `Prepare`는 호스트의 명시적 data migration이 먼저 준비한 대상 행을 받는다. `AccountMapping`은 양쪽
 전체 inventory를 1:1로 대응시키며, 같은 row key·principal·hash만으로 대응이나 소유권 이전을 추론하지 않는다.
 `PrepareCreation`은 빈 대상 모델에 새 행을 생성하는 명시적 입력을 받는다. 일반 host FK/OneToOne의 명시적 재매핑은 아래
-staged reference 계약을 따른다. Catalog 변경·기존 `godj_system` adoption은 아직 수행하지 않는다.
-이 범위는 I1의 잔여 작업이며 해당 기능이나 전체 제품 수용을 완료로 처리하지 않는다.
+staged reference 계약을 따른다. Catalog는 같거나 아래의 명시적 전체 대응표로 연결한다.
+기존 `godj_system` adoption과 선택 identity의 through 생성 수명은 I1의 잔여 작업이다.
 
 `Prepare`는 framework migration identity를 확인한 뒤 한 native snapshot에서 현재 source actor의 명시적 전환 권한과
 추가 권한·deny overlay, 전체 domain 이력·감사·session inventory, 두 typed 모델의 전체 행을 검사한다.
-그룹/직접/유효 권한은 shared catalog에서 정확히 같아야 하고, principal·encoded password·active/staff/superuser도
+그룹/직접/유효 권한은 shared catalog 또는 명시적 catalog 대응표에서 정확히 같아야 하고, principal·encoded password·active/staff/superuser도
 보존되어야 한다. 로그인/email은 target의 정규화 정책에 이미 맞아야 하며 조용히 수정하지 않는다. Scalar 표현/한도·
 전체 unique와 추가 M2M의 존재/집합을 확인하고, 선택적 typed mapping validator에 password를 지운 사본을 제공한다.
 새 프로필의 업무 정책·필드 선택 의미는 이 validator와 앞선 data migration이 소유한다.
@@ -1884,6 +1884,42 @@ Startup은 mapping을 선언한 모든 receipt와 실제 payload 목록을 독�
 대응표가 지워지지 않으며 mapping 없는 역사 receipt는 빈 대응표로 읽는다. 기존 `0001_initial`은 보존하고 `0002`가
 mapping 저장소와 기본값을 가진 receipt 필드를 추가한다. 보관 `TransitionManifest` v4의 restart 대조는 실제 저장 대응표까지
 확인한다. 사전 준비 mapping과 생성 source 목록 중 하나만 선언한다.
+
+### 준비된 권한 catalog의 명시적 대응
+
+`Prepare`와 `PrepareCreation`은 선택적으로 하나의 `CatalogMappings`를 받는다. Catalog 역할이 다르면 생략할 수 없다.
+`Groups`·`Permissions` 각각은 source/target 전체 행의 실제 key와 검토한 revision을 1:1로 대응한다. 같은 모델을 양쪽에서
+공유하면 그 모델의 row ID는 그대로 대응해야 하며, 같은 권한을 가진 다른 group 행으로 identity를 재지정할 수 없다.
+Group·Permission 간 모델 교차와 두 계정 모델을 catalog 행으로 겸용하는 조합은 이 전환 owner가 처리하지 않는다.
+부분 공유 catalog도 각 역할의 실제 관계·필드로 검증한다. 표시명·추가 프로필은 명시적으로 준비한 target 값을 사용한다.
+
+각 permission 쌍의 canonical 권한 코드는 같아야 하고, 각 group의 전체 권한 key 집합은 permission 대응표로 옮긴
+집합과 정확히 같아야 한다. 현재 어느 계정에도 배정되지 않은 group·permission도 포함한다. 각 계정의 직접 권한과
+group 소속을 따로 재매핑한 뒤 유효 권한도 대조한다. 같은 합집합이라는 이유로 직접 권한을 group 권한으로 대체하지 않는다.
+새 target 계정 생성도 이 대응표의 key로 소속을 생성하며, 실제 저장 key·현재 권한·최종 선택과 기존 원자성을 유지한다.
+
+`MaxCatalogRows`는 모델별 기본 4,096개·최대 65,536개이며 256개 이하 page를 사용한다. 실제 typed descriptor로 두 catalog의
+전체 scalar·revision·unique를 읽고, 선언된 through의 key/FK 전체를 별도로 읽는다. NULL·중복 physical pair의 의미는 유지하고,
+존재하지 않는 owner/target·비정규 permission code·초과한 group 권한 집합은 거부한다. Catalog 상태와 실제 through endpoint의
+framing은 account/host와 같은 64 MiB 관측 예산에 들어간다. 준비 뒤 미사용 행의 변경·행 추가/삭제·revision 없는 변경도
+최종 fence에서 다시 관측한다. 계정 소속은 raw link와 typed join 결과를 독립 대조해 dangling endpoint를 숨기지 않는다.
+
+Host 재매핑, target 생성, source 퇴역·감사와 receipt 게시 전후에도 catalog 전체를 다시 읽는다. 관측이 달라지면 모든
+계정/host 변경과 session 폐기·감사를 rollback한다. 이 경로는 미리 준비된 catalog 행을 변경하거나 퇴역시키지 않는다.
+공유한 catalog의 다른 소비자를 대신해 생성·삭제·revision·감사 권한을 얻는 경로로 사용하지 않는다.
+
+Manifest v5는 값 원문 없이 정규화한 catalog 대응표를 포함한다. 저장 payload v2는 `accounts`와 `catalog.groups`·
+`catalog.permissions`를 한 envelope로 묶으며, 기존 receipt의 account count와 전체 payload checksum으로 같은 transaction에
+보관한다. 각 배열 65,536개 및 전체 16 MiB 한도를 적용한다. Streaming decode·정규 순서·필수/중복/미지정 member와 checksum을
+검사하며 `LookupMappingsIn`도 catalog가 손상되면 account 부분만 게시하지 않는다. `LookupCatalogMappingsIn`은 명시적인 빈
+대응표와 catalog 기록이 없는 이력을 구분한다. 저장 직후 전체 payload를 다시 대조하고 startup은 모든 역사 payload를 검사한다.
+기존 mapping v1·manifest v4의 불변 이력은 계속 읽는다. `Reconcile`은 보관한 catalog 대응표까지 실제 receipt와 대조하며,
+후속 정상 catalog 편집을 과거 전환의 실패로 바꾸지 않는다. Unknown 결과는 실제 key나 잠정 catalog 결과를 게시하지 않는다.
+
+Catalog target 행을 자동 생성하거나 Group/Permission을 가리키는 일반 host 관계를 별도로 재매핑하는 owner,
+역사 `systemstate` 가져오기와 해당 schema 단계의 통합 수용은 남아 있다. 이 대응표 경로만으로 I1 전체 수용을 완료하지 않는다.
+
+### 전환 대상 계정의 생성
 
 생성 경로의 `TransitionTarget[T]`는 전체 source와 실제 typed collection capability, 로그인/프로필 allowlist와 FK/M2M 선택
 정책을 묶는다. 입력은 일반 typed Creator와 같이 먼저 정리된 `ModelInput[T]`이며 저장 target key를 가질 수 없다.

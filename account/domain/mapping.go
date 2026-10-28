@@ -29,39 +29,125 @@ type Mapping struct {
 	TargetRevision int64 `json:"target_revision"`
 }
 
+// CatalogMappings pairs the complete reviewed group and permission inventories.
+// Their model identities and field roles are bound by the predecessor and new
+// ownership receipts. The outer typed transition owner must verify those roles,
+// permission codes, group grants and account memberships before storing this
+// evidence. Empty inventories are explicit; nil absence denotes an older or
+// shared-catalog transition without a separate catalog mapping.
+type CatalogMappings struct {
+	Groups      []Mapping `json:"groups"`
+	Permissions []Mapping `json:"permissions"`
+}
+
 type preparedMappings struct {
 	rows            []Mapping
+	catalog         *CatalogMappings
 	payload, digest string
 }
 
-func prepareMappings(mappings []Mapping) (preparedMappings, error) {
-	if len(mappings) < 1 || len(mappings) > MaximumMappings {
-		return preparedMappings{}, ErrInvalid
+func normalizeMappings(mappings []Mapping, required bool) ([]Mapping, error) {
+	if required && len(mappings) == 0 || len(mappings) > MaximumMappings {
+		return nil, ErrInvalid
 	}
-	owned := slices.Clone(mappings)
+	owned := append([]Mapping{}, mappings...)
 	slices.SortFunc(owned, func(a, b Mapping) int { return cmp.Compare(a.SourceID, b.SourceID) })
 	targets := make(map[int64]bool, len(owned))
 	for index, row := range owned {
 		if row.SourceRevision <= 0 || row.TargetRevision <= 0 || index > 0 && row.SourceID == owned[index-1].SourceID || targets[row.TargetID] {
-			return preparedMappings{}, ErrInvalid
+			return nil, ErrInvalid
 		}
 		targets[row.TargetID] = true
 	}
-	payload, err := json.Marshal(owned)
+	return owned, nil
+}
+
+func prepareMappingSet(mappings []Mapping, catalog *CatalogMappings) (preparedMappings, error) {
+	owned, err := normalizeMappings(mappings, true)
+	if err != nil {
+		return preparedMappings{}, err
+	}
+	result := preparedMappings{rows: owned}
+	var value any = owned
+	prefix := "godj.account-mapping.v1\x00"
+	if catalog != nil {
+		groups, err := normalizeMappings(catalog.Groups, false)
+		if err != nil {
+			return preparedMappings{}, err
+		}
+		permissions, err := normalizeMappings(catalog.Permissions, false)
+		if err != nil {
+			return preparedMappings{}, err
+		}
+		result.catalog = &CatalogMappings{Groups: groups, Permissions: permissions}
+		value = struct {
+			Version  int              `json:"version"`
+			Accounts []Mapping        `json:"accounts"`
+			Catalog  *CatalogMappings `json:"catalog"`
+		}{2, owned, result.catalog}
+		prefix = "godj.account-mapping.v2\x00"
+	}
+	payload, err := json.Marshal(value)
 	if err != nil || len(payload) > MaximumMappingBytes {
 		return preparedMappings{}, ErrInvalid
 	}
-	digest := sha256.Sum256(append([]byte("godj.account-mapping.v1\x00"), payload...))
-	return preparedMappings{rows: owned, payload: string(payload), digest: hex.EncodeToString(digest[:])}, nil
+	digest := sha256.Sum256(append([]byte(prefix), payload...))
+	result.payload, result.digest = string(payload), hex.EncodeToString(digest[:])
+	return result, nil
 }
 
-func decodeMappings(receipt Receipt, row models.Mapping) ([]Mapping, error) {
+func decodeMappingSet(receipt Receipt, row models.Mapping) (preparedMappings, error) {
 	if receipt.state == nil || row.ID <= 0 || row.TransitionID != receipt.state.id || receipt.MappingCount() == 0 || len(row.Payload) > MaximumMappingBytes {
-		return nil, ErrCorrupt
+		return preparedMappings{}, ErrCorrupt
 	}
-	var mappings []Mapping
 	decoder := json.NewDecoder(strings.NewReader(row.Payload))
 	decoder.DisallowUnknownFields()
+	var mappings []Mapping
+	var catalog *CatalogMappings
+	var err error
+	if strings.HasPrefix(row.Payload, "{") {
+		// Read bounded arrays individually. A compact hostile array must not be
+		// materialized before its item limit is checked, even under 16 MiB.
+		if !mappingToken(decoder, json.Delim('{')) || !mappingToken(decoder, "version") {
+			return preparedMappings{}, ErrCorrupt
+		}
+		var version int
+		if decoder.Decode(&version) != nil || version != 2 || !mappingToken(decoder, "accounts") {
+			return preparedMappings{}, ErrCorrupt
+		}
+		mappings, err = decodeMappingRows(decoder)
+		if err != nil || !mappingToken(decoder, "catalog") || !mappingToken(decoder, json.Delim('{')) || !mappingToken(decoder, "groups") {
+			return preparedMappings{}, ErrCorrupt
+		}
+		groups, err := decodeMappingRows(decoder)
+		if err != nil || !mappingToken(decoder, "permissions") {
+			return preparedMappings{}, ErrCorrupt
+		}
+		permissions, err := decodeMappingRows(decoder)
+		if err != nil || !mappingToken(decoder, json.Delim('}')) || !mappingToken(decoder, json.Delim('}')) {
+			return preparedMappings{}, ErrCorrupt
+		}
+		catalog = &CatalogMappings{Groups: groups, Permissions: permissions}
+	} else {
+		mappings, err = decodeMappingRows(decoder)
+		if err != nil {
+			return preparedMappings{}, ErrCorrupt
+		}
+	}
+	prepared, err := prepareMappingSet(mappings, catalog)
+	if err != nil || len(prepared.rows) != receipt.MappingCount() || prepared.digest != receipt.MappingSHA256() || prepared.payload != row.Payload {
+		return preparedMappings{}, ErrCorrupt
+	}
+	return prepared, nil
+}
+
+func mappingToken(decoder *json.Decoder, expected any) bool {
+	actual, err := decoder.Token()
+	return err == nil && actual == expected
+}
+
+func decodeMappingRows(decoder *json.Decoder) ([]Mapping, error) {
+	mappings := []Mapping{}
 	if token, err := decoder.Token(); err != nil || token != json.Delim('[') {
 		return nil, ErrCorrupt
 	}
@@ -78,58 +164,70 @@ func decodeMappings(receipt Receipt, row models.Mapping) ([]Mapping, error) {
 	if token, err := decoder.Token(); err != nil || token != json.Delim(']') {
 		return nil, ErrCorrupt
 	}
-	prepared, err := prepareMappings(mappings)
-	if err != nil || len(prepared.rows) != receipt.MappingCount() || prepared.digest != receipt.MappingSHA256() || prepared.payload != row.Payload {
-		return nil, ErrCorrupt
-	}
-	return prepared.rows, nil
+	return mappings, nil
 }
 
 // LookupMappingsIn verifies the exact receipt, one canonical mapping payload,
 // its count/digest and the one-to-one source/target keys in the same borrowed
 // scope. A mapping-free low-level ownership receipt returns an empty slice.
 // Failure/cleanup never publishes a partial correspondence table.
-func LookupMappingsIn(ctx context.Context, reader db.Queryer, expected Receipt) (result []Mapping, err error) {
+func LookupMappingsIn(ctx context.Context, reader db.Queryer, expected Receipt) ([]Mapping, error) {
+	result, err := lookupMappingSetIn(ctx, reader, expected)
+	return result.rows, err
+}
+
+// LookupCatalogMappingsIn reads catalog correspondence with the same receipt,
+// payload and scope checks as LookupMappingsIn. found distinguishes an explicit
+// empty catalog from historical/shared-catalog receipts without that evidence.
+func LookupCatalogMappingsIn(ctx context.Context, reader db.Queryer, expected Receipt) (CatalogMappings, bool, error) {
+	result, err := lookupMappingSetIn(ctx, reader, expected)
+	if err != nil || result.catalog == nil {
+		return CatalogMappings{}, false, err
+	}
+	return *result.catalog, true, nil
+}
+
+func lookupMappingSetIn(ctx context.Context, reader db.Queryer, expected Receipt) (result preparedMappings, err error) {
 	if expected.state == nil {
-		return nil, ErrInvalid
+		return preparedMappings{}, ErrInvalid
 	}
 	validator, err := lookupScope(ctx, reader)
 	if err != nil {
-		return nil, err
+		return preparedMappings{}, err
 	}
 	defer func() {
 		if completion := errors.Join(ctx.Err(), validator.ValidateSession(ctx)); completion != nil {
 			err = failure(errors.Join(err, completion))
 		}
 		if err != nil {
-			result = nil
+			result = preparedMappings{}
 		}
 	}()
 	actual, found, err := LookupIn(ctx, reader, expected.OperationID())
 	if err != nil {
-		return nil, err
+		return preparedMappings{}, err
 	}
 	if !found || *actual.state != *expected.state {
-		return nil, ErrStale
+		return preparedMappings{}, ErrStale
 	}
 	selected, err := models.MappingObjects.Using(reader).Filter(models.MappingFields.TransitionID.Exact(expected.state.id)).OrderBy(models.MappingFields.ID.Asc()).Limit(2)
 	if err != nil {
-		return nil, failure(err)
+		return preparedMappings{}, failure(err)
 	}
 	rows, err := selected.All(ctx)
 	if err != nil {
-		return nil, failure(err)
+		return preparedMappings{}, failure(err)
 	}
 	if expected.MappingCount() == 0 {
 		if len(rows) != 0 {
-			return nil, ErrCorrupt
+			return preparedMappings{}, ErrCorrupt
 		}
-		return []Mapping{}, nil
+		return preparedMappings{rows: []Mapping{}}, nil
 	}
 	if len(rows) != 1 {
-		return nil, ErrCorrupt
+		return preparedMappings{}, ErrCorrupt
 	}
-	return decodeMappings(expected, rows[0])
+	return decodeMappingSet(expected, rows[0])
 }
 
 // The history scan counts headers declaring mappings. This independent scan
@@ -178,7 +276,7 @@ func inspectMappings(ctx context.Context, reader db.Queryer, expected int64) err
 			if err != nil {
 				return failure(err)
 			}
-			if _, err := decodeMappings(receipt, row); err != nil {
+			if _, err := decodeMappingSet(receipt, row); err != nil {
 				return err
 			}
 			parent, key, count, started = entry.transition, entry.id, count+1, true

@@ -46,6 +46,7 @@ type transitionObservation[S, T any] struct {
 	digest     string
 	rejection  error
 	references []transitionReferenceObservation
+	catalog    transitionCatalogObservation
 }
 
 func expectedTransitionRefusal(err error) bool {
@@ -61,10 +62,14 @@ func transitionBoolean(values map[string]query.Value, role ir.AccountBoolean) bo
 	return value
 }
 
-func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, actor auth.Principal, operation string, mappings []AccountMapping) (transitionObservation[S, T], error) {
+func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, actor auth.Principal, operation string, mappings []AccountMapping, catalog *CatalogMappings) (transitionObservation[S, T], error) {
 	var zero transitionObservation[S, T]
 	old, next := owner.old.state.credentials, owner.next.state.credentials
 	ownership, current, err := owner.inspectAuthority(ctx, scope, actor)
+	if err != nil {
+		return zero, err
+	}
+	observedCatalog, err := owner.observeCatalog(ctx, scope, operation, catalog)
 	if err != nil {
 		return zero, err
 	}
@@ -79,18 +84,21 @@ func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, ac
 	if len(before) != len(mappings) || len(after) != len(mappings) {
 		return zero, managementError(CodeConflict, nil)
 	}
-	result := transitionObservation[S, T]{ownership: ownership, actor: current}
+	result := transitionObservation[S, T]{ownership: ownership, actor: current, catalog: observedCatalog}
 	digest := &transitionDigestWriter{hash: sha256.New()}
 	digest.part([]byte("godj.account-transition-state.v1"))
 	digest.part([]byte(operation))
 	digest.part([]byte(current.ID()))
+	if err := appendTransitionCatalogDigest(digest, observedCatalog); err != nil {
+		return zero, err
+	}
 	for _, mapping := range mappings {
 		a, oldPresent := before[mapping.SourceID]
 		b, nextPresent := after[mapping.TargetID]
 		if !oldPresent || !nextPresent || a.revision != mapping.SourceRevision || b.revision != mapping.TargetRevision {
 			return zero, managementError(CodeConflict, nil)
 		}
-		if err := owner.validatePair(ctx, scope, operation, a, b); err != nil {
+		if err := owner.validatePair(ctx, scope, operation, a, b, observedCatalog); err != nil {
 			return zero, err
 		}
 		if err := writeTransitionRow(digest, a); err != nil {
@@ -146,11 +154,15 @@ func (owner *Transition[S, T]) inspectAuthority(ctx context.Context, scope db.Qu
 	return ownership, current, nil
 }
 
-func (owner *Transition[S, T]) validatePair(ctx context.Context, scope db.Queryer, operation string, a transitionRow[S], b transitionRow[T]) error {
+func (owner *Transition[S, T]) validatePair(ctx context.Context, scope db.Queryer, operation string, a transitionRow[S], b transitionRow[T], catalog transitionCatalogObservation) error {
 	old, next := owner.old.state.credentials, owner.next.state.credentials
 	left, right := old.state.binding.state.role, next.state.binding.state.role
+	mapped, err := catalog.memberships(a.memberships)
+	if err != nil {
+		return err
+	}
 	if !a.values[left.PrincipalID].Equal(b.values[right.PrincipalID]) || !a.values[left.Password].Equal(b.values[right.Password]) ||
-		!slices.Equal(a.memberships.groups, b.memberships.groups) || !slices.Equal(a.memberships.direct, b.memberships.direct) || !slices.Equal(a.memberships.grants, b.memberships.grants) {
+		!slices.Equal(mapped.groups, b.memberships.groups) || !slices.Equal(mapped.direct, b.memberships.direct) || !slices.Equal(mapped.grants, b.memberships.grants) {
 		return managementError(CodeConflict, nil)
 	}
 	for _, equal := range []struct{ a, b bool }{
@@ -257,6 +269,25 @@ func readTransitionRows[M any](ctx context.Context, scope db.Queryer, store *Cre
 			if err != nil {
 				return nil, err
 			}
+			// The join reader supplies effective grants, while raw declared links
+			// independently reject dangling membership endpoints rather than
+			// silently losing them in that join.
+			for _, membership := range memberships {
+				if membership.owner != role.Model || membership.profile {
+					continue
+				}
+				actual, err := membership.readKeys(ctx, scope, id)
+				if err != nil {
+					return nil, err
+				}
+				expected := stored.direct
+				if membership.field == role.Groups {
+					expected = stored.groups
+				}
+				if !slices.Equal(actual, expected) {
+					return nil, invalidAccountCredential()
+				}
+			}
 			if _, err := store.state.binding.PrepareCredential(generation, row, stored.grants); err != nil {
 				return nil, err
 			}
@@ -348,6 +379,13 @@ func transitionRetirement[M any](binding Binding[M], row transitionRow[M], opera
 }
 
 func (owner *Transition[S, T]) verifyRows(ctx context.Context, scope db.Queryer, expected transitionObservation[S, T], mappings []AccountMapping) error {
+	catalog, err := owner.observeCatalog(ctx, scope, expected.catalog.operation, expected.catalog.mapping)
+	if err != nil {
+		return err
+	}
+	if catalog.digest != expected.catalog.digest {
+		return managementError(CodePersistence, nil)
+	}
 	before, err := readTransitionRows(ctx, scope, owner.old.state.credentials, owner.oldMemberships, owner.config.MaxAccounts, expected.ownership.Generation())
 	if err != nil {
 		return err
@@ -393,10 +431,27 @@ func (writer *transitionDigestWriter) part(value []byte) {
 	_, _ = writer.hash.Write(value)
 }
 func writeTransitionRow[M any](writer *transitionDigestWriter, row transitionRow[M]) error {
-	names := slices.Sorted(maps.Keys(row.values))
+	if err := writeTransitionValues(writer, row.values); err != nil {
+		return err
+	}
+	collections := map[string][]int64{"groups": row.memberships.groups, "permissions": row.memberships.direct}
+	encoded, err := json.Marshal(struct {
+		Roles   map[string][]int64
+		Profile map[string][]int64
+		Grants  []auth.Permission
+	}{collections, row.profile, row.memberships.grants})
+	if err != nil {
+		return managementError(CodeInvalidInput, err)
+	}
+	writer.part(encoded)
+	return writer.err
+}
+
+func writeTransitionValues(writer *transitionDigestWriter, values map[string]query.Value) error {
+	names := slices.Sorted(maps.Keys(values))
 	writer.part([]byte(strconv.Itoa(len(names))))
 	for _, name := range names {
-		value := row.values[name]
+		value := values[name]
 		writer.part([]byte(name))
 		writer.part([]byte(value.Kind()))
 		if number, floating := value.Float(); floating {
@@ -415,15 +470,5 @@ func writeTransitionRow[M any](writer *transitionDigestWriter, row transitionRow
 		}
 		writer.part(encoded)
 	}
-	collections := map[string][]int64{"groups": row.memberships.groups, "permissions": row.memberships.direct}
-	encoded, err := json.Marshal(struct {
-		Roles   map[string][]int64
-		Profile map[string][]int64
-		Grants  []auth.Permission
-	}{collections, row.profile, row.memberships.grants})
-	if err != nil {
-		return managementError(CodeInvalidInput, err)
-	}
-	writer.part(encoded)
 	return writer.err
 }

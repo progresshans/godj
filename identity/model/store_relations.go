@@ -23,6 +23,7 @@ type accountRelationReader struct {
 	memberships                   func(context.Context, db.Queryer, int64) (accountMemberships, error)
 	proposed                      func(context.Context, db.Queryer, []int64, []int64) ([]auth.Permission, error)
 	checkGroups, checkPermissions func(context.Context, db.Queryer, []int64) error
+	catalog                       func(context.Context, db.Queryer, int, *transitionDigestWriter) (transitionCatalogInventory, error)
 }
 
 var errAccountGrantLimit = errors.New("account effective permission limit exceeded")
@@ -226,6 +227,10 @@ func bindAccountRelations[M, G, P any](binding Binding[M], groupDescriptor orm.R
 			return nil, err
 		}
 		return readGrants(ctx, permissionObjects.Using(scope).Filter(orm.Or(permissionKeyField.In(direct...), permissionGroup.In(groups...))))
+	}
+	reader.catalog, err = bindTransitionCatalog(binding, groupObjects, permissionObjects)
+	if err != nil {
+		return nil, err
 	}
 	return reader, nil
 }

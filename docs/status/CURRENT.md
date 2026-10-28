@@ -17,7 +17,8 @@
 2. 추가 M2M 프로필의 생성·편집·조회·Form/Admin/API와 collection/lifecycle projection, 공개 첫 계정 명령의 collection 입력/전송을 전체 원격 검증한다.
 3. 준비된 두 선택 모델의 mapping과 새 대상 계정 생성·실제 key 대응표 저장, source 퇴역·session 폐기·domain/receipt와
    이력 upgrade·복구/restart, 일반 host FK/OneToOne/업무 through 재매핑과 실제 schema expansion/contraction을 원격 검증한다.
-   필요한 non-PK RemoveField 기반도 함께 확인한다. Catalog 관계 mapping·역사 systemstate 이행과 남은 고정 Directory/Manager 소비자,
+   필요한 non-PK RemoveField 기반과 준비된 권한 catalog의 전체 대응표·권한/소속 보존·이력 대조도 함께 확인한다.
+4. Catalog target 생성·일반 host의 catalog 참조 재매핑, 역사 systemstate 이행과 남은 고정 Directory/Manager 소비자,
    선택 identity를 through로 자동 생성하는 조립과 전환 대상의 through 수명을 완성한다.
 
 ## 검증 경계

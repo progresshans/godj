@@ -490,8 +490,20 @@ definition·historical state·autodetector·SQL projection·native lifecycle에 
 이는 M1 전체 완료가 아니다. 양 DB의 실제 column/값·FK/OneToOne/unique·sequence·이력, 실패/unknown·재접속 검사를
 필수 목록에 연결했으며 작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
-Catalog 변경·선택 identity의 through 수명과 역사 `systemstate` 가져오기, 남은 고정 소비자 교체는 미완료이며
-이 코드만으로 I1-07/08을 수용 완료로 처리하지 않는다.
+### 준비된 권한 catalog의 전환
+
+서로 다른 Group/Permission의 전체 key·revision 대응표를 `Prepare`와 `PrepareCreation`에 연결했다. 미사용 행을 포함한
+전체 typed scalar·canonical 권한 코드·group 권한과 계정의 직접/group/유효 권한을 대조한다. 부분 공유 모델은 실제 같은
+row ID를 보존하며 새 계정 생성은 재매핑한 catalog key로 소속을 저장한다. 전체 관측과 raw through endpoint를 같은 예산에
+포함하고, source 퇴역·host 변경·감사·receipt 전후 readback이 달라지면 전체 전환을 rollback한다.
+
+Manifest v5·payload v2에 계정과 catalog 대응표를 함께 기록했다. 기존 이력 형식을 읽으며 배열/byte 한도·canonical 형식·
+전체 checksum·저장 직후 비교와 restart/unknown 대조를 유지한다. 기본→별도 Team/Grant의 새 생성 소비자에 staged/created,
+부분 공유·signed key·페이지 경계·미사용 행/관계 변경·현재 인가·실제 쓰기 뒤 실패·원자성·경합·재접속 검사를 작성했다.
+코드 작성·생성/최소 compile과 새 본문·환경별 실행은 TEST_EVIDENCE에서 구분한다.
+
+Catalog target 자동 생성과 일반 host의 catalog 참조 재매핑, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,
+남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
