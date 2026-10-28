@@ -46,7 +46,9 @@ Admin/JSON·password/reset·공개 CLI·Article/scaffold와 Helpdesk 조립, 명
 실제 schema expansion/contraction과 재조립 소비자를 위해 non-PK RemoveField의 정의·계획·실행도 추가했다.
 준비된 서로 다른 catalog의 전체 group/permission 대응표·권한 코드/소속 보존과 미사용 행/관계의 관측·재검사를 연결했다.
 계정 생성도 재매핑한 catalog key를 사용하며 manifest·native payload·전체 이력/재시작 대조에 같은 대응표를 보관한다.
-새 본문은 원격 확인 대상이다. Catalog target 생성·일반 host의 catalog 참조 재매핑·역사 systemstate 전환은 남아 있다.
+일반 host의 계정·그룹·권한 FK/OneToOne과 업무 through를 종류별 대응표로 함께 재매핑하며 한 행의 revision·감사는 한 번 적용한다.
+전체/부분 공유 catalog·새 실제 계정 key·manifest v6와 실제 host schema 확장/정리·재접속 소비자를 작성했다.
+새 본문은 원격 확인 대상이다. Catalog target 생성·역사 systemstate 전환은 남아 있다.
 일반 collection의 선택 identity through 자동 생성·전환 대상의 through 수명·
 남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
 필수 목록에 연결했고 독립 OpenAPI 관리·자기 계정 소비자도 선택 runtime으로 전환했다. 새 본문의 원격 확인이 필요하다.

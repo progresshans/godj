@@ -1916,8 +1916,8 @@ Manifest v5는 값 원문 없이 정규화한 catalog 대응표를 포함한다.
 기존 mapping v1·manifest v4의 불변 이력은 계속 읽는다. `Reconcile`은 보관한 catalog 대응표까지 실제 receipt와 대조하며,
 후속 정상 catalog 편집을 과거 전환의 실패로 바꾸지 않는다. Unknown 결과는 실제 key나 잠정 catalog 결과를 게시하지 않는다.
 
-Catalog target 행을 자동 생성하거나 Group/Permission을 가리키는 일반 host 관계를 별도로 재매핑하는 owner,
-역사 `systemstate` 가져오기와 해당 schema 단계의 통합 수용은 남아 있다. 이 대응표 경로만으로 I1 전체 수용을 완료하지 않는다.
+Catalog target 행의 자동 생성과 역사 `systemstate` 가져오기 및 전체 환경의 통합 수용은 남아 있다.
+일반 host의 catalog 참조는 아래의 단계적 전환에 포함하며, 이 대응표 경로만으로 I1 전체 수용을 완료하지 않는다.
 
 ### 전환 대상 계정의 생성
 
@@ -1948,9 +1948,14 @@ commit 안에서 대응표에 저장하며 확정 결과의 `Mappings`로 반환
 
 `NewTransitionReference[S,T,H]`는 두 선택 계정 binding과 같은 전체 source의 typed host descriptor를 묶는다.
 호스트는 schema migration으로 source 모델을 가리키는 기존 FK와 target 모델을 가리키는 새 FK를 함께 준비한다.
-`Fields`의 명시적 쌍은 실제 FK/OneToOne이어야 하며 기존 열의 target 의미를 암묵적으로 바꾸지 않는다. 대상 열은 NULL이거나
-명시적 계정 대응표의 값과 같아야 한다. Source NULL에는 target NULL만 허용하며 이미 다른 계정이 들어 있으면 거부한다.
-준비된 target과 새로 생성한 target 모두 실제 저장 key를 사용한다.
+`Fields`의 명시적 쌍은 실제 FK/OneToOne이어야 하며 기존 열의 target 의미를 암묵적으로 바꾸지 않는다.
+각 쌍의 `Kind`는 `TransitionReferenceAccount`(생략/빈 값), `TransitionReferenceGroup`,
+`TransitionReferencePermission` 중 하나다. 두 role의 실제 account/group/permission 모델에 모두 맞는 쌍만 허용하며
+같은 숫자 key라도 세 대응표를 공유하지 않는다. 대상 열은 NULL이거나 해당 종류의 명시적 대응표와 같아야 한다.
+Source NULL에는 target NULL만 허용하며 다른 target을 덮어쓰지 않는다. Catalog가 전체 또는 부분 공유된 경우에도
+관측한 전체 inventory의 실제 key로 self mapping을 만들며, 대응표 생략을 임의 key 허용으로 해석하지 않는다.
+준비된 target과 새로 생성한 계정 target 모두 실제 저장 key를 사용한다. 생성 준비 중 아직 없는 account key를 예상하지
+않으며, host 쓰기 전에 전체 source key 집합·이미 준비한 catalog 대응과 실제 할당한 계정 대응을 다시 대조한다.
 
 모델마다 전체 행을 256개 이하 page로 읽고 기본 4,096개·최대 65,536개를 명시한다. 최대 64개 host model과 전체 account/host
 관측의 64 MiB 한도를 공유하며 초과를 생략하지 않는다. Source key·전체 scalar 값·추가/삭제된 행과 선택적 revision을 준비
@@ -1958,11 +1963,14 @@ snapshot과 최종 fence에서 대조한다. Revision이 없는 모델도 전체
 계정 전환 인가에 합치고 현재 source actor로 다시 검사한다. Typed validator는 실제 target key가 있는 원본/최종 행의 사본을
 받고 쓰기 전 및 최종 readback에서 실행한다. 빌린 reader의 재진입·보관·효과 게시는 허용하지 않는다.
 
-같은 행의 여러 쌍은 한 번의 optional revision 증가와 값 없는 한 감사로 저장한다. No-op은 revision·감사를 만들지 않는다.
+같은 행의 account/group/permission 여러 쌍은 한 번의 optional revision 증가와 값 없는 한 감사로 저장한다.
+No-op은 revision·감사를 만들지 않는다.
 Host 쓰기 뒤 계정/catalog 권한·소속과 전체 source/target 상태를 확인하며 source 퇴역·session 폐기·receipt/대응표 전후에도
 전체 host 행을 다시 읽는다. 감사나 최종 대조 실패는 대상 생성과 모든 host 쓰기까지 함께 rollback한다. Known/unknown 결과
-경계를 유지하고 확정 결과만 `RemappedRows`를 반환한다. Manifest v4는 모델/필드 쌍·revision field·전체 행 수와 operation별
-salted 상태 digest를 보관한다. 원문 값은 포함하지 않는다. 보관한 원래 binding/source와 manifest로 이후 schema 정리 뒤에도
+경계를 유지하고 확정 결과만 `RemappedRows`를 반환한다. Manifest는 모델/필드 쌍·revision field·전체 행 수와 operation별
+salted 상태 digest를 보관한다. Catalog 참조를 포함하는 v6는 각 쌍의 종류도 기록한다. Account-only 참조의 기존 v4/v5
+wire에서는 종류를 생략하여 불변 receipt의 원래 evidence를 보존한다. Catalog 참조를 예전 버전으로 저장하거나 종류를
+바꾼 manifest는 거부한다. 원문 값은 포함하지 않는다. 보관한 원래 binding/source와 manifest로 이후 schema 정리 뒤에도
 역사 receipt를 대조할 수 있으며 `Reconcile`은 현재 host 상태가 영구히 같다는 주장이 아니다.
 
 업무 M2M의 명시적 through 행은 이 일반 host로 처리할 수 있다. 선택 계정·catalog 행 자체와 선택 계정 소속/추가 프로필·

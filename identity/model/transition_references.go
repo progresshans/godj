@@ -28,17 +28,28 @@ const (
 	MaximumTransitionReferenceRows   = 65536
 )
 
+// TransitionReferenceKind selects one explicit identity namespace. The zero
+// value denotes the account; catalog keys never share its integer-key map.
+type TransitionReferenceKind string
+
+const (
+	TransitionReferenceAccount    TransitionReferenceKind = ""
+	TransitionReferenceGroup      TransitionReferenceKind = "group"
+	TransitionReferencePermission TransitionReferenceKind = "permission"
+)
+
 // TransitionReferenceFields names a staged pair of real host FK/OneToOne
-// fields. Source points to the old account model and is retained; Target
-// points to the new account model. Schema expansion/contraction is an explicit
-// migration, not an implicit change to either field's declared target.
+// fields. Source points to the selected old account/group/permission model
+// and is retained; Target points to that role's new model. Schema expansion/
+// contraction is explicit and does not change either field's declared target.
 type TransitionReferenceFields struct {
-	Source string `json:"source"`
-	Target string `json:"target"`
+	Source string                  `json:"source"`
+	Target string                  `json:"target"`
+	Kind   TransitionReferenceKind `json:"kind,omitempty"`
 }
 
 // TransitionReferenceConfig owns one complete host model inventory. Every
-// non-NULL source FK must be covered by the account mapping. A target FK must
+// non-NULL source FK must be covered by its selected mapping. A target FK must
 // be NULL or already equal the explicitly mapped target; unrelated values
 // are never overwritten. All pairs in a row share one optional revision bump
 // and one audit event. MaxRows defaults to 4096 and fails closed.
@@ -69,7 +80,7 @@ type transitionReferenceState struct {
 	oldRole, nextRole [sha256.Size]byte
 	model             ir.ModelIdentity
 	required          []auth.Permission
-	observe           func(context.Context, db.Queryer, string, map[int64]bool, map[int64]int64) (transitionReferenceObservation, error)
+	observe           func(context.Context, db.Queryer, string, transitionReferenceMappings) (transitionReferenceObservation, error)
 }
 
 // TransitionReferenceManifest describes the reviewed host inventory without
@@ -85,7 +96,7 @@ type TransitionReferenceManifest struct {
 type transitionReferenceObservation struct {
 	manifest TransitionReferenceManifest
 	bytes    int
-	apply    func(context.Context, db.Session, auth.Principal, []AccountMapping, time.Time) (transitionReferenceApplied, error)
+	apply    func(context.Context, db.Session, auth.Principal, transitionReferenceMappings, time.Time) (transitionReferenceApplied, error)
 }
 
 type transitionReferenceApplied struct {
@@ -138,10 +149,18 @@ func NewTransitionReference[S, T, H any](source Binding[S], target Binding[T], m
 		return zero, err
 	}
 	for _, pair := range fields {
+		oldModel, err := transitionReferenceModel(old, pair.Kind)
+		if err != nil {
+			return zero, err
+		}
+		nextModel, err := transitionReferenceModel(next, pair.Kind)
+		if err != nil {
+			return zero, err
+		}
 		for _, ref := range []struct {
 			name   string
 			target ir.ModelIdentity
-		}{{pair.Source, old.Model}, {pair.Target, next.Model}} {
+		}{{pair.Source, oldModel}, {pair.Target, nextModel}} {
 			field, found := namedField(metadata, ref.name)
 			if !found || field.PrimaryKey || field.Kind != ir.FieldForeignKey || field.Relation == nil || !field.Relation.Cardinality.SingleValued() || field.Relation.Target != ref.target {
 				return zero, managementError(CodeInvalidConfig, nil)
@@ -174,27 +193,26 @@ func NewTransitionReference[S, T, H any](source Binding[S], target Binding[T], m
 	}
 	config.Fields, config.AdditionalPermissions = fields, slices.Clone(config.AdditionalPermissions)
 	state := &transitionReferenceState{source: left, oldRole: source.state.roleFingerprint, nextRole: target.state.roleFingerprint, model: model, required: required}
-	state.observe = func(ctx context.Context, scope db.Queryer, operation string, sources map[int64]bool, targets map[int64]int64) (transitionReferenceObservation, error) {
+	state.observe = func(ctx context.Context, scope db.Queryer, operation string, mappings transitionReferenceMappings) (transitionReferenceObservation, error) {
 		rows, budget, err := readTransitionReferenceRows(ctx, scope, objects, config.MaxRows, operation)
 		if err != nil {
 			return transitionReferenceObservation{}, err
 		}
 		for _, row := range rows {
-			if _, err := transitionReferenceUpdates(row.values, config, sources, targets); err != nil {
+			if _, err := transitionReferenceUpdates(row.values, config, mappings); err != nil {
 				return transitionReferenceObservation{}, err
 			}
 		}
 		manifest := TransitionReferenceManifest{Model: model, Fields: slices.Clone(fields), RevisionField: config.RevisionField, Rows: len(rows), StateSHA256: hex.EncodeToString(budget.hash.Sum(nil))}
 		return transitionReferenceObservation{manifest: manifest, bytes: budget.size,
-			apply: func(ctx context.Context, scope db.Session, actor auth.Principal, mappings []AccountMapping, at time.Time) (transitionReferenceApplied, error) {
+			apply: func(ctx context.Context, scope db.Session, actor auth.Principal, actual transitionReferenceMappings, at time.Time) (transitionReferenceApplied, error) {
+				if err := mappings.validateResolved(fields, actual); err != nil {
+					return transitionReferenceApplied{}, err
+				}
 				if err := verifyTransitionReferenceRows(ctx, scope, objects, config.MaxRows, operation, rows); err != nil {
 					return transitionReferenceApplied{}, err
 				}
-				actual := make(map[int64]int64, len(mappings))
-				for _, mapping := range mappings {
-					actual[mapping.SourceID] = mapping.TargetID
-				}
-				return applyTransitionReferenceRows(ctx, scope, actor, objects, model, config, operation, rows, sources, actual, at)
+				return applyTransitionReferenceRows(ctx, scope, actor, objects, model, config, operation, rows, actual, at)
 			}}, nil
 	}
 	return TransitionReference[S, T]{state: state}, nil
@@ -213,6 +231,9 @@ func normalizeTransitionReferenceFields(model ir.ModelIdentity, fields []Transit
 	})
 	targets := make(map[string]bool, len(owned))
 	for _, pair := range owned {
+		if _, err := transitionReferenceModel(ir.AccountRole{}, pair.Kind); err != nil {
+			return nil, err
+		}
 		if pair.Source == pair.Target || pair.Source == revision || pair.Target == revision || targets[pair.Target] {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
@@ -234,10 +255,14 @@ func normalizeTransitionReferenceFields(model ir.ModelIdentity, fields []Transit
 	return owned, nil
 }
 
-func transitionReferenceUpdates[H any](values map[string]query.Value, config TransitionReferenceConfig[H], sources map[int64]bool, targets map[int64]int64) (map[string]query.Value, error) {
+func transitionReferenceUpdates[H any](values map[string]query.Value, config TransitionReferenceConfig[H], mappings transitionReferenceMappings) (map[string]query.Value, error) {
 	updates := make(map[string]query.Value)
 	pending := false
 	for _, pair := range config.Fields {
+		keys, valid := mappings[pair.Kind]
+		if !valid || keys.sources == nil {
+			return nil, managementError(CodePersistence, nil)
+		}
 		left, leftPresent := values[pair.Source]
 		right, rightPresent := values[pair.Target]
 		if !leftPresent || !rightPresent {
@@ -250,17 +275,17 @@ func transitionReferenceUpdates[H any](values map[string]query.Value, config Tra
 			continue
 		}
 		id, integer := left.Integer()
-		if !integer || !sources[id] {
+		if !integer || !keys.sources[id] {
 			return nil, managementError(CodeConflict, nil)
 		}
-		if targets == nil {
+		if keys.targets == nil {
 			if !right.IsNull() {
 				return nil, managementError(CodeConflict, nil)
 			}
 			pending = true
 			continue // Creation has not allocated target keys yet.
 		}
-		mapped, present := targets[id]
+		mapped, present := keys.targets[id]
 		if !present {
 			return nil, managementError(CodeConflict, nil)
 		}
@@ -358,7 +383,7 @@ func verifyTransitionReferenceRows[H any](ctx context.Context, scope db.Queryer,
 	return nil
 }
 
-func applyTransitionReferenceRows[H any](ctx context.Context, scope db.Session, actor auth.Principal, objects orm.Manager[H], model ir.ModelIdentity, config TransitionReferenceConfig[H], operation string, rows []transitionReferenceRow[H], sources map[int64]bool, targets map[int64]int64, at time.Time) (transitionReferenceApplied, error) {
+func applyTransitionReferenceRows[H any](ctx context.Context, scope db.Session, actor auth.Principal, objects orm.Manager[H], model ir.ModelIdentity, config TransitionReferenceConfig[H], operation string, rows []transitionReferenceRow[H], mappings transitionReferenceMappings, at time.Time) (transitionReferenceApplied, error) {
 	var zero transitionReferenceApplied
 	final := make([]transitionReferenceRow[H], len(rows))
 	prepared := make([]orm.PreparedModel[H], len(rows))
@@ -384,7 +409,7 @@ func applyTransitionReferenceRows[H any](ctx context.Context, scope db.Session, 
 		return nil
 	}
 	for i, row := range rows {
-		updates, err := transitionReferenceUpdates(row.values, config, sources, targets)
+		updates, err := transitionReferenceUpdates(row.values, config, mappings)
 		if err != nil {
 			return zero, err
 		}
@@ -473,10 +498,10 @@ func sameTransitionReferenceManifests(a, b []TransitionReferenceManifest) bool {
 	})
 }
 
-func (owner *Transition[S, T]) observeReferences(ctx context.Context, scope db.Queryer, operation string, sources map[int64]bool, targets map[int64]int64, digest *transitionDigestWriter) ([]transitionReferenceObservation, error) {
+func (owner *Transition[S, T]) observeReferences(ctx context.Context, scope db.Queryer, operation string, mappings transitionReferenceMappings, digest *transitionDigestWriter) ([]transitionReferenceObservation, error) {
 	var result []transitionReferenceObservation
 	for _, reference := range owner.config.References {
-		observation, err := reference.state.observe(ctx, scope, operation, sources, targets)
+		observation, err := reference.state.observe(ctx, scope, operation, mappings)
 		if err != nil {
 			return nil, err
 		}

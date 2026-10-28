@@ -322,7 +322,19 @@ func (owner *Transition[S, T]) observeCatalog(ctx context.Context, scope db.Quer
 		}
 	}
 	result := transitionCatalogObservation{operation: operation, mapping: cloneCatalogMappings(mapping)}
-	if mapping != nil {
+	if mapping == nil {
+		// Shared catalog identities still have a complete inventory. Retain
+		// explicit self maps so host catalog references cannot invent a key
+		// merely because no separate catalog mapping was required.
+		result.groups = make(map[int64]int64, len(before.groups))
+		for key := range before.groups {
+			result.groups[key] = key
+		}
+		result.direct = make(map[int64]int64, len(before.permissions))
+		for key := range before.permissions {
+			result.direct[key] = key
+		}
+	} else {
 		result.groups, err = transitionCatalogPairs(before.groups, after.groups, mapping.Groups, left.Group == right.Group)
 		if err != nil {
 			return zero, err

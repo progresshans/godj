@@ -16,13 +16,15 @@ from go_test_events import discover_roots, events, inspect
 
 
 CONSUMER = 'github.com/progresshans/godj/codegen/consumertest'
-# These complete seven-model HTTP roots each own hundreds of seconds of
-# native/race work. Keep each on its own Linux race job; all other discovered
-# roots still use the ordinary complete-root distribution.
+# These complete account consumers own hundreds of seconds of generated
+# builds and native/race work. Isolate them on the measured cumulative-timeout
+# coordinates; all other discovered roots keep the complete-root distribution.
 ISOLATED_ACCOUNT_ROOTS = (
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedFirstAccountUsesRequiredProfiles',
     'TestGeneratedAccountResetUsesSelectedModels',
+    'TestGeneratedAccountTransition',
+    'TestGeneratedAccountCatalogTransition',
 )
 PLATFORMS = (
     ('ubuntu-24.04', 'linux', 'amd64'),
@@ -44,12 +46,10 @@ def matrix():
             # one consumer owner on those coordinates; retain their deadlines
             # and discover/assign every complete root with the same algorithm.
             count = 4 if goos == 'linux' and mode == 'race' else 3
-            isolate_accounts = goos == 'linux' and mode == 'race'
+            isolate_accounts = goos == 'darwin' or mode == 'race'
             # CI 40454660304 reached 35 minutes with a 12-second root still
             # running: first-account and reset alone had used 581 + 425 sec.
             # Retain four ordinary owners and isolate the three long roots.
-            if isolate_accounts:
-                count += len(ISOLATED_ACCOUNT_ROOTS)
             # CI 40248295204 exhausted two macOS cumulative package budgets
             # while short individual roots were still progressing. Its full
             # root timings show four Intel/CGO0 owners would already exceed
@@ -61,6 +61,13 @@ def matrix():
                 count = 5
             elif goos == 'darwin' and goarch == 'arm64' and mode == 'race':
                 count = 4
+            # CI 40636193670 also exhausted four macOS consumer coordinates.
+            # Account bindings, first-account and both transition roots used
+            # 1,637s of Intel normal and 1,894s of ARM64 normal before later
+            # roots ran. Keep them separate on macOS and Linux race, without
+            # changing any test deadline or dropping discovered roots.
+            if isolate_accounts:
+                count += len(ISOLATED_ACCOUNT_ROOTS)
             darwin_race = goos == 'darwin' and mode == 'race'
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
@@ -69,7 +76,11 @@ def matrix():
                     'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
                     'mode': mode, 'shard': shard, 'shards': count,
                     'isolate_accounts': isolate_accounts,
-                    'job_timeout': 90 if darwin_race else 45,
+                    # In CI 40636193670 ARM64 normal runtime reached
+                    # internal/compiletest only after 43m34s of build/runtime
+                    # work. Allow its existing 35m package deadline to run;
+                    # this job limit includes compilation and artifact upload.
+                    'job_timeout': 90 if darwin_race or goos == 'darwin' and shard == 0 else 45,
                     'test_timeout': '70m' if darwin_race else '35m',
                 })
     return {'include': rows}

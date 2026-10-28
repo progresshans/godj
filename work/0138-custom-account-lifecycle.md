@@ -502,7 +502,19 @@ Manifest v5·payload v2에 계정과 catalog 대응표를 함께 기록했다. �
 부분 공유·signed key·페이지 경계·미사용 행/관계 변경·현재 인가·실제 쓰기 뒤 실패·원자성·경합·재접속 검사를 작성했다.
 코드 작성·생성/최소 compile과 새 본문·환경별 실행은 TEST_EVIDENCE에서 구분한다.
 
-Catalog target 자동 생성과 일반 host의 catalog 참조 재매핑, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,
+### 일반 host의 catalog 참조
+
+`TransitionReferenceFields.Kind`로 계정·그룹·권한의 대응표를 구분했다. 같은 숫자 key를 가진 서로 다른 모델과
+전체/부분 공유 catalog를 실제 role·전체 inventory에 묶고, 새 계정의 할당 key가 확정되기 전에는 추측하지 않는다.
+혼합 FK·OneToOne·업무 through 행도 revision과 감사는 한 번씩 적용하며 준비 이후 값/행/권한 변경과 최종 readback,
+rollback·unknown·receipt 경계를 유지한다. Manifest v6에 종류를 기록하고 이전 account-only v4/v5 evidence를 보존한다.
+
+기존 catalog 소비자와 같은 외부 생성 앱에 staged/created 각각 37개 child 및 root/strategy의 77개 필수 이벤트를 추가했다.
+서로 겹치는 source key와 다른 catalog target key, 공유 catalog, nullable/no-op·signed key·한도·현재 권한·사본·여러 행 쓰기 뒤
+실패·경합·재접속과 실제 host schema 확장/전환/정리 후 생성 runtime을 검사하도록 작성했다.
+코드 작성·생성/최소 compile과 양 DB·race 등의 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
+
+Catalog target 자동 생성, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

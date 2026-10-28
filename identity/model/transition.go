@@ -272,9 +272,7 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
 		PriorSequence: observation.ownership.Sequence(), ProjectSHA256: owner.source, SourceRoleSHA256: oldRole,
 		TargetRoleSHA256: nextRole, StateSHA256: observation.digest, Mappings: owned, References: transitionReferenceManifests(observation.references), Catalog: catalog}
-	if catalog != nil {
-		manifest.Version = 5
-	}
+	manifest.Version = transitionManifestVersion(catalog, manifest.References)
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return PreparedTransition[S, T]{}, err
@@ -343,8 +341,16 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session, current transitionObservation[S, T], expected domain.Receipt, change domain.Change, mappings []AccountMapping, at time.Time) (TransitionResult, error) {
 	var references []transitionReferenceApplied
 	remapped := 0
+	var referenceKeys transitionReferenceMappings
+	if len(current.references) > 0 {
+		sources, targets := make(map[int64]bool, len(mappings)), make(map[int64]int64, len(mappings))
+		for _, pair := range mappings {
+			sources[pair.SourceID], targets[pair.SourceID] = true, pair.TargetID
+		}
+		referenceKeys = referenceMappings(sources, targets, current.catalog)
+	}
 	for _, observed := range current.references {
-		applied, err := observed.apply(ctx, scope, current.actor, mappings, at)
+		applied, err := observed.apply(ctx, scope, current.actor, referenceKeys, at)
 		if err != nil {
 			return TransitionResult{}, err
 		}
@@ -537,7 +543,7 @@ func compareInt64(a, b int64) int {
 }
 
 func (manifest TransitionManifest) evidence() (string, error) {
-	if !(manifest.Version == 4 && manifest.Catalog == nil || manifest.Version == 5 && manifest.Catalog != nil) || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts {
+	if manifest.Version != transitionManifestVersion(manifest.Catalog, manifest.References) || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts {
 		return "", managementError(CodeInvalidInput, nil)
 	}
 	if catalog, err := normalizeCatalogMappings(manifest.Catalog); err != nil || !equalCatalogMappings(catalog, manifest.Catalog) {

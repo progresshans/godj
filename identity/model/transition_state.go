@@ -112,13 +112,15 @@ func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, ac
 	if digest.err != nil {
 		return zero, digest.err
 	}
-	sources, targets := make(map[int64]bool, len(mappings)), make(map[int64]int64, len(mappings))
-	for _, mapping := range mappings {
-		sources[mapping.SourceID], targets[mapping.SourceID] = true, mapping.TargetID
-	}
-	result.references, err = owner.observeReferences(ctx, scope, operation, sources, targets, digest)
-	if err != nil {
-		return zero, err
+	if len(owner.config.References) > 0 {
+		sources, targets := make(map[int64]bool, len(mappings)), make(map[int64]int64, len(mappings))
+		for _, mapping := range mappings {
+			sources[mapping.SourceID], targets[mapping.SourceID] = true, mapping.TargetID
+		}
+		result.references, err = owner.observeReferences(ctx, scope, operation, referenceMappings(sources, targets, observedCatalog), digest)
+		if err != nil {
+			return zero, err
+		}
 	}
 	result.digest = hex.EncodeToString(digest.hash.Sum(nil))
 	return result, validateAccountSessionScope(ctx, scope)

@@ -91,9 +91,7 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
 	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(), PriorSequence: observation.ownership.Sequence(),
 		ProjectSHA256: owner.source, SourceRoleSHA256: oldRole, TargetRoleSHA256: nextRole, StateSHA256: observation.digest, CreationSources: sources, References: transitionReferenceManifests(observation.references), Catalog: catalog}
-	if catalog != nil {
-		manifest.Version = 5
-	}
+	manifest.Version = transitionManifestVersion(catalog, manifest.References)
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return zero, err
@@ -189,13 +187,15 @@ func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Que
 		result.pairs = append(result.pairs, transitionPair[S, T]{old: source, next: candidate.row})
 		result.candidates = append(result.candidates, candidate)
 	}
-	sources := make(map[int64]bool, len(before))
-	for id := range before {
-		sources[id] = true
-	}
-	result.references, err = owner.observeReferences(ctx, scope, operation, sources, nil, digest)
-	if err != nil {
-		return zero, err
+	if len(owner.config.References) > 0 {
+		sources := make(map[int64]bool, len(before))
+		for id := range before {
+			sources[id] = true
+		}
+		result.references, err = owner.observeReferences(ctx, scope, operation, referenceMappings(sources, nil, observedCatalog), digest)
+		if err != nil {
+			return zero, err
+		}
 	}
 	result.digest = hex.EncodeToString(digest.hash.Sum(nil))
 	return result, validateAccountSessionScope(ctx, scope)

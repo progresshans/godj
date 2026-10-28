@@ -36,9 +36,11 @@ ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedFirstAccountUsesRequiredProfiles',
     'TestGeneratedAccountThroughIdentityCreation',
-    'TestGeneratedAccountTransition',
-    'TestGeneratedAccountCatalogTransition',
 })
+TRANSITION_CONSUMER_OWNERS = {
+    'TestGeneratedAccountTransition': 'core-account-transition',
+    'TestGeneratedAccountCatalogTransition': 'core-account-catalog',
+}
 PROFILE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountProfileRelations',
     'TestGeneratedAccountProfileCollections',
@@ -56,6 +58,7 @@ WRITE_CONSUMER_ROOTS = frozenset({
 CONSUMER_PARTITIONS = {
     'core-consumers': CONSUMERS,
     'core-account-consumers': CONSUMERS,
+    **{owner: CONSUMERS for owner in TRANSITION_CONSUMER_OWNERS.values()},
     'core-account-profiles': CONSUMERS,
     'core-consumer-writes': CONSUMERS,
 }
@@ -137,9 +140,16 @@ def plan(mode, shard, entries):
         # CI 40593130751 then reached 30 minutes after 490.73s + 571.99s
         # in bindings/first-account and 590.40s in three profile roots. Keep
         # every profile root and its future children in a separate owner.
+        # CI 40636193670 spent 479.81s + 538.82s in bindings/first-account,
+        # 389.08s in catalog transitions and 109.68s in through creation.
+        # AccountTransition was still running at the 30-minute package limit.
+        # Each transition root now owns a partition, including all future
+        # children; retain all three modes and the same deadlines/inventory.
         def consumer_owner(entry):
             package, _, test = entry.partition('|')
             root = test.split('/')[0]
+            if package == CONSUMER_PACKAGE and root in TRANSITION_CONSUMER_OWNERS:
+                return TRANSITION_CONSUMER_OWNERS[root]
             if package == CONSUMER_PACKAGE and root in ACCOUNT_CONSUMER_ROOTS:
                 return 'core-account-consumers'
             if package == CONSUMER_PACKAGE and root in PROFILE_CONSUMER_ROOTS:

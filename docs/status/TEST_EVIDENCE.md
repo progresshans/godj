@@ -2759,6 +2759,58 @@ Source hash, 새/기존 생성 module·최소 compile, 필수 배정, 세 CI 실
 (SHA-256 `597a32e8afdce9103d95c810a8067dec0feea58e9f04ad3c3efdf041e1ab1e49`). 새 source의 필수 본문·양 DB·generated drift·독립 HTTP/browser/process·
 race/platform과 원본/capture를 포함한 전체 원격 수용은 확인 대상이다.
 
+### 일반 host의 계정·catalog 참조와 CI 실행 분할
+
+2026-10-28, source `2f50f85d97c3494862634fcd2be691568a08b69c` 위에서 일반 host 참조의 종류를 account/group/permission으로
+구분했다. 두 role의 실제 모델에 맞는 FK·OneToOne만 묶고 전체 catalog inventory에서 대응표를 만든다. 전체/부분 공유
+catalog의 key도 관측한 self mapping을 사용한다. 계정 생성 중에는 target key를 예상하지 않으며 host 쓰기 전에 source
+집합·준비한 catalog 대응과 할당된 실제 계정 key를 대조한다. 혼합 참조의 revision·감사는 한 행당 한 번이며 현재 권한·
+전체 readback·rollback·unknown/receipt 경계를 유지한다. Manifest v6에는 종류를 기록하고 account-only v4/v5의 원래
+wire/evidence를 보존한다. Catalog 행 생성·선택 identity through 수명·역사 systemstate·남은 고정 소비자와 I1 전체 수용은 미완료다.
+
+같은 외부 생성 앱에 staged/created 각각 37개 child와 root/strategy를 포함한 77개 필수 이벤트를 추가했다. 기존 catalog
+92개와 합쳐 DB당 169개 이벤트를 요구한다. 같은 숫자의 source key와 서로 다른 target key, 전체/부분 공유 catalog,
+signed key·NULL·이미 대응된 no-op·revision 없음·page/한도·권한/추가 권한·사본·행 변경/추가/삭제와 실제 여러 행 쓰기 뒤
+실패를 검사한다. OneToOne 충돌·audit/mapping/receipt 실패·late host/catalog/policy 변경·unknown·두 connection 경합·
+재접속을 포함한다. 업무 through의 중복 pair와 세 종류의 typed 조회를 보존한다. 채운 기존 host schema를 확장하고
+전환 후 기존 참조를 제거한 실제 contracted 생성 runtime의 인증·권한·관계·제약·이력 재시작도 작성했다.
+새 catalog-reference 본문은 로컬에서 실행하지 않았으며 양 DB·race/platform 원격 확인 대상이다.
+
+이전 source의 [CI 40636193670](https://github.com/progresshans/godj/actions/runs/40636193670), attempt 1에서 실패한
+15개 작업과 취소된 1개 작업의 원본 로그를 확인했다. 모두 checkout
+`b3baeb74239b851bd2972827457e4700d4ac9398`이며 제출 source와 tree `3fd6db0da123abcb1e1998fa17260e226070e05b`가 같다.
+15개 실패 로그는 catalog unknown 사례의 callback 횟수 기대 오류를 보고했다. 초기 세션 생성으로 이미 1회 실행되므로
+전환 직전 값에서 정확히 1회 증가하는지 검사하도록 고쳤다. 완전한 native callback·unknown 오류·잠정 결과 미게시·실제
+commit/rollback 및 재접속 대조는 유지했다. 로컬 SQLite 한정 재현에서 변경 전 네 child와 strategy/root가 fail 7이었고,
+수정 후 pass 7·fail 0·skip 0이었다. 진단 사본에서 `1 → 2`를 확인했으며 최종 생성물에서도 같은 네 child와 상위 이벤트
+7개가 skip 없이 통과했다. 이 결과를 PostgreSQL·race나 새 참조 본문의 성공으로 확대하지 않는다.
+
+원본 이벤트는 PostgreSQL race account 묶음과 macOS consumer 네 좌표의 누적 package timeout도 보여 준다.
+PostgreSQL race에서 bindings 479.81초·first-account 538.82초·catalog 389.08초·through 109.68초가 지난 뒤
+AccountTransition 실행 중 30분 제한에 도달했다. macOS의 짧은 후속 root도 앞선 긴 소비자 때문에 35분 또는 70분 제한에
+잘렸다. PostgreSQL의 계정 전환·catalog 전환을 각각 별도 owner로 나눴고, macOS와 Linux race에서는 긴 계정 root 다섯
+개를 각각 분리했다. 실제 binary에서 발견한 모든 root와 필수 child를 정확히 한 번 배정한다. 세 실행 mode·테스트 제한과
+필수 검사는 유지한다. PostgreSQL core는 25개 좌표, relation은 12개 플랫폼/mode 좌표의 93개 job으로 배정한다.
+
+취소된 macOS arm64 normal runtime `122644105611`의 원본은 1,005개 root 완료 후 `internal/compiletest`가
+첫 test event 기준 43분 34초 뒤 시작된 것을 보여 준다. 그 package가 실행된 지 33초 뒤 45분 job 제한에 도달했으며
+완료나 PASS로 처리하지 않는다. macOS runtime job은 빌드와 기존 package 제한을 수용하도록 90분으로 늘렸다.
+Package의 35분/70분 제한과 compile 음성 검사·필수 실행/skip 거부는 유지한다. 다운로드한 원본 archive 여섯 개는
+각 업로드 로그의 SHA-256과 대조했다. 새 원격 실행이 이 조정을 검증해야 하며 이전 run은 전체 PASS가 아니다.
+
+로컬 Go 1.26.5·darwin/arm64·CGO=1에서 `identity/model`과 최종 새 생성 module의 16개 package, 기존 shared-catalog
+module의 13개 package는 `go test -run '^$'`로 최소 compile을 완료했다. 기존 shared 소비자 Go 파일 68개는 이전 생성물과
+byte가 같다. 초기 import 경로 오류와 중단된 compile 로그는 보존하고 성공 근거에서 제외했다. PostgreSQL 배정 12개,
+실제 workflow shell 3개, relation 분할 13개 Python 검사를 완료했다. 처음 잘못 지정한 unittest class 세 건은 실제 class로
+바꿔 재실행했으며 두 로그를 보존했다. Relation 필수 목록은 4,597→4,599, PostgreSQL core 5,715개는 유지했고 이전 항목과
+중복 여부를 확인했다. 실제 binary의 118개 root로 새 전체 배정을 정적 재생했으며 이는 해당 플랫폼의 실행 결과가 아니다.
+Gofmt·diff와 245개 문서의 로컬 링크도 확인했다.
+
+최종 소스 hash, 생성물·최소 compile·한정 실패 재현, 원격 원본과 분할 검사는 검증 보관소의
+`gdj0138-catalog-reference-transition-v1/receipt-final.json`에 연결했다
+(SHA-256 `30b92d63142bcc6d917f9f21a0e8ed2611b3239dfd117a4a10593725915565a7`).
+새 source의 필수 본문·generated drift·양 DB·독립 HTTP/browser/process·race/platform과 capture/원본 대조는 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
