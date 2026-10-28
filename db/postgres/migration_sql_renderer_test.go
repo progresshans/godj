@@ -152,16 +152,17 @@ func TestPostgresMigrationSQLRendererInvalidConfigIsClosedAndRedacted(t *testing
 	}
 }
 
-func TestPostgresMigrationSQLRendererRejectsDestructiveOperation(t *testing.T) {
+func TestPostgresMigrationSQLRendererRejectsUnsupportedOperation(t *testing.T) {
 	t.Parallel()
 
 	model := postgresMigrationTestAuthorModel()
 	for _, test := range []struct {
-		name string
-		kind migrationbackend.MigrationOperationKind
+		name      string
+		kind      migrationbackend.MigrationOperationKind
+		integrity bool
 	}{
 		{name: "delete model", kind: migrationbackend.MigrationDeleteModel},
-		{name: "remove field", kind: migrationbackend.MigrationRemoveField},
+		{name: "remove field without after shape", kind: migrationbackend.MigrationRemoveField, integrity: true},
 		{name: "unknown", kind: migrationbackend.MigrationOperationKind(255)},
 	} {
 		test := test
@@ -178,8 +179,8 @@ func TestPostgresMigrationSQLRendererRejectsDestructiveOperation(t *testing.T) {
 					}}},
 				},
 			)
-			if statements != nil || err == nil || !migrationbackend.IsCapabilityError(err) {
-				t.Fatalf("kind %d render = %#v, %#v; want nil/CapabilityError", test.kind, statements, err)
+			if statements != nil || err == nil || migrationbackend.IsCapabilityError(err) == test.integrity {
+				t.Fatalf("kind %d render = %#v, %#v; integrity=%t", test.kind, statements, err, test.integrity)
 			}
 		})
 	}

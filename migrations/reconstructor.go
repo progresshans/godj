@@ -1541,20 +1541,21 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			return loadedMaterializedStep{}, err
 		}
 		afterModel, afterExists := loadedBuilderModelView(builder, loadedModelIdentity{app: appLabel, model: modelName})
+		kind, err := loadedBackendOperationKind(operation, step.Direction)
+		if err != nil {
+			return loadedMaterializedStep{}, migrationError(
+				CategoryState, CodeInvalidState, step.Direction, migration,
+				operationIndex, operation.Kind(), err,
+			)
+		}
 		sourceModel := afterModel
 		sourceExists := afterExists
-		if step.Direction == DirectionBackward {
-			switch operation.(type) {
-			case AlterField, AddConstraint, RemoveConstraint:
-			default:
-				sourceModel = beforeModel
-				sourceExists = beforeExists
-			}
-		}
-		if isManyOperation(operation) && len(beforeModel.ManyToMany) > len(afterModel.ManyToMany) {
+		// The physical mutation determines the authority boundary. A forward
+		// RemoveField uses Before just like a reversed AddField; its reversal
+		// uses After. Direction alone cannot distinguish these operations.
+		if kind == loadedRelationDeleteModel || kind == loadedRelationRemoveField ||
+			isManyOperation(operation) && len(beforeModel.ManyToMany) > len(afterModel.ManyToMany) {
 			sourceModel, sourceExists = beforeModel, beforeExists
-		} else if isManyOperation(operation) {
-			sourceModel, sourceExists = afterModel, afterExists
 		}
 		targets, relatedModels, err := loadedBuilderRelationGraph(ctx, builder, migration, operationIndex, step.Direction, sourceModel)
 		if err != nil {
@@ -1586,13 +1587,6 @@ func (r loadedStateReconstructor) materializeLoadedStep(
 			relatedModels,
 		); err != nil {
 			return loadedMaterializedStep{}, loadedDerivedIntentError(step, migration, operationIndex, operation.Kind(), err)
-		}
-		kind, err := loadedBackendOperationKind(operation, step.Direction)
-		if err != nil {
-			return loadedMaterializedStep{}, migrationError(
-				CategoryState, CodeInvalidState, step.Direction, migration,
-				operationIndex, operation.Kind(), err,
-			)
 		}
 		// Capability bits describe the operation's mutation, not retained
 		// relations that are carried only to seal the complete model boundary.

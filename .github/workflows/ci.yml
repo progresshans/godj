@@ -1211,9 +1211,9 @@ jobs:
               for name in sorted(SCENARIOS)
           )
           assert len(SCENARIOS) == 311, len(SCENARIOS)
-          assert len(payload) == 1082344, len(payload)
+          assert len(payload) == 1082354, len(payload)
           digest = hashlib.sha256(payload).hexdigest()
-          assert digest == "6cc13f26b756706844e8854739b6f7380bf3650c5e83d0f01fe4f46ee97b9542", digest
+          assert digest == "947bdffddf0cdd9c102e37a496346ec3e614e084254b17a0dd1ed7b782801685", digest
           PY
 
       - name: Seal Python project-reference evidence

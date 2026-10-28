@@ -85,7 +85,7 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    거부합니다. Host가 소유한 FK는 외부 app의 이력을 의존하되 외부 app의 migration을 생성하지 않습니다.
 3. 현재 delta domain은 다음과 같습니다.
    - history가 없는 managed app/model의 `CreateModel`
-   - existing model의 지원되는 nullable/no-default scalar와 ForeignKey `AddField`
+   - existing model의 nullable/no-default scalar·지원하는 명시적 상수 default scalar와 ForeignKey `AddField`
    - non-PK scalar/FK/OneToOne의 `RemoveField`; 전체 이전 선언과 실제 다음 field anchor를 definition에 보존
    - 기존 field 순서를 유지하는 중간 삽입과 choices-only·Decimal precision-only·uniqueness-only `AlterField`
    - named unique constraint의 `AddConstraint`/`RemoveConstraint`; 이름·member·member 순서 변경은 remove/add이며 constraint 목록 재정렬은 no-op
@@ -93,7 +93,8 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    - self/later target·순환 관계의 same-app operation 순서와 cross-app migration dependency
    Required/no-default `PROTECT` FK는 실제 실행 시 backend가 source table이 비었음을 확인한 경우만 추가합니다. 이는 순환 생성의
    부분 게시 뒤 남은 required FK를 재개하는 경로에도 적용합니다. Detector는 DB를 열지 않으며 populated row를 추측한 key나
-   default로 채우지 않습니다. Required scalar/default-bearing addition과 일반 backfill은 계속 unsupported입니다.
+   default로 채우지 않습니다. 명시한 상수 scalar default는 native transaction에서 한 번 기존 행에 채우고 DB default를 제거합니다.
+   Default 없는 required scalar의 populated backfill, PK/FK default·callable default와 일반 data migration은 별도 범위입니다.
    각 AlterField는 하나의 facet만 변경하며 공통 IR 분류를 따른다. 고유성 선언·계획과 실제 backend 제약 지원은 구분한다.
    현재 실행 가능 범위는 [Backend Matrix](../BACKEND_MATRIX.md)가 소유한다.
 4. Existing model order는 desired state의 exact prefix이고, 유지하는 field의 상대 순서와 metadata는 같아야 합니다(지원되는 단일 facet
@@ -106,8 +107,9 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    자동 계획을 거부하고 명시적 migration을 요구한다. 남은 field의 상대 순서는 유지한다. 관련 named constraint·M2M 선언과
    image dimension owner의 제거/변경을 먼저 배치하고, 실제 operation 순서에서 removal anchor를 계산한다.
    Forward는 해당 column의 값을 삭제한다. Reverse는 전체 field 선언·논리 위치를 복원하지만 삭제된 값을 복구하지 않는다.
-   Nullable/no-default column은 NULL로 돌아오며, 채운 table에 required/default-bearing field를 복원하는 경우 기존 backend의
-   backfill 미지원 정책에 따라 거부한다. 이 실패도 schema·recorder·revision과 같은 transaction 경계에 있다.
+   Nullable/no-default column은 NULL로 돌아오며, 지원하는 상수 default가 있는 scalar는 그 선언값으로 한 번 채운다.
+   기존에 삭제된 각 행의 값이 복구되는 것은 아니며 persistent DB default도 남기지 않는다. Default 없는 required field를
+   채운 table에 복원하면 거부한다. 제약 충돌 등 복원 실패도 schema·recorder·revision과 같은 transaction 경계에 있다.
    정의의 strict wire·사본·semantic digest·pre-clone 한도와 public revision-fenced lifecycle/SQL projection이 같은 operation을
    사용한다. 이 I1 선행 기반 구현은 전체 M1 완료를 뜻하지 않는다. MIG-107의 GoDj-owned 거부 사례는 일반 field removal에서
    primary key replacement로 갱신하며 Django-owned 관찰과 나머지 11개 관찰·profile은 유지한다.

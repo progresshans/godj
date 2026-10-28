@@ -177,7 +177,8 @@ Autodetect는 이름·member·member 순서 변경을 remove/add로 만들고, �
 다음 후보를 다시 계산하므로 중단·재개가 제약을 누락하거나 미완성 조합을 게시하지 않는다.
 GDJ-0138의 non-PK `RemoveField`는 해당 field를 사용하는 named 제약을 먼저 명시적으로 제거한다. 남아 있는 제약의 member는
 삭제할 수 없다. Column 고유성과 FK/OneToOne도 전체 field preimage에 포함되며, 다른 열·inbound FK·sequence를 보존하는 기존
-native schema editor를 사용한다. 역방향은 선언과 nullable column을 복원하지만 삭제한 데이터나 일반 backfill을 제공하지 않는다.
+native schema editor를 사용한다. 역방향은 선언과 nullable column을 복원하며 명시적 상수 scalar default는 한 번 재적용한다.
+삭제한 데이터의 복원이나 임의 backfill을 제공하지 않으며 default 값이 unique와 충돌하면 전체 transaction이 실패한다.
 Named 제약의 물리 이름은 table/logical constraint name에 별도 `godj/sqlite/model-unique/v1`·`godj/postgres/model-unique/v1` domain을 적용한다.
 Column Unique의 기존 이름과 혼동하지 않으며, 같은 이름의 member 교체는 같은 owner를 remove/add로 재생성한다.
 SQLite의 intent hash도 이름·member 순서·모든 중첩 경계의 제약을 포함한다. FK remake는 해당 operation의 After에 남은 named index를 복원한다.
@@ -194,6 +195,7 @@ Column 고유성의 통합 milestone은 [GDJ-0095](../../work/0095-model-uniquen
 
 Conditional/expression constraint, nullable unique의 다른 NULL 정책과 일반 backfill은 추가 목표다.
 명시적 OneToOne의 후속 의미와 현재 구현 범위는 [ADR-0073](0073-one-to-one-cardinality-and-reverse-objects.md)이 소유한다.
-기존 행이 있는 table에 default-bearing/required scalar를 추가하는 현재 미지원 정책도 유지한다.
+기존 행이 있는 table의 명시적 상수 scalar default는 현재 revision-fenced backend가 한 번 채운 뒤 DB default를 제거한다.
+Default 없는 required scalar는 빈 table을 요구한다. 일반 backfill·callable/PK/FK default는 별도 범위다.
 이 ADR의 양 DB 구현을 전체 고유성 기능이나 전체 프레임워크 완료로 간주하지 않는다.
 Source·환경·실패·실행별 증거는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

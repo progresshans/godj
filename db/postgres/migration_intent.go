@@ -247,10 +247,11 @@ func validatePostgresMigrationIntent(
 		return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("invalid historical relation graph", err)
 	}
 	for position, operation := range intent.Operations {
-		if transition.Kind == migrationbackend.HistoryTransitionApply &&
-			(operation.Kind == migrationbackend.MigrationDeleteModel || operation.Kind == migrationbackend.MigrationRemoveField) ||
-			transition.Kind == migrationbackend.HistoryTransitionUnapply &&
-				(operation.Kind == migrationbackend.MigrationCreateModel || operation.Kind == migrationbackend.MigrationAddField) {
+		// AddField/RemoveField are physical deltas, so either can appear while
+		// applying or unapplying a declared field operation. Their complete
+		// historical shape and order are still validated and sealed.
+		if transition.Kind == migrationbackend.HistoryTransitionApply && operation.Kind == migrationbackend.MigrationDeleteModel ||
+			transition.Kind == migrationbackend.HistoryTransitionUnapply && operation.Kind == migrationbackend.MigrationCreateModel {
 			return postgresMigrationBoundary{}, postgresMigrationBoundary{}, postgresMigrationIntentIntegrity("operation kind does not match history transition", nil)
 		}
 		if _, _, _, err := validatePostgresMigrationOperation(operation); err != nil {

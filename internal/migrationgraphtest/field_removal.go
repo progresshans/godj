@@ -19,9 +19,9 @@ import (
 // Faults wrap actual native operations; they do not simulate network loss.
 func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Binding) {
 	t.Helper()
-	for _, mode := range []string{"roundtrip", "after_second_remove", "after_second_add", "record_applied", "record_unapplied", "commit_unknown", "commit_cleanup", "cancel_after_remove", "rollback_report_failure", "reverse_requires_backfill"} {
+	for _, mode := range []string{"roundtrip", "after_second_remove", "after_second_add", "record_applied", "record_unapplied", "commit_unknown", "commit_cleanup", "cancel_after_remove", "rollback_report_failure", "reverse_default_backfill", "reverse_required_without_default"} {
 		t.Run(mode, func(t *testing.T) {
-			loaded, initial, contracted, keys := fieldRemovalDefinitions(t, mode == "reverse_requires_backfill")
+			loaded, initial, contracted, keys := fieldRemovalDefinitions(t, mode)
 			binding := open(mode)
 			expand := func(statement string) string {
 				return strings.NewReplacer("{parent}", binding.Table("removal_parent"), "{record}", binding.Table("removal_record"), "{child}", binding.Table("removal_child"), "{history}", binding.Table("godj_migrations")).Replace(statement)
@@ -88,7 +88,7 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 			exec(`INSERT INTO {record} ("label", "legacy_rank") VALUES ('spare3', 17), ('spare4', 17), ('spare5', 17)`)
 			exec(`DELETE FROM {record} WHERE "key">2`)
 			exec(`INSERT INTO {child} ("owner_id") VALUES (2)`)
-			backward := mode == "after_second_add" || mode == "record_unapplied" || mode == "reverse_requires_backfill"
+			backward := mode == "after_second_add" || mode == "record_unapplied" || mode == "reverse_required_without_default"
 			if backward {
 				migrate(1)
 			}
@@ -100,12 +100,13 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 			defer cancel()
 			probe := &removalFault{mode: mode, cancel: cancel}
 			state, err := (migrations.Executor{Backend: removalBackend{RevisionFencedBackend: binding.Backend, fault: probe}}).Migrate(faultCtx, loaded, migrations.TargetedLifecycleRequest(migrations.NamedTarget(keys[target])))
-			if mode == "roundtrip" {
+			successful := mode == "roundtrip" || mode == "reverse_default_backfill"
+			if successful {
 				if err != nil {
 					t.Fatal(err)
 				}
 			} else {
-				if err == nil || (!probe.fired && mode != "reverse_requires_backfill") {
+				if err == nil || (!probe.fired && mode != "reverse_required_without_default") {
 					t.Fatal("native fault did not fail the requested lifecycle", err)
 				}
 				var typed *migrations.Error
@@ -113,9 +114,9 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 					t.Fatal("migration error taxonomy lost", err)
 				}
 				switch mode {
-				case "reverse_requires_backfill":
+				case "reverse_required_without_default":
 					if typed.Category != migrations.CategoryCapability {
-						t.Fatal("required/default restoration did not fail as unsupported backfill", err)
+						t.Fatal("required restoration without a default did not fail as unsupported backfill", err)
 					}
 				case "commit_unknown":
 					if typed.Code != migrations.CodeCommitOutcomeUnknown {
@@ -139,11 +140,11 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 					}
 				}
 			}
-			removed := backward || mode == "roundtrip" || mode == "commit_unknown" || mode == "commit_cleanup"
+			removed := backward || successful || mode == "commit_unknown" || mode == "commit_cleanup"
 			// Unknown results retain the last confirmed state, even when this
 			// injected probe knows that the underlying commit succeeded.
 			wantState := initial
-			if backward || mode == "roundtrip" || mode == "commit_cleanup" {
+			if backward || successful || mode == "commit_cleanup" {
 				wantState = contracted
 			}
 			assertState(state, wantState)
@@ -164,7 +165,7 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 			}
 			migrate(1) // Fresh history observation also reconciles unknown commit.
 			columns(true)
-			if mode == "reverse_requires_backfill" {
+			if mode == "reverse_required_without_default" {
 				if err := binding.Close(); err != nil {
 					t.Fatal(err)
 				}
@@ -172,9 +173,18 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 			}
 			migrate(0)
 			columns(false)
-			count(`SELECT COUNT(*) FROM {record} WHERE "old_code" IS NULL AND "old_parent_id" IS NULL AND "legacy_rank" IS NULL`, 2)
-			exec(`INSERT INTO {record} ("label") VALUES ('next')`)
+			if mode == "reverse_default_backfill" {
+				count(`SELECT COUNT(*) FROM {record} WHERE "old_code" IS NULL AND "old_parent_id" IS NULL AND "legacy_rank"=17`, 2)
+			} else {
+				count(`SELECT COUNT(*) FROM {record} WHERE "old_code" IS NULL AND "old_parent_id" IS NULL AND "legacy_rank" IS NULL`, 2)
+			}
+			exec(`INSERT INTO {record} ("label", "legacy_rank") VALUES ('next', 17)`)
 			count(`SELECT "key" FROM {record} WHERE "label"='next'`, 6)
+			if mode == "reverse_default_backfill" {
+				if _, err := binding.Database.ExecContext(ctx, expand(`INSERT INTO {record} ("label") VALUES ('unexpected-database-default')`)); err == nil {
+					t.Fatal("one-time restoration backfill left a persistent database default")
+				}
+			}
 			for _, statement := range []string{`UPDATE {child} SET "owner_id"=999999`, `UPDATE {record} SET "keep_parent_id"=999999 WHERE "key"=1`, `UPDATE {record} SET "label"='alpha' WHERE "key"=2`} {
 				if _, err := binding.Database.ExecContext(ctx, expand(statement)); err == nil {
 					t.Fatal("retained constraint was lost", statement)
@@ -194,14 +204,16 @@ func RunFieldRemoval(t *testing.T, ctx context.Context, open func(string) Bindin
 	}
 }
 
-func fieldRemovalDefinitions(t *testing.T, requiresBackfill bool) (migrations.LoadedDefinitionSet, ir.Model, ir.Model, []migrations.MigrationKey) {
+func fieldRemovalDefinitions(t *testing.T, mode string) (migrations.LoadedDefinitionSet, ir.Model, ir.Model, []migrations.MigrationKey) {
 	t.Helper()
 	fk := func(name, target string, cardinality ir.RelationCardinality) ir.Field {
 		return ir.Field{Name: name, GoName: "Field" + name, Kind: ir.FieldForeignKey, Nullable: true, Relation: &ir.ForeignKeyRelation{Target: ir.ModelIdentity{AppLabel: "removal", ModelName: target}, Cardinality: cardinality, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}}
 	}
 	rank := ir.Field{Name: "legacy_rank", GoName: "LegacyRank", Kind: ir.FieldInteger, Nullable: true}
-	if requiresBackfill {
+	if mode == "reverse_required_without_default" || mode == "reverse_default_backfill" {
 		rank.Nullable = false
+	}
+	if mode == "reverse_default_backfill" {
 		rank.Default = &ir.Scalar{Kind: ir.ScalarInteger, Integer: 17}
 	}
 	schema, err := ir.Normalize(ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "removal", Models: []ir.Model{

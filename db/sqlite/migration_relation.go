@@ -701,10 +701,11 @@ func validateSQLiteRelationIntent(
 		return nil
 	}
 	for position, operation := range intent.Operations {
-		if transition.Kind == migrationbackend.HistoryTransitionApply &&
-			(operation.Kind == migrationbackend.MigrationDeleteModel || operation.Kind == migrationbackend.MigrationRemoveField) ||
-			transition.Kind == migrationbackend.HistoryTransitionUnapply &&
-				(operation.Kind == migrationbackend.MigrationCreateModel || operation.Kind == migrationbackend.MigrationAddField) {
+		// Field additions and removals can occur in either recorder direction:
+		// a reversed RemoveField adds its historical column back. Exact field
+		// deltas and operation ordering remain checked below and in the seal.
+		if transition.Kind == migrationbackend.HistoryTransitionApply && operation.Kind == migrationbackend.MigrationDeleteModel ||
+			transition.Kind == migrationbackend.HistoryTransitionUnapply && operation.Kind == migrationbackend.MigrationCreateModel {
 			return relationIntentIntegrity("relation operation %d kind does not match history transition", operation.OperationIndex)
 		}
 		before, after := operation.Before, operation.After

@@ -2634,8 +2634,8 @@ transaction에 묶었다. Manifest v4는 선언/행 수/operation별 digest를 �
 사본/digest/한도·historical state·autodetection·SQL projection·revision-fenced lifecycle에 연결했다. 전체 field preimage와
 논리 위치, constraint/M2M/image 의존 순서를 보존한다. 양 DB에 각각 10개 필수 native 사례를 작성하여 column/데이터·
 inbound FK/OneToOne/unique·sequence·이력, forward/reverse 중간 실패·recorder 실패·취소·unknown·재접속을 검사한다.
-Nullable/no-default 역방향은 NULL을 복원하고 삭제한 값은 되살리지 않는다. 채운 table의 required/default-bearing 복원은
-기존 backfill 미지원 경계에서 거부한다. 실제 commit/rollback 뒤 응답 오류를 주입한 검사를 네트워크 단절 실험으로 표현하지 않는다.
+Nullable/no-default 역방향은 NULL을 복원하고 삭제한 값은 되살리지 않는다. 이 checkpoint가 required/default-bearing 복원을
+모두 거부해야 한다고 둔 기대는 아래 후속 재현에서 정정했다. 실제 commit/rollback 뒤 응답 오류를 주입한 검사를 네트워크 단절 실험으로 표현하지 않는다.
 
 일반 field removal을 더 이상 미지원으로 취급하지 않도록 MIG-107의 GoDj-owned 거부 항목을 primary key replacement로
 갱신했다. Go 구현의 출력과 독립인 Python decision에서 해당 관찰만 재생성했다. 같은 artifact의 나머지 11개 관찰과
@@ -2673,6 +2673,43 @@ CI의 실제 배정 규칙으로 12개 relation 좌표와 PostgreSQL 3개 mode·
 (SHA-256 `ba7c2fa9fa8adc104d659b03290ed70361f605162df539fcb11bae017118efc3`).
 신규 본문·양 DB/race/CGO0·generated drift/process/platform과 같은 source의 전체 원격 수용은 확인 대상이다.
 Catalog 전환·선택 identity through 수명·역사 systemstate 이행·남은 고정 소비자와 I1 전체 수용은 미완료다.
+
+### RemoveField 실행 연결과 기본값 복원 기대 정정
+
+Source `324c2bbb44bb42a49fcdb14260da5a8206006d85`의
+[CI 40615578916](https://github.com/progresshans/godj/actions/runs/40615578916), attempt 1에서 관측한 실패 작업 25개의
+원본을 확인했다. 실제 checkout `1e3e7e852b38812bb052812a87d9089fba86e666`과 제출 source의 tree는
+`8748a8dc7141d173a32381876b2f1ad4d2254895`로 같다. 이 run은 전체 PASS가 아니다.
+
+전진 RemoveField의 관계 authority를 삭제 후 모델에서 찾는 오류가 양 DB native 및 계정 전환의 schema contraction을
+막았다. Relation graph는 실제 물리 Add/Remove에 맞춰 After/Before를 사용하도록 고쳤다. 양 native backend에 남은
+Add/Remove의 recorder 방향 제한과 SQL renderer의 미지원 목록도 같은 의미로 연결했다. 전체 이전/이후 shape·관계 대상·
+순서·seal·recorder/revision 검사는 유지한다. SQLite의 선언 index 제거·FK remake와 PostgreSQL의 column/constraint 제거는
+실행 경로가 사용하는 compiler에 연결했다. 미지원 model 삭제/unknown operation과 잘못된 Remove shape 거부를 구분한다.
+
+JSON/UUID의 예전 forward-removal 거부 기대를 실제 RemoveField의 전체 preimage·state·재탐지 no-op 검사로 바꿨다.
+MIG-107을 독립 재생성한 뒤 남아 있던 checksum catalog 상수와 Python 전체 관측의 size/digest도 갱신했다.
+고정 Python 3.14.3·Django 6.1·DRF 3.18.0의 311개 시나리오를 다시 생성했다. 변경한 GoDj decision 하나를 이전 항목으로
+되돌린 payload가 기존 1,082,344 bytes·SHA-256 `6cc13f26b756706844e8854739b6f7380bf3650c5e83d0f01fe4f46ee97b9542`를
+재현했다. 현재 payload는 1,082,354 bytes·SHA-256 `947bdffddf0cdd9c102e37a496346ec3e614e084254b17a0dd1ed7b782801685`다.
+이 검사는 독립 관측의 한정 delta 확인이며 Python unit suite 전체를 로컬에서 반복한 결과가 아니다.
+
+수정 중 실제 실행에서 명시적 상수 scalar default의 역방향 복원이 이미 지원됨을 확인했다. 앞선 ADR/테스트의
+required/default 일괄 거부 기대를 정정했다. 기본값 17로 복원되는 행이 삭제 전 31/32를 되찾지 않는 것과 DB default가
+남지 않는 것을 대조한다. Default 없는 required field는 별도 거부 사례로 남겼다. 양 DB 필수 child는 각각 11개이며,
+새 required-without-default와 잘못된 Remove shape 본문은 원격 확인 대상이다.
+
+로컬 darwin/arm64에서 실제 CI 실패의 한정 재현/수정을 수행했다. 수정 전 native/기대값 세 package의 14개 test가
+실패했으며 JSON/UUID·checksum 세 root는 수정 후 통과했다. SQLite의 기존 삭제/복원·실패·unknown·재접속과 정정한
+상수 default 복원 10개 child 및 root는 마지막 검사에서 skip 없이 통과했다(0.828초). 외부 생성 소비자의 staged/created
+schema lifecycle 두 child는 원래 reconstructor overlay에서 실패했고 수정 후 각 strategy/root를 포함한 5개 test가
+통과했다(0.951초). 이 결과를 PostgreSQL·race나 새 source 전체의 성공으로 확대하지 않는다.
+
+현재 영향 package와 최종 renderer 검사 소스는 compile-only로 확인했다. Gofmt·diff·245개 문서 링크, 새 필수 목록의
+중복/소유권과 PostgreSQL 3 mode·19 core 좌표 배정을 정적으로 확인했다. 원본/overlay·중간 실패·최종 한정 실행·독립
+Python payload·현재 source hash는 검증 보관소 `gdj0138-324c2bbb-ci-repair-v1/receipt-final.json`에 연결했다
+(SHA-256 `b1b9c79f42e47a7ff390c41b8d7f0c6dbfb5a0d34ccb745a25af950ece5bc0e4`).
+새 source의 전체 원격 검증과 I1의 catalog/역사 systemstate·선택 identity through·남은 소비자 수용은 계속 미완료다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

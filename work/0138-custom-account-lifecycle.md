@@ -486,7 +486,7 @@ Manifest v4는 원문 없는 host inventory digest와 선언을 보관하고 unk
 staged/created 계정 전환 뒤 기존 FK·M2M을 제거한 다음 contracted model로 재조립하여 계정·관계·이력·재시작을 확인하도록
 작성했다. 이 소비자가 발견한 forward field removal 미지원은 I1의 실제 선행 의존성이므로 non-PK `RemoveField`를
 definition·historical state·autodetector·SQL projection·native lifecycle에 연결했다. Constraint/M2M/image 의존 순서와
-전체 field preimage/anchor를 보존하며, 역방향의 데이터 소실과 required/default backfill 거부를 명시한다.
+전체 field preimage/anchor를 보존하며, 역방향의 데이터 소실·상수 scalar default 재적용과 default 없는 required 복원 거부를 명시한다.
 이는 M1 전체 완료가 아니다. 양 DB의 실제 column/값·FK/OneToOne/unique·sequence·이력, 실패/unknown·재접속 검사를
 필수 목록에 연결했으며 작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
 

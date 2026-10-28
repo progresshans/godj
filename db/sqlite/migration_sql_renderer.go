@@ -37,7 +37,7 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 	}
 	for index := range request.Intent.Operations {
 		kind := request.Intent.Operations[index].Kind
-		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
+		if kind != migrationbackend.MigrationCreateModel && kind != migrationbackend.MigrationAddField && kind != migrationbackend.MigrationRemoveField && kind != migrationbackend.MigrationAlterField && kind != migrationbackend.MigrationAddConstraint && kind != migrationbackend.MigrationRemoveConstraint && kind != migrationbackend.MigrationAlterManyToMany {
 			return nil, migrationbackend.NewCapabilityError(
 				"sqlite_migration_sql",
 				"current SQL projection supports forward model, field and named constraint changes",
@@ -98,6 +98,23 @@ func (migrationSQLRenderer) RenderForwardMigrationSQL(
 				groups[index], err = compileSQLiteRelationRemakeSQL(transition, operation)
 			} else {
 				groups[index], err = compileSQLiteAddFieldStatements(operation.Before, field, operation.Targets)
+			}
+		case migrationbackend.MigrationRemoveField:
+			field, deltaErr := operation.ChangedField()
+			if deltaErr != nil {
+				return nil, relationIntentIntegrity("invalid RemoveField delta: %v", deltaErr)
+			}
+			if sqliteRelationOperationNeedsRemake(operation) {
+				groups[index], err = compileSQLiteRelationRemakeSQL(transition, operation)
+			} else {
+				var statement string
+				statement, err = compileMigrationRemoveField(operation.Before, field)
+				if err == nil {
+					removed := field.Clone()
+					removed.Unique, removed.DBIndex = false, false
+					groups[index], err = compileSQLiteFieldIndexes(operation.Before, field, removed)
+					groups[index] = append(groups[index], statement)
+				}
 			}
 		default:
 			return nil, migrationbackend.NewCapabilityError(
