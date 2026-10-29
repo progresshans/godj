@@ -53,6 +53,8 @@ Typed catalog target 생성과 실제 Group/Permission key를 계정·소속·ho
 공통 collection의 실제 삽입 key·전체 typed row readback과 source에 묶인 결과를 작성했으며 native 충돌/no-op과 key 0을 구분한다.
 이 결과를 공유 물리 through의 복합 endpoint 전환과 마지막 정책 이후 전체 삽입 행 재검사에 연결했다.
 일반 계정/catalog 생성·편집도 같은 최종 삽입 행 검사를 사용하고 기존 대상 mapping의 물리 소속·프로필 행을 고정한다.
+공통 collection의 읽기 snapshot 관측과 최종 transaction 재검사를 작성했다. Scalar 준비 사이의 물리 링크 key·삭제 FK 경로·
+삽입 후보의 nullable endpoint 변경을 거부하며, typed identity 생성 정책과 복수 행의 수명 owner 연결은 남아 있다.
 일반/UNIQUE·부분 공유·계정 생성/기존 계정과 native 대응표·rollback/unknown/재접속 소비자를 작성했으며 새 본문은 원격 확인 대상이다.
 역사 systemstate 전환은 남아 있다.
 일반 collection의 선택 identity through 자동 생성·전환 대상의 through 수명·

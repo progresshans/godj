@@ -92,7 +92,7 @@ func (state relationDeleteState[M]) execute(ctx context.Context, session db.Rela
 // Multiple collection links are one delete operation: collect the union before
 // any write so PROTECT, shared CASCADE rows and cycles retain the same policy.
 func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession, graph map[ir.ModelIdentity]relationDeleteNode, roots []relationDeleteRow, before func(context.Context, RelationDeleteEffects) error) (int64, error) {
-	plan, err := collectRelationDeleteRoots(ctx, session, graph, roots)
+	plan, err := collectRelationDeleteRoots(ctx, session, graph, roots, false)
 	if err != nil {
 		return 0, err
 	}
@@ -104,21 +104,32 @@ func executeRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 	return plan.execute(ctx, session)
 }
 
-// The plan belongs to the collecting transaction. It deliberately stays
-// private: a composing collection owner must preserve the observed PK/FK
-// topology until execution and propagate every failure to the outer owner.
+// The plan stays private to the collecting snapshot or transaction. A detached
+// observation retains evidence only; execution always recollects in its write
+// session. A composing owner preserves the PK/FK topology until execution and
+// propagates every failure to the outer transaction owner.
 type relationDeletePlan struct {
-	graph   map[ir.ModelIdentity]relationDeleteNode
-	rows    []relationDeleteRow
-	nulls   map[relationDeleteRow][]string
-	setNull []query.RelationSetNullPlan
+	graph        map[ir.ModelIdentity]relationDeleteNode
+	rows         []relationDeleteRow
+	nulls        map[relationDeleteRow][]string
+	setNull      []query.RelationSetNullPlan
+	observations []relationDeleteObservation
+}
+
+// Preserve each incoming edge, including empty sets. An observation cannot
+// miss reparenting between roots merely because the final deleted union agrees.
+type relationDeleteObservation struct {
+	target relationDeleteRow
+	source ir.ModelIdentity
+	field  string
+	keys   []int64
 }
 
 func (plan relationDeletePlan) effects() RelationDeleteEffects {
 	return collectRelationDeleteEffects(plan.rows, plan.nulls)
 }
 
-func collectRelationDeleteRoots(ctx context.Context, session db.RelationSession, graph map[ir.ModelIdentity]relationDeleteNode, roots []relationDeleteRow) (relationDeletePlan, error) {
+func collectRelationDeleteRoots(ctx context.Context, session db.Queryer, graph map[ir.ModelIdentity]relationDeleteNode, roots []relationDeleteRow, observe bool) (relationDeletePlan, error) {
 	if interfaceIsNil(session) {
 		return relationDeletePlan{}, relationBackendInvalidPlan("relation atomic backend supplied a nil session")
 	}
@@ -136,6 +147,7 @@ func collectRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 	protected := make(map[relationDeleteRow]bool)
 	nulls := make(map[relationDeleteRow][]string)
 	var setNull []query.RelationSetNullPlan
+	var observations []relationDeleteObservation
 	for cursor := 0; cursor < len(queue); cursor++ {
 		if err := ctx.Err(); err != nil {
 			return relationDeletePlan{}, err
@@ -145,6 +157,9 @@ func collectRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 			keys, err := collectRelationDeleteRows(ctx, session, edge, row.key)
 			if err != nil {
 				return relationDeletePlan{}, err
+			}
+			if observe {
+				observations = append(observations, relationDeleteObservation{target: row, source: edge.metadata.Source, field: edge.sourceForeignKey.Name, keys: keys})
 			}
 			if edge.metadata.OnDelete == ir.DeleteSetNull {
 				for _, key := range keys {
@@ -179,7 +194,7 @@ func collectRelationDeleteRoots(ctx context.Context, session db.RelationSession,
 		}
 		return relationDeletePlan{}, err
 	}
-	return relationDeletePlan{graph: graph, rows: queue, nulls: nulls, setNull: setNull}, nil
+	return relationDeletePlan{graph: graph, rows: queue, nulls: nulls, setNull: setNull, observations: observations}, nil
 }
 
 func (deletion relationDeletePlan) execute(ctx context.Context, session db.RelationSession) (int64, error) {
@@ -219,7 +234,7 @@ func (deletion relationDeletePlan) execute(ctx context.Context, session db.Relat
 	return int64(len(deletion.rows)), ctx.Err()
 }
 
-func collectRelationDeleteRows(ctx context.Context, session db.RelationSession, edge relationDeleteEdge, targetKey int64) ([]int64, error) {
+func collectRelationDeleteRows(ctx context.Context, session db.Queryer, edge relationDeleteEdge, targetKey int64) ([]int64, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

@@ -156,7 +156,7 @@ func (c *ManyCollection[T, L]) executeChange(ctx context.Context, session db.Rel
 	if err != nil {
 		return err
 	}
-	prepared, err := prepareCollectionChanges(ctx, session, []CollectionChange{change})
+	prepared, err := prepareCollectionChanges(ctx, session, []CollectionChange{change}, nil)
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,7 @@ func (row manyRow) partner(owner int64) (int64, bool) {
 	return row.pair.source, row.sourcePresent
 }
 
-func (state *manyToManyState) rows(ctx context.Context, session db.RelationSession, owner int64) ([]manyRow, error) {
+func (state *manyToManyState) rows(ctx context.Context, session db.Queryer, owner int64) ([]manyRow, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

@@ -220,6 +220,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	runStartupSchemaRequired(t, open)
 	runAccountDeletion(t, open, storedKey)
 	runCollectionChanges(t, open, storedKey, generatedKeys)
+	runCollectionObservations(t, open, storedKey)
 	runCollectionLifecycle(t, open, storedKey)
 	runProfileRelations(t, open, storedKey)
 }

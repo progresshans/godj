@@ -539,6 +539,15 @@ retirement·receipt 이후 전체 삽입 payload를 재검사하고 그 값과 �
 필수 소비자에 연결했다. PostgreSQL signed key fixture는 격리된 실제 identity sequence로 값을 생성하도록 수정했다.
 로컬 자원 과사용으로 중단된 compile은 완료로 계산하지 않으며 새 본문·환경별 검증은 TEST_EVIDENCE에 구분한다.
 
+선택 identity의 해싱을 쓰기 transaction 밖에 둘 수 있도록 공통 collection의 읽기 관측을 추가했다.
+`ObserveCollectionChangesInReadScope`는 기존 수집·typed 입력과 같은 엔진으로 전체 삭제/NULL·누락 pair를 준비하고,
+reader/입력 callback을 보관하지 않는 관측을 반환한다. 최종 `PrepareInSession`은 물리 링크 key와 모든 incoming FK
+경로까지 다시 대조한다. 삭제 합계가 같은 하위 행의 재지정과 nullable 추가 endpoint 변경도 쓰기 전에 거부한다.
+비관계 scalar를 snapshot 종료 후 준비할 수 있지만 source/선택/관계 topology는 고정하며 기존 단일 실행·전체 삽입 행
+검사를 유지한다. 양 DB의 독립 connection 변경·cleanup/뒤 쓰기 rollback과 외부 생성 소비자의 ordinary/UNIQUE scalar
+준비·retained pair·unique 거부 검사를 작성했다. 로컬 compile은 재시작하지 않았으며 새 본문은 원격 검증 대상이다.
+이 기반을 계정 해싱 전후의 현재 인가와 복수 identity의 revision·감사·세션 수명에 연결하는 작업은 아직 남아 있다.
+
 공유 물리 through 전환의 실제 검증, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 

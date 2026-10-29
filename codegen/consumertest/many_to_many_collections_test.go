@@ -68,6 +68,11 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, directory, "consumer/read_scope_test.go", readScope)
+	observations, err := os.ReadFile(filepath.Join("testdata", "manytomany", "collection_observation_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, directory, "consumer/collection_observation_test.go", observations)
 	formSave, err := os.ReadFile(filepath.Join("testdata", "manytomany", "form_save_test.go"))
 	if err != nil {
 		t.Fatal(err)
@@ -118,7 +123,7 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("actual generated collection consumer failed: %v\n%s", err, output)
 	}
-	required := map[string]bool{"TestCollections/sqlite": false, "TestCollectionBindingAndCallbackOwnership": false, "TestCollectionFormSavers": false}
+	required := map[string]bool{"TestCollections/sqlite": false, "TestCollectionBindingAndCallbackOwnership": false, "TestCollectionFormSavers": false, "TestCollectionObservations": false}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" || os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
 		required["TestCollections/postgres"] = false
 	}
@@ -138,6 +143,10 @@ func TestGeneratedManyToManyCollections(t *testing.T) {
 			continue
 		}
 		required["TestCollectionFacadeSessions/"+backend] = false
+		required["TestCollectionObservations/"+backend] = false
+		for _, name := range []string{"ranked_scalar", "retained", "unique_failure", "outer_failure", "loose_scalar"} {
+			required["TestCollectionObservations/"+backend+"/"+name] = false
+		}
 		required["TestCollectionFormSavers/"+backend] = false
 		for _, name := range []string{"automatic_retained_and_option_copy", "through_defaults_and_failure", "self_direction_and_reverse_refusal", "borrowed_lifetime_and_rollback"} {
 			required["TestCollectionFormSavers/"+backend+"/"+name] = false

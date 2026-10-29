@@ -3022,6 +3022,40 @@ signed_keys 두 개가 실패했고, parent 포함 61개는 55 PASS·6 FAIL이�
 `06c84299fe73b96b96cc2aac9b9603e58cc9eb56713847eb8944c9c3e22ffb5c`다.
 수정 fixture와 새 부정 검사, 전체 원격 필수 실행·I1 수용은 현재 변경 source에서 다시 확인해야 한다.
 
+### Collection 읽기 관측과 최종 topology 재검사
+
+2026-10-29, `377ff3b9d3a71c750a8de7072ea3c843e2364508` 위에서 공통 collection의 read-only 관측과 최종 native
+relation session 재검사를 작성했다. 기존 단일 transaction 경로와 같은 수집/typed 입력 엔진을 사용하며 reader·입력
+callback 없이 source·선택·실제 물리 링크와 모든 incoming FK 경로를 보관한다. Snapshot을 닫은 뒤 scalar를 준비할 수
+있고, 최종 단계는 typed 입력 이전에 저장 topology를 대조하고 입력 이후에는 모든 FK/nullable endpoint를 대조한다.
+변경에는 `model_state_error/collection_changed`를 반환하며 partial plan이나 DML을 게시하지 않는다.
+
+양 DB에 각각 14개 native 시나리오를 작성했다. 독립 connection에서 같은 소속의 물리 key를 교체하거나 하위 행을
+추가하고, 삭제/NULL 합계가 그대로인 다른 root로의 FK 재지정을 검사한다. Snapshot/row cleanup·nullable 추가 endpoint·
+최종 조회·뒤 INSERT/외부 transaction 실패와 실제 전체 행 rollback을 포함한다. 외부 생성 소비자는 ordinary/UNIQUE
+through의 최종 scalar 준비, retained pair의 입력 미실행, payload unique 실패와 외부 rollback을 각 DB 5개 child로 확인한다.
+Read-only capability·입력/수명/취소·source/선택 순서·forward/reverse 중복 제거와 최종 scope의 네 단위 root도 작성했다.
+기존 필수 항목을 모두 유지하며 relation은 4,640→4,689, PostgreSQL은 5,734→5,749다. Portable 293개는 그대로다.
+
+로컬 compiler·generator compile·Go/DB 본문은 재시작하지 않았다. CI 도구 정적 검사 53개, Go 파일 10개 포맷,
+245개 문서 링크와 diff 검사만 통과했다. 이 검사에는 Python·fake-Go/shell과 비컴파일 package 목록 조회가 포함되며,
+새 Go 타입 검사나 외부 module 생성/본문 실행을 의미하지 않는다. 새 source의 generated 소비자·양 DB·race·platform과
+전체 필수 실행은 원격 확인 대상이다. Source 12개 및 검사 원본의 receipt는 검증 보관소
+`gdj0138-collection-observation-v1/receipt-final.json`에 있으며 SHA-256은 `6fead9b2007becd9ba5b83a724c92cad44fa2aac6ba0bc2c64a8bb1b6c7b3356`다.
+
+선행 [CI 40870324858](https://github.com/progresshans/godj/actions/runs/40870324858), attempt 1의 normal shared-through
+작업 `123436206243` 원본을 대조했다. 실제 checkout `56952c398d6b989c4f25d2f3c900ac3bd1d72270`의 tree
+`0ff262733a3e3b6f7f0d46cc4fc9beea34c01020`은 제출 source `377ff3b9`와 같다. Artifact `12896564301` ZIP의 SHA-256
+`3f0cd9c38c303a8a859a351b0c252b0ceba2e2af6ff5ca1d565084f3189961c4`는 metadata·업로드 로그·다운로드 bytes에 일치한다.
+내부 SQLite/PostgreSQL 원본은 각각 54개 시나리오와 parent를 합친 필수 61개 모두 한 번 run/종료했고 PASS다.
+누락·skip·중복·잘림은 없으며 signed_keys의 plain/unique·staged/created 네 조합도 양쪽 모두 통과했다. 내부 stdout
+checksum과 parent 기록·완료 metadata도 일치한다. 원본 대조는 같은 보관소 `prior-shared-evidence.json`에 보존했다
+(SHA-256 `8f12cb7c6f5499518870bb9e65883f9abf6fb8d33be1dd2ea2fe2e25d442ab3e`).
+
+이 부분 성공은 선행 source의 해당 소비자 증거다. 관측 당시 전체 199개 작업은 68 성공·40 실행·91 대기였으며 전체
+수용은 완료되지 않았다. 새 collection 관측의 성공이나 선택 identity의 자동 through 생성 지원으로 계산하지 않는다.
+해싱 전후 현재 인가·복수 생성 행의 revision/감사/세션 수명과 전환, 역사 systemstate 이행 및 I1 전체 수용은 남아 있다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

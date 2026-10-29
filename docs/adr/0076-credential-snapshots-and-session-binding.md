@@ -1408,6 +1408,31 @@ collection의 최종 조회 실패에는 부분 key/행을 반환하지 않는�
 선택 identity 자체를 through로 자동 생성하는 수명 owner는 후속 I1 요구다. 해당 명시적 거부는 유지하며
 이번 공유 through 지원의 작성과 실제 양 DB·플랫폼 검증은 TEST_EVIDENCE에서 구분한다.
 
+### Collection 후보의 읽기 관측과 최종 재검사
+
+`ObserveCollectionChangesInReadScope`는 현재 collection의 물리 key/nullable endpoint, 전체 삭제·NULL 경로와
+누락된 typed 삽입 후보를 같은 borrowed read-only snapshot에서 준비한다. 단일 transaction의 기존 collection 경로와
+같은 수집·typed build를 사용하며, PROTECT와 전체 조회를 마친 뒤 필요한 pair에만 입력을 평가한다. Forward/reverse와
+공유 through의 중복 제거도 유지한다. 읽기 scope는 mutation·transaction/savepoint capability를 노출할 수 없다.
+
+`ObservedCollectionChanges`는 source·선택 순서·관측 행·효과의 사본만 소유하고 reader나 입력 callback을 보관하지 않는다.
+외부 snapshot 종료 오류에는 게시하지 않으며 `db.ReadSnapshotResult`로 이 경계를 지킨다. Snapshot을 닫은 뒤 해싱 등
+비싼 scalar 준비를 수행할 수 있다. 관측은 인가나 한 번 실행 token이 아니며, DB/operation·현재 actor·revision과 scalar
+정책의 결속은 이를 사용하는 owner 책임이다. 계정 수명의 해싱·인가를 공통 ORM이 대신하지 않는다.
+
+`PrepareInSession`은 최종 relation transaction에서 동일한 전체 source와 순서/선택, 실제 링크 key와 NULL 상태,
+삭제 그래프의 각 incoming FK별 원본 key 집합을 다시 읽는다. 다른 삭제 root로 재지정된 하위 행도 삭제 합계가 같다는
+이유로 허용하지 않는다. 관측과 다르면 `model_state_error/collection_changed`로 거부하며 typed 입력이나 DML을
+시작하지 않는다. 새 PROTECT·조회/cleanup 실패도 원래 오류로 보존한다.
+
+최종 typed 후보의 비관계 scalar는 새로 준비할 수 있다. 삽입 개수·모델과 모든 FK 값은 관측에 고정하므로 추가 nullable
+endpoint 변경이나 공유 through의 다른 삽입으로 바꾸는 입력은 쓰기 전에 거부한다. 성공한 preparation은 기존의 동일
+session·한 번 Apply·native 실제 key·전체 typed row readback·외부 rollback/unknown 계약을 따른다. 일반 단일 transaction
+경로에는 관측 전용 incoming edge 사본을 추가로 보관하지 않는다.
+
+이 기반은 선택 계정/catalog 자체를 through로 생성하는 권한을 부여하지 않는다. 명시적 typed identity 생성 정책,
+해싱 전후 인가·복수 생성 행의 revision/감사/세션 수명 합집합과 전환 조립은 I1의 후속 구현이다.
+
 ### 공개 첫 명령의 collection 입력
 
 `FirstAccountDefinition.CollectionLimits()`는 선택한 프로필과 그룹/직접 권한의 개수 한도를 사본으로 반환한다.

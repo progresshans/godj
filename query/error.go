@@ -42,6 +42,7 @@ const (
 	CodeRelatedObjectMissing         = "related_object_missing"
 	CodeRelatedObjectCardinality     = "related_object_cardinality"
 	CodeRelatedSetMembership         = "related_set_membership"
+	CodeCollectionChanged            = "collection_changed"
 	CodeInvalidRelatedPath           = "invalid_related_path"
 	CodeRelatedObjectProjection      = "related_object_projection"
 	CodeUnsavedRelatedObject         = "unsaved_related_object"

@@ -150,12 +150,19 @@ func (effects CollectionChangeEffects) Insertions() []CollectionInsertEffect {
 type PreparedCollectionChanges struct{ state *preparedCollectionChanges }
 
 type preparedCollectionChanges struct {
+	collectionPlan
 	session  db.RelationSession
+	consumed atomic.Bool
+}
+
+// collectionPlan is read and prepared without recovering write capability. Only
+// PreparedCollectionChanges attaches it to a live native relation transaction.
+type collectionPlan struct {
 	source   *projectBindingSnapshot
 	deletion relationDeletePlan
 	changes  []preparedCollectionChange
 	effects  CollectionChangeEffects
-	consumed atomic.Bool
+	graph    map[ir.ModelIdentity]relationDeleteNode
 }
 type preparedCollectionChange struct {
 	change   *collectionChange
@@ -194,18 +201,64 @@ func PrepareCollectionChangesInSession(ctx context.Context, session db.RelationS
 	if err != nil {
 		return PreparedCollectionChanges{}, err
 	}
-	return prepareCollectionChanges(ctx, effective, changes)
+	return prepareCollectionChanges(ctx, effective, changes, nil)
 }
 
-func prepareCollectionChanges(ctx context.Context, session db.RelationSession, changes []CollectionChange) (PreparedCollectionChanges, error) {
-	if interfaceIsNil(ctx) || interfaceIsNil(session) || len(changes) == 0 {
-		return PreparedCollectionChanges{}, relationInvalidPlan("collection preparation context, session or changes are absent")
+func prepareCollectionChanges(ctx context.Context, session db.RelationSession, changes []CollectionChange, observed *observedCollectionChanges) (PreparedCollectionChanges, error) {
+	if interfaceIsNil(ctx) || interfaceIsNil(session) {
+		return PreparedCollectionChanges{}, relationInvalidPlan("collection preparation context or session is absent")
 	}
 	if err := validateQuerySession(ctx, session); err != nil {
 		return PreparedCollectionChanges{}, err
 	}
-	state := &preparedCollectionChanges{session: session}
-	graph := make(map[ir.ModelIdentity]relationDeleteNode)
+	plan, err := newCollectionPlan(changes)
+	if err != nil {
+		return PreparedCollectionChanges{}, err
+	}
+	if observed != nil {
+		if err := observed.checkSelections(plan); err != nil {
+			return PreparedCollectionChanges{}, err
+		}
+	}
+	for index := range plan.changes {
+		next := &plan.changes[index]
+		current := next.change
+		if len(current.source.unique) != 0 && (current.operation == manyAdd || current.operation == manySet) {
+			var ok bool
+			next.conflict, ok = session.(db.ConflictInserter)
+			if !ok || interfaceIsNil(next.conflict) {
+				return PreparedCollectionChanges{}, relationBackendInvalidPlan("collection unique pair requires native conflict insertion in its transaction session")
+			}
+		}
+	}
+	if err := plan.collect(ctx, session, observed != nil); err != nil {
+		return PreparedCollectionChanges{}, err
+	}
+	if observed != nil {
+		// No typed input is invoked for a stale selection or deletion graph.
+		if err := observed.checkRows(plan); err != nil {
+			return PreparedCollectionChanges{}, err
+		}
+	}
+	if err := plan.buildInsertions(ctx); err != nil {
+		return PreparedCollectionChanges{}, err
+	}
+	if observed != nil {
+		if err := observed.checkInsertions(plan); err != nil {
+			return PreparedCollectionChanges{}, err
+		}
+	}
+	if err := validateQuerySession(ctx, session); err != nil {
+		return PreparedCollectionChanges{}, err
+	}
+	return PreparedCollectionChanges{state: &preparedCollectionChanges{collectionPlan: *plan, session: session}}, nil
+}
+
+func newCollectionPlan(changes []CollectionChange) (*collectionPlan, error) {
+	if len(changes) == 0 {
+		return nil, relationInvalidPlan("collection changes are absent")
+	}
+	state := &collectionPlan{graph: make(map[ir.ModelIdentity]relationDeleteNode)}
 	type identity struct {
 		model          ir.ModelIdentity
 		source, target string
@@ -216,39 +269,35 @@ func prepareCollectionChanges(ctx context.Context, session db.RelationSession, c
 	for _, change := range changes {
 		current := change.state
 		if current == nil || current.source == nil || current.source.snapshot == nil || current.build == nil || current.read == nil {
-			return PreparedCollectionChanges{}, relationInvalidPlan("collection change is unbound")
+			return nil, relationInvalidPlan("collection change is unbound")
 		}
 		source := current.source
 		if state.source == nil {
 			state.source = source.snapshot
 		} else if !sameProjectSource(state.source, source.snapshot) {
-			return PreparedCollectionChanges{}, relationInvalidPlan("collection changes belong to different project sources")
+			return nil, relationInvalidPlan("collection changes belong to different project sources")
 		}
 		key := identity{source.through, source.source.Name, source.target.Name, current.owner}
 		if seen[key] {
-			return PreparedCollectionChanges{}, relationInvalidPlan("collection batch repeats the same owner and storage selection")
+			return nil, relationInvalidPlan("collection batch repeats the same owner and storage selection")
 		}
 		seen[key] = true
 		for model, node := range source.graph {
-			graph[model] = node
+			state.graph[model] = node
 		}
-		next := preparedCollectionChange{change: current}
-		if len(source.unique) != 0 && (current.operation == manyAdd || current.operation == manySet) {
-			var ok bool
-			next.conflict, ok = session.(db.ConflictInserter)
-			if !ok || interfaceIsNil(next.conflict) {
-				return PreparedCollectionChanges{}, relationBackendInvalidPlan("collection unique pair requires native conflict insertion in its transaction session")
-			}
-		}
-		state.changes = append(state.changes, next)
+		state.changes = append(state.changes, preparedCollectionChange{change: current})
 	}
+	return state, nil
+}
+
+func (state *collectionPlan) collect(ctx context.Context, reader db.Queryer, observe bool) error {
 	var roots []relationDeleteRow
 	for index := range state.changes {
 		current := &state.changes[index]
 		var err error
-		current.rows, err = current.change.source.rows(ctx, session, current.change.owner)
+		current.rows, err = current.change.source.rows(ctx, reader, current.change.owner)
 		if err != nil {
-			return PreparedCollectionChanges{}, err
+			return err
 		}
 		for _, row := range current.rows {
 			partner, present := row.partner(current.change.owner)
@@ -275,11 +324,15 @@ func prepareCollectionChanges(ctx context.Context, session db.RelationSession, c
 		}
 	}
 	var err error
-	state.deletion, err = collectRelationDeleteRoots(ctx, session, graph, roots)
+	state.deletion, err = collectRelationDeleteRoots(ctx, reader, state.graph, roots, observe)
 	if err != nil {
-		return PreparedCollectionChanges{}, err
+		return err
 	}
 	state.effects.deletions = state.deletion.effects()
+	return validateQuerySession(ctx, reader)
+}
+
+func (state *collectionPlan) buildInsertions(ctx context.Context) error {
 	deleted := make(map[relationDeleteRow]bool, len(state.deletion.rows))
 	for _, row := range state.deletion.rows {
 		deleted[row] = true
@@ -316,20 +369,17 @@ func prepareCollectionChanges(ctx context.Context, session db.RelationSession, c
 				continue
 			}
 			if err := ctx.Err(); err != nil {
-				return PreparedCollectionChanges{}, err
+				return err
 			}
 			insert, err := current.change.build(pair)
 			if err != nil {
-				return PreparedCollectionChanges{}, err
+				return err
 			}
 			current.inserts = append(current.inserts, insert)
 			state.effects.insertions = append(state.effects.insertions, CollectionInsertEffect{Model: source.through, Values: maps.Clone(insert.values)})
 		}
 	}
-	if err := validateQuerySession(ctx, session); err != nil {
-		return PreparedCollectionChanges{}, err
-	}
-	return PreparedCollectionChanges{state: state}, nil
+	return ctx.Err()
 }
 
 // Apply executes the collected deletion union once, then every insertion and
