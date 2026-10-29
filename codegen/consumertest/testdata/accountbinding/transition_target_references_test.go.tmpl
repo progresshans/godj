@@ -163,8 +163,8 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 			if mode == "unique_conflict" && len(f.backend.identities["members_member"]) != 1 {
 				t.Fatal("resolved OneToOne did not reject after one real insertion")
 			}
-			if mode == "denied_choice" && (len(f.backend.identities["catalog_team"]) != 1 || len(f.backend.identities["members_member"]) != 0) {
-				t.Fatal("pending choice denial did not follow actual catalog allocation")
+			if mode == "denied_choice" && (len(f.backend.identities["catalog_team"]) != 1 || len(f.backend.identities["members_member"]) != 2) {
+				t.Fatal("pending choice denial did not inspect the full allocated graph")
 			}
 			if mode == "late_choice" && !f.backend.receipt || mode == "late_reference" && (f.backend.faults != 1 || !f.backend.receipt) {
 				t.Fatal("late reference control did not reach the final receipt policy")

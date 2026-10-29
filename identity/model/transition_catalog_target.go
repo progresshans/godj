@@ -35,7 +35,7 @@ type TransitionCatalogTargetConfig[G, P any] struct {
 // Its target key is allocated by the native INSERT, never selected in advance.
 // References selects reviewed account/catalog correspondences for FK/OneToOne
 // fields omitted from Input. Creation copies the maps; Prepare verifies them.
-// Account targets must already exist under their explicit transition mapping.
+// Account targets may be staged or allocated in the same dependency graph.
 type CatalogRowCreation[M any] struct {
 	Source     SourceAccount
 	Input      orm.ModelInput[M]

@@ -109,6 +109,7 @@ type stBackend struct {
 	nativeGeneratedKeys bool
 	faults              int
 	mutate              func(context.Context, db.Queryer) error
+	identityHook        func(context.Context, db.Session, string) error
 }
 
 func (backend *stBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
@@ -180,6 +181,11 @@ func (scope *stScope) Insert(ctx context.Context, plan query.InsertPlan) (int64,
 	if stIdentityTable(plan.Table()) {
 		scope.owner.identities[plan.Table()] = append(scope.owner.identities[plan.Table()], stInsertion{id, plan})
 	}
+	if stIdentityTable(plan.Table()) && scope.owner.identityHook != nil {
+		if err := scope.owner.identityHook(ctx, scope.Session, plan.Table()); err != nil {
+			return id, err
+		}
+	}
 	if scope.owner.mode == "first_catalog_insert_failure" && plan.Table() == "catalog_team" {
 		scope.owner.faults++
 		return id, errors.New("failure after first catalog identity INSERT")
@@ -250,6 +256,8 @@ type stFixture[L any] struct {
 	joined                 time.Time
 	prefix, strategy, mode string
 	catalogOverride        *accountmodel.CatalogCreation
+	extraTargetFields      []string
+	extraTargetRelations   []accountmodel.ProfileRelation[members.Member]
 	targetReferences       bool
 	policyChecks           int
 }
@@ -560,6 +568,8 @@ func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[mode
 		}})
 		stMust(t, err)
 		options := accountmodel.TransitionTargetConfig[members.Member]{Fields: []string{"handle", "first_name", "portrait", f.prefix + "interests"}, Collections: []accountmodel.ProfileCollection[members.Member]{profile}}
+		options.Fields = append(options.Fields, f.extraTargetFields...)
+		options.Relations = append(options.Relations, f.extraTargetRelations...)
 		if f.targetReferences {
 			group, err := accountmodel.NewProfileRelation(f.binding, "preferred_group", catalog.TeamObjects, accountmodel.ProfileRelationConfig[catalog.Team]{
 				Choices: formmodel.ModelChoiceConfig[catalog.Team]{Label: func(row catalog.Team) (string, error) { return row.Title, nil }},

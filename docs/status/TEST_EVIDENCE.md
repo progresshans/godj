@@ -3310,6 +3310,49 @@ Source 20개와 정적 검사 원본은 `gdj0138-catalog-fields-v1/receipt-final
 `a9f562539ff150ca4456f449b3feaeba1adbae2c45d252cecff5e7a08eaf78bc`다. Unknown은 기존 native commit/rollback 뒤
 acknowledgement 오류 주입 경로를 사용하며 실제 네트워크 단절 실험으로 집계하지 않는다.
 
+### 신규 계정과 catalog의 공동 identity 할당
+
+2026-10-30, source `9a728a5a34f5d617436946e980f0f73861490034` 위에서 계정과 catalog의 생성 순서를 하나의 의존 그래프로
+연결했다. 모든 source revision·namespace·scope를 먼저 확인하고, 실제 native INSERT가 반환한 key만 후속 FK에 결합한다.
+계정 B→Group→Permission→계정 A와 같은 교차 참조를 처리하며 반환 대응표의 원본 순서를 유지한다. 중복 key·실패·scope
+만료에는 부분 대응표를 게시하지 않는다. 자동 key cycle과 collection 안의 추가 identity 생성 수명은 여전히 미완료다.
+
+보류 FK를 결합한 행의 scalar·credential·unique/native 제약은 저장 전에 검사한다. 관계 선택과 custom 정책은 identity와
+소속/프로필이 모두 갖춰진 뒤 검사하며, 최종 receipt 이후 재검사도 유지한다. 새 계정이 소속을 갖기 전의 검사에서는 원본의
+전체 상태와 새 행의 모든 scalar, 독립적으로 투영한 실제 물리 링크 inventory를 고정한다. 관측하지 않은 추가 계정·링크를
+채워야 할 소속으로 받아들이지 않는다. 정책·중간/최종 readback 실패는 account/catalog·소속·audit·session/domain 전체 rollback이다.
+
+기존 catalog FK 소비자의 pending_account_reference는 실제 신규 계정 key 결합을 검증하도록 바꿨고, 각 schema에 12개
+공동 그래프 사례를 추가했다. Nullable 45개·필수 FK 42개 시나리오와 parent를 각각 양 DB에서 요구한다. 실제 0/음수 key,
+완성된 계정 소속을 조회하는 정책·그 정책의 거부, 전역 cycle의 쓰기 전 거부, 선행 계정의 실제 INSERT 뒤 실패, 중간의 추가
+계정/물리 링크와 마지막 receipt 뒤 FK 변조, 전체 rollback/unknown·재접속을 포함한다. 기존 선택 거부 검사는 완전한
+할당 뒤 전체 원자 거부를 확인하도록 바꿨으며 삭제한 시나리오는 없다. 공통 할당의 namespace·실제 key·scope·사본·
+부분 결과 거부는 단위 root와 6개 child를 필수 목록에 추가했다. 새 테스트 본문은 아직 실행하지 않았다.
+
+선행 [CI 40958254615](https://github.com/progresshans/godj/actions/runs/40958254615), attempt 1의 PostgreSQL normal
+catalog-creation 작업 `123744856974`는 success다. Parent 필수 10개와 catalog FK 소비자의 nullable/required ×
+SQLite/PostgreSQL 네 원본 capture를 대조했다. 각각 필수 34/31개, 합계 130개 실행이 PASS이며 fail/skip/누락/중복이 없다.
+이는 직전 catalog FK 기능의 normal 실행 근거이고, 현재 공동 할당 또는 전체 CI의 PASS가 아니다.
+실제 checkout `43e60167cf8c98e15ab05dd5bf6f4afb36a7ee29`와 제출 source의 tree는
+`447c76e0859577f70fb26d364ee7d2dbb923b640`로 같다. Artifact `12935736673` ZIP SHA-256은
+`2c09a3c9fddbc343ac9918aae4d59beb59bf88d933cb3b38c02d2a736692025d`로 GitHub metadata와 일치한다.
+원본·source 연결은 검증 보관소 `gdj0138-joint-allocation-v1/prior-catalog-normal-verification.json`에 있다
+(SHA-256 `5087b48e4f292d445e68a322ac6f5732ea98a53727619c707eb17a85ecba7791`).
+
+같은 source의 normal shared-through 작업 `123744857009`도 success로 종료했다. 같은 checkout에 연결된 계정 FK
+소비자의 nullable/required × SQLite/PostgreSQL 네 원본에서 각각 필수 25개, 총 100개 PASS와 누락/중복/fail/skip 부재를
+확인했다. 이는 직전 incoming 검사와 duplicate_login 입력 수정의 normal 해결 근거다. Artifact `12935472856` ZIP
+SHA-256은 `61283580d2b1af2e57065f3b153ba7fc89eacbc6bbacc0139683b5d216ddf8dd`로 GitHub metadata와 같다.
+원본 대조 `gdj0138-joint-allocation-v1/prior-target-reference-verification.json`의 SHA-256은
+`b52cdecfd7d5512618f971276789aa1e0a9af5798c7f161c10ed68933c2ac377`다. 현재 바뀐 정책 실행 시점·공동 할당의 수용과 구분한다.
+
+CI 실행 도구 검사 43개(113.968초), 변경 Go 12개 파일의 포맷·세 template 치환 문법·245개 문서 링크·diff 검사를 통과했다.
+Relation 필수 항목은 4,751→4,758이며 PostgreSQL 5,816개·Portable 296개와 기존 모든 필수 항목을 유지한다. 로컬 compile
+보류를 유지했고 실제 생성·Go 타입 검사·양 DB 본문·race/platform과 I1 전체 수용은 새 source의 원격 확인 대상이다.
+Source 19개와 정적 검사 원본은 `gdj0138-joint-allocation-v1/receipt-final.json`에 있으며 SHA-256은
+`8bbc67a25e8f44dff59fa67fabae484492f6cc5e9e3d70e5a4383b0bb438fd61`이다. Unknown은 실제 native commit/rollback 뒤
+acknowledgement 오류를 주입하는 기존 경로이며 실제 네트워크 단절 실험을 뜻하지 않는다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

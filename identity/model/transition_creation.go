@@ -193,7 +193,7 @@ func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Que
 		if err != nil {
 			return zero, err
 		}
-		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, mapped, old.state.binding.state.role, request.Input, request.References, references, createdAt, ownership.Generation())
+		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, mapped, old.state.binding.state.role, request.Input, request.References, references, createdAt, ownership.Generation(), false)
 		if err != nil {
 			return zero, err
 		}

@@ -30,7 +30,7 @@ type catalogCreationCandidate[M any] struct {
 	values     map[string]query.Value
 	input      orm.ModelInput[M]
 	references map[string]TransitionTargetReference
-	resolve    func(context.Context, db.Queryer, auth.Principal, transitionTargetMappings) (catalogCreationCandidate[M], error)
+	resolve    func(context.Context, db.Queryer, auth.Principal, transitionTargetMappings, bool) (catalogCreationCandidate[M], error)
 }
 
 func prepareCatalogCreation[G, P any](ctx context.Context, scope db.Queryer, actor auth.Principal, target *transitionCatalogTarget[G, P], groups []CatalogRowCreation[G], permissions []CatalogRowCreation[P], observed transitionCatalogObservation, mappings transitionTargetMappings) (preparedCatalogCreation, error) {
@@ -55,7 +55,7 @@ func prepareCatalogCreation[G, P any](ctx context.Context, scope db.Queryer, act
 	for _, row := range groupRows {
 		nodes = append(nodes, transitionReferenceNode{kind: TransitionReferenceGroup, source: SourceAccount{ID: row.source.ID, Revision: row.source.Revision}, references: row.references})
 	}
-	order, err := transitionReferenceOrder(nodes)
+	_, err = transitionReferenceOrder(nodes)
 	if err != nil {
 		return zero, err
 	}
@@ -73,9 +73,9 @@ func prepareCatalogCreation[G, P any](ctx context.Context, scope db.Queryer, act
 	if digest.err != nil {
 		return zero, digest.err
 	}
-	return preparedCatalogCreation{manifest: manifest, digest: hex.EncodeToString(digest.hash.Sum(nil)), bytes: digest.size,
-		apply: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, at time.Time) (createdCatalogState, error) {
-			return applyCatalogCreation(ctx, scope, actor, at, target, permissionRows, groupRows, observed, mappings, order)
+	return preparedCatalogCreation{nodes: nodes, manifest: manifest, digest: hex.EncodeToString(digest.hash.Sum(nil)), bytes: digest.size,
+		apply: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, at time.Time, accounts []transitionAllocation) (createdCatalogState, error) {
+			return applyCatalogCreation(ctx, scope, actor, at, target, permissionRows, groupRows, observed, mappings, accounts)
 		},
 	}, nil
 }
@@ -147,7 +147,7 @@ func prepareCatalogRows[M any](ctx context.Context, scope db.Queryer, actor auth
 		}
 		candidate.values = values
 		var err error
-		candidate, err = prepareCatalogCreationCandidate(ctx, scope, actor, model, candidate, mappings)
+		candidate, err = prepareCatalogCreationCandidate(ctx, scope, actor, model, candidate, mappings, false)
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +180,7 @@ func requireEmptyTransitionIncoming(ctx context.Context, scope db.Queryer, plans
 	return validateAccountSessionScope(ctx, scope)
 }
 
-func prepareCatalogCreationCandidate[M any](ctx context.Context, scope db.Queryer, actor auth.Principal, model transitionCatalogModel[M], candidate catalogCreationCandidate[M], mappings transitionTargetMappings) (catalogCreationCandidate[M], error) {
+func prepareCatalogCreationCandidate[M any](ctx context.Context, scope db.Queryer, actor auth.Principal, model transitionCatalogModel[M], candidate catalogCreationCandidate[M], mappings transitionTargetMappings, allocating bool) (catalogCreationCandidate[M], error) {
 	var zero catalogCreationCandidate[M]
 	values := maps.Clone(candidate.values)
 	if model.created {
@@ -195,9 +195,6 @@ func prepareCatalogCreationCandidate[M any](ctx context.Context, scope db.Querye
 		}
 		maps.Copy(initial, values)
 		for name := range pending {
-			if candidate.references[name].Kind == TransitionReferenceAccount {
-				return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "catalog creation referencing pending account keys requires a joint identity allocation plan"}
-			}
 			delete(initial, name)
 		}
 		if len(pending) != 0 {
@@ -213,8 +210,8 @@ func prepareCatalogCreationCandidate[M any](ctx context.Context, scope db.Querye
 			}
 			original := candidate
 			candidate.values = initial
-			candidate.resolve = func(ctx context.Context, scope db.Queryer, actor auth.Principal, actual transitionTargetMappings) (catalogCreationCandidate[M], error) {
-				return prepareCatalogCreationCandidate(ctx, scope, actor, model, original, actual)
+			candidate.resolve = func(ctx context.Context, scope db.Queryer, actor auth.Principal, actual transitionTargetMappings, allocating bool) (catalogCreationCandidate[M], error) {
+				return prepareCatalogCreationCandidate(ctx, scope, actor, model, original, actual, allocating)
 			}
 			return candidate, nil
 		}
@@ -238,8 +235,10 @@ func prepareCatalogCreationCandidate[M any](ctx context.Context, scope db.Querye
 	if err := validateTransitionValues(ctx, scope, model.objects, candidate.row, candidate.values, model.created); err != nil {
 		return zero, err
 	}
-	if err := validateCatalogCreationCandidate(ctx, scope, actor, model, candidate); err != nil {
-		return zero, err
+	if !allocating {
+		if err := validateCatalogCreationCandidate(ctx, scope, actor, model, candidate); err != nil {
+			return zero, err
+		}
 	}
 	return candidate, nil
 }
@@ -282,66 +281,63 @@ func validateCatalogCreationCandidate[M any](ctx context.Context, scope db.Query
 	return validation.Reject(failures, nil)
 }
 
-func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSession, actor auth.Principal, at time.Time, target *transitionCatalogTarget[G, P], permissions []catalogCreationCandidate[P], groups []catalogCreationCandidate[G], observed transitionCatalogObservation, references transitionTargetMappings, order []int) (createdCatalogState, error) {
+func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSession, actor auth.Principal, at time.Time, target *transitionCatalogTarget[G, P], permissions []catalogCreationCandidate[P], groups []catalogCreationCandidate[G], observed transitionCatalogObservation, references transitionTargetMappings, accounts []transitionAllocation) (createdCatalogState, error) {
 	var zero createdCatalogState
 	result := createdCatalogState{mapping: &CatalogMappings{Groups: make([]AccountMapping, len(groups)), Permissions: make([]AccountMapping, len(permissions))},
 		before: cloneTransitionCatalogInventory(observed.before), after: cloneTransitionCatalogInventory(observed.after)}
-	allocated := make(transitionTargetMappings, len(references))
-	for kind, namespace := range references {
-		namespace.targets = maps.Clone(namespace.targets)
-		if namespace.targets == nil && kind != TransitionReferenceAccount {
-			namespace.targets = make(map[int64]int64)
-		}
-		allocated[kind] = namespace
-	}
 	finalPermissions, finalGroups := slices.Clone(permissions), slices.Clone(groups)
-	writePermission := func(index int) error {
+	writePermission := func(index int, allocated transitionTargetMappings) (int64, error) {
 		candidate := &finalPermissions[index]
 		if err := resolveCatalogCreationCandidate(ctx, scope, actor, candidate, allocated); err != nil {
-			return err
+			return 0, err
 		}
 		id, values, err := saveCatalogCreationCandidate(ctx, scope, target.permissions, candidate)
 		if err != nil {
-			return err
+			return 0, err
 		}
-		allocated[TransitionReferencePermission].targets[candidate.source.ID] = id
 		if target.permissions.created {
 			if _, err := addTransitionIdentity(ctx, scope, &result.identities, target.project, target.permissions.identity, target.permissions.objects, candidate.row); err != nil {
-				return err
+				return 0, err
 			}
 		}
 		result.mapping.Permissions[index] = AccountMapping{SourceID: candidate.source.ID, SourceRevision: candidate.source.Revision, TargetID: id, TargetRevision: candidate.source.TargetRevision}
 		result.after.permissions[id] = transitionCatalogRow{revision: candidate.source.TargetRevision, code: observed.before.permissions[candidate.source.ID].code, values: values}
-		return nil
+		return id, nil
 	}
-	writeGroup := func(index int) error {
+	writeGroup := func(index int, allocated transitionTargetMappings) (int64, error) {
 		candidate := &finalGroups[index]
 		if err := resolveCatalogCreationCandidate(ctx, scope, actor, candidate, allocated); err != nil {
-			return err
+			return 0, err
 		}
 		id, _, err := saveCatalogCreationCandidate(ctx, scope, target.groups, candidate)
 		if err != nil {
-			return err
+			return 0, err
 		}
-		allocated[TransitionReferenceGroup].targets[candidate.source.ID] = id
 		result.mapping.Groups[index] = AccountMapping{SourceID: candidate.source.ID, SourceRevision: candidate.source.Revision, TargetID: id, TargetRevision: candidate.source.TargetRevision}
 		if target.groups.created {
 			if _, err := addTransitionIdentity(ctx, scope, &result.identities, target.project, target.groups.identity, target.groups.objects, candidate.row); err != nil {
-				return err
+				return 0, err
 			}
 		}
-		return nil
+		return id, nil
 	}
-	for _, index := range order {
-		var err error
-		if index < len(finalPermissions) {
-			err = writePermission(index)
-		} else {
-			err = writeGroup(index - len(finalPermissions))
-		}
-		if err != nil {
-			return zero, err
-		}
+	allocations := make([]transitionAllocation, 0, len(permissions)+len(groups)+len(accounts))
+	for index, candidate := range finalPermissions {
+		allocations = append(allocations, transitionAllocation{reference: transitionReferenceNode{kind: TransitionReferencePermission, source: SourceAccount{ID: candidate.source.ID, Revision: candidate.source.Revision}, references: candidate.references},
+			insert: func(_ context.Context, _ db.RelationSession, _ auth.Principal, allocated transitionTargetMappings) (int64, error) {
+				return writePermission(index, allocated)
+			}})
+	}
+	for index, candidate := range finalGroups {
+		allocations = append(allocations, transitionAllocation{reference: transitionReferenceNode{kind: TransitionReferenceGroup, source: SourceAccount{ID: candidate.source.ID, Revision: candidate.source.Revision}, references: candidate.references},
+			insert: func(_ context.Context, _ db.RelationSession, _ auth.Principal, allocated transitionTargetMappings) (int64, error) {
+				return writeGroup(index, allocated)
+			}})
+	}
+	allocations = append(allocations, accounts...)
+	allocated, err := applyTransitionAllocations(ctx, scope, actor, references, allocations)
+	if err != nil {
+		return zero, err
 	}
 	// Grants use the complete native key correspondence, regardless of which
 	// catalog namespace supplied the first dependency-free identity.
@@ -411,14 +407,14 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 		}
 		return nil
 	}
-	return result, result.verifyPolicy(ctx, scope)
+	return result, nil
 }
 
 func resolveCatalogCreationCandidate[M any](ctx context.Context, scope db.Queryer, actor auth.Principal, candidate *catalogCreationCandidate[M], mappings transitionTargetMappings) error {
 	if candidate.resolve == nil {
 		return nil
 	}
-	resolved, err := candidate.resolve(ctx, scope, actor, mappings)
+	resolved, err := candidate.resolve(ctx, scope, actor, mappings, true)
 	if err != nil {
 		return err
 	}

@@ -182,7 +182,7 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 			if request.Source.ID != id || request.Source.Revision != source.revision {
 				return zero, managementError(CodeConflict, nil)
 			}
-			candidate, err = prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, memberships, owner.old.state.credentials.state.binding.state.role, request.Input, request.References, references, inputs.createdAt, ownership.Generation())
+			candidate, err = prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, memberships, owner.old.state.credentials.state.binding.state.role, request.Input, request.References, references, inputs.createdAt, ownership.Generation(), false)
 		} else {
 			pair := inputs.mappings[i]
 			target, present := after[pair.TargetID]
@@ -232,6 +232,15 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 		result.pairs = append(result.pairs, transitionPair[S, T]{source, candidate.row})
 		result.candidates = append(result.candidates, candidate)
 	}
+	allocationNodes := slices.Clone(preparedCatalog.nodes)
+	if creatingAccounts {
+		for _, request := range inputs.requests {
+			allocationNodes = append(allocationNodes, transitionReferenceNode{kind: TransitionReferenceAccount, source: request.Source, references: request.References})
+		}
+	}
+	if _, err := transitionReferenceOrder(allocationNodes); err != nil {
+		return zero, err
+	}
 	if len(owner.config.References) != 0 {
 		sources := make(map[int64]bool, len(before))
 		var targets map[int64]int64
@@ -272,14 +281,28 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 		if !validTransitionTime(at) {
 			return TransitionResult{}, managementError(CodeInvalidConfig, nil)
 		}
-		created, err := current.preparedCatalog.apply(work, scope, current.actor, at)
+		creatingAccounts := len(state.catalogCreation.requests) != 0
+		var accountAllocation *transitionTargetAllocation
+		var nodes []transitionAllocation
+		if creatingAccounts {
+			accountAllocation, err = owner.targetAllocations(&current.transitionObservation, current.candidates, true, nil)
+			if err != nil {
+				return TransitionResult{}, err
+			}
+			nodes = accountAllocation.nodes
+		}
+		created, err := current.preparedCatalog.apply(work, scope, current.actor, at, nodes)
 		if err != nil {
 			return TransitionResult{}, err
 		}
-		if err := current.inserted.addRows(owner.next.state.credentials.state.binding.state.project, created.identities.rows); err != nil {
+		if err := current.inserted.include(owner.next.state.credentials.state.binding.state.project, created.identities); err != nil {
 			return TransitionResult{}, err
 		}
-		current.inserted.identities = append(current.inserted.identities, created.identities.identities...)
+		if accountAllocation != nil {
+			if err := current.inserted.include(owner.next.state.credentials.state.binding.state.project, accountAllocation.inserted); err != nil {
+				return TransitionResult{}, err
+			}
+		}
 		projectRows := func(rows []orm.CollectionInsertedRow) error {
 			var err error
 			created.before, err = projectTransitionCatalog(owner.oldMemberships, owner.old.state.credentials.state.binding.state.role, created.before, rows)
@@ -295,6 +318,11 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 		}
 		if err := projectRows(created.identities.rows); err != nil {
 			return TransitionResult{}, err
+		}
+		if accountAllocation != nil {
+			if err := projectRows(accountAllocation.inserted.rows); err != nil {
+				return TransitionResult{}, err
+			}
 		}
 		for _, batch := range created.insertions {
 			if err := current.inserted.add(owner.next.state.credentials.state.binding.state.project, batch); err != nil {
@@ -325,16 +353,21 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 		resolved.groups, resolved.direct = keys(created.mapping.Groups), keys(created.mapping.Permissions)
 		pending := current.catalog
 		current.catalog = resolved
-		// Catalog writes cannot manufacture source authority or adopt target
-		// account rows. All later writes still use the already authorized actor.
+		// Joint identity writes cannot manufacture source authority or adopt
+		// unobserved account rows. All writes use the admitted source actor.
 		if _, _, err := owner.inspectAuthority(work, scope, current.actor); err != nil {
 			return TransitionResult{}, err
 		}
-		creatingAccounts := len(state.catalogCreation.requests) != 0
 		if err := owner.verifyCatalogAccountBaseline(work, scope, current, creatingAccounts); err != nil {
 			return TransitionResult{}, err
 		}
-		mappings, err := owner.materializeTargets(work, scope, &current.transitionObservation, current.candidates, creatingAccounts, current.originalTargets)
+		var mappings []AccountMapping
+		if creatingAccounts {
+			mappings = accountAllocation.mappings
+			err = owner.materializeTargetLinks(work, scope, &current.transitionObservation, true, nil)
+		} else {
+			mappings, err = owner.materializeTargets(work, scope, &current.transitionObservation, current.candidates, false, current.originalTargets)
+		}
 		if err != nil {
 			return TransitionResult{}, err
 		}

@@ -156,14 +156,22 @@ func (owner *Transition[S, T]) verifyCatalogAccountBaseline(ctx context.Context,
 	if err != nil {
 		return err
 	}
-	if len(before) != len(current.pairs) || creating && len(after) != 0 || !creating && len(after) != len(current.originalTargets) {
+	if len(before) != len(current.pairs) || creating && len(after) != len(current.pairs) || !creating && len(after) != len(current.originalTargets) {
 		return managementError(CodeConflict, nil)
 	}
 	for i, pair := range current.pairs {
 		if !sameTransitionRow(before[pair.old.id], pair.old) {
 			return managementError(CodeConflict, nil)
 		}
-		if !creating {
+		if creating {
+			// These identities have been allocated, while requested memberships
+			// are still pending. Pin every scalar plus the independently projected
+			// complete physical link inventory below, not the intended logical set.
+			actual, present := after[pair.next.id]
+			if !present || !maps.Equal(actual.values, pair.next.values) {
+				return managementError(CodeConflict, nil)
+			}
+		} else {
 			expected := current.originalTargets[i]
 			// A shared Group's new grants can change target effective authority
 			// before its account revision is advanced. No account row or physical

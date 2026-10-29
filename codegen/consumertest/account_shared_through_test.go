@@ -147,6 +147,7 @@ func TestGeneratedAccountTransitionTargetReferences(t *testing.T) {
 
 func accountTransitionCatalogFieldCases(required bool) []string {
 	cases := []string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "staged_reference", "pending_account_reference", "unknown_commit", "unknown_rollback", "rollback", "cycle", "self_cycle", "unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap", "missing_reference", "denied_choice", "denied_static", "late_choice", "policy_rejected", "unique_conflict", "first_catalog_insert_failure", "late_reference", "late_host_reference", "source_changed", "permission_revoked", "missing_policy", "duplicate_policy", "wrong_policy_model"}
+	cases = append(cases, "joint_chain", "joint_signed_keys", "joint_complete_policy", "joint_policy_rejected", "joint_cycle", "joint_late_reference", "joint_unknown_commit", "joint_unknown_rollback", "joint_rollback", "joint_first_account_failure", "joint_mid_extra_account", "joint_mid_link")
 	if !required {
 		cases = append(cases, "reverse_namespaces", "shared_group", "shared_permission")
 	}

@@ -53,10 +53,11 @@ type CatalogCreationManifest struct {
 }
 
 type preparedCatalogCreation struct {
+	nodes    []transitionReferenceNode
 	manifest CatalogCreationManifest
 	digest   string
 	bytes    int
-	apply    func(context.Context, db.RelationSession, auth.Principal, time.Time) (createdCatalogState, error)
+	apply    func(context.Context, db.RelationSession, auth.Principal, time.Time, []transitionAllocation) (createdCatalogState, error)
 }
 
 type createdCatalogState struct {

@@ -166,7 +166,8 @@ type SourceAccount struct {
 // login/profile intent. Input must be unsaved; no target key is anticipated.
 // References names selected FK/OneToOne fields omitted from Input. Each source
 // correspondence is checked in the reviewed snapshot and bound to its actual
-// target key before the complete typed row and current choices are validated.
+// target key before the complete typed row is allocated. Current relation
+// policies run against the complete identity and membership graph before commit.
 // PrepareCreation copies each reference map; later caller edits do not change
 // the reviewed intent.
 type AccountCreation[M any] struct {
@@ -183,10 +184,10 @@ type transitionCreationCandidate[M any] struct {
 	prepared   orm.PreparedModel[M]
 	row        transitionRow[M]
 	references map[string]TransitionTargetReference
-	resolve    func(context.Context, db.Queryer, auth.Principal, transitionTargetMappings) (transitionCreationCandidate[M], error)
+	resolve    func(context.Context, db.Queryer, auth.Principal, transitionTargetMappings, bool) (transitionCreationCandidate[M], error)
 }
 
-func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, actor auth.Principal, target *transitionTarget[T], source transitionRow[S], memberships accountMemberships, sourceRole ir.AccountRole, input orm.ModelInput[T], references map[string]TransitionTargetReference, mappings transitionTargetMappings, createdAt time.Time, generation [32]byte) (transitionCreationCandidate[T], error) {
+func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, actor auth.Principal, target *transitionTarget[T], source transitionRow[S], memberships accountMemberships, sourceRole ir.AccountRole, input orm.ModelInput[T], references map[string]TransitionTargetReference, mappings transitionTargetMappings, createdAt time.Time, generation [32]byte, allocating bool) (transitionCreationCandidate[T], error) {
 	var zero transitionCreationCandidate[T]
 	metadata, valid := input.Model()
 	if !valid || !metadata.Equal(target.metadata) {
@@ -289,8 +290,8 @@ func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, ac
 			return zero, err
 		}
 		return transitionCreationCandidate[T]{references: maps.Clone(references), row: transitionRow[T]{revision: 1, values: initial, memberships: memberships, profile: profile},
-			resolve: func(ctx context.Context, reader db.Queryer, admitted auth.Principal, actual transitionTargetMappings) (transitionCreationCandidate[T], error) {
-				return prepareTransitionTarget(ctx, reader, admitted, target, source, memberships, sourceRole, original, references, actual, createdAt, generation)
+			resolve: func(ctx context.Context, reader db.Queryer, admitted auth.Principal, actual transitionTargetMappings, allocating bool) (transitionCreationCandidate[T], error) {
+				return prepareTransitionTarget(ctx, reader, admitted, target, source, memberships, sourceRole, original, references, actual, createdAt, generation, allocating)
 			}}, nil
 	}
 	prepared, err := objects.PrepareValues(nil, values)
@@ -308,11 +309,13 @@ func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, ac
 	if err := validateTransitionValues(ctx, scope, objects, row, values, true); err != nil {
 		return zero, err
 	}
-	if err := checkProfileRelations(ctx, scope, actor, ProfileRelationOrigin{operation: ProfileRelationTransition}, target.relations, values); err != nil {
-		return zero, err
-	}
-	if err := checkProfileCollections(ctx, scope, actor, ProfileRelationOrigin{operation: ProfileRelationTransition}, target.collections, profile); err != nil {
-		return zero, err
+	if !allocating {
+		if err := checkProfileRelations(ctx, scope, actor, ProfileRelationOrigin{operation: ProfileRelationTransition}, target.relations, values); err != nil {
+			return zero, err
+		}
+		if err := checkProfileCollections(ctx, scope, actor, ProfileRelationOrigin{operation: ProfileRelationTransition}, target.collections, profile); err != nil {
+			return zero, err
+		}
 	}
 	namespace, err := target.binding.CredentialDomain(generation)
 	if err != nil {

@@ -2092,7 +2092,7 @@ Source key 0/음수도 실제 존재를 검사한다. 참조 사본과 값 없�
 임시 0/NULL을 typed 행에 넣지 않는다. 원본의 전체 inventory·revision과 미지원 종류/잘못된 모델/중복 입력을 먼저 확인한다.
 
 준비는 보류 FK를 제외한 scalar·credential·선택을 검사한다. 실제 대응표가 생기면 모든 FK를 결합한 typed 행의 완전한
-validation·unique·현재 FK/M2M 선택을 검사한 뒤 저장한다. `TransitionConfig.Validate`에는 불완전한 typed 행을 전달하지
+scalar·credential·unique 검사를 거쳐 저장한다. 보류한 FK/M2M 선택 정책은 모든 identity와 소속을 채운 뒤 검사한다. `TransitionConfig.Validate`에는 불완전한 typed 행을 전달하지
 않으며 해당 후보의 정책은 실제 key 결합 후 같은 transaction에서 적용한다. 계정 참조는 원본 key의 의존 순서로 생성하고
 반환 대응표는 원본 순서를 유지한다. 공유 catalog의 의도된 revision 증가 뒤에도 입력 참조는 검토한 SourceRevision에 묶인다.
 Native 자동 key만으로 해결하지 못하는 계정 참조 cycle은 쓰기 전에 명시적 `unsupported`다. Nullable cycle의 단계적 쓰기나
@@ -2117,10 +2117,15 @@ host source에 묶는다. 생성 `NewAccountTransitionCatalogTarget`도 이 구�
 중복, 잘못된 실제 target 모델·원본·revision은 거부한다. 생성 catalog의 보류 FK는 준비 값에서 absent이며 참조 사본을
 digest에 포함한다. 완전한 typed 행·unique·선택·custom 정책은 실제 key 결합 뒤 검사한다. Group/Permission의
 모든 행을 namespace와 source key로 나눈 의존 순서로 INSERT하고, 반환/저장 대응표는 원본 순서를 유지한다.
-부분 공유 catalog의 실제 key와 준비된 계정의 검토한 대응표도 사용할 수 있다. 아직 생성하지 않은 계정 key를 catalog가
-참조하는 결합 그래프와 자동 key cycle은 별도 할당 수명이 필요하므로 쓰기 전 명시적 `unsupported`다.
+부분 공유 catalog의 실제 key와 준비된 계정의 검토한 대응표도 사용할 수 있다. 신규 계정도 catalog와 같은 namespace별
+의존 그래프에서 할당한다. 예를 들어 계정 B→Group→Permission→계정 A 순서의 실제 key를 받아 FK를 채울 수 있다.
+모든 source revision·의존 경로와 scope를 확인하며, 할당 실패·중복 key·scope 만료에는 부분 대응표를 게시하지 않는다.
+자동 key cycle은 별도 할당 수명이 필요하므로 쓰기 전 명시적 `unsupported`다.
 
-Commit은 같은 native relation transaction에서 catalog 의존 그래프→그룹 권한→계정/소속→host 참조를 저장한다.
+Commit은 같은 native relation transaction에서 계정/catalog 공동 의존 그래프→그룹 권한→계정 소속/프로필→host 참조를
+저장한다. 보류 참조를 해결하는 동안에는 scalar·native FK·unique 무결성을 유지하고, 관련 행과 소속이 모두 채워진 뒤
+현재 선택·custom 정책을 실행한다. 초기 관측의 완전한 후보 정책과 마지막 receipt 이후의 재검사는 유지한다. 정책 거부는
+전체 INSERT·소속·revision·audit·session/domain 변경을 rollback한다. 정책이 불완전한 중간 소속을 최종 상태로 보지 않게 한다.
 Permission 코드는 source에서 그대로 복사하고 새 행 revision은 1이다. 부분 공유 Permission은 변경하지 않는다.
 부분 공유 Group은 scalar/key를 보존하며 새 권한 관계가 채워지는 행만 source/target의 revision 필드를 한 번 올리고
 Change 감사를 남긴다. 준비된 target 계정도 소속/유효 권한이 바뀌는 행만 revision과 Change 감사를 추가한다.
@@ -2141,7 +2146,7 @@ contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확�
 계정 생성·퇴역·receipt·마지막 정책 이후까지 물리 링크와 전체 행을 대조하고, 늦은 endpoint/payload 변경은 rollback한다.
 최종 incoming 검사는 직전에 전체 행/컬럼을 재검증한 account/Group/Permission과 명시한 host 참조/역할 링크의 소유권을
 구분한다. 그 밖의 host FK가 새 catalog를 가리키면 거부하며, 전체 inventory 대조로 소유 행의 늦은 추가/변경도 거부한다.
-Collection setter 안의 추가 선택 identity 생성, catalog와 신규 계정의 결합 할당 및 순환 참조 수명은 남은 통합 대상이다.
+Collection setter 안의 추가 선택 identity 생성과 순환 참조 수명은 남은 통합 대상이다.
 직접 INSERT와 공유 물리 through의 코드 존재를 I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
 
 ### 일반 host 참조의 단계적 전환

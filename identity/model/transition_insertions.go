@@ -37,6 +37,15 @@ func (state *transitionInsertions) add(source orm.ProjectBinding, applied orm.Ap
 	return nil
 }
 
+func (state *transitionInsertions) include(source orm.ProjectBinding, other transitionInsertions) error {
+	if err := state.addRows(source, other.rows); err != nil {
+		return err
+	}
+	state.identities = append(state.identities, other.identities...)
+	state.batches = append(state.batches, other.batches...)
+	return nil
+}
+
 // Direct account/catalog INSERTs are typed identity writes, not collection
 // inserts. Their actual keys and complete payloads still own physical through
 // projections, and remain bound to this same native scope until final readback.
