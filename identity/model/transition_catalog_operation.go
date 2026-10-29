@@ -28,7 +28,6 @@ type catalogTransitionObservation[S, T any] struct {
 	preparedCatalog preparedCatalogCreation
 	candidates      []transitionCreationCandidate[T]
 	originalTargets []transitionRow[T]
-	roleLinks       []transitionRoleLinkInventory
 }
 
 func (owner *Transition[S, T]) prepareWithCatalogCreation(ctx context.Context, actor auth.Principal, operation string, mappings []AccountMapping, requests []AccountCreation[T]) (PreparedTransition[S, T], error) {
@@ -145,7 +144,7 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 	}
 	result := catalogTransitionObservation[S, T]{transitionObservation: transitionObservation[S, T]{ownership: ownership, actor: current, catalog: catalog}, preparedCatalog: preparedCatalog}
 	digest := &transitionDigestWriter{hash: sha256.New()}
-	digest.part([]byte("godj.account-catalog-created-transition-state.v1"))
+	digest.part([]byte("godj.account-catalog-created-transition-state.v2"))
 	digest.part([]byte(operation))
 	digest.part([]byte(current.ID()))
 	if err := appendTransitionCatalogDigest(digest, catalog); err != nil {
@@ -154,7 +153,7 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 	if err := appendTransitionCatalogDigest(digest, transitionCatalogObservation{digest: preparedCatalog.digest, bytes: preparedCatalog.bytes}); err != nil {
 		return zero, err
 	}
-	result.roleLinks, err = owner.observeCatalogAccountLinks(ctx, scope, digest, after, catalog.after)
+	result.roleLinks, err = owner.observeTransitionAccountLinks(ctx, scope, digest, before, after, catalog)
 	if err != nil {
 		return zero, err
 	}
@@ -261,6 +260,24 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 		if err != nil {
 			return TransitionResult{}, err
 		}
+		for _, batch := range created.insertions {
+			if err := current.inserted.add(owner.next.state.credentials.state.binding.state.project, batch); err != nil {
+				return TransitionResult{}, err
+			}
+			rows := batch.Insertions()
+			created.before, err = projectTransitionCatalog(owner.oldMemberships, owner.old.state.credentials.state.binding.state.role, created.before, rows)
+			if err != nil {
+				return TransitionResult{}, err
+			}
+			created.after, err = projectTransitionCatalog(owner.nextMemberships, owner.next.state.credentials.state.binding.state.role, created.after, rows)
+			if err != nil {
+				return TransitionResult{}, err
+			}
+			current.roleLinks, err = projectTransitionAccountLinks(current.roleLinks, rows)
+			if err != nil {
+				return TransitionResult{}, err
+			}
+		}
 		resolved, err := owner.observeCatalogRows(work, scope, state.manifest.OperationID)
 		if err != nil {
 			return TransitionResult{}, err
@@ -299,9 +316,6 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 			return TransitionResult{}, managementError(CodeConflict, nil)
 		}
 		if err := owner.verifyRows(work, scope, current.transitionObservation, mappings); err != nil {
-			return TransitionResult{}, err
-		}
-		if err := owner.verifyCatalogAccountLinks(work, scope, current, false); err != nil {
 			return TransitionResult{}, err
 		}
 		for i, pair := range current.pairs {
@@ -348,10 +362,7 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 			}
 			return created.verifyPolicy(ctx, scope)
 		}, func(ctx context.Context, scope db.Queryer) error {
-			if err := owner.verifyCatalogCreationIncoming(ctx, scope, current.references); err != nil {
-				return err
-			}
-			return owner.verifyCatalogAccountLinks(ctx, scope, current, false)
+			return owner.verifyCatalogCreationIncoming(ctx, scope, current.references)
 		})
 		if err != nil {
 			return TransitionResult{}, err

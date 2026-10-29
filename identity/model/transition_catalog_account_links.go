@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 type transitionRoleLinkInventory struct {
@@ -19,7 +20,9 @@ type transitionRoleLinkInventory struct {
 }
 
 func readTransitionRoleLinks(ctx context.Context, scope db.Queryer, membership deletionMembership, digest *transitionDigestWriter) ([]deletionLink, error) {
-	digest.part([]byte(membership.field))
+	if err := writeTransitionRoleLinkHeader(digest, membership); err != nil {
+		return nil, err
+	}
 	var result []deletionLink
 	var last int64
 	started := false
@@ -36,16 +39,8 @@ func readTransitionRoleLinks(ctx context.Context, scope db.Queryer, membership d
 			if started && row.key <= last {
 				return nil, managementError(CodePersistence, nil)
 			}
-			data, err := json.Marshal(struct {
-				Key, Source, Target      int64
-				SourceValid, TargetValid bool
-			}{row.key, row.source, row.target, row.sourceValid, row.targetValid})
-			if err != nil {
+			if err := writeTransitionRoleLink(digest, row); err != nil {
 				return nil, err
-			}
-			digest.part(data)
-			if digest.err != nil {
-				return nil, digest.err
 			}
 			result = append(result, row)
 			last, started = row.key, true
@@ -57,90 +52,99 @@ func readTransitionRoleLinks(ctx context.Context, scope db.Queryer, membership d
 	}
 }
 
-func (owner *Transition[S, T]) observeCatalogAccountLinks(ctx context.Context, scope db.Queryer, digest *transitionDigestWriter, accounts map[int64]transitionRow[T], catalog transitionCatalogInventory) ([]transitionRoleLinkInventory, error) {
-	role := owner.next.state.credentials.state.binding.state.role
-	var result []transitionRoleLinkInventory
-	for _, membership := range owner.nextMemberships {
-		if membership.owner != role.Model || membership.field != role.Groups && membership.field != role.Permissions {
-			continue
-		}
-		rows, err := readTransitionRoleLinks(ctx, scope, membership, digest)
-		if err != nil {
-			return nil, err
-		}
-		targets := catalog.groups
-		if membership.field == role.Permissions {
-			targets = catalog.permissions
-		}
-		for _, row := range rows {
-			_, accountPresent := accounts[row.source]
-			_, targetPresent := targets[row.target]
-			if row.sourceValid && !accountPresent || row.targetValid && !targetPresent {
-				return nil, managementError(CodeConflict, nil)
-			}
-		}
-		result = append(result, transitionRoleLinkInventory{membership: membership, rows: rows})
+func writeTransitionRoleLinkHeader(digest *transitionDigestWriter, membership deletionMembership) error {
+	for _, value := range []string{membership.owner.AppLabel, membership.owner.ModelName, membership.field, membership.through.AppLabel, membership.through.ModelName, membership.key.Name(), membership.source.Name(), membership.target.Name()} {
+		digest.part([]byte(value))
 	}
-	if len(result) != 2 {
-		return nil, managementError(CodeInvalidConfig, nil)
+	return digest.err
+}
+
+func writeTransitionRoleLink(digest *transitionDigestWriter, row deletionLink) error {
+	data, err := json.Marshal(struct {
+		Key, Source, Target      int64
+		SourceValid, TargetValid bool
+	}{row.key, row.source, row.target, row.sourceValid, row.targetValid})
+	if err != nil {
+		return err
+	}
+	digest.part(data)
+	return digest.err
+}
+
+func writeTransitionRoleLinkInventory(digest *transitionDigestWriter, inventory transitionRoleLinkInventory) error {
+	if err := writeTransitionRoleLinkHeader(digest, inventory.membership); err != nil {
+		return err
+	}
+	for _, row := range inventory.rows {
+		if err := writeTransitionRoleLink(digest, row); err != nil {
+			return err
+		}
+	}
+	digest.part([]byte(strconv.Itoa(len(inventory.rows))))
+	return digest.err
+}
+
+// Account role and profile views from both namespaces pin the same physical
+// storage independently, including rows whose endpoint in one view is NULL.
+func (owner *Transition[S, T]) observeTransitionAccountLinks(ctx context.Context, scope db.Queryer, digest *transitionDigestWriter, before map[int64]transitionRow[S], after map[int64]transitionRow[T], catalog transitionCatalogObservation) ([]transitionRoleLinkInventory, error) {
+	var result []transitionRoleLinkInventory
+	collect := func(role ir.AccountRole, memberships []deletionMembership, exists func(int64) bool, inventory transitionCatalogInventory) error {
+		critical := 0
+		for _, membership := range memberships {
+			if membership.owner != role.Model {
+				continue
+			}
+			rows, err := readTransitionRoleLinks(ctx, scope, membership, digest)
+			if err != nil {
+				return err
+			}
+			var targets map[int64]transitionCatalogRow
+			if membership.field == role.Groups {
+				targets = inventory.groups
+				critical++
+			}
+			if membership.field == role.Permissions {
+				targets = inventory.permissions
+				critical++
+			}
+			for _, row := range rows {
+				if row.sourceValid && !exists(row.source) {
+					return managementError(CodeConflict, nil)
+				}
+				if !membership.profile && row.targetValid {
+					if _, present := targets[row.target]; !present {
+						return managementError(CodeConflict, nil)
+					}
+				}
+			}
+			result = append(result, transitionRoleLinkInventory{membership: membership, rows: rows})
+		}
+		if critical != 2 {
+			return managementError(CodeInvalidConfig, nil)
+		}
+		return nil
+	}
+	if err := collect(owner.old.state.credentials.state.binding.state.role, owner.oldMemberships, func(id int64) bool { _, ok := before[id]; return ok }, catalog.before); err != nil {
+		return nil, err
+	}
+	if err := collect(owner.next.state.credentials.state.binding.state.role, owner.nextMemberships, func(id int64) bool { _, ok := after[id]; return ok }, catalog.after); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
-func (owner *Transition[S, T]) verifyCatalogAccountLinks(ctx context.Context, scope db.Queryer, current catalogTransitionObservation[S, T], unchanged bool) error {
-	role := owner.next.state.credentials.state.binding.state.role
+func verifyTransitionAccountLinks(ctx context.Context, scope db.Queryer, inventories []transitionRoleLinkInventory) error {
 	digest := &transitionDigestWriter{hash: sha256.New()}
-	for _, inventory := range current.roleLinks {
-		actual, err := readTransitionRoleLinks(ctx, scope, inventory.membership, digest)
+	for _, inventory := range inventories {
+		rows, err := readTransitionRoleLinks(ctx, scope, inventory.membership, digest)
 		if err != nil {
 			return err
 		}
-		if unchanged {
-			if !slices.Equal(actual, inventory.rows) {
-				return managementError(CodeConflict, nil)
-			}
-			continue
-		}
-		retained := make(map[int64]deletionLink, len(inventory.rows))
-		existing := make(map[transitionCatalogPair]bool)
-		for _, row := range inventory.rows {
-			retained[row.key] = row
-			if row.sourceValid && row.targetValid {
-				existing[transitionCatalogPair{row.source, row.target}] = true
-			}
-		}
-		added := make(map[transitionCatalogPair]bool)
-		for _, account := range current.pairs {
-			keys := account.next.memberships.groups
-			if inventory.membership.field == role.Permissions {
-				keys = account.next.memberships.direct
-			}
-			for _, key := range keys {
-				pair := transitionCatalogPair{account.next.id, key}
-				if !existing[pair] {
-					added[pair] = true
-				}
-			}
-		}
-		for _, row := range actual {
-			if before, present := retained[row.key]; present {
-				if before != row {
-					return managementError(CodeConflict, nil)
-				}
-				delete(retained, row.key)
-				continue
-			}
-			pair := transitionCatalogPair{row.source, row.target}
-			if !row.sourceValid || !row.targetValid || !added[pair] {
-				return managementError(CodeConflict, nil)
-			}
-			delete(added, pair)
-		}
-		if len(retained) != 0 || len(added) != 0 {
+		if !slices.Equal(rows, inventory.rows) {
 			return managementError(CodeConflict, nil)
 		}
 	}
-	return checkTransitionReadbackBudget(current.transitionObservation, digest.size)
+	return nil
 }
 
 func (owner *Transition[S, T]) verifyCatalogAccountBaseline(ctx context.Context, scope db.Queryer, current catalogTransitionObservation[S, T], creating bool) error {
@@ -173,7 +177,10 @@ func (owner *Transition[S, T]) verifyCatalogAccountBaseline(ctx context.Context,
 			}
 		}
 	}
-	return owner.verifyCatalogAccountLinks(ctx, scope, current, true)
+	if err := verifyTransitionAccountLinks(ctx, scope, current.roleLinks); err != nil {
+		return err
+	}
+	return current.inserted.verify(ctx)
 }
 
 func catalogMembershipGrants(catalog transitionCatalogInventory, membership accountMemberships) ([]auth.Permission, error) {

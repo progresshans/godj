@@ -26,6 +26,7 @@ ISOLATED_ACCOUNT_ROOTS = (
     'TestGeneratedAccountTransition',
     'TestGeneratedAccountCatalogTransition',
     'TestGeneratedAccountCatalogCreation',
+    'TestGeneratedAccountSharedThroughTransition',
 )
 PLATFORMS = (
     ('ubuntu-24.04', 'linux', 'amd64'),

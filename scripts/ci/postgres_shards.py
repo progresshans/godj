@@ -41,6 +41,7 @@ TRANSITION_CONSUMER_OWNERS = {
     'TestGeneratedAccountTransition': 'core-account-transition',
     'TestGeneratedAccountCatalogTransition': 'core-account-catalog',
     'TestGeneratedAccountCatalogCreation': 'core-account-catalog-creation',
+    'TestGeneratedAccountSharedThroughTransition': 'core-account-shared-through',
 }
 PROFILE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountProfileRelations',

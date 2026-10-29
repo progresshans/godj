@@ -161,10 +161,14 @@ func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Que
 	}
 	result := transitionCreationObservation[S, T]{transitionObservation: transitionObservation[S, T]{ownership: ownership, actor: current, catalog: observedCatalog}}
 	digest := &transitionDigestWriter{hash: sha256.New()}
-	digest.part([]byte("godj.account-created-transition-state.v1"))
+	digest.part([]byte("godj.account-created-transition-state.v2"))
 	digest.part([]byte(operation))
 	digest.part([]byte(current.ID()))
 	if err := appendTransitionCatalogDigest(digest, observedCatalog); err != nil {
+		return zero, err
+	}
+	result.roleLinks, err = owner.observeTransitionAccountLinks(ctx, scope, digest, before, nil, observedCatalog)
+	if err != nil {
 		return zero, err
 	}
 	for _, request := range requests {
@@ -254,6 +258,10 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 			if _, err := accountaudit.AppendIn(work, scope, event); err != nil {
 				return TransitionResult{}, err
 			}
+		}
+		observed.roleLinks, observed.inserted = current.roleLinks, current.inserted
+		if err := owner.verifyRows(work, scope, observed, mappings); err != nil {
+			return TransitionResult{}, err
 		}
 		// The common owner retires sources, revokes their entire session namespace
 		// and records the actual keys. Its final readback includes every target.

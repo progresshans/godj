@@ -2,7 +2,6 @@ package model
 
 import (
 	"maps"
-	"slices"
 	"strings"
 	"testing"
 
@@ -109,7 +108,8 @@ func TestCatalogCreationReadbackRejectsPhysicalChangesWithEqualLogicalGrants(t *
 		permissions: map[int64]transitionCatalogRow{0: {revision: 1, code: "app.read", values: map[string]query.Value{"symbol": query.String("app.read")}}},
 		links:       []deletionLink{{key: -2}}, // An existing nullable physical row remains untouched.
 	}
-	expected := createdCatalogState{before: cloneTransitionCatalogInventory(old), after: cloneTransitionCatalogInventory(next), newLinks: map[transitionCatalogPair]bool{{-7, 0}: true}}
+	expected := createdCatalogState{before: cloneTransitionCatalogInventory(old), after: cloneTransitionCatalogInventory(next)}
+	expected.after.links = append(expected.after.links, deletionLink{key: 0, source: -7, target: 0, sourceValid: true, targetValid: true})
 	actual := transitionCatalogObservation{before: cloneTransitionCatalogInventory(old), after: cloneTransitionCatalogInventory(next)}
 	actual.after.links = append(actual.after.links, deletionLink{key: 0, source: -7, target: 0, sourceValid: true, targetValid: true})
 	if err := expected.verify(actual); err != nil {
@@ -126,6 +126,7 @@ func TestCatalogCreationReadbackRejectsPhysicalChangesWithEqualLogicalGrants(t *
 		},
 		func(v *transitionCatalogObservation) { v.after.links = v.after.links[1:] },
 		func(v *transitionCatalogObservation) { v.after.links[1].target = 88 },
+		func(v *transitionCatalogObservation) { v.after.links[1].key = 73 },
 		func(v *transitionCatalogObservation) { v.after.links = v.after.links[:1] },
 	} {
 		copy := transitionCatalogObservation{before: cloneTransitionCatalogInventory(actual.before), after: cloneTransitionCatalogInventory(actual.after)}
@@ -134,7 +135,7 @@ func TestCatalogCreationReadbackRejectsPhysicalChangesWithEqualLogicalGrants(t *
 			t.Fatal("different complete physical/catalog state was accepted")
 		}
 	}
-	if !maps.Equal(old.groups[0].values, actual.before.groups[0].values) || !slices.Equal(next.links, expected.after.links) {
+	if !maps.Equal(old.groups[0].values, actual.before.groups[0].values) || len(next.links) != 1 || next.links[0] != (deletionLink{key: -2}) {
 		t.Fatal("readback or negative controls mutated retained input")
 	}
 }
@@ -151,6 +152,11 @@ func TestCatalogCreationFinalBudgetIncludesAccountsCatalogLinksAndReferences(t *
 	if err := checkTransitionReadbackBudget(state, MaximumTransitionStateBytes/4); err == nil {
 		t.Fatal("individually bounded final components bypassed aggregate state limit")
 	}
+	state.inserted.bytes = MaximumTransitionStateBytes / 4
+	if err := checkTransitionReadbackBudget(state, 0); err == nil {
+		t.Fatal("full inserted through values omitted from aggregate final budget")
+	}
+	state.inserted.bytes = 0
 	state.catalog.bytes = 0
 	state.references[0].bytes = MaximumTransitionStateBytes - 16
 	if err := checkTransitionReadbackBudget(state, 0); err == nil {

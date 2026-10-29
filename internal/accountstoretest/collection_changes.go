@@ -28,7 +28,7 @@ func runCollectionChanges(t *testing.T, open Open, storedKey StoredKeyFixture) {
 			"query_failure", "close_failure", "callback_failure", "callback_cancel",
 			"late_delete_failure", "late_insert_failure", "missing_insert", "postcondition_failure",
 			"wrong_null_count", "outer_failure", "expired_preparation",
-			"actual_signed_keys", "returned_key_missing", "late_row_rewrite", "readback_close", "readback_scan", "noop_returned_key", "conflict_skipped",
+			"actual_signed_keys", "returned_key_missing", "late_row_rewrite", "late_receipt_rewrite", "readback_close", "readback_scan", "noop_returned_key", "conflict_skipped",
 		} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -363,6 +363,18 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 				t.Fatal("applied rows exposed values")
 			}
 		}
+		if mode == "late_receipt_rewrite" {
+			count, err := observed.Update(ctx, query.NewUpdatePlan("links_membership", []query.Assignment{query.NewAssignment(query.NewFieldRef("anchor", "anchor_id", query.FieldInteger, true), query.Integer(tree.owner.ID))}, query.NewFieldRef("id", "id", query.FieldInteger, false), query.Integer(observed.firstKey)))
+			if err != nil {
+				return err
+			}
+			if count != 1 {
+				t.Fatal("late receipt rewrite did not reach stored row")
+			}
+		}
+		if err := applied.Verify(ctx); err != nil {
+			return err
+		}
 		if mode == "commit" || mode == "actual_signed_keys" {
 			again, err := orm.PrepareCollectionChangesInSession(ctx, observed, member, group, direct)
 			if err != nil {
@@ -410,7 +422,7 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 			if !errors.Is(err, context.Canceled) {
 				t.Fatal("cancellation lost", err)
 			}
-		} else if !slices.Contains([]string{"missing_insert", "wrong_null_count", "returned_key_missing", "late_row_rewrite", "noop_returned_key", "conflict_skipped"}, mode) && !errors.Is(err, fault) {
+		} else if !slices.Contains([]string{"missing_insert", "wrong_null_count", "returned_key_missing", "late_row_rewrite", "late_receipt_rewrite", "noop_returned_key", "conflict_skipped"}, mode) && !errors.Is(err, fault) {
 			t.Fatal("failure cause lost", mode, err)
 		}
 		if mode == "query_failure" || mode == "close_failure" || mode == "protected" {
@@ -433,6 +445,9 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 	}
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := applied.Verify(t.Context()); err == nil {
+		t.Fatal("committed result verification reopened an expired scope")
 	}
 	after := deletionSnapshot(t, reopen(t))
 	if !reflect.DeepEqual(before["domain"], after["domain"]) || !reflect.DeepEqual(before["session"], after["session"]) || !reflect.DeepEqual(before["audit"], after["audit"]) {

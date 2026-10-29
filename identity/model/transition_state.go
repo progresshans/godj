@@ -47,6 +47,8 @@ type transitionObservation[S, T any] struct {
 	rejection  error
 	references []transitionReferenceObservation
 	catalog    transitionCatalogObservation
+	roleLinks  []transitionRoleLinkInventory
+	inserted   transitionInsertions
 }
 
 func expectedTransitionRefusal(err error) bool {
@@ -409,6 +411,12 @@ func (owner *Transition[S, T]) verifyRows(ctx context.Context, scope db.Queryer,
 			return managementError(CodePersistence, nil)
 		}
 	}
+	if err := verifyTransitionAccountLinks(ctx, scope, expected.roleLinks); err != nil {
+		return err
+	}
+	if err := expected.inserted.verify(ctx); err != nil {
+		return err
+	}
 	if err := checkTransitionReadbackBudget(expected, 0); err != nil {
 		return err
 	}
@@ -424,6 +432,15 @@ func checkTransitionReadbackBudget[S, T any](expected transitionObservation[S, T
 	budget := &transitionDigestWriter{hash: sha256.New(), size: extraBytes}
 	if err := appendTransitionCatalogDigest(budget, expected.catalog); err != nil {
 		return err
+	}
+	if expected.inserted.bytes < 0 || expected.inserted.bytes > MaximumTransitionStateBytes-budget.size {
+		return managementError(CodeInvalidInput, nil)
+	}
+	budget.size += expected.inserted.bytes
+	for _, inventory := range expected.roleLinks {
+		if err := writeTransitionRoleLinkInventory(budget, inventory); err != nil {
+			return err
+		}
 	}
 	for _, pair := range expected.pairs {
 		if err := writeTransitionRow(budget, pair.old); err != nil {

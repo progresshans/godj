@@ -5723,3 +5723,7 @@ github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/coll
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/collection_changes/readback_scan
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/collection_changes/noop_returned_key
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/collection_changes/conflict_skipped
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountSharedThroughTransition
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountSharedThroughTransition/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountSharedThroughTransition/postgres
+github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/collection_changes/late_receipt_rewrite

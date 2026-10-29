@@ -61,11 +61,9 @@ type preparedCatalogCreation struct {
 type createdCatalogState struct {
 	mapping       *CatalogMappings
 	before, after transitionCatalogInventory
-	newLinks      map[transitionCatalogPair]bool
+	insertions    []orm.AppliedCollectionChanges
 	verifyPolicy  func(context.Context, db.Queryer) error
 }
-
-type transitionCatalogPair struct{ group, permission int64 }
 
 // Creation copies the input lists. A shared model accepts no creation input;
 // its complete self correspondence is derived from the reviewed native rows.

@@ -407,19 +407,11 @@ func (prepared PreparedCollectionChanges) Apply(ctx context.Context, before func
 	// Read every actual key after the whole write set: a later insertion/trigger
 	// may have changed an earlier row. Logical membership alone cannot prove its
 	// nullable endpoints, typed payload or returned identity remained intact.
-	for index, expected := range inserted {
-		actual, err := readers[index](ctx, state.session, expected.Key)
-		if err != nil {
-			return zero, err
-		}
-		if !maps.EqualFunc(expected.Values, actual, query.Value.Equal) {
-			return zero, relationBackendInvalidPlan("inserted collection row differs from its typed candidate")
-		}
-	}
-	if err := validateQuerySession(ctx, state.session); err != nil {
+	applied := AppliedCollectionChanges{state: &appliedCollectionChanges{source: state.source, inserted: inserted, session: state.session, readers: readers}}
+	if err := applied.Verify(ctx); err != nil {
 		return zero, err
 	}
-	return AppliedCollectionChanges{state: &appliedCollectionChanges{source: state.source, inserted: inserted}}, nil
+	return applied, nil
 }
 
 func (current preparedCollectionChange) check(ctx context.Context, session db.RelationSession) error {

@@ -179,6 +179,18 @@ func TestPreparedCollectionChangesAreBoundOneAttemptAndPreserveCallbackFailure(t
 					t.Fatal("invalid scope invoked callback")
 				}
 			}
+			if mode == "success" {
+				if err := applied.Verify(t.Context()); err != nil {
+					t.Fatal("same-scope no-op result could not be verified", err)
+				}
+				scope.expired = expired
+				if err := applied.Verify(t.Context()); !errors.Is(err, expired) {
+					t.Fatal("applied verification escaped expired session", err)
+				}
+				scope.expired = nil
+			} else if err := applied.Verify(t.Context()); err == nil {
+				t.Fatal("zero failed result became verifiable")
+			}
 			before := scope.queries
 			if _, err := owned.Apply(t.Context(), nil); err == nil || scope.queries != before || scope.writes != 0 {
 				t.Fatal("copy replayed an attempted batch", err)

@@ -20,7 +20,8 @@
    이력 upgrade·복구/restart, 일반 host의 계정/그룹/권한 FK·OneToOne·업무 through 재매핑과 실제 schema expansion/contraction을 원격 검증한다.
    필요한 non-PK RemoveField 기반과 준비된 권한 catalog의 전체 대응표·권한/소속 보존·이력 대조도 함께 확인한다.
    Typed catalog target 생성·실제 key로 연결하는 계정/host 참조·부분 공유 revision과 manifest v7의 원격 검증을 포함한다.
-4. 실제 INSERT key·전체 typed 행을 소유하는 공통 collection 결과를 원격 검증하고, 이 결과를 여러 역할의 공유 물리 through projection에 연결한다.
+4. 실제 INSERT key·전체 typed 행을 소유하는 공통 collection 결과와 이를 연결한 공유 물리 through 전환을 원격 검증한다.
+   일반/UNIQUE·부분 공유·계정/프로필 생성과 최종 정책 뒤 전체 삽입 행 대조, nullable 행 변조의 rollback을 포함한다.
    선택 identity의 자동 through 생성·전환 수명과 역사 systemstate 이행, 남은 고정 Directory/Manager 소비자를 완성한다.
 
 ## 검증 경계

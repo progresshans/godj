@@ -90,7 +90,19 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 	if len(batch.Effects().Deletions().Rows()) != 0 {
 		return nil, managementError(CodeConflict, nil)
 	}
-	if _, err := batch.Apply(ctx, nil); err != nil {
+	applied, err := batch.Apply(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	if err := current.inserted.add(binding.state.project, applied); err != nil {
+		return nil, err
+	}
+	rows := applied.Insertions()
+	current.roleLinks, err = projectTransitionAccountLinks(current.roleLinks, rows)
+	if err != nil {
+		return nil, err
+	}
+	if err := owner.observeInsertedCatalog(ctx, scope, current, rows); err != nil {
 		return nil, err
 	}
 	return mappings, nil

@@ -1,10 +1,12 @@
 package orm
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"slices"
 
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 )
@@ -37,6 +39,8 @@ type AppliedCollectionChanges struct{ state *appliedCollectionChanges }
 type appliedCollectionChanges struct {
 	source   *projectBindingSnapshot
 	inserted []CollectionInsertedRow
+	session  db.RelationSession
+	readers  []func(context.Context, db.RelationSession, int64) (map[string]query.Value, error)
 }
 
 func (AppliedCollectionChanges) Format(state fmt.State, _ rune) {
@@ -59,4 +63,28 @@ func (applied AppliedCollectionChanges) Insertions() []CollectionInsertedRow {
 		result[index].Values = maps.Clone(result[index].Values)
 	}
 	return result
+}
+
+// Verify rereads the complete inserted rows in the original borrowed session.
+// An enclosing owner can call it after companion writes and policies, before
+// commit. A zero result or expired session is rejected; this cannot reopen a
+// transaction or establish whether an uncertain outer commit succeeded.
+func (applied AppliedCollectionChanges) Verify(ctx context.Context) error {
+	if applied.state == nil || len(applied.state.inserted) != len(applied.state.readers) {
+		return relationInvalidPlan("applied collection changes are absent or invalid")
+	}
+	state := applied.state
+	if err := validateQuerySession(ctx, state.session); err != nil {
+		return err
+	}
+	for index, expected := range state.inserted {
+		actual, err := state.readers[index](ctx, state.session, expected.Key)
+		if err != nil {
+			return err
+		}
+		if !maps.EqualFunc(expected.Values, actual, query.Value.Equal) {
+			return relationBackendInvalidPlan("inserted collection row differs from its typed candidate")
+		}
+	}
+	return validateQuerySession(ctx, state.session)
 }

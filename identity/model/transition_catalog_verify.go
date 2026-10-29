@@ -10,37 +10,17 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-func (created createdCatalogState) verify(actual transitionCatalogObservation) error {
+func sameTransitionCatalogInventory(expected, actual transitionCatalogInventory) bool {
 	rowsEqual := func(a, b map[int64]transitionCatalogRow) bool {
 		return maps.EqualFunc(a, b, func(a, b transitionCatalogRow) bool {
-			return a.revision == b.revision && a.code == b.code && maps.Equal(a.values, b.values) && slices.Equal(a.permissions, b.permissions)
+			return a.revision == b.revision && a.code == b.code && maps.EqualFunc(a.values, b.values, query.Value.Equal) && slices.Equal(a.permissions, b.permissions)
 		})
 	}
-	if !rowsEqual(created.before.groups, actual.before.groups) || !rowsEqual(created.before.permissions, actual.before.permissions) ||
-		!rowsEqual(created.after.groups, actual.after.groups) || !rowsEqual(created.after.permissions, actual.after.permissions) ||
-		!slices.Equal(created.before.links, actual.before.links) {
-		return managementError(CodeConflict, nil)
-	}
-	retained := make(map[int64]deletionLink, len(created.after.links))
-	for _, row := range created.after.links {
-		retained[row.key] = row
-	}
-	added := maps.Clone(created.newLinks)
-	for _, row := range actual.after.links {
-		if before, present := retained[row.key]; present {
-			if before != row {
-				return managementError(CodeConflict, nil)
-			}
-			delete(retained, row.key)
-			continue
-		}
-		pair := transitionCatalogPair{row.source, row.target}
-		if !row.sourceValid || !row.targetValid || !added[pair] {
-			return managementError(CodeConflict, nil)
-		}
-		delete(added, pair)
-	}
-	if len(retained) != 0 || len(added) != 0 {
+	return rowsEqual(expected.groups, actual.groups) && rowsEqual(expected.permissions, actual.permissions) && slices.Equal(expected.links, actual.links)
+}
+
+func (created createdCatalogState) verify(actual transitionCatalogObservation) error {
+	if !sameTransitionCatalogInventory(created.before, actual.before) || !sameTransitionCatalogInventory(created.after, actual.after) {
 		return managementError(CodeConflict, nil)
 	}
 	return nil

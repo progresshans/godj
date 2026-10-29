@@ -219,7 +219,7 @@ func validateCatalogCreationCandidate[M any](ctx context.Context, scope db.Query
 func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSession, actor auth.Principal, at time.Time, target *transitionCatalogTarget[G, P], permissions []catalogCreationCandidate[P], groups []catalogCreationCandidate[G], observed transitionCatalogObservation) (createdCatalogState, error) {
 	var zero createdCatalogState
 	result := createdCatalogState{mapping: &CatalogMappings{Groups: []AccountMapping{}, Permissions: []AccountMapping{}},
-		before: cloneTransitionCatalogInventory(observed.before), after: cloneTransitionCatalogInventory(observed.after), newLinks: make(map[transitionCatalogPair]bool)}
+		before: cloneTransitionCatalogInventory(observed.before), after: cloneTransitionCatalogInventory(observed.after)}
 	permissionKeys := make(map[int64]int64, len(permissions))
 	finalPermissions, finalGroups := slices.Clone(permissions), slices.Clone(groups)
 	for i := range finalPermissions {
@@ -256,9 +256,6 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 			return zero, err
 		}
 		changes = append(changes, change)
-		for _, permission := range keys {
-			result.newLinks[transitionCatalogPair{id, permission}] = true
-		}
 	}
 	if len(changes) != 0 {
 		batch, err := orm.PrepareCollectionChangesInSession(ctx, scope, changes...)
@@ -271,9 +268,11 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 		if len(batch.Effects().Deletions().Rows()) != 0 {
 			return zero, managementError(CodeConflict, nil)
 		}
-		if _, err := batch.Apply(ctx, nil); err != nil {
+		applied, err := batch.Apply(ctx, nil)
+		if err != nil {
 			return zero, err
 		}
+		result.insertions = append(result.insertions, applied)
 	}
 	for _, candidate := range finalPermissions {
 		if err := auditCatalogCreationCandidate(ctx, scope, actor, at, target.permissions, candidate); err != nil {

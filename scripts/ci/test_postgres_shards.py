@@ -21,7 +21,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
-        self.assertEqual(28, result['core_coordinates'])
+        self.assertEqual(31, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assert_nonconsumer_core(mode, self.required)
             self.assertEqual(list((*FRAMEWORK, *POSTGRES, *PROCESSES)), plan(mode, 'core', self.required)['packages'])

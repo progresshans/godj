@@ -2954,6 +2954,38 @@ race/process/platform과 전체 수용은 최종 source의 원격 CI 대상이�
 공유 물리 through의 여러 역할 projection·선택 identity through 자동 생성/전환 수명·역사 systemstate 이행과 I1 전체 수용은
 아직 완료하지 않았다. 이 결과 API의 작성이나 부분 compile을 해당 기능의 지원으로 계산하지 않는다.
 
+### 공유 through의 실제 행 projection과 최종 재검사
+
+2026-10-29, `6360af346015940f17e450c8d71bb6573c858186` 위에서 실제 collection 삽입 결과를 계정/catalog 전환에
+연결했다. 이전/새 catalog와 계정 소속·프로필의 각 물리 inventory에 실제 key·nullable endpoint만 추가한다.
+독립 예상 inventory와 실제 catalog 전체가 일치한 뒤에만 digest를 갱신하며, 마지막 정책·retirement·receipt 이후에도
+원래 session에서 전체 삽입 typed 행을 다시 확인한다. 이 전체 값과 역할별 행도 64MiB 최종 합계 예산에 포함한다.
+
+새 생성 소비자는 일반/복합 UNIQUE through를 한 모듈에서 선언하고 각 테이블에 이전/새 계정·그룹·권한 및 프로필
+endpoint를 함께 둔다. Staged/created와 부분 공유 catalog, account-only 생성, 실제 0/음수 key, 마지막 정책의
+payload/endpoint/nullable 행 추가·삭제, audit/retirement 뒤 실패와 unknown commit/rollback을 54개 시나리오로 검사한다.
+각 DB의 root·중간 parent를 포함한 61개 필수 child를 모두 요구한다. Native INSERT 인자·실제 반환 key·fixture default로
+전체 새 행을 독립 대조하며, 기존 행·정확한 소속·native mapping·revision·audit·세션 폐기와 재접속도 확인하도록 작성했다.
+공통 collection의 늦은 payload 변경·scope 만료와 projection의 잘못된 key/nullable 입력 단위 검사를 추가했다.
+
+CI 실행 배정·누락/잘림/skip 거부 도구 53개와 245개 문서 링크·포맷·diff 검사는 통과했다. 기존 필수 항목을 유지하고
+relation 목록은 4,617→4,635, PostgreSQL은 5,725→5,729로 늘렸다. 새 소비자를 PostgreSQL 세 모드의 독립 owner와
+기존 relation 분할 규칙에 연결했다. 이 정적 도구 검사는 가짜 실행기를 사용하며 실제 Go compiler를 실행하지 않는다.
+로컬 컴파일 중단을 유지했으며 새 생성·외부 compile·DB 본문·race/platform의 실행과 I1 수용은 원격 확인 대상이다.
+
+선행 [CI 40837365951](https://github.com/progresshans/godj/actions/runs/40837365951)의 head는 `6360af34`다.
+Portable core-vet `123325858803`와 PostgreSQL normal core `123325859425` 로그는 동일한
+`internal/accountstoretest/collection_lifecycle.go:395` non-boolean condition을 보고했다. 수명 테스트 wrapper가 새
+`ConflictInsertResult`를 bool로 읽고 있어 `Inserted` 필드로 바꿨다. 로컬 재현 없이 로그와 해당 호출부를 대조한 수정이며
+효과는 새 CI에서 확인한다. 원본 두 로그의 SHA-256은 각각
+`cf6f5753cd1346bdf74f76e9b30727285d1ce4f6e8655c10effaba10e9e48c07`,
+`8ce0d8a5b15c3f1887f93ac6d96098ea89a6da220c727820a7cabab52a8859af`다.
+변경 source 25개·정적 검사와 원본은 검증 보관소 `gdj0138-shared-through-v1/receipt-final.json`에 보존한다.
+SHA-256은 `035e81629add052a3baca71e7fe1167a6d6c4fda6d6e47ba653478d158f982c6`이며 Go 17개 파일과 생성 소비자 template의 syntax/format을 확인했다.
+
+선택 identity의 자동 through 생성·전환 수명, 역사 systemstate 이행, 고정 소비자 교체와 같은 source의 전체 수용은
+계속 미완료다. 이번 코드 작성과 정적 검사로 공유 through의 환경별 검증 완료를 주장하지 않는다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

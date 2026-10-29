@@ -529,10 +529,14 @@ unknown/경합·같은 DB 재접속과 schema 정리를 검사하도록 작성�
 공통 collection은 실제 native INSERT key와 full typed row readback을 소유하는 `AppliedCollectionChanges`를 반환한다.
 UNIQUE 충돌/no-op과 key 0을 구분하고 NULL·중복 key·scan/close·뒤 행 변경·scope 실패에는 부분 결과를 게시하지 않는다.
 일반/UNIQUE through의 실제 signed key·전체 행·rollback·읽기 오류 검사를 양 DB 필수 실행에 연결했다.
-이 기반을 여러 계정/catalog 역할의 공유 물리 through projection과 identity 생성 owner에 연결하는 작업은 남아 있다.
+이 결과를 공유 물리 through의 이전/새 catalog·계정 소속·프로필 projection에 연결했다. 실제 key와 nullable endpoint만
+예상 inventory에 추가하며 전체 grant/행 대조 뒤 catalog digest를 고정한다. 원래 scope에 묶인 `Verify`로 마지막 정책·
+retirement·receipt 이후 전체 삽입 payload를 재검사하고 그 값과 역할별 행도 최종 합계 예산에 포함한다.
+일반/복합 UNIQUE storage, staged/created 계정, 부분 공유 catalog와 account-only 생성, 실제 signed key·정확한 native
+대응표/소속/감사/세션·rollback/unknown·재접속 및 마지막 정책의 payload/endpoint/nullable 행 변조 소비자를 추가했다.
 로컬 자원 과사용으로 중단된 compile은 완료로 계산하지 않으며 새 본문·환경별 검증은 TEST_EVIDENCE에 구분한다.
 
-선택 identity의 through 수명·공유 물리 through의 복합 endpoint 전환과 역사 `systemstate` 가져오기,
+공유 물리 through 전환의 실제 검증, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
