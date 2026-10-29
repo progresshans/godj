@@ -16,6 +16,36 @@ type managementReadResult[T any] struct {
 	allowed, present bool
 }
 
+// Preparation refusals are observations until snapshot cleanup succeeds. Never
+// publish a candidate alongside a scope/query/cleanup error or turn a joined
+// backend failure into an ordinary input/revision refusal.
+func managementPreparationSnapshot[T any](ctx context.Context, backend db.SnapshotReader, read func(context.Context, db.Queryer) (T, error)) (T, error) {
+	var zero T
+	type observation struct {
+		value   T
+		refusal error
+	}
+	result, err := db.ReadSnapshotResult(ctx, backend, func(work context.Context, scope db.Queryer) (observation, error) {
+		value, failure := read(work, scope)
+		if failure == nil {
+			return observation{value: value}, nil
+		}
+		_, managed := failure.(*Error)
+		_, rejected := validation.Rejected(failure)
+		if (managed || rejected) && errors.Unwrap(failure) == nil {
+			return observation{refusal: failure}, nil
+		}
+		return observation{}, failure
+	})
+	if err != nil {
+		return zero, managementError(CodePersistence, err)
+	}
+	if result.refusal != nil {
+		return zero, result.refusal
+	}
+	return result.value, nil
+}
+
 // Denied/not-found observations remain data until snapshot cleanup confirms
 // that no scope, query or completion failure was hidden by a normal result.
 func managementSnapshot[T any](ctx context.Context, backend db.SnapshotReader, authorize func(context.Context, db.Queryer) (auth.Principal, bool, error), read func(context.Context, db.Queryer, auth.CredentialDomain) (T, bool, error)) (T, error) {

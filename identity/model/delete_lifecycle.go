@@ -54,12 +54,12 @@ type deletionStored struct {
 	revision    int64
 	principalID string
 	advance     func(context.Context, db.Session) error
-	future      func(context.Context, db.Session, auth.CredentialDomain, *lifecycleProjection, *deletionTouch, map[string]query.Value) (lifecycleVerifier, error)
+	future      func(context.Context, db.Queryer, auth.CredentialDomain, *lifecycleProjection, *deletionTouch, map[string]query.Value) (lifecycleVerifier, error)
 }
 type deletionModel struct {
 	metadata       ir.Model
 	remove, change []auth.Permission
-	load           func(context.Context, db.Session, auth.CredentialDomain, int64) (deletionStored, error)
+	load           func(context.Context, db.Queryer, auth.CredentialDomain, int64) (deletionStored, error)
 }
 type deletionLifecycle[M any] struct {
 	credentials *CredentialStore[M]
@@ -149,7 +149,7 @@ func newLifecycleFromCredentials[M, G, P any](store *CredentialStore[M], expecte
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	account := state.models[role.Model]
-	account.load = func(ctx context.Context, scope db.Session, domain auth.CredentialDomain, id int64) (deletionStored, error) {
+	account.load = func(ctx context.Context, scope db.Queryer, domain auth.CredentialDomain, id int64) (deletionStored, error) {
 		row, err := binding.state.objects.Using(scope).Filter(store.state.key.Exact(id)).Get(ctx)
 		if err != nil {
 			return deletionStored{}, err
@@ -191,7 +191,7 @@ func newLifecycleFromCredentials[M, G, P any](store *CredentialStore[M], expecte
 		}
 		return prepareDeletionStored(permissionObjects, row, id, role.Catalog.PermissionRevision)
 	}
-	permissionModel.load = func(ctx context.Context, scope db.Session, _ auth.CredentialDomain, id int64) (deletionStored, error) {
+	permissionModel.load = func(ctx context.Context, scope db.Queryer, _ auth.CredentialDomain, id int64) (deletionStored, error) {
 		row, err := permissionObjects.Using(scope).Filter(orm.NewAutoField[P](permissionKey).Exact(id)).Get(ctx)
 		if err != nil {
 			return deletionStored{}, err
@@ -203,7 +203,7 @@ func newLifecycleFromCredentials[M, G, P any](store *CredentialStore[M], expecte
 		stored.future = permissionLifecycleFuture(permissionObjects, permissionModel.metadata, row, id, role)
 		return stored, err
 	}
-	groupModel.load = func(ctx context.Context, scope db.Session, _ auth.CredentialDomain, id int64) (deletionStored, error) {
+	groupModel.load = func(ctx context.Context, scope db.Queryer, _ auth.CredentialDomain, id int64) (deletionStored, error) {
 		row, err := groupObjects.Using(scope).Filter(orm.NewAutoField[G](groupKey).Exact(id)).Get(ctx)
 		if err != nil {
 			return deletionStored{}, err

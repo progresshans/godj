@@ -33,6 +33,27 @@ func (CollectionChange) Format(state fmt.State, _ rune) {
 	_, _ = state.Write([]byte("orm.CollectionChange{redacted}"))
 }
 
+// WithCollectionThroughInput replaces only the typed create input of a
+// collection selection. The bound model must be the actual through model in
+// the same complete project source. Endpoint keys, operation, deletion graph
+// and all final collection checks stay owned by the original selection.
+// Application owners use this to supply prepared identity candidates without
+// opening a second transaction or reducing them to untyped field maps.
+func WithCollectionThroughInput[L any](change CollectionChange, model BoundModel[L], input ManyToManyInput[L]) (CollectionChange, error) {
+	if err := validateObjectBoundModel(model); err != nil {
+		return CollectionChange{}, err
+	}
+	current := change.state
+	if current == nil || current.source == nil || current.source.through != model.identity || !sameProjectSource(current.source.snapshot, model.snapshot) {
+		return CollectionChange{}, relationInvalidPlan("collection through input does not match the bound model and complete project source")
+	}
+	through, ok := model.objectDescriptor.(ManyToManyDescriptor[L])
+	if !ok || interfaceIsNil(through) {
+		return CollectionChange{}, relationInvalidPlan("collection through model has no typed creation descriptor")
+	}
+	return newCollectionChange(current.source, through, current.owner, current.operation, current.keys, input, current.clear)
+}
+
 // SetKeysChange prepares the immutable selection for a batch of differently
 // typed collections. PrepareCollectionChangesInSession reads all selections
 // and collects their complete shared deletion graph before any write.

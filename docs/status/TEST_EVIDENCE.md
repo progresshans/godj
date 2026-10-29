@@ -3056,6 +3056,48 @@ checksum과 parent 기록·완료 metadata도 일치한다. 원본 대조는 같
 수용은 완료되지 않았다. 새 collection 관측의 성공이나 선택 identity의 자동 through 생성 지원으로 계산하지 않는다.
 해싱 전후 현재 인가·복수 생성 행의 revision/감사/세션 수명과 전환, 역사 systemstate 이행 및 I1 전체 수용은 남아 있다.
 
+### 선택 계정의 추가 프로필 through 생성과 편집
+
+2026-10-30, source `13b786efcf277216e1159f9464ca823c7ba78aef` 위에서 선택 계정을 실제 through 행으로 만드는
+추가 프로필 편집을 작성했다. Typed 생성 선언을 Runtime 이전에 만들고 편집기의 실제 SessionStore에 연결한다.
+읽기 snapshot의 현재 인가·revision·전체 그래프와 생성/편집 각각의 관련 grant를 확인한 뒤, scope 종료 후 해싱한다.
+최종 transaction은 topology·권한·선택/unique 정책을 다시 확인하고 복수 계정 생성·revision 1·생성 감사, 공유 owner의
+단일 revision·직접 감사와 삭제 계정의 세션 폐기를 적용한다. 마지막 정책/감사 뒤 새 계정의 자체 소속과 전체 실제 key/행을
+재검사한다. 삭제 예정 행의 advisory unique 제외에도 native unique 제약과 기존 행의 self 제외를 유지한다.
+
+기본/custom 외부 생성 소비자에 각각 25개 시나리오를 추가했다. 생성·명시적 unusable·retained pair·교체·삭제된 login
+재사용·세션 폐기, 생성/편집 각각의 권한 거부·전체 한도·endpoint 덮어쓰기·nested 입력, snapshot cleanup·두 번째 해싱
+실패·해싱 중 권한/물리 소속 변경·최종 정책/PK/payload 변조·rollback/unknown·signed target key·재접속을 포함한다.
+각 variant와 DB가 기존 12개와 새 26개(root 포함), 총 38개 필수 내부 실행을 요구한다. Source가 다른 through input
+재결합과 signed 삭제 key/self 제외를 검증하는 ORM root 2개도 추가했다. 기존 필수 목록은 모두 유지했으며 relation은
+4,689→4,691, PostgreSQL은 5,749→5,751, Portable은 293개다.
+
+로컬 Go compiler·generator·외부 compile·Go/DB 본문은 재시작하지 않았다. CI Python/fake-Go/shell 검사 53개와
+최종 PostgreSQL 필수 목록 검사 13개, Go 20개 파일의 포맷·새 template 문법·245개 문서 링크·diff 검사가 통과했다.
+이는 생성/타입 검사나 native 본문 성공이 아니다. Source 24개와 검사 원본은 검증 보관소
+`gdj0138-account-through-v1/receipt-final.json`에 있으며 SHA-256은
+`7db21b38a8834224d3cb71f3aa890f74feadf08cdb13df38454bdb2ae3ea08e3`다.
+현재 source의 생성 소비자·양 DB·race/platform·전체 필수 실행과 I1 수용은 원격 확인 대상이다.
+선택 catalog·나머지 through/모델 전환 조립과 역사 systemstate 이행도 미완료다.
+
+선행 [CI 40876201651](https://github.com/progresshans/godj/actions/runs/40876201651), attempt 1의 최신 관측은
+전체 201개 중 136 성공·9 실패·5 실행·50 대기·1 skip이며 전체 성공이 아니다. Linux normal runtime
+`123456421139`와 386 후속 `123481956946`의 원본은 읽기 관측 단위 검사의 atomic/coordinated 두 거부 사례 실패를
+보고했다. 가짜 reader에 `db.Atomic`/`db.CoordinatedAtomic`을 직접 embed하면 같은 이름의 field가 메서드를 가려
+실제로 해당 capability를 구현하지 않았다. 명시적 메서드와 compile-time interface assertion을 가진 fixture로 수정했다.
+제품의 read-only 거부 조건과 두 부정 검사는 유지하며 수정 본문은 새 원격 source에서 확인한다.
+
+macOS Intel normal shard 9의 `123456421189`는 누적 35분 기한으로 끝났다. 실제 checkout
+`7b54188380de2b8bdd9c7bdd5b7a702808d301c6`의 tree `178078f45c5f0888f5944db1391d3d40a775606f`는 제출 `13b786ef`와 같다.
+Artifact `12911632409`의 다운로드 ZIP SHA-256
+`7be01bcae6edaa4a0931cf1241279a07d39485bbbe167f37cdc8660c2817ad97`은 업로드 로그와 일치한다.
+Parent 원본에는 15개 완료 root의 합계 2,088.28초와 실행 12초인 다음 root의 timeout이 있다. 첫 계정 parent의
+기본/custom root가 548.52·406.12초를 사용했다. 기존 계정 분리 좌표에서 이 두 전체 root에 독립 owner를 배정하고
+모든 발견 root·child와 35/70분 package 기한을 유지했다. 원본 parent 로그 SHA-256은
+`d6ff1a60f1352aafb606db64b1ec077899bbbf4ecf3f890b9042b10c9f7a2dc9`이며 원본·진단은 같은 보관소에 있다.
+macOS Intel CGO0 project-check `123456414193`는 artifact 생성 요청이 다섯 번 timeout되어 업로드에 실패했다.
+해당 작업을 실행 원본까지 확보한 성공으로 계산하지 않는다. 분석한 실패의 수정과 새 기능은 다음 전체 CI에서 검증한다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

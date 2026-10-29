@@ -155,6 +155,20 @@ func (prepared PreparedModel[M]) ValidateUnique(ctx context.Context, backend db.
 // scalar fields; invalid names fail before I/O. The caller must later validate
 // the complete candidate and retain native uniqueness enforcement at Save.
 func (prepared PreparedModel[M]) ValidateUniqueExcluding(ctx context.Context, backend db.Queryer, instance M, fields ...string) (validation.Errors, error) {
+	return prepared.validateUnique(ctx, backend, instance, nil, fields)
+}
+
+// ValidateUniqueAfterDeletion checks against rows that survive a caller-owned
+// deletion plan. Keys refer to this exact model; their presence (including zero
+// and negative values) is explicit. It does not delete or authorize anything.
+// The owner must recheck its complete plan in the final transaction and retain
+// native uniqueness enforcement. Fields have the same deferred-scalar meaning
+// as ValidateUniqueExcluding, for example a password awaiting outside-scope hash.
+func (prepared PreparedModel[M]) ValidateUniqueAfterDeletion(ctx context.Context, backend db.Queryer, instance M, keys []int64, fields ...string) (validation.Errors, error) {
+	return prepared.validateUnique(ctx, backend, instance, slices.Clone(keys), fields)
+}
+
+func (prepared PreparedModel[M]) validateUnique(ctx context.Context, backend db.Queryer, instance M, deleted []int64, fields []string) (validation.Errors, error) {
 	changed, err := prepared.Changes(instance)
 	if err != nil {
 		return validation.Errors{}, err
@@ -184,7 +198,7 @@ func (prepared PreparedModel[M]) ValidateUniqueExcluding(ctx context.Context, ba
 	if !present {
 		mutation = NewCreateMutation(value, model.metadata.DBTable, assignments)
 	}
-	return validateUniqueMutationExcluding(ctx, backend, preparedWrite[M]{descriptor: descriptor, model: model, mutation: mutation, key: key}, excluded)
+	return validateUniqueMutationExcluding(ctx, backend, preparedWrite[M]{descriptor: descriptor, model: model, mutation: mutation, key: key}, excluded, deleted)
 }
 
 // Save writes only actual changes to a keyed row, without INSERT fallback if

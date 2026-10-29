@@ -546,9 +546,16 @@ reader/입력 callback을 보관하지 않는 관측을 반환한다. 최종 `Pr
 비관계 scalar를 snapshot 종료 후 준비할 수 있지만 source/선택/관계 topology는 고정하며 기존 단일 실행·전체 삽입 행
 검사를 유지한다. 양 DB의 독립 connection 변경·cleanup/뒤 쓰기 rollback과 외부 생성 소비자의 ordinary/UNIQUE scalar
 준비·retained pair·unique 거부 검사를 작성했다. 로컬 compile은 재시작하지 않았으며 새 본문은 원격 검증 대상이다.
-이 기반을 계정 해싱 전후의 현재 인가와 복수 identity의 revision·감사·세션 수명에 연결하는 작업은 아직 남아 있다.
+선택 계정이 추가 프로필 collection의 through인 편집을 이 기반에 연결했다. `NewAccountThroughCreation`은 generated
+binding/collection과 scalar 생성 정책만 가진 선언이며, 편집기 구성 때 실제 SessionStore에 결합한다. 읽기 snapshot에서
+현재 actor·revision·전체 삭제/삽입과 생성/편집 각각의 관련 권한을 확인하고, 종료 뒤 누락 pair마다 해싱한다. 최종 fence는
+같은 topology와 현재 권한·정책을 다시 검사한다. 새 계정의 revision 1·빈 자체 소속·생성 감사, 공유 owner의 단일 revision·
+직접 감사와 삭제 identity의 session 폐기, 최종 실제 key·전체 payload 대조를 한 transaction에서 처리한다.
+기존 scalar 생성과 해싱을 재사용하며 nested collection·파일·서버 endpoint 덮어쓰기와 암묵적 unusable은 거부한다.
+삭제 예정 행을 제외하는 advisory uniqueness와 native 제약을 함께 유지한다. 기본/custom 생성 소비자에 각각 25개 시나리오와
+두 ORM 단위 root를 추가했으며 실제 생성·양 DB·platform은 원격 검증 대상이다.
 
-공유 물리 through 전환의 실제 검증, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,
+공유 물리 through 전환과 새 계정 through 편집의 실제 검증, 선택 catalog·나머지 through/전환 수명과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

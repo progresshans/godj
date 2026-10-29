@@ -89,10 +89,10 @@ func prepareUniqueConstraints(model ir.Model, byName map[string]int) ([]prepared
 }
 
 func validateUniqueMutation[M any](ctx context.Context, backend db.Queryer, write preparedWrite[M]) (validation.Errors, error) {
-	return validateUniqueMutationExcluding(ctx, backend, write, nil)
+	return validateUniqueMutationExcluding(ctx, backend, write, nil, nil)
 }
 
-func validateUniqueMutationExcluding[M any](ctx context.Context, backend db.Queryer, write preparedWrite[M], excluded map[string]bool) (validation.Errors, error) {
+func validateUniqueMutationExcluding[M any](ctx context.Context, backend db.Queryer, write preparedWrite[M], excluded map[string]bool, deleted []int64) (validation.Errors, error) {
 	if err := ctx.Err(); err != nil {
 		return validation.Errors{}, err
 	}
@@ -109,6 +109,30 @@ func validateUniqueMutationExcluding[M any](ctx context.Context, backend db.Quer
 	base, err := uniqueBasePlan(model, write.key, write.mutation.kind == MutationPatch)
 	if err != nil {
 		return validation.Errors{}, err
+	}
+	if len(deleted) != 0 {
+		slices.Sort(deleted)
+		deleted = slices.Compact(deleted)
+		values := make([]query.Value, len(deleted))
+		for index, key := range deleted {
+			values[index] = query.Integer(key)
+		}
+		condition, err := query.NewInCondition(fieldReference(model.primaryKey), values)
+		if err != nil {
+			return validation.Errors{}, err
+		}
+		expression, err := query.NewExpression(condition)
+		if err != nil {
+			return validation.Errors{}, err
+		}
+		expression, err = query.NotExpression(expression)
+		if err != nil {
+			return validation.Errors{}, err
+		}
+		base, err = base.WithWhere(expression)
+		if err != nil {
+			return validation.Errors{}, err
+		}
 	}
 	var checks []uniqueCheck
 	// Construct every AST before any I/O, in declaration order rather than

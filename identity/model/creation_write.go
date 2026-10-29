@@ -162,7 +162,7 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 		operation = ProfileRelationFirstAccount
 		actor = auth.Principal{}
 	}
-	if err := state.checkCandidate(ctx, scope, namespace, actor, operation, &checked, true); err != nil {
+	if err := state.checkCandidate(ctx, scope, namespace, actor, operation, &checked, true, nil); err != nil {
 		return zero, Creation{}, err
 	}
 	if err := prepared.Save(ctx, scope, &finalRow); err != nil {

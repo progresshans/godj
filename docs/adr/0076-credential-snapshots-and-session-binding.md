@@ -1342,7 +1342,8 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
 선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일 편집은 아래 계약을 따르고,
 파일의 Form 생성과 공개 첫 명령의 입력/전송은 아래 계약을 따른다. 추가 M2M profile은 다음 절의 명시적 정책을 사용하며,
-공개 첫 명령도 아래 collection 정책을 사용한다. 일반 setter의 selected-model through identity 생성은 I1에 남는다.
+공개 첫 명령도 아래 collection 정책을 사용한다. 선택 계정 through 편집은 아래 명시적 생성 조립을 사용하며
+선택 catalog·나머지 생성/전환 수명은 I1에 남는다.
 환경별 실행 결과는 TEST_EVIDENCE를 따른다.
 
 ### 추가 프로필 collection
@@ -1351,7 +1352,7 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 묶는다. `ProfileCollectionConfig`는 현재 선택 Filter·bounded 선택의 label/search/order와 양수 `MaximumItems`를 요구한다.
 그룹/직접 권한은 기존 권한 정책을 계속 사용하며 프로필 정책으로 바꾸지 못한다. 잘못된 source·역방향 accessor·누락/중복
 정책과 선택하지 않은 정책은 구성 단계에서 거부한다. 일반 setter가 계정/catalog identity 자체를 through 행으로 생성하는
-조립은 별도 owner가 필요하므로 계속 명시적으로 거부한다.
+조립은 별도 owner가 필요하다. 아래 계정 through 생성 정책을 명시적으로 연결한 편집 이외에는 계속 거부한다.
 
 계정 관리의 추가 collection은 필드별로 전체 소속을 최대 1,024개까지 관측한다. 이를 넘는 저장 소속은 잘린 목록으로 게시하지 않고 오류로 처리한다.
 필드별 입력 정책은 1~1,024 사이에서 더 작은 한도를 정할 수 있다. JSON/typed 입력은 정렬·중복 제거 전 길이를 검사하며,
@@ -1405,8 +1406,8 @@ collection의 최종 조회 실패에는 부분 key/행을 반환하지 않는�
 기존 대상 계정을 mapping하는 전환도 이전/새 계정의 전체 물리 소속·프로필 inventory를 준비 상태에 묶고 최종 재검사한다.
 전체 삽입 값과 역할별 행도 기존 64MiB 최종 state 합계에 포함한다.
 
-선택 identity 자체를 through로 자동 생성하는 수명 owner는 후속 I1 요구다. 해당 명시적 거부는 유지하며
-이번 공유 through 지원의 작성과 실제 양 DB·플랫폼 검증은 TEST_EVIDENCE에서 구분한다.
+선택 계정의 추가 프로필 through 편집은 아래 생성 정책을 사용한다. 선택 catalog·나머지 through/전환 조립은
+후속 I1 요구이며 해당 경로의 명시적 거부를 유지한다. 코드 작성과 실제 양 DB·플랫폼 검증은 TEST_EVIDENCE에서 구분한다.
 
 ### Collection 후보의 읽기 관측과 최종 재검사
 
@@ -1430,8 +1431,39 @@ endpoint 변경이나 공유 through의 다른 삽입으로 바꾸는 입력은 
 session·한 번 Apply·native 실제 key·전체 typed row readback·외부 rollback/unknown 계약을 따른다. 일반 단일 transaction
 경로에는 관측 전용 incoming edge 사본을 추가로 보관하지 않는다.
 
-이 기반은 선택 계정/catalog 자체를 through로 생성하는 권한을 부여하지 않는다. 명시적 typed identity 생성 정책,
-해싱 전후 인가·복수 생성 행의 revision/감사/세션 수명 합집합과 전환 조립은 I1의 후속 구현이다.
+이 기반만으로 선택 계정/catalog을 생성할 권한을 얻지 않는다. 선택 계정의 추가 프로필 through 편집은 다음 명시적
+생성 정책을 결합하며 catalog와 나머지 생성/전환 조립은 I1의 후속 구현이다.
+
+### 선택 계정 through의 명시적 생성과 편집
+
+`NewAccountThroughCreation`은 generated account binding·typed 역할 collection, 해싱/생성/관련 권한과
+`AccountThroughConfig.Prepare`를 묶은 순수 선언이다. DB·SessionStore나 actor를 보관하지 않아 Runtime 생성 전에
+구성할 수 있다. `AccountEditConfig.ThroughCreations` 또는 `AccountManagementConfig.EditThroughCreations`가
+명시한 필드에만 결합하며 실제 편집기의 SessionStore·전체 source·역할을 확인한다. Endpoint FK 두 개도 생성 정책의
+Fields/Relations에 포함해야 한다. 정책이 없거나 다른 source/model·미선택 field·0/초과 한도이면 구성 단계에서 거부한다.
+
+현재 지원하는 조립은 선택 계정이 추가 프로필 M2M의 through인 편집이다. 새 identity는 scalar/FK 생성 입력과 명시적인
+Password 또는 Unusable을 사용하며 자체 M2M은 비어 있다. Nested collection과 파일 게시를 허용하지 않는다.
+Factory는 실제 누락된 물리 pair의 field/key만 받고 DB 재진입·해싱·외부 효과를 수행하지 않는다. Endpoint FK는 서버가
+설정하고 동일 값의 중복 입력도 거부한다. 기존 retained pair는 factory·해싱·생성 감사 없이 유지한다. 양수 생성 한도는
+요청 전체의 누락 pair 수를 제한하며 필드별 collection 한도와 독립적으로 적용한다.
+
+읽기 snapshot에서 현재 actor·revision·전체 삭제/NULL/삽입 후보·최종 소속을 준비한다. 계정 add/change와 생성 정책의
+관련 owner 권한, 편집 정책의 수명 권한을 모두 확인하며 어느 한 정책이 다른 정책의 추가 grant를 지우지 못한다.
+Snapshot의 성공한 종료 뒤에만 각 후보를 해싱한다. 삭제 예정 계정의 key를 advisory unique 검사에서 제외하되 현재
+행의 self 제외와 signed key 존재를 유지한다. 입력과 삭제 계획은 최종 native transaction에서 다시 읽으며 DB의 unique
+제약도 그대로 적용한다. 해싱 중 변경된 topology·revision·현재 인가는 provisional INSERT 전에 거부한다.
+
+최종 fence의 쓰기 이전 actor를 새 행 인가·감사에 사용한다. 삽입된 계정은 실제 반환 key와 revision 1, 자신의 빈 역할/프로필
+소속을 확인하고 생성 감사 한 건을 갖는다. 추가 FK로 같은 행이 다른 소속을 나타내면 전체 projection이 기존 owner의
+revision을 한 번만 올리고 직접 효과에만 감사한다. 삭제에 따른 간접 소속 효과의 기존 권한/감사 구분과 삭제 계정의 session
+폐기도 유지한다. 실제 삽입 행의 전체 값·새 identity 소속과 모든 기존 영향 행을 마지막 정책/감사 뒤 재검사한다.
+충돌 no-op을 다른 identity 생성으로 채택하거나 cleanup·rollback·unknown을 성공 결과로 게시하지 않는다.
+
+`orm.WithCollectionThroughInput`은 같은 전체 source·실제 typed through model에만 scalar 후보를 다시 결합한다.
+공통 ORM은 선택/endpoint/삭제 그래프와 실제 결과를 소유하고 계정 owner는 권한·revision·해싱·감사·세션을 소유한다.
+이 조립은 선택 catalog through, 일반 계정 생성/첫 계정의 nested identity 생성, 모델 전환의 through 생성을 완료한 것이 아니다.
+구현과 generated/native·양 DB·platform 수용은 TEST_EVIDENCE에서 구분한다.
 
 ### 공개 첫 명령의 collection 입력
 
@@ -1897,7 +1929,7 @@ Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무
 전체 inventory를 1:1로 대응시키며, 같은 row key·principal·hash만으로 대응이나 소유권 이전을 추론하지 않는다.
 `PrepareCreation`은 빈 대상 모델에 새 행을 생성하는 명시적 입력을 받는다. 일반 host FK/OneToOne의 명시적 재매핑은 아래
 staged reference 계약을 따른다. Catalog는 같거나 아래의 명시적 전체 대응표로 연결한다.
-기존 `godj_system` adoption과 선택 identity의 through 생성 수명은 I1의 잔여 작업이다.
+기존 `godj_system` adoption과 선택 catalog·나머지 identity의 through/전환 생성 수명은 I1의 잔여 작업이다.
 
 `Prepare`는 framework migration identity를 확인한 뒤 한 native snapshot에서 현재 source actor의 명시적 전환 권한과
 추가 권한·deny overlay, 전체 domain 이력·감사·session inventory, 두 typed 모델의 전체 행을 검사한다.
@@ -2027,7 +2059,7 @@ Manifest v7은 생성할 모델 구분과 전체 source key/revision·최종 tar
 보관 source 목록·공유 identity·target revision을 대조한다. 기존 v4/v5/v6의 wire는 바꾸지 않는다. 이후 정상 편집이나 schema
 contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확인한다.
 
-새 account/Group/Permission 자체가 through인 생성 수명은 아직 통합 대상이다. 여러 역할의 nullable endpoint를
+전환의 새 account/Group/Permission 자체가 through인 생성 수명은 아직 통합 대상이다. 여러 역할의 nullable endpoint를
 공유하는 물리 through 전환은 위 실제 삽입 결과 계약으로 연결했으며 환경별 검증은 TEST_EVIDENCE를 따른다.
 선택 identity 생성 경로의 명시적 거부나 공유 through의 부분 실행을 I1 전체 지원으로 계산하지 않는다.
 

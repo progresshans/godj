@@ -124,13 +124,13 @@ func (state *creationState[M]) preflight(ctx context.Context, scope db.Queryer, 
 		return auth.Principal{}, managementError(CodePermission, nil)
 	}
 	namespace, _ := current.CredentialDomain()
-	if err := state.checkCandidate(ctx, scope, namespace, current, ProfileRelationCreate, candidate, encoded); err != nil {
+	if err := state.checkCandidate(ctx, scope, namespace, current, ProfileRelationCreate, candidate, encoded, nil); err != nil {
 		return auth.Principal{}, err
 	}
 	return current, nil
 }
 
-func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Queryer, namespace auth.CredentialDomain, actor auth.Principal, operation ProfileRelationOperation, candidate *creationCandidate[M], encoded bool) error {
+func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Queryer, namespace auth.CredentialDomain, actor auth.Principal, operation ProfileRelationOperation, candidate *creationCandidate[M], encoded bool, deleted []int64) error {
 	binding := state.store.state.binding
 	role := binding.state.role
 	if err := checkProfileCollections(ctx, scope, actor, ProfileRelationOrigin{operation: operation}, state.collections, candidate.profile); err != nil {
@@ -159,7 +159,7 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 	if !encoded {
 		excluded = append(excluded, role.Password)
 	}
-	diagnostics, err := candidate.prepared.ValidateUniqueExcluding(ctx, scope, candidate.row, excluded...)
+	diagnostics, err := candidate.prepared.ValidateUniqueAfterDeletion(ctx, scope, candidate.row, deleted, excluded...)
 	if err != nil {
 		return err
 	}
@@ -173,6 +173,9 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 		}
 		login, _ := values[role.Login].String()
 		selected := binding.state.objects.Using(scope).Filter(state.store.state.login.IExact(login))
+		if len(deleted) != 0 {
+			selected = selected.Filter(orm.Not(state.store.state.key.In(deleted...)))
+		}
 		if candidate.stored {
 			key, present, err := binding.state.objects.PrimaryKey(candidate.row)
 			id, integer := key.Integer()

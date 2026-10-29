@@ -4687,3 +4687,5 @@ github.com/progresshans/godj/orm|TestCollectionObservationFinalScopeRefusals/nil
 github.com/progresshans/godj/orm|TestCollectionObservationFinalScopeRefusals/typed_nil_session
 github.com/progresshans/godj/orm|TestCollectionObservationFinalScopeRefusals/root_session
 github.com/progresshans/godj/orm|TestCollectionObservationFinalScopeRefusals/expired
+github.com/progresshans/godj/orm|TestCollectionThroughInputRetainsSourceAndEndpoints
+github.com/progresshans/godj/orm|TestPreparedUniqueAfterDeletionPreservesSelfAndSignedExclusions

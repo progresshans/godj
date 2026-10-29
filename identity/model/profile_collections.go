@@ -48,8 +48,9 @@ func (ProfileCollection[M]) Format(state fmt.State, _ rune) {
 
 // NewProfileCollection binds the actual typed collection and target to the
 // complete account source. Role memberships keep their dedicated authority
-// policy. A through row that is itself an account/catalog identity still needs
-// its explicit identity-creation owner; a generic setter cannot create it.
+// policy. This pure choice declaration grants no storage capability. A mutation
+// owner must separately bind explicit creation for selected-identity through
+// rows; a generic setter cannot create them.
 func NewProfileCollection[M, T, L any](binding Binding[M], field string, collection orm.ManyToMany[M, T, L], target orm.Manager[T], config ProfileCollectionConfig[T]) (ProfileCollection[M], error) {
 	var zero ProfileCollection[M]
 	if binding.state == nil || config.Filter == nil || config.MaximumItems < 1 || config.MaximumItems > MaximumProfileCollectionItems {
@@ -60,9 +61,6 @@ func NewProfileCollection[M, T, L any](binding Binding[M], field string, collect
 		return zero, managementError(CodeInvalidConfig, nil)
 	}
 	if err := collection.ValidateSource(project, role.Model, field); err != nil {
-		return zero, managementError(CodeInvalidConfig, err)
-	}
-	if err := validateAccountCollectionStorage(project, role, []string{field}); err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
 	_, declared, err := collection.Declaration()

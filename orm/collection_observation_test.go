@@ -20,6 +20,24 @@ import (
 // Deliberately exposes only the read-snapshot capability set.
 type collectionObservationReader struct{ scope *collectionPreparationScope }
 
+// Embedding db.Atomic itself would introduce a field named Atomic that hides
+// the promoted method of the same name. These controls must actually implement
+// the capabilities the read-scope admission is expected to reject.
+type collectionAtomicReader struct{ *collectionObservationReader }
+type collectionCoordinatedReader struct{ *collectionObservationReader }
+
+func (reader *collectionAtomicReader) Atomic(context.Context, func(db.Session) error) error {
+	reader.scope.writes++
+	return errors.New("unexpected atomic read-scope call")
+}
+func (reader *collectionCoordinatedReader) CoordinatedAtomic(context.Context, func(db.Session) error) error {
+	reader.scope.writes++
+	return errors.New("unexpected coordinated read-scope call")
+}
+
+var _ db.Atomic = (*collectionAtomicReader)(nil)
+var _ db.CoordinatedAtomic = (*collectionCoordinatedReader)(nil)
+
 func (reader *collectionObservationReader) ValidateSession(ctx context.Context) error {
 	return reader.scope.ValidateSession(ctx)
 }
@@ -101,15 +119,9 @@ func TestCollectionObservationRejectsInvalidReadOwnershipBeforeIO(t *testing.T) 
 					db.SnapshotReader
 				}{&collectionObservationReader{scope}, nil}
 			case "atomic":
-				reader = struct {
-					*collectionObservationReader
-					db.Atomic
-				}{&collectionObservationReader{scope}, nil}
+				reader = &collectionAtomicReader{&collectionObservationReader{scope}}
 			case "coordinated":
-				reader = struct {
-					*collectionObservationReader
-					db.CoordinatedAtomic
-				}{&collectionObservationReader{scope}, nil}
+				reader = &collectionCoordinatedReader{&collectionObservationReader{scope}}
 			case "relation_atomic":
 				reader = struct {
 					*collectionObservationReader

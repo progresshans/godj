@@ -13,7 +13,64 @@ import (
 	"github.com/progresshans/godj/identity/project"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
+
+func TestCollectionThroughInputRetainsSourceAndEndpoints(t *testing.T) {
+	collections, err := project.BindCollections()
+	if err != nil {
+		t.Fatal(err)
+	}
+	source, err := project.Bind()
+	if err != nil {
+		t.Fatal(err)
+	}
+	foreign, err := hostproject.Bind()
+	if err != nil {
+		t.Fatal(err)
+	}
+	identity := ir.ModelIdentity{AppLabel: "godj_identity", ModelName: "user_groups"}
+	bound, err := orm.BindModel(source, identity, models.UserGroupsLinkDescriptor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := orm.BindModel(foreign, identity, models.UserGroupsLinkDescriptor{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	change, err := collections.IdentityUserGroups.SetKeysChange(models.NewUserWithID(0), []int64{-7})
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	input := observedLinkInput{build: func() error { calls++; return nil }}
+	for _, model := range []orm.BoundModel[models.UserGroupsLink]{{}, other} {
+		if _, err := orm.WithCollectionThroughInput(change, model, input); err == nil {
+			t.Fatal("unbound or foreign complete source accepted")
+		}
+	}
+	for _, candidate := range []orm.CollectionChange{{}, change} {
+		if _, err := orm.WithCollectionThroughInput(candidate, bound, orm.ManyToManyInput[models.UserGroupsLink](nil)); err == nil {
+			t.Fatal("missing through input accepted")
+		}
+	}
+	rebound, err := orm.WithCollectionThroughInput(change, bound, input)
+	if err != nil || calls != 0 {
+		t.Fatal("input ran during pure binding", err)
+	}
+	scope := &collectionPreparationScope{}
+	plan, err := orm.PrepareCollectionChangesInSession(t.Context(), scope, rebound)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := plan.Effects().Insertions()
+	if calls != 1 || len(rows) != 1 || !rows[0].Values["source"].Equal(query.Integer(0)) || !rows[0].Values["target"].Equal(query.Integer(-7)) || scope.writes != 0 {
+		t.Fatal("replacement changed selected endpoints or wrote before apply")
+	}
+	if _, err := orm.PrepareCollectionChangesInSession(t.Context(), &collectionPreparationScope{}, change); err != nil || calls != 1 {
+		t.Fatal("replacement mutated the original selection", err)
+	}
+}
 
 type collectionPreparationScope struct {
 	db.RelationSession

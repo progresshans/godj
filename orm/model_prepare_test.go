@@ -235,3 +235,59 @@ func TestPreparedUniqueExclusionDefersWholeConstraintsUntilServerValueExists(t *
 		t.Fatal("final field and tuple not checked")
 	}
 }
+
+func TestPreparedUniqueAfterDeletionPreservesSelfAndSignedExclusions(t *testing.T) {
+	manager, _ := uniqueArticleManager()
+	current := models.NewArticleWithID(11)
+	current.Title = "current"
+	prepared, err := manager.PrepareValues(&current, map[string]query.Value{"title": query.String("replacement"), "published": query.Boolean(true)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, err := prepared.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	deleted := []int64{7, 0, -3, 0}
+	var plans []query.Plan
+	reader := uniqueQuery(func(_ context.Context, plan query.Plan) (db.Rows, error) {
+		plans = append(plans, plan)
+		return &uniqueRows{}, nil
+	})
+	diagnostics, err := prepared.ValidateUniqueAfterDeletion(t.Context(), reader, row, deleted)
+	if err != nil || !diagnostics.Empty() || len(plans) != 2 || !slices.Equal(deleted, []int64{7, 0, -3, 0}) {
+		t.Fatal("deletion-aware unique validation mutated caller or omitted constraints", err, len(plans))
+	}
+	for _, plan := range plans {
+		where, present := plan.Where()
+		if !present {
+			t.Fatal("uniqueness predicate missing")
+		}
+		self, removed := false, false
+		var inspect func(query.Expression, bool)
+		inspect = func(expression query.Expression, negated bool) {
+			if expression.Kind() == query.ExpressionNot {
+				negated = !negated
+			}
+			if condition, leaf := expression.Condition(); leaf && condition.Field().Name() == "id" {
+				if !negated {
+					t.Fatal("excluded identity became a positive match")
+				}
+				switch condition.Lookup() {
+				case query.LookupExact:
+					self = condition.Value().Equal(query.Integer(11))
+				case query.LookupIn:
+					values, present := condition.Values()
+					removed = present && slices.EqualFunc(values, []query.Value{query.Integer(-3), query.Integer(0), query.Integer(7)}, query.Value.Equal)
+				}
+			}
+			for _, child := range expression.Children() {
+				inspect(child, negated)
+			}
+		}
+		inspect(where, false)
+		if !self || !removed {
+			t.Fatal("self exclusion or exact signed deletion keys lost")
+		}
+	}
+}

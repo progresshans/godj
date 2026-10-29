@@ -197,7 +197,7 @@ func (owner *FirstAccount[M]) prepare(ctx context.Context, operationID string, i
 		if err := owner.state.requireFresh(work, scope); err != nil {
 			return err
 		}
-		return state.checkCandidate(work, scope, namespace, auth.Principal{}, ProfileRelationFirstAccount, candidate, false)
+		return state.checkCandidate(work, scope, namespace, auth.Principal{}, ProfileRelationFirstAccount, candidate, false, nil)
 	}
 	if err := creationSnapshot(ctx, state.store.state.backend, check); err != nil {
 		return PreparedFirstAccount[M]{}, nil, err
@@ -273,7 +273,7 @@ func (owner *FirstAccount[M]) Commit(ctx context.Context, prepared PreparedFirst
 		if err != nil {
 			return FirstAccountCreation{}, err
 		}
-		if err := state.checkCandidate(work, scope, namespace, auth.Principal{}, ProfileRelationFirstAccount, candidate, true); err != nil {
+		if err := state.checkCandidate(work, scope, namespace, auth.Principal{}, ProfileRelationFirstAccount, candidate, true, nil); err != nil {
 			return FirstAccountCreation{}, err
 		}
 		at := state.config.Now()

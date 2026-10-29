@@ -43,6 +43,10 @@ type AccountManagementConfig[M any] struct {
 	CaseInsensitiveCreationLogin            bool
 	PrincipalID                             func(context.Context) (string, error)
 	Now                                     func() time.Time
+	// These policies apply to EditFields. Creation retains its separate root
+	// policy and does not silently reuse an edit's through-creation capability.
+	EditThroughCreations     map[string]ThroughCreation
+	EditThroughCreationLimit int
 }
 
 // AccountManagement composes real lifecycle owners over the exact same
@@ -106,6 +110,7 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 	}
 	account := DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}
 	editor, err := NewAccountEditor(sessions, expected, memberships, grants, overlay, AccountEditConfig[M]{
+		ThroughCreations: config.EditThroughCreations, ThroughCreationLimit: config.EditThroughCreationLimit,
 		Fields: config.EditFields, Relations: selectProfileRelations(relations, config.EditFields), Collections: selectProfileCollections(collections, config.EditFields), Files: selectProfileFiles(files, config.EditFields), ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 		RelatedPermissions: RelatedRowPermissions{Account: account, Group: config.GroupPermissions, Permission: config.PermissionPermissions},
 		Validate:           config.ValidateEdit, Now: config.Now,

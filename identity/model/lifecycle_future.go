@@ -14,7 +14,7 @@ import (
 )
 
 type lifecycleVerifier func(context.Context, db.Session) error
-type lifecycleFuture func(context.Context, db.Session, auth.CredentialDomain, *lifecycleProjection, *deletionTouch, map[string]query.Value) (lifecycleVerifier, error)
+type lifecycleFuture func(context.Context, db.Queryer, auth.CredentialDomain, *lifecycleProjection, *deletionTouch, map[string]query.Value) (lifecycleVerifier, error)
 
 func lifecycleRequiredPermissions(primary auth.Permission, additional []auth.Permission, required bool) ([]auth.Permission, error) {
 	if primary != "" || required {
@@ -154,7 +154,7 @@ func projectedAccountGrants(ctx context.Context, scope db.Queryer, reader *accou
 
 func accountLifecycleFuture[M any](store *CredentialStore[M], row M, id int64, current accountMemberships) lifecycleFuture {
 	binding, role := store.state.binding, store.state.binding.state.role
-	return func(ctx context.Context, scope db.Session, domain auth.CredentialDomain, projection *lifecycleProjection, touch *deletionTouch, root map[string]query.Value) (lifecycleVerifier, error) {
+	return func(ctx context.Context, scope db.Queryer, domain auth.CredentialDomain, projection *lifecycleProjection, touch *deletionTouch, root map[string]query.Value) (lifecycleVerifier, error) {
 		return prepareLifecycleFuture(binding.state.objects, row, id, role.Revision, touch, root, func(candidate M) (lifecycleVerifier, error) {
 			groups := projection.keys(role.Model, id, role.Groups, current.groups)
 			direct := projection.keys(role.Model, id, role.Permissions, current.direct)
@@ -181,7 +181,7 @@ func accountLifecycleFuture[M any](store *CredentialStore[M], row M, id int64, c
 
 func permissionLifecycleFuture[P any](objects orm.Manager[P], metadata ir.Model, row P, id int64, role ir.AccountRole) lifecycleFuture {
 	key, _ := primaryField(metadata)
-	return func(_ context.Context, _ db.Session, _ auth.CredentialDomain, _ *lifecycleProjection, touch *deletionTouch, root map[string]query.Value) (lifecycleVerifier, error) {
+	return func(_ context.Context, _ db.Queryer, _ auth.CredentialDomain, _ *lifecycleProjection, touch *deletionTouch, root map[string]query.Value) (lifecycleVerifier, error) {
 		return prepareLifecycleFuture(objects, row, id, role.Catalog.PermissionRevision, touch, root, func(candidate P) (lifecycleVerifier, error) {
 			_, _, _, err := inspectCatalogRow(objects, metadata, key.Name, role.Catalog.PermissionName, role.Catalog.PermissionCode, role.Catalog.PermissionRevision, candidate, true)
 			return nil, err
@@ -211,7 +211,7 @@ func groupLifecycleFuture[G, P any](groups orm.Manager[G], permissions orm.Manag
 		}
 		return keys, nil
 	}
-	return func(ctx context.Context, scope db.Session, _ auth.CredentialDomain, projection *lifecycleProjection, touch *deletionTouch, root map[string]query.Value) (lifecycleVerifier, error) {
+	return func(ctx context.Context, scope db.Queryer, _ auth.CredentialDomain, projection *lifecycleProjection, touch *deletionTouch, root map[string]query.Value) (lifecycleVerifier, error) {
 		return prepareLifecycleFuture(groups, row, id, role.Catalog.GroupRevision, touch, root, func(candidate G) (lifecycleVerifier, error) {
 			if _, _, _, err := inspectCatalogRow(groups, metadata, key.Name, role.Catalog.GroupName, "", role.Catalog.GroupRevision, candidate, true); err != nil {
 				return nil, err

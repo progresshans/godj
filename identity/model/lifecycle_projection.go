@@ -19,10 +19,11 @@ type lifecycleMembershipKey struct {
 }
 type lifecycleMembershipSet struct{ before, after []int64 }
 type lifecycleProjection struct {
-	created *lifecycleEdit
-	effects map[deletionKey]orm.RelationDeleteEffect
-	sets    map[lifecycleMembershipKey]lifecycleMembershipSet
-	touches map[deletionKey]*deletionTouch
+	created           *lifecycleEdit
+	effects           map[deletionKey]orm.RelationDeleteEffect
+	sets              map[lifecycleMembershipKey]lifecycleMembershipSet
+	touches           map[deletionKey]*deletionTouch
+	directCollections map[lifecycleMembershipKey]bool
 }
 
 func (projection *lifecycleProjection) deleted(model ir.ModelIdentity, id int64) bool {
@@ -96,8 +97,6 @@ func (membership deletionMembership) project(ctx context.Context, scope db.Query
 	// identity row is itself a membership link, remove it from the logical
 	// before-set and project its endpoints as a new insertion. Otherwise a
 	// read made after INSERT would conceal the authority change.
-	var createdOwner int64
-	createdLink := false
 	if root := projection.created; root != nil && root.key.model == membership.through {
 		left, right := root.values[membership.source.Name()], root.values[membership.target.Name()]
 		effect := projection.effects[root.key]
@@ -117,7 +116,6 @@ func (membership deletionMembership) project(ctx context.Context, scope db.Query
 			if _, found := owners[source]; !found {
 				owners[source] = 0
 			}
-			createdOwner, createdLink = source, true
 		}
 	}
 	ordered := make([]int64, 0, len(owners))
@@ -155,7 +153,7 @@ func (membership deletionMembership) project(ctx context.Context, scope db.Query
 				touch = &deletionTouch{key: owner}
 				projection.touches[owner] = touch
 			}
-			if createdLink && id == createdOwner {
+			if projection.directCollections[lifecycleMembershipKey{owner, membership.field}] {
 				touch.direct = true
 			}
 			touch.collections = append(touch.collections, membership.field)
