@@ -57,7 +57,10 @@ def matrix():
             # race owners reduce the known account-heavy partition cost while
             # retaining the 70-minute deadline; fresh CI verifies the full run.
             # Every discovered root still runs exactly once.
-            if goos == 'darwin' and goarch == 'amd64' and mode == 'cgo0':
+            # CI 40674776904's Intel normal ordinary owner had already spent
+            # 2,045s in 17 completed roots when its next root was interrupted.
+            # Give it the same five complete-root owners as Intel CGO0.
+            if goos == 'darwin' and goarch == 'amd64' and mode in ('normal', 'cgo0'):
                 count = 5
             elif goos == 'darwin' and goarch == 'arm64' and mode == 'race':
                 count = 4

@@ -76,11 +76,19 @@ func crSnapshot(t *testing.T,scope db.Queryer)map[string]any{
 
 func crSeedCatalog(t *testing.T,f *ctFixture,mode string)(int64,int64,int64,int64){
  t.Helper()
- old,err:=models.GroupObjects.Create(t.Context(),f.native,models.NewGroupCreate("host-only group"));ctMust(t,err)
- next,err:=catalog.TeamObjects.Create(t.Context(),f.native,catalog.NewTeamCreate("host-only team"));ctMust(t,err)
+ var old models.Group;var next catalog.Team;var err error
+ if mode=="page_boundary"{
+  // The catalog page fixture already owns source key 3. Reuse that real
+  // source/target pair so the host page still tests overlapping namespaces.
+  old,err=models.GroupObjects.Using(f.native).Filter(models.GroupFields.Name.Exact("page-000")).Get(t.Context());ctMust(t,err)
+  next,err=catalog.TeamObjects.Using(f.native).Filter(catalog.TeamFields.Title.Exact("mapped-page-000")).Get(t.Context());ctMust(t,err)
+ }else{
+  old,err=models.GroupObjects.Create(t.Context(),f.native,models.NewGroupCreate("host-only group"));ctMust(t,err)
+  next,err=catalog.TeamObjects.Create(t.Context(),f.native,catalog.NewTeamCreate("host-only team"));ctMust(t,err)
+ }
  group:=next.ID;groupRevision:=next.Version
  if f.role.Catalog.Group.AppLabel=="godj_identity"{group,groupRevision=old.ID,old.Revision}
- f.catalogMapping.Groups=append(f.catalogMapping.Groups,domain.Mapping{SourceID:old.ID,SourceRevision:old.Revision,TargetID:group,TargetRevision:groupRevision})
+ if mode!="page_boundary"{f.catalogMapping.Groups=append(f.catalogMapping.Groups,domain.Mapping{SourceID:old.ID,SourceRevision:old.Revision,TargetID:group,TargetRevision:groupRevision})}
  for _,code:=range []string{"host.remap_catalog","host.audit_catalog"}{
   original,err:=models.PermissionObjects.Create(t.Context(),f.native,models.NewPermissionCreate(code,code));ctMust(t,err)
   target,err:=catalog.GrantObjects.Create(t.Context(),f.native,catalog.NewGrantCreate(code,"mapped "+code));ctMust(t,err)
@@ -297,7 +305,7 @@ func crAudit(t *testing.T,f *ctFixture,scope database.Backend,model string,id in
  t.Helper();namespace,ok:=f.actor.CredentialDomain();if !ok{t.Fatal("fixture actor lacks source domain")}
  events,err:=db.ReadSnapshotResult(t.Context(),scope,func(ctx context.Context,reader db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,reader,namespace,model,id,10)});ctMust(t,err)
  if !changed{if len(events)!=0{t.Fatal("no-op catalog host row was audited",model)};return}
- slices.Sort(fields)
+ // Audit preserves the supplied field order; the ORM emits model declaration order.
  if len(events)!=1||events[0].ActorID()!=f.actor.ID()||events[0].Action()!=admin.ActionChange||!slices.Equal(events[0].ChangedFields(),fields){t.Fatal("catalog host row did not receive one complete audit",model)}
 }
 
@@ -322,7 +330,7 @@ func crVerifyApplied(t *testing.T,f *ctFixture,scope database.Backend,receipt do
   if original.OldGroupID!=nil{if groupField=="group"{expected.GroupID=&group}else{expected.LegacyGroupID=&group}}
   if original.OldPermissionID!=nil{if permissionField=="permission"{expected.PermissionID=&permission}else{expected.LegacyPermissionID=&permission}}
   if !reflect.DeepEqual(row,expected){t.Fatal("mixed catalog/account row changed source keys/profile or used another namespace")}
-  crAudit(t,f,scope,"host.ticket",row.ID,changes>0,groupField,"owner",permissionField)
+  crAudit(t,f,scope,"host.ticket",row.ID,changes>0,"owner",groupField,permissionField)
  }
  for _,original:=range assignments{
   row,err:=host.AssignmentObjects.Using(scope).Filter(host.AssignmentFields.ID.Exact(original.ID)).Get(t.Context());ctMust(t,err)
@@ -331,7 +339,7 @@ func crVerifyApplied(t *testing.T,f *ctFixture,scope database.Backend,receipt do
   if original.OldGroupID!=nil{if groupField=="group"{expected.GroupID=&group}else{expected.LegacyGroupID=&group}}
   if original.OldPermissionID!=nil{if permissionField=="permission"{expected.PermissionID=&permission}else{expected.LegacyPermissionID=&permission}}
   if !reflect.DeepEqual(row,expected){t.Fatal("mixed business through row lost owner/profile/source endpoint or namespace")}
-  crAudit(t,f,scope,"host.assignment",row.ID,changes>0,groupField,permissionField,"user")
+  crAudit(t,f,scope,"host.assignment",row.ID,changes>0,"user",groupField,permissionField)
  }
  gotBadge,err:=host.CatalogBadgeObjects.Using(scope).Filter(host.CatalogBadgeFields.ID.Exact(badge.ID)).Get(t.Context());ctMust(t,err)
  expectedBadge:=badge

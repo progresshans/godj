@@ -41,20 +41,43 @@ type runserverGoAuditRecord struct {
 	BuildWorkspace     string    `json:"build_workspace,omitempty"`
 }
 
-// Retain the last actual Go invocation when scaffold setup fails before the
-// first HTTP runtime exists. Other commands retain their original budget.
+// Keep live phase diagnostics even if the outer package deadline interrupts
+// preparation. Each CLI invocation owns a fresh audit and its original budget.
 func runProjectCLI(t *testing.T, directory string, environment []string, global string, args ...string) testprocess.CommandResult {
 	t.Helper()
 	limits := testprocess.CommandLimits{Timeout: 5 * time.Minute, Output: maximumRunserverOutput}
 	if len(args) > 0 && args[0] == "startproject" {
 		limits.Timeout = runserverScaffoldTimeout
-		environment, _ = runserverGoAuditEnvironment(t, environment)
-		started := time.Now()
-		defer func() {
-			t.Logf("startproject preparation: %s", runserverPreparationProgress(environment, started, time.Now()))
-		}()
 	}
+	environment, _ = runserverGoAuditEnvironment(t, environment)
+	stop := observeRunserverPreparation(t, environment)
+	defer stop()
 	return testprocess.Run(t, limits, directory, environment, global, args...)
+}
+
+func observeRunserverPreparation(t *testing.T, environment []string) func() {
+	t.Helper()
+	started := time.Now()
+	t.Log("project CLI preparation started")
+	stopped, done := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-stopped:
+				return
+			case now := <-ticker.C:
+				t.Logf("project CLI preparation pending: %s", runserverPreparationProgress(environment, started, now))
+			}
+		}
+	}()
+	return func() {
+		close(stopped)
+		<-done
+		t.Logf("project CLI preparation returned: %s", runserverPreparationProgress(environment, started, time.Now()))
+	}
 }
 
 func ensureRunserverGoAuditEnvironment(t *testing.T, environment []string) []string {

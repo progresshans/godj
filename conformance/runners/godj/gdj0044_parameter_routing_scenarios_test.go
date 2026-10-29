@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/conformance/internal/protocol"
+	"github.com/progresshans/godj/internal/testenv"
 )
 
 func TestGDJ0044ParameterizedRoutingHandlersObservePublicProduct(t *testing.T) {
@@ -162,6 +163,11 @@ func TestGDJ0044ParameterizedReverseRejectsNonInt64ExternalConsumers(t *testing.
 	}
 	directory := t.TempDir()
 	writeGDJ0044CompileFile(t, filepath.Join(directory, "go.mod"), "module example.com/godj-gdj0044-admission\n\ngo 1.26.5\n\nrequire github.com/progresshans/godj v0.0.0\n\nreplace github.com/progresshans/godj => "+filepath.ToSlash(repository)+"\n")
+	checksums, err := os.ReadFile(filepath.Join(repository, "go.sum"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGDJ0044CompileFile(t, filepath.Join(directory, "go.sum"), string(checksums))
 	writeGDJ0044CompileFile(t, filepath.Join(directory, "admission_test.go"), `package admission
 
 import "github.com/progresshans/godj/web"
@@ -440,7 +446,7 @@ func runGDJ0044ExternalCompile(t *testing.T, directory string) (string, error) {
 	t.Helper()
 	command := exec.CommandContext(t.Context(), "go", "test", "-mod=mod", "./...")
 	command.Dir = directory
-	command.Env = append(os.Environ(), "GOFLAGS=", "GOTOOLCHAIN=local", "GOWORK=off")
+	command.Env = testenv.OfflineGo(os.Environ(), "")
 	output, err := command.CombinedOutput()
 	return string(output), err
 }

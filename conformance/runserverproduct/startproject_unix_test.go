@@ -148,9 +148,14 @@ func TestGlobalStartProjectUsesPublicBootstrapAndAuthenticatedRuntime(t *testing
 		if err := reader.Close(); err != nil {
 			t.Fatal(err)
 		}
-		failed := testprocess.RunWithStdout(t, testprocess.CommandLimits{Timeout: runserverScaffoldTimeout, Output: maximumRunserverOutput},
-			parent, environment, writer,
-			global, "startproject", "example.com/output-failed-site", "output-failed", "--framework-source", repository)
+		audited, _ := runserverGoAuditEnvironment(t, environment)
+		failed := func() testprocess.CommandResult {
+			stop := observeRunserverPreparation(t, audited)
+			defer stop()
+			return testprocess.RunWithStdout(t, testprocess.CommandLimits{Timeout: runserverScaffoldTimeout, Output: maximumRunserverOutput},
+				parent, audited, writer,
+				global, "startproject", "example.com/output-failed-site", "output-failed", "--framework-source", repository)
+		}()
 		assertRunserverWorkspaceEmpty(t, workspace)
 		if failed.ExitCode != 1 || failed.Stdout != "" || failed.Stderr != "startproject_error/published_output_failed\n" {
 			t.Fatalf("published output failure: exit=%d stdout=%q stderr=%q", failed.ExitCode, failed.Stdout, failed.Stderr)

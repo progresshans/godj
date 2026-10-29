@@ -56,7 +56,10 @@ func writeGeneratedTestFile(t *testing.T, root, name string, data []byte) {
 
 func generatedGoCommand(ctx context.Context, directory string, arguments ...string) *exec.Cmd {
 	if len(arguments) > 0 && arguments[0] == "test" {
-		arguments = append([]string{"test", "-count=1"}, arguments[1:]...)
+		// Generated projects can instantiate several large typed model packages
+		// at once. Bound compiler processes without changing in-package parallelism,
+		// race instrumentation or the complete requested package/test set.
+		arguments = append([]string{"test", "-p=1", "-count=1"}, arguments[1:]...)
 	}
 	command := exec.CommandContext(ctx, "go", arguments...)
 	command.Dir = directory

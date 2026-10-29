@@ -120,7 +120,7 @@ class RelationShardTest(unittest.TestCase):
         expected_counts = {
             ('ubuntu-24.04', 'normal'): 3, ('ubuntu-24.04', 'race'): 9, ('ubuntu-24.04', 'cgo0'): 3,
             ('ubuntu-24.04-arm', 'normal'): 3, ('ubuntu-24.04-arm', 'race'): 9, ('ubuntu-24.04-arm', 'cgo0'): 3,
-            ('macos-15-intel', 'normal'): 8, ('macos-15-intel', 'race'): 8, ('macos-15-intel', 'cgo0'): 10,
+            ('macos-15-intel', 'normal'): 10, ('macos-15-intel', 'race'): 8, ('macos-15-intel', 'cgo0'): 10,
             ('macos-26', 'normal'): 8, ('macos-26', 'race'): 9, ('macos-26', 'cgo0'): 8,
         }
         seen = {}
@@ -190,7 +190,7 @@ class RelationShardTest(unittest.TestCase):
 
     def test_macos_account_partitions_preserve_package_deadlines_and_runtime_build_budget(self):
         for runner, mode, count, package_minutes, job_minutes in (
-                ('macos-15-intel', 'normal', 8, '35m', 45), ('macos-15-intel', 'cgo0', 10, '35m', 45),
+                ('macos-15-intel', 'normal', 10, '35m', 45), ('macos-15-intel', 'cgo0', 10, '35m', 45),
                 ('macos-15-intel', 'race', 8, '70m', 90), ('macos-26', 'normal', 8, '35m', 45),
                 ('macos-26', 'race', 9, '70m', 90), ('macos-26', 'cgo0', 8, '35m', 45)):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == mode]
@@ -202,7 +202,7 @@ class RelationShardTest(unittest.TestCase):
         body = workflow.split('- name: Publish relation test logs and execution plan', 1)[1].split('\n      - name:', 1)[0]
         self.assertIn('if: always()', body)
         for name in ('relation-product-tests.json', 'relation-product.stderr', 'relation-consumer-discovery.json',
-                     'relation-required.txt', 'relation-packages.txt', 'relation-shard/'):
+                     'relation-required.txt', 'relation-packages.txt', 'relation-shard/', 'generated-consumer-diagnostics/'):
             self.assertIn('${{ runner.temp }}/' + name, body)
         self.assertIn('if-no-files-found: error', body)
         self.assertIn('${{ matrix.shard }}-${{ github.run_attempt }}', body)

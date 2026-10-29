@@ -132,7 +132,7 @@ class RunserverExecutionTests(unittest.TestCase):
         prior_jobs = {'ubuntu-24.04': (45, 55, 45), 'ubuntu-24.04-arm': (40, 50, 40),
                       'macos-15-intel': (55, 65, 55), 'macos-26': (45, 55, 45)}
         for platform, fields in platforms:
-            expected_minutes = 40 if platform == 'macos-15-intel' else 25
+            expected_minutes = 40 if platform.startswith('macos-') else 25
             cmd_timeout = re.search(r'cmd_test_timeout: "([^"]+)"', fields).group(1)
             configured = re.search(r'flow_test_timeout: "([^"]+)"', fields)
             flow_timeout = configured.group(1) if configured else '15m'

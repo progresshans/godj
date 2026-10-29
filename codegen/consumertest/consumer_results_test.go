@@ -98,9 +98,11 @@ func runStrictGeneratedCommandWithCapture(t *testing.T, command *exec.Cmd, retai
 	t.Helper()
 	var stdout generatedTestCapture
 	var stderr gobuild.Capture
-	command.Stdout, command.Stderr = &stdout, &stderr
+	stdoutFile, stderrFile, finishCapture := captureGeneratedCommand(t, command)
+	command.Stdout, command.Stderr = io.MultiWriter(&stdout, stdoutFile), io.MultiWriter(&stderr, stderrFile)
 	command.WaitDelay = 5 * time.Second
 	runErr := command.Run()
+	finishCapture(runErr)
 	if retain != nil {
 		if err := retain(stdout.Bytes()); err != nil {
 			t.Fatal("cannot retain generated consumer events", err)

@@ -343,9 +343,11 @@ func runAccountConsumerDatabases(t *testing.T, root string, required []string) {
 		t.Run(vendor, func(t *testing.T) {
 			command := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer")
 			command.Env = testenv.With(command.Env, map[string]string{"GODJ_ACCOUNT_CONSUMER_DATABASE": vendor})
-			output := runStrictGeneratedCommand(t, command)
+			output := runStrictGeneratedCommandWithCapture(t, command, func(output []byte) error {
+				t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)
+				return nil
+			})
 			assertGeneratedConsumerTests(t, output, required...)
-			t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)
 		})
 	}
 }

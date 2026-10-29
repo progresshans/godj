@@ -444,6 +444,7 @@ jobs:
       - name: Run relation product mode
         env:
           PORTABLE_COVERED: ${{ matrix.platform.expected_goos == 'linux' && matrix.platform.expected_goarch == 'amd64' }}
+          GODJ_GENERATED_CONSUMER_CAPTURE_DIR: ${{ runner.temp }}/generated-consumer-diagnostics
         run: |
           set -euo pipefail
           mode="${{ matrix.mode }}"
@@ -532,6 +533,7 @@ jobs:
             ${{ runner.temp }}/relation-required.txt
             ${{ runner.temp }}/relation-packages.txt
             ${{ runner.temp }}/relation-shard/
+            ${{ runner.temp }}/generated-consumer-diagnostics/
           if-no-files-found: error
           retention-days: 90
 
@@ -576,8 +578,10 @@ jobs:
             expected_goos: "darwin"
             expected_goarch: "arm64"
             cmd_test_timeout: "20m"
-            flow_test_timeout: "25m"
-            timeout_minutes: {normal: 65, race: 75, cgo0: 65}
+            # CI 40674776904 completed its app-registration child at 24m33s;
+            # the final independent publication-failure flow still remained.
+            flow_test_timeout: "40m"
+            timeout_minutes: {normal: 95, race: 105, cgo0: 95}
         mode: [normal, race, cgo0]
 
     steps:
@@ -1528,6 +1532,7 @@ jobs:
           GODJ_ADMIN_CHOICE_REFERENCE_DIR: ${{ runner.temp }}/admin-choice-reference
           GODJ_ADMIN_CHOICE_CAPTURE_DIR: ${{ runner.temp }}/admin-choice-native
           GODJ_FILE_CONSUMER_CAPTURE: ${{ runner.temp }}/file-consumer-native.jsonl
+          GODJ_GENERATED_CONSUMER_CAPTURE_DIR: ${{ runner.temp }}/generated-consumer-diagnostics
           GODJ_MODEL_RESOURCE_CLIENT_EVIDENCE: ${{ runner.temp }}/model-resource-client
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
           GODJ_REQUIRE_POSTGRES: "1"
@@ -1724,6 +1729,7 @@ jobs:
             ${{ runner.temp }}/postgresql-product-${{ matrix.mode }}-${{ matrix.shard }}.stderr
             ${{ runner.temp }}/postgresql-${{ matrix.mode }}-${{ matrix.shard }}-required-tests.txt
             ${{ runner.temp }}/postgresql-plan-${{ matrix.mode }}-${{ matrix.shard }}/
+            ${{ runner.temp }}/generated-consumer-diagnostics/
             ${{ runner.temp }}/related-expression-reference/
             ${{ runner.temp }}/collection-aggregate-reference/
             ${{ runner.temp }}/decimal-expression-reference/

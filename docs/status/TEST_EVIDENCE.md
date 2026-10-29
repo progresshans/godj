@@ -2811,6 +2811,60 @@ Gofmt·diff와 245개 문서의 로컬 링크도 확인했다.
 (SHA-256 `30b92d63142bcc6d917f9f21a0e8ed2611b3239dfd117a4a10593725915565a7`).
 새 source의 필수 본문·generated drift·양 DB·독립 HTTP/browser/process·race/platform과 capture/원본 대조는 원격 확인 대상이다.
 
+### Catalog 참조 fixture·외부 compile 수정과 시간초과 진단
+
+2026-10-29, source `2c244a7ebac7a9a90f948f5afa3fa8f6f7c99362`의
+[CI 40674776904](https://github.com/progresshans/godj/actions/runs/40674776904) attempt 1은 178개 작업 중
+154개 성공·22개 실패·2개 skip으로 끝났다. 실패에는 최종 집계가 포함되며 전체 수용은 실패다. 직접 실패한 21개
+작업의 원본 로그를 보존했다. Checkout `3c4423290d096285b2d83667584ce8483ac96121`과 제출 source의 tree는
+`73bda51774a069d0a6fbfcdc6e6a92cdd7144055`로 같다. 원본 archive 네 개는 업로드 로그의 SHA-256과 대조했다.
+
+12개 작업의 catalog 참조 실패는 감사 필드를 알파벳순으로 기대한 fixture 오류였다. 감사는 supplied 순서를 보존하며
+ORM은 모델 선언 순서로 필드를 넘긴다. Ticket의 `owner, group, permission`과 Assignment의 `user, group, permission`을
+공유 catalog 변형까지 정확히 대조하도록 수정했다. 필드 집합만 비교하거나 감사 횟수·actor 검사를 줄이지 않았다.
+수정 전 한정 재현은 fail 7·skip 0이었다. 순서 수정 뒤 전체 참조 suite는 pass 72·fail 5였으며, 남은 두 page-boundary
+child는 기존 page fixture의 source key와 새 host 전용 group key를 혼동했다. 실제 `page-000` 대응 행을 재사용하고
+중복 mapping을 추가하지 않게 고쳤다. 최종 생성물의 참조 77개 이벤트는 pass 77·fail 0·skip 0이었다.
+기존 생성 Go 파일 78개는 변하지 않았으며 수정한 소비자 테스트 파일만 달라졌다.
+
+macOS Intel race project-check의 외부 reverse-argument compile은 이미 캐시된 의존성의 sumdb 조회가 DNS timeout으로
+실패했다. 빈 sumdb cache와 접근 불가능한 loopback proxy를 사용해 같은 실패를 재현했다. 외부 module에 저장소의
+`go.sum`을 복사하고 기존 `testenv.OfflineGo`를 적용했다. 동일한 환경에서 정상 입력의 compile과 잘못된 타입·overflow에
+대한 일곱 진단 기대값 검사가 통과했다. 의존성 설치의 네트워크 성공을 검증한 것이 아니다. 별도의 macOS Intel CGO0
+relation 작업은 최초 의존성 다운로드에서 DNS 실패했다. Intel race의 project-check와 relation runtime 작업에는
+artifact API timeout도 있었다. 이 결과를 제품 PASS로 계산하지 않으며 다음 전체 실행에서 다시 확인한다.
+
+Package timeout 다섯 건 중 macOS Intel normal의 일반 consumer owner는 완료한 17개 root에 이미 2,045초를 썼고
+다음 root 실행 55초째 35분에 도달했다. 일반 owner를 세 개에서 다섯 개로 늘렸다. 전체 발견 root·필수 child의 단일
+배정과 35분/70분 package 한도는 유지한다. macOS ARM64 normal scaffold는 app-registration child를 마친 뒤
+마지막 publication-failure 흐름 실행 27초째 누적 25분에 도달했다. 두 전체 scaffold/설치 흐름에 각각 40분을 배정하고
+job에도 그 증가분을 반영했다. 개별 준비 명령의 5분/10분, HTTP·종료·정리 한도와 검증은 유지한다.
+
+나머지 세 package timeout은 macOS ARM64 normal/race/CGO0의 단일 catalog root에서 발생했다. 당시 자식 출력이
+부모 종료 뒤에만 기록돼 compile과 본문 실행의 경계를 확정할 수 없었다. 생성 외부 test command는 `-p=1`로 compiler와
+package 실행의 동시 수를 제한하며 package 내부 병렬 검사·race·요청한 전체 package/test 집합은 유지한다.
+이 조정의 원격 효과는 아직 확인하지 않았다. macOS ARM64 race reload의 startproject/generate 준비 timeout도
+해결 확인 전이며, 각 명령의 독립 audit에서 실제 Go phase와 경과 시간을 실행 중 30초마다 기록하도록 보완했다.
+진단은 고정 phase 이름만 사용하고 명령 인자·환경·비밀값을 출력하지 않는다.
+
+생성 소비자의 원본 stdout/stderr는 실행 중에도 별도 artifact 파일에 기록한다. 상한은 각각 4 MiB/8 KiB이며 종료
+기록에 전체 byte 수와 명령 오류 여부를 남긴다. 부모가 중단되면 완료 기록이 없는 prefix로 남는다. 이 진단 파일을
+PASS 판정에 사용하지 않으며 기존 전체 이벤트·필수 실행·skip·잘린 출력 거부 검사는 그대로 적용한다. Account 자식
+이벤트도 실행 실패를 보고하기 전에 보존한다. Relation/PostgreSQL의 항상 게시하는 artifact 경로에 연결했다.
+
+로컬 Go 1.26.5·darwin/arm64·CGO=1, `GOMAXPROCS=2`에서 수정된 catalog 생성 root를 SQLite로 한 번 실행했다.
+부모 root는 165.95초에 끝났고 자식 필수 이벤트 169개가 pass 169·fail 0·skip 0이었다. 실제 raw 파일 148,381 bytes의
+SHA-256은 부모가 기록한 값과 같고 stderr는 비어 있었다. 원격 timeout의 재현이나 세 mode 수용으로 확대하지 않는다.
+진단/환경/자식 mode의 한정 root 다섯 개와 준비 진단 한 root, CI Python 검사 34개를 완료했다. 실제 binary에서 발견한
+119개 root와 기존 필수 4,599개를 보존하고 새 진단 sentinel 하나를 추가한 4,600개 목록을 12개 좌표·95개 relation
+job에 정적으로 재배정했다. PostgreSQL core 5,715개 목록은 byte가 같다. 정적 배정 확인은 제품 본문 실행이 아니다.
+
+원본 로그·archive 대조, 단계별 재현·최종 SQLite 실행·정적 배정·13개 변경 source hash는 검증 보관소의
+`gdj0138-2c244a7e-ci-repair-v1/receipt-final.json`에 있다
+(SHA-256 `fa77f2462462352f437ddb7f04bcdfd1eaf2750abef80a44fabf7c33b6432b28`).
+새 source의 전체 필수 실행·generated drift·양 DB·독립 HTTP/browser/process·race/platform 및 capture/원본 대조는
+다음 원격 실행 대상이다. Catalog target 생성과 나머지 I1 제품 범위를 이번 검증 수정으로 완료 처리하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
