@@ -6,6 +6,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 )
 
 type transitionTargetAllocation struct {
@@ -23,15 +24,56 @@ func (owner *Transition[S, T]) targetAllocations(current *transitionObservation[
 	}
 	binding := owner.next.state.credentials.state.binding
 	objects := binding.state.objects
+	metadata, err := objects.Metadata()
+	if err != nil {
+		return nil, err
+	}
 	result := &transitionTargetAllocation{mappings: make([]AccountMapping, len(candidates))}
+	partial := make([]transitionInsertions, len(candidates))
 	for i, initial := range candidates {
 		source := SourceAccount{ID: current.pairs[i].old.id, Revision: current.pairs[i].old.revision}
-		result.nodes = append(result.nodes, transitionAllocation{reference: transitionReferenceNode{kind: TransitionReferenceAccount, source: source, references: initial.references},
-			insert: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, references transitionTargetMappings) (int64, error) {
+		persist := func(ctx context.Context, scope db.RelationSession, candidate transitionCreationCandidate[T], inventory *transitionInsertions, expected *int64) (int64, error) {
+			row, err := candidate.prepared.Model()
+			if err != nil {
+				return 0, err
+			}
+			if creating || candidate.row.revision != originals[i].revision {
+				if err := candidate.prepared.Save(ctx, scope, &row); err != nil {
+					return 0, err
+				}
+			}
+			key, present, err := objects.PrimaryKey(row)
+			id, integer := key.Integer()
+			if err != nil || !present || !integer || !creating && id != originals[i].id || expected != nil && id != *expected {
+				return 0, invalidAccountCredential()
+			}
+			values, err := objects.ModelValues(row)
+			if err != nil {
+				return 0, err
+			}
+			revision, valid := values[binding.state.role.Revision].Integer()
+			if !valid || revision != candidate.row.revision {
+				return 0, invalidAccountCredential()
+			}
+			current.pairs[i].next = candidate.row
+			current.pairs[i].next.row, current.pairs[i].next.id, current.pairs[i].next.values = row, id, values
+			if creating {
+				if _, err := addTransitionIdentity(ctx, scope, inventory, binding.state.project, binding.state.role.Model, objects, row); err != nil {
+					return 0, err
+				}
+			}
+			result.mappings[i] = AccountMapping{SourceID: source.ID, SourceRevision: source.Revision, TargetID: id, TargetRevision: revision}
+			return id, nil
+		}
+		result.nodes = append(result.nodes, transitionAllocation{reference: newTransitionReferenceNode(TransitionReferenceAccount, source, initial.references, metadata),
+			insert: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, references transitionTargetMappings, deferred map[string]bool) (int64, error) {
 				candidate := initial
-				var err error
+				if len(deferred) != 0 && (!creating || candidate.resolve == nil) {
+					return 0, managementError(CodeInvalidConfig, nil)
+				}
 				if candidate.resolve != nil {
-					candidate, err = candidate.resolve(ctx, scope, actor, references, true)
+					var err error
+					candidate, err = candidate.resolve(ctx, scope, actor, references, transitionCreationPhase[T]{allocating: true, deferred: deferred})
 					if err != nil {
 						return 0, err
 					}
@@ -39,38 +81,37 @@ func (owner *Transition[S, T]) targetAllocations(current *transitionObservation[
 						return 0, managementError(CodeConflict, nil)
 					}
 				}
-				row, err := candidate.prepared.Model()
-				if err != nil {
-					return 0, err
+				inventory := &result.inserted
+				if len(deferred) != 0 {
+					inventory = &partial[i]
 				}
-				if creating || candidate.row.revision != originals[i].revision {
-					if err := candidate.prepared.Save(ctx, scope, &row); err != nil {
-						return 0, err
-					}
-				}
-				key, present, err := objects.PrimaryKey(row)
-				id, integer := key.Integer()
-				if err != nil || !present || !integer || !creating && id != originals[i].id {
-					return 0, invalidAccountCredential()
-				}
-				values, err := objects.ModelValues(row)
-				if err != nil {
-					return 0, err
-				}
-				revision, valid := values[binding.state.role.Revision].Integer()
-				if !valid || revision != candidate.row.revision {
-					return 0, invalidAccountCredential()
-				}
-				current.pairs[i].next = candidate.row
-				current.pairs[i].next.row, current.pairs[i].next.id, current.pairs[i].next.values = row, id, values
-				if creating {
-					if _, err := addTransitionIdentity(ctx, scope, &result.inserted, binding.state.project, binding.state.role.Model, objects, row); err != nil {
-						return 0, err
-					}
-				}
-				result.mappings[i] = AccountMapping{SourceID: source.ID, SourceRevision: source.Revision, TargetID: id, TargetRevision: revision}
-				return id, nil
+				return persist(ctx, scope, candidate, inventory, nil)
 			},
+			finish: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, references transitionTargetMappings, deferred map[string]bool) error {
+				if !creating || initial.resolve == nil || len(deferred) == 0 {
+					return managementError(CodeInvalidConfig, nil)
+				}
+				if err := partial[i].verify(ctx); err != nil {
+					return err
+				}
+				row, key := current.pairs[i].next.row, current.pairs[i].next.id
+				candidate, err := initial.resolve(ctx, scope, actor, references, transitionCreationPhase[T]{allocating: true, current: &row})
+				if err != nil {
+					return err
+				}
+				if candidate.resolve != nil {
+					return managementError(CodeConflict, nil)
+				}
+				if err := validateTransitionDeferredUpdate(candidate.prepared.ChangedFields(), deferred); err != nil {
+					return err
+				}
+				_, err = persist(ctx, scope, candidate, &result.inserted, &key)
+				if err == nil {
+					partial[i] = transitionInsertions{}
+				}
+				return err
+			},
+			values: func() map[string]query.Value { return current.pairs[i].next.values },
 		})
 	}
 	return result, nil

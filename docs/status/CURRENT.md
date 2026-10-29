@@ -32,7 +32,8 @@
    전환 계정 생성의 원본 key/revision 참조·실제 FK/OneToOne 결합과 through/host migration 분기 순환 보완을 원격 검증한다.
    Catalog 생성 행의 FK/OneToOne·선택 정책·실제 key 의존 순서와 최종 incoming 검사를 원격 검증한다.
    신규 계정/catalog 공동 할당과 완성 소속 이후 정책·중간 scalar/물리 링크 검사를 원격 검증한다.
-   전환 collection 안의 추가 identity 생성·순환 참조 수명과 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
+   Nullable FK 순환의 단계적 계정/catalog 생성·전체 임시 행 고정·실제 key 완성과 rollback을 원격 검증한다.
+   전환 collection 안의 추가 identity 생성·필수 FK 순환 할당과 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
 
 ## 검증 경계
 

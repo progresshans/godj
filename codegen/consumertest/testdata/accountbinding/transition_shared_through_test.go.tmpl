@@ -110,6 +110,7 @@ type stBackend struct {
 	faults              int
 	mutate              func(context.Context, db.Queryer) error
 	identityHook        func(context.Context, db.Session, string) error
+	identityUpdateHook  func(context.Context, db.Session, query.UpdatePlan) error
 }
 
 func (backend *stBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
@@ -213,6 +214,11 @@ func (scope *stScope) InsertOnConflict(ctx context.Context, plan query.ConflictI
 }
 func (scope *stScope) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
 	count, err := scope.Session.Update(ctx, plan)
+	if err == nil && stIdentityTable(plan.Table()) && scope.owner.identityUpdateHook != nil {
+		if err := scope.owner.identityUpdateHook(ctx, scope.Session, plan); err != nil {
+			return count, err
+		}
+	}
 	if err == nil && scope.owner.mode == "rollback" && plan.Table() == "godj_identity_user" {
 		scope.owner.faults++
 		return count, errors.New("shared through failure after source retirement")
@@ -260,6 +266,7 @@ type stFixture[L any] struct {
 	extraTargetRelations   []accountmodel.ProfileRelation[members.Member]
 	targetReferences       bool
 	policyChecks           int
+	referenceAssertions    map[string]map[int64]map[string]accountmodel.TransitionTargetReference
 }
 
 func stStores(t *testing.T, backend database.Backend, oldRole, nextRole ir.AccountRole) (accountmodel.Binding[models.User], accountmodel.Binding[members.Member], *accountmodel.SessionStore[models.User], *accountmodel.SessionStore[members.Member]) {
@@ -544,6 +551,9 @@ func stCatalogCreation[G, P, L any](t *testing.T, f *stFixture[L], group orm.Rel
 
 func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[models.User, members.Member] {
 	t.Helper()
+	for _, request := range f.requests {
+		stRecordReferences(f, "members_member", request.Source.ID, request.References)
+	}
 	config := accountmodel.TransitionConfig[models.User, members.Member]{Permission: "account.transition", Authorizer: auth.PrincipalAuthorizer{}, MaxAccounts: 2, MaxCatalogRows: 2, Now: func() time.Time { return f.joined.Add(time.Hour) }}
 	config.Validate = func(_ context.Context, _ db.Queryer, left models.User, right members.Member, _, _ accountmodel.AccountMemberships) (validation.Errors, error) {
 		if left.EncodedPassword != "" || right.SecretHash != "" {
@@ -556,7 +566,7 @@ func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[mode
 			if err != nil || valuesErr != nil || !present || values["preferred_permission"].IsNull() || values["preferred_group"].IsNull() && f.mode != "missing_reference" {
 				return validation.Errors{}, errors.New("typed policy received an unresolved target reference")
 			}
-			if f.mode == "policy_rejected" {
+			if f.mode == "policy_rejected" || f.mode == "cycle_policy_rejected" {
 				return validation.NewErrors(validation.New("preferred_group", "policy")), nil
 			}
 		}
@@ -728,6 +738,61 @@ func stPairs(t *testing.T, rows map[int64]map[string]query.Value, source, target
 	return result
 }
 
+// Reference expectations are frozen from the original request. Key lookup uses
+// stable principal/code/name fields, never a persisted FK or the receipt mapping.
+func stRecordReferences[L any](f *stFixture[L], table string, source int64, references map[string]accountmodel.TransitionTargetReference) {
+	if len(references) == 0 {
+		return
+	}
+	if f.referenceAssertions == nil {
+		f.referenceAssertions = make(map[string]map[int64]map[string]accountmodel.TransitionTargetReference)
+	}
+	if f.referenceAssertions[table] == nil {
+		f.referenceAssertions[table] = make(map[int64]map[string]accountmodel.TransitionTargetReference)
+	}
+	f.referenceAssertions[table][source] = maps.Clone(references)
+}
+
+func stReferenceOracle[L any](t *testing.T, f *stFixture[L], all map[string]any) (map[accountmodel.TransitionReferenceKind]map[int64]int64, map[string]map[int64]int64) {
+	t.Helper()
+	keys := map[accountmodel.TransitionReferenceKind]map[int64]int64{accountmodel.TransitionReferenceAccount: {}, accountmodel.TransitionReferenceGroup: {}, accountmodel.TransitionReferencePermission: {}}
+	sources := map[string]map[int64]int64{"members_member": {}, "catalog_team": {}, "catalog_grant": {}}
+	lookup := func(storage, field, want string) int64 {
+		var result int64
+		count := 0
+		for id, values := range all[storage].(map[int64]map[string]query.Value) {
+			if values[field].Equal(query.String(want)) {
+				result = id
+				count++
+			}
+		}
+		if count != 1 {
+			t.Fatal("reference oracle could not identify one target by stable identity", storage, field, count)
+		}
+		return result
+	}
+	for _, old := range f.old {
+		id := lookup("members", "subject", old.PrincipalID)
+		keys[accountmodel.TransitionReferenceAccount][old.ID] = id
+		sources["members_member"][id] = old.ID
+	}
+	group := f.group.ID
+	if f.role.Catalog.Group != f.oldRole.Catalog.Group {
+		group = lookup("groups", "title", "allocated group")
+		sources["catalog_team"][group] = f.group.ID
+	}
+	keys[accountmodel.TransitionReferenceGroup][f.group.ID] = group
+	for _, permission := range f.permissions {
+		id := permission.ID
+		if f.role.Catalog.Permission != f.oldRole.Catalog.Permission {
+			id = lookup("permissions", "symbol", permission.Code)
+			sources["catalog_grant"][id] = permission.ID
+		}
+		keys[accountmodel.TransitionReferencePermission][permission.ID] = id
+	}
+	return keys, sources
+}
+
 func stVerify[L any](t *testing.T, f *stFixture[L], before map[string]any, receipt domain.Receipt, manifest accountmodel.TransitionManifest, result accountmodel.TransitionResult, confirmed bool) {
 	t.Helper()
 	reopened, err := database.Open(t.Context(), f.selected)
@@ -745,6 +810,7 @@ func stVerify[L any](t *testing.T, f *stFixture[L], before map[string]any, recei
 	if !reflect.DeepEqual(all["hubs"], before["hubs"]) {
 		t.Fatal("identity transition changed an unrelated host row")
 	}
+	referenceKeys, sourceIDs := stReferenceOracle(t, f, all)
 	// Native INSERT arguments, including explicit NULLs, are independent of the
 	// transition's projected inventory and durable correspondence payload.
 	for table, key := range map[string]string{"members_member": "members", "catalog_team": "groups", "catalog_grant": "permissions"} {
@@ -759,8 +825,23 @@ func stVerify[L any](t *testing.T, f *stFixture[L], before map[string]any, recei
 			for _, assignment := range insert.plan.Assignments() {
 				want[assignment.Field().Name()] = assignment.Value()
 			}
+			sourceID, knownSource := sourceIDs[table][insert.key]
+			if !knownSource {
+				t.Fatal("identity INSERT had no reviewed source", table, insert.key)
+			}
+			for field, reference := range f.referenceAssertions[table][sourceID] {
+				target, exists := referenceKeys[reference.Kind][reference.Source.ID]
+				if !exists {
+					t.Fatal("reference oracle lacks a real independently identified key", table, field)
+				}
+				expected := query.Integer(target)
+				if original, present := want[field]; !present || !original.IsNull() && !original.Equal(expected) {
+					t.Fatal("initial reference INSERT used an incorrect native key", table, field)
+				}
+				want[field] = expected
+			}
 			if !maps.Equal(rows[insert.key], want) {
-				t.Fatal("created identity differs from actual native INSERT payload", table, insert.key)
+				t.Fatal("created identity differs from native INSERT and independently resolved references", table, insert.key)
 			}
 		}
 		if f.mode == "identity_signed_keys" {

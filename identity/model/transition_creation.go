@@ -67,7 +67,7 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	if _, err := normalizeSourceAccounts(sources); err != nil {
 		return zero, err
 	}
-	if _, err := transitionTargetOrder(owned); err != nil {
+	if _, err := transitionTargetPlan(owned, owner.config.TargetCreation.state.metadata); err != nil {
 		return zero, err
 	}
 	if owner.config.CatalogCreation.state != nil {
@@ -193,7 +193,7 @@ func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Que
 		if err != nil {
 			return zero, err
 		}
-		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, mapped, old.state.binding.state.role, request.Input, request.References, references, createdAt, ownership.Generation(), false)
+		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, mapped, old.state.binding.state.role, request.Input, request.References, references, createdAt, ownership.Generation(), transitionCreationPhase[T]{})
 		if err != nil {
 			return zero, err
 		}

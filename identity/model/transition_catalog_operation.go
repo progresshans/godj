@@ -182,7 +182,7 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 			if request.Source.ID != id || request.Source.Revision != source.revision {
 				return zero, managementError(CodeConflict, nil)
 			}
-			candidate, err = prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, memberships, owner.old.state.credentials.state.binding.state.role, request.Input, request.References, references, inputs.createdAt, ownership.Generation(), false)
+			candidate, err = prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, memberships, owner.old.state.credentials.state.binding.state.role, request.Input, request.References, references, inputs.createdAt, ownership.Generation(), transitionCreationPhase[T]{})
 		} else {
 			pair := inputs.mappings[i]
 			target, present := after[pair.TargetID]
@@ -235,10 +235,10 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 	allocationNodes := slices.Clone(preparedCatalog.nodes)
 	if creatingAccounts {
 		for _, request := range inputs.requests {
-			allocationNodes = append(allocationNodes, transitionReferenceNode{kind: TransitionReferenceAccount, source: request.Source, references: request.References})
+			allocationNodes = append(allocationNodes, newTransitionReferenceNode(TransitionReferenceAccount, request.Source, request.References, owner.config.TargetCreation.state.metadata))
 		}
 	}
-	if _, err := transitionReferenceOrder(allocationNodes); err != nil {
+	if _, err := planTransitionReferences(allocationNodes); err != nil {
 		return zero, err
 	}
 	if len(owner.config.References) != 0 {

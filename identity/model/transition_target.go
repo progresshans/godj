@@ -184,10 +184,10 @@ type transitionCreationCandidate[M any] struct {
 	prepared   orm.PreparedModel[M]
 	row        transitionRow[M]
 	references map[string]TransitionTargetReference
-	resolve    func(context.Context, db.Queryer, auth.Principal, transitionTargetMappings, bool) (transitionCreationCandidate[M], error)
+	resolve    func(context.Context, db.Queryer, auth.Principal, transitionTargetMappings, transitionCreationPhase[M]) (transitionCreationCandidate[M], error)
 }
 
-func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, actor auth.Principal, target *transitionTarget[T], source transitionRow[S], memberships accountMemberships, sourceRole ir.AccountRole, input orm.ModelInput[T], references map[string]TransitionTargetReference, mappings transitionTargetMappings, createdAt time.Time, generation [32]byte, allocating bool) (transitionCreationCandidate[T], error) {
+func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, actor auth.Principal, target *transitionTarget[T], source transitionRow[S], memberships accountMemberships, sourceRole ir.AccountRole, input orm.ModelInput[T], references map[string]TransitionTargetReference, mappings transitionTargetMappings, createdAt time.Time, generation [32]byte, phase transitionCreationPhase[T]) (transitionCreationCandidate[T], error) {
 	var zero transitionCreationCandidate[T]
 	metadata, valid := input.Model()
 	if !valid || !metadata.Equal(target.metadata) {
@@ -197,7 +197,7 @@ func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, ac
 		return zero, managementError(CodeInvalidInput, nil)
 	}
 	original := input
-	input, pending, err := bindTransitionTargetReferences(target, input, references, mappings)
+	input, pending, err := bindTransitionTargetReferences(target, input, references, mappings, phase.deferred)
 	if err != nil {
 		return zero, err
 	}
@@ -290,11 +290,11 @@ func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, ac
 			return zero, err
 		}
 		return transitionCreationCandidate[T]{references: maps.Clone(references), row: transitionRow[T]{revision: 1, values: initial, memberships: memberships, profile: profile},
-			resolve: func(ctx context.Context, reader db.Queryer, admitted auth.Principal, actual transitionTargetMappings, allocating bool) (transitionCreationCandidate[T], error) {
-				return prepareTransitionTarget(ctx, reader, admitted, target, source, memberships, sourceRole, original, references, actual, createdAt, generation, allocating)
+			resolve: func(ctx context.Context, reader db.Queryer, admitted auth.Principal, actual transitionTargetMappings, phase transitionCreationPhase[T]) (transitionCreationCandidate[T], error) {
+				return prepareTransitionTarget(ctx, reader, admitted, target, source, memberships, sourceRole, original, references, actual, createdAt, generation, phase)
 			}}, nil
 	}
-	prepared, err := objects.PrepareValues(nil, values)
+	prepared, err := objects.PrepareValues(phase.current, values)
 	if err != nil {
 		return zero, managementError(CodeInvalidInput, err)
 	}
@@ -306,10 +306,10 @@ func prepareTransitionTarget[S, T any](ctx context.Context, scope db.Queryer, ac
 	if err != nil {
 		return zero, err
 	}
-	if err := validateTransitionValues(ctx, scope, objects, row, values, true); err != nil {
+	if err := validateTransitionValues(ctx, scope, objects, row, values, phase.current == nil); err != nil {
 		return zero, err
 	}
-	if !allocating {
+	if !phase.allocating {
 		if err := checkProfileRelations(ctx, scope, actor, ProfileRelationOrigin{operation: ProfileRelationTransition}, target.relations, values); err != nil {
 			return zero, err
 		}

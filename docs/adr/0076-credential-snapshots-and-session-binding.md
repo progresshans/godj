@@ -2088,15 +2088,15 @@ commit 안에서 대응표에 저장하며 확정 결과의 `Mappings`로 반환
 
 `AccountCreation.References`는 선택한 FK/OneToOne 필드별로 대상의 역할 종류와 검토할 원본 key/revision을 받는다.
 같은 필드를 scalar `Input`에 함께 넣지 않으며, 선언된 FK target이 새 계정·Group·Permission 중 해당 모델과 일치해야 한다.
-Source key 0/음수도 실제 존재를 검사한다. 참조 사본과 값 없는 보류 상태를 준비 digest에 포함하고, 생성된 key를 예측하거나
-임시 0/NULL을 typed 행에 넣지 않는다. 원본의 전체 inventory·revision과 미지원 종류/잘못된 모델/중복 입력을 먼저 확인한다.
+Source key 0/음수도 실제 존재를 검사한다. 참조 사본과 값 없는 보류 상태를 준비 digest에 포함하고, 일반 준비에서
+생성된 key를 예측하거나 임시 값을 typed 행으로 게시하지 않는다. 원본의 전체 inventory·revision과 미지원 종류/잘못된 모델/중복 입력을 먼저 확인한다.
 
 준비는 보류 FK를 제외한 scalar·credential·선택을 검사한다. 실제 대응표가 생기면 모든 FK를 결합한 typed 행의 완전한
 scalar·credential·unique 검사를 거쳐 저장한다. 보류한 FK/M2M 선택 정책은 모든 identity와 소속을 채운 뒤 검사한다. `TransitionConfig.Validate`에는 불완전한 typed 행을 전달하지
 않으며 해당 후보의 정책은 실제 key 결합 후 같은 transaction에서 적용한다. 계정 참조는 원본 key의 의존 순서로 생성하고
 반환 대응표는 원본 순서를 유지한다. 공유 catalog의 의도된 revision 증가 뒤에도 입력 참조는 검토한 SourceRevision에 묶인다.
-Native 자동 key만으로 해결하지 못하는 계정 참조 cycle은 쓰기 전에 명시적 `unsupported`다. Nullable cycle의 단계적 쓰기나
-key 예약을 이번 경로로 대신하지 않는다. 기존 source 인가와 마지막 전체 행·session·audit·receipt 대조는 유지한다.
+Nullable FK로 끊을 수 있는 순환은 아래 공동 할당의 단계적 완성 규약을 사용한다. 필수 FK만으로 남는 cycle은
+별도 native key 할당 기반이 필요하며 쓰기 전에 명시적 `unsupported`다. 기존 source 인가와 마지막 전체 행·session·audit·receipt 대조는 유지한다.
 
 ### 전환 대상 catalog의 생성
 
@@ -2120,7 +2120,14 @@ digest에 포함한다. 완전한 typed 행·unique·선택·custom 정책은 �
 부분 공유 catalog의 실제 key와 준비된 계정의 검토한 대응표도 사용할 수 있다. 신규 계정도 catalog와 같은 namespace별
 의존 그래프에서 할당한다. 예를 들어 계정 B→Group→Permission→계정 A 순서의 실제 key를 받아 FK를 채울 수 있다.
 모든 source revision·의존 경로와 scope를 확인하며, 할당 실패·중복 key·scope 만료에는 부분 대응표를 게시하지 않는다.
-자동 key cycle은 별도 할당 수명이 필요하므로 쓰기 전 명시적 `unsupported`다.
+공동 그래프가 순환하면 강하게 연결된 구간 안의 IR nullable FK/OneToOne만 임시 NULL로 INSERT한다. 순환 밖의 nullable
+참조와 모든 필수 FK는 native key 의존 순서를 유지한다. 모든 실제 key가 나온 뒤 임시 행의 전체 값을 재조회하고,
+원래 입력을 현재 행에 결합해 정확히 보류한 FK 필드만 UPDATE한다. PK·revision·credential·default·다른 scalar의 변경은
+거부한다. 중간 행과 완성된 행 각각의 전체 scalar 합계에도 같은 64 MiB 한도를 적용하며, 완성한 임시 관측은 해제한다.
+계정·catalog의 완성 전에는 보류한 선택 정책이나 custom validator에 행을 전달하지 않는다. 완성한 identity는 기존 최종
+전체 행/물리 링크 inventory에 들어가며 한 번의 Add 감사·revision 1을 유지한다. 실제 INSERT key 0/음수도 그대로 사용한다.
+해당 nullable 간선을 제거해도 남는 필수 FK cycle은 쓰기 전에 명시적 `unsupported`다. Native 제약을 끄거나 key를 예측하지
+않으며 그 순환을 위한 별도 DB 할당 기반은 미완료다. 중간 변조·FK 갱신 실패·unique 충돌도 전체 transaction rollback이다.
 
 Commit은 같은 native relation transaction에서 계정/catalog 공동 의존 그래프→그룹 권한→계정 소속/프로필→host 참조를
 저장한다. 보류 참조를 해결하는 동안에는 scalar·native FK·unique 무결성을 유지하고, 관련 행과 소속이 모두 채워진 뒤
@@ -2146,7 +2153,7 @@ contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확�
 계정 생성·퇴역·receipt·마지막 정책 이후까지 물리 링크와 전체 행을 대조하고, 늦은 endpoint/payload 변경은 rollback한다.
 최종 incoming 검사는 직전에 전체 행/컬럼을 재검증한 account/Group/Permission과 명시한 host 참조/역할 링크의 소유권을
 구분한다. 그 밖의 host FK가 새 catalog를 가리키면 거부하며, 전체 inventory 대조로 소유 행의 늦은 추가/변경도 거부한다.
-Collection setter 안의 추가 선택 identity 생성과 순환 참조 수명은 남은 통합 대상이다.
+Collection setter 안의 추가 선택 identity 생성과 필수 FK 순환의 native 할당 수명은 남은 통합 대상이다.
 직접 INSERT와 공유 물리 through의 코드 존재를 I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
 
 ### 일반 host 참조의 단계적 전환

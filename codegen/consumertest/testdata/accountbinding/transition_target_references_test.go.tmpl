@@ -34,7 +34,13 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 		t.Run(mode, func(t *testing.T) {
 			f := stSetup(t, "created", mode, "", bridges.BridgeObjects, stCapabilities[bridges.Bridge]{groups: collections.MembersMemberGroups, permissions: collections.MembersMemberPermissions, legacyGroups: collections.MembersMemberLegacyGroups, legacyPermissions: collections.MembersMemberLegacyPermissions, interests: collections.MembersMemberInterests, grants: collections.CatalogTeamGrants, sharedGroupGrants: collections.IdentityGroupNewPermissions, sharedPermissionGrants: collections.CatalogTeamLegacyPermissions})
 			f.targetReferences = true
-			if mode == "signed_keys" {
+			cycle := mode == "cycle" || strings.HasPrefix(mode, "cycle_")
+			injected := errors.New("nullable account completion failed after native UPDATE")
+			if strings.HasPrefix(mode, "cycle_unknown_") {
+				f.backend.mode = strings.TrimPrefix(mode, "cycle_")
+			}
+
+			if mode == "signed_keys" || mode == "cycle_signed_keys" {
 				f.backend.signedIdentities = true
 				if f.backend.nativeGeneratedKeys {
 					for _, table := range []string{"members_member", "catalog_team", "catalog_grant"} {
@@ -52,9 +58,10 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 			// source key identifies the target row before its native INSERT.
 			f.requests[0].References["mentor"] = accountmodel.TransitionTargetReference{Kind: accountmodel.TransitionReferenceAccount, Source: f.requests[1].Source}
 			f.requests[0].References["preferred_unique"] = f.requests[0].References["preferred_group"]
-			switch mode {
-			case "cycle":
+			if cycle {
 				f.requests[1].References["mentor"] = accountmodel.TransitionTargetReference{Source: f.requests[0].Source}
+			}
+			switch mode {
 			case "self_cycle":
 				f.requests[0].References["mentor"] = accountmodel.TransitionTargetReference{Source: f.requests[0].Source}
 			case "unknown_source", "wrong_revision", "wrong_kind":
@@ -91,8 +98,35 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 			case "reordered_input":
 				slices.Reverse(f.requests)
 			}
+			if mode == "cycle_intermediate_payload" || mode == "cycle_intermediate_endpoint" {
+				f.backend.identityHook = func(ctx context.Context, scope db.Session, table string) error {
+					if table != "members_member" || len(f.backend.identities[table]) != 2 || f.backend.faults != 0 {
+						return nil
+					}
+					alice, err := members.MemberObjects.Using(scope).Filter(members.MemberFields.Subject.Exact(f.old[0].PrincipalID)).Get(ctx)
+					if err != nil {
+						return err
+					}
+					changes := map[string]query.Value{"first_name": query.String("unreviewed staged payload")}
+					if mode == "cycle_intermediate_endpoint" {
+						changes = map[string]query.Value{"mentor": query.Integer(alice.ID)}
+					}
+					f.backend.faults++
+					_, err = stSave(ctx, scope, members.MemberObjects, &alice, changes)
+					return err
+				}
+			}
+			if mode == "cycle_finalize_failure" {
+				f.backend.identityUpdateHook = func(_ context.Context, _ db.Session, plan query.UpdatePlan) error {
+					if plan.Table() != "members_member" {
+						return nil
+					}
+					f.backend.faults++
+					return injected
+				}
+			}
 			f.backend.mutate = func(ctx context.Context, scope db.Queryer) error {
-				if mode != "late_reference" || !f.backend.receipt || f.backend.faults != 0 {
+				if mode != "late_reference" && mode != "cycle_late_reference" || !f.backend.receipt || f.backend.faults != 0 {
 					return nil
 				}
 				alice, err := members.MemberObjects.Using(scope).Filter(members.MemberFields.Subject.Exact(f.old[0].PrincipalID)).Get(ctx)
@@ -104,13 +138,17 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 					return err
 				}
 				f.backend.faults++
-				_, err = stSave(ctx, scope.(db.Mutator), members.MemberObjects, &bob, map[string]query.Value{"mentor": query.Integer(alice.ID)})
+				target := alice.ID
+				if cycle {
+					target = bob.ID
+				}
+				_, err = stSave(ctx, scope.(db.Mutator), members.MemberObjects, &bob, map[string]query.Value{"mentor": query.Integer(target)})
 				return err
 			}
 			owner := stOwner(t, f)
 			before := stSnapshot(t, f.native)
 			prepared, failure := owner.PrepareCreation(t.Context(), f.actor, strings.Repeat("d", 64), f.requests)
-			early := slices.Contains([]string{"cycle", "self_cycle", "unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap"}, mode) || mode == "missing_reference" && required
+			early := slices.Contains([]string{"unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap"}, mode) || mode == "missing_reference" && required
 			if f.policyChecks != 0 {
 				t.Fatal("typed policy ran before reference identities existed")
 			}
@@ -118,9 +156,7 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 				if failure == nil || prepared.Manifest().OperationID != "" || !reflect.DeepEqual(before, stSnapshot(t, f.native)) {
 					t.Fatal("invalid reference input prepared or wrote durable state", failure)
 				}
-				if (mode == "cycle" || mode == "self_cycle") && !errors.Is(failure, &query.Error{Code: query.CodeUnsupported}) {
-					t.Fatal("auto-key cycle lost explicit unsupported error", failure)
-				}
+
 				return
 			}
 			stMust(t, failure)
@@ -144,14 +180,14 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 				before = stSnapshot(t, f.native)
 			}
 			result, failure := owner.Commit(t.Context(), f.actor, prepared)
-			success := slices.Contains([]string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "missing_reference"}, mode)
-			committed := success || mode == "unknown_commit"
+			success := slices.Contains([]string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "missing_reference", "cycle", "self_cycle", "cycle_signed_keys"}, mode)
+			committed := success || mode == "unknown_commit" || mode == "cycle_unknown_commit"
 			if success {
 				stMust(t, failure)
 			} else if failure == nil || !reflect.DeepEqual(result, accountmodel.TransitionResult{}) {
 				t.Fatal("failed reference transition published success", failure)
 			}
-			if strings.HasPrefix(mode, "unknown_") && (!errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || !f.backend.finished) {
+			if strings.Contains(mode, "unknown_") && (!errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || !f.backend.finished) {
 				t.Fatal("unknown reference outcome did not execute the full native callback", failure)
 			}
 			if mode == "first_insert_failure" && (f.backend.faults != 1 || len(f.backend.identities["members_member"]) != 1) {
@@ -166,11 +202,17 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 			if mode == "denied_choice" && (len(f.backend.identities["catalog_team"]) != 1 || len(f.backend.identities["members_member"]) != 2) {
 				t.Fatal("pending choice denial did not inspect the full allocated graph")
 			}
-			if mode == "late_choice" && !f.backend.receipt || mode == "late_reference" && (f.backend.faults != 1 || !f.backend.receipt) {
+			if mode == "late_choice" && !f.backend.receipt || (mode == "late_reference" || mode == "cycle_late_reference") && (f.backend.faults != 1 || !f.backend.receipt) {
 				t.Fatal("late reference control did not reach the final receipt policy")
 			}
-			if mode == "policy_rejected" && (f.policyChecks == 0 || len(f.backend.identities["members_member"]) != 2) {
+			if (mode == "policy_rejected" || mode == "cycle_policy_rejected") && (f.policyChecks == 0 || len(f.backend.identities["members_member"]) != 2) {
 				t.Fatal("complete typed policy was not exercised")
+			}
+			if mode == "cycle_finalize_failure" && (!errors.Is(failure, injected) || f.backend.faults != 1 || len(f.backend.identities["members_member"]) != 2 || f.policyChecks != 0) {
+				t.Fatal("staged account finalization fault did not run after both native INSERTs", failure)
+			}
+			if (mode == "cycle_intermediate_payload" || mode == "cycle_intermediate_endpoint") && (f.backend.faults != 1 || f.policyChecks != 0) {
+				t.Fatal("partial account tampering reached completed policy", failure)
 			}
 			receipt, found, err := owner.Reconcile(t.Context(), manifest)
 			stMust(t, err)
@@ -195,7 +237,11 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 			stMust(t, err)
 			bob, err := members.MemberObjects.Using(reopened).Filter(members.MemberFields.Subject.Exact(f.old[1].PrincipalID)).Get(t.Context())
 			stMust(t, err)
-			if alice.MentorID == nil || *alice.MentorID != bob.ID || bob.MentorID != nil {
+			wantMentor := bob.ID
+			if mode == "self_cycle" {
+				wantMentor = alice.ID
+			}
+			if alice.MentorID == nil || *alice.MentorID != wantMentor || cycle && (bob.MentorID == nil || *bob.MentorID != alice.ID) || !cycle && bob.MentorID != nil {
 				t.Fatal("account reference did not use the preceding actual native identity")
 			}
 			for _, row := range []members.Member{alice, bob} {
@@ -215,6 +261,9 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 				if !values["preferred_unique"].Equal(wantUnique) {
 					t.Fatal("OneToOne did not use the reviewed target identity")
 				}
+			}
+			if mode == "cycle_signed_keys" && (alice.ID != 0 || bob.ID >= 0 || group.ID != 0 || permission.ID >= 0) {
+				t.Fatal("cyclic graph did not retain native zero/negative keys")
 			}
 			if mode == "signed_keys" && (bob.ID != 0 || alice.ID >= 0 || group.ID != 0 || permission.ID >= 0) {
 				t.Fatal("native zero/negative reference identities were not exercised")

@@ -3353,6 +3353,35 @@ Source 19개와 정적 검사 원본은 `gdj0138-joint-allocation-v1/receipt-fin
 `8bbc67a25e8f44dff59fa67fabae484492f6cc5e9e3d70e5a4383b0bb438fd61`이다. Unknown은 실제 native commit/rollback 뒤
 acknowledgement 오류를 주입하는 기존 경로이며 실제 네트워크 단절 실험을 뜻하지 않는다.
 
+### Nullable FK 순환의 단계적 계정/catalog 생성
+
+2026-10-30, source `58a71da14fcc6e5169a85403940f47e243e417d6` 위에서 공동 생성 그래프의 nullable 순환을 구현했다.
+순환 구간 내부의 IR nullable FK/OneToOne만 임시 NULL로 저장하고 모든 실제 INSERT key를 확보한 뒤 채운다. 순환 밖의
+참조와 필수 간선은 native 의존 순서를 유지하며, 남은 필수 cycle은 쓰기 전 `unsupported`다. 임시 행의 전체 값·최종 변경
+필드 집합·실제 key/revision을 검사하고 완료 행을 최종 inventory에 연결한다. 두 단계 모두 scalar 합계에 64 MiB 예산을
+적용한다. 임시 행을 정책에 전달하거나 완료한 Add를 추가 revision/Change로 처리하지 않는다.
+
+기존 계정·catalog cycle과 self_cycle은 완료 및 재접속 검증으로 전환했다. 실제 0/음수 key, 계정과 catalog 혼합 cycle,
+임시 payload/endpoint 변조·native UPDATE 후 실패·마지막 참조 변조·OneToOne 충돌·정책 거부·unknown 결과를 추가했다.
+전체 행 기대값은 원본 참조 사본과 안정적인 principal/code/name으로 독립 조회한 실제 key에서 만들며, 저장 FK나 receipt를
+기대값으로 복사하지 않는다. 기존 INSERT scalar/default 대조와 전체 rollback·소속·session/audit·restart 검사는 유지한다.
+Group/Permission 양방향이 모두 필수인 별도 schema는 쓰기 전 거부를 확인한다. 선행 소비자의 state 변수를 선언 전에
+참조하던 검사를 commit 뒤의 실패 경계로 이동했다. 이는 코드에서 발견한 오류의 수정이며 로컬 재현 PASS로 기록하지 않는다.
+
+그래프의 nullable/필수·같은 대상 복수 간선·순환 밖 가지·자기 참조·긴 순환, 최종화 전 전체 key 확보와 scope 만료/취소·
+오류·사본 소유권·부분 결과 거부·합계 예산 검사를 필수 목록에 추가했다. 새 Go 본문과 생성 소비자는 로컬에서 실행하지 않았다.
+선행 [CI 40961845174](https://github.com/progresshans/godj/actions/runs/40961845174), attempt 1은 확인 시 queued였으며,
+이 소스 또는 현재 수정의 성공 근거로 사용하지 않는다. 로컬 compile 보류를 유지하며 실제 생성·Go 타입 검사·양 DB·race와
+전체 platform 검증, I1 전체 수용은 새 source의 원격 확인 대상이다.
+
+CI 실행 도구 43개(114.811초), 변경 Go 10개 파일의 gofmt·세 template 치환 문법·245개 문서 링크·diff 검사를 통과했다.
+Relation 필수 항목은 4,758→4,781, PostgreSQL은 5,816→5,819이며 Portable 296개와 기존 모든 항목을 보존했다.
+계정 FK 소비자는 nullable/required 각각 32개, catalog는 nullable 54개·필수 parent FK 51개·필수 cycle 1개 시나리오와
+각 parent를 양 DB에서 요구한다. 이 목록과 정적 문법 검사는 해당 생성/DB 본문 PASS가 아니다. 제품·소비자·CI 입력
+15개 파일의 hash와 정적 검사 원본은 `gdj0138-nullable-cycles-v1/receipt-final.json`에 있다
+(SHA-256 `c1e050fa88ff948f20f4109c509e212aa939af7ad4eb9432e513ee455011fcb5`). Unknown은 실제 native commit/rollback
+뒤 acknowledgement 오류 주입이며 네트워크 단절 실험으로 계산하지 않는다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로
