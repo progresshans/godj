@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"maps"
 	"slices"
 	"time"
 
@@ -28,7 +29,7 @@ type transitionCatalogCreation struct {
 	permissionCreated             bool
 	groupInputs, permissionInputs int
 	required                      []auth.Permission
-	prepare                       func(context.Context, db.Queryer, transitionCatalogObservation) (preparedCatalogCreation, error)
+	prepare                       func(context.Context, db.Queryer, auth.Principal, transitionCatalogObservation, transitionTargetMappings) (preparedCatalogCreation, error)
 	accounts                      func(context.Context, db.Queryer, int64, []int64, []int64) ([]orm.CollectionChange, error)
 }
 
@@ -84,8 +85,8 @@ func (target TransitionCatalogTarget[G, P]) Creation(groups []CatalogRowCreation
 	}
 	return CatalogCreation{&transitionCatalogCreation{source: state.source, oldRole: state.oldHash, nextRole: state.nextHash,
 		groupCreated: state.groups.created, permissionCreated: state.permissions.created, groupInputs: len(groupInputs), permissionInputs: len(permissionInputs), required: slices.Clone(state.required), accounts: state.accounts,
-		prepare: func(ctx context.Context, scope db.Queryer, observed transitionCatalogObservation) (preparedCatalogCreation, error) {
-			return prepareCatalogCreation(ctx, scope, state, groupInputs, permissionInputs, observed)
+		prepare: func(ctx context.Context, scope db.Queryer, actor auth.Principal, observed transitionCatalogObservation, mappings transitionTargetMappings) (preparedCatalogCreation, error) {
+			return prepareCatalogCreation(ctx, scope, actor, state, groupInputs, permissionInputs, observed, mappings)
 		},
 	}}, nil
 }
@@ -100,6 +101,10 @@ func normalizeCatalogCreationInputs[M any](model transitionCatalogModel[M], inpu
 		if request.Source.Revision <= 0 || i > 0 && owned[i-1].Source.ID == request.Source.ID {
 			return nil, managementError(CodeInvalidInput, nil)
 		}
+		if len(request.References) > len(model.metadata.Fields) {
+			return nil, managementError(CodeInvalidInput, nil)
+		}
+		owned[i].References = maps.Clone(request.References)
 		metadata, valid := request.Input.Model()
 		if !valid || !metadata.Equal(model.metadata) || len(request.Input.Collections()) != 0 {
 			return nil, managementError(CodeInvalidInput, nil)

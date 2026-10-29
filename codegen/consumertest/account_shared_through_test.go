@@ -20,6 +20,9 @@ var accountSharedThroughConsumer string
 //go:embed testdata/accountbinding/transition_target_references_test.go.tmpl
 var accountTransitionTargetReferenceConsumer string
 
+//go:embed testdata/accountbinding/transition_catalog_fields_test.go.tmpl
+var accountTransitionCatalogFieldsConsumer string
+
 func accountSharedThroughCases(strategy string) []string {
 	result := []string{"lifecycle", "signed_keys", "shared_group", "shared_permission", "late_payload", "late_catalog_payload", "late_endpoint", "late_extra_null", "late_remove", "audit_failure", "rollback", "unknown_commit", "unknown_rollback"}
 	for _, kind := range []string{"group", "permission"} {
@@ -66,6 +69,28 @@ func writeAccountSharedThroughConsumer(t *testing.T, spec codegen.ProjectSpec, r
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/transition_target_references_test.go", formatted)
+	requiredFields := false
+	for _, app := range spec.Apps {
+		for _, model := range app.Schema.Models {
+			if (ir.ModelIdentity{AppLabel: app.Schema.AppLabel, ModelName: model.Name}) != role.Catalog.Permission {
+				continue
+			}
+			for _, field := range model.Fields {
+				if field.Name == "parent_group" {
+					requiredFields = !field.Nullable
+				}
+			}
+		}
+	}
+	var catalogCases []string
+	for _, name := range accountTransitionCatalogFieldCases(requiredFields) {
+		catalogCases = append(catalogCases, strconv.Quote(name))
+	}
+	formatted, err = format.Source([]byte(strings.ReplaceAll(accountTransitionCatalogFieldsConsumer, "@@CATALOG_FIELD_CASES@@", strings.Join(catalogCases, ","))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/transition_catalog_fields_test.go", formatted)
 	writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 	return root
 }
@@ -116,6 +141,47 @@ func TestGeneratedAccountTransitionTargetReferences(t *testing.T) {
 				cases = append(cases, "TestAccountTransitionTargetReferences/"+name)
 			}
 			runAccountConsumerDatabases(t, root, cases, "TestAccountTransitionTargetReferences")
+		})
+	}
+}
+
+func accountTransitionCatalogFieldCases(required bool) []string {
+	cases := []string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "staged_reference", "pending_account_reference", "unknown_commit", "unknown_rollback", "rollback", "cycle", "self_cycle", "unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap", "missing_reference", "denied_choice", "denied_static", "late_choice", "policy_rejected", "unique_conflict", "first_catalog_insert_failure", "late_reference", "late_host_reference", "source_changed", "permission_revoked", "missing_policy", "duplicate_policy", "wrong_policy_model"}
+	if !required {
+		cases = append(cases, "reverse_namespaces", "shared_group", "shared_permission")
+	}
+	return cases
+}
+
+func TestGeneratedAccountTransitionCatalogFields(t *testing.T) {
+	for _, required := range []bool{false, true} {
+		name := "nullable"
+		if required {
+			name = "required"
+		}
+		t.Run(name, func(t *testing.T) {
+			spec, role := accountSharedThroughSpec(t)
+			for i := range spec.Apps {
+				app := &spec.Apps[i]
+				for j := range app.Schema.Models {
+					model := &app.Schema.Models[j]
+					if (ir.ModelIdentity{AppLabel: app.Schema.AppLabel, ModelName: model.Name}) != role.Catalog.Permission {
+						continue
+					}
+					for k := range model.Fields {
+						field := &model.Fields[k]
+						if field.Name == "parent_group" {
+							field.Nullable, field.Blank = !required, !required
+						}
+					}
+				}
+			}
+			root := writeAccountSharedThroughConsumer(t, spec, role)
+			cases := []string{"TestAccountTransitionCatalogFields"}
+			for _, name := range accountTransitionCatalogFieldCases(required) {
+				cases = append(cases, "TestAccountTransitionCatalogFields/"+name)
+			}
+			runAccountConsumerDatabases(t, root, cases, "TestAccountTransitionCatalogFields")
 		})
 	}
 }
@@ -190,6 +256,7 @@ func accountSharedThroughSpec(t *testing.T) (codegen.ProjectSpec, ir.AccountRole
 	spec.Apps = append(spec.Apps, codegen.AppSpec{Alias: "bridges", Package: codegen.PackageSpec{PackageName: "bridges", ImportPath: "example.com/godj-project-bundle/bridges", Directory: "bridges"},
 		Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "bridges", Models: []ir.Model{bridge, unique}}})
 	addTransitionIdentityThroughModels(&spec, old, role)
+	addTransitionCatalogReferenceFields(&spec, old, role)
 	return spec, role
 }
 
@@ -248,6 +315,53 @@ func addTransitionIdentityThroughModels(spec *codegen.ProjectSpec, old, next ir.
 				model.Fields = append(model.Fields, ir.Field{Name: field.name, GoName: field.goName, Column: field.name + "_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Relation: &ir.ForeignKeyRelation{Target: field.target, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}})
 			}
 			model.Fields = append(model.Fields, ir.Field{Name: "preferred_unique", GoName: "PreferredUniqueID", Column: "preferred_unique_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Unique: true, Relation: &ir.ForeignKeyRelation{Target: next.Catalog.Group, Cardinality: ir.RelationOneToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}})
+		}
+	}
+}
+
+func addTransitionCatalogReferenceFields(spec *codegen.ProjectSpec, old, next ir.AccountRole) {
+	for i := range spec.Apps {
+		app := &spec.Apps[i]
+		for j := range app.Schema.Models {
+			model := &app.Schema.Models[j]
+			identity := ir.ModelIdentity{AppLabel: app.Schema.AppLabel, ModelName: model.Name}
+			if identity == (ir.ModelIdentity{AppLabel: "bridges", ModelName: "hub"}) {
+				model.Fields = append(model.Fields, ir.Field{Name: "unowned_group", GoName: "UnownedGroupID", Column: "unowned_group_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Relation: &ir.ForeignKeyRelation{Target: next.Catalog.Group, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}})
+			}
+			var fields []struct {
+				name, goName string
+				target       ir.ModelIdentity
+				one          bool
+			}
+			if identity == next.Catalog.Group {
+				fields = []struct {
+					name, goName string
+					target       ir.ModelIdentity
+					one          bool
+				}{
+					{"catalog_permission", "CatalogPermissionID", next.Catalog.Permission, false},
+					{"legacy_permission", "LegacyPermissionID", old.Catalog.Permission, false},
+					{"owner", "OwnerID", next.Model, false},
+				}
+			} else if identity == next.Catalog.Permission {
+				fields = []struct {
+					name, goName string
+					target       ir.ModelIdentity
+					one          bool
+				}{
+					{"parent_group", "ParentGroupID", next.Catalog.Group, false},
+					{"legacy_group", "LegacyGroupID", old.Catalog.Group, false},
+					{"previous", "PreviousID", next.Catalog.Permission, false},
+					{"unique_group", "UniqueGroupID", next.Catalog.Group, true},
+				}
+			}
+			for _, ref := range fields {
+				cardinality := ir.RelationManyToOne
+				if ref.one {
+					cardinality = ir.RelationOneToOne
+				}
+				model.Fields = append(model.Fields, ir.Field{Name: ref.name, GoName: ref.goName, Column: ref.name + "_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Unique: ref.one, Relation: &ir.ForeignKeyRelation{Target: ref.target, Cardinality: cardinality, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}})
+			}
 		}
 	}
 }

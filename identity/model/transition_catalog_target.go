@@ -14,12 +14,13 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// TransitionCatalogModelConfig describes the target's typed scalar intent.
+// TransitionCatalogModelConfig describes the target's typed field intent.
 // Permission authorizes Add for a new model, or Change for a shared Group whose
 // new permission relation is populated. Keys, revision, permission codes and
-// grant selections belong to the transition. Shared rows accept no scalar input.
+// grant selections belong to the transition. Shared rows accept no field input.
 type TransitionCatalogModelConfig[M any] struct {
 	Fields                []string
+	Relations             []TransitionCatalogRelation[M]
 	Permission            auth.Permission
 	AdditionalPermissions []auth.Permission
 	Validate              CatalogValidator[M]
@@ -32,9 +33,13 @@ type TransitionCatalogTargetConfig[G, P any] struct {
 
 // CatalogRowCreation pairs a reviewed source with cleaned typed target values.
 // Its target key is allocated by the native INSERT, never selected in advance.
+// References selects reviewed account/catalog correspondences for FK/OneToOne
+// fields omitted from Input. Creation copies the maps; Prepare verifies them.
+// Account targets must already exist under their explicit transition mapping.
 type CatalogRowCreation[M any] struct {
-	Source SourceAccount
-	Input  orm.ModelInput[M]
+	Source     SourceAccount
+	Input      orm.ModelInput[M]
+	References map[string]TransitionTargetReference
 }
 
 func (CatalogRowCreation[M]) Format(state fmt.State, _ rune) {
@@ -64,6 +69,8 @@ type transitionCatalogTarget[G, P any] struct {
 type transitionCatalogModel[M any] struct {
 	objects              orm.Manager[M]
 	metadata             ir.Model
+	role                 ir.AccountRole
+	relations            []ProfileRelation[M]
 	identity             ir.ModelIdentity
 	key                  orm.AutoField[M]
 	name, revision, code string
@@ -130,11 +137,11 @@ func NewTransitionCatalogTarget[S, T, G, P, GP, TG, TP any](source Binding[S], t
 			}
 		}
 	}
-	groups, err := newTransitionCatalogModel(project, orm.NewManager[G](group), right.Catalog.Group, right.Catalog.GroupName, "", right.Catalog.GroupRevision, right.Catalog.GroupPermissions, left.Catalog.Group != right.Catalog.Group, config.Group)
+	groups, err := newTransitionCatalogModel(project, right, target.state.roleFingerprint, orm.NewManager[G](group), right.Catalog.Group, right.Catalog.GroupName, "", right.Catalog.GroupRevision, right.Catalog.GroupPermissions, left.Catalog.Group != right.Catalog.Group, config.Group)
 	if err != nil {
 		return zero, err
 	}
-	permissions, err := newTransitionCatalogModel(project, orm.NewManager[P](permission), right.Catalog.Permission, right.Catalog.PermissionName, right.Catalog.PermissionCode, right.Catalog.PermissionRevision, "", left.Catalog.Permission != right.Catalog.Permission, config.Permission)
+	permissions, err := newTransitionCatalogModel(project, right, target.state.roleFingerprint, orm.NewManager[P](permission), right.Catalog.Permission, right.Catalog.PermissionName, right.Catalog.PermissionCode, right.Catalog.PermissionRevision, "", left.Catalog.Permission != right.Catalog.Permission, config.Permission)
 	if err != nil {
 		return zero, err
 	}
@@ -174,7 +181,7 @@ func NewTransitionCatalogTarget[S, T, G, P, GP, TG, TP any](source Binding[S], t
 	}}, nil
 }
 
-func newTransitionCatalogModel[M any](project orm.ProjectBinding, objects orm.Manager[M], identity ir.ModelIdentity, name, code, revision, collection string, created bool, config TransitionCatalogModelConfig[M]) (transitionCatalogModel[M], error) {
+func newTransitionCatalogModel[M any](project orm.ProjectBinding, role ir.AccountRole, roleHash [32]byte, objects orm.Manager[M], identity ir.ModelIdentity, name, code, revision, collection string, created bool, config TransitionCatalogModelConfig[M]) (transitionCatalogModel[M], error) {
 	var zero transitionCatalogModel[M]
 	metadata, err := objects.Metadata()
 	if err != nil {
@@ -184,7 +191,7 @@ func newTransitionCatalogModel[M any](project orm.ProjectBinding, objects orm.Ma
 	if !valid || len(config.Fields) >= admin.MaximumChangedFields || !created && len(config.Fields) != 0 {
 		return zero, managementError(CodeInvalidConfig, nil)
 	}
-	result := transitionCatalogModel[M]{objects: objects, metadata: metadata, identity: identity, key: orm.NewAutoField[M](key), name: name, revision: revision, code: code,
+	result := transitionCatalogModel[M]{objects: objects, metadata: metadata, role: role, identity: identity, key: orm.NewAutoField[M](key), name: name, revision: revision, code: code,
 		created: created, allowed: make(map[string]bool), validate: config.Validate}
 	if created || collection != "" {
 		result.required, err = auth.RequiredPermissions(config.Permission, config.AdditionalPermissions...)
@@ -196,10 +203,14 @@ func newTransitionCatalogModel[M any](project orm.ProjectBinding, objects orm.Ma
 	}
 	for _, selected := range config.Fields {
 		field, found := namedField(metadata, selected)
-		if !found || result.allowed[selected] || selected == revision || selected == code || field.PrimaryKey || field.NonEditable || field.Relation != nil || field.Kind.IsFile() {
+		if !found || result.allowed[selected] || selected == revision || selected == code || field.PrimaryKey || field.NonEditable || field.Kind.IsFile() {
 			return zero, managementError(CodeInvalidConfig, nil)
 		}
 		result.allowed[selected] = true
+	}
+	result.relations, err = prepareTransitionCatalogRelations(project, roleHash, identity, metadata, config.Fields, config.Relations)
+	if err != nil {
+		return zero, err
 	}
 	if created && name != code && !result.allowed[name] {
 		return zero, managementError(CodeInvalidConfig, nil)

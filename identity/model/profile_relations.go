@@ -62,6 +62,7 @@ type ProfileRelationConfig[T any] struct {
 type ProfileRelation[M any] struct{ state *profileRelationState }
 type profileRelationState struct {
 	field        ir.Field
+	model        ir.ModelIdentity
 	creationOnly bool
 	source       string
 	role         [32]byte
@@ -102,13 +103,18 @@ func NewProfileRelation[M, T any](binding Binding[M], field string, target orm.M
 			creationOnly = true
 		}
 	}
-	choices, err := formmodel.NewRelationChoices(binding.state.project, binding.state.role.Model, field, target, config.Choices)
+	state, err := newProfileRelationState(binding.state.project, binding.state.roleFingerprint, role.Model, declared, target, config, creationOnly)
+	return ProfileRelation[M]{state: state}, err
+}
+
+func newProfileRelationState[T any](project orm.ProjectBinding, role [32]byte, model ir.ModelIdentity, declared ir.Field, target orm.Manager[T], config ProfileRelationConfig[T], creationOnly bool) (*profileRelationState, error) {
+	choices, err := formmodel.NewRelationChoices(project, model, declared.Name, target, config.Choices)
 	if err != nil {
-		return zero, managementError(CodeInvalidConfig, err)
+		return nil, managementError(CodeInvalidConfig, err)
 	}
-	source, err := binding.state.project.SourceSHA256()
+	source, err := project.SourceSHA256()
 	if err != nil {
-		return zero, managementError(CodeInvalidConfig, err)
+		return nil, managementError(CodeInvalidConfig, err)
 	}
 	filter := func(ctx context.Context, scope db.Queryer, actor auth.Principal, origin ProfileRelationOrigin) ([]orm.Predicate[T], error) {
 		validator, ok := scope.(db.SessionValidator)
@@ -124,7 +130,7 @@ func NewProfileRelation[M, T any](binding Binding[M], field string, target orm.M
 		}
 		return slices.Clone(predicates), nil
 	}
-	state := &profileRelationState{creationOnly: creationOnly, field: declared.Clone(), source: source, role: binding.state.roleFingerprint}
+	state := &profileRelationState{creationOnly: creationOnly, field: declared.Clone(), model: model, source: source, role: role}
 	state.check = func(ctx context.Context, scope db.Queryer, actor auth.Principal, origin ProfileRelationOrigin, value query.Value) error {
 		predicates, err := filter(ctx, scope, actor, origin)
 		if err != nil {
@@ -146,12 +152,12 @@ func NewProfileRelation[M, T any](binding Binding[M], field string, target orm.M
 		}
 		if value.IsNull() {
 			if !declared.Nullable {
-				return profileInputError(field, "required")
+				return profileInputError(declared.Name, "required")
 			}
 			return nil
 		}
 		if len(selected.Items()) != 1 {
-			return profileInputError(field, "invalid_choice")
+			return profileInputError(declared.Name, "invalid_choice")
 		}
 		return nil
 	}
@@ -168,7 +174,7 @@ func NewProfileRelation[M, T any](binding Binding[M], field string, target orm.M
 			},
 		})
 	}
-	return ProfileRelation[M]{state: state}, nil
+	return state, nil
 }
 
 // prepareProfileRelations requires exactly one policy for every selected
@@ -192,7 +198,7 @@ func prepareProfileRelations[M any](binding Binding[M], fields []string, configu
 	byName := make(map[string]ProfileRelation[M], len(configured))
 	for _, relation := range configured {
 		state := relation.state
-		if state == nil || state.source != source || state.role != binding.state.roleFingerprint || !slices.Contains(fields, state.field.Name) || byName[state.field.Name].state != nil {
+		if state == nil || state.source != source || state.role != binding.state.roleFingerprint || state.model != binding.state.role.Model || !slices.Contains(fields, state.field.Name) || byName[state.field.Name].state != nil {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 		byName[state.field.Name] = relation

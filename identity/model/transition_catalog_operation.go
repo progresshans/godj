@@ -105,10 +105,6 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 		return zero, err
 	}
 	plan := owner.config.CatalogCreation.state
-	preparedCatalog, err := plan.prepare(ctx, scope, catalog)
-	if err != nil {
-		return zero, err
-	}
 	catalog.pendingGroups, catalog.pendingPermissions = plan.groupCreated, plan.permissionCreated
 	self := func(rows map[int64]transitionCatalogRow, pending bool) map[int64]int64 {
 		if pending {
@@ -143,6 +139,22 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 	} else if len(before) != len(inputs.mappings) || len(after) != len(inputs.mappings) {
 		return zero, managementError(CodeConflict, nil)
 	}
+	var referenceSources []SourceAccount
+	for id, row := range before {
+		referenceSources = append(referenceSources, SourceAccount{ID: id, Revision: row.revision})
+	}
+	var accountKeys map[int64]int64
+	if !creatingAccounts {
+		accountKeys = make(map[int64]int64, len(inputs.mappings))
+		for _, mapping := range inputs.mappings {
+			accountKeys[mapping.SourceID] = mapping.TargetID
+		}
+	}
+	references := targetReferenceMappings(referenceSources, accountKeys, catalog)
+	preparedCatalog, err := plan.prepare(ctx, scope, current, catalog, references)
+	if err != nil {
+		return zero, err
+	}
 	result := catalogTransitionObservation[S, T]{transitionObservation: transitionObservation[S, T]{ownership: ownership, actor: current, catalog: catalog}, preparedCatalog: preparedCatalog}
 	digest := &transitionDigestWriter{hash: sha256.New()}
 	digest.part([]byte("godj.account-catalog-created-transition-state.v2"))
@@ -158,11 +170,6 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 	if err != nil {
 		return zero, err
 	}
-	var referenceSources []SourceAccount
-	for id, row := range before {
-		referenceSources = append(referenceSources, SourceAccount{ID: id, Revision: row.revision})
-	}
-	references := targetReferenceMappings(referenceSources, nil, catalog)
 	for i, id := range slices.Sorted(maps.Keys(before)) {
 		source := before[id]
 		memberships, err := catalog.memberships(source.memberships)

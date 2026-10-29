@@ -69,3 +69,45 @@ func TestTransitionTargetReferencesRetainReviewedCatalogRevisions(t *testing.T) 
 		}
 	}
 }
+
+func TestTransitionReferenceOrderSeparatesCatalogNamespaces(t *testing.T) {
+	nodes := []transitionReferenceNode{
+		{kind: TransitionReferencePermission, source: SourceAccount{ID: -9, Revision: 2}, references: map[string]TransitionTargetReference{
+			"parent": {Kind: TransitionReferenceGroup, Source: SourceAccount{ID: 0, Revision: 1}},
+			"same":   {Kind: TransitionReferenceGroup, Source: SourceAccount{ID: 0, Revision: 1}},
+		}},
+		{kind: TransitionReferencePermission, source: SourceAccount{ID: 0, Revision: 5}},
+		{kind: TransitionReferenceGroup, source: SourceAccount{ID: 0, Revision: 1}, references: map[string]TransitionTargetReference{
+			"grant": {Kind: TransitionReferencePermission, Source: SourceAccount{ID: 0, Revision: 5}},
+		}},
+	}
+	order, err := transitionReferenceOrder(nodes)
+	if err != nil || !slices.Equal(order, []int{1, 2, 0}) {
+		t.Fatal("catalog dependencies confused equal source keys or repeated fields", order, err)
+	}
+	for _, mode := range []string{"unknown", "duplicate", "cycle", "self"} {
+		t.Run(mode, func(t *testing.T) {
+			owned := slices.Clone(nodes)
+			for i := range owned {
+				owned[i].references = maps.Clone(owned[i].references)
+			}
+			switch mode {
+			case "unknown":
+				owned[2].references["grant"] = TransitionTargetReference{Kind: TransitionReferencePermission, Source: SourceAccount{ID: 77, Revision: 1}}
+			case "duplicate":
+				owned[2].kind = TransitionReferencePermission
+			case "cycle":
+				owned[2].references["grant"] = TransitionTargetReference{Kind: TransitionReferencePermission, Source: nodes[0].source}
+			case "self":
+				owned[2].references["grant"] = TransitionTargetReference{Kind: TransitionReferenceGroup, Source: nodes[2].source}
+			}
+			partial, err := transitionReferenceOrder(owned)
+			if partial != nil || err == nil {
+				t.Fatal("invalid catalog graph published a partial write order", partial, err)
+			}
+			if (mode == "cycle" || mode == "self") && !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
+				t.Fatal("cycle lost its native allocation boundary", err)
+			}
+		})
+	}
+}

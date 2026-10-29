@@ -7,6 +7,7 @@ import (
 
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 // TransitionTargetReference selects an explicit correspondence, not a target
@@ -58,14 +59,21 @@ func targetReferenceMappings(accounts []SourceAccount, targets map[int64]int64, 
 }
 
 func bindTransitionTargetReferences[M any](target *transitionTarget[M], input orm.ModelInput[M], references map[string]TransitionTargetReference, mappings transitionTargetMappings) (orm.ModelInput[M], map[string]bool, error) {
+	return bindTransitionReferences(target.binding.state.objects, target.metadata, target.binding.state.role, target.allowed, input, references, mappings)
+}
+
+func bindTransitionReferences[M any](objects orm.Manager[M], metadata ir.Model, role ir.AccountRole, allowed map[string]bool, input orm.ModelInput[M], references map[string]TransitionTargetReference, mappings transitionTargetMappings) (orm.ModelInput[M], map[string]bool, error) {
+	if len(references) > len(metadata.Fields) {
+		return orm.ModelInput[M]{}, nil, managementError(CodeInvalidInput, nil)
+	}
 	values := input.Values()
 	resolved, pending := make(map[string]query.Value), make(map[string]bool)
 	for _, name := range slices.Sorted(maps.Keys(references)) {
 		reference := references[name]
-		field, found := namedField(target.metadata, name)
-		identity, err := transitionReferenceModel(target.binding.state.role, reference.Kind)
+		field, found := namedField(metadata, name)
+		identity, err := transitionReferenceModel(role, reference.Kind)
 		_, supplied := values[name]
-		if err != nil || !found || !target.allowed[name] || field.Relation == nil || field.Relation.Target != identity || supplied || reference.Source.Revision <= 0 {
+		if err != nil || !found || !allowed[name] || field.Relation == nil || field.Relation.Target != identity || supplied || reference.Source.Revision <= 0 {
 			return orm.ModelInput[M]{}, nil, managementError(CodeInvalidInput, err)
 		}
 		namespace, found := mappings[reference.Kind]
@@ -82,7 +90,7 @@ func bindTransitionTargetReferences[M any](target *transitionTarget[M], input or
 		}
 		resolved[name] = query.Integer(key)
 	}
-	bound, err := target.binding.state.objects.WithServerValues(input, resolved)
+	bound, err := objects.WithServerValues(input, resolved)
 	return bound, pending, err
 }
 
@@ -91,23 +99,44 @@ func bindTransitionTargetReferences[M any](target *transitionTarget[M], input or
 // separate key reservation or staged nullable update protocol; reject it before
 // writing rather than substituting NULL/zero or weakening native constraints.
 func transitionTargetOrder[M any](requests []AccountCreation[M]) ([]int, error) {
-	indices := make(map[int64]int, len(requests))
+	nodes := make([]transitionReferenceNode, len(requests))
 	for i, request := range requests {
-		if _, duplicate := indices[request.Source.ID]; duplicate {
+		nodes[i] = transitionReferenceNode{kind: TransitionReferenceAccount, source: request.Source, references: request.References}
+	}
+	return transitionReferenceOrder(nodes)
+}
+
+type transitionReferenceIdentity struct {
+	kind TransitionReferenceKind
+	id   int64
+}
+
+type transitionReferenceNode struct {
+	kind       TransitionReferenceKind
+	source     SourceAccount
+	references map[string]TransitionTargetReference
+}
+
+func transitionReferenceOrder(requests []transitionReferenceNode) ([]int, error) {
+	namespaces := make(map[TransitionReferenceKind]bool)
+	indices := make(map[transitionReferenceIdentity]int, len(requests))
+	for i, request := range requests {
+		namespaces[request.kind] = true
+		if _, duplicate := indices[transitionReferenceIdentity{kind: request.kind, id: request.source.ID}]; duplicate {
 			return nil, managementError(CodeInvalidInput, nil)
 		}
-		indices[request.Source.ID] = i
+		indices[transitionReferenceIdentity{kind: request.kind, id: request.source.ID}] = i
 	}
 	dependencies := make([]int, len(requests))
 	dependents := make([][]int, len(requests))
 	for i, request := range requests {
 		seen := make(map[int]bool)
-		for _, name := range slices.Sorted(maps.Keys(request.References)) {
-			reference := request.References[name]
-			if reference.Kind != TransitionReferenceAccount {
+		for _, name := range slices.Sorted(maps.Keys(request.references)) {
+			reference := request.references[name]
+			if !namespaces[reference.Kind] {
 				continue
 			}
-			index, found := indices[reference.Source.ID]
+			index, found := indices[transitionReferenceIdentity{kind: reference.Kind, id: reference.Source.ID}]
 			if !found {
 				return nil, managementError(CodeInvalidInput, nil)
 			}

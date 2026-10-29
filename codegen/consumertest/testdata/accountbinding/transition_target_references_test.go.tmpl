@@ -79,7 +79,11 @@ func TestAccountTransitionTargetReferences(t *testing.T) {
 				}
 			case "duplicate_login":
 				for i := range f.requests {
-					f.requests[i].Input, err = members.MemberObjects.WithServerValues(f.requests[i].Input, map[string]query.Value{"handle": query.String("duplicate@example.test")})
+					values := f.requests[i].Input.Values()
+					values["handle"] = query.String("duplicate@example.test")
+					input, failure := members.MemberObjects.Input(values)
+					stMust(t, failure)
+					f.requests[i].Input, err = input.WithCollections(f.requests[i].Input.Collections())
 					stMust(t, err)
 				}
 			case "unique_conflict":

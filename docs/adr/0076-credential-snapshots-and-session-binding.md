@@ -2104,14 +2104,23 @@ key 예약을 이번 경로로 대신하지 않는다. 기존 source 인가와 �
 host source에 묶는다. 생성 `NewAccountTransitionCatalogTarget`도 이 구성을 사용한다. `Creation`은 source key/revision과
 정리된 typed `ModelInput` 목록을 소유하며 `TransitionConfig.CatalogCreation`에 연결한다. 기존 `CatalogMappings`와 섞지 않는다.
 변경되는 catalog 모델에는 전체 source 행마다 하나의 입력이 필요하다. 키·revision·권한 코드·권한 소속은 입력으로 받지 않고,
-표시명·추가 scalar allowlist·IR default·typed validation을 적용한다. 파일/관계 입력은 이 catalog 생성 선언의 대상이 아니다.
+표시명·추가 field allowlist·IR default·typed validation을 적용한다. 파일 입력은 이 catalog 생성 선언의 대상이 아니다.
+선택 FK/OneToOne에는 `NewTransitionCatalogRelation`으로 target 계정 binding·실제 catalog descriptor·typed 대상 선택을
+결합한다. 필드마다 정확히 하나의 정책을 요구하며 같은 source actor와 borrowed scope에서 준비·저장·마지막 정책을 검사한다.
 
 준비 snapshot에서 변경되는 target 모델과 incoming FK의 부재, 전체 source/공유 target·물리 링크, 계정·host 참조를 관측한다.
 새 key를 예측하지 않으며 정책의 `AccountMemberships.PendingCatalogKeys()`가 미확정 group/permission namespace를 명시한다.
 해당 `Groups`/`Permissions`는 key를 반환하지 않는다. 최종 fenced policy에는 실제 할당 key를 준다. 일반 host 참조도 source
 전체 집합을 보관하고 할당 뒤 실제 세 대응표를 대조한다. 모든 필수/추가 권한은 source actor로 입력 정책 실행 전에 확인한다.
 
-Commit은 같은 native relation transaction에서 Permission→Group→그룹 권한→계정/소속→host 참조를 저장한다.
+`CatalogRowCreation.References`도 account 참조와 같은 원본 key/revision·역할 namespace를 사용한다. Field input과의
+중복, 잘못된 실제 target 모델·원본·revision은 거부한다. 생성 catalog의 보류 FK는 준비 값에서 absent이며 참조 사본을
+digest에 포함한다. 완전한 typed 행·unique·선택·custom 정책은 실제 key 결합 뒤 검사한다. Group/Permission의
+모든 행을 namespace와 source key로 나눈 의존 순서로 INSERT하고, 반환/저장 대응표는 원본 순서를 유지한다.
+부분 공유 catalog의 실제 key와 준비된 계정의 검토한 대응표도 사용할 수 있다. 아직 생성하지 않은 계정 key를 catalog가
+참조하는 결합 그래프와 자동 key cycle은 별도 할당 수명이 필요하므로 쓰기 전 명시적 `unsupported`다.
+
+Commit은 같은 native relation transaction에서 catalog 의존 그래프→그룹 권한→계정/소속→host 참조를 저장한다.
 Permission 코드는 source에서 그대로 복사하고 새 행 revision은 1이다. 부분 공유 Permission은 변경하지 않는다.
 부분 공유 Group은 scalar/key를 보존하며 새 권한 관계가 채워지는 행만 source/target의 revision 필드를 한 번 올리고
 Change 감사를 남긴다. 준비된 target 계정도 소속/유효 권한이 바뀌는 행만 revision과 Change 감사를 추가한다.
@@ -2128,9 +2137,11 @@ Manifest v7은 생성할 모델 구분과 전체 source key/revision·최종 tar
 contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확인한다.
 
 새 account/Group/Permission의 직접 INSERT도 공통 삽입 inventory에 합치며 실제 key와 전체 scalar를 64 MiB 합계에
-포함한다. Catalog의 관계 입력 제한은 유지하므로 nullable through endpoint는 NULL로 시작한다. Catalog 생성 직후와
+포함한다. 명시한 관계 입력과 기본값을 전체 typed 행 및 nullable through endpoint inventory에 반영한다. Catalog 생성 직후와
 계정 생성·퇴역·receipt·마지막 정책 이후까지 물리 링크와 전체 행을 대조하고, 늦은 endpoint/payload 변경은 rollback한다.
-Collection setter 안에서의 추가 선택 identity 생성, catalog 생성 행 자체의 FK와 순환 참조 수명은 남은 통합 대상이다.
+최종 incoming 검사는 직전에 전체 행/컬럼을 재검증한 account/Group/Permission과 명시한 host 참조/역할 링크의 소유권을
+구분한다. 그 밖의 host FK가 새 catalog를 가리키면 거부하며, 전체 inventory 대조로 소유 행의 늦은 추가/변경도 거부한다.
+Collection setter 안의 추가 선택 identity 생성, catalog와 신규 계정의 결합 할당 및 순환 참조 수명은 남은 통합 대상이다.
 직접 INSERT와 공유 물리 through의 코드 존재를 I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
 
 ### 일반 host 참조의 단계적 전환

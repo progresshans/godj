@@ -26,9 +26,10 @@ func (created createdCatalogState) verify(actual transitionCatalogObservation) e
 	return nil
 }
 
-// A newly allocated catalog identity may acquire only the declared role links
-// and explicit host-reference targets. Other incoming fields were empty before
-// allocation and must remain so; trigger-created rows cannot be silently adopted.
+// Account/catalog inventories (all rows and fields) are verified immediately
+// before this check. Their explicit FK values may reference allocated identities.
+// Other incoming fields must be declared role links or host-reference targets;
+// trigger-created host rows cannot be silently adopted.
 func (owner *Transition[S, T]) verifyCatalogCreationIncoming(ctx context.Context, scope db.Queryer, references []transitionReferenceObservation) error {
 	state := owner.config.CatalogCreation.state
 	binding := owner.next.state.credentials.state.binding.state
@@ -54,7 +55,8 @@ func (owner *Transition[S, T]) verifyCatalogCreationIncoming(ctx context.Context
 	var plans []query.Plan
 	for _, relation := range project.ForwardRelations() {
 		created := state.groupCreated && relation.Target == role.Catalog.Group || state.permissionCreated && relation.Target == role.Catalog.Permission
-		if !created || allowed[relation.Source][relation.Field] || relation.Source == relation.Target {
+		owned := relation.Source == role.Model || relation.Source == role.Catalog.Group || relation.Source == role.Catalog.Permission
+		if !created || allowed[relation.Source][relation.Field] || owned {
 			continue
 		}
 		model, found := project.Model(relation.Source)

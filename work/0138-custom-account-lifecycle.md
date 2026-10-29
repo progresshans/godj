@@ -588,8 +588,14 @@ rollback/unknown·재접속을 검사한다. 기존 catalog를 쓰는 account-on
 새 host/through 조합에서 확인한 migration의 분기 순환 계획 실패는 첫 단순 cycle 밖의 게시 가능한 공급자를 찾도록
 보완하고, 모든 게시 prefix 재개 검사를 추가했다. 본문·환경별 검증은 TEST_EVIDENCE를 따른다.
 
+Catalog 생성 행의 FK/OneToOne도 명시적 typed 선택 정책과 source key/revision 참조를 받도록 연결했다.
+Group/Permission의 교차·자기 모델 의존 순서로 실제 key를 할당하고 완전한 typed/unique/선택/custom 정책을 검사한다.
+부분 공유 catalog와 준비된 계정 대응표도 사용하며, 마지막 정책 뒤 전체 identity 행과 그 밖의 host incoming을 대조한다.
+Nullable/필수 두 외부 schema에 실제 signed key·사본·교차 순서·OneToOne·인가/정책·늦은 행 및 host FK 변조·rollback/
+unknown·재접속 소비자를 작성했다. 본문·환경별 검증은 TEST_EVIDENCE를 따른다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성의 실제 검증, 전환 collection 안의 추가 identity 생성,
-catalog 생성 행 자체의 FK와 순환 참조 수명, 역사 `systemstate` 가져오기,
+catalog와 신규 계정의 결합 할당 및 순환 참조 수명, 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

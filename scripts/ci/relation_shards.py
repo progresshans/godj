@@ -28,6 +28,7 @@ ISOLATED_ACCOUNT_ROOTS = (
     'TestGeneratedAccountCatalogCreation',
     'TestGeneratedAccountSharedThroughTransition',
     'TestGeneratedAccountTransitionTargetReferences',
+    'TestGeneratedAccountTransitionCatalogFields',
     # CI 40876201651's Intel normal owner spent 954.64s in these two
     # process consumers and reached 2,088.28s before a 12s root timed out.
     # Give each complete root an owner on the existing isolation coordinates.

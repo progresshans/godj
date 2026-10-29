@@ -3272,6 +3272,44 @@ Race/CGO0는 job 종료 상태까지 확인했으며 child 원본의 이 대조�
 Source 25개와 정적 검사 receipt는 `gdj0138-target-references-v1/receipt-final.json`에 있고 SHA-256은
 `e901fb4601125e9efc477e8d69ceda72c6a5a0731a1f0c7a5e69362a769d4753`이다.
 
+### Catalog 생성 행의 typed FK와 의존 순서
+
+2026-10-30, source `b5a1f6565a70faffee484453762c9b4396dfb514` 위에서 catalog 생성의 명시적 FK/OneToOne 선택 정책과
+`CatalogRowCreation.References`를 작성했다. 전체 source·선택 catalog 모델을 검증한 typed capability가 계정 profile과
+같은 선택 엔진을 사용한다. 참조 사본·원본 key/revision·namespace를 준비 digest에 넣고, 보류 FK는 값 목록에서 absent로
+둔다. Group/Permission의 교차·자기 모델 의존 순서로 native key를 할당한 뒤 전체 typed/unique·선택·custom 정책을 적용한다.
+부분 공유 catalog와 이미 준비한 target 계정의 실제 대응표도 연결한다. 신규 계정과 catalog의 결합 할당·자동 key cycle은
+쓰기 전 명시적 unsupported이며 이 잔여 수명, collection 안의 추가 identity 생성과 I1 전체 수용은 미완료다.
+
+마지막 incoming 검사는 직전에 전체 행/컬럼을 대조한 account/Group/Permission과 일반 host 참조의 소유권을 구분한다.
+선택 identity의 명시적 FK는 전체 inventory로 고정하고, 허용하지 않은 일반 host FK와 늦은 identity 행 변경은 거부한다.
+새 외부 root는 nullable 33개·필수 FK 30개 시나리오와 parent를 양 DB에 요구한다. 양 namespace의 실제 0/음수 key,
+역순·교차 의존성, OneToOne, 원본/입력/정책 구성 거부, 사본·정렬, 공유 catalog와 staged 계정 참조, 현재 선택/typed 정책,
+첫 실제 INSERT 뒤 실패·마지막 receipt 뒤 FK/선택/host 변경, 권한 회수·source revision·rollback/unknown·재접속을 포함한다.
+Namespace별 순서·부분 결과 거부 단위 root와 모든 child도 필수 목록에 추가했다. 아직 새 본문 실행 근거는 없다.
+
+선행 [CI 40954106628](https://github.com/progresshans/godj/actions/runs/40954106628), attempt 1의 PostgreSQL normal
+shared-through 작업 `123730582461`에서 계정 참조 소비자의 nullable/required × SQLite/PostgreSQL 네 child가 실패했다.
+성공 경로는 commit의 `account_domain_not_fresh`를, duplicate_login은 입력 구성에서 `WithServerValues`의 기존 값
+덮어쓰기 거부를 보고했다. 코드 대조상 최종 incoming 검사가 전체 행으로 검증한 계정의 명시적 catalog FK도 금지하고 있어
+위 소유권 검사로 보완했다. 중복 로그인 fixture는 typed Input을 다시 만들고 기존 collection 선택을 그대로 옮기도록 수정했다.
+로컬 재현/본문 실행은 하지 않았으므로 수정 해결 여부는 새 원격 CI에서 확인한다.
+
+같은 실패 job의 공유 through 소비자는 SQLite/PostgreSQL 각각 필수 91개를 모두 실행했고 fail/skip/누락/중복이 없었다.
+이는 선행 migration 분기 순환 보완과 당시 shared-through 소비자의 normal 실제 실행 근거이며 계정 FK나 새 catalog FK,
+전체 CI의 성공은 아니다. 실제 checkout `4391735f205d97c791fd9f2f5520a29556f15aeb`와 제출 source의 tree는
+`8f9a86c47b1f87478e0d242a83968ac892658182`로 같다. Artifact `12934591319` ZIP SHA-256은
+`daf6b5b14b67cfe1cf01ab31b377735bc86180f4b97ca90eff26ce22f9fe6442`로 GitHub metadata와 일치한다.
+여섯 원본 capture와 source 대조는 검증 보관소 `gdj0138-catalog-fields-v1/prior-failure-diagnosis.json`에 연결했다
+(SHA-256 `04fc7546aa2f912f455cbfb5f6efd399c6e39e17395d53d4e2a26a77ccd51f71`).
+
+CI 분할·실행 도구 검사 43개(113.859초), 변경 Go 10개 파일의 포맷, 세 template 치환 문법과 245개 문서 링크·diff 검사를
+통과했다. Relation 필수 항목은 4,741→4,751, PostgreSQL 5,809→5,816이며 Portable 296개와 모든 기존 항목을 유지한다.
+로컬 compile 중단은 유지했고 실제 생성·Go 타입 검사·양 DB 본문·race/platform·I1 수용은 새 source의 원격 확인 대상이다.
+Source 20개와 정적 검사 원본은 `gdj0138-catalog-fields-v1/receipt-final.json`에 있으며 SHA-256은
+`a9f562539ff150ca4456f449b3feaeba1adbae2c45d252cecff5e7a08eaf78bc`다. Unknown은 기존 native commit/rollback 뒤
+acknowledgement 오류 주입 경로를 사용하며 실제 네트워크 단절 실험으로 집계하지 않는다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

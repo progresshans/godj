@@ -180,6 +180,10 @@ func (scope *stScope) Insert(ctx context.Context, plan query.InsertPlan) (int64,
 	if stIdentityTable(plan.Table()) {
 		scope.owner.identities[plan.Table()] = append(scope.owner.identities[plan.Table()], stInsertion{id, plan})
 	}
+	if scope.owner.mode == "first_catalog_insert_failure" && plan.Table() == "catalog_team" {
+		scope.owner.faults++
+		return id, errors.New("failure after first catalog identity INSERT")
+	}
 	if scope.owner.mode == "first_insert_failure" && plan.Table() == "members_member" && len(scope.owner.identities[plan.Table()]) == 1 {
 		scope.owner.faults++
 		return id, errors.New("failure after first dependent account INSERT")
@@ -245,6 +249,7 @@ type stFixture[L any] struct {
 	hasher                 *auth.PBKDF2
 	joined                 time.Time
 	prefix, strategy, mode string
+	catalogOverride        *accountmodel.CatalogCreation
 	targetReferences       bool
 	policyChecks           int
 }
@@ -599,14 +604,18 @@ func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[mode
 		}
 		stMust(t, err)
 	}
-	switch f.mode {
-	case "account_only":
-	case "shared_group":
-		config.CatalogCreation = stCatalogCreation(t, f, models.GroupDescriptor{}, catalog.GrantDescriptor{}, models.GroupObjects, catalog.GrantObjects, f.caps.sharedGroupGrants, f.caps.legacyGroups, f.caps.permissions, false, true)
-	case "shared_permission":
-		config.CatalogCreation = stCatalogCreation(t, f, catalog.TeamDescriptor{}, models.PermissionDescriptor{}, catalog.TeamObjects, models.PermissionObjects, f.caps.sharedPermissionGrants, f.caps.groups, f.caps.legacyPermissions, true, false)
-	default:
-		config.CatalogCreation = stCatalogCreation(t, f, catalog.TeamDescriptor{}, catalog.GrantDescriptor{}, catalog.TeamObjects, catalog.GrantObjects, f.caps.grants, f.caps.groups, f.caps.permissions, true, true)
+	if f.catalogOverride != nil {
+		config.CatalogCreation = *f.catalogOverride
+	} else {
+		switch f.mode {
+		case "account_only":
+		case "shared_group":
+			config.CatalogCreation = stCatalogCreation(t, f, models.GroupDescriptor{}, catalog.GrantDescriptor{}, models.GroupObjects, catalog.GrantObjects, f.caps.sharedGroupGrants, f.caps.legacyGroups, f.caps.permissions, false, true)
+		case "shared_permission":
+			config.CatalogCreation = stCatalogCreation(t, f, catalog.TeamDescriptor{}, models.PermissionDescriptor{}, catalog.TeamObjects, models.PermissionObjects, f.caps.sharedPermissionGrants, f.caps.groups, f.caps.legacyPermissions, true, false)
+		default:
+			config.CatalogCreation = stCatalogCreation(t, f, catalog.TeamDescriptor{}, catalog.GrantDescriptor{}, catalog.TeamObjects, catalog.GrantObjects, f.caps.grants, f.caps.groups, f.caps.permissions, true, true)
+		}
 	}
 	owner, err := accountmodel.NewTransition(f.oldStore, f.nextStore, config)
 	stMust(t, err)
