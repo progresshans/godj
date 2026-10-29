@@ -37,7 +37,7 @@ type tracedSession struct {
 func (s tracedSession) ValidateSession(ctx context.Context) error {
 	return s.RelationSession.(db.SessionValidator).ValidateSession(ctx)
 }
-func (s tracedSession) InsertOnConflict(ctx context.Context, p query.ConflictInsertPlan) (bool, error) {
+func (s tracedSession) InsertOnConflict(ctx context.Context, p query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	return s.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, p)
 }
 func (s tracedSession) Query(ctx context.Context, p query.Plan) (db.Rows, error) {

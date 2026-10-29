@@ -638,7 +638,7 @@ type cancelInsertSession struct {
 	cancel context.CancelFunc
 }
 
-func (s cancelInsertSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s cancelInsertSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	inserted, err := s.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
 	s.cancel()
 	return inserted, err

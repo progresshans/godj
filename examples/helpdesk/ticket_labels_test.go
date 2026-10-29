@@ -369,10 +369,10 @@ func (s *ticketLabelFaultRelation) ValidateSession(ctx context.Context) error {
 	}
 	return validator.ValidateSession(ctx)
 }
-func (s *ticketLabelFaultRelation) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s *ticketLabelFaultRelation) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	inserter, ok := s.RelationSession.(db.ConflictInserter)
 	if !ok {
-		return false, errors.New("link fixture missing native conflict insertion")
+		return db.ConflictInsertResult{}, errors.New("link fixture missing native conflict insertion")
 	}
 	return inserter.InsertOnConflict(ctx, plan)
 }

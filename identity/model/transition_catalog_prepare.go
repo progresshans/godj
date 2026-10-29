@@ -271,7 +271,7 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 		if len(batch.Effects().Deletions().Rows()) != 0 {
 			return zero, managementError(CodeConflict, nil)
 		}
-		if err := batch.Apply(ctx, nil); err != nil {
+		if _, err := batch.Apply(ctx, nil); err != nil {
 			return zero, err
 		}
 	}

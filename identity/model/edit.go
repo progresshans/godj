@@ -404,7 +404,7 @@ func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal
 		}
 		revoked := 0
 		if len(changes) != 0 {
-			err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
+			_, err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
 				var err error
 				revoked, err = plan.apply(ctx, scope)
 				return err

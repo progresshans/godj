@@ -25,7 +25,8 @@ type collectionChange struct {
 	operation manyChange
 	keys      []int64
 	clear     bool
-	build     func(manyPair) (query.InsertPlan, error)
+	build     func(manyPair) (collectionInsert, error)
+	read      func(context.Context, db.RelationSession, int64) (map[string]query.Value, error)
 }
 
 func (CollectionChange) Format(state fmt.State, _ rune) {
@@ -66,13 +67,13 @@ func newCollectionChange[L any](source *manyToManyState, through ManyToManyDescr
 	keys = slices.Compact(keys)
 	manager := NewManager[L](through)
 	state := &collectionChange{source: source, owner: owner, operation: operation, keys: keys, clear: clear}
-	state.build = func(pair manyPair) (query.InsertPlan, error) {
+	state.build = func(pair manyPair) (collectionInsert, error) {
 		mutation := input.BuildManyToManyCreate(source.source.Clone(), source.target.Clone(), pair.source, pair.target)
 		if err := validateMutation(mutation, MutationCreate, manager.prepared, through, nil); err != nil {
-			return query.InsertPlan{}, err
+			return collectionInsert{}, err
 		}
 		if _, present := through.PrimaryKey(mutation.value); present {
-			return query.InsertPlan{}, relationInvalidPlan("collection create input supplied a primary key")
+			return collectionInsert{}, relationInvalidPlan("collection create input supplied a primary key")
 		}
 		for _, endpoint := range []struct {
 			name string
@@ -80,18 +81,34 @@ func newCollectionChange[L any](source *manyToManyState, through ManyToManyDescr
 		}{{source.source.Name, pair.source}, {source.target.Name, pair.target}} {
 			for _, assignment := range mutation.assignments {
 				if assignment.Field().Name() == endpoint.name && !assignment.Value().Equal(query.Integer(endpoint.key)) {
-					return query.InsertPlan{}, relationInvalidPlan("collection create input changed a bound endpoint")
+					return collectionInsert{}, relationInvalidPlan("collection create input changed a bound endpoint")
 				}
 			}
 		}
-		return query.NewInsertPlanReturningKey(source.model.DBTable, mutation.Assignments(), fieldReference(source.key)), nil
+		values, err := manager.ModelValues(mutation.value)
+		if err != nil {
+			return collectionInsert{}, err
+		}
+		return collectionInsert{plan: query.NewInsertPlanReturningKey(source.model.DBTable, mutation.Assignments(), fieldReference(source.key)), values: values}, nil
 	}
+	state.read = func(ctx context.Context, scope db.RelationSession, key int64) (map[string]query.Value, error) {
+		expression, err := query.NewExpression(query.NewCondition(fieldReference(source.key), query.LookupExact, query.Integer(key)))
+		if err != nil {
+			return nil, err
+		}
+		row, err := manager.Using(scope).Filter(Predicate[L]{expression: expression}).Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return manager.ModelValues(row)
+	}
+
 	return CollectionChange{state: state}, nil
 }
 
 // CollectionInsertEffect is a proposed typed through insertion. Its key is not
-// known until execution. Values contain declared assignments, not an assertion
-// that a conflict-tolerant insert actually created a row.
+// known until execution. Values contain the complete typed scalar candidate,
+// including defaults and an absent (NULL) key. They are not insertion proof.
 type CollectionInsertEffect struct {
 	Model  ir.ModelIdentity
 	Values map[string]query.Value
@@ -144,7 +161,7 @@ type preparedCollectionChange struct {
 	change   *collectionChange
 	rows     []manyRow
 	desired  []manyPair
-	inserts  []query.InsertPlan
+	inserts  []collectionInsert
 	conflict db.ConflictInserter
 }
 
@@ -198,7 +215,7 @@ func prepareCollectionChanges(ctx context.Context, session db.RelationSession, c
 	// Reject incompatible sources and duplicate selections before any I/O.
 	for _, change := range changes {
 		current := change.state
-		if current == nil || current.source == nil || current.source.snapshot == nil || current.build == nil {
+		if current == nil || current.source == nil || current.source.snapshot == nil || current.build == nil || current.read == nil {
 			return PreparedCollectionChanges{}, relationInvalidPlan("collection change is unbound")
 		}
 		source := current.source
@@ -306,11 +323,7 @@ func prepareCollectionChanges(ctx context.Context, session db.RelationSession, c
 				return PreparedCollectionChanges{}, err
 			}
 			current.inserts = append(current.inserts, insert)
-			values := make(map[string]query.Value)
-			for _, assignment := range insert.Assignments() {
-				values[assignment.Field().Name()] = assignment.Value()
-			}
-			state.effects.insertions = append(state.effects.insertions, CollectionInsertEffect{Model: source.through, Values: values})
+			state.effects.insertions = append(state.effects.insertions, CollectionInsertEffect{Model: source.through, Values: maps.Clone(insert.values)})
 		}
 	}
 	if err := validateQuerySession(ctx, session); err != nil {
@@ -323,51 +336,90 @@ func prepareCollectionChanges(ctx context.Context, session db.RelationSession, c
 // every collection postcondition. Before receives detached effects after all
 // reads, PROTECT checks and typed insert preparation. It must obey the same
 // topology and session-ownership contract as the enclosing owner.
-func (prepared PreparedCollectionChanges) Apply(ctx context.Context, before func(context.Context, CollectionChangeEffects) error) error {
+func (prepared PreparedCollectionChanges) Apply(ctx context.Context, before func(context.Context, CollectionChangeEffects) error) (AppliedCollectionChanges, error) {
+	var zero AppliedCollectionChanges
 	if prepared.state == nil || !prepared.state.consumed.CompareAndSwap(false, true) {
-		return relationInvalidPlan("prepared collection changes are absent or already attempted")
+		return zero, relationInvalidPlan("prepared collection changes are absent or already attempted")
 	}
 	if interfaceIsNil(ctx) {
-		return relationInvalidPlan("context is nil")
+		return zero, relationInvalidPlan("context is nil")
 	}
 	state := prepared.state
 	if err := validateQuerySession(ctx, state.session); err != nil {
-		return err
+		return zero, err
 	}
 	if before != nil {
 		err := before(ctx, prepared.Effects())
 		if scopeErr := validateQuerySession(ctx, state.session); scopeErr != nil {
-			return errors.Join(err, scopeErr)
+			return zero, errors.Join(err, scopeErr)
 		}
 		if err != nil {
-			return err
+			return zero, err
 		}
 	}
 	if _, err := state.deletion.execute(ctx, state.session); err != nil {
-		return err
+		return zero, err
 	}
+	var inserted []CollectionInsertedRow
+	var readers []func(context.Context, db.RelationSession, int64) (map[string]query.Value, error)
+	seen := make(map[relationDeleteRow]bool)
 	for _, current := range state.changes {
 		for _, insert := range current.inserts {
 			if err := ctx.Err(); err != nil {
-				return err
+				return zero, err
 			}
-			var err error
+			var key int64
 			if current.conflict != nil {
-				_, err = current.conflict.InsertOnConflict(ctx, query.NewConflictInsertPlan(insert.Table(), insert.Assignments(), current.change.source.unique))
+				result, err := current.conflict.InsertOnConflict(ctx, query.NewConflictInsertPlan(insert.plan, current.change.source.unique))
+				if err != nil {
+					return zero, err
+				}
+				if !result.Inserted {
+					if result.Key != 0 {
+						return zero, relationBackendInvalidPlan("skipped collection insertion returned a key")
+					}
+					continue
+				}
+				key = result.Key
 			} else {
-				_, err = state.session.Insert(ctx, insert)
+				var err error
+				key, err = state.session.Insert(ctx, insert.plan)
+				if err != nil {
+					return zero, err
+				}
 			}
-			if err != nil {
-				return err
+			identity := relationDeleteRow{current.change.source.through, key}
+			if seen[identity] {
+				return zero, relationBackendInvalidPlan("collection insertions returned the same physical key")
 			}
+			seen[identity] = true
+			values := maps.Clone(insert.values)
+			values[current.change.source.key.Name] = query.Integer(key)
+			inserted = append(inserted, CollectionInsertedRow{Model: current.change.source.through, Key: key, Values: values})
+			readers = append(readers, current.change.read)
 		}
 	}
 	for _, current := range state.changes {
 		if err := current.check(ctx, state.session); err != nil {
-			return err
+			return zero, err
 		}
 	}
-	return validateQuerySession(ctx, state.session)
+	// Read every actual key after the whole write set: a later insertion/trigger
+	// may have changed an earlier row. Logical membership alone cannot prove its
+	// nullable endpoints, typed payload or returned identity remained intact.
+	for index, expected := range inserted {
+		actual, err := readers[index](ctx, state.session, expected.Key)
+		if err != nil {
+			return zero, err
+		}
+		if !maps.EqualFunc(expected.Values, actual, query.Value.Equal) {
+			return zero, relationBackendInvalidPlan("inserted collection row differs from its typed candidate")
+		}
+	}
+	if err := validateQuerySession(ctx, state.session); err != nil {
+		return zero, err
+	}
+	return AppliedCollectionChanges{state: &appliedCollectionChanges{source: state.source, inserted: inserted}}, nil
 }
 
 func (current preparedCollectionChange) check(ctx context.Context, session db.RelationSession) error {

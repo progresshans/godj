@@ -246,11 +246,11 @@ func (session *bulkTicketSession) Insert(ctx context.Context, plan query.InsertP
 	return id, err
 }
 
-func (session *bulkTicketSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (session *bulkTicketSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	session.owner.links++
 	inserted, err := session.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
 	if err == nil && session.owner.mode == "link_error" && session.owner.links == 2 {
-		return false, errors.New("private second link failure")
+		return db.ConflictInsertResult{}, errors.New("private second link failure")
 	}
 	return inserted, err
 }

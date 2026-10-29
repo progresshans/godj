@@ -27,10 +27,10 @@ type catalogFaultSession struct {
 	fault    error
 }
 
-func (session *catalogFaultSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (session *catalogFaultSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	inserted, err := session.conflict.InsertOnConflict(ctx, plan)
 	if err == nil && session.mode == "collection_failure" && plan.Table() == "godj_identity_group_permissions" {
-		return false, session.fault
+		return db.ConflictInsertResult{}, session.fault
 	}
 	return inserted, err
 }

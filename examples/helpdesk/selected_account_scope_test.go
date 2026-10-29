@@ -253,13 +253,13 @@ func (s *selectedHelpdeskRelationSession) RelationSetNull(ctx context.Context, p
 	s.owner.businessWrites++
 	return s.relation.RelationSetNull(ctx, plan)
 }
-func (s *selectedHelpdeskSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s *selectedHelpdeskSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	native, ok := s.Session.(db.ConflictInserter)
 	if !ok {
-		return false, errors.New("selected test lacks native conflict insertion")
+		return db.ConflictInsertResult{}, errors.New("selected test lacks native conflict insertion")
 	}
 	if err := s.write(plan.Table()); err != nil {
-		return false, err
+		return db.ConflictInsertResult{}, err
 	}
 	return native.InsertOnConflict(ctx, plan)
 }

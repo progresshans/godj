@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/conformance/accountdeletefixture/access"
@@ -26,6 +28,7 @@ func runCollectionChanges(t *testing.T, open Open, storedKey StoredKeyFixture) {
 			"query_failure", "close_failure", "callback_failure", "callback_cancel",
 			"late_delete_failure", "late_insert_failure", "missing_insert", "postcondition_failure",
 			"wrong_null_count", "outer_failure", "expired_preparation",
+			"actual_signed_keys", "returned_key_missing", "late_row_rewrite", "readback_close", "readback_scan", "noop_returned_key", "conflict_skipped",
 		} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
@@ -121,6 +124,7 @@ type collectionFaultScope struct {
 	db.RelationSession
 	mode                                                string
 	fault                                               error
+	firstKey, owner                                     int64
 	inserts, deletes, updates, nulls, closes, callbacks int
 }
 
@@ -133,12 +137,13 @@ func (scope *collectionFaultScope) Query(ctx context.Context, plan query.Plan) (
 		return rows, err
 	}
 	target := plan.Table() == "links_grant_link" && len(plan.SourceFields()) == 3
-	fault := target && (scope.mode == "query_failure" || scope.mode == "close_failure" || scope.mode == "postcondition_failure" && scope.inserts >= 3)
+	readback := plan.Table() == "links_membership" && len(plan.SourceFields()) == 5 && scope.inserts >= 3 && (scope.mode == "readback_close" || scope.mode == "readback_scan")
+	fault := readback || target && (scope.mode == "query_failure" || scope.mode == "close_failure" || scope.mode == "postcondition_failure" && scope.inserts >= 3)
 	if !fault {
 		return rows, nil
 	}
 	wrapped := &collectionFaultRows{Rows: rows, scope: scope}
-	if scope.mode != "close_failure" {
+	if scope.mode != "close_failure" && !readback {
 		return wrapped, scope.fault
 	}
 	return wrapped, nil
@@ -152,10 +157,27 @@ type collectionFaultRows struct {
 func (rows *collectionFaultRows) Close() error {
 	rows.scope.closes++
 	err := rows.Rows.Close()
-	if rows.scope.mode == "close_failure" {
+	if rows.scope.mode == "close_failure" || rows.scope.mode == "readback_close" {
 		return errors.Join(err, rows.scope.fault)
 	}
 	return err
+}
+func (rows *collectionFaultRows) Scan(destinations ...any) error {
+	if err := rows.Rows.Scan(destinations...); err != nil {
+		return err
+	}
+	if rows.scope.mode == "readback_scan" {
+		return rows.scope.fault
+	}
+	return nil
+}
+func (scope *collectionFaultScope) insertionPlan(plan query.InsertPlan) query.InsertPlan {
+	if scope.mode != "actual_signed_keys" {
+		return plan
+	}
+	key, _ := plan.ReturningKey()
+	assigned := []int64{0, -7, 9007199254740993}[scope.inserts-1]
+	return query.NewInsertPlanReturningKey(plan.Table(), append(plan.Assignments(), query.NewAssignment(key, query.Integer(assigned))), key)
 }
 func (scope *collectionFaultScope) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
 	count, err := scope.RelationSession.Update(ctx, plan)
@@ -183,18 +205,34 @@ func (scope *collectionFaultScope) Insert(ctx context.Context, plan query.Insert
 	if scope.mode == "missing_insert" && scope.inserts == 2 {
 		return 0, nil
 	}
-	key, err := scope.RelationSession.Insert(ctx, plan)
+	key, err := scope.RelationSession.Insert(ctx, scope.insertionPlan(plan))
 	if err == nil && scope.mode == "late_insert_failure" && scope.inserts == 2 {
 		return key, scope.fault
 	}
+	if err == nil && scope.inserts == 1 {
+		scope.firstKey = key
+	}
+	if err == nil && scope.mode == "returned_key_missing" && scope.inserts == 2 {
+		return key + 999999, nil
+	}
 	return key, err
 }
-func (scope *collectionFaultScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (scope *collectionFaultScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	scope.inserts++
 	if scope.mode == "missing_insert" && scope.inserts == 2 {
-		return false, nil
+		return db.ConflictInsertResult{}, nil
 	}
+	if scope.mode == "conflict_skipped" {
+		return db.ConflictInsertResult{}, nil
+	}
+	plan = query.NewConflictInsertPlan(scope.insertionPlan(plan.Insert()), plan.Target())
 	count, err := scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
+	if err == nil && scope.mode == "noop_returned_key" {
+		return db.ConflictInsertResult{Key: count.Key}, nil
+	}
+	if err == nil && scope.mode == "late_row_rewrite" {
+		_, err = scope.RelationSession.Update(ctx, query.NewUpdatePlan("links_membership", []query.Assignment{query.NewAssignment(query.NewFieldRef("anchor", "anchor_id", query.FieldInteger, true), query.Integer(scope.owner))}, query.NewFieldRef("id", "id", query.FieldInteger, false), query.Integer(scope.firstKey)))
+	}
 	if err == nil && scope.mode == "late_insert_failure" && scope.inserts == 2 {
 		return count, scope.fault
 	}
@@ -231,8 +269,9 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 	fault := errors.New("private whole collection batch failure")
 	var observed *collectionFaultScope
 	var retained orm.PreparedCollectionChanges
+	var applied orm.AppliedCollectionChanges
 	err = backend.CoordinatedAtomicRelation(t.Context(), func(session db.RelationSession) error {
-		observed = &collectionFaultScope{RelationSession: session, mode: mode, fault: fault}
+		observed = &collectionFaultScope{RelationSession: session, mode: mode, fault: fault, owner: tree.owner.ID}
 		prepared, err := orm.PrepareCollectionChangesInSession(t.Context(), observed, member, group, direct)
 		if err != nil {
 			return err
@@ -283,7 +322,7 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 		}
 		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
-		err = prepared.Apply(ctx, func(ctx context.Context, effects orm.CollectionChangeEffects) error {
+		applied, err = prepared.Apply(ctx, func(ctx context.Context, effects orm.CollectionChangeEffects) error {
 			observed.callbacks++
 			if !reflect.DeepEqual(original, effects) {
 				t.Fatal("callback saw different collected effects")
@@ -301,11 +340,42 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 			return nil
 		})
 		if err != nil {
+			if len(applied.Insertions()) != 0 || applied.ValidateSource(binding) == nil {
+				t.Fatal("partial inserted rows escaped failed Apply")
+			}
 			return err
+		}
+		if err := applied.ValidateSource(binding); err != nil {
+			return err
+		}
+		insertedRows := applied.Insertions()
+		if len(insertedRows) != wantInserts {
+			t.Fatal("owned actual insertion count", len(insertedRows), wantInserts)
+		}
+		originalRows := applied.Insertions()
+		insertedRows[0].Values["id"] = query.Integer(99999)
+		insertedRows[0].Model.ModelName = "changed"
+		if !reflect.DeepEqual(originalRows, applied.Insertions()) {
+			t.Fatal("applied rows alias caller memory")
+		}
+		for _, value := range []any{applied, originalRows[0]} {
+			if !strings.Contains(fmt.Sprintf("%#v", value), "redacted") {
+				t.Fatal("applied rows exposed values")
+			}
+		}
+		if mode == "commit" || mode == "actual_signed_keys" {
+			again, err := orm.PrepareCollectionChangesInSession(ctx, observed, member, group, direct)
+			if err != nil {
+				return err
+			}
+			noop, err := again.Apply(ctx, nil)
+			if err != nil || noop.ValidateSource(binding) != nil || len(noop.Insertions()) != 0 {
+				t.Fatal("retained memberships invented insertions", err)
+			}
 		}
 		writes := observed.inserts + observed.updates + observed.deletes + observed.nulls
 		copy := prepared
-		if err := copy.Apply(t.Context(), nil); err == nil || writes != observed.inserts+observed.updates+observed.deletes+observed.nulls {
+		if _, err := copy.Apply(t.Context(), nil); err == nil || writes != observed.inserts+observed.updates+observed.deletes+observed.nulls {
 			t.Fatal("copied prepared batch replayed writes", err)
 		}
 		if mode == "outer_failure" {
@@ -317,7 +387,7 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := retained.Apply(t.Context(), func(context.Context, orm.CollectionChangeEffects) error {
+		if _, err := retained.Apply(t.Context(), func(context.Context, orm.CollectionChangeEffects) error {
 			t.Fatal("expired preparation invoked callback")
 			return nil
 		}); err == nil {
@@ -326,7 +396,7 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 		requireDeletionUnchanged(t, reopen(t), before)
 		return
 	}
-	success := mode == "commit" || mode == "preserved_duplicate" || mode == "clear" || mode == "nonpositive_keys"
+	success := mode == "commit" || mode == "preserved_duplicate" || mode == "clear" || mode == "nonpositive_keys" || mode == "actual_signed_keys"
 	if !success {
 		if err == nil {
 			t.Fatal("failure mode committed", mode)
@@ -340,7 +410,7 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 			if !errors.Is(err, context.Canceled) {
 				t.Fatal("cancellation lost", err)
 			}
-		} else if mode != "missing_insert" && mode != "wrong_null_count" && !errors.Is(err, fault) {
+		} else if !slices.Contains([]string{"missing_insert", "wrong_null_count", "returned_key_missing", "late_row_rewrite", "noop_returned_key", "conflict_skipped"}, mode) && !errors.Is(err, fault) {
 			t.Fatal("failure cause lost", mode, err)
 		}
 		if mode == "query_failure" || mode == "close_failure" || mode == "protected" {
@@ -350,7 +420,7 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 		} else if observed.callbacks != 1 {
 			t.Fatal("whole batch callback was missing or repeated")
 		}
-		if mode == "query_failure" || mode == "close_failure" || mode == "postcondition_failure" {
+		if mode == "query_failure" || mode == "close_failure" || mode == "postcondition_failure" || mode == "readback_close" || mode == "readback_scan" {
 			if observed.closes != 1 {
 				t.Fatal("failed batch query did not close its returned rowset exactly once")
 			}
@@ -386,6 +456,39 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 	directLinks := deletionRows(t, reopen(t), people.MemberGrantsLinkObjects)
 	if len(directLinks) != 1 || directLinks[0].SourceID != tree.owner.ID || directLinks[0].TargetID != tree.nextGrant.ID {
 		t.Fatal("automatic through insertion incomplete")
+	}
+	expectedRows := map[string]map[string]query.Value{}
+	if mode != "preserved_duplicate" {
+		values, e := links.MembershipObjects.ModelValues(memberLinks[0])
+		if e != nil {
+			t.Fatal(e)
+		}
+		expectedRows["links.membership"] = values
+	}
+	values, e := links.GrantLinkObjects.ModelValues(grantLinks[0])
+	if e != nil {
+		t.Fatal(e)
+	}
+	expectedRows["links.grant_link"] = values
+	values, e = people.MemberGrantsLinkObjects.ModelValues(directLinks[0])
+	if e != nil {
+		t.Fatal(e)
+	}
+	expectedRows["people.member_grants"] = values
+	for _, row := range applied.Insertions() {
+		name := row.Model.AppLabel + "." + row.Model.ModelName
+		want, ok := expectedRows[name]
+		key, valid := row.Values["id"].Integer()
+		if !ok || !valid || key != row.Key || !maps.EqualFunc(want, row.Values, query.Value.Equal) {
+			t.Fatal("inserted receipt differs from native full row", name)
+		}
+		delete(expectedRows, name)
+	}
+	if len(expectedRows) != 0 {
+		t.Fatal("native inserted row omitted from result")
+	}
+	if mode == "actual_signed_keys" && (memberLinks[0].ID != 0 || grantLinks[0].ID != -7 || directLinks[0].ID != 9007199254740993) {
+		t.Fatal("native signed/large inserted keys not retained")
 	}
 	actualTickets := deletionRows(t, reopen(t), tickets.TicketObjects)
 	if len(actualTickets) != 1 || actualTickets[0].ID != tree.nulled.ID || actualTickets[0].NullableMembershipID != nil || actualTickets[0].NullableGrantLinkID != nil {

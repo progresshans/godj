@@ -13,17 +13,17 @@ import (
 
 func TestPostgresConflictInsertCompiler(t *testing.T) {
 	conflicttest.CheckCompiler(t, func(plan query.ConflictInsertPlan) (string, []any, error) { return compileConflictInsert("app", plan) },
-		`INSERT INTO "app"."conflict_link" ("owner_id", "label_id", "token") VALUES ($1, $2, $3) ON CONFLICT ("owner_id", "label_id") DO NOTHING`)
+		`INSERT INTO "app"."conflict_link" ("owner_id", "label_id", "token") VALUES ($1, $2, $3) ON CONFLICT ("owner_id", "label_id") DO NOTHING RETURNING "id"`)
 	field := query.NewFieldRef("name", "name", query.FieldString, false)
-	statement, arguments, err := compileConflictInsert("app", query.NewConflictInsertPlan("labels", []query.Assignment{query.NewAssignment(field, query.String("x'); DROP TABLE links; --"))}, []query.FieldRef{field}))
-	if err != nil || statement != `INSERT INTO "app"."labels" ("name") VALUES ($1) ON CONFLICT ("name") DO NOTHING` ||
+	statement, arguments, err := compileConflictInsert("app", query.NewConflictInsertPlan(query.NewInsertPlanReturningKey("labels", []query.Assignment{query.NewAssignment(field, query.String("x'); DROP TABLE links; --"))}, query.NewFieldRef("id", "id", query.FieldInteger, false)), []query.FieldRef{field}))
+	if err != nil || statement != `INSERT INTO "app"."labels" ("name") VALUES ($1) ON CONFLICT ("name") DO NOTHING RETURNING "id"` ||
 		!reflect.DeepEqual(arguments, []any{"x'); DROP TABLE links; --"}) {
 		t.Fatal(statement, arguments, err)
 	}
 	if statement, arguments, err := compileConflictInsert(`a"schema`, conflicttest.Plan(1, 1, 10)); statement != "" || arguments != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
 		t.Fatal("invalid schema accepted", statement, arguments, err)
 	}
-	if statement, arguments, err := compileConflictInsert("app", query.NewConflictInsertPlan(`a"table`, conflicttest.Plan(1, 1, 10).Assignments(), conflicttest.Plan(1, 1, 10).Target())); statement != "" || arguments != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+	if statement, arguments, err := compileConflictInsert("app", query.NewConflictInsertPlan(query.NewInsertPlanReturningKey(`a"table`, conflicttest.Plan(1, 1, 10).Assignments(), query.NewFieldRef("id", "id", query.FieldInteger, false)), conflicttest.Plan(1, 1, 10).Target())); statement != "" || arguments != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
 		t.Fatal("invalid table accepted", statement, arguments, err)
 	}
 }
@@ -42,7 +42,12 @@ func TestPostgresConflictInsertProduct(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	signed, err := quoteTable(namespace, "conflict_signed")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, statement := range []string{
+		"CREATE TABLE " + signed + " (record_key BIGINT PRIMARY KEY, token BIGINT NOT NULL UNIQUE)",
 		"CREATE TABLE " + parent + " (id BIGINT PRIMARY KEY)",
 		"INSERT INTO " + parent + " VALUES (1),(2),(3),(4),(5),(6)",
 		"CREATE TABLE " + link + " (id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, owner_id BIGINT NOT NULL REFERENCES " + parent + "(id) DEFERRABLE INITIALLY DEFERRED, label_id BIGINT NOT NULL REFERENCES " + parent + "(id), token BIGINT NOT NULL UNIQUE CHECK(token > 0), UNIQUE(owner_id,label_id))",
@@ -52,6 +57,7 @@ func TestPostgresConflictInsertProduct(t *testing.T) {
 		}
 	}
 	conflicttest.Check(t, backend, second, backend.database, link, parent)
+	conflicttest.CheckSignedKeys(t, backend, backend.database, signed)
 	t.Run("zero_rows_is_not_membership_proof", func(t *testing.T) {
 		function, err := quoteTable(namespace, "skip_conflict")
 		if err != nil {
@@ -66,7 +72,7 @@ func TestPostgresConflictInsertProduct(t *testing.T) {
 			}
 		}
 		plan := conflicttest.Plan(4, 4, 90909)
-		if inserted, err := backend.InsertOnConflict(ctx, plan); inserted || err != nil {
+		if inserted, err := backend.InsertOnConflict(ctx, plan); inserted != (db.ConflictInsertResult{}) || err != nil {
 			t.Fatal(inserted, err)
 		}
 		var count int
@@ -110,12 +116,12 @@ func TestPostgresConflictInsertUncertainTransactionOwnership(t *testing.T) {
 				}
 				inserted, err := session.(db.ConflictInserter).InsertOnConflict(context.Background(), plan)
 				if outcome == "invalid" {
-					if inserted || err == nil {
+					if inserted != (db.ConflictInsertResult{}) || err == nil {
 						t.Fatal(inserted, err)
 					}
 					return err
 				}
-				if !inserted || err != nil {
+				if !inserted.Inserted || inserted.Key != 1 || err != nil {
 					t.Fatal(inserted, err)
 				}
 				if outcome == "rollback" {
@@ -127,10 +133,10 @@ func TestPostgresConflictInsertUncertainTransactionOwnership(t *testing.T) {
 				t.Fatal("callback retried", calls)
 			}
 			if outcome == "invalid" {
-				if !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) || state.snapshot().execs != 0 {
+				if !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) || (state.snapshot().execs != 0 || state.snapshot().queries != 0) {
 					t.Fatal("invalid plan reached I/O", err)
 				}
-			} else if !errors.Is(err, failure) || state.snapshot().execs != 1 {
+			} else if !errors.Is(err, failure) || (state.snapshot().execs != 0 || state.snapshot().queries != 1) {
 				t.Fatal("native cause or exactly once execution lost", err)
 			}
 			if outcome == "commit" && !errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {

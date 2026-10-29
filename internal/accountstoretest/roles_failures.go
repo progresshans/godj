@@ -46,7 +46,7 @@ func (scope *roleFaultScope) Insert(ctx context.Context, plan query.InsertPlan) 
 	key, err := scope.RelationSession.Insert(ctx, plan)
 	return key, scope.after(plan.Table(), err)
 }
-func (scope *roleFaultScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (scope *roleFaultScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	inserted, err := scope.conflict.InsertOnConflict(ctx, plan)
 	return inserted, scope.after(plan.Table(), err)
 }

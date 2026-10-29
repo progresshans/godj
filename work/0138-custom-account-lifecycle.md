@@ -526,6 +526,12 @@ Manifest v7의 전체 source/최종 revision과 payload v2의 실제 대응표�
 readback과 최종 합계 예산을 유지한다. 별도 생성 소비자는 양 방향·부분 공유·signed key·페이지 경계·실제 쓰기 뒤 실패,
 unknown/경합·같은 DB 재접속과 schema 정리를 검사하도록 작성했다. 새 본문과 환경별 실행은 TEST_EVIDENCE에서 구분한다.
 
+공통 collection은 실제 native INSERT key와 full typed row readback을 소유하는 `AppliedCollectionChanges`를 반환한다.
+UNIQUE 충돌/no-op과 key 0을 구분하고 NULL·중복 key·scan/close·뒤 행 변경·scope 실패에는 부분 결과를 게시하지 않는다.
+일반/UNIQUE through의 실제 signed key·전체 행·rollback·읽기 오류 검사를 양 DB 필수 실행에 연결했다.
+이 기반을 여러 계정/catalog 역할의 공유 물리 through projection과 identity 생성 owner에 연결하는 작업은 남아 있다.
+로컬 자원 과사용으로 중단된 compile은 완료로 계산하지 않으며 새 본문·환경별 검증은 TEST_EVIDENCE에 구분한다.
+
 선택 identity의 through 수명·공유 물리 through의 복합 endpoint 전환과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 

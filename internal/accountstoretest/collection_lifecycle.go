@@ -390,7 +390,7 @@ func (scope *lifecycleFaultScope) Insert(ctx context.Context, plan query.InsertP
 	}
 	return key, nil
 }
-func (scope *lifecycleFaultScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (scope *lifecycleFaultScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	inserted, err := scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
 	if inserted {
 		scope.inserts++

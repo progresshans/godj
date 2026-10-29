@@ -26,7 +26,11 @@ const (
 	// expected slow cryptographic work as a coordination failure.
 	gdj0046ScenarioTimeout           = 2 * time.Minute
 	gdj0046ContenderWaitingProofTime = 500 * time.Millisecond
-	gdj0046FenceProbeTimeout         = 250 * time.Millisecond
+	// This deadline covers connection reacquisition and FK initialization as
+	// well as BEGIN IMMEDIATE. The native busy setting stays at 1 ms; a busy/
+	// locked SQLite cause and zero callback entries remain mandatory. A slow
+	// connection setup or scheduling delay is not itself contention evidence.
+	gdj0046FenceProbeTimeout = 5 * time.Second
 )
 
 // gdj0046MultiRuntimeBackend observes the exact database fence used by the

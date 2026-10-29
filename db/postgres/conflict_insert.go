@@ -20,42 +20,38 @@ func compileConflictInsert(schema string, plan query.ConflictInsertPlan) (string
 	if err != nil {
 		return "", nil, err
 	}
-	columns, arguments, target, err := queryplan.ConflictInsert(plan, validateWriteValue, quoteIdentifier, nil, postgresValue)
+	parts, err := queryplan.PrepareConflictInsert(plan, validateWriteValue, quoteIdentifier, nil, postgresValue)
 	if err != nil {
 		return "", nil, err
 	}
-	placeholders := make([]string, len(columns))
+	placeholders := make([]string, len(parts.Columns))
 	for index := range placeholders {
 		placeholders[index] = placeholder(index + 1)
 	}
-	return "INSERT INTO " + table + " (" + strings.Join(columns, ", ") + ") VALUES (" + strings.Join(placeholders, ", ") +
-		") ON CONFLICT (" + strings.Join(target, ", ") + ") DO NOTHING", arguments, nil
+	return "INSERT INTO " + table + " (" + strings.Join(parts.Columns, ", ") + ") VALUES (" + strings.Join(placeholders, ", ") +
+		") ON CONFLICT (" + strings.Join(parts.Target, ", ") + ") DO NOTHING RETURNING " + parts.Key, parts.Arguments, nil
 }
 
-func executeConflictInsert(ctx context.Context, executor writeExecutor, schema string, plan query.ConflictInsertPlan) (bool, error) {
+func executeConflictInsert(ctx context.Context, executor queryplan.InsertReturningExecutor, schema string, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	statement, arguments, err := compileConflictInsert(schema, plan)
 	if err != nil {
-		return false, err
+		return db.ConflictInsertResult{}, err
 	}
-	result, err := executor.ExecContext(ctx, statement, arguments...)
-	if err != nil {
-		return false, classifyDatabaseError(ctx, "insert", schema, plan.Table(), err)
-	}
-	return queryplan.ConflictInsertResult(result)
+	return queryplan.ExecuteConflictInsert(ctx, executor, statement, arguments, func(err error) error { return classifyDatabaseError(ctx, "insert", schema, plan.Table(), err) })
 }
 
-func (b *Backend) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (b *Backend) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	if err := b.validateContext(ctx); err != nil {
-		return false, err
+		return db.ConflictInsertResult{}, err
 	}
 	return executeConflictInsert(ctx, b.database, b.schema, plan)
 }
 
-func (session *transactionSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (session *transactionSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	if err := session.validate(ctx); err != nil {
-		return false, err
+		return db.ConflictInsertResult{}, err
 	}
-	return txscope.Do(session.scope, ctx, func(ctx context.Context) (bool, error) {
+	return txscope.Do(session.scope, ctx, func(ctx context.Context) (db.ConflictInsertResult, error) {
 		return executeConflictInsert(ctx, session.transaction, session.backend.schema, plan)
 	})
 }

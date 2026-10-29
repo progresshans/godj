@@ -26,9 +26,9 @@ func (scope *collectionPreparationScope) Query(context.Context, query.Plan) (db.
 	scope.queries++
 	return &emptyCollectionRows{scope: scope}, nil
 }
-func (scope *collectionPreparationScope) InsertOnConflict(context.Context, query.ConflictInsertPlan) (bool, error) {
+func (scope *collectionPreparationScope) InsertOnConflict(context.Context, query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	scope.writes++
-	return false, errors.New("unexpected insertion")
+	return db.ConflictInsertResult{}, errors.New("unexpected insertion")
 }
 
 type emptyCollectionRows struct{ scope *collectionPreparationScope }
@@ -89,7 +89,7 @@ func TestCollectionChangeCompositionRejectsInvalidOwnershipBeforeIO(t *testing.T
 			if err == nil || scope.queries != 0 || scope.writes != 0 || len(result.Effects().Insertions()) != 0 {
 				t.Fatal("invalid collection ownership reached I/O or published a preparation", err)
 			}
-			if err := result.Apply(t.Context(), nil); err == nil {
+			if _, err := result.Apply(t.Context(), nil); err == nil {
 				t.Fatal("failed preparation became executable")
 			}
 		})
@@ -148,7 +148,7 @@ func TestPreparedCollectionChangesAreBoundOneAttemptAndPreserveCallbackFailure(t
 				cancel()
 			}
 			calls := 0
-			err = prepared.Apply(ctx, func(context.Context, orm.CollectionChangeEffects) error {
+			applied, err := prepared.Apply(ctx, func(context.Context, orm.CollectionChangeEffects) error {
 				calls++
 				if mode == "callback_expiry" {
 					scope.expired = expired
@@ -159,11 +159,14 @@ func TestPreparedCollectionChangesAreBoundOneAttemptAndPreserveCallbackFailure(t
 				return nil
 			})
 			if mode == "success" {
+				if applied.ValidateSource(binding) != nil || applied.ValidateSource(host) == nil || len(applied.Insertions()) != 0 {
+					t.Fatal("no-op result lost full source ownership")
+				}
 				if err != nil || calls != 1 || scope.queries != 2 || scope.closes != 2 {
 					t.Fatal("no-op execution lost its postcondition", err)
 				}
-			} else if err == nil {
-				t.Fatal("failed execution reported success")
+			} else if err == nil || applied.ValidateSource(binding) == nil || len(applied.Insertions()) != 0 {
+				t.Fatal("failed execution reported success or published rows")
 			}
 			if mode == "callback" && err != cause {
 				t.Fatal("valid-scope callback error identity changed", err)
@@ -177,10 +180,10 @@ func TestPreparedCollectionChangesAreBoundOneAttemptAndPreserveCallbackFailure(t
 				}
 			}
 			before := scope.queries
-			if err := owned.Apply(t.Context(), nil); err == nil || scope.queries != before || scope.writes != 0 {
+			if _, err := owned.Apply(t.Context(), nil); err == nil || scope.queries != before || scope.writes != 0 {
 				t.Fatal("copy replayed an attempted batch", err)
 			}
-			for _, value := range []any{change, prepared, prepared.Effects()} {
+			for _, value := range []any{change, prepared, prepared.Effects(), applied} {
 				if !strings.Contains(fmt.Sprintf("%#v", value), "redacted") {
 					t.Fatal("collection diagnostic exposed private state")
 				}

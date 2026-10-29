@@ -2923,6 +2923,57 @@ Intel race의 전체 job만 140분으로 조정했다. 개별 test/준비 명령
 위 원본과 한정 재현·수정은 같은 보관소의 `ci40803902589/`와 `workflow-comment-{before,after,final}.jsonl`에 있다.
 새 전체 job 예산의 원격 효과와 아직 대기 중인 macOS ARM64 catalog 실행의 시간초과 해결 여부는 확인 전이다.
 
+### Native 삽입 key와 전체 typed collection 행
+
+2026-10-29, `40124c1f71b5fa43c185e309839544cf02b5e77b` 위에서 충돌 허용 INSERT의 실제 returning key와
+`AppliedCollectionChanges`를 작성했다. Query plan이 returning key를 소유하고 SQLite·PostgreSQL의 native RETURNING을
+bounded drain/close한다. No-op에 다른 행의 key를 반환하지 않으며 key 0·음수·큰 정수를 유지한다. 전체 collection 쓰기와
+소속 postcondition 뒤 실제 key로 모든 typed scalar를 읽어 비교하고, 실패에는 부분 key/행을 반환하지 않는다.
+같은 scope의 인가·revision·session·감사·외부 commit은 기존 application owner 책임이다.
+
+기존 metadata-only conflict 결과 검사는 RETURNING의 실제 cardinality·NULL/scan·Next/close·취소·query 오류와
+no-op/0/음수/큰 key를 확인하는 13개 child로 대체했다. Bulk returning의 동일 실패 검사도 유지한다. 양 DB는 독립 SQL로
+실제 반환 key를 대조하며 renamed PK·실제 signed key·UNIQUE 보존·다른 제약 오류·네 transaction 수명·unknown을 검사한다.
+공통 collection 소비자는 일반/UNIQUE through의 전체 행 결과·사본·빈 결과, native signed key, 반환 key 누락,
+뒤 INSERT의 앞선 nullable payload 변경, readback scan/close와 충돌 skip/모순 결과를 검사하도록 확장했다.
+
+Portable 필수 목록은 276→293, relation은 4,606→4,617, PostgreSQL은 5,718→5,725다. 기존 항목이 모두 남아 있고
+중복이 없음을 대조했다. CI 배정·누락/skip/잘린 실행 거부 도구 47개, 변경 Go 파일 43개 포맷, 245개 문서 링크와 diff 검사는
+통과했다. 이 정적 도구 검사는 가짜 Go 실행기를 사용하며 실제 Go compile/제품 테스트를 수행하지 않는다.
+
+로컬의 8개 영향 패키지 `go test -run '^$' -vet=off`는 기본 병렬 설정과 추가 fixture 생성이 겹쳐 자원을 과다 사용했고,
+사용자가 compiler를 종료했다. query·queryplan·ORM·consumer parent의 무본문 compile 출력은 남았지만 SQLite/PostgreSQL·
+identity/model·Helpdesk는 signal terminated/killed로 끝났다. 전체 또는 최종 source compile 성공으로 기록하지 않는다.
+외부 fixture 생성은 종료했으나 consumer compile·DB 본문은 실행하지 않았다. 이후 로컬 compile을 보류하고 정적 검토를
+진행했다. 다시 필요해질 때는 `GOMAXPROCS=2`, `-p=1`로 한 명령씩 수행한다. 새 제품 본문·generated drift·양 DB·
+race/process/platform과 전체 수용은 최종 source의 원격 CI 대상이다.
+
+원본·환경·현재 변경 source 52개의 hash·정적 검사와 필수 목록 대조는 검증 보관소
+`gdj0138-through-insertions-v1/receipt-final.json`에 있다
+(SHA-256 `6cf3ed445cb62c513171d514fa5a211957272110abb66405efb762a563f0cbf7`).
+공유 물리 through의 여러 역할 projection·선택 identity through 자동 생성/전환 수명·역사 systemstate 이행과 I1 전체 수용은
+아직 완료하지 않았다. 이 결과 API의 작성이나 부분 compile을 해당 기능의 지원으로 계산하지 않는다.
+
+### 선행 CI의 감사 순서와 native fence 관측 기한
+
+선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로
+대조했다. PR checkout `148119fa0fbf6503f80bc8613fba8dc12089f252`의 tree `200f51ba2919bad2d3991fd29f27715492bd11fa`는
+제출 `40124c1f`와 같다. 관측한 catalog 관련 실패 9개는 모두 staged/shared_group의 감사 필드 순서 검사를 보고했다.
+Normal PostgreSQL 작업의 artifact `12879061392` ZIP SHA-256은
+`e20033d348fc37f6447c3aaf5d322ddcc9e8f0f6465ed349b08bde31ae9edbd0`이며 GitHub metadata와 업로드 로그에 일치한다.
+내부 SQLite/PostgreSQL 자식 원본에는 각각 120개 종료 이벤트가 있고 117 PASS, shared_group·strategy·root 3 FAIL이며 skip은 없다.
+이 실패 실행의 부분 성공을 새 source의 PASS로 재사용하지 않는다.
+
+소비자 schema는 원래 직접 권한 필드 뒤에 legacy_groups를 추가하지만 expected audit는 반대 순서였다. 두 필드와 정확한
+actor/action·단일 감사 검사를 유지하면서 선언 순서로 기대값을 수정했다. 공유 Group의 유효 권한 변화도 감사에서 빼지 않는다.
+로컬 compile 보류로 이 수정의 본문 재실행은 하지 않았으며 원격에서 해결 여부를 확인한다.
+
+macOS ARM64 normal project-check `123297801750`의 SYS-017은 held-fence probe가 BEGIN에 도달하기 전에 connection의
+foreign-key 초기화에서 250ms context 기한이 만료됐다. 바깥 probe 기한을 5초로 조정하여 연결 재획득/초기화도 포함하며,
+SQLite busy 설정 1ms·실제 BUSY/LOCKED 원인·callback 0회·contender 미진입을 요구하는 조건은 그대로다. Context 만료나
+unknown outcome을 contention 성공으로 인정하거나 재시도하지 않는다. 이 조정도 원격 검증 전이다. 원본 job 로그
+SHA-256은 `92a9f9a6c79dd11384aac550a44f2defa486020b5906a14bb30cddef8d53cf00`이며 같은 보관소에 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

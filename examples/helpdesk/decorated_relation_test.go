@@ -25,10 +25,10 @@ func (s decoratedHelpdeskRelation) ValidateSession(ctx context.Context) error {
 func (s decoratedHelpdeskRelation) RelationSetNull(ctx context.Context, plan query.RelationSetNullPlan) (int64, error) {
 	return s.relation.RelationSetNull(ctx, plan)
 }
-func (s decoratedHelpdeskRelation) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s decoratedHelpdeskRelation) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	inserter, ok := s.relation.(db.ConflictInserter)
 	if !ok {
-		return false, errors.New("fixture requires native conflict insertion")
+		return db.ConflictInsertResult{}, errors.New("fixture requires native conflict insertion")
 	}
 	return inserter.InsertOnConflict(ctx, plan)
 }

@@ -278,8 +278,8 @@ func Check(t *testing.T, root db.Queryer, owner Owner) {
 					return fmt.Errorf("stream results = %v, forbidden callbacks %d", names, calls)
 				}
 				return db.WithSavepoint(ctx, child, func(grandchild db.Session) error {
-					inserted, err := grandchild.(db.ConflictInserter).InsertOnConflict(ctx, query.NewConflictInsertPlan("savepoint_items", []query.Assignment{query.NewAssignment(name, query.String(prefix+"a"))}, []query.FieldRef{name}))
-					if err != nil || inserted {
+					inserted, err := grandchild.(db.ConflictInserter).InsertOnConflict(ctx, query.NewConflictInsertPlan(query.NewInsertPlanReturningKey("savepoint_items", []query.Assignment{query.NewAssignment(name, query.String(prefix+"a"))}, query.NewFieldRef("id", "id", query.FieldInteger, false)), []query.FieldRef{name}))
+					if err != nil || inserted != (db.ConflictInsertResult{}) {
 						return fmt.Errorf("child conflict insertion: %v/%v", inserted, err)
 					}
 					return nil

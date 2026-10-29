@@ -3,7 +3,6 @@ package queryplan
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/progresshans/godj/db"
@@ -120,34 +119,9 @@ func ExecuteBulkInsert(ctx context.Context, executor BulkInsertExecutor, plan qu
 		}
 		return db.BulkInsertResult{RowsAffected: count}, nil
 	}
-	rows, err := executor.QueryContext(ctx, statement, arguments...)
+	keys, err := ExecuteInsertReturning(ctx, executor, statement, arguments, plan.RowCount(), plan.RowCount(), classify)
 	if err != nil {
-		if rows != nil {
-			err = errors.Join(err, rows.Close())
-		}
-		return zero, classify(err)
-	}
-	if rows == nil {
-		return zero, invalidPlan("bulk insert returned nil rows without an error")
-	}
-	defer rows.Close()
-	keys := make([]int64, 0, plan.RowCount())
-	for rows.Next() {
-		if len(keys) == plan.RowCount() {
-			err = unexpectedBulkRows(plan.RowCount(), int64(len(keys)+1))
-			break
-		}
-		var key int64
-		if err = rows.Scan(&key); err != nil {
-			break
-		}
-		keys = append(keys, key)
-	}
-	if err = errors.Join(err, rows.Err(), rows.Close(), ctx.Err()); err != nil {
-		return zero, classify(err)
-	}
-	if len(keys) != plan.RowCount() {
-		return zero, unexpectedBulkRows(plan.RowCount(), int64(len(keys)))
+		return zero, err
 	}
 	return db.BulkInsertResult{Keys: keys, RowsAffected: int64(len(keys))}, nil
 }

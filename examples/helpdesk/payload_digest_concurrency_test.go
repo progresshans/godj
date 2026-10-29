@@ -41,7 +41,7 @@ func (b *payloadLockBackend) AtomicRelation(ctx context.Context, callback func(d
 func (s payloadLockSession) ValidateSession(ctx context.Context) error {
 	return s.validator.ValidateSession(ctx)
 }
-func (s payloadLockSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s payloadLockSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	return s.conflict.InsertOnConflict(ctx, plan)
 }
 func (s payloadLockSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {

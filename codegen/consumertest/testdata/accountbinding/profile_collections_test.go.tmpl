@@ -74,7 +74,7 @@ func (backend *collectionBackend) CoordinatedAtomicRelation(ctx context.Context,
 }
 type collectionTamperScope struct{db.RelationSession;conflict db.ConflictInserter;table string;after func(context.Context,db.RelationSession)error;fired bool}
 func(scope *collectionTamperScope) ValidateSession(ctx context.Context)error{return scope.RelationSession.(db.SessionValidator).ValidateSession(ctx)}
-func(scope *collectionTamperScope) InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan)(bool,error){return scope.conflict.InsertOnConflict(ctx,plan)}
+func(scope *collectionTamperScope) InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {return scope.conflict.InsertOnConflict(ctx,plan)}
 func(scope *collectionTamperScope) Update(ctx context.Context,plan query.UpdatePlan)(int64,error){n,err:=scope.RelationSession.Update(ctx,plan);if err==nil&&!scope.fired&&plan.Table()==scope.table{scope.fired=true;err=scope.after(ctx,scope.RelationSession)};return n,err}
 type collectionProbe struct {mu sync.Mutex; last map[string][]int64; reject,filterFailure atomic.Bool}
 func(probe *collectionProbe) validate(_ context.Context,_ db.Queryer,_,_ @@ACCOUNT@@, selection accountmodel.AccountMemberships)(validation.Errors,error){

@@ -34,7 +34,7 @@ type lifecycleCreationScope struct {
 func (scope *lifecycleCreationScope) ValidateSession(ctx context.Context) error {
 	return scope.RelationSession.(db.SessionValidator).ValidateSession(ctx)
 }
-func (scope *lifecycleCreationScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (scope *lifecycleCreationScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	return scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
 }
 func (scope *lifecycleCreationScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {

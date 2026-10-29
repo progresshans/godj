@@ -97,7 +97,7 @@ func (scope *fileAuditFailure) Insert(ctx context.Context, plan query.InsertPlan
     if err == nil && plan.Table() == "godj_account_audit_event" { err = errors.New("private file audit failure") }
     return id, err
 }
-func (scope *fileAuditFailure) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (scope *fileAuditFailure) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
     return scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
 }
 

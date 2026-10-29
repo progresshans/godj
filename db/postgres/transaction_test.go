@@ -153,6 +153,7 @@ type transactionTestSnapshot struct {
 	commits     int
 	rollbacks   int
 	execs       int
+	queries     int
 	lastOptions driver.TxOptions
 }
 
@@ -162,6 +163,7 @@ type transactionTestState struct {
 	commits     int
 	rollbacks   int
 	execs       int
+	queries     int
 	commitErr   error
 	rollbackErr error
 	lastOptions driver.TxOptions
@@ -172,7 +174,7 @@ func (state *transactionTestState) snapshot() transactionTestSnapshot {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 	return transactionTestSnapshot{
-		begins: state.begins, commits: state.commits, rollbacks: state.rollbacks, execs: state.execs,
+		begins: state.begins, commits: state.commits, rollbacks: state.rollbacks, execs: state.execs, queries: state.queries,
 		lastOptions: state.lastOptions,
 	}
 }
@@ -253,6 +255,9 @@ func (connection *transactionTestConnection) QueryContext(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
+	connection.state.mu.Lock()
+	connection.state.queries++
+	connection.state.mu.Unlock()
 	return &transactionTestRows{values: [][]driver.Value{{int64(1)}}}, nil
 }
 

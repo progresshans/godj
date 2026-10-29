@@ -176,7 +176,7 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 		}
 		revoked := 0
 		if selected {
-			err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
+			_, err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
 				var err error
 				revoked, err = plan.apply(ctx, scope)
 				return err

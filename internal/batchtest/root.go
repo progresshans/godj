@@ -120,8 +120,8 @@ func CheckRoot(t *testing.T, root interface {
 				if count, err := mutator.Update(ctx, query.NewUpdatePlan("batch_writes", []query.Assignment{query.NewAssignment(Value, query.Integer(82))}, id, query.Integer(key))); err != nil || count != 1 {
 					t.Fatal(count, err)
 				}
-				conflict := query.NewConflictInsertPlan("batch_writes", []query.Assignment{query.NewAssignment(Value, query.Integer(82))}, []query.FieldRef{Value})
-				if inserted, err := affinity.(db.ConflictInserter).InsertOnConflict(ctx, conflict); err != nil || inserted {
+				conflict := query.NewConflictInsertPlan(query.NewInsertPlanReturningKey("batch_writes", []query.Assignment{query.NewAssignment(Value, query.Integer(82))}, query.NewFieldRef("id", "id", query.FieldInteger, false)), []query.FieldRef{Value})
+				if inserted, err := affinity.(db.ConflictInserter).InsertOnConflict(ctx, conflict); err != nil || inserted != (db.ConflictInsertResult{}) {
 					t.Fatal(inserted, err)
 				}
 				if count, err := mutator.Delete(ctx, query.NewDeletePlan("batch_writes", id, query.Integer(key))); err != nil || count != 1 {

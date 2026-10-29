@@ -136,7 +136,7 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 		return zero, Creation{}, err
 	}
 	revoked := 0
-	if err := batch.Apply(ctx, func(work context.Context, _ orm.CollectionChangeEffects) error {
+	if _, err := batch.Apply(ctx, func(work context.Context, _ orm.CollectionChangeEffects) error {
 		var err error
 		revoked, err = plan.apply(work, scope)
 		return err

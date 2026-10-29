@@ -309,7 +309,7 @@ type formSaveTracedSession struct {
 func (s *formSaveTracedSession) ValidateSession(ctx context.Context) error {
 	return s.lifetime.ValidateSession(ctx)
 }
-func (s *formSaveTracedSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s *formSaveTracedSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	return s.conflict.InsertOnConflict(ctx, plan)
 }
 func (s *formSaveTracedSession) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {

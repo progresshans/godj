@@ -95,10 +95,10 @@ func (b *ctBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db
 type ctScope struct { db.Session; owner *ctBackend }
 func (s *ctScope) ValidateSession(ctx context.Context) error { return s.Session.(db.SessionValidator).ValidateSession(ctx) }
 func (s *ctScope) RelationSetNull(ctx context.Context, plan query.RelationSetNullPlan) (int64,error) { return s.Session.(db.RelationSession).RelationSetNull(ctx,plan) }
-func (s *ctScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool,error) {
+func (s *ctScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
  inserted,err:=s.Session.(db.ConflictInserter).InsertOnConflict(ctx,plan)
- if err==nil&&inserted&&plan.Table()=="members_member_permissions"&&s.owner.mode=="same_effective_wrong_direct"{err=s.loseDirect(ctx)}
- if err==nil&&s.owner.afterConflict!=nil{err=s.owner.afterConflict(ctx,s.Session,plan,inserted)}
+ if err==nil&&inserted.Inserted &&plan.Table()=="members_member_permissions"&&s.owner.mode=="same_effective_wrong_direct"{err=s.loseDirect(ctx)}
+ if err==nil&&s.owner.afterConflict!=nil{err=s.owner.afterConflict(ctx,s.Session,plan,inserted.Inserted)}
  return inserted,err
 }
 func (s *ctScope) loseDirect(ctx context.Context)error{

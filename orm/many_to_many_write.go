@@ -160,7 +160,8 @@ func (c *ManyCollection[T, L]) executeChange(ctx context.Context, session db.Rel
 	if err != nil {
 		return err
 	}
-	return prepared.Apply(ctx, nil)
+	_, err = prepared.Apply(ctx, nil)
+	return err
 }
 
 func (row manyRow) partner(owner int64) (int64, bool) {

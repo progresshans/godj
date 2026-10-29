@@ -16,16 +16,16 @@ import (
 
 func TestSQLiteConflictInsertCompiler(t *testing.T) {
 	conflicttest.CheckCompiler(t, CompileConflictInsert,
-		`INSERT INTO "conflict_link" ("owner_id", "label_id", "token") VALUES (?, ?, ?) ON CONFLICT ("owner_id", "label_id") DO NOTHING`)
+		`INSERT INTO "conflict_link" ("owner_id", "label_id", "token") VALUES (?, ?, ?) ON CONFLICT ("owner_id", "label_id") DO NOTHING RETURNING "id"`)
 	field := query.NewFieldRef("name", `a"column`, query.FieldString, false)
-	statement, arguments, err := CompileConflictInsert(query.NewConflictInsertPlan(`a"table`, []query.Assignment{query.NewAssignment(field, query.String("x'); DROP TABLE links; --"))}, []query.FieldRef{field}))
-	if err != nil || statement != `INSERT INTO "a""table" ("a""column") VALUES (?) ON CONFLICT ("a""column") DO NOTHING` ||
+	statement, arguments, err := CompileConflictInsert(query.NewConflictInsertPlan(query.NewInsertPlanReturningKey(`a"table`, []query.Assignment{query.NewAssignment(field, query.String("x'); DROP TABLE links; --"))}, query.NewFieldRef("id", "id", query.FieldInteger, false)), []query.FieldRef{field}))
+	if err != nil || statement != `INSERT INTO "a""table" ("a""column") VALUES (?) ON CONFLICT ("a""column") DO NOTHING RETURNING "id"` ||
 		!reflect.DeepEqual(arguments, []any{"x'); DROP TABLE links; --"}) {
 		t.Fatal(statement, arguments, err)
 	}
 	upper := query.NewFieldRef("upper", "KEY", query.FieldInteger, false)
 	lower := query.NewFieldRef("lower", "key", query.FieldInteger, false)
-	if _, _, err := CompileConflictInsert(query.NewConflictInsertPlan("links", []query.Assignment{query.NewAssignment(upper, query.Integer(1)), query.NewAssignment(lower, query.Integer(2))}, []query.FieldRef{upper, lower})); err == nil {
+	if _, _, err := CompileConflictInsert(query.NewConflictInsertPlan(query.NewInsertPlanReturningKey("links", []query.Assignment{query.NewAssignment(upper, query.Integer(1)), query.NewAssignment(lower, query.Integer(2))}, query.NewFieldRef("id", "id", query.FieldInteger, false)), []query.FieldRef{upper, lower})); err == nil {
 		t.Fatal("SQLite case-equivalent columns accepted")
 	}
 }
@@ -36,6 +36,7 @@ func TestSQLiteConflictInsertProduct(t *testing.T) {
 	second := openLifecycleFileBackend(t, path, "&_pragma=busy_timeout(5000)")
 	for _, statement := range []string{
 		`CREATE TABLE conflict_parent (id INTEGER PRIMARY KEY)`,
+		`CREATE TABLE conflict_signed (record_key INTEGER PRIMARY KEY, token INTEGER NOT NULL UNIQUE)`,
 		`INSERT INTO conflict_parent VALUES (1),(2),(3),(4),(5),(6)`,
 		`CREATE TABLE conflict_link (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id INTEGER NOT NULL REFERENCES conflict_parent(id) DEFERRABLE INITIALLY DEFERRED, label_id INTEGER NOT NULL REFERENCES conflict_parent(id), token INTEGER NOT NULL UNIQUE CHECK(token > 0), UNIQUE(owner_id,label_id))`,
 	} {
@@ -44,12 +45,13 @@ func TestSQLiteConflictInsertProduct(t *testing.T) {
 		}
 	}
 	conflicttest.Check(t, backend, second, backend.database, "conflict_link", "conflict_parent")
+	conflicttest.CheckSignedKeys(t, backend, backend.database, "conflict_signed")
 	t.Run("zero_rows_is_not_membership_proof", func(t *testing.T) {
 		if _, err := backend.database.ExecContext(t.Context(), `CREATE TRIGGER skip_conflict BEFORE INSERT ON conflict_link WHEN NEW.token=90909 BEGIN SELECT RAISE(IGNORE); END`); err != nil {
 			t.Fatal(err)
 		}
 		plan := conflicttest.Plan(4, 4, 90909)
-		if inserted, err := backend.InsertOnConflict(t.Context(), plan); inserted || err != nil {
+		if inserted, err := backend.InsertOnConflict(t.Context(), plan); inserted != (db.ConflictInsertResult{}) || err != nil {
 			t.Fatal(inserted, err)
 		}
 		var count int
@@ -75,12 +77,22 @@ func TestSQLiteConflictInsertErrorAndUncertainTransactionOwnership(t *testing.T)
 		t.Run(outcome, func(t *testing.T) {
 			failure := errors.New("injected native failure")
 			callbackFailure := errors.New("rollback after insert")
+			native := openLifecycleFileBackend(t, filepath.Join(t.TempDir(), "returning.sqlite"), "")
 			connection := &relationFaultConnection{exec: func(_ context.Context, statement string, _ []any) (sql.Result, error) {
-				if (outcome == "driver" && strings.HasPrefix(statement, "INSERT")) || (strings.HasPrefix(outcome, "rollback") && statement == "ROLLBACK") || (outcome == "commit" && statement == "COMMIT") {
+				if (strings.HasPrefix(outcome, "rollback") && statement == "ROLLBACK") || (outcome == "commit" && statement == "COMMIT") {
 					return nil, failure
 				}
 				return relationFaultResult(1), nil
 			}}
+			connection.query = func(ctx context.Context, statement string, arguments []any) (*sql.Rows, error) {
+				connection.mu.Lock()
+				connection.statements = append(connection.statements, statement)
+				connection.mu.Unlock()
+				if outcome == "driver" {
+					return nil, failure
+				}
+				return native.database.QueryContext(ctx, "SELECT 17")
+			}
 			if outcome == "rollback" {
 				connection.raw = func(func(any) error) error { return nil }
 			}
@@ -95,12 +107,12 @@ func TestSQLiteConflictInsertErrorAndUncertainTransactionOwnership(t *testing.T)
 				}
 				inserted, err := session.(db.ConflictInserter).InsertOnConflict(context.Background(), plan)
 				if outcome == "driver" || outcome == "invalid" {
-					if inserted || err == nil {
+					if inserted != (db.ConflictInsertResult{}) || err == nil {
 						t.Fatal("write failed open", inserted, err)
 					}
 					return err
 				}
-				if !inserted || err != nil {
+				if !inserted.Inserted || inserted.Key != 17 || err != nil {
 					t.Fatal(inserted, err)
 				}
 				if strings.HasPrefix(outcome, "rollback") {

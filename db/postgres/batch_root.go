@@ -129,15 +129,20 @@ func (scope *rootBatchScope) Delete(ctx context.Context, plan query.DeletePlan) 
 	defer func() { err = errors.Join(err, lease.Close()) }()
 	return executeDelete(ctx, lease, scope.backend.schema, plan)
 }
-func (scope *rootBatchScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (inserted bool, err error) {
+func (scope *rootBatchScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (inserted db.ConflictInsertResult, err error) {
 	lease, err := scope.acquire(ctx)
 	if err != nil {
-		return false, err
+		return db.ConflictInsertResult{}, err
 	}
 	if lease == nil {
 		return scope.backend.InsertOnConflict(ctx, plan)
 	}
-	defer func() { err = errors.Join(err, lease.Close()) }()
+	defer func() {
+		err = errors.Join(err, lease.Close())
+		if err != nil {
+			inserted = db.ConflictInsertResult{}
+		}
+	}()
 	return executeConflictInsert(ctx, lease, scope.backend.schema, plan)
 }
 

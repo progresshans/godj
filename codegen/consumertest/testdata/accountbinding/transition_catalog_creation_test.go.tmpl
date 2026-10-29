@@ -344,7 +344,8 @@ func ccAudit(t *testing.T,f *ctFixture,scope database.Backend,model string,id in
  t.Helper();namespace,ok:=f.actor.CredentialDomain();if !ok{t.Fatal("source actor lacks domain")}
  events,err:=db.ReadSnapshotResult(t.Context(),scope,func(ctx context.Context,reader db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,reader,namespace,model,id,10)});ctMust(t,err)
  if len(fields)==0{if len(events)!=0{t.Fatal("unchanged catalog/account was audited",model,id)};return}
- if len(events)!=1||events[0].ActorID()!=f.actor.ID()||events[0].Action()!=action||!slices.Equal(events[0].ChangedFields(),fields){t.Fatal("catalog/account did not receive exactly one ordered audit",model,id)}
+ if len(events)!=1{t.Fatal("catalog/account did not receive exactly one audit",model,id,len(events))}
+ if events[0].ActorID()!=f.actor.ID()||events[0].Action()!=action||!slices.Equal(events[0].ChangedFields(),fields){t.Fatal("catalog/account audit differs from actor, action or ordered fields",model,id,"expected fields",fields,"actual fields",events[0].ChangedFields())}
 }
 
 func ccVerify(t *testing.T,f *ctFixture,state *ccState,receipt domain.Receipt,manifest accountmodel.TransitionManifest,result *accountmodel.TransitionResult,confirmed bool){
@@ -419,7 +420,14 @@ func ccVerify(t *testing.T,f *ctFixture,state *ccState,receipt domain.Receipt,ma
   if len(audits)!=1||audits[0].ActorID()!=f.actor.ID()||audits[0].Action()!=admin.ActionChange||!slices.Contains(audits[0].ChangedFields(),"encoded_password"){t.Fatal("retirement audit missing")}
   var fields []string
   if f.strategy=="created"{fields=[]string{"handle","first_name","portrait","secret_hash",f.role.Groups,f.role.Permissions,"active","staff","superuser"};ccAudit(t,f,reopened,"members.member",next.ID,admin.ActionAdd,fields)}else{
-   if f.mode!="explicit_empty"{fields=[]string{f.role.Groups};if f.role.Catalog.Permission.AppLabel!="godj_identity"{fields=append(fields,f.role.Permissions)}}
+   if f.mode!="explicit_empty"{
+    fields=[]string{f.role.Groups}
+    if f.role.Catalog.Permission.AppLabel!="godj_identity"{fields=append(fields,f.role.Permissions)}
+    // The fixture appends legacy_groups after the original direct permission
+    // field. A shared Group also changes effective grants, so both fields stay
+    // in the audit, in that declared order.
+    if f.role.Catalog.Group.AppLabel=="godj_identity"{fields=[]string{f.role.Permissions,f.role.Groups}}
+   }
    ccAudit(t,f,reopened,"members.member",next.ID,admin.ActionChange,fields)
   }
  }

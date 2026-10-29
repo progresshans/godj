@@ -50,7 +50,8 @@ Admin/JSON·password/reset·공개 CLI·Article/scaffold와 Helpdesk 조립, 명
 전체/부분 공유 catalog·새 실제 계정 key·manifest v6와 실제 host schema 확장/정리·재접속 소비자를 작성했다.
 Typed catalog target 생성과 실제 Group/Permission key를 계정·소속·host 참조에 연결하는 경로를 작성했다.
 부분 공유 모델의 identity/revision·인가·감사, manifest v7·payload v2·unknown/재시작 대조와 마지막 정책 뒤 전체 readback을 포함한다.
-새 본문은 원격 확인 대상이다. 역사 systemstate 전환과 공유 물리 through의 복합 endpoint 전환은 남아 있다.
+공통 collection의 실제 삽입 key·전체 typed row readback과 source에 묶인 결과를 작성했으며 native 충돌/no-op과 key 0을 구분한다.
+새 본문은 원격 확인 대상이다. 역사 systemstate 전환과 이 결과를 사용하는 공유 물리 through의 복합 endpoint 전환은 남아 있다.
 일반 collection의 선택 identity through 자동 생성·전환 대상의 through 수명·
 남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
 필수 목록에 연결했고 독립 OpenAPI 관리·자기 계정 소비자도 선택 runtime으로 전환했다. 새 본문의 원격 확인이 필요하다.

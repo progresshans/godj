@@ -177,13 +177,13 @@ func (s *collectionFaultSession) Delete(ctx context.Context, plan query.DeletePl
 	}
 	return rows, err
 }
-func (s *collectionFaultSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s *collectionFaultSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	s.owner.writes++
 	if s.owner.mode == "link_error" {
-		return false, errors.New("link insert failed after scalar write")
+		return db.ConflictInsertResult{}, errors.New("link insert failed after scalar write")
 	}
 	if s.owner.mode == "rollback_unknown" {
-		return false, validation.Reject(validation.NewErrors(validation.New("labels", "invalid_choice")), nil)
+		return db.ConflictInsertResult{}, validation.Reject(validation.NewErrors(validation.New("labels", "invalid_choice")), nil)
 	}
 	inserted, err := s.inserter.InsertOnConflict(ctx, plan)
 	if err == nil {

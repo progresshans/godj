@@ -1379,6 +1379,23 @@ scope 종료를 확인하며 0·음수 key를 보존한다. 쓰기의 선택 Fil
 FirstAccount의 typed/Form과 공개 `createsuperuser` 경로는 같은 기능을 사용한다. 명령의 입력/전송은 다음 계약을 따른다.
 이 구현 계약과 실제 환경별 실행·수용은 구분한다.
 
+### 공통 collection의 실제 삽입 결과
+
+`PreparedCollectionChanges.Apply`는 전체 삭제·삽입·소속 postcondition을 적용한 뒤 source에 묶인
+`AppliedCollectionChanges`를 반환한다. 삽입 제안은 IR default·nullable 필드·아직 없는 key까지 포함한 전체 typed 값이며,
+실제 결과에는 이번 INSERT가 반환한 key와 그 key로 다시 조회해 일치한 전체 scalar 행만 들어간다. 모든 쓰기가 끝난 뒤
+조회하므로 뒤 INSERT가 앞선 payload나 관계를 바꾼 경우도 거부한다. Getter는 사본이며 진단은 값을 노출하지 않는다.
+
+UNIQUE tuple의 충돌 허용 INSERT도 `InsertPlan`의 실제 returning key를 요구한다. SQLite·PostgreSQL의
+`ON CONFLICT (...) DO NOTHING RETURNING` 결과는 삽입 여부와 signed key를 함께 제공하며 key 0과 no-op을 구분한다.
+No-op에서 이전/충돌 행의 key를 추측하지 않는다. Native 반환 행의 개수·NULL/scan·전송·close·취소 오류와
+collection의 최종 조회 실패에는 부분 key/행을 반환하지 않는다. Bulk의 returning 경로도 같은 bounded drain을 사용한다.
+
+결과는 enclosing transaction의 commit 전까지 잠정 값이다. 새 API가 인가·revision·session·audit owner나
+외부 commit 확인을 대신하지 않으며 이후 동반 쓰기의 최종 검사는 해당 owner가 계속 수행한다.
+선택 identity 자체를 through로 자동 생성하는 수명 owner와 공유 물리 through의 여러 역할을 이 실제 행으로 projection하는
+전환 조립은 후속 I1 요구다. 기존 명시적 거부를 지우거나 논리 pair만 같은 추가 행을 임의로 수용하지 않는다.
+
 ### 공개 첫 명령의 collection 입력
 
 `FirstAccountDefinition.CollectionLimits()`는 선택한 프로필과 그룹/직접 권한의 개수 한도를 사본으로 반환한다.

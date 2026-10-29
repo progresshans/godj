@@ -779,10 +779,10 @@ func (s *userManagementSession) Update(ctx context.Context, plan query.UpdatePla
 	}
 	return s.RelationSession.Update(ctx, plan)
 }
-func (s *userManagementSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool, error) {
+func (s *userManagementSession) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	if s.owner.mode == "membership_failure" {
 		s.owner.faults++
-		return false, errors.New("private-user-management-fault")
+		return db.ConflictInsertResult{}, errors.New("private-user-management-fault")
 	}
 	return s.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
 }

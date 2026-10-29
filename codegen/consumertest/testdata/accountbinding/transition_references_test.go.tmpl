@@ -73,7 +73,7 @@ func (b *referenceBackend) CoordinatedAtomicRelation(ctx context.Context, write 
 type referenceScope struct {db.Session;owner *referenceBackend}
 func(s *referenceScope)ValidateSession(ctx context.Context)error{return s.Session.(db.SessionValidator).ValidateSession(ctx)}
 func(s *referenceScope)RelationSetNull(ctx context.Context,plan query.RelationSetNullPlan)(int64,error){return s.Session.(db.RelationSession).RelationSetNull(ctx,plan)}
-func(s *referenceScope)InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan)(bool,error){return s.Session.(db.ConflictInserter).InsertOnConflict(ctx,plan)}
+func(s *referenceScope)InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {return s.Session.(db.ConflictInserter).InsertOnConflict(ctx,plan)}
 func(s *referenceScope)changeTicket(ctx context.Context)error{
  row,err:=host.TicketObjects.Using(s.Session).Filter(host.TicketFields.ID.Exact(s.owner.ticket)).Get(ctx);if err!=nil{return err}
  prepared,err:=host.TicketObjects.PrepareValues(&row,map[string]query.Value{"title":query.String("changed by native rule")});if err!=nil{return err}

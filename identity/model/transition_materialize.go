@@ -90,7 +90,7 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 	if len(batch.Effects().Deletions().Rows()) != 0 {
 		return nil, managementError(CodeConflict, nil)
 	}
-	if err := batch.Apply(ctx, nil); err != nil {
+	if _, err := batch.Apply(ctx, nil); err != nil {
 		return nil, err
 	}
 	return mappings, nil
