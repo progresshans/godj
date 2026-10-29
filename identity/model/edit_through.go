@@ -8,6 +8,7 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -39,18 +40,22 @@ func prepareThroughCreations[M any](store *CredentialStore[M], fields []string, 
 }
 
 func prepareThroughDefinitions[M any](binding Binding[M], fields []string, configured map[string]ThroughCreation, limit int) (map[string]*throughCreationState, []string, error) {
+	return prepareOwnedThroughDefinitions(binding.state.project, binding.state.roleFingerprint, binding.state.role.Model, fields, configured, limit)
+}
+
+func prepareOwnedThroughDefinitions(project orm.ProjectBinding, role [32]byte, owner ir.ModelIdentity, fields []string, configured map[string]ThroughCreation, limit int) (map[string]*throughCreationState, []string, error) {
 	var ordinary []string
 	if len(configured) == 0 && limit != 0 || len(configured) != 0 && (limit < 1 || limit > MaximumThroughCreations) {
 		return nil, nil, managementError(CodeInvalidConfig, nil)
 	}
-	source, err := binding.state.project.SourceSHA256()
+	source, err := project.SourceSHA256()
 	if err != nil {
 		return nil, nil, err
 	}
 	result := make(map[string]*throughCreationState, len(configured))
 	for name, configured := range configured {
 		policy := configured.state
-		if policy == nil || policy.role != binding.state.roleFingerprint || policy.attach == nil || policy.endpoints == nil || !slices.Contains(fields, name) {
+		if policy == nil || policy.role != role || policy.attach == nil || policy.endpoints == nil || !slices.Contains(fields, name) {
 			return nil, nil, managementError(CodeInvalidConfig, nil)
 		}
 		actual, err := policy.project.SourceSHA256()
@@ -58,8 +63,8 @@ func prepareThroughDefinitions[M any](binding Binding[M], fields []string, confi
 			return nil, nil, managementError(CodeInvalidConfig, err)
 		}
 		matched := false
-		for _, relation := range binding.state.project.ManyToManyRelations() {
-			if relation.Source == binding.state.role.Model && relation.Field == name && relation.Through.Model == policy.model {
+		for _, relation := range project.ManyToManyRelations() {
+			if relation.Source == owner && relation.Field == name && relation.Through.Model == policy.model {
 				if err := policy.endpoints(relation.Through.SourceField, relation.Through.TargetField); err != nil {
 					return nil, nil, err
 				}
@@ -241,7 +246,7 @@ func (state *accountEditState[M]) prepareThrough(ctx context.Context, actor auth
 			return nil, err
 		}
 		domain, _ := current.CredentialDomain()
-		pending := &throughPreparation{domain: domain, actorID: current.ID(), limit: state.throughLimit,
+		pending := &throughPreparation{domain: domain, authority: domain, actorID: current.ID(), limit: state.throughLimit,
 			pairs: make(map[throughPairKey]*throughCandidate), identities: make(map[throughIdentity]*throughCandidate)}
 		changes, err := state.collectionChanges(work, scope, current, read.current, input, pending, false)
 		if err != nil {

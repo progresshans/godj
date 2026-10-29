@@ -33,7 +33,8 @@
    Catalog 생성 행의 FK/OneToOne·선택 정책·실제 key 의존 순서와 최종 incoming 검사를 원격 검증한다.
    신규 계정/catalog 공동 할당과 완성 소속 이후 정책·중간 scalar/물리 링크 검사를 원격 검증한다.
    Nullable FK 순환의 단계적 계정/catalog 생성·전체 임시 행 고정·실제 key 완성과 rollback을 원격 검증한다.
-   전환 collection 안의 추가 identity 생성·필수 FK 순환 할당과 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
+   전환 collection의 추가 identity 생성·양쪽 실제 FK 결합·원본 인가·전체 batch/inventory·manifest v8/receipt v3와
+   기존 INSERT 재사용·실패/복구/restart를 원격 검증한다. 필수 FK 순환 할당과 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
 
 ## 검증 경계
 

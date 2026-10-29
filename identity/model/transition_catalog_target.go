@@ -27,8 +27,10 @@ type TransitionCatalogModelConfig[M any] struct {
 }
 
 type TransitionCatalogTargetConfig[G, P any] struct {
-	Group      TransitionCatalogModelConfig[G]
-	Permission TransitionCatalogModelConfig[P]
+	Group                   TransitionCatalogModelConfig[G]
+	Permission              TransitionCatalogModelConfig[P]
+	GroupThroughCreations   map[string]ThroughCreation
+	AccountThroughCreations map[string]ThroughCreation
 }
 
 // CatalogRowCreation pairs a reviewed source with cleaned typed target values.
@@ -64,6 +66,7 @@ type transitionCatalogTarget[G, P any] struct {
 	required          []auth.Permission
 	grants            func(G, []int64) (orm.CollectionChange, error)
 	accounts          func(context.Context, db.Queryer, int64, []int64, []int64) ([]orm.CollectionChange, error)
+	through           map[transitionCollectionKey]*throughCreationState
 }
 
 type transitionCatalogModel[M any] struct {
@@ -119,11 +122,33 @@ func NewTransitionCatalogTarget[S, T, G, P, GP, TG, TP any](source Binding[S], t
 		grants.ValidateSource(project, right.Catalog.Group, right.Catalog.GroupPermissions),
 		accountGroups.ValidateSource(project, right.Model, right.Groups),
 		accountPermissions.ValidateSource(project, right.Model, right.Permissions),
-		validateCatalogCollectionStorage(project, right),
-		validateAccountCollectionStorage(project, right, []string{right.Groups, right.Permissions}),
 	} {
 		if err != nil {
 			return zero, managementError(CodeInvalidConfig, err)
+		}
+	}
+	through := make(map[transitionCollectionKey]*throughCreationState)
+	for _, selected := range []struct {
+		owner      ir.ModelIdentity
+		fields     []string
+		configured map[string]ThroughCreation
+	}{
+		{right.Model, []string{right.Groups, right.Permissions}, config.AccountThroughCreations},
+		{right.Catalog.Group, []string{right.Catalog.GroupPermissions}, config.GroupThroughCreations},
+	} {
+		definitions, ordinary, err := prepareOwnedThroughDefinitions(project, target.state.roleFingerprint, selected.owner, selected.fields, selected.configured, transitionThroughDefinitionLimit(selected.configured))
+		if err != nil {
+			return zero, err
+		}
+		for field, policy := range definitions {
+			through[transitionCollectionKey{selected.owner, field}] = policy
+		}
+		for _, relation := range project.ManyToManyRelations() {
+			if relation.Source == selected.owner && slices.Contains(ordinary, relation.Field) {
+				if err := validateLifecycleThroughStorage(right, relation.Through.Model); err != nil {
+					return zero, err
+				}
+			}
 		}
 	}
 	// The old selected identities are lifecycle owners too. A new role must
@@ -133,7 +158,11 @@ func NewTransitionCatalogTarget[S, T, G, P, GP, TG, TP any](source Binding[S], t
 			relation.Source == right.Catalog.Group && relation.Field == right.Catalog.GroupPermissions
 		if selected {
 			if err := validateLifecycleThroughStorage(left, relation.Through.Model); err != nil {
-				return zero, err
+				// A shared selected catalog keeps one typed creation owner. An
+				// identity that belongs only to the retiring role is never created.
+				if _, targetErr := transitionIdentityKind(right, relation.Through.Model); targetErr != nil {
+					return zero, err
+				}
 			}
 		}
 	}
@@ -162,7 +191,8 @@ func NewTransitionCatalogTarget[S, T, G, P, GP, TG, TP any](source Binding[S], t
 	return TransitionCatalogTarget[G, P]{&transitionCatalogTarget[G, P]{
 		project: project, source: sourceHash, oldRole: left, nextRole: right, oldHash: source.state.roleFingerprint, nextHash: target.state.roleFingerprint,
 		groups: groups, permissions: permissions, required: required,
-		grants: func(row G, keys []int64) (orm.CollectionChange, error) { return grants.SetKeysChange(row, keys) },
+		through: through,
+		grants:  func(row G, keys []int64) (orm.CollectionChange, error) { return grants.SetKeysChange(row, keys) },
 		accounts: func(ctx context.Context, scope db.Queryer, id int64, groups, permissions []int64) ([]orm.CollectionChange, error) {
 			row, err := target.state.objects.Using(scope).Filter(key.Exact(id)).Get(ctx)
 			if err != nil {

@@ -382,23 +382,7 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 		}
 		changes = append(changes, change)
 	}
-	if len(changes) != 0 {
-		batch, err := orm.PrepareCollectionChangesInSession(ctx, scope, changes...)
-		if err != nil {
-			return zero, err
-		}
-		if err := batch.ValidateSource(target.project); err != nil {
-			return zero, err
-		}
-		if len(batch.Effects().Deletions().Rows()) != 0 {
-			return zero, managementError(CodeConflict, nil)
-		}
-		applied, err := batch.Apply(ctx, nil)
-		if err != nil {
-			return zero, err
-		}
-		result.insertions = append(result.insertions, applied)
-	}
+	result.changes = changes
 	for _, candidate := range finalPermissions {
 		if err := auditCatalogCreationCandidate(ctx, scope, actor, at, target.permissions, candidate); err != nil {
 			return zero, err

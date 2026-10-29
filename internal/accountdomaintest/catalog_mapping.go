@@ -38,7 +38,7 @@ func catalogMappedTransition(t *testing.T, backend Backend, prior domain.Receipt
 	t.Helper()
 	change := prepare(t, roleB)
 	result, err := db.CoordinatedAtomicResult(t.Context(), backend, func(ctx context.Context, scope db.Session) (domain.Receipt, error) {
-		return domain.TransitionMappedIn(ctx, scope, prior, change, instant, mappingRows(), mapping)
+		return domain.TransitionMappedIn(ctx, scope, prior, change, instant, domain.MappingInventory{Accounts: mappingRows(), Catalog: &mapping})
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -111,15 +111,14 @@ func catalogMappingHistory(t *testing.T, backend Backend, reopen func(*testing.T
 
 func catalogMappingFailures(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	first := initialize(t, backend)
-	for _, catalogs := range [][]domain.CatalogMappings{
-		{{}, {}},
-		{{Groups: []domain.Mapping{{SourceRevision: 0, TargetRevision: 1}}}},
-		{{Permissions: []domain.Mapping{{SourceID: 1, SourceRevision: 1, TargetRevision: 1}, {SourceID: 2, SourceRevision: 1, TargetRevision: 1}}}},
-		{{Groups: make([]domain.Mapping, domain.MaximumMappings+1)}},
+	for _, catalog := range []domain.CatalogMappings{
+		{Groups: []domain.Mapping{{SourceRevision: 0, TargetRevision: 1}}},
+		{Permissions: []domain.Mapping{{SourceID: 1, SourceRevision: 1, TargetRevision: 1}, {SourceID: 2, SourceRevision: 1, TargetRevision: 1}}},
+		{Groups: make([]domain.Mapping, domain.MaximumMappings+1)},
 	} {
 		change := prepare(t, roleB)
 		got, err := db.CoordinatedAtomicResult(t.Context(), backend, func(ctx context.Context, scope db.Session) (domain.Receipt, error) {
-			return domain.TransitionMappedIn(ctx, scope, first, change, instant, mappingRows(), catalogs...)
+			return domain.TransitionMappedIn(ctx, scope, first, change, instant, domain.MappingInventory{Accounts: mappingRows(), Catalog: &catalog})
 		})
 		if !errors.Is(err, domain.ErrInvalid) || got.Sequence() != 0 {
 			t.Fatal("invalid catalog correspondence accepted", err)
@@ -136,7 +135,8 @@ func catalogMappingFailures(t *testing.T, backend Backend, reopen func(*testing.
 				} else if mode == "rewritten_payload" {
 					wrapped = mappingRewrite{scope, &faults}
 				}
-				got, err := domain.TransitionMappedIn(ctx, wrapped, first, change, instant, mappingRows(), catalogMappingRows())
+				catalog := catalogMappingRows()
+				got, err := domain.TransitionMappedIn(ctx, wrapped, first, change, instant, domain.MappingInventory{Accounts: mappingRows(), Catalog: &catalog})
 				if err == nil && mode == "outer_rollback" {
 					faults++
 					return got, errors.New("after complete catalog receipt")

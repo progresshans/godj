@@ -54,6 +54,10 @@ func (owner *Transition[S, T]) prepareWithCatalogCreation(ctx context.Context, a
 	}
 	observed, err := db.ReadSnapshotResult(ctx, owner.old.state.backend, func(work context.Context, scope db.Queryer) (catalogTransitionObservation[S, T], error) {
 		result, failure := owner.observeWithCatalogCreation(work, scope, actor, operation, inputs)
+		if failure == nil {
+			failure = owner.prepareTransitionThrough(work, scope, &result.transitionObservation, len(inputs.requests) != 0)
+		}
+
 		if expectedTransitionRefusal(failure) {
 			return catalogTransitionObservation[S, T]{transitionObservation: transitionObservation[S, T]{rejection: failure}}, nil
 		}
@@ -65,11 +69,25 @@ func (owner *Transition[S, T]) prepareWithCatalogCreation(ctx context.Context, a
 	if observed.rejection != nil {
 		return zero, observed.rejection
 	}
+	if err := observed.through.encode(ctx); err != nil {
+		return zero, err
+	}
+	observed.digest, err = observed.through.seal(observed.digest, operation)
+	if err != nil {
+		return zero, err
+	}
+	if observed.through != nil {
+		if err := checkTransitionReadbackBudget(observed.transitionObservation, observed.preparedCatalog.bytes+observed.through.bytes); err != nil {
+			return zero, err
+		}
+	}
 	oldRole, _ := owner.old.state.credentials.state.binding.RoleFingerprint()
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
 	manifest := TransitionManifest{Version: 7, OperationID: operation, PriorOperationID: observed.ownership.OperationID(), PriorSequence: observed.ownership.Sequence(),
 		ProjectSHA256: owner.source, SourceRoleSHA256: oldRole, TargetRoleSHA256: nextRole, StateSHA256: observed.digest,
 		References: transitionReferenceManifests(observed.references), CatalogCreation: cloneCatalogCreationManifest(&observed.preparedCatalog.manifest)}
+	manifest.Collections = observed.through.manifest()
+	manifest.Version = transitionManifestVersion(nil, manifest.References, manifest.CatalogCreation, manifest.Collections)
 	if len(requests) != 0 {
 		for _, request := range requests {
 			manifest.CreationSources = append(manifest.CreationSources, request.Source)
@@ -87,7 +105,7 @@ func (owner *Transition[S, T]) prepareWithCatalogCreation(ctx context.Context, a
 	if err != nil {
 		return zero, managementError(CodePersistence, err)
 	}
-	return PreparedTransition[S, T]{state: &preparedTransition[S, T]{owner: owner, actor: actor.ID(), manifest: manifest, expected: observed.ownership, change: change, catalogCreation: inputs}}, nil
+	return PreparedTransition[S, T]{state: &preparedTransition[S, T]{owner: owner, actor: actor.ID(), manifest: manifest, expected: observed.ownership, change: change, catalogCreation: inputs, through: observed.through}}, nil
 }
 
 func validTransitionTime(at time.Time) bool {
@@ -274,6 +292,9 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 		if err != nil {
 			return TransitionResult{}, err
 		}
+		if err := owner.checkPreparedTransitionThrough(work, scope, &current.transitionObservation, len(state.catalogCreation.requests) != 0, state.through, state.manifest.OperationID); err != nil {
+			return TransitionResult{}, err
+		}
 		if current.digest != state.manifest.StateSHA256 || current.ownership.OperationID() != state.expected.OperationID() {
 			return TransitionResult{}, managementError(CodeConflict, nil)
 		}
@@ -324,19 +345,11 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 				return TransitionResult{}, err
 			}
 		}
-		for _, batch := range created.insertions {
-			if err := current.inserted.add(owner.next.state.credentials.state.binding.state.project, batch); err != nil {
-				return TransitionResult{}, err
-			}
-			if err := projectRows(batch.Insertions()); err != nil {
-				return TransitionResult{}, err
-			}
-		}
 		resolved, err := owner.observeCatalogRows(work, scope, state.manifest.OperationID)
 		if err != nil {
 			return TransitionResult{}, err
 		}
-		if err := created.verify(resolved); err != nil {
+		if err := created.verifyBeforeCollections(resolved); err != nil {
 			return TransitionResult{}, err
 		}
 		if !catalogCreationMatches(current.preparedCatalog.manifest, *created.mapping) {
@@ -361,12 +374,15 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 		if err := owner.verifyCatalogAccountBaseline(work, scope, current, creatingAccounts); err != nil {
 			return TransitionResult{}, err
 		}
+		// Final collection verification starts from independently expected
+		// logical grants and the exact root INSERT projections.
+		current.catalog.before, current.catalog.after = created.before, created.after
 		var mappings []AccountMapping
 		if creatingAccounts {
 			mappings = accountAllocation.mappings
-			err = owner.materializeTargetLinks(work, scope, &current.transitionObservation, true, nil)
+			err = owner.materializeTargetLinks(work, scope, &current.transitionObservation, true, nil, created.changes, at)
 		} else {
-			mappings, err = owner.materializeTargets(work, scope, &current.transitionObservation, current.candidates, false, current.originalTargets)
+			mappings, err = owner.materializeTargets(work, scope, &current.transitionObservation, current.candidates, false, current.originalTargets, created.changes, at)
 		}
 		if err != nil {
 			return TransitionResult{}, err
@@ -378,7 +394,7 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 			return TransitionResult{}, err
 		}
 		for i, pair := range current.pairs {
-			if err := owner.validatePair(work, scope, state.manifest.OperationID, pair.old, pair.next, resolved); err != nil {
+			if err := owner.validatePair(work, scope, state.manifest.OperationID, pair.old, pair.next, current.catalog); err != nil {
 				return TransitionResult{}, err
 			}
 			var fields []string
@@ -427,13 +443,13 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 			return TransitionResult{}, err
 		}
 		if creatingAccounts {
-			result.CreatedAccounts = len(mappings)
+			result.CreatedAccounts += len(mappings)
 		}
 		if current.preparedCatalog.manifest.CreateGroups {
-			result.CreatedGroups = len(created.mapping.Groups)
+			result.CreatedGroups += len(created.mapping.Groups)
 		}
 		if current.preparedCatalog.manifest.CreatePermissions {
-			result.CreatedPermissions = len(created.mapping.Permissions)
+			result.CreatedPermissions += len(created.mapping.Permissions)
 		}
 		return result, nil
 	})

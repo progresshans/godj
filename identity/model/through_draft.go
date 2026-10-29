@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"maps"
+	"slices"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -15,13 +16,14 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-// A draft owns intent with one unresolved parent FK, never a typed row whose
+// A draft owns intent with unresolved endpoint FKs, never a typed row whose
 // zero key could be mistaken for an existing parent. Hashing closes over only
 // bounded credential input. Complete model policies run after real key binding.
 type throughDraft struct {
 	check  func(context.Context, db.Queryer, auth.Principal, bool) error
 	encode func(context.Context) error
 	bind   func(context.Context, ThroughEndpoints, auth.CredentialDomain) (*throughCandidate, error)
+	values func() map[string]query.Value
 }
 
 func prepareThroughDeclaration(model ir.ModelIdentity, fields []string, required []auth.Permission, related RelatedRowPermissions, passwordBytes int, iexact bool) (string, error) {
@@ -55,21 +57,44 @@ func throughDraftAuthority(ctx context.Context, scope db.Queryer, actor auth.Pri
 	return authorizeThroughActor(ctx, scope, actor, overlay, required)
 }
 
-func throughDraftValues(metadata ir.Model, supplied map[string]query.Value, source string) (map[string]query.Value, error) {
+func throughDraftValues(metadata ir.Model, supplied map[string]query.Value, pending ...string) (map[string]query.Value, error) {
 	values, err := orm.InitialModelValues(metadata)
 	if err != nil {
 		return nil, err
 	}
 	maps.Copy(values, supplied)
-	delete(values, source)
+	for _, name := range pending {
+		delete(values, name)
+	}
 	return values, nil
+}
+
+func (pair ThroughEndpoints) assignments() (map[string]query.Value, map[string]bool) {
+	values, deferred := make(map[string]query.Value), make(map[string]bool)
+	for _, endpoint := range []struct {
+		name    string
+		key     int64
+		present bool
+	}{
+		{pair.source.Name, pair.sourceKey, pair.sourcePresent}, {pair.target.Name, pair.targetKey, pair.targetPresent},
+	} {
+		if endpoint.present {
+			values[endpoint.name] = query.Integer(endpoint.key)
+		} else {
+			deferred[endpoint.name] = true
+		}
+	}
+	return values, deferred
+}
+
+func (pair ThroughEndpoints) accepts(actual ThroughEndpoints) bool {
+	return actual.sourcePresent && actual.targetPresent && pair.source.Equal(actual.source) && pair.target.Equal(actual.target) &&
+		(!pair.sourcePresent || pair.sourceKey == actual.sourceKey) && (!pair.targetPresent || pair.targetKey == actual.targetKey) &&
+		pair.sourceReference == actual.sourceReference && pair.targetReference == actual.targetReference
 }
 
 func bindAccountThroughDraft[M any](policy *throughCreationState, state *creationState[M], memberships []deletionMembership, config AccountThroughConfig[M]) {
 	policy.draft = func(ctx context.Context, scope db.Queryer, actor auth.Principal, operator bool, pair ThroughEndpoints, _ auth.CredentialDomain) (*throughDraft, error) {
-		if pair.sourcePresent {
-			return nil, managementError(CodeInvalidInput, nil)
-		}
 		if err := throughDraftAuthority(ctx, scope, actor, operator, state.overlay, state.required); err != nil {
 			return nil, err
 		}
@@ -88,19 +113,21 @@ func bindAccountThroughDraft[M any](policy *throughCreationState, state *creatio
 				return nil, passwordInputError("max_length")
 			}
 		}
-		input, err := state.binding.state.objects.WithServerValues(intent.Input, map[string]query.Value{pair.target.Name: query.Integer(pair.targetKey)})
+		assignments, deferred := pair.assignments()
+		input, err := state.binding.state.objects.WithServerValues(intent.Input, assignments)
 		if err != nil {
 			return nil, managementError(CodeInvalidInput, err)
 		}
-		values, _, err := state.prepareCreationValues(ctx, input, false, nil, map[string]bool{pair.source.Name: true})
+		values, _, err := state.prepareCreationValues(ctx, input, false, nil, deferred)
 		if err != nil {
 			return nil, err
 		}
-		initial, err := throughDraftValues(state.metadata, values, pair.source.Name)
+		pending := slices.Sorted(maps.Keys(deferred))
+		initial, err := throughDraftValues(state.metadata, values, pending...)
 		if err != nil {
 			return nil, err
 		}
-		required, err := throughEffectPermissions(state.binding.state.role, policy.model, state.required, state.config.RelatedPermissions, initial, memberships, pair.source.Name)
+		required, err := throughEffectPermissions(state.binding.state.role, policy.model, state.required, state.config.RelatedPermissions, initial, memberships, pending...)
 		if err != nil {
 			return nil, err
 		}
@@ -121,11 +148,12 @@ func bindAccountThroughDraft[M any](policy *throughCreationState, state *creatio
 			return ctx.Err()
 		}
 		draft.bind = func(ctx context.Context, actual ThroughEndpoints, domain auth.CredentialDomain) (*throughCandidate, error) {
-			if !encoded || !actual.sourcePresent || actual.source.Name != pair.source.Name || actual.target.Name != pair.target.Name || actual.targetKey != pair.targetKey {
+			if !encoded || !pair.accepts(actual) {
 				return nil, managementError(CodeInvalidInput, nil)
 			}
 			bound := maps.Clone(values)
 			bound[pair.source.Name] = query.Integer(actual.sourceKey)
+			bound[pair.target.Name] = query.Integer(actual.targetKey)
 			prepared, err := state.binding.state.objects.PrepareValues(nil, bound)
 			if err != nil {
 				return nil, err
@@ -141,6 +169,7 @@ func bindAccountThroughDraft[M any](policy *throughCreationState, state *creatio
 			candidate := &creationCandidate[M]{prepared: prepared, row: row, raw: intent.Password, unusable: intent.Unusable, profile: map[string][]int64{}}
 			return newThroughAccountCandidate(state, policy, candidate, domain, memberships)
 		}
+		draft.values = func() map[string]query.Value { result := maps.Clone(initial); maps.Copy(result, values); return result }
 		if err := draft.check(ctx, scope, actor, operator); err != nil {
 			return nil, err
 		}
@@ -150,9 +179,6 @@ func bindAccountThroughDraft[M any](policy *throughCreationState, state *creatio
 
 func bindCatalogThroughDraft[M any](policy *throughCreationState, state *catalogModelState[M], role ir.AccountRole, overlay auth.Authorizer, config CatalogThroughConfig[M], memberships, owned []deletionMembership) {
 	policy.draft = func(ctx context.Context, scope db.Queryer, actor auth.Principal, operator bool, pair ThroughEndpoints, _ auth.CredentialDomain) (*throughDraft, error) {
-		if pair.sourcePresent {
-			return nil, managementError(CodeInvalidInput, nil)
-		}
 		if err := throughDraftAuthority(ctx, scope, actor, operator, overlay, state.permissions.add); err != nil {
 			return nil, err
 		}
@@ -167,21 +193,23 @@ func bindCatalogThroughDraft[M any](policy *throughCreationState, state *catalog
 		if err != nil {
 			return nil, err
 		}
-		values, err := throughDraftValues(state.model, input.Values(), pair.source.Name)
+		assignments, deferred := pair.assignments()
+		pending := slices.Sorted(maps.Keys(deferred))
+		values, err := throughDraftValues(state.model, input.Values(), pending...)
 		if err != nil {
 			return nil, err
 		}
-		values[pair.target.Name] = query.Integer(pair.targetKey)
+		maps.Copy(values, assignments)
 		values[state.revision] = query.Integer(1)
 		if err := state.checkScalars(values); err != nil {
 			return nil, err
 		}
 		for _, field := range state.model.Fields {
-			if !field.PrimaryKey && field.Name != pair.source.Name && values[field.Name].IsNull() && !field.Nullable {
+			if !field.PrimaryKey && !deferred[field.Name] && values[field.Name].IsNull() && !field.Nullable {
 				return nil, profileInputError(field.Name, "required")
 			}
 		}
-		required, err := throughEffectPermissions(role, policy.model, state.permissions.add, config.RelatedPermissions, values, memberships, pair.source.Name)
+		required, err := throughEffectPermissions(role, policy.model, state.permissions.add, config.RelatedPermissions, values, memberships, pending...)
 		if err != nil {
 			return nil, err
 		}
@@ -190,11 +218,12 @@ func bindCatalogThroughDraft[M any](policy *throughCreationState, state *catalog
 			return throughDraftAuthority(ctx, scope, actor, operator, overlay, required)
 		}
 		draft.bind = func(ctx context.Context, actual ThroughEndpoints, _ auth.CredentialDomain) (*throughCandidate, error) {
-			if !actual.sourcePresent || actual.source.Name != pair.source.Name || actual.target.Name != pair.target.Name || actual.targetKey != pair.targetKey {
+			if !pair.accepts(actual) {
 				return nil, managementError(CodeInvalidInput, nil)
 			}
 			return prepareCatalogThrough(state, policy, role, overlay, config.RelatedPermissions, memberships, owned, input, actual)
 		}
+		draft.values = func() map[string]query.Value { return maps.Clone(values) }
 		if err := draft.check(ctx, scope, actor, operator); err != nil {
 			return nil, err
 		}

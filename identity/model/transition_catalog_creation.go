@@ -31,6 +31,7 @@ type transitionCatalogCreation struct {
 	required                      []auth.Permission
 	prepare                       func(context.Context, db.Queryer, auth.Principal, transitionCatalogObservation, transitionTargetMappings) (preparedCatalogCreation, error)
 	accounts                      func(context.Context, db.Queryer, int64, []int64, []int64) ([]orm.CollectionChange, error)
+	through                       map[transitionCollectionKey]*throughCreationState
 }
 
 // CatalogCreationSource retains reviewed source revision and the exact planned
@@ -63,7 +64,7 @@ type preparedCatalogCreation struct {
 type createdCatalogState struct {
 	mapping       *CatalogMappings
 	before, after transitionCatalogInventory
-	insertions    []orm.AppliedCollectionChanges
+	changes       []orm.CollectionChange
 	identities    transitionInsertions
 	verifyPolicy  func(context.Context, db.Queryer) error
 }
@@ -85,7 +86,7 @@ func (target TransitionCatalogTarget[G, P]) Creation(groups []CatalogRowCreation
 		return CatalogCreation{}, err
 	}
 	return CatalogCreation{&transitionCatalogCreation{source: state.source, oldRole: state.oldHash, nextRole: state.nextHash,
-		groupCreated: state.groups.created, permissionCreated: state.permissions.created, groupInputs: len(groupInputs), permissionInputs: len(permissionInputs), required: slices.Clone(state.required), accounts: state.accounts,
+		groupCreated: state.groups.created, permissionCreated: state.permissions.created, groupInputs: len(groupInputs), permissionInputs: len(permissionInputs), required: slices.Clone(state.required), accounts: state.accounts, through: maps.Clone(state.through),
 		prepare: func(ctx context.Context, scope db.Queryer, actor auth.Principal, observed transitionCatalogObservation, mappings transitionTargetMappings) (preparedCatalogCreation, error) {
 			return prepareCatalogCreation(ctx, scope, actor, state, groupInputs, permissionInputs, observed, mappings)
 		},

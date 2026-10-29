@@ -607,7 +607,16 @@ unknown·재접속 소비자를 작성했다. 본문·환경별 검증은 TEST_E
 참조·실제 signed key, 임시 값/endpoint 변조·갱신 뒤 실패·OneToOne 충돌·정책 거부·unknown/restart 소비자를 추가했다.
 필수 FK만 있는 별도 schema와 그래프/범위/사본/예산 검사도 필수 실행 목록에 연결했다. 환경별 본문 실행은 원격 확인 대상이다.
 
-공유 물리 through 전환과 계정/catalog through 편집·생성의 실제 검증, 전환 collection 안의 추가 identity 생성,
+전환 collection 안의 추가 선택 identity 생성도 typed 준비·쓰기·전체 inventory·receipt까지 연결했다. Source actor와
+새 credential domain을 구분하며, 양쪽 미정 FK를 실제 key가 나온 뒤 결합한다. 순수 factory는 읽기 준비에서 한 번,
+해싱은 scope 종료 뒤 실행한다. 직접 생성한 대응 행이 pair를 이미 충족하면 그 INSERT 증거를 사용하고, 나머지는 별도
+생성으로 기록한다. Account/catalog 소속과 프로필을 한 batch로 저장하며 추가 행의 revision 1·빈 자체 소속·전체 scalar·
+Add 감사와 마지막 readback을 유지한다. Manifest v8·mapping payload v3는 각 의도의 실제 key와 추가 생성 여부를 보관한다.
+세 외부 typed 변형에 생성·준비된 계정·0/음수 key·기존 INSERT 재사용·인가/예산·늦은 변조·rollback/unknown/restart를
+추가했다. 이전 source의 PostgreSQL source-state 거부 코드 기대값은 실제 조기 conflict 계약에 맞추고 원본과 rollback
+검사를 유지했다. 새 제품 본문·타입 검사와 환경별 수용은 원격 확인 대상이다.
+
+공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 native 할당 수명, 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 

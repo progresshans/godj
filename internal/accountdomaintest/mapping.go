@@ -25,7 +25,7 @@ func mappedTransition(t *testing.T, backend Backend, prior domain.Receipt, mappi
 	t.Helper()
 	change := prepare(t, roleB)
 	result, err := db.CoordinatedAtomicResult(t.Context(), backend, func(ctx context.Context, scope db.Session) (domain.Receipt, error) {
-		return domain.TransitionMappedIn(ctx, scope, prior, change, instant, mappings)
+		return domain.TransitionMappedIn(ctx, scope, prior, change, instant, domain.MappingInventory{Accounts: mappings})
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -107,11 +107,16 @@ func mappingPages(t *testing.T, backend Backend, reopen func(*testing.T) Backend
 			if err != nil {
 				return domain.Receipt{}, err
 			}
-			var catalog []domain.CatalogMappings
+			var catalog *domain.CatalogMappings
 			if index%2 == 0 {
-				catalog = append(catalog, catalogMappingRows())
+				value := catalogMappingRows()
+				catalog = &value
 			}
-			prior, err = domain.TransitionMappedIn(ctx, scope, prior, change, instant, []domain.Mapping{{SourceID: index, SourceRevision: 1, TargetID: -index, TargetRevision: 1}}, catalog...)
+			inventory := domain.MappingInventory{Accounts: []domain.Mapping{{SourceID: index, SourceRevision: 1, TargetID: -index, TargetRevision: 1}}, Catalog: catalog}
+			if index%3 == 0 {
+				inventory.Collections = []domain.CollectionIdentity{{Kind: "account", Key: 100000 + index, Revision: 1, Additional: true}}
+			}
+			prior, err = domain.TransitionMappedIn(ctx, scope, prior, change, instant, inventory)
 			if err != nil {
 				return domain.Receipt{}, err
 			}
@@ -169,15 +174,22 @@ func (scope mappingRewrite) Insert(ctx context.Context, plan query.InsertPlan) (
 	var rewritten any
 	if strings.HasPrefix(row.Payload, "{") {
 		var envelope struct {
-			Version  int                    `json:"version"`
-			Accounts []domain.Mapping       `json:"accounts"`
-			Catalog  domain.CatalogMappings `json:"catalog"`
+			Version     int                         `json:"version"`
+			Accounts    []domain.Mapping            `json:"accounts"`
+			Catalog     *domain.CatalogMappings     `json:"catalog"`
+			Collections []domain.CollectionIdentity `json:"collections,omitempty"`
 		}
 		if err := json.Unmarshal([]byte(row.Payload), &envelope); err != nil {
 			return 0, err
 		}
-		envelope.Catalog.Groups[0].TargetID = 333
-		rewritten, prefix = envelope, "godj.account-mapping.v2\x00"
+		if envelope.Version == 3 {
+			envelope.Collections[0].Key = 333
+			prefix = "godj.account-mapping.v3\x00"
+		} else {
+			envelope.Catalog.Groups[0].TargetID = 333
+			prefix = "godj.account-mapping.v2\x00"
+		}
+		rewritten = envelope
 	} else {
 		var rows []domain.Mapping
 		if err := json.Unmarshal([]byte(row.Payload), &rows); err != nil {
@@ -226,7 +238,7 @@ func mappingWriteReadback(t *testing.T, backend Backend, reopen func(*testing.T)
 	change := prepare(t, roleB)
 	rewrites := 0
 	result, err := db.CoordinatedAtomicResult(t.Context(), backend, func(ctx context.Context, scope db.Session) (domain.Receipt, error) {
-		return domain.TransitionMappedIn(ctx, mappingRewrite{scope, &rewrites}, first, change, instant, mappingRows())
+		return domain.TransitionMappedIn(ctx, mappingRewrite{scope, &rewrites}, first, change, instant, domain.MappingInventory{Accounts: mappingRows()})
 	})
 	if err == nil || result.Sequence() != 0 || rewrites != 1 {
 		t.Fatal("native rewrite of both payload and checksum published a receipt", err)
@@ -260,7 +272,7 @@ func mappingFailures(t *testing.T, backend Backend, reopen func(*testing.T) Back
 	for _, bad := range [][]domain.Mapping{nil, {{SourceID: 0, SourceRevision: 1, TargetID: 1, TargetRevision: 1}, {SourceID: 0, SourceRevision: 1, TargetID: 2, TargetRevision: 1}}, {{SourceID: 1, SourceRevision: 1, TargetID: 0, TargetRevision: 1}, {SourceID: 2, SourceRevision: 1, TargetID: 0, TargetRevision: 1}}, {{SourceRevision: 0, TargetRevision: 1}}, {{SourceRevision: 1, TargetRevision: 0}}, make([]domain.Mapping, domain.MaximumMappings+1)} {
 		change := prepare(t, roleB)
 		result, err := db.CoordinatedAtomicResult(t.Context(), backend, func(ctx context.Context, scope db.Session) (domain.Receipt, error) {
-			return domain.TransitionMappedIn(ctx, scope, first, change, instant, bad)
+			return domain.TransitionMappedIn(ctx, scope, first, change, instant, domain.MappingInventory{Accounts: bad})
 		})
 		if !errors.Is(err, domain.ErrInvalid) || result.Sequence() != 0 {
 			t.Fatal("invalid mapping accepted inside live native scope", err)
@@ -269,7 +281,7 @@ func mappingFailures(t *testing.T, backend Backend, reopen func(*testing.T) Back
 	change := prepare(t, roleB)
 	writes := 0
 	result, err := db.CoordinatedAtomicResult(t.Context(), backend, func(ctx context.Context, scope db.Session) (domain.Receipt, error) {
-		return domain.TransitionMappedIn(ctx, mappingInsertFailure{scope, &writes}, first, change, instant, mappingRows())
+		return domain.TransitionMappedIn(ctx, mappingInsertFailure{scope, &writes}, first, change, instant, domain.MappingInventory{Accounts: mappingRows()})
 	})
 	if err == nil || result.Sequence() != 0 || writes != 1 {
 		t.Fatal("mapping failure did not follow real header insertion")
@@ -283,7 +295,7 @@ func mappingFailures(t *testing.T, backend Backend, reopen func(*testing.T) Back
 	}
 	fault := errors.New("after complete mapped write")
 	result, err = db.CoordinatedAtomicResult(t.Context(), backend, func(ctx context.Context, scope db.Session) (domain.Receipt, error) {
-		receipt, err := domain.TransitionMappedIn(ctx, scope, first, change, instant, mappingRows())
+		receipt, err := domain.TransitionMappedIn(ctx, scope, first, change, instant, domain.MappingInventory{Accounts: mappingRows()})
 		if err != nil {
 			return domain.Receipt{}, err
 		}

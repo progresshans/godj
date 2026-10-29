@@ -40,15 +40,19 @@ type transitionPair[S, T any] struct {
 	next transitionRow[T]
 }
 type transitionObservation[S, T any] struct {
-	ownership  domain.Receipt
-	actor      auth.Principal
-	pairs      []transitionPair[S, T]
-	digest     string
-	rejection  error
-	references []transitionReferenceObservation
-	catalog    transitionCatalogObservation
-	roleLinks  []transitionRoleLinkInventory
-	inserted   transitionInsertions
+	ownership            domain.Receipt
+	actor                auth.Principal
+	pairs                []transitionPair[S, T]
+	digest               string
+	rejection            error
+	references           []transitionReferenceObservation
+	catalog              transitionCatalogObservation
+	roleLinks            []transitionRoleLinkInventory
+	inserted             transitionInsertions
+	through              *transitionThroughPreparation
+	extraAccounts        map[int64]transitionRow[T]
+	collectionIdentities []domain.CollectionIdentity
+	throughChecks        []lifecycleVerifier
 }
 
 func expectedTransitionRefusal(err error) bool {
@@ -418,11 +422,16 @@ func (owner *Transition[S, T]) verifyRows(ctx context.Context, scope db.Queryer,
 	if err != nil {
 		return err
 	}
-	if len(before) != len(mappings) || len(after) != len(mappings) {
+	if len(before) != len(mappings) || len(after) != len(mappings)+len(expected.extraAccounts) {
 		return managementError(CodePersistence, nil)
 	}
 	for _, pair := range expected.pairs {
 		if !sameTransitionRow(before[pair.old.id], pair.old) || !sameTransitionRow(after[pair.next.id], pair.next) {
+			return managementError(CodePersistence, nil)
+		}
+	}
+	for id, row := range expected.extraAccounts {
+		if !sameTransitionRow(after[id], row) {
 			return managementError(CodePersistence, nil)
 		}
 	}
@@ -431,6 +440,17 @@ func (owner *Transition[S, T]) verifyRows(ctx context.Context, scope db.Queryer,
 	}
 	if err := expected.inserted.verify(ctx); err != nil {
 		return err
+	}
+	if len(expected.throughChecks) != 0 {
+		session, ok := scope.(db.Session)
+		if !ok {
+			return invalidAuthorityScope()
+		}
+		for _, verify := range expected.throughChecks {
+			if err := verify(ctx, session); err != nil {
+				return err
+			}
+		}
 	}
 	if err := checkTransitionReadbackBudget(expected, 0); err != nil {
 		return err
@@ -462,6 +482,11 @@ func checkTransitionReadbackBudget[S, T any](expected transitionObservation[S, T
 			return err
 		}
 		if err := writeTransitionRow(budget, pair.next); err != nil {
+			return err
+		}
+	}
+	for _, id := range slices.Sorted(maps.Keys(expected.extraAccounts)) {
+		if err := writeTransitionRow(budget, expected.extraAccounts[id]); err != nil {
 			return err
 		}
 	}

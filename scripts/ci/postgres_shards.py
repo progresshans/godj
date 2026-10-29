@@ -46,9 +46,13 @@ ISOLATED_ACCOUNT_CONSUMER_OWNERS = {
     'TestGeneratedAccountCatalogTransition': 'core-account-catalog',
     'TestGeneratedAccountCatalogCreation': 'core-account-catalog-creation',
     'TestGeneratedAccountSharedThroughTransition': 'core-account-shared-through',
-    'TestGeneratedAccountTransitionTargetReferences': 'core-account-shared-through',
-    'TestGeneratedAccountTransitionCatalogFields': 'core-account-catalog-creation',
+    # CI 40966461148 reached its 30m package limit after the preceding
+    # shared-through/catalog roots consumed 1098.70s/1329.07s. Keep every
+    # FK consumer and its deadline, but give each complete root one owner.
+    'TestGeneratedAccountTransitionTargetReferences': 'core-account-target-references',
+    'TestGeneratedAccountTransitionCatalogFields': 'core-account-catalog-fields',
     'TestGeneratedAccountRootThroughCreation': 'core-account-root-through',
+    'TestGeneratedAccountTransitionThroughCreation': 'core-account-transition-through',
 }
 PROFILE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountProfileRelations',

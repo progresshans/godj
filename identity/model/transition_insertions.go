@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
@@ -192,6 +193,39 @@ func projectTransitionCatalog(memberships []deletionMembership, role ir.AccountR
 			continue
 		}
 		result := cloneTransitionCatalogInventory(before)
+		for _, insertedRow := range inserted {
+			var inventory map[int64]transitionCatalogRow
+			revisionField, codeField := "", ""
+			if insertedRow.Model == role.Catalog.Group {
+				inventory, revisionField = result.groups, role.Catalog.GroupRevision
+			}
+			if insertedRow.Model == role.Catalog.Permission {
+				inventory, revisionField, codeField = result.permissions, role.Catalog.PermissionRevision, role.Catalog.PermissionCode
+			}
+			if inventory == nil {
+				continue
+			}
+			if existing, present := inventory[insertedRow.Key]; present {
+				if !maps.Equal(existing.values, insertedRow.Values) {
+					return transitionCatalogInventory{}, managementError(CodeConflict, nil)
+				}
+				continue
+			}
+			revision, valid := insertedRow.Values[revisionField].Integer()
+			if !valid || revision <= 0 {
+				return transitionCatalogInventory{}, managementError(CodeConflict, nil)
+			}
+			row := transitionCatalogRow{revision: revision, values: maps.Clone(insertedRow.Values)}
+			if codeField != "" {
+				text, valid := insertedRow.Values[codeField].String()
+				code, err := auth.NewPermission(text)
+				if !valid || err != nil || string(code) != text {
+					return transitionCatalogInventory{}, managementError(CodeConflict, err)
+				}
+				row.code = code
+			}
+			inventory[insertedRow.Key] = row
+		}
 		var err error
 		result.links, err = projectTransitionLinks(membership, before.links, inserted)
 		return result, err

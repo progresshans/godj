@@ -291,10 +291,11 @@ func TestGeneratedAccountThroughCollection(t *testing.T) {
 			policy, err := accountmodel.NewAccountThroughCreation(binding, collections.@@PREFIX@@@@GROUPS@@, collections.@@PREFIX@@@@PERMISSIONS@@, overlay, hasher, creationConfig, accountmodel.AccountThroughConfig[@@ACCOUNT@@]{Prepare: func(ctx context.Context, pair accountmodel.ThroughEndpoints) (accountmodel.AccountThroughInput[@@ACCOUNT@@], error) {
 				preparedCount++
 				sourceKey, sourcePresent := pair.SourceKey()
-				if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_parent" || pair.TargetField() != endpoint || !sourcePresent || sourceKey != boot.Account.ID {
+				targetKey, targetPresent := pair.TargetKey()
+				if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_parent" || pair.TargetField() != endpoint || !sourcePresent || !targetPresent || sourceKey != boot.Account.ID {
 					return accountmodel.AccountThroughInput[@@ACCOUNT@@]{}, errors.New("through factory lost actual read endpoints")
 				}
-				values := map[string]query.Value{role.Login: query.String(fmt.Sprintf("child-%d@example.test", pair.TargetKey())), "@@PROFILE@@": query.String("NZ"), otherField: query.Integer(otherKey)}
+				values := map[string]query.Value{role.Login: query.String(fmt.Sprintf("child-%d@example.test", targetKey)), "@@PROFILE@@": query.String("NZ"), otherField: query.Integer(otherKey)}
 				if reuseLogin != "" {
 					values[role.Login] = query.String(reuseLogin)
 				}

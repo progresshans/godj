@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"time"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -117,7 +118,7 @@ func (owner *Transition[S, T]) targetAllocations(current *transitionObservation[
 	return result, nil
 }
 
-func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.RelationSession, current *transitionObservation[S, T], candidates []transitionCreationCandidate[T], creating bool, originals []transitionRow[T]) ([]AccountMapping, error) {
+func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.RelationSession, current *transitionObservation[S, T], candidates []transitionCreationCandidate[T], creating bool, originals []transitionRow[T], catalogChanges []orm.CollectionChange, at time.Time) ([]AccountMapping, error) {
 	if current.catalog.pendingGroups || current.catalog.pendingPermissions {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
@@ -135,18 +136,32 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 	if err := current.inserted.include(owner.next.state.credentials.state.binding.state.project, allocation.inserted); err != nil {
 		return nil, err
 	}
-	if err := owner.materializeTargetLinks(ctx, scope, current, creating, allocation.inserted.rows); err != nil {
+	if err := owner.materializeTargetLinks(ctx, scope, current, creating, allocation.inserted.rows, catalogChanges, at); err != nil {
 		return nil, err
 	}
 	return allocation.mappings, nil
 }
 
-func (owner *Transition[S, T]) materializeTargetLinks(ctx context.Context, scope db.RelationSession, current *transitionObservation[S, T], creating bool, insertedIdentities []orm.CollectionInsertedRow) error {
+func (owner *Transition[S, T]) materializeTargetLinks(ctx context.Context, scope db.RelationSession, current *transitionObservation[S, T], creating bool, insertedIdentities []orm.CollectionInsertedRow, catalogChanges []orm.CollectionChange, at time.Time) error {
 	if current.catalog.pendingGroups || current.catalog.pendingPermissions {
 		return managementError(CodeInvalidConfig, nil)
 	}
 	binding := owner.next.state.credentials.state.binding
+	if _, _, err := owner.inspectAuthority(ctx, scope, current.actor); err != nil {
+		return err
+	}
+	bound, err := owner.bindTransitionThrough(ctx, scope, current)
+	if err != nil {
+		return err
+	}
 	var changes []orm.CollectionChange
+	for _, change := range catalogChanges {
+		change, err = owner.bindTransitionCollection(ctx, scope, current, bound, transitionCollectionKey{binding.state.role.Catalog.Group, binding.state.role.Catalog.GroupPermissions}, change)
+		if err != nil {
+			return err
+		}
+		changes = append(changes, change)
+	}
 	for i := range current.pairs {
 		pair := &current.pairs[i]
 		row, id := pair.next.row, pair.next.id
@@ -160,17 +175,31 @@ func (owner *Transition[S, T]) materializeTargetLinks(ctx context.Context, scope
 			if err != nil {
 				return err
 			}
-			changes = append(changes, selected...)
+			if len(selected) != 2 {
+				return managementError(CodeInvalidConfig, nil)
+			}
+			for index, field := range []string{binding.state.role.Groups, binding.state.role.Permissions} {
+				change, err := owner.bindTransitionCollection(ctx, scope, current, bound, transitionCollectionKey{binding.state.role.Model, field}, selected[index])
+				if err != nil {
+					return err
+				}
+				changes = append(changes, change)
+			}
 		} else {
 			target := owner.config.TargetCreation.state
 			if target == nil || !creating {
 				return managementError(CodeInvalidConfig, nil)
 			}
 			for _, selection := range []struct {
+				field   string
 				prepare func(T, []int64) (orm.CollectionChange, error)
 				keys    []int64
-			}{{target.groups, memberships.groups}, {target.permissions, memberships.direct}} {
+			}{{binding.state.role.Groups, target.groups, memberships.groups}, {binding.state.role.Permissions, target.permissions, memberships.direct}} {
 				change, err := selection.prepare(row, selection.keys)
+				if err != nil {
+					return err
+				}
+				change, err = owner.bindTransitionCollection(ctx, scope, current, bound, transitionCollectionKey{binding.state.role.Model, selection.field}, change)
 				if err != nil {
 					return err
 				}
@@ -180,6 +209,10 @@ func (owner *Transition[S, T]) materializeTargetLinks(ctx context.Context, scope
 		if creating {
 			for _, collection := range owner.config.TargetCreation.state.collections {
 				change, err := collection.state.prepare(row, pair.next.profile[collection.state.field.Name])
+				if err != nil {
+					return err
+				}
+				change, err = owner.bindTransitionCollection(ctx, scope, current, bound, transitionCollectionKey{binding.state.role.Model, collection.state.field.Name}, change)
 				if err != nil {
 					return err
 				}
@@ -197,6 +230,9 @@ func (owner *Transition[S, T]) materializeTargetLinks(ctx context.Context, scope
 	if len(batch.Effects().Deletions().Rows()) != 0 {
 		return managementError(CodeConflict, nil)
 	}
+	if err := bound.pending.check(ctx, scope, current.actor, batch.Effects(), true); err != nil {
+		return err
+	}
 	applied, err := batch.Apply(ctx, nil)
 	if err != nil {
 		return err
@@ -210,6 +246,9 @@ func (owner *Transition[S, T]) materializeTargetLinks(ctx context.Context, scope
 		return err
 	}
 	if err := owner.observeInsertedCatalog(ctx, scope, current, rows); err != nil {
+		return err
+	}
+	if err := owner.finishTransitionThrough(ctx, scope, current, bound, applied, at); err != nil {
 		return err
 	}
 	return nil

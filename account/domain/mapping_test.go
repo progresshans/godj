@@ -16,7 +16,7 @@ import (
 
 func TestMappingPayloadIsBoundedCanonicalAndOwned(t *testing.T) {
 	rows := []Mapping{{SourceID: 0, SourceRevision: 1, TargetID: -9, TargetRevision: 2}, {SourceID: -1, SourceRevision: 3, TargetID: 0, TargetRevision: 4}}
-	prepared, err := prepareMappingSet(rows, nil)
+	prepared, err := prepareMappingSet(MappingInventory{Accounts: rows})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,7 +47,7 @@ func TestMappingPayloadIsBoundedCanonicalAndOwned(t *testing.T) {
 func TestCatalogMappingPayloadKeepsCompleteIndependentCorrespondence(t *testing.T) {
 	accounts := []Mapping{{SourceID: 0, SourceRevision: 1, TargetID: -9, TargetRevision: 2}}
 	catalog := CatalogMappings{Groups: []Mapping{{SourceID: 0, SourceRevision: 3, TargetID: -4, TargetRevision: 5}}, Permissions: []Mapping{{SourceID: -2, SourceRevision: 6, TargetID: 0, TargetRevision: 7}}}
-	prepared, err := prepareMappingSet(accounts, &catalog)
+	prepared, err := prepareMappingSet(MappingInventory{Accounts: accounts, Catalog: &catalog})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,11 +84,11 @@ func TestCatalogMappingPayloadKeepsCompleteIndependentCorrespondence(t *testing.
 			t.Fatal("noncanonical catalog payload passed with its own checksum", err)
 		}
 	}
-	empty, err := prepareMappingSet(prepared.rows, &CatalogMappings{})
+	empty, err := prepareMappingSet(MappingInventory{Accounts: prepared.rows, Catalog: &CatalogMappings{}})
 	if err != nil || !strings.Contains(empty.payload, `"catalog":{"groups":[],"permissions":[]}`) {
 		t.Fatal("explicit empty catalog was lost", err)
 	}
-	legacy, err := prepareMappingSet(prepared.rows, nil)
+	legacy, err := prepareMappingSet(MappingInventory{Accounts: prepared.rows})
 	if err != nil || legacy.digest == empty.digest || legacy.catalog != nil {
 		t.Fatal("absent catalog is indistinguishable from explicit empty", err)
 	}
@@ -98,7 +98,7 @@ func TestCatalogMappingPayloadKeepsCompleteIndependentCorrespondence(t *testing.
 		{Groups: []Mapping{{SourceRevision: 0, TargetRevision: 1}}},
 		{Permissions: []Mapping{{SourceID: 1, SourceRevision: 1, TargetID: 2, TargetRevision: 1}, {SourceID: 2, SourceRevision: 1, TargetID: 2, TargetRevision: 1}}},
 	} {
-		if _, err := prepareMappingSet(prepared.rows, &bad); !errors.Is(err, ErrInvalid) {
+		if _, err := prepareMappingSet(MappingInventory{Accounts: prepared.rows, Catalog: &bad}); !errors.Is(err, ErrInvalid) {
 			t.Fatal("invalid catalog accepted", err)
 		}
 	}
@@ -111,7 +111,7 @@ func TestMappedOwnershipRejectsTypedNilContext(t *testing.T) {
 	if _, err := Prepare(ctx, strings.Repeat("a", 64), strings.Repeat("b", 64)); !errors.Is(err, ErrInvalid) {
 		t.Fatal("typed nil context accepted", err)
 	}
-	if _, err := TransitionMappedIn(ctx, nil, Receipt{}, Change{}, time.Time{}, []Mapping{{SourceRevision: 1, TargetRevision: 1}}); !errors.Is(err, ErrInvalid) {
+	if _, err := TransitionMappedIn(ctx, nil, Receipt{}, Change{}, time.Time{}, MappingInventory{Accounts: []Mapping{{SourceRevision: 1, TargetRevision: 1}}}); !errors.Is(err, ErrInvalid) {
 		t.Fatal("typed nil mapped context accepted", err)
 	}
 	if _, found, err := LookupCatalogMappingsIn(ctx, nil, Receipt{}); !errors.Is(err, ErrInvalid) || found {

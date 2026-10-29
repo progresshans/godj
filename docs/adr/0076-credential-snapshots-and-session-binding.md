@@ -1488,7 +1488,7 @@ topology·후보를 다시 검사한다. 편집기의 삭제/변경 권한과 �
 검사하므로 nullable target을 가진 예상 밖 링크도 허용하지 않는다. Callback·감사 뒤에도 이 inventory와 전체 삽입 행을
 재검사한다. 생성 감사는 catalog의 scalar 필드와 두 endpoint를 포함한다. 기존 account/catalog 소속의 단일 revision·
 직접 감사, 삭제 그래프의 종속 계정과 session 폐기·감사는 같은 transaction에 남으며 rollback/unknown 결과는 성공으로
-게시하지 않는다. 모델 전환의 through 생성은 계속 별도 작업이다.
+게시하지 않는다. 모델 전환에서는 아래의 별도 source 권한과 전체 대응표/추가 identity 기록을 함께 사용한다.
 
 ### 일반·첫 계정 생성의 미정 부모 key
 
@@ -1498,7 +1498,8 @@ topology·후보를 다시 검사한다. 편집기의 삭제/변경 권한과 �
 포함한다. 임의 callback/hasher의 동작은 기존대로 host의 EvidenceSHA256이 식별한다.
 
 읽기 준비 때 부모는 아직 저장되지 않았다. `ThroughEndpoints.SourceKey()`는 `(key, present)`를 반환하고 이때 present는
-false다. 실제 key 0/음수는 true로 구분한다. Factory는 존재하는 target key와 endpoint 필드를 받아 순수 typed 입력만 만든다.
+false다. `TargetKey()`도 같은 `(key, present)` 형태이며 일반/첫 생성의 target은 true다. 실제 key 0/음수는
+true로 구분한다. Factory는 endpoint 필드와 존재 여부를 받아 순수 typed 입력만 만든다.
 서버 principal/시각·scalar 기본값·입력 허용 범위를 같은 생성 준비에서 적용하되 부모 FK는 private intent에서 보류한다.
 임시 key를 넣은 typed 모델은 만들지 않는다. 전체 typed model/관계/unique/password callback은 실제 부모 key를 받은
 최종 fence에서 실행하고, 새 계정은 실제 자식 INSERT 뒤에도 같은 정책을 다시 확인한다. Catalog callback은 기존대로
@@ -2129,8 +2130,8 @@ digest에 포함한다. 완전한 typed 행·unique·선택·custom 정책은 �
 해당 nullable 간선을 제거해도 남는 필수 FK cycle은 쓰기 전에 명시적 `unsupported`다. Native 제약을 끄거나 key를 예측하지
 않으며 그 순환을 위한 별도 DB 할당 기반은 미완료다. 중간 변조·FK 갱신 실패·unique 충돌도 전체 transaction rollback이다.
 
-Commit은 같은 native relation transaction에서 계정/catalog 공동 의존 그래프→그룹 권한→계정 소속/프로필→host 참조를
-저장한다. 보류 참조를 해결하는 동안에는 scalar·native FK·unique 무결성을 유지하고, 관련 행과 소속이 모두 채워진 뒤
+Commit은 같은 native relation transaction에서 계정/catalog 공동 의존 그래프를 할당한 뒤 그룹 권한·계정 소속·프로필을
+하나의 공통 collection batch로 저장하고 host 참조를 적용한다. 보류 참조를 해결하는 동안에는 scalar·native FK·unique 무결성을 유지하고, 관련 행과 소속이 모두 채워진 뒤
 현재 선택·custom 정책을 실행한다. 초기 관측의 완전한 후보 정책과 마지막 receipt 이후의 재검사는 유지한다. 정책 거부는
 전체 INSERT·소속·revision·audit·session/domain 변경을 rollback한다. 정책이 불완전한 중간 소속을 최종 상태로 보지 않게 한다.
 Permission 코드는 source에서 그대로 복사하고 새 행 revision은 1이다. 부분 공유 Permission은 변경하지 않는다.
@@ -2153,8 +2154,40 @@ contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확�
 계정 생성·퇴역·receipt·마지막 정책 이후까지 물리 링크와 전체 행을 대조하고, 늦은 endpoint/payload 변경은 rollback한다.
 최종 incoming 검사는 직전에 전체 행/컬럼을 재검증한 account/Group/Permission과 명시한 host 참조/역할 링크의 소유권을
 구분한다. 그 밖의 host FK가 새 catalog를 가리키면 거부하며, 전체 inventory 대조로 소유 행의 늦은 추가/변경도 거부한다.
-Collection setter 안의 추가 선택 identity 생성과 필수 FK 순환의 native 할당 수명은 남은 통합 대상이다.
-직접 INSERT와 공유 물리 through의 코드 존재를 I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
+필수 FK 순환의 native 할당 수명은 남은 통합 대상이다. 직접 INSERT와 아래 collection 생성 코드의 존재를
+I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
+
+### 전환 collection의 추가 선택 identity 생성
+
+`TransitionTargetConfig.ThroughCreations`는 계정 역할/프로필 collection에, `TransitionCatalogTargetConfig`의
+`AccountThroughCreations`·`GroupThroughCreations`는 계정 역할/그룹 권한 collection에 기존 typed 생성 선언을 연결한다.
+같은 collection을 양쪽에 선언하면 같은 capability여야 한다. 한 물리 모델에는 한 생성 owner를 사용하며, 같은 물리
+pair를 여러 collection이 공유하면 한 번 준비한다. `TransitionConfig.ThroughCreationLimit`은 전체 추가 생성 의도의
+명시적 한도(1~4,096)다. 한도를 넘는 pair를 버리지 않는다. 퇴역 역할에만 속한 identity는 생성하지 않는다.
+
+준비 snapshot은 원본 인가·원본 행/revision·catalog·물리 링크를 확인한 뒤 순수 factory를 호출한다. 양쪽 key가 모두
+미정일 수 있으며 `ThroughEndpoints`의 각 Key 메서드는 이를 명시한다. `SourceReference`·`TargetReference`는 선택 역할의
+검토한 원본 key/revision을 제공하며 실제 target key가 아니다. Factory의 입력·서버 principal/시각·기본값은 preparation이
+소유한다. Snapshot 종료 뒤 account through를 해싱하고, encoded 값·endpoint 대응·선언을 operation별 상태 digest에
+묶는다. Raw password의 별도 빠른 digest는 만들지 않는다. 전체 검토 상태와 준비 의도에도 64 MiB 합계 한도를 적용한다.
+
+Commit은 원본 snapshot과 물리 pair 의도를 재검사한다. 모든 계정/catalog의 실제 native key가 정해진 뒤 양쪽 FK를
+완전한 typed 후보에 결합하고 scalar·unique·선택·생성/관련 권한을 검사한다. 권한은 전환 전 actor/domain이며 새 계정의
+credential domain과 구분한다. Factory/해싱은 쓰기 안에서 반복하지 않는다. 직접 만든 대응 행이 이미 pair를 충족하면
+그 행의 실제 INSERT key·전체 scalar 소유 증거로만 인정하고 추가 INSERT를 하지 않는다. 그 밖의 누락 pair는 준비한
+정확한 typed 후보로만 생성하며 외부의 동명/동일 pair 행을 채택하지 않는다.
+
+그룹 권한·계정 소속·프로필은 한 collection batch로 적용한다. 추가 계정/Group/Permission은 revision 1, 빈 자체 M2M,
+자기 생성 정책·Add 감사와 실제 INSERT 행 검사를 갖는다. 전체 target 계정은 대응표와 추가 생성 행의 합집합과 정확히
+같아야 한다. Catalog에도 실제 추가 행만 포함하며 원본 계정·catalog 권한과 요청한 대응 소속은 그대로 대조한다. 마지막
+정책 이후 전체 scalar·물리 링크·자체 소속·session/receipt까지 확인한다. 실패/cleanup/unknown 경계는 기존 원자성을 유지한다.
+
+Manifest v8의 `Collections`는 검토 순서의 역할 종류와 생성 선언 digest를 보관한다. 대응표 payload v3는 기존 account/
+catalog 대응표와 별도로 각 의도를 충족한 실제 key/revision 및 `Additional` 여부를 기록한다. Additional=false는 같은
+receipt의 실제 대응 대상이어야 하고, true는 대응표 밖의 중복 없는 revision 1 행이어야 한다. `MappingInventory`와
+`LookupMappingInventoryIn`은 이 전체를 같은 canonical payload/checksum과 정확한 receipt에 묶는다. v1/v2 이력도 계속
+읽는다. `Reconcile`은 manifest의 개수·역할 순서와 실제 ledger를 대조하며 정상 편집/후속 전환 뒤에도 당시 생성 사실을
+조회한다. 기존 target row의 현재 값이나 source 계정 인증으로 과거 receipt를 다시 해석하지 않는다.
 
 ### 일반 host 참조의 단계적 전환
 

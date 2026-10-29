@@ -147,7 +147,7 @@ type catalogThroughCandidate[M any] struct {
 }
 
 func prepareCatalogThrough[M any](state *catalogModelState[M], policy *throughCreationState, role ir.AccountRole, overlay auth.Authorizer, related RelatedRowPermissions, memberships, owned []deletionMembership, input orm.ModelInput[M], pair ThroughEndpoints) (*throughCandidate, error) {
-	if !pair.sourcePresent || len(input.Collections()) != 0 {
+	if !pair.sourcePresent || !pair.targetPresent || len(input.Collections()) != 0 {
 		return nil, managementError(CodeInvalidInput, nil)
 	}
 	resource := CatalogResource[M]{state: state}

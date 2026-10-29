@@ -22,24 +22,35 @@ import (
 // ThroughCreationLimit; retained pairs do not consume that budget or hash work.
 const MaximumThroughCreations = 4096
 
-// ThroughEndpoints describes a missing physical pair. An unsaved parent's key
-// is explicitly absent; actual keys can be zero or negative. Server-supplied
+// ThroughEndpoints describes a missing physical pair. Either endpoint's key
+// can be pending; actual keys can be zero or negative. Server-supplied
 // endpoint fields cannot also appear in the factory's
 // ModelInput, even with equal values. The enclosing operation owns the endpoint
 // choice policy; the creation owner also checks its configured FK policies.
 type ThroughEndpoints struct {
-	source, target       ir.Field
-	sourceKey, targetKey int64
-	sourcePresent        bool
+	source, target                   ir.Field
+	sourceKey, targetKey             int64
+	sourcePresent, targetPresent     bool
+	sourceReference, targetReference TransitionTargetReference
 }
 
 func (pair ThroughEndpoints) SourceField() string { return pair.source.Name }
 func (pair ThroughEndpoints) TargetField() string { return pair.target.Name }
 
-// SourceKey distinguishes a pending parent INSERT from an actual zero key.
-// Creation factories receive an absent source; edit factories receive a key.
+// SourceKey distinguishes a pending INSERT from an actual zero key. Ordinary
+// root creation has an absent source; edits and staged transitions have a key.
 func (pair ThroughEndpoints) SourceKey() (int64, bool) { return pair.sourceKey, pair.sourcePresent }
-func (pair ThroughEndpoints) TargetKey() int64         { return pair.targetKey }
+func (pair ThroughEndpoints) TargetKey() (int64, bool) { return pair.targetKey, pair.targetPresent }
+
+// SourceReference and TargetReference identify reviewed transition
+// correspondences. Their source keys are not the eventual endpoint keys.
+// Ordinary creation and editing have no transition correspondence.
+func (pair ThroughEndpoints) SourceReference() (TransitionTargetReference, bool) {
+	return pair.sourceReference, pair.sourceReference.Kind != ""
+}
+func (pair ThroughEndpoints) TargetReference() (TransitionTargetReference, bool) {
+	return pair.targetReference, pair.targetReference.Kind != ""
+}
 func (ThroughEndpoints) Format(state fmt.State, _ rune) {
 	_, _ = state.Write([]byte("identity.model.ThroughEndpoints{redacted}"))
 }
@@ -210,7 +221,7 @@ func bindTypedThroughInput[M any](policy *throughCreationState, bound orm.BoundM
 				if final || len(pending.ordered) >= pending.limit {
 					return orm.InvalidMutation[M](managementError(CodeInvalidInput, nil))
 				}
-				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceKey: sourceKey, targetKey: targetKey, sourcePresent: true}
+				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceKey: sourceKey, targetKey: targetKey, sourcePresent: true, targetPresent: true}
 				var err error
 				prepared, err = prepare(ctx, scope, pair, pending.domain)
 				if err = errors.Join(err, validateAuthorityScope(ctx, scope.(db.SessionValidator))); err != nil {
@@ -274,6 +285,7 @@ type throughCandidate struct {
 }
 type throughPreparation struct {
 	domain      auth.CredentialDomain
+	authority   auth.CredentialDomain
 	actorID     string
 	limit       int
 	pairs       map[throughPairKey]*throughCandidate
@@ -283,7 +295,7 @@ type throughPreparation struct {
 }
 
 func (state *creationState[M]) prepareThroughInput(ctx context.Context, intent AccountThroughInput[M], pair ThroughEndpoints) (*creationCandidate[M], error) {
-	if !pair.sourcePresent {
+	if !pair.sourcePresent || !pair.targetPresent {
 		return nil, managementError(CodeInvalidInput, nil)
 	}
 	if len(intent.Input.Collections()) != 0 || intent.Unusable && intent.Password != "" {
@@ -407,7 +419,7 @@ func newThroughAccountCandidate[M any](state *creationState[M], policy *throughC
 }
 
 func (pending *throughPreparation) check(ctx context.Context, scope db.Queryer, actor auth.Principal, effects orm.CollectionChangeEffects, encoded bool) error {
-	if actor.ID() != pending.actorID || !pending.domain.MatchesPrincipal(actor) {
+	if actor.ID() != pending.actorID || !pending.authority.MatchesPrincipal(actor) {
 		return managementError(CodePermission, nil)
 	}
 	deleted := make(map[ir.ModelIdentity][]int64)
@@ -421,7 +433,7 @@ func (pending *throughPreparation) check(ctx context.Context, scope db.Queryer, 
 			return err
 		}
 	}
-	return nil
+	return validateAccountSessionScope(ctx, scope)
 }
 
 func (pending *throughPreparation) finish(ctx context.Context, scope db.RelationSession, actor auth.Principal, applied orm.AppliedCollectionChanges, at time.Time) ([]lifecycleVerifier, error) {

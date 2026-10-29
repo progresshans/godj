@@ -19,8 +19,29 @@ func sameTransitionCatalogInventory(expected, actual transitionCatalogInventory)
 	return rowsEqual(expected.groups, actual.groups) && rowsEqual(expected.permissions, actual.permissions) && slices.Equal(expected.links, actual.links)
 }
 
-func (created createdCatalogState) verify(actual transitionCatalogObservation) error {
-	if !sameTransitionCatalogInventory(created.before, actual.before) || !sameTransitionCatalogInventory(created.after, actual.after) {
+func (created createdCatalogState) verifyBeforeCollections(actual transitionCatalogObservation) error {
+	baseline := cloneTransitionCatalogInventory(created.after)
+	sets := make(map[int64]map[int64]bool)
+	for _, link := range baseline.links {
+		if !link.sourceValid || !link.targetValid {
+			continue
+		}
+		if _, present := baseline.groups[link.source]; !present {
+			return managementError(CodeConflict, nil)
+		}
+		if _, present := baseline.permissions[link.target]; !present {
+			return managementError(CodeConflict, nil)
+		}
+		if sets[link.source] == nil {
+			sets[link.source] = make(map[int64]bool)
+		}
+		sets[link.source][link.target] = true
+	}
+	for id, row := range baseline.groups {
+		row.permissions = slices.Sorted(maps.Keys(sets[id]))
+		baseline.groups[id] = row
+	}
+	if !sameTransitionCatalogInventory(created.before, actual.before) || !sameTransitionCatalogInventory(baseline, actual.after) {
 		return managementError(CodeConflict, nil)
 	}
 	return nil

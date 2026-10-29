@@ -57,6 +57,9 @@ type TransitionConfig[S, T any] struct {
 	TargetCreation        TransitionTarget[T]
 	CatalogCreation       CatalogCreation
 	References            []TransitionReference[S, T]
+	// Required when a target/catalog config declares ThroughCreations; the
+	// operation admits at most this many distinct physical creation intents.
+	ThroughCreationLimit int
 }
 
 func (TransitionConfig[S, T]) Format(state fmt.State, _ rune) {
@@ -75,6 +78,7 @@ type Transition[S, T any] struct {
 	oldMemberships  []deletionMembership
 	nextMemberships []deletionMembership
 	creationBackend db.CoordinatedRelationAtomic
+	through         map[transitionCollectionKey]*throughCreationState
 }
 
 func (*Transition[S, T]) Format(state fmt.State, _ rune) {
@@ -193,8 +197,36 @@ func NewTransition[S, T any](source *SessionStore[S], target *SessionStore[T], c
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
 	}
+	definitions := make(map[transitionCollectionKey]*throughCreationState)
+	if creation := config.TargetCreation.state; creation != nil {
+		for field, policy := range creation.through {
+			definitions[transitionCollectionKey{b.role.Model, field}] = policy
+		}
+	}
+	if catalog := config.CatalogCreation.state; catalog != nil {
+		for key, policy := range catalog.through {
+			if before := definitions[key]; before != nil && before != policy {
+				return nil, managementError(CodeInvalidConfig, nil)
+			}
+			definitions[key] = policy
+		}
+	}
+	for _, relation := range b.project.ManyToManyRelations() {
+		selected := relation.Source == b.role.Model && (config.TargetCreation.state != nil && config.TargetCreation.state.allowed[relation.Field] ||
+			(config.TargetCreation.state != nil || config.CatalogCreation.state != nil) && (relation.Field == b.role.Groups || relation.Field == b.role.Permissions)) ||
+			relation.Source == b.role.Catalog.Group && config.CatalogCreation.state != nil && relation.Field == b.role.Catalog.GroupPermissions
+		if selected {
+			if err := validateLifecycleThroughStorage(a.role, relation.Through.Model); err != nil && definitions[transitionCollectionKey{relation.Source, relation.Field}] == nil {
+				return nil, err
+			}
+		}
+	}
+	through, err := bindTransitionThroughDefinitions(next, definitions, config.ThroughCreationLimit)
+	if err != nil {
+		return nil, err
+	}
 	return &Transition[S, T]{source: left, old: source, next: target, config: config, required: required,
-		oldMemberships: oldMemberships, nextMemberships: nextMemberships, creationBackend: creationBackend}, nil
+		oldMemberships: oldMemberships, nextMemberships: nextMemberships, creationBackend: creationBackend, through: through}, nil
 }
 
 // TransitionManifest is deliberately exportable reconciliation evidence. It
@@ -202,19 +234,20 @@ func NewTransition[S, T any](source *SessionStore[S], target *SessionStore[T], c
 // credentials or session data. Retain it BEFORE Commit, including on unknown
 // outcomes. The digest is evidence identity, not authorization or a bearer key.
 type TransitionManifest struct {
-	Version          int                           `json:"version"`
-	OperationID      string                        `json:"operation_id"`
-	PriorOperationID string                        `json:"prior_operation_id"`
-	PriorSequence    int64                         `json:"prior_sequence"`
-	ProjectSHA256    string                        `json:"project_sha256"`
-	SourceRoleSHA256 string                        `json:"source_role_sha256"`
-	TargetRoleSHA256 string                        `json:"target_role_sha256"`
-	StateSHA256      string                        `json:"state_sha256"`
-	Mappings         []AccountMapping              `json:"mappings,omitempty"`
-	CreationSources  []SourceAccount               `json:"creation_sources,omitempty"`
-	References       []TransitionReferenceManifest `json:"references,omitempty"`
-	Catalog          *CatalogMappings              `json:"catalog,omitempty"`
-	CatalogCreation  *CatalogCreationManifest      `json:"catalog_creation,omitempty"`
+	Version          int                            `json:"version"`
+	OperationID      string                         `json:"operation_id"`
+	PriorOperationID string                         `json:"prior_operation_id"`
+	PriorSequence    int64                          `json:"prior_sequence"`
+	ProjectSHA256    string                         `json:"project_sha256"`
+	SourceRoleSHA256 string                         `json:"source_role_sha256"`
+	TargetRoleSHA256 string                         `json:"target_role_sha256"`
+	StateSHA256      string                         `json:"state_sha256"`
+	Mappings         []AccountMapping               `json:"mappings,omitempty"`
+	CreationSources  []SourceAccount                `json:"creation_sources,omitempty"`
+	References       []TransitionReferenceManifest  `json:"references,omitempty"`
+	Catalog          *CatalogMappings               `json:"catalog,omitempty"`
+	CatalogCreation  *CatalogCreationManifest       `json:"catalog_creation,omitempty"`
+	Collections      []TransitionCollectionManifest `json:"collections,omitempty"`
 }
 
 func (TransitionManifest) Format(state fmt.State, _ rune) {
@@ -231,6 +264,7 @@ type preparedTransition[S, T any] struct {
 	consumed        atomic.Bool
 	creation        *preparedTransitionCreation[T]
 	catalogCreation *preparedTransitionCatalogCreation[T]
+	through         *transitionThroughPreparation
 }
 
 func (PreparedTransition[S, T]) Format(state fmt.State, _ rune) {
@@ -246,6 +280,7 @@ func (prepared PreparedTransition[S, T]) Manifest() TransitionManifest {
 	result.References = cloneTransitionReferenceManifests(result.References)
 	result.Catalog = cloneCatalogMappings(result.Catalog)
 	result.CatalogCreation = cloneCatalogCreationManifest(result.CatalogCreation)
+	result.Collections = slices.Clone(result.Collections)
 	return result
 }
 
@@ -297,7 +332,7 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
 		PriorSequence: observation.ownership.Sequence(), ProjectSHA256: owner.source, SourceRoleSHA256: oldRole,
 		TargetRoleSHA256: nextRole, StateSHA256: observation.digest, Mappings: owned, References: transitionReferenceManifests(observation.references), Catalog: catalog}
-	manifest.Version = transitionManifestVersion(catalog, manifest.References, nil)
+	manifest.Version = transitionManifestVersion(catalog, manifest.References, nil, nil)
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return PreparedTransition[S, T]{}, err
@@ -310,15 +345,16 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 }
 
 type TransitionResult struct {
-	Ownership          domain.Receipt
-	MappedAccounts     int
-	CreatedAccounts    int
-	CreatedGroups      int
-	CreatedPermissions int
-	Mappings           []AccountMapping
-	RevokedSessions    int
-	RemappedRows       int
-	Catalog            *CatalogMappings
+	Ownership            domain.Receipt
+	MappedAccounts       int
+	CreatedAccounts      int
+	CreatedGroups        int
+	CreatedPermissions   int
+	Mappings             []AccountMapping
+	RevokedSessions      int
+	RemappedRows         int
+	Catalog              *CatalogMappings
+	CollectionIdentities []domain.CollectionIdentity
 }
 
 func (TransitionResult) Format(state fmt.State, _ rune) {
@@ -464,11 +500,7 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 	if err := verifyReferences(); err != nil {
 		return TransitionResult{}, err
 	}
-	var catalogs []CatalogMappings
-	if current.catalog.mapping != nil {
-		catalogs = append(catalogs, *current.catalog.mapping)
-	}
-	receipt, err := domain.TransitionMappedIn(ctx, scope, expected, change, at, mappings, catalogs...)
+	receipt, err := domain.TransitionMappedIn(ctx, scope, expected, change, at, domain.MappingInventory{Accounts: mappings, Catalog: current.catalog.mapping, Collections: current.collectionIdentities})
 	if err != nil {
 		return TransitionResult{}, err
 	}
@@ -503,11 +535,24 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 	}
 	// Lookup verifies the entire immutable receipt, including its private row
 	// identity, predecessor, role, evidence and timestamp, then the full payload.
-	actualMappings, err := domain.LookupMappingsIn(ctx, scope, receipt)
-	if err != nil || !slices.Equal(actualMappings, mappings) {
+	actualInventory, err := domain.LookupMappingInventoryIn(ctx, scope, receipt)
+	if err != nil || !slices.Equal(actualInventory.Accounts, mappings) || !equalCatalogMappings(actualInventory.Catalog, current.catalog.mapping) || !slices.Equal(actualInventory.Collections, current.collectionIdentities) {
 		return TransitionResult{}, managementError(CodePersistence, err)
 	}
-	return TransitionResult{Ownership: receipt, MappedAccounts: len(current.pairs), Mappings: slices.Clone(mappings), RevokedSessions: revoked, RemappedRows: remapped, Catalog: cloneCatalogMappings(current.catalog.mapping)}, nil
+	result := TransitionResult{Ownership: receipt, MappedAccounts: len(current.pairs), Mappings: slices.Clone(mappings), RevokedSessions: revoked, RemappedRows: remapped, Catalog: cloneCatalogMappings(current.catalog.mapping), CollectionIdentities: slices.Clone(current.collectionIdentities)}
+	for _, row := range result.CollectionIdentities {
+		if row.Additional {
+			switch row.Kind {
+			case "account":
+				result.CreatedAccounts++
+			case "group":
+				result.CreatedGroups++
+			case "permission":
+				result.CreatedPermissions++
+			}
+		}
+	}
+	return result, nil
 }
 
 // Reconcile reads an exact immutable receipt using retained evidence. false
@@ -541,9 +586,18 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 		if !priorFound || !receipt.Follows(prior) || receipt.RoleFingerprint() != next || receipt.EvidenceSHA256() != evidence || receipt.Sequence() != manifest.PriorSequence+1 {
 			return observed{}, managementError(CodeConflict, nil)
 		}
-		mappings, err := domain.LookupMappingsIn(work, scope, receipt)
+		inventory, err := domain.LookupMappingInventoryIn(work, scope, receipt)
 		if err != nil {
 			return observed{}, err
+		}
+		mappings := inventory.Accounts
+		if len(inventory.Collections) != len(manifest.Collections) {
+			return observed{}, managementError(CodeConflict, nil)
+		}
+		for i, row := range inventory.Collections {
+			if row.Kind != string(manifest.Collections[i].Kind) {
+				return observed{}, managementError(CodeConflict, nil)
+			}
 		}
 		if len(manifest.CreationSources) > 0 {
 			if len(mappings) != len(manifest.CreationSources) {
@@ -557,9 +611,10 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 		} else if !slices.Equal(mappings, manifest.Mappings) {
 			return observed{}, managementError(CodeConflict, nil)
 		}
-		catalog, catalogFound, err := domain.LookupCatalogMappingsIn(work, scope, receipt)
-		if err != nil {
-			return observed{}, err
+		catalogFound := inventory.Catalog != nil
+		catalog := CatalogMappings{}
+		if catalogFound {
+			catalog = *inventory.Catalog
 		}
 		if manifest.CatalogCreation != nil {
 			left, right := owner.old.state.credentials.state.binding.state.role.Catalog, owner.next.state.credentials.state.binding.state.role.Catalog
@@ -610,8 +665,13 @@ func compareInt64(a, b int64) int {
 }
 
 func (manifest TransitionManifest) evidence() (string, error) {
-	if manifest.Version != transitionManifestVersion(manifest.Catalog, manifest.References, manifest.CatalogCreation) || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts || manifest.CatalogCreation != nil && manifest.Catalog != nil {
+	if manifest.Version != transitionManifestVersion(manifest.Catalog, manifest.References, manifest.CatalogCreation, manifest.Collections) || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts || manifest.CatalogCreation != nil && manifest.Catalog != nil || len(manifest.Collections) > MaximumThroughCreations || len(manifest.Collections) != 0 && len(manifest.CreationSources) == 0 && manifest.CatalogCreation == nil {
 		return "", managementError(CodeInvalidInput, nil)
+	}
+	for _, collection := range manifest.Collections {
+		if collection.Kind != TransitionReferenceAccount && collection.Kind != TransitionReferenceGroup && collection.Kind != TransitionReferencePermission || !transitionDigest(collection.DeclarationSHA256) {
+			return "", managementError(CodeInvalidInput, nil)
+		}
 	}
 	if err := validateCatalogCreationManifest(manifest.CatalogCreation); err != nil {
 		return "", err

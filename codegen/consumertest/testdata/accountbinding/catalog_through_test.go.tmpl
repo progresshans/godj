@@ -203,10 +203,11 @@ func TestCatalogThroughCreation(t *testing.T) {
 				Prepare: func(_ context.Context, pair accountmodel.ThroughEndpoints) (orm.ModelInput[@@THROUGH@@], error) {
 					preparedCount++
 					sourceKey, sourcePresent := pair.SourceKey()
-					if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_owner" || pair.TargetField() != "link_target" || !sourcePresent || sourceKey != boot.Account.ID {
+					targetKey, targetPresent := pair.TargetKey()
+					if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_owner" || pair.TargetField() != "link_target" || !sourcePresent || !targetPresent || sourceKey != boot.Account.ID {
 						return orm.ModelInput[@@THROUGH@@]{}, errors.New("catalog factory lost actual read endpoints")
 					}
-					identity := fmt.Sprintf("created.grant%d", pair.TargetKey())
+					identity := fmt.Sprintf("created.grant%d", targetKey)
 					if mode == "duplicate" {
 						identity = "created.same"
 					}

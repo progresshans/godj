@@ -43,6 +43,7 @@ type CatalogMappings struct {
 type preparedMappings struct {
 	rows            []Mapping
 	catalog         *CatalogMappings
+	collections     []CollectionIdentity
 	payload, digest string
 }
 
@@ -62,20 +63,20 @@ func normalizeMappings(mappings []Mapping, required bool) ([]Mapping, error) {
 	return owned, nil
 }
 
-func prepareMappingSet(mappings []Mapping, catalog *CatalogMappings) (preparedMappings, error) {
-	owned, err := normalizeMappings(mappings, true)
+func prepareMappingSet(inventory MappingInventory) (preparedMappings, error) {
+	owned, err := normalizeMappings(inventory.Accounts, true)
 	if err != nil {
 		return preparedMappings{}, err
 	}
 	result := preparedMappings{rows: owned}
 	var value any = owned
 	prefix := "godj.account-mapping.v1\x00"
-	if catalog != nil {
-		groups, err := normalizeMappings(catalog.Groups, false)
+	if inventory.Catalog != nil {
+		groups, err := normalizeMappings(inventory.Catalog.Groups, false)
 		if err != nil {
 			return preparedMappings{}, err
 		}
-		permissions, err := normalizeMappings(catalog.Permissions, false)
+		permissions, err := normalizeMappings(inventory.Catalog.Permissions, false)
 		if err != nil {
 			return preparedMappings{}, err
 		}
@@ -86,6 +87,19 @@ func prepareMappingSet(mappings []Mapping, catalog *CatalogMappings) (preparedMa
 			Catalog  *CatalogMappings `json:"catalog"`
 		}{2, owned, result.catalog}
 		prefix = "godj.account-mapping.v2\x00"
+	}
+	result.collections, err = normalizeCollectionIdentities(inventory.Collections, owned, result.catalog)
+	if err != nil {
+		return preparedMappings{}, err
+	}
+	if len(result.collections) != 0 {
+		value = struct {
+			Version     int                  `json:"version"`
+			Accounts    []Mapping            `json:"accounts"`
+			Catalog     *CatalogMappings     `json:"catalog"`
+			Collections []CollectionIdentity `json:"collections"`
+		}{3, owned, result.catalog, result.collections}
+		prefix = "godj.account-mapping.v3\x00"
 	}
 	payload, err := json.Marshal(value)
 	if err != nil || len(payload) > MaximumMappingBytes {
@@ -104,6 +118,7 @@ func decodeMappingSet(receipt Receipt, row models.Mapping) (preparedMappings, er
 	decoder.DisallowUnknownFields()
 	var mappings []Mapping
 	var catalog *CatalogMappings
+	var collections []CollectionIdentity
 	var err error
 	if strings.HasPrefix(row.Payload, "{") {
 		// Read bounded arrays individually. A compact hostile array must not be
@@ -112,29 +127,52 @@ func decodeMappingSet(receipt Receipt, row models.Mapping) (preparedMappings, er
 			return preparedMappings{}, ErrCorrupt
 		}
 		var version int
-		if decoder.Decode(&version) != nil || version != 2 || !mappingToken(decoder, "accounts") {
+		if decoder.Decode(&version) != nil || (version != 2 && version != 3) || !mappingToken(decoder, "accounts") {
 			return preparedMappings{}, ErrCorrupt
 		}
 		mappings, err = decodeMappingRows(decoder)
-		if err != nil || !mappingToken(decoder, "catalog") || !mappingToken(decoder, json.Delim('{')) || !mappingToken(decoder, "groups") {
+		if err != nil || !mappingToken(decoder, "catalog") {
 			return preparedMappings{}, ErrCorrupt
 		}
-		groups, err := decodeMappingRows(decoder)
-		if err != nil || !mappingToken(decoder, "permissions") {
+		token, err := decoder.Token()
+		if err != nil {
 			return preparedMappings{}, ErrCorrupt
 		}
-		permissions, err := decodeMappingRows(decoder)
-		if err != nil || !mappingToken(decoder, json.Delim('}')) || !mappingToken(decoder, json.Delim('}')) {
+		if token == json.Delim('{') {
+			if !mappingToken(decoder, "groups") {
+				return preparedMappings{}, ErrCorrupt
+			}
+			groups, err := decodeMappingRows(decoder)
+			if err != nil || !mappingToken(decoder, "permissions") {
+				return preparedMappings{}, ErrCorrupt
+			}
+			permissions, err := decodeMappingRows(decoder)
+			if err != nil || !mappingToken(decoder, json.Delim('}')) {
+				return preparedMappings{}, ErrCorrupt
+			}
+			catalog = &CatalogMappings{Groups: groups, Permissions: permissions}
+		} else if token != nil || version != 3 {
 			return preparedMappings{}, ErrCorrupt
 		}
-		catalog = &CatalogMappings{Groups: groups, Permissions: permissions}
+		if version == 3 {
+			if !mappingToken(decoder, "collections") {
+				return preparedMappings{}, ErrCorrupt
+			}
+			collections, err = decodeCollectionIdentities(decoder)
+			if err != nil || len(collections) == 0 {
+				return preparedMappings{}, ErrCorrupt
+			}
+		}
+		if !mappingToken(decoder, json.Delim('}')) {
+			return preparedMappings{}, ErrCorrupt
+		}
 	} else {
 		mappings, err = decodeMappingRows(decoder)
 		if err != nil {
 			return preparedMappings{}, ErrCorrupt
 		}
 	}
-	prepared, err := prepareMappingSet(mappings, catalog)
+	prepared, err := prepareMappingSet(MappingInventory{Accounts: mappings, Catalog: catalog, Collections: collections})
 	if err != nil || len(prepared.rows) != receipt.MappingCount() || prepared.digest != receipt.MappingSHA256() || prepared.payload != row.Payload {
 		return preparedMappings{}, ErrCorrupt
 	}

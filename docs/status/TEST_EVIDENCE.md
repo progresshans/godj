@@ -3402,6 +3402,46 @@ SQLite busy 설정 1ms·실제 BUSY/LOCKED 원인·callback 0회·contender 미�
 unknown outcome을 contention 성공으로 인정하거나 재시도하지 않는다. 이 조정도 원격 검증 전이다. 원본 job 로그
 SHA-256은 `92a9f9a6c79dd11384aac550a44f2defa486020b5906a14bb30cddef8d53cf00`이며 같은 보관소에 있다.
 
+### 전환 collection의 추가 typed identity·전체 inventory와 복구 기록
+
+2026-10-30, source `9a80d7ed1df657cae3434490a0e7352db709ce10` 뒤 변경 묶음이다. 계정 역할/프로필과 그룹 권한의
+선택 identity through에 공통 생성 capability를 연결했다. 양쪽 미정 FK와 원본 대응표를 구분하고 순수 factory는 읽기
+snapshot에서 한 번, 해싱은 종료 뒤 실행한다. Source 인가/domain과 target credential domain을 분리하며 actual key를
+받은 전체 typed 후보를 검사한다. 계정/catalog의 collection은 한 batch로 적용한다. 직접 생성한 대응 행의 INSERT 증거로
+충족한 pair와 별도 추가 행을 구분하고 전체 target inventory·빈 자체 소속·실제 INSERT payload·Add 감사·최종 readback을
+유지한다. Manifest v8과 mapping payload v3는 각 의도의 실제 key/revision 및 Additional 여부를 함께 기록한다.
+
+외부 generated 소비자는 account/Group/Permission 세 변형에 각각 **27/24/23 시나리오**를 작성했다. 부모는 각 변형의
+root와 모든 child가 실제 종료했는지 양 DB에서 확인한다. 생성·준비된 계정·양쪽 보류 FK·실제 0/음수 key·직접 INSERT
+재사용·정확한 권한/감사·한도·중복·endpoint/PK 위조·source 변경·늦은 payload/자체 소속 변경·rollback·unknown/restart와
+receipt 변조를 포함한다. 원본의 stable identity로 native target key를 독립 해결한 뒤 전체 INSERT 값·FK·durable ledger를
+대조한다. Domain v1/v2/v3 혼합 이력의 page/reopen과 전체 payload/canonical·중복·추가/기존 구분·원자성 검사도 작성했다.
+
+선행 [CI 40966461148](https://github.com/progresshans/godj/actions/runs/40966461148)의 실제 checkout
+`9cedf0b6fca34e67ea402e7a611b015ed0692327`과 head `9a80d7ed`의 tree는 모두
+`13d2d4b80b8ddc3595d53b87f4fa84c01393d58b`다. PostgreSQL 세 mode와 Linux 양 아키텍처 race의 공유 through
+소비자는 `identity_source`에서 실제 조기 `revision_conflict`를 반환했으나 테스트가 최종 persistence 오류를 기대해 실패했다.
+기대값을 source-state conflict로 맞췄고 실제 두 계정 INSERT 도달·receipt 부재·전체 durable rollback 검사는 유지했다.
+또한 PostgreSQL race의 shared-through/catalog-creation 작업은 선행 root에 **1,098.70/1,329.07초**를 쓴 뒤
+30분 package 제한에 도달했다. 뒤의 target-reference/catalog-fields root를 각각 별도 owner로 분리했다. 테스트·필수
+child·기한을 줄이지 않았으며 새 collection root도 별도 owner를 갖는다. 여섯 실패 job의 원본을 보존했다. 이 선행 실행을
+전체 PASS로 처리하지 않으며, 잘린 콘솔 진단에서 전체 child 통과를 추정하지 않는다.
+
+| 현재 로컬 확인 | 결과와 범위 |
+|---|---|
+| gofmt | 변경/추가 Go 30개 파일 문법·포맷 확인 |
+| template parse | 새 세 typed 변형과 기존 네 템플릿, 총 7개 문법 확인. 실제 생성·타입 검사는 아님 |
+| CI tooling | relation/postgres 분배·전체 workflow·Go event 검사 **39 tests PASS, 25.298s** |
+| 필수 실행 목록 | relation 4,781→4,793, PostgreSQL 5,819→5,834. 기존 항목 전부 보존·중복 없음 |
+| 문서/diff | CURRENT·work·ADR의 파일 링크 38개 존재 및 diff 검사 |
+| Go 본문·compile/generation·DB/race/platform | 로컬 중단 지시 유지. 현재 source의 원격 실행 대상 |
+
+새 owner를 처음 추가한 tooling 검사에서 누락된 PostgreSQL workflow matrix/분기와 coordinate 기대값을 확인했고,
+normal/race/CGO0 모두 같은 전체 root에 연결한 수정본으로 위 39개 검사를 통과했다. 환경별 검증 완료나 I1 수용은 아니다.
+원본·변경한 non-Markdown source 41개 해시는 저장소 밖 검증 보관소
+`~/Documents/Codex/2026-10-05/godj-verification/gdj0138-transition-through-v1/receipt-final.json`에 보관했다.
+SHA-256은 `9ba7f9ae0205ad7c82a094d444ebdecc8e44ed60eb53f69281a195d913b6d9d5`다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

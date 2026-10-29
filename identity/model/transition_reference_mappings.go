@@ -83,7 +83,10 @@ func (before transitionReferenceMappings) validateResolved(fields []TransitionRe
 	return nil
 }
 
-func transitionManifestVersion(catalog *CatalogMappings, references []TransitionReferenceManifest, creation *CatalogCreationManifest) int {
+func transitionManifestVersion(catalog *CatalogMappings, references []TransitionReferenceManifest, creation *CatalogCreationManifest, collections []TransitionCollectionManifest) int {
+	if len(collections) != 0 {
+		return 8
+	}
 	if creation != nil {
 		return 7
 	}

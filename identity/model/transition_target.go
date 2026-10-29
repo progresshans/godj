@@ -26,6 +26,9 @@ type TransitionTargetConfig[M any] struct {
 	Fields      []string
 	Relations   []ProfileRelation[M]
 	Collections []ProfileCollection[M]
+	// Explicit typed creation owners for selected identity through models.
+	// The enclosing Transition bounds all distinct intents together.
+	ThroughCreations map[string]ThroughCreation
 }
 
 // TransitionTarget binds actual typed collection capabilities and profile
@@ -40,6 +43,7 @@ type transitionTarget[M any] struct {
 	auditFields         []string
 	incoming            []query.Plan
 	groups, permissions func(M, []int64) (orm.CollectionChange, error)
+	through             map[string]*throughCreationState
 }
 
 func (TransitionTarget[M]) Format(state fmt.State, _ rune) {
@@ -57,7 +61,12 @@ func NewTransitionTarget[M, G, P, GL, PL any](binding Binding[M], groups orm.Man
 			return zero, managementError(CodeInvalidConfig, err)
 		}
 	}
-	if err := validateAccountCollectionStorage(project, role, append(slices.Clone(config.Fields), role.Groups, role.Permissions)); err != nil {
+	fields := append(slices.Clone(config.Fields), role.Groups, role.Permissions)
+	through, ordinary, err := prepareThroughDefinitions(binding, fields, config.ThroughCreations, transitionThroughDefinitionLimit(config.ThroughCreations))
+	if err != nil {
+		return zero, err
+	}
+	if err := validateAccountCollectionStorage(project, role, ordinary); err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
 	metadata, err := binding.state.objects.Metadata()
@@ -121,7 +130,7 @@ func NewTransitionTarget[M, G, P, GL, PL any](binding Binding[M], groups orm.Man
 	if err != nil {
 		return zero, err
 	}
-	return TransitionTarget[M]{&transitionTarget[M]{binding: binding, metadata: metadata, allowed: allowed, relations: relations, collections: collections, auditFields: audit, incoming: incoming,
+	return TransitionTarget[M]{&transitionTarget[M]{binding: binding, metadata: metadata, allowed: allowed, relations: relations, collections: collections, auditFields: audit, incoming: incoming, through: through,
 		groups:      func(row M, keys []int64) (orm.CollectionChange, error) { return groups.SetKeysChange(row, keys) },
 		permissions: func(row M, keys []int64) (orm.CollectionChange, error) { return permissions.SetKeysChange(row, keys) },
 	}}, nil

@@ -63,7 +63,7 @@ func (state *creationState[M]) prepareCreationThrough(ctx context.Context, scope
 			if len(pending.ordered) >= pending.limit {
 				return managementError(CodeInvalidInput, nil)
 			}
-			pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), targetKey: key}
+			pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), targetKey: key, targetPresent: true}
 			draft, err := policy.draft(ctx, scope, actor, operator, pair, domain)
 			if err != nil {
 				return err
@@ -117,7 +117,7 @@ func (pending *creationThroughPreparation) bind(ctx context.Context, scope db.Qu
 	if !pending.encoded || !pending.domain.MatchesPrincipal(actor) {
 		return nil, managementError(CodePermission, nil)
 	}
-	result := &throughPreparation{domain: pending.domain, actorID: actor.ID(), limit: pending.limit, pairs: make(map[throughPairKey]*throughCandidate), identities: make(map[throughIdentity]*throughCandidate)}
+	result := &throughPreparation{domain: pending.domain, authority: pending.domain, actorID: actor.ID(), limit: pending.limit, pairs: make(map[throughPairKey]*throughCandidate), identities: make(map[throughIdentity]*throughCandidate)}
 	for _, entry := range pending.ordered {
 		if err := entry.draft.check(ctx, scope, actor, false); err != nil {
 			return nil, err

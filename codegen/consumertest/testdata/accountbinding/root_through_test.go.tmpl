@@ -180,12 +180,13 @@ func TestRootThroughCreation(t *testing.T) {
 					prepareNested := func(_ context.Context, pair accountmodel.ThroughEndpoints) (orm.ModelInput[@@THROUGH@@], error) {
 						factoryCalls++
 						_, present := pair.SourceKey()
-						if present || backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "@@SOURCE@@" || pair.TargetField() != "@@TARGET@@" {
+						targetKey, targetPresent := pair.TargetKey()
+						if present || !targetPresent || backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "@@SOURCE@@" || pair.TargetField() != "@@TARGET@@" {
 							return orm.ModelInput[@@THROUGH@@]{}, errors.New("pending source was guessed or factory ran in a write")
 						}
-						value := fmt.Sprintf("nested.grant%d", pair.TargetKey())
+						value := fmt.Sprintf("nested.grant%d", targetKey)
 						if "@@KIND@@" == "account" {
-							value = fmt.Sprintf("nested-%d@example.test", pair.TargetKey())
+							value = fmt.Sprintf("nested-%d@example.test", targetKey)
 						}
 						values := map[string]query.Value{natural: query.String(value)}
 						if code != "" {

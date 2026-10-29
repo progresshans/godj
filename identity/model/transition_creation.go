@@ -89,6 +89,10 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	}
 	observation, err := db.ReadSnapshotResult(ctx, owner.old.state.backend, func(work context.Context, scope db.Queryer) (transitionCreationObservation[S, T], error) {
 		result, failure := owner.observeCreation(work, scope, actor, operationID, owned, createdAt, catalog)
+		if failure == nil {
+			failure = owner.prepareTransitionThrough(work, scope, &result.transitionObservation, true)
+		}
+
 		if expectedTransitionRefusal(failure) {
 			return transitionCreationObservation[S, T]{transitionObservation: transitionObservation[S, T]{rejection: failure}}, nil
 		}
@@ -100,11 +104,24 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	if observation.rejection != nil {
 		return zero, observation.rejection
 	}
+	if err := observation.through.encode(ctx); err != nil {
+		return zero, err
+	}
+	observation.digest, err = observation.through.seal(observation.digest, operationID)
+	if err != nil {
+		return zero, err
+	}
+	if observation.through != nil {
+		if err := checkTransitionReadbackBudget(observation.transitionObservation, observation.through.bytes); err != nil {
+			return zero, err
+		}
+	}
 	oldRole, _ := owner.old.state.credentials.state.binding.RoleFingerprint()
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
 	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(), PriorSequence: observation.ownership.Sequence(),
 		ProjectSHA256: owner.source, SourceRoleSHA256: oldRole, TargetRoleSHA256: nextRole, StateSHA256: observation.digest, CreationSources: sources, References: transitionReferenceManifests(observation.references), Catalog: catalog}
-	manifest.Version = transitionManifestVersion(catalog, manifest.References, nil)
+	manifest.Collections = observation.through.manifest()
+	manifest.Version = transitionManifestVersion(catalog, manifest.References, nil, manifest.Collections)
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return zero, err
@@ -114,7 +131,7 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 		return zero, managementError(CodePersistence, err)
 	}
 	return PreparedTransition[S, T]{state: &preparedTransition[S, T]{owner: owner, actor: actor.ID(), manifest: manifest, expected: observation.ownership, change: change,
-		creation: &preparedTransitionCreation[T]{requests: owned, createdAt: createdAt}}}, nil
+		creation: &preparedTransitionCreation[T]{requests: owned, createdAt: createdAt}, through: observation.through}}, nil
 }
 
 func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Queryer, actor auth.Principal, operation string, requests []AccountCreation[T], createdAt time.Time, catalog *CatalogMappings) (transitionCreationObservation[S, T], error) {
@@ -235,6 +252,9 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 		if err != nil {
 			return TransitionResult{}, err
 		}
+		if err := owner.checkPreparedTransitionThrough(work, scope, &current.transitionObservation, true, state.through, state.manifest.OperationID); err != nil {
+			return TransitionResult{}, err
+		}
 		if current.digest != state.manifest.StateSHA256 || current.ownership.OperationID() != state.expected.OperationID() {
 			return TransitionResult{}, managementError(CodeConflict, nil)
 		}
@@ -243,26 +263,17 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 			return TransitionResult{}, managementError(CodeInvalidConfig, nil)
 		}
 		target := owner.config.TargetCreation.state
-		mappings, err := owner.materializeTargets(work, scope, &current.transitionObservation, current.candidates, true, nil)
+		mappings, err := owner.materializeTargets(work, scope, &current.transitionObservation, current.candidates, true, nil, nil, at)
 		if err != nil {
 			return TransitionResult{}, err
 		}
-		observed, err := owner.observe(work, scope, actor, state.manifest.OperationID, mappings, state.manifest.Catalog)
-		if err != nil {
+		observed := current.transitionObservation
+		if err := owner.verifyRows(work, scope, observed, mappings); err != nil {
 			return TransitionResult{}, err
 		}
-		if len(observed.pairs) != len(current.pairs) {
-			return TransitionResult{}, managementError(CodePersistence, nil)
-		}
-		if observed.catalog.digest != current.catalog.digest {
-			return TransitionResult{}, managementError(CodeConflict, nil)
-		}
-		if !sameTransitionReferenceManifests(transitionReferenceManifests(observed.references), transitionReferenceManifests(current.references)) {
-			return TransitionResult{}, managementError(CodeConflict, nil)
-		}
-		for i, pair := range observed.pairs {
-			if !sameTransitionRow(pair.old, current.pairs[i].old) || !sameTransitionRow(pair.next, current.pairs[i].next) {
-				return TransitionResult{}, managementError(CodeConflict, nil)
+		for _, pair := range observed.pairs {
+			if err := owner.validatePair(work, scope, state.manifest.OperationID, pair.old, pair.next, observed.catalog); err != nil {
+				return TransitionResult{}, err
 			}
 			if err := owner.checkCreatedChoices(work, scope, current.actor, pair.next); err != nil {
 				return TransitionResult{}, err
@@ -275,8 +286,10 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 				return TransitionResult{}, err
 			}
 		}
-		observed.roleLinks, observed.inserted = current.roleLinks, current.inserted
 		if err := owner.verifyRows(work, scope, observed, mappings); err != nil {
+			return TransitionResult{}, err
+		}
+		if _, _, err := owner.inspectAuthority(work, scope, current.actor); err != nil {
 			return TransitionResult{}, err
 		}
 		// The common owner retires sources, revokes their entire session namespace
@@ -292,7 +305,7 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 		if err != nil {
 			return TransitionResult{}, err
 		}
-		result.CreatedAccounts = len(mappings)
+		result.CreatedAccounts += len(mappings)
 		return result, nil
 	})
 }

@@ -694,12 +694,8 @@ func stRun[L any](t *testing.T, strategy, mode, prefix string, objects orm.Manag
 				t.Fatal("unknown did not follow complete native execution", err)
 			}
 		} else if identityConflict {
-			code := accountmodel.CodeConflict
-			if mode == "identity_source" {
-				code = accountmodel.CodePersistence
-			}
-			if len(f.backend.identities["members_member"]) != 2 || !errors.Is(err, &accountmodel.Error{Code: code}) {
-				t.Fatal("identity through change did not reach the final source-state conflict", err)
+			if len(f.backend.identities["members_member"]) != 2 || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeConflict}) {
+				t.Fatal("identity through change did not reach the source-state conflict after actual allocation", err)
 			}
 		} else if f.backend.faults != 1 {
 			t.Fatal("negative control did not reach the intended write or final policy", f.backend.faults, err)
