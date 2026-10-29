@@ -55,6 +55,10 @@ func NewFirstAccountDefinition[M, G, P, GL, PL any](binding Binding[M], groupDes
 	if err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
+	through := make(map[string]string, len(creation.throughDefinitions))
+	for field, policy := range creation.throughDefinitions {
+		through[field] = policy.declaration
+	}
 	encoded, err := json.Marshal(struct {
 		Source, Role, Evidence string
 		Fields                 []string
@@ -62,11 +66,13 @@ func NewFirstAccountDefinition[M, G, P, GL, PL any](binding Binding[M], groupDes
 		IExact                 bool
 		Related                RelatedRowPermissions
 		Collections            map[string]int
-	}{source, fingerprint, config.EvidenceSHA256, creation.fields, creation.config.MaxPasswordBytes, creation.config.CaseInsensitiveLogin, creation.config.RelatedPermissions, profileCollectionLimits(creation.collections)})
+		Through                map[string]string
+		ThroughLimit           int
+	}{source, fingerprint, config.EvidenceSHA256, creation.fields, creation.config.MaxPasswordBytes, creation.config.CaseInsensitiveLogin, creation.config.RelatedPermissions, profileCollectionLimits(creation.collections), through, creation.config.ThroughCreationLimit})
 	if err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
-	digest := sha256.Sum256(append([]byte("godj.first-account-definition.v3\x00"), encoded...))
+	digest := sha256.Sum256(append([]byte("godj.first-account-definition.v4\x00"), encoded...))
 	return FirstAccountDefinition[M]{state: &firstAccountDefinitionState[M]{creation: creation, credentials: credentials, fingerprint: fingerprint, evidence: config.EvidenceSHA256, declaration: hex.EncodeToString(digest[:])}}, nil
 }
 
@@ -146,6 +152,10 @@ func (definition FirstAccountDefinition[M]) Bind(backend db.SnapshotReader) (*Fi
 	credentials.backend = backend
 	creation := &creationState[M]{creationDefinition: definition.state.creation, store: &CredentialStore[M]{state: &credentials}, backend: writer}
 	var err error
+	creation.through, err = attachThroughDefinitions(creation.store, creation.throughDefinitions)
+	if err != nil {
+		return nil, err
+	}
 	creation.lifecycle, err = credentials.firstLifecycle(creation.store, creation.binding, creationLifecycleConfig(creation.config))
 	if err != nil {
 		return nil, err

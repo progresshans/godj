@@ -216,7 +216,7 @@ class ExecutionOwnerTests(unittest.TestCase):
             self.assertTrue(name.startswith('Test'))
         import sys
         observed = []
-        for shard in ('core', 'core-consumers', 'core-account-consumers', 'core-account-through', 'core-account-transition', 'core-account-catalog', 'core-account-catalog-creation', 'core-account-shared-through', 'core-account-profiles', 'core-consumer-writes'):
+        for shard in ('core', 'core-consumers', 'core-account-consumers', 'core-account-through', 'core-account-root-through', 'core-account-transition', 'core-account-catalog', 'core-account-catalog-creation', 'core-account-shared-through', 'core-account-profiles', 'core-consumer-writes'):
             with tempfile.TemporaryDirectory() as directory:
                 result = subprocess.run([sys.executable, 'scripts/ci/postgres_shards.py', '--mode', 'normal',
                                          '--shard', shard, '--required', 'scripts/ci/postgres-core-required.txt',
@@ -279,16 +279,16 @@ class ExecutionOwnerTests(unittest.TestCase):
         child_only = [entry for entry in entries if '/ticket_editor/' in entry]
         self.assertTrue(child_only)
         coordinates = [('normal', 'core', '30m'), ('normal', 'operator-target', '18m'),
-                       ('normal', 'core-consumers', '30m'), ('normal', 'core-account-consumers', '30m'), ('normal', 'core-account-through', '30m'), ('normal', 'core-account-transition', '30m'), ('normal', 'core-account-catalog', '30m'), ('normal', 'core-account-catalog-creation', '30m'), ('normal', 'core-account-shared-through', '30m'), ('normal', 'core-account-profiles', '30m'),
+                       ('normal', 'core-consumers', '30m'), ('normal', 'core-account-consumers', '30m'), ('normal', 'core-account-through', '30m'), ('normal', 'core-account-root-through', '30m'), ('normal', 'core-account-transition', '30m'), ('normal', 'core-account-catalog', '30m'), ('normal', 'core-account-catalog-creation', '30m'), ('normal', 'core-account-shared-through', '30m'), ('normal', 'core-account-profiles', '30m'),
                        ('normal', 'core-consumer-writes', '30m'),
                        ('race', 'core', '18m'), ('race', 'core-helpdesk-postgres', '18m'),
                        ('race', 'core-postgres-1', '18m'), ('race', 'core-postgres-2', '18m'),
                        ('race', 'core-consumers', '30m'),
-                       ('race', 'core-account-consumers', '30m'), ('race', 'core-account-through', '30m'), ('race', 'core-account-transition', '30m'), ('race', 'core-account-catalog', '30m'), ('race', 'core-account-catalog-creation', '30m'), ('race', 'core-account-shared-through', '30m'), ('race', 'core-account-profiles', '30m'),
+                       ('race', 'core-account-consumers', '30m'), ('race', 'core-account-through', '30m'), ('race', 'core-account-root-through', '30m'), ('race', 'core-account-transition', '30m'), ('race', 'core-account-catalog', '30m'), ('race', 'core-account-catalog-creation', '30m'), ('race', 'core-account-shared-through', '30m'), ('race', 'core-account-profiles', '30m'),
                        ('race', 'core-consumer-writes', '30m'),
                        ('race', 'core-processes', '18m'), ('race', 'operator-target', '18m'),
                        ('cgo0', 'core', '30m'), ('cgo0', 'operator-target', '18m'),
-                       ('cgo0', 'core-consumers', '30m'), ('cgo0', 'core-account-consumers', '30m'), ('cgo0', 'core-account-through', '30m'), ('cgo0', 'core-account-transition', '30m'), ('cgo0', 'core-account-catalog', '30m'), ('cgo0', 'core-account-catalog-creation', '30m'), ('cgo0', 'core-account-shared-through', '30m'), ('cgo0', 'core-account-profiles', '30m'),
+                       ('cgo0', 'core-consumers', '30m'), ('cgo0', 'core-account-consumers', '30m'), ('cgo0', 'core-account-through', '30m'), ('cgo0', 'core-account-root-through', '30m'), ('cgo0', 'core-account-transition', '30m'), ('cgo0', 'core-account-catalog', '30m'), ('cgo0', 'core-account-catalog-creation', '30m'), ('cgo0', 'core-account-shared-through', '30m'), ('cgo0', 'core-account-profiles', '30m'),
                        ('cgo0', 'core-consumer-writes', '30m')]
         for required, (mode, shard, timeout) in ((required, coordinate) for required in [entries, child_only] for coordinate in coordinates):
             with self.subTest(child_only=required is child_only, mode=mode, shard=shard):

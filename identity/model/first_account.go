@@ -197,7 +197,13 @@ func (owner *FirstAccount[M]) prepare(ctx context.Context, operationID string, i
 		if err := owner.state.requireFresh(work, scope); err != nil {
 			return err
 		}
-		return state.checkCandidate(work, scope, namespace, auth.Principal{}, ProfileRelationFirstAccount, candidate, false, nil)
+		if err := state.checkCandidate(work, scope, namespace, auth.Principal{}, ProfileRelationFirstAccount, candidate, false, nil); err != nil {
+			return err
+		}
+		if len(candidate.pendingFiles) != 0 {
+			return nil
+		}
+		return state.prepareCreationThrough(work, scope, auth.Principal{}, namespace, candidate, true)
 	}
 	if err := creationSnapshot(ctx, state.store.state.backend, check); err != nil {
 		return PreparedFirstAccount[M]{}, nil, err
@@ -214,6 +220,9 @@ func (owner *FirstAccount[M]) prepare(ctx context.Context, operationID string, i
 	}
 	candidate.form = nil
 	if err := state.encodeCandidate(ctx, namespace, candidate); err != nil {
+		return PreparedFirstAccount[M]{}, publications, err
+	}
+	if err := candidate.through.encode(ctx); err != nil {
 		return PreparedFirstAccount[M]{}, publications, err
 	}
 	return PreparedFirstAccount[M]{state: &preparedFirstAccount[M]{owner: owner, change: change, input: candidate}}, publications, nil

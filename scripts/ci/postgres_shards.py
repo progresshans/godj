@@ -41,11 +41,12 @@ THROUGH_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountRoleThroughCreation',
     'TestGeneratedAccountCatalogThroughCreation',
 })
-TRANSITION_CONSUMER_OWNERS = {
+ISOLATED_ACCOUNT_CONSUMER_OWNERS = {
     'TestGeneratedAccountTransition': 'core-account-transition',
     'TestGeneratedAccountCatalogTransition': 'core-account-catalog',
     'TestGeneratedAccountCatalogCreation': 'core-account-catalog-creation',
     'TestGeneratedAccountSharedThroughTransition': 'core-account-shared-through',
+    'TestGeneratedAccountRootThroughCreation': 'core-account-root-through',
 }
 PROFILE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountProfileRelations',
@@ -65,7 +66,7 @@ CONSUMER_PARTITIONS = {
     'core-consumers': CONSUMERS,
     'core-account-consumers': CONSUMERS,
     'core-account-through': CONSUMERS,
-    **{owner: CONSUMERS for owner in TRANSITION_CONSUMER_OWNERS.values()},
+    **{owner: CONSUMERS for owner in ISOLATED_ACCOUNT_CONSUMER_OWNERS.values()},
     'core-account-profiles': CONSUMERS,
     'core-consumer-writes': CONSUMERS,
 }
@@ -158,8 +159,8 @@ def plan(mode, shard, entries):
         def consumer_owner(entry):
             package, _, test = entry.partition('|')
             root = test.split('/')[0]
-            if package == CONSUMER_PACKAGE and root in TRANSITION_CONSUMER_OWNERS:
-                return TRANSITION_CONSUMER_OWNERS[root]
+            if package == CONSUMER_PACKAGE and root in ISOLATED_ACCOUNT_CONSUMER_OWNERS:
+                return ISOLATED_ACCOUNT_CONSUMER_OWNERS[root]
             if package == CONSUMER_PACKAGE and root in ACCOUNT_CONSUMER_ROOTS:
                 return 'core-account-consumers'
             if package == CONSUMER_PACKAGE and root in THROUGH_CONSUMER_ROOTS:

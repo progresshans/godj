@@ -22,19 +22,24 @@ import (
 // ThroughCreationLimit; retained pairs do not consume that budget or hash work.
 const MaximumThroughCreations = 4096
 
-// ThroughEndpoints describes an actual missing physical pair. Keys can be zero
-// or negative. These server-supplied fields cannot also appear in the factory's
+// ThroughEndpoints describes a missing physical pair. An unsaved parent's key
+// is explicitly absent; actual keys can be zero or negative. Server-supplied
+// endpoint fields cannot also appear in the factory's
 // ModelInput, even with equal values. The enclosing operation owns the endpoint
 // choice policy; the creation owner also checks its configured FK policies.
 type ThroughEndpoints struct {
 	source, target       ir.Field
 	sourceKey, targetKey int64
+	sourcePresent        bool
 }
 
 func (pair ThroughEndpoints) SourceField() string { return pair.source.Name }
 func (pair ThroughEndpoints) TargetField() string { return pair.target.Name }
-func (pair ThroughEndpoints) SourceKey() int64    { return pair.sourceKey }
-func (pair ThroughEndpoints) TargetKey() int64    { return pair.targetKey }
+
+// SourceKey distinguishes a pending parent INSERT from an actual zero key.
+// Creation factories receive an absent source; edit factories receive a key.
+func (pair ThroughEndpoints) SourceKey() (int64, bool) { return pair.sourceKey, pair.sourcePresent }
+func (pair ThroughEndpoints) TargetKey() int64         { return pair.targetKey }
 func (ThroughEndpoints) Format(state fmt.State, _ rune) {
 	_, _ = state.Write([]byte("identity.model.ThroughEndpoints{redacted}"))
 }
@@ -58,27 +63,33 @@ func (AccountThroughInput[M]) MarshalJSON() ([]byte, error) {
 }
 
 // AccountThroughConfig prepares scalar defaults once per missing physical pair,
-// after current create authority is checked. Prepare must be pure, bounded and
+// after current create authority (or FirstAccount's fresh operator declaration)
+// is checked. Prepare must be pure, bounded and
 // safe for concurrent calls. It must not open a DB scope, hash a password or
 // publish external effects. Hashing belongs to the enclosing account operation
-// after the read snapshot closes; final candidate policies run again at commit.
+// after the read snapshot closes. With an unsaved parent, complete model and
+// password policies first run after its real key is bound, before child INSERT;
+// no typed callback receives a fabricated parent key. They also run after INSERT.
 type AccountThroughConfig[M any] struct {
 	Prepare func(context.Context, ThroughEndpoints) (AccountThroughInput[M], error)
 }
 
 // ThroughCreation is a typed creation owner's sealed capability for one
-// selected identity model and complete source. It retains no database, credential store or current
-// authority. AccountEditConfig binds it explicitly to a collection field.
+// selected identity model and complete source. It retains no database,
+// credential store or current authority. CreationPolicy and AccountEditConfig
+// each bind it explicitly to their own collection fields.
 type ThroughCreation struct{ state *throughCreationState }
 
 type throughCreationState struct {
-	project   orm.ProjectBinding
-	role      [32]byte
-	model     ir.ModelIdentity
-	identity  string
-	endpoints func(string, string) error
-	attach    func(any) (*throughCreationState, error)
-	bind      func(context.Context, db.Queryer, auth.Principal, *throughPreparation, bool, orm.CollectionChange) (orm.CollectionChange, error)
+	project     orm.ProjectBinding
+	role        [32]byte
+	model       ir.ModelIdentity
+	identity    string
+	declaration string
+	endpoints   func(string, string) error
+	attach      func(any) (*throughCreationState, error)
+	bind        func(context.Context, db.Queryer, auth.Principal, *throughPreparation, bool, orm.CollectionChange) (orm.CollectionChange, error)
+	draft       func(context.Context, db.Queryer, auth.Principal, bool, ThroughEndpoints, auth.CredentialDomain) (*throughDraft, error)
 }
 
 func (ThroughCreation) Format(state fmt.State, _ rune) {
@@ -87,7 +98,7 @@ func (ThroughCreation) Format(state fmt.State, _ rune) {
 
 // NewAccountThroughCreation binds the generated account and collection types.
 // It performs no I/O, entropy or password work and can be configured before a
-// Runtime exists. The actual editor later binds it to its own SessionStore.
+// Runtime exists. The actual owner later binds it to its own CredentialStore.
 // Selected fields are scalar: new through identities start with empty own M2M
 // memberships, and cannot publish files through this operation.
 func NewAccountThroughCreation[M, G, P, GL, PL any](binding Binding[M], groups orm.ManyToMany[M, G, GL], permissions orm.ManyToMany[M, P, PL], overlay auth.Authorizer, hasher auth.PasswordHasher, creation CreationConfig[M], config AccountThroughConfig[M]) (ThroughCreation, error) {
@@ -115,8 +126,12 @@ func NewAccountThroughCreation[M, G, P, GL, PL any](binding Binding[M], groups o
 	if err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
+	declaration, err := prepareThroughDeclaration(binding.state.role.Model, definition.fields, required, definition.config.RelatedPermissions, definition.config.MaxPasswordBytes, definition.config.CaseInsensitiveLogin)
+	if err != nil {
+		return zero, err
+	}
 	policy := &throughCreationState{project: binding.state.project,
-		role: binding.state.roleFingerprint, model: binding.state.role.Model, identity: binding.state.role.PrincipalID}
+		role: binding.state.roleFingerprint, model: binding.state.role.Model, identity: binding.state.role.PrincipalID, declaration: declaration}
 	policy.endpoints = func(source, target string) error {
 		if source == target || !definition.allowed[source] || !definition.allowed[target] {
 			return managementError(CodeInvalidConfig, nil)
@@ -124,11 +139,10 @@ func NewAccountThroughCreation[M, G, P, GL, PL any](binding Binding[M], groups o
 		return nil
 	}
 	policy.attach = func(owner any) (*throughCreationState, error) {
-		sessions, ok := owner.(*SessionStore[M])
-		if !ok || sessions == nil || sessions.state == nil {
+		store, ok := owner.(*CredentialStore[M])
+		if !ok || store == nil || store.state == nil {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
-		store := sessions.state.credentials
 		if err := store.valid(); err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
@@ -139,6 +153,7 @@ func NewAccountThroughCreation[M, G, P, GL, PL any](binding Binding[M], groups o
 		state := &creationState[M]{creationDefinition: definition, store: store, backend: backend, overlay: overlay, required: slices.Clone(required)}
 		bound := *policy
 		bound.attach = nil
+		bindAccountThroughDraft(&bound, state, memberships, config)
 		if err := bindAccountThroughInput(&bound, state, memberships, config); err != nil {
 			return nil, err
 		}
@@ -195,7 +210,7 @@ func bindTypedThroughInput[M any](policy *throughCreationState, bound orm.BoundM
 				if final || len(pending.ordered) >= pending.limit {
 					return orm.InvalidMutation[M](managementError(CodeInvalidInput, nil))
 				}
-				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceKey: sourceKey, targetKey: targetKey}
+				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceKey: sourceKey, targetKey: targetKey, sourcePresent: true}
 				var err error
 				prepared, err = prepare(ctx, scope, pair, pending.domain)
 				if err = errors.Join(err, validateAuthorityScope(ctx, scope.(db.SessionValidator))); err != nil {
@@ -268,6 +283,9 @@ type throughPreparation struct {
 }
 
 func (state *creationState[M]) prepareThroughInput(ctx context.Context, intent AccountThroughInput[M], pair ThroughEndpoints) (*creationCandidate[M], error) {
+	if !pair.sourcePresent {
+		return nil, managementError(CodeInvalidInput, nil)
+	}
 	if len(intent.Input.Collections()) != 0 || intent.Unusable && intent.Password != "" {
 		return nil, managementError(CodeInvalidInput, nil)
 	}
@@ -447,7 +465,7 @@ func (pending *throughPreparation) finish(ctx context.Context, scope db.Relation
 	return verifiers, nil
 }
 
-func throughEffectPermissions(role ir.AccountRole, model ir.ModelIdentity, base []auth.Permission, related RelatedRowPermissions, values map[string]query.Value, memberships []deletionMembership) ([]auth.Permission, error) {
+func throughEffectPermissions(role ir.AccountRole, model ir.ModelIdentity, base []auth.Permission, related RelatedRowPermissions, values map[string]query.Value, memberships []deletionMembership, pending ...string) ([]auth.Permission, error) {
 	required := slices.Clone(base)
 	for _, membership := range memberships {
 		if membership.through != model {
@@ -455,7 +473,7 @@ func throughEffectPermissions(role ir.AccountRole, model ir.ModelIdentity, base 
 		}
 		_, left := values[membership.source.Name()].Integer()
 		_, right := values[membership.target.Name()].Integer()
-		if !left || !right {
+		if (!left && !slices.Contains(pending, membership.source.Name())) || (!right && !slices.Contains(pending, membership.target.Name())) {
 			continue
 		}
 		var permission DeletionPermissions

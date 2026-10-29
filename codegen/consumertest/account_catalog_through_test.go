@@ -37,6 +37,11 @@ func TestGeneratedAccountCatalogThroughCreation(t *testing.T) {
 }
 
 func writeAccountCatalogThroughConsumer(t *testing.T, custom bool, kind string) string {
+	root, _ := writeAccountCatalogThroughConsumerWithSpec(t, custom, kind)
+	return root
+}
+
+func writeAccountCatalogThroughConsumerWithSpec(t *testing.T, custom bool, kind string) (string, codegen.ProjectSpec) {
 	t.Helper()
 	spec := accountBindingConsumerSpec(t, custom)
 	if custom {
@@ -110,5 +115,5 @@ func writeAccountCatalogThroughConsumer(t *testing.T, custom bool, kind string) 
 	}
 	writeGeneratedTestFile(t, root, "consumer/catalog_through_test.go", formatted)
 	writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
-	return root
+	return root, spec
 }

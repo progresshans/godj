@@ -58,9 +58,11 @@ Typed catalog target 생성과 실제 Group/Permission key를 계정·소속·ho
 해싱 전후의 독립 권한·복수 생성/삭제·공유 owner revision/감사/세션 및 최종 전체 행 검사를 연결했다. 새 소비자는 원격 검증 대상이다.
 선택 Group/Permission through도 일반 catalog의 scalar 정책과 실제 key 검증을 재사용한다. 새 catalog의 빈 자체 collection을
 nullable 물리 행까지 검사하며 생성/편집의 독립 권한·삭제/교체·종속 계정/session과 뒤 정책의 행 변조 소비자를 작성했다.
+일반·첫 계정 생성도 명시적 through 정책과 한도를 갖는다. 부모 key를 보류한 typed 입력·snapshot 밖 해싱과 실제 FK 결합,
+실제 첫 actor의 인가/감사·부모/자식/domain rollback과 선언 fingerprint v4의 소비자를 작성했다. 원격 수용은 미완료다.
 일반/UNIQUE·부분 공유·계정 생성/기존 계정과 native 대응표·rollback/unknown/재접속 소비자를 작성했으며 새 본문은 원격 확인 대상이다.
 역사 systemstate 전환은 남아 있다.
-나머지 nested collection의 identity through 생성·전환 대상의 through 수명·
+전환 대상의 through 수명·
 남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
 필수 목록에 연결했고 독립 OpenAPI 관리·자기 계정 소비자도 선택 runtime으로 전환했다. 새 본문의 원격 확인이 필요하다.
 C1의 성공을 사용자 정의 계정 지원의 완료로 사용하지 않는다.

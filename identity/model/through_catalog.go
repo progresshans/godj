@@ -19,7 +19,8 @@ import (
 // CatalogThroughConfig reuses the catalog's scalar creation policy. The actual
 // collection owner supplies both endpoint FKs, independently of WriteFields;
 // the factory cannot assign them, revision, keys, collections or file values.
-// Prepare is pure and bounded. Creation.Validate keeps CatalogValidator's
+// Prepare is pure and bounded; SourceKey is absent for an unsaved parent.
+// Creation.Validate keeps CatalogValidator's
 // actual-key contract and runs after the provisional INSERT, before commit.
 // RelatedPermissions covers direct membership changes caused by the new row;
 // the enclosing edit retains its independent deletion/change policies.
@@ -88,7 +89,11 @@ func newCatalogThroughCreation[M, C any](binding Binding[M], descriptor orm.Rela
 	if code != "" {
 		key = code
 	}
-	policy := &throughCreationState{project: project, role: binding.state.roleFingerprint, model: identity, identity: key}
+	declaration, err := prepareThroughDeclaration(identity, state.writeFields, state.permissions.add, config.RelatedPermissions, 0, false)
+	if err != nil {
+		return zero, err
+	}
+	policy := &throughCreationState{project: project, role: binding.state.roleFingerprint, model: identity, identity: key, declaration: declaration}
 	policy.endpoints = func(source, target string) error {
 		if source == target {
 			return managementError(CodeInvalidConfig, nil)
@@ -102,15 +107,16 @@ func newCatalogThroughCreation[M, C any](binding Binding[M], descriptor orm.Rela
 		return nil
 	}
 	policy.attach = func(owner any) (*throughCreationState, error) {
-		sessions, ok := owner.(*SessionStore[M])
-		if !ok || sessions == nil || sessions.state == nil {
+		store, ok := owner.(*CredentialStore[M])
+		if !ok || store == nil || store.state == nil {
 			return nil, managementError(CodeInvalidConfig, nil)
 		}
-		if err := sessions.state.credentials.valid(); err != nil {
+		if err := store.valid(); err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 		attached := *policy
 		attached.attach = nil
+		bindCatalogThroughDraft(&attached, state, role, overlay, config, memberships, owned)
 		err := bindTypedThroughInput(&attached, bound, state.resource.Manager(), overlay, state.permissions.add,
 			func(ctx context.Context, scope db.Queryer, pair ThroughEndpoints, _ auth.CredentialDomain) (*throughCandidate, error) {
 				input, err := config.Prepare(ctx, pair)
@@ -141,7 +147,7 @@ type catalogThroughCandidate[M any] struct {
 }
 
 func prepareCatalogThrough[M any](state *catalogModelState[M], policy *throughCreationState, role ir.AccountRole, overlay auth.Authorizer, related RelatedRowPermissions, memberships, owned []deletionMembership, input orm.ModelInput[M], pair ThroughEndpoints) (*throughCandidate, error) {
-	if len(input.Collections()) != 0 {
+	if !pair.sourcePresent || len(input.Collections()) != 0 {
 		return nil, managementError(CodeInvalidInput, nil)
 	}
 	resource := CatalogResource[M]{state: state}

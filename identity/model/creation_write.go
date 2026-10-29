@@ -63,6 +63,9 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 	if candidate == nil || candidate.form != nil || len(candidate.pendingFiles) != 0 || state.lifecycle == nil {
 		return zero, Creation{}, managementError(CodeInvalidInput, nil)
 	}
+	if err := candidate.through.check(ctx, scope, actor, operator); err != nil {
+		return zero, Creation{}, err
+	}
 	objects := state.binding.state.objects
 	row, err := objects.ApplyValues(candidate.row, nil)
 	if err != nil {
@@ -86,12 +89,22 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 	if err != nil || !present || !integer {
 		return zero, Creation{}, invalidAccountCredential()
 	}
+	writeActor := actor
+	pending, err := candidate.through.bind(ctx, scope, actor, id)
+	if err != nil {
+		return zero, Creation{}, err
+	}
 	var changes []orm.CollectionChange
 	for _, collection := range []struct {
+		field   string
 		keys    []int64
 		prepare func(M, []int64) (orm.CollectionChange, error)
-	}{{candidate.groups, state.groupsChange}, {candidate.permissions, state.permissionsChange}} {
+	}{{state.binding.state.role.Groups, candidate.groups, state.groupsChange}, {state.binding.state.role.Permissions, candidate.permissions, state.permissionsChange}} {
 		change, err := collection.prepare(row, collection.keys)
+		if err != nil {
+			return zero, Creation{}, err
+		}
+		change, err = state.bindCreationThrough(ctx, scope, actor, pending, collection.field, change)
 		if err != nil {
 			return zero, Creation{}, err
 		}
@@ -99,6 +112,10 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 	}
 	for _, collection := range state.collections {
 		change, err := collection.state.prepare(row, candidate.profile[collection.state.field.Name])
+		if err != nil {
+			return zero, Creation{}, err
+		}
+		change, err = state.bindCreationThrough(ctx, scope, actor, pending, collection.state.field.Name, change)
 		if err != nil {
 			return zero, Creation{}, err
 		}
@@ -116,6 +133,11 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 		return zero, Creation{}, err
 	}
 	effects := batch.Effects()
+	if pending != nil {
+		if err := pending.check(ctx, scope, actor, effects, true); err != nil {
+			return zero, Creation{}, err
+		}
+	}
 	plan, err := state.lifecycle.prepare(ctx, scope, actor, effects.Deletions(), effects.Insertions(), &lifecycleEdit{
 		key: deletionKey{state.binding.state.role.Model, id}, revision: 1, required: state.required,
 		fields: slices.Clone(state.auditFields), values: values, created: true, operator: operator, at: at,
@@ -170,6 +192,17 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 	}
 	if err := checkProfileCollections(ctx, scope, actor, ProfileRelationOrigin{operation: operation}, state.collections, checked.profile); err != nil {
 		return zero, Creation{}, err
+	}
+	if pending != nil && len(pending.ordered) != 0 {
+		verifiers, err := pending.finish(ctx, scope, writeActor, applied, state.config.Now())
+		if err != nil {
+			return zero, Creation{}, err
+		}
+		for _, verify := range verifiers {
+			if err := verify(ctx, scope); err != nil {
+				return zero, Creation{}, err
+			}
+		}
 	}
 	if err := plan.verify(ctx, scope); err != nil {
 		return zero, Creation{}, err

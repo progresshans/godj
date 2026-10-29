@@ -34,6 +34,7 @@ ISOLATED_ACCOUNT_ROOTS = (
     'TestGeneratedFirstAccountParentCustom',
     'TestGeneratedAccountRoleThroughCreation',
     'TestGeneratedAccountCatalogThroughCreation',
+    'TestGeneratedAccountRootThroughCreation',
 )
 PLATFORMS = (
     ('ubuntu-24.04', 'linux', 'amd64'),

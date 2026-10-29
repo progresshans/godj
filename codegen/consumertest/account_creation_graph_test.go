@@ -60,6 +60,11 @@ func accountThroughConsumerRequired() []string {
 }
 
 func writeAccountCreationGraphConsumer(t *testing.T, custom bool, kind string) string {
+	root, _ := writeAccountCreationGraphConsumerWithSpec(t, custom, kind)
+	return root
+}
+
+func writeAccountCreationGraphConsumerWithSpec(t *testing.T, custom bool, kind string) (string, codegen.ProjectSpec) {
 	t.Helper()
 	spec := accountBindingConsumerSpec(t, custom)
 	if custom {
@@ -151,5 +156,5 @@ func writeAccountCreationGraphConsumer(t *testing.T, custom bool, kind string) s
 	}
 	writeGeneratedTestFile(t, root, "consumer/through_collection_test.go", through)
 	writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
-	return root
+	return root, spec
 }

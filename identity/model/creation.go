@@ -37,6 +37,10 @@ type CreationPolicy[M any] struct {
 	Fields      []string
 	Relations   []ProfileRelation[M]
 	Collections []ProfileCollection[M]
+	// Each selected identity-through collection has its own creation owner.
+	// These are independent of an editor's through policies.
+	ThroughCreations     map[string]ThroughCreation
+	ThroughCreationLimit int
 	// RelatedPermissions governs selected-model effects of the collected creation graph.
 	RelatedPermissions RelatedRowPermissions
 	// Files configures selected file fields for CreateForm. Raw ModelInput
@@ -75,6 +79,7 @@ type creationState[M any] struct {
 	overlay   auth.Authorizer
 	required  []auth.Permission
 	lifecycle *deletionLifecycle[M]
+	through   map[string]*throughCreationState
 }
 
 type creationDefinition[M any] struct {
@@ -91,6 +96,7 @@ type creationDefinition[M any] struct {
 	forced                          map[string]query.Value
 	auditFields                     []string
 	groupsChange, permissionsChange func(M, []int64) (orm.CollectionChange, error)
+	throughDefinitions              map[string]*throughCreationState
 }
 
 func (Creator[M]) Format(state fmt.State, _ rune) {
@@ -144,7 +150,11 @@ func newCreationState[M, G, P, GL, PL any](store *CredentialStore[M], expected B
 	if err != nil {
 		return nil, err
 	}
-	return &creationState[M]{creationDefinition: definition, store: store, backend: backend}, nil
+	through, err := attachThroughDefinitions(store, definition.throughDefinitions)
+	if err != nil {
+		return nil, err
+	}
+	return &creationState[M]{creationDefinition: definition, store: store, backend: backend, through: through}, nil
 }
 
 func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups orm.ManyToMany[M, G, GL], permissions orm.ManyToMany[M, P, PL], hasher auth.PasswordHasher, config CreationPolicy[M], forced map[string]query.Value) (*creationDefinition[M], error) {
@@ -157,11 +167,13 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
-	// An omitted role collection starts empty. Merely using an identity as its
-	// through model must not prohibit scalar creation of that identity. Any
-	// selected collection still requires an actual supported storage owner;
-	// this does not grant nested identity creation to Creator/FirstAccount.
-	if err := validateAccountCollectionStorage(project, role, config.Fields); err != nil {
+	through, ordinary, err := prepareThroughDefinitions(binding, config.Fields, config.ThroughCreations, config.ThroughCreationLimit)
+	if err != nil {
+		return nil, err
+	}
+	// Omitted roles start empty; selected identity-through fields require their
+	// own explicit owner and never inherit an edit's creation permissions.
+	if err := validateAccountCollectionStorage(project, role, ordinary); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	for _, policy := range []*DeletionPermissions{&config.RelatedPermissions.Account, &config.RelatedPermissions.Group, &config.RelatedPermissions.Permission} {
@@ -260,7 +272,8 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 	config.Relations = nil
 	config.Collections = nil
 	config.Files = nil
-	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, collections: collections, files: files, dimensions: dimensions, config: config, forced: maps.Clone(forced), auditFields: auditFields}
+	config.ThroughCreations = nil
+	state := &creationDefinition[M]{binding: binding, hasher: hasher, metadata: metadata, fields: fields, allowed: allowed, relations: relations, collections: collections, files: files, dimensions: dimensions, config: config, forced: maps.Clone(forced), auditFields: auditFields, throughDefinitions: through}
 	state.groupsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return groups.SetKeysChange(row, keys) }
 	state.permissionsChange = func(row M, keys []int64) (orm.CollectionChange, error) { return permissions.SetKeysChange(row, keys) }
 	return state, nil
@@ -309,6 +322,7 @@ type creationCandidate[M any] struct {
 	form                *formmodel.BoundForm
 	pendingFiles        []string
 	stored              bool
+	through             *creationThroughPreparation
 }
 
 func (PreparedCreation[M]) Format(state fmt.State, _ rune) {
@@ -370,8 +384,14 @@ func (creator *Creator[M]) prepare(ctx context.Context, actor auth.Principal, in
 		return PreparedCreation[M]{}, nil, managementError(CodeInvalidConfig, err)
 	}
 	check := func(work context.Context, scope db.Queryer) error {
-		_, err := state.preflight(work, scope, actor, candidate, false)
-		return err
+		current, err := state.preflight(work, scope, actor, candidate, false)
+		if err != nil {
+			return err
+		}
+		if len(candidate.pendingFiles) != 0 {
+			return nil
+		}
+		return state.prepareCreationThrough(work, scope, current, namespace, candidate, false)
 	}
 	if err := creationSnapshot(ctx, state.store.state.backend, check); err != nil {
 		return PreparedCreation[M]{}, nil, err
@@ -390,6 +410,9 @@ func (creator *Creator[M]) prepare(ctx context.Context, actor auth.Principal, in
 	}
 	candidate.form = nil
 	if err := state.encodeCandidate(ctx, namespace, candidate); err != nil {
+		return PreparedCreation[M]{}, publications, err
+	}
+	if err := candidate.through.encode(ctx); err != nil {
 		return PreparedCreation[M]{}, publications, err
 	}
 	return PreparedCreation[M]{state: &preparedCreation[M]{owner: creator, actorID: actor.ID(), domain: namespace, input: candidate}}, publications, nil

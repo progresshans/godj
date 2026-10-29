@@ -43,10 +43,11 @@ type AccountManagementConfig[M any] struct {
 	CaseInsensitiveCreationLogin            bool
 	PrincipalID                             func(context.Context) (string, error)
 	Now                                     func() time.Time
-	// These policies apply to EditFields. Creation retains its separate root
-	// policy and does not silently reuse an edit's through-creation capability.
-	EditThroughCreations     map[string]ThroughCreation
-	EditThroughCreationLimit int
+	// Creation and editing never silently share through-creation capabilities.
+	CreateThroughCreations     map[string]ThroughCreation
+	CreateThroughCreationLimit int
+	EditThroughCreations       map[string]ThroughCreation
+	EditThroughCreationLimit   int
 }
 
 // AccountManagement composes real lifecycle owners over the exact same
@@ -101,7 +102,7 @@ func NewAccountManagement[M, G, P, GL, PL any](sessions *SessionStore[M], expect
 		return nil, err
 	}
 	creator, err := NewCreator(sessions, expected, memberships, grants, overlay, verifier.hasher, CreationConfig[M]{
-		CreationPolicy: CreationPolicy[M]{RelatedPermissions: RelatedRowPermissions{Account: DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}, Group: config.GroupPermissions, Permission: config.PermissionPermissions}, Fields: config.CreateFields, Relations: selectProfileRelations(relations, config.CreateFields), Collections: selectProfileCollections(collections, config.CreateFields), Files: selectProfileFiles(files, config.CreateFields), Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
+		CreationPolicy: CreationPolicy[M]{ThroughCreations: config.CreateThroughCreations, ThroughCreationLimit: config.CreateThroughCreationLimit, RelatedPermissions: RelatedRowPermissions{Account: DeletionPermissions{Delete: policy.Delete, Change: policy.Change, Additional: policy.Additional}, Group: config.GroupPermissions, Permission: config.PermissionPermissions}, Fields: config.CreateFields, Relations: selectProfileRelations(relations, config.CreateFields), Collections: selectProfileCollections(collections, config.CreateFields), Files: selectProfileFiles(files, config.CreateFields), Validate: config.ValidateCreate, ValidatePassword: config.ValidatePassword,
 			MaxPasswordBytes: config.MaxPasswordBytes, CaseInsensitiveLogin: config.CaseInsensitiveCreationLogin, PrincipalID: config.PrincipalID, Now: config.Now},
 		AddPermission: policy.Add, ChangePermission: policy.Change, AdditionalPermissions: policy.Additional,
 	})

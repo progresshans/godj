@@ -3160,6 +3160,40 @@ Source 18개와 정적 검사·실행 원본 receipt는 검증 보관소 `gdj013
 `0ddb3b1309fbeb947bafaa7621108101783c05c9e0e9e6e0d9cbebccb2f2b77a`다. 이전 실패의 source/원본 대조는 같은 보관소
 `prior-failure-diagnosis.json`에 연결했으며 SHA-256은 `b791ee6716577ef794a5d455c802e769158c0afdd7a41c928c8baaf8726b588d`다.
 
+### 일반·첫 계정 생성의 through 준비와 실제 부모 FK
+
+2026-10-30, source `ad6045aacf5b57ccddc4cf20d8505397909d2974` 위에서 Creator/FirstAccount와 순수 명령 선언에 별도
+through 생성 정책·총량 한도를 연결했다. 부모 key는 typed 행의 임시 0으로 만들지 않고 private intent에서 보류한다.
+`SourceKey()`의 presence는 실제 0/음수와 미저장을 구분한다. Snapshot의 현재 권한 또는 첫 operator freshness와
+입력·서버 기본값을 준비하고 scope 종료 뒤 부모/자식을 해싱한다. 실제 부모 INSERT 뒤 완전한 model/password 정책과
+관련 권한·native 제약·생성/감사·최종 full payload를 확인한다. 첫 actor를 준비 중 위조하지 않으며 actual key/domain이
+생긴 뒤 through 권한과 감사를 확인한다. 첫 선언 fingerprint v4에는 through 정책과 한도를 포함했다.
+
+새 root는 기본/custom × Account/Group/Permission 여섯 schema 변형을 사용한다. 각 변형·DB마다 일반/첫 생성 19개씩과
+부모 root를 포함한 41개 내부 필수 경로를 요구한다. Empty selection, 한도/endpoint 덮어쓰기, 생성·관련 grant 거부/회수,
+snapshot cleanup·부모/자식 해싱 실패·최종 validator/payload 변조·rollback/unknown·signed target·재접속/한 번만 commit을
+포함한다. PostgreSQL `generated_source_key`는 격리된 native identity sequence가 실제 부모 key 0과 후속 음수를 반환하게
+하며 SQLite는 자기 native 생성 key를 대조한다. First 실패는 계정/catalog/audit 전체 행과 domain 부재를 대조한다.
+새 root는 양 DB의 별도 consumer owner 및 기존 관계 계정 분리 좌표의 독립 owner에 연결했다. 실행 본문은 미확인이다.
+
+선행 [CI 40930070829](https://github.com/progresshans/godj/actions/runs/40930070829), attempt 1의 PostgreSQL normal
+through 작업 `123646824829`에서 catalog 외부 소비자의 `validation.New(name, ...)`가 `validation.Field` 대신 string을
+전달하여 compile에 실패했다. 기본/custom 네 schema × 양 DB 모두 본문 전에 실패했고 명시적 `validation.Field(name)`
+변환으로 수정했다. 같은 작업의 계정 profile/role through root는 각각 82.32·148.84초로 통과했지만 catalog나 전체 CI의
+성공은 아니다. 수정된 source와 새 부모 생성 경로의 타입/본문 검증은 다음 원격 실행에서 확인한다.
+실제 checkout `7f9a9fd45d8a1b0b984859c6d494353a83aca349`의 tree `7160cd82600bf611683f8fd3a5db06e1ff4e94ca`는
+제출 `ad6045aa`와 같다. Artifact `12924095307` ZIP SHA-256은
+`c4d3021fdf19029d464b6de36cba94ab010680bf7617fe9cea6c0fb73bbf1482`로 GitHub metadata와 일치하고,
+parent 원본 SHA-256은 `f2271526823bdb55d065815c311202f6bba3795e71f184bf891ef3629bbe9574`다.
+
+CI 실행 도구 검사 41개(95.287초), Go 파일 15개의 포맷·세 template 및 두 policy 조립의 치환 문법·새 내부 필수 사례 일치,
+245개 문서의 링크와 diff 검사가 통과했다. Relation 필수 항목은 4,713→4,728, PostgreSQL은 5,781→5,802이며 Portable
+293개와 모든 기존 항목을 유지했다. 로컬 compile 중단은 유지했으며 실제 생성·Go 타입 검사·DB 본문·race/platform·
+새 경로의 외부 CLI/HTTP 수용은 이 정적 검사에 포함하지 않는다. I1 전체 수용은 미완료다.
+Source 29개와 검사 원본 receipt는 검증 보관소 `gdj0138-root-through-v1/receipt-final.json`에 있고 SHA-256은
+`927bc23166c4e782d96ba751f67af201180b2ef4ae921bdac8b9761d85e0b34a`다. 같은 보관소 `prior-failure-diagnosis.json`의
+SHA-256은 `6ddabe05a13eb5bff146bce5eb1a636d2b5f06639ad22de5b738f08799f93bb9`다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

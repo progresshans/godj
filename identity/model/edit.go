@@ -160,7 +160,7 @@ func NewAccountEditor[M, G, P, GL, PL any](sessionStore *SessionStore[M], expect
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
 	role, project := binding.state.role, binding.state.project
-	through, storageFields, err := prepareThroughCreations(sessionStore, config.Fields, config.ThroughCreations, config.ThroughCreationLimit)
+	through, storageFields, err := prepareThroughCreations(store, config.Fields, config.ThroughCreations, config.ThroughCreationLimit)
 	if err != nil {
 		return nil, err
 	}

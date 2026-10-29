@@ -27,7 +27,8 @@
    추가한 collection 읽기 관측·최종 topology 재검사와 선택 계정의 그룹·직접 권한·추가 프로필 through 생성/편집을 원격 검증한다.
    해싱 전후 인가·복수 생성·삭제·공유 소속의 revision/감사/세션, 생성 정책과 편집 정책의 독립 권한을 포함한다.
    선택 Group/Permission의 through 생성과 실제 key 검증·빈 자체 소속·삭제/교체·종속 계정/session rollback을 원격 검증한다.
-   나머지 nested through·전환 수명을 연결하고 역사 systemstate 이행·고정 Directory/Manager 소비자도 완성한다.
+   일반·첫 계정 생성의 보류한 부모 FK·범위 밖 해싱·실제 key 결합과 권한/원자성·선언 fingerprint v4를 원격 검증한다.
+   전환의 through 수명을 연결하고 역사 systemstate 이행·고정 Directory/Manager 소비자도 완성한다.
 
 ## 검증 경계
 

@@ -180,7 +180,7 @@ func TestCatalogThroughCreation(t *testing.T) {
 						return validation.Errors{}, errors.New("catalog validator lost actual inserted candidate")
 					}
 					if mode == "late_validator" {
-						return validation.NewErrors(validation.New(name, "late_refusal")), nil
+						return validation.NewErrors(validation.New(validation.Field(name), "late_refusal")), nil
 					}
 					if !lateMutation && (mode == "late_payload" || mode == "late_owned_link") {
 						lateMutation = true
@@ -202,7 +202,8 @@ func TestCatalogThroughCreation(t *testing.T) {
 				}}, RelatedPermissions: related,
 				Prepare: func(_ context.Context, pair accountmodel.ThroughEndpoints) (orm.ModelInput[@@THROUGH@@], error) {
 					preparedCount++
-					if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_owner" || pair.TargetField() != "link_target" || pair.SourceKey() != boot.Account.ID {
+					sourceKey, sourcePresent := pair.SourceKey()
+					if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_owner" || pair.TargetField() != "link_target" || !sourcePresent || sourceKey != boot.Account.ID {
 						return orm.ModelInput[@@THROUGH@@]{}, errors.New("catalog factory lost actual read endpoints")
 					}
 					identity := fmt.Sprintf("created.grant%d", pair.TargetKey())
@@ -218,7 +219,7 @@ func TestCatalogThroughCreation(t *testing.T) {
 					}
 					switch mode {
 					case "endpoint":
-						values["link_owner"] = query.Integer(pair.SourceKey())
+						values["link_owner"] = query.Integer(sourceKey)
 					case "revision":
 						values[revision] = query.Integer(99)
 					case "invalid_code":

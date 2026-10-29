@@ -567,7 +567,13 @@ code/unique 정책을 재사용하고 실제 key를 받은 뒤 custom 검증을 
 네 외부 변형에 생성·no-op·삭제/교체와 identity 재사용·종속 계정/session·rollback/unknown·뒤늦은 행/NULL 링크 변조와
 restart 소비자를 작성했다. 코드와 필수 실행 연결을 실제 generated/native·양 DB·platform 수용으로 계산하지 않는다.
 
-공유 물리 through 전환과 계정/catalog through 편집의 실제 검증, 나머지 nested 생성/전환 수명과 역사 `systemstate` 가져오기,
+일반 Creator와 FirstAccount/순수 명령 선언에도 별도 through 생성 정책과 한도를 연결했다. 저장 전 부모 key는 absent로
+표현하고 실제 0/음수와 구분한다. Scalar/서버 기본값을 준비하되 typed 행과 완전한 model/password 정책은 실제 FK를
+받은 fence에서 적용한다. 부모·자식 해싱은 snapshot 종료 후 수행하고 첫 operator는 실제 첫 INSERT 뒤의 actor로
+through 권한·감사를 확인한다. 첫 선언 fingerprint v4에 through 정책/한도를 포함했다. 기본/custom × account/Group/
+Permission 여섯 변형의 일반·첫 생성과 실패/재접속 소비자를 작성했으며 generated/native 실행은 원격 확인 대상이다.
+
+공유 물리 through 전환과 계정/catalog through 편집·생성의 실제 검증, 전환 수명과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

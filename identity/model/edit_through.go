@@ -11,13 +11,38 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func prepareThroughCreations[M any](sessions *SessionStore[M], fields []string, configured map[string]ThroughCreation, limit int) (map[string]*throughCreationState, []string, error) {
+func attachThroughDefinitions[M any](store *CredentialStore[M], definitions map[string]*throughCreationState) (map[string]*throughCreationState, error) {
+	result := make(map[string]*throughCreationState, len(definitions))
+	attached := make(map[*throughCreationState]*throughCreationState)
+	for name, policy := range definitions {
+		if bound := attached[policy]; bound != nil {
+			result[name] = bound
+			continue
+		}
+		bound, err := policy.attach(store)
+		if err != nil {
+			return nil, err
+		}
+		result[name] = bound
+		attached[policy] = bound
+	}
+	return result, nil
+}
+
+func prepareThroughCreations[M any](store *CredentialStore[M], fields []string, configured map[string]ThroughCreation, limit int) (map[string]*throughCreationState, []string, error) {
+	definitions, ordinary, err := prepareThroughDefinitions(store.state.binding, fields, configured, limit)
+	if err != nil {
+		return nil, nil, err
+	}
+	attached, err := attachThroughDefinitions(store, definitions)
+	return attached, ordinary, err
+}
+
+func prepareThroughDefinitions[M any](binding Binding[M], fields []string, configured map[string]ThroughCreation, limit int) (map[string]*throughCreationState, []string, error) {
 	var ordinary []string
 	if len(configured) == 0 && limit != 0 || len(configured) != 0 && (limit < 1 || limit > MaximumThroughCreations) {
 		return nil, nil, managementError(CodeInvalidConfig, nil)
 	}
-	store := sessions.state.credentials
-	binding := store.state.binding
 	source, err := binding.state.project.SourceSHA256()
 	if err != nil {
 		return nil, nil, err
@@ -44,11 +69,7 @@ func prepareThroughCreations[M any](sessions *SessionStore[M], fields []string, 
 		if !matched {
 			return nil, nil, managementError(CodeInvalidConfig, nil)
 		}
-		bound, err := policy.attach(sessions)
-		if err != nil {
-			return nil, nil, err
-		}
-		result[name] = bound
+		result[name] = policy
 	}
 	for _, name := range fields {
 		if result[name] == nil {

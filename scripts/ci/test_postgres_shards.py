@@ -7,7 +7,7 @@ import unittest
 
 from postgres_shards import (
     ACCOUNT_CONSUMER_ROOTS, ALL_PACKAGES, CONSUMERS, FRAMEWORK, HELPDESK_POSTGRES_ROOTS, MODULE, POSTGRES,
-    PROCESSES, PROFILE_CONSUMER_ROOTS, RACE_PARTITIONS, THROUGH_CONSUMER_ROOTS, TRANSITION_CONSUMER_OWNERS, WRITE_CONSUMER_ROOTS, audit, matches, partitions,
+    PROCESSES, PROFILE_CONSUMER_ROOTS, RACE_PARTITIONS, THROUGH_CONSUMER_ROOTS, ISOLATED_ACCOUNT_CONSUMER_OWNERS, WRITE_CONSUMER_ROOTS, audit, matches, partitions,
     plan, required_entries,
 )
 
@@ -21,7 +21,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
-        self.assertEqual(34, result['core_coordinates'])
+        self.assertEqual(37, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assert_nonconsumer_core(mode, self.required)
             self.assertEqual(list((*FRAMEWORK, *POSTGRES, *PROCESSES)), plan(mode, 'core', self.required)['packages'])
@@ -155,13 +155,13 @@ class PostgreSQLPartitionTests(unittest.TestCase):
             self.assertFalse(set(expected) & set(reads))
 
     def test_selected_account_roots_and_future_children_have_their_own_owner_in_each_mode(self):
-        transition_roots = set(TRANSITION_CONSUMER_OWNERS)
-        self.assertFalse((ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS | transition_roots) & WRITE_CONSUMER_ROOTS)
-        self.assertFalse((ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS) & transition_roots)
+        isolated_roots = set(ISOLATED_ACCOUNT_CONSUMER_OWNERS)
+        self.assertFalse((ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS | isolated_roots) & WRITE_CONSUMER_ROOTS)
+        self.assertFalse((ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS) & isolated_roots)
         self.assertFalse(ACCOUNT_CONSUMER_ROOTS & PROFILE_CONSUMER_ROOTS)
-        self.assertFalse(THROUGH_CONSUMER_ROOTS & (ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS | transition_roots | WRITE_CONSUMER_ROOTS))
-        for root in ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS | transition_roots | THROUGH_CONSUMER_ROOTS:
-            owner = TRANSITION_CONSUMER_OWNERS.get(root, 'core-account-through' if root in THROUGH_CONSUMER_ROOTS else 'core-account-profiles' if root in PROFILE_CONSUMER_ROOTS else 'core-account-consumers')
+        self.assertFalse(THROUGH_CONSUMER_ROOTS & (ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS | isolated_roots | WRITE_CONSUMER_ROOTS))
+        for root in ACCOUNT_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS | isolated_roots | THROUGH_CONSUMER_ROOTS:
+            owner = ISOLATED_ACCOUNT_CONSUMER_OWNERS.get(root, 'core-account-through' if root in THROUGH_CONSUMER_ROOTS else 'core-account-profiles' if root in PROFILE_CONSUMER_ROOTS else 'core-account-consumers')
             prefix = MODULE + 'codegen/consumertest|' + root
             expected = [entry for entry in self.required if entry == prefix or entry.startswith(prefix + '/')]
             self.assertTrue(expected)

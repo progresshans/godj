@@ -29,75 +29,11 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 			return nil, managementError(CodeInvalidInput, err)
 		}
 	}
-	metadata, valid := input.Model()
-	if !valid || !metadata.Equal(state.metadata) {
-		return nil, managementError(CodeInvalidInput, nil)
-	}
-	if key, bound := input.TargetKey(); bound && !key.IsNull() {
-		return nil, managementError(CodeInvalidInput, nil)
-	}
-	values := input.Values()
-	for name := range values {
-		field, found := namedField(state.metadata, name)
-		allowed := state.allowed[name] || form != nil && state.allowed[state.dimensions[name]]
-		if !found || !allowed || form == nil && (field.Kind.IsFile() || state.dimensions[name] != "") {
-			return nil, managementError(CodeInvalidInput, nil)
-		}
-	}
-	binding := state.store.state.binding
-	role := binding.state.role
-	if _, selected := values[role.Login]; !selected {
-		return nil, profileInputError(role.Login, "required")
-	}
-	if err := normalizeAccountInput(metadata, role, values); err != nil {
-		return nil, err
-	}
-	collections := input.Collections()
-	if err := normalizeAccountCollections(role, state.allowed, state.collections, collections); err != nil {
-		return nil, err
-	}
-	for name, value := range state.forced {
-		values[name] = value
-	}
-	initial, err := orm.InitialModelValues(metadata)
+	values, collections, err := state.prepareCreationValues(ctx, input, form != nil, pendingFiles, nil)
 	if err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
+		return nil, err
 	}
-	for name, value := range values {
-		initial[name] = value
-	}
-	// Validate incomplete required profile state before calling a server source.
-	// Excluded defaults remain actual IR defaults, never fabricated Go zeroes.
-	for _, field := range metadata.Fields {
-		if field.PrimaryKey || field.Name == role.PrincipalID || field.Name == role.Password || field.Name == role.Revision || field.Name == role.CreatedAt || field.Name == role.LastLogin || slices.Contains(pendingFiles, field.Name) {
-			continue
-		}
-		value := initial[field.Name]
-		if value.IsNull() && !field.Nullable {
-			return nil, profileInputError(field.Name, "required")
-		}
-		if text, ok := value.String(); ok && text == "" && !field.Blank && !field.NonEditable {
-			return nil, profileInputError(field.Name, "required")
-		}
-	}
-	principalID, err := state.config.PrincipalID(ctx)
-	if err = errors.Join(err, ctx.Err()); err != nil {
-		return nil, managementError(CodePersistence, err)
-	}
-	if _, err := auth.NewPrincipal(auth.PrincipalConfig{ID: principalID}); err != nil {
-		return nil, managementError(CodeInvalidConfig, err)
-	}
-	values[role.PrincipalID], values[role.Password], values[role.Revision] = query.String(principalID), query.String("!"), query.Integer(1)
-	if role.LastLogin != "" {
-		values[role.LastLogin] = query.Null()
-	}
-	if role.CreatedAt != "" {
-		now := state.config.Now().UTC().Truncate(time.Microsecond)
-		if now.IsZero() || now.Year() < 1 || now.Year() > 9999 {
-			return nil, managementError(CodeInvalidConfig, nil)
-		}
-		values[role.CreatedAt] = query.DateTime(now)
-	}
+	binding, metadata, role := state.binding, state.metadata, state.binding.state.role
 	prepared, err := binding.state.objects.PrepareValues(nil, values)
 	if err != nil {
 		return nil, managementError(CodeInvalidInput, err)
@@ -113,6 +49,88 @@ func (state *creationState[M]) prepareInput(ctx context.Context, input orm.Model
 		}
 	}
 	return &creationCandidate[M]{prepared: prepared, row: row, groups: collections[role.Groups], permissions: collections[role.Permissions], profile: profile, form: form, pendingFiles: pendingFiles}, nil
+}
+
+// prepareCreationValues owns scalar presence, normalization and server defaults.
+// Deferred fields stay absent in this private intent map until their real FK
+// keys exist. It never builds a typed row with a fabricated zero-valued key.
+func (state *creationDefinition[M]) prepareCreationValues(ctx context.Context, input orm.ModelInput[M], fromForm bool, pendingFiles []string, deferred map[string]bool) (map[string]query.Value, map[string][]int64, error) {
+	for name := range deferred {
+		field, found := namedField(state.metadata, name)
+		if !found || field.Relation == nil || field.PrimaryKey || !state.allowed[name] {
+			return nil, nil, managementError(CodeInvalidConfig, nil)
+		}
+	}
+	metadata, valid := input.Model()
+	if !valid || !metadata.Equal(state.metadata) {
+		return nil, nil, managementError(CodeInvalidInput, nil)
+	}
+	if key, bound := input.TargetKey(); bound && !key.IsNull() {
+		return nil, nil, managementError(CodeInvalidInput, nil)
+	}
+	values := input.Values()
+	for name := range values {
+		field, found := namedField(state.metadata, name)
+		allowed := state.allowed[name] || fromForm && state.allowed[state.dimensions[name]]
+		if !found || !allowed || deferred[name] || !fromForm && (field.Kind.IsFile() || state.dimensions[name] != "") {
+			return nil, nil, managementError(CodeInvalidInput, nil)
+		}
+	}
+	binding := state.binding
+	role := binding.state.role
+	if _, selected := values[role.Login]; !selected {
+		return nil, nil, profileInputError(role.Login, "required")
+	}
+	if err := normalizeAccountInput(metadata, role, values); err != nil {
+		return nil, nil, err
+	}
+	collections := input.Collections()
+	if err := normalizeAccountCollections(role, state.allowed, state.collections, collections); err != nil {
+		return nil, nil, err
+	}
+	for name, value := range state.forced {
+		values[name] = value
+	}
+	initial, err := orm.InitialModelValues(metadata)
+	if err != nil {
+		return nil, nil, managementError(CodeInvalidConfig, err)
+	}
+	for name, value := range values {
+		initial[name] = value
+	}
+	// Validate incomplete required profile state before calling a server source.
+	// Excluded defaults remain actual IR defaults, never fabricated Go zeroes.
+	for _, field := range metadata.Fields {
+		if field.PrimaryKey || field.Name == role.PrincipalID || field.Name == role.Password || field.Name == role.Revision || field.Name == role.CreatedAt || field.Name == role.LastLogin || slices.Contains(pendingFiles, field.Name) || deferred[field.Name] {
+			continue
+		}
+		value := initial[field.Name]
+		if value.IsNull() && !field.Nullable {
+			return nil, nil, profileInputError(field.Name, "required")
+		}
+		if text, ok := value.String(); ok && text == "" && !field.Blank && !field.NonEditable {
+			return nil, nil, profileInputError(field.Name, "required")
+		}
+	}
+	principalID, err := state.config.PrincipalID(ctx)
+	if err = errors.Join(err, ctx.Err()); err != nil {
+		return nil, nil, managementError(CodePersistence, err)
+	}
+	if _, err := auth.NewPrincipal(auth.PrincipalConfig{ID: principalID}); err != nil {
+		return nil, nil, managementError(CodeInvalidConfig, err)
+	}
+	values[role.PrincipalID], values[role.Password], values[role.Revision] = query.String(principalID), query.String("!"), query.Integer(1)
+	if role.LastLogin != "" {
+		values[role.LastLogin] = query.Null()
+	}
+	if role.CreatedAt != "" {
+		now := state.config.Now().UTC().Truncate(time.Microsecond)
+		if now.IsZero() || now.Year() < 1 || now.Year() > 9999 {
+			return nil, nil, managementError(CodeInvalidConfig, nil)
+		}
+		values[role.CreatedAt] = query.DateTime(now)
+	}
+	return values, collections, nil
 }
 
 func (state *creationState[M]) preflight(ctx context.Context, scope db.Queryer, actor auth.Principal, candidate *creationCandidate[M], encoded bool) (auth.Principal, error) {

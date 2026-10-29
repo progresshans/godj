@@ -1432,7 +1432,7 @@ session·한 번 Apply·native 실제 key·전체 typed row readback·외부 rol
 경로에는 관측 전용 incoming edge 사본을 추가로 보관하지 않는다.
 
 이 기반만으로 선택 계정/catalog을 생성할 권한을 얻지 않는다. 선택 계정의 역할·추가 프로필 through 편집은 다음 명시적
-생성 정책을 결합한다. Catalog through 편집도 아래의 별도 typed 생성 정책을 사용하며 나머지 생성/전환 조립은 I1의 후속 구현이다.
+생성 정책을 결합한다. Catalog와 일반/첫 계정 생성의 through도 아래의 명시적 정책을 사용하며 전환 조립은 I1의 후속 구현이다.
 
 ### 선택 계정 through의 명시적 생성과 편집
 
@@ -1446,7 +1446,7 @@ Fields/Relations에 포함해야 한다. 정책이 없거나 다른 source/model
 Password 또는 Unusable을 사용하며 자체 M2M은 비어 있다. Nested collection과 파일 게시를 허용하지 않는다.
 Creator/FirstAccount/through 생성 선언은 실제 선택한 필드의 저장 가능 여부를 검사한다. 입력받지 않는 역할 collection이
 identity through를 쓴다는 사실만으로 scalar 계정 생성을 금지하지 않으며, 새 계정의 생략한 역할은 빈 집합이다.
-그 역할 collection을 생성 Fields에 선택하면 명시적 nested 생성 owner가 없는 경로는 여전히 구성 단계에서 거부한다.
+그 역할 collection을 생성 Fields에 선택하면 아래의 명시적 생성 owner가 없는 경로는 구성 단계에서 거부한다.
 Factory는 실제 누락된 물리 pair의 field/key만 받고 DB 재진입·해싱·외부 효과를 수행하지 않는다. Endpoint FK는 서버가
 설정하고 동일 값의 중복 입력도 거부한다. 기존 retained pair는 factory·해싱·생성 감사 없이 유지한다. 양수 생성 한도는
 요청 전체의 누락 pair 수를 제한하며 필드별 collection 한도와 독립적으로 적용한다.
@@ -1467,7 +1467,7 @@ revision을 한 번만 올리고 직접 효과에만 감사한다. 삭제에 따
 
 `orm.WithCollectionThroughInput`은 같은 전체 source·실제 typed through model에만 scalar 후보를 다시 결합한다.
 공통 ORM은 선택/endpoint/삭제 그래프와 실제 결과를 소유하고 계정 owner는 권한·revision·해싱·감사·세션을 소유한다.
-이 조립은 일반 계정 생성/첫 계정의 nested identity 생성, 모델 전환의 through 생성을 완료한 것이 아니다.
+편집 경로만으로 모델 전환의 through 생성을 완료한 것이 아니다. 일반/첫 계정 생성은 아래의 별도 준비 경로를 사용한다.
 구현과 generated/native·양 DB·platform 수용은 TEST_EVIDENCE에서 구분한다.
 
 ### 선택 catalog through의 생성 정책
@@ -1488,7 +1488,35 @@ topology·후보를 다시 검사한다. 편집기의 삭제/변경 권한과 �
 검사하므로 nullable target을 가진 예상 밖 링크도 허용하지 않는다. Callback·감사 뒤에도 이 inventory와 전체 삽입 행을
 재검사한다. 생성 감사는 catalog의 scalar 필드와 두 endpoint를 포함한다. 기존 account/catalog 소속의 단일 revision·
 직접 감사, 삭제 그래프의 종속 계정과 session 폐기·감사는 같은 transaction에 남으며 rollback/unknown 결과는 성공으로
-게시하지 않는다. 이 지원은 계정 편집 collection의 through 생성이며 nested 생성과 모델 전환의 생성은 계속 별도 작업이다.
+게시하지 않는다. 모델 전환의 through 생성은 계속 별도 작업이다.
+
+### 일반·첫 계정 생성의 미정 부모 key
+
+`CreationPolicy.ThroughCreations`/`ThroughCreationLimit`과 관리 조립의 `CreateThroughCreations`는 편집 정책과 별도로
+선택한다. `FirstAccountDefinition`도 같은 순수 선언을 검사하고 Bind할 때 자기 CredentialStore에만 연결한다.
+선언 fingerprint v4는 필드별 through policy의 모델·scalar 필드·필수 권한/관련 권한·password 한도/정책과 전체 생성 한도를
+포함한다. 임의 callback/hasher의 동작은 기존대로 host의 EvidenceSHA256이 식별한다.
+
+읽기 준비 때 부모는 아직 저장되지 않았다. `ThroughEndpoints.SourceKey()`는 `(key, present)`를 반환하고 이때 present는
+false다. 실제 key 0/음수는 true로 구분한다. Factory는 존재하는 target key와 endpoint 필드를 받아 순수 typed 입력만 만든다.
+서버 principal/시각·scalar 기본값·입력 허용 범위를 같은 생성 준비에서 적용하되 부모 FK는 private intent에서 보류한다.
+임시 key를 넣은 typed 모델은 만들지 않는다. 전체 typed model/관계/unique/password callback은 실제 부모 key를 받은
+최종 fence에서 실행하고, 새 계정은 실제 자식 INSERT 뒤에도 같은 정책을 다시 확인한다. Catalog callback은 기존대로
+자신의 실제 key를 받은 뒤 실행한다. 보류한 후보에서도 password 크기·명시적 unusable·정규화·필수 scalar와 입력 출처는
+해싱 전에 검사하며, 완전한 모델이 필요한 password 정책은 해싱 후 실제 FK를 결합한 후보에 적용된다.
+
+일반 생성은 같은 snapshot의 현재 actor와 생성/관련 권한을 확인한 뒤 모든 snapshot을 닫고 부모와 자식을 해싱한다.
+첫 계정은 기존 operator 선언과 정확한 새 domain/빈 account 확인이 이 단계의 권한이다. 준비 중 가짜 authenticated actor를
+만들지 않는다. Commit은 freshness 또는 현재 actor를 다시 확인하고 provisional 부모 INSERT 후 실제 actor/key로 모든
+through grant·deny overlay와 typed 후보를 검증한다. DB의 unique/FK 제약은 그대로 적용한다.
+
+전체 collection 수집·삭제/NULL·삽입·기존 owner revision·부모와 자식 감사·세션/도메인은 같은 transaction이다. 준비된 pair를
+retained/no-op 행으로 대체해 다른 identity를 채택하지 않으며 실제 삽입 수와 full typed payload를 마지막 정책 뒤 대조한다.
+같은 policy의 같은 physical pair를 여러 필드가 공유하면 한 번 준비/해싱한다. 한도 초과·준비 cleanup·해싱 실패에는 쓰기를
+시작하지 않는다. 이는 DB 쓰기 경계이며 파일 publication은 기존 별도 수명/정리 계약을 유지한다.
+최종 거부/rollback은 부모·자식·첫 domain도 남기지 않고 unknown에는 성공 metadata를 게시하지 않는다.
+한 prepared operation은 모든 사본에서 한 번만 시도한다. Through factory 자체의 collection/파일 입력은 여전히 명시적으로
+거부하며, 이 경로는 root의 선택 collection을 채우는 생성이다. 모델 전환과 환경별 제품 수용은 별도 확인 대상이다.
 
 ### 공개 첫 명령의 collection 입력
 
