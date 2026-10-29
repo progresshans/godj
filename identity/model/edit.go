@@ -24,8 +24,9 @@ import (
 // copies, and diagnostic formatting never prints membership keys.
 type AccountMemberships struct{ state *accountMembershipState }
 type accountMembershipState struct {
-	groups, permissions []int64
-	profile             map[string][]int64
+	groups, permissions               []int64
+	profile                           map[string][]int64
+	pendingGroups, pendingPermissions bool
 }
 
 func (AccountMemberships) Format(state fmt.State, _ rune) {
@@ -42,6 +43,17 @@ func (selection AccountMemberships) Permissions() []int64 {
 		return nil
 	}
 	return slices.Clone(selection.state.permissions)
+}
+
+// PendingCatalogKeys distinguishes unresolved generated catalog identities
+// from a known empty membership. Transition review can have pending keys;
+// final fenced validation always receives actual allocated keys. Pending
+// namespaces return no keys from Groups/Permissions, never guessed IDs.
+func (selection AccountMemberships) PendingCatalogKeys() (groups, permissions bool) {
+	if selection.state == nil {
+		return false, false
+	}
+	return selection.state.pendingGroups, selection.state.pendingPermissions
 }
 
 // Collection returns a detached complete proposed profile membership. False
@@ -564,7 +576,7 @@ func (state *accountEditState[M]) validateCandidate(ctx context.Context, scope d
 	if err != nil {
 		return err
 	}
-	selection := AccountMemberships{state: &accountMembershipState{slices.Clone(groups), slices.Clone(permissions), profile}}
+	selection := AccountMemberships{state: &accountMembershipState{groups: slices.Clone(groups), permissions: slices.Clone(permissions), profile: profile}}
 	diagnostics, err := state.validate(ctx, scope, ownedCurrent, ownedCandidate, selection)
 	if err := errors.Join(err, ctx.Err(), validator.ValidateSession(ctx)); err != nil {
 		return err

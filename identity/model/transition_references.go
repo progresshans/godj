@@ -100,8 +100,10 @@ type transitionReferenceObservation struct {
 }
 
 type transitionReferenceApplied struct {
-	changed int
-	verify  func(context.Context, db.Queryer) error
+	changed      int
+	bytes        int
+	verify       func(context.Context, db.Queryer) error
+	verifyPolicy func(context.Context, db.Queryer) error
 }
 
 type transitionReferenceRow[H any] struct {
@@ -434,7 +436,13 @@ func applyTransitionReferenceRows[H any](ctx context.Context, scope db.Session, 
 		final[i] = transitionReferenceRow[H]{row: candidate, id: row.id, values: values}
 	}
 	changed := 0
+	budget := &transitionDigestWriter{hash: sha256.New()}
+	budget.part([]byte("godj.account-transition-references.v1"))
+	budget.part([]byte(operation))
 	for i, candidate := range prepared {
+		if err := writeTransitionRow(budget, transitionRow[H]{values: final[i].values}); err != nil {
+			return zero, err
+		}
 		fields := slices.DeleteFunc(candidate.ChangedFields(), func(name string) bool { return name == config.RevisionField })
 		if len(fields) == 0 {
 			continue
@@ -451,10 +459,7 @@ func applyTransitionReferenceRows[H any](ctx context.Context, scope db.Session, 
 		}
 		changed++
 	}
-	verify := func(ctx context.Context, scope db.Queryer) error {
-		if err := verifyTransitionReferenceRows(ctx, scope, objects, config.MaxRows, operation, final); err != nil {
-			return err
-		}
+	verifyPolicy := func(ctx context.Context, scope db.Queryer) error {
 		for i, row := range final {
 			if err := check(ctx, scope, rows[i].row, row.row); err != nil {
 				return err
@@ -462,10 +467,16 @@ func applyTransitionReferenceRows[H any](ctx context.Context, scope db.Session, 
 		}
 		return nil
 	}
+	verify := func(ctx context.Context, scope db.Queryer) error {
+		return verifyTransitionReferenceRows(ctx, scope, objects, config.MaxRows, operation, final)
+	}
+	if err := verifyPolicy(ctx, scope); err != nil {
+		return zero, err
+	}
 	if err := verify(ctx, scope); err != nil {
 		return zero, err
 	}
-	return transitionReferenceApplied{changed: changed, verify: verify}, nil
+	return transitionReferenceApplied{changed: changed, bytes: budget.size, verify: verify, verifyPolicy: verifyPolicy}, nil
 }
 
 func transitionReferenceManifests(observations []transitionReferenceObservation) []TransitionReferenceManifest {

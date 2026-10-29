@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -333,7 +334,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 // Each generated model variant runs the same complete HTTP/native consumer on
 // every configured backend. A required PostgreSQL job cannot silently omit it.
 // The child selects a real isolated database and asserts its native type.
-func runAccountConsumerDatabases(t *testing.T, root string, required []string) {
+func runAccountConsumerDatabases(t *testing.T, root string, required []string, rootTests ...string) {
 	t.Helper()
 	vendors := []string{"sqlite"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" || os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
@@ -341,7 +342,15 @@ func runAccountConsumerDatabases(t *testing.T, root string, required []string) {
 	}
 	for _, vendor := range vendors {
 		t.Run(vendor, func(t *testing.T) {
-			command := generatedGoCommand(t.Context(), root, "test", "-mod=mod", "-json", "-count=1", "./consumer")
+			arguments := []string{"test", "-mod=mod", "-json", "-count=1"}
+			if len(rootTests) != 0 {
+				patterns := make([]string, len(rootTests))
+				for i, name := range rootTests {
+					patterns[i] = regexp.QuoteMeta(name)
+				}
+				arguments = append(arguments, "-run", "^("+strings.Join(patterns, "|")+")$")
+			}
+			command := generatedGoCommand(t.Context(), root, append(arguments, "./consumer")...)
 			command.Env = testenv.With(command.Env, map[string]string{"GODJ_ACCOUNT_CONSUMER_DATABASE": vendor})
 			output := runStrictGeneratedCommandWithCapture(t, command, func(output []byte) error {
 				t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)

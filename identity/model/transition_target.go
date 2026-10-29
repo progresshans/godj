@@ -120,34 +120,42 @@ func NewTransitionTarget[M, G, P, GL, PL any](binding Binding[M], groups orm.Man
 	if _, err := admin.PrepareEventTemplate("transition-creation", role.Model.AppLabel+"."+role.Model.ModelName, admin.ActionAdd, audit, ""); err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
-	var incoming []query.Plan
-	for _, relation := range project.ForwardRelations() {
-		if relation.Target != role.Model || relation.Source == role.Model {
-			continue
-		}
-		source, found := project.Model(relation.Source)
-		if !found {
-			return zero, managementError(CodeInvalidConfig, nil)
-		}
-		field := query.NewFieldRef(relation.Field, relation.Column, query.FieldInteger, relation.Nullable)
-		condition, err := query.NewExpression(query.NewCondition(field, query.LookupIsNull, query.Boolean(false)))
-		if err != nil {
-			return zero, managementError(CodeInvalidConfig, err)
-		}
-		plan, err := query.NewPlan(source.DBTable, []query.FieldRef{field}).WithWhere(condition)
-		if err != nil {
-			return zero, managementError(CodeInvalidConfig, err)
-		}
-		plan, err = plan.WithLimit(1)
-		if err != nil {
-			return zero, managementError(CodeInvalidConfig, err)
-		}
-		incoming = append(incoming, plan)
+	incoming, err := transitionIncomingPlans(project, role.Model)
+	if err != nil {
+		return zero, err
 	}
 	return TransitionTarget[M]{&transitionTarget[M]{binding: binding, metadata: metadata, allowed: allowed, relations: relations, collections: collections, auditFields: audit, incoming: incoming,
 		groups:      func(row M, keys []int64) (orm.CollectionChange, error) { return groups.SetKeysChange(row, keys) },
 		permissions: func(row M, keys []int64) (orm.CollectionChange, error) { return permissions.SetKeysChange(row, keys) },
 	}}, nil
+}
+
+func transitionIncomingPlans(project orm.ProjectBinding, target ir.ModelIdentity) ([]query.Plan, error) {
+	var incoming []query.Plan
+	for _, relation := range project.ForwardRelations() {
+		if relation.Target != target || relation.Source == target {
+			continue
+		}
+		source, found := project.Model(relation.Source)
+		if !found {
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
+		field := query.NewFieldRef(relation.Field, relation.Column, query.FieldInteger, relation.Nullable)
+		condition, err := query.NewExpression(query.NewCondition(field, query.LookupIsNull, query.Boolean(false)))
+		if err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
+		plan, err := query.NewPlan(source.DBTable, []query.FieldRef{field}).WithWhere(condition)
+		if err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
+		plan, err = plan.WithLimit(1)
+		if err != nil {
+			return nil, managementError(CodeInvalidConfig, err)
+		}
+		incoming = append(incoming, plan)
+	}
+	return incoming, nil
 }
 
 func validateTransitionTargetStorage(project orm.ProjectBinding, target ir.ModelIdentity) error {

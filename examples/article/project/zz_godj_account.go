@@ -14,7 +14,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v18"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v19"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -123,6 +123,24 @@ func NewAccountTransitionTarget(config _godjaccountmodel.TransitionTargetConfig[
 		return zero, err
 	}
 	return _godjaccountmodel.NewTransitionTarget(binding, collections.IdentityUserGroups, collections.IdentityUserPermissions, config)
+}
+
+// NewAccountTransitionCatalogTarget binds typed catalog allocation and account assignments to both complete roles.
+func NewAccountTransitionCatalogTarget[S any](previous _godjaccountmodel.Binding[S], config _godjaccountmodel.TransitionCatalogTargetConfig[identity.Group, identity.Permission]) (_godjaccountmodel.TransitionCatalogTarget[identity.Group, identity.Permission], error) {
+	var zero _godjaccountmodel.TransitionCatalogTarget[identity.Group, identity.Permission]
+	binding, err := BindAccount()
+	if err != nil {
+		return zero, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return zero, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return zero, err
+	}
+	return _godjaccountmodel.NewTransitionCatalogTarget(previous, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityGroupPermissions, collections.IdentityUserGroups, collections.IdentityUserPermissions, config)
 }
 
 // NewFirstAccount prepares privileged provisioning of a fresh selected account domain.
@@ -254,4 +272,4 @@ func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsess
 	return _godjaccountmodel.NewRuntime(ctx, backend, binding, identity.GroupDescriptor{}, identity.PermissionDescriptor{}, collections.IdentityUserGroups, collections.IdentityUserPermissions, collections.IdentityGroupPermissions, policies.IdentityUser, policies.IdentityGroup, policies.IdentityPermission, hasher, overlay, config)
 }
 
-var _ goDjProjectSnapshot_ad1ed6999a1b0674462e4460c9f5abee09306f8764ce5e1f95fe9e0358e8a8bf
+var _ goDjProjectSnapshot_8ffef5a531529ade79dc0706b4852794313e0ed30090a94236f1db93530e7611

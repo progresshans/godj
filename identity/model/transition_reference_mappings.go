@@ -34,10 +34,24 @@ func referenceMappings(sources map[int64]bool, targets map[int64]int64, catalog 
 		}
 		return transitionReferenceKeys{sources: keys, targets: maps.Clone(pairs)}
 	}
+	groups, permissions := known(catalog.groups), known(catalog.direct)
+	pending := func(rows map[int64]transitionCatalogRow) transitionReferenceKeys {
+		keys := make(map[int64]bool, len(rows))
+		for id := range rows {
+			keys[id] = true
+		}
+		return transitionReferenceKeys{sources: keys}
+	}
+	if catalog.pendingGroups {
+		groups = pending(catalog.before.groups)
+	}
+	if catalog.pendingPermissions {
+		permissions = pending(catalog.before.permissions)
+	}
 	return transitionReferenceMappings{
 		TransitionReferenceAccount:    {sources: maps.Clone(sources), targets: maps.Clone(targets)},
-		TransitionReferenceGroup:      known(catalog.groups),
-		TransitionReferencePermission: known(catalog.direct),
+		TransitionReferenceGroup:      groups,
+		TransitionReferencePermission: permissions,
 	}
 }
 
@@ -69,7 +83,10 @@ func (before transitionReferenceMappings) validateResolved(fields []TransitionRe
 	return nil
 }
 
-func transitionManifestVersion(catalog *CatalogMappings, references []TransitionReferenceManifest) int {
+func transitionManifestVersion(catalog *CatalogMappings, references []TransitionReferenceManifest, creation *CatalogCreationManifest) int {
+	if creation != nil {
+		return 7
+	}
 	for _, reference := range references {
 		for _, field := range reference.Fields {
 			if field.Kind != TransitionReferenceAccount {

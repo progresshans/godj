@@ -179,4 +179,4 @@ func (_scan *teamProjectionScan) Decode() (Team, query.Value, orm.ProjectionPres
 
 type GoDjAppPart3_4ef2ff5ead1bac645b388e339a48db6096fca4c4be87399b65ad0a5726b0c704 struct{}
 
-var _ GoDjProjectSnapshot_bdd3a1262d28901571fe0ba2b836208551bc09df9b3124de36c26c8965a9ef30
+var _ GoDjProjectSnapshot_387fdfebe91c9133658055c30554ff12482e38f3f2bcfaee0ac94bbaf510d0aa

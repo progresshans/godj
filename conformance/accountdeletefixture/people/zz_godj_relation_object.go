@@ -354,4 +354,4 @@ func (input MemberGrantsLinkCreate) BuildManyToManyCreate(source, target ir.Fiel
 
 type GoDjAppPart2_de3d33afc5b22cb7560f7b19d73e7792c578f5a02dce131437bb07e42e083cae struct{}
 
-var _ GoDjProjectSnapshot_bdd3a1262d28901571fe0ba2b836208551bc09df9b3124de36c26c8965a9ef30
+var _ GoDjProjectSnapshot_387fdfebe91c9133658055c30554ff12482e38f3f2bcfaee0ac94bbaf510d0aa

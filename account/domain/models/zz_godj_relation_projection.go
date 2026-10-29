@@ -149,4 +149,4 @@ func (_scan *mappingProjectionScan) Decode() (Mapping, query.Value, orm.Projecti
 
 type GoDjAppPart3_5d4a5ee414e8dd952636670bc13cbee33d1ac3569ea49d3bf75c70111550ad3e struct{}
 
-var _ GoDjProjectSnapshot_c993a70b9f2da64e83c8b6c5c88c796148698d8f9608ed7ab81fc99def142152
+var _ GoDjProjectSnapshot_522a226d1eb4c99c203190eedce82c31f0a24808ec4d4e10294958205025a5e6

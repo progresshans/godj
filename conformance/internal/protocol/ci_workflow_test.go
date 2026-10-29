@@ -109,6 +109,9 @@ func ciMatrix(t *testing.T, job, axis string) []map[string]string {
 	}
 	var rows []map[string]string
 	for _, line := range strings.Split(job[start+len(header):end], "\n") {
+		if text := strings.TrimSpace(line); text == "" || strings.HasPrefix(text, "#") {
+			continue
+		}
 		if strings.HasPrefix(line, "          - ") {
 			rows = append(rows, make(map[string]string))
 			line = "            " + strings.TrimPrefix(line, "          - ")

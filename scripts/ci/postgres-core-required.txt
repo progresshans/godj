@@ -5713,3 +5713,6 @@ github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/cata
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/catalog_mapping_corruption/null_groups
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/catalog_mapping_corruption/wrong_version
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/catalog_mapping_corruption/wrong_prefix
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCatalogCreation
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCatalogCreation/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCatalogCreation/postgres

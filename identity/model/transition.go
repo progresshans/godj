@@ -52,6 +52,7 @@ type TransitionConfig[S, T any] struct {
 	Validate              func(context.Context, db.Queryer, S, T, AccountMemberships, AccountMemberships) (validation.Errors, error)
 	Now                   func() time.Time
 	TargetCreation        TransitionTarget[T]
+	CatalogCreation       CatalogCreation
 	References            []TransitionReference[S, T]
 }
 
@@ -129,6 +130,16 @@ func NewTransition[S, T any](source *SessionStore[S], target *SessionStore[T], c
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
 	config.AdditionalPermissions = slices.Clone(config.AdditionalPermissions)
+	if catalog := config.CatalogCreation.state; catalog != nil {
+		if catalog.source != left || catalog.oldRole != a.roleFingerprint || catalog.nextRole != b.roleFingerprint {
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
+		for _, permission := range catalog.required {
+			if !slices.Contains(required, permission) {
+				required = append(required, permission)
+			}
+		}
+	}
 	if len(config.References) > MaximumTransitionReferenceModels {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
@@ -171,6 +182,8 @@ func NewTransition[S, T any](source *SessionStore[S], target *SessionStore[T], c
 		if err != nil || boundSource != right || creation.binding.state.roleFingerprint != b.roleFingerprint {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
+	}
+	if config.TargetCreation.state != nil || config.CatalogCreation.state != nil {
 		var ok bool
 		creationBackend, ok = source.state.backend.(db.CoordinatedRelationAtomic)
 		if !ok || nilModelValue(creationBackend) {
@@ -198,6 +211,7 @@ type TransitionManifest struct {
 	CreationSources  []SourceAccount               `json:"creation_sources,omitempty"`
 	References       []TransitionReferenceManifest `json:"references,omitempty"`
 	Catalog          *CatalogMappings              `json:"catalog,omitempty"`
+	CatalogCreation  *CatalogCreationManifest      `json:"catalog_creation,omitempty"`
 }
 
 func (TransitionManifest) Format(state fmt.State, _ rune) {
@@ -206,13 +220,14 @@ func (TransitionManifest) Format(state fmt.State, _ rune) {
 
 type PreparedTransition[S, T any] struct{ state *preparedTransition[S, T] }
 type preparedTransition[S, T any] struct {
-	owner    *Transition[S, T]
-	actor    string
-	manifest TransitionManifest
-	expected domain.Receipt
-	change   domain.Change
-	consumed atomic.Bool
-	creation *preparedTransitionCreation[T]
+	owner           *Transition[S, T]
+	actor           string
+	manifest        TransitionManifest
+	expected        domain.Receipt
+	change          domain.Change
+	consumed        atomic.Bool
+	creation        *preparedTransitionCreation[T]
+	catalogCreation *preparedTransitionCatalogCreation[T]
 }
 
 func (PreparedTransition[S, T]) Format(state fmt.State, _ rune) {
@@ -227,6 +242,7 @@ func (prepared PreparedTransition[S, T]) Manifest() TransitionManifest {
 	result.CreationSources = slices.Clone(result.CreationSources)
 	result.References = cloneTransitionReferenceManifests(result.References)
 	result.Catalog = cloneCatalogMappings(result.Catalog)
+	result.CatalogCreation = cloneCatalogCreationManifest(result.CatalogCreation)
 	return result
 }
 
@@ -243,6 +259,12 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 	owned, err := normalizeAccountMappings(mappings)
 	if err != nil {
 		return PreparedTransition[S, T]{}, err
+	}
+	if owner.config.CatalogCreation.state != nil {
+		if len(catalogs) != 0 {
+			return PreparedTransition[S, T]{}, managementError(CodeInvalidInput, nil)
+		}
+		return owner.prepareWithCatalogCreation(ctx, actor, operationID, owned, nil)
 	}
 	catalog, err := owner.prepareCatalogMappings(catalogs)
 	if err != nil {
@@ -272,7 +294,7 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(),
 		PriorSequence: observation.ownership.Sequence(), ProjectSHA256: owner.source, SourceRoleSHA256: oldRole,
 		TargetRoleSHA256: nextRole, StateSHA256: observation.digest, Mappings: owned, References: transitionReferenceManifests(observation.references), Catalog: catalog}
-	manifest.Version = transitionManifestVersion(catalog, manifest.References)
+	manifest.Version = transitionManifestVersion(catalog, manifest.References, nil)
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return PreparedTransition[S, T]{}, err
@@ -285,13 +307,15 @@ func (owner *Transition[S, T]) Prepare(ctx context.Context, actor auth.Principal
 }
 
 type TransitionResult struct {
-	Ownership       domain.Receipt
-	MappedAccounts  int
-	CreatedAccounts int
-	Mappings        []AccountMapping
-	RevokedSessions int
-	RemappedRows    int
-	Catalog         *CatalogMappings
+	Ownership          domain.Receipt
+	MappedAccounts     int
+	CreatedAccounts    int
+	CreatedGroups      int
+	CreatedPermissions int
+	Mappings           []AccountMapping
+	RevokedSessions    int
+	RemappedRows       int
+	Catalog            *CatalogMappings
 }
 
 func (TransitionResult) Format(state fmt.State, _ rune) {
@@ -319,6 +343,9 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 	if err := owner.requireMigrations(ctx); err != nil {
 		return TransitionResult{}, err
 	}
+	if state.catalogCreation != nil {
+		return owner.commitCatalogCreation(ctx, actor, state)
+	}
 	if state.creation != nil {
 		return owner.commitCreation(ctx, actor, state)
 	}
@@ -334,11 +361,11 @@ func (owner *Transition[S, T]) Commit(ctx context.Context, actor auth.Principal,
 		if at.IsZero() || at.Year() < 1 || at.Year() > 9999 {
 			return TransitionResult{}, managementError(CodeInvalidConfig, nil)
 		}
-		return owner.completeIn(work, scope, current, state.expected, state.change, state.manifest.Mappings, at)
+		return owner.completeIn(work, scope, current, state.expected, state.change, state.manifest.Mappings, at, nil, nil)
 	})
 }
 
-func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session, current transitionObservation[S, T], expected domain.Receipt, change domain.Change, mappings []AccountMapping, at time.Time) (TransitionResult, error) {
+func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session, current transitionObservation[S, T], expected domain.Receipt, change domain.Change, mappings []AccountMapping, at time.Time, finalPolicy, finalReadback func(context.Context, db.Queryer) error) (TransitionResult, error) {
 	var references []transitionReferenceApplied
 	remapped := 0
 	var referenceKeys transitionReferenceMappings
@@ -349,12 +376,13 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 		}
 		referenceKeys = referenceMappings(sources, targets, current.catalog)
 	}
-	for _, observed := range current.references {
+	for i, observed := range current.references {
 		applied, err := observed.apply(ctx, scope, current.actor, referenceKeys, at)
 		if err != nil {
 			return TransitionResult{}, err
 		}
 		references = append(references, applied)
+		current.references[i].bytes = applied.bytes
 		remapped += applied.changed
 	}
 	if len(references) > 0 {
@@ -370,6 +398,14 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 	verifyReferences := func() error {
 		for _, applied := range references {
 			if err := applied.verify(ctx, scope); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	verifyReferencePolicies := func() error {
+		for _, applied := range references {
+			if err := applied.verifyPolicy(ctx, scope); err != nil {
 				return err
 			}
 		}
@@ -416,6 +452,9 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 	}
 	// Database rules must not resurrect a credential or change a staged
 	// target/profile/grant after retirement and its audit have executed.
+	if err := verifyReferencePolicies(); err != nil {
+		return TransitionResult{}, err
+	}
 	if err := owner.verifyRows(ctx, scope, current, mappings); err != nil {
 		return TransitionResult{}, err
 	}
@@ -430,20 +469,40 @@ func (owner *Transition[S, T]) completeIn(ctx context.Context, scope db.Session,
 	if err != nil {
 		return TransitionResult{}, err
 	}
-	// Receipt insertion is also inside the independent final readback.
-	if err := owner.verifyRows(ctx, scope, current, mappings); err != nil {
-		return TransitionResult{}, err
+	// Application policies finish before the final readback of every owner.
+	// A policy cannot change a previously verified host row or receipt unseen.
+	if finalPolicy != nil {
+		if err := finalPolicy(ctx, scope); err != nil {
+			return TransitionResult{}, err
+		}
 	}
-	ownership, err := domain.InspectIn(ctx, scope)
-	if err != nil || ownership.OperationID() != receipt.OperationID() || ownership.Generation() != receipt.Generation() || ownership.MappingCount() != receipt.MappingCount() || ownership.MappingSHA256() != receipt.MappingSHA256() {
-		return TransitionResult{}, managementError(CodePersistence, err)
+	if err := verifyReferencePolicies(); err != nil {
+		return TransitionResult{}, err
 	}
 	remaining, err := scoped.DeleteAll(ctx)
 	if err != nil || remaining != 0 {
 		return TransitionResult{}, managementError(CodePersistence, err)
 	}
+	if err := owner.verifyRows(ctx, scope, current, mappings); err != nil {
+		return TransitionResult{}, err
+	}
 	if err := verifyReferences(); err != nil {
 		return TransitionResult{}, err
+	}
+	if finalReadback != nil {
+		if err := finalReadback(ctx, scope); err != nil {
+			return TransitionResult{}, err
+		}
+	}
+	ownership, err := domain.InspectIn(ctx, scope)
+	if err != nil || ownership.OperationID() != receipt.OperationID() {
+		return TransitionResult{}, managementError(CodePersistence, err)
+	}
+	// Lookup verifies the entire immutable receipt, including its private row
+	// identity, predecessor, role, evidence and timestamp, then the full payload.
+	actualMappings, err := domain.LookupMappingsIn(ctx, scope, receipt)
+	if err != nil || !slices.Equal(actualMappings, mappings) {
+		return TransitionResult{}, managementError(CodePersistence, err)
 	}
 	return TransitionResult{Ownership: receipt, MappedAccounts: len(current.pairs), Mappings: slices.Clone(mappings), RevokedSessions: revoked, RemappedRows: remapped, Catalog: cloneCatalogMappings(current.catalog.mapping)}, nil
 }
@@ -499,7 +558,12 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 		if err != nil {
 			return observed{}, err
 		}
-		if catalogFound != (manifest.Catalog != nil) || catalogFound && !equalCatalogMappings(&catalog, manifest.Catalog) {
+		if manifest.CatalogCreation != nil {
+			left, right := owner.old.state.credentials.state.binding.state.role.Catalog, owner.next.state.credentials.state.binding.state.role.Catalog
+			if !catalogFound || manifest.CatalogCreation.CreateGroups != (left.Group != right.Group) || manifest.CatalogCreation.CreatePermissions != (left.Permission != right.Permission) || !catalogCreationMatches(*manifest.CatalogCreation, catalog) {
+				return observed{}, managementError(CodeConflict, nil)
+			}
+		} else if catalogFound != (manifest.Catalog != nil) || catalogFound && !equalCatalogMappings(&catalog, manifest.Catalog) {
 			return observed{}, managementError(CodeConflict, nil)
 		}
 		return observed{receipt, true}, nil
@@ -543,8 +607,11 @@ func compareInt64(a, b int64) int {
 }
 
 func (manifest TransitionManifest) evidence() (string, error) {
-	if manifest.Version != transitionManifestVersion(manifest.Catalog, manifest.References) || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts {
+	if manifest.Version != transitionManifestVersion(manifest.Catalog, manifest.References, manifest.CatalogCreation) || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts || manifest.CatalogCreation != nil && manifest.Catalog != nil {
 		return "", managementError(CodeInvalidInput, nil)
+	}
+	if err := validateCatalogCreationManifest(manifest.CatalogCreation); err != nil {
+		return "", err
 	}
 	if catalog, err := normalizeCatalogMappings(manifest.Catalog); err != nil || !equalCatalogMappings(catalog, manifest.Catalog) {
 		return "", managementError(CodeInvalidInput, err)

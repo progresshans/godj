@@ -14,4 +14,4 @@ func BindReversePrefetches() (ReversePrefetches, error) {
 	return ReversePrefetches{}, nil
 }
 
-var _ goDjProjectSnapshot_ad1ed6999a1b0674462e4460c9f5abee09306f8764ce5e1f95fe9e0358e8a8bf
+var _ goDjProjectSnapshot_8ffef5a531529ade79dc0706b4852794313e0ed30090a94236f1db93530e7611

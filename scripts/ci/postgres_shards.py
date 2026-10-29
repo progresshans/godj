@@ -40,6 +40,7 @@ ACCOUNT_CONSUMER_ROOTS = frozenset({
 TRANSITION_CONSUMER_OWNERS = {
     'TestGeneratedAccountTransition': 'core-account-transition',
     'TestGeneratedAccountCatalogTransition': 'core-account-catalog',
+    'TestGeneratedAccountCatalogCreation': 'core-account-catalog-creation',
 }
 PROFILE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountProfileRelations',

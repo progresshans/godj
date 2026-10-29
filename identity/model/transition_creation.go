@@ -13,7 +13,6 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/internal/rowset"
-	"github.com/progresshans/godj/orm"
 )
 
 type preparedTransitionCreation[M any] struct {
@@ -63,6 +62,12 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	if _, err := normalizeSourceAccounts(sources); err != nil {
 		return zero, err
 	}
+	if owner.config.CatalogCreation.state != nil {
+		if len(catalogs) != 0 {
+			return zero, managementError(CodeInvalidInput, nil)
+		}
+		return owner.prepareWithCatalogCreation(ctx, actor, operationID, nil, owned)
+	}
 	catalog, err := owner.prepareCatalogMappings(catalogs)
 	if err != nil {
 		return zero, err
@@ -91,7 +96,7 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	nextRole, _ := owner.next.state.credentials.state.binding.RoleFingerprint()
 	manifest := TransitionManifest{Version: 4, OperationID: operationID, PriorOperationID: observation.ownership.OperationID(), PriorSequence: observation.ownership.Sequence(),
 		ProjectSHA256: owner.source, SourceRoleSHA256: oldRole, TargetRoleSHA256: nextRole, StateSHA256: observation.digest, CreationSources: sources, References: transitionReferenceManifests(observation.references), Catalog: catalog}
-	manifest.Version = transitionManifestVersion(catalog, manifest.References)
+	manifest.Version = transitionManifestVersion(catalog, manifest.References, nil)
 	evidence, err := manifest.evidence()
 	if err != nil {
 		return zero, err
@@ -218,59 +223,8 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 			return TransitionResult{}, managementError(CodeInvalidConfig, nil)
 		}
 		target := owner.config.TargetCreation.state
-		objects := target.binding.state.objects
-		mappings := make([]AccountMapping, len(current.candidates))
-		var changes []orm.CollectionChange
-		for i, candidate := range current.candidates {
-			row, err := candidate.prepared.Model()
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			if err := candidate.prepared.Save(work, scope, &row); err != nil {
-				return TransitionResult{}, err
-			}
-			key, present, err := objects.PrimaryKey(row)
-			id, integer := key.Integer()
-			if err != nil || !present || !integer {
-				return TransitionResult{}, invalidAccountCredential()
-			}
-			values, err := objects.ModelValues(row)
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			current.pairs[i].next.row, current.pairs[i].next.id, current.pairs[i].next.values = row, id, values
-			mappings[i] = AccountMapping{SourceID: current.pairs[i].old.id, SourceRevision: current.pairs[i].old.revision, TargetID: id, TargetRevision: 1}
-			for _, collection := range []struct {
-				prepare func(T, []int64) (orm.CollectionChange, error)
-				keys    []int64
-			}{{target.groups, candidate.row.memberships.groups}, {target.permissions, candidate.row.memberships.direct}} {
-				change, err := collection.prepare(row, collection.keys)
-				if err != nil {
-					return TransitionResult{}, err
-				}
-				changes = append(changes, change)
-			}
-			for _, collection := range target.collections {
-				change, err := collection.state.prepare(row, candidate.row.profile[collection.state.field.Name])
-				if err != nil {
-					return TransitionResult{}, err
-				}
-				changes = append(changes, change)
-			}
-		}
-		batch, err := orm.PrepareCollectionChangesInSession(work, scope, changes...)
+		mappings, err := owner.materializeTargets(work, scope, &current.transitionObservation, current.candidates, true, nil)
 		if err != nil {
-			return TransitionResult{}, err
-		}
-		if err := batch.ValidateSource(target.binding.state.project); err != nil {
-			return TransitionResult{}, err
-		}
-		// Newly inserted owners cannot inherit or replace pre-existing link rows.
-		// A deletion here means a rule or damaged graph changed that premise.
-		if len(batch.Effects().Deletions().Rows()) != 0 {
-			return TransitionResult{}, managementError(CodeConflict, nil)
-		}
-		if err := batch.Apply(work, nil); err != nil {
 			return TransitionResult{}, err
 		}
 		observed, err := owner.observe(work, scope, actor, state.manifest.OperationID, mappings, state.manifest.Catalog)
@@ -303,14 +257,16 @@ func (owner *Transition[S, T]) commitCreation(ctx context.Context, actor auth.Pr
 		}
 		// The common owner retires sources, revokes their entire session namespace
 		// and records the actual keys. Its final readback includes every target.
-		result, err := owner.completeIn(work, scope, observed, state.expected, state.change, mappings, at)
+		result, err := owner.completeIn(work, scope, observed, state.expected, state.change, mappings, at, func(ctx context.Context, scope db.Queryer) error {
+			for _, pair := range observed.pairs {
+				if err := owner.checkCreatedChoices(ctx, scope, current.actor, pair.next); err != nil {
+					return err
+				}
+			}
+			return nil
+		}, nil)
 		if err != nil {
 			return TransitionResult{}, err
-		}
-		for _, pair := range observed.pairs {
-			if err := owner.checkCreatedChoices(work, scope, current.actor, pair.next); err != nil {
-				return TransitionResult{}, err
-			}
 		}
 		result.CreatedAccounts = len(mappings)
 		return result, nil

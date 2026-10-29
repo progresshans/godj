@@ -265,4 +265,4 @@ func (_scan *rootLabelsProjectionScan) Decode() (RootLabels, query.Value, orm.Pr
 
 type GoDjAppPart3_1d0e13b4483d01ac5d344fa821ef7880f63a228b0682d6f2a1c3a446c2e0ae0d struct{}
 
-var _ GoDjProjectSnapshot_0e31f0bef14b081de96b2ad1e591640201367222f15af0627cd7b0e1e085ea46
+var _ GoDjProjectSnapshot_25a32059e81d7662fba445e8798053d51acbfa37247eb9a4d519ed1c25632295

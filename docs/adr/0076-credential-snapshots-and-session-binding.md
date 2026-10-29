@@ -1916,7 +1916,7 @@ Manifest v5는 값 원문 없이 정규화한 catalog 대응표를 포함한다.
 기존 mapping v1·manifest v4의 불변 이력은 계속 읽는다. `Reconcile`은 보관한 catalog 대응표까지 실제 receipt와 대조하며,
 후속 정상 catalog 편집을 과거 전환의 실패로 바꾸지 않는다. Unknown 결과는 실제 key나 잠정 catalog 결과를 게시하지 않는다.
 
-Catalog target 행의 자동 생성과 역사 `systemstate` 가져오기 및 전체 환경의 통합 수용은 남아 있다.
+Catalog target 행의 생성은 아래의 별도 typed intent로 연결한다. 역사 `systemstate` 가져오기 및 전체 환경의 통합 수용은 남아 있다.
 일반 host의 catalog 참조는 아래의 단계적 전환에 포함하며, 이 대응표 경로만으로 I1 전체 수용을 완료하지 않는다.
 
 ### 전환 대상 계정의 생성
@@ -1943,6 +1943,38 @@ non-NULL FK 부재를 검사한다. 빈 table에 남은 orphan reference가 새 
 commit 안에서 대응표에 저장하며 확정 결과의 `Mappings`로 반환한다. Unknown이나 cleanup 실패에는 잠정 key를 게시하지 않는다.
 재시작 대조는 보관 source 목록을 저장 대응표의 source/revision·초기 target revision 및 receipt의 count/checksum과 확인한다.
 새 `Reconcile` 조회는 생성 capability 없이도 같은 source·역할·backend로 수행할 수 있으며, 미관측을 재시도 허가로 사용하지 않는다.
+
+### 전환 대상 catalog의 생성
+
+`TransitionCatalogTarget[G,P]`는 두 계정 binding, 실제 typed Group/Permission descriptor와 세 소속 collection을 같은
+host source에 묶는다. 생성 `NewAccountTransitionCatalogTarget`도 이 구성을 사용한다. `Creation`은 source key/revision과
+정리된 typed `ModelInput` 목록을 소유하며 `TransitionConfig.CatalogCreation`에 연결한다. 기존 `CatalogMappings`와 섞지 않는다.
+변경되는 catalog 모델에는 전체 source 행마다 하나의 입력이 필요하다. 키·revision·권한 코드·권한 소속은 입력으로 받지 않고,
+표시명·추가 scalar allowlist·IR default·typed validation을 적용한다. 파일/관계 입력은 이 catalog 생성 선언의 대상이 아니다.
+
+준비 snapshot에서 변경되는 target 모델과 incoming FK의 부재, 전체 source/공유 target·물리 링크, 계정·host 참조를 관측한다.
+새 key를 예측하지 않으며 정책의 `AccountMemberships.PendingCatalogKeys()`가 미확정 group/permission namespace를 명시한다.
+해당 `Groups`/`Permissions`는 key를 반환하지 않는다. 최종 fenced policy에는 실제 할당 key를 준다. 일반 host 참조도 source
+전체 집합을 보관하고 할당 뒤 실제 세 대응표를 대조한다. 모든 필수/추가 권한은 source actor로 입력 정책 실행 전에 확인한다.
+
+Commit은 같은 native relation transaction에서 Permission→Group→그룹 권한→계정/소속→host 참조를 저장한다.
+Permission 코드는 source에서 그대로 복사하고 새 행 revision은 1이다. 부분 공유 Permission은 변경하지 않는다.
+부분 공유 Group은 scalar/key를 보존하며 새 권한 관계가 채워지는 행만 source/target의 revision 필드를 한 번 올리고
+Change 감사를 남긴다. 준비된 target 계정도 소속/유효 권한이 바뀌는 행만 revision과 Change 감사를 추가한다.
+새 계정·catalog 행은 Add 감사, source 계정은 기존 퇴역·session 폐기·Change 감사를 같은 source domain에 남긴다.
+
+전체 catalog scalar·정확한 물리 링크와 계정 소속을 독립 readback한다. 선언하지 않은 incoming 참조를 생성된 identity에
+붙이거나 기존 링크를 삭제·대체하는 쓰기는 거부한다. 마지막 정책 callback 이후 계정·catalog·host·receipt를 다시 읽으며,
+준비뿐 아니라 실제 할당/퇴역 뒤 account/catalog/host와 물리 소속의 합계도 64 MiB 예산에 넣는다. 실패는 모든 잠정 행·소속·
+감사·domain 기록을 함께 rollback하며 unknown 결과에는 생성 key·개수를 게시하지 않는다.
+
+Manifest v7은 생성할 모델 구분과 전체 source key/revision·최종 target revision을 보관한다. 예상 target key와 profile 원문은
+포함하지 않는다. 실제 account/group/permission key는 기존 payload v2의 전체 대응표와 checksum으로 저장하며 `Reconcile`은
+보관 source 목록·공유 identity·target revision을 대조한다. 기존 v4/v5/v6의 wire는 바꾸지 않는다. 이후 정상 편집이나 schema
+contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확인한다.
+
+새 account/Group/Permission 자체가 through인 생성 수명과 여러 역할의 nullable endpoint를 하나의 물리 through에서 함께
+전환하는 조립은 아직 통합 대상이다. 현재 경로의 명시적 거부를 I1 전체 지원으로 계산하지 않는다.
 
 ### 일반 host 참조의 단계적 전환
 

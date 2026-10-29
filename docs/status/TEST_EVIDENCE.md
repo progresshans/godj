@@ -2865,6 +2865,64 @@ job에 정적으로 재배정했다. PostgreSQL core 5,715개 목록은 byte가 
 새 source의 전체 필수 실행·generated drift·양 DB·독립 HTTP/browser/process·race/platform 및 capture/원본 대조는
 다음 원격 실행 대상이다. Catalog target 생성과 나머지 I1 제품 범위를 이번 검증 수정으로 완료 처리하지 않는다.
 
+### Typed catalog target 생성과 실제 key의 원자 전환
+
+2026-10-29, `d15b22a7d05763e87927e3b4949b1c862a5759cb` 위에서 `TransitionCatalogTarget[G,P]`와 생성 팩토리,
+source key/revision별 typed 입력을 기존 staged/created 계정 전환에 연결했다. 변경되는 catalog 모델의 부재와 전체 source를
+관측하고 Permission→Group→그룹 권한→계정/소속→host 참조를 실제 native 할당 key로 저장한다. 부분 공유 모델의 identity,
+필요한 revision·인가·감사와 source 퇴역·session 폐기·domain/receipt를 같은 relation transaction으로 처리한다.
+
+준비 정책에는 `PendingCatalogKeys()`로 미확정 namespace를 표시하고 최종 정책에는 실제 key를 준다. Manifest v7은 전체
+source/최종 revision을 보관하며 payload v2에 실제 대응표를 저장한다. 마지막 정책 이후 계정/catalog/host·물리 소속과
+receipt의 전체 값·payload를 다시 대조하고, 실제 최종 state 합계도 64 MiB 한도를 적용한다. Unknown 결과에는 잠정 key나
+개수를 게시하지 않는다. 기존 manifest v4/v5/v6와 payload v1/v2의 역사 읽기를 유지한다.
+
+별도 외부 생성 module에 staged/created 각 58개 child, 두 strategy와 root·기본 계정으로의 역방향 생성까지 120개 필수
+이벤트를 작성했다. 별도/부분 공유 catalog·signed key·페이지 경계·빈 inventory·typed 필수/예약 입력·추가 권한·stale 상태,
+실제 INSERT/UPDATE/소속/감사/receipt 뒤 실패·마지막 정책의 host/receipt 변경·rollback/unknown·두 연결 경합을 포함한다.
+Target label/code/principal로 행을 독립 조회한 key와 profile·revision·정확한 소속·감사를 반환 결과 및 durable 대응표와
+대조하도록 작성했다. 재접속·후속 정상 편집·저장 대응표 위조와 legacy→확장→전환→schema 정리 후 생성 runtime도 포함한다.
+새 unit 네 root는 source evidence 사본·미확정 key·물리 링크 손상·최종 합계 예산을 검사한다.
+
+새 소비자는 별도 parent root를 갖는다. 기존 소비자 실행·필수 목록을 삭제하지 않고 선택한 두 child root의 전체 필수 완료를
+요구한다. 실제 binary에서 발견한 120개 root와 relation 필수 4,606행을 현재 소유권 규칙대로 12개 좌표·103개 job에 단일
+배정하는 정적 대조를 했다. 기존 runner는 project-check, Linux amd64의 checker는 Portable 소유라는 경계를 그대로 적용한다.
+PostgreSQL core 필수 목록은 5,718행이며 새 catalog 생성 owner를 세 mode에 추가해 28개 core 좌표를 정적으로 확인했다.
+이 배정 확인은 새 제품 테스트 본문의 실행 결과가 아니다.
+
+로컬 Go 1.26.5·darwin/arm64·CGO=1에서 `identity/model`, `codegen`, `identity/project`와 실제 외부 module의 consumer를
+`go test -run '^$'`로 최소 compile했다. Test 실행 이벤트는 없으며 `identity/project`에는 test 파일이 없다. 외부 compile은
+`GOWORK=off`, `GOPROXY=off`, `GOSUMDB=off`, `-p=1`로 수행했다. 별도 선택 호스트는 기존 생성 앱을 External로 가져와
+각 호스트의 project snapshot과 imported app schema/ABI 검사를 함께 유지한다. 초기 전체 project marker 혼용과 fixture의
+미사용 import·서로 다른 typed Authenticator 변수 재사용을 수정했다. 새 DB·경합·실패 본문은 로컬에서 실행하지 않았다.
+
+공개 생성 명령으로 12개 프로젝트를 ABI v19로 갱신하고 180개 생성 소유 파일의 manifest hash/mode를 대조했다.
+최종 최소 compile 전후 변경한 비 Markdown 입력 224개의 hash를 확인했다. Gofmt·diff·245개 문서 링크와 CI 도구 46개를
+확인했다. Generated drift의 실제 원격 실행·새 native DB/HTTP·race/process/platform·capture/독립 원본 대조는 다음 전체 CI 대상이다.
+
+원본·실행 환경·소스 hash·최소 compile의 무본문 이벤트와 정적 배정 기록은 검증 보관소의
+`gdj0138-catalog-creation-v1/receipt-final.json`에 있다(SHA-256 `9968c4082d6c538268be9ec741b1c894cb02db3cdc615222c74413554f847491`).
+전환 대상 identity의 through 수명·공유 물리 through의 복합 endpoint 전환, 역사 systemstate 이행과 남은 고정 소비자 및
+I1 전체 수용은 남아 있다. 작성·생성·compile을 새 제품 수용으로 계산하지 않는다.
+
+### Workflow 주석 해석과 Intel race의 누적 job 시간
+
+같은 선행 source의 [CI 40803902589](https://github.com/progresshans/godj/actions/runs/40803902589)는 관측 시 아직
+대기/실행 중인 작업이 있고 전체 수용을 완료하지 않았다. Runtime job `123218208342`의 원본은 workflow matrix 안의 주석을
+property로 읽어 `TestWorkflowRetainsDeclaredCoordinatesAndModes`와 `TestWorkflowSharedLinuxOwnersKeepSentinelsAndTheSameEnvironment`가
+실패한 것을 보여 준다. 로컬에서 같은 두 실패를 재현한 뒤 blank/comment 행만 건너뛰도록 수정해 두 검사 모두 통과했다.
+중복 key·잘못된 property·필수 owner/좌표/환경·최종 집계 검사는 유지한다.
+
+Intel race project-check job `123218206958`은 115분 job 한도에 도달한 시점에 취소됐다. Artifact `12872749562`의 ZIP
+SHA-256 `aa6f67a881e054951cd19582fcef8de1abfb3d3e67f315bb0e43d5887ce422c9`가 업로드 로그와 같고 내부 28개 파일 hash를
+대조했다. Checkout `caf561b6f9dcc5603bf51f7e09318c6b8122114d`의 tree `05db6cf6baee8c1a6ceb1052ff826f92501b0e59`는
+제출 `d15b22a7`과 같다. Scaffold는 2,055.138초에 종료했으며 fixed-module은 job 시작 83분39초 뒤 시작해 31분대 로그만
+남았다. 해당 root/package의 완료 이벤트가 없어 PASS로 계산하지 않는다. 개별 40분 flow 한도 이전에 중단된 관측을 근거로
+Intel race의 전체 job만 140분으로 조정했다. 개별 test/준비 명령·HTTP/정리 한도와 모든 필수 실행은 유지한다.
+
+위 원본과 한정 재현·수정은 같은 보관소의 `ci40803902589/`와 `workflow-comment-{before,after,final}.jsonl`에 있다.
+새 전체 job 예산의 원격 효과와 아직 대기 중인 macOS ARM64 catalog 실행의 시간초과 해결 여부는 확인 전이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

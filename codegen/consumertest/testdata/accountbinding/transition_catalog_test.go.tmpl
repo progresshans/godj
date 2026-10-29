@@ -52,6 +52,7 @@ type ctBackend struct {
  policy atomic.Bool
  afterUpdate func(context.Context, db.Session, query.UpdatePlan, int64)(int64,error)
  afterInsert func(context.Context, db.Session, query.InsertPlan, int64)(int64,error)
+ afterConflict func(context.Context, db.Session, query.ConflictInsertPlan, bool)error
 }
 
 func (b *ctBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
@@ -97,6 +98,7 @@ func (s *ctScope) RelationSetNull(ctx context.Context, plan query.RelationSetNul
 func (s *ctScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (bool,error) {
  inserted,err:=s.Session.(db.ConflictInserter).InsertOnConflict(ctx,plan)
  if err==nil&&inserted&&plan.Table()=="members_member_permissions"&&s.owner.mode=="same_effective_wrong_direct"{err=s.loseDirect(ctx)}
+ if err==nil&&s.owner.afterConflict!=nil{err=s.owner.afterConflict(ctx,s.Session,plan,inserted)}
  return inserted,err
 }
 func (s *ctScope) loseDirect(ctx context.Context)error{

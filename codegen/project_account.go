@@ -8,7 +8,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
-const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v18"
+const ProjectAccountGeneratorVersion = "godj-codegen-account-project-v19"
 
 func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPlan) ([]byte, error) {
 	if input.account == nil {
@@ -183,6 +183,17 @@ func generateProjectAccount(input normalizedProjectSpec, plan *relationProjectPl
 	fmt.Fprintln(&output, "\tcollections, err := BindCollectionsIn(source)")
 	fmt.Fprintln(&output, "\tif err != nil { return zero, err }")
 	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewTransitionTarget(binding, collections.%s, collections.%s, config)\n", accountGroups, accountPermissions)
+	fmt.Fprintln(&output, "}")
+	fmt.Fprintln(&output, "\n// NewAccountTransitionCatalogTarget binds typed catalog allocation and account assignments to both complete roles.")
+	fmt.Fprintf(&output, "func NewAccountTransitionCatalogTarget[S any](previous _godjaccountmodel.Binding[S], config _godjaccountmodel.TransitionCatalogTargetConfig[%s.%s, %s.%s]) (_godjaccountmodel.TransitionCatalogTarget[%s.%s, %s.%s], error) {\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
+	fmt.Fprintf(&output, "\tvar zero _godjaccountmodel.TransitionCatalogTarget[%s.%s, %s.%s]\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName)
+	fmt.Fprintln(&output, "\tbinding, err := BindAccount()")
+	fmt.Fprintln(&output, "\tif err != nil { return zero, err }")
+	fmt.Fprintln(&output, "\tsource, err := binding.Project()")
+	fmt.Fprintln(&output, "\tif err != nil { return zero, err }")
+	fmt.Fprintln(&output, "\tcollections, err := BindCollectionsIn(source)")
+	fmt.Fprintln(&output, "\tif err != nil { return zero, err }")
+	fmt.Fprintf(&output, "\treturn _godjaccountmodel.NewTransitionCatalogTarget(previous, binding, %s.%sDescriptor{}, %s.%sDescriptor{}, collections.%s, collections.%s, collections.%s, config)\n", groupApp.Alias, groupModel.GoName, permissionApp.Alias, permissionModel.GoName, groupCollection, accountGroups, accountPermissions)
 	fmt.Fprintln(&output, "}")
 	fmt.Fprintln(&output, "\n// NewFirstAccount prepares privileged provisioning of a fresh selected account domain.")
 	fmt.Fprintf(&output, "func NewFirstAccount(backend _godjaccountdb.SnapshotReader, hasher _godjaccountauth.PasswordHasher, config _godjaccountmodel.FirstAccountConfig[%s.%s]) (*_godjaccountmodel.FirstAccount[%s.%s], error) {\n", accountApp.Alias, accountModel.GoName, accountApp.Alias, accountModel.GoName)

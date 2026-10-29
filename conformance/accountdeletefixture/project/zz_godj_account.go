@@ -16,7 +16,7 @@ import (
 	_godjaccountsessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v18"
+const GoDjProjectAccountGeneratorVersion = "godj-codegen-account-project-v19"
 
 // BindAccount validates the selected typed model and complete host relation graph.
 // It does not provision or transition the persisted credential domain.
@@ -128,6 +128,24 @@ func NewAccountTransitionTarget(config _godjaccountmodel.TransitionTargetConfig[
 		return zero, err
 	}
 	return _godjaccountmodel.NewTransitionTarget(binding, collections.PeopleMemberTeams, collections.PeopleMemberGrants, config)
+}
+
+// NewAccountTransitionCatalogTarget binds typed catalog allocation and account assignments to both complete roles.
+func NewAccountTransitionCatalogTarget[S any](previous _godjaccountmodel.Binding[S], config _godjaccountmodel.TransitionCatalogTargetConfig[access.Team, access.Grant]) (_godjaccountmodel.TransitionCatalogTarget[access.Team, access.Grant], error) {
+	var zero _godjaccountmodel.TransitionCatalogTarget[access.Team, access.Grant]
+	binding, err := BindAccount()
+	if err != nil {
+		return zero, err
+	}
+	source, err := binding.Project()
+	if err != nil {
+		return zero, err
+	}
+	collections, err := BindCollectionsIn(source)
+	if err != nil {
+		return zero, err
+	}
+	return _godjaccountmodel.NewTransitionCatalogTarget(previous, binding, access.TeamDescriptor{}, access.GrantDescriptor{}, collections.AccessTeamGrants, collections.PeopleMemberTeams, collections.PeopleMemberGrants, config)
 }
 
 // NewFirstAccount prepares privileged provisioning of a fresh selected account domain.
@@ -259,4 +277,4 @@ func NewAccountRuntime(ctx _godjaccountcontext.Context, backend _godjaccountsess
 	return _godjaccountmodel.NewRuntime(ctx, backend, binding, access.TeamDescriptor{}, access.GrantDescriptor{}, collections.PeopleMemberTeams, collections.PeopleMemberGrants, collections.AccessTeamGrants, policies.PeopleMember, policies.AccessTeam, policies.AccessGrant, hasher, overlay, config)
 }
 
-var _ goDjProjectSnapshot_bdd3a1262d28901571fe0ba2b836208551bc09df9b3124de36c26c8965a9ef30
+var _ goDjProjectSnapshot_387fdfebe91c9133658055c30554ff12482e38f3f2bcfaee0ac94bbaf510d0aa

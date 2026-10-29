@@ -300,4 +300,4 @@ func (input AccessGuardCreate) BuildManyToManyCreate(source, target ir.Field, so
 
 type GoDjAppPart2_13d3106f2d075c336dabe7dcab19ca4b5630a7ef037186119e522784b53532ec struct{}
 
-var _ GoDjProjectSnapshot_3c9df213f38faa69111b2c5b8eec0f72687e78731cd140bf4a571d89601b9b80
+var _ GoDjProjectSnapshot_6fd1a7204a5c4ad0857d58871f64505b425d813a0e58daa7656d5b58cafcb9d2

@@ -238,4 +238,4 @@ func (input TicketLabelCreate) BuildManyToManyCreate(source, target ir.Field, so
 
 type GoDjAppPart2_d35b57a5f1435ea4895a880397d097f2d861be97b4953c4bd97d97b1f95a0637 struct{}
 
-var _ GoDjProjectSnapshot_334cd5c6eca8443405a06f8212711479cc8d5f954e5f09309ea73ae0dfc3ca20
+var _ GoDjProjectSnapshot_f70e16231dbabc9d8d1775936aa4ee52c1115c5d12c3ee55fa65a2668f51a450

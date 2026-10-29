@@ -211,7 +211,9 @@ func (owner *Transition[S, T]) validatePair(ctx context.Context, scope db.Querye
 		if err != nil {
 			return err
 		}
-		diagnostics, err := owner.config.Validate(ctx, scope, oldCopy, newCopy, transitionMembershipCopy(a.memberships, a.profile), transitionMembershipCopy(b.memberships, b.profile))
+		selected := transitionMembershipCopy(b.memberships, b.profile)
+		selected.state.pendingGroups, selected.state.pendingPermissions = catalog.pendingGroups, catalog.pendingPermissions
+		diagnostics, err := owner.config.Validate(ctx, scope, oldCopy, newCopy, transitionMembershipCopy(a.memberships, a.profile), selected)
 		if err := errors.Join(err, validateAccountSessionScope(ctx, scope)); err != nil {
 			return err
 		}
@@ -228,7 +230,7 @@ func transitionMembershipCopy(membership accountMemberships, profile map[string]
 	for name, keys := range profile {
 		owned[name] = slices.Clone(keys)
 	}
-	return AccountMemberships{state: &accountMembershipState{slices.Clone(membership.groups), slices.Clone(membership.direct), owned}}
+	return AccountMemberships{state: &accountMembershipState{groups: slices.Clone(membership.groups), permissions: slices.Clone(membership.direct), profile: owned}}
 }
 
 func readTransitionRows[M any](ctx context.Context, scope db.Queryer, store *CredentialStore[M], memberships []deletionMembership, maximum int, generation [sha256.Size]byte) (map[int64]transitionRow[M], error) {
@@ -381,7 +383,10 @@ func transitionRetirement[M any](binding Binding[M], row transitionRow[M], opera
 }
 
 func (owner *Transition[S, T]) verifyRows(ctx context.Context, scope db.Queryer, expected transitionObservation[S, T], mappings []AccountMapping) error {
-	catalog, err := owner.observeCatalog(ctx, scope, expected.catalog.operation, expected.catalog.mapping)
+	// Correspondence was checked against the reviewed source. A catalog
+	// creation may intentionally advance a shared source Group revision; its
+	// post-write inventory is now pinned independently of those prior revisions.
+	catalog, err := owner.observeCatalogRows(ctx, scope, expected.catalog.operation)
 	if err != nil {
 		return err
 	}
@@ -404,7 +409,42 @@ func (owner *Transition[S, T]) verifyRows(ctx context.Context, scope db.Queryer,
 			return managementError(CodePersistence, nil)
 		}
 	}
+	if err := checkTransitionReadbackBudget(expected, 0); err != nil {
+		return err
+	}
 	return validateAccountSessionScope(ctx, scope)
+}
+
+// Allocation and retirement can enlarge the reviewed representation. Bound
+// the complete final account/catalog/host state too, not each component alone.
+func checkTransitionReadbackBudget[S, T any](expected transitionObservation[S, T], extraBytes int) error {
+	if extraBytes < 0 || extraBytes > MaximumTransitionStateBytes {
+		return managementError(CodeInvalidInput, nil)
+	}
+	budget := &transitionDigestWriter{hash: sha256.New(), size: extraBytes}
+	if err := appendTransitionCatalogDigest(budget, expected.catalog); err != nil {
+		return err
+	}
+	for _, pair := range expected.pairs {
+		if err := writeTransitionRow(budget, pair.old); err != nil {
+			return err
+		}
+		if err := writeTransitionRow(budget, pair.next); err != nil {
+			return err
+		}
+	}
+	for _, reference := range expected.references {
+		if reference.bytes < 0 || reference.bytes > MaximumTransitionStateBytes-budget.size {
+			return managementError(CodeInvalidInput, nil)
+		}
+		budget.size += reference.bytes
+		encoded, err := json.Marshal(reference.manifest)
+		if err != nil {
+			return err
+		}
+		budget.part(encoded)
+	}
+	return budget.err
 }
 
 func sameTransitionRow[M any](a, b transitionRow[M]) bool {

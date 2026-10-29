@@ -514,7 +514,19 @@ rollback·unknown·receipt 경계를 유지한다. Manifest v6에 종류를 기�
 실패·경합·재접속과 실제 host schema 확장/전환/정리 후 생성 runtime을 검사하도록 작성했다.
 코드 작성·생성/최소 compile과 양 DB·race 등의 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
-Catalog target 자동 생성, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,
+### 전환 대상 catalog 생성
+
+`TransitionCatalogTarget[G,P]`와 생성 팩토리, source key/revision별 typed 입력을 기존 staged/created 계정 전환에 연결했다.
+변경되는 catalog 모델의 부재와 전체 source를 검토하고 실제 native INSERT key로 그룹 권한·계정 소속·host FK/OneToOne과
+업무 through를 채운다. 준비 중에는 pending namespace를 정책에 명시하며 최종 정책에는 실제 key만 전달한다.
+부분 공유 Group은 새 권한 관계가 바뀐 행의 revision·감사만 추가하고 Permission identity는 그대로 둔다.
+Catalog 입력 권한·typed 정책·계정의 현재 인가·source 퇴역·session 폐기·domain/대응표·감사는 같은 native transaction이다.
+
+Manifest v7의 전체 source/최종 revision과 payload v2의 실제 대응표를 연결했다. 마지막 정책 이후의 계정/catalog/host/receipt
+readback과 최종 합계 예산을 유지한다. 별도 생성 소비자는 양 방향·부분 공유·signed key·페이지 경계·실제 쓰기 뒤 실패,
+unknown/경합·같은 DB 재접속과 schema 정리를 검사하도록 작성했다. 새 본문과 환경별 실행은 TEST_EVIDENCE에서 구분한다.
+
+선택 identity의 through 수명·공유 물리 through의 복합 endpoint 전환과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

@@ -118,10 +118,10 @@ class RelationShardTest(unittest.TestCase):
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
         expected_counts = {
-            ('ubuntu-24.04', 'normal'): 3, ('ubuntu-24.04', 'race'): 9, ('ubuntu-24.04', 'cgo0'): 3,
-            ('ubuntu-24.04-arm', 'normal'): 3, ('ubuntu-24.04-arm', 'race'): 9, ('ubuntu-24.04-arm', 'cgo0'): 3,
-            ('macos-15-intel', 'normal'): 10, ('macos-15-intel', 'race'): 8, ('macos-15-intel', 'cgo0'): 10,
-            ('macos-26', 'normal'): 8, ('macos-26', 'race'): 9, ('macos-26', 'cgo0'): 8,
+            ('ubuntu-24.04', 'normal'): 3, ('ubuntu-24.04', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3,
+            ('ubuntu-24.04-arm', 'normal'): 3, ('ubuntu-24.04-arm', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3,
+            ('macos-15-intel', 'normal'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-15-intel', 'race'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-15-intel', 'cgo0'): 5 + len(ISOLATED_ACCOUNT_ROOTS),
+            ('macos-26', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-26', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-26', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
         }
         seen = {}
         for row in actual['include']:
@@ -157,15 +157,17 @@ class RelationShardTest(unittest.TestCase):
     def test_linux_race_isolates_long_account_roots_without_longer_deadlines(self):
         for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm'):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == 'race']
-            self.assertEqual(list(range(10)), [row['shard'] for row in rows])
-            self.assertTrue(all(row['shards'] == 9 and row['isolate_accounts'] and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
+            count = 4 + len(ISOLATED_ACCOUNT_ROOTS)
+            self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
+            self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
 
     def test_isolated_account_roots_keep_all_children_and_reject_wrong_execution(self):
         roots = self.roots + list(ISOLATED_ACCOUNT_ROOTS)
         required = [CONSUMER + '|' + root + '/current_child/deep_check' for root in roots]
         ordinary = []
-        for shard in range(1, 10):
-            result = plan(roots, required, [CONSUMER], shard, 9, True)
+        count = 4 + len(ISOLATED_ACCOUNT_ROOTS)
+        for shard in range(1, count + 1):
+            result = plan(roots, required, [CONSUMER], shard, count, True)
             chosen = result['roots']
             if shard <= len(ISOLATED_ACCOUNT_ROOTS):
                 self.assertEqual(chosen, [ISOLATED_ACCOUNT_ROOTS[shard - 1]])
@@ -173,10 +175,10 @@ class RelationShardTest(unittest.TestCase):
             else:
                 ordinary.extend(chosen)
             log = self.write('isolated.json', self.execution(chosen))
-            self.assertEqual(verify(log, roots, shard, 9, [CONSUMER], True)['consumer_roots_verified'], len(chosen))
+            self.assertEqual(verify(log, roots, shard, count, [CONSUMER], True)['consumer_roots_verified'], len(chosen))
             other = next(root for root in roots if root not in chosen)
             with self.assertRaises(ValueError):
-                verify(self.write('wrong-owner.json', self.execution(chosen + [other])), roots, shard, 9, [CONSUMER], True)
+                verify(self.write('wrong-owner.json', self.execution(chosen + [other])), roots, shard, count, [CONSUMER], True)
         self.assertEqual(Counter(ordinary), Counter(self.roots))
         for candidates, count in ((self.roots, 4), (roots, 3)):
             with self.assertRaises(ValueError):
@@ -190,9 +192,9 @@ class RelationShardTest(unittest.TestCase):
 
     def test_macos_account_partitions_preserve_package_deadlines_and_runtime_build_budget(self):
         for runner, mode, count, package_minutes, job_minutes in (
-                ('macos-15-intel', 'normal', 10, '35m', 45), ('macos-15-intel', 'cgo0', 10, '35m', 45),
-                ('macos-15-intel', 'race', 8, '70m', 90), ('macos-26', 'normal', 8, '35m', 45),
-                ('macos-26', 'race', 9, '70m', 90), ('macos-26', 'cgo0', 8, '35m', 45)):
+                ('macos-15-intel', 'normal', 5 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45), ('macos-15-intel', 'cgo0', 5 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45),
+                ('macos-15-intel', 'race', 3 + len(ISOLATED_ACCOUNT_ROOTS), '70m', 90), ('macos-26', 'normal', 3 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45),
+                ('macos-26', 'race', 4 + len(ISOLATED_ACCOUNT_ROOTS), '70m', 90), ('macos-26', 'cgo0', 3 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45)):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == mode]
             self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
             self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == package_minutes and row['job_timeout'] == (90 if row['shard'] == 0 else job_minutes) for row in rows))

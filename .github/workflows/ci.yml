@@ -573,7 +573,9 @@ jobs:
             expected_goarch: "amd64"
             cmd_test_timeout: "30m"
             flow_test_timeout: "40m"
-            timeout_minutes: {normal: 105, race: 115, cgo0: 105}
+            # CI 40803902589 began fixed-module after 83m39s and hit the
+            # 115m job limit at 31m of its unchanged 40m flow budget.
+            timeout_minutes: {normal: 105, race: 140, cgo0: 105}
           - runs_on: "macos-26"
             expected_goos: "darwin"
             expected_goarch: "arm64"
@@ -1326,6 +1328,9 @@ jobs:
             shard: core-account-catalog
             timeout_minutes: 40
           - mode: normal
+            shard: core-account-catalog-creation
+            timeout_minutes: 40
+          - mode: normal
             shard: core-account-profiles
             timeout_minutes: 40
           - mode: normal
@@ -1359,6 +1364,9 @@ jobs:
             shard: core-account-catalog
             timeout_minutes: 40
           - mode: race
+            shard: core-account-catalog-creation
+            timeout_minutes: 40
+          - mode: race
             shard: core-account-profiles
             timeout_minutes: 40
           - mode: race
@@ -1384,6 +1392,9 @@ jobs:
             timeout_minutes: 40
           - mode: cgo0
             shard: core-account-catalog
+            timeout_minutes: 40
+          - mode: cgo0
+            shard: core-account-catalog-creation
             timeout_minutes: 40
           - mode: cgo0
             shard: core-account-profiles
@@ -1550,7 +1561,7 @@ jobs:
           )
           go mod download all
           case "$shard" in
-            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-account-consumers|core-account-transition|core-account-catalog|core-account-profiles|core-consumer-writes|core-processes)
+            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-account-consumers|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-profiles|core-consumer-writes|core-processes)
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
               python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
                 --required scripts/ci/postgres-core-required.txt --output-dir "$partition"
@@ -1585,7 +1596,7 @@ jobs:
           required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
           test_timeout=18m
           if { [ "$shard" = core ] && [ "$mode" != race ]; } ||
-             [ "$shard" = core-consumers ] || [ "$shard" = core-account-consumers ] || [ "$shard" = core-account-transition ] || [ "$shard" = core-account-catalog ] || [ "$shard" = core-account-profiles ] || [ "$shard" = core-consumer-writes ]; then
+             [ "$shard" = core-consumers ] || [ "$shard" = core-account-consumers ] || [ "$shard" = core-account-transition ] || [ "$shard" = core-account-catalog ] || [ "$shard" = core-account-catalog-creation ] || [ "$shard" = core-account-profiles ] || [ "$shard" = core-consumer-writes ]; then
             # The generated roots share one package deadline, including the
             # complete child sets of each consumer partition. Individual
             # deadlines and the complete required inventory remain unchanged.
@@ -1630,7 +1641,7 @@ jobs:
           fi
           case "$shard" in
             core-consumers) go vet "${packages[@]}"; exit 0 ;;
-            core-account-consumers|core-account-transition|core-account-catalog|core-account-profiles|core-consumer-writes) exit 0 ;;
+            core-account-consumers|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-profiles|core-consumer-writes) exit 0 ;;
           esac
           if [ "$shard" = "core" ]; then
             test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"

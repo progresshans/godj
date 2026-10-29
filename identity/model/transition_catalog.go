@@ -29,17 +29,21 @@ type transitionCatalogRow struct {
 	revision    int64
 	code        auth.Permission
 	permissions []int64
+	values      map[string]query.Value
 }
 
 type transitionCatalogInventory struct {
 	groups, permissions map[int64]transitionCatalogRow
+	links               []deletionLink
 }
 
 type transitionCatalogObservation struct {
-	operation, digest string
-	bytes             int
-	mapping           *CatalogMappings
-	groups, direct    map[int64]int64
+	operation, digest                 string
+	bytes                             int
+	mapping                           *CatalogMappings
+	groups, direct                    map[int64]int64
+	before, after                     transitionCatalogInventory
+	pendingGroups, pendingPermissions bool
 }
 
 // Catalog storage is read with the real typed descriptors already validated by
@@ -71,7 +75,7 @@ func bindTransitionCatalog[M, G, P any](binding Binding[M], groups orm.Manager[G
 			return zero, err
 		}
 		result := transitionCatalogInventory{groups: owners, permissions: grants}
-		if err := readTransitionCatalogLinks(ctx, scope, links, result, digest); err != nil {
+		if err := readTransitionCatalogLinks(ctx, scope, links, &result, digest); err != nil {
 			return zero, err
 		}
 		return result, validateAccountSessionScope(ctx, scope)
@@ -119,7 +123,7 @@ func readTransitionCatalogRows[M any](ctx context.Context, scope db.Queryer, obj
 			if err := validateTransitionRow(ctx, scope, objects, row, values); err != nil {
 				return nil, err
 			}
-			observed := transitionCatalogRow{revision: revision}
+			observed := transitionCatalogRow{revision: revision, values: values}
 			if codeName != "" {
 				code, text := values[codeName].String()
 				permission, err := auth.NewPermission(code)
@@ -141,7 +145,7 @@ func readTransitionCatalogRows[M any](ctx context.Context, scope db.Queryer, obj
 	}
 }
 
-func readTransitionCatalogLinks(ctx context.Context, scope db.Queryer, membership deletionMembership, inventory transitionCatalogInventory, digest *transitionDigestWriter) error {
+func readTransitionCatalogLinks(ctx context.Context, scope db.Queryer, membership deletionMembership, inventory *transitionCatalogInventory, digest *transitionDigestWriter) error {
 	sets := make(map[int64]map[int64]bool)
 	var last int64
 	started := false
@@ -177,6 +181,7 @@ func readTransitionCatalogLinks(ctx context.Context, scope db.Queryer, membershi
 			if digest.err != nil {
 				return digest.err
 			}
+			inventory.links = append(inventory.links, row)
 			if row.sourceValid && row.targetValid {
 				if sets[row.source] == nil {
 					sets[row.source] = make(map[int64]bool)
@@ -290,6 +295,22 @@ func (observed transitionCatalogObservation) memberships(input accountMembership
 	if err != nil {
 		return accountMemberships{}, err
 	}
+	if observed.pendingGroups {
+		for _, id := range input.groups {
+			if _, found := observed.before.groups[id]; !found {
+				return accountMemberships{}, managementError(CodeConflict, nil)
+			}
+		}
+		groups = nil
+	}
+	if observed.pendingPermissions {
+		for _, id := range input.direct {
+			if _, found := observed.before.permissions[id]; !found {
+				return accountMemberships{}, managementError(CodeConflict, nil)
+			}
+		}
+		direct = nil
+	}
 	return accountMemberships{groups: groups, direct: direct, grants: slices.Clone(input.grants)}, nil
 }
 
@@ -300,28 +321,12 @@ func (owner *Transition[S, T]) observeCatalog(ctx context.Context, scope db.Quer
 	if mapping == nil && left != right {
 		return zero, managementError(CodeInvalidInput, nil)
 	}
-	budget := &transitionDigestWriter{hash: sha256.New()}
-	budget.part([]byte("godj.account-transition-catalog.v1"))
-	budget.part([]byte(operation))
-	for _, role := range []ir.AccountCatalog{left, right} {
-		encoded, err := json.Marshal(role)
-		if err != nil {
-			return zero, err
-		}
-		budget.part(encoded)
-	}
-	before, err := old.state.relations.catalog(ctx, scope, owner.config.MaxCatalogRows, budget)
+	result, err := owner.observeCatalogRows(ctx, scope, operation)
 	if err != nil {
 		return zero, err
 	}
-	after := before
-	if left != right {
-		after, err = next.state.relations.catalog(ctx, scope, owner.config.MaxCatalogRows, budget)
-		if err != nil {
-			return zero, err
-		}
-	}
-	result := transitionCatalogObservation{operation: operation, mapping: cloneCatalogMappings(mapping)}
+	before, after := result.before, result.after
+	result.mapping = cloneCatalogMappings(mapping)
 	if mapping == nil {
 		// Shared catalog identities still have a complete inventory. Retain
 		// explicit self maps so host catalog references cannot invent a key
@@ -350,6 +355,38 @@ func (owner *Transition[S, T]) observeCatalog(ctx context.Context, scope db.Quer
 			}
 		}
 	}
+	return result, nil
+}
+
+// Keep the complete bounded native inventory separate from correspondence.
+// Creation first reviews absent target rows, then resolves their actual keys;
+// neither stage may substitute a guessed mapping for the storage observation.
+func (owner *Transition[S, T]) observeCatalogRows(ctx context.Context, scope db.Queryer, operation string) (transitionCatalogObservation, error) {
+	var zero transitionCatalogObservation
+	old, next := owner.old.state.credentials, owner.next.state.credentials
+	left, right := old.state.binding.state.role.Catalog, next.state.binding.state.role.Catalog
+	budget := &transitionDigestWriter{hash: sha256.New()}
+	budget.part([]byte("godj.account-transition-catalog.v1"))
+	budget.part([]byte(operation))
+	for _, role := range []ir.AccountCatalog{left, right} {
+		encoded, err := json.Marshal(role)
+		if err != nil {
+			return zero, err
+		}
+		budget.part(encoded)
+	}
+	before, err := old.state.relations.catalog(ctx, scope, owner.config.MaxCatalogRows, budget)
+	if err != nil {
+		return zero, err
+	}
+	after := before
+	if left != right {
+		after, err = next.state.relations.catalog(ctx, scope, owner.config.MaxCatalogRows, budget)
+		if err != nil {
+			return zero, err
+		}
+	}
+	result := transitionCatalogObservation{operation: operation, before: before, after: after}
 	result.digest, result.bytes = hex.EncodeToString(budget.hash.Sum(nil)), budget.size
 	return result, budget.err
 }

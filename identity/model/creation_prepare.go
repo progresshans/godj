@@ -209,7 +209,7 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 		if err != nil {
 			return err
 		}
-		selection := AccountMemberships{state: &accountMembershipState{slices.Clone(candidate.groups), slices.Clone(candidate.permissions), candidate.profile}}
+		selection := AccountMemberships{state: &accountMembershipState{groups: slices.Clone(candidate.groups), permissions: slices.Clone(candidate.permissions), profile: candidate.profile}}
 		diagnostics, failure := state.config.Validate(ctx, scope, row, selection)
 		if err := errors.Join(failure, validateAuthorityScope(ctx, validator)); err != nil {
 			return err
