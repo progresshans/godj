@@ -97,6 +97,10 @@ func (binding Binding[M]) prepareCandidateCredential(domain auth.CredentialDomai
 	if err != nil {
 		return auth.Credential{}, invalidAccountCredential()
 	}
+	return binding.prepareCandidateCredentialValues(domain, values, permissions)
+}
+
+func (binding Binding[M]) prepareCandidateCredentialValues(domain auth.CredentialDomain, values map[string]query.Value, permissions []auth.Permission) (auth.Credential, error) {
 	role := binding.state.role
 	revision, valid := values[role.Revision].Integer()
 	if !valid || revision <= 0 {

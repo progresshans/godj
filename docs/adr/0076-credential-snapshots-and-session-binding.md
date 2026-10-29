@@ -2086,6 +2086,18 @@ commit 안에서 대응표에 저장하며 확정 결과의 `Mappings`로 반환
 재시작 대조는 보관 source 목록을 저장 대응표의 source/revision·초기 target revision 및 receipt의 count/checksum과 확인한다.
 새 `Reconcile` 조회는 생성 capability 없이도 같은 source·역할·backend로 수행할 수 있으며, 미관측을 재시도 허가로 사용하지 않는다.
 
+`AccountCreation.References`는 선택한 FK/OneToOne 필드별로 대상의 역할 종류와 검토할 원본 key/revision을 받는다.
+같은 필드를 scalar `Input`에 함께 넣지 않으며, 선언된 FK target이 새 계정·Group·Permission 중 해당 모델과 일치해야 한다.
+Source key 0/음수도 실제 존재를 검사한다. 참조 사본과 값 없는 보류 상태를 준비 digest에 포함하고, 생성된 key를 예측하거나
+임시 0/NULL을 typed 행에 넣지 않는다. 원본의 전체 inventory·revision과 미지원 종류/잘못된 모델/중복 입력을 먼저 확인한다.
+
+준비는 보류 FK를 제외한 scalar·credential·선택을 검사한다. 실제 대응표가 생기면 모든 FK를 결합한 typed 행의 완전한
+validation·unique·현재 FK/M2M 선택을 검사한 뒤 저장한다. `TransitionConfig.Validate`에는 불완전한 typed 행을 전달하지
+않으며 해당 후보의 정책은 실제 key 결합 후 같은 transaction에서 적용한다. 계정 참조는 원본 key의 의존 순서로 생성하고
+반환 대응표는 원본 순서를 유지한다. 공유 catalog의 의도된 revision 증가 뒤에도 입력 참조는 검토한 SourceRevision에 묶인다.
+Native 자동 key만으로 해결하지 못하는 계정 참조 cycle은 쓰기 전에 명시적 `unsupported`다. Nullable cycle의 단계적 쓰기나
+key 예약을 이번 경로로 대신하지 않는다. 기존 source 인가와 마지막 전체 행·session·audit·receipt 대조는 유지한다.
+
 ### 전환 대상 catalog의 생성
 
 `TransitionCatalogTarget[G,P]`는 두 계정 binding, 실제 typed Group/Permission descriptor와 세 소속 collection을 같은
@@ -2118,7 +2130,7 @@ contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확�
 새 account/Group/Permission의 직접 INSERT도 공통 삽입 inventory에 합치며 실제 key와 전체 scalar를 64 MiB 합계에
 포함한다. Catalog의 관계 입력 제한은 유지하므로 nullable through endpoint는 NULL로 시작한다. Catalog 생성 직후와
 계정 생성·퇴역·receipt·마지막 정책 이후까지 물리 링크와 전체 행을 대조하고, 늦은 endpoint/payload 변경은 rollback한다.
-Collection setter 안에서의 추가 선택 identity 생성과 pending 대상 간 FK 재매핑은 남은 수명 통합 대상이다.
+Collection setter 안에서의 추가 선택 identity 생성, catalog 생성 행 자체의 FK와 순환 참조 수명은 남은 통합 대상이다.
 직접 INSERT와 공유 물리 through의 코드 존재를 I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
 
 ### 일반 host 참조의 단계적 전환

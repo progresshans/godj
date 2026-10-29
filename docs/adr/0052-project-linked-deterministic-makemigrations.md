@@ -118,6 +118,9 @@ copied `ProjectSpec`, configured filesystem sources와 programmatic sources를 �
    선택합니다. Unresolved cross-app FK를 제외한 model 생성이나 이미 만들어진 model의 준비된 컬럼 추가가 진전을 만듭니다.
    Explicit through는 model이 존재해도 필요한 endpoint 컬럼이 없으면 M2M 선언의 준비가 끝난 것이 아닙니다. 앞선 prefix가
    through model을 만들었을 수 있으므로 cycle의 첫 app에 항상 CreateModel이 있다고 가정하지 않습니다.
+   첫 edge로 찾은 단순 cycle에 게시할 operation이 없으면, 그 cycle 밖의 나머지 app도 canonical 순서로 확인합니다.
+   다른 분기의 endpoint 컬럼 공급자가 자기 M2M 선언을 미루면서 진전을 만들 수 있기 때문입니다. 전체 후보에서도
+   준비된 operation이 없을 때만 계획 불가로 닫으며, 아직 없는 외부 target을 dependency로 추측하지 않습니다.
    나머지 FK와 M2M 선언은 뒤의 후보가 추가하므로 한 app에 여러 파일이 생길 수 있습니다.
    **각 후보 뒤의 정확한 historical prefix에서 다음 후보를 다시 계산**합니다. 중간 종료 뒤 fresh 탐지가 같은 나머지 bytes를
    만들기 때문에 partial temp의 엄격한 recovery 규칙을 약화하지 않습니다. 후보는 최대 64개이며 남은 app 수만으로도 한도를

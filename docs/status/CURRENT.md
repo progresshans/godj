@@ -29,7 +29,8 @@
    선택 Group/Permission의 through 생성과 실제 key 검증·빈 자체 소속·삭제/교체·종속 계정/session rollback을 원격 검증한다.
    일반·첫 계정 생성의 보류한 부모 FK·범위 밖 해싱·실제 key 결합과 권한/원자성·선언 fingerprint v4를 원격 검증한다.
    전환의 직접 계정/catalog INSERT가 만드는 through의 전체 행·NULL endpoint 관측과 실제 key·rollback을 원격 검증한다.
-   전환 collection 안의 추가 identity 생성·pending 대상 간 FK 재매핑과 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
+   전환 계정 생성의 원본 key/revision 참조·실제 FK/OneToOne 결합과 through/host migration 분기 순환 보완을 원격 검증한다.
+   전환 collection 안의 추가 identity 생성·catalog 생성 행의 FK·순환 참조 수명과 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
 
 ## 검증 경계
 

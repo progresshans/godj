@@ -3227,6 +3227,51 @@ Go 타입 검사·SQLite/PostgreSQL 본문·race/platform과 I1 수용은 새 �
 Source 16개(삭제 포함)와 정적 검사 receipt는 `gdj0138-transition-identity-v1/receipt-final.json`에 있으며 SHA-256은
 `d1599b9eb408952556d1f12924a79cdb3b059431cb0fdab231fc240106c90ec2`다.
 
+### 전환 생성의 보류 FK와 migration 분기 순환
+
+2026-10-30, source `0c388fc26f39293d7ab78a6b2b6b6ac1fda0db4c` 위에서 `AccountCreation.References`를 작성했다.
+선택 FK/OneToOne의 실제 target 모델과 account/Group/Permission 종류·원본 key/revision을 검토하고 입력 사본을 digest에
+포함한다. 보류 FK는 private 값 목록에서 absent이며 완성된 typed 행에 임시 0/NULL을 넣지 않는다. 기존 catalog 대응표는
+준비부터 실제 key를 쓰고, 생성 catalog와 계정 참조는 실제 할당 뒤 전체 typed/unique·현재 선택 검사를 거친다.
+계정은 의존 순서로 저장하되 대응표는 원본 순서를 유지한다. 공유 Group의 의도된 revision 증가 뒤에도 참조는 검토한
+SourceRevision에 묶인다. Typed `Validate`는 불완전한 후보를 받지 않으며 해당 후보의 완전한 정책은 key 결합 뒤 적용한다.
+Native 자동 key로 해결하지 못하는 cycle은 쓰기 전 명시적 `unsupported`다. Catalog 생성 행 자체의 FK와 nullable cycle의
+단계적 쓰기/key 예약·collection 안의 추가 identity 생성은 남아 있다.
+
+새 외부 root는 nullable/필수 FK 두 생성 schema에서 각각 24개 시나리오와 parent, DB당 필수 25개 실행을 요구한다.
+원본 순서와 반대인 계정 의존성, 세 namespace의 실제 0/음수 key, OneToOne, 사본/입력 순서, 잘못된 필드·종류·source·
+revision·scalar 중복과 cycle을 포함한다. 실제 catalog 할당 뒤 선택 거부, 첫 INSERT 뒤 실패, 두 번째 unique 거부와
+완전한 typed 정책 거부, 마지막 receipt 이후 FK/선택 변화와 source 변경·권한 회수, 전체 rollback/unknown·재접속을 대조한다.
+기존 account-only 소비자에도 현재 catalog의 실제 key 0을 명시적 source 참조로 결합하는 사례를 추가했다.
+의존 순서·부분 결과 거부와 원본 catalog revision을 보존하는 단위 두 root를 함께 작성했다. 새 본문 실행은 미확인이다.
+
+선행 [CI 40946102100](https://github.com/progresshans/godj/actions/runs/40946102100), attempt 1의 shared-through
+PostgreSQL normal/race/CGO0 작업 `123702705646`·`123702705741`·`123702706176`와 Linux ARM64 race 관계
+작업 `123702716604`는 `invalid_generated_plan app=bridges: relation cycle has no publishable model or field operations`로
+migration 생성 단계에서 실패했다. Native 소비자 본문에는 도달하지 않았다. 첫 edge의 단순 cycle에서 작업을 찾지 못하면
+다른 분기의 app도 canonical 순서로 확인하도록 후보 선택을 보완했다. 준비된 컬럼 공급자가 자기 M2M을 미루면서 진전할 수
+있으며 실제 의존성/endpoint와 매 prefix의 재구성 검사는 유지한다. Nullable/required through·host 모델 그래프의 모든
+게시 prefix 재개를 검사하는 root를 추가했다. 로컬 재현/본문 실행은 하지 않았으므로 이 수정의 해결 여부는 새 CI 대상이다.
+
+같은 선행 source의 root-through normal/race/CGO0 작업은 모두 success로 종료했다. Normal 작업 `123702705554`의
+artifact `12929264966` ZIP SHA-256 `e12225e8f7c48e1446a7f74227d984ede1d92d340a42b49f0be91c81d5050af9`는
+GitHub metadata와 일치한다. Parent의 필수 21개와 기본/custom × Account/Group/Permission × SQLite/PostgreSQL
+12개 원본 capture를 비교했고 각각 필수 41개, 합계 492개 child PASS와 fail/skip/누락/중복 부재를 확인했다.
+이는 직전 ReadSnapshot callback 수정의 normal 실제 실행 근거이며 새 FK 기능이나 전체 CI의 성공이 아니다.
+Race/CGO0는 job 종료 상태까지 확인했으며 child 원본의 이 대조는 normal에 한정한다.
+
+위 원본의 실제 checkout `cae6cc791f882e4c39c51c09e3fcf332a11e1d11`와 제출 source의 tree는
+`b816d11ec4bcb6fe3881065aceb897298756fc09`로 같다. 검증 보관소 `gdj0138-target-references-v1/`의
+`prior-failure-diagnosis.json` SHA-256은 `2dabd6cae32818a9f17a68f1bbbbe35e0cb29beea2788f5c9569fc6b0b4832a3`,
+`prior-root-through-normal-verification.json` SHA-256은 `f76abc2d3a73ffb819519c98352a83f787c3c6caa6dd9f72a00204e829334100`이다.
+
+최종 CI 분할·실행 도구 검사 43개(113.688초), 변경 Go 13개 파일의 포맷, 세 template의 치환 문법과 245개 문서 링크·diff
+검사를 통과했다. Relation 필수 항목은 4,730→4,741, PostgreSQL 5,802→5,809, Portable 293→296이며 모든 기존 항목을
+유지한다. 새 외부 root는 PostgreSQL의 기존 shared-through owner와 관계 계정 분리 좌표의 독립 owner에 연결했다.
+로컬 compile 중단을 유지했으며 실제 생성/Go 타입 검사·양 DB 본문·race/platform·I1 전체 수용은 새 source에서 확인해야 한다.
+Source 25개와 정적 검사 receipt는 `gdj0138-target-references-v1/receipt-final.json`에 있고 SHA-256은
+`e901fb4601125e9efc477e8d69ceda72c6a5a0731a1f0c7a5e69362a769d4753`이다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

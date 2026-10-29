@@ -46,6 +46,7 @@ ISOLATED_ACCOUNT_CONSUMER_OWNERS = {
     'TestGeneratedAccountCatalogTransition': 'core-account-catalog',
     'TestGeneratedAccountCatalogCreation': 'core-account-catalog-creation',
     'TestGeneratedAccountSharedThroughTransition': 'core-account-shared-through',
+    'TestGeneratedAccountTransitionTargetReferences': 'core-account-shared-through',
     'TestGeneratedAccountRootThroughCreation': 'core-account-root-through',
 }
 PROFILE_CONSUMER_ROOTS = frozenset({

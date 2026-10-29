@@ -17,6 +17,9 @@ import (
 //go:embed testdata/accountbinding/transition_shared_through_test.go.tmpl
 var accountSharedThroughConsumer string
 
+//go:embed testdata/accountbinding/transition_target_references_test.go.tmpl
+var accountTransitionTargetReferenceConsumer string
+
 func accountSharedThroughCases(strategy string) []string {
 	result := []string{"lifecycle", "signed_keys", "shared_group", "shared_permission", "late_payload", "late_catalog_payload", "late_endpoint", "late_extra_null", "late_remove", "audit_failure", "rollback", "unknown_commit", "unknown_rollback"}
 	for _, kind := range []string{"group", "permission"} {
@@ -30,8 +33,8 @@ func accountSharedThroughCases(strategy string) []string {
 	return result
 }
 
-func TestGeneratedAccountSharedThroughTransition(t *testing.T) {
-	spec, role := accountSharedThroughSpec(t)
+func writeAccountSharedThroughConsumer(t *testing.T, spec codegen.ProjectSpec, role ir.AccountRole) string {
+	t.Helper()
 	bundle, err := codegen.GenerateProject(spec)
 	if err != nil {
 		t.Fatal(err)
@@ -48,13 +51,28 @@ func TestGeneratedAccountSharedThroughTransition(t *testing.T) {
 		}
 		return strings.Join(quoted, ",")
 	}
-	source := strings.NewReplacer("@@ROLE@@", string(encoded), "@@MIGRATIONS@@", accountConsumerMigrationSources(t, spec), "@@STAGED_CASES@@", cases("staged"), "@@CREATED_CASES@@", cases("created")).Replace(accountSharedThroughConsumer)
+	var referenceCases []string
+	for _, name := range accountTransitionTargetReferenceCases() {
+		referenceCases = append(referenceCases, strconv.Quote(name))
+	}
+	source := strings.NewReplacer("@@ROLE@@", string(encoded), "@@MIGRATIONS@@", accountConsumerMigrationSources(t, spec), "@@STAGED_CASES@@", cases("staged"), "@@CREATED_CASES@@", cases("created"), "@@REFERENCE_CASES@@", strings.Join(referenceCases, ",")).Replace(accountSharedThroughConsumer)
 	formatted, err := format.Source([]byte(source))
 	if err != nil {
 		t.Fatal(err)
 	}
 	writeGeneratedTestFile(t, root, "consumer/transition_shared_through_test.go", formatted)
+	formatted, err = format.Source([]byte(strings.ReplaceAll(accountTransitionTargetReferenceConsumer, "@@REFERENCE_CASES@@", strings.Join(referenceCases, ","))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeGeneratedTestFile(t, root, "consumer/transition_target_references_test.go", formatted)
 	writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
+	return root
+}
+
+func TestGeneratedAccountSharedThroughTransition(t *testing.T) {
+	spec, role := accountSharedThroughSpec(t)
+	root := writeAccountSharedThroughConsumer(t, spec, role)
 	required := []string{"TestAccountSharedThroughTransition"}
 	for _, storage := range []string{"plain", "unique"} {
 		parent := "TestAccountSharedThroughTransition/" + storage
@@ -67,7 +85,39 @@ func TestGeneratedAccountSharedThroughTransition(t *testing.T) {
 			}
 		}
 	}
-	runAccountConsumerDatabases(t, root, required)
+	runAccountConsumerDatabases(t, root, required, "TestAccountSharedThroughTransition")
+}
+
+func accountTransitionTargetReferenceCases() []string {
+	return []string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "unknown_commit", "unknown_rollback", "rollback", "cycle", "self_cycle", "unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap", "missing_reference", "denied_choice", "late_choice", "policy_rejected", "duplicate_login", "unique_conflict", "first_insert_failure", "late_reference", "source_changed", "permission_revoked"}
+}
+
+func TestGeneratedAccountTransitionTargetReferences(t *testing.T) {
+	for _, required := range []bool{false, true} {
+		name := "nullable"
+		if required {
+			name = "required"
+		}
+		t.Run(name, func(t *testing.T) {
+			spec, role := accountSharedThroughSpec(t)
+			for i := range spec.Apps {
+				if spec.Apps[i].Schema.AppLabel == role.Model.AppLabel {
+					for j := range spec.Apps[i].Schema.Models[0].Fields {
+						field := &spec.Apps[i].Schema.Models[0].Fields[j]
+						if field.Name == "preferred_group" {
+							field.Nullable, field.Blank = !required, !required
+						}
+					}
+				}
+			}
+			root := writeAccountSharedThroughConsumer(t, spec, role)
+			cases := []string{"TestAccountTransitionTargetReferences"}
+			for _, name := range accountTransitionTargetReferenceCases() {
+				cases = append(cases, "TestAccountTransitionTargetReferences/"+name)
+			}
+			runAccountConsumerDatabases(t, root, cases, "TestAccountTransitionTargetReferences")
+		})
+	}
 }
 
 // Both storage variants belong to one generated module. Each physical table
@@ -187,6 +237,17 @@ func addTransitionIdentityThroughModels(spec *codegen.ProjectSpec, old, next ir.
 	for i := range spec.Apps {
 		if spec.Apps[i].Schema.AppLabel == "bridges" {
 			spec.Apps[i].Schema.Models = append(spec.Apps[i].Schema.Models, hub)
+		} else if spec.Apps[i].Schema.AppLabel == next.Model.AppLabel {
+			model := &spec.Apps[i].Schema.Models[0]
+			for _, field := range []struct {
+				name, goName string
+				target       ir.ModelIdentity
+			}{
+				{"mentor", "MentorID", next.Model}, {"preferred_group", "PreferredGroupID", next.Catalog.Group}, {"preferred_permission", "PreferredPermissionID", next.Catalog.Permission},
+			} {
+				model.Fields = append(model.Fields, ir.Field{Name: field.name, GoName: field.goName, Column: field.name + "_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Relation: &ir.ForeignKeyRelation{Target: field.target, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}})
+			}
+			model.Fields = append(model.Fields, ir.Field{Name: "preferred_unique", GoName: "PreferredUniqueID", Column: "preferred_unique_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true, Unique: true, Relation: &ir.ForeignKeyRelation{Target: next.Catalog.Group, Cardinality: ir.RelationOneToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}})
 		}
 	}
 }

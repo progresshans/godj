@@ -19,7 +19,29 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 	mappings := make([]AccountMapping, len(candidates))
 	var changes []orm.CollectionChange
 	var insertedIdentities []orm.CollectionInsertedRow
+	requests := make([]AccountCreation[T], len(candidates))
+	sources := make([]SourceAccount, len(candidates))
 	for i, candidate := range candidates {
+		sources[i] = SourceAccount{ID: current.pairs[i].old.id, Revision: current.pairs[i].old.revision}
+		requests[i] = AccountCreation[T]{Source: sources[i], References: candidate.references}
+	}
+	order, err := transitionTargetOrder(requests)
+	if err != nil {
+		return nil, err
+	}
+	allocated := make(map[int64]int64, len(candidates))
+	references := targetReferenceMappings(sources, allocated, current.catalog)
+	for _, i := range order {
+		candidate := candidates[i]
+		if candidate.resolve != nil {
+			candidate, err = candidate.resolve(ctx, scope, current.actor, references)
+			if err != nil {
+				return nil, err
+			}
+			if candidate.resolve != nil {
+				return nil, managementError(CodeConflict, nil)
+			}
+		}
 		row, err := candidate.prepared.Model()
 		if err != nil {
 			return nil, err
@@ -48,6 +70,7 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 		}
 		current.pairs[i].next = candidate.row
 		current.pairs[i].next.row, current.pairs[i].next.id, current.pairs[i].next.values, current.pairs[i].next.memberships = row, id, values, memberships
+		allocated[current.pairs[i].old.id] = id
 		if creating {
 			inserted, err := addTransitionIdentity(ctx, scope, &current.inserted, binding.state.project, binding.state.role.Model, objects, row)
 			if err != nil {

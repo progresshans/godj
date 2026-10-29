@@ -580,8 +580,16 @@ Permission 여섯 변형의 일반·첫 생성과 실패/재접속 소비자를 
 변경을 추가했다. 기존 blanket 구성 거부 단위 검사는 새 생성 소비자의 허용/거부와 사본·부분 결과 거부 검사로 대체했다.
 코드·문법 검사와 양 DB의 실제 생성·실행·I1 전체 수용은 TEST_EVIDENCE에서 구분한다.
 
-공유 물리 through 전환과 계정/catalog through 편집·생성의 실제 검증, 전환 collection 안의 추가 identity 생성과
-pending 대상 간 FK 재매핑, 역사 `systemstate` 가져오기,
+계정 전환 생성 입력의 `References`로 실제 account/Group/Permission 대응표를 FK/OneToOne에 결합하도록 작성했다.
+원본 key/revision·역할 모델·입력 사본을 검토하고 보류 FK를 typed 행의 0/NULL로 만들지 않는다. 계정의 의존 순서대로
+실제 key를 받은 뒤 전체 typed/unique/선택 정책을 적용하며 source 인가·마지막 전체 readback과 원자성을 유지한다.
+Nullable/필수 FK 두 외부 생성 변형은 역순 의존성·실제 0/음수 key·OneToOne·입력 소유권·권한/선택·늦은 변조와
+rollback/unknown·재접속을 검사한다. 기존 catalog를 쓰는 account-only 전환도 실제 source key 0의 FK mapping을 추가했다.
+새 host/through 조합에서 확인한 migration의 분기 순환 계획 실패는 첫 단순 cycle 밖의 게시 가능한 공급자를 찾도록
+보완하고, 모든 게시 prefix 재개 검사를 추가했다. 본문·환경별 검증은 TEST_EVIDENCE를 따른다.
+
+공유 물리 through 전환과 계정/catalog through 편집·생성의 실제 검증, 전환 collection 안의 추가 identity 생성,
+catalog 생성 행 자체의 FK와 순환 참조 수명, 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

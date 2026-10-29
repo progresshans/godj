@@ -163,6 +163,10 @@ func (owner *Transition[S, T]) inspectAuthority(ctx context.Context, scope db.Qu
 }
 
 func (owner *Transition[S, T]) validatePair(ctx context.Context, scope db.Queryer, operation string, a transitionRow[S], b transitionRow[T], catalog transitionCatalogObservation) error {
+	return owner.validatePairPolicy(ctx, scope, operation, a, b, catalog, true)
+}
+
+func (owner *Transition[S, T]) validatePairPolicy(ctx context.Context, scope db.Queryer, operation string, a transitionRow[S], b transitionRow[T], catalog transitionCatalogObservation, typed bool) error {
 	old, next := owner.old.state.credentials, owner.next.state.credentials
 	left, right := old.state.binding.state.role, next.state.binding.state.role
 	mapped, err := catalog.memberships(a.memberships)
@@ -208,7 +212,7 @@ func (owner *Transition[S, T]) validatePair(ctx context.Context, scope db.Querye
 	if !maps.Equal(canonical, b.values) {
 		return managementError(CodeConflict, nil)
 	}
-	if owner.config.Validate != nil {
+	if typed && owner.config.Validate != nil {
 		oldCopy, err := old.state.binding.state.objects.ApplyValues(a.row, map[string]query.Value{left.Password: query.String("")})
 		if err != nil {
 			return err
@@ -327,33 +331,12 @@ func validateTransitionValues[M any](ctx context.Context, scope db.Queryer, obje
 	if err != nil {
 		return err
 	}
-	fields := make([]serializers.ModelField, 0, len(metadata.Fields))
-	for _, field := range metadata.Fields {
-		if candidate && field.PrimaryKey {
-			continue
-		}
-		selected := serializers.ModelField{Name: field.Name, ReadOnly: true}
-		switch field.Kind {
-		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage, ir.FieldText:
-			selected.AllowEmpty = field.Blank
-		}
-		fields = append(fields, selected)
-	}
-	spec, err := serializers.FromModel(metadata, fields...)
-	if err != nil {
-		return err
-	}
-	encoder, err := serializers.NewModelEncoder(spec, metadata, func(_ M, field ir.Field) (query.Value, bool) { value, found := values[field.Name]; return value, found })
-	if err != nil {
-		return err
-	}
-	if _, err := encoder.Encode(row); err != nil {
+	if err := validateTransitionScalarValues(metadata, values, candidate, nil); err != nil {
 		return err
 	}
 	uniqueValues, current := values, &row
 	if candidate {
 		// An unsaved target has no row to exclude from advisory uniqueness.
-		// Its absent primary key is not a supplied uniqueness candidate either.
 		uniqueValues, current = maps.Clone(values), nil
 		for _, field := range metadata.Fields {
 			if field.PrimaryKey {
@@ -371,6 +354,34 @@ func validateTransitionValues[M any](ctx context.Context, scope db.Queryer, obje
 		}
 	}
 	return nil
+}
+
+func validateTransitionScalarValues(metadata ir.Model, values map[string]query.Value, candidate bool, pending map[string]bool) error {
+	fields := make([]serializers.ModelField, 0, len(metadata.Fields))
+	for _, field := range metadata.Fields {
+		if candidate && field.PrimaryKey || pending[field.Name] {
+			continue
+		}
+		selected := serializers.ModelField{Name: field.Name, ReadOnly: true}
+		switch field.Kind {
+		case ir.FieldChar, ir.FieldEmail, ir.FieldURL, ir.FieldSlug, ir.FieldFile, ir.FieldImage, ir.FieldText:
+			selected.AllowEmpty = field.Blank
+		}
+		fields = append(fields, selected)
+	}
+	spec, err := serializers.FromModel(metadata, fields...)
+	if err != nil {
+		return err
+	}
+	encoder, err := serializers.NewModelEncoder(spec, metadata, func(_ struct{}, field ir.Field) (query.Value, bool) {
+		value, found := values[field.Name]
+		return value, found
+	})
+	if err != nil {
+		return err
+	}
+	_, err = encoder.Encode(struct{}{})
+	return err
 }
 
 func transitionRetirement[M any](binding Binding[M], row transitionRow[M], operation string) (orm.PreparedModel[M], error) {

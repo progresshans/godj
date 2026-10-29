@@ -158,6 +158,11 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 	if err != nil {
 		return zero, err
 	}
+	var referenceSources []SourceAccount
+	for id, row := range before {
+		referenceSources = append(referenceSources, SourceAccount{ID: id, Revision: row.revision})
+	}
+	references := targetReferenceMappings(referenceSources, nil, catalog)
 	for i, id := range slices.Sorted(maps.Keys(before)) {
 		source := before[id]
 		memberships, err := catalog.memberships(source.memberships)
@@ -170,7 +175,7 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 			if request.Source.ID != id || request.Source.Revision != source.revision {
 				return zero, managementError(CodeConflict, nil)
 			}
-			candidate, err = prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, memberships, owner.old.state.credentials.state.binding.state.role, request.Input, inputs.createdAt, ownership.Generation())
+			candidate, err = prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, memberships, owner.old.state.credentials.state.binding.state.role, request.Input, request.References, references, inputs.createdAt, ownership.Generation())
 		} else {
 			pair := inputs.mappings[i]
 			target, present := after[pair.TargetID]
@@ -205,13 +210,16 @@ func (owner *Transition[S, T]) observeWithCatalogCreation(ctx context.Context, s
 		if err != nil {
 			return zero, err
 		}
-		if err := owner.validatePair(ctx, scope, operation, source, candidate.row, catalog); err != nil {
+		if err := owner.validatePairPolicy(ctx, scope, operation, source, candidate.row, catalog, candidate.resolve == nil); err != nil {
 			return zero, err
 		}
 		if err := writeTransitionRow(digest, source); err != nil {
 			return zero, err
 		}
 		if err := writeTransitionRow(digest, candidate.row); err != nil {
+			return zero, err
+		}
+		if err := writeTransitionTargetReferences(digest, candidate.references); err != nil {
 			return zero, err
 		}
 		result.pairs = append(result.pairs, transitionPair[S, T]{source, candidate.row})

@@ -40,7 +40,10 @@ type AccountMapping = domain.Mapping
 //
 // Validate is optional application policy over detached, password-redacted
 // source/target rows and complete profile memberships. It runs in preparation
-// and again inside the final fence. It must not mutate/retain the borrowed
+// when a complete typed target exists, and again inside the final fence.
+// Symbolic target references defer this policy until their real keys have
+// been bound; an incomplete typed row is never passed as a preview.
+// It must not mutate/retain the borrowed
 // reader, re-enter the backend or publish external effects. All callbacks must
 // be safe for concurrent calls. MaxAccounts defaults to 4096 and fails closed.
 type TransitionConfig[S, T any] struct {

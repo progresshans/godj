@@ -114,6 +114,26 @@ func nextCandidate(changes map[string]appChange, current, desired migrations.Pro
 						break
 					}
 				}
+				// App-level waits can include explicit-through endpoint and
+				// declaration-order dependencies on another branch of the graph.
+				// A simple first-edge cycle with no ready operation is not proof
+				// that the complete graph is blocked. A provider outside this
+				// cycle may publish the missing fields while deferring its own M2M.
+				if selected == "" {
+					for _, app := range apps {
+						if slices.Contains(cycle, app) {
+							continue
+						}
+						candidate, err := candidateOperations(app, changes[app], current, desired, known, true)
+						if err != nil {
+							return migrations.Migration{}, err
+						}
+						if len(candidate) != 0 {
+							selected, breakCycle, operations = app, true, candidate
+							break
+						}
+					}
+				}
 				if selected == "" {
 					return migrations.Migration{}, detectionError(CodeInvalidGeneratedPlan, cycle[0], "", "", fmt.Errorf("relation cycle has no publishable model or field operations"))
 				}

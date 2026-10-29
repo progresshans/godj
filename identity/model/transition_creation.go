@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"maps"
 	"slices"
 	"time"
 
@@ -58,8 +59,15 @@ func (owner *Transition[S, T]) PrepareCreation(ctx context.Context, actor auth.P
 	sources := make([]SourceAccount, len(owned))
 	for i, request := range owned {
 		sources[i] = request.Source
+		if len(request.References) > len(owner.config.TargetCreation.state.metadata.Fields) {
+			return zero, managementError(CodeInvalidInput, nil)
+		}
+		owned[i].References = maps.Clone(request.References)
 	}
 	if _, err := normalizeSourceAccounts(sources); err != nil {
+		return zero, err
+	}
+	if _, err := transitionTargetOrder(owned); err != nil {
 		return zero, err
 	}
 	if owner.config.CatalogCreation.state != nil {
@@ -171,6 +179,11 @@ func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Que
 	if err != nil {
 		return zero, err
 	}
+	var referenceSources []SourceAccount
+	for id, row := range before {
+		referenceSources = append(referenceSources, SourceAccount{ID: id, Revision: row.revision})
+	}
+	references := targetReferenceMappings(referenceSources, nil, observedCatalog)
 	for _, request := range requests {
 		source, present := before[request.Source.ID]
 		if !present || source.revision != request.Source.Revision {
@@ -180,17 +193,20 @@ func (owner *Transition[S, T]) observeCreation(ctx context.Context, scope db.Que
 		if err != nil {
 			return zero, err
 		}
-		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, mapped, old.state.binding.state.role, request.Input, createdAt, ownership.Generation())
+		candidate, err := prepareTransitionTarget(ctx, scope, current, owner.config.TargetCreation.state, source, mapped, old.state.binding.state.role, request.Input, request.References, references, createdAt, ownership.Generation())
 		if err != nil {
 			return zero, err
 		}
-		if err := owner.validatePair(ctx, scope, operation, source, candidate.row, observedCatalog); err != nil {
+		if err := owner.validatePairPolicy(ctx, scope, operation, source, candidate.row, observedCatalog, candidate.resolve == nil); err != nil {
 			return zero, err
 		}
 		if err := writeTransitionRow(digest, source); err != nil {
 			return zero, err
 		}
 		if err := writeTransitionRow(digest, candidate.row); err != nil {
+			return zero, err
+		}
+		if err := writeTransitionTargetReferences(digest, candidate.references); err != nil {
 			return zero, err
 		}
 		result.pairs = append(result.pairs, transitionPair[S, T]{old: source, next: candidate.row})

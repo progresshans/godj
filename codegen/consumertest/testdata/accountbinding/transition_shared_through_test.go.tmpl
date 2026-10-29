@@ -180,6 +180,10 @@ func (scope *stScope) Insert(ctx context.Context, plan query.InsertPlan) (int64,
 	if stIdentityTable(plan.Table()) {
 		scope.owner.identities[plan.Table()] = append(scope.owner.identities[plan.Table()], stInsertion{id, plan})
 	}
+	if scope.owner.mode == "first_insert_failure" && plan.Table() == "members_member" && len(scope.owner.identities[plan.Table()]) == 1 {
+		scope.owner.faults++
+		return id, errors.New("failure after first dependent account INSERT")
+	}
 	if plan.Table() == "godj_account_domain_transition" {
 		scope.owner.receipt = true
 	}
@@ -241,6 +245,8 @@ type stFixture[L any] struct {
 	hasher                 *auth.PBKDF2
 	joined                 time.Time
 	prefix, strategy, mode string
+	targetReferences       bool
+	policyChecks           int
 }
 
 func stStores(t *testing.T, backend database.Backend, oldRole, nextRole ir.AccountRole) (accountmodel.Binding[models.User], accountmodel.Binding[members.Member], *accountmodel.SessionStore[models.User], *accountmodel.SessionStore[members.Member]) {
@@ -370,7 +376,7 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 		// Reverse allocation makes source and target identity correspondence explicit.
 		for _, i := range []int{1, 0} {
 			old := f.old[i]
-			row, err := members.MemberObjects.Create(t.Context(), native, members.NewMemberCreate(old.PrincipalID, old.Username+"@test.example", encoded, f.joined, "").WithStaff(old.Staff).WithFirstName("new-"+old.Username))
+			row, err := stSave(t.Context(), native, members.MemberObjects, nil, map[string]query.Value{"subject": query.String(old.PrincipalID), "handle": query.String(old.Username + "@test.example"), "secret_hash": query.String(encoded), "date_joined": query.DateTime(f.joined), "portrait": query.String(""), "staff": query.Boolean(old.Staff), "first_name": query.String("new-" + old.Username)})
 			stMust(t, err)
 			f.mappings = append(f.mappings, accountmodel.AccountMapping{SourceID: old.ID, SourceRevision: old.Revision, TargetID: row.ID, TargetRevision: row.Version})
 			_, err = stSave(t.Context(), native, objects, nil, map[string]query.Value{"member": query.Integer(row.ID), "profile_permission": query.Integer(f.permissions[i].ID)})
@@ -530,6 +536,17 @@ func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[mode
 		if left.EncodedPassword != "" || right.SecretHash != "" {
 			t.Error("shared through policy received password encoding")
 		}
+		if f.targetReferences {
+			f.policyChecks++
+			_, present, err := members.MemberObjects.PrimaryKey(right)
+			values, valuesErr := members.MemberObjects.ModelValues(right)
+			if err != nil || valuesErr != nil || !present || values["preferred_permission"].IsNull() || values["preferred_group"].IsNull() && f.mode != "missing_reference" {
+				return validation.Errors{}, errors.New("typed policy received an unresolved target reference")
+			}
+			if f.mode == "policy_rejected" {
+				return validation.NewErrors(validation.New("preferred_group", "policy")), nil
+			}
+		}
 		return validation.Errors{}, nil
 	}
 	if f.strategy == "created" {
@@ -538,6 +555,23 @@ func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[mode
 		}})
 		stMust(t, err)
 		options := accountmodel.TransitionTargetConfig[members.Member]{Fields: []string{"handle", "first_name", "portrait", f.prefix + "interests"}, Collections: []accountmodel.ProfileCollection[members.Member]{profile}}
+		if f.targetReferences {
+			group, err := accountmodel.NewProfileRelation(f.binding, "preferred_group", catalog.TeamObjects, accountmodel.ProfileRelationConfig[catalog.Team]{
+				Choices: formmodel.ModelChoiceConfig[catalog.Team]{Label: func(row catalog.Team) (string, error) { return row.Title, nil }},
+				Filter: func(_ context.Context, _ db.Queryer, actor auth.Principal, origin accountmodel.ProfileRelationOrigin) ([]orm.Predicate[catalog.Team], error) {
+					if actor.ID() != f.actor.ID() || origin.Operation() != accountmodel.ProfileRelationTransition {
+						return nil, errors.New("pending choice lost source operator")
+					}
+					if f.mode == "denied_choice" || f.mode == "late_choice" && f.backend.receipt {
+						return []orm.Predicate[catalog.Team]{catalog.TeamFields.ID.Exact(-9999)}, nil
+					}
+					return nil, nil
+				},
+			})
+			stMust(t, err)
+			options.Fields = append(options.Fields, "preferred_group", "preferred_permission", "preferred_unique", "mentor")
+			options.Relations = append(options.Relations, group, stIdentityRelation(t, f.binding, "preferred_permission", catalog.GrantObjects), stIdentityRelation(t, f.binding, "preferred_unique", catalog.TeamObjects), stIdentityRelation(t, f.binding, "mentor", members.MemberObjects))
+		}
 		if slices.Contains([]string{"identity_endpoints", "identity_source", "identity_catalog_escalation"}, f.mode) {
 			options.Fields = append(options.Fields, "identity_permission")
 			options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "identity_permission", models.PermissionObjects))

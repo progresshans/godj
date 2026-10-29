@@ -33,12 +33,13 @@ import (
 )
 
 func TestAccountTransitionCreation(t *testing.T){
- for _,mode:=range []string{"lifecycle","signed_keys","defaults","invalid_login","empty_required_profile","missing_login","protected_input","role_membership_input","target_key","incomplete_mapping","duplicate_source","source_revision","source_changed","grant_changed","new_source","new_target","initial_target","unexpected_reference_read","policy_changed","choice_changed","request_owned","profile_limit","unknown_commit","unknown_rollback","insert_after_write","collection_after_write","creation_audit","receipt_failure","mapping_failure","late_target_change","target_rewrite","rollback","read_cleanup","canceled","concurrent","configuration","late_choice_change","duplicate_login"}{
+ for _,mode:=range []string{"lifecycle","signed_keys","defaults","mapped_department","invalid_login","empty_required_profile","missing_login","protected_input","role_membership_input","target_key","incomplete_mapping","duplicate_source","source_revision","source_changed","grant_changed","new_source","new_target","initial_target","unexpected_reference_read","policy_changed","choice_changed","request_owned","profile_limit","unknown_commit","unknown_rollback","insert_after_write","collection_after_write","creation_audit","receipt_failure","mapping_failure","late_target_change","target_rewrite","rollback","read_cleanup","canceled","concurrent","configuration","late_choice_change","duplicate_login"}{
   t.Run(mode,func(t *testing.T){
    native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@)
    backend:=&transitionBackend{Backend:native};hasher,encoded:=accountPassword(t)
    joined:=time.Date(2026,10,28,1,2,3,123456000,time.UTC)
    group,err:=models.GroupObjects.Create(t.Context(),native,models.NewGroupCreate("department"));transitionCheck(t,err)
+   if mode=="mapped_department"{accountStoredKey(t,native,selected,"godj_identity_group","id",group.ID,0);group.ID=0}
    permission,err:=models.PermissionObjects.Create(t.Context(),native,models.NewPermissionCreate("app.read","Read"));transitionCheck(t,err)
    _,err=models.GroupPermissionsLinkObjects.Create(t.Context(),native,models.NewGroupPermissionsLinkCreate(group.ID,permission.ID));transitionCheck(t,err)
    var originals []models.User
@@ -98,6 +99,7 @@ func TestAccountTransitionCreation(t *testing.T){
    for i,old:=range originals{
     values:=map[string]query.Value{"handle":query.String(old.Username+"@example.test"),"first_name":query.String("created-"+old.Username),"region":query.String("mars"),"portrait":query.String("existing/"+old.Username+".png"),"department":query.Integer(group.ID)}
     if mode=="defaults"{delete(values,"region")}
+    if mode=="mapped_department"{delete(values,"department")}
     if i==0{switch mode{case "empty_required_profile":values["region"]=query.String("");case "invalid_login":values["handle"]=query.String(strings.Repeat("x",257));case "missing_login":delete(values,"handle");case "protected_input":values["secret_hash"]=query.String(encoded)}}
     if mode=="duplicate_login"{values["handle"]=query.String("duplicate@example.test")}
     input,err:=members.MemberObjects.Input(values);transitionCheck(t,err)
@@ -105,7 +107,9 @@ func TestAccountTransitionCreation(t *testing.T){
     profiles:=map[string][]int64{"interests":keys};if mode=="role_membership_input"{profiles["groups"]=[]int64{group.ID}}
     input,err=input.WithCollections(profiles);transitionCheck(t,err)
     if mode=="target_key"{input,err=input.WithTargetKey(query.Integer(0));transitionCheck(t,err)}
-    requests=append(requests,accountmodel.AccountCreation[members.Member]{Source:accountmodel.SourceAccount{ID:old.ID,Revision:old.Revision},Input:input})
+    request:=accountmodel.AccountCreation[members.Member]{Source:accountmodel.SourceAccount{ID:old.ID,Revision:old.Revision},Input:input}
+    if mode=="mapped_department"{request.References=map[string]accountmodel.TransitionTargetReference{"department":{Kind:accountmodel.TransitionReferenceGroup,Source:accountmodel.SourceAccount{ID:group.ID,Revision:group.Revision}}}}
+    requests=append(requests,request)
    }
    slices.Reverse(requests)
    operation:=strings.Repeat("e",64)
@@ -167,7 +171,7 @@ func TestAccountTransitionCreation(t *testing.T){
    if slices.Contains(faultModes,mode){backend.mode=mode}
    work:=t.Context();if mode=="canceled"{var cancel context.CancelFunc;work,cancel=context.WithCancel(work);cancel()}
    result,failure:=owner.Commit(work,actor,prepared);backend.mode=""
-   success:=slices.Contains([]string{"lifecycle","signed_keys","defaults","request_owned"},mode)
+   success:=slices.Contains([]string{"lifecycle","signed_keys","defaults","mapped_department","request_owned"},mode)
    applied:=success||mode=="unknown_commit"
    if success{transitionCheck(t,failure);if result.CreatedAccounts!=2||result.MappedAccounts!=2||result.RevokedSessions!=3||len(result.Mappings)!=2{t.Fatal("creation report incomplete")}}else if failure==nil||!reflect.DeepEqual(result,accountmodel.TransitionResult{}){t.Fatal("failed creation published partial result",failure)}
    if mode=="unknown_commit"||mode=="unknown_rollback"{if !errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown})||backend.completed.Load()!=1{t.Fatal("unknown creation missed complete native callback",failure)}}
