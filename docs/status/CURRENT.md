@@ -24,7 +24,7 @@
    일반/UNIQUE·부분 공유·계정/프로필 생성과 최종 정책 뒤 전체 삽입 행 대조, nullable 행 변조의 rollback을 포함한다.
    일반 생성/편집의 최종 삽입 행 검사와 준비된 대상 전환의 물리 링크 고정도 포함한다. 선행 공유 through 소비자의
    PostgreSQL signed key fixture 실패를 수정했으며 원본 실행·부분 통과·수정 검증 경계는 TEST_EVIDENCE에 둔다.
-   추가한 collection 읽기 관측·최종 topology 재검사와 선택 계정의 추가 프로필 through 생성/편집을 원격 검증한다.
+   추가한 collection 읽기 관측·최종 topology 재검사와 선택 계정의 그룹·직접 권한·추가 프로필 through 생성/편집을 원격 검증한다.
    해싱 전후 인가·복수 생성·삭제·공유 소속의 revision/감사/세션, 생성 정책과 편집 정책의 독립 권한을 포함한다.
    선택 catalog와 나머지 자동 through·전환 수명을 연결하고 역사 systemstate 이행·고정 Directory/Manager 소비자도 완성한다.
 

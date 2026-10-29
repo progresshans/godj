@@ -24,21 +24,42 @@ func TestGeneratedAccountThroughIdentityCreation(t *testing.T) {
 			name = "custom"
 		}
 		t.Run(name, func(t *testing.T) {
-			root := writeAccountCreationGraphConsumer(t, custom)
-			required := []string{"TestGeneratedAccountThroughIdentity"}
-			for _, child := range []string{"first_account", "created", "duplicate_pair", "denied", "missing_policy", "validator", "unknown", "zero_key", "negative_key", "edit_rejected", "restart"} {
-				required = append(required, required[0]+"/"+child)
-			}
-			required = append(required, "TestGeneratedAccountThroughCollection")
-			for _, child := range []string{"create", "unusable", "no_op", "replace", "reuse_deleted_login", "delete_sessions", "denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
-				required = append(required, "TestGeneratedAccountThroughCollection/"+child)
-			}
-			runAccountConsumerDatabases(t, root, required)
+			root := writeAccountCreationGraphConsumer(t, custom, "profile")
+			runAccountConsumerDatabases(t, root, accountThroughConsumerRequired())
 		})
 	}
 }
 
-func writeAccountCreationGraphConsumer(t *testing.T, custom bool) string {
+func TestGeneratedAccountRoleThroughCreation(t *testing.T) {
+	for _, custom := range []bool{false, true} {
+		name := "default"
+		if custom {
+			name = "custom"
+		}
+		t.Run(name, func(t *testing.T) {
+			for _, role := range []string{"groups", "permissions"} {
+				t.Run(role, func(t *testing.T) {
+					root := writeAccountCreationGraphConsumer(t, custom, role)
+					runAccountConsumerDatabases(t, root, accountThroughConsumerRequired())
+				})
+			}
+		})
+	}
+}
+
+func accountThroughConsumerRequired() []string {
+	required := []string{"TestGeneratedAccountThroughIdentity"}
+	for _, child := range []string{"first_account", "created", "duplicate_pair", "denied", "missing_policy", "validator", "unknown", "zero_key", "negative_key", "edit_rejected", "restart"} {
+		required = append(required, required[0]+"/"+child)
+	}
+	required = append(required, "TestGeneratedAccountThroughCollection")
+	for _, child := range []string{"create", "unusable", "no_op", "replace", "reuse_deleted_login", "delete_sessions", "denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
+		required = append(required, "TestGeneratedAccountThroughCollection/"+child)
+	}
+	return required
+}
+
+func writeAccountCreationGraphConsumer(t *testing.T, custom bool, kind string) string {
 	t.Helper()
 	spec := accountBindingConsumerSpec(t, custom)
 	if custom {
@@ -66,8 +87,20 @@ func writeAccountCreationGraphConsumer(t *testing.T, custom bool) string {
 					model.Fields = append(model.Fields, ir.Field{Name: field.name, GoName: field.goName, Column: field.name + "_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true,
 						Relation: &ir.ForeignKeyRelation{Target: field.target, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteCascade, Reverse: ir.ReverseRelation{Disabled: true}}})
 				}
-				model.ManyToMany = append(model.ManyToMany, ir.ManyToManyField{Name: "delegates", GoName: "Delegates", Target: spec.Account.Catalog.Permission, Blank: true,
-					Reverse: ir.ReverseRelation{Disabled: true}, Through: &ir.ThroughModel{Model: spec.Account.Model, SourceField: "link_parent", TargetField: "catalog_permission"}})
+				if kind == "profile" {
+					model.ManyToMany = append(model.ManyToMany, ir.ManyToManyField{Name: "delegates", GoName: "Delegates", Target: spec.Account.Catalog.Permission, Blank: true,
+						Reverse: ir.ReverseRelation{Disabled: true}, Through: &ir.ThroughModel{Model: spec.Account.Model, SourceField: "link_parent", TargetField: "catalog_permission"}})
+				} else {
+					name, target := spec.Account.Permissions, "catalog_permission"
+					if kind == "groups" {
+						name, target = spec.Account.Groups, "catalog_owner"
+					}
+					for k := range model.ManyToMany {
+						if model.ManyToMany[k].Name == name {
+							model.ManyToMany[k].Through = &ir.ThroughModel{Model: spec.Account.Model, SourceField: "link_parent", TargetField: target}
+						}
+					}
+				}
 			}
 			if identity == spec.Account.Catalog.Group {
 				for k := range model.ManyToMany {
@@ -94,10 +127,18 @@ func writeAccountCreationGraphConsumer(t *testing.T, custom bool) string {
 	if custom {
 		prefix, groups, permissions = "PeopleMember", "Teams", "Grants"
 	}
+	field, collection, target := "delegates", "Delegates", types[spec.Account.Catalog.Permission]
+	if kind == "groups" {
+		field, collection, target = spec.Account.Groups, groups, types[spec.Account.Catalog.Group]
+	}
+	if kind == "permissions" {
+		field, collection = spec.Account.Permissions, permissions
+	}
 	replace := strings.NewReplacer("@@IMPORTS@@", strings.Join(imports, "\n"),
 		"@@MIGRATIONS@@", accountConsumerMigrationSources(t, spec),
 		"@@ACCOUNT@@", types[spec.Account.Model], "@@GROUP@@", types[spec.Account.Catalog.Group], "@@PERMISSION@@", types[spec.Account.Catalog.Permission], "@@PROFILE@@", profile,
-		"@@PREFIX@@", prefix, "@@GROUPS@@", groups, "@@PERMISSIONS@@", permissions)
+		"@@PREFIX@@", prefix, "@@GROUPS@@", groups, "@@PERMISSIONS@@", permissions,
+		"@@FIELD@@", field, "@@COLLECTION@@", collection, "@@TARGET@@", target, "@@KIND@@", kind)
 	source := replace.Replace(accountCreationGraphConsumer)
 	formatted, err := format.Source([]byte(source))
 	if err != nil {

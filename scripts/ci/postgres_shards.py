@@ -36,6 +36,7 @@ ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedFirstAccountUsesRequiredProfiles',
     'TestGeneratedAccountThroughIdentityCreation',
+    'TestGeneratedAccountRoleThroughCreation',
 })
 TRANSITION_CONSUMER_OWNERS = {
     'TestGeneratedAccountTransition': 'core-account-transition',

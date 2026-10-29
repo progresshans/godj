@@ -32,6 +32,7 @@ ISOLATED_ACCOUNT_ROOTS = (
     # Give each complete root an owner on the existing isolation coordinates.
     'TestGeneratedFirstAccountParentDefault',
     'TestGeneratedFirstAccountParentCustom',
+    'TestGeneratedAccountRoleThroughCreation',
 )
 PLATFORMS = (
     ('ubuntu-24.04', 'linux', 'amd64'),

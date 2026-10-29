@@ -3098,6 +3098,37 @@ Parent 원본에는 15개 완료 root의 합계 2,088.28초와 실행 12초인 �
 macOS Intel CGO0 project-check `123456414193`는 artifact 생성 요청이 다섯 번 timeout되어 업로드에 실패했다.
 해당 작업을 실행 원본까지 확보한 성공으로 계산하지 않는다. 분석한 실패의 수정과 새 기능은 다음 전체 CI에서 검증한다.
 
+### 역할 collection의 선택 계정 through와 생성 선언 경계
+
+2026-10-30, source `8ff747281e974a69cef1d63428d189ca36a2ca7c` 위에서 동일한 typed through 생성 정책을 그룹·직접
+권한 collection에 연결했다. 생성 선언은 실제 선택한 필드의 저장 경계를 검사한다. 입력받지 않는 역할 collection의
+through가 선택 identity라는 이유만으로 scalar 계정/첫 계정 생성을 거부하지 않으며 생략한 역할은 빈 집합이다.
+생성 Fields에 해당 역할 collection을 명시하면서 nested identity 생성 owner가 없는 경로는 계속 거부한다.
+
+기존 기본/custom 프로필 변형과 함께 기본/custom × 그룹/직접 권한 네 생성 변형을 추가했다. 각각 기존 typed root 생성
+12개와 through 편집 26개, 총 38개의 내부 필수 실행을 양 DB에 요구한다. 공통 소비자는 여섯 schema 변형에서 같은
+인가·해싱·revision·감사·세션·rollback/unknown·signed key 거부/성공 조건을 사용한다. 그룹 선택으로 새 계정 두 개가
+서로 다른 그룹의 권한 소속까지 만드는 경우 각 owner를 따로 대조하고, 제거된 그룹의 간접 효과와 새 그룹의 직접 효과를
+구분한다. 실패에는 전체 계정·그룹 행과 감사가 원래 상태인지 확인한다. Endpoint 생성 정책 누락과 Creator/FirstAccount의
+암묵적 nested 생성도 구성 단계의 부정 검사에 넣었다. 기존 native 본문을 삭제하거나 줄이지 않았다.
+
+신규 역할 root는 PostgreSQL 계정 소비자 owner와 기존 관계 계정 분리 좌표의 독립 owner에 연결했다. Relation 필수 목록은
+4,691→4,702, PostgreSQL은 5,751→5,766이며 Portable 293개와 모든 기존 항목을 유지한다. 기존 35/70분 package 기한을
+변경하지 않았다. CI 도구 정적 검사 53개(102.056초), Go 파일 2개의 포맷·여섯 template 치환의 문법·245개 문서 링크·diff
+검사가 통과했다. 로컬 Go compile 중단은 유지하며 생성/타입 검사·외부 module·Go/DB 본문·race/platform은 실행하지 않았다.
+Source 7개와 원본의 receipt는 검증 보관소 `gdj0138-role-through-v1/receipt-final.json`에 있으며 SHA-256은
+`da9de6f513978110751defd3b7adbb950bf4c160e433c8bc804ae226ea298e61`다. 이 source의 실제 실행과 I1 전체 수용은 미완료다.
+
+선행 [CI 40913000155](https://github.com/progresshans/godj/actions/runs/40913000155), attempt 1의 PostgreSQL normal
+계정 소비자 `123586897851`와 Linux ARM64 normal 관계 shard `123586906616`은 새 소비자 template의
+`no new variables on left side of :=`를 보고했다. 같은 구성 검사 블록에서 JSON 진단이 이미 선언한 `e`를
+`_, e :=`로 재선언한 오류를 `=` 대입으로 수정했다. Default/custom 외부 소비자 파일의 339/340행에서 compile이 실패하여
+이 소비자의 native 내부 본문은 실행되지 않았다. 앞선 gofmt 문법 성공은 Go 타입 검사를 뜻하지 않는다.
+실제 checkout `b3dfc2ac6b20fc931eb7befc614ed6bcf9d25736`의 tree `dbfa127f79f22d3e6888622b2893dce7d38a8d44`는
+제출 `8ff74728`과 같다. 두 원본 로그와 진단은 같은 보관소 `prior-failure-diagnosis.json`에 연결했으며 SHA-256은
+`2ff640892d1fe77bf8dffddb7d000dc6315d28797510ce2835a49f3b692c77db`다. 관측 시 215개 작업 중 54 성공·2 실패·40 실행·119 대기였고
+전체 성공이 아니다. 수정된 소비자 compile과 새 역할 through 본문은 다음 source의 원격 CI에서 확인한다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

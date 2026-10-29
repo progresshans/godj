@@ -1406,7 +1406,7 @@ collection의 최종 조회 실패에는 부분 key/행을 반환하지 않는�
 기존 대상 계정을 mapping하는 전환도 이전/새 계정의 전체 물리 소속·프로필 inventory를 준비 상태에 묶고 최종 재검사한다.
 전체 삽입 값과 역할별 행도 기존 64MiB 최종 state 합계에 포함한다.
 
-선택 계정의 추가 프로필 through 편집은 아래 생성 정책을 사용한다. 선택 catalog·나머지 through/전환 조립은
+선택 계정의 역할·추가 프로필 through 편집은 아래 생성 정책을 사용한다. 선택 catalog·나머지 through/전환 조립은
 후속 I1 요구이며 해당 경로의 명시적 거부를 유지한다. 코드 작성과 실제 양 DB·플랫폼 검증은 TEST_EVIDENCE에서 구분한다.
 
 ### Collection 후보의 읽기 관측과 최종 재검사
@@ -1431,7 +1431,7 @@ endpoint 변경이나 공유 through의 다른 삽입으로 바꾸는 입력은 
 session·한 번 Apply·native 실제 key·전체 typed row readback·외부 rollback/unknown 계약을 따른다. 일반 단일 transaction
 경로에는 관측 전용 incoming edge 사본을 추가로 보관하지 않는다.
 
-이 기반만으로 선택 계정/catalog을 생성할 권한을 얻지 않는다. 선택 계정의 추가 프로필 through 편집은 다음 명시적
+이 기반만으로 선택 계정/catalog을 생성할 권한을 얻지 않는다. 선택 계정의 역할·추가 프로필 through 편집은 다음 명시적
 생성 정책을 결합하며 catalog와 나머지 생성/전환 조립은 I1의 후속 구현이다.
 
 ### 선택 계정 through의 명시적 생성과 편집
@@ -1442,8 +1442,11 @@ session·한 번 Apply·native 실제 key·전체 typed row readback·외부 rol
 명시한 필드에만 결합하며 실제 편집기의 SessionStore·전체 source·역할을 확인한다. Endpoint FK 두 개도 생성 정책의
 Fields/Relations에 포함해야 한다. 정책이 없거나 다른 source/model·미선택 field·0/초과 한도이면 구성 단계에서 거부한다.
 
-현재 지원하는 조립은 선택 계정이 추가 프로필 M2M의 through인 편집이다. 새 identity는 scalar/FK 생성 입력과 명시적인
+현재 지원하는 조립은 선택 계정이 그룹·직접 권한 또는 추가 프로필 M2M의 through인 편집이다. 새 identity는 scalar/FK 생성 입력과 명시적인
 Password 또는 Unusable을 사용하며 자체 M2M은 비어 있다. Nested collection과 파일 게시를 허용하지 않는다.
+Creator/FirstAccount/through 생성 선언은 실제 선택한 필드의 저장 가능 여부를 검사한다. 입력받지 않는 역할 collection이
+identity through를 쓴다는 사실만으로 scalar 계정 생성을 금지하지 않으며, 새 계정의 생략한 역할은 빈 집합이다.
+그 역할 collection을 생성 Fields에 선택하면 명시적 nested 생성 owner가 없는 경로는 여전히 구성 단계에서 거부한다.
 Factory는 실제 누락된 물리 pair의 field/key만 받고 DB 재진입·해싱·외부 효과를 수행하지 않는다. Endpoint FK는 서버가
 설정하고 동일 값의 중복 입력도 거부한다. 기존 retained pair는 factory·해싱·생성 감사 없이 유지한다. 양수 생성 한도는
 요청 전체의 누락 pair 수를 제한하며 필드별 collection 한도와 독립적으로 적용한다.
@@ -1457,7 +1460,9 @@ Snapshot의 성공한 종료 뒤에만 각 후보를 해싱한다. 삭제 예정
 최종 fence의 쓰기 이전 actor를 새 행 인가·감사에 사용한다. 삽입된 계정은 실제 반환 key와 revision 1, 자신의 빈 역할/프로필
 소속을 확인하고 생성 감사 한 건을 갖는다. 추가 FK로 같은 행이 다른 소속을 나타내면 전체 projection이 기존 owner의
 revision을 한 번만 올리고 직접 효과에만 감사한다. 삭제에 따른 간접 소속 효과의 기존 권한/감사 구분과 삭제 계정의 session
-폐기도 유지한다. 실제 삽입 행의 전체 값·새 identity 소속과 모든 기존 영향 행을 마지막 정책/감사 뒤 재검사한다.
+폐기도 유지한다. 예를 들어 그룹 collection의 새 계정 행 두 개가 서로 다른 그룹의 권한 소속도 만들면 두 그룹을 각각
+한 번 갱신한다. 이들을 삭제하고 새 그룹으로 교체하면 이전 그룹의 간접 소속 감소와 새 그룹의 직접 소속 생성을 구분한다.
+실제 삽입 행의 전체 값·새 identity 소속과 모든 기존 영향 행을 마지막 정책/감사 뒤 재검사한다.
 충돌 no-op을 다른 identity 생성으로 채택하거나 cleanup·rollback·unknown을 성공 결과로 게시하지 않는다.
 
 `orm.WithCollectionThroughInput`은 같은 전체 source·실제 typed through model에만 scalar 후보를 다시 결합한다.

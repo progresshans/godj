@@ -54,7 +54,7 @@ Typed catalog target 생성과 실제 Group/Permission key를 계정·소속·ho
 이 결과를 공유 물리 through의 복합 endpoint 전환과 마지막 정책 이후 전체 삽입 행 재검사에 연결했다.
 일반 계정/catalog 생성·편집도 같은 최종 삽입 행 검사를 사용하고 기존 대상 mapping의 물리 소속·프로필 행을 고정한다.
 공통 collection의 읽기 snapshot 관측과 최종 transaction 재검사를 작성했다. Scalar 준비 사이의 물리 링크 key·삭제 FK 경로·
-삽입 후보의 nullable endpoint 변경을 거부한다. 선택 계정의 추가 프로필 through에는 명시적 typed 생성 정책과
+삽입 후보의 nullable endpoint 변경을 거부한다. 선택 계정의 그룹·직접 권한·추가 프로필 through에는 명시적 typed 생성 정책과
 해싱 전후의 독립 권한·복수 생성/삭제·공유 owner revision/감사/세션 및 최종 전체 행 검사를 연결했다. 새 소비자는 원격 검증 대상이다.
 일반/UNIQUE·부분 공유·계정 생성/기존 계정과 native 대응표·rollback/unknown/재접속 소비자를 작성했으며 새 본문은 원격 확인 대상이다.
 역사 systemstate 전환은 남아 있다.

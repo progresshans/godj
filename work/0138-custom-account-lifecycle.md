@@ -555,6 +555,12 @@ binding/collection과 scalar 생성 정책만 가진 선언이며, 편집기 구
 삭제 예정 행을 제외하는 advisory uniqueness와 native 제약을 함께 유지한다. 기본/custom 생성 소비자에 각각 25개 시나리오와
 두 ORM 단위 root를 추가했으며 실제 생성·양 DB·platform은 원격 검증 대상이다.
 
+같은 typed 생성 경로를 계정의 그룹·직접 권한 collection에도 연결했다. 생성 선언의 저장 검사를 실제 선택한 필드에
+적용해 생략한 역할을 빈 집합으로 갖는 scalar 계정/첫 계정 생성을 허용한다. 생성 Fields에 역할 collection을 명시하면서
+nested identity owner를 제공하지 않는 선언은 계속 거부한다. 기본/custom × 그룹/직접 권한 네 생성 변형을 추가했고,
+공통 38개 내부 필수 실행을 각각 양 DB에서 요구한다. 한 행이 그룹 소속과 그룹 권한을 동시에 만드는 조합의 여러 owner
+revision·직접/간접 감사, 전체 행 rollback과 endpoint 정책 구성 거부를 함께 검사한다. 원격 본문·타입 검사는 미완료다.
+
 공유 물리 through 전환과 새 계정 through 편집의 실제 검증, 선택 catalog·나머지 through/전환 수명과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 

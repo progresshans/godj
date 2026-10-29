@@ -1,206 +1,671 @@
 package consumer
 
 import (
- "context"
- "encoding/json"
- "errors"
- "fmt"
- "reflect"
- "slices"
- "strings"
- "testing"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
 
- @@IMPORTS@@
- "example.com/godj-project-bundle/project"
- accountaudit "github.com/progresshans/godj/account/audit"
- "github.com/progresshans/godj/admin"
- "github.com/progresshans/godj/auth"
- "github.com/progresshans/godj/db"
- formmodel "github.com/progresshans/godj/forms/model"
- accountmodel "github.com/progresshans/godj/identity/model"
- "github.com/progresshans/godj/migrations/definition"
- "github.com/progresshans/godj/orm"
- "github.com/progresshans/godj/query"
- "github.com/progresshans/godj/sessions"
- "github.com/progresshans/godj/settings/database"
- "github.com/progresshans/godj/validation"
+	"example.com/godj-project-bundle/project"
+	@@IMPORTS@@
+	accountaudit "github.com/progresshans/godj/account/audit"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/sessions"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
 )
 
 type throughBackend struct {
- database.Backend
- reading, writing, starts int
- cleanup, rollback, unknown bool
- scope db.RelationSession
-}
-func (b *throughBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer)error)error{
- b.reading++;defer func(){b.reading--}()
- err:=b.Backend.ReadSnapshot(ctx,read)
- if b.cleanup{b.cleanup=false;return errors.Join(err,errors.New("private through snapshot cleanup"))};return err
-}
-func (b *throughBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession)error)error{
- b.starts++;b.writing++;defer func(){b.writing--;b.scope=nil}()
- err:=b.Backend.CoordinatedAtomicRelation(ctx,func(scope db.RelationSession)error{
-  b.scope=scope
-  if err:=write(scope);err!=nil{return err}
-  if b.rollback{return errors.New("private through rollback")};return nil
- })
- if err==nil&&b.unknown{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}};return err
-}
-type throughHasher struct{auth.PasswordHasher; backend *throughBackend; calls int; after func(context.Context)error; fail bool}
-func(h *throughHasher) Hash(ctx context.Context,raw string)(string,error){
- h.calls++
- if h.backend.reading!=0||h.backend.writing!=0{return "",errors.New("password work occurred inside a native scope")}
- if h.after!=nil{callback:=h.after;h.after=nil;if err:=callback(ctx);err!=nil{return "",err}}
- if h.fail&&h.calls==2{return "",errors.New("private hash failure")};return h.PasswordHasher.Hash(ctx,raw)
-}
-type throughOverlay struct{deny auth.Permission}
-func(o *throughOverlay) Allowed(_ context.Context,actor auth.Principal,p auth.Permission)(bool,error){return actor.Has(p)&&p!=o.deny,nil}
-
-func throughRekey(ctx context.Context,scope db.RelationSession,objects orm.Manager[@@ACCOUNT@@],row @@ACCOUNT@@)error{
- key,present,err:=objects.PrimaryKey(row);if err!=nil||!present{return errors.New("late through key absent")}
- metadata,err:=objects.Metadata();if err!=nil{return err};field,err:=objects.PrimaryKeyField();if err!=nil{return err}
- ref:=query.NewFieldRef(field.Name,field.Column,query.FieldInteger,false)
- source,err:=query.NewPlan(metadata.DBTable,[]query.FieldRef{ref}).WithConditions(query.NewCondition(ref,query.LookupExact,key));if err!=nil{return err}
- literal,err:=query.LiteralExpression(query.Integer(-900000000001));if err!=nil{return err};assignment,err:=query.NewScalarAssignment(ref,literal);if err!=nil{return err}
- plan,err:=query.NewQueryUpdatePlan(source,ref,[]query.ScalarAssignment{assignment});if err!=nil{return err}
- writer,ok:=scope.(db.QueryUpdater);if !ok{return errors.New("native through fixture has no query update")};n,err:=writer.QueryUpdate(ctx,plan);if err==nil&&n!=1{return errors.New("late through key mutation missed actual row")};return err
+	database.Backend
+	reading, writing, starts   int
+	cleanup, rollback, unknown bool
+	scope                      db.RelationSession
 }
 
-func TestGeneratedAccountThroughCollection(t *testing.T){
- for _,mode:=range []string{"create","unusable","no_op","replace","reuse_deleted_login","delete_sessions","denied_add","denied_effect","denied_creation_effect","limit","endpoint_override","nested","snapshot_cleanup","hash_failure","revoked_during_hash","changed_during_hash","late_policy","late_payload","late_key","rollback","unknown","zero_target","negative_target","configuration","restart"}{
-  t.Run(mode,func(t *testing.T){
-   check:=func(err error){t.Helper();if err!=nil{t.Fatal(err)}}
-   binding,err:=project.BindAccount();check(err);role,err:=binding.Role();check(err);objects,err:=binding.Objects();check(err)
-   groups:=orm.NewManager[@@GROUP@@](@@GROUP@@Descriptor{});permissions:=orm.NewManager[@@PERMISSION@@](@@PERMISSION@@Descriptor{})
-   native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@);backend:=&throughBackend{Backend:native}
-   baseHasher,_:=accountPassword(t);hasher:=&throughHasher{PasswordHasher:baseHasher,backend:backend}
-   group:=graphInsert(t,native,groups,map[string]query.Value{role.Catalog.GroupName:query.String("Through owner"),role.Catalog.GroupRevision:query.Integer(1)})
-   groupID:=graphKey(t,groups,group)
-   var targets []int64
-   for i:=0;i<3;i++{row:=graphInsert(t,native,permissions,map[string]query.Value{role.Catalog.PermissionName:query.String(fmt.Sprintf("Grant %d",i)),role.Catalog.PermissionCode:query.String(fmt.Sprintf("through.grant%d",i)),role.Catalog.PermissionRevision:query.Integer(1)});targets=append(targets,graphKey(t,permissions,row))}
-   if mode=="zero_target"||mode=="negative_target"{metadata,e:=permissions.Metadata();check(e);key,e:=permissions.PrimaryKeyField();check(e);next:=int64(0);if mode=="negative_target"{next=-9};accountStoredKey(t,native,selected,metadata.DBTable,key.Column,targets[0],next);targets[0]=next}
-   ownerPolicy,err:=accountmodel.NewProfileRelation(binding,"catalog_owner",groups,accountmodel.ProfileRelationConfig[@@GROUP@@]{Choices:formmodel.ModelChoiceConfig[@@GROUP@@]{Label:func(@@GROUP@@)(string,error){return "Owner",nil}},Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@GROUP@@],error){return nil,nil}});check(err)
-   grantPolicy,err:=accountmodel.NewProfileRelation(binding,"catalog_permission",permissions,accountmodel.ProfileRelationConfig[@@PERMISSION@@]{Choices:formmodel.ModelChoiceConfig[@@PERMISSION@@]{Label:func(@@PERMISSION@@)(string,error){return "Grant",nil}},Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@PERMISSION@@],error){return nil,nil}});check(err)
-   parentPolicy,err:=accountmodel.NewProfileRelation(binding,"link_parent",objects,accountmodel.ProfileRelationConfig[@@ACCOUNT@@]{Choices:formmodel.ModelChoiceConfig[@@ACCOUNT@@]{Label:func(@@ACCOUNT@@)(string,error){return "Parent",nil}},Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@ACCOUNT@@],error){return nil,nil}});check(err)
-   relations:=[]accountmodel.ProfileRelation[@@ACCOUNT@@]{ownerPolicy,grantPolicy,parentPolicy}
-   fields:=[]string{role.Login,"@@PROFILE@@","catalog_owner","catalog_permission","link_parent"}
-   related:=accountmodel.RelatedRowPermissions{Account:accountmodel.DeletionPermissions{Change:"account.change",Delete:"account.delete"},Group:accountmodel.DeletionPermissions{Change:"catalog.change_group",Delete:"catalog.delete_group"},Permission:accountmodel.DeletionPermissions{Change:"catalog.change_permission",Delete:"catalog.delete_permission"}}
-   first,err:=project.NewFirstAccount(backend,hasher,accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy:accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields:fields,Relations:relations,RelatedPermissions:related},EvidenceSHA256:strings.Repeat("a",64)});check(err)
-   firstInput,err:=objects.Input(map[string]query.Value{role.Login:query.String("operator@example.test"),"@@PROFILE@@":query.String("KR")});check(err);firstPending,err:=first.Prepare(t.Context(),firstInput,accountPasswordText);check(err);boot,err:=first.Commit(t.Context(),firstPending);check(err)
-   collections,err:=project.BindCollections();check(err)
-   choices,err:=accountmodel.NewProfileCollection(binding,"delegates",collections.@@PREFIX@@Delegates,permissions,accountmodel.ProfileCollectionConfig[@@PERMISSION@@]{MaximumItems:4,Choices:formmodel.ModelChoiceConfig[@@PERMISSION@@]{Label:func(@@PERMISSION@@)(string,error){return "Grant",nil}},Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@PERMISSION@@],error){return nil,nil}});check(err)
-   overlay:=&throughOverlay{}
-   preparedCount:=0;lateMutation:=false;reuseLogin:=""
-   creationConfig:=accountmodel.CreationConfig[@@ACCOUNT@@]{CreationPolicy:accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields:fields,Relations:relations,RelatedPermissions:related,CaseInsensitiveLogin:true,
-    Validate:func(ctx context.Context,_ db.Queryer,row @@ACCOUNT@@,_ accountmodel.AccountMemberships)(validation.Errors,error){
-     _,stored,e:=objects.PrimaryKey(row);if e!=nil{return validation.Errors{},e}
-     if !stored{return validation.Errors{},nil}
-     if mode=="late_policy"{return validation.NewErrors(validation.New("@@PROFILE@@","late_refusal")),nil}
-     if !lateMutation&&(mode=="late_payload"||mode=="late_key"){
-      lateMutation=true
-      if mode=="late_key"{return validation.Errors{},throughRekey(ctx,backend.scope,objects,row)}
-      field,e:=objects.PrimaryKeyField();if e!=nil{return validation.Errors{},e};id:=graphKey(t,objects,row);actual,e:=objects.Using(backend.scope).Filter(orm.NewAutoField[@@ACCOUNT@@](field).Exact(id)).Get(ctx);if e!=nil{return validation.Errors{},e}
-      changed,e:=objects.PrepareValues(&actual,map[string]query.Value{"@@PROFILE@@":query.String("tampered")});if e!=nil{return validation.Errors{},e};candidate,e:=changed.Model();if e!=nil{return validation.Errors{},e};return validation.Errors{},changed.Save(ctx,backend.scope,&candidate)
-     };return validation.Errors{},nil
-    },
-   },AddPermission:"account.add",ChangePermission:"account.change"}
-   if mode=="denied_creation_effect"{creationConfig.RelatedPermissions.Group.Additional=[]auth.Permission{"through.approve_group"}}
-   policy,err:=accountmodel.NewAccountThroughCreation(binding,collections.@@PREFIX@@@@GROUPS@@,collections.@@PREFIX@@@@PERMISSIONS@@,overlay,hasher,creationConfig,accountmodel.AccountThroughConfig[@@ACCOUNT@@]{Prepare:func(ctx context.Context,pair accountmodel.ThroughEndpoints)(accountmodel.AccountThroughInput[@@ACCOUNT@@],error){
-    preparedCount++
-    if backend.reading!=1||backend.writing!=0||pair.SourceField()!="link_parent"||pair.TargetField()!="catalog_permission"||pair.SourceKey()!=boot.Account.ID{return accountmodel.AccountThroughInput[@@ACCOUNT@@]{},errors.New("through factory lost actual read endpoints")}
-    values:=map[string]query.Value{role.Login:query.String(fmt.Sprintf("child-%d@example.test",pair.TargetKey())),"@@PROFILE@@":query.String("NZ"),"catalog_owner":query.Integer(groupID)}
-    if reuseLogin!=""{values[role.Login]=query.String(reuseLogin)}
-    if mode=="endpoint_override"{values["link_parent"]=query.Integer(pair.SourceKey())}
-    input,e:=objects.Input(values);if e!=nil{return accountmodel.AccountThroughInput[@@ACCOUNT@@]{},e}
-    if mode=="nested"{input,e=input.WithCollections(map[string][]int64{role.Groups:{}});if e!=nil{return accountmodel.AccountThroughInput[@@ACCOUNT@@]{},e}}
-    result:=accountmodel.AccountThroughInput[@@ACCOUNT@@]{Input:input,Password:accountPasswordText};if mode=="unusable"{result.Password="";result.Unusable=true};return result,nil
-   }});check(err)
-   accountPermissions:=accountmodel.AccountPermissions{View:"account.view",Add:"account.add",Change:"account.change",Delete:"account.delete"}
-   runtime,err:=project.NewAccountRuntime(t.Context(),backend,hasher,overlay,accountmodel.RuntimeConfig[@@ACCOUNT@@,@@GROUP@@,@@PERMISSION@@]{
-    Accounts:accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields:append(slices.Clone(fields),"delegates"),CreateFields:fields,EditFields:[]string{"@@PROFILE@@","delegates"},Relations:relations,Collections:[]accountmodel.ProfileCollection[@@ACCOUNT@@]{choices},Permissions:accountPermissions,
-     GroupPermissions:related.Group,PermissionPermissions:related.Permission,EditThroughCreations:map[string]accountmodel.ThroughCreation{"delegates":policy},EditThroughCreationLimit:2},
-    Catalog:accountmodel.CatalogConfig[@@GROUP@@,@@PERMISSION@@]{AccountPermissions:related.Account,
-     Group:accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields:[]string{role.Catalog.GroupName,role.Catalog.GroupPermissions},WriteFields:[]string{role.Catalog.GroupName},Permissions:accountmodel.CatalogPermissions{View:"catalog.view_group",Add:"catalog.add_group",Change:related.Group.Change,Delete:related.Group.Delete}},
-     Permission:accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},WriteFields:[]string{role.Catalog.PermissionName,role.Catalog.PermissionCode},Permissions:accountmodel.CatalogPermissions{View:"catalog.view_permission",Add:"catalog.add_permission",Change:related.Permission.Change,Delete:related.Permission.Delete}}},
-   });check(err)
-   credential,err:=runtime.Authenticator().Authenticate(t.Context(),"operator@example.test",accountPasswordText);check(err);actor:=credential.Principal()
-   hasher.calls=0;backend.starts=0
-   keyField,err:=objects.PrimaryKeyField();check(err);key:=orm.NewAutoField[@@ACCOUNT@@](keyField)
-   readRows:=func(reader db.Queryer)[]@@ACCOUNT@@{t.Helper();rows,e:=objects.Using(reader).OrderBy(key.Asc()).All(t.Context());check(e);return rows}
-   history:=func(reader db.SnapshotReader,model string,id int64)[]accountaudit.Entry{t.Helper();namespace,_:=actor.CredentialDomain();result,e:=db.ReadSnapshotResult(t.Context(),reader,func(ctx context.Context,scope db.Queryer)([]accountaudit.Entry,error){return accountaudit.HistoryIn(ctx,scope,namespace,model,id,20)});check(e);return result}
-   accountName:=role.Model.AppLabel+"."+role.Model.ModelName;groupName:=role.Catalog.Group.AppLabel+"."+role.Catalog.Group.ModelName
-   initialRows:=readRows(native)
-   if mode=="configuration"{
-    private:=accountmodel.AccountThroughInput[@@ACCOUNT@@]{Password:accountPasswordText};wire,e:=json.Marshal(private);check(e)
-    for _,text:=range []string{string(wire),fmt.Sprintf("%#v",private),fmt.Sprintf("%#v",policy),fmt.Sprintf("%#v",accountmodel.ThroughEndpoints{})}{if !strings.Contains(text,"redacted")||strings.Contains(text,accountPasswordText){t.Fatal("through diagnostic exposed private input")}}
-    for _,entry:=range []struct{field string;limit int;policy accountmodel.ThroughCreation}{{"delegates",0,policy},{"delegates",accountmodel.MaximumThroughCreations+1,policy},{"delegates",2,accountmodel.ThroughCreation{}},{role.Groups,2,policy}}{
-     _,e:=project.NewAccountEditor(runtime.SessionStore(),overlay,accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields:[]string{"delegates"},Collections:[]accountmodel.ProfileCollection[@@ACCOUNT@@]{choices},ChangePermission:"account.change",ThroughCreations:map[string]accountmodel.ThroughCreation{entry.field:entry.policy},ThroughCreationLimit:entry.limit});if e==nil{t.Fatal("invalid through ownership admitted")}
-    }
-    _,e:=project.NewAccountEditor(runtime.SessionStore(),overlay,accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields:[]string{"delegates"},Collections:[]accountmodel.ProfileCollection[@@ACCOUNT@@]{choices},ChangePermission:"account.change"});if e==nil||hasher.calls!=0||preparedCount!=0||backend.starts!=0{t.Fatal("implicit identity creation or construction side effect")};return
-   }
-   switch mode{
-   case "denied_add":overlay.deny="account.add"
-   case "denied_effect":overlay.deny="catalog.change_group"
-   case "denied_creation_effect":overlay.deny="through.approve_group"
-   case "snapshot_cleanup":backend.cleanup=true
-   case "hash_failure":hasher.fail=true
-   case "revoked_during_hash":hasher.after=func(ctx context.Context)error{row,e:=objects.Using(native).Filter(key.Exact(boot.Account.ID)).Get(ctx);if e!=nil{return e};prepared,e:=objects.PrepareValues(&row,map[string]query.Value{role.Active.Field:query.Boolean(false)});if e!=nil{return e};candidate,e:=prepared.Model();if e!=nil{return e};e=prepared.Save(ctx,native,&candidate);initialRows=readRows(native);return e}
-   case "changed_during_hash":hasher.after=func(ctx context.Context)error{
-    raw:=map[string]query.Value{role.PrincipalID:query.String("external-created-account"),role.Login:query.String("external@example.test"),role.Password:query.String("!external"),role.Revision:query.Integer(1),"@@PROFILE@@":query.String("KR"),"link_parent":query.Integer(boot.Account.ID),"catalog_permission":query.Integer(targets[0]),"catalog_owner":query.Integer(groupID)}
-    if role.CreatedAt!=""{values,e:=objects.ModelValues(initialRows[0]);if e!=nil{return e};raw[role.CreatedAt]=values[role.CreatedAt]}
-    graphInsert(t,native,objects,raw);initialRows=readRows(native);return nil
-   }
-   case "rollback":backend.rollback=true
-   case "unknown":backend.unknown=true
-   }
-   inputKeys:=slices.Clone(targets[:2]);if mode=="limit"{inputKeys=targets}
-   input,err:=objects.Input(nil);check(err);input,err=input.WithCollections(map[string][]int64{"delegates":inputKeys});check(err)
-   result,failure:=runtime.Accounts().Editor().Update(t.Context(),actor,boot.Account.ID,1,input)
-   rejected:=slices.Contains([]string{"denied_add","denied_effect","denied_creation_effect","limit","endpoint_override","nested","snapshot_cleanup","hash_failure","revoked_during_hash","changed_during_hash","late_policy","late_payload","late_key","rollback"},mode)
-   if rejected||mode=="unknown"{if failure==nil||!reflect.DeepEqual(result,accountmodel.AccountChange{}){t.Fatal("unsuccessful through write published result")}}else{check(failure)}
-   if failure!=nil&&strings.Contains(fmt.Sprintf("%#v",failure),accountPasswordText){t.Fatal("through failure exposed password")}
-   if mode=="unknown"&&!errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown}){t.Fatal("unknown through commit lost",failure)}
-   if (mode=="late_key"||mode=="late_payload")&&!lateMutation{t.Fatal("late mutation was not exercised")}
-   if slices.Contains([]string{"denied_add","denied_effect","denied_creation_effect","limit","endpoint_override","nested","snapshot_cleanup"},mode)&&hasher.calls!=0{t.Fatal("refused read preparation performed password work")}
-   if mode=="hash_failure"&&(hasher.calls!=2||backend.starts!=0){t.Fatal("partial password preparation reached a write or missed its second failure")}
-   reader,err:=database.Open(t.Context(),selected);check(err);defer reader.Close()
-   actualRows:=readRows(reader)
-   if rejected{
-    if !reflect.DeepEqual(actualRows,initialRows)||len(history(reader,accountName,boot.Account.ID))!=1||len(history(reader,groupName,groupID))!=0{t.Fatal("failed through operation left rows, revision or audit")};return
-   }
-   if len(actualRows)!=3||preparedCount!=2||mode!="unusable"&&hasher.calls!=2||mode=="unusable"&&hasher.calls!=0{t.Fatal("missing/multiple typed candidates or password work",len(actualRows),preparedCount,hasher.calls)}
-   if mode!="unknown"&&(result.ID!=boot.Account.ID||result.Revision!=2||result.RevokedSessions!=0||!slices.Equal(result.ChangedFields,[]string{"delegates"})){t.Fatal("root collection change lost revision ownership")}
-   parent,err:=objects.Using(reader).Filter(key.Exact(boot.Account.ID)).Get(t.Context());check(err);parentValues,err:=objects.ModelValues(parent);check(err);revision,_:=parentValues[role.Revision].Integer();if revision!=2{t.Fatal("durable parent advanced more than once")}
-   groupView,err:=runtime.Catalog().Groups().Get(t.Context(),actor,groupID);check(err);if groupView.Revision()!=2{t.Fatal("shared catalog through owner did not advance exactly once")}
-   rootHistory,groupHistory:=history(reader,accountName,boot.Account.ID),history(reader,groupName,groupID)
-   if len(rootHistory)!=2||len(groupHistory)!=1||groupHistory[0].Action()!=admin.ActionChange||!slices.Equal(groupHistory[0].ChangedFields(),[]string{role.Catalog.GroupPermissions}){t.Fatal("existing owner audit was omitted or repeated")}
-   seen:=map[int64]bool{};var children []@@ACCOUNT@@
-   for _,row:=range actualRows{
-    id:=graphKey(t,objects,row);if id==boot.Account.ID{continue};children=append(children,row)
-    values,e:=objects.ModelValues(row);check(e);parent,pok:=values["link_parent"].Integer();catalog,cok:=values["catalog_owner"].Integer();target,tok:=values["catalog_permission"].Integer();rev,_:=values[role.Revision].Integer();encoded,_:=values[role.Password].String();principal,_:=values[role.PrincipalID].String()
-    if !pok||parent!=boot.Account.ID||!cok||catalog!=groupID||!tok||!slices.Contains(inputKeys,target)||seen[target]||rev!=1||principal==""{t.Fatal("generated child values do not match actual pair")};seen[target]=true
-    if mode=="unusable"{if !strings.HasPrefix(encoded,"!"){t.Fatal("explicit unusable child became usable")}}else{valid,e:=baseHasher.Verify(t.Context(),accountPasswordText,encoded);check(e);if !valid{t.Fatal("generated child credential missing")}}
-    events:=history(reader,accountName,id);if len(events)!=1||events[0].Action()!=admin.ActionAdd||events[0].ActorID()!=actor.ID(){t.Fatal("child creation audit missing")}
-   }
-   backend.unknown=false;backend.rollback=false
-   if mode=="no_op"{
-    hashes,factories:=hasher.calls,preparedCount;result,e:=runtime.Accounts().Editor().Update(t.Context(),actor,boot.Account.ID,2,input);check(e)
-    if result.Revision!=2||len(result.ChangedFields)!=0||hasher.calls!=hashes||preparedCount!=factories||!reflect.DeepEqual(actualRows,readRows(reader))||len(history(reader,accountName,boot.Account.ID))!=2{t.Fatal("retained pairs recreated or rehashed identities")}
-   }
-   if mode=="delete_sessions"||mode=="replace"||mode=="reuse_deleted_login"{
-    var stored sessions.Record
-    if mode=="delete_sessions"{values,e:=objects.ModelValues(children[0]);check(e);login,_:=values[role.Login].String();credential,e:=runtime.Authenticator().Authenticate(t.Context(),login,accountPasswordText);check(e);stored,e=auth.EstablishSession(t.Context(),runtime.Sessions(),credential,sessions.Record{});check(e)}
-    keys:=[]int64{};if mode=="replace"||mode=="reuse_deleted_login"{keys=[]int64{targets[2]}}
-    if mode=="reuse_deleted_login"{values,e:=objects.ModelValues(children[0]);check(e);reuseLogin,_=values[role.Login].String()}
-    next,e:=objects.Input(nil);check(e);next,e=next.WithCollections(map[string][]int64{"delegates":keys});check(e);changed,e:=runtime.Accounts().Editor().Update(t.Context(),actor,boot.Account.ID,2,next);check(e)
-    remaining:=readRows(reader);if changed.Revision!=3||len(remaining)!=1+len(keys){t.Fatal("through deletion/replacement did not collect exact identities")}
-    if mode=="reuse_deleted_login"{found:=false;for _,row:=range remaining{values,e:=objects.ModelValues(row);check(e);login,_:=values[role.Login].String();found=found||login==reuseLogin};if !found{t.Fatal("deleted login was not reused by a distinct identity")}}
-    if mode=="delete_sessions"{if changed.RevokedSessions!=1{t.Fatal("removed identity session not counted")};_,found,e:=runtime.SessionStore().Load(t.Context(),stored.ID());check(e);if found{t.Fatal("deleted through identity retained its session")}}
-    for _,child:=range children{events:=history(reader,accountName,graphKey(t,objects,child));deleted:=0;for _,event:=range events{if event.Action()==admin.ActionDelete&&event.ActorID()==actor.ID(){deleted++}};if len(events)!=2||deleted!=1{t.Fatal("removed through identity audit absent")}}
-    groupEvents:=2;if mode=="delete_sessions"{groupEvents=1} // Removal caused by deleting identities is indirect; replacement also directly creates membership.
-    final,e:=runtime.Catalog().Groups().Get(t.Context(),actor,groupID);check(e);if final.Revision()!=3||len(history(reader,groupName,groupID))!=groupEvents{t.Fatal("shared group deletion effect lost its direct/indirect ownership")}
-   }
-   if mode=="restart"{verifier,e:=project.NewAccountAuthenticator(t.Context(),reader,baseHasher);check(e);values,e:=objects.ModelValues(children[0]);check(e);login,_:=values[role.Login].String();_,e=verifier.Authenticate(t.Context(),login,accountPasswordText);check(e)}
-  })
- }
+func (b *throughBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+	b.reading++
+	defer func() { b.reading-- }()
+	err := b.Backend.ReadSnapshot(ctx, read)
+	if b.cleanup {
+		b.cleanup = false
+		return errors.Join(err, errors.New("private through snapshot cleanup"))
+	}
+	return err
+}
+func (b *throughBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	b.starts++
+	b.writing++
+	defer func() { b.writing--; b.scope = nil }()
+	err := b.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+		b.scope = scope
+		if err := write(scope); err != nil {
+			return err
+		}
+		if b.rollback {
+			return errors.New("private through rollback")
+		}
+		return nil
+	})
+	if err == nil && b.unknown {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
+	}
+	return err
+}
+
+type throughHasher struct {
+	auth.PasswordHasher
+	backend *throughBackend
+	calls   int
+	after   func(context.Context) error
+	fail    bool
+}
+
+func (h *throughHasher) Hash(ctx context.Context, raw string) (string, error) {
+	h.calls++
+	if h.backend.reading != 0 || h.backend.writing != 0 {
+		return "", errors.New("password work occurred inside a native scope")
+	}
+	if h.after != nil {
+		callback := h.after
+		h.after = nil
+		if err := callback(ctx); err != nil {
+			return "", err
+		}
+	}
+	if h.fail && h.calls == 2 {
+		return "", errors.New("private hash failure")
+	}
+	return h.PasswordHasher.Hash(ctx, raw)
+}
+
+type throughOverlay struct{ deny auth.Permission }
+
+func (o *throughOverlay) Allowed(_ context.Context, actor auth.Principal, p auth.Permission) (bool, error) {
+	return actor.Has(p) && p != o.deny, nil
+}
+
+func throughRekey(ctx context.Context, scope db.RelationSession, objects orm.Manager[@@ACCOUNT@@], row @@ACCOUNT@@) error {
+	key, present, err := objects.PrimaryKey(row)
+	if err != nil || !present {
+		return errors.New("late through key absent")
+	}
+	metadata, err := objects.Metadata()
+	if err != nil {
+		return err
+	}
+	field, err := objects.PrimaryKeyField()
+	if err != nil {
+		return err
+	}
+	ref := query.NewFieldRef(field.Name, field.Column, query.FieldInteger, false)
+	source, err := query.NewPlan(metadata.DBTable, []query.FieldRef{ref}).WithConditions(query.NewCondition(ref, query.LookupExact, key))
+	if err != nil {
+		return err
+	}
+	literal, err := query.LiteralExpression(query.Integer(-900000000001))
+	if err != nil {
+		return err
+	}
+	assignment, err := query.NewScalarAssignment(ref, literal)
+	if err != nil {
+		return err
+	}
+	plan, err := query.NewQueryUpdatePlan(source, ref, []query.ScalarAssignment{assignment})
+	if err != nil {
+		return err
+	}
+	writer, ok := scope.(db.QueryUpdater)
+	if !ok {
+		return errors.New("native through fixture has no query update")
+	}
+	n, err := writer.QueryUpdate(ctx, plan)
+	if err == nil && n != 1 {
+		return errors.New("late through key mutation missed actual row")
+	}
+	return err
+}
+
+func TestGeneratedAccountThroughCollection(t *testing.T) {
+	for _, mode := range []string{"create", "unusable", "no_op", "replace", "reuse_deleted_login", "delete_sessions", "denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
+		t.Run(mode, func(t *testing.T) {
+			check := func(err error) {
+				t.Helper()
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			binding, err := project.BindAccount()
+			check(err)
+			role, err := binding.Role()
+			check(err)
+			objects, err := binding.Objects()
+			check(err)
+			groups := orm.NewManager[@@GROUP@@](@@GROUP@@Descriptor{})
+			permissions := orm.NewManager[@@PERMISSION@@](@@PERMISSION@@Descriptor{})
+			targetsManager := orm.NewManager[@@TARGET@@](@@TARGET@@Descriptor{})
+			const kind = "@@KIND@@"
+			endpoint, otherField := "catalog_permission", "catalog_owner"
+			if kind == "groups" {
+				endpoint, otherField = "catalog_owner", "catalog_permission"
+			}
+			native, selected := openAccountDatabase(t)
+			migrateAccountDefinitions(t, native, @@MIGRATIONS@@)
+			backend := &throughBackend{Backend: native}
+			baseHasher, _ := accountPassword(t)
+			hasher := &throughHasher{PasswordHasher: baseHasher, backend: backend}
+			group := graphInsert(t, native, groups, map[string]query.Value{role.Catalog.GroupName: query.String("Through owner"), role.Catalog.GroupRevision: query.Integer(1)})
+			groupID := graphKey(t, groups, group)
+			otherKey := groupID
+			if kind == "groups" {
+				row := graphInsert(t, native, permissions, map[string]query.Value{role.Catalog.PermissionName: query.String("Shared grant"), role.Catalog.PermissionCode: query.String("through.shared"), role.Catalog.PermissionRevision: query.Integer(1)})
+				otherKey = graphKey(t, permissions, row)
+			}
+			var targets []int64
+			for i := 0; i < 3; i++ {
+				values := map[string]query.Value{role.Catalog.PermissionName: query.String(fmt.Sprintf("Grant %d", i)), role.Catalog.PermissionCode: query.String(fmt.Sprintf("through.grant%d", i)), role.Catalog.PermissionRevision: query.Integer(1)}
+				if kind == "groups" {
+					values = map[string]query.Value{role.Catalog.GroupName: query.String(fmt.Sprintf("Selected group %d", i)), role.Catalog.GroupRevision: query.Integer(1)}
+				}
+				row := graphInsert(t, native, targetsManager, values)
+				targets = append(targets, graphKey(t, targetsManager, row))
+			}
+			if mode == "zero_target" || mode == "negative_target" {
+				metadata, e := targetsManager.Metadata()
+				check(e)
+				key, e := targetsManager.PrimaryKeyField()
+				check(e)
+				next := int64(0)
+				if mode == "negative_target" {
+					next = -9
+				}
+				accountStoredKey(t, native, selected, metadata.DBTable, key.Column, targets[0], next)
+				targets[0] = next
+			}
+			ownerPolicy, err := accountmodel.NewProfileRelation(binding, "catalog_owner", groups, accountmodel.ProfileRelationConfig[@@GROUP@@]{Choices: formmodel.ModelChoiceConfig[@@GROUP@@]{Label: func(@@GROUP@@) (string, error) { return "Owner", nil }}, Filter: func(context.Context, db.Queryer, auth.Principal, accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@GROUP@@], error) {
+				return nil, nil
+			}})
+			check(err)
+			grantPolicy, err := accountmodel.NewProfileRelation(binding, "catalog_permission", permissions, accountmodel.ProfileRelationConfig[@@PERMISSION@@]{Choices: formmodel.ModelChoiceConfig[@@PERMISSION@@]{Label: func(@@PERMISSION@@) (string, error) { return "Grant", nil }}, Filter: func(context.Context, db.Queryer, auth.Principal, accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@PERMISSION@@], error) {
+				return nil, nil
+			}})
+			check(err)
+			parentPolicy, err := accountmodel.NewProfileRelation(binding, "link_parent", objects, accountmodel.ProfileRelationConfig[@@ACCOUNT@@]{Choices: formmodel.ModelChoiceConfig[@@ACCOUNT@@]{Label: func(@@ACCOUNT@@) (string, error) { return "Parent", nil }}, Filter: func(context.Context, db.Queryer, auth.Principal, accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@ACCOUNT@@], error) {
+				return nil, nil
+			}})
+			check(err)
+			relations := []accountmodel.ProfileRelation[@@ACCOUNT@@]{ownerPolicy, grantPolicy, parentPolicy}
+			fields := []string{role.Login, "@@PROFILE@@", "catalog_owner", "catalog_permission", "link_parent"}
+			related := accountmodel.RelatedRowPermissions{Account: accountmodel.DeletionPermissions{Change: "account.change", Delete: "account.delete"}, Group: accountmodel.DeletionPermissions{Change: "catalog.change_group", Delete: "catalog.delete_group"}, Permission: accountmodel.DeletionPermissions{Change: "catalog.change_permission", Delete: "catalog.delete_permission"}}
+			first, err := project.NewFirstAccount(backend, hasher, accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: fields, Relations: relations, RelatedPermissions: related}, EvidenceSHA256: strings.Repeat("a", 64)})
+			check(err)
+			firstInput, err := objects.Input(map[string]query.Value{role.Login: query.String("operator@example.test"), "@@PROFILE@@": query.String("KR")})
+			check(err)
+			firstPending, err := first.Prepare(t.Context(), firstInput, accountPasswordText)
+			check(err)
+			boot, err := first.Commit(t.Context(), firstPending)
+			check(err)
+			collections, err := project.BindCollections()
+			check(err)
+			var policies []accountmodel.ProfileCollection[@@ACCOUNT@@]
+			if kind == "profile" {
+				choices, e := accountmodel.NewProfileCollection(binding, "@@FIELD@@", collections.@@PREFIX@@@@COLLECTION@@, targetsManager, accountmodel.ProfileCollectionConfig[@@TARGET@@]{MaximumItems: 4, Choices: formmodel.ModelChoiceConfig[@@TARGET@@]{Label: func(@@TARGET@@) (string, error) { return "Target", nil }}, Filter: func(context.Context, db.Queryer, auth.Principal, accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@TARGET@@], error) {
+					return nil, nil
+				}})
+				check(e)
+				policies = append(policies, choices)
+			}
+			overlay := &throughOverlay{}
+			preparedCount := 0
+			lateMutation := false
+			reuseLogin := ""
+			creationConfig := accountmodel.CreationConfig[@@ACCOUNT@@]{CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: fields, Relations: relations, RelatedPermissions: related, CaseInsensitiveLogin: true,
+				Validate: func(ctx context.Context, _ db.Queryer, row @@ACCOUNT@@, _ accountmodel.AccountMemberships) (validation.Errors, error) {
+					_, stored, e := objects.PrimaryKey(row)
+					if e != nil {
+						return validation.Errors{}, e
+					}
+					if !stored {
+						return validation.Errors{}, nil
+					}
+					if mode == "late_policy" {
+						return validation.NewErrors(validation.New("@@PROFILE@@", "late_refusal")), nil
+					}
+					if !lateMutation && (mode == "late_payload" || mode == "late_key") {
+						lateMutation = true
+						if mode == "late_key" {
+							return validation.Errors{}, throughRekey(ctx, backend.scope, objects, row)
+						}
+						field, e := objects.PrimaryKeyField()
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						id := graphKey(t, objects, row)
+						actual, e := objects.Using(backend.scope).Filter(orm.NewAutoField[@@ACCOUNT@@](field).Exact(id)).Get(ctx)
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						changed, e := objects.PrepareValues(&actual, map[string]query.Value{"@@PROFILE@@": query.String("tampered")})
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						candidate, e := changed.Model()
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						return validation.Errors{}, changed.Save(ctx, backend.scope, &candidate)
+					}
+					return validation.Errors{}, nil
+				},
+			}, AddPermission: "account.add", ChangePermission: "account.change"}
+			if mode == "denied_creation_effect" {
+				creationConfig.RelatedPermissions.Group.Additional = []auth.Permission{"through.approve_group"}
+			}
+			policy, err := accountmodel.NewAccountThroughCreation(binding, collections.@@PREFIX@@@@GROUPS@@, collections.@@PREFIX@@@@PERMISSIONS@@, overlay, hasher, creationConfig, accountmodel.AccountThroughConfig[@@ACCOUNT@@]{Prepare: func(ctx context.Context, pair accountmodel.ThroughEndpoints) (accountmodel.AccountThroughInput[@@ACCOUNT@@], error) {
+				preparedCount++
+				if backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "link_parent" || pair.TargetField() != endpoint || pair.SourceKey() != boot.Account.ID {
+					return accountmodel.AccountThroughInput[@@ACCOUNT@@]{}, errors.New("through factory lost actual read endpoints")
+				}
+				values := map[string]query.Value{role.Login: query.String(fmt.Sprintf("child-%d@example.test", pair.TargetKey())), "@@PROFILE@@": query.String("NZ"), otherField: query.Integer(otherKey)}
+				if reuseLogin != "" {
+					values[role.Login] = query.String(reuseLogin)
+				}
+				if mode == "endpoint_override" {
+					values["link_parent"] = query.Integer(pair.SourceKey())
+				}
+				input, e := objects.Input(values)
+				if e != nil {
+					return accountmodel.AccountThroughInput[@@ACCOUNT@@]{}, e
+				}
+				if mode == "nested" {
+					input, e = input.WithCollections(map[string][]int64{role.Groups: {}})
+					if e != nil {
+						return accountmodel.AccountThroughInput[@@ACCOUNT@@]{}, e
+					}
+				}
+				result := accountmodel.AccountThroughInput[@@ACCOUNT@@]{Input: input, Password: accountPasswordText}
+				if mode == "unusable" {
+					result.Password = ""
+					result.Unusable = true
+				}
+				return result, nil
+			}})
+			check(err)
+			accountPermissions := accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"}
+			runtime, err := project.NewAccountRuntime(t.Context(), backend, hasher, overlay, accountmodel.RuntimeConfig[@@ACCOUNT@@, @@GROUP@@, @@PERMISSION@@]{
+				Accounts: accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields: append(slices.Clone(fields), "@@FIELD@@"), CreateFields: fields, EditFields: []string{"@@PROFILE@@", "@@FIELD@@"}, Relations: relations, Collections: policies, Permissions: accountPermissions,
+					GroupPermissions: related.Group, PermissionPermissions: related.Permission, EditThroughCreations: map[string]accountmodel.ThroughCreation{"@@FIELD@@": policy}, EditThroughCreationLimit: 2},
+				Catalog: accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]{AccountPermissions: related.Account,
+					Group:      accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields: []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}, WriteFields: []string{role.Catalog.GroupName}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: related.Group.Change, Delete: related.Group.Delete}},
+					Permission: accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, WriteFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: related.Permission.Change, Delete: related.Permission.Delete}}},
+			})
+			check(err)
+			credential, err := runtime.Authenticator().Authenticate(t.Context(), "operator@example.test", accountPasswordText)
+			check(err)
+			actor := credential.Principal()
+			hasher.calls = 0
+			backend.starts = 0
+			keyField, err := objects.PrimaryKeyField()
+			check(err)
+			key := orm.NewAutoField[@@ACCOUNT@@](keyField)
+			readRows := func(reader db.Queryer) []@@ACCOUNT@@ {
+				t.Helper()
+				rows, e := objects.Using(reader).OrderBy(key.Asc()).All(t.Context())
+				check(e)
+				return rows
+			}
+			history := func(reader db.SnapshotReader, model string, id int64) []accountaudit.Entry {
+				t.Helper()
+				namespace, _ := actor.CredentialDomain()
+				result, e := db.ReadSnapshotResult(t.Context(), reader, func(ctx context.Context, scope db.Queryer) ([]accountaudit.Entry, error) {
+					return accountaudit.HistoryIn(ctx, scope, namespace, model, id, 20)
+				})
+				check(e)
+				return result
+			}
+			accountName := role.Model.AppLabel + "." + role.Model.ModelName
+			groupName := role.Catalog.Group.AppLabel + "." + role.Catalog.Group.ModelName
+			initialRows := readRows(native)
+			groupKeyField, err := groups.PrimaryKeyField()
+			check(err)
+			groupKey := orm.NewAutoField[@@GROUP@@](groupKeyField)
+			readGroups := func(reader db.Queryer) []@@GROUP@@ {
+				t.Helper()
+				rows, e := groups.Using(reader).OrderBy(groupKey.Asc()).All(t.Context())
+				check(e)
+				return rows
+			}
+			initialGroups := readGroups(native)
+			if mode == "configuration" {
+				private := accountmodel.AccountThroughInput[@@ACCOUNT@@]{Password: accountPasswordText}
+				wire, e := json.Marshal(private)
+				check(e)
+				for _, text := range []string{string(wire), fmt.Sprintf("%#v", private), fmt.Sprintf("%#v", policy), fmt.Sprintf("%#v", accountmodel.ThroughEndpoints{})} {
+					if !strings.Contains(text, "redacted") || strings.Contains(text, accountPasswordText) {
+						t.Fatal("through diagnostic exposed private input")
+					}
+				}
+				invalidField := role.Groups
+				if invalidField == "@@FIELD@@" {
+					invalidField = role.Permissions
+				}
+				for _, entry := range []struct {
+					field  string
+					limit  int
+					policy accountmodel.ThroughCreation
+				}{{"@@FIELD@@", 0, policy}, {"@@FIELD@@", accountmodel.MaximumThroughCreations + 1, policy}, {"@@FIELD@@", 2, accountmodel.ThroughCreation{}}, {invalidField, 2, policy}} {
+					_, e := project.NewAccountEditor(runtime.SessionStore(), overlay, accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields: []string{"@@FIELD@@"}, Collections: policies, ChangePermission: "account.change", ThroughCreations: map[string]accountmodel.ThroughCreation{entry.field: entry.policy}, ThroughCreationLimit: entry.limit})
+					if e == nil {
+						t.Fatal("invalid through ownership admitted")
+					}
+				}
+				_, e = project.NewAccountEditor(runtime.SessionStore(), overlay, accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields: []string{"@@FIELD@@"}, Collections: policies, ChangePermission: "account.change"})
+				if e == nil || hasher.calls != 0 || preparedCount != 0 || backend.starts != 0 {
+					t.Fatal("implicit identity creation or construction side effect")
+				}
+				incomplete := creationConfig
+				incomplete.Fields = slices.DeleteFunc(slices.Clone(fields), func(name string) bool { return name == "link_parent" })
+				incomplete.Relations = relations[:2]
+				factoryTouched := false
+				missingEndpoint, e := accountmodel.NewAccountThroughCreation(binding, collections.@@PREFIX@@@@GROUPS@@, collections.@@PREFIX@@@@PERMISSIONS@@, overlay, hasher, incomplete, accountmodel.AccountThroughConfig[@@ACCOUNT@@]{Prepare: func(context.Context, accountmodel.ThroughEndpoints) (accountmodel.AccountThroughInput[@@ACCOUNT@@], error) {
+					factoryTouched = true
+					return accountmodel.AccountThroughInput[@@ACCOUNT@@]{}, nil
+				}})
+				check(e)
+				if _, e := project.NewAccountEditor(runtime.SessionStore(), overlay, accountmodel.AccountEditConfig[@@ACCOUNT@@]{Fields: []string{"@@FIELD@@"}, Collections: policies, ChangePermission: "account.change", ThroughCreations: map[string]accountmodel.ThroughCreation{"@@FIELD@@": missingEndpoint}, ThroughCreationLimit: 2}); e == nil || factoryTouched {
+					t.Fatal("missing server endpoint policy was deferred until input preparation")
+				}
+				unsupported := creationConfig
+				unsupported.Fields = append(slices.Clone(fields), "@@FIELD@@")
+				unsupported.Collections = policies
+				if _, e := project.NewAccountCreator(runtime.SessionStore(), overlay, hasher, unsupported); e == nil {
+					t.Fatal("root creator acquired implicit nested identity creation")
+				}
+				if _, e := project.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy: unsupported.CreationPolicy, EvidenceSHA256: strings.Repeat("a", 64)}); e == nil {
+					t.Fatal("first-account declaration acquired implicit nested identity creation")
+				}
+				if hasher.calls != 0 || preparedCount != 0 || backend.starts != 0 {
+					t.Fatal("pure declarations performed I/O or password work")
+				}
+				return
+			}
+			switch mode {
+			case "denied_add":
+				overlay.deny = "account.add"
+			case "denied_effect":
+				overlay.deny = "catalog.change_group"
+			case "denied_creation_effect":
+				overlay.deny = "through.approve_group"
+			case "snapshot_cleanup":
+				backend.cleanup = true
+			case "hash_failure":
+				hasher.fail = true
+			case "revoked_during_hash":
+				hasher.after = func(ctx context.Context) error {
+					row, e := objects.Using(native).Filter(key.Exact(boot.Account.ID)).Get(ctx)
+					if e != nil {
+						return e
+					}
+					prepared, e := objects.PrepareValues(&row, map[string]query.Value{role.Active.Field: query.Boolean(false)})
+					if e != nil {
+						return e
+					}
+					candidate, e := prepared.Model()
+					if e != nil {
+						return e
+					}
+					e = prepared.Save(ctx, native, &candidate)
+					initialRows = readRows(native)
+					return e
+				}
+			case "changed_during_hash":
+				hasher.after = func(ctx context.Context) error {
+					raw := map[string]query.Value{role.PrincipalID: query.String("external-created-account"), role.Login: query.String("external@example.test"), role.Password: query.String("!external"), role.Revision: query.Integer(1), "@@PROFILE@@": query.String("KR"), "link_parent": query.Integer(boot.Account.ID), endpoint: query.Integer(targets[0]), otherField: query.Integer(otherKey)}
+					if role.CreatedAt != "" {
+						values, e := objects.ModelValues(initialRows[0])
+						if e != nil {
+							return e
+						}
+						raw[role.CreatedAt] = values[role.CreatedAt]
+					}
+					graphInsert(t, native, objects, raw)
+					initialRows = readRows(native)
+					return nil
+				}
+			case "rollback":
+				backend.rollback = true
+			case "unknown":
+				backend.unknown = true
+			}
+			inputKeys := slices.Clone(targets[:2])
+			if mode == "limit" {
+				inputKeys = targets
+			}
+			input, err := objects.Input(nil)
+			check(err)
+			input, err = input.WithCollections(map[string][]int64{"@@FIELD@@": inputKeys})
+			check(err)
+			result, failure := runtime.Accounts().Editor().Update(t.Context(), actor, boot.Account.ID, 1, input)
+			rejected := slices.Contains([]string{"denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "rollback"}, mode)
+			if rejected || mode == "unknown" {
+				if failure == nil || !reflect.DeepEqual(result, accountmodel.AccountChange{}) {
+					t.Fatal("unsuccessful through write published result")
+				}
+			} else {
+				check(failure)
+			}
+			if failure != nil && strings.Contains(fmt.Sprintf("%#v", failure), accountPasswordText) {
+				t.Fatal("through failure exposed password")
+			}
+			if mode == "unknown" && !errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
+				t.Fatal("unknown through commit lost", failure)
+			}
+			if (mode == "late_key" || mode == "late_payload") && !lateMutation {
+				t.Fatal("late mutation was not exercised")
+			}
+			if slices.Contains([]string{"denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup"}, mode) && hasher.calls != 0 {
+				t.Fatal("refused read preparation performed password work")
+			}
+			if mode == "hash_failure" && (hasher.calls != 2 || backend.starts != 0) {
+				t.Fatal("partial password preparation reached a write or missed its second failure")
+			}
+			reader, err := database.Open(t.Context(), selected)
+			check(err)
+			defer reader.Close()
+			actualRows := readRows(reader)
+			if rejected {
+				if !reflect.DeepEqual(actualRows, initialRows) || !reflect.DeepEqual(readGroups(reader), initialGroups) || len(history(reader, accountName, boot.Account.ID)) != 1 {
+					t.Fatal("failed through operation left rows, revision or audit")
+				}
+				for _, row := range initialGroups {
+					if len(history(reader, groupName, graphKey(t, groups, row))) != 0 {
+						t.Fatal("failed through operation left a group audit")
+					}
+				}
+				return
+			}
+			if len(actualRows) != 3 || preparedCount != 2 || mode != "unusable" && hasher.calls != 2 || mode == "unusable" && hasher.calls != 0 {
+				t.Fatal("missing/multiple typed candidates or password work", len(actualRows), preparedCount, hasher.calls)
+			}
+			if mode != "unknown" && (result.ID != boot.Account.ID || result.Revision != 2 || result.RevokedSessions != 0 || !slices.Equal(result.ChangedFields, []string{"@@FIELD@@"})) {
+				t.Fatal("root collection change lost revision ownership")
+			}
+			parent, err := objects.Using(reader).Filter(key.Exact(boot.Account.ID)).Get(t.Context())
+			check(err)
+			parentValues, err := objects.ModelValues(parent)
+			check(err)
+			revision, _ := parentValues[role.Revision].Integer()
+			if revision != 2 {
+				t.Fatal("durable parent advanced more than once")
+			}
+			groupOwners := []int64{groupID}
+			if kind == "groups" {
+				groupOwners = slices.Clone(inputKeys)
+			}
+			for _, owner := range groupOwners {
+				view, e := runtime.Catalog().Groups().Get(t.Context(), actor, owner)
+				check(e)
+				if view.Revision() != 2 {
+					t.Fatal("shared catalog through owner did not advance exactly once")
+				}
+				events := history(reader, groupName, owner)
+				if len(events) != 1 || events[0].Action() != admin.ActionChange || !slices.Equal(events[0].ChangedFields(), []string{role.Catalog.GroupPermissions}) {
+					t.Fatal("existing group audit was omitted or repeated")
+				}
+			}
+			if len(history(reader, accountName, boot.Account.ID)) != 2 {
+				t.Fatal("root account audit was omitted or repeated")
+			}
+			seen := map[int64]bool{}
+			var children []@@ACCOUNT@@
+			for _, row := range actualRows {
+				id := graphKey(t, objects, row)
+				if id == boot.Account.ID {
+					continue
+				}
+				children = append(children, row)
+				values, e := objects.ModelValues(row)
+				check(e)
+				parent, pok := values["link_parent"].Integer()
+				catalog, cok := values[otherField].Integer()
+				target, tok := values[endpoint].Integer()
+				rev, _ := values[role.Revision].Integer()
+				encoded, _ := values[role.Password].String()
+				principal, _ := values[role.PrincipalID].String()
+				if !pok || parent != boot.Account.ID || !cok || catalog != otherKey || !tok || !slices.Contains(inputKeys, target) || seen[target] || rev != 1 || principal == "" {
+					t.Fatal("generated child values do not match actual pair")
+				}
+				seen[target] = true
+				if mode == "unusable" {
+					if !strings.HasPrefix(encoded, "!") {
+						t.Fatal("explicit unusable child became usable")
+					}
+				} else {
+					valid, e := baseHasher.Verify(t.Context(), accountPasswordText, encoded)
+					check(e)
+					if !valid {
+						t.Fatal("generated child credential missing")
+					}
+				}
+				events := history(reader, accountName, id)
+				if len(events) != 1 || events[0].Action() != admin.ActionAdd || events[0].ActorID() != actor.ID() {
+					t.Fatal("child creation audit missing")
+				}
+			}
+			backend.unknown = false
+			backend.rollback = false
+			if mode == "no_op" {
+				hashes, factories := hasher.calls, preparedCount
+				result, e := runtime.Accounts().Editor().Update(t.Context(), actor, boot.Account.ID, 2, input)
+				check(e)
+				if result.Revision != 2 || len(result.ChangedFields) != 0 || hasher.calls != hashes || preparedCount != factories || !reflect.DeepEqual(actualRows, readRows(reader)) || len(history(reader, accountName, boot.Account.ID)) != 2 {
+					t.Fatal("retained pairs recreated or rehashed identities")
+				}
+			}
+			if mode == "delete_sessions" || mode == "replace" || mode == "reuse_deleted_login" {
+				var stored sessions.Record
+				if mode == "delete_sessions" {
+					values, e := objects.ModelValues(children[0])
+					check(e)
+					login, _ := values[role.Login].String()
+					credential, e := runtime.Authenticator().Authenticate(t.Context(), login, accountPasswordText)
+					check(e)
+					stored, e = auth.EstablishSession(t.Context(), runtime.Sessions(), credential, sessions.Record{})
+					check(e)
+				}
+				keys := []int64{}
+				if mode == "replace" || mode == "reuse_deleted_login" {
+					keys = []int64{targets[2]}
+				}
+				if mode == "reuse_deleted_login" {
+					values, e := objects.ModelValues(children[0])
+					check(e)
+					reuseLogin, _ = values[role.Login].String()
+				}
+				next, e := objects.Input(nil)
+				check(e)
+				next, e = next.WithCollections(map[string][]int64{"@@FIELD@@": keys})
+				check(e)
+				changed, e := runtime.Accounts().Editor().Update(t.Context(), actor, boot.Account.ID, 2, next)
+				check(e)
+				remaining := readRows(reader)
+				if changed.Revision != 3 || len(remaining) != 1+len(keys) {
+					t.Fatal("through deletion/replacement did not collect exact identities")
+				}
+				if mode == "reuse_deleted_login" {
+					found := false
+					for _, row := range remaining {
+						values, e := objects.ModelValues(row)
+						check(e)
+						login, _ := values[role.Login].String()
+						found = found || login == reuseLogin
+					}
+					if !found {
+						t.Fatal("deleted login was not reused by a distinct identity")
+					}
+				}
+				if mode == "delete_sessions" {
+					if changed.RevokedSessions != 1 {
+						t.Fatal("removed identity session not counted")
+					}
+					_, found, e := runtime.SessionStore().Load(t.Context(), stored.ID())
+					check(e)
+					if found {
+						t.Fatal("deleted through identity retained its session")
+					}
+				}
+				for _, child := range children {
+					events := history(reader, accountName, graphKey(t, objects, child))
+					deleted := 0
+					for _, event := range events {
+						if event.Action() == admin.ActionDelete && event.ActorID() == actor.ID() {
+							deleted++
+						}
+					}
+					if len(events) != 2 || deleted != 1 {
+						t.Fatal("removed through identity audit absent")
+					}
+				}
+				groupEvents := 2
+				if mode == "delete_sessions" || kind == "groups" {
+					groupEvents = 1
+				} // Removal caused by deleting identities is indirect; replacement also directly creates membership.
+				for _, owner := range groupOwners {
+					final, e := runtime.Catalog().Groups().Get(t.Context(), actor, owner)
+					check(e)
+					if final.Revision() != 3 || len(history(reader, groupName, owner)) != groupEvents {
+						t.Fatal("shared group deletion effect lost its direct/indirect ownership")
+					}
+				}
+				if kind == "groups" {
+					for _, owner := range keys {
+						final, e := runtime.Catalog().Groups().Get(t.Context(), actor, owner)
+						check(e)
+						if final.Revision() != 2 || len(history(reader, groupName, owner)) != 1 {
+							t.Fatal("new group membership effect was omitted")
+						}
+					}
+				}
+			}
+			if mode == "restart" {
+				verifier, e := project.NewAccountAuthenticator(t.Context(), reader, baseHasher)
+				check(e)
+				values, e := objects.ModelValues(children[0])
+				check(e)
+				login, _ := values[role.Login].String()
+				_, e = verifier.Authenticate(t.Context(), login, accountPasswordText)
+				check(e)
+			}
+		})
+	}
 }

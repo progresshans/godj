@@ -157,7 +157,11 @@ func prepareCreationDefinition[M, G, P, GL, PL any](binding Binding[M], groups o
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
-	if err := validateAccountCollectionStorage(project, role, append(slices.Clone(config.Fields), role.Groups, role.Permissions)); err != nil {
+	// An omitted role collection starts empty. Merely using an identity as its
+	// through model must not prohibit scalar creation of that identity. Any
+	// selected collection still requires an actual supported storage owner;
+	// this does not grant nested identity creation to Creator/FirstAccount.
+	if err := validateAccountCollectionStorage(project, role, config.Fields); err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	for _, policy := range []*DeletionPermissions{&config.RelatedPermissions.Account, &config.RelatedPermissions.Group, &config.RelatedPermissions.Permission} {
