@@ -53,7 +53,7 @@ func accountThroughConsumerRequired() []string {
 		required = append(required, required[0]+"/"+child)
 	}
 	required = append(required, "TestGeneratedAccountThroughCollection")
-	for _, child := range []string{"create", "unusable", "no_op", "replace", "reuse_deleted_login", "delete_sessions", "denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
+	for _, child := range []string{"create", "unusable", "no_op", "replace", "reuse_deleted_login", "delete_sessions", "denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "late_owned_link", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
 		required = append(required, "TestGeneratedAccountThroughCollection/"+child)
 	}
 	return required

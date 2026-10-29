@@ -26,7 +26,8 @@
    PostgreSQL signed key fixture 실패를 수정했으며 원본 실행·부분 통과·수정 검증 경계는 TEST_EVIDENCE에 둔다.
    추가한 collection 읽기 관측·최종 topology 재검사와 선택 계정의 그룹·직접 권한·추가 프로필 through 생성/편집을 원격 검증한다.
    해싱 전후 인가·복수 생성·삭제·공유 소속의 revision/감사/세션, 생성 정책과 편집 정책의 독립 권한을 포함한다.
-   선택 catalog와 나머지 자동 through·전환 수명을 연결하고 역사 systemstate 이행·고정 Directory/Manager 소비자도 완성한다.
+   선택 Group/Permission의 through 생성과 실제 key 검증·빈 자체 소속·삭제/교체·종속 계정/session rollback을 원격 검증한다.
+   나머지 nested through·전환 수명을 연결하고 역사 systemstate 이행·고정 Directory/Manager 소비자도 완성한다.
 
 ## 검증 경계
 

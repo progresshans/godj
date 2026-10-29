@@ -3129,6 +3129,37 @@ Source 7개와 원본의 receipt는 검증 보관소 `gdj0138-role-through-v1/re
 `2ff640892d1fe77bf8dffddb7d000dc6315d28797510ce2835a49f3b692c77db`다. 관측 시 215개 작업 중 54 성공·2 실패·40 실행·119 대기였고
 전체 성공이 아니다. 수정된 소비자 compile과 새 역할 through 본문은 다음 source의 원격 CI에서 확인한다.
 
+### 선택 catalog의 through 생성과 빈 자체 소속
+
+2026-10-30, source `ee12781b012607d8b807c5ae490898f230af2748` 위에서 선택 Group/Permission의 through 생성 선언을
+같은 계정 편집기에 연결했다. 일반 catalog scalar·permission code·typed unique 준비와 실제 INSERT key의 custom 검증을
+재사용한다. Endpoint FK는 collection이 공급하며 생성/편집의 관련 권한은 독립적으로 유지한다. 새 catalog의 선택·추가 자체
+M2M은 nullable 물리 링크까지 비어 있는지 검사한다. 같은 검사를 새 계정 through에도 연결해 논리 집합에서 사라지는 NULL
+endpoint 행을 최종 정책이 추가하는 경우를 거부한다.
+
+기본/custom × Group/Permission 네 생성 소비자에 각각 root 포함 27개 내부 필수 실행을 양 DB에 연결했다. 실제 key·
+revision 1·endpoint 감사, retained no-op, 삭제/교체·삭제한 identity 재사용, 종속 계정/session, independent 권한, snapshot
+정리·쓰기 rollback·unknown·signed key·실제 재접속과 late payload/NULL 링크 변조를 포함한다. 기존 여섯 계정 through
+변형에는 NULL endpoint 추가 거부를 넣어 각각 내부 필수 실행을 38→39개로 늘렸다. 기존 테스트나 필수 목록은 삭제하지 않았다.
+
+선행 [CI 40919829252](https://github.com/progresshans/godj/actions/runs/40919829252), attempt 1의 PostgreSQL race
+계정 소비자 `123610773775`는 누적 30분 기한에 도달했다. 실제 checkout `af86ecd5ef99b110d9425cc863f9b7aa1986596b`의
+tree `0f2ea2fb440a4c742b9e753e496421897b1aebae`는 제출 `ee12781b`와 같다. Artifact `12919598599`의 ZIP SHA-256
+`745af362394444177bf6f827928c027bb496cc891c88a6048c2792cef72722aa`는 GitHub metadata와 업로드 로그에 일치한다.
+Parent 원본의 완료 root는 계정 binding 615.63초·첫 계정 609.08초·profile through 206.52초이며, 마지막 역할 through의
+`custom/permissions/postgres`가 진행 중이었다. 원본 parent SHA-256은
+`29b4053684d824207845c2d87d0becf5f4250598a1f40b60c412a9af20c759d4`다. 관측 시 224개 작업 중 112 성공·1 실패·
+1 skip·17 실행·93 대기였으며 전체 성공이 아니다. 기존 30분 package 기한과 모든 child를 유지하고 세 identity-through
+root를 별도 PostgreSQL owner로 옮겼다. Catalog through root는 기존 관계 계정 분리 좌표에도 독립 owner를 갖는다.
+
+CI 분할/실행 도구 검사 41개(87.499초), Go 파일 5개의 포맷과 두 template의 치환 문법·내부 필수 사례 일치,
+245개 문서의 링크·diff 검사가 통과했다. Relation 필수 목록은 4,702→4,713, PostgreSQL은 5,766→5,781이며 Portable
+293개와 모든 이전 필수 항목을 유지한다. 로컬 compile 중단을 유지했으므로 생성·Go 타입 검사·native 본문·race/platform은
+새 source의 원격 확인 대상이다. 새 기능이나 I1 전체 수용을 완료로 처리하지 않는다.
+Source 18개와 정적 검사·실행 원본 receipt는 검증 보관소 `gdj0138-catalog-through-v1/receipt-final.json`에 있으며 SHA-256은
+`0ddb3b1309fbeb947bafaa7621108101783c05c9e0e9e6e0d9cbebccb2f2b77a`다. 이전 실패의 source/원본 대조는 같은 보관소
+`prior-failure-diagnosis.json`에 연결했으며 SHA-256은 `b791ee6716577ef794a5d455c802e769158c0afdd7a41c928c8baaf8726b588d`다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

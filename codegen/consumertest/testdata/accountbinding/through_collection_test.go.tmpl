@@ -137,7 +137,7 @@ func throughRekey(ctx context.Context, scope db.RelationSession, objects orm.Man
 }
 
 func TestGeneratedAccountThroughCollection(t *testing.T) {
-	for _, mode := range []string{"create", "unusable", "no_op", "replace", "reuse_deleted_login", "delete_sessions", "denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
+	for _, mode := range []string{"create", "unusable", "no_op", "replace", "reuse_deleted_login", "delete_sessions", "denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "late_owned_link", "rollback", "unknown", "zero_target", "negative_target", "configuration", "restart"} {
 		t.Run(mode, func(t *testing.T) {
 			check := func(err error) {
 				t.Helper()
@@ -240,6 +240,23 @@ func TestGeneratedAccountThroughCollection(t *testing.T) {
 					}
 					if mode == "late_policy" {
 						return validation.NewErrors(validation.New("@@PROFILE@@", "late_refusal")), nil
+					}
+					if !lateMutation && mode == "late_owned_link" {
+						lateMutation = true
+						values, e := objects.ModelValues(row)
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						field, e := objects.PrimaryKeyField()
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						delete(values, field.Name)
+						values[role.PrincipalID], values[role.Login] = query.String("late-empty-owner"), query.String("late-empty@example.test")
+						values["link_parent"] = query.Integer(graphKey(t, objects, row))
+						values["catalog_owner"], values["catalog_permission"] = query.Null(), query.Null()
+						graphInsert(t, backend.scope, objects, values)
+						return validation.Errors{}, nil
 					}
 					if !lateMutation && (mode == "late_payload" || mode == "late_key") {
 						lateMutation = true
@@ -456,7 +473,7 @@ func TestGeneratedAccountThroughCollection(t *testing.T) {
 			input, err = input.WithCollections(map[string][]int64{"@@FIELD@@": inputKeys})
 			check(err)
 			result, failure := runtime.Accounts().Editor().Update(t.Context(), actor, boot.Account.ID, 1, input)
-			rejected := slices.Contains([]string{"denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "rollback"}, mode)
+			rejected := slices.Contains([]string{"denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup", "hash_failure", "revoked_during_hash", "changed_during_hash", "late_policy", "late_payload", "late_key", "late_owned_link", "rollback"}, mode)
 			if rejected || mode == "unknown" {
 				if failure == nil || !reflect.DeepEqual(result, accountmodel.AccountChange{}) {
 					t.Fatal("unsuccessful through write published result")
@@ -470,7 +487,7 @@ func TestGeneratedAccountThroughCollection(t *testing.T) {
 			if mode == "unknown" && !errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
 				t.Fatal("unknown through commit lost", failure)
 			}
-			if (mode == "late_key" || mode == "late_payload") && !lateMutation {
+			if (mode == "late_key" || mode == "late_payload" || mode == "late_owned_link") && !lateMutation {
 				t.Fatal("late mutation was not exercised")
 			}
 			if slices.Contains([]string{"denied_add", "denied_effect", "denied_creation_effect", "limit", "endpoint_override", "nested", "snapshot_cleanup"}, mode) && hasher.calls != 0 {

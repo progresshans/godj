@@ -139,18 +139,52 @@ func NewAccountThroughCreation[M, G, P, GL, PL any](binding Binding[M], groups o
 		state := &creationState[M]{creationDefinition: definition, store: store, backend: backend, overlay: overlay, required: slices.Clone(required)}
 		bound := *policy
 		bound.attach = nil
-		bindAccountThroughInput(&bound, state, memberships, config)
+		if err := bindAccountThroughInput(&bound, state, memberships, config); err != nil {
+			return nil, err
+		}
 		return &bound, nil
 	}
 	return ThroughCreation{state: policy}, nil
 }
 
-func bindAccountThroughInput[M any](policy *throughCreationState, state *creationState[M], memberships []deletionMembership, config AccountThroughConfig[M]) {
+func bindAccountThroughInput[M any](policy *throughCreationState, state *creationState[M], memberships []deletionMembership, config AccountThroughConfig[M]) error {
+	return bindTypedThroughInput(policy, state.binding.state.model, state.binding.state.objects, state.overlay, state.required,
+		func(ctx context.Context, scope db.Queryer, pair ThroughEndpoints, domain auth.CredentialDomain) (*throughCandidate, error) {
+			intent, err := config.Prepare(ctx, pair)
+			if err = errors.Join(err, validateAuthorityScope(ctx, scope.(db.SessionValidator))); err != nil {
+				return nil, err
+			}
+			candidate, err := state.prepareThroughInput(ctx, intent, pair)
+			if err != nil {
+				return nil, err
+			}
+			return newThroughAccountCandidate(state, policy, candidate, domain, memberships)
+		},
+		func(prepared *throughCandidate) (M, error) {
+			candidate, ok := prepared.value.(*creationCandidate[M])
+			if !ok || candidate == nil {
+				var zero M
+				return zero, managementError(CodeInvalidConfig, nil)
+			}
+			return candidate.row, nil
+		})
+}
+
+// Every identity kind shares candidate ownership and exact endpoint binding.
+// The callbacks retain their real generated model type; only the enclosing
+// heterogeneous operation erases it, behind this sealed construction boundary.
+func bindTypedThroughInput[M any](policy *throughCreationState, bound orm.BoundModel[M], objects orm.Manager[M], overlay auth.Authorizer, required []auth.Permission,
+	prepare func(context.Context, db.Queryer, ThroughEndpoints, auth.CredentialDomain) (*throughCandidate, error),
+	value func(*throughCandidate) (M, error)) error {
+	metadata, err := objects.Metadata()
+	if err != nil {
+		return err
+	}
 	policy.bind = func(ctx context.Context, scope db.Queryer, actor auth.Principal, pending *throughPreparation, final bool, change orm.CollectionChange) (orm.CollectionChange, error) {
 		authorized := false
-		input := accountThroughModelInput[M]{build: func(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[M] {
+		input := typedThroughModelInput[M]{build: func(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[M] {
 			if !authorized {
-				if err := authorizeThroughActor(ctx, scope, actor, state.overlay, state.required); err != nil {
+				if err := authorizeThroughActor(ctx, scope, actor, overlay, required); err != nil {
 					return orm.InvalidMutation[M](err)
 				}
 				authorized = true
@@ -162,53 +196,47 @@ func bindAccountThroughInput[M any](policy *throughCreationState, state *creatio
 					return orm.InvalidMutation[M](managementError(CodeInvalidInput, nil))
 				}
 				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceKey: sourceKey, targetKey: targetKey}
-				intent, err := config.Prepare(ctx, pair)
+				var err error
+				prepared, err = prepare(ctx, scope, pair, pending.domain)
 				if err = errors.Join(err, validateAuthorityScope(ctx, scope.(db.SessionValidator))); err != nil {
 					return orm.InvalidMutation[M](err)
 				}
-				candidate, err := state.prepareThroughInput(ctx, intent, pair)
-				if err != nil {
-					return orm.InvalidMutation[M](err)
-				}
-				prepared, err = newThroughAccountCandidate(state, policy, candidate, pending.domain, memberships)
-				if err != nil {
-					return orm.InvalidMutation[M](err)
-				}
-				if pending.identities[prepared.identity] != nil {
+				if prepared == nil || prepared.policy != policy || prepared.identity.model != policy.model || prepared.identity.value == "" || pending.identities[prepared.identity] != nil {
 					return orm.InvalidMutation[M](managementError(CodeInvalidConfig, nil))
 				}
 				pending.pairs[key], pending.identities[prepared.identity] = prepared, prepared
 				pending.ordered = append(pending.ordered, prepared)
 			}
-			candidate, ok := prepared.value.(*creationCandidate[M])
-			if !ok || candidate == nil {
-				return orm.InvalidMutation[M](managementError(CodeInvalidConfig, nil))
-			}
-			row, err := state.binding.state.objects.ApplyValues(candidate.row, nil)
+			row, err := value(prepared)
 			if err != nil {
 				return orm.InvalidMutation[M](err)
 			}
-			values, err := state.binding.state.objects.ModelValues(row)
+			row, err = objects.ApplyValues(row, nil)
 			if err != nil {
 				return orm.InvalidMutation[M](err)
 			}
-			assignments := make([]query.Assignment, 0, len(state.metadata.Fields)-1)
-			for _, field := range state.metadata.Fields {
+			values, err := objects.ModelValues(row)
+			if err != nil {
+				return orm.InvalidMutation[M](err)
+			}
+			assignments := make([]query.Assignment, 0, len(metadata.Fields)-1)
+			for _, field := range metadata.Fields {
 				if !field.PrimaryKey {
 					assignments = append(assignments, orm.NewAssignment(field, values[field.Name]))
 				}
 			}
-			return orm.NewCreateMutation(row, state.metadata.DBTable, assignments)
+			return orm.NewCreateMutation(row, metadata.DBTable, assignments)
 		}}
-		return orm.WithCollectionThroughInput(change, state.binding.state.model, input)
+		return orm.WithCollectionThroughInput(change, bound, input)
 	}
+	return nil
 }
 
-type accountThroughModelInput[M any] struct {
+type typedThroughModelInput[M any] struct {
 	build func(ir.Field, ir.Field, int64, int64) orm.Mutation[M]
 }
 
-func (input accountThroughModelInput[M]) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[M] {
+func (input typedThroughModelInput[M]) BuildManyToManyCreate(source, target ir.Field, sourceKey, targetKey int64) orm.Mutation[M] {
 	return input.build(source, target, sourceKey, targetKey)
 }
 
@@ -224,7 +252,7 @@ type throughIdentity struct {
 type throughCandidate struct {
 	policy   *throughCreationState
 	identity throughIdentity
-	value    any // The actual typed creationCandidate; never a map-based model.
+	value    any // The actual typed identity candidate; never a map-based model.
 	encode   func(context.Context) error
 	check    func(context.Context, db.Queryer, auth.Principal, bool, []int64) error
 	finish   func(context.Context, db.RelationSession, auth.Principal, int64, time.Time) (accountaudit.Event, lifecycleVerifier, error)
@@ -293,7 +321,7 @@ func authorizeThroughActor(ctx context.Context, scope db.Queryer, actor auth.Pri
 	return validateAuthorityScope(ctx, validator)
 }
 
-func newThroughAccountCandidate[M any](state *creationState[M], policy *throughCreationState, candidate *creationCandidate[M], domain auth.CredentialDomain, profileMemberships []deletionMembership) (*throughCandidate, error) {
+func newThroughAccountCandidate[M any](state *creationState[M], policy *throughCreationState, candidate *creationCandidate[M], domain auth.CredentialDomain, lifecycleMemberships []deletionMembership) (*throughCandidate, error) {
 	values, err := state.binding.state.objects.ModelValues(candidate.row)
 	if err != nil {
 		return nil, err
@@ -302,36 +330,10 @@ func newThroughAccountCandidate[M any](state *creationState[M], policy *throughC
 	if !valid || principal == "" {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
-	required := slices.Clone(state.required)
-	role := state.binding.state.role
-	for _, membership := range profileMemberships {
-		if membership.through != role.Model {
-			continue
-		}
-		_, left := values[membership.source.Name()].Integer()
-		_, right := values[membership.target.Name()].Integer()
-		if !left || !right {
-			continue
-		}
-		var permission DeletionPermissions
-		switch membership.owner {
-		case role.Model:
-			permission = state.config.RelatedPermissions.Account
-		case role.Catalog.Group:
-			permission = state.config.RelatedPermissions.Group
-		case role.Catalog.Permission:
-			permission = state.config.RelatedPermissions.Permission
-		default:
-			return nil, managementError(CodeInvalidConfig, nil)
-		}
-		if permission.Change == "" {
-			return nil, managementError(CodePermission, nil)
-		}
-		required = append(required, permission.Change)
-		required = append(required, permission.Additional...)
+	required, err := throughEffectPermissions(state.binding.state.role, policy.model, state.required, state.config.RelatedPermissions, values, lifecycleMemberships)
+	if err != nil {
+		return nil, err
 	}
-	slices.Sort(required)
-	required = slices.Compact(required)
 	result := &throughCandidate{policy: policy, identity: throughIdentity{policy.model, principal}, value: candidate}
 	result.encode = func(ctx context.Context) error { return state.encodeCandidate(ctx, domain, candidate) }
 	result.check = func(ctx context.Context, scope db.Queryer, actor auth.Principal, encoded bool, deleted []int64) error {
@@ -356,11 +358,14 @@ func newThroughAccountCandidate[M any](state *creationState[M], policy *throughC
 		checked := *candidate
 		checked.prepared, checked.row, checked.stored = prepared, row, true
 		verify := func(ctx context.Context, scope db.Session) error {
+			if err := verifyEmptyOwnedMemberships(ctx, scope, lifecycleMemberships, role.Model, id); err != nil {
+				return err
+			}
 			memberships, err := state.store.state.relations.memberships(ctx, scope, id)
 			if err != nil || len(memberships.groups)+len(memberships.direct)+len(memberships.grants) != 0 {
 				return managementError(CodePersistence, err)
 			}
-			profile, err := readProfileMemberships(ctx, scope, profileMemberships, id, nil)
+			profile, err := readProfileMemberships(ctx, scope, lifecycleMemberships, id, nil)
 			if err != nil {
 				return err
 			}
@@ -440,4 +445,37 @@ func (pending *throughPreparation) finish(ctx context.Context, scope db.Relation
 		}
 	}
 	return verifiers, nil
+}
+
+func throughEffectPermissions(role ir.AccountRole, model ir.ModelIdentity, base []auth.Permission, related RelatedRowPermissions, values map[string]query.Value, memberships []deletionMembership) ([]auth.Permission, error) {
+	required := slices.Clone(base)
+	for _, membership := range memberships {
+		if membership.through != model {
+			continue
+		}
+		_, left := values[membership.source.Name()].Integer()
+		_, right := values[membership.target.Name()].Integer()
+		if !left || !right {
+			continue
+		}
+		var permission DeletionPermissions
+		switch membership.owner {
+		case role.Model:
+			permission = related.Account
+		case role.Catalog.Group:
+			permission = related.Group
+		case role.Catalog.Permission:
+			permission = related.Permission
+		default:
+			return nil, managementError(CodeInvalidConfig, nil)
+		}
+		if permission.Change == "" {
+			return nil, managementError(CodePermission, nil)
+		}
+		required = append(required, permission.Change)
+		required = append(required, permission.Additional...)
+	}
+	slices.Sort(required)
+	required = slices.Compact(required)
+	return required, nil
 }

@@ -561,7 +561,13 @@ nested identity owner를 제공하지 않는 선언은 계속 거부한다. 기�
 공통 38개 내부 필수 실행을 각각 양 DB에서 요구한다. 한 행이 그룹 소속과 그룹 권한을 동시에 만드는 조합의 여러 owner
 revision·직접/간접 감사, 전체 행 rollback과 endpoint 정책 구성 거부를 함께 검사한다. 원격 본문·타입 검사는 미완료다.
 
-공유 물리 through 전환과 새 계정 through 편집의 실제 검증, 선택 catalog·나머지 through/전환 수명과 역사 `systemstate` 가져오기,
+선택 Group/Permission의 through 생성도 같은 편집기와 공통 typed 입력에 연결했다. 두 선언은 일반 catalog의 scalar·
+code/unique 정책을 재사용하고 실제 key를 받은 뒤 custom 검증을 실행한다. 생성과 편집의 관련 권한을 독립적으로 확인하며,
+새 catalog의 선택/추가 자체 M2M은 nullable 물리 링크까지 비어 있는지 최종 검사한다. 기본/custom × Group/Permission
+네 외부 변형에 생성·no-op·삭제/교체와 identity 재사용·종속 계정/session·rollback/unknown·뒤늦은 행/NULL 링크 변조와
+restart 소비자를 작성했다. 코드와 필수 실행 연결을 실제 generated/native·양 DB·platform 수용으로 계산하지 않는다.
+
+공유 물리 through 전환과 계정/catalog through 편집의 실제 검증, 나머지 nested 생성/전환 수명과 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

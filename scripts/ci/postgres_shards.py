@@ -35,8 +35,11 @@ CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
     'TestGeneratedFirstAccountUsesRequiredProfiles',
+})
+THROUGH_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountThroughIdentityCreation',
     'TestGeneratedAccountRoleThroughCreation',
+    'TestGeneratedAccountCatalogThroughCreation',
 })
 TRANSITION_CONSUMER_OWNERS = {
     'TestGeneratedAccountTransition': 'core-account-transition',
@@ -61,6 +64,7 @@ WRITE_CONSUMER_ROOTS = frozenset({
 CONSUMER_PARTITIONS = {
     'core-consumers': CONSUMERS,
     'core-account-consumers': CONSUMERS,
+    'core-account-through': CONSUMERS,
     **{owner: CONSUMERS for owner in TRANSITION_CONSUMER_OWNERS.values()},
     'core-account-profiles': CONSUMERS,
     'core-consumer-writes': CONSUMERS,
@@ -148,6 +152,9 @@ def plan(mode, shard, entries):
         # AccountTransition was still running at the 30-minute package limit.
         # Each transition root now owns a partition, including all future
         # children; retain all three modes and the same deadlines/inventory.
+        # CI 40919829252's race account owner reached the cumulative 30-minute
+        # limit while the last role-through child was still progressing.
+        # Give identity-through roots their own owner, retaining every child.
         def consumer_owner(entry):
             package, _, test = entry.partition('|')
             root = test.split('/')[0]
@@ -155,6 +162,8 @@ def plan(mode, shard, entries):
                 return TRANSITION_CONSUMER_OWNERS[root]
             if package == CONSUMER_PACKAGE and root in ACCOUNT_CONSUMER_ROOTS:
                 return 'core-account-consumers'
+            if package == CONSUMER_PACKAGE and root in THROUGH_CONSUMER_ROOTS:
+                return 'core-account-through'
             if package == CONSUMER_PACKAGE and root in PROFILE_CONSUMER_ROOTS:
                 return 'core-account-profiles'
             if package == CONSUMER_PACKAGE and root in WRITE_CONSUMER_ROOTS:

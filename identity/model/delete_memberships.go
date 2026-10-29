@@ -48,26 +48,67 @@ func bindDeletionMemberships(project orm.ProjectBinding, role ir.AccountRole) ([
 		if !selected {
 			continue
 		}
-		model, present := project.Model(relation.Through.Model)
-		key, keyPresent := primaryField(model)
-		source, sourcePresent := namedField(model, relation.Through.SourceField)
-		target, targetPresent := namedField(model, relation.Through.TargetField)
-		targetModel, targetFound := project.Model(relation.Target)
-		targetKey, targetKeyFound := primaryField(targetModel)
-		if !present || !keyPresent || !sourcePresent || !targetPresent || source.Relation == nil || target.Relation == nil ||
-			source.Relation.Target != relation.Source || target.Relation.Target != relation.Target || !targetFound || !targetKeyFound {
-			return nil, managementError(CodeInvalidConfig, nil)
+		membership, err := bindLifecycleMembership(project, relation, maximum, profile)
+		if err != nil {
+			return nil, err
 		}
-		field := func(value ir.Field) query.FieldRef {
-			return query.NewFieldRef(value.Name, value.Column, query.FieldInteger, value.Nullable)
-		}
-		result = append(result, deletionMembership{through: relation.Through.Model, owner: relation.Source, targetModel: relation.Target, field: relation.Field, table: model.DBTable,
-			key: field(key), source: field(source), target: field(target), targetTable: targetModel.DBTable, targetKey: field(targetKey), maximum: maximum, profile: profile})
+		result = append(result, membership)
 	}
 	if critical != 3 {
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
 	return result, nil
+}
+
+func bindLifecycleMembership(project orm.ProjectBinding, relation ir.ManyToManyBinding, maximum int, profile bool) (deletionMembership, error) {
+	model, present := project.Model(relation.Through.Model)
+	key, keyPresent := primaryField(model)
+	source, sourcePresent := namedField(model, relation.Through.SourceField)
+	target, targetPresent := namedField(model, relation.Through.TargetField)
+	targetModel, targetFound := project.Model(relation.Target)
+	targetKey, targetKeyFound := primaryField(targetModel)
+	if !present || !keyPresent || !sourcePresent || !targetPresent || source.Relation == nil || target.Relation == nil ||
+		source.Relation.Target != relation.Source || target.Relation.Target != relation.Target || !targetFound || !targetKeyFound {
+		return deletionMembership{}, managementError(CodeInvalidConfig, nil)
+	}
+	field := func(value ir.Field) query.FieldRef {
+		return query.NewFieldRef(value.Name, value.Column, query.FieldInteger, value.Nullable)
+	}
+	return deletionMembership{through: relation.Through.Model, owner: relation.Source, targetModel: relation.Target, field: relation.Field, table: model.DBTable,
+		key: field(key), source: field(source), target: field(target), targetTable: targetModel.DBTable, targetKey: field(targetKey), maximum: maximum, profile: profile}, nil
+}
+
+// Selected catalog identities may declare other collections too. Even when
+// those collections have no management editor, scalar through creation must
+// not silently acquire own memberships through a database rule or late write.
+func bindOwnedMemberships(project orm.ProjectBinding, owner ir.ModelIdentity) ([]deletionMembership, error) {
+	var result []deletionMembership
+	for _, relation := range project.ManyToManyRelations() {
+		if relation.Source != owner {
+			continue
+		}
+		membership, err := bindLifecycleMembership(project, relation, MaximumProfileCollectionItems, false)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, membership)
+	}
+	return result, nil
+}
+
+func verifyEmptyOwnedMemberships(ctx context.Context, scope db.Queryer, memberships []deletionMembership, owner ir.ModelIdentity, key int64) error {
+	for _, membership := range memberships {
+		if membership.owner != owner {
+			continue
+		}
+		// The expected physical inventory is empty. One fully decoded and closed
+		// row already disproves it, including a row with a nullable target.
+		rows, err := membership.read(ctx, scope, 1, query.NewCondition(membership.source, query.LookupExact, query.Integer(key)))
+		if err != nil || len(rows) != 0 {
+			return managementError(CodePersistence, err)
+		}
+	}
+	return nil
 }
 
 // readKeys validates the complete stored logical set, including its target

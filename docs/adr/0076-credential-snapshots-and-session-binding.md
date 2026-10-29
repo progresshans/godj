@@ -1432,7 +1432,7 @@ session·한 번 Apply·native 실제 key·전체 typed row readback·외부 rol
 경로에는 관측 전용 incoming edge 사본을 추가로 보관하지 않는다.
 
 이 기반만으로 선택 계정/catalog을 생성할 권한을 얻지 않는다. 선택 계정의 역할·추가 프로필 through 편집은 다음 명시적
-생성 정책을 결합하며 catalog와 나머지 생성/전환 조립은 I1의 후속 구현이다.
+생성 정책을 결합한다. Catalog through 편집도 아래의 별도 typed 생성 정책을 사용하며 나머지 생성/전환 조립은 I1의 후속 구현이다.
 
 ### 선택 계정 through의 명시적 생성과 편집
 
@@ -1467,8 +1467,28 @@ revision을 한 번만 올리고 직접 효과에만 감사한다. 삭제에 따
 
 `orm.WithCollectionThroughInput`은 같은 전체 source·실제 typed through model에만 scalar 후보를 다시 결합한다.
 공통 ORM은 선택/endpoint/삭제 그래프와 실제 결과를 소유하고 계정 owner는 권한·revision·해싱·감사·세션을 소유한다.
-이 조립은 선택 catalog through, 일반 계정 생성/첫 계정의 nested identity 생성, 모델 전환의 through 생성을 완료한 것이 아니다.
+이 조립은 일반 계정 생성/첫 계정의 nested identity 생성, 모델 전환의 through 생성을 완료한 것이 아니다.
 구현과 generated/native·양 DB·platform 수용은 TEST_EVIDENCE에서 구분한다.
+
+### 선택 catalog through의 생성 정책
+
+`NewGroupThroughCreation`과 `NewPermissionThroughCreation`은 선택 account binding과 실제 generated catalog descriptor,
+deny overlay·`CatalogThroughConfig`를 묶는다. 같은 `ThroughCreation`과 편집기의 field/source/역할·한도 검사를 사용한다.
+`Creation`은 일반 catalog와 같은 scalar 노출·permission code·typed 기본값/unique 검사를 사용한다. Endpoint FK 두 개는
+바깥 collection의 선택 정책이 소유하며 catalog WriteFields에는 넣지 않는다. Factory가 같은 값으로 다시 지정하는 입력,
+revision·저장 key·M2M 입력도 거부한다. 다른 scalar/FK를 추가로 쓰거나 파일을 게시하는 암묵적 권한을 주지 않는다.
+
+읽기 snapshot에서 add와 생성 정책의 관련 소속 change 권한을 확인하고, 최종 native transaction에서 현재 actor와 전체
+topology·후보를 다시 검사한다. 편집기의 삭제/변경 권한과 생성 정책의 추가 grant는 각각 유지한다. Catalog 후보는
+해싱을 하지 않으며 같은 batch의 이름/코드 중복을 거부한다. 삭제 예정 행은 advisory unique 검사에서 제외할 수 있지만
+현재 DB의 제약을 우회하지 않는다. Retained pair는 factory·검증 callback·생성 감사를 다시 실행하지 않는다.
+
+`CatalogValidator`의 기존 계약대로 custom 검증은 provisional INSERT의 실제 key와 revision 1인 typed 행을 받는다.
+새 catalog의 자체 M2M은 비어 있어야 한다. 선택 GroupPermissions와 추가 선언된 모든 자체 collection을 physical 행으로
+검사하므로 nullable target을 가진 예상 밖 링크도 허용하지 않는다. Callback·감사 뒤에도 이 inventory와 전체 삽입 행을
+재검사한다. 생성 감사는 catalog의 scalar 필드와 두 endpoint를 포함한다. 기존 account/catalog 소속의 단일 revision·
+직접 감사, 삭제 그래프의 종속 계정과 session 폐기·감사는 같은 transaction에 남으며 rollback/unknown 결과는 성공으로
+게시하지 않는다. 이 지원은 계정 편집 collection의 through 생성이며 nested 생성과 모델 전환의 생성은 계속 별도 작업이다.
 
 ### 공개 첫 명령의 collection 입력
 
@@ -1934,7 +1954,7 @@ Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무
 전체 inventory를 1:1로 대응시키며, 같은 row key·principal·hash만으로 대응이나 소유권 이전을 추론하지 않는다.
 `PrepareCreation`은 빈 대상 모델에 새 행을 생성하는 명시적 입력을 받는다. 일반 host FK/OneToOne의 명시적 재매핑은 아래
 staged reference 계약을 따른다. Catalog는 같거나 아래의 명시적 전체 대응표로 연결한다.
-기존 `godj_system` adoption과 선택 catalog·나머지 identity의 through/전환 생성 수명은 I1의 잔여 작업이다.
+기존 `godj_system` adoption과 나머지 nested identity/전환 생성 수명은 I1의 잔여 작업이다.
 
 `Prepare`는 framework migration identity를 확인한 뒤 한 native snapshot에서 현재 source actor의 명시적 전환 권한과
 추가 권한·deny overlay, 전체 domain 이력·감사·session inventory, 두 typed 모델의 전체 행을 검사한다.
