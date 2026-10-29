@@ -62,7 +62,7 @@ func collectionAccountCreation(t *testing.T, backend Backend, reopen func(*testi
 		if !ok {
 			t.Fatal("account creation lost relation scope")
 		}
-		observed = &lifecycleCreationScope{RelationSession: scope, table: "people_member", afterInsert: func(ctx context.Context, native db.RelationSession, id int64) error {
+		observed = &lifecycleCreationScope{RelationSession: scope, table: "people_member", late: lifecycleLateCollectionRow{mode: mode, rootTable: "people_member"}, afterInsert: func(ctx context.Context, native db.RelationSession, id int64) error {
 			membership, err := links.MembershipObjects.Create(ctx, native, links.NewMembershipCreate(id, group.ID))
 			if err != nil {
 				return err
@@ -118,7 +118,13 @@ func collectionAccountCreation(t *testing.T, backend Backend, reopen func(*testi
 	}
 	creator, err := project.NewAccountCreator(store, auth.PrincipalAuthorizer{}, hasher, config)
 	check(err)
-	input := lifecycleInput(t, people.MemberObjects, map[string]query.Value{"contact": query.String("created-with-effects@example.test"), "region": query.String("KR")}, map[string][]int64{"teams": nil, "grants": nil})
+	var selected []int64
+	if mode == "late_link_key" || mode == "late_payload" {
+		retained, err := access.TeamObjects.Create(t.Context(), backend, access.NewTeamCreate("Retained new account membership"))
+		check(err)
+		selected = []int64{retained.ID}
+	}
+	input := lifecycleInput(t, people.MemberObjects, map[string]query.Value{"contact": query.String("created-with-effects@example.test"), "region": query.String("KR")}, map[string][]int64{"teams": selected, "grants": nil})
 	pending, err := creator.Prepare(t.Context(), f.actor, input, password)
 	check(err)
 	before := deletionSnapshot(t, reopen(t))
@@ -136,6 +142,10 @@ func collectionAccountCreation(t *testing.T, backend Backend, reopen func(*testi
 			t.Fatal("failed creation published provisional metadata")
 		}
 		switch mode {
+		case "late_link_key", "late_payload":
+			if !observed.late.changed || finalChecks != 1 || !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodePersistence}) {
+				t.Fatal("late created account through mutation was not rejected", failure)
+			}
 		case "new_authority_denied", "missing_effect_policy":
 			if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodePermission}) || finalChecks != 0 {
 				t.Fatal("creation granted its own effect authority", failure)

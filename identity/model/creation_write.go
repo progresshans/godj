@@ -136,11 +136,12 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 		return zero, Creation{}, err
 	}
 	revoked := 0
-	if _, err := batch.Apply(ctx, func(work context.Context, _ orm.CollectionChangeEffects) error {
+	applied, err := batch.Apply(ctx, func(work context.Context, _ orm.CollectionChangeEffects) error {
 		var err error
 		revoked, err = plan.apply(work, scope)
 		return err
-	}); err != nil {
+	})
+	if err != nil {
 		return zero, Creation{}, err
 	}
 	// Validators and uniqueness now see the final collected graph. The
@@ -171,6 +172,9 @@ func (state *creationState[M]) insertIn(ctx context.Context, scope db.RelationSe
 		return zero, Creation{}, err
 	}
 	if err := plan.verify(ctx, scope); err != nil {
+		return zero, Creation{}, err
+	}
+	if err := applied.Verify(ctx); err != nil {
 		return zero, Creation{}, err
 	}
 	return finalRow, Creation{ID: id, Revision: plan.rootRevision, RevokedSessions: revoked, ChangedFields: lifecycleChangedFields(state.metadata, plan.root)}, nil

@@ -100,11 +100,12 @@ type stInsertion struct {
 }
 type stBackend struct {
 	database.Backend
-	table, mode       string
-	inserted          []stInsertion
-	receipt, finished bool
-	faults            int
-	mutate            func(context.Context, db.Queryer) error
+	table, mode         string
+	inserted            []stInsertion
+	receipt, finished   bool
+	nativeGeneratedKeys bool
+	faults              int
+	mutate              func(context.Context, db.Queryer) error
 }
 
 func (backend *stBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
@@ -148,7 +149,7 @@ func (scope *stScope) RelationSetNull(ctx context.Context, plan query.RelationSe
 	return scope.Session.(db.RelationSession).RelationSetNull(ctx, plan)
 }
 func (scope *stScope) plan(plan query.InsertPlan) query.InsertPlan {
-	if scope.owner.mode != "signed_keys" || plan.Table() != scope.owner.table {
+	if scope.owner.mode != "signed_keys" || scope.owner.nativeGeneratedKeys || plan.Table() != scope.owner.table {
 		return plan
 	}
 	key, _ := plan.ReturningKey()
@@ -259,7 +260,7 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 	metadata, err := objects.Metadata()
 	stMust(t, err)
 	f := &stFixture[L]{native: native, selected: selected, objects: objects, caps: caps, strategy: strategy, mode: mode, prefix: prefix, joined: time.Date(2026, 10, 29, 2, 3, 4, 123456000, time.UTC)}
-	f.backend = &stBackend{Backend: native, table: metadata.DBTable}
+	f.backend = &stBackend{Backend: native, table: metadata.DBTable, nativeGeneratedKeys: selected.Kind() == database.KindPostgres}
 	bound, err := project.BindAccount()
 	stMust(t, err)
 	f.oldRole, err = bound.Role()
@@ -373,6 +374,9 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 	stMust(t, err)
 	_, err = manager.Create(t.Context(), map[string]string{auth.SessionPrincipalIDKey: f.actor.ID(), auth.SessionCredentialStampKey: f.credential.SessionStamp()})
 	stMust(t, err)
+	if mode == "signed_keys" && f.backend.nativeGeneratedKeys {
+		accountGeneratedKeySequence(t, selected, metadata.DBTable, "link_key", 0, -1)
+	}
 	f.backend.mode = mode
 	f.backend.finished = false
 	f.backend.mutate = func(ctx context.Context, scope db.Queryer) error {

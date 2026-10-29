@@ -403,8 +403,9 @@ func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal
 			return AccountChange{}, err
 		}
 		revoked := 0
+		var applied orm.AppliedCollectionChanges
 		if len(changes) != 0 {
-			_, err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
+			applied, err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
 				var err error
 				revoked, err = plan.apply(ctx, scope)
 				return err
@@ -443,6 +444,11 @@ func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal
 		}
 		if err := plan.verify(work, scope); err != nil {
 			return AccountChange{}, err
+		}
+		if len(changes) != 0 {
+			if err := applied.Verify(work); err != nil {
+				return AccountChange{}, err
+			}
 		}
 		return AccountChange{ID: id, Revision: plan.rootRevision, ChangedFields: lifecycleChangedFields(state.metadata, plan.root), RevokedSessions: revoked}, nil
 	})

@@ -534,6 +534,9 @@ UNIQUE 충돌/no-op과 key 0을 구분하고 NULL·중복 key·scan/close·뒤 �
 retirement·receipt 이후 전체 삽입 payload를 재검사하고 그 값과 역할별 행도 최종 합계 예산에 포함한다.
 일반/복합 UNIQUE storage, staged/created 계정, 부분 공유 catalog와 account-only 생성, 실제 signed key·정확한 native
 대응표/소속/감사/세션·rollback/unknown·재접속 및 마지막 정책의 payload/endpoint/nullable 행 변조 소비자를 추가했다.
+일반 계정·catalog 생성/편집도 최종 scalar/unique/선택 정책 이후 삽입된 전체 행을 재검사하며, 기존 대상 계정의 mapping
+전환도 물리 소속·프로필 identity를 고정한다. 양 DB의 늦은 PK/payload 변경과 receipt 뒤 기존 링크 key 교체 거부를
+필수 소비자에 연결했다. PostgreSQL signed key fixture는 격리된 실제 identity sequence로 값을 생성하도록 수정했다.
 로컬 자원 과사용으로 중단된 compile은 완료로 계산하지 않으며 새 본문·환경별 검증은 TEST_EVIDENCE에 구분한다.
 
 공유 물리 through 전환의 실제 검증, 선택 identity의 through 수명과 역사 `systemstate` 가져오기,

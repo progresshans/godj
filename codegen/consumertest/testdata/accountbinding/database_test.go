@@ -111,6 +111,36 @@ func accountStoredKey(t *testing.T, backend database.Backend, selected database.
 	}
 }
 
+// Set the next real PostgreSQL identity values before opening a write fence.
+// The fixture owns this isolated schema. Product INSERT still omits the key
+// and consumes native RETURNING; it does not gain explicit-key insertion.
+func accountGeneratedKeySequence(t *testing.T, selected database.Config, table, column string, next, increment int64) {
+	t.Helper()
+	if selected.Kind() != database.KindPostgres || table == "" || column == "" || increment == 0 {
+		t.Fatal("invalid native identity-sequence fixture")
+	}
+	connection, err := pgx.Connect(t.Context(), selected.PostgresURL())
+	if err != nil {
+		t.Fatal("connect native identity-sequence fixture")
+	}
+	defer func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+		if err := connection.Close(ctx); err != nil {
+			t.Error("close native identity-sequence fixture")
+		}
+	}()
+	var namespace, name string
+	err = connection.QueryRow(t.Context(), `SELECT n.nspname,c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE c.oid=pg_catalog.pg_get_serial_sequence($1,$2)::regclass`, pgx.Identifier{selected.PostgresSchema(), table}.Sanitize(), column).Scan(&namespace, &name)
+	if err != nil || namespace != selected.PostgresSchema() {
+		t.Fatal("identity sequence is outside the fixture schema", err)
+	}
+	statement := "ALTER SEQUENCE " + pgx.Identifier{namespace, name}.Sanitize() + fmt.Sprintf(" INCREMENT BY %d MINVALUE -9223372036854775808 RESTART WITH %d CACHE 1", increment, next)
+	if _, err := connection.Exec(t.Context(), statement); err != nil {
+		t.Fatal("configure native identity-sequence fixture", err)
+	}
+}
+
 var accountSchemaSequence atomic.Uint64
 
 func accountDatabaseConfig(t *testing.T) (database.Config, string) {

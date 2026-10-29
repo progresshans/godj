@@ -44,9 +44,17 @@ type Open func(*testing.T) (Backend, func(*testing.T) Backend)
 // implements explicit generated-key insertion or sequence reconciliation.
 type StoredKeyFixture func(*testing.T, Backend, string, int64, int64)
 
-func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFixture) {
+// GeneratedKeyFixture configures the next native keys of isolated fixture
+// tables. PostgreSQL uses its real identity sequences; nil selects SQLite's
+// supported explicit-key INSERT plan fixture. Neither changes product APIs.
+type GeneratedKeyFixture func(*testing.T, Backend, map[string]int64)
+
+func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFixture, generatedKeys GeneratedKeyFixture) {
 	if storedKey == nil {
 		t.Fatal("stored account key fixture is required")
+	}
+	if referenceBackend == "postgres" && generatedKeys == nil {
+		t.Fatal("PostgreSQL native generated-key fixture is required")
 	}
 	for _, test := range []struct {
 		name string
@@ -211,7 +219,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	}
 	runStartupSchemaRequired(t, open)
 	runAccountDeletion(t, open, storedKey)
-	runCollectionChanges(t, open, storedKey)
+	runCollectionChanges(t, open, storedKey, generatedKeys)
 	runCollectionLifecycle(t, open, storedKey)
 	runProfileRelations(t, open, storedKey)
 }

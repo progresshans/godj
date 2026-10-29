@@ -41,5 +41,5 @@ func TestSQLiteAccountCredentialStore(t *testing.T) {
 		if count, err := result.RowsAffected(); err != nil || count != 1 {
 			t.Fatal("stored account key fixture did not affect one row", count, err)
 		}
-	})
+	}, nil)
 }

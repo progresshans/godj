@@ -29,6 +29,7 @@ func runCollectionLifecycle(t *testing.T, open Open, storedKey StoredKeyFixture)
 				"commit", "zero_key", "negative_key", "scalar_only", "additional_denial", "validator_rejection",
 				"protected", "root_deleted", "corrupt_revision", "query_failure", "close_failure",
 				"late_revision_failure", "late_session_failure", "late_root_write", "late_insert_failure", "wrong_null_count", "final_read_failure",
+				"late_link_key",
 				"skipped", "repeated", "unknown_rollback", "unknown_commit", "cleanup_failure", "post_commit_cancel", "cancel_confirmed_rollback",
 			}
 			if kind == "account" {
@@ -46,7 +47,7 @@ func runCollectionLifecycle(t *testing.T, open Open, storedKey StoredKeyFixture)
 		})
 	}
 	t.Run("collection_account_creation", func(t *testing.T) {
-		for _, mode := range []string{"effects_allowed", "new_authority_denied", "missing_effect_policy", "root_deleted", "validator_rollback", "unknown_rollback", "unknown_commit", "cleanup_failure"} {
+		for _, mode := range []string{"effects_allowed", "new_authority_denied", "missing_effect_policy", "root_deleted", "validator_rollback", "late_link_key", "late_payload", "unknown_rollback", "unknown_commit", "cleanup_failure"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
 				migrateDeletion(t, backend)
@@ -55,7 +56,7 @@ func runCollectionLifecycle(t *testing.T, open Open, storedKey StoredKeyFixture)
 		}
 	})
 	t.Run("collection_catalog_creation", func(t *testing.T) {
-		for _, mode := range []string{"effects_allowed", "new_authority_denied", "validator_rollback"} {
+		for _, mode := range []string{"effects_allowed", "new_authority_denied", "validator_rollback", "late_link_key"} {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
 				migrateDeletion(t, backend)
@@ -104,6 +105,7 @@ func collectionLifecycle(t *testing.T, backend Backend, reopen func(*testing.T) 
 		if kind == "catalog" {
 			observed.rootID, observed.rootTable = tree.group.ID, "access_team"
 		}
+		observed.late = lifecycleLateCollectionRow{mode: mode, rootTable: observed.rootTable, reference: observed.rootID}
 		return observed
 	}
 	store, err := project.NewAccountSessionStore(owner, sessiondb.Config{})
@@ -319,6 +321,7 @@ func assertLifecycleScalarOnly(t *testing.T, backend Backend, f *deletionFixture
 
 type lifecycleFaultScope struct {
 	db.RelationSession
+	late                                                                                     lifecycleLateCollectionRow
 	kind, mode, rootTable                                                                    string
 	rootID                                                                                   int64
 	fault                                                                                    error
@@ -329,6 +332,9 @@ func (scope *lifecycleFaultScope) ValidateSession(ctx context.Context) error {
 	return scope.RelationSession.(db.SessionValidator).ValidateSession(ctx)
 }
 func (scope *lifecycleFaultScope) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if err := scope.late.beforeRead(ctx, scope.RelationSession, plan); err != nil {
+		return nil, err
+	}
 	rows, err := scope.RelationSession.Query(ctx, plan)
 	if err != nil {
 		return rows, err
@@ -385,6 +391,7 @@ func (scope *lifecycleFaultScope) Insert(ctx context.Context, plan query.InsertP
 		return key, err
 	}
 	scope.inserts++
+	scope.late.inserted(plan, key)
 	if scope.mode == "late_insert_failure" && (plan.Table() == "links_membership" || plan.Table() == "links_grant_link") {
 		return key, scope.fault
 	}
@@ -394,6 +401,7 @@ func (scope *lifecycleFaultScope) InsertOnConflict(ctx context.Context, plan que
 	inserted, err := scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
 	if inserted.Inserted {
 		scope.inserts++
+		scope.late.inserted(plan.Insert(), inserted.Key)
 	}
 	return inserted, err
 }
@@ -429,6 +437,10 @@ func (scope *lifecycleFaultScope) RelationSetNull(ctx context.Context, plan quer
 func (scope *lifecycleFaultScope) assertFault(t *testing.T, failure error) {
 	t.Helper()
 	switch scope.mode {
+	case "late_link_key":
+		if !scope.late.changed || scope.rootWrites != 1 || scope.inserts == 0 {
+			t.Fatal("late collection mutation did not follow the real insertions and scalar write", failure)
+		}
 	case "query_failure", "close_failure", "final_read_failure":
 		if scope.failedQueries != 1 || scope.closes != 1 || !errors.Is(failure, scope.fault) {
 			t.Fatal("failed lifecycle query lost its cause or rowset cleanup")

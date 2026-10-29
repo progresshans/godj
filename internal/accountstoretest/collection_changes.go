@@ -20,7 +20,7 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-func runCollectionChanges(t *testing.T, open Open, storedKey StoredKeyFixture) {
+func runCollectionChanges(t *testing.T, open Open, storedKey StoredKeyFixture, generatedKeys GeneratedKeyFixture) {
 	t.Helper()
 	t.Run("collection_changes", func(t *testing.T) {
 		for _, mode := range []string{
@@ -33,7 +33,7 @@ func runCollectionChanges(t *testing.T, open Open, storedKey StoredKeyFixture) {
 			t.Run(mode, func(t *testing.T) {
 				backend, reopen := open(t)
 				migrateDeletion(t, backend)
-				collectionChanges(t, backend, reopen, storedKey, mode)
+				collectionChanges(t, backend, reopen, storedKey, generatedKeys, mode)
 			})
 		}
 	})
@@ -122,6 +122,7 @@ func collectionTreeFixture(t *testing.T, backend Backend, storedKey StoredKeyFix
 
 type collectionFaultScope struct {
 	db.RelationSession
+	nativeGeneratedKeys                                 bool
 	mode                                                string
 	fault                                               error
 	firstKey, owner                                     int64
@@ -172,7 +173,7 @@ func (rows *collectionFaultRows) Scan(destinations ...any) error {
 	return nil
 }
 func (scope *collectionFaultScope) insertionPlan(plan query.InsertPlan) query.InsertPlan {
-	if scope.mode != "actual_signed_keys" {
+	if scope.mode != "actual_signed_keys" || scope.nativeGeneratedKeys {
 		return plan
 	}
 	key, _ := plan.ReturningKey()
@@ -239,9 +240,12 @@ func (scope *collectionFaultScope) InsertOnConflict(ctx context.Context, plan qu
 	return count, err
 }
 
-func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Backend, storedKey StoredKeyFixture, mode string) {
+func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Backend, storedKey StoredKeyFixture, generatedKeys GeneratedKeyFixture, mode string) {
 	t.Helper()
 	tree := collectionTreeFixture(t, backend, storedKey, mode)
+	if mode == "actual_signed_keys" && generatedKeys != nil {
+		generatedKeys(t, backend, map[string]int64{"links_membership": 0, "links_grant_link": -7, "people_member_grants": 9007199254740993})
+	}
 	collections, err := project.BindCollections()
 	if err != nil {
 		t.Fatal(err)
@@ -271,7 +275,7 @@ func collectionChanges(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 	var retained orm.PreparedCollectionChanges
 	var applied orm.AppliedCollectionChanges
 	err = backend.CoordinatedAtomicRelation(t.Context(), func(session db.RelationSession) error {
-		observed = &collectionFaultScope{RelationSession: session, mode: mode, fault: fault, owner: tree.owner.ID}
+		observed = &collectionFaultScope{RelationSession: session, mode: mode, fault: fault, owner: tree.owner.ID, nativeGeneratedKeys: generatedKeys != nil}
 		prepared, err := orm.PrepareCollectionChangesInSession(t.Context(), observed, member, group, direct)
 		if err != nil {
 			return err

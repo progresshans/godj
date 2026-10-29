@@ -175,8 +175,9 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 			return CatalogChange{}, err
 		}
 		revoked := 0
+		var applied orm.AppliedCollectionChanges
 		if selected {
-			_, err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
+			applied, err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
 				var err error
 				revoked, err = plan.apply(ctx, scope)
 				return err
@@ -199,6 +200,11 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 		}
 		if err := plan.verify(work, scope); err != nil {
 			return CatalogChange{}, err
+		}
+		if selected {
+			if err := applied.Verify(work); err != nil {
+				return CatalogChange{}, err
+			}
 		}
 		return CatalogChange{ID: id, Revision: nextRevision, ChangedFields: lifecycleChangedFields(state.model, touch), RevokedSessions: revoked}, nil
 	})

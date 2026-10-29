@@ -25,6 +25,7 @@ import (
 // does not claim to install or validate any backend-specific trigger DDL.
 type lifecycleCreationScope struct {
 	db.RelationSession
+	late        lifecycleLateCollectionRow
 	afterInsert func(context.Context, db.RelationSession, int64) error
 	createdID   int64
 	table       string
@@ -34,11 +35,26 @@ type lifecycleCreationScope struct {
 func (scope *lifecycleCreationScope) ValidateSession(ctx context.Context) error {
 	return scope.RelationSession.(db.SessionValidator).ValidateSession(ctx)
 }
+
+func (scope *lifecycleCreationScope) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if err := scope.late.beforeRead(ctx, scope.RelationSession, plan); err != nil {
+		return nil, err
+	}
+	return scope.RelationSession.Query(ctx, plan)
+}
+
 func (scope *lifecycleCreationScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
-	return scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
+	result, err := scope.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx, plan)
+	if err == nil && result.Inserted {
+		scope.late.inserted(plan.Insert(), result.Key)
+	}
+	return result, err
 }
 func (scope *lifecycleCreationScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	key, err := scope.RelationSession.Insert(ctx, plan)
+	if err == nil {
+		scope.late.inserted(plan, key)
+	}
 	table := scope.table
 	if table == "" {
 		table = "access_team"
@@ -50,6 +66,7 @@ func (scope *lifecycleCreationScope) Insert(ctx context.Context, plan query.Inse
 		return key, errors.New("catalog creation repeated its root insert")
 	}
 	scope.called, scope.createdID = true, key
+	scope.late.reference = key
 	return key, scope.afterInsert(ctx, scope.RelationSession, key)
 }
 
@@ -89,7 +106,7 @@ func collectionCatalogCreation(t *testing.T, backend Backend, reopen func(*testi
 		if !ok {
 			t.Fatal("catalog creation lost native relation session")
 		}
-		observed = &lifecycleCreationScope{RelationSession: relation, afterInsert: func(ctx context.Context, scope db.RelationSession, id int64) error {
+		observed = &lifecycleCreationScope{RelationSession: relation, late: lifecycleLateCollectionRow{mode: mode, rootTable: "access_team"}, afterInsert: func(ctx context.Context, scope db.RelationSession, id int64) error {
 			grantLink, err := links.GrantLinkObjects.Create(ctx, scope, links.NewGrantLinkCreate(id, remove.ID))
 			if err != nil {
 				return err
@@ -126,7 +143,11 @@ func collectionCatalogCreation(t *testing.T, backend Backend, reopen func(*testi
 	catalog, err := project.NewAccountCatalog(store, auth.PrincipalAuthorizer{}, config)
 	check(err)
 	before := deletionSnapshot(t, reopen(t))
-	result, err := catalog.Groups().Create(t.Context(), f.actor, lifecycleInput(t, access.TeamObjects, map[string]query.Value{"title": query.String("Created with effects")}, map[string][]int64{"grants": nil}))
+	var selected []int64
+	if mode == "late_link_key" {
+		selected = []int64{add.ID}
+	}
+	result, err := catalog.Groups().Create(t.Context(), f.actor, lifecycleInput(t, access.TeamObjects, map[string]query.Value{"title": query.String("Created with effects")}, map[string][]int64{"grants": selected}))
 	if owner.calls != 1 || observed == nil || !observed.called || observed.ValidateSession(t.Context()) == nil {
 		t.Fatal("creation did not use exactly one expired native owner")
 	}
@@ -137,6 +158,10 @@ func collectionCatalogCreation(t *testing.T, backend Backend, reopen func(*testi
 		if mode == "new_authority_denied" {
 			if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodePermission}) || validations != 0 {
 				t.Fatal("provisional insert conferred new effect authority", err)
+			}
+		} else if mode == "late_link_key" {
+			if !observed.late.changed || validations != 1 || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodePersistence}) {
+				t.Fatal("late created catalog link rewrite was not rejected", err)
 			}
 		} else if diagnostics, rejected := validation.Rejected(err); !rejected || diagnostics.ByField("title").Empty() || validations != 1 {
 			t.Fatal("creation validator refusal was lost", err)

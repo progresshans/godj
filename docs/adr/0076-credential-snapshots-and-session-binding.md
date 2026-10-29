@@ -1394,12 +1394,15 @@ collection의 최종 조회 실패에는 부분 key/행을 반환하지 않는�
 결과는 enclosing transaction의 commit 전까지 잠정 값이다. 새 API가 인가·revision·session·audit owner나
 외부 commit 확인을 대신하지 않는다. `Verify`는 원래 borrowed session에서 같은 전체 행을 다시 조회하여 동반 쓰기와
 최종 정책 이후의 변경도 거부한다. 종료된 scope에서 새 transaction을 열거나 불확정 commit의 성공을 판정하지 않는다.
+계정 생성·편집과 catalog 생성·편집 owner도 이 결과를 보존한다. 최종 scalar/unique/선택 정책과 수명 검사가 끝난 뒤
+전체 삽입 행을 다시 확인하므로 논리 pair를 보존한 PK 교체나 추가 nullable payload의 변경도 확정 전에 거부한다.
 
 계정/catalog 전환은 이 실제 결과의 model·key·전체 scalar 값을 소유하고 중복 물리 key와 다른 source를 거부한다.
 같은 through가 이전/새 catalog·계정 소속·프로필을 함께 표현하면 각 역할의 PK/nullable endpoint inventory에 정확히
 그 행만 추가한다. Catalog는 논리 grant와 전체 scalar/physical inventory가 이 독립 예상 상태와 일치할 때만 새 digest를
 고정한다. 논리 pair가 같다는 이유로 추가 key나 nullable 행을 채택하지 않는다. Catalog 생성과 계정 생성 모두 같은
 조립을 사용하며 최종 정책·retirement·receipt 뒤에도 역할별 inventory와 삽입된 전체 typed 행을 다시 확인한다.
+기존 대상 계정을 mapping하는 전환도 이전/새 계정의 전체 물리 소속·프로필 inventory를 준비 상태에 묶고 최종 재검사한다.
 전체 삽입 값과 역할별 행도 기존 64MiB 최종 state 합계에 포함한다.
 
 선택 identity 자체를 through로 자동 생성하는 수명 owner는 후속 I1 요구다. 해당 명시적 거부는 유지하며
@@ -1999,8 +2002,9 @@ Manifest v7은 생성할 모델 구분과 전체 source key/revision·최종 tar
 보관 source 목록·공유 identity·target revision을 대조한다. 기존 v4/v5/v6의 wire는 바꾸지 않는다. 이후 정상 편집이나 schema
 contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확인한다.
 
-새 account/Group/Permission 자체가 through인 생성 수명과 여러 역할의 nullable endpoint를 하나의 물리 through에서 함께
-전환하는 조립은 아직 통합 대상이다. 현재 경로의 명시적 거부를 I1 전체 지원으로 계산하지 않는다.
+새 account/Group/Permission 자체가 through인 생성 수명은 아직 통합 대상이다. 여러 역할의 nullable endpoint를
+공유하는 물리 through 전환은 위 실제 삽입 결과 계약으로 연결했으며 환경별 검증은 TEST_EVIDENCE를 따른다.
+선택 identity 생성 경로의 명시적 거부나 공유 through의 부분 실행을 I1 전체 지원으로 계산하지 않는다.
 
 ### 일반 host 참조의 단계적 전환
 

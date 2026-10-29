@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/progresshans/godj/internal/accountstoretest"
@@ -33,6 +34,27 @@ func TestPostgresAccountCredentialStore(t *testing.T) {
 		}
 		if count, err := result.RowsAffected(); err != nil || count != 1 {
 			t.Fatal("stored account key fixture did not affect one row", count, err)
+		}
+	}, func(t *testing.T, store accountstoretest.Backend, keys map[string]int64) {
+		t.Helper()
+		backend := store.(*Backend)
+		for table, next := range keys {
+			qualified, err := quoteTable(backend.schema, table)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var namespace, name string
+			err = backend.database.QueryRowContext(t.Context(), `SELECT n.nspname,c.relname FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid=c.relnamespace WHERE c.oid=pg_catalog.pg_get_serial_sequence($1,'id')::regclass`, qualified).Scan(&namespace, &name)
+			if err != nil || namespace != backend.schema {
+				t.Fatal("fixture identity sequence is not owned by its isolated schema", err)
+			}
+			sequence, err := quoteTable(namespace, name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := backend.database.ExecContext(t.Context(), "ALTER SEQUENCE "+sequence+" MINVALUE -9223372036854775808 RESTART WITH "+strconv.FormatInt(next, 10)+" CACHE 1"); err != nil {
+				t.Fatal("configure native generated-key fixture", err)
+			}
 		}
 	})
 }

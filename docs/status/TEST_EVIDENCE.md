@@ -2986,6 +2986,42 @@ SHA-256은 `035e81629add052a3baca71e7fe1167a6d6c4fda6d6e47ba653478d158f982c6`이
 선택 identity의 자동 through 생성·전환 수명, 역사 systemstate 이행, 고정 소비자 교체와 같은 source의 전체 수용은
 계속 미완료다. 이번 코드 작성과 정적 검사로 공유 through의 환경별 검증 완료를 주장하지 않는다.
 
+### 일반 생성/편집의 최종 삽입 행과 signed key fixture
+
+2026-10-29, `b7c43ca961b83495db4a878a281bbf74e17d4a5d` 위에서 계정 생성·편집 및 catalog 생성·편집도
+`AppliedCollectionChanges`를 보존하도록 연결했다. 최종 scalar/unique/선택 정책과 수명 검사가 끝난 뒤 삽입된 전체 행을
+다시 확인한다. 기존 대상 계정을 mapping하는 전환도 이전/새 계정의 물리 소속·프로필 행을 준비 digest와 최종 재검사에
+포함한다. 소속 pair가 그대로인 PK 교체와 추가 nullable payload 변경도 정상 성공으로 확정하지 않는다.
+
+양 DB의 계정/catalog 편집·생성에 실제 삽입 이후 PK 교체 4개와 생성 account의 nullable payload 변경 1개를 추가했다.
+최종 읽기 경계에서 native QueryUpdate 변조가 실제 실행됐는지 확인하고, 실패 시 행·소속·감사·세션의 원자 rollback과
+빈 결과를 대조한다. 생성 소비자는 receipt 저장 뒤 기존 target profile through의 key만 교체하는 실패도 추가했다.
+기존 필수 실행을 유지하며 relation 목록은 4,635→4,640, PostgreSQL은 5,729→5,734다.
+
+GoDj PostgreSQL 일반 INSERT는 명시적인 생성 PK 입력을 미지원하므로 signed key fixture를 수정했다. 격리된 fixture의
+identity sequence를 실제 0/음수/큰 key로 설정하고 제품 INSERT는 원래처럼 key를 생략하여 native 반환값을 사용한다.
+공유 through 소비자는 PostgreSQL에서 0부터 감소하는 sequence를 사용한다. SQLite의 지원되는 명시적 key fixture와
+모든 실제 key·full-row·UNIQUE/no-op·rollback 검사는 유지한다. Sequence는 schema 소유권을 대조하며 설정 의미는
+[PostgreSQL 17 ALTER SEQUENCE](https://www.postgresql.org/docs/17/sql-altersequence.html)를 따른다.
+
+선행 [CI 40864639724](https://github.com/progresshans/godj/actions/runs/40864639724), attempt 1의 normal shared-through
+작업 `123417004601` 원본을 대조했다. 실제 checkout `38a2deb8bf656681de59ca4f5fd12d46ee049dd7`의 tree
+`76c9e6cf8abc38be3b225bac89b77f275ff06b32`는 `b7c43ca9`와 같다. Artifact `12893034828` ZIP의 SHA-256은
+`0640cd6555e5d2c9254769642c935fa8b17c2eafa2218c9450f31fa1ad9db0e6`이며 metadata·업로드 로그·다운로드 bytes가 일치한다.
+내부 SQLite 원본은 parent 포함 61개 모두 PASS다. PostgreSQL은 54개 시나리오 중 plain/staged와 plain/created의
+signed_keys 두 개가 실패했고, parent 포함 61개는 55 PASS·6 FAIL이다. 양쪽 모두 run/종료가 각각 정확히 한 번이며
+누락·skip·잘린 이벤트는 없다. 이 결과는 선행 source의 해당 소비자만 증명한다.
+
+같은 CI의 PostgreSQL race native 작업 `123417004771`은 `collection_changes/actual_signed_keys`에서
+명시적 generated-key assignment 미지원 오류를 직접 보고했다. 공유 소비자의 동일 입력과 backend의 거부 경로를 함께
+대조해 위 fixture 수정에 반영했다. 제품의 명시적 PK INSERT 지원을 추가하거나 테스트를 제외한 변경은 아니다.
+
+로컬 Go compiler와 생성/DB 본문은 재시작하지 않았다. CI 도구 정적 검사 53개·Go 파일 14개의 포맷·소비자 template
+2개의 syntax·245개 문서 링크·diff 검사를 통과했다. 변경 source 18개와 원본·검사 대조는 검증 보관소
+`gdj0138-collection-final-readback-v1/receipt-final.json`에 두며 SHA-256은
+`06c84299fe73b96b96cc2aac9b9603e58cc9eb56713847eb8944c9c3e22ffb5c`다.
+수정 fixture와 새 부정 검사, 전체 원격 필수 실행·I1 수용은 현재 변경 source에서 다시 확인해야 한다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

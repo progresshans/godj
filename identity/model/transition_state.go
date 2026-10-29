@@ -88,10 +88,14 @@ func (owner *Transition[S, T]) observe(ctx context.Context, scope db.Queryer, ac
 	}
 	result := transitionObservation[S, T]{ownership: ownership, actor: current, catalog: observedCatalog}
 	digest := &transitionDigestWriter{hash: sha256.New()}
-	digest.part([]byte("godj.account-transition-state.v1"))
+	digest.part([]byte("godj.account-transition-state.v2"))
 	digest.part([]byte(operation))
 	digest.part([]byte(current.ID()))
 	if err := appendTransitionCatalogDigest(digest, observedCatalog); err != nil {
+		return zero, err
+	}
+	result.roleLinks, err = owner.observeTransitionAccountLinks(ctx, scope, digest, before, after, observedCatalog)
+	if err != nil {
 		return zero, err
 	}
 	for _, mapping := range mappings {
