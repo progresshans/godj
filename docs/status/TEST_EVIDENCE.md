@@ -3442,6 +3442,18 @@ normal/race/CGO0 모두 같은 전체 root에 연결한 수정본으로 위 39�
 `~/Documents/Codex/2026-10-05/godj-verification/gdj0138-transition-through-v1/receipt-final.json`에 보관했다.
 SHA-256은 `9ba7f9ae0205ad7c82a094d444ebdecc8e44ed60eb53f69281a195d913b6d9d5`다.
 
+후속 [CI 40974213862](https://github.com/progresshans/godj/actions/runs/40974213862)의 head `e82d5188`와 실제 checkout
+`c2235fa98fddabc05a3777c65e0f8eb0d6f84c21`은 같은 tree `b9e696fc3295c1e9f536c506db4120b1a7b8cb47`다.
+공통 Go 빌드는 새 planner의 미사용 `orm` import로 실패했다. 전체 CI 도구 검사도 shell inventory 테스트가 이전
+PostgreSQL owner 목록을 고정해 새 세 작업의 필수 항목 27개를 대조하지 못했다. Import를 제거하고 해당 두 검사를
+실제 PostgreSQL workflow 구간의 작업 목록에 연결했다. Portable 등 다른 job의 matrix는 섞지 않으며 중복/공집합·
+전체 sentinel·child root·기한·실제 shell 배열 보존 검사는 유지한다.
+
+수정본은 전체 `--profile tools`에서 **102 tests PASS, skips 0, 137.358s**를 확인했다. 첫 workflow 추출의 범위 오류도
+이 전체 검사로 발견해 PostgreSQL job에 한정했다. 로컬 Go 본문/compile/generation은 계속 실행하지 않았으며, Go 문법·
+포맷과 diff만 확인했다. 이 실행은 실제 생성·DB 기능 PASS가 아니다. 세 원격 실패 로그와 후속 source 두 파일·tooling
+원본은 같은 보관소의 `receipt-build-followup.json`에 연결했다(SHA-256 `e1c2e53505a903b03f045ded5e23c4b11ca5a892cc4aea469c9f23da0038460e`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

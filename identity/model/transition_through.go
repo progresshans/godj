@@ -10,7 +10,6 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 )
 
