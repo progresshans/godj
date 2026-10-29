@@ -469,7 +469,7 @@ receipt를 보존하며 손상·누락·중복·실패/rollback을 거부한다.
 
 Manifest v3는 사전 준비 mapping 또는 생성 source 목록을 보관하고, restart/unknown 대조는 실제 저장 key까지 확인한다.
 빈 대상 table의 실제 column과 incoming reference, 현재 선택 정책·전체 source/target 상태·unique·예산을 준비/최종 fence에서
-검사한다. 대상 계정 자체가 다른 M2M의 through인 조립은 관련 owner의 revision/인가/감사 처리가 아직 없어 명시적으로 거부한다.
+검사한다. 대상 계정 자체가 다른 M2M의 through인 직접 생성은 아래의 실제 identity 삽입 관측으로 연결한다.
 기본→custom과 custom→생성된 기본 팩토리 소비자에 양 DB의 실패/rollback·unknown·경합·재접속 검사를 연결했다.
 작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
@@ -573,7 +573,15 @@ restart 소비자를 작성했다. 코드와 필수 실행 연결을 실제 gene
 through 권한·감사를 확인한다. 첫 선언 fingerprint v4에 through 정책/한도를 포함했다. 기본/custom × account/Group/
 Permission 여섯 변형의 일반·첫 생성과 실패/재접속 소비자를 작성했으며 generated/native 실행은 원격 확인 대상이다.
 
-공유 물리 through 전환과 계정/catalog through 편집·생성의 실제 검증, 전환 수명과 역사 `systemstate` 가져오기,
+전환의 직접 계정/catalog INSERT도 실제 key·전체 typed payload와 같은 scope의 최종 검사를 소유하도록 연결했다.
+새 행이 만드는 source/target의 모든 선택 물리 링크를 NULL endpoint까지 투영하고 전체 합계 예산에 포함한다.
+명시적 FK로 일반 host의 through를 만드는 계정 입력은 허용하되 기존 source 프로필·권한 집합의 변경은 전체 rollback한다.
+기존 공유 through 소비자에 identity 자체를 통한 account profile·catalog·host 관계, 실제 0/음수 key와 늦은 scalar/endpoint
+변경을 추가했다. 기존 blanket 구성 거부 단위 검사는 새 생성 소비자의 허용/거부와 사본·부분 결과 거부 검사로 대체했다.
+코드·문법 검사와 양 DB의 실제 생성·실행·I1 전체 수용은 TEST_EVIDENCE에서 구분한다.
+
+공유 물리 through 전환과 계정/catalog through 편집·생성의 실제 검증, 전환 collection 안의 추가 identity 생성과
+pending 대상 간 FK 재매핑, 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

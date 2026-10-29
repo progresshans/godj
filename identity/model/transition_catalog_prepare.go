@@ -229,6 +229,11 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 			return zero, err
 		}
 		permissionKeys[candidate.source.ID] = id
+		if target.permissions.created {
+			if _, err := addTransitionIdentity(ctx, scope, &result.identities, target.project, target.permissions.identity, target.permissions.objects, candidate.row); err != nil {
+				return zero, err
+			}
+		}
 		result.mapping.Permissions = append(result.mapping.Permissions, AccountMapping{SourceID: candidate.source.ID, SourceRevision: candidate.source.Revision, TargetID: id, TargetRevision: candidate.source.TargetRevision})
 		result.after.permissions[id] = transitionCatalogRow{revision: candidate.source.TargetRevision, code: observed.before.permissions[candidate.source.ID].code, values: values}
 	}
@@ -245,6 +250,11 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 		}
 		result.mapping.Groups = append(result.mapping.Groups, AccountMapping{SourceID: candidate.source.ID, SourceRevision: candidate.source.Revision, TargetID: id, TargetRevision: candidate.source.TargetRevision})
 		result.after.groups[id] = transitionCatalogRow{revision: candidate.source.TargetRevision, permissions: keys, values: values}
+		if target.groups.created {
+			if _, err := addTransitionIdentity(ctx, scope, &result.identities, target.project, target.groups.identity, target.groups.objects, candidate.row); err != nil {
+				return zero, err
+			}
+		}
 		if !target.groups.created {
 			old := result.before.groups[id]
 			old.values = maps.Clone(values)

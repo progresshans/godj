@@ -3194,6 +3194,39 @@ Source 29개와 검사 원본 receipt는 검증 보관소 `gdj0138-root-through-
 `927bc23166c4e782d96ba751f67af201180b2ef4ae921bdac8b9761d85e0b34a`다. 같은 보관소 `prior-failure-diagnosis.json`의
 SHA-256은 `6ddabe05a13eb5bff146bce5eb1a636d2b5f06639ad22de5b738f08799f93bb9`다.
 
+### 전환의 직접 identity INSERT와 through 관측
+
+2026-10-30, source `0fdea729e66600dcff61da959dc8bb0cc36ee95f` 위에서 전환의 직접 account/Group/Permission
+INSERT를 collection 삽입 inventory와 같은 실제 key·전체 typed payload·같은 scope의 최종 검사에 연결했다.
+즉시 readback 뒤 전체 source/target account·catalog 역할의 NULL endpoint까지 투영하고, 최종 합계 예산에 포함한다.
+Identity key 중복 검사는 누적 index를 사용하며, 잘못된 뒤 행이나 예산 초과가 앞 행의 부분 관측을 게시하지 않게 한다.
+새 직접 INSERT가 검토한 source profile·catalog 권한을 바꾸면 전체 전환을 거부한다. 일반 host FK는 명시적 선택 정책을
+사용하며, catalog의 관계 입력과 collection 안의 추가 identity 생성·pending 대상 FK 재매핑은 이번 변경으로 지원하지 않는다.
+
+기존 공유 through 소비자 한 module에 account profile·선택 catalog·일반 host의 identity-as-through 선언을 함께 추가했다.
+일반/복합 UNIQUE 저장 각각 staged 17개·created 25개 시나리오를 요구하며, 각 DB의 parent 포함 필수 실행은 61→91개다.
+기존 54개 시나리오를 모두 유지하고 실제 계정/catalog key 0·음수, 명시적 host FK, NULL 물리 행과 source profile·권한
+변경 거부, 마지막 receipt 이후 세 identity의 scalar/endpoint 변조를 추가했다. 실제 native INSERT 인자·key를 독립 전체 행
+기대값으로 사용하며 기존 대응표·revision·audit·session·rollback/unknown·재접속 대조를 유지한다. 아직 본문 실행 근거는 없다.
+기존 `TestTransitionCreationRejectsAccountAsThrough`의 blanket 구성 거부는 삭제했다. Ordinary profile·catalog·host의
+허용/거부는 위 외부 생성 소비자로 옮겼고, 입력 사본과 뒤 행/중복/model/key/예산 실패의 무게시를 새 단위 root에 연결했다.
+
+선행 [CI 40938658319](https://github.com/progresshans/godj/actions/runs/40938658319), attempt 1의 PostgreSQL
+normal/race/CGO0 root-through 작업 `123676781235`·`123676781325`·`123676781596`는 모두 새 소비자의
+`ReadSnapshot` callback에 불필요한 context 인자를 전달해 compile에 실패했다. 각 작업의 기본/custom 여섯 schema ×
+양 DB 12개 child 모두 native 본문 전 `build-fail`이며, callback을 실제 `func(db.Queryer) error` 계약으로 수정했다.
+실제 checkout `f8cd2121721ee0ed515d18fd8fc4c0cf03f4590d`와 제출 source의 tree는
+`de8578eb2b1c4c6dcf6aaf3a65f60aa924012318`로 같다. 원본 job 로그와 source 대조는 검증 보관소
+`gdj0138-transition-identity-v1/prior-failure-diagnosis.json`에 연결했다
+(SHA-256 `86eb514122d0309df4d4d722253c49dce4796848b0cf31a7d00efb6d6bf22c69`).
+
+CI 분할·실행 도구 검사 41개(95.405초), 변경 Go 파일 9개의 포맷·두 template의 치환 문법과 내부 사례 보존,
+245개 문서 링크·diff 검사를 통과했다. Relation 필수 항목은 4,728→4,730이며 삭제한 obsolete root/child 4개를 새 6개로
+대체했다. PostgreSQL 5,802·Portable 293개와 다른 모든 필수 항목을 유지한다. 로컬 compile 중단을 유지했고 실제 생성·
+Go 타입 검사·SQLite/PostgreSQL 본문·race/platform과 I1 수용은 새 원격 source에서 확인해야 한다.
+Source 16개(삭제 포함)와 정적 검사 receipt는 `gdj0138-transition-identity-v1/receipt-final.json`에 있으며 SHA-256은
+`d1599b9eb408952556d1f12924a79cdb3b059431cb0fdab231fc240106c90ec2`다.
+
 ### 선행 CI의 감사 순서와 native fence 관측 기한
 
 선행 source의 [CI 40828550685](https://github.com/progresshans/godj/actions/runs/40828550685), attempt 1을 전체 페이지로

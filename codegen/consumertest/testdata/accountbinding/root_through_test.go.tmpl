@@ -390,8 +390,8 @@ func TestRootThroughCreation(t *testing.T) {
 							fingerprint, e := binding.RoleFingerprint()
 							check(e)
 							var absent error
-							check(reader.ReadSnapshot(t.Context(), func(ctx context.Context, scope db.Queryer) error {
-								_, absent = domain.RequireIn(ctx, scope, fingerprint)
+							check(reader.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+								_, absent = domain.RequireIn(t.Context(), scope, fingerprint)
 								return nil
 							}))
 							if absent != domain.ErrUninitialized {

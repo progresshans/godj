@@ -2074,9 +2074,12 @@ non-NULL FK 부재를 검사한다. 빈 table에 남은 orphan reference가 새 
 확인하고, source domain의 대상 생성 감사와 기존 퇴역·session 폐기·receipt/실제 대응표를 하나의 transaction에 묶는다.
 퇴역과 receipt 저장 뒤에도 target 상태와 선택을 다시 검사한다. 생성된 계정이 주는 권한으로 전환 인가를 확장하지 않는다.
 
-대상 계정 자체가 어떤 M2M의 through로도 쓰이면 이 생성 경로는 구성 시 `unsupported`로 거부한다. 계정 INSERT가
-다른 owner의 관계를 변경하는 경우의 revision·인가·감사는 별도의 수명 통합이 필요하며 현재 전환 코드가 대신하지 않는다.
-정상적인 별도 through를 가진 target 소속/프로필 collection은 지원한다.
+대상 계정 자체가 through인 경우에도 직접 INSERT한 실제 key와 전체 typed scalar를 저장하고, 같은 native scope의
+즉시/최종 readback을 대조한다. 그 행의 모든 선택 account/catalog 역할에 대한 nullable endpoint를 기존 inventory에
+투영하며 NULL을 없던 행으로 간주하지 않는다. 명시적 FK 선택 정책으로 일반 host collection을 만드는 입력을 허용한다.
+Source 계정의 기존 소속·프로필이나 catalog의 검토한 권한 집합을 바꾸면 전체 전환을 거부한다. 새로 생긴 권한으로
+전환을 인가하거나 그 변화를 새로운 기준으로 채택하지 않는다. Collection setter가 추가 identity를 자동 생성하는 수명은
+별도 통합 대상이며 직접 대상 행 생성으로 이를 완료 처리하지 않는다.
 
 생성 preparation의 manifest에는 예상 target key 없이 source key/revision과 검토한 상태 digest를 보관한다. 실제 target key는
 commit 안에서 대응표에 저장하며 확정 결과의 `Mappings`로 반환한다. Unknown이나 cleanup 실패에는 잠정 key를 게시하지 않는다.
@@ -2112,9 +2115,11 @@ Manifest v7은 생성할 모델 구분과 전체 source key/revision·최종 tar
 보관 source 목록·공유 identity·target revision을 대조한다. 기존 v4/v5/v6의 wire는 바꾸지 않는다. 이후 정상 편집이나 schema
 contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확인한다.
 
-전환의 새 account/Group/Permission 자체가 through인 생성 수명은 아직 통합 대상이다. 여러 역할의 nullable endpoint를
-공유하는 물리 through 전환은 위 실제 삽입 결과 계약으로 연결했으며 환경별 검증은 TEST_EVIDENCE를 따른다.
-선택 identity 생성 경로의 명시적 거부나 공유 through의 부분 실행을 I1 전체 지원으로 계산하지 않는다.
+새 account/Group/Permission의 직접 INSERT도 공통 삽입 inventory에 합치며 실제 key와 전체 scalar를 64 MiB 합계에
+포함한다. Catalog의 관계 입력 제한은 유지하므로 nullable through endpoint는 NULL로 시작한다. Catalog 생성 직후와
+계정 생성·퇴역·receipt·마지막 정책 이후까지 물리 링크와 전체 행을 대조하고, 늦은 endpoint/payload 변경은 rollback한다.
+Collection setter 안에서의 추가 선택 identity 생성과 pending 대상 간 FK 재매핑은 남은 수명 통합 대상이다.
+직접 INSERT와 공유 물리 through의 코드 존재를 I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
 
 ### 일반 host 참조의 단계적 전환
 

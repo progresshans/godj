@@ -3,6 +3,7 @@ package model
 import (
 	"context"
 	"crypto/sha256"
+	"maps"
 	"slices"
 
 	"github.com/progresshans/godj/db"
@@ -15,9 +16,11 @@ import (
 // source-bound insertions can extend their reviewed inventories; a matching
 // logical pair is not evidence for a new physical identity or nullable row.
 type transitionInsertions struct {
-	batches []orm.AppliedCollectionChanges
-	rows    []orm.CollectionInsertedRow
-	bytes   int
+	batches    []orm.AppliedCollectionChanges
+	rows       []orm.CollectionInsertedRow
+	bytes      int
+	identities []func(context.Context) error
+	keys       map[deletionKey]bool
 }
 
 func (state *transitionInsertions) add(source orm.ProjectBinding, applied orm.AppliedCollectionChanges) error {
@@ -27,11 +30,67 @@ func (state *transitionInsertions) add(source orm.ProjectBinding, applied orm.Ap
 	if err := applied.ValidateSource(source); err != nil {
 		return managementError(CodeInvalidConfig, err)
 	}
-	rows := applied.Insertions()
-	seen := make(map[deletionKey]bool, len(state.rows)+len(rows))
-	for _, row := range state.rows {
-		seen[deletionKey{row.Model, row.Key}] = true
+	if err := state.addRows(source, applied.Insertions()); err != nil {
+		return err
 	}
+	state.batches = append(state.batches, applied)
+	return nil
+}
+
+// Direct account/catalog INSERTs are typed identity writes, not collection
+// inserts. Their actual keys and complete payloads still own physical through
+// projections, and remain bound to this same native scope until final readback.
+func addTransitionIdentity[M any](ctx context.Context, scope db.RelationSession, state *transitionInsertions, source orm.ProjectBinding, identity ir.ModelIdentity, objects orm.Manager[M], row M) (orm.CollectionInsertedRow, error) {
+	var zero orm.CollectionInsertedRow
+	model, found := source.Model(identity)
+	metadata, err := objects.Metadata()
+	if err != nil || !found || !metadata.Equal(model) {
+		return zero, managementError(CodeInvalidConfig, err)
+	}
+	field, valid := primaryField(model)
+	value, present, err := objects.PrimaryKey(row)
+	key, integer := value.Integer()
+	if err != nil || !valid || !present || !integer {
+		return zero, managementError(CodePersistence, err)
+	}
+	values, err := objects.ModelValues(row)
+	if err != nil {
+		return zero, err
+	}
+	expected := maps.Clone(values)
+	verify := func(ctx context.Context) error {
+		if err := validateAccountSessionScope(ctx, scope); err != nil {
+			return err
+		}
+		actual, err := objects.Using(scope).Filter(orm.NewAutoField[M](field).Exact(key)).Get(ctx)
+		if err != nil {
+			return err
+		}
+		values, err := objects.ModelValues(actual)
+		if err != nil || !maps.Equal(values, expected) {
+			return managementError(CodeConflict, err)
+		}
+		return validateAccountSessionScope(ctx, scope)
+	}
+	if err := verify(ctx); err != nil {
+		return zero, err
+	}
+	inserted := orm.CollectionInsertedRow{Model: identity, Key: key, Values: values}
+	if err := state.addRows(source, []orm.CollectionInsertedRow{inserted}); err != nil {
+		return zero, err
+	}
+	state.identities = append(state.identities, verify)
+	return inserted, nil
+}
+
+func (state *transitionInsertions) addRows(source orm.ProjectBinding, rows []orm.CollectionInsertedRow) error {
+	if state.bytes < 0 || state.bytes > MaximumTransitionStateBytes {
+		return managementError(CodeInvalidInput, nil)
+	}
+	if len(state.keys) != len(state.rows) {
+		return managementError(CodeInvalidConfig, nil)
+	}
+	seen := make(map[deletionKey]bool, len(rows))
 	budget := &transitionDigestWriter{hash: sha256.New(), size: state.bytes}
 	for _, row := range rows {
 		model, found := source.Model(row.Model)
@@ -39,7 +98,7 @@ func (state *transitionInsertions) add(source orm.ProjectBinding, applied orm.Ap
 		value, present := row.Values[key.Name]
 		actual, integer := value.Integer()
 		identity := deletionKey{row.Model, row.Key}
-		if !found || !keyed || !present || !integer || actual != row.Key || seen[identity] {
+		if !found || !keyed || !present || !integer || actual != row.Key || state.keys[identity] || seen[identity] {
 			return managementError(CodeConflict, nil)
 		}
 		seen[identity] = true
@@ -49,13 +108,23 @@ func (state *transitionInsertions) add(source orm.ProjectBinding, applied orm.Ap
 			return err
 		}
 	}
-	state.rows = append(state.rows, rows...)
-	state.batches = append(state.batches, applied)
+	if state.keys == nil && len(rows) != 0 {
+		state.keys = make(map[deletionKey]bool, len(rows))
+	}
+	for _, row := range rows {
+		state.rows = append(state.rows, orm.CollectionInsertedRow{Model: row.Model, Key: row.Key, Values: maps.Clone(row.Values)})
+		state.keys[deletionKey{row.Model, row.Key}] = true
+	}
 	state.bytes = budget.size
 	return nil
 }
 
 func (state transitionInsertions) verify(ctx context.Context) error {
+	for _, verify := range state.identities {
+		if err := verify(ctx); err != nil {
+			return err
+		}
+	}
 	for _, batch := range state.batches {
 		if err := batch.Verify(ctx); err != nil {
 			return err

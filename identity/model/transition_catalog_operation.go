@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 )
 
@@ -260,21 +261,31 @@ func (owner *Transition[S, T]) commitCatalogCreation(ctx context.Context, actor 
 		if err != nil {
 			return TransitionResult{}, err
 		}
+		if err := current.inserted.addRows(owner.next.state.credentials.state.binding.state.project, created.identities.rows); err != nil {
+			return TransitionResult{}, err
+		}
+		current.inserted.identities = append(current.inserted.identities, created.identities.identities...)
+		projectRows := func(rows []orm.CollectionInsertedRow) error {
+			var err error
+			created.before, err = projectTransitionCatalog(owner.oldMemberships, owner.old.state.credentials.state.binding.state.role, created.before, rows)
+			if err != nil {
+				return err
+			}
+			created.after, err = projectTransitionCatalog(owner.nextMemberships, owner.next.state.credentials.state.binding.state.role, created.after, rows)
+			if err != nil {
+				return err
+			}
+			current.roleLinks, err = projectTransitionAccountLinks(current.roleLinks, rows)
+			return err
+		}
+		if err := projectRows(created.identities.rows); err != nil {
+			return TransitionResult{}, err
+		}
 		for _, batch := range created.insertions {
 			if err := current.inserted.add(owner.next.state.credentials.state.binding.state.project, batch); err != nil {
 				return TransitionResult{}, err
 			}
-			rows := batch.Insertions()
-			created.before, err = projectTransitionCatalog(owner.oldMemberships, owner.old.state.credentials.state.binding.state.role, created.before, rows)
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			created.after, err = projectTransitionCatalog(owner.nextMemberships, owner.next.state.credentials.state.binding.state.role, created.after, rows)
-			if err != nil {
-				return TransitionResult{}, err
-			}
-			current.roleLinks, err = projectTransitionAccountLinks(current.roleLinks, rows)
-			if err != nil {
+			if err := projectRows(batch.Insertions()); err != nil {
 				return TransitionResult{}, err
 			}
 		}

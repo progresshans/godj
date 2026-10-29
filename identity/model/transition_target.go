@@ -60,9 +60,6 @@ func NewTransitionTarget[M, G, P, GL, PL any](binding Binding[M], groups orm.Man
 	if err := validateAccountCollectionStorage(project, role, append(slices.Clone(config.Fields), role.Groups, role.Permissions)); err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
 	}
-	if err := validateTransitionTargetStorage(project, role.Model); err != nil {
-		return zero, err
-	}
 	metadata, err := binding.state.objects.Metadata()
 	if err != nil {
 		return zero, managementError(CodeInvalidConfig, err)
@@ -156,18 +153,6 @@ func transitionIncomingPlans(project orm.ProjectBinding, target ir.ModelIdentity
 		incoming = append(incoming, plan)
 	}
 	return incoming, nil
-}
-
-func validateTransitionTargetStorage(project orm.ProjectBinding, target ir.ModelIdentity) error {
-	for _, relation := range project.ManyToManyRelations() {
-		if relation.Through.Model == target {
-			// An account INSERT would also mutate this unrelated collection. The
-			// transition only owns its explicit target collections and cannot
-			// supply the other owners' revision, permission and audit lifecycle.
-			return &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "account-model transition creation requires a separate through model"}
-		}
-	}
-	return nil
 }
 
 // SourceAccount is exportable evidence of the reviewed source identity. A

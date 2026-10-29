@@ -86,6 +86,7 @@ func stSnapshot(t *testing.T, backend database.Backend) map[string]any {
 			"old_groups": stRows(t, scope, models.GroupObjects), "old_permissions": stRows(t, scope, models.PermissionObjects),
 			"groups": stRows(t, scope, catalog.TeamObjects), "permissions": stRows(t, scope, catalog.GrantObjects),
 			"plain": stRows(t, scope, bridges.BridgeObjects), "unique": stRows(t, scope, bridges.UniqueBridgeObjects),
+			"hubs":      stRows(t, scope, bridges.HubObjects),
 			"ownership": stRows(t, scope, domainmodels.TransitionObjects), "mappings": stRows(t, scope, domainmodels.MappingObjects),
 			"audit": stRows(t, scope, auditmodels.EventObjects), "sessions": stRows(t, scope, sessionmodels.SessionObjects),
 		}, nil
@@ -102,6 +103,8 @@ type stBackend struct {
 	database.Backend
 	table, mode         string
 	inserted            []stInsertion
+	identities          map[string][]stInsertion
+	signedIdentities    bool
 	receipt, finished   bool
 	nativeGeneratedKeys bool
 	faults              int
@@ -149,12 +152,18 @@ func (scope *stScope) RelationSetNull(ctx context.Context, plan query.RelationSe
 	return scope.Session.(db.RelationSession).RelationSetNull(ctx, plan)
 }
 func (scope *stScope) plan(plan query.InsertPlan) query.InsertPlan {
-	if scope.owner.mode != "signed_keys" || scope.owner.nativeGeneratedKeys || plan.Table() != scope.owner.table {
+	if scope.owner.nativeGeneratedKeys {
+		return plan
+	}
+	count := len(scope.owner.inserted)
+	if scope.owner.signedIdentities && stIdentityTable(plan.Table()) {
+		count = len(scope.owner.identities[plan.Table()])
+	} else if scope.owner.mode != "signed_keys" || plan.Table() != scope.owner.table {
 		return plan
 	}
 	key, _ := plan.ReturningKey()
-	value := -int64(100 + len(scope.owner.inserted))
-	if len(scope.owner.inserted) == 0 {
+	value := -int64(100 + count)
+	if count == 0 {
 		value = 0
 	}
 	return query.NewInsertPlanReturningKey(plan.Table(), append(plan.Assignments(), query.NewAssignment(key, query.Integer(value))), key)
@@ -167,6 +176,9 @@ func (scope *stScope) Insert(ctx context.Context, plan query.InsertPlan) (int64,
 	}
 	if plan.Table() == scope.owner.table {
 		scope.owner.inserted = append(scope.owner.inserted, stInsertion{id, plan})
+	}
+	if stIdentityTable(plan.Table()) {
+		scope.owner.identities[plan.Table()] = append(scope.owner.identities[plan.Table()], stInsertion{id, plan})
 	}
 	if plan.Table() == "godj_account_domain_transition" {
 		scope.owner.receipt = true
@@ -194,6 +206,10 @@ func (scope *stScope) Update(ctx context.Context, plan query.UpdatePlan) (int64,
 	return count, err
 }
 
+func stIdentityTable(table string) bool {
+	return slices.Contains([]string{"members_member", "catalog_team", "catalog_grant"}, table)
+}
+
 type stCapabilities[L any] struct {
 	groups                       orm.ManyToMany[members.Member, catalog.Team, L]
 	permissions                  orm.ManyToMany[members.Member, catalog.Grant, L]
@@ -216,6 +232,7 @@ type stFixture[L any] struct {
 	nextStore              *accountmodel.SessionStore[members.Member]
 	old                    []models.User
 	group                  models.Group
+	hub                    bridges.Hub
 	permissions            []models.Permission
 	mappings               []accountmodel.AccountMapping
 	requests               []accountmodel.AccountCreation[members.Member]
@@ -260,7 +277,7 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 	metadata, err := objects.Metadata()
 	stMust(t, err)
 	f := &stFixture[L]{native: native, selected: selected, objects: objects, caps: caps, strategy: strategy, mode: mode, prefix: prefix, joined: time.Date(2026, 10, 29, 2, 3, 4, 123456000, time.UTC)}
-	f.backend = &stBackend{Backend: native, table: metadata.DBTable, nativeGeneratedKeys: selected.Kind() == database.KindPostgres}
+	f.backend = &stBackend{Backend: native, table: metadata.DBTable, nativeGeneratedKeys: selected.Kind() == database.KindPostgres, identities: make(map[string][]stInsertion), signedIdentities: mode == "identity_signed_keys"}
 	bound, err := project.BindAccount()
 	stMust(t, err)
 	f.oldRole, err = bound.Role()
@@ -291,9 +308,14 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 	f.role.Groups = prefix + f.role.Groups
 	f.role.Permissions = prefix + f.role.Permissions
 	f.role.Catalog.GroupPermissions = prefix + f.role.Catalog.GroupPermissions
+	if mode == "identity_catalog" || mode == "identity_catalog_escalation" {
+		f.oldRole.Catalog.GroupPermissions = "member_grants"
+	}
 	f.oldBinding, f.binding, f.oldStore, f.nextStore = stStores(t, f.backend, f.oldRole, f.role)
 	var encoded string
 	f.hasher, encoded = accountPassword(t)
+	f.hub, err = bridges.HubObjects.Create(t.Context(), native, bridges.NewHubCreate("retained host"))
+	stMust(t, err)
 	f.group, err = models.GroupObjects.Create(t.Context(), native, models.NewGroupCreate("source group"))
 	stMust(t, err)
 	accountStoredKey(t, native, selected, "godj_identity_group", "id", f.group.ID, -5)
@@ -329,7 +351,16 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 			_, err = stSave(t.Context(), native, objects, nil, values)
 			stMust(t, err)
 		}
-		input, err := members.MemberObjects.Input(map[string]query.Value{"handle": query.String(name + "@test.example"), "first_name": query.String("new-" + name), "portrait": query.String("")})
+		values := map[string]query.Value{"handle": query.String(name + "@test.example"), "first_name": query.String("new-" + name), "portrait": query.String("")}
+		switch mode {
+		case "identity_endpoints":
+			values["host_hub"], values["identity_permission"] = query.Integer(f.hub.ID), query.Integer(f.permissions[i].ID)
+		case "identity_source":
+			values["identity_source"], values["identity_permission"] = query.Integer(row.ID), query.Integer(f.permissions[i].ID)
+		case "identity_catalog_escalation":
+			values["identity_group"], values["identity_permission"] = query.Integer(f.group.ID), query.Integer(f.permissions[i].ID)
+		}
+		input, err := members.MemberObjects.Input(values)
 		stMust(t, err)
 		input, err = input.WithCollections(map[string][]int64{prefix + "interests": {f.permissions[i].ID}})
 		stMust(t, err)
@@ -377,6 +408,11 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 	if mode == "signed_keys" && f.backend.nativeGeneratedKeys {
 		accountGeneratedKeySequence(t, selected, metadata.DBTable, "link_key", 0, -1)
 	}
+	if mode == "identity_signed_keys" && f.backend.nativeGeneratedKeys {
+		for _, table := range []string{"members_member", "catalog_team", "catalog_grant"} {
+			accountGeneratedKeySequence(t, selected, table, "id", 0, -1)
+		}
+	}
 	f.backend.mode = mode
 	f.backend.finished = false
 	f.backend.mutate = func(ctx context.Context, scope db.Queryer) error {
@@ -384,6 +420,24 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 			return nil
 		}
 		f.backend.faults++
+		if strings.HasPrefix(mode, "late_identity_") {
+			parts := strings.Split(mode, "_")
+			field := "identity_permission"
+			value := query.Integer(f.permissions[0].ID)
+			if parts[3] == "payload" {
+				value = query.String("changed by final identity policy")
+				field = map[string]string{"account": "first_name", "group": "note", "permission": "label"}[parts[2]]
+			}
+			switch parts[2] {
+			case "account":
+				return stMutateIdentity(ctx, scope, members.MemberObjects, field, value)
+			case "group":
+				return stMutateIdentity(ctx, scope, catalog.TeamObjects, field, value)
+			case "permission":
+				return stMutateIdentity(ctx, scope, catalog.GrantObjects, field, value)
+			}
+			return errors.New("unknown identity mutation")
+		}
 		if len(f.backend.inserted) == 0 {
 			return errors.New("final policy ran without an actual insertion")
 		}
@@ -410,6 +464,34 @@ func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Man
 		return err
 	}
 	return f
+}
+
+func stMutateIdentity[M any](ctx context.Context, scope db.Queryer, objects orm.Manager[M], field string, value query.Value) error {
+	key, err := objects.PrimaryKeyField()
+	if err != nil {
+		return err
+	}
+	row, present, err := objects.Using(scope).OrderBy(orm.NewAutoField[M](key).Asc()).First(ctx)
+	if err != nil || !present {
+		return errors.Join(err, errors.New("late identity policy found no native row"))
+	}
+	_, err = stSave(ctx, scope.(db.Mutator), objects, &row, map[string]query.Value{field: value})
+	return err
+}
+
+func stIdentityRelation[M any](t *testing.T, binding accountmodel.Binding[members.Member], field string, objects orm.Manager[M]) accountmodel.ProfileRelation[members.Member] {
+	t.Helper()
+	relation, err := accountmodel.NewProfileRelation(binding, field, objects, accountmodel.ProfileRelationConfig[M]{
+		Choices: formmodel.ModelChoiceConfig[M]{Label: func(M) (string, error) { return field, nil }},
+		Filter: func(_ context.Context, _ db.Queryer, actor auth.Principal, origin accountmodel.ProfileRelationOrigin) ([]orm.Predicate[M], error) {
+			if !actor.Authenticated() || origin.Operation() != accountmodel.ProfileRelationTransition {
+				return nil, errors.New("identity endpoint choice lost transition authority")
+			}
+			return nil, nil
+		},
+	})
+	stMust(t, err)
+	return relation
 }
 
 func stCatalogCreation[G, P, L any](t *testing.T, f *stFixture[L], group orm.RelationObjectDescriptor[G], permission orm.RelationObjectDescriptor[P], groupObjects orm.Manager[G], permissionObjects orm.Manager[P], grants orm.ManyToMany[G, P, L], groups orm.ManyToMany[members.Member, G, L], direct orm.ManyToMany[members.Member, P, L], createGroups, createPermissions bool) accountmodel.CatalogCreation {
@@ -456,6 +538,21 @@ func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[mode
 		}})
 		stMust(t, err)
 		options := accountmodel.TransitionTargetConfig[members.Member]{Fields: []string{"handle", "first_name", "portrait", f.prefix + "interests"}, Collections: []accountmodel.ProfileCollection[members.Member]{profile}}
+		if slices.Contains([]string{"identity_endpoints", "identity_source", "identity_catalog_escalation"}, f.mode) {
+			options.Fields = append(options.Fields, "identity_permission")
+			options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "identity_permission", models.PermissionObjects))
+			switch f.mode {
+			case "identity_endpoints":
+				options.Fields = append(options.Fields, "host_hub")
+				options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "host_hub", bridges.HubObjects))
+			case "identity_source":
+				options.Fields = append(options.Fields, "identity_source")
+				options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "identity_source", models.UserObjects))
+			case "identity_catalog_escalation":
+				options.Fields = append(options.Fields, "identity_group")
+				options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "identity_group", models.GroupObjects))
+			}
+		}
 		switch f.mode {
 		case "shared_group":
 			config.TargetCreation, err = accountmodel.NewTransitionTarget(f.binding, f.caps.legacyGroups, f.caps.permissions, options)
@@ -523,7 +620,8 @@ func stRun[L any](t *testing.T, strategy, mode, prefix string, objects orm.Manag
 	stMust(t, err)
 	manifest := prepared.Manifest()
 	result, err := owner.Commit(t.Context(), f.actor, prepared)
-	failed := strings.HasPrefix(mode, "late_") || mode == "audit_failure" || mode == "rollback" || strings.HasPrefix(mode, "unknown_")
+	identityConflict := mode == "identity_source" || mode == "identity_catalog_escalation"
+	failed := strings.HasPrefix(mode, "late_") || mode == "audit_failure" || mode == "rollback" || strings.HasPrefix(mode, "unknown_") || identityConflict
 	if failed {
 		if err == nil || result.Ownership.OperationID() != "" || len(result.Mappings) != 0 || result.Catalog != nil {
 			t.Fatal("failed or uncertain transition published a result", err)
@@ -531,6 +629,14 @@ func stRun[L any](t *testing.T, strategy, mode, prefix string, objects orm.Manag
 		if strings.HasPrefix(mode, "unknown_") {
 			if !errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || !f.backend.finished {
 				t.Fatal("unknown did not follow complete native execution", err)
+			}
+		} else if identityConflict {
+			code := accountmodel.CodeConflict
+			if mode == "identity_source" {
+				code = accountmodel.CodePersistence
+			}
+			if len(f.backend.identities["members_member"]) != 2 || !errors.Is(err, &accountmodel.Error{Code: code}) {
+				t.Fatal("identity through change did not reach the final source-state conflict", err)
 			}
 		} else if f.backend.faults != 1 {
 			t.Fatal("negative control did not reach the intended write or final policy", f.backend.faults, err)
@@ -583,6 +689,46 @@ func stVerify[L any](t *testing.T, f *stFixture[L], before map[string]any, recei
 		t.Fatal("shared transition receipt did not restart")
 	}
 	all := stSnapshot(t, reopened)
+	if !reflect.DeepEqual(all["hubs"], before["hubs"]) {
+		t.Fatal("identity transition changed an unrelated host row")
+	}
+	// Native INSERT arguments, including explicit NULLs, are independent of the
+	// transition's projected inventory and durable correspondence payload.
+	for table, key := range map[string]string{"members_member": "members", "catalog_team": "groups", "catalog_grant": "permissions"} {
+		rows := all[key].(map[int64]map[string]query.Value)
+		seen := make(map[int64]bool)
+		for _, insert := range f.backend.identities[table] {
+			if seen[insert.key] {
+				t.Fatal("two direct INSERTs returned the same identity")
+			}
+			seen[insert.key] = true
+			want := map[string]query.Value{"id": query.Integer(insert.key)}
+			for _, assignment := range insert.plan.Assignments() {
+				want[assignment.Field().Name()] = assignment.Value()
+			}
+			if !maps.Equal(rows[insert.key], want) {
+				t.Fatal("created identity differs from actual native INSERT payload", table, insert.key)
+			}
+		}
+		if f.mode == "identity_signed_keys" {
+			if !seen[0] || len(seen) != len(rows) {
+				t.Fatal("direct identity INSERT did not exercise actual key zero", table)
+			}
+			for id := range seen {
+				if id > 0 {
+					t.Fatal("identity signed fixture allocated a positive key", table)
+				}
+			}
+		}
+		var want []int64
+		if key == "members" && f.mode == "identity_endpoints" {
+			want = []int64{f.permissions[0].ID, f.permissions[1].ID}
+			slices.Sort(want)
+		}
+		if got := stPairs(t, rows, "host_hub", "identity_permission", f.hub.ID); !slices.Equal(got, want) {
+			t.Fatal("identity through lost an independently declared host pair", table)
+		}
+	}
 	storage := "plain"
 	other := "unique"
 	if f.prefix != "" {
@@ -685,6 +831,9 @@ func stVerify[L any](t *testing.T, f *stFixture[L], before map[string]any, recei
 		permissionField = "old_permission"
 	}
 	slices.Sort(wantedGrants)
+	if f.mode == "identity_catalog" {
+		wantedGrants = nil
+	}
 	if !slices.Equal(stPairs(t, rows, groupField, permissionField, groupKey), wantedGrants) {
 		t.Fatal("target group has different exact grants")
 	}

@@ -205,9 +205,6 @@ func newTransitionCatalogModel[M any](project orm.ProjectBinding, objects orm.Ma
 		return zero, managementError(CodeInvalidConfig, nil)
 	}
 	if created {
-		if err := validateTransitionTargetStorage(project, identity); err != nil {
-			return zero, err
-		}
 		result.incoming, err = transitionIncomingPlans(project, identity)
 		if err != nil {
 			return zero, err

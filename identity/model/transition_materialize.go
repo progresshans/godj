@@ -18,6 +18,7 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 	objects := binding.state.objects
 	mappings := make([]AccountMapping, len(candidates))
 	var changes []orm.CollectionChange
+	var insertedIdentities []orm.CollectionInsertedRow
 	for i, candidate := range candidates {
 		row, err := candidate.prepared.Model()
 		if err != nil {
@@ -47,6 +48,13 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 		}
 		current.pairs[i].next = candidate.row
 		current.pairs[i].next.row, current.pairs[i].next.id, current.pairs[i].next.values, current.pairs[i].next.memberships = row, id, values, memberships
+		if creating {
+			inserted, err := addTransitionIdentity(ctx, scope, &current.inserted, binding.state.project, binding.state.role.Model, objects, row)
+			if err != nil {
+				return nil, err
+			}
+			insertedIdentities = append(insertedIdentities, inserted)
+		}
 		mappings[i] = AccountMapping{SourceID: current.pairs[i].old.id, SourceRevision: current.pairs[i].old.revision, TargetID: id, TargetRevision: revision}
 		if catalog := owner.config.CatalogCreation.state; catalog != nil {
 			selected, err := catalog.accounts(ctx, scope, id, memberships.groups, memberships.direct)
@@ -97,7 +105,7 @@ func (owner *Transition[S, T]) materializeTargets(ctx context.Context, scope db.
 	if err := current.inserted.add(binding.state.project, applied); err != nil {
 		return nil, err
 	}
-	rows := applied.Insertions()
+	rows := append(insertedIdentities, applied.Insertions()...)
 	current.roleLinks, err = projectTransitionAccountLinks(current.roleLinks, rows)
 	if err != nil {
 		return nil, err

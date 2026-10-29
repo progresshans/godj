@@ -19,8 +19,13 @@ var accountSharedThroughConsumer string
 
 func accountSharedThroughCases(strategy string) []string {
 	result := []string{"lifecycle", "signed_keys", "shared_group", "shared_permission", "late_payload", "late_catalog_payload", "late_endpoint", "late_extra_null", "late_remove", "audit_failure", "rollback", "unknown_commit", "unknown_rollback"}
+	for _, kind := range []string{"group", "permission"} {
+		for _, field := range []string{"payload", "endpoint"} {
+			result = append(result, "late_identity_"+kind+"_"+field)
+		}
+	}
 	if strategy == "created" {
-		result = append(result, "account_only")
+		result = append(result, "account_only", "identity_signed_keys", "identity_endpoints", "identity_source", "identity_catalog", "identity_catalog_escalation", "late_identity_account_payload", "late_identity_account_endpoint")
 	}
 	return result
 }
@@ -134,5 +139,54 @@ func accountSharedThroughSpec(t *testing.T) (codegen.ProjectSpec, ir.AccountRole
 	}
 	spec.Apps = append(spec.Apps, codegen.AppSpec{Alias: "bridges", Package: codegen.PackageSpec{PackageName: "bridges", ImportPath: "example.com/godj-project-bundle/bridges", Directory: "bridges"},
 		Schema: ir.Schema{FormatVersion: ir.CurrentFormatVersion, AppLabel: "bridges", Models: []ir.Model{bridge, unique}}})
+	addTransitionIdentityThroughModels(&spec, old, role)
 	return spec, role
+}
+
+// The same three native identity INSERTs also own physical through rows for
+// source profiles, source catalog grants and an unrelated host collection.
+// Nullable endpoints exercise an empty logical set with a nonempty inventory.
+func addTransitionIdentityThroughModels(spec *codegen.ProjectSpec, old, next ir.AccountRole) {
+	hubID := ir.ModelIdentity{AppLabel: "bridges", ModelName: "hub"}
+	hub := ir.Model{Name: "hub", GoName: "Hub", DBTable: "shared_hub", Fields: []ir.Field{
+		{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true},
+		{Name: "name", GoName: "Name", Column: "name", Kind: ir.FieldChar, MaxLength: 64},
+	}}
+	identities := []struct {
+		kind, goName string
+		identity     ir.ModelIdentity
+	}{{"member", "Member", next.Model}, {"team", "Team", next.Catalog.Group}, {"grant", "Grant", next.Catalog.Permission}}
+	for _, item := range identities {
+		relation := func(name, goName, source string) ir.ManyToManyField {
+			return ir.ManyToManyField{Name: name, GoName: goName, Target: old.Catalog.Permission, Blank: true, Reverse: ir.ReverseRelation{Disabled: true},
+				Through: &ir.ThroughModel{Model: item.identity, SourceField: source, TargetField: "identity_permission"}}
+		}
+		hub.ManyToMany = append(hub.ManyToMany, relation(item.kind+"_links", item.goName+"Links", "host_hub"))
+		for i := range spec.Apps {
+			app := &spec.Apps[i]
+			for j := range app.Schema.Models {
+				model := &app.Schema.Models[j]
+				identity := ir.ModelIdentity{AppLabel: app.Schema.AppLabel, ModelName: model.Name}
+				switch identity {
+				case old.Model:
+					model.ManyToMany = append(model.ManyToMany, relation(item.kind+"_rows", item.goName+"Rows", "identity_source"))
+				case old.Catalog.Group:
+					model.ManyToMany = append(model.ManyToMany, relation(item.kind+"_grants", item.goName+"Grants", "identity_group"))
+				case item.identity:
+					for _, field := range []struct {
+						name, goName string
+						target       ir.ModelIdentity
+					}{{"identity_source", "IdentitySourceID", old.Model}, {"identity_group", "IdentityGroupID", old.Catalog.Group}, {"identity_permission", "IdentityPermissionID", old.Catalog.Permission}, {"host_hub", "HostHubID", hubID}} {
+						model.Fields = append(model.Fields, ir.Field{Name: field.name, GoName: field.goName, Column: field.name + "_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true,
+							Relation: &ir.ForeignKeyRelation{Target: field.target, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteProtect, Reverse: ir.ReverseRelation{Disabled: true}}})
+					}
+				}
+			}
+		}
+	}
+	for i := range spec.Apps {
+		if spec.Apps[i].Schema.AppLabel == "bridges" {
+			spec.Apps[i].Schema.Models = append(spec.Apps[i].Schema.Models, hub)
+		}
+	}
 }

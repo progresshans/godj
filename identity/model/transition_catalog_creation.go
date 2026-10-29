@@ -62,6 +62,7 @@ type createdCatalogState struct {
 	mapping       *CatalogMappings
 	before, after transitionCatalogInventory
 	insertions    []orm.AppliedCollectionChanges
+	identities    transitionInsertions
 	verifyPolicy  func(context.Context, db.Queryer) error
 }
 
