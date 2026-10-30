@@ -1,0 +1,505 @@
+package consumer
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+
+	"example.com/godj-project-bundle/project"
+	@@IMPORTS@@
+	accountaudit "github.com/progresshans/godj/account/audit"
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	"github.com/progresshans/godj/account/domain"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+)
+
+type rootThroughBackend struct {
+	database.Backend
+	reading, writing, starts   int
+	cleanup, rollback, unknown bool
+	scope                      db.RelationSession
+}
+
+func (b *rootThroughBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+	b.reading++
+	defer func() { b.reading-- }()
+	err := b.Backend.ReadSnapshot(ctx, read)
+	if b.cleanup {
+		b.cleanup = false
+		return errors.Join(err, errors.New("root through cleanup"))
+	}
+	return err
+}
+func (b *rootThroughBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	b.starts++
+	b.writing++
+	defer func() { b.writing--; b.scope = nil }()
+	err := b.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+		b.scope = scope
+		if err := write(scope); err != nil {
+			return err
+		}
+		if b.rollback {
+			return errors.New("root through rollback")
+		}
+		return nil
+	})
+	if err == nil && b.unknown {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
+	}
+	return err
+}
+
+type rootThroughHasher struct {
+	auth.PasswordHasher
+	backend       *rootThroughBackend
+	calls, failAt int
+}
+
+func (h *rootThroughHasher) Hash(ctx context.Context, raw string) (string, error) {
+	h.calls++
+	if h.backend.reading != 0 || h.backend.writing != 0 {
+		return "", errors.New("root/child hash retained a native scope")
+	}
+	if h.failAt > 0 && h.calls == h.failAt {
+		return "", errors.New("root through hash failure")
+	}
+	return h.PasswordHasher.Hash(ctx, raw)
+}
+
+type rootThroughOverlay struct{ deny auth.Permission }
+
+func (o *rootThroughOverlay) Allowed(_ context.Context, p auth.Principal, permission auth.Permission) (bool, error) {
+	return p.Has(permission) && permission != o.deny, nil
+}
+func rootThroughCheck(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+func rootThroughRows[M any](t *testing.T, reader db.Queryer, objects orm.Manager[M]) []M {
+	t.Helper()
+	key, err := objects.PrimaryKeyField()
+	rootThroughCheck(t, err)
+	rows, err := objects.Using(reader).OrderBy(orm.NewAutoField[M](key).Asc()).All(t.Context())
+	rootThroughCheck(t, err)
+	return rows
+}
+func rootThroughKey[M any](t *testing.T, objects orm.Manager[M], row M) int64 {
+	t.Helper()
+	key, present, err := objects.PrimaryKey(row)
+	id, valid := key.Integer()
+	if err != nil || !present || !valid {
+		t.Fatal("missing stored root/child key", err)
+	}
+	return id
+}
+
+func TestRootThroughCreation(t *testing.T) {
+	for _, operation := range []string{"ordinary", "first"} {
+		t.Run(operation, func(t *testing.T) {
+			for _, mode := range []string{"create", "empty", "limit", "endpoint", "denied_add", "denied_related", "revoked", "snapshot_cleanup", "hash_failure", "late_validator", "late_payload", "rollback", "unknown", "restart", "zero_target", "negative_target", "generated_source_key", "configuration", "canceled"} {
+				t.Run(mode, func(t *testing.T) {
+					check := func(err error) { t.Helper(); rootThroughCheck(t, err) }
+					binding, err := project.BindAccount()
+					check(err)
+					role, err := binding.Role()
+					check(err)
+					objects, err := binding.Objects()
+					check(err)
+					groups := orm.NewManager[@@GROUP@@](@@GROUP@@Descriptor{})
+					permissions := orm.NewManager[@@PERMISSION@@](@@PERMISSION@@Descriptor{})
+					through := orm.NewManager[@@THROUGH@@](@@THROUGH@@Descriptor{})
+					audits := orm.NewManager[auditmodels.Event](auditmodels.EventDescriptor{})
+					native, selected := openAccountDatabase(t)
+					migrateAccountDefinitions(t, native, @@MIGRATIONS@@)
+					backend := &rootThroughBackend{Backend: native}
+					baseHasher, _ := accountPassword(t)
+					hasher := &rootThroughHasher{PasswordHasher: baseHasher, backend: backend}
+					overlay := &rootThroughOverlay{}
+					var targets []int64
+					for i := 0; i < 3; i++ {
+						prepared, e := permissions.PrepareValues(nil, map[string]query.Value{role.Catalog.PermissionName: query.String(fmt.Sprintf("Target %d", i)), role.Catalog.PermissionCode: query.String(fmt.Sprintf("root.target%d", i)), role.Catalog.PermissionRevision: query.Integer(1)})
+						check(e)
+						row, e := prepared.Model()
+						check(e)
+						check(prepared.Save(t.Context(), native, &row))
+						targets = append(targets, rootThroughKey(t, permissions, row))
+					}
+					if mode == "zero_target" || mode == "negative_target" {
+						metadata, e := permissions.Metadata()
+						check(e)
+						key, e := permissions.PrimaryKeyField()
+						check(e)
+						next := int64(0)
+						if mode == "negative_target" {
+							next = -9
+						}
+						accountStoredKey(t, native, selected, metadata.DBTable, key.Column, targets[0], next)
+						targets[0] = next
+					}
+					collections, err := project.BindCollections()
+					check(err)
+					choices, err := accountmodel.NewProfileCollection(binding, "@@FIELD@@", collections.@@PREFIX@@@@COLLECTION@@, permissions, accountmodel.ProfileCollectionConfig[@@PERMISSION@@]{MaximumItems: 4, Choices: formmodel.ModelChoiceConfig[@@PERMISSION@@]{Label: func(@@PERMISSION@@) (string, error) { return "Target", nil }}, Filter: func(context.Context, db.Queryer, auth.Principal, accountmodel.ProfileRelationOrigin) ([]orm.Predicate[@@PERMISSION@@], error) {
+						return nil, nil
+					}})
+					check(err)
+					related := accountmodel.RelatedRowPermissions{Account: accountmodel.DeletionPermissions{Change: "account.change", Delete: "account.delete"}, Group: accountmodel.DeletionPermissions{Change: "catalog.change_group", Delete: "catalog.delete_group"}, Permission: accountmodel.DeletionPermissions{Change: "catalog.change_permission", Delete: "catalog.delete_permission"}}
+					nestedRelated := related
+					nestedRelated.Account.Additional = []auth.Permission{"nested.approve"}
+					natural, code, mutationField, childIdentity := role.Catalog.GroupName, "", role.Catalog.GroupName, role.Catalog.Group
+					if "@@KIND@@" == "permission" {
+						natural, code, mutationField, childIdentity = role.Catalog.PermissionName, role.Catalog.PermissionCode, role.Catalog.PermissionName, role.Catalog.Permission
+					}
+					if "@@KIND@@" == "account" {
+						natural, mutationField, childIdentity = role.Login, "@@PROFILE@@", role.Model
+					}
+					childFields := []string{natural}
+					if code != "" {
+						childFields = append(childFields, code)
+					}
+					if "@@KIND@@" == "account" {
+						childFields = append(childFields, "@@PROFILE@@")
+					}
+					factoryCalls, storedValidation := 0, 0
+					lateMutation := false
+					prepareNested := func(_ context.Context, pair accountmodel.ThroughEndpoints) (orm.ModelInput[@@THROUGH@@], error) {
+						factoryCalls++
+						_, present := pair.SourceKey()
+						targetKey, targetPresent := pair.TargetKey()
+						if present || !targetPresent || backend.reading != 1 || backend.writing != 0 || pair.SourceField() != "@@SOURCE@@" || pair.TargetField() != "@@TARGET@@" {
+							return orm.ModelInput[@@THROUGH@@]{}, errors.New("pending source was guessed or factory ran in a write")
+						}
+						value := fmt.Sprintf("nested.grant%d", targetKey)
+						if "@@KIND@@" == "account" {
+							value = fmt.Sprintf("nested-%d@example.test", targetKey)
+						}
+						values := map[string]query.Value{natural: query.String(value)}
+						if code != "" {
+							values[code] = query.String(value)
+						}
+						if "@@KIND@@" == "account" {
+							values["@@PROFILE@@"] = query.String("NZ")
+						}
+						if mode == "endpoint" {
+							values["@@SOURCE@@"] = query.Integer(0)
+						}
+						return through.Input(values)
+					}
+					validateNested := func(ctx context.Context, reader db.Queryer, current *@@THROUGH@@, row @@THROUGH@@) (validation.Errors, error) {
+						values, e := through.ModelValues(row)
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						parent, present := values["@@SOURCE@@"].Integer()
+						if !present || backend.writing != 1 || current != nil {
+							return validation.Errors{}, errors.New("typed validation observed an unresolved source")
+						}
+						key, e := objects.PrimaryKeyField()
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						owner, e := objects.Using(reader).Filter(orm.NewAutoField[@@ACCOUNT@@](key).Exact(parent)).Get(ctx)
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						ownerValues, e := objects.ModelValues(owner)
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						login, _ := ownerValues[role.Login].String()
+						if login != "root-created@example.test" {
+							return validation.Errors{}, errors.New("nested policy saw a fabricated parent")
+						}
+						_, stored, e := through.PrimaryKey(row)
+						if e != nil {
+							return validation.Errors{}, e
+						}
+						if !stored {
+							return validation.Errors{}, nil
+						}
+						storedValidation++
+						if mode == "late_validator" {
+							return validation.NewErrors(validation.New(validation.Field(mutationField), "late_refusal")), nil
+						}
+						if mode == "late_payload" && !lateMutation {
+							lateMutation = true
+							prepared, e := through.PrepareValues(&row, map[string]query.Value{mutationField: query.String("tampered")})
+							if e != nil {
+								return validation.Errors{}, e
+							}
+							changed, e := prepared.Model()
+							if e != nil {
+								return validation.Errors{}, e
+							}
+							return validation.Errors{}, prepared.Save(ctx, backend.scope, &changed)
+						}
+						return validation.Errors{}, nil
+					}
+					@@POLICY@@
+					rootFields := []string{role.Login, "@@PROFILE@@", "@@FIELD@@"}
+					rootPolicy := accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: rootFields, Collections: []accountmodel.ProfileCollection[@@ACCOUNT@@]{choices}, RelatedPermissions: related, ThroughCreations: map[string]accountmodel.ThroughCreation{"@@FIELD@@": policy}, ThroughCreationLimit: 2}
+					firstConfig := accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy: rootPolicy, EvidenceSHA256: strings.Repeat("c", 64)}
+					declaration, err := project.NewFirstAccountDefinition(hasher, firstConfig)
+					check(err)
+					first, err := declaration.Bind(backend)
+					check(err)
+					var actor auth.Principal
+					var creator *accountmodel.Creator[@@ACCOUNT@@]
+					if operation == "ordinary" {
+						bootstrap, e := project.NewFirstAccount(backend, hasher, accountmodel.FirstAccountConfig[@@ACCOUNT@@]{CreationPolicy: accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields: []string{role.Login, "@@PROFILE@@"}, RelatedPermissions: related}, EvidenceSHA256: strings.Repeat("b", 64)})
+						check(e)
+						input, e := objects.Input(map[string]query.Value{role.Login: query.String("operator@example.test"), "@@PROFILE@@": query.String("KR")})
+						check(e)
+						pending, e := bootstrap.Prepare(t.Context(), input, accountPasswordText)
+						check(e)
+						_, e = bootstrap.Commit(t.Context(), pending)
+						check(e)
+						runtime, e := project.NewAccountRuntime(t.Context(), backend, hasher, overlay, accountmodel.RuntimeConfig[@@ACCOUNT@@, @@GROUP@@, @@PERMISSION@@]{Accounts: accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields: rootFields, CreateFields: rootFields, EditFields: []string{"@@PROFILE@@"}, Collections: []accountmodel.ProfileCollection[@@ACCOUNT@@]{choices}, Permissions: accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"}, GroupPermissions: related.Group, PermissionPermissions: related.Permission, CreateThroughCreations: rootPolicy.ThroughCreations, CreateThroughCreationLimit: 2}, Catalog: accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]{AccountPermissions: related.Account, Group: accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields: []string{role.Catalog.GroupName}, WriteFields: []string{role.Catalog.GroupName}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: related.Group.Change, Delete: related.Group.Delete}}, Permission: accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, WriteFields: []string{role.Catalog.PermissionName, role.Catalog.PermissionCode}, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: related.Permission.Change, Delete: related.Permission.Delete}}}})
+						check(e)
+						credential, e := runtime.Authenticator().Authenticate(t.Context(), "operator@example.test", accountPasswordText)
+						check(e)
+						actor = credential.Principal()
+						creator = runtime.Accounts().Creator()
+					}
+					hasher.calls = 0
+					backend.starts = 0
+					if mode == "configuration" {
+						changed := firstConfig
+						changed.ThroughCreationLimit = 3
+						other, e := project.NewFirstAccountDefinition(hasher, changed)
+						check(e)
+						if other.Fingerprint() == declaration.Fingerprint() {
+							t.Fatal("through creation limit absent from first-account fingerprint")
+						}
+						for _, limit := range []int{0, accountmodel.MaximumThroughCreations + 1} {
+							changed := firstConfig
+							changed.ThroughCreationLimit = limit
+							if _, e := project.NewFirstAccountDefinition(hasher, changed); e == nil {
+								t.Fatal("invalid root through declaration accepted")
+							}
+						}
+						missing := firstConfig
+						missing.ThroughCreations = nil
+						missing.ThroughCreationLimit = 0
+						if _, e := project.NewFirstAccountDefinition(hasher, missing); e == nil {
+							t.Fatal("root creation silently acquired through authority")
+						}
+						if factoryCalls != 0 || hasher.calls != 0 || backend.starts != 0 {
+							t.Fatal("pure root declarations did work")
+						}
+						return
+					}
+					if mode == "generated_source_key" && selected.PostgresURL() != "" {
+						metadata, e := objects.Metadata()
+						check(e)
+						key, e := objects.PrimaryKeyField()
+						check(e)
+						accountGeneratedKeySequence(t, selected, metadata.DBTable, key.Column, 0, -1)
+					}
+					initialAccounts, initialGroups, initialPermissions, initialAudits := rootThroughRows(t, native, objects), rootThroughRows(t, native, groups), rootThroughRows(t, native, permissions), rootThroughRows(t, native, audits)
+					switch mode {
+					case "denied_add":
+						overlay.deny = "nested.add"
+					case "denied_related":
+						overlay.deny = "nested.approve"
+					case "snapshot_cleanup":
+						backend.cleanup = true
+					case "hash_failure":
+						hasher.failAt = 1
+						if "@@KIND@@" == "account" {
+							hasher.failAt = 2
+						}
+					}
+					keys := slices.Clone(targets[:2])
+					if mode == "empty" {
+						keys = nil
+					}
+					if mode == "limit" {
+						keys = targets
+					}
+					input, err := objects.Input(map[string]query.Value{role.Login: query.String("root-created@example.test"), "@@PROFILE@@": query.String("KR")})
+					check(err)
+					input, err = input.WithCollections(map[string][]int64{"@@FIELD@@": keys})
+					check(err)
+					ctx := t.Context()
+					if mode == "canceled" {
+						canceled, cancel := context.WithCancel(ctx)
+						cancel()
+						ctx = canceled
+					}
+					var commit func() (accountmodel.Creation, error)
+					var prepareFailure error
+					if operation == "first" {
+						pending, e := first.Prepare(ctx, input, accountPasswordText)
+						prepareFailure = e
+						commit = func() (accountmodel.Creation, error) {
+							value, e := first.Commit(t.Context(), pending)
+							return value.Account, e
+						}
+					} else {
+						pending, e := creator.Prepare(ctx, actor, input, accountPasswordText)
+						prepareFailure = e
+						commit = func() (accountmodel.Creation, error) { return creator.Commit(t.Context(), actor, pending) }
+					}
+					if mode == "revoked" {
+						overlay.deny = "nested.add"
+					}
+					backend.rollback = mode == "rollback"
+					backend.unknown = mode == "unknown"
+					var result accountmodel.Creation
+					failure := prepareFailure
+					if failure == nil {
+						result, failure = commit()
+					}
+					rejected := slices.Contains([]string{"limit", "endpoint", "denied_add", "denied_related", "revoked", "snapshot_cleanup", "hash_failure", "late_validator", "late_payload", "rollback", "canceled"}, mode)
+					if rejected || mode == "unknown" {
+						if failure == nil || !reflect.DeepEqual(result, accountmodel.Creation{}) {
+							t.Fatal("failed nested root creation published success")
+						}
+					} else {
+						check(failure)
+					}
+					if mode == "unknown" && !errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
+						t.Fatal("root creation lost unknown outcome", failure)
+					}
+					if mode == "late_payload" && !lateMutation {
+						t.Fatal("late nested mutation not exercised")
+					}
+					reader, err := database.Open(t.Context(), selected)
+					check(err)
+					defer reader.Close()
+					if rejected {
+						if !reflect.DeepEqual(initialAccounts, rootThroughRows(t, reader, objects)) || !reflect.DeepEqual(initialGroups, rootThroughRows(t, reader, groups)) || !reflect.DeepEqual(initialPermissions, rootThroughRows(t, reader, permissions)) || !reflect.DeepEqual(initialAudits, rootThroughRows(t, reader, audits)) {
+							t.Fatal("failed nested root retained row, revision or audit")
+						}
+						if operation == "first" {
+							fingerprint, e := binding.RoleFingerprint()
+							check(e)
+							var absent error
+							check(reader.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+								_, absent = domain.RequireIn(t.Context(), scope, fingerprint)
+								return nil
+							}))
+							if absent != domain.ErrUninitialized {
+								t.Fatal("failed first root retained domain ownership", absent)
+							}
+						}
+						if slices.Contains([]string{"limit", "endpoint", "snapshot_cleanup", "canceled"}, mode) && hasher.calls != 0 {
+							t.Fatal("refused preparation performed hash work")
+						}
+						if mode == "hash_failure" && (hasher.calls != hasher.failAt || backend.starts != 0) {
+							t.Fatal("failed root/child hash reached native write")
+						}
+						return
+					}
+					authenticator, err := project.NewAccountAuthenticator(t.Context(), reader, baseHasher)
+					check(err)
+					credential, err := authenticator.Authenticate(t.Context(), "root-created@example.test", accountPasswordText)
+					check(err)
+					if operation == "first" {
+						actor = credential.Principal()
+					}
+					rootID := int64(0)
+					found := false
+					for _, row := range rootThroughRows(t, reader, objects) {
+						values, e := objects.ModelValues(row)
+						check(e)
+						login, _ := values[role.Login].String()
+						if login == "root-created@example.test" {
+							rootID, found = rootThroughKey(t, objects, row), true
+							revision, _ := values[role.Revision].Integer()
+							if revision != 1 {
+								t.Fatal("nested creation advanced root revision")
+							}
+						}
+					}
+					if !found {
+						t.Fatal("durable root missing")
+					}
+					if mode == "generated_source_key" && selected.PostgresURL() != "" && rootID != 0 {
+						t.Fatal("native source key zero was not exercised")
+					}
+					if mode != "unknown" && (result.ID != rootID || result.Revision != 1) {
+						t.Fatal("root result lost actual key")
+					}
+					history := func(model string, id int64) []accountaudit.Entry {
+						t.Helper()
+						namespace, _ := actor.CredentialDomain()
+						events, e := db.ReadSnapshotResult(t.Context(), reader, func(ctx context.Context, scope db.Queryer) ([]accountaudit.Entry, error) {
+							return accountaudit.HistoryIn(ctx, scope, namespace, model, id, 20)
+						})
+						check(e)
+						return events
+					}
+					rootEvents := history(role.Model.AppLabel+"."+role.Model.ModelName, rootID)
+					if len(rootEvents) != 1 || rootEvents[0].Action() != admin.ActionAdd || rootEvents[0].ActorID() != actor.ID() {
+						t.Fatal("nested root add audit missing")
+					}
+					children := 0
+					seen := map[int64]bool{}
+					for _, row := range rootThroughRows(t, reader, through) {
+						values, e := through.ModelValues(row)
+						check(e)
+						parent, present := values["@@SOURCE@@"].Integer()
+						if !present || parent != rootID {
+							continue
+						}
+						target, present := values["@@TARGET@@"].Integer()
+						if !present || !slices.Contains(keys, target) || seen[target] {
+							t.Fatal("nested actual endpoint mismatch")
+						}
+						seen[target] = true
+						children++
+						events := history(childIdentity.AppLabel+"."+childIdentity.ModelName, rootThroughKey(t, through, row))
+						if len(events) != 1 || events[0].Action() != admin.ActionAdd || events[0].ActorID() != actor.ID() {
+							t.Fatal("nested child audit has wrong authority")
+						}
+						if "@@KIND@@" == "account" {
+							login, _ := values[role.Login].String()
+							_, e := authenticator.Authenticate(t.Context(), login, accountPasswordText)
+							check(e)
+						}
+					}
+					wantHashes := 1
+					if "@@KIND@@" == "account" {
+						wantHashes += len(keys)
+					}
+					if children != len(keys) || factoryCalls != len(keys) || storedValidation != len(keys) || hasher.calls != wantHashes {
+						t.Fatal("nested preparation/encoding/insertion count mismatch", children, factoryCalls, storedValidation, hasher.calls)
+					}
+					again, e := commit()
+					if e == nil || !reflect.DeepEqual(again, accountmodel.Creation{}) {
+						t.Fatal("nested prepared operation was retried")
+					}
+					if mode == "restart" {
+						fresh, e := database.Open(t.Context(), selected)
+						check(e)
+						defer fresh.Close()
+						authenticator, e := project.NewAccountAuthenticator(t.Context(), fresh, baseHasher)
+						check(e)
+						_, e = authenticator.Authenticate(t.Context(), "root-created@example.test", accountPasswordText)
+						check(e)
+						if !reflect.DeepEqual(rootThroughRows(t, reader, through), rootThroughRows(t, fresh, through)) {
+							t.Fatal("restart changed nested identities")
+						}
+					}
+				})
+			}
+		})
+	}
+}

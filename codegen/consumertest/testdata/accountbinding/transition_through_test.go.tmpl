@@ -1,0 +1,229 @@
+package consumer
+
+import (
+ "context"
+ "encoding/json"
+ "errors"
+ "fmt"
+ "maps"
+ "reflect"
+ "slices"
+ "strings"
+ "testing"
+ "time"
+
+ "example.com/godj-project-bundle/catalog"
+ "example.com/godj-project-bundle/members"
+ "example.com/godj-project-bundle/models"
+ "example.com/godj-project-bundle/project"
+ accountaudit "github.com/progresshans/godj/account/audit"
+ auditmodels "github.com/progresshans/godj/account/audit/models"
+ "github.com/progresshans/godj/account/domain"
+ domainmodels "github.com/progresshans/godj/account/domain/models"
+ "github.com/progresshans/godj/auth"
+ "github.com/progresshans/godj/db"
+ @@FORMIMPORT@@
+ accountmodel "github.com/progresshans/godj/identity/model"
+ "github.com/progresshans/godj/migrations/definition"
+ "github.com/progresshans/godj/orm"
+ "github.com/progresshans/godj/query"
+ "github.com/progresshans/godj/schema/ir"
+ "github.com/progresshans/godj/sessions"
+ sessiondb "github.com/progresshans/godj/sessions/database"
+ sessionmodels "github.com/progresshans/godj/sessions/database/models"
+ "github.com/progresshans/godj/settings/database"
+ "github.com/progresshans/godj/validation"
+)
+
+func nuMust(t *testing.T,err error){t.Helper();if err!=nil{nuExplain(t,err,0);t.Fatal(err)}}
+// These errors belong to isolated synthetic fixtures. Preserve the bounded
+// cause chain in remote diagnostics without changing production redaction.
+func nuExplain(t *testing.T,err error,depth int){t.Helper();if err==nil||depth>=8{return};t.Logf("cause[%d] %T: %v",depth,err,err);switch e:=err.(type){case interface{Unwrap()[]error}:for _,cause:=range e.Unwrap(){nuExplain(t,cause,depth+1)};case interface{Unwrap()error}:nuExplain(t,e.Unwrap(),depth+1)}}
+func nuRows[M any](t *testing.T,scope db.Queryer,objects orm.Manager[M])[]M{t.Helper();key,err:=objects.PrimaryKeyField();nuMust(t,err);rows,err:=objects.Using(scope).OrderBy(orm.NewAutoField[M](key).Asc()).All(t.Context());nuMust(t,err);return rows}
+func nuSave[M any](ctx context.Context,scope db.Mutator,objects orm.Manager[M],row M,values map[string]query.Value)error{prepared,err:=objects.PrepareValues(&row,values);if err!=nil{return err};row,err=prepared.Model();if err!=nil{return err};return prepared.Save(ctx,scope,&row)}
+func nuSnapshot(t *testing.T,backend database.Backend)map[string]any{
+ t.Helper();result,err:=db.ReadSnapshotResult(t.Context(),backend,func(_ context.Context,scope db.Queryer)(map[string]any,error){return map[string]any{
+ "users":nuRows(t,scope,models.UserObjects),"members":nuRows(t,scope,members.MemberObjects),"groups":nuRows(t,scope,models.GroupObjects),"permissions":nuRows(t,scope,models.PermissionObjects),"teams":nuRows(t,scope,catalog.TeamObjects),"grants":nuRows(t,scope,catalog.GrantObjects),
+ "user_groups":nuRows(t,scope,models.UserGroupsLinkObjects),"user_permissions":nuRows(t,scope,models.UserPermissionsLinkObjects),"group_permissions":nuRows(t,scope,models.GroupPermissionsLinkObjects),"member_permissions":nuRows(t,scope,members.MemberPermissionsLinkObjects),
+ @@SNAPSHOTS@@
+ "audit":nuRows(t,scope,auditmodels.EventObjects),"ownership":nuRows(t,scope,domainmodels.TransitionObjects),"mappings":nuRows(t,scope,domainmodels.MappingObjects),"sessions":nuRows(t,scope,sessionmodels.SessionObjects),
+ },nil});nuMust(t,err);return result
+}
+
+type nuInsertion struct{key int64;values map[string]query.Value}
+var nuCleanupFailure=errors.New("transition through cleanup")
+var nuHashFailure=errors.New("transition hash failure")
+type nuBackend struct{database.Backend;reading,writing,completed,faults int;mode,table,natural string;receipt bool;scope db.RelationSession;inserted []nuInsertion}
+func(b *nuBackend)ReadSnapshot(ctx context.Context,read func(db.Queryer)error)error{b.reading++;defer func(){b.reading--}();err:=b.Backend.ReadSnapshot(ctx,read);if b.mode=="read_cleanup"{return errors.Join(err,nuCleanupFailure)};return err}
+func(b *nuBackend)CoordinatedAtomicRelation(ctx context.Context,write func(db.RelationSession)error)error{
+ b.writing++;defer func(){b.writing--;b.scope=nil}()
+ err:=b.Backend.CoordinatedAtomicRelation(ctx,func(scope db.RelationSession)error{
+  wrapped:=&nuScope{RelationSession:scope,owner:b};b.scope=wrapped
+  if err:=write(wrapped);err!=nil{return err};b.completed++
+  if b.mode=="rollback"||b.mode=="unknown_rollback"{b.faults++;return errors.New("after complete collection transition")};return nil
+ })
+ if b.mode=="unknown_rollback"||err==nil&&b.mode=="unknown_commit"{return &query.Error{Category:query.CategoryBackend,Code:query.CodeCommitOutcomeUnknown}}
+ return err
+}
+type nuScope struct{db.RelationSession;owner *nuBackend}
+func(s *nuScope)ValidateSession(ctx context.Context)error{return s.RelationSession.(db.SessionValidator).ValidateSession(ctx)}
+func(s *nuScope)InsertOnConflict(ctx context.Context,plan query.ConflictInsertPlan)(db.ConflictInsertResult,error){return s.RelationSession.(db.ConflictInserter).InsertOnConflict(ctx,plan)}
+func(s *nuScope)Insert(ctx context.Context,plan query.InsertPlan)(int64,error){
+ key,err:=s.RelationSession.Insert(ctx,plan);if err!=nil{return key,err}
+ if plan.Table()=="godj_account_domain_transition"{s.owner.receipt=true}
+ if plan.Table()=="godj_account_domain_mapping"&&s.owner.mode=="mapping_failure"{s.owner.faults++;return key,errors.New("after mapping INSERT")}
+ if plan.Table()==s.owner.table{
+  values:=map[string]query.Value{};for _,assignment:=range plan.Assignments(){values[assignment.Field().Name()]=assignment.Value()}
+  text,_:=values[s.owner.natural].String()
+  if strings.HasPrefix(text,"extra"){
+   values["id"]=query.Integer(key);s.owner.inserted=append(s.owner.inserted,nuInsertion{key,values})
+   if s.owner.mode=="insert_failure"{s.owner.faults++;return key,errors.New("after typed through INSERT")}
+  }
+ }
+ return key,nil
+}
+type nuHasher struct{auth.PasswordHasher;backend *nuBackend;calls int}
+func(h *nuHasher)Hash(ctx context.Context,raw string)(string,error){h.calls++;if h.backend.reading!=0||h.backend.writing!=0{return "",errors.New("transition hashing retained native scope")};if h.backend.mode=="hash_failure"{return "",nuHashFailure};return h.PasswordHasher.Hash(ctx,raw)}
+type nuOverlay struct{deny auth.Permission}
+func(o *nuOverlay)Allowed(_ context.Context,p auth.Principal,permission auth.Permission)(bool,error){return p.Has(permission)&&permission!=o.deny,nil}
+func nuStores(t *testing.T,backend database.Backend)(accountmodel.Binding[models.User],accountmodel.Binding[members.Member],*accountmodel.SessionStore[models.User],*accountmodel.SessionStore[members.Member]){
+ t.Helper();left,err:=project.BindAccount();nuMust(t,err);var role ir.AccountRole;nuMust(t,json.Unmarshal([]byte(`@@ROLE@@`),&role))
+ right,err:=accountmodel.Bind(role,members.MemberDescriptor{},models.GoDjRelationSchema(),members.GoDjRelationSchema(),catalog.GoDjRelationSchema());nuMust(t,err)
+ oldCredentials,err:=accountmodel.NewCredentialStore(backend,left,models.GroupDescriptor{},models.PermissionDescriptor{});nuMust(t,err);nextCredentials,err:=accountmodel.NewCredentialStore(backend,right,catalog.TeamDescriptor{},catalog.GrantDescriptor{});nuMust(t,err)
+ old,err:=accountmodel.NewSessionStore(oldCredentials,sessiondb.Config{});nuMust(t,err);next,err:=accountmodel.NewSessionStore(nextCredentials,sessiondb.Config{});nuMust(t,err);return left,right,old,next
+}
+
+func TestTransitionThroughCreation(t *testing.T){for _,mode:=range []string{@@CASES@@}{t.Run(mode,func(t *testing.T){
+ native,selected:=openAccountDatabase(t);migrateAccountDefinitions(t,native,@@MIGRATIONS@@)
+ through:=orm.NewManager[@@THROUGH@@](@@THROUGH@@Descriptor{});metadata,err:=through.Metadata();nuMust(t,err)
+ backend:=&nuBackend{Backend:native,table:metadata.DBTable,natural:"@@NATURAL@@"};baseHasher,encoded:=accountPassword(t);hasher:=&nuHasher{PasswordHasher:baseHasher,backend:backend};overlay:=&nuOverlay{}
+ joined:=time.Date(2026,10,30,1,2,3,0,time.UTC)
+ var users []models.User;var groups []models.Group;var permissions []models.Permission
+ for i,name:=range []string{"alice","bob"}{
+  user,e:=models.UserObjects.Create(t.Context(),native,models.NewUserCreate("principal-"+name,name,encoded,joined).WithStaff(i==0).WithSuperuser(i==0));nuMust(t,e)
+  group,e:=models.GroupObjects.Create(t.Context(),native,models.NewGroupCreate(name));nuMust(t,e)
+  permission,e:=models.PermissionObjects.Create(t.Context(),native,models.NewPermissionCreate("app."+name,name));nuMust(t,e)
+  if mode=="signed_keys"{id:=-int64(i);accountStoredKey(t,native,selected,"godj_identity_user","id",user.ID,id);user.ID=id;accountStoredKey(t,native,selected,"godj_identity_group","id",group.ID,id);group.ID=id;accountStoredKey(t,native,selected,"godj_identity_permission","id",permission.ID,id);permission.ID=id}
+  users=append(users,user);groups=append(groups,group);permissions=append(permissions,permission)
+  _,e=models.GroupPermissionsLinkObjects.Create(t.Context(),native,models.NewGroupPermissionsLinkCreate(group.ID,permission.ID));nuMust(t,e)
+  _,e=models.UserGroupsLinkObjects.Create(t.Context(),native,models.NewUserGroupsLinkCreate(user.ID,group.ID));nuMust(t,e)
+  _,e=models.UserPermissionsLinkObjects.Create(t.Context(),native,models.NewUserPermissionsLinkCreate(user.ID,permission.ID));nuMust(t,e)
+ }
+ var staged []accountmodel.AccountMapping
+ if mode=="staged"{for _,user:=range users{row,e:=members.MemberObjects.Create(t.Context(),native,members.NewMemberCreate(user.PrincipalID,"mapped-"+user.Username,encoded,joined,"").WithStaff(user.Staff).WithSuperuser(user.Superuser).WithFirstName("preserved"));nuMust(t,e);staged=append(staged,accountmodel.AccountMapping{SourceID:user.ID,SourceRevision:1,TargetID:row.ID,TargetRevision:1})}}
+ left,binding,oldStore,nextStore:=nuStores(t,backend)
+ fingerprint,err:=left.RoleFingerprint();nuMust(t,err);change,err:=domain.Prepare(t.Context(),fingerprint,strings.Repeat("a",64));nuMust(t,err)
+ nuMust(t,native.CoordinatedAtomic(t.Context(),func(scope db.Session)error{_,e:=domain.InitializeIn(t.Context(),scope,change,joined);return e}))
+ verifier,err:=oldStore.Authenticator(t.Context(),baseHasher);nuMust(t,err);credential,err:=verifier.Authenticate(t.Context(),"alice",accountPasswordText);nuMust(t,err);actor:=credential.Principal()
+ manager,err:=sessions.NewManager(oldStore,sessions.Config{});nuMust(t,err);_,err=manager.Create(t.Context(),map[string]string{auth.SessionPrincipalIDKey:actor.ID(),auth.SessionCredentialStampKey:credential.SessionStamp()});nuMust(t,err)
+ collections,err:=project.BindCollections();nuMust(t,err)
+ targetOptions:=accountmodel.TransitionTargetConfig[members.Member]{Fields:[]string{"handle","first_name"}}
+ catalogOptions:=accountmodel.TransitionCatalogTargetConfig[catalog.Team,catalog.Grant]{Group:accountmodel.TransitionCatalogModelConfig[catalog.Team]{Fields:[]string{"title","note"},Permission:"account.transition"},Permission:accountmodel.TransitionCatalogModelConfig[catalog.Grant]{Fields:[]string{"label","weight"},Permission:"account.transition"}}
+ related:=accountmodel.RelatedRowPermissions{Account:accountmodel.DeletionPermissions{Change:"related.account"},Group:accountmodel.DeletionPermissions{Change:"related.group"},Permission:accountmodel.DeletionPermissions{Change:"related.permission"}}
+ childFields:=[]string{"@@NATURAL@@"};if "@@CODE@@"!=""{childFields=append(childFields,"@@CODE@@")}
+ factoryCalls:=0
+ prepareNested:=func(_ context.Context,pair accountmodel.ThroughEndpoints)(orm.ModelInput[@@THROUGH@@],error){
+  factoryCalls++
+  _,sourcePresent:=pair.SourceKey();targetKey,targetPresent:=pair.TargetKey();source,sourceReference:=pair.SourceReference();_,targetReference:=pair.TargetReference()
+  if backend.reading!=1||backend.writing!=0||sourcePresent!=(mode=="staged"&&"@@KIND@@"=="account")||!sourceReference||source.Source.Revision!=1||pair.SourceField()!="link_owner"||pair.TargetField()!="link_target"{return orm.ModelInput[@@THROUGH@@]{},fmt.Errorf("factory source: reads=%d writes=%d present=%t reference=%t revision=%d fields=%s/%s",backend.reading,backend.writing,sourcePresent,sourceReference,source.Source.Revision,pair.SourceField(),pair.TargetField())}
+  if "@@KIND@@"=="permission"{if !targetPresent||targetReference{return orm.ModelInput[@@THROUGH@@]{},errors.New("profile target was not an actual key")};_ = targetKey}else if targetPresent||!targetReference{return orm.ModelInput[@@THROUGH@@]{},errors.New("factory guessed a catalog key")}
+  identity:=fmt.Sprintf("extra.item%x",uint64(source.Source.ID));if "@@KIND@@"=="account"{identity=fmt.Sprintf("extra-%x@example.test",uint64(source.Source.ID))};if mode=="duplicate"{identity="extra.duplicate"}
+  values:=map[string]query.Value{"@@NATURAL@@":query.String(identity)};if "@@CODE@@"!=""{values["@@CODE@@"]=query.String(identity)};if mode=="endpoint"{values["link_target"]=query.Integer(0)}
+  input,e:=through.Input(values);if e!=nil{return input,e};if mode=="target_key"{return input.WithTargetKey(query.Integer(0))};return input,nil
+ }
+ @@POLICY@@
+ _=childFields
+ @@TARGETCONFIG@@
+ if mode=="configuration"{
+  bad:=targetOptions;bad.ThroughCreations=nil
+  if "@@KIND@@"!="group"{if _,e:=accountmodel.NewTransitionTarget(binding,collections.MembersMemberGroups,collections.MembersMemberPermissions,bad);e==nil{t.Fatal("identity collection accepted without creation owner")}}else{catalogBad:=catalogOptions;catalogBad.GroupThroughCreations=nil;if _,e:=accountmodel.NewTransitionCatalogTarget(left,binding,catalog.TeamDescriptor{},catalog.GrantDescriptor{},collections.CatalogTeamGrants,collections.MembersMemberGroups,collections.MembersMemberPermissions,catalogBad);e==nil{t.Fatal("catalog identity collection accepted without creation owner")}}
+  return
+ }
+ target,err:=accountmodel.NewTransitionTarget(binding,collections.MembersMemberGroups,collections.MembersMemberPermissions,targetOptions);nuMust(t,err)
+ catalogOptions.Group.Validate=func(ctx context.Context,reader db.Queryer,_ *catalog.Team,_ catalog.Team)(validation.Errors,error){
+  if !backend.receipt||backend.faults!=0||(mode!="late_payload"&&mode!="late_membership"){return validation.Errors{},nil}
+  if len(backend.inserted)==0{return validation.Errors{},errors.New("late policy had no inserted identity")};backend.faults++
+  if mode=="late_membership"{grant,e:=catalog.GrantObjects.Using(reader).Filter(catalog.GrantFields.Symbol.Exact(permissions[0].Code)).Get(ctx);if e!=nil{return validation.Errors{},e};_,e=members.MemberPermissionsLinkObjects.Create(ctx,backend.scope,members.NewMemberPermissionsLinkCreate(backend.inserted[0].key,grant.ID));return validation.Errors{},e}
+  key,e:=through.PrimaryKeyField();if e!=nil{return validation.Errors{},e};row,e:=through.Using(reader).Filter(orm.NewAutoField[@@THROUGH@@](key).Exact(backend.inserted[0].key)).Get(ctx);if e!=nil{return validation.Errors{},e}
+  return validation.Errors{},nuSave(ctx,backend.scope,through,row,map[string]query.Value{"@@NATURAL@@":query.String("late.rewrite")})
+ }
+ catalogTarget,err:=accountmodel.NewTransitionCatalogTarget(left,binding,catalog.TeamDescriptor{},catalog.GrantDescriptor{},collections.CatalogTeamGrants,collections.MembersMemberGroups,collections.MembersMemberPermissions,catalogOptions);nuMust(t,err)
+ var groupRequests []accountmodel.CatalogRowCreation[catalog.Team];var permissionRequests []accountmodel.CatalogRowCreation[catalog.Grant];var requests []accountmodel.AccountCreation[members.Member]
+ for i,user:=range users{
+  groupInput,e:=catalog.TeamObjects.Input(map[string]query.Value{"title":query.String("mapped-"+groups[i].Name),"note":query.String("preserved")});nuMust(t,e);groupRequests=append(groupRequests,accountmodel.CatalogRowCreation[catalog.Team]{Source:accountmodel.SourceAccount{ID:groups[i].ID,Revision:1},Input:groupInput})
+  permissionInput,e:=catalog.GrantObjects.Input(map[string]query.Value{"label":query.String("mapped-"+permissions[i].Name),"weight":query.Integer(11)});nuMust(t,e);permissionRequests=append(permissionRequests,accountmodel.CatalogRowCreation[catalog.Grant]{Source:accountmodel.SourceAccount{ID:permissions[i].ID,Revision:1},Input:permissionInput})
+  input,e:=members.MemberObjects.Input(map[string]query.Value{"handle":query.String("mapped-"+user.Username),"first_name":query.String("preserved")});nuMust(t,e)
+  if "@@KIND@@"=="permission"{input,e=input.WithCollections(map[string][]int64{"interests":{permissions[i].ID}});nuMust(t,e)}
+  request:=accountmodel.AccountCreation[members.Member]{Source:accountmodel.SourceAccount{ID:user.ID,Revision:1},Input:input}
+  if mode=="retained_identity"{request.References=map[string]accountmodel.TransitionTargetReference{"link_owner":{Kind:accountmodel.TransitionReferenceAccount,Source:request.Source},"link_target":{Kind:accountmodel.TransitionReferenceGroup,Source:groupRequests[i].Source}}}
+  requests=append(requests,request)
+ }
+ catalogCreation,err:=catalogTarget.Creation(groupRequests,permissionRequests);nuMust(t,err)
+ config:=accountmodel.TransitionConfig[models.User,members.Member]{Permission:"account.transition",Authorizer:overlay,TargetCreation:target,CatalogCreation:catalogCreation,ThroughCreationLimit:4,MaxAccounts:4,MaxCatalogRows:4,Now:func()time.Time{return joined.Add(time.Hour)}}
+ if mode=="limit"{config.ThroughCreationLimit=1};if mode=="count_limit"{config.MaxAccounts=2;config.MaxCatalogRows=2}
+ owner,err:=accountmodel.NewTransition(oldStore,nextStore,config);nuMust(t,err)
+ if mode=="denied_add"{overlay.deny="nested.add"};if mode=="denied_related"{if "@@KIND@@"=="group"{overlay.deny="related.group"}else{overlay.deny="related.account"}}
+ if mode=="signed_keys"&&selected.Kind()==database.KindPostgres{for _,table:=range []string{"members_member","catalog_team","catalog_grant"}{accountGeneratedKeySequence(t,selected,table,"id",0,-1)}}
+ before:=nuSnapshot(t,native);backend.mode=mode
+ var prepared accountmodel.PreparedTransition[models.User,members.Member];var prepareErr error
+ if mode=="staged"{prepared,prepareErr=owner.Prepare(t.Context(),actor,strings.Repeat("e",64),staged)}else{prepared,prepareErr=owner.PrepareCreation(t.Context(),actor,strings.Repeat("e",64),requests)}
+ early:=slices.Contains([]string{"limit","endpoint","target_key","denied_add","denied_related","read_cleanup","hash_failure"},mode)
+ if early{
+  if prepareErr==nil||prepared.Manifest().OperationID!=""{t.Fatal("invalid through intent acquired preparation")}
+  var want error=&accountmodel.Error{Code:accountmodel.CodeInvalidInput};wantFactory,wantHash:=1,0
+  switch mode{
+  case "limit":wantFactory=0
+  case "denied_add":want=&accountmodel.Error{Code:accountmodel.CodePermission};wantFactory=0
+  case "denied_related":want=&accountmodel.Error{Code:accountmodel.CodePermission}
+  case "read_cleanup":want=nuCleanupFailure;wantFactory=2
+  case "hash_failure":want=nuHashFailure;wantFactory,wantHash=2,1
+  }
+  if !errors.Is(prepareErr,want)||factoryCalls!=wantFactory||hasher.calls!=wantHash{nuExplain(t,prepareErr,0);t.Fatal("preparation did not reach its intended refusal",mode,factoryCalls,hasher.calls)}
+  if backend.completed!=0||!reflect.DeepEqual(before,nuSnapshot(t,native)){t.Fatal("failed preparation wrote state")};return
+ };nuMust(t,prepareErr)
+ if factoryCalls!=2||"@@KIND@@"=="account"&&hasher.calls!=2||"@@KIND@@"!="account"&&hasher.calls!=0{t.Fatal("factories or hashing escaped bounded preparation",factoryCalls,hasher.calls)}
+ manifest:=prepared.Manifest();if manifest.Version!=8||len(manifest.Collections)!=2{t.Fatal("manifest omitted collection identities")}
+ wire,err:=json.Marshal(manifest);nuMust(t,err);for _,secret:=range []string{accountPasswordText,encoded,"principal-alice","extra.item","extra-"}{if strings.Contains(string(wire),secret){t.Fatal("manifest exposed credential/profile input")}}
+ var retained accountmodel.TransitionManifest;nuMust(t,json.Unmarshal(wire,&retained));if mode=="owned_manifest"{exposed:=prepared.Manifest();exposed.Collections[0].Kind="invalid"}
+ if mode=="source_changed"{nuMust(t,nuSave(t.Context(),native,models.UserObjects,users[1],map[string]query.Value{"first_name":query.String("external change")}));before=nuSnapshot(t,native)}
+ if mode=="revoked"{overlay.deny="nested.add"}
+ work:=t.Context();if mode=="canceled"{var cancel context.CancelFunc;work,cancel=context.WithCancel(work);cancel()}
+ result,failure:=owner.Commit(work,actor,prepared)
+ failed:=slices.Contains([]string{"count_limit","duplicate","revoked","source_changed","insert_failure","mapping_failure","late_payload","late_membership","rollback","unknown_commit","unknown_rollback","canceled"},mode)
+ if failed{if failure==nil||!reflect.DeepEqual(result,accountmodel.TransitionResult{}){t.Fatal("failed transition published state",failure)}}else{nuMust(t,failure)}
+ if slices.Contains([]string{"insert_failure","mapping_failure","late_payload","late_membership","rollback","unknown_rollback"},mode)&&backend.faults!=1{t.Fatal("negative control did not reach its native boundary",backend.faults,failure)}
+ if strings.HasPrefix(mode,"unknown_")&&(!errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown})||backend.completed!=1){t.Fatal("unknown outcome did not follow full native execution",failure)}
+ if factoryCalls!=2||"@@KIND@@"=="account"&&hasher.calls!=2{t.Fatal("write fence reran factory or hash")}
+ backend.mode="";overlay.deny=""
+ reopened,err:=database.Open(t.Context(),selected);nuMust(t,err);defer reopened.Close();_,_,freshOld,freshNext:=nuStores(t,reopened);freshOwner,err:=accountmodel.NewTransition(freshOld,freshNext,config);nuMust(t,err)
+ receipt,found,err:=freshOwner.Reconcile(t.Context(),retained);nuMust(t,err)
+ applied:=!failed||mode=="unknown_commit"
+ if !applied{if found||receipt.OperationID()!=""||!reflect.DeepEqual(before,nuSnapshot(t,reopened)){t.Fatal("failed transition changed durable rows or receipt")};return}
+ if !found||receipt.Sequence()!=2{t.Fatal("restart lost exact transition receipt")}
+ inventory,err:=db.ReadSnapshotResult(t.Context(),reopened,func(ctx context.Context,scope db.Queryer)(domain.MappingInventory,error){return domain.LookupMappingInventoryIn(ctx,scope,receipt)});nuMust(t,err)
+ extra:=2;if mode=="retained_identity"{extra=0}
+ if len(inventory.Accounts)!=2||inventory.Catalog==nil||len(inventory.Catalog.Groups)!=2||len(inventory.Catalog.Permissions)!=2||len(inventory.Collections)!=2||len(backend.inserted)!=extra{t.Fatal("native identity ledger is incomplete")}
+ if !failed{wantA,wantG,wantP:=2,2,2;switch "@@KIND@@"{case "account":wantA+=extra;case "group":wantG+=extra;case "permission":wantP+=extra};if mode=="staged"{wantA-=2};if result.CreatedAccounts!=wantA||result.CreatedGroups!=wantG||result.CreatedPermissions!=wantP||result.MappedAccounts!=2||result.RevokedSessions!=1||!slices.Equal(result.CollectionIdentities,inventory.Collections){t.Fatal("transition report lost root or additional identity")}}
+ accounts:=nuRows(t,reopened,members.MemberObjects);teams:=nuRows(t,reopened,catalog.TeamObjects);grants:=nuRows(t,reopened,catalog.GrantObjects)
+ wantA,wantG,wantP:=2,2,2;switch "@@KIND@@"{case "account":wantA+=extra;case "group":wantG+=extra;case "permission":wantP+=extra};if len(accounts)!=wantA||len(teams)!=wantG||len(grants)!=wantP{t.Fatal("unmapped native identity was adopted or lost")}
+ accountKeys,groupKeys,permissionKeys:=map[int64]int64{},map[int64]int64{},map[int64]int64{}
+ for i,user:=range users{for _,row:=range accounts{if row.Subject==user.PrincipalID{accountKeys[user.ID]=row.ID;revision:=int64(1);if mode=="staged"{revision=2};if row.SecretHash!=encoded||row.Version!=revision{t.Fatal("mapped credential changed")}}};for _,row:=range teams{if row.Title=="mapped-"+groups[i].Name{groupKeys[groups[i].ID]=row.ID}};for _,row:=range grants{if row.Symbol==permissions[i].Code{permissionKeys[permissions[i].ID]=row.ID}}}
+ if len(accountKeys)!=2||len(groupKeys)!=2||len(permissionKeys)!=2{t.Fatal("independent stable-identity resolution failed")}
+ expected:=make(map[int64]bool)
+ if mode=="retained_identity"{for _,key:=range accountKeys{expected[key]=true}}
+ keyName,err:=through.PrimaryKeyField();nuMust(t,err)
+ for _,inserted:=range backend.inserted{row,e:=through.Using(reopened).Filter(orm.NewAutoField[@@THROUGH@@](keyName).Exact(inserted.key)).Get(t.Context());nuMust(t,e);actual,e:=through.ModelValues(row);nuMust(t,e);if !maps.Equal(actual,inserted.values){t.Fatal("through readback differs from complete native INSERT")};source,_:=actual["link_owner"].Integer();targetKey,_:=actual["link_target"].Integer();matched:=false;for i,user:=range users{left,right:=accountKeys[user.ID],groupKeys[groups[i].ID];if "@@KIND@@"=="group"{left,right=groupKeys[groups[i].ID],permissionKeys[permissions[i].ID]};if "@@KIND@@"=="permission"{right=permissions[i].ID};if source==left&&targetKey==right{matched=true;original:=user.ID;if "@@KIND@@"=="group"{original=groups[i].ID};want:=fmt.Sprintf("extra.item%x",uint64(original));if "@@KIND@@"=="account"{want=fmt.Sprintf("extra-%x@example.test",uint64(original))};name,_:=actual["@@NATURAL@@"].String();if name!=want{t.Fatal("factory identity differs from independently correlated source")}}};if !matched{t.Fatal("through endpoints differ from independently resolved native identities")};expected[inserted.key]=true}
+ for _,entry:=range inventory.Collections{if entry.Kind!="@@KIND@@"||entry.Revision!=1||entry.Additional!=(extra!=0)||!expected[entry.Key]{t.Fatal("receipt collection key does not identify its actual INSERT")};delete(expected,entry.Key)};if len(expected)!=0{t.Fatal("receipt omitted actual through identity")}
+ after:=nuSnapshot(t,reopened);for _,name:=range []string{"groups","permissions","user_groups","user_permissions","group_permissions"}{if !reflect.DeepEqual(after[name],before[name]){t.Fatal("transition altered source catalog authority",name)}}
+ for _,row:=range after["users"].([]models.User){if row.Revision!=2||row.Active||row.Staff||row.Superuser||!strings.HasPrefix(row.EncodedPassword,"!"){t.Fatal("source not retired")}}
+ if len(after["sessions"].([]sessionmodels.Session))!=0{t.Fatal("source session namespace survived transition")}
+ audits:=after["audit"].([]auditmodels.Event);if len(audits)!=8+extra{t.Fatal("root/additional/retirement audit inventory differs",len(audits))}
+ authority,_:=actor.CredentialDomain();for _,event:=range audits{if event.ActorID!=actor.ID()||event.Domain!=authority.Identifier(){t.Fatal("audit acquired target-domain authority")}}
+ modelName:=map[string]string{"account":"members.member","group":"catalog.team","permission":"catalog.grant"}["@@KIND@@"]
+ for _,entry:=range inventory.Collections{count:=0;for _,event:=range audits{if event.Model==modelName&&event.ObjectID==entry.Key&&event.Action=="add"{count++}};if count!=1{t.Fatal("inserted identity did not receive one Add audit")}}
+ freshAuth,err:=freshNext.Authenticator(t.Context(),baseHasher);nuMust(t,err);_,err=freshAuth.Authenticate(t.Context(),"mapped-alice",accountPasswordText);nuMust(t,err)
+ bob,err:=freshAuth.Authenticate(t.Context(),"mapped-bob",accountPasswordText);nuMust(t,err);if !bob.Principal().Has("app.bob")||bob.Principal().Has("app.alice"){t.Fatal("source permission set was not preserved")}
+
+ if _,err:=db.ReadSnapshotResult(t.Context(),reopened,accountaudit.InspectIn);err!=nil{t.Fatal("audit history lost integrity",err)}
+ if mode=="payload_corruption"{rows:=nuRows(t,reopened,domainmodels.MappingObjects);if len(rows)!=1{t.Fatal("expected one mapping")};nuMust(t,nuSave(t.Context(),reopened,domainmodels.MappingObjects,rows[0],map[string]query.Value{"payload":query.String(rows[0].Payload+" ")}));if got,present,err:=freshOwner.Reconcile(t.Context(),retained);err==nil||present||got.OperationID()!=""{t.Fatal("corrupt collection receipt reconciled")}}
+})}}

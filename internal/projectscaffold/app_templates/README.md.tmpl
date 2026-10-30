@@ -1,0 +1,28 @@
+# [[.Label]]
+
+This directory contains editable Schema DSL declarations in `modeldef/schema.go`.
+App creation has not installed the app, changed generated models, or opened a
+database. The directory can be kept in a project or packaged for reuse.
+
+## Register in a project
+
+For a project created by `godj startproject`, edit its `modeldef/apps.go`:
+
+1. Import this directory's `modeldef` package with an explicit alias such as
+   `newappdef`. For `example.com/my-site/apps/[[.Label]]`, the import is
+   `newappdef "example.com/my-site/apps/[[.Label]]/modeldef"`.
+2. Add `newappdef.Definition()` to the returned `[]schema.Definition`, keeping
+   the existing app definitions.
+3. Run `godj generate`, `godj makemigrations`, review the migration, then run
+   `godj migrate`. Restart the server to use the new app.
+
+An empty app has an identity and no tables. Add models to `Definition()` using
+the public Schema DSL. The starter project places generated models at
+`apps/[[.Label]]/models`; keep declarations separate from those output files.
+Other project layouts can include the definition through their own `ProjectSpec`
+and choose explicit package aliases and output locations.
+
+Choose exposed fields and permissions when registering Admin resources or API
+routes. Creating or installing an app does not expose its models automatically.
+An app label must be unique among the project's installed definitions. Schema
+and generator validation reject duplicates before publishing a new bundle.

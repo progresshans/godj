@@ -1,0 +1,46 @@
+import os
+
+from django.http import JsonResponse, HttpResponseNotAllowed
+from django.views.decorators.csrf import csrf_exempt
+from .models import Article, Note
+from .revision import VERSION
+
+
+def note_values():
+    return [{"title": row.title, "summary": getattr(row, "summary", None)} for row in Note.objects.order_by("id")]
+
+
+def state(request):
+    return JsonResponse({"pid": os.getpid(), "version": VERSION, "notes": note_values()})
+
+
+@csrf_exempt
+def save(request):
+    # This public fixture route matches the unauthenticated Notes consumer.
+    # Authenticated transport and authority have their own routes below.
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    values = {"title": request.GET["title"]}
+    if "summary" in {field.name for field in Note._meta.get_fields()}:
+        values["summary"] = request.GET.get("summary")
+    Note.objects.create(**values)
+    return JsonResponse({"pid": os.getpid(), "version": VERSION, "notes": note_values()}, status=201)
+
+
+def articles(request):
+    if not request.user.is_authenticated or not request.user.has_perm("notes.view_article"):
+        return JsonResponse({"denied": True}, status=403)
+    return JsonResponse({
+        "pid": os.getpid(), "version": VERSION,
+        "titles": list(Article.objects.order_by("id").values_list("title", flat=True)),
+        "groups": list(request.user.groups.order_by("name").values_list("name", flat=True)),
+    })
+
+
+def protected_write(request):
+    # The real CsrfViewMiddleware checks unsafe requests before this handler.
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not request.user.is_authenticated or not request.user.has_perm("notes.add_article"):
+        return JsonResponse({"denied": True}, status=403)
+    return JsonResponse({"accepted": True})

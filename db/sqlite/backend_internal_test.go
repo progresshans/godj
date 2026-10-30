@@ -3,17 +3,24 @@ package sqlite
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync/atomic"
 	"testing"
 
 	"github.com/progresshans/godj/query"
 	modernsqlite "modernc.org/sqlite"
 )
 
+var backendQueryTestSequence atomic.Uint64
+
 func TestBackendQueryClassifiesOnlyThePlanMissingTable(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
-	backend, err := OpenMemory(ctx, "missing-query-table-"+t.Name())
+	backend, err := OpenMemory(
+		ctx,
+		fmt.Sprintf("missing-query-table-%s-%d", t.Name(), backendQueryTestSequence.Add(1)),
+	)
 	if err != nil {
 		t.Fatalf("OpenMemory() error = %v", err)
 	}
@@ -40,7 +47,14 @@ func TestBackendQueryClassifiesOnlyThePlanMissingTable(t *testing.T) {
 		t.Fatalf("create present table: %v", err)
 	}
 	missingColumn := query.NewFieldRef("missing", "missing", query.FieldInteger, false)
-	_, err = backend.Query(ctx, query.NewPlan("present_article", []query.FieldRef{missingColumn}))
+	rows, err = backend.Query(ctx, query.NewPlan("present_article", []query.FieldRef{missingColumn}))
+	if rows != nil {
+		_ = rows.Close()
+		t.Fatal("missing column returned rows instead of an error")
+	}
+	if err == nil || !errors.As(err, &driverError) {
+		t.Fatalf("missing-column error = %v, want preserved driver failure", err)
+	}
 	if errors.Is(err, &query.Error{Category: query.CategoryBackend, Code: query.CodeMissingTable}) {
 		t.Fatalf("missing-column error was classified as missing table: %v", err)
 	}

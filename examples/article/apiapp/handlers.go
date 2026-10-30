@@ -1,0 +1,187 @@
+package apiapp
+
+import (
+	"context"
+	"errors"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"net/http"
+	"strings"
+
+	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/examples/article/articleapp"
+	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/validation"
+	"github.com/progresshans/godj/web"
+)
+
+func (a *Application) list(request *web.Request, actor auth.Principal) (web.Response, error) {
+	query, diagnostics, pageNotFound := parseListQuery(request.HTTP().URL.RawQuery)
+	if pageNotFound {
+		return notFoundResponse()
+	}
+	if !diagnostics.Empty() {
+		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, diagnostics)
+	}
+	page, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleViewPermission, false, func(work context.Context, repository articleapp.Repository) (articleapp.Page, error) {
+		return repository.List(work, query.options())
+	})
+	if err != nil {
+		return a.readError(err)
+	}
+	if query.page > 1 && int64(page.Offset) >= page.Total {
+		return notFoundResponse()
+	}
+	results := make([]serializers.Value, len(page.Articles))
+	for index := range page.Articles {
+		value, err := a.articleValue(page.Articles[index])
+		if err != nil {
+			return web.Response{}, err
+		}
+		results[index] = value
+	}
+	var next api.Link
+	if int64(page.Offset)+int64(len(page.Articles)) < page.Total {
+		next, err = api.RelativeLink(query.relativeURI(query.page + 1))
+		if err != nil {
+			return web.Response{}, err
+		}
+	}
+	var previous api.Link
+	if query.page > 1 {
+		previous, err = api.RelativeLink(query.relativeURI(query.page - 1))
+		if err != nil {
+			return web.Response{}, err
+		}
+	}
+	envelope, err := api.NewPage(page.Total, next, previous, results)
+	if err != nil {
+		return web.Response{}, err
+	}
+	return envelope.Response()
+}
+
+func (a *Application) listHead(request *web.Request, principal auth.Principal) (web.Response, error) {
+	response, err := a.list(request, principal)
+	return emptyBody(response, err)
+}
+
+func (a *Application) create(request *web.Request, actor auth.Principal) (web.Response, error) {
+	values, response, handled, err := a.bind(request, serializers.ModeFull)
+	if handled || err != nil {
+		return response, err
+	}
+	prepared, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleAddPermission, true, func(work context.Context, repository articleapp.Repository) (web.Response, error) {
+		return articleapp.CreateAndPrepare(work, repository, values, func(_ context.Context, created articlemodels.Article) (web.Response, error) {
+			value, err := a.articleValue(created)
+			if err != nil {
+				return web.Response{}, err
+			}
+			response, err := api.JSON(http.StatusCreated, value)
+			if err != nil {
+				return web.Response{}, err
+			}
+			location, err := request.ReverseWith(DetailRouteName, web.Int64Argument("id", created.ID))
+			if err != nil {
+				return web.Response{}, err
+			}
+			header := response.Header()
+			header.Set("Location", location)
+			return response.WithHeaders(header)
+		})
+	})
+	if err != nil {
+		return a.writeError(err)
+	}
+	return prepared, nil
+}
+
+func (a *Application) retrieve(request *web.Request, actor auth.Principal) (web.Response, error) {
+	id, ok := detailID(request)
+	if !ok {
+		return notFoundResponse()
+	}
+	article, found, err := a.getSelected(request.Context(), actor, articleapp.ArticleViewPermission, id)
+	if err != nil {
+		return a.readError(err)
+	}
+	if !found {
+		return notFoundResponse()
+	}
+	value, err := a.articleValue(article)
+	if err != nil {
+		return web.Response{}, err
+	}
+	return api.JSON(http.StatusOK, value)
+}
+
+func (a *Application) retrieveHead(request *web.Request, principal auth.Principal) (web.Response, error) {
+	response, err := a.retrieve(request, principal)
+	return emptyBody(response, err)
+}
+
+func (a *Application) listOptions(*web.Request, auth.Principal) (web.Response, error) {
+	return optionsResponse(http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPost)
+}
+
+func (a *Application) detailOptions(*web.Request, auth.Principal) (web.Response, error) {
+	return optionsResponse(http.MethodDelete, http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodPatch, http.MethodPut)
+}
+
+func optionsResponse(methods ...string) (web.Response, error) {
+	values := make([]serializers.Value, len(methods))
+	for index := range methods {
+		values[index] = serializers.String(methods[index])
+	}
+	list, err := serializers.NewList(values...)
+	if err != nil {
+		return web.Response{}, err
+	}
+	object, err := serializers.NewObject(serializers.MemberOf("methods", list))
+	if err != nil {
+		return web.Response{}, err
+	}
+	response, err := api.JSON(http.StatusOK, object.Value())
+	if err != nil {
+		return web.Response{}, err
+	}
+	header := response.Header()
+	header.Set("Allow", strings.Join(methods, ", "))
+	return response.WithHeaders(header)
+}
+
+func detailID(request *web.Request) (int64, bool) {
+	id, ok := request.Int64Parameter("id")
+	return id, ok && id > 0
+}
+
+func (a *Application) readError(err error) (web.Response, error) {
+	if err == errArticleAccessDenied {
+		return api.ErrorResponse(http.StatusForbidden, api.CodePermissionDenied, validation.NewErrors())
+	}
+	if articleapp.IsCode(err, articleapp.CodeNotFound) || errors.Is(err, articleapp.ErrNotFound) {
+		return notFoundResponse()
+	}
+	// A non-positive identifier is client-visible 404; every handler rejects it
+	// before calling the repository. Remaining invalid-input errors indicate an
+	// adapter invariant failure and stay on the lower Web 500 boundary.
+	return web.Response{}, err
+}
+
+func (a *Application) writeError(err error) (web.Response, error) {
+	if failures, rejected := validation.Rejected(err); rejected {
+		return api.ErrorResponse(http.StatusBadRequest, api.CodeValidationError, failures)
+	}
+	return a.readError(err)
+}
+
+func notFoundResponse() (web.Response, error) {
+	return api.ErrorResponse(http.StatusNotFound, api.CodeNotFound, validation.NewErrors())
+}
+
+func emptyBody(response web.Response, err error) (web.Response, error) {
+	if err != nil {
+		return web.Response{}, err
+	}
+	return web.NewResponse(response.Status(), response.Header(), nil)
+}

@@ -1,0 +1,1088 @@
+package consumer
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"maps"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"example.com/godj-project-bundle/bridges"
+	"example.com/godj-project-bundle/catalog"
+	"example.com/godj-project-bundle/members"
+	"example.com/godj-project-bundle/models"
+	"example.com/godj-project-bundle/project"
+	accountaudit "github.com/progresshans/godj/account/audit"
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	"github.com/progresshans/godj/account/domain"
+	domainmodels "github.com/progresshans/godj/account/domain/models"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/sessions"
+	sessiondb "github.com/progresshans/godj/sessions/database"
+	sessionmodels "github.com/progresshans/godj/sessions/database/models"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+)
+
+func stMust(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func stSave[M any](ctx context.Context, scope db.Mutator, objects orm.Manager[M], before *M, values map[string]query.Value) (M, error) {
+	var zero M
+	prepared, err := objects.PrepareValues(before, values)
+	if err != nil {
+		return zero, err
+	}
+	row, err := prepared.Model()
+	if err != nil {
+		return zero, err
+	}
+	err = prepared.Save(ctx, scope, &row)
+	return row, err
+}
+
+func stRows[M any](t *testing.T, scope db.Queryer, objects orm.Manager[M]) map[int64]map[string]query.Value {
+	t.Helper()
+	name, err := objects.PrimaryKeyField()
+	stMust(t, err)
+	rows, err := objects.Using(scope).OrderBy(orm.NewAutoField[M](name).Asc()).All(t.Context())
+	stMust(t, err)
+	result := make(map[int64]map[string]query.Value, len(rows))
+	for _, row := range rows {
+		key, present, err := objects.PrimaryKey(row)
+		stMust(t, err)
+		id, ok := key.Integer()
+		if !present || !ok {
+			t.Fatal("native row lost its key")
+		}
+		values, err := objects.ModelValues(row)
+		stMust(t, err)
+		result[id] = values
+	}
+	return result
+}
+
+func stSnapshot(t *testing.T, backend database.Backend) map[string]any {
+	t.Helper()
+	result, err := db.ReadSnapshotResult(t.Context(), backend, func(_ context.Context, scope db.Queryer) (map[string]any, error) {
+		return map[string]any{
+			"users": stRows(t, scope, models.UserObjects), "members": stRows(t, scope, members.MemberObjects),
+			"old_groups": stRows(t, scope, models.GroupObjects), "old_permissions": stRows(t, scope, models.PermissionObjects),
+			"groups": stRows(t, scope, catalog.TeamObjects), "permissions": stRows(t, scope, catalog.GrantObjects),
+			"plain": stRows(t, scope, bridges.BridgeObjects), "unique": stRows(t, scope, bridges.UniqueBridgeObjects),
+			"hubs":      stRows(t, scope, bridges.HubObjects),
+			"ownership": stRows(t, scope, domainmodels.TransitionObjects), "mappings": stRows(t, scope, domainmodels.MappingObjects),
+			"audit": stRows(t, scope, auditmodels.EventObjects), "sessions": stRows(t, scope, sessionmodels.SessionObjects),
+		}, nil
+	})
+	stMust(t, err)
+	return result
+}
+
+type stInsertion struct {
+	key  int64
+	plan query.InsertPlan
+}
+type stBackend struct {
+	database.Backend
+	table, mode         string
+	inserted            []stInsertion
+	identities          map[string][]stInsertion
+	signedIdentities    bool
+	receipt, finished   bool
+	nativeGeneratedKeys bool
+	faults              int
+	mutate              func(context.Context, db.Queryer) error
+	identityHook        func(context.Context, db.Session, string) error
+	identityUpdateHook  func(context.Context, db.Session, query.UpdatePlan) error
+}
+
+func (backend *stBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
+	return backend.wrap(func(visit func(db.Session) error) error { return backend.Backend.CoordinatedAtomic(ctx, visit) }, write)
+}
+func (backend *stBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	return backend.wrap(func(visit func(db.Session) error) error {
+		return backend.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error { return visit(scope) })
+	}, func(scope db.Session) error { return write(scope.(*stScope)) })
+}
+func (backend *stBackend) wrap(native func(func(db.Session) error) error, write func(db.Session) error) error {
+	completed := false
+	err := native(func(scope db.Session) error {
+		if err := write(&stScope{Session: scope, owner: backend}); err != nil {
+			return err
+		}
+		completed = true
+		if backend.mode == "unknown_rollback" {
+			return errors.New("shared through rollback after complete writes")
+		}
+		return nil
+	})
+	if completed {
+		backend.finished = true
+	}
+	if completed && (backend.mode == "unknown_rollback" || err == nil && backend.mode == "unknown_commit") {
+		return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
+	}
+	return err
+}
+
+type stScope struct {
+	db.Session
+	owner *stBackend
+}
+
+func (scope *stScope) ValidateSession(ctx context.Context) error {
+	return scope.Session.(db.SessionValidator).ValidateSession(ctx)
+}
+func (scope *stScope) RelationSetNull(ctx context.Context, plan query.RelationSetNullPlan) (int64, error) {
+	return scope.Session.(db.RelationSession).RelationSetNull(ctx, plan)
+}
+func (scope *stScope) plan(plan query.InsertPlan) query.InsertPlan {
+	if scope.owner.nativeGeneratedKeys {
+		return plan
+	}
+	count := len(scope.owner.inserted)
+	if scope.owner.signedIdentities && stIdentityTable(plan.Table()) {
+		count = len(scope.owner.identities[plan.Table()])
+	} else if scope.owner.mode != "signed_keys" || plan.Table() != scope.owner.table {
+		return plan
+	}
+	key, _ := plan.ReturningKey()
+	value := -int64(100 + count)
+	if count == 0 {
+		value = 0
+	}
+	return query.NewInsertPlanReturningKey(plan.Table(), append(plan.Assignments(), query.NewAssignment(key, query.Integer(value))), key)
+}
+func (scope *stScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+	plan = scope.plan(plan)
+	id, err := scope.Session.Insert(ctx, plan)
+	if err != nil {
+		return id, err
+	}
+	if plan.Table() == scope.owner.table {
+		scope.owner.inserted = append(scope.owner.inserted, stInsertion{id, plan})
+	}
+	if stIdentityTable(plan.Table()) {
+		scope.owner.identities[plan.Table()] = append(scope.owner.identities[plan.Table()], stInsertion{id, plan})
+	}
+	if stIdentityTable(plan.Table()) && scope.owner.identityHook != nil {
+		if err := scope.owner.identityHook(ctx, scope.Session, plan.Table()); err != nil {
+			return id, err
+		}
+	}
+	if scope.owner.mode == "first_catalog_insert_failure" && plan.Table() == "catalog_team" {
+		scope.owner.faults++
+		return id, errors.New("failure after first catalog identity INSERT")
+	}
+	if scope.owner.mode == "first_insert_failure" && plan.Table() == "members_member" && len(scope.owner.identities[plan.Table()]) == 1 {
+		scope.owner.faults++
+		return id, errors.New("failure after first dependent account INSERT")
+	}
+	if plan.Table() == "godj_account_domain_transition" {
+		scope.owner.receipt = true
+	}
+	if scope.owner.mode == "audit_failure" && plan.Table() == "godj_account_audit_event" {
+		scope.owner.faults++
+		return id, errors.New("shared through failure after audit write")
+	}
+	return id, nil
+}
+func (scope *stScope) InsertOnConflict(ctx context.Context, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
+	plan = query.NewConflictInsertPlan(scope.plan(plan.Insert()), plan.Target())
+	result, err := scope.Session.(db.ConflictInserter).InsertOnConflict(ctx, plan)
+	if err == nil && result.Inserted && plan.Table() == scope.owner.table {
+		scope.owner.inserted = append(scope.owner.inserted, stInsertion{result.Key, plan.Insert()})
+	}
+	return result, err
+}
+func (scope *stScope) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
+	count, err := scope.Session.Update(ctx, plan)
+	if err == nil && stIdentityTable(plan.Table()) && scope.owner.identityUpdateHook != nil {
+		if err := scope.owner.identityUpdateHook(ctx, scope.Session, plan); err != nil {
+			return count, err
+		}
+	}
+	if err == nil && scope.owner.mode == "rollback" && plan.Table() == "godj_identity_user" {
+		scope.owner.faults++
+		return count, errors.New("shared through failure after source retirement")
+	}
+	return count, err
+}
+
+func stIdentityTable(table string) bool {
+	return slices.Contains([]string{"members_member", "catalog_team", "catalog_grant"}, table)
+}
+
+type stCapabilities[L any] struct {
+	groups                       orm.ManyToMany[members.Member, catalog.Team, L]
+	permissions                  orm.ManyToMany[members.Member, catalog.Grant, L]
+	legacyGroups                 orm.ManyToMany[members.Member, models.Group, L]
+	legacyPermissions, interests orm.ManyToMany[members.Member, models.Permission, L]
+	grants                       orm.ManyToMany[catalog.Team, catalog.Grant, L]
+	sharedGroupGrants            orm.ManyToMany[models.Group, catalog.Grant, L]
+	sharedPermissionGrants       orm.ManyToMany[catalog.Team, models.Permission, L]
+}
+type stFixture[L any] struct {
+	native                 database.Backend
+	selected               database.Config
+	backend                *stBackend
+	objects                orm.Manager[L]
+	caps                   stCapabilities[L]
+	oldRole, role          ir.AccountRole
+	oldBinding             accountmodel.Binding[models.User]
+	binding                accountmodel.Binding[members.Member]
+	oldStore               *accountmodel.SessionStore[models.User]
+	nextStore              *accountmodel.SessionStore[members.Member]
+	old                    []models.User
+	group                  models.Group
+	hub                    bridges.Hub
+	permissions            []models.Permission
+	mappings               []accountmodel.AccountMapping
+	requests               []accountmodel.AccountCreation[members.Member]
+	actor                  auth.Principal
+	credential             auth.Credential
+	hasher                 *auth.PBKDF2
+	joined                 time.Time
+	prefix, strategy, mode string
+	catalogOverride        *accountmodel.CatalogCreation
+	extraTargetFields      []string
+	extraTargetRelations   []accountmodel.ProfileRelation[members.Member]
+	targetReferences       bool
+	policyChecks           int
+	referenceAssertions    map[string]map[int64]map[string]accountmodel.TransitionTargetReference
+}
+
+func stStores(t *testing.T, backend database.Backend, oldRole, nextRole ir.AccountRole) (accountmodel.Binding[models.User], accountmodel.Binding[members.Member], *accountmodel.SessionStore[models.User], *accountmodel.SessionStore[members.Member]) {
+	t.Helper()
+	schemas := []ir.Schema{models.GoDjRelationSchema(), members.GoDjRelationSchema(), catalog.GoDjRelationSchema(), bridges.GoDjRelationSchema()}
+	left, err := accountmodel.Bind(oldRole, models.UserDescriptor{}, schemas...)
+	stMust(t, err)
+	right, err := accountmodel.Bind(nextRole, members.MemberDescriptor{}, schemas...)
+	stMust(t, err)
+	oldCredentials, err := accountmodel.NewCredentialStore(backend, left, models.GroupDescriptor{}, models.PermissionDescriptor{})
+	stMust(t, err)
+	var credentials *accountmodel.CredentialStore[members.Member]
+	if nextRole.Catalog.Group == oldRole.Catalog.Group && nextRole.Catalog.Permission == oldRole.Catalog.Permission {
+		credentials, err = accountmodel.NewCredentialStore(backend, right, models.GroupDescriptor{}, models.PermissionDescriptor{})
+	} else if nextRole.Catalog.Group == oldRole.Catalog.Group {
+		credentials, err = accountmodel.NewCredentialStore(backend, right, models.GroupDescriptor{}, catalog.GrantDescriptor{})
+	} else if nextRole.Catalog.Permission == oldRole.Catalog.Permission {
+		credentials, err = accountmodel.NewCredentialStore(backend, right, catalog.TeamDescriptor{}, models.PermissionDescriptor{})
+	} else {
+		credentials, err = accountmodel.NewCredentialStore(backend, right, catalog.TeamDescriptor{}, catalog.GrantDescriptor{})
+	}
+	stMust(t, err)
+	oldStore, err := accountmodel.NewSessionStore(oldCredentials, sessiondb.Config{})
+	stMust(t, err)
+	nextStore, err := accountmodel.NewSessionStore(credentials, sessiondb.Config{})
+	stMust(t, err)
+	return left, right, oldStore, nextStore
+}
+
+func stSetup[L any](t *testing.T, strategy, mode, prefix string, objects orm.Manager[L], caps stCapabilities[L]) *stFixture[L] {
+	t.Helper()
+	native, selected := openAccountDatabase(t)
+	migrateAccountDefinitions(t, native, @@MIGRATIONS@@)
+	metadata, err := objects.Metadata()
+	stMust(t, err)
+	f := &stFixture[L]{native: native, selected: selected, objects: objects, caps: caps, strategy: strategy, mode: mode, prefix: prefix, joined: time.Date(2026, 10, 29, 2, 3, 4, 123456000, time.UTC)}
+	f.backend = &stBackend{Backend: native, table: metadata.DBTable, nativeGeneratedKeys: selected.Kind() == database.KindPostgres, identities: make(map[string][]stInsertion), signedIdentities: mode == "identity_signed_keys"}
+	bound, err := project.BindAccount()
+	stMust(t, err)
+	f.oldRole, err = bound.Role()
+	stMust(t, err)
+	stMust(t, json.Unmarshal([]byte(`@@ROLE@@`), &f.role))
+	switch mode {
+	case "shared_group":
+		f.role.Catalog.Group = f.oldRole.Catalog.Group
+		f.role.Catalog.GroupName = "name"
+		f.role.Catalog.GroupRevision = "revision"
+		f.role.Catalog.GroupPermissions = "new_permissions"
+		f.role.Groups = "legacy_groups"
+	case "shared_permission":
+		f.role.Catalog.Permission = f.oldRole.Catalog.Permission
+		f.role.Catalog.PermissionName = "name"
+		f.role.Catalog.PermissionCode = "code"
+		f.role.Catalog.PermissionRevision = "revision"
+		f.role.Catalog.GroupPermissions = "legacy_permissions"
+		f.role.Permissions = "legacy_permissions"
+	case "account_only":
+		f.role.Catalog = f.oldRole.Catalog
+		f.role.Groups = "legacy_groups"
+		f.role.Permissions = "legacy_permissions"
+	}
+	f.oldRole.Groups = prefix + f.oldRole.Groups
+	f.oldRole.Permissions = prefix + f.oldRole.Permissions
+	f.oldRole.Catalog.GroupPermissions = prefix + f.oldRole.Catalog.GroupPermissions
+	f.role.Groups = prefix + f.role.Groups
+	f.role.Permissions = prefix + f.role.Permissions
+	f.role.Catalog.GroupPermissions = prefix + f.role.Catalog.GroupPermissions
+	if mode == "identity_catalog" || mode == "identity_catalog_escalation" {
+		f.oldRole.Catalog.GroupPermissions = "member_grants"
+	}
+	f.oldBinding, f.binding, f.oldStore, f.nextStore = stStores(t, f.backend, f.oldRole, f.role)
+	var encoded string
+	f.hasher, encoded = accountPassword(t)
+	f.hub, err = bridges.HubObjects.Create(t.Context(), native, bridges.NewHubCreate("retained host"))
+	stMust(t, err)
+	f.group, err = models.GroupObjects.Create(t.Context(), native, models.NewGroupCreate("source group"))
+	stMust(t, err)
+	accountStoredKey(t, native, selected, "godj_identity_group", "id", f.group.ID, -5)
+	f.group.ID = -5
+	for i, code := range []string{"account.transition", "app.read"} {
+		row, err := models.PermissionObjects.Create(t.Context(), native, models.NewPermissionCreate(code, code))
+		stMust(t, err)
+		key := int64(-9)
+		if i == 1 {
+			key = 0
+		}
+		accountStoredKey(t, native, selected, "godj_identity_permission", "id", row.ID, key)
+		row.ID = key
+		f.permissions = append(f.permissions, row)
+		_, err = stSave(t.Context(), native, objects, nil, map[string]query.Value{"old_group": query.Integer(f.group.ID), "old_permission": query.Integer(row.ID)})
+		stMust(t, err)
+	}
+	for i, name := range []string{"alice", "bob"} {
+		row, err := models.UserObjects.Create(t.Context(), native, models.NewUserCreate("shared-"+name, name, encoded, f.joined).WithStaff(i == 0))
+		stMust(t, err)
+		key := int64(-7)
+		if i == 1 {
+			key = 0
+		}
+		accountStoredKey(t, native, selected, "godj_identity_user", "id", row.ID, key)
+		row.ID = key
+		f.old = append(f.old, row)
+		for _, values := range []map[string]query.Value{
+			{"old_user": query.Integer(row.ID), "old_group": query.Integer(f.group.ID)},
+			{"old_user": query.Integer(row.ID), "old_permission": query.Integer(f.permissions[i].ID)},
+			{"old_user": query.Integer(row.ID), "profile_permission": query.Integer(f.permissions[i].ID)},
+		} {
+			_, err = stSave(t.Context(), native, objects, nil, values)
+			stMust(t, err)
+		}
+		values := map[string]query.Value{"handle": query.String(name + "@test.example"), "first_name": query.String("new-" + name), "portrait": query.String("")}
+		switch mode {
+		case "identity_endpoints":
+			values["host_hub"], values["identity_permission"] = query.Integer(f.hub.ID), query.Integer(f.permissions[i].ID)
+		case "identity_source":
+			values["identity_source"], values["identity_permission"] = query.Integer(row.ID), query.Integer(f.permissions[i].ID)
+		case "identity_catalog_escalation":
+			values["identity_group"], values["identity_permission"] = query.Integer(f.group.ID), query.Integer(f.permissions[i].ID)
+		}
+		input, err := members.MemberObjects.Input(values)
+		stMust(t, err)
+		input, err = input.WithCollections(map[string][]int64{prefix + "interests": {f.permissions[i].ID}})
+		stMust(t, err)
+		f.requests = append(f.requests, accountmodel.AccountCreation[members.Member]{Source: accountmodel.SourceAccount{ID: row.ID, Revision: row.Revision}, Input: input})
+	}
+	if strategy == "staged" {
+		// Reverse allocation makes source and target identity correspondence explicit.
+		for _, i := range []int{1, 0} {
+			old := f.old[i]
+			row, err := stSave(t.Context(), native, members.MemberObjects, nil, map[string]query.Value{"subject": query.String(old.PrincipalID), "handle": query.String(old.Username + "@test.example"), "secret_hash": query.String(encoded), "date_joined": query.DateTime(f.joined), "portrait": query.String(""), "staff": query.Boolean(old.Staff), "first_name": query.String("new-" + old.Username)})
+			stMust(t, err)
+			f.mappings = append(f.mappings, accountmodel.AccountMapping{SourceID: old.ID, SourceRevision: old.Revision, TargetID: row.ID, TargetRevision: row.Version})
+			_, err = stSave(t.Context(), native, objects, nil, map[string]query.Value{"member": query.Integer(row.ID), "profile_permission": query.Integer(f.permissions[i].ID)})
+			stMust(t, err)
+			if mode == "shared_group" {
+				_, err = stSave(t.Context(), native, objects, nil, map[string]query.Value{"member": query.Integer(row.ID), "old_group": query.Integer(f.group.ID)})
+				stMust(t, err)
+			}
+			if mode == "shared_permission" {
+				_, err = stSave(t.Context(), native, objects, nil, map[string]query.Value{"member": query.Integer(row.ID), "old_permission": query.Integer(f.permissions[i].ID)})
+				stMust(t, err)
+			}
+		}
+	}
+	// Nullable rows have physical identities even when no role observes a pair.
+	_, err = stSave(t.Context(), native, objects, nil, map[string]query.Value{"payload": query.String("retained-null")})
+	stMust(t, err)
+	fingerprint, err := f.oldBinding.RoleFingerprint()
+	stMust(t, err)
+	change, err := domain.Prepare(t.Context(), fingerprint, strings.Repeat("a", 64))
+	stMust(t, err)
+	stMust(t, native.CoordinatedAtomic(t.Context(), func(scope db.Session) error {
+		_, err := domain.InitializeIn(t.Context(), scope, change, f.joined)
+		return err
+	}))
+	verifier, err := f.oldStore.Authenticator(t.Context(), f.hasher)
+	stMust(t, err)
+	f.credential, err = verifier.Authenticate(t.Context(), "alice", accountPasswordText)
+	stMust(t, err)
+	f.actor = f.credential.Principal()
+	manager, err := sessions.NewManager(f.oldStore, sessions.Config{})
+	stMust(t, err)
+	_, err = manager.Create(t.Context(), map[string]string{auth.SessionPrincipalIDKey: f.actor.ID(), auth.SessionCredentialStampKey: f.credential.SessionStamp()})
+	stMust(t, err)
+	if mode == "signed_keys" && f.backend.nativeGeneratedKeys {
+		accountGeneratedKeySequence(t, selected, metadata.DBTable, "link_key", 0, -1)
+	}
+	if mode == "identity_signed_keys" && f.backend.nativeGeneratedKeys {
+		for _, table := range []string{"members_member", "catalog_team", "catalog_grant"} {
+			accountGeneratedKeySequence(t, selected, table, "id", 0, -1)
+		}
+	}
+	f.backend.mode = mode
+	f.backend.finished = false
+	f.backend.mutate = func(ctx context.Context, scope db.Queryer) error {
+		if !f.backend.receipt || !strings.HasPrefix(mode, "late_") || f.backend.faults != 0 {
+			return nil
+		}
+		f.backend.faults++
+		if strings.HasPrefix(mode, "late_identity_") {
+			parts := strings.Split(mode, "_")
+			field := "identity_permission"
+			value := query.Integer(f.permissions[0].ID)
+			if parts[3] == "payload" {
+				value = query.String("changed by final identity policy")
+				field = map[string]string{"account": "first_name", "group": "note", "permission": "label"}[parts[2]]
+			}
+			switch parts[2] {
+			case "account":
+				return stMutateIdentity(ctx, scope, members.MemberObjects, field, value)
+			case "group":
+				return stMutateIdentity(ctx, scope, catalog.TeamObjects, field, value)
+			case "permission":
+				return stMutateIdentity(ctx, scope, catalog.GrantObjects, field, value)
+			}
+			return errors.New("unknown identity mutation")
+		}
+		if len(f.backend.inserted) == 0 {
+			return errors.New("final policy ran without an actual insertion")
+		}
+		selected := f.backend.inserted[len(f.backend.inserted)-1]
+		if mode == "late_catalog_payload" {
+			selected = f.backend.inserted[0]
+		}
+		key, _ := objects.PrimaryKeyField()
+		row, err := objects.Using(scope).Filter(orm.NewAutoField[L](key).Exact(selected.key)).Get(ctx)
+		if err != nil {
+			return err
+		}
+		mutator := scope.(db.Mutator)
+		switch mode {
+		case "late_extra_null":
+			_, err = stSave(ctx, mutator, objects, nil, map[string]query.Value{"payload": query.String("unowned nullable row")})
+		case "late_remove":
+			_, err = objects.Delete(ctx, mutator, &row)
+		case "late_endpoint":
+			_, err = stSave(ctx, mutator, objects, &row, map[string]query.Value{"old_user": query.Integer(f.old[0].ID)})
+		default:
+			_, err = stSave(ctx, mutator, objects, &row, map[string]query.Value{"payload": query.String("changed by final policy")})
+		}
+		return err
+	}
+	return f
+}
+
+func stMutateIdentity[M any](ctx context.Context, scope db.Queryer, objects orm.Manager[M], field string, value query.Value) error {
+	key, err := objects.PrimaryKeyField()
+	if err != nil {
+		return err
+	}
+	row, present, err := objects.Using(scope).OrderBy(orm.NewAutoField[M](key).Asc()).First(ctx)
+	if err != nil || !present {
+		return errors.Join(err, errors.New("late identity policy found no native row"))
+	}
+	_, err = stSave(ctx, scope.(db.Mutator), objects, &row, map[string]query.Value{field: value})
+	return err
+}
+
+func stIdentityRelation[M any](t *testing.T, binding accountmodel.Binding[members.Member], field string, objects orm.Manager[M]) accountmodel.ProfileRelation[members.Member] {
+	t.Helper()
+	relation, err := accountmodel.NewProfileRelation(binding, field, objects, accountmodel.ProfileRelationConfig[M]{
+		Choices: formmodel.ModelChoiceConfig[M]{Label: func(M) (string, error) { return field, nil }},
+		Filter: func(_ context.Context, _ db.Queryer, actor auth.Principal, origin accountmodel.ProfileRelationOrigin) ([]orm.Predicate[M], error) {
+			if !actor.Authenticated() || origin.Operation() != accountmodel.ProfileRelationTransition {
+				return nil, errors.New("identity endpoint choice lost transition authority")
+			}
+			return nil, nil
+		},
+	})
+	stMust(t, err)
+	return relation
+}
+
+func stCatalogCreation[G, P, L any](t *testing.T, f *stFixture[L], group orm.RelationObjectDescriptor[G], permission orm.RelationObjectDescriptor[P], groupObjects orm.Manager[G], permissionObjects orm.Manager[P], grants orm.ManyToMany[G, P, L], groups orm.ManyToMany[members.Member, G, L], direct orm.ManyToMany[members.Member, P, L], createGroups, createPermissions bool) accountmodel.CatalogCreation {
+	t.Helper()
+	config := accountmodel.TransitionCatalogTargetConfig[G, P]{Group: accountmodel.TransitionCatalogModelConfig[G]{Permission: "account.transition", Validate: func(ctx context.Context, scope db.Queryer, _ *G, _ G) (validation.Errors, error) {
+		return validation.Errors{}, f.backend.mutate(ctx, scope)
+	}}}
+	var groupInputs []accountmodel.CatalogRowCreation[G]
+	var permissionInputs []accountmodel.CatalogRowCreation[P]
+	if createGroups {
+		config.Group.Fields = []string{"title", "note"}
+		input, err := groupObjects.Input(map[string]query.Value{"title": query.String("allocated group"), "note": query.String("typed group profile")})
+		stMust(t, err)
+		groupInputs = append(groupInputs, accountmodel.CatalogRowCreation[G]{Source: accountmodel.SourceAccount{ID: f.group.ID, Revision: f.group.Revision}, Input: input})
+	}
+	if createPermissions {
+		config.Permission.Permission = "account.transition"
+		config.Permission.Fields = []string{"label", "weight"}
+		for _, source := range f.permissions {
+			input, err := permissionObjects.Input(map[string]query.Value{"label": query.String("allocated " + source.Code), "weight": query.Integer(7)})
+			stMust(t, err)
+			permissionInputs = append(permissionInputs, accountmodel.CatalogRowCreation[P]{Source: accountmodel.SourceAccount{ID: source.ID, Revision: source.Revision}, Input: input})
+		}
+	}
+	target, err := accountmodel.NewTransitionCatalogTarget(f.oldBinding, f.binding, group, permission, grants, groups, direct, config)
+	stMust(t, err)
+	creation, err := target.Creation(groupInputs, permissionInputs)
+	stMust(t, err)
+	return creation
+}
+
+func stOwner[L any](t *testing.T, f *stFixture[L]) *accountmodel.Transition[models.User, members.Member] {
+	t.Helper()
+	for _, request := range f.requests {
+		stRecordReferences(f, "members_member", request.Source.ID, request.References)
+	}
+	config := accountmodel.TransitionConfig[models.User, members.Member]{Permission: "account.transition", Authorizer: auth.PrincipalAuthorizer{}, MaxAccounts: 2, MaxCatalogRows: 2, Now: func() time.Time { return f.joined.Add(time.Hour) }}
+	config.Validate = func(_ context.Context, _ db.Queryer, left models.User, right members.Member, _, _ accountmodel.AccountMemberships) (validation.Errors, error) {
+		if left.EncodedPassword != "" || right.SecretHash != "" {
+			t.Error("shared through policy received password encoding")
+		}
+		if f.targetReferences {
+			f.policyChecks++
+			_, present, err := members.MemberObjects.PrimaryKey(right)
+			values, valuesErr := members.MemberObjects.ModelValues(right)
+			if err != nil || valuesErr != nil || !present || values["preferred_permission"].IsNull() || values["preferred_group"].IsNull() && f.mode != "missing_reference" {
+				return validation.Errors{}, errors.New("typed policy received an unresolved target reference")
+			}
+			if f.mode == "policy_rejected" || f.mode == "cycle_policy_rejected" {
+				return validation.NewErrors(validation.New("preferred_group", "policy")), nil
+			}
+		}
+		return validation.Errors{}, nil
+	}
+	if f.strategy == "created" {
+		profile, err := accountmodel.NewProfileCollection(f.binding, f.prefix+"interests", f.caps.interests, models.PermissionObjects, accountmodel.ProfileCollectionConfig[models.Permission]{MaximumItems: 2, Choices: formmodel.ModelChoiceConfig[models.Permission]{Label: func(row models.Permission) (string, error) { return row.Name, nil }}, Filter: func(ctx context.Context, scope db.Queryer, _ auth.Principal, _ accountmodel.ProfileRelationOrigin) ([]orm.Predicate[models.Permission], error) {
+			return nil, f.backend.mutate(ctx, scope)
+		}})
+		stMust(t, err)
+		options := accountmodel.TransitionTargetConfig[members.Member]{Fields: []string{"handle", "first_name", "portrait", f.prefix + "interests"}, Collections: []accountmodel.ProfileCollection[members.Member]{profile}}
+		options.Fields = append(options.Fields, f.extraTargetFields...)
+		options.Relations = append(options.Relations, f.extraTargetRelations...)
+		if f.targetReferences {
+			group, err := accountmodel.NewProfileRelation(f.binding, "preferred_group", catalog.TeamObjects, accountmodel.ProfileRelationConfig[catalog.Team]{
+				Choices: formmodel.ModelChoiceConfig[catalog.Team]{Label: func(row catalog.Team) (string, error) { return row.Title, nil }},
+				Filter: func(_ context.Context, _ db.Queryer, actor auth.Principal, origin accountmodel.ProfileRelationOrigin) ([]orm.Predicate[catalog.Team], error) {
+					if actor.ID() != f.actor.ID() || origin.Operation() != accountmodel.ProfileRelationTransition {
+						return nil, errors.New("pending choice lost source operator")
+					}
+					if f.mode == "denied_choice" || f.mode == "late_choice" && f.backend.receipt {
+						return []orm.Predicate[catalog.Team]{catalog.TeamFields.ID.Exact(-9999)}, nil
+					}
+					return nil, nil
+				},
+			})
+			stMust(t, err)
+			options.Fields = append(options.Fields, "preferred_group", "preferred_permission", "preferred_unique", "mentor")
+			options.Relations = append(options.Relations, group, stIdentityRelation(t, f.binding, "preferred_permission", catalog.GrantObjects), stIdentityRelation(t, f.binding, "preferred_unique", catalog.TeamObjects), stIdentityRelation(t, f.binding, "mentor", members.MemberObjects))
+		}
+		if slices.Contains([]string{"identity_endpoints", "identity_source", "identity_catalog_escalation"}, f.mode) {
+			options.Fields = append(options.Fields, "identity_permission")
+			options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "identity_permission", models.PermissionObjects))
+			switch f.mode {
+			case "identity_endpoints":
+				options.Fields = append(options.Fields, "host_hub")
+				options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "host_hub", bridges.HubObjects))
+			case "identity_source":
+				options.Fields = append(options.Fields, "identity_source")
+				options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "identity_source", models.UserObjects))
+			case "identity_catalog_escalation":
+				options.Fields = append(options.Fields, "identity_group")
+				options.Relations = append(options.Relations, stIdentityRelation(t, f.binding, "identity_group", models.GroupObjects))
+			}
+		}
+		switch f.mode {
+		case "shared_group":
+			config.TargetCreation, err = accountmodel.NewTransitionTarget(f.binding, f.caps.legacyGroups, f.caps.permissions, options)
+		case "shared_permission":
+			config.TargetCreation, err = accountmodel.NewTransitionTarget(f.binding, f.caps.groups, f.caps.legacyPermissions, options)
+		case "account_only":
+			config.TargetCreation, err = accountmodel.NewTransitionTarget(f.binding, f.caps.legacyGroups, f.caps.legacyPermissions, options)
+		default:
+			config.TargetCreation, err = accountmodel.NewTransitionTarget(f.binding, f.caps.groups, f.caps.permissions, options)
+		}
+		stMust(t, err)
+	}
+	if f.catalogOverride != nil {
+		config.CatalogCreation = *f.catalogOverride
+	} else {
+		switch f.mode {
+		case "account_only":
+		case "shared_group":
+			config.CatalogCreation = stCatalogCreation(t, f, models.GroupDescriptor{}, catalog.GrantDescriptor{}, models.GroupObjects, catalog.GrantObjects, f.caps.sharedGroupGrants, f.caps.legacyGroups, f.caps.permissions, false, true)
+		case "shared_permission":
+			config.CatalogCreation = stCatalogCreation(t, f, catalog.TeamDescriptor{}, models.PermissionDescriptor{}, catalog.TeamObjects, models.PermissionObjects, f.caps.sharedPermissionGrants, f.caps.groups, f.caps.legacyPermissions, true, false)
+		default:
+			config.CatalogCreation = stCatalogCreation(t, f, catalog.TeamDescriptor{}, catalog.GrantDescriptor{}, catalog.TeamObjects, catalog.GrantObjects, f.caps.grants, f.caps.groups, f.caps.permissions, true, true)
+		}
+	}
+	owner, err := accountmodel.NewTransition(f.oldStore, f.nextStore, config)
+	stMust(t, err)
+	return owner
+}
+
+func TestAccountSharedThroughTransition(t *testing.T) {
+	collections, err := project.BindCollections()
+	stMust(t, err)
+	for _, storage := range []string{"plain", "unique"} {
+		t.Run(storage, func(t *testing.T) {
+			for _, strategy := range []string{"staged", "created"} {
+				t.Run(strategy, func(t *testing.T) {
+					cases := []string{@@STAGED_CASES@@}
+					if strategy == "created" {
+						cases = []string{@@CREATED_CASES@@}
+					}
+					for _, mode := range cases {
+						t.Run(mode, func(t *testing.T) {
+							if storage == "plain" {
+								stRun(t, strategy, mode, "", bridges.BridgeObjects, stCapabilities[bridges.Bridge]{groups: collections.MembersMemberGroups, permissions: collections.MembersMemberPermissions, legacyGroups: collections.MembersMemberLegacyGroups, legacyPermissions: collections.MembersMemberLegacyPermissions, interests: collections.MembersMemberInterests, grants: collections.CatalogTeamGrants, sharedGroupGrants: collections.IdentityGroupNewPermissions, sharedPermissionGrants: collections.CatalogTeamLegacyPermissions})
+							} else {
+								stRun(t, strategy, mode, "unique_", bridges.UniqueBridgeObjects, stCapabilities[bridges.UniqueBridge]{groups: collections.MembersMemberUniqueGroups, permissions: collections.MembersMemberUniquePermissions, legacyGroups: collections.MembersMemberUniqueLegacyGroups, legacyPermissions: collections.MembersMemberUniqueLegacyPermissions, interests: collections.MembersMemberUniqueInterests, grants: collections.CatalogTeamUniqueGrants, sharedGroupGrants: collections.IdentityGroupUniqueNewPermissions, sharedPermissionGrants: collections.CatalogTeamUniqueLegacyPermissions})
+							}
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
+func stRun[L any](t *testing.T, strategy, mode, prefix string, objects orm.Manager[L], caps stCapabilities[L]) {
+	f := stSetup(t, strategy, mode, prefix, objects, caps)
+	owner := stOwner(t, f)
+	before := stSnapshot(t, f.native)
+	operation := strings.Repeat("e", 64)
+	var prepared accountmodel.PreparedTransition[models.User, members.Member]
+	var err error
+	if strategy == "created" {
+		prepared, err = owner.PrepareCreation(t.Context(), f.actor, operation, f.requests)
+	} else {
+		prepared, err = owner.Prepare(t.Context(), f.actor, operation, f.mappings)
+	}
+	stMust(t, err)
+	manifest := prepared.Manifest()
+	result, err := owner.Commit(t.Context(), f.actor, prepared)
+	identityConflict := mode == "identity_source" || mode == "identity_catalog_escalation"
+	failed := strings.HasPrefix(mode, "late_") || mode == "audit_failure" || mode == "rollback" || strings.HasPrefix(mode, "unknown_") || identityConflict
+	if failed {
+		if err == nil || result.Ownership.OperationID() != "" || len(result.Mappings) != 0 || result.Catalog != nil {
+			t.Fatal("failed or uncertain transition published a result", err)
+		}
+		if strings.HasPrefix(mode, "unknown_") {
+			if !errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || !f.backend.finished {
+				t.Fatal("unknown did not follow complete native execution", err)
+			}
+		} else if identityConflict {
+			if len(f.backend.identities["members_member"]) != 2 || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeConflict}) {
+				t.Fatal("identity through change did not reach the source-state conflict after actual allocation", err)
+			}
+		} else if f.backend.faults != 1 {
+			t.Fatal("negative control did not reach the intended write or final policy", f.backend.faults, err)
+		}
+	} else {
+		stMust(t, err)
+	}
+	receipt, found, reconcileErr := owner.Reconcile(t.Context(), manifest)
+	stMust(t, reconcileErr)
+	if failed && mode != "unknown_commit" {
+		if found || receipt.OperationID() != "" {
+			t.Fatal("rolled back shared rows acquired a receipt")
+		}
+		if after := stSnapshot(t, f.native); !reflect.DeepEqual(after, before) {
+			t.Fatal("failure changed native rows, source sessions, audit or history")
+		}
+		return
+	}
+	if !found || receipt.OperationID() != operation {
+		t.Fatal("committed shared transition has no exact receipt")
+	}
+	stVerify(t, f, before, receipt, manifest, result, !failed)
+}
+
+func stPairs(t *testing.T, rows map[int64]map[string]query.Value, source, target string, id int64) []int64 {
+	t.Helper()
+	var result []int64
+	for _, values := range rows {
+		left, leftOK := values[source].Integer()
+		right, rightOK := values[target].Integer()
+		if leftOK && left == id && rightOK {
+			result = append(result, right)
+		}
+	}
+	slices.Sort(result)
+	return result
+}
+
+// Reference expectations are frozen from the original request. Key lookup uses
+// stable principal/code/name fields, never a persisted FK or the receipt mapping.
+func stRecordReferences[L any](f *stFixture[L], table string, source int64, references map[string]accountmodel.TransitionTargetReference) {
+	if len(references) == 0 {
+		return
+	}
+	if f.referenceAssertions == nil {
+		f.referenceAssertions = make(map[string]map[int64]map[string]accountmodel.TransitionTargetReference)
+	}
+	if f.referenceAssertions[table] == nil {
+		f.referenceAssertions[table] = make(map[int64]map[string]accountmodel.TransitionTargetReference)
+	}
+	f.referenceAssertions[table][source] = maps.Clone(references)
+}
+
+func stReferenceOracle[L any](t *testing.T, f *stFixture[L], all map[string]any) (map[accountmodel.TransitionReferenceKind]map[int64]int64, map[string]map[int64]int64) {
+	t.Helper()
+	keys := map[accountmodel.TransitionReferenceKind]map[int64]int64{accountmodel.TransitionReferenceAccount: {}, accountmodel.TransitionReferenceGroup: {}, accountmodel.TransitionReferencePermission: {}}
+	sources := map[string]map[int64]int64{"members_member": {}, "catalog_team": {}, "catalog_grant": {}}
+	lookup := func(storage, field, want string) int64 {
+		var result int64
+		count := 0
+		for id, values := range all[storage].(map[int64]map[string]query.Value) {
+			if values[field].Equal(query.String(want)) {
+				result = id
+				count++
+			}
+		}
+		if count != 1 {
+			t.Fatal("reference oracle could not identify one target by stable identity", storage, field, count)
+		}
+		return result
+	}
+	for _, old := range f.old {
+		id := lookup("members", "subject", old.PrincipalID)
+		keys[accountmodel.TransitionReferenceAccount][old.ID] = id
+		sources["members_member"][id] = old.ID
+	}
+	group := f.group.ID
+	if f.role.Catalog.Group != f.oldRole.Catalog.Group {
+		group = lookup("groups", "title", "allocated group")
+		sources["catalog_team"][group] = f.group.ID
+	}
+	keys[accountmodel.TransitionReferenceGroup][f.group.ID] = group
+	for _, permission := range f.permissions {
+		id := permission.ID
+		if f.role.Catalog.Permission != f.oldRole.Catalog.Permission {
+			id = lookup("permissions", "symbol", permission.Code)
+			sources["catalog_grant"][id] = permission.ID
+		}
+		keys[accountmodel.TransitionReferencePermission][permission.ID] = id
+	}
+	return keys, sources
+}
+
+func stVerify[L any](t *testing.T, f *stFixture[L], before map[string]any, receipt domain.Receipt, manifest accountmodel.TransitionManifest, result accountmodel.TransitionResult, confirmed bool) {
+	t.Helper()
+	reopened, err := database.Open(t.Context(), f.selected)
+	stMust(t, err)
+	defer reopened.Close()
+	_, _, oldStore, nextStore := stStores(t, reopened, f.oldRole, f.role)
+	recovery, err := accountmodel.NewTransition(oldStore, nextStore, accountmodel.TransitionConfig[models.User, members.Member]{Permission: "account.transition", Authorizer: auth.PrincipalAuthorizer{}})
+	stMust(t, err)
+	got, found, err := recovery.Reconcile(t.Context(), manifest)
+	stMust(t, err)
+	if !found || got.OperationID() != receipt.OperationID() || got.Generation() != receipt.Generation() {
+		t.Fatal("shared transition receipt did not restart")
+	}
+	all := stSnapshot(t, reopened)
+	if !reflect.DeepEqual(all["hubs"], before["hubs"]) {
+		t.Fatal("identity transition changed an unrelated host row")
+	}
+	referenceKeys, sourceIDs := stReferenceOracle(t, f, all)
+	// Native INSERT arguments, including explicit NULLs, are independent of the
+	// transition's projected inventory and durable correspondence payload.
+	for table, key := range map[string]string{"members_member": "members", "catalog_team": "groups", "catalog_grant": "permissions"} {
+		rows := all[key].(map[int64]map[string]query.Value)
+		seen := make(map[int64]bool)
+		for _, insert := range f.backend.identities[table] {
+			if seen[insert.key] {
+				t.Fatal("two direct INSERTs returned the same identity")
+			}
+			seen[insert.key] = true
+			want := map[string]query.Value{"id": query.Integer(insert.key)}
+			for _, assignment := range insert.plan.Assignments() {
+				want[assignment.Field().Name()] = assignment.Value()
+			}
+			sourceID, knownSource := sourceIDs[table][insert.key]
+			if !knownSource {
+				t.Fatal("identity INSERT had no reviewed source", table, insert.key)
+			}
+			for field, reference := range f.referenceAssertions[table][sourceID] {
+				target, exists := referenceKeys[reference.Kind][reference.Source.ID]
+				if !exists {
+					t.Fatal("reference oracle lacks a real independently identified key", table, field)
+				}
+				expected := query.Integer(target)
+				if original, present := want[field]; !present || !original.IsNull() && !original.Equal(expected) {
+					t.Fatal("initial reference INSERT used an incorrect native key", table, field)
+				}
+				want[field] = expected
+			}
+			if !maps.Equal(rows[insert.key], want) {
+				t.Fatal("created identity differs from native INSERT and independently resolved references", table, insert.key)
+			}
+		}
+		if f.mode == "identity_signed_keys" {
+			if !seen[0] || len(seen) != len(rows) {
+				t.Fatal("direct identity INSERT did not exercise actual key zero", table)
+			}
+			for id := range seen {
+				if id > 0 {
+					t.Fatal("identity signed fixture allocated a positive key", table)
+				}
+			}
+		}
+		var want []int64
+		if key == "members" && f.mode == "identity_endpoints" {
+			want = []int64{f.permissions[0].ID, f.permissions[1].ID}
+			slices.Sort(want)
+		}
+		if got := stPairs(t, rows, "host_hub", "identity_permission", f.hub.ID); !slices.Equal(got, want) {
+			t.Fatal("identity through lost an independently declared host pair", table)
+		}
+	}
+	storage := "plain"
+	other := "unique"
+	if f.prefix != "" {
+		storage, other = other, storage
+	}
+	rows := all[storage].(map[int64]map[string]query.Value)
+	original := before[storage].(map[int64]map[string]query.Value)
+	if !reflect.DeepEqual(all[other], before[other]) || len(rows) != len(original)+len(f.backend.inserted) {
+		t.Fatal("physical row inventory contains unowned insertions or losses")
+	}
+	for key, values := range original {
+		if !maps.EqualFunc(rows[key], values, query.Value.Equal) {
+			t.Fatal("a reviewed existing physical row changed", key)
+		}
+	}
+	// Expected complete new rows come from native INSERT arguments and literal
+	// fixture defaults, independently of the transition's receipt/projections.
+	seen := make(map[int64]bool)
+	for _, insert := range f.backend.inserted {
+		if seen[insert.key] || original[insert.key] != nil {
+			t.Fatal("native INSERT reused an owned physical identity")
+		}
+		seen[insert.key] = true
+		want := map[string]query.Value{"id": query.Integer(insert.key), "payload": query.String("bridge-default")}
+		for _, name := range []string{"old_user", "member", "old_group", "new_group", "old_permission", "new_permission", "profile_permission"} {
+			want[name] = query.Null()
+		}
+		for _, assignment := range insert.plan.Assignments() {
+			want[assignment.Field().Name()] = assignment.Value()
+		}
+		if !maps.EqualFunc(rows[insert.key], want, query.Value.Equal) {
+			t.Fatal("native inserted row differs from independent full payload oracle", insert.key)
+		}
+	}
+	if f.mode == "signed_keys" {
+		if !seen[0] || len(seen) < 2 {
+			t.Fatal("actual zero/negative through keys were not exercised")
+		}
+		for key := range seen {
+			if key > 0 {
+				t.Fatal("signed-key fixture allocated an unexpected positive key")
+			}
+		}
+	}
+	groupKey, groupRevision := f.group.ID, f.group.Revision
+	createGroups := f.role.Catalog.Group != f.oldRole.Catalog.Group
+	createPermissions := f.role.Catalog.Permission != f.oldRole.Catalog.Permission
+	if createGroups {
+		group, err := catalog.TeamObjects.Using(reopened).Filter(catalog.TeamFields.Title.Exact("allocated group")).Get(t.Context())
+		stMust(t, err)
+		if group.Note != "typed group profile" || group.Version != 1 {
+			t.Fatal("allocated group lost typed values")
+		}
+		groupKey, groupRevision = group.ID, group.Version
+	} else if createPermissions {
+		groupRevision++
+	}
+	oldGroup, err := models.GroupObjects.Using(reopened).Filter(models.GroupFields.ID.Exact(f.group.ID)).Get(t.Context())
+	stMust(t, err)
+	wantGroup := f.group
+	if !createGroups && createPermissions {
+		wantGroup.Revision++
+	}
+	if !reflect.DeepEqual(oldGroup, wantGroup) {
+		t.Fatal("source/shared group profile or revision changed incorrectly")
+	}
+	if createGroups {
+		stAudit(t, reopened, f.actor, "catalog.team", groupKey, admin.ActionAdd)
+	} else if createPermissions {
+		stAudit(t, reopened, f.actor, "godj_identity.group", groupKey, admin.ActionChange)
+	}
+	catalogMap := domain.CatalogMappings{Groups: []domain.Mapping{{SourceID: f.group.ID, SourceRevision: f.group.Revision, TargetID: groupKey, TargetRevision: groupRevision}}, Permissions: []domain.Mapping{}}
+	permissionKeys := make(map[int64]int64)
+	var wantedGrants []int64
+	for _, source := range f.permissions {
+		old, err := models.PermissionObjects.Using(reopened).Filter(models.PermissionFields.ID.Exact(source.ID)).Get(t.Context())
+		stMust(t, err)
+		if !reflect.DeepEqual(old, source) {
+			t.Fatal("source permission changed")
+		}
+		key, revision := source.ID, source.Revision
+		if createPermissions {
+			row, err := catalog.GrantObjects.Using(reopened).Filter(catalog.GrantFields.Symbol.Exact(source.Code)).Get(t.Context())
+			stMust(t, err)
+			if row.Label != "allocated "+source.Code || row.Weight != 7 || row.Version != 1 {
+				t.Fatal("allocated permission lost profile or revision")
+			}
+			key, revision = row.ID, row.Version
+			stAudit(t, reopened, f.actor, "catalog.grant", key, admin.ActionAdd)
+		}
+		permissionKeys[source.ID] = key
+		wantedGrants = append(wantedGrants, key)
+		catalogMap.Permissions = append(catalogMap.Permissions, domain.Mapping{SourceID: source.ID, SourceRevision: source.Revision, TargetID: key, TargetRevision: revision})
+	}
+	groupField, permissionField := "new_group", "new_permission"
+	if !createGroups {
+		groupField = "old_group"
+	}
+	if !createPermissions {
+		permissionField = "old_permission"
+	}
+	slices.Sort(wantedGrants)
+	if f.mode == "identity_catalog" {
+		wantedGrants = nil
+	}
+	if !slices.Equal(stPairs(t, rows, groupField, permissionField, groupKey), wantedGrants) {
+		t.Fatal("target group has different exact grants")
+	}
+	oldGrants := []int64{f.permissions[0].ID, f.permissions[1].ID}
+	slices.Sort(oldGrants)
+	if !slices.Equal(stPairs(t, rows, "old_group", "old_permission", f.group.ID), oldGrants) {
+		t.Fatal("shared table changed source catalog grants")
+	}
+	var expectedAccounts []domain.Mapping
+	for i, source := range f.old {
+		old, err := models.UserObjects.Using(reopened).Filter(models.UserFields.ID.Exact(source.ID)).Get(t.Context())
+		stMust(t, err)
+		if old.Active || old.Staff || old.Superuser || old.Revision != source.Revision+1 || !strings.HasPrefix(old.EncodedPassword, "!") || old.PrincipalID != source.PrincipalID {
+			t.Fatal("source was not retired")
+		}
+		next, err := members.MemberObjects.Using(reopened).Filter(members.MemberFields.Subject.Exact(source.PrincipalID)).Get(t.Context())
+		stMust(t, err)
+		revision := int64(1)
+		if f.strategy == "staged" {
+			revision = 2
+		}
+		if next.Version != revision || next.SecretHash != source.EncodedPassword || next.Active != source.Active || next.Staff != source.Staff || next.Superuser != source.Superuser || next.FirstName != "new-"+source.Username || next.Region != "earth" {
+			t.Fatal("target account lost preserved identity or typed profile")
+		}
+		if !slices.Equal(stPairs(t, rows, "member", groupField, next.ID), []int64{groupKey}) || !slices.Equal(stPairs(t, rows, "member", permissionField, next.ID), []int64{permissionKeys[f.permissions[i].ID]}) || !slices.Equal(stPairs(t, rows, "member", "profile_permission", next.ID), []int64{f.permissions[i].ID}) {
+			t.Fatal("target membership/profile differs from independently resolved keys")
+		}
+		if !slices.Equal(stPairs(t, rows, "old_user", "old_group", old.ID), []int64{f.group.ID}) || !slices.Equal(stPairs(t, rows, "old_user", "old_permission", old.ID), []int64{f.permissions[i].ID}) || !slices.Equal(stPairs(t, rows, "old_user", "profile_permission", old.ID), []int64{f.permissions[i].ID}) {
+			t.Fatal("retirement changed source memberships/profile")
+		}
+		expectedAccounts = append(expectedAccounts, domain.Mapping{SourceID: old.ID, SourceRevision: source.Revision, TargetID: next.ID, TargetRevision: revision})
+		action := admin.ActionAdd
+		if f.strategy == "staged" {
+			action = admin.ActionChange
+		}
+		stAudit(t, reopened, f.actor, "members.member", next.ID, action)
+		stAudit(t, reopened, f.actor, "godj_identity.user", old.ID, admin.ActionChange)
+	}
+	type durable struct {
+		accounts   []domain.Mapping
+		catalog    domain.CatalogMappings
+		hasCatalog bool
+	}
+	stored, err := db.ReadSnapshotResult(t.Context(), reopened, func(ctx context.Context, scope db.Queryer) (durable, error) {
+		a, err := domain.LookupMappingsIn(ctx, scope, receipt)
+		if err != nil {
+			return durable{}, err
+		}
+		c, found, err := domain.LookupCatalogMappingsIn(ctx, scope, receipt)
+		return durable{a, c, found}, err
+	})
+	stMust(t, err)
+	if !slices.Equal(stored.accounts, expectedAccounts) {
+		t.Fatal("durable mapping did not use independently resolved native accounts")
+	}
+	if f.mode == "account_only" {
+		if stored.hasCatalog {
+			t.Fatal("unchanged catalog acquired a creation map")
+		}
+	} else if !stored.hasCatalog || !reflect.DeepEqual(stored.catalog, catalogMap) {
+		t.Fatal("durable catalog map lost actual allocation/shared revisions")
+	}
+	if len(all["members"].(map[int64]map[string]query.Value)) != 2 || len(all["groups"].(map[int64]map[string]query.Value)) != btoi(createGroups) || len(all["permissions"].(map[int64]map[string]query.Value)) != 2*btoi(createPermissions) || len(all["sessions"].(map[int64]map[string]query.Value)) != 0 {
+		t.Fatal("final inventory or old session disposal differs")
+	}
+	if len(all["audit"].(map[int64]map[string]query.Value)) != 4+btoi(createGroups || createPermissions)+2*btoi(createPermissions) {
+		t.Fatal("shared transition audited an unchanged row or omitted an owned change")
+	}
+	verifier, err := nextStore.Authenticator(t.Context(), f.hasher)
+	stMust(t, err)
+	credential, err := verifier.Authenticate(t.Context(), "alice@test.example", accountPasswordText)
+	stMust(t, err)
+	if credential.Principal().ID() != f.actor.ID() || credential.MatchesSessionStamp(f.credential.SessionStamp()) || !slices.Equal(credential.Principal().Permissions(), f.actor.Permissions()) {
+		t.Fatal("shared transition lost authority or inherited old session domain")
+	}
+	startup, err := nextStore.InspectStartup(t.Context())
+	stMust(t, err)
+	if !startup.Ready() || startup.Ownership().OperationID() != receipt.OperationID() {
+		t.Fatal("selected store cannot restart")
+	}
+	if _, err := oldStore.InspectStartup(t.Context()); err == nil {
+		t.Fatal("retired source selection restarted")
+	}
+	if confirmed {
+		created := 0
+		if f.strategy == "created" {
+			created = 2
+		}
+		if result.CreatedAccounts != created || result.CreatedGroups != btoi(createGroups) || result.CreatedPermissions != 2*btoi(createPermissions) || result.MappedAccounts != 2 || result.RevokedSessions != 1 || !slices.Equal(result.Mappings, expectedAccounts) {
+			t.Fatal("published result differs from durable native effects")
+		}
+		if f.mode == "account_only" {
+			if result.Catalog != nil {
+				t.Fatal("unchanged catalog published an invented correspondence")
+			}
+		} else if result.Catalog == nil || !reflect.DeepEqual(*result.Catalog, catalogMap) {
+			t.Fatal("published catalog mapping differs from native identities")
+		}
+	}
+}
+
+func btoi(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func stAudit(t *testing.T, backend database.Backend, actor auth.Principal, model string, id int64, action admin.Action) {
+	t.Helper()
+	namespace, ok := actor.CredentialDomain()
+	if !ok {
+		t.Fatal("actor lost credential domain")
+	}
+	rows, err := db.ReadSnapshotResult(t.Context(), backend, func(ctx context.Context, scope db.Queryer) ([]accountaudit.Entry, error) {
+		return accountaudit.HistoryIn(ctx, scope, namespace, model, id, 10)
+	})
+	stMust(t, err)
+	if len(rows) != 1 || rows[0].ActorID() != actor.ID() || rows[0].Action() != action || len(rows[0].ChangedFields()) == 0 {
+		t.Fatal("shared transition audit missing or duplicated")
+	}
+}

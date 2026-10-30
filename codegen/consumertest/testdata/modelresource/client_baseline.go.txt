@@ -1,0 +1,14 @@
+package main
+
+import sdk "example.com/godj-openapi-client/inventoryapi"
+
+const evolved = false
+
+func setNewField(*sdk.AssetInput)             {}
+func defaultProjection(value *sdk.Asset) bool { return value.Note.Null }
+func explicitProjection(value *sdk.Asset) bool {
+	return !value.Note.Null && value.Note.Value == "client note"
+}
+func requestFields() []string  { return []string{"Code", "Enabled", "Note"} }
+func responseFields() []string { return []string{"Code", "Enabled", "ID", "Note"} }
+func requestPolicy() bool      { return true }

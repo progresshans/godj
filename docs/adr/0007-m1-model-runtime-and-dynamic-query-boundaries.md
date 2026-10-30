@@ -1,5 +1,9 @@
 # ADR-0007: M1 모델 runtime과 dynamic query 경계를 고정한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0007-m1-model-runtime-and-dynamic-query-boundaries.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0002, Q-005, Q-006, Q-008, Q-009,
@@ -94,13 +98,3 @@ metadata copy를 변형해도 다음 조회가 달라지지 않습니다. `Predi
 - QuerySet, transaction, hook의 전체 goroutine safety 계약
 - relation binding을 위한 registry와 descriptor 확장
 - pre-1.0 public API upgrade 정책
-
-## 검증
-
-- generated descriptor compile assertion과 잘못된 model 대입 negative compile
-- nullable `NULL`/`""`/일반 값 및 row 간 pointer 비공유 SQLite test
-- typed/dynamic AST equality, 원본 plan 불변, construction I/O 0
-- unknown/unsupported/disallowed/invalid dynamic error test
-- external consumer positive compile와 잘못된 predicate/value negative compile
-- descriptor metadata copy와 concurrent read race test
-- M0 QRY-001..QRY-010, SCH-001 differential comparison

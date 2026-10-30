@@ -1,0 +1,8 @@
+package consumer
+
+import (
+"github.com/progresshans/godj/examples/helpdesk/models"
+"github.com/progresshans/godj/calendar"
+)
+
+var _ = models.TicketFields.ServiceAt.Exact(calendar.Date{})

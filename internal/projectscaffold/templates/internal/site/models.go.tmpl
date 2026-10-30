@@ -1,0 +1,20 @@
+package site
+
+import (
+	"github.com/progresshans/godj/admin"
+	apisessionauth "github.com/progresshans/godj/api/sessionauth"
+	"[[.Module]]/internal/accounts"
+	"github.com/progresshans/godj/web"
+)
+
+// Register your generated model resources here. The model/schema declaration
+// remains in modeldef; this function owns Admin exposure and business policy.
+func registerProjectModels(builder *admin.Builder, runtime *accounts.Runtime) error {
+	return nil
+}
+
+// Add authenticated API routes here with the same project runtime and explicit
+// per-operation permissions. API writes do not synthesize Admin audit history.
+func projectRoutes(runtime *accounts.Runtime, authentication *apisessionauth.Runtime) ([]web.Route, []web.Middleware, error) {
+	return nil, nil, nil
+}

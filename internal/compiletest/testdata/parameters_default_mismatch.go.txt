@@ -1,0 +1,5 @@
+package consumer
+
+import "github.com/progresshans/godj/api/parameters"
+
+var _ = parameters.Default(parameters.CanonicalInt64(1, 100), "1")

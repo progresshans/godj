@@ -1,0 +1,5 @@
+package consumer
+import "github.com/progresshans/godj/api/input"
+type row struct{}
+type other struct{}
+var _ = []input.Property[row]{input.Field("value",input.String(),func(*other,input.Presence[string]){})}

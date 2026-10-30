@@ -1,0 +1,237 @@
+{
+  "kind": "independent-zoned-calendar-inputs-v1",
+  "provider_instants": [
+    "0001-01-01T00:00:00Z",
+    "0002-01-02T12:34:56.123456Z",
+    "1890-01-01T00:00:00Z",
+    "1900-01-01T00:00:00Z",
+    "1950-07-01T12:00:00Z",
+    "1970-01-01T00:00:00Z",
+    "2024-03-10T07:00:00Z",
+    "2024-07-01T00:00:00Z",
+    "2024-11-03T06:30:00Z",
+    "2399-12-31T23:59:59.999999Z",
+    "2400-01-01T00:00:00Z",
+    "2400-07-01T00:00:00Z",
+    "2800-07-01T00:00:00Z",
+    "9999-07-01T00:00:00Z",
+    "9999-12-31T23:59:59.999999Z"
+  ],
+  "operations": [
+    "date",
+    "time",
+    "year",
+    "iso_year",
+    "quarter",
+    "month",
+    "week",
+    "week_day",
+    "iso_week_day",
+    "day",
+    "hour",
+    "minute",
+    "second",
+    "trunc_year",
+    "trunc_quarter",
+    "trunc_month",
+    "trunc_week",
+    "trunc_day",
+    "trunc_hour",
+    "trunc_minute",
+    "trunc_second",
+    "composed_date_year",
+    "filter_date",
+    "group_date",
+    "related_date",
+    "collection_date",
+    "update_calendar",
+    "update_truncated"
+  ],
+  "fixtures": [
+    {
+      "name": "utc",
+      "zone": "UTC",
+      "instants": [
+        "0001-01-01T00:00:00Z",
+        "2021-01-01T00:30:59.999999Z",
+        "2024-02-29T23:59:59.999999Z",
+        "9999-12-31T23:59:59.999999Z",
+        null
+      ]
+    },
+    {
+      "name": "new_york",
+      "zone": "America/New_York",
+      "instants": [
+        "0002-01-02T00:00:00Z",
+        "2024-03-10T06:59:59.999999Z",
+        "2024-03-10T07:00:00Z",
+        "2024-11-03T05:30:59.999999Z",
+        "2024-11-03T06:30:59.999999Z",
+        "2399-12-31T23:59:59.999999Z",
+        "2400-01-01T00:00:00Z",
+        "2800-07-15T23:45:56.123456Z",
+        "9998-12-31T23:59:59.999999Z",
+        null
+      ]
+    },
+    {
+      "name": "eastern_alias",
+      "zone": "US/Eastern",
+      "instants": [
+        "2024-03-10T06:59:59.999999Z",
+        "2024-03-10T07:00:00Z",
+        "2024-11-03T05:30:59.999999Z",
+        "2024-11-03T06:30:59.999999Z",
+        null
+      ]
+    },
+    {
+      "name": "seoul",
+      "zone": "Asia/Seoul",
+      "instants": [
+        "0002-01-02T00:00:00Z",
+        "1899-12-31T15:32:07.999999Z",
+        "1899-12-31T15:32:08Z",
+        "2023-12-31T14:59:59.999999Z",
+        "2023-12-31T15:00:00Z",
+        "2024-02-29T15:00:00Z",
+        "9998-12-31T23:59:59.999999Z",
+        null
+      ]
+    },
+    {
+      "name": "lord_howe",
+      "zone": "Australia/Lord_Howe",
+      "instants": [
+        "2024-04-06T14:45:00Z",
+        "2024-04-06T15:15:00Z",
+        "2024-10-05T15:29:59.999999Z",
+        "2024-10-05T15:45:00Z",
+        "2400-10-01T15:45:00Z",
+        "2800-10-01T15:45:00Z",
+        null
+      ]
+    },
+    {
+      "name": "apia",
+      "zone": "Pacific/Apia",
+      "instants": [
+        "1892-07-03T11:26:56Z",
+        "1892-07-04T11:26:56Z",
+        "2011-12-30T09:59:59.999999Z",
+        "2011-12-30T10:00:00Z",
+        "2011-12-31T10:00:00Z",
+        null
+      ]
+    },
+    {
+      "name": "paris",
+      "zone": "Europe/Paris",
+      "instants": [
+        "1899-12-31T23:50:38.999999Z",
+        "1899-12-31T23:50:39Z",
+        "1900-01-01T00:00:00Z",
+        "2024-03-31T01:30:00Z",
+        null
+      ]
+    },
+    {
+      "name": "dublin",
+      "zone": "Europe/Dublin",
+      "instants": [
+        "1971-10-31T01:30:00Z",
+        "1971-10-31T02:30:00Z",
+        "2024-03-31T00:59:59.999999Z",
+        "2024-03-31T01:00:00Z",
+        "2400-07-01T00:00:00Z",
+        null
+      ]
+    },
+    {
+      "name": "kathmandu",
+      "zone": "Asia/Kathmandu",
+      "instants": [
+        "1899-12-31T18:18:43.999999Z",
+        "1899-12-31T18:18:44Z",
+        "1985-12-31T18:29:59.999999Z",
+        "1985-12-31T18:30:00Z",
+        null
+      ]
+    },
+    {
+      "name": "santiago",
+      "zone": "America/Santiago",
+      "instants": [
+        "2024-09-08T03:59:59.999999Z",
+        "2024-09-08T04:00:00Z",
+        "2024-09-08T04:30:00Z",
+        null
+      ]
+    },
+    {
+      "name": "fixed_offset",
+      "zone": "Etc/GMT+5",
+      "instants": [
+        "0002-01-02T00:00:00Z",
+        "2024-01-01T04:59:59.999999Z",
+        "2024-01-01T05:00:00Z",
+        "9998-12-31T23:59:59.999999Z",
+        null
+      ]
+    }
+  ],
+  "failures": [
+    {
+      "name": "lower_date",
+      "zone": "America/New_York",
+      "at": "0001-01-01T00:00:00Z",
+      "function": "date"
+    },
+    {
+      "name": "lower_year",
+      "zone": "America/New_York",
+      "at": "0001-01-01T00:00:00Z",
+      "function": "year"
+    },
+    {
+      "name": "upper_date",
+      "zone": "Asia/Seoul",
+      "at": "9999-12-31T23:59:59.999999Z",
+      "function": "date"
+    },
+    {
+      "name": "upper_year",
+      "zone": "Asia/Seoul",
+      "at": "9999-12-31T23:59:59.999999Z",
+      "function": "year"
+    },
+    {
+      "name": "inverse_lower",
+      "zone": "Asia/Seoul",
+      "at": "0001-01-01T00:00:00Z",
+      "function": "trunc_year"
+    },
+    {
+      "name": "corrupt_month",
+      "zone": "America/New_York",
+      "at": "2024-02-29T00:00:00Z",
+      "function": "month",
+      "corrupt": true
+    },
+    {
+      "name": "unselected_corruption",
+      "zone": "America/New_York",
+      "at": "2024-02-29T00:00:00Z",
+      "function": "case_year",
+      "corrupt": true
+    },
+    {
+      "name": "filtered_corruption",
+      "zone": "America/New_York",
+      "at": "2024-02-29T00:00:00Z",
+      "function": "filtered_year",
+      "corrupt": true
+    }
+  ]
+}

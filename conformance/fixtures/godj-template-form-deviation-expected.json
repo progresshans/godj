@@ -1,0 +1,52 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0003",
+  "contracts": [
+    {
+      "id": "WEB-022",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "attribute_fallback_shadowed",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": true},
+          "product": {"type": "bool", "value": false}
+        },
+        {
+          "dimension": "metrics",
+          "path": "object_dictionary_lookups",
+          "operation": "replace",
+          "reference": {"type": "int", "value": "1"},
+          "product": {"type": "int", "value": "0"}
+        }
+      ]
+    },
+    {
+      "id": "WEB-027",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "auto_called",
+          "operation": "replace",
+          "reference": {"type": "bool", "value": true},
+          "product": {"type": "bool", "value": false}
+        },
+        {
+          "dimension": "result",
+          "path": "rendered_return_category",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "callable_return"},
+          "product": {"type": "string", "value": "closed_value"}
+        },
+        {
+          "dimension": "metrics",
+          "path": "callable_invocations",
+          "operation": "replace",
+          "reference": {"type": "int", "value": "1"},
+          "product": {"type": "int", "value": "0"}
+        }
+      ]
+    }
+  ]
+}

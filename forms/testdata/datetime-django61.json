@@ -1,0 +1,420 @@
+{
+  "django": "6.1",
+  "timezone": "UTC",
+  "cases": [
+    {
+      "required": false,
+      "input": "",
+      "value": null,
+      "utc": null,
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "  ",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34:56Z",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T12:34:56+09:00",
+      "value": "2026-09-19T12:34:56+09:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-18T22:34:56-05:00",
+      "value": "2026-09-18T22:34:56-05:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34:56.123456Z",
+      "value": "2026-09-19T03:34:56.123456+00:00",
+      "utc": "2026-09-19T03:34:56.123456Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34:56.123456789Z",
+      "value": "2026-09-19T03:34:56.123456+00:00",
+      "utc": "2026-09-19T03:34:56.123456Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34:56.1Z",
+      "value": "2026-09-19T03:34:56.100000+00:00",
+      "utc": "2026-09-19T03:34:56.100000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19 03:34:56",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34",
+      "value": "2026-09-19T03:34:00+00:00",
+      "utc": "2026-09-19T03:34:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19",
+      "value": "2026-09-19T00:00:00+00:00",
+      "utc": "2026-09-19T00:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "  2026-09-19T03:34:56Z\r\n",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "0001-01-01T00:00:00Z",
+      "value": "0001-01-01T00:00:00+00:00",
+      "utc": "0001-01-01T00:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "9999-12-31T23:59:59.999999Z",
+      "value": "9999-12-31T23:59:59.999999+00:00",
+      "utc": "9999-12-31T23:59:59.999999Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "1969-12-31T23:59:59.999999Z",
+      "value": "1969-12-31T23:59:59.999999+00:00",
+      "utc": "1969-12-31T23:59:59.999999Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2000-02-29T12:00:00Z",
+      "value": "2000-02-29T12:00:00+00:00",
+      "utc": "2000-02-29T12:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "1900-02-29T12:00:00Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-02-30T00:00:00Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T24:00:00Z",
+      "value": "2026-09-20T00:00:00+00:00",
+      "utc": "2026-09-20T00:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34:60Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34:56+24:00",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "10000-01-01T00:00:00Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "not a timestamp",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": false,
+      "input": "2026-09-19T03:34:56Z\u0000",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "required"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "  ",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34:56Z",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T12:34:56+09:00",
+      "value": "2026-09-19T12:34:56+09:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-18T22:34:56-05:00",
+      "value": "2026-09-18T22:34:56-05:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34:56.123456Z",
+      "value": "2026-09-19T03:34:56.123456+00:00",
+      "utc": "2026-09-19T03:34:56.123456Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34:56.123456789Z",
+      "value": "2026-09-19T03:34:56.123456+00:00",
+      "utc": "2026-09-19T03:34:56.123456Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34:56.1Z",
+      "value": "2026-09-19T03:34:56.100000+00:00",
+      "utc": "2026-09-19T03:34:56.100000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19 03:34:56",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34",
+      "value": "2026-09-19T03:34:00+00:00",
+      "utc": "2026-09-19T03:34:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19",
+      "value": "2026-09-19T00:00:00+00:00",
+      "utc": "2026-09-19T00:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "  2026-09-19T03:34:56Z\r\n",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "0001-01-01T00:00:00Z",
+      "value": "0001-01-01T00:00:00+00:00",
+      "utc": "0001-01-01T00:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "9999-12-31T23:59:59.999999Z",
+      "value": "9999-12-31T23:59:59.999999+00:00",
+      "utc": "9999-12-31T23:59:59.999999Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "1969-12-31T23:59:59.999999Z",
+      "value": "1969-12-31T23:59:59.999999+00:00",
+      "utc": "1969-12-31T23:59:59.999999Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2000-02-29T12:00:00Z",
+      "value": "2000-02-29T12:00:00+00:00",
+      "utc": "2000-02-29T12:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "1900-02-29T12:00:00Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-02-30T00:00:00Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T24:00:00Z",
+      "value": "2026-09-20T00:00:00+00:00",
+      "utc": "2026-09-20T00:00:00.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34:60Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34:56+24:00",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "10000-01-01T00:00:00Z",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "not a timestamp",
+      "value": null,
+      "utc": null,
+      "codes": [
+        "invalid"
+      ],
+      "widget": "DateTimeInput"
+    },
+    {
+      "required": true,
+      "input": "2026-09-19T03:34:56Z\u0000",
+      "value": "2026-09-19T03:34:56+00:00",
+      "utc": "2026-09-19T03:34:56.000000Z",
+      "codes": [],
+      "widget": "DateTimeInput"
+    }
+  ]
+}

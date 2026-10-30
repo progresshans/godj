@@ -1,0 +1,731 @@
+{
+  "cases": [
+    {
+      "cleaned": {
+        "address": "b@example.com",
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {},
+      "form": "base",
+      "input": {
+        "address": "b@example.com",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "valid",
+      "query_count": 2,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true
+    },
+    {
+      "cleaned": {
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {
+        "address": [
+          "invalid"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "legacy",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "choice_email_invalid",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {
+        "address": [
+          "invalid_choice"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "unknown",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "choice_missing",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {},
+      "errors": {
+        "address": [
+          "invalid"
+        ],
+        "counter": [
+          "invalid"
+        ],
+        "key": [
+          "max_length"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "legacy",
+        "counter": "bad",
+        "key": "toolongkey"
+      },
+      "name": "two_field_errors",
+      "query_count": 0,
+      "trace": [
+        {
+          "exclude": [
+            "counter",
+            "id",
+            "key"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "counter",
+            "id",
+            "key"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "counter",
+            "id",
+            "key"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "counter": 1
+      },
+      "errors": {
+        "address": [
+          "invalid"
+        ],
+        "key": [
+          "unique"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "legacy",
+        "counter": "1",
+        "key": "used"
+      },
+      "name": "duplicate_and_email",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "id",
+            "key"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "address": "a@example.com",
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {
+        "__all__": [
+          "unique_together"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "a@example.com",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "duplicate_tuple",
+      "query_count": 2,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "address": "b@example.com",
+        "key": "reject"
+      },
+      "errors": {
+        "counter": [
+          "semantic"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "b@example.com",
+        "counter": "1",
+        "key": "reject"
+      },
+      "name": "model_clean",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "counter",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "counter",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "address": "a@example.com"
+      },
+      "errors": {
+        "counter": [
+          "invalid"
+        ],
+        "key": [
+          "unique"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "a@example.com",
+        "counter": "bad",
+        "key": "used"
+      },
+      "name": "counter_error",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "counter",
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "counter",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "counter",
+            "id",
+            "key"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {
+        "address": [
+          "invalid"
+        ]
+      },
+      "form": "override",
+      "input": {
+        "address": "legacy",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "override_email",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {
+        "address": [
+          "invalid_choice"
+        ]
+      },
+      "form": "override",
+      "input": {
+        "address": "c@example.com",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "override_choice",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "address": "",
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {},
+      "form": "override",
+      "input": {
+        "address": "",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "override_blank",
+      "query_count": 2,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true
+    },
+    {
+      "cleaned": {
+        "address": "b@example.com",
+        "counter": 1,
+        "key": ""
+      },
+      "errors": {},
+      "form": "optional",
+      "input": {
+        "address": "b@example.com",
+        "counter": "1",
+        "key": ""
+      },
+      "name": "optional_required_model",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "id",
+            "key"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "id",
+            "key"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "id",
+            "key"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true
+    },
+    {
+      "cleaned": {
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {},
+      "form": "subset",
+      "input": {
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "subset",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true
+    },
+    {
+      "cleaned": {
+        "address": "invalid",
+        "counter": 1,
+        "key": "new"
+      },
+      "errors": {},
+      "form": "extra",
+      "input": {
+        "address": "invalid",
+        "counter": "1",
+        "key": "new"
+      },
+      "name": "excluded_extra",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "address",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true
+    },
+    {
+      "cleaned": {
+        "address": "b@example.com",
+        "key": "new"
+      },
+      "errors": {
+        "counter": [
+          "required"
+        ]
+      },
+      "form": "base",
+      "input": {
+        "address": "b@example.com",
+        "key": "new"
+      },
+      "name": "omitted_default",
+      "query_count": 1,
+      "trace": [
+        {
+          "exclude": [
+            "counter",
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "counter",
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "counter",
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": false
+    },
+    {
+      "cleaned": {
+        "address": "a@example.com",
+        "counter": 1,
+        "key": "used"
+      },
+      "errors": {},
+      "form": "base",
+      "input": {
+        "address": "a@example.com",
+        "counter": "1",
+        "key": "used"
+      },
+      "name": "same_row",
+      "query_count": 2,
+      "trace": [
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "model_fields"
+        },
+        {
+          "stage": "model_clean"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "unique"
+        },
+        {
+          "exclude": [
+            "id"
+          ],
+          "stage": "constraints"
+        }
+      ],
+      "valid": true
+    }
+  ],
+  "reference": {
+    "cleanup_empty": true,
+    "django": "6.1",
+    "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+    "license": "Django BSD-3-Clause; see LICENSE.django and docs/SOURCES.md",
+    "postgres_observation_sha256": "13d9aeeafeea7f6712d3fcd52d5f5f320c24500f9eb79d66a0d5ac21afcb571e",
+    "python": "3.14.3",
+    "source_sha256": {
+      "form_models": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+      "model_base": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f"
+    },
+    "sqlite_observation_sha256": "7b919470dcbb23b3733a70c50a352df15cc03de3fcd1dea8ab205d9366885e33",
+    "unchanged_database": true
+  }
+}

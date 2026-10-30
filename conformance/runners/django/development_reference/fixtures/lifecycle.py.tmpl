@@ -1,0 +1,30 @@
+import json
+import logging
+import os
+from pathlib import Path
+from django.apps import apps
+
+
+def record_ready(config):
+    # Observe public AppConfig.ready and model lookup without a database query.
+    model = apps.get_model("notes", "Note")
+    with open(os.environ["DEVELOPMENT_REFERENCE_READY_LOG"], "a", encoding="utf-8") as stream:
+        stream.write(json.dumps({
+            "pid": os.getpid(), "parent": os.getppid(), "app": config.label,
+            "model_available": model is not None,
+            "model_fields": [field.name for field in model._meta.get_fields()],
+        }, sort_keys=True) + "\n")
+
+
+class WatchObservation(logging.Handler):
+    """Observe the pinned reloader's public debug log without changing it."""
+
+    def emit(self, record):
+        if record.msg != "File %s first seen with mtime %s":
+            return
+        path, mtime = record.args
+        path = Path(path).resolve()
+        if path.parent != Path(__file__).resolve().parent.parent / "notes" or path.name not in {"revision.py", "models.py"}:
+            return
+        with open(os.environ["DEVELOPMENT_REFERENCE_WATCH_LOG"], "a", encoding="utf-8") as stream:
+            stream.write(json.dumps({"pid": record.process, "file": "notes/" + path.name, "mtime": mtime}, sort_keys=True) + "\n")

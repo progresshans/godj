@@ -1,0 +1,23 @@
+{
+  "kind": "django-event-source-verification-v1",
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "license": "BSD-3-Clause",
+  "source_verification": "Each listed installed module must equal the pinned upstream bytes; this is not a whole-wheel identity.",
+  "sources": {
+    "dispatch/dispatcher.py": {
+      "bytes": 19563,
+      "sha256": "1f6c1c36a2403914e7a39c35d7240e16e5467aa3219b13de95d069c64c65ec36",
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/dispatch/dispatcher.py"
+    },
+    "dispatch/__init__.py": {
+      "bytes": 286,
+      "sha256": "fac1539695895dddfa485ac5733ca104ae7cc6c088eed4d7dc7b0865e618e0d2",
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/dispatch/__init__.py"
+    },
+    "utils/inspect.py": {
+      "bytes": 4522,
+      "sha256": "3f5d3d67333ece4dd07f11eb45095e925b2562c2936427e17ec9b3c95c9abc08",
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/utils/inspect.py"
+    }
+  }
+}

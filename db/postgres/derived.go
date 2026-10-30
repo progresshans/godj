@@ -1,0 +1,70 @@
+package postgres
+
+import (
+	"strings"
+
+	"github.com/progresshans/godj/db/internal/queryplan"
+	"github.com/progresshans/godj/query"
+)
+
+func compileResultStage(schema string, plan, input query.Plan) (string, []any, error) {
+	if err := plan.ValidateDerived(); err != nil {
+		return "", nil, err
+	}
+	statement, arguments, err := compileReadPlan(schema, input)
+	if err != nil {
+		return "", nil, err
+	}
+	if input.EmptyResult() {
+		statement, arguments, err = queryplan.CompileEmptyInput(input.ResultShape(), queryplan.ScalarDialect{
+			ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, CaseArm: compilePostgresCaseArm, EmptyValue: postgresEmptyResultValue, Function: compilePostgresFunction, Expression: wrapReadScalar,
+		})
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	if plan.HasAnnotations() {
+		return compileAnnotated(schema, plan, statement, arguments)
+	}
+	return queryplan.CompileDerived(plan, statement, arguments, queryplan.DerivedDialect{
+		ComparisonValue: postgresComparisonValue, GroupComparisonLiteral: postgresGroupComparisonLiteral,
+		CompleteAggregates: finishPostgresAggregates,
+		Scalar: queryplan.ScalarDialect{
+			ParameterLimit: postgresBulkParameters, Value: postgresValue,
+			Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, CaseArm: compilePostgresCaseArm, EmptyValue: postgresEmptyResultValue, Function: compilePostgresFunction, Expression: wrapReadScalar,
+		},
+		Aggregate: func(value query.ResultExpression, operand, filter string) (string, int, error) {
+			statement, err := renderAggregate(value, operand, filter, true)
+			return statement, 1, err
+		},
+		Pagination: func(statement *strings.Builder, arguments *[]any, plan query.Plan) error {
+			appendPagination(statement, arguments, plan)
+			return nil
+		},
+	})
+}
+
+func compileResultPage(schema string, plan, input query.Plan) (string, []any, error) {
+	if err := plan.ValidatePage(); err != nil {
+		return "", nil, err
+	}
+	statement, arguments, err := compileReadPlan(schema, input)
+	if err != nil {
+		return "", nil, err
+	}
+	if input.EmptyResult() {
+		statement, arguments, err = queryplan.CompileEmptyInput(input.ResultShape(), queryplan.ScalarDialect{
+			ParameterLimit: postgresBulkParameters, Value: postgresValue, Placeholder: placeholder, Literal: readScalarLiteral, Binary: compilePostgresBinary, Negate: compilePostgresNegate, CaseArm: compilePostgresCaseArm, EmptyValue: postgresEmptyResultValue, Function: compilePostgresFunction, Expression: wrapReadScalar,
+		})
+		if err != nil {
+			return "", nil, err
+		}
+	}
+	return queryplan.CompilePage(plan, statement, arguments, queryplan.PageDialect{
+		ParameterLimit: postgresBulkParameters,
+		Pagination: func(statement *strings.Builder, arguments *[]any, plan query.Plan) error {
+			appendPagination(statement, arguments, plan)
+			return nil
+		},
+	})
+}

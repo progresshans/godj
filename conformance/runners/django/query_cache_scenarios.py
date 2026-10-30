@@ -8,6 +8,7 @@ from typing import Any
 from django.db import OperationalError, connection
 
 from .normalizer import PrimaryKey, normalize
+from .sql_observation import capture_statements
 from .scenarios import (
     Article,
     FIXTURES,
@@ -19,21 +20,6 @@ from .scenarios import (
 def _statement_kind(sql: str) -> str:
     rendered = sql.lstrip().upper()
     return rendered.split(None, 1)[0] if rendered else "EMPTY"
-
-
-def _capture(operation: Callable[[], Any]) -> tuple[Any, dict[str, Any]]:
-    statements: list[str] = []
-
-    def wrapper(execute, sql, params, many, context):
-        statements.append(_statement_kind(sql))
-        return execute(sql, params, many, context)
-
-    with connection.execute_wrapper(wrapper):
-        result = operation()
-    return result, {
-        "query_count": len(statements),
-        "statement_kinds": statements,
-    }
 
 
 def _capture_missing_table(
@@ -117,8 +103,8 @@ def _observed(
 def repeated_full_evaluation(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.order_by("id")
-        first, first_metrics = _capture(lambda: _materialize(queryset))
-        second, second_metrics = _capture(lambda: _materialize(queryset))
+        first, first_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
+        second, second_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -135,9 +121,9 @@ def repeated_full_evaluation(contract_id: str) -> dict[str, Any]:
 def empty_full_evaluation(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.filter(title="Later").order_by("id")
-        first, first_metrics = _capture(lambda: _materialize(queryset))
+        first, first_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         Article.objects.create(id=5, title="Later", published=False, summary=None)
-        second, second_metrics = _capture(lambda: _materialize(queryset))
+        second, second_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -157,12 +143,10 @@ def empty_full_evaluation(contract_id: str) -> dict[str, Any]:
 def stale_snapshot_and_fresh_queryset(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.order_by("id")
-        before, before_metrics = _capture(lambda: _materialize(queryset))
+        before, before_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         Article.objects.create(id=5, title="New", published=True, summary="fresh")
-        stale, stale_metrics = _capture(lambda: _materialize(queryset))
-        fresh, fresh_metrics = _capture(
-            lambda: _materialize(Article.objects.order_by("id"))
-        )
+        stale, stale_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
+        fresh, fresh_metrics = capture_statements(connection, lambda: _materialize(Article.objects.order_by("id")), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -181,9 +165,7 @@ def stale_snapshot_and_fresh_queryset(contract_id: str) -> dict[str, Any]:
 def chained_queryset_independence(contract_id: str) -> dict[str, Any]:
     with article_database():
         source = Article.objects.filter(published=True).order_by("id")
-        source_before, source_before_metrics = _capture(
-            lambda: _materialize(source)
-        )
+        source_before, source_before_metrics = capture_statements(connection, lambda: _materialize(source), classify=_statement_kind)
         Article.objects.create(
             id=5,
             title="New Django",
@@ -191,12 +173,8 @@ def chained_queryset_independence(contract_id: str) -> dict[str, Any]:
             summary="chain",
         )
         derived = source.filter(title__icontains="django")
-        derived_after, derived_after_metrics = _capture(
-            lambda: _materialize(derived)
-        )
-        source_after, source_after_metrics = _capture(
-            lambda: _materialize(source)
-        )
+        derived_after, derived_after_metrics = capture_statements(connection, lambda: _materialize(derived), classify=_statement_kind)
+        source_after, source_after_metrics = capture_statements(connection, lambda: _materialize(source), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -215,12 +193,10 @@ def chained_queryset_independence(contract_id: str) -> dict[str, Any]:
 def count_cold_and_warm(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.order_by("id")
-        count_before, count_before_metrics = _capture(queryset.count)
+        count_before, count_before_metrics = capture_statements(connection, queryset.count, classify=_statement_kind)
         Article.objects.create(id=5, title="Counted", published=False, summary=None)
-        full_after, full_after_metrics = _capture(
-            lambda: _materialize(queryset)
-        )
-        count_cached, count_cached_metrics = _capture(queryset.count)
+        full_after, full_after_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
+        count_cached, count_cached_metrics = capture_statements(connection, queryset.count, classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -242,12 +218,10 @@ def count_cold_and_warm(contract_id: str) -> dict[str, Any]:
 def exists_cold_and_warm(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.filter(title="Later").order_by("id")
-        exists_before, exists_before_metrics = _capture(queryset.exists)
+        exists_before, exists_before_metrics = capture_statements(connection, queryset.exists, classify=_statement_kind)
         Article.objects.create(id=5, title="Later", published=True, summary=None)
-        full_after, full_after_metrics = _capture(
-            lambda: _materialize(queryset)
-        )
-        exists_cached, exists_cached_metrics = _capture(queryset.exists)
+        full_after, full_after_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
+        exists_cached, exists_cached_metrics = capture_statements(connection, queryset.exists, classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -269,16 +243,10 @@ def exists_cold_and_warm(contract_id: str) -> dict[str, Any]:
 def iterator_bypass(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.order_by("id")
-        cached_before, cached_before_metrics = _capture(
-            lambda: _materialize(queryset)
-        )
+        cached_before, cached_before_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         Article.objects.create(id=5, title="Iterator", published=True, summary=None)
-        iterator_after, iterator_after_metrics = _capture(
-            lambda: [_article_value(article) for article in queryset.iterator()]
-        )
-        cached_after, cached_after_metrics = _capture(
-            lambda: _materialize(queryset)
-        )
+        iterator_after, iterator_after_metrics = capture_statements(connection, lambda: [_article_value(article) for article in queryset.iterator()], classify=_statement_kind)
+        cached_after, cached_after_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -297,30 +265,22 @@ def iterator_bypass(contract_id: str) -> dict[str, Any]:
 def index_partial_evaluation(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.order_by("-id")
-        index_before, index_before_metrics = _capture(
-            lambda: _article_value(queryset[0])
-        )
+        index_before, index_before_metrics = capture_statements(connection, lambda: _article_value(queryset[0]), classify=_statement_kind)
         Article.objects.create(
             id=5,
             title="Index five",
             published=False,
             summary=None,
         )
-        index_after, index_after_metrics = _capture(
-            lambda: _article_value(queryset[0])
-        )
-        full_after, full_after_metrics = _capture(
-            lambda: _materialize(queryset)
-        )
+        index_after, index_after_metrics = capture_statements(connection, lambda: _article_value(queryset[0]), classify=_statement_kind)
+        full_after, full_after_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         Article.objects.create(
             id=6,
             title="Index six",
             published=True,
             summary=None,
         )
-        index_cached, index_cached_metrics = _capture(
-            lambda: _article_value(queryset[0])
-        )
+        index_cached, index_cached_metrics = capture_statements(connection, lambda: _article_value(queryset[0]), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -369,8 +329,8 @@ def failed_evaluation_retry(contract_id: str) -> dict[str, Any]:
                 for row in FIXTURES
             ]
         )
-        retry, retry_metrics = _capture(lambda: _materialize(queryset))
-        repeated, repeated_metrics = _capture(lambda: _materialize(queryset))
+        retry, retry_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
+        repeated, repeated_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -392,17 +352,11 @@ def failed_evaluation_retry(contract_id: str) -> dict[str, Any]:
 def all_fresh_clone(contract_id: str) -> dict[str, Any]:
     with article_database():
         source = Article.objects.order_by("id")
-        source_before, source_before_metrics = _capture(
-            lambda: _materialize(source)
-        )
+        source_before, source_before_metrics = capture_statements(connection, lambda: _materialize(source), classify=_statement_kind)
         Article.objects.create(id=5, title="Clone", published=True, summary=None)
-        clone, clone_construction_metrics = _capture(source.all)
-        clone_after, clone_after_metrics = _capture(
-            lambda: _materialize(clone)
-        )
-        source_after, source_after_metrics = _capture(
-            lambda: _materialize(source)
-        )
+        clone, clone_construction_metrics = capture_statements(connection, source.all, classify=_statement_kind)
+        clone_after, clone_after_metrics = capture_statements(connection, lambda: _materialize(clone), classify=_statement_kind)
+        source_after, source_after_metrics = capture_statements(connection, lambda: _materialize(source), classify=_statement_kind)
         return _observed(
             contract_id,
             [
@@ -423,30 +377,22 @@ def all_fresh_clone(contract_id: str) -> dict[str, Any]:
 def first_cold_and_warm(contract_id: str) -> dict[str, Any]:
     with article_database():
         queryset = Article.objects.order_by("-id")
-        first_before, first_before_metrics = _capture(
-            lambda: _article_value(queryset.first())
-        )
+        first_before, first_before_metrics = capture_statements(connection, lambda: _article_value(queryset.first()), classify=_statement_kind)
         Article.objects.create(
             id=5,
             title="First five",
             published=False,
             summary=None,
         )
-        first_after, first_after_metrics = _capture(
-            lambda: _article_value(queryset.first())
-        )
-        full_after, full_after_metrics = _capture(
-            lambda: _materialize(queryset)
-        )
+        first_after, first_after_metrics = capture_statements(connection, lambda: _article_value(queryset.first()), classify=_statement_kind)
+        full_after, full_after_metrics = capture_statements(connection, lambda: _materialize(queryset), classify=_statement_kind)
         Article.objects.create(
             id=6,
             title="First six",
             published=True,
             summary=None,
         )
-        first_cached, first_cached_metrics = _capture(
-            lambda: _article_value(queryset.first())
-        )
+        first_cached, first_cached_metrics = capture_statements(connection, lambda: _article_value(queryset.first()), classify=_statement_kind)
         return _observed(
             contract_id,
             [

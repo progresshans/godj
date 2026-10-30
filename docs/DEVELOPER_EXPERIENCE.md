@@ -1,270 +1,415 @@
-# 목표 개발 경험
+# 개발 흐름
 
-- 상태: 장기 사용자 흐름 Accepted, M1 Article 단면 Implemented/Verified, 나머지 문법 Proposed
-- 마지막 검토: 2026-08-08
+실행 가능한 시작점은 [README의 Article 예제](../README.md#article-실행)다.
+아래는 현재 명령과 코드 경계를 설명한다. 제품 지원 폭은 [구현 현황](status/IMPLEMENTATION_MATRIX.md)을 따른다.
+새 기능의 작성·변경·진단 편의를 평가할 때는 [개발 판단 기준](DEVELOPMENT_CRITERIA.md)을 사용한다.
 
-별도로 `M1 verified`라고 표시하지 않은 코드는 **illustrative sketch**입니다. M1 API도
-pre-1.0 실험 경계이며 전체 Django 기능 지원을 뜻하지 않습니다.
+설치한 도구는 `godj version` 또는 `godj version --json`으로 확인한다. 프로젝트 runtime은
+공개 `version.Current()`로 자신의 GoDj dependency를 조회한다. 개발 source와 replacement의 표시 규칙은
+[버전 조회](../version/README.md)를 따른다. 두 결과의 출력만으로 호환성 검증이 끝난 것은 아니다.
 
-## M1 verified 단면
+## 새 프로젝트
 
-현재 checkout에서 다음 흐름이 compile/runtime/differential test를 통과합니다.
+`godj startproject MODULE DIRECTORY`는 identity와 모델이 없는 `site` 앱, 선언 runner, generated runtime과
+설정을 만든다. 대상의 부모 디렉터리는 있어야 하고 대상 이름은 없어야 한다. 기존 빈 디렉터리도 덮어쓰지 않는다.
+고정 module에서 설치한 도구는 그 version을 사용하며 `--framework-version VERSION`으로 명시할 수도 있다.
+개발 checkout은 `--framework-source PATH`로 선택한다. 설치 도구의 위치나 현재 폴더에서 dependency를 추측하지 않는다.
+Compiler가 checkout에 기록한 tag/pseudo-version도 개발 source의 진단 정보이며 자동 dependency 선택에 사용하지 않는다.
+
+README에서 만든 도구를 사용해 저장소 루트에서 실행하는 개발 예시는 다음과 같다.
+
+```sh
+"$godj_demo_dir/godj" startproject example.com/my-site ../my-site --framework-source "$PWD"
+cd ../my-site
+"$godj_demo_dir/godj" generate --check
+"$godj_demo_dir/godj" migrations check
+"$godj_demo_dir/godj" migrate
+"$godj_demo_dir/godj" createsuperuser
+"$godj_demo_dir/godj" runserver
+```
+
+생성 명령은 실제 generator와 runtime compile을 마친 후보를 게시한다. 기본 `site.sqlite3`의 migration과 초기 계정은
+위 명시적 명령으로 만든다. `/admin/`과 `/api/identity/`는 같은 저장된 identity·권한·Session/CSRF를 사용한다.
+기본 runtime은 literal loopback만 허용하며 local HTTP cookie 정책을 쓴다. 운영 network/TLS 설정은 별도 entrypoint의 책임이다.
+
+생성된 `README.md`가 모델 선언·Admin/API 노출·DB 설정과 변경 후 명령을 설명한다. 업무 모델을 추가해도 모든 field를
+자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
+Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
+일반 command의 현재 사용은 아래를 따른다. 모든 프로젝트 명령은 실행 전 호환성 검사를 사용한다.
+독립 고정 module 조합과 reload의 전체 환경 검증은 [C1](../work/0137-project-core-startup.md)에 남아 있다.
+이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+
+`godj startapp LABEL [DIRECTORY]`는 `modeldef/schema.go`와 등록 안내를 새 디렉터리에 만든다.
+생략한 대상은 현재 디렉터리 아래 LABEL이다. 기존 대상은 거부하며 프로젝트 탐색·실행·DB I/O는 하지 않는다.
+Label은 63자 이내의 canonical schema 이름과 portable path 규칙을 사용한다. 설치 여부는 결과의 `installed: false`로 구분한다.
+
+Starter project에서는 `godj startapp line_items apps/line_items` 뒤 새 `modeldef`를 import하고
+`modeldef/apps.go`의 `Applications()`에 그 `Definition()`을 추가한다. 기존 앱 정의를 보존한다.
+이후 `generate`와 명시적 migration을 사용한다. 새 앱은 빈 상태로 등록할 수 있고 나중에 첫 모델을 추가한다.
+Generated model package와 선언 package는 분리하며 Admin/API 노출과 권한은 프로젝트가 명시한다.
+
+## 수정과 개발 서버 교체
+
+`godj runserver [--project PATH] [--addr 127.0.0.1:8000] [--no-reload]`는 기본적으로 소스 변경을 감시한다.
+Go 소스·embed 자산·module 선언·생성 manifest와 사용 중인 로컬 replacement를 검사한다. 환경은 최초 invocation의
+snapshot이므로 환경 변수를 바꾸려면 서버를 다시 시작한다. `--no-reload`는 한 번 build한 앱만 실행한다.
+
+수정한 후보의 선언/생성물 검사·build·호환성·앱 시작이 성공하고 소스가 그대로일 때 같은 주소에서 교체한다.
+기존 요청은 이전 앱에서 마저 처리한다. 실패한 수정은 stderr의 `project_runserver_reload_rejected/CODE`로 표시하며
+기존 정상 앱을 유지한다. 연속 수정 중 오래된 후보는 게시하지 않고 정리한 뒤 최신 소스를 준비한다.
+
+모델 변경 뒤에는 `generate`, `makemigrations`, migration 검토, `migrate`를 직접 실행한다. Watch는 DB·계정·권한을
+수정하지 않는다. Migration을 마친 뒤 소스 변경을 저장하거나 서버를 다시 시작해 실패했던 후보를 다시 준비한다.
+DB 파일의 일반 저장은 rebuild를 유발하지 않는다. 앱은 현재 schema·설정·필수 resource를 Start에서 검사해야 한다.
+개발 서버 교체는 이전 앱과 호환되지 않는 DB migration을 자동으로 안전하게 만들지 않는다.
+
+앱의 공개 연결은 [`project/server.Serve`](../project/server/README.md)를 따른다. 두 외부 앱에서 처리 중인 저장,
+실패 후보·연속 수정·종료와 기존 로그인·관계·현재 권한을 확인하는 실행 범위는 C1과 TEST_EVIDENCE에 유지한다.
+
+## 사용자 관리 명령과 check
+
+`godj commands`는 프로젝트 명령 목록을, `godj help NAME`은 인자/option 안내를 표시한다.
+`godj command NAME [ARGUMENTS]`로 실행한다. 다른 프로젝트는 NAME 앞의 `--project PATH`로 선택한다.
+전역 built-in 도움말은 `godj help`이며 프로젝트나 Go executable 없이 표시할 수 있다.
+
+Starter의 `internal/commands/commands.go`는 `count-groups`를 등록한다. 같은 설정으로 DB를 열고 generated Group
+manager로 저장된 그룹 수를 읽는다. 새 명령은 [`project/command`](../project/command/README.md)의 명시적
+등록과 typed 인자/option, invocation별 resource opener/cleanup을 사용한다. 목록·help는 callback이나 DB를 실행하지 않는다.
+`godj check`는 선언·생성물·등록과 프로젝트의 순수 configuration check를 수행한다.
+`godj check --list`로 선택 가능한 I/O 검사를 보고, `godj check --resource database`로 기존 DB의 연결/읽기를 확인한다.
+추가 검사는 `command.ResourceCheck`로 등록하며 `--resource NAME`을 반복해 선택한다. 모든 선택을 먼저 검증하고,
+순수 설정이나 앞선 검사가 실패하면 이후 I/O를 실행하지 않는다. DB·schema 생성과 migration은 검사에서 수행하지 않는다.
+`CheckError`는 설정 field 이름을 명시적으로 표시하고 raw cause와 값은 진단에 포함하지 않는다.
+
+`godj.toml`의 `commands_package`는 선언 runner와 다른 디렉터리를 선택한다. 명령 runtime은 generated 모델을 import할 수 있다.
+전역 CLI는 선언 snapshot과 bundle을 검사하고 readonly runtime build 후 같은 bundle을 재확인한다.
+두 linked executable의 [호환성 정보](../project/compatibility/README.md)를 비교한 뒤에만 명령을 실행한다.
+고정 module은 실제 path/version과 contract가 같아야 하며 명시적인 개발 source는 동일 contract를 요구한다.
+이 확인은 source byte 일치나 DB schema 검증을 대신하지 않는다.
+
+Custom command는 실행 사용자의 OS/DB 권한을 사용한다. HTTP의 현재 사용자·인가·CSRF를 암묵적으로 부여하거나 생략하지 않는다.
+명령의 비정상 종료·출력 실패·cleanup 실패는 이미 저장된 데이터의 rollback을 뜻하지 않으며 자동 재시도하지 않는다.
+기존 generate·migration 명령은 선언 runner를, runserver는 선언/HTTP runtime을 같은 기준으로 검사한다.
+초기 사용자 생성은 terminal 확인과 비밀번호 입력 전에 검사를 마친다. Entry point는 설정을 읽기 전에
+`compatibility.Serve`를 호출하며 resource를 package `init`에서 열지 않는다. 고정 module 설치와 독립 Django 대조는 C1에서 계속한다.
+
+## 이벤트와 기본 로그
+
+생성된 command/server는 `GODJ_LOG_LEVEL=info`로 JSON 진단을 stderr에 기록한다. `debug`, `warn`, `error`, `off`도
+지원하며 미설정은 로그를 만들지 않는다. 프로젝트·runtime·invocation ID와 닫힌 동작/결과·취소 여부를 기록한다.
+`internal/config/config.go`에서 sink와 추가 속성을 명시한다. 인자·비밀번호·요청 본문·private protocol·error 원문은
+자동 기록하지 않는다. 라이브러리의 apps/command/server/events에는 caller가 소유한 `*slog.Logger`를 직접 전달한다.
+Sink 오류·panic·Goexit는 확정된 저장이나 command 결과를 바꾸지 않으며, handler와 cleanup은 반환까지 기다린다.
+
+[`events.New[T]`](../events/README.md)는 명시적 등록과 순서 있는 process 내부 알림이다. `Send`는 첫 오류에서 멈추고
+`SendRobust`는 receiver별 오류를 모아 계속한다. 확정된 저장 후 선택적 알림 실패와 DB 결과를 구분한다. 종료 시 등록을
+해제/닫고 callback drain이 성공한 뒤 그 resource를 해제한다. 전역 registry·자동 retry·durable 전달은 제공하지 않는다.
+공통 Django 의미와 Go의 typed/context/lifetime 차이 및 실제 검증 여부는 C1과 TEST_EVIDENCE를 따른다.
+
+## 새 프로젝트의 조립과 변경 책임
+
+C1 이전 source `680b6cd2`의 [Article 진입점](https://github.com/progresshans/godj/blob/680b6cd297c731a15f0e4aee5da924bbc92f07f9/examples/article/cmd/site/main.go)과
+[DB 구성](https://github.com/progresshans/godj/blob/680b6cd297c731a15f0e4aee5da924bbc92f07f9/examples/article/databaseconfig/config.go)을
+현재 공개 package·[starter](../internal/projectscaffold/templates/README.md.tmpl)와 대조한 책임 변화다.
+아래는 코드와 생성 안내의 비교이며 개발 시간이나 성능을 측정한 결과는 아니다.
+
+| 작업 | C1 이전의 프로젝트 조립 | 현재 공통 경로와 프로젝트가 지정할 부분 |
+|---|---|---|
+| 빈 프로젝트 시작 | Module·프로젝트 설정·선언 runner·generated runtime·identity 연결을 직접 구성했다. | `startproject`가 기본 구성을 생성·compile한 후보를 게시한다. 프로젝트는 dependency와 대상 경로, DB·identity 정책을 선택한다. |
+| 앱과 첫 모델 추가 | 선언과 `ProjectSpec` 배치, Web/Admin의 앱 목록을 직접 맞췄다. | `startapp`이 빈 선언과 등록 안내를 만들고 generator가 `InstalledApps()`를 제공한다. 프로젝트는 `Applications()`에 명시적으로 등록하고 모델·노출 field·권한을 선언한다. |
+| 환경과 DB 선택 | Article이 환경 parsing·상충 검사·DB 종류·SQL renderer·backend opener를 소유했다. | `settings.Environment`와 `settings/database`가 snapshot·검사·backend 연결을 제공한다. 환경 이름·기본값·명시적 override 정책은 프로젝트가 정한다. |
+| HTTP 시작과 종료 | Article 진입점이 listener·한 번 닫기·ready 출력·server·DB cleanup을 직접 연결했다. | `project/server.Run`·`Serve`가 시작·ready·요청 drain·cleanup을 연결한다. 프로젝트는 `Start`에서 앱과 resource를 구성하고 `Stop`을 반환한다. 앱 간 dependency가 있으면 `apps.Start`로 명시한다. |
+| 업무 명령 추가 | Generated 모델을 사용하는 별도 executable과 인자·출력·resource 수명을 직접 구성해야 했다. | `project/command` 등록·typed 인자·`Using`으로 global CLI에 연결한다. 프로젝트가 업무 callback·검사·resource와 operator 권한을 정하고 확정된 저장 후 오류의 의미를 유지한다. |
+| 저장된 데이터가 있는 필드 변경 | 선언·생성·명시적 migration 뒤 실행 process를 다시 시작했다. | 같은 선언·생성·migration 절차를 유지하며 기본 `runserver`가 성공한 후보만 교체한다. 프로젝트가 migration을 검토·적용하고 필요한 schema/resource를 startup에서 확인한다. |
+| 로그와 process 내부 알림 | 프로젝트마다 실행 식별·sink·callback 등록과 종료를 조립해야 했다. | Starter의 opt-in logger와 `events.New[T]`를 사용한다. 프로젝트는 sink·receiver·등록 해제와 drain을 소유하고 저장 결과와 후속 알림 오류를 구분한다. |
+
+Notes 소비자는 starter에서 단일 모델을 추가해 기존 row를 유지하며 nullable field를 확장한다. Article 소비자는
+별도 관계 모델 앱에서 저장된 로그인·그룹 membership·현재 권한을 변경하고 reload 뒤 다시 읽는다.
+두 소비자가 공유하는 것은 source 준비·호환성·process 교체와 공개 resource 수명이다. 도메인 모델과 HTTP 노출 정책은
+각 프로젝트가 소유한다. 실제 실행 범위와 실패·독립 Django 대조 결과는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)에 기록하며,
+이 책임 비교만으로 C1 전체 수용이나 사용성 검증 완료를 뜻하지 않는다.
+
+## 모델에서 query까지
+
+[modeldef/schema.go](../examples/article/modeldef/schema.go)는 선언만 소유하고 generated model을 import하지 않는다.
 
 ```go
 var Definition = schema.Definition{
     AppLabel: "godj_conformance",
     Models: []schema.Model{{
-        Name:   "article",
+        Name: "article",
         GoName: "Article",
         Fields: []schema.Field{
             schema.CharField("title", "Title", 200),
-            schema.BooleanField("published", "Published"),
+            schema.BooleanField("published", "Published", schema.Default(false)),
             schema.CharField("summary", "Summary", 200, schema.Nullable()),
         },
     }},
 }
 ```
 
+`schema.Build`가 normalized IR을 만들고 declaration-owned `ProjectSpec`이 app/project package 위치를 연결한다.
+`schema.Definition{AppLabel: "notifications"}`처럼 모델이 없는 앱도 선언할 수 있다. 생성된
+`project.InstalledApps()`를 `settings.Definition.InstalledApps`에 전달하면 동일한 앱 이름·label을 사용한다.
+목록은 caller 소유 복사이며 canonical package alias 순서다. 목록 생성 자체는 startup callback을 실행하지 않는다.
+`apps.Start`에 이 registry와 명시적 hook/dependency를 전달하면 앱 초기화와 resource 종료를 연결한다.
+설정과 같은 canonical label을 사용하며 [실패 정리와 종료 소유권](../apps/README.md)을 따른다.
+실제 서버 시작은 [`project/server.Run`](../project/server/README.md)에서 Start/Listen/Ready와 요청 drain·앱 cleanup을 연결한다.
+프로젝트는 Start에서 만든 application과 Stop을 반환한다. App lifecycle을 반환하면 요청이 끝난 뒤 같은 의존 순서로 resource를 정리한다.
+나중에 첫 모델을 추가하면 같은 앱 identity에 새 schema/project snapshot을 생성한다.
+생성된 FieldSet과 Manager를 사용한 query는 다음 형태다. `sqliteBackend`는 application이 연 backend다.
+
 ```go
 articles, err := models.ArticleObjects.Using(sqliteBackend).
     Filter(models.ArticleFields.Title.IContains("django")).
     OrderBy(models.ArticleFields.ID.Asc()).
     All(ctx)
-// articles has type []models.Article
 ```
+
+`err`를 처리하고 backend를 명시적으로 닫는다. Field/model을 잘못 조합하는 typed query는 compile 단계에서 거부하고,
+동적 이름으로 만든 query도 실행 전에 metadata로 검증한다. QuerySet 복사와 결과 cache의 의미는 [CONCURRENCY](CONCURRENCY.md)를 따른다.
+
+일반 정수는 `schema.IntegerField("priority", "Priority", schema.Nullable())`처럼 선언한다. 저장·계산 타입은 int64이며 nullable
+model 값은 `*int64`다. generated Create/Patch의 `WithPriority(0)`과 `WithPriorityNull()`은 다른 값을 표현한다.
+`schema.Default(int64(...))`는 생략한 Create 값에 적용한다. `orm.AutoField` ID는 수정 mask에 넣을 수 없고 일반 정수는 넣을 수 있다.
+긴 본문은 `schema.TextField("resolution", "Resolution", schema.Nullable())`로 선언한다. 저장형은 TEXT이고 generated 값은
+`*string`이다. `WithResolution("")`와 `WithResolutionNull()`을 구분한다. 저장 길이 제약과 HTTP/parser 자원 한도는 별개다.
+시각은 `schema.DateTimeField("due_at", "DueAt", schema.Nullable())`로 선언한다. Generated 값은 `*time.Time`이며 `WithDueAt(time.Time{})`은
+연도 1의 실제 값이고 `WithDueAtNull()`과 다르다. 저장/조회는 UTC·microsecond로 정규화한다. JSON은 explicit offset이 있는 RFC3339,
+Form은 offset 생략 시 UTC로 해석한다. [정밀도·범위·남은 시간 기능](adr/0061-datetime-field-and-canonical-instant-values.md)을 따른다.
+기존 행이 있는 Helpdesk의 확장 예는 [새 migration과 consumer](../examples/helpdesk/README.md)에 있다.
+
+## 관계 값을 계산하고 비교하기
+
+Project binding의 단일 값 관계는 원 모델의 scalar와 같은 계산 AST를 사용한다. 다음은 Helpdesk 보고서의 완료와
+티켓의 닫힘이 같은 행을 고르는 예다. `backend`는 실제 query backend이며 인가·현재 Category 범위는 application이 소유한다.
 
 ```go
-predicates, err := orm.ParseDynamic(
-    models.ArticleDescriptor{},
-    policy,
-    []orm.LookupInput{{Key: "title__icontains", Value: "django"}},
-)
-if err != nil {
-    return err
-}
-articles, err := models.ArticleObjects.Using(sqliteBackend).
-    Filter(predicates...).
-    All(ctx)
+relations, err := project.BindRelations()
+if err != nil { return err }
+fields := models.ServiceReportFields
+same := orm.ExactExpressions(orm.F(fields.Completed), relations.ModelsServiceReport.Ticket.Closed)
+source := models.ServiceReportObjects.Using(backend).Filter(same)
+rows, err := orm.SelectInto(ctx, source, orm.Project1(fields.ID, func(id int64) int64 { return id }))
 ```
 
-생성 확인은 공개 CLI가 아닌 M1 runner로 수행합니다.
+Forward FK/OneToOne과 reverse OneToOne의 finite 혼합 경로를 허용한다. 없는 optional 대상은 NULL이며
+계산 비교의 NOT도 SQL 3값 의미를 따른다. `Scalar(related)`는 `Optional[T]` projection·비교·정렬을,
+`Numeric(related)`는 int64/float64 집계를 연결한다. 관계를 UPDATE assignment에 넣는 것은 거부한다.
 
-```bash
-go run ./internal/cmd/m1generate -check
+생성 query의 `Expression`, `ExpressionPredicate`, `ProjectExpressions`는 자기 project binding으로
+`DynamicF("ticket__closed")` 같은 경로를 해석한다. 예를 들어
+`ExpressionPredicate(orm.DynamicF("completed").Exact(orm.DynamicF("ticket__closed")))`는 위 typed 비교와 같은 AST다.
+Generic 함수에서는 `BindExpressionIn`/`BindPredicateIn`/`ProjectDynamicIn`에 source와 일치하는 `BoundModel`을 전달한다.
+`Decimal(operand)`는 정확한 Decimal 산술을, `DateTime(operand)`와 `Duration(operand)`는 시각 이동·시각 차이와
+기간 산술을 연결한다. Collection 경로의 값·계산식은 완료된 집계 안에서 사용하며 일반 행 projection·WHERE·UPDATE의
+operand로 사용하지 않는다. Dynamic 집계는 `BindAggregateExpressionIn` 또는 생성 query의 `AggregateExpression`을
+사용한다. `DateTime(F(DueAt)).Date()/Time()`은 UTC 날짜/시계를 추출하고 `Date(F(ServiceOn)).ISOYear()`나
+`Time(F(ServiceAt)).Second()`는 해당 값의 달력/시계 part를 계산한다.
+`DateTime(F(DueAt)).TruncMonth()`는 UTC 월 시작 DateTime, `Date(F(ServiceOn)).TruncWeek()`는 월요일 Date,
+`Time(F(ServiceAt)).TruncMinute()`는 초 이하를 버린 Time을 만든다. DateTime은 연·분기·월·주·일·시·분·초,
+Date는 연·분기·월·주·일, Time은 시·분·초를 지원하며 입력 타입과 NULL을 유지한다. Dynamic의 같은 이름 메서드도
+동일 AST를 사용한다.
+
+`Date(...).Add(duration)`는 UTC 자정에서 이동한 DateTime을, `Time(...).Add(duration)`는 하루 안으로 정규화한 Time을
+만든다. Date/DateTime 사이의 차이와 Time 사이의 차이는 Duration이며, `ScaleDuration`·`DivideDuration`은
+Integer/Float/Decimal 배율과 나눗셈을 지원한다. 중간 분수를 유지하고 최종 Duration에서 half-even으로 반올림한다.
+`Duration(...).Ratio(...)`는 두 기간의 비율을 finite Float으로 반환한다.
+
+`timezone.Parse("Asia/Seoul")`로 검증한 zone을 `DateTime(F(DueAt)).InZone(zone).Date()`에 전달하면 해당 지역의 날짜를
+얻는다. `InZone(zone).TruncMonth()`는 지역 월 시작에 해당하는 UTC instant를 반환한다. 생략한 시간대는 UTC이며
+고정 IANA 데이터의 전체 이름/alias를 지원한다. 잘못된 이름이나 변환 범위 오류를 UTC·NULL로 대체하지 않는다.
+이 명시적 조회 기능과 locale 표시·naive 입력·일반 wall-time 산술·사용자 설정 저장은 별개다.
+
+JSON scalar 계산 비교·일반 named annotation·나머지 function/subquery/window는 아직 지원하지 않는다.
+[Helpdesk 계산 조회](../examples/helpdesk/README.md)에서 실제 조립을 확인한다.
+설계와 실제 환경별 검증은 [ADR-0090](adr/0090-query-update-and-scalar-expressions.md)·[TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+
+## 프로젝트 명령
+
+README에서 만든 `$godj_demo_dir/godj`와 DB 환경을 같은 shell에서 사용한다.
+
+```sh
+"$godj_demo_dir/godj" generate --check --project examples/article/godj.toml
+"$godj_demo_dir/godj" showmigrations --project examples/article/godj.toml
+"$godj_demo_dir/godj" migrate --plan --project examples/article/godj.toml
+"$godj_demo_dir/godj" sqlmigrate godj_conformance 0001_initial --project examples/article/godj.toml
 ```
 
-## 1. 프로젝트 시작
+- `generate --check`는 선언과 생성물의 drift를 확인한다. 선언 변경 뒤에는 `generate`로 현재 후보 전체를 검증·게시한다.
+- `makemigrations`는 지원하는 schema difference에서 migration을 작성한다. Destructive/general custom operation을 임의로 추론하지 않는다.
+- `showmigrations`는 현재 DB history의 한 snapshot이다.
+- `migrate --plan`은 preview이며 그 출력으로 나중 실행을 승인하지 않는다. 실제 `migrate`는 fresh history에서 다시 계획한다.
+- `sqlmigrate`는 명명된 migration의 forward SQL을 DB 없이 render한다. 데이터 실행 결과나 runtime history를 보여 주는 명령이 아니다.
+- `createsuperuser`는 선택 모델의 필드·생략/default·choice를 터미널에서 읽고, 명시적으로 설치한 빈 계정 domain에 첫 active/staff/superuser를 만든다.
+  `commands_package`의 `command.Config.FirstAccount`가 실제 typed policy·DB 연결을 소유한다. 선언 runner는 migration과 Schema IR만 읽는다.
+  결과의 `operation_id`, `status`, `code`, `cleanup_failed`를 함께 보관한다. `unknown`·응답 유실·정리 실패를 재시도 허가로 사용하지 않는다.
 
-```bash
-godj startproject mysite
-cd mysite
-godj startapp blog
+`godj.toml`은 [예제 파일](../examples/article/godj.toml)처럼 선언 runner·runserver·commands package를 지정한다.
+명령은 그 프로젝트의 schema/catalog/backend/policy를 사용한다. 임의 Python settings나 generated model package를 schema 입력으로 읽지 않는다.
+
+Process 진입점은 [환경 snapshot](../settings/README.md)을 한 번 만든 뒤 같은 `Lookup`을 설정 파서에 전달할 수 있다.
+원래 값과 존재 여부를 유지하며 DB 선택·필수 값·타입의 의미는 프로젝트 설정에서 검증한다.
+값이 secret일 수 있으므로 환경 snapshot이나 DB URL의 내용을 진단으로 출력하지 않는다.
+
+## 선택 계정 구성
+
+Article와 새 scaffold는 `modeldef`에서 계정 역할을 선택한다. 기본 User·Group·Permission의 기존 migration과 독립
+`godj_account_domain`, `godj_account_audit`, `godj_sessions`의 migration을 함께 명시적으로 설치한다.
+[Article 설치 선언](../examples/article/modeldef/migrations.go)과 [typed 정책](../examples/article/internal/accounts/policy.go)이 실제 구성이다.
+사용자 정의 모델을 선택할 때는 역할 참조·필수 최초 입력·노출·권한·비밀번호 정책과 해당 모델의 migration을 함께 변경한다.
+기존 migration 파일을 새 모델의 초기 정의로 덮어쓰지 않는다.
+
+생성 `NewAccountRuntime`은 같은 credential/session owner의 인증·login·자기 비밀번호 변경·관리 owner·catalog를 묶는다.
+`InspectStartup`은 설치 이력과 현재 domain·account/catalog·audit·모든 session namespace를 읽기 전용으로 검사한다.
+정확한 Fresh 상태일 때만 공개 페이지로 기동하며 Ready이면 저장된 현재 권한으로 Admin/API를 조립한다. 서버가 계정을
+자동 생성하거나 입력 password 없이 기존 사용자를 새 model/domain으로 채택하지 않는다.
+
+[`identityadmin.RegisterAccount`](../identity/admin/selected_account.go)와
+[`identityadmin.RegisterCatalog`](../identity/admin/selected_catalog.go)는 실제 typed owner를 공통 Admin에 연결한다.
+Slug·목록 열과 읽기/생성/수정의 명시적 노출·권한을 선택한다. 계정 생성은 add와 change를 모두 요구하며,
+현재 인가·revision·관련 행·세션 폐기·감사를 같은 native transaction에 묶는다. 저장 뒤에는 확정 ID/revision을 사용한다.
+
+[`identityapi.NewManagement`](../identity/api/README.md)는 같은 owner를 `/api/identity/accounts/`, `groups/`, `permissions/`에 연결한다.
+모델 입력은 `fields`, 비밀번호 명령은 `credential` 객체로 전달하며 기존 객체 쓰기는 현재 `If-Revision`을 사용한다.
+같은 브라우저의 Session/CSRF와 현재 권한을 검사한다. 자세한 요청 예시는 해당 API 문서를 따른다.
+
+[일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON을 제공한다.
+변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.
+메일 reset은 같은 runtime에 key·sender·신뢰한 origin·비공개 오류 reporter를 명시해 활성화한다. 계정 생성·변경과 같은
+실제 typed 비밀번호 정책을 사용하고 자동 로그인하지 않는다.
+
+Article의 업무 Admin/API도 전체 Principal을 받아 현재 domain·계정·권한을 실제 읽기 snapshot/쓰기 transaction 안에서
+다시 검사한다. Admin의 감사는 그 actor의 domain에 속하며 프로필 값이나 display label을 저장하지 않는다.
+[Article 구성](../examples/article/internal/siteapp/siteapp.go)과 [I1 진행](../work/0138-custom-account-lifecycle.md)은
+이 구현과 아직 미완료인 환경별 수용·추가 프로필 관계/파일·채운 DB 전환을 구분한다.
+
+## 기존 operator 이전
+
+현재 Article/scaffold는 `godj_system` migration 이력이 있으면 `account_transition_required`로 시작을 거부한다.
+기존 operator 행이 없거나 새 선택 계정 저장소가 비어 있어도 자동 Fresh로 취급하지 않는다. 선언 변경이나 새 migration
+설치만으로 기존 session·reset·권한·audit를 다른 모델에 넘기지 않는다.
+
+`systemstate.AdoptOperator`와 예전 `cmd/adoptoperator`는 역사적인 operator→고정 User 전환을 위한 API다.
+이 도구는 새 선택 계정 domain으로의 mapping·retirement·복구를 완료하지 않으므로 현재 runtime을 준비하는 명령으로
+사용할 수 없다. 저장된 계정과 소유권을 명시적으로 옮기는 전체 경로는 [I1-07](../work/0138-custom-account-lifecycle.md)의
+남은 구현이다. 기존 데이터는 보존한다. Fresh 새 프로젝트 사용과 채운 DB 전환의 검증은 별도로 판정한다.
+
+## Form, Admin과 API
+
+[Admin 등록](../examples/article/adminapp/registration.go)은 model metadata, 허용 field, 권한과 persistence callback을 연결한다.
+[API 구성](../examples/article/apiapp/)은 serialization·validation·authentication과 HTTP CRUD를 연결한다.
+Admin 진입에는 active staff가 필요하다. Model permission, 선택적인 추가 site permission 및 Authorizer의 거부도 적용한다.
+HTML과 JSON의 표현 차이는 유지하고 model 의미를 반복 선언하는 곳은 공통 metadata 경계로 모은다.
+
+모든 field를 자동 공개하는 것이 기본 정책은 아니다. Read-only PK, 허용한 입력 field와 relationship input을 명시한다.
+권한이 부족한 요청은 DB mutation 전에 거부하고, 인증/CSRF/error response에 credential이나 internal cause를 넣지 않는다.
+`forms/model.NewSpecForFields`는 editable field allowlist에서 Form을 만든다. 선언 순서를 유지하고 unknown/duplicate/PK/지원하지 않는
+FK 입력은 거부한다. Relation field를 입력에서 제외하고 scalar만 편집할 수 있다.
+Text는 Textarea, Char는 TextInput을 기본 widget으로 사용한다. `forms/model.WithWidget`은 표시만 바꾸며 호환되지 않는 조합은
+시작 시 거부한다. Optional nullable Char의 빈 입력은 Null, Text의 빈 입력은 빈 문자열이다. [상세 의미](adr/0060-text-field-and-form-widget-semantics.md)를 따른다.
+`admin.ModelConfig.FormFields`는 같은 선택을 사용한다. `ReadOnly` 등록은 List/Snapshot을 요구하며 mutation callback·action을
+받지 않고 mutation route를 게시하지 않는다. Get/History는 필요한 read flow에 연결한다.
+List/Get/History callback은 context와 현재 인증 actor를 받으며, DB 권한 재확인은 해당 service가 소유한다.
+조회에는 view 또는 change 권한을 허용하고, 인가 실행 오류를 대체 권한으로 우회하지 않는다.
+CreateForm은 생성에 필요한 별도 model field 선택과 password confirmation 같은 비저장 입력을 선언한다.
+Commands는 별도 Form·권한·명시적 callback으로 password 교체 같은 객체 동작을 구성한다.
+RevisionField를 지정한 모델의 수정·삭제·command는 표시한 revision을 Mutation으로 전달한다.
+실제 write callback은 같은 transaction에서 조건을 다시 확인한다. 충돌은 409이며 자동 재시도하지 않는다.
+CRUD와 객체 command는 확정된 `admin.MutationResult{ID, Revision}`를 반환한다. Update는 실제 변경 field 목록도
+반환하며, 조회용 모델·Snapshot은 저장 결과가 아니다. 자기 비활성화나 권한 회수가 성공한 뒤 표시를 위한 재조회를
+요구하지 않는다. 다음 요청의 접근 권한은 새 상태로 확인한다. [결과 검증 계약](adr/0092-model-input-and-crud-assembly.md)을 따른다.
+PasswordInput에는 저장 기본값을 둘 수 없고, 검증 실패에도 값을 다시 표시하지 않는다.
+`forms.WithTrimWhitespace(false)`는 비밀번호의 공백을 보존한다. Form 값의 일반 진단은 비공개이며,
+값 접근은 명시적 accessor, 값 비교는 `Value.Equal`을 사용한다.
+List snapshot에는 목록 필드와 선언한 revision만 필수이며, 편집 snapshot에는 편집 필드도 필요하다. `forms/model.InitialValues`와
+`admin.NewModelProjector`·`serializers.NewModelEncoder`는 generated descriptor의 typed reader와 명시적 필드 선택을 사용한다.
+Admin/API projector는 시작 시 선택 metadata를 검증·복사하고 목록의 각 객체에서는 값만 변환한다.
+
+`serializers.FromModel`은 명시적인 `ModelField` 목록에서 kind/null/default/length를 IR로부터 가져온다.
+`ReadOnly`, `Optional`, `AllowEmpty` 같은 API 표현 선택은 여전히 명시한다. Auto PK는 read-only다.
+Field 의미의 반복 정의를 없애면서도 model의 모든 field가 자동으로 API 입력이 되는 일을 막는다.
+
+Identity로 이전하기 전의 legacy operator 권한을 바꿀 때는 `systemstate.UpdateOperatorPermissions(ctx, backend, expectedPolicy, permissions)`를 명시적으로 호출한다.
+이 API는 같은 cooperative transaction에서 기존 정책을 비교하고 권한을 갱신하며 session을 폐기한다.
+Username/password hash/ID/active는 바꾸지 않는다. 기존 runtime은 정책 불일치로 인증을 거부하므로 새 정책으로 다시 연다.
+Startup이 새 권한을 자동 승인하거나 이미 admitted된 작업을 소급 취소하지 않는다.
+
+[Helpdesk 소비자](../examples/helpdesk/app_test.go)는 Category–Ticket 관계, 선택형 Admin, API와 기존 operator의 권한 변경·명시적 identity 이전·재시작을 같은 공개 API로 연결한다.
+
+두 번째 모델이나 cross-app flow를 추가할 때는 새 모델이 실제로 같은 공개 경계를 사용하도록 구성하고 core 수정 없이 안 되는 지점을 확인한다.
+
+## OpenAPI와 client
+
+Article 개발 서버에서 Admin에 로그인한 뒤 `/api/openapi.json`을 조회한다. 문서는 Article view 권한으로 보호되며,
+credential을 provision하지 않은 public-only 구성에는 이 경로가 없다. JSON 문서만 제공하고 HTML 문서 UI는 아직 없다.
+
+[Article operation 선언](../examples/article/apiapp/openapi.go)은 실행 route와 같은 원본이며, serializer Spec에서 full/partial
+요청과 응답 schema를 가져온다. 독립 구성에서는 `articleAPI.OpenAPI()`의 오류를 처리하고 반환한 `Document.Response()`를
+application이 선택한 인증·권한 handler로 감싸 게시한다. Article middleware는 같은 `articleAPI.Middleware()`에서 가져온다. `Document.Bytes()`는 파일이나 client 도구에 전달할 수 있는 복사본이다.
+`Document.Routes()`에는 설명한 API route만 있고 문서 조회 route를 자동 추가하지 않는다.
+
+Model serializer를 이미 갖고 있다면 다음 공개 투영 API를 사용한다. `spec`은 실제 binding·encoding에 쓰는 같은 Spec이다.
+
+| 용도 | 호출 |
+|---|---|
+| Full 입력 | `openapi.RequestSchema(spec, serializers.ModeFull)` |
+| Partial 입력 | `openapi.RequestSchema(spec, serializers.ModePartial)` |
+| ModelEncoder 응답 | `openapi.ModelResponseSchema(spec)` |
+
+각 호출의 schema와 오류를 처리한다. [Typed endpoint](../api/endpoint/README.md)의 `endpoint.New`는 같은 admission과
+typed 입력·출력에서 handler와 OpenAPI operation을 함께 만든다. `endpoint.Collect`로 operation/schema를 모으고
+`openapi.New`로 전체 문서를 검증한다. 수동 handler를 사용하는 경로는 `openapi.Operation`에 route·permission·query·
+body·response를 명시하고 같은 authentication·permission으로 handler를 보호한다. 실제 middleware 설치와
+transaction·응답 게시의 책임은 application이 유지한다.
+
+Full 입력의 `title`은 필수이고 생략한 `published`는 false다. PATCH는 생략한 값을 바꾸지 않으며 `summary:null`과
+`summary:""`를 구분한다. Read-only `id`는 입력 schema에서 빠진다. Trim 후 길이·빈 문자열 규칙은 `x-godj-normalization`에,
+body·문자열 byte 제한과 query의 세부 오류 규칙은 설명에 기록한다. 일반 JSON Schema 검사만으로 모든 runtime 제한을 재현할 수 없다.
+Session unsafe 요청은 session·CSRF cookie와 masked header를 함께 요구한다. Bearer로 구성한 API의 문서는 HTTP bearer만 표시한다.
+
+타입을 여러 operation에서 공유할 때는 `openapi.NamedSchema{Name: "Ticket", Schema: ticketSchema}`를 `Config.Schemas`에
+등록하고 `openapi.Ref("Ticket")`의 결과를 쓴다. 이름의 중복·미해결 참조·순환은 문서를 게시하기 전에 실패한다.
+공통 오류 `GoDjAPIError`는 문서가 소유하므로 재선언하지 않는다. 구조가 같은 타입을 자동으로 합치지 않는다.
+
+JSON negotiation을 설치하는 application은 `api.NewJSONPolicy("/api/")`로 만든 같은 policy의 `Middleware()`와
+`openapi.Config.JSONPolicy`를 사용한다. Zero policy에는 406이 없다. 한 dynamic route 일부에만 적용되는 prefix는 거부한다.
+
+Helpdesk는 `application.API(helpdesk.APIConfig{Authentication: authentication, AppendAudit: appendAudit})`로
+`Routes()`와 `OpenAPI()`를 얻는다. `appendAudit`는 전달받은 transaction 안에서 기록하고 별도 commit을 하지 않는다.
+티켓 CRUD·bulk·우선순위 명령, Label·연결·보고서와 집계·비용/기한 미리보기를 같은 선언에 연결한다.
+현재 Category는 application이 소유하고 생성 입력에서 category/id를 받지 않는다. Helpdesk에는 기본 Accept negotiation
+정책이 없으며, [각 경로의 입력·권한·실패 계약](../examples/helpdesk/README.md)을 따른다.
+
+[실제 HTTP client 회귀](../examples/article/apiapp/openapi_test.go)는 문서와 생성·PATCH·HEAD의 응답을 대조한다.
+[외부 생성 client 회귀](../api/openapi/consumertest/README.md)는 별도 module의 고정 ogen v1.24.0 Go client로
+Article Bearer·Session, Helpdesk Session, Identity Bearer·Session과 Account Session의 여섯 profile을 검증한다.
+생성물과 입력 문서·설정·lock의 일치도 필수다.
+
+```sh
+make api-client-dependencies
+go test -count=1 ./api/openapi/consumertest
 ```
 
-사용자는 Django처럼 project와 app 경계를 이해할 수 있지만, Python `manage.py` 대신 global `godj`와 project binary를 사용합니다.
+Session은 실제 cookie·CSRF를 사용한다. Article/Helpdesk와 Identity 관리 client는 parent가 준비한 session에서 시작하고,
+Account client는 제품 login Form을 제출해 session을 만든 뒤 생성 password/reset API와 제품 logout을 사용한다.
+Reset 메일 조회는 fixture만 제공하며 제품 endpoint가 아니다. 임의 generator나 다른 언어의 정수/nullable 동작은
+별도 검증이 필요하다. 위 명령의 실행 위치·환경은 [검증 전략](TESTING.md)을, 문서/생성물 변경은 회귀 README의 갱신 절차를 따른다.
 
-## 2. 모델 의미 선언
+## PostgreSQL
 
-```go
-// illustrative only
-var PostSchema = schema.Define(
-    "Post",
-    schema.AutoField("ID").PrimaryKey(),
-    schema.CharField("Title").MaxLength(200),
-    schema.TextField("Body"),
-    schema.BooleanField("Published").Default(false),
-).
-    AppLabel("blog").
-    TableName("blog_post").
-    Ordering("-ID")
+공통 선택·검증·backend opener는 [settings/database](../settings/database/README.md)가 제공한다.
+예제의 환경변수 이름과 명시적 선택 정책은 [databaseconfig](../examples/article/databaseconfig/config.go)가 소유한다.
+SQLite 환경변수를 해제하고 caller-owned URL/schema를 사용한다. URL에 있는 credential은 출력하거나 문서에 복사하지 않는다.
+
+```sh
+unset GODJ_ARTICLE_SQLITE_DATABASE
+export GODJ_ARTICLE_POSTGRES_URL="$MY_POSTGRES_URL"
+export GODJ_ARTICLE_POSTGRES_SCHEMA="godj_article_demo"
+"$godj_demo_dir/godj" migrate --project examples/article/godj.toml
+"$godj_demo_dir/godj" createsuperuser --project examples/article/godj.toml
+"$godj_demo_dir/godj" runserver --project examples/article/godj.toml
 ```
 
-이 값은 게시글 객체가 아니라 모델 의미의 선언입니다. validation/normalization 후 Schema IR이 되고, 실제 `Post` type은 생성됩니다.
-
-위 예시는 장기 DSL 후보입니다. 현재 compile된 최소 DSL은 이 문서의 M1 verified 단면과
-`examples/article/modeldef`이며 codegen package 경계는 ADR-0006에서 확정했습니다.
-
-## 3. 코드 생성
-
-```bash
-godj generate
-godj generate --check
-```
-
-개념적으로 다음 산출물을 얻습니다.
-
-```go
-// Code generated by GoDj. DO NOT EDIT.
-// Generator: ...
-// Schema hash: ...
-
-type Post struct {
-    ID        int64
-    Title     string
-    Body      string
-    Published bool
-    // internal model state
-}
-
-var PostFields /* generated typed field set */
-var PostObjects /* Manager[Post] */
-var PostDescriptor /* generated descriptor */
-```
-
-생성 결과는 `gofmt`되고 동일 입력에서 byte-identical해야 합니다. 생성 파일은 Git에 커밋하며 사용자가 직접 수정하지 않습니다. generation 실패는 기존 정상 파일 전체를 보존해야 합니다.
-
-## 4. 사용자 모델 메서드
-
-생성 타입과 같은 package의 별도 non-generated 파일에 메서드를 추가하는 경험을 목표로 합니다.
-
-```go
-// illustrative only
-func (p Post) IsPublished() bool {
-    return p.Published
-}
-```
-
-이 경험은 stale generated code가 compile되지 않는 bootstrap 문제와 함께 검증해야 합니다.
-
-## 5. Typed QuerySet
-
-일반 application code는 model과 value type이 보존되는 API를 사용합니다.
-
-```go
-// M1 verified shape; backend binding is explicit until project settings exist.
-posts, err := PostObjects.Using(backend).
-    Filter(PostFields.Title.IContains("go")).
-    OrderBy(PostFields.ID.Desc()).
-    All(ctx)
-```
-
-목표 compile-time 계약:
-
-- 결과는 `[]Post` 계열 타입입니다.
-- time field에 string lookup을 잘못 적용할 수 없습니다.
-- User predicate를 Post QuerySet에 넣을 수 없습니다.
-- chain은 원본 QuerySet plan을 변경하지 않습니다.
-
-`All`, `Get`, `First`, `Count`, `Exists`, `Update`, `Delete`의 정확한 반환 타입과 cache 관계는 contract로 정합니다.
-
-## 6. Dynamic lookup
-
-Admin과 HTTP query처럼 compile 후 들어오는 field path는 metadata로 검증합니다.
-
-```go
-// M1 verified shape
-predicates, err := orm.ParseDynamic(
-    PostDescriptor{},
-    policy,
-    []orm.LookupInput{{Key: "title__icontains", Value: "go"}},
-)
-if err != nil {
-    return err
-}
-posts, err := PostObjects.Using(backend).Filter(predicates...).All(ctx)
-```
-
-- path, lookup, value coercion을 실행 전에 검증합니다.
-- HTTP input에는 field/path allowlist를 적용합니다.
-- typed API와 같은 Query AST를 생성합니다.
-- 문자열을 SQL에 직접 이어 붙이지 않습니다.
-
-초안의 error 반환 query에 바로 `.Update()`를 chain하는 모양은 Go에서 컴파일되지 않으므로 채택하지 않았습니다.
-
-## 7. Projection
-
-실행 시 column 목록이 결정되면 명시적 dynamic row를 사용할 수 있습니다. compile time에 결과가 정해지면 typed projection을 목표로 합니다.
-
-```go
-// illustrative only
-rows, err := orm.SelectInto[Post, PostSummary](
-    ctx,
-    PostObjects.All(),
-    PostSummaryProjection,
-)
-```
-
-Go generic method는 새 result type parameter를 선언할 수 없으므로 `QuerySet.SelectInto[R]`가 아니라 top-level generic function 또는 별도 generic builder를 사용합니다.
-
-## 8. Migration
-
-```bash
-godj makemigrations
-godj migrate
-```
-
-사용자는 schema 변경에서 migration plan을 만들고 forward/backward를 실행합니다. data migration은 현재 generated `Post`가 아니라 해당 migration 시점의 historical model/state API를 사용해야 합니다.
-
-Migration file format과 Go callback ABI는 Q-012 결정 전에는 확정하지 않습니다.
-
-## 9. Form, Admin, API
-
-모델 metadata에서 validation과 field 의미를 공유하되 public lifecycle은 구분합니다.
-
-```text
-Schema IR / Runtime Metadata
-  ├─ Model validation
-  ├─ Form + HTML widget/binding
-  ├─ Admin configuration
-  ├─ Serializer representation/input
-  └─ OpenAPI schema
-```
-
-Generic base type을 사용할 수 있지만 `ModelForm[M]`, `ModelAdmin[M]`, `ModelSerializer[M]`의 정확한 embedding/config API는 해당 milestone의 compile usability test 후 정합니다.
-
-## 10. 프로젝트 실행과 배포
-
-개발자는 `godj runserver`처럼 친숙한 명령을 사용합니다. 내부적으로 global CLI가 project를 찾아 project-aware binary를 build/run할 수 있습니다.
-
-Production에서는 한 project binary로 명령을 실행하는 방향입니다.
-
-```bash
-go build -o mysite ./cmd/mysite
-./mysite serve
-./mysite migrate
-./mysite createsuperuser
-```
-
-## 목표 프로젝트 배치
-
-아래는 방향이며 generator template으로 아직 확정되지 않았습니다.
-
-```text
-mysite/
-├─ go.mod
-├─ godj.toml
-├─ cmd/mysite/main.go
-├─ config/
-│  ├─ project.go
-│  ├─ settings.go
-│  ├─ apps.go
-│  ├─ urls.go
-│  └─ middleware.go
-├─ apps/
-│  └─ blog/
-│     ├─ app.go
-│     ├─ models.go
-│     ├─ zz_godj_generated.go
-│     ├─ model_methods.go
-│     ├─ forms.go
-│     ├─ admin.go
-│     ├─ serializers.go
-│     ├─ views.go
-│     ├─ urls.go
-│     ├─ consumers.go
-│     ├─ migrations/
-│     └─ management/commands/
-├─ templates/
-├─ static/
-├─ media/
-└─ locale/
-```
-
-Schema declaration과 generated model package는 ADR-0006에 따라 분리합니다. 전체
-project template과 app 간 배치는 relation/CLI 단면 전까지 Proposed입니다.
-
-## 오류와 미지원 기능
-
-GoDj는 지원하지 않는 backend 기능이나 잘못된 dynamic lookup을 무시하지 않습니다. 사용자는 `errors.Is/As`로 분류 가능한 구조화된 error를 받아야 합니다. 정확한 taxonomy는 contract에서 확정합니다.
-
-이 흐름의 구현 상태는 [Implementation Matrix](status/IMPLEMENTATION_MATRIX.md), 다음 검증 단면은 [Roadmap](ROADMAP.md)을 확인합니다.
+DB/schema의 생성 권한과 isolation은 caller가 준비한다. Tests의 pinned PostgreSQL 환경과 임의 production 배포는 같은 검증이 아니다.
+현재 backend 제한은 [BACKEND_MATRIX](BACKEND_MATRIX.md)에 있다.

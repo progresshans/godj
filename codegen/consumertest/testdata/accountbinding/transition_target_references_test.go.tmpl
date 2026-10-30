@@ -1,0 +1,273 @@
+package consumer
+
+import (
+	"context"
+	"errors"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+
+	"example.com/godj-project-bundle/bridges"
+	"example.com/godj-project-bundle/catalog"
+	"example.com/godj-project-bundle/members"
+	"example.com/godj-project-bundle/models"
+	"example.com/godj-project-bundle/project"
+	"github.com/progresshans/godj/db"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/settings/database"
+)
+
+func TestAccountTransitionTargetReferences(t *testing.T) {
+	collections, err := project.BindCollections()
+	stMust(t, err)
+	metadata, err := members.MemberObjects.Metadata()
+	stMust(t, err)
+	required := false
+	for _, field := range metadata.Fields {
+		if field.Name == "preferred_group" {
+			required = !field.Nullable
+		}
+	}
+	for _, mode := range []string{@@REFERENCE_CASES@@} {
+		t.Run(mode, func(t *testing.T) {
+			f := stSetup(t, "created", mode, "", bridges.BridgeObjects, stCapabilities[bridges.Bridge]{groups: collections.MembersMemberGroups, permissions: collections.MembersMemberPermissions, legacyGroups: collections.MembersMemberLegacyGroups, legacyPermissions: collections.MembersMemberLegacyPermissions, interests: collections.MembersMemberInterests, grants: collections.CatalogTeamGrants, sharedGroupGrants: collections.IdentityGroupNewPermissions, sharedPermissionGrants: collections.CatalogTeamLegacyPermissions})
+			f.targetReferences = true
+			cycle := mode == "cycle" || strings.HasPrefix(mode, "cycle_")
+			injected := errors.New("nullable account completion failed after native UPDATE")
+			if strings.HasPrefix(mode, "cycle_unknown_") {
+				f.backend.mode = strings.TrimPrefix(mode, "cycle_")
+			}
+
+			if mode == "signed_keys" || mode == "cycle_signed_keys" {
+				f.backend.signedIdentities = true
+				if f.backend.nativeGeneratedKeys {
+					for _, table := range []string{"members_member", "catalog_team", "catalog_grant"} {
+						accountGeneratedKeySequence(t, f.selected, table, "id", 0, -1)
+					}
+				}
+			}
+			for i := range f.requests {
+				f.requests[i].References = map[string]accountmodel.TransitionTargetReference{
+					"preferred_group":      {Kind: accountmodel.TransitionReferenceGroup, Source: accountmodel.SourceAccount{ID: f.group.ID, Revision: f.group.Revision}},
+					"preferred_permission": {Kind: accountmodel.TransitionReferencePermission, Source: accountmodel.SourceAccount{ID: f.permissions[1].ID, Revision: f.permissions[1].Revision}},
+				}
+			}
+			// Reverse dependency order: source -7 must wait for source 0. Neither
+			// source key identifies the target row before its native INSERT.
+			f.requests[0].References["mentor"] = accountmodel.TransitionTargetReference{Kind: accountmodel.TransitionReferenceAccount, Source: f.requests[1].Source}
+			f.requests[0].References["preferred_unique"] = f.requests[0].References["preferred_group"]
+			if cycle {
+				f.requests[1].References["mentor"] = accountmodel.TransitionTargetReference{Source: f.requests[0].Source}
+			}
+			switch mode {
+			case "self_cycle":
+				f.requests[0].References["mentor"] = accountmodel.TransitionTargetReference{Source: f.requests[0].Source}
+			case "unknown_source", "wrong_revision", "wrong_kind":
+				reference := f.requests[0].References["preferred_group"]
+				switch mode {
+				case "unknown_source":
+					reference.Source.ID = 999
+				case "wrong_revision":
+					reference.Source.Revision++
+				case "wrong_kind":
+					reference.Kind = accountmodel.TransitionReferencePermission
+				}
+				f.requests[0].References["preferred_group"] = reference
+			case "unknown_field":
+				f.requests[0].References["absent"] = f.requests[0].References["preferred_group"]
+			case "scalar_overlap":
+				f.requests[0].Input, err = members.MemberObjects.WithServerValues(f.requests[0].Input, map[string]query.Value{"preferred_group": query.Integer(f.group.ID)})
+				stMust(t, err)
+			case "missing_reference":
+				for i := range f.requests {
+					delete(f.requests[i].References, "preferred_group")
+				}
+			case "duplicate_login":
+				for i := range f.requests {
+					values := f.requests[i].Input.Values()
+					values["handle"] = query.String("duplicate@example.test")
+					input, failure := members.MemberObjects.Input(values)
+					stMust(t, failure)
+					f.requests[i].Input, err = input.WithCollections(f.requests[i].Input.Collections())
+					stMust(t, err)
+				}
+			case "unique_conflict":
+				f.requests[1].References["preferred_unique"] = f.requests[1].References["preferred_group"]
+			case "reordered_input":
+				slices.Reverse(f.requests)
+			}
+			if mode == "cycle_intermediate_payload" || mode == "cycle_intermediate_endpoint" {
+				f.backend.identityHook = func(ctx context.Context, scope db.Session, table string) error {
+					if table != "members_member" || len(f.backend.identities[table]) != 2 || f.backend.faults != 0 {
+						return nil
+					}
+					alice, err := members.MemberObjects.Using(scope).Filter(members.MemberFields.Subject.Exact(f.old[0].PrincipalID)).Get(ctx)
+					if err != nil {
+						return err
+					}
+					changes := map[string]query.Value{"first_name": query.String("unreviewed staged payload")}
+					if mode == "cycle_intermediate_endpoint" {
+						changes = map[string]query.Value{"mentor": query.Integer(alice.ID)}
+					}
+					f.backend.faults++
+					_, err = stSave(ctx, scope, members.MemberObjects, &alice, changes)
+					return err
+				}
+			}
+			if mode == "cycle_finalize_failure" {
+				f.backend.identityUpdateHook = func(_ context.Context, _ db.Session, plan query.UpdatePlan) error {
+					if plan.Table() != "members_member" {
+						return nil
+					}
+					f.backend.faults++
+					return injected
+				}
+			}
+			f.backend.mutate = func(ctx context.Context, scope db.Queryer) error {
+				if mode != "late_reference" && mode != "cycle_late_reference" || !f.backend.receipt || f.backend.faults != 0 {
+					return nil
+				}
+				alice, err := members.MemberObjects.Using(scope).Filter(members.MemberFields.Subject.Exact(f.old[0].PrincipalID)).Get(ctx)
+				if err != nil {
+					return err
+				}
+				bob, err := members.MemberObjects.Using(scope).Filter(members.MemberFields.Subject.Exact(f.old[1].PrincipalID)).Get(ctx)
+				if err != nil {
+					return err
+				}
+				f.backend.faults++
+				target := alice.ID
+				if cycle {
+					target = bob.ID
+				}
+				_, err = stSave(ctx, scope.(db.Mutator), members.MemberObjects, &bob, map[string]query.Value{"mentor": query.Integer(target)})
+				return err
+			}
+			owner := stOwner(t, f)
+			before := stSnapshot(t, f.native)
+			prepared, failure := owner.PrepareCreation(t.Context(), f.actor, strings.Repeat("d", 64), f.requests)
+			early := slices.Contains([]string{"unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap"}, mode) || mode == "missing_reference" && required
+			if f.policyChecks != 0 {
+				t.Fatal("typed policy ran before reference identities existed")
+			}
+			if early {
+				if failure == nil || prepared.Manifest().OperationID != "" || !reflect.DeepEqual(before, stSnapshot(t, f.native)) {
+					t.Fatal("invalid reference input prepared or wrote durable state", failure)
+				}
+
+				return
+			}
+			stMust(t, failure)
+			manifest := prepared.Manifest()
+			if mode == "owned_input" {
+				for i := range f.requests {
+					for name := range f.requests[i].References {
+						f.requests[i].References[name] = accountmodel.TransitionTargetReference{}
+					}
+					f.requests[i].References = nil
+				}
+			}
+			if mode == "source_changed" {
+				_, err := stSave(t.Context(), f.native, models.GroupObjects, &f.group, map[string]query.Value{"revision": query.Integer(f.group.Revision + 1)})
+				stMust(t, err)
+				before = stSnapshot(t, f.native)
+			}
+			if mode == "permission_revoked" {
+				_, err := stSave(t.Context(), f.native, models.PermissionObjects, &f.permissions[0], map[string]query.Value{"code": query.String("revoked.transition")})
+				stMust(t, err)
+				before = stSnapshot(t, f.native)
+			}
+			result, failure := owner.Commit(t.Context(), f.actor, prepared)
+			success := slices.Contains([]string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "missing_reference", "cycle", "self_cycle", "cycle_signed_keys"}, mode)
+			committed := success || mode == "unknown_commit" || mode == "cycle_unknown_commit"
+			if success {
+				stMust(t, failure)
+			} else if failure == nil || !reflect.DeepEqual(result, accountmodel.TransitionResult{}) {
+				t.Fatal("failed reference transition published success", failure)
+			}
+			if strings.Contains(mode, "unknown_") && (!errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || !f.backend.finished) {
+				t.Fatal("unknown reference outcome did not execute the full native callback", failure)
+			}
+			if mode == "first_insert_failure" && (f.backend.faults != 1 || len(f.backend.identities["members_member"]) != 1) {
+				t.Fatal("first native INSERT fault was not reached")
+			}
+			if mode == "duplicate_login" && len(f.backend.identities["members_member"]) != 1 {
+				t.Fatal("resolved uniqueness did not reject after one real insertion")
+			}
+			if mode == "unique_conflict" && len(f.backend.identities["members_member"]) != 1 {
+				t.Fatal("resolved OneToOne did not reject after one real insertion")
+			}
+			if mode == "denied_choice" && (len(f.backend.identities["catalog_team"]) != 1 || len(f.backend.identities["members_member"]) != 2) {
+				t.Fatal("pending choice denial did not inspect the full allocated graph")
+			}
+			if mode == "late_choice" && !f.backend.receipt || (mode == "late_reference" || mode == "cycle_late_reference") && (f.backend.faults != 1 || !f.backend.receipt) {
+				t.Fatal("late reference control did not reach the final receipt policy")
+			}
+			if (mode == "policy_rejected" || mode == "cycle_policy_rejected") && (f.policyChecks == 0 || len(f.backend.identities["members_member"]) != 2) {
+				t.Fatal("complete typed policy was not exercised")
+			}
+			if mode == "cycle_finalize_failure" && (!errors.Is(failure, injected) || f.backend.faults != 1 || len(f.backend.identities["members_member"]) != 2 || f.policyChecks != 0) {
+				t.Fatal("staged account finalization fault did not run after both native INSERTs", failure)
+			}
+			if (mode == "cycle_intermediate_payload" || mode == "cycle_intermediate_endpoint") && (f.backend.faults != 1 || f.policyChecks != 0) {
+				t.Fatal("partial account tampering reached completed policy", failure)
+			}
+			receipt, found, err := owner.Reconcile(t.Context(), manifest)
+			stMust(t, err)
+			if found != committed {
+				t.Fatal("reference transition receipt disagrees with the native outcome")
+			}
+			if !committed {
+				if !reflect.DeepEqual(before, stSnapshot(t, f.native)) {
+					t.Fatal("reference failure retained catalog/account/FK/audit/session changes")
+				}
+				return
+			}
+			stVerify(t, f, before, receipt, manifest, result, success)
+			reopened, err := database.Open(t.Context(), f.selected)
+			stMust(t, err)
+			defer reopened.Close()
+			group, err := catalog.TeamObjects.Using(reopened).Filter(catalog.TeamFields.Title.Exact("allocated group")).Get(t.Context())
+			stMust(t, err)
+			permission, err := catalog.GrantObjects.Using(reopened).Filter(catalog.GrantFields.Symbol.Exact(f.permissions[1].Code)).Get(t.Context())
+			stMust(t, err)
+			alice, err := members.MemberObjects.Using(reopened).Filter(members.MemberFields.Subject.Exact(f.old[0].PrincipalID)).Get(t.Context())
+			stMust(t, err)
+			bob, err := members.MemberObjects.Using(reopened).Filter(members.MemberFields.Subject.Exact(f.old[1].PrincipalID)).Get(t.Context())
+			stMust(t, err)
+			wantMentor := bob.ID
+			if mode == "self_cycle" {
+				wantMentor = alice.ID
+			}
+			if alice.MentorID == nil || *alice.MentorID != wantMentor || cycle && (bob.MentorID == nil || *bob.MentorID != alice.ID) || !cycle && bob.MentorID != nil {
+				t.Fatal("account reference did not use the preceding actual native identity")
+			}
+			for _, row := range []members.Member{alice, bob} {
+				values, err := members.MemberObjects.ModelValues(row)
+				stMust(t, err)
+				wantGroup := query.Integer(group.ID)
+				if mode == "missing_reference" {
+					wantGroup = query.Null()
+				}
+				if !values["preferred_group"].Equal(wantGroup) || !values["preferred_permission"].Equal(query.Integer(permission.ID)) {
+					t.Fatal("catalog FK used a source key or a different namespace")
+				}
+				wantUnique := query.Null()
+				if row.Subject == f.old[0].PrincipalID {
+					wantUnique = query.Integer(group.ID)
+				}
+				if !values["preferred_unique"].Equal(wantUnique) {
+					t.Fatal("OneToOne did not use the reviewed target identity")
+				}
+			}
+			if mode == "cycle_signed_keys" && (alice.ID != 0 || bob.ID >= 0 || group.ID != 0 || permission.ID >= 0) {
+				t.Fatal("cyclic graph did not retain native zero/negative keys")
+			}
+			if mode == "signed_keys" && (bob.ID != 0 || alice.ID >= 0 || group.ID != 0 || permission.ID >= 0) {
+				t.Fatal("native zero/negative reference identities were not exercised")
+			}
+		})
+	}
+}

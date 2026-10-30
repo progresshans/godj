@@ -1,0 +1,12 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+)
+
+type Other struct{}
+
+var otherPredicate orm.Predicate[Other]
+
+var _ = orm.Or(models.ArticleFields.Title.Exact("django"), otherPredicate)

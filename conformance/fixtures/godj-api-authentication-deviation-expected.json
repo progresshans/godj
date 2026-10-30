@@ -1,0 +1,71 @@
+{
+  "format_version": 2,
+  "profile_id": "drf-3.18.0-django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0009",
+  "contracts": [
+    {
+      "id": "AUT-012",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "[0].response.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "authentication_failed"},
+          "product": {"type": "string", "value": "not_authenticated"}
+        },
+        {
+          "dimension": "result",
+          "path": "[0].response.www_authenticate",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "Bearer"},
+          "product": {"type": "string", "value": "Bearer error=\"invalid_token\""}
+        },
+        {
+          "dimension": "result",
+          "path": "[1].response.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "authentication_failed"},
+          "product": {"type": "string", "value": "not_authenticated"}
+        },
+        {
+          "dimension": "result",
+          "path": "[1].response.www_authenticate",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "Bearer"},
+          "product": {"type": "string", "value": "Bearer error=\"invalid_token\""}
+        }
+      ]
+    },
+    {
+      "id": "AUT-013",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "www_authenticate",
+          "operation": "replace",
+          "reference": {"type": "null"},
+          "product": {"type": "string", "value": "Bearer error=\"insufficient_scope\""}
+        }
+      ]
+    },
+    {
+      "id": "AUT-015",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "[1].response.error_codes.detail",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "authentication_failed"},
+          "product": {"type": "string", "value": "not_authenticated"}
+        },
+        {
+          "dimension": "result",
+          "path": "[1].response.www_authenticate",
+          "operation": "replace",
+          "reference": {"type": "string", "value": "Bearer"},
+          "product": {"type": "string", "value": "Bearer error=\"invalid_token\""}
+        }
+      ]
+    }
+  ]
+}

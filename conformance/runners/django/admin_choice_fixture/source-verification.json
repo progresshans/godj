@@ -1,0 +1,28 @@
+{
+  "kind": "django-admin-choice-source-verification-v1",
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "license": "BSD-3-Clause",
+  "source_verification": "Each listed installed module must equal the pinned upstream bytes. This does not assert a whole-wheel hash.",
+  "sources": {
+    "forms/models.py": {
+      "bytes": 62207,
+      "sha256": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/forms/models.py"
+    },
+    "contrib/admin/views/autocomplete.py": {
+      "bytes": 4385,
+      "sha256": "3e30bc75bdb9ce1620c0b4bfe29aba3c0a530ff6119f89ae207d00fd537b9028",
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/contrib/admin/views/autocomplete.py"
+    },
+    "contrib/admin/widgets.py": {
+      "bytes": 20576,
+      "sha256": "f2f054ac247f59dbdf07c58d83ebfb6ec2c5398bc7421bedb94e292018c44131",
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/contrib/admin/widgets.py"
+    },
+    "contrib/admin/options.py": {
+      "bytes": 115143,
+      "sha256": "7526be63d08ff1338acc3e78e56171683bcdc697d32ce4af1de17aff8f328a48",
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/contrib/admin/options.py"
+    }
+  }
+}
