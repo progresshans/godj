@@ -90,6 +90,7 @@ func (pair ThroughEndpoints) assignments() (map[string]query.Value, map[string]b
 func (pair ThroughEndpoints) accepts(actual ThroughEndpoints) bool {
 	return actual.sourcePresent && actual.targetPresent && pair.source.Equal(actual.source) && pair.target.Equal(actual.target) &&
 		(!pair.sourcePresent || pair.sourceKey == actual.sourceKey) && (!pair.targetPresent || pair.targetKey == actual.targetKey) &&
+		pair.sourceReferenced == actual.sourceReferenced && pair.targetReferenced == actual.targetReferenced &&
 		pair.sourceReference == actual.sourceReference && pair.targetReference == actual.targetReference
 }
 

@@ -2167,7 +2167,9 @@ pair를 여러 collection이 공유하면 한 번 준비한다. `TransitionConfi
 
 준비 snapshot은 원본 인가·원본 행/revision·catalog·물리 링크를 확인한 뒤 순수 factory를 호출한다. 양쪽 key가 모두
 미정일 수 있으며 `ThroughEndpoints`의 각 Key 메서드는 이를 명시한다. `SourceReference`·`TargetReference`는 선택 역할의
-검토한 원본 key/revision을 제공하며 실제 target key가 아니다. Factory의 입력·서버 principal/시각·기본값은 preparation이
+검토한 원본 key/revision을 제공하며 실제 target key가 아니다. 참조의 존재는 별도 플래그로 보존한다. 기존
+`TransitionReferenceKind`의 빈 값은 계정 종류이므로 부재로 해석하지 않으며, 원본 key 0과 실제 생성 key 0도 각각
+존재 여부를 유지한다. 참조 존재 플래그도 pair 비교·상태 digest·최종 FK 결합에 포함한다. Factory의 입력·서버 principal/시각·기본값은 preparation이
 소유한다. Snapshot 종료 뒤 account through를 해싱하고, encoded 값·endpoint 대응·선언을 operation별 상태 digest에
 묶는다. Raw password의 별도 빠른 digest는 만들지 않는다. 전체 검토 상태와 준비 의도에도 64 MiB 합계 한도를 적용한다.
 
@@ -2182,7 +2184,8 @@ credential domain과 구분한다. Factory/해싱은 쓰기 안에서 반복하�
 같아야 한다. Catalog에도 실제 추가 행만 포함하며 원본 계정·catalog 권한과 요청한 대응 소속은 그대로 대조한다. 마지막
 정책 이후 전체 scalar·물리 링크·자체 소속·session/receipt까지 확인한다. 실패/cleanup/unknown 경계는 기존 원자성을 유지한다.
 
-Manifest v8의 `Collections`는 검토 순서의 역할 종류와 생성 선언 digest를 보관한다. 대응표 payload v3는 기존 account/
+Manifest v8의 `Collections`는 검토 순서의 명시적 `account`/`group`/`permission` 종류와 생성 선언 digest를 보관한다.
+이 종류는 기존 참조 enum과 구분하며 빈 값은 거부한다. Receipt와 추가 행 수 집계도 같은 명시적 종류를 사용한다. 대응표 payload v3는 기존 account/
 catalog 대응표와 별도로 각 의도를 충족한 실제 key/revision 및 `Additional` 여부를 기록한다. Additional=false는 같은
 receipt의 실제 대응 대상이어야 하고, true는 대응표 밖의 중복 없는 revision 1 행이어야 한다. `MappingInventory`와
 `LookupMappingInventoryIn`은 이 전체를 같은 canonical payload/checksum과 정확한 receipt에 묶는다. v1/v2 이력도 계속

@@ -56,14 +56,16 @@ func bindTransitionThroughDefinitions[M any](store *CredentialStore[M], definiti
 // Commit and retained in the ownership receipt. StateSHA256 binds the complete
 // endpoint correspondence, declaration and encoded typed scalar intent.
 type TransitionCollectionManifest struct {
-	Kind              TransitionReferenceKind `json:"kind"`
-	DeclarationSHA256 string                  `json:"declaration_sha256"`
+	// Kind is the explicit durable role: account, group or permission. It is
+	// distinct from TransitionReferenceKind, whose zero value means account.
+	Kind              string `json:"kind"`
+	DeclarationSHA256 string `json:"declaration_sha256"`
 }
 
 type transitionThroughIntent struct {
 	policy *throughCreationState
 	pair   ThroughEndpoints
-	kind   TransitionReferenceKind
+	kind   string
 	draft  *throughDraft
 }
 
@@ -77,10 +79,11 @@ type transitionThroughPreparation struct {
 }
 
 type transitionLogicalEndpoint struct {
-	field     string
-	key       int64
-	present   bool
-	reference TransitionTargetReference
+	field      string
+	key        int64
+	present    bool
+	reference  TransitionTargetReference
+	referenced bool
 }
 type transitionLogicalPair struct {
 	model       ir.ModelIdentity
@@ -88,22 +91,22 @@ type transitionLogicalPair struct {
 }
 
 func transitionThroughPairKey(policy *throughCreationState, pair ThroughEndpoints) transitionLogicalPair {
-	left := transitionLogicalEndpoint{pair.source.Name, pair.sourceKey, pair.sourcePresent, pair.sourceReference}
-	right := transitionLogicalEndpoint{pair.target.Name, pair.targetKey, pair.targetPresent, pair.targetReference}
+	left := transitionLogicalEndpoint{pair.source.Name, pair.sourceKey, pair.sourcePresent, pair.sourceReference, pair.sourceReferenced}
+	right := transitionLogicalEndpoint{pair.target.Name, pair.targetKey, pair.targetPresent, pair.targetReference, pair.targetReferenced}
 	if left.field > right.field {
 		left, right = right, left
 	}
 	return transitionLogicalPair{policy.model, left, right}
 }
 
-func transitionIdentityKind(role ir.AccountRole, model ir.ModelIdentity) (TransitionReferenceKind, error) {
+func transitionCollectionKind(role ir.AccountRole, model ir.ModelIdentity) (string, error) {
 	switch model {
 	case role.Model:
-		return TransitionReferenceAccount, nil
+		return "account", nil
 	case role.Catalog.Group:
-		return TransitionReferenceGroup, nil
+		return "group", nil
 	case role.Catalog.Permission:
-		return TransitionReferencePermission, nil
+		return "permission", nil
 	default:
 		return "", managementError(CodeInvalidConfig, nil)
 	}
@@ -131,7 +134,7 @@ func (owner *Transition[S, T]) transitionThroughIntents(current transitionObserv
 	seen := make(map[transitionLogicalPair]bool)
 	for _, selected := range keys {
 		policy := owner.through[selected]
-		kind, err := transitionIdentityKind(role, policy.model)
+		kind, err := transitionCollectionKind(role, policy.model)
 		if err != nil {
 			return nil, err
 		}
@@ -200,13 +203,14 @@ func (owner *Transition[S, T]) transitionThroughIntents(current transitionObserv
 		}
 		if selected.owner == role.Model {
 			for _, account := range current.pairs {
-				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceKey: account.next.id, sourcePresent: !creating,
+				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceKey: account.next.id, sourcePresent: !creating, sourceReferenced: true,
 					sourceReference: TransitionTargetReference{Kind: TransitionReferenceAccount, Source: SourceAccount{ID: account.old.id, Revision: account.old.revision}}}
 				if creating {
 					pair.sourceKey = 0
 				}
 				chosen := account.next.profile[selected.field]
-				targetKind := TransitionReferenceKind("")
+				var targetKind TransitionReferenceKind
+				catalogTarget := selected.field == role.Groups || selected.field == role.Permissions
 				if selected.field == role.Groups {
 					chosen, targetKind = account.old.memberships.groups, TransitionReferenceGroup
 				}
@@ -215,7 +219,8 @@ func (owner *Transition[S, T]) transitionThroughIntents(current transitionObserv
 				}
 				for _, id := range chosen {
 					pair.targetKey, pair.targetPresent, pair.targetReference = id, true, TransitionTargetReference{}
-					if targetKind != "" {
+					pair.targetReferenced = catalogTarget
+					if catalogTarget {
 						pair.targetKey, pair.targetPresent, pair.targetReference, err = catalogEndpoint(targetKind, id)
 						if err != nil {
 							return nil, err
@@ -228,7 +233,7 @@ func (owner *Transition[S, T]) transitionThroughIntents(current transitionObserv
 			}
 		} else if selected.owner == role.Catalog.Group && owner.config.CatalogCreation.state != nil {
 			for _, id := range slices.Sorted(maps.Keys(current.catalog.before.groups)) {
-				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone()}
+				pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), sourceReferenced: true, targetReferenced: true}
 				pair.sourceKey, pair.sourcePresent, pair.sourceReference, err = catalogEndpoint(TransitionReferenceGroup, id)
 				if err != nil {
 					return nil, err
@@ -342,7 +347,8 @@ func (pending *transitionThroughPreparation) seal(base, operation string) (strin
 			SourceKey, TargetKey                  int64
 			SourcePresent, TargetPresent          bool
 			SourceReference, TargetReference      TransitionTargetReference
-		}{entry.policy.model, entry.policy.declaration, pair.source.Name, pair.target.Name, pair.sourceKey, pair.targetKey, pair.sourcePresent, pair.targetPresent, pair.sourceReference, pair.targetReference})
+			SourceReferenced, TargetReferenced    bool
+		}{entry.policy.model, entry.policy.declaration, pair.source.Name, pair.target.Name, pair.sourceKey, pair.targetKey, pair.sourcePresent, pair.targetPresent, pair.sourceReference, pair.targetReference, pair.sourceReferenced, pair.targetReferenced})
 		if err != nil {
 			return "", err
 		}
@@ -397,25 +403,26 @@ func (owner *Transition[S, T]) checkPreparedTransitionThrough(ctx context.Contex
 // Kept here with the typed intent owner: an unresolved key is never encoded as
 // a sentinel integer, even when a native sequence can allocate zero or negatives.
 func resolveTransitionThroughPair(pair ThroughEndpoints, mappings transitionTargetMappings) (ThroughEndpoints, error) {
-	resolve := func(key *int64, present *bool, reference TransitionTargetReference) error {
-		if reference.Kind == "" {
-			if !*present {
+	resolve := func(key *int64, present *bool, reference TransitionTargetReference, referenced bool) error {
+		if !referenced {
+			if !*present || reference != (TransitionTargetReference{}) {
 				return managementError(CodeInvalidConfig, nil)
 			}
 			return nil
 		}
 		namespace, found := mappings[reference.Kind]
 		actual, known := namespace.targets[reference.Source.ID]
-		if !found || !known || namespace.revisions[reference.Source.ID] != reference.Source.Revision || *present && *key != actual {
+		revision, reviewed := namespace.revisions[reference.Source.ID]
+		if reference.Source.Revision <= 0 || !found || !known || !reviewed || revision != reference.Source.Revision || *present && *key != actual {
 			return managementError(CodeConflict, nil)
 		}
 		*key, *present = actual, true
 		return nil
 	}
-	if err := resolve(&pair.sourceKey, &pair.sourcePresent, pair.sourceReference); err != nil {
+	if err := resolve(&pair.sourceKey, &pair.sourcePresent, pair.sourceReference, pair.sourceReferenced); err != nil {
 		return ThroughEndpoints{}, err
 	}
-	if err := resolve(&pair.targetKey, &pair.targetPresent, pair.targetReference); err != nil {
+	if err := resolve(&pair.targetKey, &pair.targetPresent, pair.targetReference, pair.targetReferenced); err != nil {
 		return ThroughEndpoints{}, err
 	}
 	return pair, nil

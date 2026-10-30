@@ -96,7 +96,8 @@ audit의 원자성, 0/음수 key·뒤 batch 실패·동시 확장·권한 회수
 작성·생성·compile과 이 새 본문의 환경별 실행은 구분하며 결과는 TEST_EVIDENCE에 둔다.
 
 추가 계정/catalog 행을 CASCADE/SET_NULL로 바꾸는 행 삭제는 아래의 전체 수명 owner로 조정한다.
-Collection 교체의 여러 삭제를 같은 owner로 합치는 작업은 I1-06에 남아 있으며, 해당 through 조합은 시작 시 명시적으로 거부한다.
+Collection 교체의 여러 삭제도 같은 공통 batch와 수명 owner로 조정한다. 선택 identity through의 편집·생성 선언과
+최종 전체 행·권한 검사는 아래의 구현 경계를 따르며 새 조합의 환경별 실행은 TEST_EVIDENCE에서 구분한다.
 
 독립 `godj_sessions` migration·typed DB Store와 선택 계정의 `SessionStore[M]`/생성 팩토리를 작성했다.
 현재 durable domain과 세션은 같은 snapshot/fence에서 처리하고 역사 namespace를 승계하지 않는다. Typed LoginRecorder와
@@ -413,8 +414,8 @@ TTY/별도 process/재접속 소비자, 입력 한도·부분 게시·rollback·
 기본/custom의 생성 소비자와 양 DB native 수명 소비자를 작성했고 첫 operator도 같은 경로를 사용한다.
 작성·생성/최소 compile과 새 본문 실행은 TEST_EVIDENCE에서 구분한다.
 
-추가 M2M의 환경별 검증과 남은 고정 Directory/Manager 소비자 교체, 일반 collection의 선택 identity through 자동 생성,
-채운 DB의 mapping/retirement/receipt·복구·restart와 새 독립 PostgreSQL HTTP를 포함한 전체 환경 수용은 남아 있다.
+추가 M2M·선택 identity through 생성·채운 DB 전환의 후속 구현과 검증 범위는 아래에 둔다.
+고정 Directory/Manager 소비자 교체와 새 독립 PostgreSQL HTTP를 포함한 같은 source의 전체 환경 수용은 남아 있다.
 
 ### 추가 M2M 프로필
 
@@ -614,7 +615,10 @@ unknown·재접속 소비자를 작성했다. 본문·환경별 검증은 TEST_E
 Add 감사와 마지막 readback을 유지한다. Manifest v8·mapping payload v3는 각 의도의 실제 key와 추가 생성 여부를 보관한다.
 세 외부 typed 변형에 생성·준비된 계정·0/음수 key·기존 INSERT 재사용·인가/예산·늦은 변조·rollback/unknown/restart를
 추가했다. 이전 source의 PostgreSQL source-state 거부 코드 기대값은 실제 조기 conflict 계약에 맞추고 원본과 rollback
-검사를 유지했다. 새 제품 본문·타입 검사와 환경별 수용은 원격 확인 대상이다.
+검사를 유지했다. 원격 준비 실패에서 계정 참조 enum의 빈 값을 부재로 처리한 오류를 확인했다. 참조 존재는 별도
+플래그로 pair·digest·실제 FK 결합에 보존하며 manifest/receipt/추가 행 수에는 명시적 `account`/`group`/`permission`을
+사용한다. 양쪽 endpoint·원본/실제 key 0·revision·숨겨진 참조와 실패 지점 검사를 보강했다.
+새 제품 본문·타입 검사와 환경별 수용은 원격 확인 대상이다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 native 할당 수명, 역사 `systemstate` 가져오기,

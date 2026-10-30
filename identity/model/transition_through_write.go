@@ -66,7 +66,7 @@ func (owner *Transition[S, T]) bindTransitionThrough(ctx context.Context, scope 
 			if err != nil {
 				return nil, err
 			}
-			result.identities[index] = domain.CollectionIdentity{Kind: string(entry.kind), Key: retained.Key, Revision: revision}
+			result.identities[index] = domain.CollectionIdentity{Kind: entry.kind, Key: retained.Key, Revision: revision}
 			continue
 		}
 		candidate, err := entry.draft.bind(ctx, pair, namespace)
@@ -79,7 +79,7 @@ func (owner *Transition[S, T]) bindTransitionThrough(ctx context.Context, scope 
 		result.pending.identities[candidate.identity] = candidate
 		result.pending.ordered = append(result.pending.ordered, candidate)
 		result.indexes[candidate.identity] = index
-		result.identities[index] = domain.CollectionIdentity{Kind: string(entry.kind), Revision: 1, Additional: true}
+		result.identities[index] = domain.CollectionIdentity{Kind: entry.kind, Revision: 1, Additional: true}
 		// Both declarations of a shared physical pair use the same sealed
 		// candidate, including reversed field orientation.
 		result.pending.pairs[throughPairKey{policy: entry.policy, source: pair.source.Name, target: pair.target.Name, sourceKey: pair.sourceKey, targetKey: pair.targetKey}] = candidate

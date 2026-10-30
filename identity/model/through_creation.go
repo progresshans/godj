@@ -28,10 +28,11 @@ const MaximumThroughCreations = 4096
 // ModelInput, even with equal values. The enclosing operation owns the endpoint
 // choice policy; the creation owner also checks its configured FK policies.
 type ThroughEndpoints struct {
-	source, target                   ir.Field
-	sourceKey, targetKey             int64
-	sourcePresent, targetPresent     bool
-	sourceReference, targetReference TransitionTargetReference
+	source, target                     ir.Field
+	sourceKey, targetKey               int64
+	sourcePresent, targetPresent       bool
+	sourceReference, targetReference   TransitionTargetReference
+	sourceReferenced, targetReferenced bool
 }
 
 func (pair ThroughEndpoints) SourceField() string { return pair.source.Name }
@@ -45,11 +46,12 @@ func (pair ThroughEndpoints) TargetKey() (int64, bool) { return pair.targetKey, 
 // SourceReference and TargetReference identify reviewed transition
 // correspondences. Their source keys are not the eventual endpoint keys.
 // Ordinary creation and editing have no transition correspondence.
+// Presence is independent of Kind: the account namespace has an empty Kind.
 func (pair ThroughEndpoints) SourceReference() (TransitionTargetReference, bool) {
-	return pair.sourceReference, pair.sourceReference.Kind != ""
+	return pair.sourceReference, pair.sourceReferenced
 }
 func (pair ThroughEndpoints) TargetReference() (TransitionTargetReference, bool) {
-	return pair.targetReference, pair.targetReference.Kind != ""
+	return pair.targetReference, pair.targetReferenced
 }
 func (ThroughEndpoints) Format(state fmt.State, _ rune) {
 	_, _ = state.Write([]byte("identity.model.ThroughEndpoints{redacted}"))

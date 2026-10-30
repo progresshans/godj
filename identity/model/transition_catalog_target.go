@@ -160,7 +160,7 @@ func NewTransitionCatalogTarget[S, T, G, P, GP, TG, TP any](source Binding[S], t
 			if err := validateLifecycleThroughStorage(left, relation.Through.Model); err != nil {
 				// A shared selected catalog keeps one typed creation owner. An
 				// identity that belongs only to the retiring role is never created.
-				if _, targetErr := transitionIdentityKind(right, relation.Through.Model); targetErr != nil {
+				if _, targetErr := transitionCollectionKind(right, relation.Through.Model); targetErr != nil {
 					return zero, err
 				}
 			}

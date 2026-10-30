@@ -51,8 +51,10 @@ func nuSnapshot(t *testing.T,backend database.Backend)map[string]any{
 }
 
 type nuInsertion struct{key int64;values map[string]query.Value}
+var nuCleanupFailure=errors.New("transition through cleanup")
+var nuHashFailure=errors.New("transition hash failure")
 type nuBackend struct{database.Backend;reading,writing,completed,faults int;mode,table,natural string;receipt bool;scope db.RelationSession;inserted []nuInsertion}
-func(b *nuBackend)ReadSnapshot(ctx context.Context,read func(db.Queryer)error)error{b.reading++;defer func(){b.reading--}();err:=b.Backend.ReadSnapshot(ctx,read);if b.mode=="read_cleanup"{return errors.Join(err,errors.New("transition through cleanup"))};return err}
+func(b *nuBackend)ReadSnapshot(ctx context.Context,read func(db.Queryer)error)error{b.reading++;defer func(){b.reading--}();err:=b.Backend.ReadSnapshot(ctx,read);if b.mode=="read_cleanup"{return errors.Join(err,nuCleanupFailure)};return err}
 func(b *nuBackend)CoordinatedAtomicRelation(ctx context.Context,write func(db.RelationSession)error)error{
  b.writing++;defer func(){b.writing--;b.scope=nil}()
  err:=b.Backend.CoordinatedAtomicRelation(ctx,func(scope db.RelationSession)error{
@@ -81,7 +83,7 @@ func(s *nuScope)Insert(ctx context.Context,plan query.InsertPlan)(int64,error){
  return key,nil
 }
 type nuHasher struct{auth.PasswordHasher;backend *nuBackend;calls int}
-func(h *nuHasher)Hash(ctx context.Context,raw string)(string,error){h.calls++;if h.backend.reading!=0||h.backend.writing!=0{return "",errors.New("transition hashing retained native scope")};if h.backend.mode=="hash_failure"{return "",errors.New("transition hash failure")};return h.PasswordHasher.Hash(ctx,raw)}
+func(h *nuHasher)Hash(ctx context.Context,raw string)(string,error){h.calls++;if h.backend.reading!=0||h.backend.writing!=0{return "",errors.New("transition hashing retained native scope")};if h.backend.mode=="hash_failure"{return "",nuHashFailure};return h.PasswordHasher.Hash(ctx,raw)}
 type nuOverlay struct{deny auth.Permission}
 func(o *nuOverlay)Allowed(_ context.Context,p auth.Principal,permission auth.Permission)(bool,error){return p.Has(permission)&&permission!=o.deny,nil}
 func nuStores(t *testing.T,backend database.Backend)(accountmodel.Binding[models.User],accountmodel.Binding[members.Member],*accountmodel.SessionStore[models.User],*accountmodel.SessionStore[members.Member]){
@@ -166,7 +168,19 @@ func TestTransitionThroughCreation(t *testing.T){for _,mode:=range []string{@@CA
  var prepared accountmodel.PreparedTransition[models.User,members.Member];var prepareErr error
  if mode=="staged"{prepared,prepareErr=owner.Prepare(t.Context(),actor,strings.Repeat("e",64),staged)}else{prepared,prepareErr=owner.PrepareCreation(t.Context(),actor,strings.Repeat("e",64),requests)}
  early:=slices.Contains([]string{"limit","endpoint","target_key","denied_add","denied_related","read_cleanup","hash_failure"},mode)
- if early{if prepareErr==nil||prepared.Manifest().OperationID!=""{t.Fatal("invalid through intent acquired preparation")};if backend.completed!=0||!reflect.DeepEqual(before,nuSnapshot(t,native)){t.Fatal("failed preparation wrote state")};if mode!="hash_failure"&&hasher.calls!=0{t.Fatal("rejected preparation performed hashing")};return};nuMust(t,prepareErr)
+ if early{
+  if prepareErr==nil||prepared.Manifest().OperationID!=""{t.Fatal("invalid through intent acquired preparation")}
+  var want error=&accountmodel.Error{Code:accountmodel.CodeInvalidInput};wantFactory,wantHash:=1,0
+  switch mode{
+  case "limit":wantFactory=0
+  case "denied_add":want=&accountmodel.Error{Code:accountmodel.CodePermission};wantFactory=0
+  case "denied_related":want=&accountmodel.Error{Code:accountmodel.CodePermission}
+  case "read_cleanup":want=nuCleanupFailure;wantFactory=2
+  case "hash_failure":want=nuHashFailure;wantFactory,wantHash=2,1
+  }
+  if !errors.Is(prepareErr,want)||factoryCalls!=wantFactory||hasher.calls!=wantHash{nuExplain(t,prepareErr,0);t.Fatal("preparation did not reach its intended refusal",mode,factoryCalls,hasher.calls)}
+  if backend.completed!=0||!reflect.DeepEqual(before,nuSnapshot(t,native)){t.Fatal("failed preparation wrote state")};return
+ };nuMust(t,prepareErr)
  if factoryCalls!=2||"@@KIND@@"=="account"&&hasher.calls!=2||"@@KIND@@"!="account"&&hasher.calls!=0{t.Fatal("factories or hashing escaped bounded preparation",factoryCalls,hasher.calls)}
  manifest:=prepared.Manifest();if manifest.Version!=8||len(manifest.Collections)!=2{t.Fatal("manifest omitted collection identities")}
  wire,err:=json.Marshal(manifest);nuMust(t,err);for _,secret:=range []string{accountPasswordText,encoded,"principal-alice","extra.item","extra-"}{if strings.Contains(string(wire),secret){t.Fatal("manifest exposed credential/profile input")}}

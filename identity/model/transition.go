@@ -595,7 +595,7 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 			return observed{}, managementError(CodeConflict, nil)
 		}
 		for i, row := range inventory.Collections {
-			if row.Kind != string(manifest.Collections[i].Kind) {
+			if row.Kind != manifest.Collections[i].Kind {
 				return observed{}, managementError(CodeConflict, nil)
 			}
 		}
@@ -669,7 +669,7 @@ func (manifest TransitionManifest) evidence() (string, error) {
 		return "", managementError(CodeInvalidInput, nil)
 	}
 	for _, collection := range manifest.Collections {
-		if collection.Kind != TransitionReferenceAccount && collection.Kind != TransitionReferenceGroup && collection.Kind != TransitionReferencePermission || !transitionDigest(collection.DeclarationSHA256) {
+		if collection.Kind != "account" && collection.Kind != "group" && collection.Kind != "permission" || !transitionDigest(collection.DeclarationSHA256) {
 			return "", managementError(CodeInvalidInput, nil)
 		}
 	}

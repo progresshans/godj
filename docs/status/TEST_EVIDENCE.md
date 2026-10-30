@@ -3470,6 +3470,26 @@ endpoint 관측 진단을 보강했다. 제품 오류의 원인·수정 완료�
 이 후속은 로컬 gofmt·세 템플릿의 문법·문서 링크·diff만 검사하며 Go 본문/compile/generation 중단 지시를 유지한다.
 원격 실패 원본 두 개와 전체 artifact는 같은 검증 보관소의 `ci-40975485341-*` 파일에 보존한다.
 
+후속 `5d0dea3a6f769b2566211b7eb4eb5ce8d0e847c8`의
+[CI 40978128240](https://github.com/progresshans/godj/actions/runs/40978128240)에서 `core-vet` 작업은 통과했다.
+실제 checkout `f1b5af6d7b89794de88f8372d462ac9334c53067`과 head는 같은 tree
+`ce21f75db7ed1733fbe98447126b9b3c3d1326d2`다. PostgreSQL CGO0 작업 `123811747320`은 준비 실패를 다시 확인했다.
+전체 artifact `12944107993`의 SHA-256 `6255f51830fad2f9fbcbacc62ead39251df41fd481f6d832354a4a2dc7ad799d`를
+대조했고, 원본 cause는 read scope 1·write scope 0·revision 1인 계정 endpoint의 `reference=false`를 보고했다.
+Account/Permission의 실패 수와 Group의 24개 child 통과는 직전과 같으며 전체 작업 성공이 아니다.
+
+`TransitionReferenceAccount`의 빈 종류 값을 참조 부재로 취급한 getter/실제 key 결합을 수정했다. 참조 존재를 별도
+플래그로 들고 pair equality·digest·양쪽 endpoint에 결합한다. 누락/잘못된 revision과 숨겨진 참조를 거부하고 원본 key와
+native key가 모두 0인 경우도 유지한다. 신규 collection manifest/receipt와 추가 행 수에는 명시적
+`account`/`group`/`permission`을 사용한다. 기존 참조 enum·v1/v2/v3 receipt의 canonical 해석은 바꾸지 않는다.
+거부 소비자는 기대 오류·factory/hash 호출 횟수와 cleanup/hash의 실제 주입 오류를 확인하도록 보강했다.
+
+로컬 gofmt·세 template 문법·문서 링크·diff를 확인하며 Go 본문/compile/generation 중단을 유지한다.
+CI relation/PostgreSQL 분배·package inventory·Go event 도구 **51 tests PASS, 117.014s**를 확인했다.
+Relation 필수 목록은 기존 4,793개를 모두 보존하고 참조/종류 회귀 18개를 추가한 4,811개다.
+이 수정의 Go/실제 DB·race·전체 환경 성공은 다음 source의 원격 실행 대상이다. 원본 로그·archive와 로컬 도구 원본은
+같은 보관소의 `ci-40978128240-*`, `python-refusal-inventory.log`에 보존한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
