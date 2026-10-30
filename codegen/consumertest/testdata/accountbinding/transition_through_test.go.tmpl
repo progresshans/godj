@@ -35,7 +35,10 @@ import (
  "github.com/progresshans/godj/validation"
 )
 
-func nuMust(t *testing.T,err error){t.Helper();if err!=nil{t.Fatal(err)}}
+func nuMust(t *testing.T,err error){t.Helper();if err!=nil{nuExplain(t,err,0);t.Fatal(err)}}
+// These errors belong to isolated synthetic fixtures. Preserve the bounded
+// cause chain in remote diagnostics without changing production redaction.
+func nuExplain(t *testing.T,err error,depth int){t.Helper();if err==nil||depth>=8{return};t.Logf("cause[%d] %T: %v",depth,err,err);switch e:=err.(type){case interface{Unwrap()[]error}:for _,cause:=range e.Unwrap(){nuExplain(t,cause,depth+1)};case interface{Unwrap()error}:nuExplain(t,e.Unwrap(),depth+1)}}
 func nuRows[M any](t *testing.T,scope db.Queryer,objects orm.Manager[M])[]M{t.Helper();key,err:=objects.PrimaryKeyField();nuMust(t,err);rows,err:=objects.Using(scope).OrderBy(orm.NewAutoField[M](key).Asc()).All(t.Context());nuMust(t,err);return rows}
 func nuSave[M any](ctx context.Context,scope db.Mutator,objects orm.Manager[M],row M,values map[string]query.Value)error{prepared,err:=objects.PrepareValues(&row,values);if err!=nil{return err};row,err=prepared.Model();if err!=nil{return err};return prepared.Save(ctx,scope,&row)}
 func nuSnapshot(t *testing.T,backend database.Backend)map[string]any{
@@ -120,7 +123,7 @@ func TestTransitionThroughCreation(t *testing.T){for _,mode:=range []string{@@CA
  prepareNested:=func(_ context.Context,pair accountmodel.ThroughEndpoints)(orm.ModelInput[@@THROUGH@@],error){
   factoryCalls++
   _,sourcePresent:=pair.SourceKey();targetKey,targetPresent:=pair.TargetKey();source,sourceReference:=pair.SourceReference();_,targetReference:=pair.TargetReference()
-  if backend.reading!=1||backend.writing!=0||sourcePresent!=(mode=="staged"&&"@@KIND@@"=="account")||!sourceReference||source.Source.Revision!=1||pair.SourceField()!="link_owner"||pair.TargetField()!="link_target"{return orm.ModelInput[@@THROUGH@@]{},errors.New("factory lost reviewed pending source")}
+  if backend.reading!=1||backend.writing!=0||sourcePresent!=(mode=="staged"&&"@@KIND@@"=="account")||!sourceReference||source.Source.Revision!=1||pair.SourceField()!="link_owner"||pair.TargetField()!="link_target"{return orm.ModelInput[@@THROUGH@@]{},fmt.Errorf("factory source: reads=%d writes=%d present=%t reference=%t revision=%d fields=%s/%s",backend.reading,backend.writing,sourcePresent,sourceReference,source.Source.Revision,pair.SourceField(),pair.TargetField())}
   if "@@KIND@@"=="permission"{if !targetPresent||targetReference{return orm.ModelInput[@@THROUGH@@]{},errors.New("profile target was not an actual key")};_ = targetKey}else if targetPresent||!targetReference{return orm.ModelInput[@@THROUGH@@]{},errors.New("factory guessed a catalog key")}
   identity:=fmt.Sprintf("extra.item%x",uint64(source.Source.ID));if "@@KIND@@"=="account"{identity=fmt.Sprintf("extra-%x@example.test",uint64(source.Source.ID))};if mode=="duplicate"{identity="extra.duplicate"}
   values:=map[string]query.Value{"@@NATURAL@@":query.String(identity)};if "@@CODE@@"!=""{values["@@CODE@@"]=query.String(identity)};if mode=="endpoint"{values["link_target"]=query.Integer(0)}

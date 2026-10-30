@@ -3454,6 +3454,22 @@ PostgreSQL owner 목록을 고정해 새 세 작업의 필수 항목 27개를 �
 포맷과 diff만 확인했다. 이 실행은 실제 생성·DB 기능 PASS가 아니다. 세 원격 실패 로그와 후속 source 두 파일·tooling
 원본은 같은 보관소의 `receipt-build-followup.json`에 연결했다(SHA-256 `e1c2e53505a903b03f045ded5e23c4b11ca5a892cc4aea469c9f23da0038460e`).
 
+후속 [CI 40975485341](https://github.com/progresshans/godj/actions/runs/40975485341)의 head
+`5b6197c52adf98fe3fb4401e89f9c3be3241f993`와 실제 checkout `645b91b314504b3ca8ca46392f5428fe3c9adf2e`는
+같은 tree `985c6bedadd42322d2a3b37f916de8995feb5e40`다. CI tooling 단계는 통과했지만 전체 vet에서
+`createdCatalogState.verify`를 호출하는 이전 단위 검사 두 곳이 compile 오류를 냈다. 현행 collection 적용 전 검사로
+연결하고, 요청한 최종 grant와 아직 존재하지 않는 물리 링크를 구분하는 양성/음성 대조를 보강했다.
+
+같은 실행의 PostgreSQL CGO0 전환 collection 작업 `123803000713`은 실패했다. 원본 artifact
+`12943036771`의 archive SHA-256 `357cc95c092364031e87817b0b088777d58a96397416ed90ccb190270819bf52`를
+GitHub metadata와 대조한 뒤 여섯 외부 소비자의 완료 이벤트를 읽었다. Group 변형의 24개 child는 SQLite와 PostgreSQL에서
+모두 통과했지만 account 19개·permission 16개 child는 각 DB의 준비 단계에서 `persistence_failure`로 실패했다.
+이는 package/작업 전체 성공이 아니다. 기존 출력으로 내부 cause를 확정할 수 없어 합성 fixture의 bounded 오류 chain과
+endpoint 관측 진단을 보강했다. 제품 오류의 원인·수정 완료는 새 원격 결과로 확인해야 한다.
+
+이 후속은 로컬 gofmt·세 템플릿의 문법·문서 링크·diff만 검사하며 Go 본문/compile/generation 중단 지시를 유지한다.
+원격 실패 원본 두 개와 전체 artifact는 같은 검증 보관소의 `ci-40975485341-*` 파일에 보존한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

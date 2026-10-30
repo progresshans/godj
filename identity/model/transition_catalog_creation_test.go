@@ -112,7 +112,7 @@ func TestCatalogCreationReadbackRejectsPhysicalChangesWithEqualLogicalGrants(t *
 	expected.after.links = append(expected.after.links, deletionLink{key: 0, source: -7, target: 0, sourceValid: true, targetValid: true})
 	actual := transitionCatalogObservation{before: cloneTransitionCatalogInventory(old), after: cloneTransitionCatalogInventory(next)}
 	actual.after.links = append(actual.after.links, deletionLink{key: 0, source: -7, target: 0, sourceValid: true, targetValid: true})
-	if err := expected.verify(actual); err != nil {
+	if err := expected.verifyBeforeCollections(actual); err != nil {
 		t.Fatal("valid native key and retained nullable row rejected", err)
 	}
 	for _, mutate := range []func(*transitionCatalogObservation){
@@ -131,12 +131,28 @@ func TestCatalogCreationReadbackRejectsPhysicalChangesWithEqualLogicalGrants(t *
 	} {
 		copy := transitionCatalogObservation{before: cloneTransitionCatalogInventory(actual.before), after: cloneTransitionCatalogInventory(actual.after)}
 		mutate(&copy)
-		if err := expected.verify(copy); err == nil {
+		if err := expected.verifyBeforeCollections(copy); err == nil {
 			t.Fatal("different complete physical/catalog state was accepted")
 		}
 	}
 	if !maps.Equal(old.groups[0].values, actual.before.groups[0].values) || len(next.links) != 1 || next.links[0] != (deletionLink{key: -2}) {
 		t.Fatal("readback or negative controls mutated retained input")
+	}
+	// Desired grants are not physical rows until the common collection batch
+	// runs. At this boundary only the observed INSERT/link baseline may grant
+	// permissions, even when the final requested grant list is already known.
+	pending := createdCatalogState{before: cloneTransitionCatalogInventory(old), after: cloneTransitionCatalogInventory(next)}
+	beforeCollections := transitionCatalogObservation{before: cloneTransitionCatalogInventory(old), after: cloneTransitionCatalogInventory(next)}
+	row := beforeCollections.after.groups[-7]
+	row.permissions = nil
+	beforeCollections.after.groups[-7] = row
+	if err := pending.verifyBeforeCollections(beforeCollections); err != nil {
+		t.Fatal("unapplied requested grants were treated as existing links", err)
+	}
+	row.permissions = []int64{0}
+	beforeCollections.after.groups[-7] = row
+	if err := pending.verifyBeforeCollections(beforeCollections); err == nil {
+		t.Fatal("logical grants without their physical link were accepted")
 	}
 }
 
