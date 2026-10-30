@@ -52,6 +52,7 @@ const (
 	CodeTransactionRollbackRequired  = "transaction_rollback_required"
 	CodeTransactionRequired          = "transaction_required"
 	CodeBackendRecoveryRequired      = "backend_recovery_required"
+	CodeAutoKeyExhausted             = "auto_key_exhausted"
 )
 
 // Error is the stable error taxonomy shared by dynamic lookup validation and

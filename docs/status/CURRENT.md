@@ -35,7 +35,8 @@
    Nullable FK 순환의 단계적 계정/catalog 생성·전체 임시 행 고정·실제 key 완성과 rollback을 원격 검증한다.
    전환 collection의 추가 identity 생성·양쪽 실제 FK 결합·원본 인가·전체 batch/inventory·manifest v8/receipt v3와
    기존 INSERT 재사용·실패/복구/restart를 원격 검증한다. 새 전환 collection의 계정 참조 존재·receipt 종류 처리 수정을 원격 검증한다.
-   필수 FK 순환 할당과 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
+   추가한 native key 예약 기반을 양 DB·scope·실패/rollback·동시 연결에서 원격 검증한다. 이를 실제 필수 FK 순환
+   삽입과 결합하고 역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
 
 ## 검증 경계
 

@@ -1386,7 +1386,7 @@ func loadSQLiteRelationCatalog(ctx context.Context, executor migrationSQLExecuto
 					strings.ContainsRune(object.owner, 0) || strings.ContainsRune(object.sql, 0) {
 					return relationPhysicalDrift("SQLite %s catalog contains a NUL byte", schema)
 				}
-				object.tokens, err = tokenizeSQLiteRelationSQL(object.sql, sqliteRelationMaxNodes-aggregateCatalogTokens)
+				object.tokens, err = tokenizeSQLiteRelationSQL(object.sql, sqliteRelationMaxNodes-aggregateCatalogTokens, false)
 				if err != nil {
 					return err
 				}
@@ -2134,7 +2134,7 @@ func sqliteRelationIsVirtualTable(tokens []sqliteRelationSQLToken) bool {
 	return false
 }
 
-func tokenizeSQLiteRelationSQL(statement string, limit int) ([]sqliteRelationSQLToken, error) {
+func tokenizeSQLiteRelationSQL(statement string, limit int, punctuation bool) ([]sqliteRelationSQLToken, error) {
 	tokens := make([]sqliteRelationSQLToken, 0)
 	appendToken := func(value string, quoted, literal bool) error {
 		if len(tokens) >= limit {
@@ -2220,6 +2220,11 @@ func tokenizeSQLiteRelationSQL(statement string, limit int) ([]sqliteRelationSQL
 				return nil, err
 			}
 		default:
+			if punctuation && strings.ContainsRune("(),;", rune(statement[index])) {
+				if err := appendToken(statement[index:index+1], false, false); err != nil {
+					return nil, err
+				}
+			}
 			index++
 		}
 	}

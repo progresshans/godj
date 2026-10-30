@@ -32,7 +32,7 @@ func compileConflictInsert(schema string, plan query.ConflictInsertPlan) (string
 		") ON CONFLICT (" + strings.Join(parts.Target, ", ") + ") DO NOTHING RETURNING " + parts.Key, parts.Arguments, nil
 }
 
-func executeConflictInsert(ctx context.Context, executor queryplan.InsertReturningExecutor, schema string, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
+func executeConflictInsert(ctx context.Context, executor queryplan.IntegerReturningExecutor, schema string, plan query.ConflictInsertPlan) (db.ConflictInsertResult, error) {
 	statement, arguments, err := compileConflictInsert(schema, plan)
 	if err != nil {
 		return db.ConflictInsertResult{}, err

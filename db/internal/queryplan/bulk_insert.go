@@ -119,7 +119,7 @@ func ExecuteBulkInsert(ctx context.Context, executor BulkInsertExecutor, plan qu
 		}
 		return db.BulkInsertResult{RowsAffected: count}, nil
 	}
-	keys, err := ExecuteInsertReturning(ctx, executor, statement, arguments, plan.RowCount(), plan.RowCount(), classify)
+	keys, err := ExecuteIntegerReturning(ctx, executor, statement, arguments, plan.RowCount(), plan.RowCount(), classify)
 	if err != nil {
 		return zero, err
 	}

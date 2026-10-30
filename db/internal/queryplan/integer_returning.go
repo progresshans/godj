@@ -10,16 +10,16 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-type InsertReturningExecutor interface {
+type IntegerReturningExecutor interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
-// ExecuteInsertReturning drains and closes the actual statement's RETURNING
-// rows. It never infers a key by reading an existing row or LastInsertId after
-// a no-op. No key survives scan, cardinality, transport, close or context errors.
-func ExecuteInsertReturning(ctx context.Context, executor InsertReturningExecutor, statement string, arguments []any, minimum, maximum int, classify func(error) error) ([]int64, error) {
+// ExecuteIntegerReturning drains and closes one integer column from a native
+// statement. Callers own whether it returns inserted or reserved keys. No key
+// survives scan, cardinality, transport, close or context errors.
+func ExecuteIntegerReturning(ctx context.Context, executor IntegerReturningExecutor, statement string, arguments []any, minimum, maximum int, classify func(error) error) ([]int64, error) {
 	if ctx == nil || minimum < 0 || maximum < minimum || maximum < 1 {
-		return nil, invalidPlan("invalid returning insert context or row bounds")
+		return nil, invalidPlan("invalid integer result context or row bounds")
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func ExecuteInsertReturning(ctx context.Context, executor InsertReturningExecuto
 		return nil, classify(err)
 	}
 	if rows == nil {
-		return nil, invalidPlan("insert returned nil rows without an error")
+		return nil, invalidPlan("integer statement returned nil rows without an error")
 	}
 	defer rows.Close()
 	keys := make([]int64, 0, maximum)
@@ -58,12 +58,12 @@ func ExecuteInsertReturning(ctx context.Context, executor InsertReturningExecuto
 
 func returningRowCount(minimum, maximum, actual int) error {
 	return &query.Error{Category: query.CategoryBackend, Code: query.CodeUnexpectedRows,
-		Detail: fmt.Sprintf("insert returned %d rows, expected %d through %d", actual, minimum, maximum)}
+		Detail: fmt.Sprintf("integer statement returned %d rows, expected %d through %d", actual, minimum, maximum)}
 }
 
 // ExecuteConflictInsert keeps no-op distinct from an inserted zero key.
-func ExecuteConflictInsert(ctx context.Context, executor InsertReturningExecutor, statement string, arguments []any, classify func(error) error) (db.ConflictInsertResult, error) {
-	keys, err := ExecuteInsertReturning(ctx, executor, statement, arguments, 0, 1, classify)
+func ExecuteConflictInsert(ctx context.Context, executor IntegerReturningExecutor, statement string, arguments []any, classify func(error) error) (db.ConflictInsertResult, error) {
+	keys, err := ExecuteIntegerReturning(ctx, executor, statement, arguments, 0, 1, classify)
 	if err != nil {
 		return db.ConflictInsertResult{}, err
 	}

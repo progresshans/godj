@@ -36,7 +36,7 @@ func CompileConflictInsert(plan query.ConflictInsertPlan) (string, []any, error)
 		") ON CONFLICT (" + strings.Join(parts.Target, ", ") + ") DO NOTHING RETURNING " + parts.Key, parts.Arguments, nil
 }
 
-func executeConflictInsert(ctx context.Context, executor queryplan.InsertReturningExecutor, statement string, arguments []any) (db.ConflictInsertResult, error) {
+func executeConflictInsert(ctx context.Context, executor queryplan.IntegerReturningExecutor, statement string, arguments []any) (db.ConflictInsertResult, error) {
 	return queryplan.ExecuteConflictInsert(ctx, executor, statement, arguments, func(err error) error { return classifySQLiteWriteError(ctx, "insert", err) })
 }
 

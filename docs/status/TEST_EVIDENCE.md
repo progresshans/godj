@@ -3490,6 +3490,61 @@ Relation 필수 목록은 기존 4,793개를 모두 보존하고 참조/종류 �
 이 수정의 Go/실제 DB·race·전체 환경 성공은 다음 source의 원격 실행 대상이다. 원본 로그·archive와 로컬 도구 원본은
 같은 보관소의 `ci-40978128240-*`, `python-refusal-inventory.log`에 보존한다.
 
+수정 source `9bc1eab75f41bd6a0559f675193e939ef140fa6d`의
+[CI 40980880097](https://github.com/progresshans/godj/actions/runs/40980880097) attempt 1에서
+`PostgreSQL 17.10 actual product (normal, core-account-transition-through)` 작업 `123820978191`이 통과했다.
+실제 checkout `900d0071a4b891e67142554cac2ad5517cc69a23`과 제출 source의 tree는
+`5b3b96063336420d7f99b91efcbc4c8a96ab7a6e`로 같다. Artifact `12945351239`의 archive SHA-256
+`69c759a43f2d21b939ed9671bbf97bddcf4839c29938e33432b50505b5da75a8`를 GitHub metadata와 대조했다.
+
+전체 artifact의 실행 계획·필수 목록 hash·원본 outer/child JSON과 각 종료 기록을 읽었다. Outer 필수 10개와
+Account 27개·Group 24개·Permission 23개 시나리오가 SQLite/PostgreSQL 각각에서 한 번씩 run/pass했다.
+총 시나리오는 **148개**, 각 외부 root를 포함한 child run/pass는 154개이며 skip·미완료·중복·예상 밖 테스트는 없었다.
+강화한 입력/권한/cleanup/hash 거부의 정확한 실패 지점과 실제 native INSERT·전체 행·대응표/receipt 검사를 포함한다.
+같은 source의 테스트 선언에서 필수 사례를 추출해 전체 child 목록과 대조했다. 이것은 새 전환 through 소비자의
+normal 실행 확인이며 race·CGO0·다른 소비자·전체 platform 또는 I1 전체 수용을 뜻하지 않는다.
+
+원본과 대조 결과는 같은 보관소의 `receipt-through-normal-9bc1eab.json`에 연결했다
+(SHA-256 `503fd34fbcd4350910c8a8f6327969711fc8a7c3d035d422e980043af7a53377`).
+
+같은 source·checkout tree·attempt의 `core-account-transition-through` race 작업 `123820978187`과 CGO0 작업
+`123820978529`도 통과했다. 두 artifact의 전체 parent/child JSON·종료 기록·필수 목록을 같은 테스트 선언과 대조했다.
+각 모드에서 outer 필수 10개, 양 DB child 시나리오 148개/외부 root 포함 154개가 각각 한 번 run/pass했으며
+skip·잘린 실행·실패·누락·중복은 없었다. 실행 계획의 원본 manifest hash는 두 모드 모두
+`d224b1bd187972d408c5351a7ea974616ba88707a0f63c1c8109172d4d6ed939`로 제출 source의 목록과 같다.
+
+| 모드 | Artifact | Archive SHA-256 | 대조 receipt SHA-256 |
+|---|---:|---|---|
+| race | 12945742564 | `de0c7cf6645d0df4c0f14b72c028ab26a58e720ef4469bcd190715a777bbc7fc` | `ee2c24a01e87d6e3e45cd14e53ebb36cf868c94dda725295021f701b20e0c7a6` |
+| CGO0 | 12946103268 | `a7fc35ac4808fc98d61840a4685bb1b6d83076c935a1eec5092833de628b5bd2` | `9d4afcdbc7ec715e4ca2544d7defc6233950101baf3ae08dfeca2bfa73cc256e` |
+
+`receipt-through-race-9bc1eab.json`과 `receipt-through-cgo0-9bc1eab.json`, 원본 ZIP/job log는 같은 보관소에 있다.
+Child의 시작 기록은 argv만 저장한다. Race 전달은 같은 source의 race build tag와
+`generatedGoCommand → generatedTestEnvironment → GOFLAGS=-trimpath -race`, CGO0는 job의 `CGO_ENABLED=0`
+보존 경로까지 확인했다. 각 child의 환경 dump를 수집했다는 주장은 하지 않는다. 이 세 모드의 새 through 소비자 확인과
+전체 CI·platform·다른 소비자·I1 수용은 구분하며 전체 CI는 아직 완료되지 않았다.
+
+## GDJ-0138 — 필수 순환을 위한 native key 예약 기반
+
+`9bc1eab7` 다음 변경 묶음에 `query.AutoKeyPlan`·`db.AutoKeyAllocator`와 PostgreSQL/SQLite 구현을 작성했다.
+일반·coordinated·관계 session과 savepoint가 같은 physical operation 수명을 사용하고 root/read scope는 예약 capability를
+노출하지 않는다. PostgreSQL은 actual sequence 값을 전부 읽고 물리 metadata·중복/occupied key를 검사한다.
+SQLite는 exact AUTOINCREMENT·단일 integer PK·temp shadow·sequence 무결성을 확인하고 조건부 native high-water
+갱신을 완료한 범위만 반환한다. 기존 conflict/bulk INSERT와 예약은 같은 integer 결과 drain/close/오류 폐기 경로를 쓴다.
+
+양 DB 공통 소비자는 실제 예약 key로 INSERT한 전체 key/token·일반 INSERT와의 비중복, 네 scope·부모/자식 만료·열린 cursor·
+savepoint/root rollback 차이·최대 65,536개·독립 연결을 대조하도록 작성했다. PostgreSQL은 0/음수·감소/비단위 sequence·
+정밀도 경계·exhaustion·occupied key·잘못된 physical allocator·unknown owner를 추가했다. SQLite는 PK UPDATE와 삭제된
+high-water·재시작·최대 정수·중복/손상 sequence·I/O/late cancellation·BUSY·unconfirmed raw connection 보존을 추가했다.
+이 문단은 구현·검사 작성 기록이며 실제 Go compile/테스트 PASS가 아니다. 로컬 Go 실행 중단 지시를 유지한다.
+
+필수 목록은 기존 항목을 모두 보존하며 portable 296→305, relation 4,811→4,864, PostgreSQL 5,834→5,864로 늘렸다.
+로컬에서는 변경 Go 파일의 gofmt·diff 검사, 245개 문서의 링크, CI 분배/package inventory/Go event 도구 51개
+테스트를 확인했다(117.682초, skip 없음). 원본은 같은 보관소의 `python-auto-key-inventory.log`에 있다.
+이 검사는 실제 Go compile·생성·native DB 본문·race 실행을 포함하지 않는다.
+예약 기반을 실제 필수 FK 순환 INSERT·typed 전환 수명과 결합하는 작업은 미완료이며 제품 경로는 해당 순환을 여전히 거부한다.
+새 본문·DB·race·CGO0·전체 환경 결과는 이 묶음을 push한 뒤 같은 source의 원격 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

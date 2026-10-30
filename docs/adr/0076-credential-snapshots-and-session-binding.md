@@ -2128,7 +2128,8 @@ digest에 포함한다. 완전한 typed 행·unique·선택·custom 정책은 �
 계정·catalog의 완성 전에는 보류한 선택 정책이나 custom validator에 행을 전달하지 않는다. 완성한 identity는 기존 최종
 전체 행/물리 링크 inventory에 들어가며 한 번의 Add 감사·revision 1을 유지한다. 실제 INSERT key 0/음수도 그대로 사용한다.
 해당 nullable 간선을 제거해도 남는 필수 FK cycle은 쓰기 전에 명시적 `unsupported`다. Native 제약을 끄거나 key를 예측하지
-않으며 그 순환을 위한 별도 DB 할당 기반은 미완료다. 중간 변조·FK 갱신 실패·unique 충돌도 전체 transaction rollback이다.
+않는다. 아래 native 예약 기반을 실제 순환 INSERT와 연결하는 작업은 미완료다. 중간 변조·FK 갱신 실패·unique 충돌도
+전체 transaction rollback이다.
 
 Commit은 같은 native relation transaction에서 계정/catalog 공동 의존 그래프를 할당한 뒤 그룹 권한·계정 소속·프로필을
 하나의 공통 collection batch로 저장하고 host 참조를 적용한다. 보류 참조를 해결하는 동안에는 scalar·native FK·unique 무결성을 유지하고, 관련 행과 소속이 모두 채워진 뒤
@@ -2156,6 +2157,33 @@ contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확�
 구분한다. 그 밖의 host FK가 새 catalog를 가리키면 거부하며, 전체 inventory 대조로 소유 행의 늦은 추가/변경도 거부한다.
 필수 FK 순환의 native 할당 수명은 남은 통합 대상이다. 직접 INSERT와 아래 collection 생성 코드의 존재를
 I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
+
+### 순환 참조를 위한 native key 예약 기반
+
+DB 독립 `query.AutoKeyPlan`은 table·non-null integer key·1~65,536개의 개수만 보관한다. SQL이나 예상 시작 key,
+typed 행·권한을 포함하지 않는다. 선택 capability `db.AutoKeyAllocator`는 살아 있는 borrowed write session에서만
+제공한다. Root backend·읽기 snapshot은 이 capability를 노출하지 않는다. 전체 예약 작업은 한 transaction scope의
+물리 I/O 소유권을 유지하며 부모/자식 savepoint·열린 cursor·취소·만료 계약을 따른다.
+
+PostgreSQL은 실제 bigint 단일 PK·소유 identity sequence·같은 schema·비순환 설정을 확인하고 native `nextval` 값을
+모두 읽는다. 0/음수·증감 간격을 보존하며 중복·이미 저장된 key·예약 전후 allocator 변경을 거부한다. Table DDL을
+잠그고 native sequence lock 아래에서 metadata를 재확인한다. Rollback 이후에도 이미 소비한 sequence 값의 공백은 남는다.
+
+SQLite는 정확한 main table·INTEGER NOT NULL 단일 PK·AUTOINCREMENT와 temp shadow 부재를 확인한다. 실제
+`sqlite_sequence`의 정확한 이름·단일 행·정수 high-water와 현재 최대 PK를 같은 scope에서 읽고, native allocator의
+끝 값을 조건부 INSERT/UPDATE로 확정한 뒤 그 범위의 key를 반환한다. PK UPDATE가 sequence를 올리지 않는 경우도
+현재 최대 PK로 검사한다. 손상/중복/case drift·overflow는 거부하며 임시 제품 행을 만들지 않는다. 이 allocator 변경은
+transaction/savepoint와 함께 rollback한다. Deferred transaction의 writer 획득 실패를 재시도로 숨기지 않는다.
+
+Scan·cardinality·transport·close·취소 오류에는 부분 key 목록을 반환하지 않는다. SQLite의 쓰기 가능 표시는 allocator
+DML 전에 설정하므로 종료를 확정하지 못한 raw transaction은 기존 recovery/unknown 계약을 따른다. 성공한 예약도
+owner의 확정 commit 전에는 잠정 값이다. 외부의 명시적 key 쓰기나 sequence reset을 막는 권한으로 사용하지 않으며,
+각 제품 행의 실제 INSERT·PK/FK/unique 제약과 전체 readback을 반드시 별도로 수행한다. 순환 graph 실행과 typed
+전환 수명은 이 기반의 존재만으로 지원 완료가 되지 않는다. 환경별 실행 결과는 TEST_EVIDENCE에 둔다.
+
+Native 의미의 출처는 [PostgreSQL 17 sequence 함수](https://www.postgresql.org/docs/17/functions-sequence.html)와
+[SQLite AUTOINCREMENT](https://www.sqlite.org/autoinc.html),
+[sqlite_sequence 파일 형식](https://www.sqlite.org/fileformat2.html#seqtab)이다. 구현 소스는 복사하지 않았다.
 
 ### 전환 collection의 추가 선택 identity 생성
 

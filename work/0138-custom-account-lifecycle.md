@@ -620,6 +620,14 @@ Add 감사와 마지막 readback을 유지한다. Manifest v8·mapping payload v
 사용한다. 양쪽 endpoint·원본/실제 key 0·revision·숨겨진 참조와 실패 지점 검사를 보강했다.
 새 제품 본문·타입 검사와 환경별 수용은 원격 확인 대상이다.
 
+필수 순환의 선행 기반으로 DB 독립 `AutoKeyPlan`과 borrowed write session의 `AutoKeyAllocator`를 작성했다.
+PostgreSQL은 소유 identity sequence의 실제 값을, SQLite는 검증한 AUTOINCREMENT allocator에 원자적으로 예약한
+범위를 반환한다. 실제 PK/allocator·전체 반환·취소/close·scope 소유권·overflow와 native rollback 의미를 검사한다.
+예약으로 제품 행을 만들지 않으며 확정 INSERT·전체 행 대조·원래 권한을 대신하지 않는다. 원격 필수 실행에는 일반/관계/
+coordinated/savepoint 수명, 실제 INSERT key·signed sequence·동시 연결·PK UPDATE/deleted high-water·손상된 sequence·
+native 실패/unknown을 추가했다. 원본 Go 본문과 DB 실행은 아직 원격 확인 대상이다. 필수 FK 순환을 삽입하는 graph 실행과
+typed account/catalog 전환의 결합은 계속 미완료이며 현재 필수 순환의 명시적 거부를 유지한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 native 할당 수명, 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
