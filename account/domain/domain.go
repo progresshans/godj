@@ -281,6 +281,9 @@ func TransitionMappedIn(ctx context.Context, transaction db.Session, expected Re
 	if err := validateWrite(ctx, transaction, change, at); err != nil {
 		return Receipt{}, err
 	}
+	if inventory.Legacy != nil {
+		return Receipt{}, ErrInvalid
+	}
 	prepared, err := prepareMappingSet(inventory)
 	if err != nil {
 		return Receipt{}, err

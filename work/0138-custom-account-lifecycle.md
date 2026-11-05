@@ -640,14 +640,27 @@ receipt와 실패/unknown 경계는 유지한다. 계정 상호/자기 순환, c
 signed key·사본·역순·선택/정책·중간/최종 변조·native 실패·잘못된 반환 key·한도·unique·rollback/restart 검사를 추가했다.
 새 typed 통합의 Go 본문과 생성 소비자·DB·race/platform 실행은 원격 확인 대상이다.
 
+### 역사 systemstate의 최초 선택 domain 이행
+
+`IdentityHandoff`의 Prepare·Commit·Reconcile·역사 감사 reader를 작성했다. 현재 source 권한과 전체 계정/catalog/through,
+canonical session/audit를 읽고 기존 key/revision과 행·소속·archive bytes를 보존하는 첫 domain/대응표를 기록한다.
+퇴역 marker와 마지막 전체 대조를 같은 transaction에 묶고, 오래된 identity/operator runtime의 인증·쓰기·session·감사
+경로를 차단한다. Raw operator의 기존 명시적 adoption과 다른 모델로의 typed 전환은 각각 별도 단계다.
+Startup은 알려진 역사 schema·첫 origin·정확한 marker가 함께 있어야 선택 domain을 사용한다.
+
+저장 payload v4·이전 v1/v2/v3 혼합 이력과 다중 page·signed key·현재 인가/권한 회수·준비 이후 및 늦은 변조·capacity·
+부분 쓰기 실패/rollback·unknown/reconcile·동시 연결·재접속·역사 조회를 양 DB 필수 목록에 연결했다.
+Source attestation은 새 공유 marker 코드까지 묶는다. 새 Go 본문은 원격 확인 대상이며 public operator와 custom 모델
+전환을 잇는 실제 생성 소비자, 남은 고정 소비자 교체 및 전체 환경 수용은 계속 남아 있다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
-필수 FK 순환의 typed 전환 검증, 역사 `systemstate` 가져오기,
+필수 FK 순환의 typed 전환 검증과 역사 이행의 외부 조립·검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
 2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
 3. 공개 명령·Form/Admin/API·password/reset·host 삭제·restart 소비자와 실패 검사를 완성한다.
-4. 포맷·필요한 최소 compile 뒤 변경 묶음을 push하고 영향 테스트·generated drift·양 DB·race/process·
+4. 사용자 지시에 따라 로컬 Go 실행은 중단하고 포맷·정적 확인 뒤 변경 묶음을 push한다. 영향 compile·테스트·generated drift·양 DB·race/process·
    독립 기준·브라우저 및 전체 원격 CI를 실행한다. 결과 상세는 TEST_EVIDENCE에 기록한다.
 
 - [ ] I1-01~08 제품 코드·생성기·소비자를 완성한다.

@@ -347,12 +347,12 @@ func (store *durableSessionStore) ensureCapacity(ctx context.Context, session db
 	}
 	now = now.Round(0).UTC()
 	expiredRowID := int64(0)
-	payloadCount, err := scanSessionPayloads(ctx, session, store.limits, store.maxRecords+1, func(rowID int64, metadata sessions.Record) error {
+	payloadCount, err := scanSessionPayloads(ctx, session, store.limits, store.maxRecords+1, func(row persistedSessionRow, metadata sessions.Record) error {
 		if now.Before(metadata.AbsoluteExpiresAt()) && now.Before(metadata.IdleExpiresAt()) {
 			return nil
 		}
-		if expiredRowID == 0 || rowID < expiredRowID {
-			expiredRowID = rowID
+		if expiredRowID == 0 || row.id < expiredRowID {
+			expiredRowID = row.id
 		}
 		return nil
 	})
@@ -496,7 +496,7 @@ func scanSessionPayloads(
 	queryer db.Queryer,
 	limits sessions.Limits,
 	limit int,
-	visit func(int64, sessions.Record) error,
+	visit func(persistedSessionRow, sessions.Record) error,
 ) (int, error) {
 	plan, err := query.NewPlan(sessionTableName, []query.FieldRef{systemRowIDField, sessionDigestField, sessionPayloadField}).WithLimit(limit)
 	if err != nil {
@@ -506,6 +506,7 @@ func scanSessionPayloads(
 	// ordering streams payloads without a payload-bearing sort.
 	plan = plan.WithOrderings(query.NewOrdering(systemRowIDField, query.Ascending))
 	count := 0
+	var previous int64
 	err = scanRows(ctx, queryer, plan, persistenceRowsFailure("query session payloads"), func(rows db.Rows) (bool, error) {
 		var row persistedSessionRow
 		if err := rows.Scan(&row.id, &row.digest, &row.payload); err != nil {
@@ -515,9 +516,10 @@ func scanSessionPayloads(
 		if count > limit {
 			return false, cardinalityFailure("session", "backend returned more rows than the bounded payload plan")
 		}
-		if row.id <= 0 || !validSessionDigest(row.digest) {
+		if row.id <= previous || !validSessionDigest(row.digest) {
 			return false, &Error{Code: CodeCorruptState, Field: "session_row", Detail: "stored session row is malformed"}
 		}
+		previous = row.id
 		if len(row.payload) > maxSessionPayloadBytes {
 			return false, &Error{Code: CodeCorruptState, Field: "session_payload", Detail: "stored session payload exceeds the current storage bound"}
 		}
@@ -526,7 +528,7 @@ func scanSessionPayloads(
 			return false, err
 		}
 		if visit != nil {
-			if err := visit(row.id, metadata); err != nil {
+			if err := visit(row, metadata); err != nil {
 				return false, err
 			}
 		}

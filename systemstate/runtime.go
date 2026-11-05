@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
+	"github.com/progresshans/godj/internal/systemstatehandoff"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
@@ -87,6 +88,8 @@ type Runtime struct {
 	loginRecorder     *identity.LoginRecorder
 	passwordConfirmer auth.PasswordConfirmer
 	passwordHasher    auth.PasswordHasher
+	identityOwnership IdentityTransition
+	operatorOwnership bool
 }
 
 var _ db.Queryer = (*Runtime)(nil)
@@ -298,6 +301,7 @@ func OpenExisting(ctx context.Context, backend Backend, config RuntimeConfig) (r
 	runtime.authenticator = &policyAuthenticator{runtime: runtime, policy: policy, cached: authenticator}
 	runtime.sessionStore = sessionStore
 	runtime.auditCapacity = auditCapacity
+	runtime.operatorOwnership = true
 	return runtime, nil
 }
 
@@ -442,7 +446,15 @@ func (runtime *Runtime) AtomicRelation(ctx context.Context, callback func(db.Rel
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return backend.CoordinatedAtomicRelation(ctx, callback)
+	return backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+		if err := runtime.requireHistoricalOwnership(ctx, scope); err != nil {
+			return err
+		}
+		if err := callback(scope); err != nil {
+			return err
+		}
+		return runtime.requireHistoricalOwnership(ctx, scope)
+	})
 }
 
 // withAtomic is the one cooperative gate shared by the durable session and
@@ -461,7 +473,44 @@ func (runtime *Runtime) withAtomic(ctx context.Context, callback func(db.Session
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	return runtime.backend.CoordinatedAtomic(ctx, callback)
+	return runtime.backend.CoordinatedAtomic(ctx, func(scope db.Session) error {
+		if err := runtime.requireHistoricalOwnership(ctx, scope); err != nil {
+			return err
+		}
+		if err := callback(scope); err != nil {
+			return err
+		}
+		return runtime.requireHistoricalOwnership(ctx, scope)
+	})
+}
+
+func (runtime *Runtime) requireHistoricalOwnership(ctx context.Context, scope db.Queryer) error {
+	if runtime.identityOwnership.state == nil {
+		if runtime.operatorOwnership {
+			rows, err := readCredentialRows(ctx, scope)
+			if err != nil {
+				return err
+			}
+			if len(rows) != 1 || rows[0].id <= 0 {
+				return credentialCardinalityError()
+			}
+			if _, retired := systemstatehandoff.RetiredOperation(rows[0].encodedPassword); retired {
+				return &Error{Code: CodeIdentityTransitionRequired, Field: "identity_transition", Detail: "historical storage was retired into a selected account domain"}
+			}
+			if rows[0].definitionDigest != initialDefinitionDigest && rows[0].definitionDigest != transferredCredentialDigest {
+				return handoffError(CodeCorruptState, nil)
+			}
+		}
+		return nil
+	}
+	current, err := inspectIdentityTransition(ctx, scope)
+	if err != nil {
+		return err
+	}
+	if current.value() != runtime.identityOwnership.value() {
+		return &Error{Code: CodeIdentityTransitionRequired, Field: "identity_transition", Detail: "historical identity ownership changed"}
+	}
+	return ctx.Err()
 }
 
 func (runtime *Runtime) validBackendCall(ctx context.Context) error {

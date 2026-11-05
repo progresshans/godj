@@ -26,6 +26,7 @@ type MappingInventory struct {
 	Accounts    []Mapping
 	Catalog     *CatalogMappings
 	Collections []CollectionIdentity
+	Legacy      *LegacyIdentityOrigin
 }
 
 func normalizeCollectionIdentities(input []CollectionIdentity, accounts []Mapping, catalog *CatalogMappings) ([]CollectionIdentity, error) {
@@ -101,5 +102,5 @@ func LookupMappingInventoryIn(ctx context.Context, reader db.Queryer, expected R
 	if err != nil {
 		return MappingInventory{}, err
 	}
-	return MappingInventory{Accounts: result.rows, Catalog: result.catalog, Collections: result.collections}, nil
+	return MappingInventory{Accounts: result.rows, Catalog: result.catalog, Collections: result.collections, Legacy: result.legacy}, nil
 }

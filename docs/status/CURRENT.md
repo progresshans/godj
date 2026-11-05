@@ -39,7 +39,9 @@
    추가한 native key 예약과 단일 문장의 필수 FK graph 삽입 기반을 양 DB·scope·실패/rollback·동시 연결에서 원격 검증한다.
    실제 INSERT key·trigger 변경·임시 자원 정리와 불확실한 종료를 포함한다. Typed 계정/catalog 전환에 연결한 필수
    성분별 예약·삽입·전체 행 대조와 계정/catalog/세 역할 공동 순환·실패/rollback 소비자를 원격 검증한다.
-   역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
+   역사 systemstate의 최초 선택 domain·전체 원문 보존·퇴역 runtime 차단·receipt/복구를 양 DB에서 원격 검증한다.
+   Catalog 순환 소비자의 누적 race timeout은 두 실행 owner로 분리했다. 모든 기존 사례·deadline의 새 원본 실행을 확인한다.
+   역사 이행의 외부 operator/custom 모델 전환 조립과 남은 고정 Directory/Manager 소비자를 완성한다.
 
 ## 검증 경계
 

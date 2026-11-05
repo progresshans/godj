@@ -36,6 +36,47 @@ func credentialRow() models.User {
 	return row
 }
 
+func TestCredentialSnapshotValidationNeedsNoInventedOwnership(t *testing.T) {
+	binding := credentialBinding(t, modeldef.AccountRole())
+	for _, mode := range []string{"ordinary", "zero_key", "negative_key", "inactive", "unusable", "missing_key", "revision", "principal", "login", "password", "duplicate_permission", "zero_binding"} {
+		t.Run(mode, func(t *testing.T) {
+			row := credentialRow()
+			selected := binding
+			grants := []auth.Permission{"tickets.view_ticket"}
+			switch mode {
+			case "zero_key":
+				(models.UserDescriptor{}).SetPrimaryKey(&row, 0)
+			case "negative_key":
+				(models.UserDescriptor{}).SetPrimaryKey(&row, -8)
+			case "inactive":
+				row.Active = false
+			case "unusable":
+				row.EncodedPassword = "!disabled"
+			case "missing_key":
+				(models.UserDescriptor{}).ClearPrimaryKey(&row)
+			case "revision":
+				row.Revision = 0
+			case "principal":
+				row.PrincipalID = ""
+			case "login":
+				row.Username = "\x00"
+			case "password":
+				row.EncodedPassword = "\xff"
+			case "duplicate_permission":
+				grants = append(grants, grants[0])
+			case "zero_binding":
+				selected = accountmodel.Binding[models.User]{}
+			}
+			before := row
+			err := selected.ValidateCredentialSnapshot(row, grants)
+			valid := mode == "ordinary" || mode == "zero_key" || mode == "negative_key" || mode == "inactive" || mode == "unusable"
+			if (err == nil) != valid || row != before {
+				t.Fatal("pure credential validation changed data or its ownership-independent contract", err)
+			}
+		})
+	}
+}
+
 func TestDeclaredRoleFingerprintMatchesTypedOwnerWithoutChangingInput(t *testing.T) {
 	definition, err := modeldef.Schema()
 	if err != nil {

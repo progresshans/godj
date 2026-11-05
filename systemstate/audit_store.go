@@ -24,6 +24,9 @@ func (runtime *Runtime) AppendAudit(ctx context.Context, session db.Session, eve
 	if isNilInterface(session) {
 		return &Error{Code: CodeInvalidInput, Field: "session", Detail: "borrowed audit session is nil"}
 	}
+	if err := runtime.requireHistoricalOwnership(ctx, session); err != nil {
+		return err
+	}
 	changedFields, err := encodeAuditChangedFields(event.ChangedFields())
 	if err != nil {
 		return err
@@ -59,7 +62,10 @@ func (runtime *Runtime) AppendAudit(ctx context.Context, session db.Session, eve
 	if identifier <= 0 {
 		return cardinalityFailure("audit", "audit insert returned an invalid sequence")
 	}
-	return pruneAuditRows(ctx, session, runtime.auditCapacity)
+	if err := pruneAuditRows(ctx, session, runtime.auditCapacity); err != nil {
+		return err
+	}
+	return runtime.requireHistoricalOwnership(ctx, session)
 }
 
 // AuditHistory returns at most the newest limit matching events in ascending
@@ -108,6 +114,9 @@ func (runtime *Runtime) AuditHistoryInSnapshot(ctx context.Context, reader db.Qu
 		return nil, &Error{Code: CodeInvalidInput, Field: "history", Detail: "history requires a borrowed live reader"}
 	}
 	if err := validator.ValidateSession(ctx); err != nil {
+		return nil, err
+	}
+	if err := runtime.requireHistoricalOwnership(ctx, reader); err != nil {
 		return nil, err
 	}
 	if limit < 1 || limit > admin.MaximumHistoryEntries {
@@ -187,10 +196,15 @@ func (row persistedAuditRow) entry() (admin.AuditEntry, error) {
 }
 
 func inspectAuditTable(ctx context.Context, queryer db.Queryer, capacity int) (bool, error) {
+	count, err := scanAuditInventory(ctx, queryer, capacity, nil)
+	return count != 0 && err == nil, err
+}
+
+func scanAuditInventory(ctx context.Context, queryer db.Queryer, capacity int, visit func(persistedAuditRow) error) (int, error) {
 	plan, err := query.NewPlan(auditTableName, auditFieldRefs).
 		WithOrderings(query.NewOrdering(auditIDRef, query.Ascending)).WithLimit(capacity + 1)
 	if err != nil {
-		return false, schemaRowsFailure(auditTableName)(err)
+		return 0, schemaRowsFailure(auditTableName)(err)
 	}
 	count := 0
 	var previous int64
@@ -210,9 +224,17 @@ func inspectAuditTable(ctx context.Context, queryer db.Queryer, capacity int) (b
 			return false, err
 		}
 		previous = row.id
+		if visit != nil {
+			if err := visit(row); err != nil {
+				return false, err
+			}
+		}
 		return true, nil
 	})
-	return count != 0 && err == nil, err
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func queryAuditRows(

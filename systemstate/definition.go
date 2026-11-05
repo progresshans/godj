@@ -3,6 +3,7 @@ package systemstate
 
 import (
 	_ "embed"
+	"github.com/progresshans/godj/internal/systemstatehandoff"
 
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
@@ -15,7 +16,7 @@ const (
 	initialDefinitionDigest   = "sha256:a1112e7f570164ec50c3b9748185c4e7e54e60d5cbf5972490aa87c64bbbd9e2"
 
 	credentialModelName                 = "credential"
-	credentialTableName                 = "godj_system_credential"
+	credentialTableName                 = systemstatehandoff.CredentialTable
 	credentialPrincipalIDColumn         = "principal_id"
 	credentialPrincipalIDMaxLength      = 128
 	credentialUsernameColumn            = "username"

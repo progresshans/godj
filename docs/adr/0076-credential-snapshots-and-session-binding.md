@@ -1943,8 +1943,10 @@ key도 지원하며, 감사 event 자체의 순번은 양수다. 공통 Admin ev
 관측을 호출한다. 관측은 migration·계정 초기화·legacy adoption·자동 repair·session 만료 정리를 수행하지 않는다.
 
 첫 단계는 `AppliedMigrationReader`로 세 framework-owned 앱의 현행 migration identity 전체를 읽는다. 누락·중복·알 수 없는
-owned migration은 `schema_unavailable`이다. 기존 `godj_system` 이력은 데이터 조회 전에 `account_transition_required`로 거부한다.
-기존 operator→고정 User adoption만으로 선택 계정 domain의 mapping/retirement를 대신할 수 없다. 그 외 앱의 이력은 해당 앱이 소유한다.
+owned migration은 `schema_unavailable`이다. 기존 `godj_system`은 알려진 두 migration이 모두 있어야 데이터 관측에
+진입하며, 첫 선택 domain의 역사 origin과 같은 operation에 묶인 퇴역 marker를 snapshot 안에서 확인해야 한다.
+단순 테이블 설치나 operator→고정 User adoption만으로 선택 domain을 초기화하지 않는다. 이행 근거가 없으면
+`account_transition_required`이며 알 수 없는/중복 역사 migration은 `schema_unavailable`이다. 그 외 앱의 이력은 해당 앱이 소유한다.
 이 조회는 아래 데이터 snapshot과 별도다.
 동시 schema migration을 잠그는 보증이나 project 전체 migration/constraint/index 감사로 확대하지 않는다.
 
@@ -1975,6 +1977,37 @@ Admin staff, form/choice/inline/collection/editor의 추가 권한을 각 업무
 선택하여 업무 transaction 안에서 기록한다. 표시명/업무 필드 값을 감사에 복사하지 않는다.
 별도 base 업무 adapter와 역사 adoption 검사는 기존 계약을 검증하는 소비자로 유지하며 새 선택 조립의
 인가·DB session·이력 증거로 대신하지 않는다.
+
+## 역사 systemstate에서 최초 선택 domain으로 이행
+
+`systemstate.IdentityHandoff`는 명시적으로 초기화한 역사 `identity.User`와 그 Group/Permission을 동일한 선택 역할로
+옮기는 owner다. `NewIdentityHandoff`는 실제 typed binding과 전체 host source, 기본 역할 fingerprint를 확인한다.
+Raw operator는 먼저 기존 `AdoptOperator`를 명시적으로 수행해야 한다. 다른 모델로의 이동은 이 최초 이행 이후
+아래 typed 전환이 담당한다. 임의 모델 역할 추론, 숨은 기본 User 생성, 호환용 credential adapter를 추가하지 않는다.
+
+`Prepare`는 새 domain·account audit의 부재, 전체 역사 migration identity와 현재 source actor의 명시적 권한을 검사한다.
+한 native snapshot에서 전체 계정·catalog scalar와 세 through의 실제 key/endpoint, revision, unique·IR credential·권한
+한도 및 유효 합집합을 대조한다. 계정/catalog는 각각 기본 4,096·최대 65,536행과 합계 64 MiB 예산을 적용한다.
+원래 session/audit는 기존 canonical codec·행 순서·용량 한도를 유지한 streaming inventory로 읽으며 일부 page나
+count만으로 payload 검증을 대신하지 않는다. Actor 인가를 먼저 확인하고 전체 관측에서도 다시 확인한다.
+
+검토용 manifest v1은 실제 key/revision의 identity 대응표와 schema·host·역사 owner·계정·catalog·session·audit의
+SHA-256 및 archive 개수를 가진다. Password·payload·display label 원문을 내보내지 않는다. 저장 mapping payload v4는
+최초 receipt에만 `LegacyIdentityOrigin`을 허용하고 catalog 전체 대응표와 계정 key/revision이 바뀌지 않았음을 검사한다.
+Canonical bytes·전체 checksum·배열/byte 한도·불변 history chain 검사는 이전 v1/v2/v3 이력과 함께 유지한다.
+
+`Commit`은 해당 owner·actor에 묶인 준비 결과를 한 번만 소비한다. 같은 coordinated transaction에서 전체 source와
+현재 권한을 재관측하고 첫 domain/대응표를 기록한 뒤, 역사 operator marker를 operation별 unusable password와
+퇴역 digest로 바꾼다. 마지막으로 전체 계정·catalog·물리 소속·archive와 receipt를 다시 대조한다. 원래 계정·업무 FK·
+소속·session·audit bytes는 보존한다. 새 credential stamp와 session namespace는 이전 것을 승계하지 않는다.
+기존 `OpenIdentity` runtime은 매 snapshot과 쓰기 전후 소유권을 확인하며, 보관 중인 operator session owner와
+borrowed 감사/세션 폐기 경로도 퇴역 이후 사용을 거부한다. Raw DB writer까지 차단하는 보증은 아니다.
+
+실패는 domain·대응표·퇴역 marker를 함께 rollback한다. Unknown 결과에 receipt를 게시하거나 자동 재시도하지 않는다.
+호출자는 Commit 전에 manifest를 보관하고 `Reconcile`로 원래 receipt·대응표·동결 archive를 확인한다. 후속 정상 계정
+편집·새 domain/host source가 원래 receipt를 바꾸지 않는다. `AuditHistoryIn`은 현재 인가를 같은 borrowed scope에서
+소유하는 호출자에게 원래 sequence·actor·display label을 반환하며, 없었던 시각이나 새 domain을 과거 기록에 부여하지 않는다.
+이행의 양 DB·실패·경합·재접속과 이후 custom 모델/외부 operator 조립 및 전체 수용 상태는 TEST_EVIDENCE에서 구분한다.
 
 ## 두 선택 모델 사이의 명시적 계정 전환
 
@@ -2056,7 +2089,8 @@ Manifest v5는 값 원문 없이 정규화한 catalog 대응표를 포함한다.
 기존 mapping v1·manifest v4의 불변 이력은 계속 읽는다. `Reconcile`은 보관한 catalog 대응표까지 실제 receipt와 대조하며,
 후속 정상 catalog 편집을 과거 전환의 실패로 바꾸지 않는다. Unknown 결과는 실제 key나 잠정 catalog 결과를 게시하지 않는다.
 
-Catalog target 행의 생성은 아래의 별도 typed intent로 연결한다. 역사 `systemstate` 가져오기 및 전체 환경의 통합 수용은 남아 있다.
+Catalog target 행의 생성은 아래의 별도 typed intent로 연결한다. 역사 `systemstate`는 위 최초 domain 이행을 사용하며
+이후 모델 전환까지의 외부 조립 및 전체 환경 통합 수용은 별도로 확인한다.
 일반 host의 catalog 참조는 아래의 단계적 전환에 포함하며, 이 대응표 경로만으로 I1 전체 수용을 완료하지 않는다.
 
 ### 전환 대상 계정의 생성

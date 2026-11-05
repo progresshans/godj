@@ -101,44 +101,85 @@ func (binding Binding[M]) prepareCandidateCredential(domain auth.CredentialDomai
 }
 
 func (binding Binding[M]) prepareCandidateCredentialValues(domain auth.CredentialDomain, values map[string]query.Value, permissions []auth.Permission) (auth.Credential, error) {
-	role := binding.state.role
-	revision, valid := values[role.Revision].Integer()
-	if !valid || revision <= 0 {
-		return auth.Credential{}, invalidAccountCredential()
-	}
-	principalID, err := binding.credentialText(values, role.PrincipalID)
+	material, err := binding.credentialMaterial(values, permissions)
 	if err != nil {
 		return auth.Credential{}, err
 	}
-	login, err := binding.credentialText(values, role.Login)
-	if err != nil {
-		return auth.Credential{}, err
-	}
-	encoded, err := binding.credentialText(values, role.Password)
-	if err != nil {
-		return auth.Credential{}, err
-	}
-	active, err := credentialBoolean(values, role.Active)
-	if err != nil {
-		return auth.Credential{}, err
-	}
-	staff, err := credentialBoolean(values, role.Staff)
-	if err != nil {
-		return auth.Credential{}, err
-	}
-	superuser, err := credentialBoolean(values, role.Superuser)
-	if err != nil {
-		return auth.Credential{}, err
-	}
-	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: principalID, Active: active, Staff: staff, Superuser: superuser, Permissions: permissions})
-	if err != nil {
-		return auth.Credential{}, invalidAccountCredential()
-	}
-	credential, err := auth.NewCredentialForDomain(domain, login, encoded, principal)
+	credential, err := auth.NewCredentialForDomain(domain, material.login, material.encoded, material.principal)
 	if err != nil {
 		return auth.Credential{}, invalidAccountCredential()
 	}
 	return credential, nil
+}
+
+// ValidateCredentialSnapshot checks an already observed stored row and its
+// complete effective grants using the selected IR. It performs no I/O and
+// assigns no domain, session stamp or authority. Historical handoff owners can
+// validate before creating the first durable selected-account generation.
+func (binding Binding[M]) ValidateCredentialSnapshot(row M, permissions []auth.Permission) error {
+	if binding.state == nil {
+		return invalidAccountCredential()
+	}
+	key, present, err := binding.state.objects.PrimaryKey(row)
+	_, integer := key.Integer()
+	if err != nil || !present || !integer {
+		return invalidAccountCredential()
+	}
+	values, err := binding.state.objects.ModelValues(row)
+	if err != nil {
+		return invalidAccountCredential()
+	}
+	material, err := binding.credentialMaterial(values, permissions)
+	if err != nil {
+		return err
+	}
+	if _, err := auth.NewCredential(material.login, material.encoded, material.principal); err != nil {
+		return invalidAccountCredential()
+	}
+	return nil
+}
+
+type accountCredentialMaterial struct {
+	login, encoded string
+	principal      auth.Principal
+}
+
+func (binding Binding[M]) credentialMaterial(values map[string]query.Value, permissions []auth.Permission) (accountCredentialMaterial, error) {
+	var zero accountCredentialMaterial
+	role := binding.state.role
+	revision, valid := values[role.Revision].Integer()
+	if !valid || revision <= 0 {
+		return zero, invalidAccountCredential()
+	}
+	principalID, err := binding.credentialText(values, role.PrincipalID)
+	if err != nil {
+		return zero, err
+	}
+	login, err := binding.credentialText(values, role.Login)
+	if err != nil {
+		return zero, err
+	}
+	encoded, err := binding.credentialText(values, role.Password)
+	if err != nil {
+		return zero, err
+	}
+	active, err := credentialBoolean(values, role.Active)
+	if err != nil {
+		return zero, err
+	}
+	staff, err := credentialBoolean(values, role.Staff)
+	if err != nil {
+		return zero, err
+	}
+	superuser, err := credentialBoolean(values, role.Superuser)
+	if err != nil {
+		return zero, err
+	}
+	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: principalID, Active: active, Staff: staff, Superuser: superuser, Permissions: permissions})
+	if err != nil {
+		return zero, invalidAccountCredential()
+	}
+	return accountCredentialMaterial{login, encoded, principal}, nil
 }
 
 func (binding Binding[M]) credentialText(values map[string]query.Value, name string) (string, error) {

@@ -64,6 +64,7 @@ var exactSourcePaths = map[string]struct{}{
 var productSourcePrefixes = []string{
 	"internal/sessionwire/",
 	"internal/rowset/",
+	"internal/systemstatehandoff/",
 	"account/",
 	"timezone/",
 	"internal/zonerules/",

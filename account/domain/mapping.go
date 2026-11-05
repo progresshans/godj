@@ -44,6 +44,7 @@ type preparedMappings struct {
 	rows            []Mapping
 	catalog         *CatalogMappings
 	collections     []CollectionIdentity
+	legacy          *LegacyIdentityOrigin
 	payload, digest string
 }
 
@@ -101,6 +102,19 @@ func prepareMappingSet(inventory MappingInventory) (preparedMappings, error) {
 		}{3, owned, result.catalog, result.collections}
 		prefix = "godj.account-mapping.v3\x00"
 	}
+	result.legacy, err = normalizeLegacyOrigin(inventory.Legacy, owned, result.catalog, result.collections)
+	if err != nil {
+		return preparedMappings{}, err
+	}
+	if result.legacy != nil {
+		value = struct {
+			Version  int                   `json:"version"`
+			Accounts []Mapping             `json:"accounts"`
+			Catalog  *CatalogMappings      `json:"catalog"`
+			Legacy   *LegacyIdentityOrigin `json:"legacy"`
+		}{4, owned, result.catalog, result.legacy}
+		prefix = "godj.account-mapping.v4\x00"
+	}
 	payload, err := json.Marshal(value)
 	if err != nil || len(payload) > MaximumMappingBytes {
 		return preparedMappings{}, ErrInvalid
@@ -119,6 +133,7 @@ func decodeMappingSet(receipt Receipt, row models.Mapping) (preparedMappings, er
 	var mappings []Mapping
 	var catalog *CatalogMappings
 	var collections []CollectionIdentity
+	var legacy *LegacyIdentityOrigin
 	var err error
 	if strings.HasPrefix(row.Payload, "{") {
 		// Read bounded arrays individually. A compact hostile array must not be
@@ -127,7 +142,7 @@ func decodeMappingSet(receipt Receipt, row models.Mapping) (preparedMappings, er
 			return preparedMappings{}, ErrCorrupt
 		}
 		var version int
-		if decoder.Decode(&version) != nil || (version != 2 && version != 3) || !mappingToken(decoder, "accounts") {
+		if decoder.Decode(&version) != nil || (version != 2 && version != 3 && version != 4) || !mappingToken(decoder, "accounts") {
 			return preparedMappings{}, ErrCorrupt
 		}
 		mappings, err = decodeMappingRows(decoder)
@@ -163,6 +178,11 @@ func decodeMappingSet(receipt Receipt, row models.Mapping) (preparedMappings, er
 				return preparedMappings{}, ErrCorrupt
 			}
 		}
+		if version == 4 {
+			if receipt.Sequence() != 1 || !mappingToken(decoder, "legacy") || decoder.Decode(&legacy) != nil || legacy == nil {
+				return preparedMappings{}, ErrCorrupt
+			}
+		}
 		if !mappingToken(decoder, json.Delim('}')) {
 			return preparedMappings{}, ErrCorrupt
 		}
@@ -172,7 +192,7 @@ func decodeMappingSet(receipt Receipt, row models.Mapping) (preparedMappings, er
 			return preparedMappings{}, ErrCorrupt
 		}
 	}
-	prepared, err := prepareMappingSet(MappingInventory{Accounts: mappings, Catalog: catalog, Collections: collections})
+	prepared, err := prepareMappingSet(MappingInventory{Accounts: mappings, Catalog: catalog, Collections: collections, Legacy: legacy})
 	if err != nil || len(prepared.rows) != receipt.MappingCount() || prepared.digest != receipt.MappingSHA256() || prepared.payload != row.Payload {
 		return preparedMappings{}, ErrCorrupt
 	}

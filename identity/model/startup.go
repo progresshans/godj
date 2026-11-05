@@ -7,6 +7,7 @@ import (
 	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/account/domain"
 	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/internal/systemstatehandoff"
 	"github.com/progresshans/godj/migrations"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/migrations/definition"
@@ -80,7 +81,8 @@ func (store *SessionStore[M]) InspectStartup(ctx context.Context) (StartupInspec
 	if !ok || nilModelValue(history) {
 		return StartupInspection{}, managementError(CodeInvalidConfig, nil)
 	}
-	if err := requireAccountMigrations(ctx, history); err != nil {
+	legacy, err := inspectAccountMigrations(ctx, history)
+	if err != nil {
 		return StartupInspection{}, err
 	}
 	result, err := db.ReadSnapshotResult(ctx, store.state.backend, func(work context.Context, scope db.Queryer) (StartupInspection, error) {
@@ -90,6 +92,11 @@ func (store *SessionStore[M]) InspectStartup(ctx context.Context) (StartupInspec
 		fresh := err == domain.ErrUninitialized
 		if err != nil && !fresh {
 			return StartupInspection{}, err
+		}
+		if legacy || !fresh {
+			if err := requireLegacyAccountHandoff(work, scope, legacy); err != nil {
+				return StartupInspection{}, err
+			}
 		}
 		if !fresh && ownership.RoleFingerprint() != fingerprint {
 			return StartupInspection{}, domain.ErrMismatch
@@ -121,11 +128,49 @@ func (store *SessionStore[M]) InspectStartup(ctx context.Context) (StartupInspec
 }
 
 func requireAccountMigrations(ctx context.Context, history migrationbackend.AppliedMigrationReader) error {
+	legacy, err := inspectAccountMigrations(ctx, history)
+	if err != nil {
+		return err
+	}
+	reader, ok := history.(db.SnapshotReader)
+	if !ok || nilModelValue(reader) {
+		return managementError(CodeInvalidConfig, nil)
+	}
+	_, err = db.ReadSnapshotResult(ctx, reader, func(work context.Context, scope db.Queryer) (struct{}, error) {
+		return struct{}{}, requireLegacyAccountHandoff(work, scope, legacy)
+	})
+	return err
+}
+
+func requireLegacyAccountHandoff(ctx context.Context, scope db.Queryer, legacy bool) error {
+	first, _, found, err := domain.InitialLegacyOriginIn(ctx, scope)
+	if err != nil {
+		return err
+	}
+	if !found {
+		if legacy {
+			return managementError(CodeTransitionRequired, nil)
+		}
+		return nil
+	}
+	if !legacy {
+		return managementError(CodeSchemaUnavailable, nil)
+	}
+	if err := systemstatehandoff.RequireRetired(ctx, scope, first.OperationID()); err != nil {
+		return managementError(CodeTransitionRequired, err)
+	}
+	return nil
+}
+
+// Only the complete known historical identity schema can have a handoff.
+// Its data proof is checked in the caller's coherent snapshot, never inferred
+// merely from installing the new tables beside old storage.
+func inspectAccountMigrations(ctx context.Context, history migrationbackend.AppliedMigrationReader) (bool, error) {
 	sources := append(domain.MigrationSources(), accountaudit.MigrationSources()...)
 	sources = append(sources, sessiondb.MigrationSources()...)
 	loaded, _, err := definition.Load(sources...)
 	if err != nil {
-		return managementError(CodeInvalidConfig, err)
+		return false, managementError(CodeInvalidConfig, err)
 	}
 	required := make(map[migrations.MigrationKey]bool)
 	owned := make(map[string]bool)
@@ -134,30 +179,34 @@ func requireAccountMigrations(ctx context.Context, history migrationbackend.Appl
 	}
 	rows, err := history.ReadAppliedMigrations(ctx)
 	if err != nil {
-		return managementError(CodePersistence, err)
+		return false, managementError(CodePersistence, err)
 	}
 	if err := ctx.Err(); err != nil {
-		return managementError(CodePersistence, err)
+		return false, managementError(CodePersistence, err)
 	}
+	legacy := make(map[string]bool)
 	for _, row := range rows {
-		// The old operator/identity store owns historical credentials, sessions
-		// and audit. Installing independent storage beside it is not an account
-		// transition. Until an explicit retirement/mapping operation is present,
-		// even an empty selected model must not be published as a fresh domain.
 		if row.App == "godj_system" {
-			return managementError(CodeTransitionRequired, nil)
+			if (row.Name != "0001_initial" && row.Name != "0002_identity_transition") || legacy[row.Name] {
+				return false, managementError(CodeSchemaUnavailable, nil)
+			}
+			legacy[row.Name] = true
+			continue
 		}
 		if !owned[row.App] {
 			continue
 		}
 		key := migrations.MigrationKey{App: row.App, Name: row.Name}
 		if !required[key] {
-			return managementError(CodeSchemaUnavailable, nil)
+			return false, managementError(CodeSchemaUnavailable, nil)
 		}
 		delete(required, key)
 	}
 	if len(required) != 0 {
-		return managementError(CodeSchemaUnavailable, nil)
+		return false, managementError(CodeSchemaUnavailable, nil)
 	}
-	return nil
+	if len(legacy) == 1 {
+		return false, managementError(CodeTransitionRequired, nil)
+	}
+	return len(legacy) == 2, nil
 }

@@ -117,6 +117,7 @@ class RelationShardTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
+        self.assertLessEqual(len(actual['include']), 256, 'GitHub must admit the complete matrix')
         expected_counts = {
             ('ubuntu-24.04', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
             ('ubuntu-24.04-arm', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),

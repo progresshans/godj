@@ -6,6 +6,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
+	"github.com/progresshans/godj/internal/systemstatehandoff"
 	"github.com/progresshans/godj/sessions"
 )
 
@@ -64,7 +65,8 @@ func OpenIdentity(ctx context.Context, backend IdentityBackend, config IdentityR
 			return callbackFailure
 		}
 		failure := func() error {
-			if _, err := inspectIdentityTransition(ctx, reader); err != nil {
+			ownership, err := inspectIdentityTransition(ctx, reader)
+			if err != nil {
 				if !errors.Is(err, &Error{Code: CodeIdentityTransitionRequired}) {
 					return err
 				}
@@ -76,6 +78,7 @@ func OpenIdentity(ctx context.Context, backend IdentityBackend, config IdentityR
 				}
 				return &Error{Code: CodeCredentialAbsent, Field: "credential", Detail: "identity domain has no initial account"}
 			}
+			runtime.identityOwnership = ownership
 			if _, err := inspectSessionTable(ctx, reader, store.limits, store.maxRecords); err != nil {
 				return err
 			}
@@ -95,7 +98,7 @@ func OpenIdentity(ctx context.Context, backend IdentityBackend, config IdentityR
 	if calls != 1 {
 		return nil, identityCallbackFailure()
 	}
-	directory, err := identity.NewDirectory(backend)
+	directory, err := identity.NewDirectory(runtime)
 	if err != nil {
 		return nil, err
 	}
@@ -161,15 +164,28 @@ func inspectIdentityTransition(ctx context.Context, reader db.Queryer) (Identity
 	if err != nil {
 		return IdentityTransition{}, err
 	}
-	if len(receipts) == 0 {
-		return IdentityTransition{}, &Error{Code: CodeIdentityTransitionRequired, Field: "identity_transition", Detail: "identity ownership has not been initialized"}
-	}
-	receipt := receipts[0]
 	credentials, err := readCredentialRows(ctx, reader)
 	if err != nil {
 		return IdentityTransition{}, err
 	}
+	return validateIdentityOwnership(receipts, credentials)
+}
+
+func validateIdentityOwnership(receipts []IdentityTransition, credentials []credentialRow) (IdentityTransition, error) {
+	if len(receipts) == 0 {
+		return IdentityTransition{}, &Error{Code: CodeIdentityTransitionRequired, Field: "identity_transition", Detail: "identity ownership has not been initialized"}
+	}
+	if len(receipts) != 1 {
+		return IdentityTransition{}, identityCallbackFailure()
+	}
+	receipt := receipts[0]
 	empty, _ := encodePermissions(nil)
+	if len(credentials) == 1 {
+		operation, retired := systemstatehandoff.RetiredOperation(credentials[0].encodedPassword)
+		if retired && !credentials[0].active && credentials[0].permissions == empty && credentials[0].definitionDigest == "sha256:"+operation {
+			return IdentityTransition{}, &Error{Code: CodeIdentityTransitionRequired, Field: "identity_transition", Detail: "historical identity runtime was retired into a selected account domain"}
+		}
+	}
 	if len(credentials) != 1 || credentials[0].id <= 0 || receipt.value().kind == "operator" && credentials[0].id != receipt.value().sourceID || credentials[0].principalID != receipt.value().principalID || credentials[0].active || credentials[0].encodedPassword != transferredPassword || credentials[0].permissions != empty || credentials[0].definitionDigest != transferredCredentialDigest {
 		return IdentityTransition{}, &Error{Code: CodeCorruptState, Field: "credential", Detail: "retired operator domain marker is inconsistent"}
 	}

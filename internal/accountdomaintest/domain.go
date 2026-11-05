@@ -56,6 +56,8 @@ func Run(t *testing.T, open Open) {
 		{"catalog_mapping_corruption", catalogMappingCorruption},
 		{"collection_mapping_history", collectionMappingHistory},
 		{"collection_mapping_failures", collectionMappingFailures},
+		{"legacy_origin_history", legacyOriginHistory},
+		{"legacy_origin_failures", legacyOriginFailures},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			backend, reopen := open(t)

@@ -28,6 +28,7 @@ const transferredPassword = "!godj-identity-transferred"
 type IdentityTransition struct{ state *identityTransitionState }
 
 type identityTransitionState struct {
+	id               int64
 	kind             string
 	sourceID         int64
 	principalID      string
@@ -263,6 +264,7 @@ func readIdentityTransitions(ctx context.Context, reader db.Queryer) ([]Identity
 		if err := validateIdentityTransition(id, row); err != nil {
 			return false, err
 		}
+		row.state.id = id
 		result = append(result, row)
 		return true, nil
 	})
@@ -299,6 +301,7 @@ func writeIdentityTransition(ctx context.Context, session db.Session, row Identi
 	if id <= 0 {
 		return cardinalityFailure("identity_transition", "identity transition insert returned an invalid key")
 	}
+	row.state.id = id
 	return nil
 }
 
@@ -307,9 +310,13 @@ func identityInitializedError() error {
 }
 
 func requireIdentityMigrations(ctx context.Context, backend migrationbackend.AppliedMigrationReader) error {
+	return requireSystemMigrationSources(ctx, backend, IdentityMigrationSources())
+}
+
+func requireSystemMigrationSources(ctx context.Context, backend migrationbackend.AppliedMigrationReader, sources []definition.Source) error {
 	// Load the owned historical definitions so adding a new identity migration
 	// cannot turn the previously current migration into an unknown entry.
-	loaded, _, err := definition.Load(IdentityMigrationSources()...)
+	loaded, _, err := definition.Load(sources...)
 	if err != nil {
 		return &Error{Code: CodeSchemaUnavailable, Field: "migration_history", Detail: "built-in identity migration graph is invalid", Cause: err}
 	}
@@ -322,6 +329,9 @@ func requireIdentityMigrations(ctx context.Context, backend migrationbackend.App
 	rows, err := backend.ReadAppliedMigrations(ctx)
 	if err != nil {
 		return schemaRowsFailure("migration_history")(err)
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	unavailable := &Error{Code: CodeSchemaUnavailable, Field: "migration_history", Detail: "exact identity/system migration graph is not applied"}
 	for _, row := range rows {

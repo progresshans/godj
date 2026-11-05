@@ -3687,6 +3687,65 @@ Archive SHA-256은 각각 `0b12379a88ee1094c5ded5810c0e834e6863bcab759b0e03a8006
 통과했다. Template 문법 검사를 생성물 타입 검사로 계산하지 않는다. 로컬 Go compile·생성·본문 실행은 하지 않았으며
 이 새 typed 통합의 실제 타입/생성/DB·race/platform 검증과 I1-07/08 전체 수용은 원격 확인 대상이다.
 
+Source `e71f277cf530d3dfa7740d9ed5845a9a29034607`의
+[CI 42098040591](https://github.com/progresshans/godj/actions/runs/42098040591), pull_request attempt 1에서
+PostgreSQL normal `core-account-catalog-fields` 작업 `127494107194`가 성공했다. 실제 checkout
+`64e6043bdb15b44c659764bfc090609377681272`과 제출 source의 tree는 모두
+`1529144f9e9d7dec57697c70eb5157702101fb98`이다. 원본 artifact `13448781506`의 archive SHA-256
+`d032ca7857ead40cc07d31649f7dacb42891ab2ebdbdd963b93831ca9fc3205b`를 확인했다.
+
+같은 source에서 계산한 outer 필수 13항목과 여덟 child 실행의 전체 run/pass·종료·byte 수·실제 명령을 대조했다.
+Nullable 54·필수 비순환 51·필수 catalog 순환 22·세 역할 공동 필수 순환 12개가 SQLite·PostgreSQL에서 각각 통과했다.
+총 278개 시나리오이며, 이 중 새 native 필수 순환은 68개다. Child root 포함 286항목에 skip·누락·중복·실패가 없다.
+이 결과는 실제 generated module 타입 검사와 양 DB normal 본문을 포함한다. 계정 자체 순환의 별도 소비자,
+race·CGO-disabled·전체 platform 및 I1-01~08 전체 수용은 이 결과로 대신하지 않는다.
+
+원본과 판정은 `gdj0138-insert-graph-native-v1/receipt-typed-catalog-normal-e71f277c.json`에 보존했다
+(SHA-256 `151c1833a15419cfb51f46533add109a853cbe6571ab5fc06dab30cb2d69c228`). 전체 CI는 계속 진행 중이다.
+
+같은 source/run/attempt의 normal `core-account-target-references` 작업 `127494107416`도 원본을 대조했다.
+Artifact `13450441027`의 archive SHA-256은 `0e29c01d8d2519d3a5451bc04f4c78971673a2732b0d10e1edcb0a115daaed5d`이며
+실제 checkout/tree는 위와 같다. Outer 필수 10항목과 여섯 child의 argv·종료·byte 수·전체 run/pass를 확인했다.
+Nullable 32·필수 비순환 32·계정 자체 필수 순환 15개가 양 DB에서 각각 통과해 158개 시나리오다.
+Child root 포함 164항목에 skip·누락·중복·실패가 없다. Catalog 소비자와 합치면 normal 436개 시나리오,
+새 native 필수 순환 98개가 실제 생성 앱·SQLite/PostgreSQL에서 통과했다. race·CGO-disabled·전체 CI는 별도 확인 대상이다.
+판정은 `gdj0138-insert-graph-native-v1/receipt-typed-target-normal-e71f277c.json`에 보존했다
+(SHA-256 `7bc4de147a18be669326e542ddd3197ea8f97316b0e74920f4fb39759b362ce3`).
+
+같은 source/run의 race catalog 작업 `127494107408`은 30분 package timeout으로 실패했다. Nullable·필수 비순환·
+필수 catalog 순환의 상위 변형은 각각 781.33·632.97·360.67초에 종료됐고, 마지막 공동 순환 SQLite child는 컴파일
+중 상위 제한에 종료됐다. 여덟 child 중 일곱 개만 시작했고 완료 기록은 여섯 개다. 마지막 PostgreSQL child는 시작하지
+않았으므로 부분 종료를 전체 PASS로 처리하지 않는다. 원본 checkout은 위와 같으며 artifact `13452886504`의 SHA-256은
+`6d710da2d83243ddc5a3432b86a1597959bb43019210cbbebfe2984685fe3aff`다. 원본 로그·전체 payload hash와 판정은
+`gdj0138-insert-graph-native-v1/receipt-typed-catalog-race-e71f277c-failure.json`에 있다
+(SHA-256 `23edc68cbc634d82d083b1f280a7bd42d2cd9bb0299ae0be1f8c698bcd689bbd`). 이 CI는 전체 성공이 아니다.
+
+후속 묶음에서 기존 nullable/필수 비순환과 필수 순환 두 변형을 각각 별도 generated root와 원격 실행 owner로 나눴다.
+기존 139개 사례와 두 DB, normal/race/CGO-disabled·네 platform, package/child timeout 및 원본 종료/byte/필수 목록
+검사는 유지한다. 이전 목록에서 이동한 항목을 새 root에 대응시켜 누락·중복을 확인했다. PostgreSQL core 좌표는 46→49,
+관계 matrix는 235→247개이며 GitHub의 256개 matrix 한도도 검사한다. 새 분할의 실제 실행은 원격 확인 대상이다.
+
+## GDJ-0138 — 역사 systemstate의 최초 선택 domain 이행
+
+2026-11-06, `e71f277c` 다음 묶음에 `IdentityHandoff`와 origin payload v4를 작성했다. 기존 identity·catalog·through의
+전체 key/revision/값과 canonical session/audit를 검토하고, 같은 transaction에서 첫 domain/대응표·역사 runtime 퇴역·
+마지막 전체 대조를 처리한다. Archive bytes는 보존하며 새 credential/session namespace로 승계하지 않는다.
+Startup은 기존 schema·첫 origin·정확한 operation marker가 함께 있어야 선택 runtime을 게시한다. Raw operator의
+명시적 adoption, 현재 인가·권한 한도·범위/종료 실패·단일 시도·unknown/reconcile 경계는 유지한다.
+
+양 DB의 32개 이행 사례·동시 연결·operator adoption과 여덟 archive 사례를 작성했다. 준비 뒤 현재 계정/권한/소속/세션/
+감사 변경, 실제 header/mapping/marker 쓰기 뒤 오류·취소·변조와 전체 rollback, unknown commit/rollback의 재접속 대조,
+옛 runtime의 인증·일반/borrowed 쓰기·session/감사 차단, signed key·용량·원문 보존·역사 조회를 포함한다.
+Domain 소비자는 v4→v1/v2/v3 혼합 이력과 257회 추가 전환 뒤 최초 origin 및 실패 rollback을 확인하도록 확장했다.
+새 공유 marker 코드를 두 product capture의 source binding과 변경 감지 검사에 포함했다.
+
+필수 실행 목록은 portable 314→330, relation 4,976→5,050, PostgreSQL 5,919→5,970이다. 순수 credential/marker/codec
+거부 검사와 새 native 본문을 포함하며, 이동한 catalog root 이외의 기존 항목은 모두 보존했다. 로컬에서는 30개 Go 파일의
+gofmt·문법, 245개 문서 링크·diff와 CI 분배/package/event Python 51개 검사를 확인했다
+(각 25개 27.911초·16개 103.958초·10개 0.033초). 로컬 Go compile·생성·테스트 본문은 실행하지 않았다.
+이 새 이행의 타입·양 DB·race/platform 실행, 외부 operator/custom 모델 전환 조립, 남은 고정 소비자와 I1 전체 수용은
+아직 원격 확인 또는 후속 구현 대상이다. 선행 `e71f277c`의 정상 소비자 결과를 이 코드의 검증으로 사용하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

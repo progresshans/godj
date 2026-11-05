@@ -21,7 +21,15 @@ func (runtime *Runtime) ReadSnapshot(ctx context.Context, callback func(db.Query
 	if !ok || isNilInterface(backend) {
 		return &Error{Code: CodeInvalidConfig, Field: "snapshot_backend", Detail: "native read snapshots are unavailable"}
 	}
-	return backend.ReadSnapshot(ctx, callback)
+	if callback == nil {
+		return &Error{Code: CodeInvalidInput, Field: "callback", Detail: "snapshot callback is nil"}
+	}
+	return backend.ReadSnapshot(ctx, func(scope db.Queryer) error {
+		if err := runtime.requireHistoricalOwnership(ctx, scope); err != nil {
+			return err
+		}
+		return callback(scope)
+	})
 }
 
 // CoordinatedAtomic exposes the same fence used by Runtime.Atomic, sessions and
@@ -57,6 +65,9 @@ func (runtime *Runtime) revokePrincipalSessions(ctx context.Context, session db.
 	if _, err := auth.NewPrincipal(auth.PrincipalConfig{ID: principalID}); err != nil {
 		return 0, &Error{Code: CodeInvalidInput, Field: "principal", Detail: "identity session target is invalid", Cause: err}
 	}
+	if err := runtime.requireHistoricalOwnership(ctx, session); err != nil {
+		return 0, err
+	}
 	// Validate the complete bounded inventory before deletion. This also catches
 	// nonpositive IDs that keyset pagination must not silently skip.
 	inventory, err := scanSessionInventory(ctx, session, runtime.sessionStore.maxRecords+1)
@@ -86,6 +97,9 @@ func (runtime *Runtime) revokePrincipalSessions(ctx context.Context, session db.
 		if len(rows) == 0 {
 			if scanned != inventory {
 				return 0, cardinalityFailure("session", "session revocation inventory changed inside its scope")
+			}
+			if err := runtime.requireHistoricalOwnership(ctx, session); err != nil {
+				return 0, err
 			}
 			return deleted, nil
 		}

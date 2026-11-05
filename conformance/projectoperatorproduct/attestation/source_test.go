@@ -43,6 +43,7 @@ func TestComputeSourceBindingStalesOnRequiredFamilyMutation(t *testing.T) {
 		"sessions/database/store.go",
 		"internal/sessionwire/codec.go",
 		"internal/rowset/scan.go",
+		"internal/systemstatehandoff/marker.go",
 		"account/audit/audit.go",
 		"account/audit/migrations.go",
 		"account/audit/models/zz_godj_generated.go",

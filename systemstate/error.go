@@ -20,6 +20,8 @@ const (
 	CodeCredentialPolicyMismatch   ErrorCode = "credential_policy_mismatch"
 	CodeIdentityTransitionRequired ErrorCode = "identity_transition_required"
 	CodeIdentityAlreadyInitialized ErrorCode = "identity_already_initialized"
+	CodeHandoffDenied              ErrorCode = "account_handoff_denied"
+	CodeHandoffConflict            ErrorCode = "account_handoff_conflict"
 )
 
 // Error reports a secret-free system-state failure.

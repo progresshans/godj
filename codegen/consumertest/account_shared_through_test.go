@@ -192,7 +192,19 @@ func accountTransitionCatalogFieldCases(required, requiredCycle, requiredJoint b
 }
 
 func TestGeneratedAccountTransitionCatalogFields(t *testing.T) {
-	for _, name := range []string{"nullable", "required", "required_cycle", "required_joint_cycle"} {
+	runAccountTransitionCatalogFields(t, []string{"nullable", "required"})
+}
+
+// Native required cycles have their own complete generated-app execution.
+// Keeping four variants in one process exhausted CI's cumulative deadline
+// while the fourth app was still compiling; no leaf or deadline is removed.
+func TestGeneratedAccountTransitionCatalogCycles(t *testing.T) {
+	runAccountTransitionCatalogFields(t, []string{"required_cycle", "required_joint_cycle"})
+}
+
+func runAccountTransitionCatalogFields(t *testing.T, variants []string) {
+	t.Helper()
+	for _, name := range variants {
 		required := name != "nullable"
 		requiredCycle := name == "required_cycle" || name == "required_joint_cycle"
 		requiredJoint := name == "required_joint_cycle"

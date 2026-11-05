@@ -51,6 +51,9 @@ ISOLATED_ACCOUNT_CONSUMER_OWNERS = {
     # FK consumer and its deadline, but give each complete root one owner.
     'TestGeneratedAccountTransitionTargetReferences': 'core-account-target-references',
     'TestGeneratedAccountTransitionCatalogFields': 'core-account-catalog-fields',
+    # CI 42098040591 completed three variants in 1775s and timed out while
+    # compiling the fourth. Keep the two native cycle apps in a new owner.
+    'TestGeneratedAccountTransitionCatalogCycles': 'core-account-catalog-cycles',
     'TestGeneratedAccountRootThroughCreation': 'core-account-root-through',
     'TestGeneratedAccountTransitionThroughCreation': 'core-account-transition-through',
 }
