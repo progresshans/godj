@@ -3867,6 +3867,17 @@ Artifact `13459261858`의 archive SHA-256은 `7e0386656d42af61b7f70a7effb5b2077e
 (SHA-256 `384d149a39a83e2a8e9f5d8cafca9342bb6ccb4a41f72cf2f5e3c91765ed1e5d`). PostgreSQL·다른 mode/platform과
 전체 원격 수용은 위 SQLite 결과에 포함하지 않는다.
 
+Normal core-consumers `127569225974`의 필수 153항목과 실제 상위 run/pass 180개·skip 0을 대조했다.
+새 `TestGeneratedHistoricalAccountHandoff`의 SQLite/PostgreSQL 두 child에서 각각 lifecycle·0 key·두 단계의 준비 후
+외부 변경·두 단계의 응답 유실, 총 12개 시나리오가 실제 생성/실행되어 통과했다. 별도 PID·manifest 선행 보관·정확한
+process 종료/응답 부재·receipt 대조, custom Member 생성과 host FK/OneToOne/through 재매핑·schema contraction·
+재접속의 현재 인증·인가 및 역사 원문 보존은 해당 test source의 실제 경로다. Child 종료·출력 byte 수와 부모가 기록한
+hash를 각각 원본에 대조했고 필수 root/child 7항목씩 모두 정확히 한 번 run/pass였다.
+Artifact `13460321567`의 archive SHA-256은 `737da3137bdd149bb2a192a987f2ce9a06ee96e7694faf370e49953bc557b0a6`다.
+원본·필수 목록·소비자 source hash와 판정은 `gdj0138-historical-handoff-v1/receipt-historical-process-normal-564e21ef.json`에 있다
+(SHA-256 `c1a93a5e304e87fe84625e862fa8117e0cb3dcc7ef2a4eba4e3c0f14b4408b36`). 공개 operator CLI의 추가, 나머지
+mode/platform, I1 전체 수용 및 다음 source의 독립 identity 관측 추가분을 이 normal 성공으로 대신하지 않는다.
+
 ## GDJ-0138 — 선택 credential의 독립 identity 관측 연결
 
 `564e21ef` 다음 묶음은 기존 native Django 6.1·Python 3.14.3의 identity 원문을 선택 `CredentialStore`와 생성 인증기에
