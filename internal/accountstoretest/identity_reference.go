@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
 	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
@@ -215,7 +216,10 @@ func selectedIdentityReference(t *testing.T, vendor string, backend Backend, reo
 	check(t, err)
 	deletions, err := project.BindRelationDeleters()
 	check(t, err)
-	_, err = deletions.IdentityGroup.Delete(t.Context(), writer, &f.group)
+	err = writer.CoordinatedAtomicRelation(t.Context(), func(scope db.RelationSession) error {
+		_, err := deletions.IdentityGroup.DeleteInSession(t.Context(), scope, f.group)
+		return err
+	})
 	check(t, err)
 	t.Run("group_deletion", func(t *testing.T) {
 		current, found, err := f.store.CredentialByID(t.Context(), f.user.PrincipalID)

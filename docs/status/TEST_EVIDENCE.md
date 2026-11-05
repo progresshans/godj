@@ -3892,6 +3892,47 @@ Relation 목록은 5,064개, PostgreSQL은 5,985개다. 로컬은 Go 파일 5개
 CI 도구 Python 51개(shard 25개 29.817초·package 16개 105.441초·event 10개 0.033초)만 확인했다.
 새 Go 타입·양 DB 본문·race/platform과 이 변경 source의 독립 Python 재실행은 원격 확인 대상이다.
 
+## GDJ-0138 — 선택 JSON 소비자의 transport·native 실패 경계 이관
+
+Source `5b789443f434b1833b14b6191ef60ce0d88d2d13`의
+[전체 CI 42124980511](https://github.com/progresshans/godj/actions/runs/42124980511) attempt 1에서
+portable normal/core-vet·CGO0/core·race/core 작업이 `internal/accountstoretest/identity_reference.go:218`의
+타입 오류로 실패했다. `Backend`는 coordinated relation transaction을 제공하지만 호출한 `RelationDeleter.Delete`의
+`db.RelationAtomic`은 제공하지 않는다. 소비자를 실제 `CoordinatedAtomicRelation`의 borrowed session에서
+`DeleteInSession`을 호출하도록 수정했다. native Django 원문과 그룹 삭제·보관 credential의 검사는 유지한다.
+
+실제 CI checkout은 `246e8cb52838a6301be0211a9f1f82b00215285e`이며 GitHub commit API의 tree
+`f02aa0d1885f8d8e8e2056c5143482436c2c71d6`가 제출 source의 로컬 tree와 같다. 세 원본 decoded log는
+기존 검증 보관소의 `gdj0138-selected-json-transport-v1/`에 보존했다:
+
+| 작업 | 원본 | SHA-256 |
+|---|---|---|
+| normal/core-vet `127587534588` | `job-127587534588.log` | `47556f797f5c77aac713a4cb5f155d4816a34f5da993250396dfaecfaf1ea853` |
+| CGO0/core `127587534679` | `job-127587534679.log` | `9c69e0d0970c789347f19fd931eb9564b1c4498ab7948a0e250d8ade1b3898b2` |
+| race/core `127587534758` | `job-127587534758.log` | `3761b325323b3ffd3acfcc2e203903aa4e3ba39ffdf88d2510eda30e215a3d7d` |
+
+같은 후속 묶음에서 고정 JSON API의 문서·revision header 검사를 실제 선택 `NewManagement` owner에 연결했다.
+계정·그룹·권한의 모든 PUT/PATCH/DELETE와 password 명령에서 인증·path/query·header가 body와 업무 I/O보다 먼저
+실행되는지를 유지한다. 0 key는 선택 API의 유효한 key이므로 기존 0 거부 사례를 비정규 `-0` 거부로 전환했고,
+별도 선택 API의 signed-key 검사는 유지했다. Exact int64 schema·required nullable credential·비밀 필드 비노출·
+startup I/O 거부는 선택 schema 및 기존 selected declaration 검사에서 확인하도록 정리했다.
+
+별도 생성 앱에는 계정·그룹·권한 create/update/delete와 계정 password의 10가지 작업 각각에 감사 INSERT 뒤 실패,
+실제 rollback 뒤 결과 불명, 실제 commit 뒤 응답 유실을 작성했다. 모델 변형·DB마다 30개 child를 필수 목록에 추가한다.
+실제 native audit에 도달했는지와 한 번의 transaction/hash, 성공 receipt·Retry-After 미게시를 확인하고,
+rollback에는 전체 행·소속·세션·감사 불변을, commit에는 요청한 target 값·revision·credential·해당 세션 폐기·
+단일 감사와 나머지 전체 durable 상태 불변을 대조한다. 응답 유실은 native 완료 뒤 주입하며 네트워크 단절 실험이 아니다.
+기존 500 rollback·unusable 생성의 결과 불명·HTTP/독립 SDK·역사 native 검사는 유지한다.
+
+로컬 Go 실행 중단 지시를 확인하기 전에 `go test ./identity/api -run '^$' -count=1`을 실행했다.
+남은 unused import를 고친 뒤 해당 package의 compile만 통과했으며 테스트 본문은 실행하지 않았다. 이어 시작한
+기본/custom 생성 앱 compile probe는 지시를 확인한 즉시 자체 process tree를 종료했다(exit 143).
+`generated-compile.jsonl`에는 default child 시작까지만 있으며 종료·PASS가 없다. custom compile과 새 DB/HTTP 본문,
+수정한 독립 기준의 compile·양 DB/race/platform은 모두 원격 확인 대상이다. 이후 로컬은 gofmt·정적·문서/diff 검사만 사용한다.
+
+고정 Directory/Manager·내장 Admin/공유 native JSON 소비자의 제품 교체와 I1 전체 수용은 미완료다.
+새 원격 source의 원본을 확인하기 전에는 위 추가·이관된 검사나 core 오류의 해결을 환경별 PASS로 계산하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

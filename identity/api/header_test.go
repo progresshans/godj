@@ -3,38 +3,19 @@ package identityapi
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/api/bearerauth"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity"
-	"github.com/progresshans/godj/identity/project"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/web"
 )
-
-type headerBusinessProbe struct {
-	identity.ManagementBackend
-	reads, writes atomic.Int64
-}
-
-func (p *headerBusinessProbe) ReadSnapshot(context.Context, func(db.Queryer) error) error {
-	p.reads.Add(1)
-	return errors.New("unexpected identity business read")
-}
-func (p *headerBusinessProbe) CoordinatedAtomic(context.Context, func(db.Session) error) error {
-	p.writes.Add(1)
-	return errors.New("unexpected identity business write")
-}
 
 type headerVerifier struct{ allowed bool }
 
@@ -50,22 +31,14 @@ type headerObservedBody struct {
 func (b *headerObservedBody) Read(p []byte) (int, error) { b.reads++; return b.Reader.Read(p) }
 func (b *headerObservedBody) Close() error               { b.closes++; return nil }
 
-func headerApplication(t *testing.T, allowed bool) (*web.Application, *headerBusinessProbe) {
+func headerApplication(t *testing.T, allowed bool) (*web.Application, *selectedProbe) {
 	t.Helper()
 	authentication, err := bearerauth.New(bearerauth.Config{Verifier: headerVerifier{allowed}, Authorizer: auth.PrincipalAuthorizer{}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10000})
-	if err != nil {
-		t.Fatal(err)
-	}
-	policies, err := project.BindRelationDeleters()
-	if err != nil {
-		t.Fatal(err)
-	}
-	backend := &headerBusinessProbe{}
-	application, err := New(Config{Namespace: "headeridentity", Backend: backend, PasswordHasher: hasher, Authorizer: auth.PrincipalAuthorizer{}, Authentication: authentication, Users: policies.IdentityUser, Groups: policies.IdentityGroup, Permissions: policies.IdentityPermission})
+	owner, catalog, backend := selectedOwners(t)
+	application, err := NewManagement(owner, catalog, ManagementConfig{Namespace: "headeridentity", Authentication: authentication})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,15 +56,15 @@ func headerApplication(t *testing.T, allowed bool) (*web.Application, *headerBus
 	return app, backend
 }
 
-func TestIdentityHeaderConditionPrecedesBodyAndBusinessIO(t *testing.T) {
+func TestSelectedManagementHeaderConditionPrecedesBodyAndBusinessIO(t *testing.T) {
 	app, backend := headerApplication(t, true)
 	var routes []struct{ method, path string }
-	for _, kind := range []string{"users", "groups", "permissions"} {
+	for _, kind := range []string{"accounts", "groups", "permissions"} {
 		for _, method := range []string{"PUT", "PATCH", "DELETE"} {
 			routes = append(routes, struct{ method, path string }{method, BasePath + kind + "/1/"})
 		}
 	}
-	routes = append(routes, struct{ method, path string }{"POST", BasePath + "users/1/password/"})
+	routes = append(routes, struct{ method, path string }{"POST", BasePath + "accounts/1/password/"})
 	for _, route := range routes {
 		for _, test := range []struct {
 			name   string
@@ -136,7 +109,7 @@ func TestIdentityHeaderConditionPrecedesBodyAndBusinessIO(t *testing.T) {
 	}
 }
 
-func TestIdentityAdmissionAndPathQueryRemainBeforeHeader(t *testing.T) {
+func TestSelectedManagementAdmissionAndPathQueryRemainBeforeHeader(t *testing.T) {
 	app, backend := headerApplication(t, true)
 	denied, deniedBackend := headerApplication(t, false)
 	for _, test := range []struct {
@@ -147,14 +120,14 @@ func TestIdentityAdmissionAndPathQueryRemainBeforeHeader(t *testing.T) {
 		code                 string
 		read                 bool
 	}{
-		{"anonymous", BasePath + "users/1/", "", app, false, 401, "not_authenticated", false},
-		{"forbidden", BasePath + "users/1/", "", denied, true, 403, "permission_denied", false},
-		{"zero id", BasePath + "users/0/", "", app, true, 400, "parse_error", false},
-		{"query", BasePath + "users/1/?extra=1", "", app, true, 400, "parse_error", false},
-		{"empty query marker", BasePath + "users/1/?", "", app, true, 400, "parse_error", false},
-		{"canonical before body", BasePath + "users/1/", "1", app, true, 400, "parse_error", true},
-		{"large exact before body", BasePath + "users/1/", "9007199254740993", app, true, 400, "parse_error", true},
-		{"last writable before body", BasePath + "users/1/", "9223372036854775806", app, true, 400, "parse_error", true},
+		{"anonymous", BasePath + "accounts/1/", "", app, false, 401, "not_authenticated", false},
+		{"forbidden", BasePath + "accounts/1/", "", denied, true, 403, "permission_denied", false},
+		{"noncanonical id", BasePath + "accounts/-0/", "", app, true, 400, "parse_error", false},
+		{"query", BasePath + "accounts/1/?extra=1", "", app, true, 400, "parse_error", false},
+		{"empty query marker", BasePath + "accounts/1/?", "", app, true, 400, "parse_error", false},
+		{"canonical before body", BasePath + "accounts/1/", "1", app, true, 400, "parse_error", true},
+		{"large exact before body", BasePath + "accounts/1/", "9007199254740993", app, true, 400, "parse_error", true},
+		{"last writable before body", BasePath + "accounts/1/", "9223372036854775806", app, true, 400, "parse_error", true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			reader := &headerObservedBody{Reader: strings.NewReader("invalid-json")}
@@ -178,6 +151,6 @@ func TestIdentityAdmissionAndPathQueryRemainBeforeHeader(t *testing.T) {
 		})
 	}
 	if backend.reads.Load() != 0 || backend.writes.Load() != 0 || deniedBackend.reads.Load() != 0 || deniedBackend.writes.Load() != 0 {
-		t.Fatal("rejection reached identity manager I/O")
+		t.Fatal("rejection reached selected owner I/O")
 	}
 }

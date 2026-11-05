@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"net/http"
@@ -21,6 +22,7 @@ import (
 
 	"example.com/godj-project-bundle/project"
 	auditmodels "github.com/progresshans/godj/account/audit/models"
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	apisession "github.com/progresshans/godj/api/sessionauth"
 	"github.com/progresshans/godj/apps"
@@ -45,8 +47,10 @@ import (
 // commits before losing its acknowledgement; it is not a network experiment.
 type managementJSONBackend struct {
 	database.Backend
-	writeFault atomic.Value
-	readFault  atomic.Bool
+	writeFault  atomic.Value
+	readFault   atomic.Bool
+	writes      atomic.Int64
+	auditFaults atomic.Int64
 }
 
 func (backend *managementJSONBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
@@ -58,14 +62,26 @@ func (backend *managementJSONBackend) ReadSnapshot(ctx context.Context, read fun
 }
 
 func (backend *managementJSONBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	backend.writes.Add(1)
 	fault, _ := backend.writeFault.Swap("").(string)
 	native, supported := backend.Backend.(db.CoordinatedRelationAtomic)
 	if !supported {
 		return errors.New("native relation transactions are required")
 	}
 	err := native.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+		if fault == "audit_failure" {
+			conflict, ok := scope.(db.ConflictInserter)
+			validator, valid := scope.(db.SessionValidator)
+			if !ok || !valid {
+				return errors.New("native audit probe lacks required capabilities")
+			}
+			scope = &managementJSONAuditScope{RelationSession: scope, ConflictInserter: conflict, SessionValidator: validator, failures: &backend.auditFaults}
+		}
 		if err := write(scope); err != nil {
 			return err
+		}
+		if fault == "unknown_rollback" {
+			return &query.Error{Code: query.CodeCommitOutcomeUnknown}
 		}
 		if fault == "rollback" {
 			return errors.New("private failure after native writes")
@@ -76,6 +92,56 @@ func (backend *managementJSONBackend) CoordinatedAtomicRelation(ctx context.Cont
 		return &query.Error{Code: query.CodeCommitOutcomeUnknown}
 	}
 	return err
+}
+
+type managementJSONAuditScope struct {
+	db.RelationSession
+	db.ConflictInserter
+	db.SessionValidator
+	failures *atomic.Int64
+}
+
+func (scope *managementJSONAuditScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+	key, err := scope.RelationSession.Insert(ctx, plan)
+	if err == nil && plan.Table() == "godj_account_audit_event" {
+		scope.failures.Add(1)
+		return 0, errors.New("private failure after audit insert")
+	}
+	return key, err
+}
+
+type managementJSONHasher struct {
+	auth.PasswordHasher
+	calls atomic.Int64
+}
+
+func (hasher *managementJSONHasher) Hash(ctx context.Context, raw string) (string, error) {
+	hasher.calls.Add(1)
+	return hasher.PasswordHasher.Hash(ctx, raw)
+}
+
+// Observe full native rows independently of HTTP output, then remove just the
+// target so callers can compare every unrelated durable value and relation.
+func managementJSONWithout[M any](t *testing.T, manager orm.Manager[M], rows []M, target int64) ([]M, map[string]query.Value, int) {
+	t.Helper()
+	for index, row := range rows {
+		pk, present, err := manager.PrimaryKey(row)
+		if err != nil || !present {
+			t.Fatal("native target key missing", err)
+		}
+		key, integer := pk.Integer()
+		if !integer {
+			t.Fatal("native target key is not an integer")
+		}
+		if key == target {
+			values, err := manager.ModelValues(row)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return slices.Delete(slices.Clone(rows), index, index+1), values, index
+		}
+	}
+	return rows, nil, -1
 }
 
 // The selected generated owners publish their shared JSON application. The
@@ -178,7 +244,8 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 		Permission:         accountmodel.CatalogModelConfig[P]{ReadFields: permissionFields, WriteFields: permissionFields, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission", Additional: []auth.Permission{"catalog.manage"}}},
 		AccountPermissions: accountmodel.DeletionPermissions{Delete: "account.delete", Change: "account.change", Additional: []auth.Permission{"account.manage"}}, Now: clock,
 	}
-	composed, err := factory(t.Context(), backend, hasher, overlay, accountmodel.RuntimeConfig[M, G, P]{
+	trackedHasher := &managementJSONHasher{PasswordHasher: hasher}
+	composed, err := factory(t.Context(), backend, trackedHasher, overlay, accountmodel.RuntimeConfig[M, G, P]{
 		Accounts: accountPolicy, Catalog: catalogPolicy, Sessions: sessions.Config{Clock: clock},
 	})
 	check(err)
@@ -629,6 +696,229 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			t.Fatal("catalog common permission lost", status)
 		}
 	})
+	// Preserve the old native HTTP failure matrix on the selected owners and
+	// renamed generated models. Every mode reaches one real write transaction;
+	// acknowledgement-loss cases never authorize a blind retry.
+	failureIndex := 0
+	for _, resource := range []string{"accounts", "groups", "permissions"} {
+		operations := []string{"create", "update", "delete"}
+		if resource == "accounts" {
+			operations = append(operations, "password")
+		}
+		for _, operation := range operations {
+			for _, mode := range []string{"audit_failure", "unknown_rollback", "unknown"} {
+				run("failure_"+resource+"_"+operation+"_"+mode, func(t *testing.T) {
+					failureIndex++
+					name := fmt.Sprintf("fault%d@example.test", failureIndex)
+					fields, changedField, revisionField, model := accountFields(name), profileField, role.Revision, role.Model
+					if resource == "groups" {
+						fields = map[string]any{role.Catalog.GroupName: name}
+						if groupExtra != "" {
+							fields[groupExtra] = 7
+						}
+						changedField, revisionField, model = role.Catalog.GroupName, role.Catalog.GroupRevision, role.Catalog.Group
+					} else if resource == "permissions" {
+						fields = map[string]any{role.Catalog.PermissionCode: fmt.Sprintf("jsonfault.p%d", failureIndex), role.Catalog.PermissionName: name}
+						if permissionExtra != "" {
+							fields[permissionExtra] = "failure fixture"
+						}
+						changedField, revisionField, model = role.Catalog.PermissionName, role.Catalog.PermissionRevision, role.Catalog.Permission
+					}
+					body := fieldsBody(fields)
+					if resource == "accounts" {
+						body = creationBody(fields, "native-fault-password")
+					}
+					method, endpoint, revision := "POST", "/api/identity/"+resource+"/", ""
+					var target receipt
+					var targetSession sessions.ID
+					if operation != "create" {
+						status, header, value := send(client, method, endpoint, body, "", true)
+						target = decodeReceipt(status, header, value, 201)
+						if resource == "accounts" {
+							targetSession = login(newClient(), name, "native-fault-password")
+						}
+						method, endpoint, revision = "PATCH", path(resource, target.ID), strconv.FormatInt(target.Revision, 10)
+						changed := map[string]any{changedField: "NZ"}
+						if resource == "accounts" {
+							changed[role.Active.Field] = false
+						}
+						body = fieldsBody(changed)
+						if operation == "delete" {
+							method, body = "DELETE", ""
+						}
+						if operation == "password" {
+							method, endpoint = "POST", endpoint+"password/"
+							body = encode(map[string]any{"credential": map[string]any{"password": "native-replacement-password"}})
+						}
+					}
+					before := snapshot()
+					writes, hashes, auditFailures := faults.writes.Load(), trackedHasher.calls.Load(), faults.auditFaults.Load()
+					faults.writeFault.Store(mode)
+					status, header, value := send(client, method, endpoint, body, revision, true)
+					wantStatus, wantHashes := 503, int64(0)
+					if mode == "audit_failure" {
+						wantStatus = 500
+					}
+					if resource == "accounts" && (operation == "create" || operation == "password") {
+						wantHashes = 1
+					}
+					if status != wantStatus || faults.writes.Load()-writes != 1 || trackedHasher.calls.Load()-hashes != wantHashes || header.Get("Revision") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" {
+						t.Fatal("failure retried, missed native work or published a receipt", status, faults.writes.Load()-writes, trackedHasher.calls.Load()-hashes)
+					}
+					if (faults.auditFaults.Load()-auditFailures == 1) != (mode == "audit_failure") {
+						t.Fatal("audit failure was not reached exactly once")
+					}
+					if mode == "audit_failure" {
+						if string(value) != "Internal Server Error\n" {
+							t.Fatal("execution failure exposed diagnostics or partial result")
+						}
+					} else {
+						var failure map[string]json.RawMessage
+						check(json.Unmarshal(value, &failure))
+						if failure["id"] != nil || failure["revision"] != nil || string(failure["code"]) != `"outcome_unknown"` {
+							t.Fatal("failure published target metadata or lost uncertainty")
+						}
+					}
+					after := snapshot()
+					if mode != "unknown" {
+						if !reflect.DeepEqual(before, after) {
+							t.Fatal("confirmed native rollback retained rows, memberships, sessions or audit")
+						}
+						return
+					}
+					if len(after.Audits) != len(before.Audits)+1 {
+						t.Fatal("committed unknown result lost or duplicated its audit")
+					}
+					event := after.Audits[len(before.Audits)]
+					action := admin.ActionChange
+					if operation == "create" {
+						action, target.ID = admin.ActionAdd, event.ObjectID
+					}
+					if operation == "delete" {
+						action = admin.ActionDelete
+					}
+					if event.ObjectID != target.ID || event.Model != model.AppLabel+"."+model.ModelName || event.ActorID != actor.ID() || event.Action != string(action) {
+						t.Fatal("unknown result audit has another target, actor or action")
+					}
+					after.Audits = after.Audits[:len(before.Audits)]
+					var oldValues, newValues map[string]query.Value
+					oldIndex, newIndex := -1, -1
+					switch resource {
+					case "accounts":
+						before.Accounts, oldValues, oldIndex = managementJSONWithout(t, objects, before.Accounts, target.ID)
+						after.Accounts, newValues, newIndex = managementJSONWithout(t, objects, after.Accounts, target.ID)
+						for _, item := range []struct {
+							state *durable
+							index int
+						}{{&before, oldIndex}, {&after, newIndex}} {
+							if item.index >= 0 {
+								for _, keys := range item.state.Memberships[item.index] {
+									if len(keys) != 0 {
+										t.Fatal("unexpected target membership")
+									}
+								}
+								item.state.Memberships = slices.Delete(slices.Clone(item.state.Memberships), item.index, item.index+1)
+							}
+						}
+					case "groups":
+						before.Groups, oldValues, oldIndex = managementJSONWithout(t, catalog.Groups().Manager(), before.Groups, target.ID)
+						after.Groups, newValues, newIndex = managementJSONWithout(t, catalog.Groups().Manager(), after.Groups, target.ID)
+						for _, item := range []struct {
+							state *durable
+							index int
+						}{{&before, oldIndex}, {&after, newIndex}} {
+							if item.index >= 0 {
+								if len(item.state.GroupPermissions[item.index]) != 0 {
+									t.Fatal("unexpected target group permission")
+								}
+								item.state.GroupPermissions = slices.Delete(slices.Clone(item.state.GroupPermissions), item.index, item.index+1)
+							}
+						}
+					case "permissions":
+						before.Permissions, oldValues, _ = managementJSONWithout(t, catalog.Permissions().Manager(), before.Permissions, target.ID)
+						after.Permissions, newValues, _ = managementJSONWithout(t, catalog.Permissions().Manager(), after.Permissions, target.ID)
+					}
+					if (oldValues == nil) != (operation == "create") || (newValues == nil) != (operation == "delete") {
+						t.Fatal("unknown result has wrong durable existence")
+					}
+					if operation == "update" || operation == "password" {
+						expected := maps.Clone(oldValues)
+						expected[revisionField] = query.Integer(target.Revision + 1)
+						if operation == "update" {
+							expected[changedField] = query.String("NZ")
+							if resource == "accounts" {
+								expected[role.Active.Field] = query.Boolean(false)
+							}
+						} else {
+							encoded, _ := newValues[role.Password].String()
+							valid, err := hasher.Verify(t.Context(), "native-replacement-password", encoded)
+							check(err)
+							if !valid || reflect.DeepEqual(newValues[role.Password], oldValues[role.Password]) {
+								t.Fatal("unknown password result lost replacement")
+							}
+							expected[role.Password] = newValues[role.Password]
+						}
+						if !reflect.DeepEqual(expected, newValues) {
+							t.Fatal("unknown update lost requested values or changed unrelated fields")
+						}
+					}
+					if operation == "create" {
+						actualRevision, valid := newValues[revisionField].Integer()
+						if !valid || actualRevision != 1 {
+							t.Fatal("unknown create lost initial revision")
+						}
+						for field, expected := range fields {
+							switch expected := expected.(type) {
+							case string:
+								if resource == "accounts" && field == role.Email && role.Email != role.Login {
+									expected = "Contact@example.test"
+								}
+								actual, valid := newValues[field].String()
+								if !valid || actual != expected {
+									t.Fatal("unknown create lost submitted field", field)
+								}
+							case int:
+								actual, valid := newValues[field].Integer()
+								if !valid || actual != int64(expected) {
+									t.Fatal("unknown create lost submitted integer", field)
+								}
+							default:
+								t.Fatal("missing independent field observation", field)
+							}
+						}
+						if resource == "accounts" {
+							encoded, _ := newValues[role.Password].String()
+							valid, err := hasher.Verify(t.Context(), "native-fault-password", encoded)
+							check(err)
+							if !valid {
+								t.Fatal("unknown create lost requested credential")
+							}
+						}
+					}
+					if resource == "accounts" && operation != "create" {
+						_, found, err := selected.Load(t.Context(), targetSession)
+						check(err)
+						if found || len(after.Sessions) != len(before.Sessions)-1 {
+							t.Fatal("unknown account mutation did not revoke only the target session")
+						}
+						prior := make(map[int64]sessionmodels.Session, len(before.Sessions))
+						for _, row := range before.Sessions {
+							prior[row.ID] = row
+						}
+						for _, row := range after.Sessions {
+							if !reflect.DeepEqual(prior[row.ID], row) {
+								t.Fatal("unknown mutation changed an unrelated session")
+							}
+						}
+						before.Sessions = after.Sessions
+					}
+					if !reflect.DeepEqual(before, after) {
+						t.Fatal("unknown mutation changed unrelated rows, memberships, sessions or audit")
+					}
+				})
+			}
+		}
+	}
 	run("native_rollback", func(t *testing.T) {
 		before := snapshot()
 		faults.writeFault.Store("rollback")

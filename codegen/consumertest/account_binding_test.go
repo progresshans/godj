@@ -294,6 +294,17 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			for _, name := range []string{"catalog_create", "create_and_login", "selected_read_and_list", "csrf", "additional_permission", "add_requires_change", "password_policy", "model_password_policy", "protected_input", "credential_namespace", "revision_before_body", "put_defaults_and_omitted_collections", "update_noop_and_history", "catalog_put_and_permissions", "native_rollback", "unknown_after_native_commit", "read_cleanup_failure", "password_revokes_sessions", "delete_and_audit", "self_deactivation_keeps_confirmed_receipt"} {
 				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
 			}
+			for _, resource := range []string{"accounts", "groups", "permissions"} {
+				operations := []string{"create", "update", "delete"}
+				if resource == "accounts" {
+					operations = append(operations, "password")
+				}
+				for _, operation := range operations {
+					for _, mode := range []string{"audit_failure", "unknown_rollback", "unknown"} {
+						required = append(required, "TestGeneratedAccountManagementJSON/failure_"+resource+"_"+operation+"_"+mode)
+					}
+				}
+			}
 			required = append(required, "TestGeneratedAccountAdminLifecycle")
 			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
 				required = append(required, "TestGeneratedAccountAdminLifecycle/"+name)

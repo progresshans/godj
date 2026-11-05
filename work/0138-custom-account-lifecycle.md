@@ -674,6 +674,11 @@ operator schema 순서와 through snapshot cleanup 주입을 보완했다. 기�
 선택 domain과 비정상 권한 문법의 native 경계는 별도로 유지한다. 기존 원문과 역사/Admin 검사는 보존했다.
 새 소비자의 작성과 양 DB·원격 실행 근거는 구분하며 고정 Directory/Manager의 교체 완료를 뜻하지 않는다.
 
+고정 JSON의 문서·revision/header 순서 검사를 선택 모델 owner로 이관하고, 별도 생성 앱의 계정/catalog CRUD·
+password에 감사 실패·rollback/commit 뒤 결과 불명 30개 필수 child를 추가했다. 전체 durable 행·소속·세션·감사와
+실제 transaction/hash 횟수를 확인하도록 작성했다. 독립 identity 관측의 native 삭제 호출 타입 오류도 보정했다.
+기존 native/Admin/독립 SDK 검사를 유지하며 새 본문의 실행과 고정 제품 교체의 완료는 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
