@@ -16,8 +16,8 @@
 2. 역사 `systemstate`의 최초 선택 domain 이행·원문 보존·퇴역 runtime 차단·receipt/복구를 양 DB에서 확인한다.
    Article의 명시적 이행 소비자와 새 독립 생성 앱의 별도 operator process→custom 모델 전환→host schema 정리→
    재접속/현재 인가·역사 조회를 확인한다. 소비자 작성과 실제 환경별 실행은 TEST_EVIDENCE에서 구분한다.
-3. 남은 고정 Directory/Manager 및 내장 Admin/JSON 소비자를 선택 모델 owner로 정리한다.
-   선택 JSON의 transport·native 실패 소비자 이관과 독립 identity 관측의 타입 오류 보정을 원격에서 확인하고,
+3. 남은 고정 Directory/Manager 및 내장 Admin 소비자를 선택 모델 owner로 정리한다.
+   고정 JSON 제거·소비자 이관·DELETE 본문 거부와 독립 identity 관측의 타입 오류 보정을 원격에서 확인하고,
    기존 독립 기준·실패·인가·데이터 무결성 검증이 계속 어디서 실행되는지 대조한다.
 4. [I1-01~08 수용 요구](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)의 제품·생성기·실제 소비자와
    같은 source의 검증 근거를 모두 연결한 뒤 완료를 판단한다. 세부 미완료 범위는 해당 work에 유지한다.

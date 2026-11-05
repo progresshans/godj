@@ -202,14 +202,7 @@ func RunLoginLifecycle(t *testing.T, open func(*testing.T) (TransitionBackend, T
 	adminHTTP := newIdentityAdminHTTP(t, f, f.runtime)
 	adminHTTP.loginAdmin(t, adminHTTP.client, "manager", managementOldPassword)
 	adminHTTP.call(t, adminHTTP.client, "GET", adminObjectPath("users", "change", f.user.ID), nil, 200).contains(t, `data-field-name="last_login"`, loginInstant.Add(2*time.Second).Format(time.RFC3339Nano))
-	apiHTTP, _ := newManagementHTTP(t, f, f.runtime)
-	_, body := managementCall(t, apiHTTP, apiHTTP.client, "GET", apiPath("users", f.user.ID), "", "", false, 200)
-	var published time.Time
-	if err := json.Unmarshal(body["last_login"], &published); err != nil || !published.Equal(loginInstant.Add(2*time.Second)) {
-		t.Fatal("API did not expose persisted login time", err)
-	}
 	before := f.stored(t)
-	managementCall(t, apiHTTP, apiHTTP.client, "PATCH", apiPath("users", f.user.ID), `{"last_login":"2000-01-01T00:00:00Z"}`, "1", true, 400)
 	details, err := f.manager(t, f.runtime).User(t.Context(), f.actor, f.user.ID)
 	if err != nil {
 		t.Fatal(err)

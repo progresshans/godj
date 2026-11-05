@@ -9,6 +9,7 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 )
 
@@ -120,4 +121,8 @@ func (builder *selectedBuilder) condition(request *web.Request) (int64, web.Resp
 	}
 	response, err := api.ErrorResponse(status, api.CodeValidationError, diagnostics)
 	return 0, response, true, err
+}
+
+func invalidRequest() (web.Response, error) {
+	return api.ErrorResponse(http.StatusBadRequest, api.CodeParseError, validation.NewErrors())
 }

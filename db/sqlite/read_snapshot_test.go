@@ -171,7 +171,3 @@ func openSQLiteIdentityPair(t *testing.T) (identitytest.TransitionBackend, ident
 func TestSQLiteIdentityCatalogManagement(t *testing.T) {
 	identitytest.RunCatalogManagement(t, openSQLiteIdentityPair)
 }
-
-func TestSQLiteIdentityManagementAPI(t *testing.T) {
-	identitytest.RunManagementAPI(t, openSQLiteIdentityPair)
-}

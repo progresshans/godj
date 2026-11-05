@@ -3,20 +3,11 @@ package identitytest
 import (
 	"encoding/json"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/identity"
-	identityapi "github.com/progresshans/godj/identity/api"
 )
-
-func apiPasswordStatus(t *testing.T, body map[string]json.RawMessage, want bool) {
-	t.Helper()
-	if string(body["password_usable"]) != strconv.FormatBool(want) {
-		t.Fatal("password status is missing, mistyped, stale, or confused with activation")
-	}
-}
 
 func RunPasswordStatus(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	backend, _ := open(t)
@@ -26,24 +17,11 @@ func RunPasswordStatus(t *testing.T, open func(*testing.T) (TransitionBackend, T
 	if err != nil {
 		t.Fatal(err)
 	}
-	apiHTTP, _ := newManagementHTTP(t, f, f.runtime)
 	adminHTTP := newIdentityAdminHTTP(t, f, f.runtime)
 	adminHTTP.loginAdmin(t, adminHTTP.client, "manager", managementOldPassword)
-	path := apiPath("users", f.user.ID)
 	edit := adminObjectPath("users", "change", f.user.ID)
 	t.Run("forged_state_is_not_an_input", func(t *testing.T) {
 		before := f.stored(t)
-		for _, probe := range []struct{ method, path, body, revision string }{
-			{"PATCH", path, `{"password_usable":false}`, "1"},
-			{"PUT", path, `{"username":"member","password_usable":false}`, "1"},
-			{"POST", identityapi.BasePath + "users/", `{"username":"forged","password":"never hashed","password_usable":true}`, ""},
-			{"POST", path + "password/", `{"password":null,"password_usable":true}`, "1"},
-		} {
-			_, body := managementCall(t, apiHTTP, apiHTTP.client, probe.method, probe.path, probe.body, probe.revision, true, 400)
-			if _, leaked := body["password_usable"]; leaked {
-				t.Fatal("rejected input returned a success profile")
-			}
-		}
 		details, err := manager.User(t.Context(), f.actor, f.user.ID)
 		if err != nil {
 			t.Fatal(err)
@@ -97,23 +75,6 @@ func RunPasswordStatus(t *testing.T, open func(*testing.T) (TransitionBackend, T
 			if err != nil || strings.Contains(string(encoded), stored.EncodedPassword) {
 				t.Fatal("password status disclosed stored encoding", err)
 			}
-			_, body := managementCall(t, apiHTTP, apiHTTP.client, "GET", path, "", "", false, 200)
-			apiPasswordStatus(t, body, state.usable)
-			_, page := managementCall(t, apiHTTP, apiHTTP.client, "GET", identityapi.BasePath+"users/", "", "", false, 200)
-			var items []map[string]json.RawMessage
-			if err := json.Unmarshal(page["items"], &items); err != nil {
-				t.Fatal(err)
-			}
-			seen := false
-			for _, item := range items {
-				if apiInteger(t, item, "id") == stored.ID {
-					apiPasswordStatus(t, item, state.usable)
-					seen = true
-				}
-			}
-			if !seen {
-				t.Fatal("user list omitted target")
-			}
 			label := "Disabled"
 			if state.usable {
 				label = "Enabled"
@@ -143,9 +104,6 @@ func RunPasswordStatus(t *testing.T, open func(*testing.T) (TransitionBackend, T
 		view := adminHTTP.call(t, adminHTTP.client, "GET", edit, nil, 200)
 		view.contains(t, `data-field-name="password_usable">Enabled`)
 		view.excludes(t, ` name="username"`, ` name="password_usable"`, "Change password", "Disable password login")
-		_, body := managementCall(t, apiHTTP, apiHTTP.client, "GET", path, "", "", false, 200)
-		apiPasswordStatus(t, body, true)
-		managementCall(t, apiHTTP, apiHTTP.client, "POST", path+"password/", `{"password":null}`, "5", true, 403)
 		adminHTTP.call(t, adminHTTP.client, "POST", adminObjectPath("users", "command/disable-password", f.user.ID), map[string][]string{"confirm": {"on"}, "expected_revision": {"5"}, "csrfmiddlewaretoken": {view.token(t)}}, 403)
 		if row := f.stored(t); row.Revision != 5 || strings.HasPrefix(row.EncodedPassword, "!") {
 			t.Fatal("readonly observer changed password")

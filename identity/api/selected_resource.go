@@ -17,6 +17,8 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
+const revisionPolicy = " If-Revision must contain exactly one canonical positive decimal row revision, for example 1. No wildcard, list, weak validator or leading zero is accepted. Missing header returns 428; invalid header 400; stale revision 412. Fetch current state and resolve the conflict explicitly. Outcome-unknown returns 503 with code outcome_unknown: reconcile durable state before submitting any new operation. No-op updates retain the revision."
+
 // This private adapter is constructed only from real lifecycle owners. Hosts
 // supply no duplicate CRUD callbacks, model copies or replacement SQL paths.
 type selectedResource[M any] struct {
@@ -190,6 +192,11 @@ func addSelectedResource[M any](builder *selectedBuilder, resource selectedResou
 		revision, response, handled, err := builder.condition(request)
 		if handled || err != nil {
 			return response, err
+		}
+		// DELETE declares no body. Reject advertised or unknown-length input
+		// after the revision condition and before entering the lifecycle owner.
+		if request.HTTP().ContentLength != 0 || len(request.HTTP().TransferEncoding) != 0 {
+			return invalidRequest()
 		}
 		key, version, err := resource.remove(request.Context(), actor, id, revision)
 		if err != nil {

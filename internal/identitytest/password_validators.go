@@ -2,7 +2,6 @@ package identitytest
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/url"
 	"reflect"
@@ -14,7 +13,6 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/identity"
 	identityadmin "github.com/progresshans/godj/identity/admin"
-	identityapi "github.com/progresshans/godj/identity/api"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/validation"
@@ -22,7 +20,7 @@ import (
 
 func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
-	for _, channel := range []string{"service", "admin", "api"} {
+	for _, channel := range []string{"service", "admin"} {
 		for _, operation := range []string{"create", "password"} {
 			t.Run(channel+"/"+operation, func(t *testing.T) {
 				backend, other := open(t)
@@ -36,17 +34,14 @@ func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBacken
 					t.Fatal(err)
 				}
 				var adminHTTP *identityAdminHTTP
-				var apiHTTP *identityHTTP
 				switch channel {
 				case "admin":
 					adminHTTP = newIdentityAdminHTTP(t, f, f.runtime, func(config identityadmin.Config) identityadmin.Config {
 						return config.WithPasswordValidators(validators...)
 					})
 					adminHTTP.loginAdmin(t, adminHTTP.client, "manager", managementOldPassword)
-				case "api":
-					apiHTTP, _ = newManagementHTTP(t, f, f.runtime, validators...)
 				}
-				// Both adapters must own their policy slice after registration.
+				// The service and Admin own their policy slice after registration.
 				for i := range validators {
 					validators[i] = nil
 				}
@@ -108,29 +103,6 @@ func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBacken
 									t.Fatal("password was redisplayed")
 								}
 							}
-						case "api":
-							payload := map[string]any{"password": probe.password}
-							path, revision := apiPath("users", f.user.ID)+"password/", "1"
-							if operation == "create" {
-								path, revision = identityapi.BasePath+"users/", ""
-								payload["username"] = "Candidate"
-							}
-							data, _ := json.Marshal(payload)
-							_, body := managementCall(t, apiHTTP, apiHTTP.client, "POST", path, string(data), revision, true, 400)
-							var failures []struct{ Field, Code string }
-							if err := json.Unmarshal(body["errors"], &failures); err != nil {
-								t.Fatal(err)
-							}
-							for _, failure := range failures {
-								if failure.Field != "password" {
-									t.Fatal("API policy field changed")
-								}
-								codes = append(codes, failure.Code)
-							}
-							encoded, _ := json.Marshal(body)
-							if strings.Contains(string(encoded), probe.password) {
-								t.Fatal("API response leaked rejected password")
-							}
 						}
 						if !slices.Equal(codes, probe.codes) || f.hasher.calls.Load() != 0 {
 							t.Fatal("policy order/hash boundary", codes, f.hasher.calls.Load())
@@ -168,15 +140,6 @@ func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBacken
 						values.Set("username", "Candidate")
 					}
 					adminHTTP.postForm(t, path, values, 302)
-				case "api":
-					path, revision, status := apiPath("users", f.user.ID)+"password/", "1", 200
-					payload := map[string]any{"password": managementNewPassword}
-					if operation == "create" {
-						path, revision, status = identityapi.BasePath+"users/", "", 201
-						payload["username"] = "Candidate"
-					}
-					data, _ := json.Marshal(payload)
-					managementCall(t, apiHTTP, apiHTTP.client, "POST", path, string(data), revision, true, status)
 				}
 				if f.hasher.calls.Load() != 1 {
 					t.Fatal("success did not hash exactly once")

@@ -78,7 +78,17 @@ func firstCustomAccount(t *testing.T, adminMode string) {
 		return
 	}
 	if adminMode == "json" {
-		assertAccountManagementJSON(t, backend, binding, hasher, row, "region", "priority", "description", project.NewAccountRuntime)
+		assertAccountManagementJSON(t, backend, binding, hasher, row, "region", "priority", "description", project.NewAccountRuntime, func(t *testing.T, id int64) func() {
+			guard, err := tickets.TicketObjects.Create(t.Context(), backend, tickets.NewTicketCreate("JSON protected", id))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return func() {
+				if count, err := tickets.TicketObjects.Delete(t.Context(), backend, &guard); err != nil || count != 1 {
+					t.Fatal("protected host row was lost", count, err)
+				}
+			}
+		})
 		return
 	}
 	t.Run("admin_catalog", func(t *testing.T) {

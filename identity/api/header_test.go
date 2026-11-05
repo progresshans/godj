@@ -72,14 +72,14 @@ func TestSelectedManagementHeaderConditionPrecedesBodyAndBusinessIO(t *testing.T
 			status int
 			code   string
 		}{
-			{"missing", nil, 428, "precondition_required"},
-			{"empty", http.Header{"If-Revision": {""}}, 400, "invalid_precondition"},
-			{"duplicate", http.Header{"If-Revision": {"1", "1"}}, 400, "invalid_precondition"},
-			{"case aliases", http.Header{"If-Revision": {"1"}, "if-revision": {"1"}}, 400, "invalid_precondition"},
-			{"noncanonical", http.Header{"If-Revision": {"01"}}, 400, "invalid_precondition"},
-			{"comma", http.Header{"If-Revision": {"1,1"}}, 400, "invalid_precondition"},
-			{"unwritable maximum", http.Header{"If-Revision": {"9223372036854775807"}}, 400, "invalid_precondition"},
-			{"overflow", http.Header{"If-Revision": {"9223372036854775808"}}, 400, "invalid_precondition"},
+			{"missing", nil, 428, "required"},
+			{"empty", http.Header{"If-Revision": {""}}, 400, "invalid"},
+			{"duplicate", http.Header{"If-Revision": {"1", "1"}}, 400, "invalid"},
+			{"case aliases", http.Header{"If-Revision": {"1"}, "if-revision": {"1"}}, 400, "invalid"},
+			{"noncanonical", http.Header{"If-Revision": {"01"}}, 400, "invalid"},
+			{"comma", http.Header{"If-Revision": {"1,1"}}, 400, "invalid"},
+			{"unwritable maximum", http.Header{"If-Revision": {"9223372036854775807"}}, 400, "invalid"},
+			{"overflow", http.Header{"If-Revision": {"9223372036854775808"}}, 400, "invalid"},
 		} {
 			t.Run(route.method+route.path+test.name, func(t *testing.T) {
 				reader := &headerObservedBody{Reader: strings.NewReader("invalid-json")}
@@ -96,9 +96,9 @@ func TestSelectedManagementHeaderConditionPrecedesBodyAndBusinessIO(t *testing.T
 				app.ServeHTTP(response, request)
 				var envelope struct {
 					Code   string
-					Errors []any
+					Errors []struct{ Field, Code string }
 				}
-				if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil || response.Code != test.status || envelope.Code != test.code || len(envelope.Errors) != 0 || reader.reads != 0 || reader.closes != 0 || backend.reads.Load() != 0 || backend.writes.Load() != 0 {
+				if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil || response.Code != test.status || envelope.Code != "validation_error" || len(envelope.Errors) != 1 || envelope.Errors[0].Field != "If-Revision" || envelope.Errors[0].Code != test.code || reader.reads != 0 || reader.closes != 0 || backend.reads.Load() != 0 || backend.writes.Load() != 0 {
 					t.Fatal("revision condition order/classification", response.Code, response.Body, reader, err)
 				}
 				if response.Header().Get("Cache-Control") != "no-store" || response.Header().Get("Revision") != "" {
@@ -152,5 +152,36 @@ func TestSelectedManagementAdmissionAndPathQueryRemainBeforeHeader(t *testing.T)
 	}
 	if backend.reads.Load() != 0 || backend.writes.Load() != 0 || deniedBackend.reads.Load() != 0 || deniedBackend.writes.Load() != 0 {
 		t.Fatal("rejection reached selected owner I/O")
+	}
+}
+
+func TestSelectedManagementDeleteRejectsBodyBeforeOwner(t *testing.T) {
+	app, probe := headerApplication(t, true)
+	for _, resource := range []string{"accounts", "groups", "permissions"} {
+		for _, mode := range []string{"known_length", "unknown_length", "chunked"} {
+			t.Run(resource+"/"+mode, func(t *testing.T) {
+				reader := &headerObservedBody{Reader: strings.NewReader("{}")}
+				request := httptest.NewRequest("DELETE", BasePath+resource+"/0/", nil)
+				request.Body, request.ContentLength = reader, 2
+				if mode != "known_length" {
+					request.ContentLength = -1
+				}
+				if mode == "chunked" {
+					request.TransferEncoding = []string{"chunked"}
+				}
+				request.Header.Set("Authorization", "Bearer fixture")
+				request.Header.Set("If-Revision", "1")
+				request.Header.Set("Content-Type", api.JSONContentType)
+				response := httptest.NewRecorder()
+				app.ServeHTTP(response, request)
+				var envelope struct{ Code string }
+				if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil || response.Code != 400 || envelope.Code != "parse_error" || reader.reads != 0 || reader.closes != 0 || probe.reads.Load() != 0 || probe.writes.Load() != 0 {
+					t.Fatal("DELETE body entered its lifecycle owner", response.Code, response.Body, reader, err)
+				}
+				if response.Header().Get("Revision") != "" || response.Header().Get("Cache-Control") != "no-store" {
+					t.Fatal("body refusal published/cacheable state")
+				}
+			})
+		}
 	}
 }

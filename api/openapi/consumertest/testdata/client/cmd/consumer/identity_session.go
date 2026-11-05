@@ -128,12 +128,14 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 	// Host-selected built-ins must remain visible through the independent SDK.
 	// Rejected creates and password commands must leave later counts/revisions intact.
 	for _, probe := range []struct {
-		password string
-		codes    []string
+		password, replacement string
+		codes                 []string
 	}{
-		{"123", []string{"password_too_short", "password_too_common", "password_entirely_numeric"}},
-		{" PASSWORD ", []string{"password_too_common"}},
-		{"¹²³⁴⁵⁶⁷⁸", []string{"password_entirely_numeric"}},
+		{"123", "123", []string{"password_too_short", "password_too_common", "password_entirely_numeric"}},
+		{" PASSWORD ", " PASSWORD ", []string{"password_too_common"}},
+		{"¹²³⁴⁵⁶⁷⁸", "¹²³⁴⁵⁶⁷⁸", []string{"password_entirely_numeric"}},
+		{"Ａ９", "Ａ９", []string{"password_too_short"}},
+		{"PolicyCandidate12", "managed-target12", []string{"password_too_similar"}},
 	} {
 		rejected, err := client.GodjIdentityAccountsCreate(ctx, &is.AccountCreate{Fields: is.AccountCreateFields{Username: "PolicyCandidate"}, Credential: is.AccountCreateCredential{Password: is.NewNilString(probe.password)}})
 		failure, ok := rejected.(*is.GodjIdentityAccountsCreateBadRequest)
@@ -145,7 +147,7 @@ func checkIdentitySession(ctx context.Context, target identityEndpoint) error {
 				return fail("identity generated creation policy order")
 			}
 		}
-		replaced, err := client.GodjIdentityAccountsPassword(ctx, &is.AccountPassword{Credential: is.AccountPasswordCredential{Password: is.NewNilString(probe.password)}}, is.GodjIdentityAccountsPasswordParams{ID: identityID(target.TargetID), IfRevision: 1})
+		replaced, err := client.GodjIdentityAccountsPassword(ctx, &is.AccountPassword{Credential: is.AccountPasswordCredential{Password: is.NewNilString(probe.replacement)}}, is.GodjIdentityAccountsPasswordParams{ID: identityID(target.TargetID), IfRevision: 1})
 		passwordFailure, ok := replaced.(*is.GodjIdentityAccountsPasswordBadRequest)
 		if err != nil || !ok || passwordFailure.Code != "validation_error" || len(passwordFailure.Errors) != len(probe.codes) {
 			return fail("identity generated built-in replacement policy")

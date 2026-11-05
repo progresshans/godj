@@ -3933,6 +3933,68 @@ rollback에는 전체 행·소속·세션·감사 불변을, commit에는 요청
 고정 Directory/Manager·내장 Admin/공유 native JSON 소비자의 제품 교체와 I1 전체 수용은 미완료다.
 새 원격 source의 원본을 확인하기 전에는 위 추가·이관된 검사나 core 오류의 해결을 환경별 PASS로 계산하지 않는다.
 
+## GDJ-0138 — 고정 JSON 관리 경로 제거와 검증 책임 이동
+
+`7b79b1acdd371a50f21f899d97a15e040d52cf10` 다음 묶음에서 고정 User 전용 `identity/api.New`·Config/Application,
+별도 DTO/serializer·CRUD 조립을 제거했다. 기본 계정과 custom 모델 모두 `NewManagement`의 typed owner를 사용한다.
+옛 native API helper와 DB root를 제거하고, 공유 password/login 검사의 API 부분은 아래 실제 선택 소비자로 옮겼다.
+역사 Directory/Manager/Admin 경로와 기존 Django 원문·비교는 유지한다. 제품 코드의 제거와 새 source의 환경별 수용은 다르다.
+
+정리 중 선택 DELETE가 본문을 무시할 수 있음을 확인했다. 인증·path/query·revision 검사 뒤 known/unknown length와
+chunked 본문을 업무 I/O 전에 거부하도록 보완하고 세 resource의 단위·실제 HTTP 부정 검사를 작성했다.
+이전 이관의 header 검사는 고정 API의 오류 code를 기대하고 있었다. 현행 선택 API와 독립 SDK가 사용하는
+`validation_error`, `If-Revision`의 `required`/`invalid` 진단으로 검사 기대값을 맞췄다. 제품 오류 계약을 과거 모양에 맞춰 바꾸지 않았다.
+
+| 제거한 고정 JSON 검사의 위험 | 현재 같은 위험의 실행 소유자 |
+|---|---|
+| 인증/CSRF·경로/query·revision·body 순서, 정확한 header 한도와 선언 | `identity/api`의 선택 schema/header 단위, 독립 SDK `identity_*_typed_headers`, 생성 HTTP `native_input_rejections` |
+| 세 resource의 2^53 초과 revision·canceled write·성공/충돌과 저장값 | 생성 HTTP `native_revision_accounts/groups/permissions`; native typed UPDATE로 기존 revision을 준비하고 실제 HTTP와 durable 행을 대조 |
+| view/change/add/add+change/delete와 staff 조건 분리, 현재 cookie 권한 회수 | 생성 HTTP `admission_*`: 세 resource의 7가지 권한 조합, list/detail/history·CRUD·추가 권한과 거부 뒤 전체 durable 상태; 독립 Session/Bearer read-only·stale bearer |
+| CRUD/password의 audit 실패·rollback/commit 결과 불명·재시도/성공값 비게시 | 선행 추가한 생성 HTTP의 30개 `failure_*` child와 전체 native snapshot 대조 |
+| hasher의 직접 입력 거부와 wrapped/일반 오류, 읽기 cleanup | 생성 HTTP `hasher_*` 6개와 `read_cleanup_failure`: read fault를 HTTP 인증/입장 뒤에 걸어 각 resource의 list/detail/history owner snapshot에서 확인 |
+| host PROTECT/CASCADE/SET_NULL·보호 거부 뒤 cleanup 실패 | 독립 SDK `identity_host_deletion` 및 부모의 실제 host DB 대조, custom 생성 HTTP `protected_delete_cleanup`의 실제 Ticket PROTECT·rollback cleanup·host 행 보존 |
+| 비밀번호 정책 5가지 오류·순서·원문 보존과 입력/DB 실패 | 독립 SDK의 생성/교체 경로에 short·similarity를 더해 기존 combined/common/numeric과 함께 실행; 선택 typed policy·native owner 및 생성 HTTP의 hash/정책·부분 저장 부정 검사 |
+| null 생성/반복 disable·잘못된 명령·정책/해싱 생략·inactive와 password 상태의 독립성 | 생성 HTTP `nullable_password_and_status`, 기존 `password_revokes_sessions`, 독립 SDK의 nullable/password status·부모 hash/session/audit 대조 |
+| 자기 password disable 이후 확정 응답과 session 폐기·복구 | 생성 HTTP `self_password_keeps_confirmed_receipt`: 자기 browser 폐기, 다른 관리자 browser의 복구와 새 로그인; 자기 비활성화의 확정 응답도 유지 |
+| last_login의 실제 저장 시각·read-only 노출, 권한 catalog 삭제의 owner revision·재접속 | 독립 SDK의 `identity_*_last_login`·catalog CRUD·host 삭제와 부모의 새 runtime/DB 대조; 생성 HTTP의 서버 field 거부와 기존 native login 관측 |
+
+관련 생성 소비자는 [management_json_test.go](../../codegen/consumertest/testdata/accountbinding/management_json_test.go),
+독립 SDK는 [identity_session.go](../../api/openapi/consumertest/testdata/client/cmd/consumer/identity_session.go)와
+[parent fixture](../../api/openapi/consumertest/identity_fixtures_test.go)가 소유한다. 위 대응은 코드·필수 실행 연결을 뜻하며
+새 본문의 실제 PASS를 뜻하지 않는다. 새 생성 child는 default에 33개, 각 custom 변형에 34개를 더 필수로 요구한다.
+이전 30개 failure child와 기존 생성/로그인·Admin·SDK 요구도 유지한다. 새 상세 요청은 저장 실패 뒤의 부분 DTO를 출력하지 않는다.
+
+각 DB의 옛 JSON 관련 selector 104개를 제거했다. Relation 필수 목록은 5,064→4,960개, PostgreSQL 목록은 5,985→5,881개다.
+두 목록의 다른 항목과 순서는 보존했으며, 소비자 내부의 필수 child는 위 이관에 맞게 확장했다. 검증 범위를 목록 숫자로 대신하지 않는다.
+로컬 Go compile/본문은 실행하지 않았다. Gofmt·남은 symbol 참조·명세/삭제 범위·기존 selector 보존·diff와 245개 문서 링크를
+정적으로 확인했고, Python relation shard 13개(0.286초)와 PostgreSQL shard 12개(27.571초)가 통과했다.
+새 source의 compile·단위·양 DB HTTP·독립 SDK·race/CGO-disabled·전체 platform은 원격 실행 대상이다.
+
+### 선행 source의 core 타입 오류 보정 확인
+
+[CI 42127487149](https://github.com/progresshans/godj/actions/runs/42127487149)의 normal/core-vet `127596119309`,
+CGO0/core `127596119110`, race/core `127596119112`는 모두 success다. 세 job의 원본 log와 gate 집계는 source
+`7b79b1ac`에서 141개 package, 필수 330개, 14,709 run·602 skip·Go exit 0을 보고했다. 이전 `Backend.AtomicRelation`
+타입 오류는 이 owner들에서 해소됐다. 이 owner가 실행하지 않은 identity/api 본문과 native DB 검사를 성공으로 계산하지 않는다.
+개별 이벤트 artifact의 전체 재대조와 I1 수용도 이 job log 확인으로 대신하지 않는다.
+
+실제 checkout `431b929dacc2bfbd06cbd293e72115533a4b4821`의 GitHub tree는
+`d695ab4d1fa554508ffa5a6effe08f5e00de64f7`이며 제출 source의 로컬 tree와 같았다.
+원본과 범위는 기존 보관소 `gdj0138-selected-json-transport-v1/core-7b79b1ac-summary.json`에 연결했다
+(SHA-256 `a1b680c6ee3087999043effac45e6db89473df82b287a9e2e554265b45df0796`).
+같은 선행 source의 Linux arm64 normal runtime `127596129543`은 이관한 header 검사의 과거 오류 기대값 때문에 실패했다.
+원본의 실제 응답은 428/400 `validation_error`와 `If-Revision`의 `required`/`invalid` 진단이며 body read/close와 업무 I/O는 0이었다.
+위 검사 보정에 이 원본을 대조했다. 같은 플랫폼 consumer 작업 `127596129766`의 `custom_text_login/sqlite`는
+`failure_accounts_password_audit_failure`에서 200·관측 write 0·hash 1로 실패했다. 비밀번호 owner는 일반 coordinated
+transaction을 사용하는데 시험 wrapper가 relation transaction만 가로챘기 때문이다. 두 transaction 진입점을 같은 주입/횟수
+owner로 연결하되 실제 borrowed scope의 validator·relation/conflict capability를 유지하도록 보정했다.
+
+두 실패 원본은 `gdj0138-selected-json-transport-v1/runtime-consumer-7b79b1ac-failure-summary.json`에 연결했다
+(SHA-256 `76abef728d59c19b7fdee095054353d368cde1bc258136822c795d3d6ae05be0`). Consumer의 console 진단에는
+60,000-byte 절단 표시가 있으므로 해당 관측은 위 실패 지점의 진단에만 사용한다. 이를 전체 child 실행 대조나 성공 증거로 사용하지 않는다.
+보정 뒤의 실제 원격 본문은 새 source에서 확인한다.
+현재 고정 JSON 제거 source와 선행 source를 구분한다. 남은 Directory/Manager/Admin 소비자와 I1-01~08 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

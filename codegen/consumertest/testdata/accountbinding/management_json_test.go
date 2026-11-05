@@ -47,35 +47,62 @@ import (
 // commits before losing its acknowledgement; it is not a network experiment.
 type managementJSONBackend struct {
 	database.Backend
-	writeFault  atomic.Value
-	readFault   atomic.Bool
-	writes      atomic.Int64
-	auditFaults atomic.Int64
+	writeFault      atomic.Value
+	readFault       atomic.Bool
+	writes          atomic.Int64
+	auditFaults     atomic.Int64
+	protectedFaults atomic.Int64
+	readFailures    atomic.Int64
 }
 
 func (backend *managementJSONBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
 	err := backend.Backend.ReadSnapshot(ctx, read)
 	if backend.readFault.Swap(false) {
+		backend.readFailures.Add(1)
 		return errors.Join(err, errors.New("private cleanup failure"))
 	}
 	return err
 }
 
+func (backend *managementJSONBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
+	return backend.coordinated(ctx, write, backend.Backend.CoordinatedAtomic)
+}
+
 func (backend *managementJSONBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	return backend.coordinated(ctx, func(scope db.Session) error {
+		relation, ok := scope.(db.RelationSession)
+		if !ok {
+			return errors.New("native completion probe lost relation scope")
+		}
+		return write(relation)
+	}, func(ctx context.Context, call func(db.Session) error) error {
+		return backend.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error { return call(scope) })
+	})
+}
+
+func (backend *managementJSONBackend) coordinated(ctx context.Context, write func(db.Session) error, invoke func(context.Context, func(db.Session) error) error) error {
 	backend.writes.Add(1)
 	fault, _ := backend.writeFault.Swap("").(string)
-	native, supported := backend.Backend.(db.CoordinatedRelationAtomic)
-	if !supported {
-		return errors.New("native relation transactions are required")
+	if fault == "cancel" {
+		canceled, cancel := context.WithCancel(ctx)
+		cancel()
+		return invoke(canceled, write)
 	}
-	err := native.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+	err := invoke(ctx, func(scope db.Session) error {
 		if fault == "audit_failure" {
-			conflict, ok := scope.(db.ConflictInserter)
 			validator, valid := scope.(db.SessionValidator)
-			if !ok || !valid {
-				return errors.New("native audit probe lacks required capabilities")
+			if !valid {
+				return errors.New("native audit probe lacks its scope validator")
 			}
-			scope = &managementJSONAuditScope{RelationSession: scope, ConflictInserter: conflict, SessionValidator: validator, failures: &backend.auditFaults}
+			if relation, ok := scope.(db.RelationSession); ok {
+				conflict, valid := scope.(db.ConflictInserter)
+				if !valid {
+					return errors.New("native relation audit probe lacks conflict insertion")
+				}
+				scope = &managementJSONAuditScope{RelationSession: relation, ConflictInserter: conflict, SessionValidator: validator, failures: &backend.auditFaults}
+			} else {
+				scope = &managementJSONAtomicAuditScope{Session: scope, SessionValidator: validator, failures: &backend.auditFaults}
+			}
 		}
 		if err := write(scope); err != nil {
 			return err
@@ -88,10 +115,32 @@ func (backend *managementJSONBackend) CoordinatedAtomicRelation(ctx context.Cont
 		}
 		return nil
 	})
+	if fault == "rejected_cleanup" {
+		var protected *query.ProtectedForeignKeyError
+		if errors.As(err, &protected) {
+			backend.protectedFaults.Add(1)
+		}
+		return errors.Join(err, errors.New("private rollback cleanup failure"))
+	}
 	if err == nil && fault == "unknown" {
 		return &query.Error{Code: query.CodeCommitOutcomeUnknown}
 	}
 	return err
+}
+
+type managementJSONAtomicAuditScope struct {
+	db.Session
+	db.SessionValidator
+	failures *atomic.Int64
+}
+
+func (scope *managementJSONAtomicAuditScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+	key, err := scope.Session.Insert(ctx, plan)
+	if err == nil && plan.Table() == "godj_account_audit_event" {
+		scope.failures.Add(1)
+		return 0, errors.New("private failure after audit insert")
+	}
+	return key, err
 }
 
 type managementJSONAuditScope struct {
@@ -113,11 +162,37 @@ func (scope *managementJSONAuditScope) Insert(ctx context.Context, plan query.In
 type managementJSONHasher struct {
 	auth.PasswordHasher
 	calls atomic.Int64
+	fault atomic.Value
 }
 
 func (hasher *managementJSONHasher) Hash(ctx context.Context, raw string) (string, error) {
 	hasher.calls.Add(1)
+	mode, _ := hasher.fault.Load().(string)
+	switch mode {
+	case "invalid_input":
+		return "", &auth.Error{Code: auth.CodeInvalidInput, Field: "password"}
+	case "wrapped_input":
+		return "", fmt.Errorf("private hasher failure: %w", &auth.Error{Code: auth.CodeInvalidInput, Field: "password"})
+	case "failure":
+		return "", errors.New("private hasher failure")
+	}
 	return hasher.PasswordHasher.Hash(ctx, raw)
+}
+
+// Arm a cleanup failure only after HTTP authentication and admission. This
+// separates the management owner's snapshot from session resolution snapshots.
+type managementJSONOverlay struct {
+	catalogAdminOverlay
+	backend                *managementJSONBackend
+	failReadAfterAdmission atomic.Bool
+}
+
+func (overlay *managementJSONOverlay) Allowed(ctx context.Context, actor auth.Principal, permission auth.Permission) (bool, error) {
+	allowed, err := overlay.catalogAdminOverlay.Allowed(ctx, actor, permission)
+	if err == nil && allowed && overlay.failReadAfterAdmission.Swap(false) {
+		overlay.backend.readFault.Store(true)
+	}
+	return allowed, err
 }
 
 // Observe full native rows independently of HTTP output, then remove just the
@@ -144,10 +219,35 @@ func managementJSONWithout[M any](t *testing.T, manager orm.Manager[M], rows []M
 	return rows, nil, -1
 }
 
+// Seed a preexisting large row revision through the same typed Query AST used
+// by application bulk updates. This fixture bypasses the management API, which
+// must never expose revision as writable request data.
+func managementJSONSetRevision[M any](t *testing.T, backend database.Backend, manager orm.Manager[M], id int64, field string, revision int64) {
+	t.Helper()
+	metadata, err := manager.Metadata()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var selected ir.Field
+	for _, candidate := range metadata.Fields {
+		if candidate.Name == field {
+			selected = candidate
+		}
+	}
+	key, err := manager.PrimaryKeyField()
+	if err != nil {
+		t.Fatal(err)
+	}
+	count, err := manager.Using(backend).Filter(orm.NewAutoField[M](key).Exact(id)).Update(t.Context(), orm.Assign(orm.NewIntegerField[M](selected), revision))
+	if err != nil || count != 1 {
+		t.Fatal("large native revision fixture failed", count, err)
+	}
+}
+
 // The selected generated owners publish their shared JSON application. The
 // consumer supplies no handwritten CRUD callbacks or default account DTO.
 func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], hasher auth.PasswordHasher, original M, profileField, groupExtra, permissionExtra string,
-	factory func(context.Context, sessiondb.Backend, auth.PasswordHasher, auth.Authorizer, accountmodel.RuntimeConfig[M, G, P]) (*accountmodel.Runtime[M, G, P], error)) {
+	factory func(context.Context, sessiondb.Backend, auth.PasswordHasher, auth.Authorizer, accountmodel.RuntimeConfig[M, G, P]) (*accountmodel.Runtime[M, G, P], error), protect ...func(*testing.T, int64) func()) {
 	t.Helper()
 	check := func(err error) {
 		t.Helper()
@@ -187,9 +287,11 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			fields = append(fields, field)
 		}
 	}
-	overlay := &catalogAdminOverlay{}
+	overlay := &managementJSONOverlay{backend: faults}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	clock := func() time.Time { return now }
+	var blockedPasswordPolicy atomic.Bool
+	var passwordPolicies atomic.Int64
 	accountPolicy := accountmodel.AccountManagementConfig[M]{
 		ReadFields: fields, CreateFields: fields, EditFields: fields,
 		Permissions:           accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete", Additional: []auth.Permission{"account.manage"}},
@@ -207,12 +309,16 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			return validation.Errors{}, nil
 		},
 		ValidatePassword: func(_ context.Context, raw string, candidate M) (validation.Errors, error) {
+			passwordPolicies.Add(1)
 			values, err := objects.ModelValues(candidate)
 			if err != nil {
 				return validation.Errors{}, err
 			}
 			if encoded, _ := values[role.Password].String(); encoded != "" {
 				return validation.Errors{}, errors.New("password policy received encoded material")
+			}
+			if blockedPasswordPolicy.Load() {
+				return validation.NewErrors(validation.New("password", "blocked_by_host")), nil
 			}
 			if raw == "weak" {
 				return validation.NewErrors(validation.New("password", "weak")), nil
@@ -696,6 +802,260 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			t.Fatal("catalog common permission lost", status)
 		}
 	})
+	run("native_input_rejections", func(t *testing.T) {
+		before := snapshot()
+		hashes := trackedHasher.calls.Load()
+		target := path("accounts", created.ID)
+		revision := strconv.FormatInt(created.Revision, 10)
+		for index, probe := range []struct {
+			method, path, body, revision string
+			csrf                         bool
+			status                       int
+		}{
+			{"PATCH", target, fieldsBody(map[string]any{role.Active.Field: false}), revision, false, 403},
+			{"PATCH", target, "invalid", `W/"1"`, true, 400},
+			{"PATCH", target, "invalid", `*`, true, 400},
+			{"PATCH", target, fieldsBody(map[string]any{role.Password: "forged"}), revision, true, 400},
+			{"PATCH", target, fieldsBody(map[string]any{role.PrincipalID: "forged"}), revision, true, 400},
+			{"PATCH", target, fieldsBody(map[string]any{role.Revision: 200}), revision, true, 400},
+			{"PATCH", target, fieldsBody(map[string]any{"password_usable": false}), revision, true, 400},
+			{"PUT", target, fieldsBody(map[string]any{role.Login: "forged@example.test", "password_usable": false}), revision, true, 400},
+			{"PATCH", target, `{"password":"forged"}`, revision, true, 400},
+			{"PATCH", target, fieldsBody(map[string]any{role.Groups: nil}), revision, true, 400},
+			{"PATCH", target, fieldsBody(map[string]any{role.Groups: []json.Number{"1.0"}}), revision, true, 400},
+			{"PATCH", target, fieldsBody(map[string]any{role.Groups: []int64{9223372036854775807}}), revision, true, 400},
+			{"PATCH", target, `{"fields":{` + strconv.Quote(role.Active.Field) + `:false,` + strconv.Quote(role.Active.Field) + `:true}}`, revision, true, 400},
+			{"POST", "/api/identity/accounts/", fieldsBody(accountFields("missing@example.test")), "", true, 400},
+			{"POST", "/api/identity/accounts/", creationBody(func() map[string]any {
+				values := accountFields("forged@example.test")
+				values["password_usable"] = true
+				return values
+			}(), "native-fault-password"), "", true, 400},
+			{"POST", target + "password/", encode(map[string]any{"credential": map[string]any{"password": nil}, "password_usable": true}), revision, true, 400},
+			{"DELETE", target, `{}`, revision, true, 400},
+			{"GET", "/api/identity/accounts/?limit=0", "", "", false, 400},
+			{"GET", "/api/identity/accounts/?limit=1&limit=2", "", "", false, 400},
+			{"GET", "/api/identity/accounts/?offset=2147483648", "", "", false, 400},
+			{"GET", target + "?ignored=x", "", "", false, 400},
+			{"POST", "/api/identity/accounts/", creationBody(accountFields("large@example.test"), strings.Repeat("x", 65536)), "", true, 413},
+		} {
+			status, header, body := send(client, probe.method, probe.path, probe.body, probe.revision, probe.csrf)
+			if status != probe.status || header.Get("Revision") != "" || trackedHasher.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("input rejection hashed, published or changed durable state", index, status)
+			}
+			if strings.Contains(string(body), `"password_usable":`) {
+				t.Fatal("rejection published a successful account representation")
+			}
+		}
+		for _, field := range []string{keyField.Name, role.CreatedAt, role.LastLogin} {
+			if field == "" {
+				continue
+			}
+			var value any = "2026-01-01T00:00:00Z"
+			if field == keyField.Name {
+				value = 42
+			}
+			status, header, _ := send(client, "PATCH", target, fieldsBody(map[string]any{field: value}), revision, true)
+			if status != 400 || header.Get("Revision") != "" || trackedHasher.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("server field became writable", field, status)
+			}
+		}
+		status, _, _ := send(newClient(), "POST", "/api/identity/accounts/", `{broken`, "", true)
+		if status != 403 || trackedHasher.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("anonymous input reached management", status)
+		}
+	})
+	for _, resource := range []string{"accounts", "groups", "permissions"} {
+		run("native_revision_"+resource, func(t *testing.T) {
+			const revision = int64(9007199254740993)
+			fields, changedField := accountFields("header@example.test"), profileField
+			if resource == "groups" {
+				fields = map[string]any{role.Catalog.GroupName: "Header group"}
+				changedField = role.Catalog.GroupName
+				if groupExtra != "" {
+					fields[groupExtra] = 7
+				}
+			}
+			if resource == "permissions" {
+				fields = map[string]any{role.Catalog.PermissionCode: "jsonheader.target", role.Catalog.PermissionName: "Header permission"}
+				changedField = role.Catalog.PermissionName
+				if permissionExtra != "" {
+					fields[permissionExtra] = "header fixture"
+				}
+			}
+			body := fieldsBody(fields)
+			if resource == "accounts" {
+				body = creationBody(fields, nil)
+			}
+			status, header, value := send(client, "POST", "/api/identity/"+resource+"/", body, "", true)
+			target := decodeReceipt(status, header, value, 201)
+			switch resource {
+			case "accounts":
+				managementJSONSetRevision(t, faults.Backend, objects, target.ID, role.Revision, revision)
+			case "groups":
+				managementJSONSetRevision(t, faults.Backend, catalog.Groups().Manager(), target.ID, role.Catalog.GroupRevision, revision)
+			case "permissions":
+				managementJSONSetRevision(t, faults.Backend, catalog.Permissions().Manager(), target.ID, role.Catalog.PermissionRevision, revision)
+			}
+			before := snapshot()
+			writes := faults.writes.Load()
+			faults.writeFault.Store("cancel")
+			changedValue := "Header updated"
+			if resource == "accounts" {
+				changedValue = "NZ"
+			}
+			body = fieldsBody(map[string]any{changedField: changedValue})
+			status, header, _ = send(client, "PATCH", path(resource, target.ID), body, strconv.FormatInt(revision, 10), true)
+			if status != 500 || header.Get("Revision") != "" || faults.writes.Load()-writes != 1 || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("canceled accepted header mutated or retried", status)
+			}
+			status, header, value = send(client, "PATCH", path(resource, target.ID), body, strconv.FormatInt(revision, 10), true)
+			updated := decodeReceipt(status, header, value, 200)
+			if updated.ID != target.ID || updated.Revision != revision+1 {
+				t.Fatal("native header lost exact int64 revision")
+			}
+			before = snapshot()
+			status, header, value = send(client, "PATCH", path(resource, target.ID), body, strconv.FormatInt(revision, 10), true)
+			if status != 412 || header.Get("Revision") != "" || !strings.Contains(string(value), `"code":"revision_conflict"`) || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("stale large revision changed durable state", status)
+			}
+			status, header, value = send(client, "GET", path(resource, target.ID), "", "", false)
+			var detail struct{ ID, Revision int64 }
+			check(json.Unmarshal(value, &detail))
+			if status != 200 || detail.ID != target.ID || detail.Revision != revision+1 || header.Get("Revision") != strconv.FormatInt(revision+1, 10) || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("native detail lost committed revision", status)
+			}
+		})
+	}
+	grantKeys := map[auth.Permission]int64{}
+	grantKey := func(code auth.Permission) int64 {
+		if id, found := grantKeys[code]; found {
+			return id
+		}
+		fields := map[string]any{role.Catalog.PermissionCode: string(code), role.Catalog.PermissionName: string(code)}
+		if permissionExtra != "" {
+			fields[permissionExtra] = "HTTP grant"
+		}
+		status, header, body := send(client, "POST", "/api/identity/permissions/", fieldsBody(fields), "", true)
+		result := decodeReceipt(status, header, body, 201)
+		grantKeys[code] = result.ID
+		return result.ID
+	}
+	admissionIndex := 0
+	for _, resource := range []struct {
+		name                              string
+		view, add, change, remove, common auth.Permission
+	}{
+		{"accounts", "account.view", "account.add", "account.change", "account.delete", "account.manage"},
+		{"groups", "catalog.view_group", "catalog.add_group", "catalog.change_group", "catalog.delete_group", "catalog.manage"},
+		{"permissions", "catalog.view_permission", "catalog.add_permission", "catalog.change_permission", "catalog.delete_permission", "catalog.manage"},
+	} {
+		fields := accountFields("grant-target@example.test")
+		if resource.name == "groups" {
+			fields = map[string]any{role.Catalog.GroupName: "HTTP grant target"}
+			if groupExtra != "" {
+				fields[groupExtra] = 7
+			}
+		}
+		if resource.name == "permissions" {
+			fields = map[string]any{role.Catalog.PermissionCode: "jsongrant.target", role.Catalog.PermissionName: "HTTP grant target"}
+			if permissionExtra != "" {
+				fields[permissionExtra] = "HTTP target"
+			}
+		}
+		body := fieldsBody(fields)
+		if resource.name == "accounts" {
+			body = creationBody(fields, nil)
+		}
+		status, header, value := send(client, "POST", "/api/identity/"+resource.name+"/", body, "", true)
+		target := decodeReceipt(status, header, value, 201)
+		for _, code := range []auth.Permission{resource.view, resource.add, resource.change, resource.remove, resource.common} {
+			grantKey(code)
+		}
+		for _, access := range []string{"none", "view", "change", "add", "add_change", "missing_common", "delete"} {
+			run("admission_"+resource.name+"_"+access, func(t *testing.T) {
+				admissionIndex++
+				keys := []int64{grantKey(resource.common)}
+				switch access {
+				case "view":
+					keys = append(keys, grantKey(resource.view))
+				case "change":
+					keys = append(keys, grantKey(resource.change))
+				case "add":
+					keys = append(keys, grantKey(resource.add))
+				case "add_change":
+					keys = append(keys, grantKey(resource.add), grantKey(resource.change))
+				case "delete":
+					keys = append(keys, grantKey(resource.remove))
+				case "missing_common":
+					keys = []int64{grantKey(resource.view), grantKey(resource.add), grantKey(resource.change), grantKey(resource.remove)}
+				}
+				name := fmt.Sprintf("permit%d@example.test", admissionIndex)
+				actorFields := accountFields(name)
+				actorFields[role.Permissions] = keys
+				if role.Staff.Field != "" {
+					actorFields[role.Staff.Field] = false
+				}
+				status, header, value := send(client, "POST", "/api/identity/accounts/", creationBody(actorFields, "HTTP permission password"), "", true)
+				member := decodeReceipt(status, header, value, 201)
+				browser := newClient()
+				login(browser, name, "HTTP permission password")
+				expect := func(method, endpoint, body, revision string, want int) {
+					t.Helper()
+					before := snapshot()
+					hashes := trackedHasher.calls.Load()
+					status, _, _ := send(browser, method, endpoint, body, revision, method != "GET")
+					if status != want {
+						t.Fatal("selected native HTTP permission matrix", resource.name, access, method, status, want)
+					}
+					if want == 403 && (!reflect.DeepEqual(before, snapshot()) || trackedHasher.calls.Load() != hashes) {
+						t.Fatal("denied native API changed state or hashed")
+					}
+				}
+				readStatus, changeStatus, createStatus, deleteStatus := 403, 403, 403, 403
+				if access == "view" || access == "change" || access == "add_change" {
+					readStatus = 200
+				}
+				if access == "change" || access == "add_change" {
+					changeStatus = 200
+				}
+				if access == "add_change" || access == "add" && resource.name != "accounts" {
+					createStatus = 201
+				}
+				if access == "delete" {
+					deleteStatus = 200
+				}
+				expect("GET", "/api/identity/"+resource.name+"/", "", "", readStatus)
+				expect("GET", path(resource.name, target.ID), "", "", readStatus)
+				expect("GET", path(resource.name, target.ID)+"history/", "", "", readStatus)
+				expect("PATCH", path(resource.name, target.ID), fieldsBody(map[string]any{}), "1", changeStatus)
+				createFields := accountFields(fmt.Sprintf("allowed%d@example.test", admissionIndex))
+				if resource.name == "groups" {
+					createFields = map[string]any{role.Catalog.GroupName: fmt.Sprintf("HTTP allowed group %d", admissionIndex)}
+					if groupExtra != "" {
+						createFields[groupExtra] = 7
+					}
+				}
+				if resource.name == "permissions" {
+					createFields = map[string]any{role.Catalog.PermissionCode: fmt.Sprintf("jsongrant.allowed%d", admissionIndex), role.Catalog.PermissionName: fmt.Sprintf("HTTP allowed permission %d", admissionIndex)}
+					if permissionExtra != "" {
+						createFields[permissionExtra] = "HTTP created"
+					}
+				}
+				body := fieldsBody(createFields)
+				if resource.name == "accounts" {
+					body = creationBody(createFields, nil)
+				}
+				expect("POST", "/api/identity/"+resource.name+"/", body, "", createStatus)
+				expect("DELETE", path(resource.name, target.ID), "", "1", deleteStatus)
+				if access == "change" {
+					status, header, value := send(client, "PATCH", path("accounts", member.ID), fieldsBody(map[string]any{role.Permissions: []int64{}}), "1", true)
+					decodeReceipt(status, header, value, 200)
+					expect("GET", path(resource.name, target.ID), "", "", 403)
+				}
+			})
+		}
+	}
 	// Preserve the old native HTTP failure matrix on the selected owners and
 	// renamed generated models. Every mode reaches one real write transaction;
 	// acknowledgement-loss cases never authorize a blind retry.
@@ -919,6 +1279,63 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			}
 		}
 	}
+	for _, operation := range []string{"create", "password"} {
+		for _, mode := range []string{"invalid_input", "wrapped_input", "failure"} {
+			run("hasher_"+operation+"_"+mode, func(t *testing.T) {
+				before := snapshot()
+				hashes, writes := trackedHasher.calls.Load(), faults.writes.Load()
+				body := creationBody(accountFields("hash-failure@example.test"), "native hash candidate")
+				endpoint, revision := "/api/identity/accounts/", ""
+				if operation == "password" {
+					endpoint, revision = path("accounts", created.ID)+"password/", strconv.FormatInt(created.Revision, 10)
+					body = encode(map[string]any{"credential": map[string]any{"password": "native hash candidate"}})
+				}
+				trackedHasher.fault.Store(mode)
+				status, header, value := send(client, "POST", endpoint, body, revision, true)
+				trackedHasher.fault.Store("")
+				want := 500
+				if mode == "invalid_input" {
+					want = 400
+				}
+				if status != want || trackedHasher.calls.Load()-hashes != 1 || faults.writes.Load() != writes || header.Get("Revision") != "" || !reflect.DeepEqual(before, snapshot()) {
+					t.Fatal("hasher boundary retried, mutated or lost classification", operation, mode, status)
+				}
+				if mode == "invalid_input" && !strings.Contains(string(value), `"field":"/credential/password"`) {
+					t.Fatal("hasher input refusal lost command origin")
+				}
+				if mode != "invalid_input" && string(value) != "Internal Server Error\n" {
+					t.Fatal("hasher infrastructure failure exposed diagnostics")
+				}
+			})
+		}
+	}
+	if len(protect) > 0 {
+		run("protected_delete_cleanup", func(t *testing.T) {
+			cleanup := protect[0](t, created.ID)
+			defer cleanup()
+			before := snapshot()
+			for _, mode := range []string{"protected", "rejected_cleanup"} {
+				writes, failures := faults.writes.Load(), faults.protectedFaults.Load()
+				if mode == "rejected_cleanup" {
+					faults.writeFault.Store(mode)
+				}
+				status, header, value := send(client, "DELETE", path("accounts", created.ID), "", strconv.FormatInt(created.Revision, 10), true)
+				want := 400
+				if mode == "rejected_cleanup" {
+					want = 500
+				}
+				if status != want || faults.writes.Load()-writes != 1 || header.Get("Revision") != "" || !reflect.DeepEqual(before, snapshot()) {
+					t.Fatal("protected native deletion mutated or misclassified cleanup", mode, status)
+				}
+				if mode == "protected" && (!strings.Contains(string(value), `"field":"/fields/__all__"`) || !strings.Contains(string(value), `"code":"protected"`)) {
+					t.Fatal("native protection lost safe input diagnostic")
+				}
+				if mode == "rejected_cleanup" && (faults.protectedFaults.Load()-failures != 1 || string(value) != "Internal Server Error\n") {
+					t.Fatal("cleanup fault missed actual PROTECT or leaked cause")
+				}
+			}
+		})
+	}
 	run("native_rollback", func(t *testing.T) {
 		before := snapshot()
 		faults.writeFault.Store("rollback")
@@ -937,11 +1354,19 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 		}
 	})
 	run("read_cleanup_failure", func(t *testing.T) {
-		before := snapshot()
-		faults.readFault.Store(true)
-		status, _, _ := send(client, "GET", path("accounts", created.ID), "", "", false)
-		if status != 500 || !reflect.DeepEqual(before, snapshot()) {
-			t.Fatal("read cleanup published successful data", status)
+		for _, target := range []struct {
+			resource string
+			id       int64
+		}{{"accounts", created.ID}, {"groups", group.ID}, {"permissions", permission.ID}} {
+			for _, endpoint := range []string{"/api/identity/" + target.resource + "/", path(target.resource, target.id), path(target.resource, target.id) + "history/"} {
+				before := snapshot()
+				failures := faults.readFailures.Load()
+				overlay.failReadAfterAdmission.Store(true)
+				status, header, value := send(client, "GET", endpoint, "", "", false)
+				if status != 500 || faults.readFailures.Load()-failures != 1 || overlay.failReadAfterAdmission.Load() || header.Get("Revision") != "" || string(value) != "Internal Server Error\n" || !reflect.DeepEqual(before, snapshot()) {
+					t.Fatal("management read cleanup published or changed durable state", endpoint, status)
+				}
+			}
 		}
 	})
 	run("password_revokes_sessions", func(t *testing.T) {
@@ -968,6 +1393,114 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			t.Fatal("password metadata differs from committed credential")
 		}
 	})
+	run("nullable_password_and_status", func(t *testing.T) {
+		command := path("accounts", created.ID) + "password/"
+		revision := strconv.FormatInt(created.Revision, 10)
+		before := snapshot()
+		hashes, policies := trackedHasher.calls.Load(), passwordPolicies.Load()
+		blockedPasswordPolicy.Store(true)
+		defer blockedPasswordPolicy.Store(false)
+		for _, body := range []string{`{}`, `{"credential":{}}`, `{"credential":{"password":""}}`, `{"credential":{"password":false}}`, `{"credential":{"password":null,"extra":true}}`} {
+			status, header, _ := send(client, "POST", command, body, revision, true)
+			if status != 400 || header.Get("Revision") != "" || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("invalid nullable password command changed state", status)
+			}
+		}
+		for _, test := range []struct {
+			revision string
+			csrf     bool
+			status   int
+		}{{revision, false, 403}, {"", true, 428}, {strconv.FormatInt(created.Revision+1, 10), true, 412}} {
+			status, _, _ := send(client, "POST", command, `{"credential":{"password":null}}`, test.revision, test.csrf)
+			if status != test.status || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("nullable command bypassed transport or revision", status)
+			}
+		}
+		assertStatus := func(usable, active bool) {
+			t.Helper()
+			before := snapshot()
+			type observation struct {
+				ID, Revision   int64
+				Fields         map[string]json.RawMessage
+				PasswordUsable *bool `json:"password_usable"`
+			}
+			checkStatus := func(row observation) {
+				var enabled bool
+				check(json.Unmarshal(row.Fields[role.Active.Field], &enabled))
+				if row.ID != created.ID || row.Revision != created.Revision || row.PasswordUsable == nil || *row.PasswordUsable != usable || enabled != active {
+					t.Fatal("derived password status is missing, mistyped or confused with activation")
+				}
+				if row.Fields[role.Password] != nil || row.Fields[role.PrincipalID] != nil {
+					t.Fatal("password status exposed a stored credential")
+				}
+			}
+			status, _, value := send(client, "GET", path("accounts", created.ID), "", "", false)
+			var detail observation
+			check(json.Unmarshal(value, &detail))
+			if status != 200 {
+				t.Fatal("password status detail", status)
+			}
+			checkStatus(detail)
+			status, _, value = send(client, "GET", "/api/identity/accounts/?limit=100", "", "", false)
+			var page struct{ Items []observation }
+			check(json.Unmarshal(value, &page))
+			seen := false
+			for _, item := range page.Items {
+				if item.ID == created.ID {
+					checkStatus(item)
+					seen = true
+				}
+			}
+			if status != 200 || !seen || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("password status list mutated or omitted target", status)
+			}
+		}
+		assertStatus(false, true)
+		row, err := objects.Using(backend).Filter(key.Exact(created.ID)).Get(t.Context())
+		check(err)
+		previous, err := objects.ModelValues(row)
+		check(err)
+		status, header, value := send(client, "POST", command, `{"credential":{"password":null}}`, revision, true)
+		created = decodeReceipt(status, header, value, 200)
+		row, err = objects.Using(backend).Filter(key.Exact(created.ID)).Get(t.Context())
+		check(err)
+		after, err := objects.ModelValues(row)
+		check(err)
+		encoded, _ := after[role.Password].String()
+		oldRevision, _ := previous[role.Revision].Integer()
+		newRevision, _ := after[role.Revision].Integer()
+		if created.Revision != oldRevision+1 || newRevision != created.Revision {
+			t.Fatal("repeated null lost its revision")
+		}
+		if auth.IsPasswordUsable(encoded) || reflect.DeepEqual(previous[role.Password], after[role.Password]) || trackedHasher.calls.Load() != hashes || passwordPolicies.Load() != policies {
+			t.Fatal("repeated null did not rotate independently of policy/hash")
+		}
+		assertStatus(false, true)
+		status, header, value = send(client, "POST", "/api/identity/accounts/", creationBody(accountFields("without@example.test"), nil), "", true)
+		without := decodeReceipt(status, header, value, 201)
+		profile, err := owner.Reader().Get(t.Context(), actor, without.ID)
+		check(err)
+		if profile.PasswordUsable() || trackedHasher.calls.Load() != hashes || passwordPolicies.Load() != policies {
+			t.Fatal("null creation ran policy/hash or stayed usable")
+		}
+		beforeBlocked := snapshot()
+		status, _, _ = send(client, "POST", command, `{"credential":{"password":"valid but blocked"}}`, strconv.FormatInt(created.Revision, 10), true)
+		if status != 400 || trackedHasher.calls.Load() != hashes || passwordPolicies.Load() != policies+1 || !reflect.DeepEqual(beforeBlocked, snapshot()) {
+			t.Fatal("usable password bypassed configured host policy", status)
+		}
+		status, header, value = send(client, "PATCH", path("accounts", created.ID), fieldsBody(map[string]any{role.Active.Field: false}), strconv.FormatInt(created.Revision, 10), true)
+		created = decodeReceipt(status, header, value, 200)
+		assertStatus(false, false)
+		blockedPasswordPolicy.Store(false)
+		const restored = "  restored JSON password  "
+		status, header, value = send(client, "POST", command, encode(map[string]any{"credential": map[string]any{"password": restored}}), strconv.FormatInt(created.Revision, 10), true)
+		created = decodeReceipt(status, header, value, 200)
+		assertStatus(true, false)
+		status, header, value = send(client, "PATCH", path("accounts", created.ID), fieldsBody(map[string]any{role.Active.Field: true}), strconv.FormatInt(created.Revision, 10), true)
+		created = decodeReceipt(status, header, value, 200)
+		assertStatus(true, true)
+		login(newClient(), "api@example.test", restored)
+	})
 	run("delete_and_audit", func(t *testing.T) {
 		status, header, body := send(client, "DELETE", path("accounts", created.ID), "", strconv.FormatInt(created.Revision, 10), true)
 		deleted := decodeReceipt(status, header, body, 200)
@@ -982,6 +1515,35 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 		decodeReceipt(status, header, body, 200)
 		status, header, body = send(client, "DELETE", path("permissions", permission.ID), "", strconv.FormatInt(permission.Revision, 10), true)
 		decodeReceipt(status, header, body, 200)
+	})
+	run("self_password_keeps_confirmed_receipt", func(t *testing.T) {
+		fields := accountFields("rescue@example.test")
+		fields[role.Superuser.Field] = true
+		status, header, value := send(client, "POST", "/api/identity/accounts/", creationBody(fields, "recovery administrator password"), "", true)
+		decodeReceipt(status, header, value, 201)
+		recovery := newClient()
+		login(recovery, "rescue@example.test", "recovery administrator password")
+		profile, err := owner.Reader().Get(t.Context(), actor, actorID)
+		check(err)
+		hashes := trackedHasher.calls.Load()
+		status, header, value = send(client, "POST", path("accounts", actorID)+"password/", `{"credential":{"password":null}}`, strconv.FormatInt(profile.Revision(), 10), true)
+		result := decodeReceipt(status, header, value, 200)
+		_, found, err := selected.Load(t.Context(), actorSession)
+		check(err)
+		if result.ID != actorID || result.Revision != profile.Revision()+1 || found || trackedHasher.calls.Load() != hashes {
+			t.Fatal("self-disable lost confirmed receipt or retained session")
+		}
+		status, _, _ = send(client, "GET", "/api/identity/accounts/", "", "", false)
+		if status != 403 {
+			t.Fatal("self-disabled browser retained management", status)
+		}
+		status, header, value = send(recovery, "POST", path("accounts", actorID)+"password/", encode(map[string]any{"credential": map[string]any{"password": accountPasswordText}}), strconv.FormatInt(result.Revision, 10), true)
+		result = decodeReceipt(status, header, value, 200)
+		if result.ID != actorID || result.Revision != profile.Revision()+2 || trackedHasher.calls.Load() != hashes+1 {
+			t.Fatal("other administrator failed to restore selected account")
+		}
+		client = newClient()
+		actorSession = login(client, actorLogin, accountPasswordText)
 	})
 	run("self_deactivation_keeps_confirmed_receipt", func(t *testing.T) {
 		profile, err := owner.Reader().Get(t.Context(), actor, actorID)

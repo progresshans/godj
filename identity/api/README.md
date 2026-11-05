@@ -40,7 +40,7 @@ BasePath를 바꾸면 canonical static subtree를 사용한다. 생성자는 I/O
 `id` 경로는 0·음수를 포함한 canonical signed int64 decimal이다. `+1`, `01`, `-0`, overflow는 거부한다.
 Router의 bounded string 경로에서 이 업무 문법을 검사하며 OpenAPI 설명에도 동일 제약을 둔다.
 목록과 이력 외의 query, 알 수 없는/반복 query, 빈 `?`는 거부한다. 각 요청은 인증·CSRF·모델 권한을 먼저 검사하고,
-쓰기에서는 경로/query와 revision을 body보다 먼저 확인한다.
+쓰기에서는 경로/query와 revision을 body보다 먼저 확인한다. DELETE의 본문은 허용하지 않으며 길이가 미정인 입력도 거부한다.
 
 모델 입력은 `{"fields": {...}}`다. 계정 생성은 credential 명령도 요구한다.
 
@@ -73,7 +73,8 @@ catalog 생성은 add와 모든 추가 권한을 요구한다. 수정·password�
 최종 owner는 현재 actor·domain·target·권한·소속/유효 권한 한도를 native snapshot/transaction에서 다시 검사한다.
 
 쓰기의 `If-Revision`은 1..9223372036854775806의 단일 canonical positive decimal이다. 누락은 428, 문법/한도 오류는
-400, 현재 revision과 충돌하면 412다. 목록·wildcard·leading zero·반복 header도 거부한다. 이 조건은 ETag가 아니다.
+400, 현재 revision과 충돌하면 412다. 누락/문법 오류는 `validation_error`와 `If-Revision`의 `required`/`invalid` 진단이다.
+목록·wildcard·leading zero·반복 header도 거부한다. 이 조건은 ETag가 아니다.
 
 생성은 201, 수정·password·삭제는 200으로 `{"id":...,"revision":...}`와 같은 `Revision` header를 반환한다.
 삭제 revision은 삭제한 행의 마지막 관측 값이다. No-op 수정은 revision과 감사를 늘리지 않는다.
@@ -105,4 +106,5 @@ Unknown outcome은 503 `outcome_unknown`이며 Retry-After나 자동 재시도�
 
 필수 파일을 공급하는 생성은 `Creator.CreateForm`과 Admin multipart 경로를 사용한다. 파일을 생략한 JSON 생성은 필수 입력
 거부이며 문자열 이름을 업로드로 취급하지 않는다. 첫 계정의 typed Form owner도 별도 명시적 operation ID를 받는다.
-남은 고정 Directory/Manager host 교체, 공개 첫 명령의 파일 전송·추가 M2M·채운 DB 전환·복구와 전체 환경 수용은 I1에 남아 있다.
+고정 User 전용 JSON application은 제거했으며 기본 계정도 위 선택 owner를 사용한다. 남은 Directory/Manager·Admin host 교체와
+공개 첫 명령·파일/추가 M2M·채운 DB 전환·복구의 같은 source 전체 환경 수용은 I1에서 추적한다.

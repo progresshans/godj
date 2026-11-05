@@ -39,7 +39,8 @@
 - 구체적인 모델 접근은 생성 descriptor·typed ORM·동일 Query AST를 사용한다. 공통 runtime이 snapshot,
   해싱, 최종 권한/credential 재검사, revision, session/reset/audit와 실패 결과를 소유한다.
 - Group/Permission을 포함한 설치 앱은 완전한 source·ABI binding을 갖는다. 기존 세 모델 External 앱을
-  두 모델 선언에 연결하지 않는다. catalog/default-account의 배치와 기존 migration graph 전환은 아직 설계 중이다.
+  두 모델 선언에 연결하지 않는다. 기본 계정/catalog의 배치와 migration graph 전환은 선택 runtime·명시적 전환 owner의
+  현행 계약을 따르며 코드 존재와 환경별 수용을 구분한다.
 - 프로필 입력은 A1/F1의 준비·validation·명시적 노출 정책을 재사용한다. 생성된 Go 타입과 추가 필드 의미를
   공통 `map[string]any` 입력이나 기본 User 사본으로 대체하지 않는다.
 - 기존 operator adoption의 의도된 identity 보존과 임의 모델 교체를 구분한다. 새 모델/domain의 session stamp,
@@ -678,6 +679,12 @@ operator schema 순서와 through snapshot cleanup 주입을 보완했다. 기�
 password에 감사 실패·rollback/commit 뒤 결과 불명 30개 필수 child를 추가했다. 전체 durable 행·소속·세션·감사와
 실제 transaction/hash 횟수를 확인하도록 작성했다. 독립 identity 관측의 native 삭제 호출 타입 오류도 보정했다.
 기존 native/Admin/독립 SDK 검사를 유지하며 새 본문의 실행과 고정 제품 교체의 완료는 구분한다.
+
+고정 User 전용 JSON application·DTO/serializer와 해당 native HTTP 조립을 제거했다. 모든 관리 JSON은 선택 owner를 사용한다.
+기존 입력·권한 회수·exact revision·hash/DB/cleanup 실패·nullable credential 상태·자기 세션 폐기 검사를 기본/custom 생성 HTTP와
+독립 SDK로 옮겼다. 각 DB의 옛 selector 104개를 제거하고 생성 child의 필수 목록을 보강했으며 검증 책임 대응표를 TEST_EVIDENCE에 둔다.
+선택 DELETE의 본문 무시를 거부로 고쳤다. 역사 service/Admin·Django 원문은 유지하며 남은 고정 Directory/Manager/Admin 교체와
+새 native 본문·전체 환경 수용은 완료로 계산하지 않는다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

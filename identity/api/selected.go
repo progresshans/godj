@@ -17,6 +17,9 @@ import (
 	"github.com/progresshans/godj/web"
 )
 
+// BasePath is the default subtree for selected account and catalog management.
+const BasePath = "/api/identity/"
+
 // ManagementConfig supplies one authentication profile and static API subtree.
 // Empty Namespace uses the selected account's app label; empty BasePath uses
 // /api/identity/.
@@ -214,7 +217,7 @@ func selectedResponses(status int, schema openapi.Schema, revision bool, failure
 	}
 	responses := []openapi.Response{response}
 	for _, failure := range failures {
-		responses = append(responses, jsonResponse(failure, http.StatusText(failure), ref))
+		responses = append(responses, openapi.Response{Status: failure, Description: http.StatusText(failure), ContentType: api.JSONContentType, Schema: ref})
 	}
 	return responses, nil
 }
@@ -233,4 +236,16 @@ func selectedNil(value any) bool {
 		return reflected.IsNil()
 	}
 	return false
+}
+
+func noStore(handler web.Handler) web.Handler {
+	return func(request *web.Request) (web.Response, error) {
+		response, err := handler(request)
+		if err != nil {
+			return response, err
+		}
+		header := response.Header()
+		header.Set("Cache-Control", "no-store")
+		return response.WithHeaders(header)
+	}
 }

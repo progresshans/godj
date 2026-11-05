@@ -61,7 +61,10 @@ nullable 물리 행까지 검사하며 생성/편집의 독립 권한·삭제/�
 일반·첫 계정 생성도 명시적 through 정책과 한도를 갖는다. 부모 key를 보류한 typed 입력·snapshot 밖 해싱과 실제 FK 결합,
 실제 첫 actor의 인가/감사·부모/자식/domain rollback과 선언 fingerprint v4의 소비자를 작성했다. 원격 수용은 미완료다.
 일반/UNIQUE·부분 공유·계정 생성/기존 계정과 native 대응표·rollback/unknown/재접속 소비자를 작성했으며 새 본문은 원격 확인 대상이다.
-역사 systemstate 전환은 남아 있다.
+역사 systemstate의 최초 선택 domain 이행·원문 보존·퇴역 runtime 거부와 별도 operator process의 custom 모델 전환 소비자를 작성했다.
+고정 JSON application은 제거하고 기본/custom 관리 모두 선택 owner를 사용한다. 기존 native JSON의 입력/권한·revision·실패·
+credential 상태 검사는 생성 HTTP 소비자와 독립 SDK로 이관했다. 남은 Directory/Manager·Admin 소비자 교체와 새 source의
+이행·복구·JSON 전체 환경 수용은 계속 추적한다.
 전환 대상의 through 수명·
 남은 소비자와 새 source의 전체 환경 수용은 미완료다. 기본/custom 일곱 변형의 독립 HTTP 소비자는 SQLite·PostgreSQL 실행을
 필수 목록에 연결했고 독립 OpenAPI 관리·자기 계정 소비자도 선택 runtime으로 전환했다. 새 본문의 원격 확인이 필요하다.

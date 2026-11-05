@@ -199,11 +199,11 @@ Owner revision·관계 삭제·값 없는 audit는 같은 transaction이다. 삭
 
 ## 관리 JSON API와 수정 조건
 
-`identity/api`는 User·Group·Permission의 목록/상세·생성·PUT/PATCH·삭제와 관리자 password 교체를
-기존 Manager에 연결한다. Schema IR에서 선택한 field의 serializer·응답·OpenAPI를 구성한다.
-외부 입력이 principal ID·encoded password·시간·revision을 지정하지 못하게 하고, 새 principal ID는 서버가 생성한다.
-응답에는 profile과 직접 관계 ID만 선택하며 principal ID·hash·session material은 포함하지 않는다.
-List는 scalar만 최대 100개씩 ID 순서로 반환하고 count와 items가 같은 snapshot을 사용한다.
+`identity/api`의 관리 진입점은 선택 모델의 `NewManagement`다. AccountManagement/Catalog owner의
+명시적 필드·권한·전체 host source를 사용하며 기본 User 전용 Manager·DTO·serializer 경로를 따로 두지 않는다.
+세부 조립과 응답은 아래 선택 계정 관리 JSON 계약을 따른다. 외부 입력이 principal ID·encoded password·서버 시각·
+revision을 지정하지 못하게 하고, 새 principal ID는 서버가 생성한다. 조회는 선택 profile·직접 관계 ID만 표현하고
+쓰기는 확정된 ID/revision만 반환한다. List는 scalar만 최대 100개씩 key 순서로 반환하며 count와 items가 같은 snapshot이다.
 
 조회는 view 또는 change, User 생성은 add와 change, 나머지 변경은 해당 모델의 add/change/delete를 요구한다.
 `api.AlternativeAuthentication.RequireAny`는 인증과 CSRF를 한 번 수행하고 확정 거부일 때만 다음 권한을 확인한다.
@@ -213,7 +213,7 @@ List는 scalar만 최대 100개씩 ID 순서로 반환하고 count와 items가 �
 `endpoint.Permissions`가 같은 불변 선언을 실행과 OpenAPI에 연결한다. OpenAPI의 `x-godj-any-permissions`는 대안,
 `x-godj-additional-permissions`는 함께 필요한 전체 권한이며 두 그룹 사이의 중복도 거부한다.
 API의 모델 권한과 Admin의 active staff admission은 별개다.
-Manager는 HTTP에서 받은 principal의 과거 grant를 쓰기 권한으로 신뢰하지 않고 현재 저장 상태를 다시 확인한다.
+선택 owner는 HTTP에서 받은 principal의 과거 grant를 쓰기 권한으로 신뢰하지 않고 현재 domain과 저장 상태를 다시 확인한다.
 
 선택 계정의 typed JSON 입력은 모델 field와 credential 명령을 별도 객체로 결합할 수 있다. 공통 `api/input.Object`는
 기존 `NewModel`의 완전한 source와 명령 Body를 보존하며 객체 구조에서 저장이나 권한을 추론하지 않는다.
@@ -248,14 +248,14 @@ password hash profile의 추가 제한은 유지한다. Hasher가 직접 반환�
 400 validation으로 표현한다. 취소·entropy·wrapped error는 실행 실패이며 입력 오류로 낮추지 않는다. UserCreationForm 전체 validation·password confirmation·self-service/reset을
 이 JSON API의 구현으로 주장하지 않는다.
 
-호스트가 제공한 전체 typed relation deleter의 binding을 startup에서 검사한다. identity-only 정책을 자동 선택하지 않는다.
-실제 relation PROTECT는 backend가 같은 callback 오류를 돌려주어 rollback을 확인한 경우만 `__all__/protected` 입력 거부로 표현한다.
+선택 owner가 전체 typed host relation binding을 startup에서 검사한다. identity-only 정책을 자동 선택하지 않는다.
+실제 relation PROTECT는 backend가 같은 callback 오류를 돌려주어 rollback을 확인한 경우만 `/fields/__all__`의 `protected` 입력 거부로 표현한다.
 Cleanup·storage 오류는 입력 거부로 낮추지 않는다. Unknown commit/rollback은 성공 DTO·version 없이 503 `outcome_unknown`을 반환하며
 Retry-After를 제공하지 않는다. 호출자는 durable state를 재확인해야 한다. 관리 응답은 `Cache-Control: no-store`다.
 
 Article의 authenticated composition은 실제 관리 API와 권한으로 보호된 `/api/identity/openapi.json`을 게시한다.
 독립 Session/Bearer generated client를 실제 HTTP에 연결했다. 관리 Form/Admin의 연결은 아래에 명시하며,
-GDJ-0100 전체 platform/process milestone은 별도로 남아 있다.
+현재 I1 source의 전체 platform/process 수용은 work와 TEST_EVIDENCE에서 별도로 판단한다.
 
 
 ## 관리 Form과 공통 Admin 기반
@@ -1862,6 +1862,8 @@ AccountManagement의 `InputSpec`은 add/change의 노출 안에서 전체 모델
 계정 생성은 add+change 및 전체 추가 권한이다. Catalog 생성과 다른 쓰기도 owner의 operation/추가 권한을 사용하며
 Admin staff 조건을 임의로 더하지 않는다. Canonical signed int64 key는 0·음수를 포함하고, If-Revision은 단일 canonical
 positive decimal 1..MaxInt64-1이다. 누락 428·잘못된 입력 400·stale 412를 구별한다. 목록/이력 외 query와 미지·반복 query는 거부한다.
+누락/잘못된 header는 `validation_error`와 `If-Revision`의 `required`/`invalid` 진단을 반환한다.
+DELETE는 본문을 선언하지 않는다. Revision 조건을 먼저 검사한 뒤 알려진 길이·미정 길이·chunked 본문을 업무 I/O 전에 거부한다.
 
 JSON 전체는 64 KiB·각 문자열 4,096 bytes 한도와 같은 중첩 parser 예산을 사용한다. Scalar의 blank/nullable·빈 문자열·
 full default와 partial 생략은 Schema IR을 따른다. PUT에서도 생략한 optional collection은 보존하고 명시적 빈 배열은 해제한다.

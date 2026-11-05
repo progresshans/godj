@@ -305,6 +305,23 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 					}
 				}
 			}
+			for _, name := range []string{"native_input_rejections", "nullable_password_and_status", "self_password_keeps_confirmed_receipt"} {
+				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
+			}
+			for _, resource := range []string{"accounts", "groups", "permissions"} {
+				required = append(required, "TestGeneratedAccountManagementJSON/native_revision_"+resource)
+				for _, access := range []string{"none", "view", "change", "add", "add_change", "missing_common", "delete"} {
+					required = append(required, "TestGeneratedAccountManagementJSON/admission_"+resource+"_"+access)
+				}
+			}
+			for _, operation := range []string{"create", "password"} {
+				for _, mode := range []string{"invalid_input", "wrapped_input", "failure"} {
+					required = append(required, "TestGeneratedAccountManagementJSON/hasher_"+operation+"_"+mode)
+				}
+			}
+			if variant.custom {
+				required = append(required, "TestGeneratedAccountManagementJSON/protected_delete_cleanup")
+			}
 			required = append(required, "TestGeneratedAccountAdminLifecycle")
 			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
 				required = append(required, "TestGeneratedAccountAdminLifecycle/"+name)

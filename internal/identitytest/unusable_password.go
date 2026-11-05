@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -17,7 +16,6 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	identityadmin "github.com/progresshans/godj/identity/admin"
-	identityapi "github.com/progresshans/godj/identity/api"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/systemstate"
@@ -337,58 +335,30 @@ func (b beforePasswordWrite) CoordinatedAtomic(ctx context.Context, callback fun
 }
 
 func RunUnusablePasswordHTTP(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
-	for _, channel := range []string{"api", "admin"} {
-		t.Run(channel, func(t *testing.T) {
-			backend, _ := open(t)
-			f := newManagementFixture(t, backend, 3)
-			policy := identity.PasswordValidatorFunc(func(string, identity.Profile) validation.Errors {
-				return validation.NewErrors(validation.New("password", "blocked_by_host"))
-			})
-			if channel == "api" {
-				h, _ := newManagementHTTP(t, f, f.runtime, policy)
-				path := apiPath("users", f.user.ID) + "password/"
-				for _, payload := range []string{`{}`, `{"password":""}`, `{"password":false}`, `{"password":null,"extra":true}`} {
-					managementCall(t, h, h.client, "POST", path, payload, "1", true, 400)
-				}
-				managementCall(t, h, h.client, "POST", path, `{"password":null}`, "1", false, 403)
-				managementCall(t, h, h.client, "POST", path, `{"password":null}`, "", true, 428)
-				managementCall(t, h, h.client, "POST", path, `{"password":null}`, "2", true, 412)
-				f.assertOutcome(t, false)
-				managementCall(t, h, h.client, "POST", path, `{"password":null}`, "1", true, 200)
-				managementCall(t, h, h.client, "POST", path, `{"password":null}`, "2", true, 200)
-				h.login(t, h.newClient(t), "member", managementOldPassword, 401)
-				_, body := managementCall(t, h, h.client, "POST", identityapi.BasePath+"users/", `{"username":"without","password":null}`, "", true, 201)
-				id := apiInteger(t, body, "id")
-				created, found, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(id)).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
-				if err != nil || !found || !strings.HasPrefix(created.EncodedPassword, "!") || !created.Active {
-					t.Fatal("explicit null creation failed", err)
-				}
-				managementCall(t, h, h.client, "POST", path, `{"password":"valid but rejected"}`, "3", true, 400)
-			} else {
-				h := newIdentityAdminHTTP(t, f, f.runtime, func(config identityadmin.Config) identityadmin.Config { return config.WithPasswordValidators(policy) })
-				h.loginAdmin(t, h.client, "manager", managementOldPassword)
-				path := adminObjectPath("users", "command/disable-password", f.user.ID)
-				form := h.call(t, h.client, "GET", path, nil, 200)
-				h.call(t, h.client, "POST", path, url.Values{"confirm": {"on"}, "expected_revision": {"1"}}, 403)
-				h.postForm(t, path, url.Values{}, 200)
-				h.call(t, h.client, "POST", path, url.Values{"confirm": {"on"}, "expected_revision": {"2"}, "csrfmiddlewaretoken": {form.token(t)}}, 409)
-				f.assertOutcome(t, false)
-				h.postForm(t, path, url.Values{"confirm": {"on"}}, 302)
-				h.postForm(t, path, url.Values{"confirm": {"on"}}, 302)
-			}
-			if f.stored(t).Revision != 3 || !strings.HasPrefix(f.stored(t).EncodedPassword, "!") || f.hasher.calls.Load() != 0 {
-				t.Fatal("HTTP disablement lost state or invoked password policy/hash")
-			}
-			if _, err := f.manager(t, f.runtime).SetPassword(t.Context(), f.actor, f.user.ID, 3, managementNewPassword); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := f.runtime.Authenticator().Authenticate(t.Context(), "member", managementNewPassword); err != nil {
-				t.Fatal("restore after HTTP disablement failed", err)
-			}
-			// Self-disable commits, then its own old session cannot administer.
-			h, _ := newManagementHTTP(t, f, f.runtime)
-			managementCall(t, h, h.client, "POST", apiPath("users", f.root.ID)+"password/", `{"password":null}`, strconv.FormatInt(f.root.Revision, 10), true, 200)
-			managementCall(t, h, h.client, "GET", identityapi.BasePath+"users/", "", "", false, 403)
+	t.Run("admin", func(t *testing.T) {
+		backend, _ := open(t)
+		f := newManagementFixture(t, backend, 3)
+		policy := identity.PasswordValidatorFunc(func(string, identity.Profile) validation.Errors {
+			return validation.NewErrors(validation.New("password", "blocked_by_host"))
 		})
-	}
+		h := newIdentityAdminHTTP(t, f, f.runtime, func(config identityadmin.Config) identityadmin.Config { return config.WithPasswordValidators(policy) })
+		h.loginAdmin(t, h.client, "manager", managementOldPassword)
+		path := adminObjectPath("users", "command/disable-password", f.user.ID)
+		form := h.call(t, h.client, "GET", path, nil, 200)
+		h.call(t, h.client, "POST", path, url.Values{"confirm": {"on"}, "expected_revision": {"1"}}, 403)
+		h.postForm(t, path, url.Values{}, 200)
+		h.call(t, h.client, "POST", path, url.Values{"confirm": {"on"}, "expected_revision": {"2"}, "csrfmiddlewaretoken": {form.token(t)}}, 409)
+		f.assertOutcome(t, false)
+		h.postForm(t, path, url.Values{"confirm": {"on"}}, 302)
+		h.postForm(t, path, url.Values{"confirm": {"on"}}, 302)
+		if f.stored(t).Revision != 3 || !strings.HasPrefix(f.stored(t).EncodedPassword, "!") || f.hasher.calls.Load() != 0 {
+			t.Fatal("Admin disablement lost state or invoked password policy/hash")
+		}
+		if _, err := f.manager(t, f.runtime).SetPassword(t.Context(), f.actor, f.user.ID, 3, managementNewPassword); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := f.runtime.Authenticator().Authenticate(t.Context(), "member", managementNewPassword); err != nil {
+			t.Fatal("restore after Admin disablement failed", err)
+		}
+	})
 }
