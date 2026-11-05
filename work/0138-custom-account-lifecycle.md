@@ -598,13 +598,13 @@ unknown·재접속 소비자를 작성했다. 본문·환경별 검증은 TEST_E
 신규 계정과 catalog의 참조를 공동 의존 그래프에 연결했다. 계정 B→Group→Permission→계정 A 같은 순서로 native key를
 받고, 각 행의 전체 삽입 값과 source/target 물리 링크를 고정한다. 소속을 채우기 전에는 전체 scalar와 독립 물리 inventory를
 대조하며, 소속/프로필이 완성된 뒤 현재 선택·custom 정책을 검사한다. 보류 참조를 위해 검증을 없애거나 부분 대응표를
-게시하지 않는다. 기존 외부 소비자에 공동 그래프·실제 signed key·완성 소속 정책·필수 cycle 거부·첫 계정 INSERT 뒤 실패·
+게시하지 않는다. 기존 외부 소비자에 공동 그래프·실제 signed key·완성 소속 정책·첫 계정 INSERT 뒤 실패·
 늦은 참조 변경과 rollback/unknown·재접속을 추가했다. 실제 생성·DB 및 platform 검증은 원격 source별로 구분한다.
 
 공동 생성 그래프의 순환 구간에서 IR nullable FK/OneToOne만 단계적으로 저장하도록 확장했다. 실제 INSERT key를 모두
 받은 뒤 임시 행의 전체 값을 다시 확인하고 보류한 필드만 채운다. PK·revision·credential과 다른 scalar는 유지하며 완성
 정책·Add 감사·소속/receipt 대조로 연결한다. 중간/최종 scalar 합계는 같은 64 MiB 한도로 묶는다. 순환 밖의 FK와 필수
-의존은 순서를 유지하며 nullable 간선 제거 뒤에도 남는 필수 순환은 쓰기 전에 거부한다. 계정·catalog·혼합 순환과 자기
+의존은 순서를 유지하며 nullable 간선 제거 뒤에도 남는 필수 순환은 아래 native 삽입 경로를 사용한다. 계정·catalog·혼합 순환과 자기
 참조·실제 signed key, 임시 값/endpoint 변조·갱신 뒤 실패·OneToOne 충돌·정책 거부·unknown/restart 소비자를 추가했다.
 필수 FK만 있는 별도 schema와 그래프/범위/사본/예산 검사도 필수 실행 목록에 연결했다. 환경별 본문 실행은 원격 확인 대상이다.
 
@@ -630,11 +630,18 @@ native 실패/unknown을 추가했다. 원본 Go 본문과 DB 실행은 아직 �
 명시적 key의 완성 행을 한 문장으로 넣는 `InsertGraphPlan`·borrowed `GraphInserter`를 작성했다. PostgreSQL 쓰기 CTE와
 SQLite의 연결 전용 임시 trigger는 일반 FK 제약 시점을 유지한다. 실제 INSERT key·전체 key 존재와 내부 savepoint의
 실패/취소·자원 정리·부모 작업 보존·불확실한 종료를 검사하며 양 DB 소비자는 필수 상호/자기 순환을 사용한다.
-기반의 Go 본문·native 실행·race/platform은 원격 확인 대상이다. Typed account/catalog 전환의 결합은 계속 미완료이며
-해당 제품 경로는 아직 필수 순환을 쓰기 전에 명시적으로 거부한다.
+기반의 환경별 실행과 source별 결과는 TEST_EVIDENCE에서 구분한다.
+
+Typed 계정/catalog 전환도 필수 연결 성분별 실제 key 예약·완성 후보 준비·단일 문장 삽입에 연결했다. 첫 쓰기 전에
+전체 성분의 capability·행/parameter 한도를 검사하고 각 물리 allocator를 한 번씩 호출한다. 같은 성분의 FK를 모두
+결합한 뒤 실제 반환 key와 전체 typed 행을 대조해야 대응표를 확정한다. 성분 밖의 nullable 참조는 기존 보류/완성 경로를
+유지하며 긴 사슬을 필수 성분의 행 한도에 포함하지 않는다. 값 합계·source revision·인가·소속·최종 정책·감사·session·
+receipt와 실패/unknown 경계는 유지한다. 계정 상호/자기 순환, catalog 상호 순환과 세 역할 공동 순환의 실제 생성 앱에
+signed key·사본·역순·선택/정책·중간/최종 변조·native 실패·잘못된 반환 key·한도·unique·rollback/restart 검사를 추가했다.
+새 typed 통합의 Go 본문과 생성 소비자·DB·race/platform 실행은 원격 확인 대상이다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
-필수 FK 순환의 typed 전환 통합, 역사 `systemstate` 가져오기,
+필수 FK 순환의 typed 전환 검증, 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

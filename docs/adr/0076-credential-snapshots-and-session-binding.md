@@ -2097,7 +2097,7 @@ scalar·credential·unique 검사를 거쳐 저장한다. 보류한 FK/M2M 선�
 않으며 해당 후보의 정책은 실제 key 결합 후 같은 transaction에서 적용한다. 계정 참조는 원본 key의 의존 순서로 생성하고
 반환 대응표는 원본 순서를 유지한다. 공유 catalog의 의도된 revision 증가 뒤에도 입력 참조는 검토한 SourceRevision에 묶인다.
 Nullable FK로 끊을 수 있는 순환은 아래 공동 할당의 단계적 완성 규약을 사용한다. 필수 FK만으로 남는 cycle은
-별도 native key 할당 기반이 필요하며 쓰기 전에 명시적 `unsupported`다. 기존 source 인가와 마지막 전체 행·session·audit·receipt 대조는 유지한다.
+아래 native key 예약·단일 문장 삽입 규약으로 생성한다. 기존 source 인가와 마지막 전체 행·session·audit·receipt 대조는 유지한다.
 
 ### 전환 대상 catalog의 생성
 
@@ -2127,9 +2127,8 @@ digest에 포함한다. 완전한 typed 행·unique·선택·custom 정책은 �
 거부한다. 중간 행과 완성된 행 각각의 전체 scalar 합계에도 같은 64 MiB 한도를 적용하며, 완성한 임시 관측은 해제한다.
 계정·catalog의 완성 전에는 보류한 선택 정책이나 custom validator에 행을 전달하지 않는다. 완성한 identity는 기존 최종
 전체 행/물리 링크 inventory에 들어가며 한 번의 Add 감사·revision 1을 유지한다. 실제 INSERT key 0/음수도 그대로 사용한다.
-해당 nullable 간선을 제거해도 남는 필수 FK cycle은 쓰기 전에 명시적 `unsupported`다. Native 제약을 끄거나 key를 예측하지
-않는다. 아래 native 예약 기반을 실제 순환 INSERT와 연결하는 작업은 미완료다. 중간 변조·FK 갱신 실패·unique 충돌도
-전체 transaction rollback이다.
+해당 nullable 간선을 제거해도 남는 필수 FK cycle은 아래 native 예약·삽입 규약으로 처리한다. Native 제약을 끄거나
+key를 예측하지 않는다. 중간 변조·FK 갱신 실패·unique 충돌도 전체 transaction rollback이다.
 
 Commit은 같은 native relation transaction에서 계정/catalog 공동 의존 그래프를 할당한 뒤 그룹 권한·계정 소속·프로필을
 하나의 공통 collection batch로 저장하고 host 참조를 적용한다. 보류 참조를 해결하는 동안에는 scalar·native FK·unique 무결성을 유지하고, 관련 행과 소속이 모두 채워진 뒤
@@ -2212,10 +2211,24 @@ FK, connection-wide deferral 부재를 확인한다. 같은 연결의 임시 gat
 확인하지 못하면 부모를 사용할 수 없게 하고 root rollback을 요구한다. 부모 cursor를 닫은 뒤 진입해야 하며 실행 중
 부모/다른 native I/O는 중첩할 수 없다. 성공 역시 최종 transaction commit까지는 잠정 결과다.
 
-기반 코드와 native 소비자를 작성했으며 typed account/catalog 전환의 필수 cycle 연결은 아직 별도 통합 대상이다.
 출처는 [PostgreSQL 17 쓰기 CTE](https://www.postgresql.org/docs/17/queries-with.html#QUERIES-WITH-MODIFYING),
 [SQLite FK의 문장/transaction 경계](https://www.sqlite.org/foreignkeys.html#fk_deferred)와
 [SQLite trigger](https://www.sqlite.org/lang_createtrigger.html)다. 이 문헌에서 native 경계를 확인했으며 구현 소스는 복사하지 않았다.
+
+Typed 전환은 nullable 간선을 보류한 뒤 남는 필수 연결 성분마다 하나의 native 삽입 묶음을 만든다. 같은 성분의
+내부 nullable 참조도 예약한 실제 key로 완성하며 성분 밖의 nullable 보류와 비순환 의존 순서는 유지한다. 모든 성분의
+행·parameter 한도와 borrowed capability를 첫 identity 쓰기/예약 전에 검사한다. 한 성분이 256행 또는 DB의 parameter
+한도를 넘거나 capability가 없으면 명시적 `unsupported`다. 긴 nullable 사슬을 필수 성분에 합쳐 이 한도를 적용하지 않는다.
+
+한 성분의 각 물리 table/key allocator를 한 번씩 호출하고, 전체 예약 key를 준비 전용 대응표에 결합한다. 원본
+key/revision·중복/이미 할당된 key를 검사한 뒤 계정·Group·Permission의 기존 typed owner가 완전한 scalar/credential/unique
+후보를 준비한다. 전체 값의 64 MiB 한도도 실제 INSERT 전에 검사한다. 단일 문장 결과의 순서·key를 모두 확인하고,
+같은 scope에서 각 typed 행을 읽어 준비한 전체 값과 대조한 뒤에만 대응표를 확정한다. 임시 nullable 행은 기존 완료
+owner로 넘기며 나머지는 최종 전체 inventory에 등록한다. 예약 값만으로 생성 성공이나 외부 receipt를 게시하지 않는다.
+
+소속 완성 뒤 현재 선택·custom 정책, source 인가, revision·Add 감사·session 폐기·마지막 전체 행/물리 링크와 receipt
+대조는 기존 전환 owner가 계속 수행한다. 실패는 전체 전환 rollback이며 unknown 결과에는 잠정 대응표를 반환하지 않는다.
+계정 상호/자기 순환·catalog 순환·세 역할 공동 순환과 실패 소비자를 작성했으며 환경별 실행과 제품 수용은 TEST_EVIDENCE에서 구분한다.
 
 ### 전환 collection의 추가 선택 identity 생성
 

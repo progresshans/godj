@@ -33,16 +33,7 @@ func (owner *Transition[S, T]) targetAllocations(current *transitionObservation[
 	partial := make([]transitionInsertions, len(candidates))
 	for i, initial := range candidates {
 		source := SourceAccount{ID: current.pairs[i].old.id, Revision: current.pairs[i].old.revision}
-		persist := func(ctx context.Context, scope db.RelationSession, candidate transitionCreationCandidate[T], inventory *transitionInsertions, expected *int64) (int64, error) {
-			row, err := candidate.prepared.Model()
-			if err != nil {
-				return 0, err
-			}
-			if creating || candidate.row.revision != originals[i].revision {
-				if err := candidate.prepared.Save(ctx, scope, &row); err != nil {
-					return 0, err
-				}
-			}
+		publish := func(ctx context.Context, scope db.RelationSession, candidate transitionCreationCandidate[T], row T, inventory *transitionInsertions, expected *int64) (int64, error) {
 			key, present, err := objects.PrimaryKey(row)
 			id, integer := key.Integer()
 			if err != nil || !present || !integer || !creating && id != originals[i].id || expected != nil && id != *expected {
@@ -66,7 +57,19 @@ func (owner *Transition[S, T]) targetAllocations(current *transitionObservation[
 			result.mappings[i] = AccountMapping{SourceID: source.ID, SourceRevision: source.Revision, TargetID: id, TargetRevision: revision}
 			return id, nil
 		}
-		result.nodes = append(result.nodes, transitionAllocation{reference: newTransitionReferenceNode(TransitionReferenceAccount, source, initial.references, metadata),
+		persist := func(ctx context.Context, scope db.RelationSession, candidate transitionCreationCandidate[T], inventory *transitionInsertions, expected *int64) (int64, error) {
+			row, err := candidate.prepared.Model()
+			if err != nil {
+				return 0, err
+			}
+			if creating || candidate.row.revision != originals[i].revision {
+				if err := candidate.prepared.Save(ctx, scope, &row); err != nil {
+					return 0, err
+				}
+			}
+			return publish(ctx, scope, candidate, row, inventory, expected)
+		}
+		node := transitionAllocation{reference: newTransitionReferenceNode(TransitionReferenceAccount, source, initial.references, metadata),
 			insert: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, references transitionTargetMappings, deferred map[string]bool) (int64, error) {
 				candidate := initial
 				if len(deferred) != 0 && (!creating || candidate.resolve == nil) {
@@ -113,7 +116,34 @@ func (owner *Transition[S, T]) targetAllocations(current *transitionObservation[
 				return err
 			},
 			values: func() map[string]query.Value { return current.pairs[i].next.values },
-		})
+		}
+		if creating {
+			node.graph, err = newTransitionGraphAllocation(metadata, func(ctx context.Context, scope db.RelationSession, actor auth.Principal, references transitionTargetMappings, key int64, deferred map[string]bool) (transitionGraphInsertion, error) {
+				candidate := initial
+				if candidate.resolve == nil {
+					return transitionGraphInsertion{}, managementError(CodeInvalidConfig, nil)
+				}
+				candidate, err := candidate.resolve(ctx, scope, actor, references, transitionCreationPhase[T]{allocating: true, deferred: deferred})
+				if err != nil {
+					return transitionGraphInsertion{}, err
+				}
+				if candidate.resolve != nil {
+					return transitionGraphInsertion{}, managementError(CodeConflict, nil)
+				}
+				return prepareTransitionGraphInsert(objects, candidate.prepared, key, func(ctx context.Context, scope db.RelationSession, row T) error {
+					inventory := &result.inserted
+					if len(deferred) != 0 {
+						inventory = &partial[i]
+					}
+					_, err := publish(ctx, scope, candidate, row, inventory, &key)
+					return err
+				})
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+		result.nodes = append(result.nodes, node)
 	}
 	return result, nil
 }

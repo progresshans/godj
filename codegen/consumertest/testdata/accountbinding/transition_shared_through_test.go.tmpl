@@ -111,6 +111,10 @@ type stBackend struct {
 	mutate              func(context.Context, db.Queryer) error
 	identityHook        func(context.Context, db.Session, string) error
 	identityUpdateHook  func(context.Context, db.Session, query.UpdatePlan) error
+	graphCalls          int
+	graphReservations   []query.AutoKeyPlan
+	graphFailure        error
+	graphWrongKey       bool
 }
 
 func (backend *stBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
@@ -152,6 +156,70 @@ func (scope *stScope) ValidateSession(ctx context.Context) error {
 }
 func (scope *stScope) RelationSetNull(ctx context.Context, plan query.RelationSetNullPlan) (int64, error) {
 	return scope.Session.(db.RelationSession).RelationSetNull(ctx, plan)
+}
+func (scope *stScope) ReserveAutoKeys(ctx context.Context, plan query.AutoKeyPlan) ([]int64, error) {
+	allocator, ok := scope.Session.(db.AutoKeyAllocator)
+	if !ok {
+		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}
+	}
+	keys, err := allocator.ReserveAutoKeys(ctx, plan)
+	if err == nil {
+		scope.owner.graphReservations = append(scope.owner.graphReservations, plan)
+	}
+	return keys, err
+}
+func (scope *stScope) InsertGraphLimits(ctx context.Context) (db.InsertGraphLimits, error) {
+	inserter, ok := scope.Session.(db.GraphInserter)
+	if !ok {
+		return db.InsertGraphLimits{}, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}
+	}
+	limits, err := inserter.InsertGraphLimits(ctx)
+	if err == nil && strings.Contains(scope.owner.mode, "graph_limit") {
+		limits.Rows = 1
+	}
+	return limits, err
+}
+func (scope *stScope) InsertGraph(ctx context.Context, plan query.InsertGraphPlan) ([]int64, error) {
+	inserter, ok := scope.Session.(db.GraphInserter)
+	if !ok {
+		return nil, &query.Error{Category: query.CategoryBackend, Code: query.CodeUnsupported}
+	}
+	scope.owner.graphCalls++
+	keys, err := inserter.InsertGraph(ctx, plan)
+	if err != nil {
+		return nil, err
+	}
+	inserts := plan.Inserts()
+	if len(keys) != len(inserts) {
+		return nil, errors.New("native graph returned an incomplete key list")
+	}
+	// Every row is already inserted before this statement boundary. Capture
+	// the complete actual result before any after-write fault or mutation.
+	for index, insert := range inserts {
+		if insert.Table() == scope.owner.table {
+			scope.owner.inserted = append(scope.owner.inserted, stInsertion{keys[index], insert})
+		}
+		if stIdentityTable(insert.Table()) {
+			scope.owner.identities[insert.Table()] = append(scope.owner.identities[insert.Table()], stInsertion{keys[index], insert})
+		}
+	}
+	for _, insert := range inserts {
+		if stIdentityTable(insert.Table()) && scope.owner.identityHook != nil {
+			if err := scope.owner.identityHook(ctx, scope.Session, insert.Table()); err != nil {
+				return nil, err
+			}
+		}
+	}
+	if scope.owner.graphFailure != nil {
+		scope.owner.faults++
+		return nil, scope.owner.graphFailure
+	}
+	if scope.owner.graphWrongKey {
+		scope.owner.faults++
+		keys = slices.Clone(keys)
+		keys[0]++
+	}
+	return keys, nil
 }
 func (scope *stScope) plan(plan query.InsertPlan) query.InsertPlan {
 	if scope.owner.nativeGeneratedKeys {

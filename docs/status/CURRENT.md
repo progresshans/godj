@@ -37,7 +37,8 @@
    전환 collection의 추가 identity 생성·양쪽 실제 FK 결합·원본 인가·전체 batch/inventory·manifest v8/receipt v3와
    기존 INSERT 재사용·실패/복구/restart를 원격 검증한다. 새 전환 collection의 계정 참조 존재·receipt 종류 처리 수정을 원격 검증한다.
    추가한 native key 예약과 단일 문장의 필수 FK graph 삽입 기반을 양 DB·scope·실패/rollback·동시 연결에서 원격 검증한다.
-   실제 INSERT key·trigger 변경·임시 자원 정리와 불확실한 종료를 포함한다. 이를 typed 계정/catalog 전환과 결합하고
+   실제 INSERT key·trigger 변경·임시 자원 정리와 불확실한 종료를 포함한다. Typed 계정/catalog 전환에 연결한 필수
+   성분별 예약·삽입·전체 행 대조와 계정/catalog/세 역할 공동 순환·실패/rollback 소비자를 원격 검증한다.
    역사 systemstate 이행·고정 Directory/Manager 소비자를 완성한다.
 
 ## 검증 경계

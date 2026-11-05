@@ -336,7 +336,11 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 	}
 	allocations := make([]transitionAllocation, 0, len(permissions)+len(groups)+len(accounts))
 	for index, candidate := range finalPermissions {
-		allocations = append(allocations, transitionAllocation{reference: newTransitionReferenceNode(TransitionReferencePermission, SourceAccount{ID: candidate.source.ID, Revision: candidate.source.Revision}, candidate.references, target.permissions.metadata),
+		graph, err := catalogTransitionGraphAllocation(target.project, target.permissions, &finalPermissions[index], &partialPermissions[index], &result.identities, &result.mapping.Permissions[index])
+		if err != nil {
+			return zero, err
+		}
+		allocations = append(allocations, transitionAllocation{reference: newTransitionReferenceNode(TransitionReferencePermission, SourceAccount{ID: candidate.source.ID, Revision: candidate.source.Revision}, candidate.references, target.permissions.metadata), graph: graph,
 			insert: func(_ context.Context, _ db.RelationSession, _ auth.Principal, allocated transitionTargetMappings, deferred map[string]bool) (int64, error) {
 				return writePermission(index, allocated, deferred)
 			}, finish: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, actual transitionTargetMappings, deferred map[string]bool) error {
@@ -344,7 +348,11 @@ func applyCatalogCreation[G, P any](ctx context.Context, scope db.RelationSessio
 			}, values: func() map[string]query.Value { return finalPermissions[index].values }})
 	}
 	for index, candidate := range finalGroups {
-		allocations = append(allocations, transitionAllocation{reference: newTransitionReferenceNode(TransitionReferenceGroup, SourceAccount{ID: candidate.source.ID, Revision: candidate.source.Revision}, candidate.references, target.groups.metadata),
+		graph, err := catalogTransitionGraphAllocation(target.project, target.groups, &finalGroups[index], &partialGroups[index], &result.identities, &result.mapping.Groups[index])
+		if err != nil {
+			return zero, err
+		}
+		allocations = append(allocations, transitionAllocation{reference: newTransitionReferenceNode(TransitionReferenceGroup, SourceAccount{ID: candidate.source.ID, Revision: candidate.source.Revision}, candidate.references, target.groups.metadata), graph: graph,
 			insert: func(_ context.Context, _ db.RelationSession, _ auth.Principal, allocated transitionTargetMappings, deferred map[string]bool) (int64, error) {
 				return writeGroup(index, allocated, deferred)
 			}, finish: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, actual transitionTargetMappings, deferred map[string]bool) error {
@@ -476,6 +484,10 @@ func saveCatalogCreationCandidate[M any](ctx context.Context, scope db.RelationS
 			return 0, nil, err
 		}
 	}
+	return recordCatalogCreationCandidate(model, candidate)
+}
+
+func recordCatalogCreationCandidate[M any](model transitionCatalogModel[M], candidate *catalogCreationCandidate[M]) (int64, map[string]query.Value, error) {
 	key, present, err := model.objects.PrimaryKey(candidate.row)
 	id, integer := key.Integer()
 	if err != nil || !present || !integer {

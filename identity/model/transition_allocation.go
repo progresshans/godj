@@ -24,6 +24,7 @@ type transitionAllocation struct {
 	insert    func(context.Context, db.RelationSession, auth.Principal, transitionTargetMappings, map[string]bool) (int64, error)
 	finish    func(context.Context, db.RelationSession, auth.Principal, transitionTargetMappings, map[string]bool) error
 	values    func() map[string]query.Value
+	graph     *transitionGraphAllocation
 }
 
 func applyTransitionAllocations(ctx context.Context, scope db.RelationSession, actor auth.Principal, references transitionTargetMappings, allocations []transitionAllocation) (transitionTargetMappings, error) {
@@ -42,6 +43,10 @@ func applyTransitionAllocations(ctx context.Context, scope db.RelationSession, a
 		nodes[i] = allocation.reference
 	}
 	plan, err := planTransitionReferences(nodes)
+	if err != nil {
+		return nil, err
+	}
+	allocator, inserter, err := transitionGraphCapabilities(ctx, scope, plan, allocations)
 	if err != nil {
 		return nil, err
 	}
@@ -72,12 +77,38 @@ func applyTransitionAllocations(ctx context.Context, scope db.RelationSession, a
 		}
 	}
 	budget := &transitionDigestWriter{hash: sha256.New()}
-	for _, index := range plan.order {
+	publishKey := func(index int, key int64) error {
 		node := allocations[index]
+		namespace := allocated[node.reference.kind]
+		if source, duplicate := seen[node.reference.kind][key]; duplicate && source != node.reference.source.ID {
+			return managementError(CodeConflict, nil)
+		}
+		if prior, exists := namespace.targets[node.reference.source.ID]; exists && prior != key {
+			return managementError(CodeConflict, nil)
+		}
+		seen[node.reference.kind][key] = node.reference.source.ID
+		namespace.targets[node.reference.source.ID] = key
+		return nil
+	}
+	for position := 0; position < len(plan.order); {
+		index := plan.order[position]
 		if err := validateAccountSessionScope(ctx, scope); err != nil {
 			return nil, err
 		}
-		namespace := allocated[node.reference.kind]
+		if group, native := plan.graphs[index]; native {
+			keys, err := applyTransitionGraph(ctx, scope, actor, allocator, inserter, group, plan.deferred, allocations, allocated, seen, budget)
+			if err != nil {
+				return nil, err
+			}
+			for item, member := range group {
+				if err := publishKey(member, keys[item]); err != nil {
+					return nil, err
+				}
+			}
+			position += len(group)
+			continue
+		}
+		node := allocations[index]
 		key, err := node.insert(ctx, scope, actor, allocated, maps.Clone(plan.deferred[index]))
 		if err != nil {
 			return nil, err
@@ -85,14 +116,10 @@ func applyTransitionAllocations(ctx context.Context, scope db.RelationSession, a
 		if err := writeTransitionValues(budget, node.values()); err != nil {
 			return nil, err
 		}
-		if source, duplicate := seen[node.reference.kind][key]; duplicate && source != node.reference.source.ID {
-			return nil, managementError(CodeConflict, nil)
+		if err := publishKey(index, key); err != nil {
+			return nil, err
 		}
-		if prior, exists := namespace.targets[node.reference.source.ID]; exists && prior != key {
-			return nil, managementError(CodeConflict, nil)
-		}
-		seen[node.reference.kind][key] = node.reference.source.ID
-		namespace.targets[node.reference.source.ID] = key
+		position++
 	}
 	for _, index := range plan.order {
 		fields := plan.deferred[index]

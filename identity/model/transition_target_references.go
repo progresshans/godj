@@ -106,7 +106,8 @@ func bindTransitionReferences[M any](objects orm.Manager[M], metadata ir.Model, 
 }
 
 // The plan is derived from normalized field nullability. Acyclic inputs keep
-// their direct INSERT order; only nullable edges inside a cycle may be staged.
+// their direct INSERT order. Nullable cycle edges may be staged; a remaining
+// required strongly connected component requires one native insertion graph.
 func transitionTargetPlan[M any](requests []AccountCreation[M], metadata ir.Model) (transitionReferencePlan, error) {
 	nodes := make([]transitionReferenceNode, len(requests))
 	for i, request := range requests {
@@ -128,6 +129,7 @@ type transitionReferenceNode struct {
 type transitionReferencePlan struct {
 	order    []int
 	deferred []map[string]bool
+	graphs   map[int][]int // first node -> contiguous, indivisible native group
 }
 type transitionReferenceEdge struct {
 	target int
@@ -187,9 +189,93 @@ func planTransitionReferences(requests []transitionReferenceNode) (transitionRef
 	}
 	order := transitionReferenceTopological(edges, deferred)
 	if len(order) != len(requests) {
-		return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported, Detail: "transition references contain a required auto-key dependency cycle"}
+		return planRequiredTransitionReferences(edges, deferred)
 	}
 	return transitionReferencePlan{order: order, deferred: deferred}, nil
+}
+
+func planRequiredTransitionReferences(edges [][]transitionReferenceEdge, deferred []map[string]bool) (transitionReferencePlan, error) {
+	var zero transitionReferencePlan
+	required := make([][]transitionReferenceEdge, len(edges))
+	for index, dependencies := range edges {
+		for _, edge := range dependencies {
+			if !deferred[index][edge.field] {
+				required[index] = append(required[index], edge)
+			}
+		}
+	}
+	components, sizes := transitionReferenceComponents(required)
+	native := make(map[int]bool)
+	for index, dependencies := range required {
+		for _, edge := range dependencies {
+			if components[index] == components[edge.target] && (sizes[components[index]] > 1 || edge.target == index) {
+				native[components[index]] = true
+			}
+		}
+	}
+	members := make(map[int][]int)
+	for index, component := range components {
+		if !native[component] {
+			continue
+		}
+		members[component] = append(members[component], index)
+		if len(members[component]) > query.MaximumInsertGraphRows {
+			return zero, &query.Error{Category: query.CategoryQuery, Code: query.CodeUnsupported,
+				Detail: "required transition cycle exceeds the native graph row bound"}
+		}
+		// Every key in this native component will exist simultaneously. Its
+		// internal nullable edges therefore need no intermediate NULL. Nullable
+		// edges to other components keep their original staged lifetime.
+		for _, edge := range edges[index] {
+			if components[edge.target] == component {
+				delete(deferred[index], edge.field)
+			}
+		}
+		if len(deferred[index]) == 0 {
+			deferred[index] = nil
+		}
+	}
+	unitOf := make([]int, len(edges))
+	for index := range unitOf {
+		unitOf[index] = -1
+	}
+	var units [][]int
+	var nativeUnit []bool
+	for index, component := range components {
+		if unitOf[index] >= 0 {
+			continue
+		}
+		group := []int{index}
+		if native[component] {
+			group = slices.Clone(members[component])
+		}
+		for _, member := range group {
+			unitOf[member] = len(units)
+		}
+		units = append(units, group)
+		nativeUnit = append(nativeUnit, native[component])
+	}
+	dependencies := make([][]transitionReferenceEdge, len(units))
+	for index, rows := range edges {
+		for _, edge := range rows {
+			if !deferred[index][edge.field] && unitOf[index] != unitOf[edge.target] {
+				dependencies[unitOf[index]] = append(dependencies[unitOf[index]], transitionReferenceEdge{target: unitOf[edge.target], field: edge.field})
+			}
+		}
+	}
+	ordered := transitionReferenceTopological(dependencies, make([]map[string]bool, len(units)))
+	if len(ordered) != len(units) {
+		return zero, managementError(CodeInvalidConfig, nil)
+	}
+	plan := transitionReferencePlan{order: make([]int, 0, len(edges)), deferred: deferred, graphs: make(map[int][]int)}
+	for _, unit := range ordered {
+		group := units[unit]
+		plan.order = append(plan.order, group...)
+		if nativeUnit[unit] {
+			plan.graphs[group[0]] = slices.Clone(group)
+		}
+	}
+	return plan, nil
 }
 
 func transitionReferenceTopological(edges [][]transitionReferenceEdge, deferred []map[string]bool) []int {

@@ -54,6 +54,16 @@ func cfCreation[G, P, L any](t *testing.T, f *stFixture[L], state *cfState, grou
 	var permissionInputs []accountmodel.CatalogRowCreation[P]
 	groupSource := accountmodel.SourceAccount{ID: f.group.ID, Revision: f.group.Revision}
 	if createGroups {
+		groupMetadata, err := groupObjects.Metadata()
+		if err != nil {
+			return accountmodel.CatalogCreation{}, err
+		}
+		requiredPermission := false
+		for _, field := range groupMetadata.Fields {
+			if field.Name == "catalog_permission" {
+				requiredPermission = !field.Nullable
+			}
+		}
 		config.Group.Fields = []string{"title", "note", "host_hub", "owner"}
 		host, err := cfRelation(f, accountmodel.TransitionReferenceGroup, group, "host_hub", bridges.HubObjects)
 		if err != nil {
@@ -79,7 +89,7 @@ func cfCreation[G, P, L any](t *testing.T, f *stFixture[L], state *cfState, grou
 			}
 			references["owner"] = accountmodel.TransitionTargetReference{Kind: accountmodel.TransitionReferenceAccount, Source: f.requests[index].Source}
 		}
-		if f.mode == "reverse_namespaces" || f.mode == "cycle" || strings.HasPrefix(f.mode, "cycle_") || !createPermissions {
+		if requiredPermission || f.mode == "reverse_namespaces" || f.mode == "cycle" || strings.HasPrefix(f.mode, "cycle_") || !createPermissions {
 			field := "catalog_permission"
 			if !createPermissions {
 				field = "legacy_permission"
@@ -169,7 +179,7 @@ func cfCreation[G, P, L any](t *testing.T, f *stFixture[L], state *cfState, grou
 				}
 				state.completeChecks++
 			}
-			if f.mode == "policy_rejected" || f.mode == "joint_policy_rejected" || f.mode == "cycle_policy_rejected" {
+			if f.mode == "policy_rejected" || f.mode == "joint_policy_rejected" || f.mode == "cycle_policy_rejected" || f.mode == "joint_cycle_policy_rejected" {
 				return validation.NewErrors(validation.New(validation.NonField, "catalog_policy")), nil
 			}
 			return validation.Errors{}, nil
@@ -268,10 +278,13 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 	}
 	groupMetadata, err := catalog.TeamObjects.Metadata()
 	stMust(t, err)
-	requiredCycle := false
+	requiredCycle, requiredJoint := false, false
 	for _, field := range groupMetadata.Fields {
 		if field.Name == "catalog_permission" {
 			requiredCycle = required && !field.Nullable
+		}
+		if field.Name == "owner" {
+			requiredJoint = !field.Nullable
 		}
 	}
 	for _, mode := range []string{@@CATALOG_FIELD_CASES@@} {
@@ -283,8 +296,17 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 			f := stSetup(t, strategy, mode, "", bridges.BridgeObjects, stCapabilities[bridges.Bridge]{groups: collections.MembersMemberGroups, permissions: collections.MembersMemberPermissions, legacyGroups: collections.MembersMemberLegacyGroups, legacyPermissions: collections.MembersMemberLegacyPermissions, interests: collections.MembersMemberInterests, grants: collections.CatalogTeamGrants, sharedGroupGrants: collections.IdentityGroupNewPermissions, sharedPermissionGrants: collections.CatalogTeamLegacyPermissions})
 			cycle := mode == "cycle" || strings.HasPrefix(mode, "cycle_")
 			injected := errors.New("nullable catalog completion failed after native UPDATE")
-			if strings.HasPrefix(mode, "cycle_unknown_") {
-				f.backend.mode = strings.TrimPrefix(mode, "cycle_")
+			graphFailure := errors.New("catalog failure after complete native insertion graph")
+			if strings.HasSuffix(mode, "graph_failure") {
+				f.backend.graphFailure = graphFailure
+			}
+			f.backend.graphWrongKey = strings.HasSuffix(mode, "graph_key_mismatch")
+			if strings.HasSuffix(mode, "unknown_commit") {
+				f.backend.mode = "unknown_commit"
+			} else if strings.HasSuffix(mode, "unknown_rollback") {
+				f.backend.mode = "unknown_rollback"
+			} else if mode == "joint_cycle_rollback" {
+				f.backend.mode = "rollback"
 			}
 			if mode == "cycle_finalize_failure" {
 				f.backend.identityUpdateHook = func(_ context.Context, _ db.Session, plan query.UpdatePlan) error {
@@ -295,7 +317,7 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 					return injected
 				}
 			}
-			if mode == "cycle_intermediate_payload" || mode == "cycle_intermediate_endpoint" {
+			if strings.Contains(mode, "cycle_intermediate_payload") || strings.Contains(mode, "cycle_intermediate_endpoint") {
 				f.backend.identityHook = func(ctx context.Context, scope db.Session, table string) error {
 					if table != "catalog_grant" || len(f.backend.identities[table]) != 2 || f.backend.faults != 0 {
 						return nil
@@ -305,8 +327,22 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 						return err
 					}
 					changes := map[string]query.Value{"note": query.String("unreviewed staged catalog payload")}
-					if mode == "cycle_intermediate_endpoint" {
-						changes = map[string]query.Value{"catalog_permission": query.Integer(f.backend.identities[table][1].key)}
+					if strings.HasSuffix(mode, "intermediate_endpoint") {
+						values, err := catalog.TeamObjects.ModelValues(group)
+						if err != nil {
+							return err
+						}
+						found := false
+						for _, inserted := range f.backend.identities[table] {
+							if !values["catalog_permission"].Equal(query.Integer(inserted.key)) {
+								changes = map[string]query.Value{"catalog_permission": query.Integer(inserted.key)}
+								found = true
+								break
+							}
+						}
+						if !found {
+							return errors.New("no distinct stored endpoint for graph mutation")
+						}
 					}
 					f.backend.faults++
 					_, err = stSave(ctx, scope, catalog.TeamObjects, &group, changes)
@@ -317,6 +353,9 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 				f.extraTargetFields = []string{"preferred_permission"}
 				f.extraTargetRelations = []accountmodel.ProfileRelation[members.Member]{stIdentityRelation(t, f.binding, "preferred_permission", catalog.GrantObjects)}
 				f.requests[0].References = map[string]accountmodel.TransitionTargetReference{"preferred_permission": {Kind: accountmodel.TransitionReferencePermission, Source: accountmodel.SourceAccount{ID: f.permissions[0].ID, Revision: f.permissions[0].Revision}}}
+				if requiredJoint {
+					f.requests[1].References = map[string]accountmodel.TransitionTargetReference{"preferred_permission": {Kind: accountmodel.TransitionReferencePermission, Source: accountmodel.SourceAccount{ID: f.permissions[1].ID, Revision: f.permissions[1].Revision}}}
+				}
 				if strings.HasPrefix(mode, "joint_unknown_") || mode == "joint_rollback" {
 					f.backend.mode = strings.TrimPrefix(mode, "joint_")
 				}
@@ -344,12 +383,16 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 				}
 			}
 			f.backend.mutate = func(ctx context.Context, scope db.Queryer) error {
-				if (mode != "late_reference" && mode != "late_host_reference" && mode != "joint_late_reference") || !f.backend.receipt || f.backend.faults != 0 {
+				if (mode != "late_reference" && mode != "late_host_reference" && mode != "joint_late_reference" && mode != "joint_cycle_late_reference") || !f.backend.receipt || f.backend.faults != 0 {
 					return nil
 				}
 				f.backend.faults++
-				if mode == "joint_late_reference" {
-					member, err := members.MemberObjects.Using(scope).Filter(members.MemberFields.Subject.Exact(f.old[0].PrincipalID)).Get(ctx)
+				if mode == "joint_late_reference" || mode == "joint_cycle_late_reference" {
+					index := 0
+					if mode == "joint_cycle_late_reference" {
+						index = 1
+					}
+					member, err := members.MemberObjects.Using(scope).Filter(members.MemberFields.Subject.Exact(f.old[index].PrincipalID)).Get(ctx)
 					if err != nil {
 						return err
 					}
@@ -410,13 +453,10 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 			} else {
 				prepared, failure = owner.Prepare(t.Context(), f.actor, strings.Repeat("d", 64), f.mappings)
 			}
-			early := slices.Contains([]string{"unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap", "denied_static"}, mode) || mode == "missing_reference" && required || requiredCycle && cycle
+			early := slices.Contains([]string{"unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap", "denied_static"}, mode) || mode == "missing_reference" && required
 			if early {
 				if failure == nil || prepared.Manifest().OperationID != "" || !reflect.DeepEqual(before, stSnapshot(t, f.native)) {
 					t.Fatal("invalid catalog reference prepared or persisted", failure)
-				}
-				if requiredCycle && cycle && !errors.Is(failure, &query.Error{Code: query.CodeUnsupported}) {
-					t.Fatal("unresolved identity graph lost explicit unsupported boundary", failure)
 				}
 				return
 			}
@@ -437,7 +477,7 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 				t.Fatal("unowned intermediate row was not rejected before final policy")
 			}
 			success := slices.Contains([]string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "missing_reference", "reverse_namespaces", "shared_group", "shared_permission", "staged_reference", "pending_account_reference", "joint_chain", "joint_signed_keys", "joint_complete_policy", "cycle", "self_cycle", "cycle_signed_keys", "joint_cycle", "joint_cycle_signed_keys"}, mode)
-			committed := success || mode == "unknown_commit" || mode == "joint_unknown_commit" || mode == "cycle_unknown_commit"
+			committed := success || strings.HasSuffix(mode, "unknown_commit")
 			if success {
 				stMust(t, failure)
 			} else if failure == nil || !reflect.DeepEqual(result, accountmodel.TransitionResult{}) {
@@ -445,6 +485,38 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 			}
 			if strings.Contains(mode, "unknown_") && (!errors.Is(failure, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || !f.backend.finished) {
 				t.Fatal("unknown outcome did not execute the complete native callback", failure)
+			}
+			if requiredCycle {
+				beforeGraph := mode == "source_changed" || mode == "permission_revoked" || strings.HasSuffix(mode, "graph_limit")
+				if beforeGraph {
+					if f.backend.graphCalls != 0 || len(f.backend.graphReservations) != 0 || len(f.backend.identities) != 0 {
+						t.Fatal("rejected graph consumed keys or wrote an earlier identity", failure)
+					}
+					if strings.HasSuffix(mode, "graph_limit") && !errors.Is(failure, &query.Error{Code: query.CodeUnsupported}) {
+						t.Fatal("native graph limit lost explicit refusal", failure)
+					}
+				} else {
+					counts := make(map[string]int)
+					for _, plan := range f.backend.graphReservations {
+						if plan.Key().Column() != "id" {
+							t.Fatal("graph reserved the wrong physical primary key")
+						}
+						counts[plan.Table()] += plan.Count()
+					}
+					want := map[string]int{"catalog_team": 1, "catalog_grant": 1}
+					if requiredJoint {
+						want["catalog_grant"], want["members_member"] = 2, 1
+					}
+					if f.backend.graphCalls != 1 || !reflect.DeepEqual(counts, want) {
+						t.Fatal("required identities were split, guessed, or bound to the wrong allocator", f.backend.graphCalls, counts, want)
+					}
+				}
+			}
+			if strings.HasSuffix(mode, "graph_failure") && (!errors.Is(failure, graphFailure) || f.backend.faults != 1 || len(f.backend.identities["catalog_team"]) != 1) {
+				t.Fatal("graph failure did not follow actual native catalog insertion", failure)
+			}
+			if strings.HasSuffix(mode, "graph_key_mismatch") && (f.backend.faults != 1 || len(f.backend.identities["catalog_team"]) != 1 || state.permissionChecks != 0) {
+				t.Fatal("wrong graph key reached typed catalog policy", failure)
 			}
 			if mode == "first_catalog_insert_failure" && (f.backend.faults != 1 || len(f.backend.identities["catalog_team"]) != 1) {
 				t.Fatal("first native catalog INSERT fault was not reached")
@@ -455,29 +527,39 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 			if mode == "denied_choice" && (len(f.backend.identities["catalog_team"]) != 1 || len(f.backend.identities["catalog_grant"]) != 2 || len(f.backend.identities["members_member"]) != 2) {
 				t.Fatal("catalog choice denial did not inspect the allocated identity graph")
 			}
-			if (mode == "policy_rejected" || mode == "cycle_policy_rejected") && (state.permissionChecks == 0 || len(f.backend.identities["catalog_team"]) != 1 || len(f.backend.identities["catalog_grant"]) != 2) {
+			if (mode == "policy_rejected" || mode == "cycle_policy_rejected" || mode == "joint_cycle_policy_rejected") && (state.permissionChecks == 0 || len(f.backend.identities["catalog_team"]) != 1 || len(f.backend.identities["catalog_grant"]) != 2) {
 				t.Fatal("typed catalog policy did not receive an allocated reference")
 			}
 			if mode == "joint_first_account_failure" && (f.backend.faults != 1 || len(f.backend.identities["members_member"]) != 1 || len(f.backend.identities["catalog_team"]) != 0) {
 				t.Fatal("joint graph did not fail after the actual prerequisite account INSERT")
 			}
-			if (mode == "joint_complete_policy" || mode == "joint_policy_rejected" || strings.HasPrefix(mode, "joint_cycle")) && state.completeChecks == 0 {
+			beforeCompletePolicy := strings.Contains(mode, "graph_") || strings.Contains(mode, "intermediate_")
+			if (mode == "joint_complete_policy" || mode == "joint_policy_rejected" || strings.HasPrefix(mode, "joint_cycle") && !beforeCompletePolicy) && state.completeChecks == 0 {
 				t.Fatal("complete graph policy was not reached")
+			}
+			if strings.HasPrefix(mode, "joint_cycle") && beforeCompletePolicy && state.completeChecks != 0 {
+				t.Fatal("incomplete or mutated native graph reached completed policy")
 			}
 			if mode == "joint_policy_rejected" && (len(f.backend.identities["members_member"]) != 2 || len(f.backend.identities["catalog_grant"]) != 2) {
 				t.Fatal("joint policy failure did not roll back the complete allocation")
 			}
-			if (mode == "late_choice" || mode == "late_reference" || mode == "late_host_reference" || mode == "joint_late_reference") && !f.backend.receipt || (mode == "late_reference" || mode == "late_host_reference" || mode == "joint_late_reference") && f.backend.faults != 1 {
+			if (mode == "late_choice" || mode == "late_reference" || mode == "late_host_reference" || mode == "joint_late_reference" || mode == "joint_cycle_late_reference") && !f.backend.receipt || (mode == "late_reference" || mode == "late_host_reference" || mode == "joint_late_reference" || mode == "joint_cycle_late_reference") && f.backend.faults != 1 {
 				t.Fatal("late catalog control did not reach the receipt boundary")
 			}
 			if mode == "cycle_finalize_failure" && (!errors.Is(failure, injected) || f.backend.faults != 1 || len(f.backend.identities["catalog_grant"]) != 2 || len(f.backend.identities["members_member"]) != 2 || state.permissionChecks != 0) {
 				t.Fatal("catalog completion failure did not follow all native identities", failure)
 			}
-			if (mode == "cycle_intermediate_payload" || mode == "cycle_intermediate_endpoint") && (f.backend.faults != 1 || state.permissionChecks != 0) {
+			if (strings.Contains(mode, "cycle_intermediate_payload") || strings.Contains(mode, "cycle_intermediate_endpoint")) && (f.backend.faults != 1 || state.permissionChecks != 0) {
 				t.Fatal("staged catalog tampering reached completed policy", failure)
 			}
-			if mode == "cycle_unique_conflict" && (len(f.backend.identities["catalog_grant"]) != 2 || state.permissionChecks != 0) {
-				t.Fatal("staged OneToOne conflict did not occur during completion", failure)
+			if mode == "cycle_unique_conflict" {
+				want := 2
+				if requiredCycle {
+					want = 1
+				}
+				if len(f.backend.identities["catalog_grant"]) != want || state.permissionChecks != 0 {
+					t.Fatal("OneToOne conflict escaped its actual allocation boundary", failure)
+				}
 			}
 			receipt, found, err := owner.Reconcile(t.Context(), manifest)
 			stMust(t, err)
@@ -515,7 +597,7 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 						t.Fatal("account correspondence lost source mapping")
 					}
 				}
-				if mode == "reverse_namespaces" || cycle {
+				if mode == "reverse_namespaces" || cycle || requiredCycle {
 					permission, err := catalog.GrantObjects.Using(reopened).Filter(catalog.GrantFields.Symbol.Exact(f.permissions[1].Code)).Get(t.Context())
 					stMust(t, err)
 					if !values["catalog_permission"].Equal(query.Integer(permission.ID)) {
@@ -536,7 +618,15 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 					stMust(t, err)
 					bob, err := members.MemberObjects.Using(reopened).Filter(members.MemberFields.Subject.Exact(f.old[1].PrincipalID)).Get(t.Context())
 					stMust(t, err)
-					if alice.PreferredPermissionID == nil || *alice.PreferredPermissionID != first.ID || bob.PreferredPermissionID != nil {
+					aliceValues, err := members.MemberObjects.ModelValues(alice)
+					stMust(t, err)
+					bobValues, err := members.MemberObjects.ModelValues(bob)
+					stMust(t, err)
+					wantBob := query.Null()
+					if requiredJoint {
+						wantBob = query.Integer(second.ID)
+					}
+					if !aliceValues["preferred_permission"].Equal(query.Integer(first.ID)) || !bobValues["preferred_permission"].Equal(wantBob) {
 						t.Fatal("joint account/catalog chain lost exact native FK correspondence")
 					}
 					if mode == "joint_signed_keys" && (bob.ID != 0 || alice.ID >= 0 || groupKey != 0 || second.ID != 0 || first.ID >= 0) {
@@ -573,7 +663,11 @@ func TestAccountTransitionCatalogFields(t *testing.T) {
 					}
 				}
 				if mode == "cycle_signed_keys" || mode == "joint_cycle_signed_keys" {
-					if groupKey != 0 || first.ID > 0 || second.ID > 0 || first.ID == second.ID || first.ID != 0 && second.ID != 0 {
+					if requiredCycle && !f.backend.nativeGeneratedKeys {
+						if groupKey <= 0 || second.ID <= 0 || first.ID == second.ID || requiredJoint && first.ID <= 0 || !requiredJoint && first.ID >= 0 {
+							t.Fatal("SQLite graph did not use its actual positive reservations and explicit dependent key")
+						}
+					} else if groupKey != 0 || first.ID > 0 || second.ID > 0 || first.ID == second.ID || first.ID != 0 && second.ID != 0 {
 						t.Fatal("cyclic catalog did not use native zero/negative keys")
 					}
 				}

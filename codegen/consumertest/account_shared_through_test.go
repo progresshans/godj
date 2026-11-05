@@ -55,7 +55,7 @@ func writeAccountSharedThroughConsumer(t *testing.T, spec codegen.ProjectSpec, r
 		return strings.Join(quoted, ",")
 	}
 	var referenceCases []string
-	for _, name := range accountTransitionTargetReferenceCases() {
+	for _, name := range accountTransitionTargetReferenceCases(accountModelFieldRequired(spec, role.Model, "mentor")) {
 		referenceCases = append(referenceCases, strconv.Quote(name))
 	}
 	source := strings.NewReplacer("@@ROLE@@", string(encoded), "@@MIGRATIONS@@", accountConsumerMigrationSources(t, spec), "@@STAGED_CASES@@", cases("staged"), "@@CREATED_CASES@@", cases("created"), "@@REFERENCE_CASES@@", strings.Join(referenceCases, ",")).Replace(accountSharedThroughConsumer)
@@ -91,7 +91,7 @@ func writeAccountSharedThroughConsumer(t *testing.T, spec codegen.ProjectSpec, r
 		}
 	}
 	var catalogCases []string
-	for _, name := range accountTransitionCatalogFieldCases(requiredFields, requiredCycle) {
+	for _, name := range accountTransitionCatalogFieldCases(requiredFields, requiredCycle, accountModelFieldRequired(spec, role.Catalog.Group, "owner")) {
 		catalogCases = append(catalogCases, strconv.Quote(name))
 	}
 	formatted, err = format.Source([]byte(strings.ReplaceAll(accountTransitionCatalogFieldsConsumer, "@@CATALOG_FIELD_CASES@@", strings.Join(catalogCases, ","))))
@@ -123,16 +123,34 @@ func TestGeneratedAccountSharedThroughTransition(t *testing.T) {
 		"TestAccountSharedThroughTransition/unique/staged", "TestAccountSharedThroughTransition/unique/created")
 }
 
-func accountTransitionTargetReferenceCases() []string {
+func accountModelFieldRequired(spec codegen.ProjectSpec, identity ir.ModelIdentity, name string) bool {
+	for _, app := range spec.Apps {
+		if app.Schema.AppLabel != identity.AppLabel {
+			continue
+		}
+		for _, model := range app.Schema.Models {
+			if model.Name == identity.ModelName {
+				for _, field := range model.Fields {
+					if field.Name == name {
+						return !field.Nullable
+					}
+				}
+			}
+		}
+	}
+	return false
+}
+
+func accountTransitionTargetReferenceCases(requiredCycle bool) []string {
+	if requiredCycle {
+		return []string{"cycle", "self_cycle", "cycle_signed_keys", "cycle_owned_input", "cycle_reordered_input", "cycle_intermediate_payload", "cycle_intermediate_endpoint", "cycle_policy_rejected", "cycle_late_reference", "cycle_unknown_commit", "cycle_unknown_rollback", "cycle_graph_failure", "cycle_graph_key_mismatch", "cycle_graph_limit", "cycle_duplicate_login"}
+	}
 	return []string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "unknown_commit", "unknown_rollback", "rollback", "cycle", "self_cycle", "cycle_signed_keys", "cycle_finalize_failure", "cycle_intermediate_payload", "cycle_intermediate_endpoint", "cycle_policy_rejected", "cycle_late_reference", "cycle_unknown_commit", "cycle_unknown_rollback", "unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap", "missing_reference", "denied_choice", "late_choice", "policy_rejected", "duplicate_login", "unique_conflict", "first_insert_failure", "late_reference", "source_changed", "permission_revoked"}
 }
 
 func TestGeneratedAccountTransitionTargetReferences(t *testing.T) {
-	for _, required := range []bool{false, true} {
-		name := "nullable"
-		if required {
-			name = "required"
-		}
+	for _, name := range []string{"nullable", "required", "required_cycle"} {
+		required, requiredCycle := name != "nullable", name == "required_cycle"
 		t.Run(name, func(t *testing.T) {
 			spec, role := accountSharedThroughSpec(t)
 			for i := range spec.Apps {
@@ -142,12 +160,15 @@ func TestGeneratedAccountTransitionTargetReferences(t *testing.T) {
 						if field.Name == "preferred_group" {
 							field.Nullable, field.Blank = !required, !required
 						}
+						if requiredCycle && field.Name == "mentor" {
+							field.Nullable, field.Blank = false, false
+						}
 					}
 				}
 			}
 			root := writeAccountSharedThroughConsumer(t, spec, role)
 			cases := []string{"TestAccountTransitionTargetReferences"}
-			for _, name := range accountTransitionTargetReferenceCases() {
+			for _, name := range accountTransitionTargetReferenceCases(requiredCycle) {
 				cases = append(cases, "TestAccountTransitionTargetReferences/"+name)
 			}
 			runAccountConsumerDatabases(t, root, cases, "TestAccountTransitionTargetReferences")
@@ -155,9 +176,12 @@ func TestGeneratedAccountTransitionTargetReferences(t *testing.T) {
 	}
 }
 
-func accountTransitionCatalogFieldCases(required, requiredCycle bool) []string {
+func accountTransitionCatalogFieldCases(required, requiredCycle, requiredJoint bool) []string {
+	if requiredJoint {
+		return []string{"joint_cycle", "joint_cycle_signed_keys", "joint_cycle_policy_rejected", "joint_cycle_unknown_commit", "joint_cycle_unknown_rollback", "joint_cycle_rollback", "joint_cycle_graph_failure", "joint_cycle_graph_key_mismatch", "joint_cycle_graph_limit", "joint_cycle_intermediate_payload", "joint_cycle_intermediate_endpoint", "joint_cycle_late_reference"}
+	}
 	if requiredCycle {
-		return []string{"cycle"}
+		return []string{"cycle", "cycle_signed_keys", "owned_input", "reordered_input", "staged_reference", "pending_account_reference", "cycle_intermediate_payload", "cycle_intermediate_endpoint", "cycle_unique_conflict", "cycle_policy_rejected", "cycle_unknown_commit", "cycle_unknown_rollback", "late_reference", "late_host_reference", "late_choice", "source_changed", "permission_revoked", "denied_static", "denied_choice", "cycle_graph_failure", "cycle_graph_key_mismatch", "cycle_graph_limit"}
 	}
 	cases := []string{"lifecycle", "signed_keys", "owned_input", "reordered_input", "staged_reference", "pending_account_reference", "unknown_commit", "unknown_rollback", "rollback", "cycle", "self_cycle", "cycle_signed_keys", "cycle_finalize_failure", "cycle_intermediate_payload", "cycle_intermediate_endpoint", "cycle_unique_conflict", "cycle_policy_rejected", "cycle_unknown_commit", "cycle_unknown_rollback", "unknown_source", "wrong_revision", "wrong_kind", "unknown_field", "scalar_overlap", "missing_reference", "denied_choice", "denied_static", "late_choice", "policy_rejected", "unique_conflict", "first_catalog_insert_failure", "late_reference", "late_host_reference", "source_changed", "permission_revoked", "missing_policy", "duplicate_policy", "wrong_policy_model"}
 	cases = append(cases, "joint_chain", "joint_signed_keys", "joint_complete_policy", "joint_policy_rejected", "joint_cycle", "joint_cycle_signed_keys", "joint_late_reference", "joint_unknown_commit", "joint_unknown_rollback", "joint_rollback", "joint_first_account_failure", "joint_mid_extra_account", "joint_mid_link")
@@ -168,9 +192,10 @@ func accountTransitionCatalogFieldCases(required, requiredCycle bool) []string {
 }
 
 func TestGeneratedAccountTransitionCatalogFields(t *testing.T) {
-	for _, name := range []string{"nullable", "required", "required_cycle"} {
+	for _, name := range []string{"nullable", "required", "required_cycle", "required_joint_cycle"} {
 		required := name != "nullable"
-		requiredCycle := name == "required_cycle"
+		requiredCycle := name == "required_cycle" || name == "required_joint_cycle"
+		requiredJoint := name == "required_joint_cycle"
 		t.Run(name, func(t *testing.T) {
 			spec, role := accountSharedThroughSpec(t)
 			for i := range spec.Apps {
@@ -183,12 +208,15 @@ func TestGeneratedAccountTransitionCatalogFields(t *testing.T) {
 						if identity == role.Catalog.Permission && field.Name == "parent_group" || requiredCycle && identity == role.Catalog.Group && field.Name == "catalog_permission" {
 							field.Nullable, field.Blank = !required, !required
 						}
+						if requiredJoint && (identity == role.Catalog.Group && field.Name == "owner" || identity == role.Model && field.Name == "preferred_permission") {
+							field.Nullable, field.Blank = false, false
+						}
 					}
 				}
 			}
 			root := writeAccountSharedThroughConsumer(t, spec, role)
 			cases := []string{"TestAccountTransitionCatalogFields"}
-			for _, name := range accountTransitionCatalogFieldCases(required, requiredCycle) {
+			for _, name := range accountTransitionCatalogFieldCases(required, requiredCycle, requiredJoint) {
 				cases = append(cases, "TestAccountTransitionCatalogFields/"+name)
 			}
 			runAccountConsumerDatabases(t, root, cases, "TestAccountTransitionCatalogFields")

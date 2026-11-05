@@ -3647,8 +3647,45 @@ ALWAYS identity와 native allocator 부재도 검사하도록 작성했다. 이 
 전체 결과 거부/rollback과 임시 객체 부재를 확인했다. 이는 native SQL 경계 실험이며 현재 Go 구현·bundled modernc
 profile·PostgreSQL의 실행 증거로 사용하지 않는다.
 
-새 제품 소스의 전체 원격 CI·원본 대조와 typed 계정/catalog 전환 연결은 다음 확인 대상이다. 해당 전환의 필수 순환은
-현재도 쓰기 전에 명시적으로 거부하며, 이 기반만으로 I1-07/08 또는 전체 카탈로그의 완료를 주장하지 않는다.
+이 기반 source에서는 typed 계정/catalog 전환의 필수 순환을 쓰기 전에 거부한다. 후속 통합은 다음 절에서 별도로
+기록하며, 이 기반만으로 I1-07/08 또는 전체 카탈로그의 완료를 주장하지 않는다.
+
+Source `d1ef28ecf4b9ddece6fddf50a5d3b9de0c585a9c`의
+[CI 42088282388](https://github.com/progresshans/godj/actions/runs/42088282388), pull_request attempt 1에서
+아래 normal 원본을 대조했다. 실제 checkout `a76efb5910d0cd4eb0fe1f7c8f14108286525956`과 제출 source의 tree는
+모두 `9007c69d144521fe4c2b0098a0ed013c2c681c63`이다. 원본 JSON의 전체 package 종료·필수 run/pass·skip 부재,
+현재 source에서 계산한 실행 목록과 GitHub archive/payload digest를 확인했다.
+
+| 실행 | 원본 작업 / artifact | 확인한 필수 실행 |
+|---|---|---|
+| PostgreSQL normal core | `127460229794` / `13447525098` | 18 package·5,548항목, 새 graph 33·native 예약 32 PASS, skip 0 |
+| Linux arm64 SQLite normal runtime | `127460245594` / `13444069410` | 68 package·4,572항목, 새 graph 62·예약 54 PASS, skip 0; query 단위 포함 |
+
+Archive SHA-256은 각각 `0b12379a88ee1094c5ded5810c0e834e6863bcab759b0e03a8006d72d086ec9c`,
+`0d0dd7d2768fa278381ba9b1693911af3bb7cd5aebc85fa4e53f08449cb2ce6b`다. 판정과 전체 원본은 검증 보관소의
+`gdj0138-insert-graph-native-v1/receipt-native-graph-d1ef28ec.json`에 보존했다
+(SHA-256 `2ac0d2270e254261a4cad3e5599b7fa0f9c388197a31141d4196f0b87c2f9a1b`).
+이 source의 전체 CI는 아직 완료되지 않았으며 후속 typed 통합의 실행 근거로 사용하지 않는다.
+
+## GDJ-0138 — 필수 FK graph의 typed 계정/catalog 전환
+
+2026-11-06, `d1ef28ec` 다음 묶음에서 필수 연결 성분의 native 예약·단일 문장 삽입을 기존 typed 전환에 연결했다.
+첫 identity 쓰기 전에 전체 native 성분의 capability·행/parameter 한도를 확인하며, 같은 물리 allocator는 성분마다
+한 번 호출한다. 준비 전용 대응표로 실제 key를 결합하고 완전한 typed scalar/credential/unique와 합계 64 MiB를 검사한다.
+실제 반환 key 전부와 같은 scope의 전체 typed 행을 대조한 뒤 대응표를 확정한다. 외부 nullable 보류·기존 생성 순서,
+완성 소속/정책·현재 source 인가·revision/감사/session·마지막 readback/receipt 및 전체 rollback/unknown 계약은 유지한다.
+
+실제 생성 소비자는 계정 필수 상호/자기 순환 15개, catalog 필수 순환 22개와 계정·Group·Permission 공동 필수 순환
+12개 사례를 양 DB에 연결했다. 기존 nullable/필수 비순환의 필수 사례도 보존한다. 순수 프로토콜 단위 37항목은
+예약/준비/삽입/확정 단계, 부분 key 거부·중복/원본 revision·capability/예산·scope/취소·nullable 성분 완료·최대 성분과
+4,096행 nullable 사슬 분리를 검사한다. 생성 앱은 실제 allocator/key·전체 INSERT 값·소속/인가·unique·중간/최종 변조,
+실제 graph 뒤 오류/잘못된 반환 key·한도 조기 거부·rollback·unknown/reopen receipt를 대조한다.
+
+필수 목록은 relation 4,935→4,976, PostgreSQL 5,913→5,919로 확장했고 기존 항목을 모두 보존했다. 외부 child runner가
+각 변형의 전체 사례 run/pass와 skip 부재를 추가로 요구한다. 로컬에서는 8개 Go 파일 gofmt, 세 template의 placeholder
+치환 후 문법 검사, 245개 문서 링크·diff를 확인했다. CI 분배/package/event 도구 51개 Python 검사는 121.684초에
+통과했다. Template 문법 검사를 생성물 타입 검사로 계산하지 않는다. 로컬 Go compile·생성·본문 실행은 하지 않았으며
+이 새 typed 통합의 실제 타입/생성/DB·race/platform 검증과 I1-07/08 전체 수용은 원격 확인 대상이다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

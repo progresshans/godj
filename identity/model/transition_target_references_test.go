@@ -42,11 +42,18 @@ func TestTransitionTargetOrderPreservesSignedSourcesAndNamespaces(t *testing.T) 
 				rows[1].References["mentor"] = TransitionTargetReference{Source: rows[0].Source}
 			}
 			partial, err := transitionTargetPlan(rows, ir.Model{})
-			if err == nil || partial.order != nil || partial.deferred != nil {
-				t.Fatal("invalid dependency graph published a partial order", partial, err)
+			if mode == "self" || mode == "cycle" {
+				wantOrder, wantGroup := []int{1, 2, 0}, []int{0}
+				if mode == "cycle" {
+					wantOrder, wantGroup = []int{0, 1, 2}, []int{0, 1, 2}
+				}
+				if err != nil || !slices.Equal(partial.order, wantOrder) || !reflect.DeepEqual(partial.graphs, map[int][]int{0: wantGroup}) {
+					t.Fatal("required component lost native grouping or dependency order", partial, err)
+				}
+				return
 			}
-			if (mode == "self" || mode == "cycle") && !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-				t.Fatal("native auto-key cycle lost its explicit boundary", err)
+			if err == nil || partial.order != nil || partial.deferred != nil || partial.graphs != nil {
+				t.Fatal("invalid dependency graph published a partial order", partial, err)
 			}
 		})
 	}
@@ -103,11 +110,18 @@ func TestTransitionReferenceOrderSeparatesCatalogNamespaces(t *testing.T) {
 				owned[2].references["grant"] = TransitionTargetReference{Kind: TransitionReferenceGroup, Source: nodes[2].source}
 			}
 			partial, err := planTransitionReferences(owned)
-			if partial.order != nil || partial.deferred != nil || err == nil {
-				t.Fatal("invalid catalog graph published a partial write order", partial, err)
+			if mode == "cycle" || mode == "self" {
+				wantOrder, wantGroups := []int{0, 2, 1}, map[int][]int{0: {0, 2}}
+				if mode == "self" {
+					wantOrder, wantGroups = []int{1, 2, 0}, map[int][]int{2: {2}}
+				}
+				if err != nil || !slices.Equal(partial.order, wantOrder) || !reflect.DeepEqual(partial.graphs, wantGroups) {
+					t.Fatal("catalog native graph lost namespaces or dependency order", partial, err)
+				}
+				return
 			}
-			if (mode == "cycle" || mode == "self") && !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) {
-				t.Fatal("cycle lost its native allocation boundary", err)
+			if partial.order != nil || partial.deferred != nil || partial.graphs != nil || err == nil {
+				t.Fatal("invalid catalog graph published a partial write order", partial, err)
 			}
 		})
 	}
@@ -132,7 +146,7 @@ func TestTransitionNullableCyclesPreserveRequiredDependencies(t *testing.T) {
 			}
 			wantDeferred := []map[string]bool{{"nullable": true}, nil, nil}
 			wantOrder := []int{0, 1, 2}
-			unsupported := false
+			var wantGraphs map[int][]int
 			switch mode {
 			case "self":
 				requests[0].References["nullable"] = ref(-7)
@@ -141,14 +155,20 @@ func TestTransitionNullableCyclesPreserveRequiredDependencies(t *testing.T) {
 				wantDeferred[1] = map[string]bool{"unique": true}
 			case "same_target_required":
 				requests[0].References["required"] = ref(0)
-				unsupported = true
+				wantDeferred = []map[string]bool{nil, nil, nil}
+				wantGraphs = map[int][]int{0: {0, 1}}
 			case "required_subcycle":
 				requests[1].References["required"] = ref(5)
 				requests[2].References["required"] = ref(0)
-				unsupported = true
+				wantDeferred[2] = map[string]bool{"nullable": true}
+				wantGraphs = map[int][]int{1: {1, 2}}
 			case "nullable_scalar":
 				requests[0].References = map[string]TransitionTargetReference{"scalar": ref(0)}
-				unsupported = true
+				// A nullable scalar is never an eligible staged relation. Input
+				// binding separately rejects it as a reference; scheduling must
+				// not invent a nullable relation edge from its field flag.
+				wantDeferred = []map[string]bool{nil, nil, nil}
+				wantGraphs = map[int][]int{0: {0, 1}}
 			case "separate_cycles":
 				requests[2].References["unique"] = ref(5)
 				wantDeferred[2] = map[string]bool{"unique": true}
@@ -161,19 +181,83 @@ func TestTransitionNullableCyclesPreserveRequiredDependencies(t *testing.T) {
 			if !reflect.DeepEqual(requests, before) {
 				t.Fatal("cycle planning mutated reviewed references")
 			}
-			if unsupported {
-				if !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) || plan.order != nil || plan.deferred != nil {
-					t.Fatal("required cycle published a partial plan", plan, err)
+			if err != nil || !slices.Equal(plan.order, wantOrder) || !reflect.DeepEqual(plan.deferred, wantDeferred) || !reflect.DeepEqual(plan.graphs, wantGraphs) {
+				t.Fatal("nullable staging cut a required or noncyclic edge", plan, err)
+			}
+			for _, fields := range plan.deferred {
+				if fields != nil {
+					fields["required"] = true
+				}
+			}
+			for _, group := range plan.graphs {
+				group[0] = 999
+			}
+			again, err := transitionTargetPlan(requests, metadata)
+			if err != nil || !reflect.DeepEqual(again.deferred, wantDeferred) || !reflect.DeepEqual(again.graphs, wantGraphs) {
+				t.Fatal("plan shares mutable field ownership", err)
+			}
+		})
+	}
+}
+
+func TestTransitionRequiredComponentsAreBoundedWithoutAbsorbingNullableChains(t *testing.T) {
+	for _, mode := range []string{"native_bound", "native_overflow", "long_nullable_chain"} {
+		t.Run(mode, func(t *testing.T) {
+			count := query.MaximumInsertGraphRows
+			if mode == "native_overflow" {
+				count++
+			} else if mode == "long_nullable_chain" {
+				count = 4096
+			}
+			nodes := make([]transitionReferenceNode, count)
+			for index := range nodes {
+				nodes[index] = transitionReferenceNode{source: SourceAccount{ID: int64(index), Revision: 1}, references: map[string]TransitionTargetReference{
+					"next": {Source: SourceAccount{ID: int64((index + 1) % count), Revision: 1}},
+				}}
+			}
+			if mode == "long_nullable_chain" {
+				nodes[count-1].nullable = map[string]bool{"next": true}
+				nodes[1].references["back"] = TransitionTargetReference{Source: nodes[0].source}
+			}
+			plan, err := planTransitionReferences(nodes)
+			if mode == "native_overflow" {
+				if !errors.Is(err, &query.Error{Code: query.CodeUnsupported}) || plan.order != nil || plan.deferred != nil || plan.graphs != nil {
+					t.Fatal("indivisible oversized graph published a partial plan", plan, err)
 				}
 				return
 			}
-			if err != nil || !slices.Equal(plan.order, wantOrder) || !reflect.DeepEqual(plan.deferred, wantDeferred) {
-				t.Fatal("nullable staging cut a required or noncyclic edge", plan, err)
+			if err != nil || len(plan.order) != count || len(plan.graphs) != 1 {
+				t.Fatal("required graph was lost", plan, err)
 			}
-			plan.deferred[0]["required"] = true
-			again, err := transitionTargetPlan(requests, metadata)
-			if err != nil || !reflect.DeepEqual(again.deferred, wantDeferred) {
-				t.Fatal("plan shares mutable field ownership", err)
+			if mode == "long_nullable_chain" {
+				if !slices.Equal(plan.graphs[0], []int{0, 1}) || !slices.Equal(plan.order[count-2:], []int{0, 1}) || !plan.deferred[count-1]["next"] {
+					t.Fatal("nullable chain was absorbed into an oversized native group", plan.graphs)
+				}
+			} else if len(plan.graphs[0]) != count {
+				t.Fatal("required cycle was split or truncated", len(plan.graphs[0]))
+			}
+			positions := make(map[int]int, count)
+			groupOf := make(map[int]int)
+			for position, node := range plan.order {
+				if _, repeated := positions[node]; repeated {
+					t.Fatal("row scheduled twice", node)
+				}
+				positions[node] = position
+			}
+			for first, group := range plan.graphs {
+				for _, member := range group {
+					groupOf[member] = first
+				}
+			}
+			for index, node := range nodes {
+				for field, reference := range node.references {
+					target := int(reference.Source.ID)
+					a, inA := groupOf[index]
+					b, inB := groupOf[target]
+					if !plan.deferred[index][field] && !(inA && inB && a == b) && positions[target] >= positions[index] {
+						t.Fatal("required dependency ran before its target", index, target)
+					}
+				}
 			}
 		})
 	}
