@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	modernsqlite "modernc.org/sqlite"
@@ -357,4 +358,43 @@ func TestSQLiteAutoKeyUnconfirmedTransactionKeepsOwnership(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSQLiteAutoKeyReservesTheWholeNativeOperation(t *testing.T) {
+	backend := openLifecycleFileBackend(t, filepath.Join(t.TempDir(), "operation.sqlite"), "")
+	if _, err := backend.database.ExecContext(t.Context(), sqliteAutoKeyTable); err != nil {
+		t.Fatal(err)
+	}
+	transaction, err := backend.database.BeginTx(t.Context(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer transaction.Rollback()
+	entered, release := make(chan struct{}), make(chan struct{})
+	var hold sync.Once
+	connection := &relationFaultConnection{
+		exec: func(ctx context.Context, statement string, arguments []any) (sql.Result, error) {
+			return transaction.ExecContext(ctx, statement, arguments...)
+		},
+		query: func(ctx context.Context, statement string, arguments []any) (*sql.Rows, error) {
+			var interrupted error
+			if strings.HasPrefix(statement, "INSERT INTO main.sqlite_sequence") {
+				hold.Do(func() {
+					close(entered)
+					select {
+					case <-release:
+					case <-ctx.Done():
+						interrupted = ctx.Err()
+					}
+				})
+			}
+			if interrupted != nil {
+				return nil, interrupted
+			}
+			return transaction.QueryContext(ctx, statement, arguments...)
+		},
+	}
+	session := newRelationSession(t.Context(), connection, nil)
+	defer session.scope.Finish()
+	autokeytest.CheckInFlightReservation(t, session, entered, sync.OnceFunc(func() { close(release) }))
 }

@@ -11,6 +11,9 @@ import (
 // actual native allocator and returns exactly Count distinct keys in allocation
 // order. Zero and negative native keys remain valid. It does not insert a row,
 // confer authorization or promise a gapless sequence.
+// Callers serialize native operations, including cursor Next/Scan, against the
+// entire reservation. An idle rowset is not itself an in-flight scope operation;
+// its native connection and savepoint lifetime rules continue to apply.
 //
 // A reservation is provisional until the transaction owner confirms commit.
 // No partial key list is returned on I/O, shape, scope or cancellation failure.

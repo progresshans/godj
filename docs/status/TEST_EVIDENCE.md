@@ -3594,6 +3594,36 @@ high-water·재시작·최대 정수·중복/손상 sequence·I/O/late cancellat
 예약 기반을 실제 필수 FK 순환 INSERT·typed 전환 수명과 결합하는 작업은 미완료이며 제품 경로는 해당 순환을 여전히 거부한다.
 새 본문·DB·race·CGO0·전체 환경 결과는 이 묶음을 push한 뒤 같은 source의 원격 CI에서 확인한다.
 
+`babd20acb338e9eb552ca8d00bd2e0398824777b`의
+[CI 42069049702](https://github.com/progresshans/godj/actions/runs/42069049702) attempt 1은 실제 checkout
+`35d4c0cfd4ce58b09e425e544fbf47312f4ce028`과 제출 head의 tree가
+`936401950434c281a104366918e26377f92d0534`로 같다. Portable core/vet 작업 `127391584484`의 artifact
+`13436326942`(archive SHA-256 `00dd4f54311892eccfddab4f9ebdbb53c933bea058834e5e57822cb75fd1c9d9`)에서
+139개 package·전체 JSON·네 파일 checksum·필수 목록을 대조했다. 전체 run 14,606개 중 14,076개가 pass했고,
+필수 305개와 새 integer 결과/invalid plan 9개를 포함한다. `go vet ./...`도 통과했다. 별도 native owner가 담당하는 비필수 skip 530개를
+native 실행 성공으로 계산하지 않는다. 원본과 대조는 `ci-42069049702-core-vet.zip`과 `receipt-core-vet-babd20ac.json`
+(SHA-256 `d04637c1169605f668dc989bda16fc44cf9e8bb32f6941f01fcdd0610330e954`)에 보존했다.
+
+같은 source의 SQLite arm64 normal runtime 작업 `127391606086`에서는 새 AutoKey 필수 항목 53개 중 48개가
+통과했고 네 scope child와 그 parent가 실패했다. PostgreSQL normal core 작업 `127391586966`도 예약 항목 30개 중
+25개가 통과하고 같은 다섯 항목이 실패했다. 둘 다 열린 native rowset만으로 예약이 `invalid_plan`이 되어야 한다고
+가정한 새 공통 fixture의 검사에서 실패했다. SQLite는 예약을 수행했고 PostgreSQL driver는 열린 cursor로 인해
+`bad connection`을 반환했다. 기존 `txscope.Rows`는 Query 점유를 해제한 후 rowset 수명을 등록하며, 실제 I/O 중첩과
+열린 rowset을 가진 savepoint 진입을 각각 검사한다. Backend의 기존 동작과 다른 테스트 가정이었다.
+
+Fixture는 열린 cursor에서 savepoint 진입이 거부되는 것과 cursor를 닫은 뒤 예약이 계속되는 것을 검사하도록 수정했다.
+실제 동시 I/O 검사는 양 DB의 allocator statement 직전(metadata 조회 완료 후)에 실행을 멈춰, 다른 INSERT·Query·
+savepoint가 native I/O에 들어가지 못하는지 확인하도록 추가했다. 예약이 끝나면 같은 정상 INSERT가 수행되는 양성 대조와
+전체 저장 행도 검사한다. Native 예약 코드·기존 scope 규약은 바꾸지 않았다. 두 native 검사를 필수 목록에 더해 relation
+4,873개·PostgreSQL 5,880개이며 기존 항목을 보존한다. 로컬 분배 도구 25개 검사(26.871초)·gofmt·diff를 통과했고
+Go 본문과 새 동시 I/O 검사는 후속 source의 원격 검증 대상이다.
+
+실패 원본은 SQLite artifact `13436092554`(SHA-256
+`b82bfe9e787712684d6b368da35ad6c556a064409c43b68d52a2dbfb76b7ef29`)와 PostgreSQL artifact `13437359543`
+(SHA-256 `89e11e86303b10b461cfcf03d39ea7c881cbfd003b479e825d342b297d985784`)에서 전체 사건 목록과 완료/실패를 대조했다.
+`receipt-auto-key-cursor-assumption-babd20ac.json`과 `receipt-auto-key-pg-cursor-babd20ac.json`을 같은 보관소에 두며,
+이 부분 통과나 실패한 전체 job을 예약 기능·전체 CI·I1의 수용 완료로 처리하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

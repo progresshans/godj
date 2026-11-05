@@ -186,8 +186,8 @@ func Check(t *testing.T, backend, second Backend, database *sql.DB, table string
 				if err != nil {
 					return err
 				}
-				if keys, err := parent.ReserveAutoKeys(ctx, Plan(t, 1)); keys != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
-					t.Fatal("reservation overlapped an open cursor", keys, err)
+				if err := db.WithSavepoint(ctx, session, func(db.Session) error { t.Fatal("open cursor crossed a savepoint boundary"); return nil }); !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+					t.Fatal("open cursor lifetime was not preserved", err)
 				}
 				if err := cursor.Close(); err != nil {
 					return err
@@ -317,4 +317,59 @@ func Check(t *testing.T, backend, second Backend, database *sql.DB, table string
 			t.Fatal("independent allocator owners diverged", errors.Join(failures...))
 		}
 	})
+}
+
+// CheckInFlightReservation blocks at the native allocator statement, after
+// metadata reads have completed. A live rowset alone is not a scope operation;
+// the exclusion contract covers actual I/O, including the whole reservation.
+func CheckInFlightReservation(t *testing.T, session db.Session, entered <-chan struct{}, resume func()) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	finished := make(chan struct{})
+	var keys []int64
+	var reservationErr error
+	plan := Plan(t, 2)
+	go func() {
+		defer close(finished)
+		keys, reservationErr = session.(db.AutoKeyAllocator).ReserveAutoKeys(ctx, plan)
+	}()
+	defer func() {
+		resume()
+		<-finished
+	}()
+	select {
+	case <-entered:
+	case <-finished:
+		t.Fatal("reservation finished before the native I/O checkpoint", reservationErr)
+	case <-ctx.Done():
+		t.Fatal("reservation did not enter native I/O", ctx.Err())
+	}
+	insert := query.NewInsertPlanReturningKey("reserved_keys", []query.Assignment{query.NewAssignment(Token, query.Integer(1))}, Key)
+	if key, err := session.Insert(ctx, insert); key != 0 || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+		t.Fatal("another write overlapped native allocation", key, err)
+	}
+	rows, err := session.Query(ctx, query.NewPlan("reserved_keys", []query.FieldRef{Key}))
+	if rows != nil {
+		resume()
+		_ = rows.Close()
+	}
+	if rows != nil || !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+		t.Fatal("another query overlapped native allocation", err)
+	}
+	if err := db.WithSavepoint(ctx, session, func(db.Session) error { t.Fatal("savepoint entered during native allocation"); return nil }); !errors.Is(err, &query.Error{Code: query.CodeInvalidPlan}) {
+		t.Fatal("savepoint overlapped native allocation", err)
+	}
+	resume()
+	<-finished
+	if reservationErr != nil || len(keys) != 2 || keys[0] == keys[1] || len(read(t, session)) != 0 {
+		t.Fatal("serialized native reservation lost its result", keys, reservationErr)
+	}
+	// The identical valid write must execute once the reservation releases its
+	// operation. An invalid plan or permanently unusable session cannot satisfy
+	// only the rejection controls above.
+	key, err := session.Insert(ctx, insert)
+	if err != nil || slices.Contains(keys, key) || !reflect.DeepEqual(read(t, session), [][2]int64{{key, 1}}) {
+		t.Fatal("session did not resume after native allocation", key, err)
+	}
 }

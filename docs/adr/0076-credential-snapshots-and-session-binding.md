@@ -2164,6 +2164,9 @@ DB 독립 `query.AutoKeyPlan`은 table·non-null integer key·1~65,536개의 개
 typed 행·권한을 포함하지 않는다. 선택 capability `db.AutoKeyAllocator`는 살아 있는 borrowed write session에서만
 제공한다. Root backend·읽기 snapshot은 이 capability를 노출하지 않는다. 전체 예약 작업은 한 transaction scope의
 물리 I/O 소유권을 유지하며 부모/자식 savepoint·열린 cursor·취소·만료 계약을 따른다.
+열린 rowset의 수명과 현재 실행 중인 native I/O는 구분한다. Query가 반환한 rowset은 cleanup 대상으로 남지만
+그 Query의 작업 점유는 끝난다. Savepoint 진입에는 열린 rowset을 닫아야 하며, 추가 native 작업 전에 cursor를 닫아야
+하는 driver의 제약도 유지한다. 예약의 metadata 조회부터 실제 할당·마지막 검사까지는 다른 I/O가 중첩될 수 없다.
 
 PostgreSQL은 실제 bigint 단일 PK·소유 identity sequence·같은 schema·비순환 설정을 확인하고 native `nextval` 값을
 모두 읽는다. 0/음수·증감 간격을 보존하며 중복·이미 저장된 key·예약 전후 allocator 변경을 거부한다. Table DDL을
