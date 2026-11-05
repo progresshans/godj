@@ -625,11 +625,16 @@ PostgreSQL은 소유 identity sequence의 실제 값을, SQLite는 검증한 AUT
 범위를 반환한다. 실제 PK/allocator·전체 반환·취소/close·scope 소유권·overflow와 native rollback 의미를 검사한다.
 예약으로 제품 행을 만들지 않으며 확정 INSERT·전체 행 대조·원래 권한을 대신하지 않는다. 원격 필수 실행에는 일반/관계/
 coordinated/savepoint 수명, 실제 INSERT key·signed sequence·동시 연결·PK UPDATE/deleted high-water·손상된 sequence·
-native 실패/unknown을 추가했다. 원본 Go 본문과 DB 실행은 아직 원격 확인 대상이다. 필수 FK 순환을 삽입하는 graph 실행과
-typed account/catalog 전환의 결합은 계속 미완료이며 현재 필수 순환의 명시적 거부를 유지한다.
+native 실패/unknown을 추가했다. 원본 Go 본문과 DB 실행은 아직 원격 확인 대상이다.
+
+명시적 key의 완성 행을 한 문장으로 넣는 `InsertGraphPlan`·borrowed `GraphInserter`를 작성했다. PostgreSQL 쓰기 CTE와
+SQLite의 연결 전용 임시 trigger는 일반 FK 제약 시점을 유지한다. 실제 INSERT key·전체 key 존재와 내부 savepoint의
+실패/취소·자원 정리·부모 작업 보존·불확실한 종료를 검사하며 양 DB 소비자는 필수 상호/자기 순환을 사용한다.
+기반의 Go 본문·native 실행·race/platform은 원격 확인 대상이다. Typed account/catalog 전환의 결합은 계속 미완료이며
+해당 제품 경로는 아직 필수 순환을 쓰기 전에 명시적으로 거부한다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
-필수 FK 순환의 native 할당 수명, 역사 `systemstate` 가져오기,
+필수 FK 순환의 typed 전환 통합, 역사 `systemstate` 가져오기,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
 
 1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.

@@ -3624,6 +3624,32 @@ Go 본문과 새 동시 I/O 검사는 후속 source의 원격 검증 대상이�
 `receipt-auto-key-cursor-assumption-babd20ac.json`과 `receipt-auto-key-pg-cursor-babd20ac.json`을 같은 보관소에 두며,
 이 부분 통과나 실패한 전체 job을 예약 기능·전체 CI·I1의 수용 완료로 처리하지 않는다.
 
+## GDJ-0138 — 필수 FK graph의 native INSERT 기반
+
+2026-11-06, `55a59dfc` 다음 묶음에서 `query.InsertGraphPlan`과 borrowed `db.GraphInserter`를 작성했다.
+명시적 실제 key를 가진 완성 행을 PostgreSQL의 쓰기 CTE 또는 SQLite의 연결 전용 임시 gateway/trigger로
+한 native 문장 안에서 INSERT한다. 일반 FK 제약 시점은 유지하며, 실제 INSERT key·입력 순서·전체 key 존재를
+검사한다. 문장/결과/임시 자원 정리는 내부 savepoint에 속하고, 실패·취소·불확실한 rollback/release에는 부분 key를
+반환하지 않는다. 확정된 내부 rollback은 이전 부모 작업을 보존하고 불확실한 정리는 root rollback을 요구한다.
+
+공통 native 소비자는 네 write scope·부모/자식/열린 cursor·단일/상호 필수 FK·최대 256행 순환·signed/0/정밀도 경계,
+실제 scalar/NULL과 독립 연결·일반 INSERT의 기존 FK 거부·unique/CHECK/FK 실패·savepoint/root rollback을 포함한다.
+양 DB별 검사는 trigger의 no-op·key 변경·뒤 삭제·일반 side effect, 실제 문장 뒤 반환/읽기/정리 실패·취소·동시 I/O·
+불확실한 종료를 포함한다. SQLite는 FK off/강제 deferral·temp shadow·물리 key·parameter 한도를, PostgreSQL은
+ALWAYS identity와 native allocator 부재도 검사하도록 작성했다. 이 문단은 검사 작성 기록이며 Go 본문 실행 PASS가 아니다.
+
+필수 실행 목록은 기존 항목을 모두 보존해 portable 305→314, relation 4,873→4,935, PostgreSQL 5,880→5,913으로
+확장했다. 로컬 gofmt·diff와 245개 문서 링크를 확인했고, CI 분배/필수 목록/package/Go event 도구의 53개 Python
+검사는 131.659초에 통과했다. Go compile·생성·native Go/DB·race/platform 실행은 사용자 지시에 따라 원격에 둔다.
+
+별도 Python SQLite 3.49.2 SQL 실험에서는 0/음수 key의 상호 필수 FK를 한 trigger 문장으로 저장하고 전체 rollback 뒤
+행/임시 객체 부재를 확인했다. 정상·일반 side effect 두 경우는 저장됐고, ignore·key 교체·뒤 삭제·중간 FAIL 네 경우는
+전체 결과 거부/rollback과 임시 객체 부재를 확인했다. 이는 native SQL 경계 실험이며 현재 Go 구현·bundled modernc
+profile·PostgreSQL의 실행 증거로 사용하지 않는다.
+
+새 제품 소스의 전체 원격 CI·원본 대조와 typed 계정/catalog 전환 연결은 다음 확인 대상이다. 해당 전환의 필수 순환은
+현재도 쓰기 전에 명시적으로 거부하며, 이 기반만으로 I1-07/08 또는 전체 카탈로그의 완료를 주장하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -2188,6 +2188,35 @@ Native 의미의 출처는 [PostgreSQL 17 sequence 함수](https://www.postgresq
 [SQLite AUTOINCREMENT](https://www.sqlite.org/autoinc.html),
 [sqlite_sequence 파일 형식](https://www.sqlite.org/fileformat2.html#seqtab)이다. 구현 소스는 복사하지 않았다.
 
+### 필수 FK graph의 단일 native INSERT 문장
+
+`query.InsertGraphPlan`은 명시적 integer PK와 완성된 scalar를 가진 최대 256개 행을 불변 계획으로 묶는다.
+같은 table/key의 중복·다른 key metadata·누락/NULL key를 거부한다. 살아 있는 borrowed write session의
+`db.GraphInserter`만 실행하며 root/read snapshot에는 capability가 없다. 호출자는 먼저 원래 scope에서 실제
+key를 예약하고 참조를 결합한다. 이 기능은 권한·typed validation·소속/전체 행·최종 topology 검사를 대신하지 않는다.
+
+PostgreSQL은 각 INSERT의 `RETURNING`을 가진 쓰기 CTE들을 하나의 문장으로 실행한다. CTE 사이에 실행 순서나
+서로의 table snapshot 가시성을 가정하지 않으며 모든 참조 값은 이미 정해진 key다. 실제 AutoField table/identity를
+검사하고 같은 schema의 table DDL을 잠근다. SQLite는 정확한 main AUTOINCREMENT table·temp shadow 부재와 활성
+FK, connection-wide deferral 부재를 확인한다. 같은 연결의 임시 gateway/trigger가 모든 제품 INSERT를 한 외부
+문장에 포함한다. 값은 affinity 없는 gateway column에 parameter로 전달하고 실제 target field가 변환/제약을 소유한다.
+일반 INSERT의 FK 검사 시점과 schema는 바꾸지 않는다. 현재 parameter 한도는 PostgreSQL 65,535개, SQLite 2,000개다.
+한도를 넘는 cycle을 여러 문장으로 나누거나 일부 행을 버리지 않고 오류로 반환한다.
+
+반환 key는 PostgreSQL의 실제 `RETURNING`, SQLite의 각 실제 INSERT 직후 영향 행 수와 `last_insert_rowid()`에서
+얻는다. 입력 순서의 정확한 key/개수와 문장 종료 뒤 모든 실제 key의 존재를 다시 대조한다. Trigger의 no-op·key 교체·
+뒤 삭제도 성공으로 처리하지 않는다. 최종 typed payload 대조는 상위 저장 owner가 계속 수행한다.
+
+문장·반환 결과/존재 대조·SQLite 임시 table/trigger 정리를 하나의 내부 savepoint가 소유한다. 실패·취소에는 결과를
+버리고 그 savepoint 전체를 rollback한다. 정리 성공이면 앞선 부모 작업을 보존하며, savepoint rollback/release를
+확인하지 못하면 부모를 사용할 수 없게 하고 root rollback을 요구한다. 부모 cursor를 닫은 뒤 진입해야 하며 실행 중
+부모/다른 native I/O는 중첩할 수 없다. 성공 역시 최종 transaction commit까지는 잠정 결과다.
+
+기반 코드와 native 소비자를 작성했으며 typed account/catalog 전환의 필수 cycle 연결은 아직 별도 통합 대상이다.
+출처는 [PostgreSQL 17 쓰기 CTE](https://www.postgresql.org/docs/17/queries-with.html#QUERIES-WITH-MODIFYING),
+[SQLite FK의 문장/transaction 경계](https://www.sqlite.org/foreignkeys.html#fk_deferred)와
+[SQLite trigger](https://www.sqlite.org/lang_createtrigger.html)다. 이 문헌에서 native 경계를 확인했으며 구현 소스는 복사하지 않았다.
+
 ### 전환 collection의 추가 선택 identity 생성
 
 `TransitionTargetConfig.ThroughCreations`는 계정 역할/프로필 collection에, `TransitionCatalogTargetConfig`의
