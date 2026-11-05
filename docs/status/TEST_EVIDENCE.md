@@ -3746,6 +3746,28 @@ gofmt·문법, 245개 문서 링크·diff와 CI 분배/package/event Python 51�
 이 새 이행의 타입·양 DB·race/platform 실행, 외부 operator/custom 모델 전환 조립, 남은 고정 소비자와 I1 전체 수용은
 아직 원격 확인 또는 후속 구현 대상이다. 선행 `e71f277c`의 정상 소비자 결과를 이 코드의 검증으로 사용하지 않는다.
 
+Source `89a019f64b30b039ca955ead5ef54920f6fc4637`의
+[CI 42110602170](https://github.com/progresshans/godj/actions/runs/42110602170), pull_request attempt 1에서
+CGO-disabled core 작업 `127537846881`의 원본을 대조했다. 실제 checkout `43fa0ce8b61c42cf87e307b5cdedcf3af22325b9`의
+tree `dc558b3fd6c3a49ee66c2f5c7ae99950fead633b`가 제출 source와 같다. 141개 package 종료와 현행 필수 330항목,
+새 marker 16항목의 정확히 한 번 run/pass와 `systemstate`의 root/child 210항목 pass를 확인했다.
+이 owner에서 PostgreSQL native 검사는 skip되므로 새 역사 이행의 DB 본문 PASS로 계산하지 않는다.
+Artifact `13455320957`의 archive SHA-256은 `14f0bc3ffa78d67c337b2ff981fe2eda27440033370891150256f9577811c2ef`이며
+원본·payload hash·판정은 `gdj0138-historical-handoff-v1/receipt-portable-cgo0-89a019f6.json`에 보존했다
+(SHA-256 `da350ef3e07ab1938cd97c196176128eb947871e0d59470d23e494281532fa58`).
+양 DB 이행·새 catalog 분할과 전체 CI는 계속 확인 중이다.
+
+같은 source의 integration normal/cgo0 작업 `127537846974`·`127537847059`에서 Article adoption 소비자가 실패했다.
+이 소비자는 새 domain/audit/session storage를 아직 설치하지 않은 상태에서 `account_transition_required`를 기대했다.
+기동은 실제로 거부됐으며, 새 metadata 검사에서 먼저 반환한 값은 `schema_unavailable`이었다. 원본 checkout은 위와 같고
+두 원본 로그·hash·진단은 `gdj0138-historical-handoff-v1/receipt-article-adoption-89a019f6-failure.json`에 있다
+(SHA-256 `cd22881cb67fe743f9830c7c6ceedd5bc6155bead68018b4bb06b2833b16c8e2`). 따라서 이 CI도 전체 성공이 아니다.
+
+후속 소비자는 저장소 설치 전 `schema_unavailable`, 명시적 설치 후 `account_transition_required`를 각각 요구하며 두 거부가
+원래 session을 보존하는지 대조한다. 이후 실제 Article의 전체 host binding으로 handoff·receipt를 수행하고 새 DB 연결에서
+reconcile·선택 사이트 기동·현재 권한 보존·옛 credential stamp와 session 거부까지 검사하도록 작성했다.
+Gofmt·문서 링크·diff만 로컬 확인했고, 이 새 본문 및 선행 실패의 수정 여부는 새 원격 실행에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -653,6 +653,10 @@ Startup은 알려진 역사 schema·첫 origin·정확한 marker가 함께 있�
 Source attestation은 새 공유 marker 코드까지 묶는다. 새 Go 본문은 원격 확인 대상이며 public operator와 custom 모델
 전환을 잇는 실제 생성 소비자, 남은 고정 소비자 교체 및 전체 환경 수용은 계속 남아 있다.
 
+기존 Article adoption 소비자는 독립 저장소 설치 전의 schema 거부, 설치 후의 명시적 이행 요구와 기존 session 보존을
+나누어 검사하도록 보완했다. 이어 실제 host binding의 명시적 handoff·receipt/새 연결·선택 사이트 기동·권한 보존과
+옛 stamp/session 거부를 작성했다. 이 보완 본문은 원격 확인 대상이며 별도 operator process/custom 모델 전환 수용은 아니다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환 검증과 역사 이행의 외부 조립·검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -8,16 +8,22 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
+	accountaudit "github.com/progresshans/godj/account/audit"
+	"github.com/progresshans/godj/account/domain"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db/sqlite"
 	"github.com/progresshans/godj/examples/article/databaseconfig"
 	"github.com/progresshans/godj/examples/article/internal/operatorconfig"
 	"github.com/progresshans/godj/examples/article/internal/siteapp"
+	"github.com/progresshans/godj/examples/article/project"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/sessions"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/systemstate"
 )
 
@@ -31,7 +37,7 @@ func TestAdoptOperatorRequiresExplicitRolesBeforeOpeningDatabase(t *testing.T) {
 	}
 }
 
-func TestAdoptOperatorPreservesLegacyIdentityWithoutSelectingNewDomain(t *testing.T) {
+func TestAdoptOperatorPreservesLegacyIdentityUntilExplicitAccountHandoff(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "article.sqlite3")
 	backend, err := sqlite.Open(ctx, path)
@@ -122,8 +128,19 @@ func TestAdoptOperatorPreservesLegacyIdentityWithoutSelectingNewDomain(t *testin
 		t.Fatal("adoption changed password/binding/explicit roles", err)
 	}
 	app, err := siteapp.New(ctx, siteapp.NewConfig(backend).WithLoopbackAuthentication())
+	if app != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeSchemaUnavailable}) {
+		t.Fatal("missing selected storage was accepted or misclassified", err)
+	}
+	// Installing the independent storage is necessary, but must not itself
+	// adopt identity rows or revive their historical session namespace.
+	sources := append(systemstate.IdentityMigrationSources(), article)
+	sources = append(sources, domain.MigrationSources()...)
+	sources = append(sources, accountaudit.MigrationSources()...)
+	sources = append(sources, sessiondb.MigrationSources()...)
+	migrate(sources)
+	app, err = siteapp.New(ctx, siteapp.NewConfig(backend).WithLoopbackAuthentication())
 	if app != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeTransitionRequired}) {
-		t.Fatal("legacy adoption implicitly selected the new account domain", err)
+		t.Fatal("legacy adoption or schema installation implicitly selected the new account domain", err)
 	}
 	currentManager, err := sessions.NewManager(current.SessionStore(), sessions.Config{})
 	if err != nil {
@@ -135,5 +152,65 @@ func TestAdoptOperatorPreservesLegacyIdentityWithoutSelectingNewDomain(t *testin
 		!preserved.CreatedAt().Equal(session.CreatedAt()) || !preserved.AccessedAt().Equal(session.AccessedAt()) ||
 		!preserved.AbsoluteExpiresAt().Equal(session.AbsoluteExpiresAt()) || !preserved.IdleExpiresAt().Equal(session.IdleExpiresAt()) {
 		t.Fatal("adoption or refused startup changed the legacy session", err)
+	}
+	binding, err := project.BindAccount()
+	if err != nil {
+		t.Fatal(err)
+	}
+	handoffConfig := systemstate.IdentityHandoffConfig{Permission: "godj.admin.access", Authorizer: auth.PrincipalAuthorizer{}}
+	owner, err := systemstate.NewIdentityHandoff(backend, binding, handoffConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prepared, err := owner.Prepare(ctx, authenticated.Principal(), strings.Repeat("a", 64))
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := prepared.Manifest()
+	receipt, err := owner.Commit(ctx, authenticated.Principal(), prepared)
+	if err != nil || receipt.Sequence() != 1 {
+		t.Fatal("explicit Article handoff failed", err)
+	}
+	if _, _, err := old.SessionStore().Load(ctx, session.ID()); err == nil {
+		t.Fatal("old Article operator survived selected-domain handoff")
+	}
+
+	// Reopen a real independent connection and the host's generated binding.
+	// The source includes Article's graph, not only the built-in identity app.
+	reopened, err := sqlite.Open(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		if err := reopened.Close(); err != nil {
+			t.Error(err)
+		}
+	})
+	observer, err := systemstate.NewIdentityHandoff(reopened, binding, handoffConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual, found, err := observer.Reconcile(ctx, manifest)
+	if err != nil || !found || actual.OperationID() != receipt.OperationID() {
+		t.Fatal("Article handoff did not reconcile after reconnect", err)
+	}
+	app, err = siteapp.New(ctx, siteapp.NewConfig(reopened).WithLoopbackAuthentication())
+	if err != nil || app == nil {
+		t.Fatal("explicitly handed-off Article could not start", err)
+	}
+	selected, err := project.NewAccountAuthenticator(ctx, reopened, config.PasswordHasher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	selectedCredential, err := selected.Authenticate(ctx, "existing", password)
+	if err != nil || selectedCredential.MatchesSessionStamp(credential.SessionStamp()) || !reflect.DeepEqual(selectedCredential.Principal().Permissions(), authenticated.Principal().Permissions()) {
+		t.Fatal("Article handoff lost grants or inherited the old stamp", err)
+	}
+	store, err := project.NewAccountSessionStore(reopened, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, found, err := store.Load(ctx, session.ID()); err != nil || found {
+		t.Fatal("old Article session crossed the selected domain", err)
 	}
 }
