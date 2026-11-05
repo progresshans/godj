@@ -51,15 +51,17 @@ def matrix():
     rows = []
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
-            # Cumulative generated builds also exhausted the last unsplit
-            # Linux/arm64 normal coordinate. Give normal/CGO-disabled the same
-            # three consumer owners on every platform, separate from runtime.
+            # Keep ordinary consumer owners separate from the runtime owner.
             # The selected-account consumers made both Linux race shard 3
             # coordinates reach the cumulative 35-minute package limit. Add
             # one consumer owner on those coordinates; retain their deadlines
             # and discover/assign every complete root with the same algorithm.
             count = 4 if goos == 'linux' and mode == 'race' else 3
-            isolate_accounts = goos == 'darwin' or mode == 'race'
+            # CI 40980880097 exhausted Linux normal (both architectures) and
+            # amd64 CGO0 at 35m with a 0-22s consumer still running. Give the
+            # same complete account roots independent owners in every mode;
+            # no test or package deadline is removed or increased.
+            isolate_accounts = True
             # CI 40454660304 reached 35 minutes with a 12-second root still
             # running: first-account and reset alone had used 581 + 425 sec.
             # Retain four ordinary owners and isolate the three long roots.

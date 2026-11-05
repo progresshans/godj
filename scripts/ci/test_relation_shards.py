@@ -118,8 +118,8 @@ class RelationShardTest(unittest.TestCase):
         actual = json.loads(dict(line.split('=', 1) for line in output.read_text().splitlines())['relation_matrix'])
         self.assertEqual(actual, matrix())
         expected_counts = {
-            ('ubuntu-24.04', 'normal'): 3, ('ubuntu-24.04', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3,
-            ('ubuntu-24.04-arm', 'normal'): 3, ('ubuntu-24.04-arm', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3,
+            ('ubuntu-24.04', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
+            ('ubuntu-24.04-arm', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
             ('macos-15-intel', 'normal'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-15-intel', 'race'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-15-intel', 'cgo0'): 5 + len(ISOLATED_ACCOUNT_ROOTS),
             ('macos-26', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-26', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-26', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
         }
@@ -138,6 +138,7 @@ class RelationShardTest(unittest.TestCase):
                                               ('macos-15-intel', 'darwin', 'amd64'), ('macos-26', 'darwin', 'arm64')]
                     for mode in ('normal', 'race', 'cgo0')}
         self.assertEqual(seen, expected)
+        self.assertLessEqual(len(actual['include']), 256, 'GitHub must schedule the entire matrix')
 
         # Every emitted coordinate must still assign the complete root and
         # child inventory once, with runtime/compile checks on one owner.
@@ -184,11 +185,13 @@ class RelationShardTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 partition(candidates, 1, count, True)
 
-    def test_arm64_normal_and_cgo0_keep_the_same_complete_consumer_sharding(self):
-        for mode in ('normal', 'cgo0'):
-            rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == 'ubuntu-24.04-arm' and row['mode'] == mode]
-            self.assertEqual([0, 1, 2, 3], [row['shard'] for row in rows])
-            self.assertTrue(all(row['shards'] == 3 and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
+    def test_linux_normal_and_cgo0_isolate_complete_account_roots(self):
+        for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm'):
+            for mode in ('normal', 'cgo0'):
+                rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == mode]
+                count = 3 + len(ISOLATED_ACCOUNT_ROOTS)
+                self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
+                self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
 
     def test_macos_account_partitions_preserve_package_deadlines_and_runtime_build_budget(self):
         for runner, mode, count, package_minutes, job_minutes in (

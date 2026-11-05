@@ -3522,7 +3522,56 @@ skip·잘린 실행·실패·누락·중복은 없었다. 실행 계획의 원�
 Child의 시작 기록은 argv만 저장한다. Race 전달은 같은 source의 race build tag와
 `generatedGoCommand → generatedTestEnvironment → GOFLAGS=-trimpath -race`, CGO0는 job의 `CGO_ENABLED=0`
 보존 경로까지 확인했다. 각 child의 환경 dump를 수집했다는 주장은 하지 않는다. 이 세 모드의 새 through 소비자 확인과
-전체 CI·platform·다른 소비자·I1 수용은 구분하며 전체 CI는 아직 완료되지 않았다.
+전체 CI·platform·다른 소비자·I1 수용은 구분한다. 전체 CI의 후속 종료 결과와 보완은 아래에 둔다.
+
+## GDJ-0138 — 전체 CI의 누적 실행과 artifact 수집 보완
+
+2026-11-06에 위 `9bc1eab7`의 CI 40980880097 attempt 1을 전체 281개 작업까지 다시 조회했다.
+272개 success·8개 failure·1개 skipped로 종료됐다. Failure에는 최종 집계 작업이 포함되며 전체 성공으로 처리하지 않는다.
+새 native 예약 source `bda98f27`는 이 실행에 포함되지 않았다.
+
+Linux 소비자 묶음 세 개는 개별 실패 대신 35분 package 제한에 도달했다. Arm64 normal 작업 `123820981717`은
+완료 root 37개의 합계 2,078.51초 뒤 RowLocking 22초 시점, amd64 normal `123820981934`는 40개 합계 2,091.71초
+뒤 TemporalExpressions 8초 시점, amd64 CGO0 `123820981904`는 39개 합계 2,099.54초 뒤 SlugConsumer 0초 시점이었다.
+전체 원본 artifact에서 완료 root·현재 실행·잘린 종료를 확인했다. Linux normal/CGO0에도 기존 account root의 독립 owner를
+적용하여 relation matrix를 175→235개로 조정했다. 발견한 전체 root와 필수 child는 각 환경에서 한 번씩 배정하며 기존
+package/job deadline과 runtime owner를 유지한다. 전체 matrix가 GitHub의 256개 한도 안에 있는지도 검사한다.
+
+macOS Intel race의 CatalogCreation 작업 `123820987649`는 자식 사례 109개를 597.56초 동안 완료한 뒤
+`created/unknown_rollback` 2초 시점에 자식 Go test의 기본 10분 제한으로 종료됐다. SharedThrough 작업
+`123820987963`은 사례 82개 합계 599.72초 뒤 `unique/created/late_identity_account_payload` 0초 시점에 종료됐다.
+CatalogCreation의 staged·created·기본 모델 전환, SharedThrough의 plain/unique × staged/created를 각각 독립 child
+호출로 나눴다. 같은 생성 프로젝트와 모든 fixture/assertion을 사용하며 Go deadline·race/CGO 전달·출력 수집은 유지한다.
+분할 전에 전체 required 목록의 누락·중복·겹친 prefix·잘못된 경로를 거부하고 각 child에서 조상과 해당 branch의 필수
+사례를 모두 검사한다. 기존 필수 항목을 유지하면서 분할 owner와 계획 검사를 추가해 relation은 4,864→4,872,
+PostgreSQL은 5,864→5,879개가 됐다. 이 분할의 Go 본문 실행은 새 source의 원격 확인 대상이다.
+
+| 원본 실패 artifact | Archive SHA-256 |
+|---:|---|
+| 12946353070 | `2bd179a2eb0b2ceb7c529984b249b0dada5366daca0020bd0fdf4163457ad8b9` |
+| 12948362740 | `bb718fa35198ee0b874fd017dbb8fb7a5059066cee0c7972a50c917ac74ad728` |
+| 12948691045 | `cdd2990546335e8105ecd3d4cb8d28145af13e526caf41be6fbddbb8ba94c060` |
+| 12952619158 | `c6bed919cdb5ccd45ed82f11a64636a26a9d2a1edf0c2dde7be6fafd5100884d` |
+| 12959668516 | `b38fda41f2c8ce9d3acf127d0063df59926cff9f94d31f9df97e210170e29ea3` |
+
+원본 검증 작업 `123840807220`은 성공 producer의 operator artifact `12945392254`를 올바르게 선택했지만
+download-artifact의 public 목록이 첫 100개에서 끝나 다운로드를 거부했다. 고정된 이전 배포 코드의 페이지 반복 조건이
+마지막 페이지를 제외하는 것을 확인했고 [v8.0.2의 공식 배포 SHA](https://github.com/actions/download-artifact/commit/9000827ccba6bdab643e8b6fd33ac0654aef8333)로
+다섯 다운로드 단계를 교체했다. 각 단계에 `digest-mismatch: error`를 명시하고 기존 producer job·attempt·head·checksum·
+provenance 검증을 유지했다. 실제 배포 함수에 HTTP 페이지 사본을 주입하여 1/100/101/200/201/1,000개를 비교했다.
+이전 버전은 101개에서 100개, 1,000개에서 900개만 반환했고 새 버전은 각 목록을 완전하게 반환했다. 이 한정 재현은
+실제 GitHub Action 실행이나 원격 다운로드 성공을 대신하지 않는다. 결과는 `receipt-download-artifact-pagination.json`
+(SHA-256 `ec219890053a4e5640bf696ae59396318c6faedb2bf47da3504daea7ee2bd689`)에 보존했다.
+
+macOS Intel normal reload 작업 `123820977367`은 제품 실행 뒤 CreateArtifact 요청이 다섯 번 timeout하여 게시에 실패했다.
+독립 관측 비교는 그 결과 skipped다. 누락한 artifact를 성공 증거로 사용하지 않으며 새 source에서 게시·비교까지 다시 확인한다.
+원본 job 로그와 ZIP은 같은 보관소의 `ci-40980880097-*`, 전체 상태/시간 대조는
+`receipt-final-ci-state-9bc1eab.json`과 `receipt-ci-final-failures-9bc1eab.json`에 있다.
+
+로컬 CI 도구 전체 102개 검사는 158.188초에 통과했다. 마지막 workflow 입력 정리 뒤 관련 10개 검사도 통과했다
+(0.336초). 변경 Go 파일은 gofmt·diff와 245개 문서의 링크를 확인했다.
+Go compile·생성·테스트·native DB 실행은 로컬에서 수행하지 않았다. 새 예약 구현과 CI 보완의 실제 검증은 새 push의 전체
+원격 CI가 소유하며 I1과 전체 카탈로그 완료는 계속 미완료다.
 
 ## GDJ-0138 — 필수 순환을 위한 native key 예약 기반
 

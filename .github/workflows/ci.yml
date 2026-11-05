@@ -86,8 +86,9 @@ jobs:
           python3 scripts/ci/capture_artifact.py resolve postgresql-17.10-sqlite-external-operator-v1.json
 
       - name: Download current system-state capture
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          digest-mismatch: error
           artifact-ids: ${{ steps.captures.outputs.systemstate_artifact_id }}
           github-token: ${{ github.token }}
           run-id: ${{ github.run_id }}
@@ -95,8 +96,9 @@ jobs:
           path: ${{ runner.temp }}/godj-evidence/systemstate
 
       - name: Download current operator capture
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          digest-mismatch: error
           artifact-ids: ${{ steps.captures.outputs.operator_artifact_id }}
           github-token: ${{ github.token }}
           run-id: ${{ github.run_id }}
@@ -1252,20 +1254,23 @@ jobs:
           persist-credentials: false
 
       - name: Download this run's pinned Python observations
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          digest-mismatch: error
           name: python-project-reference-3.14.3-${{ github.run_attempt }}
           path: ${{ runner.temp }}/project-comparison/python
 
       - name: Download this run's native baseline observations
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          digest-mismatch: error
           pattern: project-check-*-${{ github.run_attempt }}
           path: ${{ runner.temp }}/project-comparison/baseline
 
       - name: Download this run's native reload observations
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          digest-mismatch: error
           pattern: project-reload-*-${{ github.run_attempt }}
           path: ${{ runner.temp }}/project-comparison/reload
 

@@ -336,27 +336,54 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 // The child selects a real isolated database and asserts its native type.
 func runAccountConsumerDatabases(t *testing.T, root string, required []string, rootTests ...string) {
 	t.Helper()
+	plan := accountConsumerTestPlan{required: required}
+	if len(rootTests) != 0 {
+		patterns := make([]string, len(rootTests))
+		for i, name := range rootTests {
+			patterns[i] = regexp.QuoteMeta(name)
+		}
+		plan.pattern = "^(" + strings.Join(patterns, "|") + ")$"
+	}
+	runAccountConsumerDatabasePlans(t, root, []accountConsumerTestPlan{plan})
+}
+
+func runAccountConsumerBranches(t *testing.T, root string, required []string, branches ...string) {
+	t.Helper()
+	plans, err := planAccountConsumerBranches(required, branches)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runAccountConsumerDatabasePlans(t, root, plans)
+}
+
+func runAccountConsumerDatabasePlans(t *testing.T, root string, plans []accountConsumerTestPlan) {
+	t.Helper()
 	vendors := []string{"sqlite"}
 	if strings.TrimSpace(os.Getenv("GODJ_TEST_POSTGRES_URL")) != "" || os.Getenv("GODJ_REQUIRE_POSTGRES") == "1" {
 		vendors = append(vendors, "postgres")
 	}
 	for _, vendor := range vendors {
 		t.Run(vendor, func(t *testing.T) {
-			arguments := []string{"test", "-mod=mod", "-json", "-count=1"}
-			if len(rootTests) != 0 {
-				patterns := make([]string, len(rootTests))
-				for i, name := range rootTests {
-					patterns[i] = regexp.QuoteMeta(name)
+			for _, plan := range plans {
+				run := func(t *testing.T) {
+					arguments := []string{"test", "-mod=mod", "-json", "-count=1"}
+					if plan.pattern != "" {
+						arguments = append(arguments, "-run", plan.pattern)
+					}
+					command := generatedGoCommand(t.Context(), root, append(arguments, "./consumer")...)
+					command.Env = testenv.With(command.Env, map[string]string{"GODJ_ACCOUNT_CONSUMER_DATABASE": vendor})
+					output := runStrictGeneratedCommandWithCapture(t, command, func(output []byte) error {
+						t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)
+						return nil
+					})
+					assertGeneratedConsumerTests(t, output, plan.required...)
 				}
-				arguments = append(arguments, "-run", "^("+strings.Join(patterns, "|")+")$")
+				if plan.name == "" {
+					run(t)
+				} else {
+					t.Run(plan.name, run)
+				}
 			}
-			command := generatedGoCommand(t.Context(), root, append(arguments, "./consumer")...)
-			command.Env = testenv.With(command.Env, map[string]string{"GODJ_ACCOUNT_CONSUMER_DATABASE": vendor})
-			output := runStrictGeneratedCommandWithCapture(t, command, func(output []byte) error {
-				t.Logf("selected account %s child events (sha256=%x):\n%s", vendor, sha256.Sum256(output), output)
-				return nil
-			})
-			assertGeneratedConsumerTests(t, output, required...)
 		})
 	}
 }

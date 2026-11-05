@@ -40,7 +40,7 @@ func TestGeneratedAccountCatalogCreation(t *testing.T) {
 			required = append(required, parent+"/"+name)
 		}
 	}
-	runAccountConsumerDatabases(t, root, required, "TestAccountCatalogCreation", "TestAccountCatalogCreationToDefault")
+	runAccountConsumerBranches(t, root, required, "TestAccountCatalogCreation/staged", "TestAccountCatalogCreation/created", "TestAccountCatalogCreationToDefault")
 }
 
 func writeAccountCatalogCreationConsumer(t *testing.T) string {

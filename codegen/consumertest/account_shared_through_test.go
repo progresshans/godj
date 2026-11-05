@@ -118,7 +118,9 @@ func TestGeneratedAccountSharedThroughTransition(t *testing.T) {
 			}
 		}
 	}
-	runAccountConsumerDatabases(t, root, required, "TestAccountSharedThroughTransition")
+	runAccountConsumerBranches(t, root, required,
+		"TestAccountSharedThroughTransition/plain/staged", "TestAccountSharedThroughTransition/plain/created",
+		"TestAccountSharedThroughTransition/unique/staged", "TestAccountSharedThroughTransition/unique/created")
 }
 
 func accountTransitionTargetReferenceCases() []string {
