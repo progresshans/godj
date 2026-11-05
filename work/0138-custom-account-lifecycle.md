@@ -668,6 +668,11 @@ Source attestation은 새 공유 marker 코드까지 묶는다. 새 Go 본문은
 operator schema 순서와 through snapshot cleanup 주입을 보완했다. 기존 거부·인가·전체 행·원자성 조건을 유지하며
 각 실패 원본과 후속 실행 미확인은 TEST_EVIDENCE에 구분한다.
 
+고정 Directory 소비자의 독립 기준을 선택 저장소에서도 확인하도록 실제 native Django identity 원문을 연결했다.
+직접/그룹 합집합·중복 소속·새 조회/보관 credential·재접속·그룹 삭제와 여덟 역할 조합의 인증·인가를 대조하며,
+선택 domain과 비정상 권한 문법의 native 경계는 별도로 유지한다. 기존 원문과 역사/Admin 검사는 보존했다.
+새 소비자의 작성과 양 DB·원격 실행 근거는 구분하며 고정 Directory/Manager의 교체 완료를 뜻하지 않는다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환 검증과 역사 이행의 외부 조립·검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 )
@@ -174,7 +175,7 @@ func (hasher verificationMutation) Verify(ctx context.Context, password, encoded
 func assertReferenceRole(t *testing.T, key string, credential auth.Credential, failure error) {
 	t.Helper()
 	for _, backend := range []string{"sqlite", "postgres"} {
-		payload, err := identityReferences.ReadFile("testdata/identity-django61-" + backend + ".json")
+		payload, err := identityreference.Identity(backend)
 		if err != nil {
 			t.Fatal(err)
 		}

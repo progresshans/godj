@@ -3822,6 +3822,65 @@ Linux arm64 normal runtime `127546179216` 및 through normal `127546166849`·arm
 Go 파일 7개의 gofmt와 template 2개의 placeholder 문법·문서 링크·diff다. 타입·native 본문과 실패 해소 여부는 새 원격
 source에서 확인한다. 선행 실패와 새 독립 process 소비자의 실행을 완료로 표시하지 않는다.
 
+Source `564e21ef5e530eb1d86e20d4cc76ede579d4b396`의
+[CI 42119643299](https://github.com/progresshans/godj/actions/runs/42119643299), pull_request attempt 1에서
+CGO-disabled core `127569224843`의 원본을 대조했다. Checkout `861ac5abaeaa38188bca6aa32dd613fa029f293d`의
+tree `3d626ec198170db5780f43b4873e351417330823`은 제출 source와 같다. 141개 package 종료와 현재 필수 330항목의
+정확히 한 번 run/pass, 공유 marker 16항목 및 `systemstate` root/child 210항목 pass를 확인했다.
+Artifact `13457239659`의 archive SHA-256은 `4f6ca5a17d5f135c4d4f4bbb639dfe81749a615c1b1d517c61f34c210697fddd`다.
+현재 필수 목록과 payload hash·원본 종료를 대조한 판정은
+`gdj0138-historical-handoff-v1/receipt-portable-cgo0-564e21ef.json`에 있다
+(SHA-256 `b6df764f1135d1b1e58e7222ddc2e412285c1eedbc67c01c00e2cdfb0a0a198c`).
+이 owner의 PostgreSQL native 599항목은 skip이며, 새 생성 앱도 실행하지 않는다. 해당 DB/process 본문·선행 native 실패
+해소와 전체 CI 수용은 이 core 결과에 포함하지 않는다.
+
+같은 source·attempt의 PostgreSQL CGO0 through 작업 `127569226525`도 원본 대조를 마쳤다.
+선택된 상위 필수 10항목, account/Group/Permission × SQLite/PostgreSQL의 여섯 외부 앱에서
+각 27/24/23개, 합계 148개 시나리오가 정확히 한 번 run/pass였고 skip·stderr·잘린 출력은 없었다.
+각 `read_cleanup`도 통과해 선행 factory 0회 실패의 수정이 이 환경에서 확인됐다. 실제 child 종료/byte 수와 상위 로그의
+child hash를 직접 원본에 대조했다. Artifact `13459925765`의 archive SHA-256은
+`da4e20a337d37b51f574a39a2426fe9a654c677cb114f62a252bccbefde2a009`다. 판정은
+`gdj0138-historical-handoff-v1/receipt-transition-through-cgo0-564e21ef.json`에 있다
+(SHA-256 `9e0ed65457b5c8adf423cbd72f13ff999929c8577b91c3ceae23a7846d0b81e2`).
+역사 operator 소비자와 나머지 mode/platform 및 I1 전체 수용은 이 결과와 구분한다.
+
+Normal `127569225961`과 race `127569226440`에서도 같은 6개 생성 앱·148개 시나리오씩을 원본 대조했다.
+따라서 이 source의 through 소비자는 양 DB × normal/race/CGO0에서 총 444개 시나리오가 통과했다.
+각 필수 상위 10항목과 모든 child의 run/pass·종료·byte·hash가 일치했고 skip·stderr는 없었다.
+Race의 child 설정은 부모 `-race`와 같은 source의 build tag→`GOFLAGS=-trimpath -race`→DB 환경 추가 경로로 확인했다.
+Child capture의 argv에는 환경 플래그가 포함되지 않으며 환경 자체를 별도 저장한 증거로 표현하지 않는다.
+Normal artifact `13459977308`의 archive SHA-256은 `776f39660ae6a3484774d58dd146deba328747b63c5f36f0535bb0aa2470bc81`,
+race artifact `13460022752`는 `f5d30778c0940ae4f3e49ab907555c9ba6446654ad9326966752a4ccfe004cd8`다.
+판정은 같은 보관소의 `receipt-transition-through-normal-564e21ef.json`
+(SHA-256 `b3ab889afd7dac99b94ee2076f8242537a1fdce5d8142431f2602f2851fdd692`)과
+`receipt-transition-through-race-564e21ef.json`
+(SHA-256 `97e53274df12ff0a9862f9e8d25182a15edb6e0486ebf59a089e82689a30ddb1`)에 있다.
+
+Linux arm64 normal runtime `127569235814`는 source별 workflow의 필수 목록 조립과 실제 binary root discovery를
+다시 대조했다. 원격 archive에는 project-check 담당 runner를 제외하고 compile-required를 추가한 전체 목록과
+runtime shard의 필수 4,682항목이 함께 있다. 이를 원본 manifest와 재계산해 일치시킨 뒤 68개 package 종료,
+전체 run/pass 11,079개·skip 0 및 필수 항목의 정확히 한 번 실행을 확인했다. 이 중 SQLite 역사 이행·archive·
+경합·operator·초기 origin의 root/child 50항목이 통과했으며 선행 퇴역 오류 분류·signed-key·operator schema 순서·
+감싼 origin 오류 비교 실패가 해소됐다. 별도 생성 operator 앱은 이 runtime 작업의 실행 대상이 아니다.
+Artifact `13459261858`의 archive SHA-256은 `7e0386656d42af61b7f70a7effb5b2077e47fd7f7ba33b72d6825a00703fed03`다.
+원본·필수 목록/부분 소유권 대조·payload hash는 `gdj0138-historical-handoff-v1/receipt-runtime-normal-564e21ef.json`에 있다
+(SHA-256 `384d149a39a83e2a8e9f5d8cafca9342bb6ccb4a41f72cf2f5e3c91765ed1e5d`). PostgreSQL·다른 mode/platform과
+전체 원격 수용은 위 SQLite 결과에 포함하지 않는다.
+
+## GDJ-0138 — 선택 credential의 독립 identity 관측 연결
+
+`564e21ef` 다음 묶음은 기존 native Django 6.1·Python 3.14.3의 identity 원문을 선택 `CredentialStore`와 생성 인증기에
+직접 연결한다. 두 원문 JSON은 수정하지 않고 기존 역사 소비자와 같은 embed reader를 사용한다. 실제 저장된 직접/그룹
+권한 합집합·중복 소속, 다른 연결의 권한 변경 이후 새 조회와 보관 credential, 재접속, 그룹 삭제의 결과를 대조한다.
+Active/staff/superuser 여덟 조합의 Authenticate/Resolve와 실제 등록/미부여/미등록 권한 및 유효 catalog를 확인하도록
+작성했다. 선택 domain과 inactive 결과 비게시를 함께 확인하고, active superuser의 잘못된 권한 문법은 Django의 관측과
+GoDj의 의도적 거부를 별도로 유지한다. 이 묶음은 기존 Admin HTTP 독립 관측을 교체하거나 완료한 것으로 계산하지 않는다.
+
+기존 원문·consumer 검사는 유지하고, 두 DB에 root와 11개 child를 필수 실행으로 추가했다.
+Relation 목록은 5,064개, PostgreSQL은 5,985개다. 로컬은 Go 파일 5개의 gofmt·diff, 기존 oracle bytes 불변과
+CI 도구 Python 51개(shard 25개 29.817초·package 16개 105.441초·event 10개 0.033초)만 확인했다.
+새 Go 타입·양 DB 본문·race/platform과 이 변경 source의 독립 Python 재실행은 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

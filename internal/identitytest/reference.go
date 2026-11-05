@@ -1,21 +1,17 @@
 package identitytest
 
 import (
-	"embed"
 	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/auth"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 )
 
 // Captured by the independent, pinned Django runner. Role observations are
 // retained in these fixtures but are not a Directory admission assertion.
-//
-//go:embed testdata/identity-django61-*.json
-var identityReferences embed.FS
-
 func assertReferencePermissions(t *testing.T, observation, field string, permissions []auth.Permission) {
 	t.Helper()
 	normalized := make([]string, len(permissions))
@@ -26,7 +22,7 @@ func assertReferencePermissions(t *testing.T, observation, field string, permiss
 		normalized[index] = strings.TrimPrefix(string(permission), "helpdesk.ticket.")
 	}
 	for _, backend := range []string{"sqlite", "postgres"} {
-		payload, err := identityReferences.ReadFile("testdata/identity-django61-" + backend + ".json")
+		payload, err := identityreference.Identity(backend)
 		if err != nil {
 			t.Fatal(err)
 		}

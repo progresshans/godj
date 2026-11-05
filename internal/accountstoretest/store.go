@@ -72,6 +72,9 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"startup_history_capability", startupHistoryCapability},
 		{"startup_public_failures", startupPublicFailures},
 		{"permission_union_and_freshness", permissionUnion},
+		{"native_identity_reference", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+			selectedIdentityReference(t, referenceBackend, backend, reopen)
+		}},
 		{"coherent_snapshot", coherentSnapshot},
 		{"password_recheck", passwordRecheck},
 		{"read_contract_and_cleanup", readContract},
