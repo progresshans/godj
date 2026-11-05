@@ -106,7 +106,7 @@ func legacyOriginFailures(t *testing.T, backend Backend, reopen func(*testing.T)
 			if (mode == "insert" || mode == "rewritten_payload") && faults != 1 {
 				t.Fatal("native payload fault was not reached", faults, err)
 			}
-			if current, err := db.ReadSnapshotResult(t.Context(), reopen(t), domain.InspectIn); err != domain.ErrUninitialized || current.Sequence() != 0 {
+			if current, err := db.ReadSnapshotResult(t.Context(), reopen(t), domain.InspectIn); !errors.Is(err, domain.ErrUninitialized) || current.Sequence() != 0 {
 				t.Fatal("failed adoption left partial history", err)
 			}
 		})

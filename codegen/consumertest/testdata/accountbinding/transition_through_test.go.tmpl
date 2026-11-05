@@ -53,8 +53,8 @@ func nuSnapshot(t *testing.T,backend database.Backend)map[string]any{
 type nuInsertion struct{key int64;values map[string]query.Value}
 var nuCleanupFailure=errors.New("transition through cleanup")
 var nuHashFailure=errors.New("transition hash failure")
-type nuBackend struct{database.Backend;reading,writing,completed,faults int;mode,table,natural string;receipt bool;scope db.RelationSession;inserted []nuInsertion}
-func(b *nuBackend)ReadSnapshot(ctx context.Context,read func(db.Queryer)error)error{b.reading++;defer func(){b.reading--}();err:=b.Backend.ReadSnapshot(ctx,read);if b.mode=="read_cleanup"{return errors.Join(err,nuCleanupFailure)};return err}
+type nuBackend struct{database.Backend;reading,writing,completed,faults int;mode,table,natural string;receipt,throughPrepared bool;scope db.RelationSession;inserted []nuInsertion}
+func(b *nuBackend)ReadSnapshot(ctx context.Context,read func(db.Queryer)error)error{b.reading++;defer func(){b.reading--}();err:=b.Backend.ReadSnapshot(ctx,read);if b.mode=="read_cleanup"&&b.throughPrepared{b.faults++;return errors.Join(err,nuCleanupFailure)};return err}
 func(b *nuBackend)CoordinatedAtomicRelation(ctx context.Context,write func(db.RelationSession)error)error{
  b.writing++;defer func(){b.writing--;b.scope=nil}()
  err:=b.Backend.CoordinatedAtomicRelation(ctx,func(scope db.RelationSession)error{
@@ -129,7 +129,7 @@ func TestTransitionThroughCreation(t *testing.T){for _,mode:=range []string{@@CA
   if "@@KIND@@"=="permission"{if !targetPresent||targetReference{return orm.ModelInput[@@THROUGH@@]{},errors.New("profile target was not an actual key")};_ = targetKey}else if targetPresent||!targetReference{return orm.ModelInput[@@THROUGH@@]{},errors.New("factory guessed a catalog key")}
   identity:=fmt.Sprintf("extra.item%x",uint64(source.Source.ID));if "@@KIND@@"=="account"{identity=fmt.Sprintf("extra-%x@example.test",uint64(source.Source.ID))};if mode=="duplicate"{identity="extra.duplicate"}
   values:=map[string]query.Value{"@@NATURAL@@":query.String(identity)};if "@@CODE@@"!=""{values["@@CODE@@"]=query.String(identity)};if mode=="endpoint"{values["link_target"]=query.Integer(0)}
-  input,e:=through.Input(values);if e!=nil{return input,e};if mode=="target_key"{return input.WithTargetKey(query.Integer(0))};return input,nil
+  input,e:=through.Input(values);if e!=nil{return input,e};if mode=="target_key"{return input.WithTargetKey(query.Integer(0))};backend.throughPrepared=true;return input,nil
  }
  @@POLICY@@
  _=childFields
@@ -179,6 +179,7 @@ func TestTransitionThroughCreation(t *testing.T){for _,mode:=range []string{@@CA
   case "hash_failure":want=nuHashFailure;wantFactory,wantHash=2,1
   }
   if !errors.Is(prepareErr,want)||factoryCalls!=wantFactory||hasher.calls!=wantHash{nuExplain(t,prepareErr,0);t.Fatal("preparation did not reach its intended refusal",mode,factoryCalls,hasher.calls)}
+  if mode=="read_cleanup"&&backend.faults!=1{t.Fatal("cleanup was not injected at the prepared snapshot",backend.faults)}
   if backend.completed!=0||!reflect.DeepEqual(before,nuSnapshot(t,native)){t.Fatal("failed preparation wrote state")};return
  };nuMust(t,prepareErr)
  if factoryCalls!=2||"@@KIND@@"=="account"&&hasher.calls!=2||"@@KIND@@"!="account"&&hasher.calls!=0{t.Fatal("factories or hashing escaped bounded preparation",factoryCalls,hasher.calls)}

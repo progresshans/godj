@@ -5968,3 +5968,6 @@ github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/lega
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/legacy_origin_failures/outer_rollback
 github.com/progresshans/godj/db/postgres|TestPostgresAccountDomainOwnership/legacy_origin_failures/rewritten_payload
 github.com/progresshans/godj/db/postgres|TestPostgresSelectedAccountHistoricalHandoff/late_cancel
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedHistoricalAccountHandoff
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedHistoricalAccountHandoff/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedHistoricalAccountHandoff/postgres

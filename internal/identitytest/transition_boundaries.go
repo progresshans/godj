@@ -163,6 +163,13 @@ func RunTransitionBoundaries(t *testing.T, open func(*testing.T) (TransitionBack
 
 func transitionLegacyFixture(t *testing.T, backend TransitionBackend) systemstate.AdoptOperatorConfig {
 	t.Helper()
+	config := transitionOperatorFixture(t, backend)
+	applyIdentitySources(t, backend, systemstate.IdentityMigrationSources()...)
+	return config
+}
+
+func transitionOperatorFixture(t *testing.T, backend TransitionBackend) systemstate.AdoptOperatorConfig {
+	t.Helper()
 	applyIdentitySources(t, backend, systemstate.InitialDefinitionSource())
 	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10000})
 	if err != nil {
@@ -176,7 +183,6 @@ func transitionLegacyFixture(t *testing.T, backend TransitionBackend) systemstat
 	if err := systemstate.ProvisionOperator(t.Context(), backend, systemstate.ProvisionOperatorConfig{Username: "legacy", Password: "boundary password", CredentialPolicy: policy}); err != nil {
 		t.Fatal(err)
 	}
-	applyIdentitySources(t, backend, systemstate.IdentityMigrationSources()...)
 	return systemstate.AdoptOperatorConfig{Expected: systemstate.RuntimeConfig{CredentialPolicy: policy}, Staff: true}
 }
 

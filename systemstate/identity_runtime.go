@@ -67,7 +67,7 @@ func OpenIdentity(ctx context.Context, backend IdentityBackend, config IdentityR
 		failure := func() error {
 			ownership, err := inspectIdentityTransition(ctx, reader)
 			if err != nil {
-				if !errors.Is(err, &Error{Code: CodeIdentityTransitionRequired}) {
+				if !errors.Is(err, errIdentityOwnershipMissing) {
 					return err
 				}
 				// Public-only startup is allowed only for a coherently empty
@@ -171,9 +171,13 @@ func inspectIdentityTransition(ctx context.Context, reader db.Queryer) (Identity
 	return validateIdentityOwnership(receipts, credentials)
 }
 
+// Only missing ownership can be considered for empty-domain startup. A retired
+// domain also requires a transition, but must not enter the fresh-domain path.
+var errIdentityOwnershipMissing = errors.New("systemstate: identity ownership is absent")
+
 func validateIdentityOwnership(receipts []IdentityTransition, credentials []credentialRow) (IdentityTransition, error) {
 	if len(receipts) == 0 {
-		return IdentityTransition{}, &Error{Code: CodeIdentityTransitionRequired, Field: "identity_transition", Detail: "identity ownership has not been initialized"}
+		return IdentityTransition{}, &Error{Code: CodeIdentityTransitionRequired, Field: "identity_transition", Detail: "identity ownership has not been initialized", Cause: errIdentityOwnershipMissing}
 	}
 	if len(receipts) != 1 {
 		return IdentityTransition{}, identityCallbackFailure()

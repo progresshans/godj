@@ -2002,6 +2002,8 @@ Canonical bytes·전체 checksum·배열/byte 한도·불변 history chain 검�
 소속·session·audit bytes는 보존한다. 새 credential stamp와 session namespace는 이전 것을 승계하지 않는다.
 기존 `OpenIdentity` runtime은 매 snapshot과 쓰기 전후 소유권을 확인하며, 보관 중인 operator session owner와
 borrowed 감사/세션 폐기 경로도 퇴역 이후 사용을 거부한다. Raw DB writer까지 차단하는 보증은 아니다.
+퇴역한 domain의 재기동은 `identity_transition_required`로 거부한다. 같은 공개 오류를 사용하는 소유권 부재와
+내부 상태를 구분하며, receipt가 없는 경우에만 빈 domain의 기동 조건을 확인한다.
 
 실패는 domain·대응표·퇴역 marker를 함께 rollback한다. Unknown 결과에 receipt를 게시하거나 자동 재시도하지 않는다.
 호출자는 Commit 전에 manifest를 보관하고 `Reconcile`로 원래 receipt·대응표·동결 archive를 확인한다. 후속 정상 계정

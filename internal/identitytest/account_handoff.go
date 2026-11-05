@@ -191,7 +191,7 @@ func (scope *handoffScope) Update(ctx context.Context, plan query.UpdatePlan) (i
 
 // Every refusal is exercised against native storage and compared with the
 // independent complete identity/session/audit snapshot, not just an error code.
-func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
+func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend), rekey func(*testing.T, TransitionBackend, int64, int64)) {
 	for _, mode := range []string{"lifecycle", "owned_manifest", "signed_keys", "foreign_namespace", "inactive_actor", "revoked_actor", "denied_overlay", "changed_account", "changed_grant", "changed_session", "changed_audit", "corrupt_session", "corrupt_audit", "account_limit", "session_limit", "audit_limit", "read_missing", "read_cleanup", "write_missing", "write_twice", "header_insert", "mapping_insert", "marker_update", "late_account", "late_archive", "late_marker", "late_cancel", "rollback", "unknown_commit", "unknown_rollback", "cancelled", "manifest_tamper"} {
 		t.Run(mode, func(t *testing.T) {
 			backend, second := open(t)
@@ -232,23 +232,25 @@ func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, T
 						t.Fatal("remove fixture direct link")
 					}
 				}
-				id := query.NewFieldRef("id", "id", query.FieldInteger, false)
-				count, err := backend.Update(t.Context(), query.NewUpdatePlan("godj_identity_user", []query.Assignment{query.NewAssignment(id, query.Integer(0))}, id, query.Integer(f.user.ID)))
-				handoffMust(t, err)
-				if count != 1 {
-					t.Fatal("signed key fixture")
-				}
+				// Key changes belong to the native fixture. Public update plans
+				// deliberately reject assigning their own key predicate.
+				rekey(t, backend, f.user.ID, 0)
 				f.user, err = models.UserObjects.Using(backend).Filter(models.UserFields.PrincipalID.Exact(f.user.PrincipalID)).Get(t.Context())
 				handoffMust(t, err)
-				_, err = models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(0, f.group.ID))
-				handoffMust(t, err)
+				if f.user.ID != 0 {
+					t.Fatal("stored zero account key was not retained")
+				}
+				for _, row := range groupLinks {
+					_, err = models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(0, row.TargetID))
+					handoffMust(t, err)
+				}
+				for _, row := range permissionLinks {
+					_, err = models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(0, row.TargetID))
+					handoffMust(t, err)
+				}
 				negative, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("negative-principal", "negative", "!unusable", handoffAt))
 				handoffMust(t, err)
-				count, err = backend.Update(t.Context(), query.NewUpdatePlan("godj_identity_user", []query.Assignment{query.NewAssignment(id, query.Integer(-7))}, id, query.Integer(negative.ID)))
-				handoffMust(t, err)
-				if count != 1 {
-					t.Fatal("negative key fixture")
-				}
+				rekey(t, backend, negative.ID, -7)
 			}
 			if mode == "foreign_namespace" {
 				database, err := sessiondb.New(backend, sessiondb.Config{MaxRecords: 512})
@@ -288,6 +290,19 @@ func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, T
 			}
 			if manifest.Origin.SessionRecords != 3 || manifest.Origin.AuditEvents != 1 || len(manifest.Accounts) != wantAccounts || len(manifest.Catalog.Groups) != 1 || len(manifest.Catalog.Permissions) != 2 {
 				t.Fatal("handoff omitted a reviewed inventory")
+			}
+			if mode == "signed_keys" {
+				for _, key := range []int64{-7, 0} {
+					found := false
+					for _, entry := range manifest.Accounts {
+						if entry.SourceID == key && entry.TargetID == key && entry.SourceRevision == entry.TargetRevision {
+							found = true
+						}
+					}
+					if !found {
+						t.Fatal("handoff lost a signed key or revision", key)
+					}
+				}
 			}
 			if mode == "owned_manifest" {
 				changed := prepared.Manifest()
@@ -441,7 +456,7 @@ func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, T
 			if _, bound := credential.Principal().CredentialDomain(); !bound {
 				t.Fatal("adopted account has no selected domain")
 			}
-			if mode != "signed_keys" && (!credential.Principal().Has("helpdesk.ticket.view") || !credential.Principal().Has("helpdesk.ticket.change")) {
+			if !credential.Principal().Has("helpdesk.ticket.view") || !credential.Principal().Has("helpdesk.ticket.change") {
 				t.Fatal("adopted credential lost direct or group grants")
 			}
 			handoffMust(t, second.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
@@ -522,7 +537,7 @@ func RunAccountHandoffConcurrency(t *testing.T, open func(*testing.T) (Transitio
 
 func RunOperatorAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	backend, second := open(t)
-	config := transitionLegacyFixture(t, backend)
+	config := transitionOperatorFixture(t, backend)
 	operator, err := systemstate.OpenExisting(t.Context(), backend, config.Expected)
 	handoffMust(t, err)
 	sources := append(systemstate.IdentityMigrationSources(), domain.MigrationSources()...)

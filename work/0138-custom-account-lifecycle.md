@@ -657,6 +657,17 @@ Source attestation은 새 공유 marker 코드까지 묶는다. 새 Go 본문은
 나누어 검사하도록 보완했다. 이어 실제 host binding의 명시적 handoff·receipt/새 연결·선택 사이트 기동·권한 보존과
 옛 stamp/session 거부를 작성했다. 이 보완 본문은 원격 확인 대상이며 별도 operator process/custom 모델 전환 수용은 아니다.
 
+실제 내장 identity 앱을 외부 의존성으로 가져오는 독립 생성 소비자를 추가했다. 새 Member의 필드 역할·필수 region과
+업무 FK·OneToOne·명시적 through를 생성하고, 역사 migration의 원문/이름을 유지한 채 host schema를 확장·정리한다.
+별도 test binary process가 최초 이행과 typed 대상 생성을 수행하며, 준비 결과는 그 process 안에만 두고 manifest를 먼저
+보관한다. 두 단계 각각의 저장 응답 유실과 준비 뒤 외부 DB 변경, 0 key·현재 직접/그룹 소속·실제 할당 key·퇴역·새 연결의
+기동/인가·역사 조회를 대조하도록 작성했다. 이전 actor의 같은 ID·stamp로 현재 이력 접근을 얻는 경우도 거부한다.
+이는 공개 API를 사용하는 외부 process 소비자의 작성이며 새 operator CLI나 실제 생성/DB/process 실행 PASS를 뜻하지 않는다.
+
+선행 원격 실행의 퇴역 기동 오류 재분류를 수정하고, 양 DB의 signed-key native fixture·origin rollback 오류 비교·
+operator schema 순서와 through snapshot cleanup 주입을 보완했다. 기존 거부·인가·전체 행·원자성 조건을 유지하며
+각 실패 원본과 후속 실행 미확인은 TEST_EVIDENCE에 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환 검증과 역사 이행의 외부 조립·검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

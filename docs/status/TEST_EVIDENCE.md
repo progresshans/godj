@@ -3768,6 +3768,60 @@ Artifact `13455320957`의 archive SHA-256은 `14f0bc3ffa78d67c337b2ff981fe2eda27
 reconcile·선택 사이트 기동·현재 권한 보존·옛 credential stamp와 session 거부까지 검사하도록 작성했다.
 Gofmt·문서 링크·diff만 로컬 확인했고, 이 새 본문 및 선행 실패의 수정 여부는 새 원격 실행에서 확인한다.
 
+수정 source `79731ea0b622cbf2f3fae77d90aa942bf1f3b7ee`의
+[CI 42112998743](https://github.com/progresshans/godj/actions/runs/42112998743), pull_request attempt 1에서
+integration normal `127546165378`·CGO-disabled `127546165843`·race `127546165486`이 성공했다.
+실제 checkout `f4a42ed24c5a339feb7b61203c5979ea8741c486`의 tree는 제출 source와 같은
+`de206d56df36615dbc25677565a87a3fceef3537`이다. 세 원본 로그에서 `examples/article/cmd/adoptoperator` package의
+실행 성공을 각각 3.080·1.758·46.582초로 확인했고, 실행된 소비자 source hash를 함께 기록했다.
+새 별도 생성 operator의 실행이나 전체 CI 수용으로 확대하지 않는다. 원본과 판정은
+`gdj0138-historical-handoff-v1/receipt-article-adoption-79731ea0.json`에 있다
+(SHA-256 `deb3c673404ed01ec8ad705710bf69d53c437c956f2ac240a7f2fad8ebd100d0`).
+
+## GDJ-0138 — 역사 이행과 custom 모델 전환의 독립 process 소비자
+
+`79731ea0` 다음 묶음에 실제 내장 identity를 외부 앱으로 가져오는 생성 소비자를 작성했다. 별도 Member의
+username/principal/password/revision 역할과 필수 region, 업무 FK·OneToOne·명시적 through를 생성한다.
+기존 identity migration 원문/이름은 다시 생성하지 않으며, legacy→expanded→contracted host graph만 진화시킨다.
+
+각 DB에서 정상·0 key·최초 이행/typed 전환 각각의 준비 후 외부 DB 변경·저장 응답 유실 여섯 사례를 실행하도록 연결했다.
+현재 외부 test binary를 별도 PID로 실행해 private preparation은 한 process 안에 두고 manifest를 먼저 보관한다.
+부모는 준비 완료 뒤 실제 다른 연결로 값을 바꾸거나 commit 응답 전 종료를 관측한다. 반환 byte·정확한 종료와
+reply 부재를 확인하고, 잃은 응답은 실제 receipt와 전체 대응표로 대조하며 자동 재시도하지 않는다.
+
+전체 원문 archive/계정/host 값, 실제 생성 key·credential·현재 직접 및 그룹 소속·source 퇴역과 FK/OneToOne/through
+재매핑을 독립 native 조회로 확인한다. 실제 schema contraction 뒤 옛 물리 column의 부재와 새 연결의 기동/인증을 검사한다.
+역사 조회는 같은 borrowed scope의 현재 선택 계정 인가를 먼저 수행하며, 동일 principal ID인 두 이전 namespace actor는
+거부한다. 다른 현재 host graph에서도 원래 origin/receipt·감사 label·session bytes를 재해석하지 않는지 확인한다.
+
+필수 목록은 기존 항목을 모두 유지해 relation 5,050→5,052, PostgreSQL 5,970→5,973으로 확장했다. 각 외부 child의
+root와 여섯 사례는 별도 run/pass·skip/종료 검증 대상이다. 로컬은 outer Go 포맷과 template placeholder 문법·사례 목록
+대조·245개 문서 링크·diff, CI 도구 Python 51개 검사만 수행했다
+(shard 25개 27.799초·package 16개 102.549초·event 10개 0.029초).
+Go 생성·컴파일·본문·양 DB/process·race/platform 실행은 아직 원격 확인 대상이다. 이 소비자는 공개 API의 외부 process
+사용 증거를 만들기 위한 코드이며 새 operator CLI나 I1 전체 제품 수용으로 계산하지 않는다.
+
+### 선행 source의 native 실패와 경계 보완
+
+같은 `79731ea0` CI 42112998743 attempt 1의 PostgreSQL normal core `127546166745`,
+Linux arm64 normal runtime `127546179216` 및 through normal `127546166849`·arm64 CGO0 shard `127546189728`의
+실패 원본을 확인했다. 네 checkout은 모두 `f4a42ed24c5a339feb7b61203c5979ea8741c486`이며 GitHub commit 객체의 tree가
+제출 source와 같다. 이 CI는 Article integration의 부분 성공과 별개로 전체 실패다.
+
+- `OpenIdentity`는 이미 퇴역한 domain의 `identity_transition_required`를 소유권 부재로 재분류해 빈 domain 검사로
+  진입하고 `identity_already_initialized`를 반환했다. 내부 소유권 부재를 구분하여 정확한 퇴역 거부를 유지하도록 수정했다.
+- signed-key fixture는 public UpdatePlan의 PK 변경 금지에서 막혔다. 두 DB의 native fixture가 실제 key 0/-7을 만들고
+  정확히 한 행 변경과 대응표·revision·직접/그룹 권한 보존을 확인하도록 보완했다. 제품의 PK 변경 금지는 유지한다.
+- 초기 origin 실패 검사는 감싼 `ErrUninitialized`를 직접 비교했다. `errors.Is`와 빈 receipt 검사로 원자적 rollback을
+  계속 검증한다. Operator 소비자는 원래 단일 operator schema에서 runtime을 연 뒤 identity migration을 적용하도록 분리했다.
+- through cleanup 오류는 새 사전 metadata snapshot에서 발생해 factory 호출이 0이었다. 실제 factory 준비 이후의 snapshot
+  종료에서 한 번 주입하고, factory 2회·해싱 0회·준비 결과 부재·전체 DB 무변경 조건을 유지한다.
+
+원본·hash·진단은 `gdj0138-historical-handoff-v1/receipt-native-failures-79731ea0.json`에 보존했다
+(SHA-256 `d98d0681b07df20d299cc84369bead70829c19a2f61ad91d178ea689f540e0c4`). 이 후속 코드의 로컬 검사는
+Go 파일 7개의 gofmt와 template 2개의 placeholder 문법·문서 링크·diff다. 타입·native 본문과 실패 해소 여부는 새 원격
+source에서 확인한다. 선행 실패와 새 독립 process 소비자의 실행을 완료로 표시하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
