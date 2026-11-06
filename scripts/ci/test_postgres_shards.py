@@ -21,7 +21,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
-        self.assertEqual(55, result['core_coordinates'])
+        self.assertEqual(58, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assert_nonconsumer_core(mode, self.required)
             self.assertEqual(list((*FRAMEWORK, *POSTGRES, *PROCESSES)), plan(mode, 'core', self.required)['packages'])
@@ -41,7 +41,6 @@ class PostgreSQLPartitionTests(unittest.TestCase):
 
     def test_new_child_sentinel_inherits_its_real_package_owner(self):
         for package, owner in (('examples/helpdesk', 'core'), ('forms', 'core'), ('forms/model', 'core'), ('orm', 'core'),
-                               ('codegen/consumertest', 'core-consumers'),
                                ('conformance/systemstate/product', 'core-processes'),
                                ('conformance/postgresproduct/newproduct', 'core-processes')):
             entry = MODULE + package + '|TestNewCapability/required_child'
@@ -115,6 +114,36 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             plan('normal', 'core-postgres-1', required)
 
+    def test_read_consumer_partitions_keep_whole_roots_and_future_children(self):
+        prefix = MODULE + 'codegen/consumertest|'
+        added = [prefix + 'TestFutureReadBoundary/only_child/deep_check',
+                 prefix + 'TestFutureReadBoundary/another_child',
+                 prefix + 'TestFutureReadBoundaryExtra']
+        required = [*self.required, *added]
+        audit(required)
+        account_roots = (ACCOUNT_CONSUMER_ROOTS | THROUGH_CONSUMER_ROOTS | PROFILE_CONSUMER_ROOTS
+                         | set(ISOLATED_ACCOUNT_CONSUMER_OWNERS) | WRITE_CONSUMER_ROOTS)
+        expected = {entry for entry in required if entry.startswith(prefix)
+                    and entry.partition('|')[2].split('/')[0] not in account_roots}
+        for mode in ('normal', 'race', 'cgo0'):
+            owners, root_sets = {}, []
+            for shard in ('core-consumers', 'core-consumers-2'):
+                selected = plan(mode, shard, required)
+                self.assertEqual(['./codegen/consumertest'], selected['packages'])
+                self.assertEqual(set(selected['required']), set(plan(mode, shard, list(reversed(required)))['required']))
+                roots = {entry.partition('|')[2].split('/')[0] for entry in selected['required']}
+                root_sets.append(roots)
+                for entry in selected['required']:
+                    self.assertNotIn(entry, owners)
+                    owners[entry] = shard
+                for root in roots:
+                    self.assertEqual({entry for entry in expected if entry.partition('|')[2].split('/')[0] == root},
+                                     {entry for entry in selected['required'] if entry.partition('|')[2].split('/')[0] == root})
+            self.assertEqual(expected, set(owners))
+            self.assertFalse(root_sets[0] & root_sets[1])
+            self.assertLessEqual(abs(len(root_sets[0]) - len(root_sets[1])), 1)
+            self.assertEqual(owners[added[0]], owners[added[1]])
+
     def test_cross_package_root_collision_cannot_reselect_a_partitioned_consumer(self):
         root = 'TestPublicHelpdeskPostgresConsumerAndPermissionMaintenance'
         entry = MODULE + 'examples/article|' + root + '/same_name_in_another_package'
@@ -138,7 +167,8 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         else:
             required = self.required
         for mode in ('normal', 'race', 'cgo0'):
-            self.assertIn(read, plan(mode, 'core-consumers', required)['required'])
+            self.assertEqual(1, sum(read in plan(mode, shard, required)['required']
+                                    for shard in ('core-consumers', 'core-consumers-2')))
             self.assertNotIn(read, plan(mode, 'core-consumer-writes', required)['required'])
 
     def test_selected_account_reset_keeps_every_variant_in_its_own_partition(self):
@@ -237,7 +267,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         for step in ('Publish PostgreSQL test logs and execution plan', 'Publish S3 service build and lifecycle receipts'):
             body = workflow[workflow.index('- name: ' + step):].split('\n      - name:', 1)[0]
             self.assertIn('if: always()', body)
-        self.assertIn("matrix.shard == 'core' || matrix.shard == 'core-consumers'", workflow)
+        self.assertIn("matrix.shard == 'core' || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')", workflow)
         self.assertIn('test_flags=(-p=1 -timeout="$test_timeout"', workflow)
         self.assertTrue(FRAMEWORK and CONSUMERS and PROCESSES)
 

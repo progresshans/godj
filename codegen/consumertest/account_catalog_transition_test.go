@@ -35,7 +35,9 @@ func TestGeneratedAccountCatalogTransition(t *testing.T) {
 			required = append(required, "TestAccountCatalogReferences/"+strategy+"/"+name)
 		}
 	}
-	runAccountConsumerDatabases(t, root, required)
+	runAccountConsumerBranches(t, root, required,
+		"TestAccountCatalogTransition/staged", "TestAccountCatalogTransition/created",
+		"TestAccountCatalogReferences/staged", "TestAccountCatalogReferences/created")
 }
 
 func accountCatalogReferenceCases(strategy string) []string {

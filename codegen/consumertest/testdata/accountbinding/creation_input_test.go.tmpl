@@ -935,6 +935,111 @@ func (h *creationInputHTTP) probe(t *testing.T, mode string, probe creationInput
 	}
 }
 
+func (f *creationInputFixture) foreignValues(t *testing.T, mode string) {
+	t.Helper()
+	boundary := &creationReadBoundary{Backend: f.native, mode: "read_zero"}
+	owner, err := project.NewAccountRuntime(t.Context(), boundary, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+	creationInputCheck(t, err)
+	form, err := accountmodel.NewCreationForm(owner.Accounts(), accountmodel.CreationFormConfig{AllowUnusablePassword: mode == "admin_enabled", LoginInput: accountmodel.UnicodeUsernameInput(150)})
+	creationInputCheck(t, err)
+	names := form.PasswordFields()
+	for _, kind := range []string{"mismatch", "grammar", "type", "field", "canceled"} {
+		creationInputRun(t, kind, func(t *testing.T) {
+			fields := form.Spec().Fields()
+			data := map[string][]string{f.role.Login: {"Candidate"}, "@@PROFILE@@": {"NZ"}, names.First: {"independent-secret"}, names.Confirmation: {"independent-secret"}}
+			if names.Unusable != "" {
+				data[names.Unusable] = []string{"false"}
+			}
+			switch kind {
+			case "mismatch":
+				data[names.Confirmation] = []string{"different-secret"}
+			case "grammar":
+				data[f.role.Login] = []string{"bad/name"}
+				for i := range fields {
+					if fields[i].Name() == f.role.Login {
+						fields[i], err = forms.CharField(f.role.Login, forms.WithTrimWhitespace(false))
+						creationInputCheck(t, err)
+					}
+				}
+			case "type":
+				for i := range fields {
+					if fields[i].Name() == f.role.Login {
+						fields[i], err = forms.BooleanField(f.role.Login)
+						creationInputCheck(t, err)
+					}
+				}
+				data[f.role.Login] = []string{"true"}
+			case "field":
+				if f.role.Staff.Field == "" {
+					t.Fatal("forged field fixture has no stored role")
+				}
+				field, err := forms.BooleanField(f.role.Staff.Field)
+				creationInputCheck(t, err)
+				fields = append(fields, field)
+				data[field.Name()] = []string{"true"}
+			}
+			// A valid general Form grants no model or creation authority.
+			// Deliberately omit cross validators to exercise defensive Prepare.
+			spec, err := forms.NewSpec(fields)
+			creationInputCheck(t, err)
+			generic, err := spec.Bind(t.Context(), forms.NewData(data), nil)
+			creationInputCheck(t, err)
+			if !generic.Valid() {
+				t.Fatal("foreign-value control is not a valid general Form")
+			}
+			before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+			f.recorded(true)
+			bound, failure := formmodel.Bind(t.Context(), f.metadata, spec, forms.NewData(data), nil, formmodel.PostClean{})
+			if kind == "type" {
+				var invalid *formmodel.Error
+				if !errors.As(failure, &invalid) || invalid.Code != "type_mismatch" || invalid.Path != "fields."+f.role.Login || bound.Form().Bound() {
+					t.Fatal("general Form changed the stored login type", failure)
+				}
+			} else {
+				creationInputCheck(t, failure)
+				if !bound.Form().Valid() {
+					t.Fatal("foreign Form did not reach defensive creation preparation")
+				}
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				if kind == "canceled" {
+					cancel()
+				}
+				prepared, publications, failure := form.Prepare(ctx, f.actor, bound)
+				if failure == nil || len(publications) != 0 {
+					t.Fatal("foreign Form acquired creation or publication authority", failure)
+				}
+				diagnostics, rejected := validation.Rejected(failure)
+				switch kind {
+				case "mismatch", "grammar":
+					field := names.Confirmation
+					if kind == "grammar" {
+						field = f.role.Login
+					}
+					if !rejected || diagnostics.ByField(validation.Field(field)).Empty() {
+						t.Fatal("defensive preparation lost the input diagnostic", kind, failure)
+					}
+				case "field":
+					if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) || rejected {
+						t.Fatal("foreign field selection reached persistence", failure)
+					}
+				case "canceled":
+					if !errors.Is(failure, context.Canceled) || rejected {
+						t.Fatal("canceled preparation became ordinary validation", failure)
+					}
+				}
+				created, commitError := form.Commit(t.Context(), f.actor, prepared)
+				if !errors.Is(commitError, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) || !reflect.DeepEqual(created, accountmodel.Creation{}) {
+					t.Fatal("failed preparation published a usable candidate", commitError)
+				}
+			}
+			if boundary.reads != 0 || f.hasher.calls.Load() != hashes || f.ids.Load() != ids || len(f.recorded(false)) != 0 || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("foreign Form entered a DB scope, ran password/identity work or changed native rows")
+			}
+		})
+	}
+}
+
 func TestCreationInputPolicy(t *testing.T) {
 	cases, reference := creationInputReferenceData(t)
 	for _, surface := range []string{"form", "admin"} {
@@ -1071,6 +1176,12 @@ func TestCreationInputPolicy(t *testing.T) {
 					creationInputRun(t, mode, func(t *testing.T) { f.preparedOwnership(t, operation, mode) })
 				}
 			})
+		}
+	})
+	creationInputRun(t, "foreign_values", func(t *testing.T) {
+		f := newCreationInputFixture(t, true)
+		for _, mode := range []string{"standard", "admin_enabled"} {
+			creationInputRun(t, mode, func(t *testing.T) { f.foreignValues(t, mode) })
 		}
 	})
 }

@@ -792,6 +792,13 @@ SQLite/PostgreSQL `admin_creation` 원문 8개 관측과 실제 저장 credentia
 TEST_EVIDENCE에 기록했으며, 고정 public Form이 아직 쓰는 입력 corpus 타입은 해당 소비자에 남겼다. 새 174개 필수 본문의
 원격 실행은 미확인이고, 선행 source의 core 컴파일 해소와 별도로 수용한다.
 
+고정 재사용 생성 Form의 세 모드 입력·준비 수명과 동시 사본·늦은 거부 책임을 선택 모델의 기존 필수 소비자에 통합했다.
+남은 foreign 입력의 타입·문법·필드·취소는 일반 Form과 typed 준비 경계를 직접 비교하는 기본/renamed 양 DB 소비자로 옮겼다.
+고정 public Form과 내장 Admin의 남은 의존성은 유지하며 새 필수 187개 본문의 실제 원격 수용은 미확인이다.
+선행 원격의 삼킨 callback 오류 분류 기대를 공통 transaction의 결과 불명 계약에 맞췄다. 누적 시간 제한에 걸린 일반
+read consumer와 catalog 전환은 모든 필수 leaf·원문·제한을 유지하고 실행 owner/process를 나눴다. 실제 실패 원본과
+정적 확인·다음 source의 실행 경계는 TEST_EVIDENCE에 기록했다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

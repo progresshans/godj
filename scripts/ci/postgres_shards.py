@@ -80,6 +80,7 @@ WRITE_CONSUMER_ROOTS = frozenset({
 })
 CONSUMER_PARTITIONS = {
     'core-consumers': CONSUMERS,
+    'core-consumers-2': CONSUMERS,
     'core-account-consumers': CONSUMERS,
     'core-account-through': CONSUMERS,
     **{owner: CONSUMERS for owner in ISOLATED_ACCOUNT_CONSUMER_OWNERS.values()},
@@ -187,7 +188,18 @@ def plan(mode, shard, entries):
                 return 'core-consumer-writes'
             return 'core-consumers'
 
-        selected = [entry for entry in selected if consumer_owner(entry) == shard]
+        owner = 'core-consumers' if shard == 'core-consumers-2' else shard
+        selected = [entry for entry in selected if consumer_owner(entry) == owner]
+        if shard in ('core-consumers', 'core-consumers-2'):
+            # CI 42188100638 completed 27 read roots in 1769.56s, then
+            # exhausted the shared 30m deadline with ten roots unfinished.
+            # Balance complete roots, including child-only sentinels and
+            # future capabilities, without a timing or test-name allowlist.
+            roots = sorted({entry.partition('|')[2].split('/')[0] for entry in selected},
+                           key=lambda name: (hashlib.sha256(name.encode()).digest(), name))
+            index = 0 if shard == 'core-consumers' else 1
+            owned = set(roots[index::2])
+            selected = [entry for entry in selected if entry.partition('|')[2].split('/')[0] in owned]
     if not selected:
         raise ValueError('PostgreSQL partition has no required execution')
     return {'mode': mode, 'shard': shard, 'packages': list(packages), 'required': selected,

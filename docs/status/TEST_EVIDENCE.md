@@ -4707,6 +4707,60 @@ owner·시간 제한·엄격한 run/pass 검사를 유지한다. Gofmt·템플�
 106개 selector의 정확한 제거/생성 모델·DB parent 보존과 남은 타입 참조를 대조했으며,
 로컬 Go compile/test는 실행하지 않았다. 새 174개 본문·양 DB/race·전체 원격 수용은 아직 미확인이다.
 
+### 선택 생성 Form의 남은 입력·준비 검증 통합
+
+고정 `RunUserCreationForms`와 두 DB wrapper, 더 이상 호출하지 않는 준비 시험 helper를 제거했다. 각 DB의 기존
+root/child 90개를 필수 목록에서 제거하고 검증 책임을 아래 선택 모델 소비자로 통합했다. 고정 public
+`UserCreationForm`과 내장 Admin의 남은 의존성, 기존 단위 검사·Django producer/capture는 유지한다.
+
+| 제거한 고정 검사 | 계속 실행하는 선택 owner의 검증 |
+|---|---|
+| 세 생성 모드의 입력 20개·즉시/지연/포기/거부 수명 | `TestCreationInputPolicy/form/{standard,admin_enabled,admin_disabled}`: 같은 원문 입력·독립 관측, 저장된 다섯 credential/default 값·준비 비밀 비노출·전체 native 상태 대조 |
+| 생성→삭제 뒤 재사용, 네 준비 사본의 동시 Commit | `prepared_ownership/{single_attempt_after_delete,concurrent_copies}/{usable,unusable}`: 유일한 저장 시도·정확한 hash/ID·생성/삭제 audit와 물리 행 대조 |
+| foreign owner/권한 있는 다른 actor/빈 값/취소 | `prepared_ownership/unadmitted_calls/{usable,unusable}`와 파일 Form 수명: 거부가 원래 준비의 시도를 소모하지 않으며 재사용은 차단 |
+| 늦은 중복, 삭제된 그룹·회수된 권한 | 입력 `boundaries/late_duplicate`, native `creation_preflight_and_recheck`, 파일 Form `prepared_form_lifecycle/revoked` |
+| 감사·cleanup·결과 불명과 재시도 | native `creation_commit_failures`, 생성 파일 Form의 `prepared_form_lifecycle/{audit,cleanup,unknown_commit}`: 실제 rollback/commit 행과 준비 사본 재시도 거부 |
+| foreign 값의 mismatch/문법/type/field와 취소 | 새 `foreign_values/{standard,admin_enabled}/{mismatch,grammar,type,field,canceled}`: 유효한 일반 Form도 저장 권한을 얻지 못하며 DB/hash/ID/policy 진입과 native 변경은 0 |
+
+새 foreign 검사에서는 login 문법을 제거한 일반 필드로 먼저 유효한 Form을 만든 뒤 선택 Form의 Prepare가 다시 검사하는지
+대조한다. 잘못된 타입은 typed ModelForm 결합에서, 추가 role 필드는 선택 경계에서 거부해야 한다. 실패의 원인·진단과
+빈 준비의 Commit 거부도 확인한다. 새 그룹/child 13개를 더해 입력 소비자는 기본/renamed × 각 DB process마다
+필수 187개를 요구한다. API 작성/정적 확인과 이 새 본문의 실제 실행은 구분한다.
+
+### 원격 정책 오류 분류와 누적 실행 제한 수정
+
+Source `1eff569c68273278541553ca99c3a6afcab7cc08`의 [CI 42188100638](https://github.com/progresshans/godj/actions/runs/42188100638)
+대표 PostgreSQL normal [job 127793923262](https://github.com/progresshans/godj/actions/runs/42188100638/job/127793923262)와
+Linux SQLite normal [job 127793930482](https://github.com/progresshans/godj/actions/runs/42188100638/job/127793930482)에서
+`TestAccountPasswordPolicyBoundaries/create/swallowed`의 기대 오류가 실제 `outcome_unknown`과 달라 실패했다.
+네 대표 job의 checkout `6903f5e2a55cc1579908f0c5df6069c279ba22a2`는 제출 source와 같은 tree
+`5ee2b6e7d0cc052a95f3af4e761bff625ea5ce69`다. 이 실행의 일부 성공을 전체 수용으로 계산하지 않는다.
+
+기존 `db.AtomicResult` 계약은 거부된 callback을 backend가 성공으로 보고하면 transaction 소유권·rollback을 확정할 수 없어
+결과 불명으로 처리한다. 생성/비밀번호 두 소비자의 기대를 `CodeOutcomeUnknown`과 원인 `CodeTransactionOutcomeUnknown`으로
+바로잡았다. 진단 비게시·빈 결과·준비 재시도 거부·한 번의 native 시도/hash·원래 backend의 전체 무변경 검사는 유지한다.
+제품의 오류 분류나 transaction 처리를 완화하지 않았다.
+
+PostgreSQL race [job 127793923446](https://github.com/progresshans/godj/actions/runs/42188100638/job/127793923446)의 전체 이벤트에서는
+27개 read-consumer root가 1769.56초를 사용한 뒤 named annotations 실행 중 package의 30분 제한에 도달했다.
+필수 37개 root 중 열 개가 완료되지 않았다. Manifest 전체에서 결정적으로 나눈 두 read owner를 세 모드에 배치하고,
+각 root와 미래 child를 정확히 한 번 소유하도록 검사했다. 두 owner 모두 기존 Django 원문 producer·S3 service 준비와
+30분 제한을 유지하고 vet는 기존 첫 owner만 수행한다.
+
+Intel macOS race [job 127793946707](https://github.com/progresshans/godj/actions/runs/42188100638/job/127793946707)의 별도 생성 process는
+catalog reference 두 전략에 381.71초, transition staged에 161.62초를 사용한 뒤 created 중 10분 제한에 도달했다.
+기존 branch planner로 reference/transition × staged/created 네 독립 branch를 나눴다. 모든 leaf와 양 DB·모드·시간 제한,
+엄격한 run/pass·실패 원본 수집은 유지하며 branch별 외부 필수 selector도 추가했다.
+
+검증 보관소 `gdj0138-1eff569c-ci-42188100638/`에서 두 실패 archive의 크기·GitHub digest·ZIP CRC와 위 전체 이벤트를 대조했다.
+PostgreSQL artifact `13492286006`은 858553 bytes / SHA-256
+`b70f861fe2e361478569ec823a0f36b1e7cb99edd7c901eb4a5613b1f0bcad68`, macOS artifact `13505452288`은
+70505 bytes / `7a35254fe865a7a2245cc721b10c2df4c8f60724a4e4d12f0115b3494e94260d`다.
+이는 실패 진단이며 전체 artifact 수용 검증이 아니다.
+
+Gofmt·템플릿 구문, Python CI 분할 검사 27개는 통과했다. 로컬 Go compile/test는 실행하지 않았다.
+새 187개 입력 본문·branch 분할·두 read owner의 양 DB/race/platform 실행과 같은 source의 전체 원격 수용은 미확인이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -141,6 +141,14 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 					required = append(required, required[0]+"/prepared_ownership/"+operation+"/"+mode)
 				}
 			}
+			required = append(required, required[0]+"/foreign_values")
+			for _, mode := range []string{"standard", "admin_enabled"} {
+				prefix := required[0] + "/foreign_values/" + mode
+				required = append(required, prefix)
+				for _, kind := range []string{"mismatch", "grammar", "type", "field", "canceled"} {
+					required = append(required, prefix+"/"+kind)
+				}
+			}
 			required = append(required, "TestAccountPasswordPolicyBoundaries")
 			for _, operation := range []string{"create", "password"} {
 				for _, mode := range []string{"preflight", "final", "cleanup", "swallowed", "unknown", "cancel_preflight", "cancel_final"} {

@@ -1324,6 +1324,9 @@ jobs:
             shard: core-consumers
             timeout_minutes: 40
           - mode: normal
+            shard: core-consumers-2
+            timeout_minutes: 40
+          - mode: normal
             shard: core-account-consumers
             timeout_minutes: 40
           - mode: normal
@@ -1387,6 +1390,9 @@ jobs:
             shard: core-consumers
             timeout_minutes: 40
           - mode: race
+            shard: core-consumers-2
+            timeout_minutes: 40
+          - mode: race
             shard: core-account-consumers
             timeout_minutes: 40
           - mode: race
@@ -1442,6 +1448,9 @@ jobs:
             timeout_minutes: 60
           - mode: cgo0
             shard: core-consumers
+            timeout_minutes: 40
+          - mode: cgo0
+            shard: core-consumers-2
             timeout_minutes: 40
           - mode: cgo0
             shard: core-account-consumers
@@ -1506,7 +1515,7 @@ jobs:
           cache: true
 
       - name: Set up pinned Django expression reference runtime
-        if: matrix.shard == 'core' || matrix.shard == 'core-consumers'
+        if: matrix.shard == 'core' || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           version: "0.12.3"
@@ -1514,7 +1523,7 @@ jobs:
           enable-cache: true
 
       - name: Observe independent Django relation expressions on both native databases
-        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
         run: |
@@ -1526,7 +1535,7 @@ jobs:
           done
 
       - name: Observe independent Django collection aggregates on both native databases
-        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
         run: |
@@ -1537,7 +1546,7 @@ jobs:
           done
 
       - name: Observe independent Django named annotations on both native databases
-        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
         run: |
@@ -1561,7 +1570,7 @@ jobs:
           done
 
       - name: Observe independent Django Decimal expressions on both native databases
-        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
         run: |
@@ -1572,7 +1581,7 @@ jobs:
           done
 
       - name: Observe independent Django temporal expressions on both native databases
-        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
         run: |
@@ -1583,7 +1592,7 @@ jobs:
           done
 
       - name: Observe independent Django calendar extraction on both native databases
-        if: (matrix.shard == 'core' && matrix.mode != 'race') || matrix.shard == 'core-consumers'
+        if: (matrix.shard == 'core' && matrix.mode != 'race') || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         env:
           GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
         run: |
@@ -1614,7 +1623,7 @@ jobs:
           test "$fingerprint" = "170010|UTF8|UTF8|c|<null>|C|C|UTC|on|on|read committed|off|off|on|on|origin"
 
       - name: Build pinned S3 reference service for core product tests
-        if: matrix.shard == 'core' || matrix.shard == 'core-consumers'
+        if: matrix.shard == 'core' || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2')
         run: python3 scripts/ci/s3_service.py build --directory "$RUNNER_TEMP/s3-reference"
 
       - name: Run and inventory PostgreSQL actual product tests
@@ -1647,7 +1656,7 @@ jobs:
           )
           go mod download all
           case "$shard" in
-            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-account-consumers|core-account-management|core-account-reset|core-account-through|core-account-root-through|core-account-transition-through|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-shared-through|core-account-target-references|core-account-catalog-fields|core-account-catalog-cycles|core-account-profiles|core-consumer-writes|core-processes)
+            core|core-postgres-1|core-postgres-2|core-helpdesk-postgres|core-consumers|core-consumers-2|core-account-consumers|core-account-management|core-account-reset|core-account-through|core-account-root-through|core-account-transition-through|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-shared-through|core-account-target-references|core-account-catalog-fields|core-account-catalog-cycles|core-account-profiles|core-consumer-writes|core-processes)
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
               python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
                 --required scripts/ci/postgres-core-required.txt --output-dir "$partition"
@@ -1682,7 +1691,7 @@ jobs:
           required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
           test_timeout=18m
           if { [ "$shard" = core ] && [ "$mode" != race ]; } ||
-             [ "$shard" = core-consumers ] || [ "$shard" = core-account-consumers ] || [ "$shard" = core-account-management ] || [ "$shard" = core-account-reset ] || [ "$shard" = core-account-through ] || [ "$shard" = core-account-root-through ] || [ "$shard" = core-account-transition-through ] || [ "$shard" = core-account-transition ] || [ "$shard" = core-account-catalog ] || [ "$shard" = core-account-catalog-creation ] || [ "$shard" = core-account-shared-through ] || [ "$shard" = core-account-target-references ] || [ "$shard" = core-account-catalog-fields ] || [ "$shard" = core-account-catalog-cycles ] || [ "$shard" = core-account-profiles ] || [ "$shard" = core-consumer-writes ]; then
+             [ "$shard" = core-consumers ] || [ "$shard" = core-consumers-2 ] || [ "$shard" = core-account-consumers ] || [ "$shard" = core-account-management ] || [ "$shard" = core-account-reset ] || [ "$shard" = core-account-through ] || [ "$shard" = core-account-root-through ] || [ "$shard" = core-account-transition-through ] || [ "$shard" = core-account-transition ] || [ "$shard" = core-account-catalog ] || [ "$shard" = core-account-catalog-creation ] || [ "$shard" = core-account-shared-through ] || [ "$shard" = core-account-target-references ] || [ "$shard" = core-account-catalog-fields ] || [ "$shard" = core-account-catalog-cycles ] || [ "$shard" = core-account-profiles ] || [ "$shard" = core-consumer-writes ]; then
             # The generated roots share one package deadline, including the
             # complete child sets of each consumer partition. Individual
             # deadlines and the complete required inventory remain unchanged.
@@ -1711,7 +1720,7 @@ jobs:
             *" TestGeneratedModelResources "*) make api-client-dependencies ;;
           esac
           status=0
-          if [ "$shard" = "core" ] || [ "$shard" = "core-consumers" ]; then
+          if [ "$shard" = "core" ] || [ "$shard" = "core-consumers" ] || [ "$shard" = "core-consumers-2" ]; then
             python3 scripts/ci/s3_service.py run --directory "$RUNNER_TEMP/s3-reference" -- \
               go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
           else
@@ -1727,7 +1736,7 @@ jobs:
           fi
           case "$shard" in
             core-consumers) go vet "${packages[@]}"; exit 0 ;;
-            core-account-consumers|core-account-management|core-account-reset|core-account-through|core-account-root-through|core-account-transition-through|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-shared-through|core-account-target-references|core-account-catalog-fields|core-account-catalog-cycles|core-account-profiles|core-consumer-writes) exit 0 ;;
+            core-consumers-2|core-account-consumers|core-account-management|core-account-reset|core-account-through|core-account-root-through|core-account-transition-through|core-account-transition|core-account-catalog|core-account-catalog-creation|core-account-shared-through|core-account-target-references|core-account-catalog-fields|core-account-catalog-cycles|core-account-profiles|core-consumer-writes) exit 0 ;;
           esac
           if [ "$shard" = "core" ]; then
             test -f "$GODJ_SYSTEM_STATE_POSTGRES_ATTESTATION_CAPTURE"
@@ -1805,7 +1814,7 @@ jobs:
           retention-days: 90
 
       - name: Publish S3 service build and lifecycle receipts
-        if: always() && (matrix.shard == 'core' || matrix.shard == 'core-consumers')
+        if: always() && (matrix.shard == 'core' || (matrix.shard == 'core-consumers' || matrix.shard == 'core-consumers-2'))
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: s3-service-${{ matrix.mode }}-${{ matrix.shard }}-${{ github.run_attempt }}
