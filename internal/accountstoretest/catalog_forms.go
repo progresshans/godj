@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -53,6 +55,7 @@ func catalogBoundForm[M any](t *testing.T, resource accountmodel.CatalogResource
 func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provisionCatalog(t, backend)
 	actor := f.credential.Principal()
+	formValidationSessions(t, backend, f.credential)
 	permissions, groups := f.catalog.Permissions(), f.catalog.Groups()
 	permission, err := models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate("catalog.form_check", "Existing"))
 	if err != nil {
@@ -70,12 +73,13 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"partial_unique", "current_excluded", "stale", "missing", "group_selection", "revoked", "additional"} {
+	for _, mode := range []string{"partial_unique", "permission_change_partial_unique", "current_excluded", "stale", "missing", "group_selection", "group_change_partial_unique", "group_current_excluded", "group_stale", "group_missing", "revoked", "additional"} {
 		t.Run(mode, func(t *testing.T) {
 			bound := catalogBoundForm(t, permissions, map[string][]string{"code": {permission.Code}, "name": {""}}, nil)
 			if bound.Form().Valid() {
 				t.Fatal("partial-invalid fixture is valid")
 			}
+			expected := formNativeSnapshot(t, backend)
 			var err error
 			switch mode {
 			case "partial_unique":
@@ -83,6 +87,18 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 				failures, rejected := validation.Rejected(err)
 				if !rejected || failures.ByField("code").Empty() || !failures.ByField("name").Empty() {
 					t.Fatal("valid code uniqueness was skipped or old errors repeated", err)
+				}
+			case "permission_change_partial_unique":
+				current := f.account.grants[0]
+				bound = catalogBoundForm(t, permissions, map[string][]string{"code": {permission.Code}, "name": {""}}, &current)
+				err = permissions.CheckChangeForm(t.Context(), actor, current.ID, current.Revision, bound)
+				failures, rejected := validation.Rejected(err)
+				if !rejected || failures.Len() != 1 || failures.ByField("code").Len() != 1 {
+					t.Fatal("partial permission change skipped independent uniqueness", err)
+				}
+				combined, applyErr := bound.WithErrors(failures)
+				if applyErr != nil || combined.Form().Errors().Len() != 2 || combined.Form().Errors().ByField("name").Len() != 1 {
+					t.Fatal("permission change replaced field diagnostics", applyErr)
 				}
 			case "current_excluded":
 				bound = catalogBoundForm(t, permissions, map[string][]string{"code": {permission.Code}, "name": {"Edited"}}, &permission)
@@ -107,18 +123,54 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 				if !rejected || failures.ByField("name").Empty() || failures.ByField("permissions").Empty() {
 					t.Fatal("relation refusal suppressed independent uniqueness", err)
 				}
+			case "group_change_partial_unique":
+				current := f.account.group
+				bound = catalogBoundForm(t, groups, map[string][]string{"name": {group.Name}, "permissions": {"missing"}}, &current)
+				err = groups.CheckChangeForm(t.Context(), actor, current.ID, current.Revision, bound)
+				failures, rejected := validation.Rejected(err)
+				if !rejected || failures.Len() != 1 || failures.ByField("name").Len() != 1 {
+					t.Fatal("partial group change skipped independent uniqueness", err)
+				}
+				combined, applyErr := bound.WithErrors(failures)
+				if applyErr != nil || combined.Form().Errors().Len() != 2 || combined.Form().Errors().ByField("permissions").Len() != 1 {
+					t.Fatal("group change replaced field diagnostics", applyErr)
+				}
+			case "group_current_excluded", "group_stale", "group_missing":
+				current := group
+				if mode == "group_stale" {
+					current.Revision++
+				}
+				if mode == "group_missing" {
+					current.ID = mathMaxKey
+				}
+				bound = catalogBoundForm(t, groups, map[string][]string{"name": {group.Name}}, &current)
+				err = groups.CheckChangeForm(t.Context(), actor, current.ID, current.Revision, bound)
+				if mode == "group_current_excluded" {
+					if err != nil {
+						t.Fatal("group advisory uniqueness included the current row", err)
+					}
+				} else {
+					code := accountmodel.CodeConflict
+					if mode == "group_missing" {
+						code = accountmodel.CodeNotFound
+					}
+					requireProfileCode(t, err, code)
+				}
 			case "revoked":
 				link := f.grants[catalogConfig().Permission.Permissions.Add]
 				if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), backend, &link); err != nil || count != 1 {
 					t.Fatal(err)
 				}
+				expected = formNativeSnapshot(t, backend)
+				t.Cleanup(func() {
+					restored, err := models.UserPermissionsLinkObjects.Create(context.Background(), backend, models.NewUserPermissionsLinkCreate(link.SourceID, link.TargetID))
+					if err != nil {
+						t.Error(err)
+					}
+					f.grants[catalogConfig().Permission.Permissions.Add] = restored
+				})
 				err = permissions.CheckCreateForm(t.Context(), actor, bound)
 				requireProfileCode(t, err, accountmodel.CodePermission)
-				link, err = models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(link.SourceID, link.TargetID))
-				if err != nil {
-					t.Fatal(err)
-				}
-				f.grants[catalogConfig().Permission.Permissions.Add] = link
 			case "additional":
 				config := catalogConfig()
 				config.Permission.Permissions.Additional = []auth.Permission{"catalog.extra"}
@@ -127,6 +179,107 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 					t.Fatal(err)
 				}
 				requireProfileCode(t, owner.Permissions().CheckCreateForm(t.Context(), actor, bound), accountmodel.CodePermission)
+			}
+			if !reflect.DeepEqual(expected, formNativeSnapshot(t, backend)) {
+				t.Fatal("catalog advisory validation changed native state")
+			}
+		})
+	}
+	for _, operation := range []string{"create", "change"} {
+		for _, mode := range []string{"stale_selection", "unordered_selection"} {
+			t.Run("group_"+operation+"_"+mode, func(t *testing.T) {
+				var current *models.Group
+				if operation == "change" {
+					row := f.account.group
+					current = &row
+				}
+				name := "Advisory group"
+				if mode == "stale_selection" {
+					name = group.Name
+				}
+				keys := []string{strconv.FormatInt(permission.ID, 10), strconv.FormatInt(f.account.grants[0].ID, 10), strconv.FormatInt(permission.ID, 10)}
+				bound := catalogBoundForm(t, groups, map[string][]string{"name": {name}, "permissions": keys}, current, permission.ID, f.account.grants[0].ID)
+				if !bound.Form().Valid() {
+					t.Fatal("catalog selection did not pass its independent input choices")
+				}
+				cleaned, _ := bound.Form().Cleaned().Integers("permissions")
+				if mode == "stale_selection" {
+					removed := permission
+					if count, err := models.PermissionObjects.Delete(t.Context(), reopen(t), &removed); err != nil || count != 1 {
+						t.Fatal("separate writer did not remove the selected permission", err)
+					}
+					t.Cleanup(func() {
+						restored := permission
+						if err := models.PermissionObjects.Save(context.Background(), backend, &restored, orm.ForceInsert[models.Permission]()); err != nil {
+							t.Error(err)
+						}
+					})
+				}
+				before := formNativeSnapshot(t, backend)
+				var err error
+				if current == nil {
+					err = groups.CheckCreateForm(t.Context(), actor, bound)
+				} else {
+					err = groups.CheckChangeForm(t.Context(), actor, current.ID, current.Revision, bound)
+				}
+				if mode == "stale_selection" {
+					failures, rejected := validation.Rejected(err)
+					if !rejected || failures.Len() != 2 || failures.ByField("name").Len() != 1 || failures.ByField("permissions").Len() != 1 {
+						t.Fatal("stale choices suppressed independent uniqueness or remained valid", err)
+					}
+				} else if err != nil {
+					t.Fatal("unordered duplicate choices were not normalized for validation", err)
+				}
+				after, _ := bound.Form().Cleaned().Integers("permissions")
+				if !slices.Equal(cleaned, after) || !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) {
+					t.Fatal("advisory choice validation mutated input or native state")
+				}
+			})
+		}
+	}
+	groupData := map[string][]string{"name": {group.Name}, "permissions": {"missing"}}
+	permissionData := map[string][]string{"code": {permission.Code}, "name": {""}}
+	groupCreate := catalogBoundForm(t, groups, groupData, nil)
+	groupChange := catalogBoundForm(t, groups, groupData, &f.account.group)
+	permissionCreate := catalogBoundForm(t, permissions, permissionData, nil)
+	permissionChange := catalogBoundForm(t, permissions, permissionData, &f.account.grants[0])
+	for _, probe := range []struct {
+		name  string
+		grant auth.Permission
+		check func() error
+	}{
+		{"group_create", catalogConfig().Group.Permissions.Add, func() error { return groups.CheckCreateForm(t.Context(), actor, groupCreate) }},
+		{"group_change", catalogConfig().Group.Permissions.Change, func() error {
+			return groups.CheckChangeForm(t.Context(), actor, f.account.group.ID, f.account.group.Revision, groupChange)
+		}},
+		{"permission_create", catalogConfig().Permission.Permissions.Add, func() error { return permissions.CheckCreateForm(t.Context(), actor, permissionCreate) }},
+		{"permission_change", catalogConfig().Permission.Permissions.Change, func() error {
+			return permissions.CheckChangeForm(t.Context(), actor, f.account.grants[0].ID, f.account.grants[0].Revision, permissionChange)
+		}},
+	} {
+		t.Run("current_authority_"+probe.name, func(t *testing.T) {
+			if _, rejected := validation.Rejected(probe.check()); !rejected {
+				t.Fatal("current-authority control did not produce private diagnostics")
+			}
+			link, exists := f.grants[probe.grant]
+			if !exists {
+				t.Fatal("catalog authority fixture has no direct grant", probe.grant)
+			}
+			if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), reopen(t), &link); err != nil || count != 1 {
+				t.Fatal("separate writer did not revoke catalog authority", err)
+			}
+			t.Cleanup(func() {
+				restored, err := models.UserPermissionsLinkObjects.Create(context.Background(), backend, models.NewUserPermissionsLinkCreate(link.SourceID, link.TargetID))
+				if err != nil {
+					t.Error(err)
+				}
+				f.grants[probe.grant] = restored
+			})
+			before := formNativeSnapshot(t, backend)
+			err := probe.check()
+			requireProfileCode(t, err, accountmodel.CodePermission)
+			if _, rejected := validation.Rejected(err); rejected || !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) {
+				t.Fatal("cached authority disclosed diagnostics or changed native state", err)
 			}
 		})
 	}
@@ -162,6 +315,7 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	f := provisionCatalog(t, backend)
 	actor := f.credential.Principal()
+	formValidationSessions(t, backend, f.credential)
 	permission, err := models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate("catalog.form_failure", "Existing"))
 	if err != nil {
 		t.Fatal(err)
@@ -171,6 +325,7 @@ func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 			fault := errors.New("private form snapshot details")
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
+			var retained db.Queryer
 			owner := &catalogReadBackend{Backend: backend}
 			owner.read = func(ctx context.Context, observe func(db.Queryer) error) error {
 				switch mode {
@@ -182,6 +337,7 @@ func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					return observe(backend)
 				}
 				err := backend.ReadSnapshot(ctx, func(scope db.Queryer) error {
+					retained = scope
 					probe := &catalogReadProbe{Queryer: scope, validator: scope.(db.SessionValidator), table: "godj_identity_permission", skip: 1}
 					if mode == "query" || mode == "close" || mode == "swallowed" {
 						probe.fault, probe.closeFail = fault, mode == "close"
@@ -213,6 +369,7 @@ func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 			}
 			resource := catalog.Permissions()
 			bound := catalogBoundForm(t, resource, map[string][]string{"code": {permission.Code}, "name": {""}}, nil)
+			before := formNativeSnapshot(t, backend)
 			if mode == "conflict_cleanup" {
 				stale := permission
 				stale.Revision++
@@ -222,8 +379,13 @@ func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 				err = resource.CheckCreateForm(ctx, actor, bound)
 			}
 			requireProfileCode(t, err, accountmodel.CodePersistence)
-			if _, rejected := validation.Rejected(err); rejected || strings.Contains(fmt.Sprintf("%+v", err), "private") {
+			if _, rejected := validation.Rejected(err); rejected {
 				t.Fatal("failed snapshot disclosed input diagnostics or private cause")
+			}
+			for _, format := range []string{"%s", "%v", "%+v", "%#v"} {
+				if strings.Contains(fmt.Sprintf(format, err), fault.Error()) {
+					t.Fatal("advisory failure exposed private backend details")
+				}
 			}
 			if mode == "query" || mode == "close" || mode == "swallowed" || strings.HasSuffix(mode, "cleanup") {
 				if !errors.Is(err, fault) {
@@ -232,6 +394,14 @@ func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 			}
 			if mode == "cancel" && !errors.Is(err, context.Canceled) {
 				t.Fatal("read failure lost cancellation")
+			}
+			if retained != nil {
+				if _, err := models.PermissionObjects.Using(retained).Count(t.Context()); err == nil {
+					t.Fatal("original catalog validation reader survived its scope")
+				}
+			}
+			if !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) {
+				t.Fatal("failed catalog advisory scope changed native state")
 			}
 		})
 	}

@@ -232,6 +232,123 @@ func managementHTTPInsertChoice[M any](ctx context.Context, scope db.Session, ma
 	return manager.Save(ctx, scope, &row, orm.ForceInsert[M]())
 }
 
+type managementHTTPDurable[M, G, P any] struct {
+	Accounts         []M
+	Groups           []G
+	Permissions      []P
+	Memberships      []map[string][]int64
+	GroupPermissions [][]int64
+	Sessions         []sessionmodels.Session
+	Audits           []auditmodels.Event
+	NativeLinks      map[string][]managementHTTPLink
+	Domains          []domainmodels.Transition
+	Mappings         []domainmodels.Mapping
+}
+
+// Observe the complete physical fixture through its original native backend.
+// HTTP admission and management readers never serve as their own state oracle.
+func managementHTTPNativeSnapshot[M, G, P any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], groupObjects orm.Manager[G], permissionObjects orm.Manager[P]) managementHTTPDurable[M, G, P] {
+	t.Helper()
+	check := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	role, err := binding.Role()
+	check(err)
+	objects, err := binding.Objects()
+	check(err)
+	keyField, err := objects.PrimaryKeyField()
+	check(err)
+	key := orm.NewAutoField[M](keyField)
+	groupKey, err := groupObjects.PrimaryKeyField()
+	check(err)
+	permissionKey, err := permissionObjects.PrimaryKeyField()
+	check(err)
+	projectBinding, err := binding.Project()
+	check(err)
+	collectionPlans := managementHTTPCollectionPlans(t, projectBinding, role)
+	// One native read per physical table, independent of the management
+	// reader under test. This observes every stored value and link identity
+	// without repeating current-actor/target resolution for every fixture row.
+	state := managementHTTPDurable[M, G, P]{NativeLinks: make(map[string][]managementHTTPLink)}
+	visits := 0
+	check(backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+		visits++
+		if visits != 1 {
+			return errors.New("native state observation repeated its snapshot callback")
+		}
+		var err error
+		if state.Accounts, err = objects.Using(scope).OrderBy(key.Asc()).All(t.Context()); err != nil {
+			return err
+		}
+		if state.Groups, err = groupObjects.Using(scope).OrderBy(orm.NewAutoField[G](groupKey).Asc()).All(t.Context()); err != nil {
+			return err
+		}
+		if state.Permissions, err = permissionObjects.Using(scope).OrderBy(orm.NewAutoField[P](permissionKey).Asc()).All(t.Context()); err != nil {
+			return err
+		}
+		for _, collection := range collectionPlans {
+			links, err := managementHTTPReadLinks(t.Context(), scope, collection.plan)
+			if err != nil {
+				return err
+			}
+			state.NativeLinks[collection.plan.Table()] = links
+		}
+		if state.Sessions, err = sessionmodels.SessionObjects.Using(scope).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context()); err != nil {
+			return err
+		}
+		if state.Audits, err = auditmodels.EventObjects.Using(scope).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context()); err != nil {
+			return err
+		}
+		if state.Domains, err = domainmodels.TransitionObjects.Using(scope).OrderBy(domainmodels.TransitionFields.ID.Asc()).All(t.Context()); err != nil {
+			return err
+		}
+		state.Mappings, err = domainmodels.MappingObjects.Using(scope).OrderBy(domainmodels.MappingFields.ID.Asc()).All(t.Context())
+		return err
+	}))
+	if visits != 1 {
+		t.Fatal("native state observation skipped its snapshot callback")
+	}
+	indexes := map[ir.ModelIdentity]map[int64]int{
+		role.Model:              managementHTTPRowIndexes(t, objects, state.Accounts),
+		role.Catalog.Group:      managementHTTPRowIndexes(t, groupObjects, state.Groups),
+		role.Catalog.Permission: managementHTTPRowIndexes(t, permissionObjects, state.Permissions),
+	}
+	state.Memberships = make([]map[string][]int64, len(state.Accounts))
+	for index := range state.Memberships {
+		state.Memberships[index] = map[string][]int64{role.Groups: nil, role.Permissions: nil}
+	}
+	state.GroupPermissions = make([][]int64, len(state.Groups))
+	for _, collection := range collectionPlans {
+		pairs := make(map[[2]int64]bool)
+		for _, row := range state.NativeLinks[collection.plan.Table()] {
+			index, sourceExists := indexes[collection.source][row.Source]
+			_, targetExists := indexes[collection.target][row.Target]
+			pair := [2]int64{row.Source, row.Target}
+			if !sourceExists || !targetExists || pairs[pair] {
+				t.Fatal("native collection contains an orphan or duplicate relation", collection.field)
+			}
+			pairs[pair] = true
+			if collection.source == role.Model {
+				state.Memberships[index][collection.field] = append(state.Memberships[index][collection.field], row.Target)
+			} else {
+				state.GroupPermissions[index] = append(state.GroupPermissions[index], row.Target)
+			}
+		}
+	}
+	for _, fields := range state.Memberships {
+		for _, keys := range fields {
+			slices.Sort(keys)
+		}
+	}
+	for _, keys := range state.GroupPermissions {
+		slices.Sort(keys)
+	}
+	return state
+}
+
 type managementHTTPLink struct{ ID, Source, Target int64 }
 type managementHTTPCollection struct {
 	source, target ir.ModelIdentity
@@ -921,105 +1038,11 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 	client := newClient()
 	actorSession := login(client, actorLogin, accountPasswordText)
 	groupObjects, permissionObjects := catalog.Groups().Manager(), catalog.Permissions().Manager()
-	groupKey, err := groupObjects.PrimaryKeyField()
-	check(err)
-	permissionKey, err := permissionObjects.PrimaryKeyField()
-	check(err)
 	projectBinding, err := binding.Project()
 	check(err)
 	collectionPlans := managementHTTPCollectionPlans(t, projectBinding, role)
-	type durable struct {
-		Accounts         []M
-		Groups           []G
-		Permissions      []P
-		Memberships      []map[string][]int64
-		GroupPermissions [][]int64
-		Sessions         []sessionmodels.Session
-		Audits           []auditmodels.Event
-		NativeLinks      map[string][]managementHTTPLink
-		Domains          []domainmodels.Transition
-		Mappings         []domainmodels.Mapping
-	}
-	snapshot := func() durable {
-		t.Helper()
-		// One native read per physical table, independent of the management
-		// reader under test. This observes every stored value and link identity
-		// without repeating current-actor/target resolution for every fixture row.
-		state := durable{NativeLinks: make(map[string][]managementHTTPLink)}
-		visits := 0
-		check(faults.Backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
-			visits++
-			if visits != 1 {
-				return errors.New("native state observation repeated its snapshot callback")
-			}
-			var err error
-			if state.Accounts, err = objects.Using(scope).OrderBy(key.Asc()).All(t.Context()); err != nil {
-				return err
-			}
-			if state.Groups, err = groupObjects.Using(scope).OrderBy(orm.NewAutoField[G](groupKey).Asc()).All(t.Context()); err != nil {
-				return err
-			}
-			if state.Permissions, err = permissionObjects.Using(scope).OrderBy(orm.NewAutoField[P](permissionKey).Asc()).All(t.Context()); err != nil {
-				return err
-			}
-			for _, collection := range collectionPlans {
-				links, err := managementHTTPReadLinks(t.Context(), scope, collection.plan)
-				if err != nil {
-					return err
-				}
-				state.NativeLinks[collection.plan.Table()] = links
-			}
-			if state.Sessions, err = sessionmodels.SessionObjects.Using(scope).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context()); err != nil {
-				return err
-			}
-			if state.Audits, err = auditmodels.EventObjects.Using(scope).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context()); err != nil {
-				return err
-			}
-			if state.Domains, err = domainmodels.TransitionObjects.Using(scope).OrderBy(domainmodels.TransitionFields.ID.Asc()).All(t.Context()); err != nil {
-				return err
-			}
-			state.Mappings, err = domainmodels.MappingObjects.Using(scope).OrderBy(domainmodels.MappingFields.ID.Asc()).All(t.Context())
-			return err
-		}))
-		if visits != 1 {
-			t.Fatal("native state observation skipped its snapshot callback")
-		}
-		indexes := map[ir.ModelIdentity]map[int64]int{
-			role.Model:              managementHTTPRowIndexes(t, objects, state.Accounts),
-			role.Catalog.Group:      managementHTTPRowIndexes(t, groupObjects, state.Groups),
-			role.Catalog.Permission: managementHTTPRowIndexes(t, permissionObjects, state.Permissions),
-		}
-		state.Memberships = make([]map[string][]int64, len(state.Accounts))
-		for index := range state.Memberships {
-			state.Memberships[index] = map[string][]int64{role.Groups: nil, role.Permissions: nil}
-		}
-		state.GroupPermissions = make([][]int64, len(state.Groups))
-		for _, collection := range collectionPlans {
-			pairs := make(map[[2]int64]bool)
-			for _, row := range state.NativeLinks[collection.plan.Table()] {
-				index, sourceExists := indexes[collection.source][row.Source]
-				_, targetExists := indexes[collection.target][row.Target]
-				pair := [2]int64{row.Source, row.Target}
-				if !sourceExists || !targetExists || pairs[pair] {
-					t.Fatal("native collection contains an orphan or duplicate relation", collection.field)
-				}
-				pairs[pair] = true
-				if collection.source == role.Model {
-					state.Memberships[index][collection.field] = append(state.Memberships[index][collection.field], row.Target)
-				} else {
-					state.GroupPermissions[index] = append(state.GroupPermissions[index], row.Target)
-				}
-			}
-		}
-		for _, fields := range state.Memberships {
-			for _, keys := range fields {
-				slices.Sort(keys)
-			}
-		}
-		for _, keys := range state.GroupPermissions {
-			slices.Sort(keys)
-		}
-		return state
+	snapshot := func() managementHTTPDurable[M, G, P] {
+		return managementHTTPNativeSnapshot(t, faults.Backend, binding, groupObjects, permissionObjects)
 	}
 	var permission, group, created receipt
 	run("catalog_create", func(t *testing.T) {
@@ -1687,7 +1710,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 							before.Accounts, oldValues, oldIndex = managementHTTPWithout(t, objects, before.Accounts, target.ID)
 							after.Accounts, newValues, newIndex = managementHTTPWithout(t, objects, after.Accounts, target.ID)
 							for _, item := range []struct {
-								state *durable
+								state *managementHTTPDurable[M, G, P]
 								index int
 							}{{&before, oldIndex}, {&after, newIndex}} {
 								if item.index >= 0 {
@@ -1708,7 +1731,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 							before.Groups, oldValues, oldIndex = managementHTTPWithout(t, catalog.Groups().Manager(), before.Groups, target.ID)
 							after.Groups, newValues, newIndex = managementHTTPWithout(t, catalog.Groups().Manager(), after.Groups, target.ID)
 							for _, item := range []struct {
-								state *durable
+								state *managementHTTPDurable[M, G, P]
 								index int
 							}{{&before, oldIndex}, {&after, newIndex}} {
 								if item.index >= 0 {
@@ -1726,7 +1749,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 						// Creation/deletion may add/remove exactly the target's own
 						// physical links. Updates must preserve their identities as
 						// well as the logical sets checked above; all other rows stay.
-						var removeOwnLinks *durable
+						var removeOwnLinks *managementHTTPDurable[M, G, P]
 						if creation {
 							removeOwnLinks = &after
 						} else if operation == "delete" {
@@ -1990,7 +2013,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		slices.Sort(names)
 		return objects.Save(ctx, scope, &updated, orm.UpdateFieldNames[M](names...))
 	}
-	expectNativeChange := func(expected *durable, id int64, values map[string]query.Value) {
+	expectNativeChange := func(expected *managementHTTPDurable[M, G, P], id int64, values map[string]query.Value) {
 		t.Helper()
 		_, _, index := managementHTTPWithout(t, objects, expected.Accounts, id)
 		if index < 0 {

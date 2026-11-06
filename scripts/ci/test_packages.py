@@ -222,7 +222,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         # every listed file must survive the real shell-array boundary.
         postgres_job = re.search(r'(?ms)^  postgresql-product:\n.*?(?=^  [a-zA-Z][a-zA-Z0-9_-]*:|\Z)', workflow)
         self.assertIsNotNone(postgres_job)
-        shards = re.findall(r'^\s+- mode: normal\n\s+shard: (core(?:-[a-z-]+)?)\n', postgres_job[0], re.MULTILINE)
+        shards = re.findall(r'^\s+- mode: normal\n\s+shard: (core(?:-[a-z0-9-]+)?)\n', postgres_job[0], re.MULTILINE)
         self.assertTrue(shards)
         self.assertEqual(len(shards), len(set(shards)))
         for shard in shards:

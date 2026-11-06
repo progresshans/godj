@@ -356,7 +356,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 				required = append(required, "TestGeneratedAccountManagementHTTP/protected_delete_cleanup")
 			}
 			required = append(required, "TestGeneratedAccountAdminLifecycle")
-			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "duplicate_and_password", "choice_and_password", "missing_first_password", "mismatch_suppresses_policy", "unusable_suppresses_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
+			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "duplicate_and_password", "choice_and_password", "missing_first_password", "mismatch_suppresses_policy", "unusable_suppresses_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "change_partial_unique", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
 				required = append(required, "TestGeneratedAccountAdminLifecycle/"+name)
 			}
 			for _, name := range []string{"csrf", "stale", "protected_input", "cross_field", "self_deactivation"} {
@@ -376,7 +376,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 				if variant.custom {
 					required = append(required, catalogParent+"/partial_constraint")
 				}
-				for _, name := range []string{"create_permission", "bounded_choices", "create_group", "partial_unique", "invalid_choice", "csrf", "stale", "protected_input", "additional_permission", "choice_operation", "update_and_history", "delete_collected_membership"} {
+				for _, name := range []string{"create_permission", "bounded_choices", "create_group", "partial_unique", "invalid_choice", "change_group_partial_unique", "change_permission_partial_unique", "csrf", "stale", "protected_input", "additional_permission", "choice_operation", "update_and_history", "delete_collected_membership"} {
 					required = append(required, catalogParent+"/"+name)
 				}
 				required = append(required, parent)

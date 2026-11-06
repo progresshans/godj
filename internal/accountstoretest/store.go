@@ -208,7 +208,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
-			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || strings.HasPrefix(test.name, "startup_") || test.name == "first_account_lifecycle" || test.name == "account_profile_and_roles" {
+			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || strings.HasPrefix(test.name, "startup_") || strings.HasPrefix(test.name, "management_form_") || strings.HasPrefix(test.name, "catalog_form_") || test.name == "first_account_lifecycle" || test.name == "account_profile_and_roles" {
 				sources = append(sources, sessiondb.MigrationSources()...)
 			}
 			loaded, _, err := definition.Load(sources...)

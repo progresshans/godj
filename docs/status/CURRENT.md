@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-11-06
+- 갱신: 2026-11-07
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)을 구현·검증 중이다.
   [PR #8](https://github.com/progresshans/godj/pull/8)과 후속 변경을
@@ -17,7 +17,7 @@
    Article의 명시적 이행 소비자와 새 독립 생성 앱의 별도 operator process→custom 모델 전환→host schema 정리→
    재접속/현재 인가·역사 조회를 확인한다. 소비자 작성과 실제 환경별 실행은 TEST_EVIDENCE에서 구분한다.
 3. 남은 고정 Directory/Manager 및 내장 Admin 소비자를 선택 모델 owner로 정리한다.
-   고정 JSON 제거와 선택 Admin의 비밀번호 상태·LastLogin 표시·생성 Form 복합 진단, 명시적 login 입력 정책과 독립 기준
+   고정 JSON 제거와 선택 Admin의 비밀번호 상태·LastLogin 표시·생성/수정 Form 복합 진단, 명시적 login 입력 정책과 독립 기준
    소비자 이관을 원격에서 확인하고,
    기존 독립 기준·실패·인가·데이터 무결성 검증이 계속 어디서 실행되는지 대조한다.
 4. [I1-01~08 수용 요구](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)의 제품·생성기·실제 소비자와

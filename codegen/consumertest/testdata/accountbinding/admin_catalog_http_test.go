@@ -22,17 +22,14 @@ import (
 
 	"example.com/godj-project-bundle/project"
 	accountaudit "github.com/progresshans/godj/account/audit"
-	auditmodels "github.com/progresshans/godj/account/audit/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	accountmodel "github.com/progresshans/godj/identity/model"
-	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
-	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/web"
@@ -103,7 +100,8 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	check(err)
 	manager, err := sessions.NewManager(selected, sessions.Config{Clock: clock})
 	check(err)
-	verifier, err := selected.Authenticator(t.Context(), hasher)
+	hashObserver := &managementHTTPHasher{PasswordHasher: hasher}
+	verifier, err := selected.Authenticator(t.Context(), hashObserver)
 	check(err)
 	credential, err := verifier.Authenticate(t.Context(), login, accountPasswordText)
 	check(err)
@@ -157,32 +155,10 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	if status != 302 {
 		t.Fatal("catalog selected account login", status)
 	}
-	groupKey, err := groups.Manager().PrimaryKeyField()
-	check(err)
 	permissionKey, err := permissions.Manager().PrimaryKeyField()
 	check(err)
-	accountKey, err := objects.PrimaryKeyField()
-	check(err)
-	type durable struct {
-		groups      []G
-		permissions []P
-		accounts    []M
-		sessions    []sessionmodels.Session
-		audits      []auditmodels.Event
-	}
-	snapshot := func() durable {
-		t.Helper()
-		g, err := groups.Manager().Using(backend).OrderBy(orm.NewAutoField[G](groupKey).Asc()).All(t.Context())
-		check(err)
-		p, err := permissions.Manager().Using(backend).OrderBy(orm.NewAutoField[P](permissionKey).Asc()).All(t.Context())
-		check(err)
-		a, err := objects.Using(backend).OrderBy(orm.NewAutoField[M](accountKey).Asc()).All(t.Context())
-		check(err)
-		s, err := sessionmodels.SessionObjects.Using(backend).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context())
-		check(err)
-		e, err := auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
-		check(err)
-		return durable{g, p, a, s, e}
+	snapshot := func() managementHTTPDurable[M, G, P] {
+		return managementHTTPNativeSnapshot(t, backend, binding, catalog.Groups().Manager(), catalog.Permissions().Manager())
 	}
 	permissionData := func(code, name string) url.Values {
 		data := url.Values{role.Catalog.PermissionCode: {code}, role.Catalog.PermissionName: {name}}
@@ -288,7 +264,20 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		})
 	}
 	groupPath := "/admin/teams/change/?id=" + strconv.FormatInt(groupID, 10)
-	for _, mode := range []string{"partial_unique", "invalid_choice", "csrf", "stale", "protected_input", "additional_permission", "choice_operation"} {
+	// A distinct existing group makes change-form uniqueness independent of
+	// the current row's exclusion, while retaining a real permission link.
+	const occupiedGroup = "Other HTTP group"
+	occupiedValues := map[string]query.Value{role.Catalog.GroupName: query.String(occupiedGroup)}
+	if groupExtra != "" {
+		occupiedValues[groupExtra] = query.Integer(7)
+	}
+	occupied, err := groups.Manager().Input(occupiedValues)
+	check(err)
+	occupied, err = occupied.WithCollections(map[string][]int64{role.Catalog.GroupPermissions: {lastID}})
+	check(err)
+	_, err = groups.Create(t.Context(), actor, occupied)
+	check(err)
+	for _, mode := range []string{"partial_unique", "invalid_choice", "change_group_partial_unique", "change_permission_partial_unique", "csrf", "stale", "protected_input", "additional_permission", "choice_operation"} {
 		t.Run(mode, func(t *testing.T) {
 			path := "/admin/grants/add/"
 			data := permissionData("catalog.http", "Unique check")
@@ -297,6 +286,16 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			}
 			if mode == "invalid_choice" {
 				path, data = "/admin/teams/add/", groupData("HTTP group", 9_999_999)
+			}
+			if mode == "change_group_partial_unique" {
+				path, data = groupPath, groupData(occupiedGroup, lastID)
+				data.Set(role.Catalog.GroupPermissions, "missing")
+				data.Set("expected_revision", "1")
+			}
+			if mode == "change_permission_partial_unique" {
+				path = "/admin/grants/change/?id=" + strconv.FormatInt(permissionID, 10)
+				data = permissionData("catalog.page19", "")
+				data.Set("expected_revision", "1")
 			}
 			if mode == "stale" {
 				path, data = groupPath, groupData("HTTP group", lastID)
@@ -331,6 +330,7 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				}
 				return
 			}
+			hashes := hashObserver.calls.Load()
 			status, headers, response := send("POST", path, data)
 			if mode == "additional_permission" {
 				denied, _, _ := send("GET", "/admin/teams/add/choices/"+role.Catalog.GroupPermissions+"/?limit=1", nil)
@@ -339,8 +339,17 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				}
 				overlay.denied.Store(auth.Permission(""))
 			}
-			if status != want || headers.Get("Location") != "" || !reflect.DeepEqual(before, snapshot()) {
+			if status != want || headers.Get("Location") != "" || !reflect.DeepEqual(before, snapshot()) || hashObserver.calls.Load() != hashes || strings.Contains(response, accountPasswordText) {
 				t.Fatal("rejected catalog request changed durable state", mode, status, want)
+			}
+			if mode == "change_group_partial_unique" || mode == "change_permission_partial_unique" {
+				unique, invalid := role.Catalog.PermissionCode, role.Catalog.PermissionName
+				if mode == "change_group_partial_unique" {
+					unique, invalid = role.Catalog.GroupName, role.Catalog.GroupPermissions
+				}
+				if !strings.Contains(response, `data-error-field="`+unique+`" data-error-code="unique"`) || !strings.Contains(response, `data-error-field="`+invalid+`" data-error-code="`) {
+					t.Fatal("unrelated change-form error suppressed catalog uniqueness", mode)
+				}
 			}
 			if mode == "partial_unique" && (!strings.Contains(response, `data-error-code="unique"`) || !strings.Contains(response, `data-error-code="required"`)) {
 				t.Fatal("invalid form suppressed valid code uniqueness")

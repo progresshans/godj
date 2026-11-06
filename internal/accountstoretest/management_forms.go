@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	domainmodels "github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -20,8 +22,52 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
+	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 	"github.com/progresshans/godj/validation"
 )
+
+// Keep the observation on the original native backend and an uncanceled
+// context. No management reader or injected scope can hide a partial write.
+func formNativeSnapshot(t *testing.T, backend Backend) []any {
+	t.Helper()
+	var state []any
+	visits := 0
+	err := backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+		visits++
+		if visits != 1 {
+			return errors.New("form observation repeated its native callback")
+		}
+		state = []any{
+			deletionRows(t, scope, models.UserObjects),
+			deletionRows(t, scope, models.GroupObjects),
+			deletionRows(t, scope, models.PermissionObjects),
+			deletionRows(t, scope, models.UserGroupsLinkObjects),
+			deletionRows(t, scope, models.UserPermissionsLinkObjects),
+			deletionRows(t, scope, models.GroupPermissionsLinkObjects),
+			deletionRows(t, scope, sessionmodels.SessionObjects),
+			deletionRows(t, scope, auditmodels.EventObjects),
+			deletionRows(t, scope, domainmodels.TransitionObjects),
+			deletionRows(t, scope, domainmodels.MappingObjects),
+		}
+		return nil
+	})
+	if err != nil || visits != 1 {
+		t.Fatal("form native observation did not complete", err, visits)
+	}
+	return state
+}
+
+func formValidationSessions(t *testing.T, backend Backend, credential auth.Credential) {
+	t.Helper()
+	now := joined
+	_, manager, _ := accountSessions(t, backend, &now)
+	for _, marker := range []string{"form-first", "form-second", "form-third"} {
+		passwordSession(t, manager, credential, marker)
+	}
+	if _, err := manager.Create(t.Context(), map[string]string{"form-anonymous": "preserved"}); err != nil {
+		t.Fatal(err)
+	}
+}
 
 func managementConfig() accountmodel.AccountManagementConfig[models.User] {
 	fields := creationConfig().Fields
@@ -96,6 +142,7 @@ func managementCreationFormError(t *testing.T, owner *accountmodel.AccountManage
 func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
+	formValidationSessions(t, backend, profileActor(t, f))
 	calls := 0
 	config := managementConfig()
 	config.PrincipalID = func(context.Context) (string, error) { calls++; return "unexpected", nil }
@@ -115,11 +162,12 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 	owner := accountManagement(t, backend, hasher, config)
 	beforeHash := hasher.calls.Load()
 	target := roleTarget(t, backend, f, "form-target")
+	formValidationSessions(t, backend, passwordCredential(t, f, target))
 	before, err := models.UserObjects.Using(backend).OrderBy(models.UserFields.ID.Asc()).All(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, mode := range []string{"partial_unique", "normalized_unique", "case_insensitive_unique", "current_excluded", "stale", "missing", "both_invalid_choices", "create_requires_change", "additional_permission", "revoked", "inactive", "old_domain"} {
+	for _, mode := range []string{"partial_unique", "change_partial_unique", "normalized_unique", "case_insensitive_unique", "current_excluded", "stale", "missing", "both_invalid_choices", "create_requires_change", "additional_permission", "revoked", "change_revoked", "inactive", "old_domain"} {
 		t.Run(mode, func(t *testing.T) {
 			selected, acting := owner, actor
 			data := map[string][]string{"username": {f.user.Username}, "email": {"not-an-email"}, "first_name": {"Form"}}
@@ -129,8 +177,13 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 			if mode == "case_insensitive_unique" {
 				copy := config
 				copy.CaseInsensitiveCreationLogin = true
-				selected = accountManagement(t, backend, f.hasher, copy)
+				selected = accountManagement(t, backend, hasher, copy)
 				data["username"] = []string{strings.ToUpper(f.user.Username)}
+			}
+			if mode == "change_revoked" {
+				copy := config
+				copy.Permissions.Change = "account.direct"
+				selected = accountManagement(t, backend, hasher, copy)
 			}
 			if mode == "create_requires_change" || mode == "additional_permission" {
 				copy := config
@@ -139,7 +192,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 				} else {
 					copy.Permissions.Additional = []auth.Permission{"account.unheld"}
 				}
-				selected = accountManagement(t, backend, f.hasher, copy)
+				selected = accountManagement(t, backend, hasher, copy)
 			}
 			if mode == "old_domain" {
 				namespace, err := f.binding.CredentialDomain([32]byte{9})
@@ -156,8 +209,8 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 				}
 				acting = foreign.Principal()
 			}
-			if mode == "revoked" {
-				if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), backend, &f.direct); err != nil || count != 1 {
+			if mode == "revoked" || mode == "change_revoked" {
+				if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), reopen(t), &f.direct); err != nil || count != 1 {
 					t.Fatal(err)
 				}
 				t.Cleanup(func() {
@@ -180,8 +233,27 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 					}
 				})
 			}
+			expected := formNativeSnapshot(t, backend)
 			var err error
 			switch mode {
+			case "change_revoked":
+				bound := managementBoundForm(t, selected, data, &target, nil, nil)
+				err = selected.CheckChangeForm(t.Context(), acting, target.ID, target.Revision, bound)
+				requireProfileCode(t, err, accountmodel.CodePermission)
+				if _, rejected := validation.Rejected(err); rejected {
+					t.Fatal("cached change authority disclosed private input diagnostics")
+				}
+			case "change_partial_unique":
+				bound := managementBoundForm(t, selected, data, &target, nil, nil)
+				err = selected.CheckChangeForm(t.Context(), acting, target.ID, target.Revision, bound)
+				failures, rejected := validation.Rejected(err)
+				if !rejected || failures.Len() != 1 || failures.ByField("username").Len() != 1 {
+					t.Fatal("partial change skipped independent username uniqueness", err)
+				}
+				combined, applyErr := bound.WithErrors(failures)
+				if applyErr != nil || combined.Form().Errors().Len() != 2 || combined.Form().Errors().ByField("email").Len() != 1 {
+					t.Fatal("change uniqueness replaced the existing email error", applyErr)
+				}
 			case "current_excluded", "stale", "missing":
 				row := target
 				if mode == "stale" {
@@ -227,6 +299,9 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 					requireProfileCode(t, err, accountmodel.CodePermission)
 				}
 			}
+			if !reflect.DeepEqual(expected, formNativeSnapshot(t, backend)) || calls != 0 || hasher.calls.Load() != beforeHash {
+				t.Fatal("advisory check changed native state or invoked write/password work")
+			}
 		})
 	}
 	after, err := models.UserObjects.Using(reopen(t)).OrderBy(models.UserFields.ID.Asc()).All(t.Context())
@@ -253,11 +328,13 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
+	formValidationSessions(t, backend, profileActor(t, f))
 	for _, mode := range []string{"skipped", "nil", "root", "repeated", "query", "close", "swallowed", "cleanup", "denial_cleanup", "conflict_cleanup", "cancel"} {
 		t.Run(mode, func(t *testing.T) {
 			fault := errors.New("private account form snapshot details")
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
+			var retained db.Queryer
 			backendOwner := &catalogReadBackend{Backend: backend}
 			backendOwner.read = func(ctx context.Context, observe func(db.Queryer) error) error {
 				switch mode {
@@ -269,6 +346,7 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 					return observe(backend)
 				}
 				err := backend.ReadSnapshot(ctx, func(scope db.Queryer) error {
+					retained = scope
 					probe := &catalogReadProbe{Queryer: scope, validator: scope.(db.SessionValidator), table: "godj_identity_user", skip: 1}
 					if mode == "query" || mode == "close" || mode == "swallowed" {
 						probe.fault, probe.closeFail = fault, mode == "close"
@@ -294,7 +372,8 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 			if mode == "denial_cleanup" {
 				config.Permissions.Add = "account.denied"
 			}
-			owner := accountManagement(t, backendOwner, f.hasher, config)
+			hasher := &creationHasher{PasswordHasher: f.hasher}
+			owner := accountManagement(t, backendOwner, hasher, config)
 			var current *models.User
 			if mode == "conflict_cleanup" {
 				row := f.user
@@ -302,6 +381,7 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 				current = &row
 			}
 			bound := managementBoundForm(t, owner, map[string][]string{"username": {f.user.Username}, "email": {"invalid"}}, current, nil, nil)
+			before := formNativeSnapshot(t, backend)
 			var err error
 			if current == nil {
 				err = managementCreationFormError(t, owner, ctx, actor, bound)
@@ -309,8 +389,13 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 				err = owner.CheckChangeForm(ctx, actor, current.ID, current.Revision, bound)
 			}
 			requireProfileCode(t, err, accountmodel.CodePersistence)
-			if _, rejected := validation.Rejected(err); rejected || strings.Contains(fmt.Sprintf("%+v", err), "private") {
+			if _, rejected := validation.Rejected(err); rejected {
 				t.Fatal("failed snapshot published diagnostics or cause")
+			}
+			for _, format := range []string{"%s", "%v", "%+v", "%#v"} {
+				if strings.Contains(fmt.Sprintf(format, err), fault.Error()) {
+					t.Fatal("advisory failure exposed private backend details")
+				}
 			}
 			if mode == "query" || mode == "close" || mode == "swallowed" || strings.HasSuffix(mode, "cleanup") {
 				if !errors.Is(err, fault) {
@@ -319,6 +404,14 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 			}
 			if mode == "cancel" && !errors.Is(err, context.Canceled) {
 				t.Fatal("snapshot lost cancellation", err)
+			}
+			if retained != nil {
+				if _, err := models.UserObjects.Using(retained).Count(t.Context()); err == nil {
+					t.Fatal("original borrowed validation reader survived its scope")
+				}
+			}
+			if !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) || hasher.calls.Load() != 0 {
+				t.Fatal("failed advisory scope changed native state or hashed a password")
 			}
 		})
 	}

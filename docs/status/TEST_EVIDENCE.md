@@ -4761,6 +4761,45 @@ PostgreSQL artifact `13492286006`은 858553 bytes / SHA-256
 Gofmt·템플릿 구문, Python CI 분할 검사 27개는 통과했다. 로컬 Go compile/test는 실행하지 않았다.
 새 187개 입력 본문·branch 분할·두 read owner의 양 DB/race/platform 실행과 같은 source의 전체 원격 수용은 미확인이다.
 
+### 선택 계정/catalog Form의 복합 진단·native 관측 이관
+
+2026-11-07, `844a2435c29a3907fab983a32215d8a89f187763` 위에서 고정 Admin의 `change_model_validation`과
+`catalog_model_validation`/HTTP 검사 책임을 선택 모델 owner로 통합했다. 두 고정 시험 파일과 호출을 제거하고 양 DB의
+기존 root/child 69개씩, 총 138개 selector를 정리했다. 내장 Admin의 나머지 실제 등록·비밀번호·독립 기준 소비자는 유지한다.
+
+| 고정 검사의 위험 | 선택 owner의 계속되는 검사 |
+|---|---|
+| 다른 필드 오류가 unique 진단을 숨김 | native `management_form_checks/change_partial_unique`, catalog의 permission/group change child와 기존 create 검사. 실제 선택 Admin의 `change_partial_unique`, `change_{group,permission}_partial_unique`가 각 필드의 오류를 함께 표시하고 저장·hash·password policy는 수행하지 않는다. |
+| 현재 객체의 unique 자기 충돌·stale/missing target | native management/catalog Form의 current-excluded·stale·missing 검사. Group의 세 경계도 추가했으며 실제 Admin의 expected revision과 update/history 흐름을 유지한다. |
+| 오래된 actor로 비공개 진단 조회 | native `management_form_checks/change_revoked`와 catalog `current_authority_{group,permission}_{create,change}`. 정상 후보의 진단을 먼저 확인하고 별도 native 연결이 해당 grant를 제거한 뒤 원래 actor가 permission 거부를 받아야 한다. |
+| 삭제된/순서가 섞인 중복 권한 선택지 | catalog `group_{create,change}_{stale_selection,unordered_selection}`: Bind가 허용한 permission을 별도 연결에서 삭제하고 현재 존재·독립 unique를 다시 검사한다. 정상 선택은 정규화하되 원래 입력과 native 행을 바꾸지 않는다. |
+| foreign model/key/revision·미결합/취소된 입력 | `TestAccountManagementFormAdmissionRejectsForeignAndProtectedInputBeforeIO`와 generic resource의 `TestCatalogFormAndChoiceDeclarationsRetainSourceBeforeIO`, 생성 HTTP protected-input 검사. I/O 전 거부·진단 비게시와 취소 원인을 확인한다. |
+| 조회·scope 종료 오류 및 빌린 reader 수명 | native `management_form_failures`와 `catalog_form_failures`의 기존 11종. 실패 decorator를 씌우기 전 원래 native reader를 보관하여, 종료 후 살아 있는 context로 다시 조회해도 거부되는지 추가 대조한다. |
+
+Native Form 검사에 실제 인증 세션 세 개와 익명 세션을 준비하고, 계정 수정에는 대상 세션도 준비한다. 원래 native backend의
+한 snapshot에서 계정·group·permission·세 물리 through·session·audit·domain/전환 mapping의 전체 행을 대조한다.
+의도한 fixture 변경 이후 상태를 기준으로 삼으며, 실패한 owner/decorator와 취소된 context를 관측에 사용하지 않는다.
+조회 실패의 원인은 `errors.Is`로 유지하면서 네 fmt 표현에서는 private detail이 나타나지 않아야 한다.
+
+생성 앱의 JSON/계정 Admin/catalog Admin도 같은 독립 native 관측 함수를 사용한다. 계정 Admin의 행별 관리 Reader 호출과
+catalog Admin의 빠진 관계 대조를 교체했고, 실제 through ID·source·target 및 중복/고아 관계 확인을 유지한다.
+세 HTTP 복합 진단은 모델별 생성 부모의 필수 목록에 추가했다. 각 DB native 목록에는 새 child 15개를 추가했으며 기존
+조회 실패·인가·순수 source 검사의 필수 실행 owner는 유지한다. 작성/정적 확인과 새 본문의 실제 환경별 수용은 구분한다.
+
+### 독립 CI 실행 목록의 숫자 포함 owner 인식 수정
+
+Source `844a2435`의 [CI 42237224856](https://github.com/progresshans/godj/actions/runs/42237224856), core-vet
+[job 127958753160](https://github.com/progresshans/godj/actions/runs/42237224856/job/127958753160)에서 Python CI 도구 104개 중
+`test_postgres_required_file_reaches_the_shell_inventory_unchanged`가 실패했다. 실제 workflow를 별도로 읽는 정규식이
+`core-consumers-2`의 숫자를 허용하지 않아 이 owner의 65개 필수 entry가 대조에서 빠졌다. 실제 checkout
+`9e9e62a268827c932216729c8e9ce51d654d6556`과 제출 source는 같은 tree `af393f05dbac22a3f9fff5ceed981fe01b6206b2`다.
+정규식에 숫자를 허용하고 전체 원본 manifest와 실제 shell 배열의 동일성·중복 금지 조건을 유지했다.
+해당 실패 검사의 로컬 재실행은 통과했다. 이 실패는 Python 실행 목록 대조이며 새 Go/DB 본문의 성공 근거가 아니다.
+
+Gofmt·diff·문서 링크 245개와 Python CI 분할/실행 owner 검사 37개(165.259초)는 통과했다.
+로컬 Go compile/test는 실행하지 않았다. 새 Form/Admin 이관과 CI 목록 보정의
+양 DB·normal/race/CGO-disabled·생성 process·전체 platform/cold-build 및 원본 수용은 다음 source에서 확인해야 한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

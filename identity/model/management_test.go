@@ -333,6 +333,9 @@ func TestAccountManagementFormAdmissionRejectsForeignAndProtectedInputBeforeIO(t
 			if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) {
 				t.Fatal("invalid form admission reached storage", err)
 			}
+			if _, rejected := validation.Rejected(err); rejected || mode == "canceled" && !errors.Is(err, context.Canceled) {
+				t.Fatal("foreign or canceled admission published input diagnostics or lost cancellation", err)
+			}
 		})
 	}
 	if backend.calls != 0 || backend.writes != 0 {

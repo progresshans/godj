@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"example.com/godj-project-bundle/project"
-	auditmodels "github.com/progresshans/godj/account/audit/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
@@ -31,7 +30,6 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/sessions"
-	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/settings/database"
 	"github.com/progresshans/godj/validation"
@@ -67,7 +65,6 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	}
 	keyField, err := objects.PrimaryKeyField()
 	check(err)
-	key := orm.NewAutoField[M](keyField)
 	fields := []string{role.Login, profileField}
 	for _, name := range []string{role.Email, role.Active.Field, role.Staff.Field, role.Superuser.Field, role.Groups, role.Permissions} {
 		if name != "" && !slices.Contains(fields, name) {
@@ -76,7 +73,8 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	clock := func() time.Time { return now }
-	verifier, err := selected.Authenticator(t.Context(), hasher)
+	hashObserver := &managementHTTPHasher{PasswordHasher: hasher}
+	verifier, err := selected.Authenticator(t.Context(), hashObserver)
 	check(err)
 	credential, err := verifier.Authenticate(t.Context(), loginName, accountPasswordText)
 	check(err)
@@ -230,30 +228,8 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	}
 	client := newClient()
 	login(client, loginName, accountPasswordText)
-	type durable struct {
-		rows        []M
-		memberships []map[string][]int64
-		sessions    []sessionmodels.Session
-		audits      []auditmodels.Event
-	}
-	snapshot := func() durable {
-		t.Helper()
-		rows, err := objects.Using(backend).OrderBy(key.Asc()).All(t.Context())
-		check(err)
-		memberships := make([]map[string][]int64, len(rows))
-		for index, row := range rows {
-			value, _, err := objects.PrimaryKey(row)
-			check(err)
-			id, _ := value.Integer()
-			profile, err := owner.Reader().Get(t.Context(), actor, id)
-			check(err)
-			memberships[index] = profile.View().Collections()
-		}
-		s, err := sessionmodels.SessionObjects.Using(backend).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context())
-		check(err)
-		e, err := auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
-		check(err)
-		return durable{rows, memberships, s, e}
+	snapshot := func() managementHTTPDurable[M, G, P] {
+		return managementHTTPNativeSnapshot(t, backend, binding, catalog.Groups().Manager(), catalog.Permissions().Manager())
 	}
 	dataFor := func(login, profile string) url.Values {
 		data := url.Values{role.Login: {login}, profileField: {profile}, role.Groups: {strconv.FormatInt(groupID, 10)}, role.Permissions: {strconv.FormatInt(permissionID, 10)}}
@@ -376,7 +352,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			if mode == "add_requires_change" {
 				overlay.denied.Store(auth.Permission("account.change"))
 			}
-			calls := passwordCalls.Load()
+			calls, hashes := passwordCalls.Load(), hashObserver.calls.Load()
 			status, headers, body := send(client, "POST", path, data)
 			if mode == "additional_permission" || mode == "add_requires_change" {
 				denied, _, _ := send(client, "GET", "/admin/accounts/add/choices/"+role.Groups+"/?limit=1", nil)
@@ -385,7 +361,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				}
 			}
 			overlay.denied.Store(auth.Permission(""))
-			if status != want || headers.Get("Location") != "" || !reflect.DeepEqual(before, snapshot()) {
+			if status != want || headers.Get("Location") != "" || !reflect.DeepEqual(before, snapshot()) || hashObserver.calls.Load() != hashes {
 				t.Fatal("rejected creation changed durable state", mode, status, want)
 			}
 			if code != "" && !strings.Contains(body, `data-error-code="`+code+`"`) {
@@ -454,7 +430,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		if row.Revision() != 1 || !slices.Equal(groups, []int64{groupID}) || !slices.Equal(permissions, []int64{permissionID}) {
 			t.Fatal("created account lost selected memberships")
 		}
-		if len(snapshot().rows) != 2 {
+		if len(snapshot().Accounts) != 2 {
 			t.Fatal("creation inserted a hidden account")
 		}
 		_, err = verifier.Authenticate(t.Context(), managedLogin, accountPasswordText)
@@ -486,7 +462,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			t.Fatal("unusable credential authenticated")
 		}
 	})
-	for _, mode := range []string{"stale", "edit_policy", "edit_additional", "choice_operation"} {
+	for _, mode := range []string{"change_partial_unique", "stale", "edit_policy", "edit_additional", "choice_operation"} {
 		t.Run(mode, func(t *testing.T) {
 			page := get(client, path)
 			before := snapshot()
@@ -495,6 +471,13 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			data.Set("csrfmiddlewaretoken", csrf(page))
 			want := 200
 			switch mode {
+			case "change_partial_unique":
+				data.Set(role.Login, loginName)
+				if role.Email != role.Login {
+					data.Set(role.Email, "invalid")
+				} else {
+					data.Set(profileField, "US")
+				}
 			case "stale":
 				data.Set("expected_revision", "2")
 				want = 409
@@ -516,10 +499,20 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				}
 				return
 			}
+			hashes, policies := hashObserver.calls.Load(), passwordCalls.Load()
 			status, headers, body := send(client, "POST", path, data)
 			overlay.denied.Store(auth.Permission(""))
-			if status != want || headers.Get("Location") != "" || !reflect.DeepEqual(before, snapshot()) {
+			if status != want || headers.Get("Location") != "" || !reflect.DeepEqual(before, snapshot()) || hashObserver.calls.Load() != hashes || passwordCalls.Load() != policies {
 				t.Fatal("rejected edit changed durable state", mode, status, want)
+			}
+			if mode == "change_partial_unique" {
+				field, code := role.Email, "invalid"
+				if role.Email == role.Login {
+					field, code = profileField, "invalid_choice"
+				}
+				if !strings.Contains(body, `data-error-field="`+role.Login+`" data-error-code="unique"`) || !strings.Contains(body, `data-error-field="`+field+`" data-error-code="`+code+`"`) {
+					t.Fatal("unrelated field error suppressed change-form uniqueness")
+				}
 			}
 			if mode == "edit_policy" && !strings.Contains(body, `data-error-code="profile_required"`) {
 				t.Fatal("typed final policy missing")
@@ -618,11 +611,11 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			}
 		}
 		stored := snapshot()
-		if len(stored.rows) != 1 {
+		if len(stored.Accounts) != 1 {
 			t.Fatal("account deletion left hidden rows")
 		}
 		var events []auditmodels.Event
-		for _, event := range stored.audits {
+		for _, event := range stored.Audits {
 			if event.Model == role.Model.AppLabel+"."+role.Model.ModelName && event.ObjectID == targetID {
 				events = append(events, event)
 			}

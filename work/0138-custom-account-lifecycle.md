@@ -799,6 +799,12 @@ TEST_EVIDENCE에 기록했으며, 고정 public Form이 아직 쓰는 입력 cor
 read consumer와 catalog 전환은 모든 필수 leaf·원문·제한을 유지하고 실행 owner/process를 나눴다. 실제 실패 원본과
 정적 확인·다음 source의 실행 경계는 TEST_EVIDENCE에 기록했다.
 
+고정 Admin의 계정 변경·catalog Form 검사를 선택 owner로 통합했다. 실제 기본/custom HTTP의 변경 화면은 unique와 다른
+필드 오류를 함께 표시하며, native 소비자는 현재 인가·target revision·삭제/중복 선택지·빌린 reader 수명과 원인/진단을
+대조한다. 실패 전후 전체 물리 계정/catalog/through/session/domain/audit 관측을 공통화하고, 기존 고정 selector의 책임을
+새 필수 child와 현행 순수 source 검사에 연결했다. 독립 CI 목록의 숫자 포함 owner 인식 실패도 수정했으며, 작성/정적 확인과
+다음 source의 실제 원격 수용은 TEST_EVIDENCE에서 구분한다. 남은 내장 Admin 등록·비밀번호·독립 기준 이관은 계속 필요하다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

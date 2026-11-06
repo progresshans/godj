@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
 	sessiondb "github.com/progresshans/godj/sessions/database"
+	"github.com/progresshans/godj/validation"
 )
 
 func TestCatalogFormAndChoiceDeclarationsRetainSourceBeforeIO(t *testing.T) {
@@ -102,6 +103,9 @@ func TestCatalogFormAndChoiceDeclarationsRetainSourceBeforeIO(t *testing.T) {
 			}
 			if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) {
 				t.Fatal("foreign/invalid form reached reader", err)
+			}
+			if _, rejected := validation.Rejected(err); rejected || mode == "canceled" && !errors.Is(err, context.Canceled) {
+				t.Fatal("foreign or canceled catalog form published diagnostics or lost cancellation", err)
 			}
 		})
 	}
