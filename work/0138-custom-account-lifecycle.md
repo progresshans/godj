@@ -734,6 +734,14 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 유지한다. 원격에서 추가로 발견한 custom 그룹 이름의 실패 fixture 간 unique 충돌을 고유한 수정 값으로 바로잡았다.
 새 API·소비자와 fixture 수정의 실행 여부는 TEST_EVIDENCE에서 구분한다.
 
+선택 모델의 `NewCreationForm`에 재사용 Definition/Spec·Bind/Check·Prepare/Commit/Create를 연결하고 선택 Admin의
+비밀번호 입력·부분 오류·생성을 같은 owner로 옮겼다. 직접 Bind는 파일 검사 전 현재 인가를 확인하며 관계 key/default와
+현재 선택 정책을 보존한다. 기존 입력 충돌 6개 검사를 model owner로 이동하고, 9개 파일 준비 수명 검사를 실제 새 Form으로
+연결했다. 추가 부분 오류·위조 Form·인가/cleanup 11개와 필수 FK/OneToOne·늦은 filter 회수 4개 소비자를 양 DB에 작성했다.
+기존 기본 User Form의 별도 Django 입력 기준과 고정 소비자 이관, 새 본문의 실제 환경별 수용은 미완료다.
+원격 history snapshot 실패 뒤 SQLite HTTP 경합 fixture의 WAL 설정·실제 모드 확인과 writer 원인 보존을 추가했다.
+이 수정과 새 Form 본문은 다음 source의 원격 확인 대상이며 제품 DB 기본 설정은 유지한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

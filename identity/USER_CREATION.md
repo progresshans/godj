@@ -1,5 +1,49 @@
 # 사용자 생성 Form
 
+## 선택 모델의 생성 Form
+
+`identity/model.NewCreationForm(runtime.Accounts(), config)`는 선택한 계정 모델과 관리 owner의 CreateFields·정규화·관계·
+파일·비밀번호 정책을 사용하는 재사용 Form이다. 기본 설정은 비밀번호와 확인 값을 요구한다.
+`CreationFormConfig{AllowUnusablePassword: true}`는 명시적인 사용 불가 선택을 추가한다. 실제 입력 이름은
+`PasswordFields()`로 읽는다. 모델에 `password1`, `password2`, `unusable_password`라는 필드가 있어도 명령 입력과 섞지 않는다.
+
+```go
+creation, err := accountmodel.NewCreationForm(runtime.Accounts(), accountmodel.CreationFormConfig{})
+if err != nil {
+    return err
+}
+bound, err := creation.Bind(ctx, actor, forms.NewData(submitted))
+if err != nil {
+    return err // 현재 인가·DB·취소·파일 검사 실패
+}
+if !bound.Form().Valid() {
+    return renderForm(bound.Form())
+}
+result, publications, err := creation.Create(ctx, actor, bound)
+return reportCreation(result, publications, err)
+```
+
+`renderForm`과 `reportCreation`은 호출 애플리케이션의 표시·결과 보관 함수다. 파일이 있는 입력은 `forms.NewDataWithFiles`를
+사용한다. `reportCreation`은 오류에도 모든 파일 게시 시도를 보관해야 한다. 생성 결과와 파일 저장은 별도 결과이며,
+unknown을 성공으로 바꾸거나 파일을 자동 삭제·재게시하지 않는다.
+
+Bind는 파일 검사 전 현재 add/change 및 추가 권한을 확인한다. Site의 staff 조건은 요구하지 않으며 익명 가입이나 로그인은
+수행하지 않는다. Relation 입력은 IR default와 key 문법을 보존하고, 같은 owner의 현재 존재·필터·한도·unique 검사를 거친다.
+직접 Bind의 관계 label은 숫자 key다. 검색 결과 label이 필요한 Admin은 같은 `Definition`을 현재 choice로 bind한 뒤 `Check`를
+사용한다. 모델 field 오류와 비밀번호 정책 진단은 합쳐 표시하되 서로의 입력 이름을 덮지 않는다. Bind/Check는 hash·게시·DB
+쓰기를 하지 않으며 이후 저장을 허가하는 증명도 아니다.
+
+지연 저장은 `creation.Prepare(ctx, actor, bound)`로 준비 객체와 게시 기록을 받은 뒤
+`creation.Commit(ctx, actor, prepared)`로 수행한다. Prepare는 private command의 이름·타입·확인·byte 한도를 다시 검증하고
+현재 owner의 준비 경로에서 usable 비밀번호를 한 번 hash한다. 업로드는 Prepare가 끝날 때까지 유효해야 하며 그 뒤 닫아도 된다.
+준비 실패·준비 포기·Commit 실패에서도 파일 기록은 호출자가 보존한다. PreparedCreation은 같은 creator·actor·domain과 한 번의
+native 시도에 묶이며, 최종 인가·관계/필터·unique·정책을 재확인한다. 확정 실패·unknown 뒤 사본으로 재시도할 수 없다.
+
+이 Form은 실제 선택 모델의 IR 입력 길이와 역할 정규화를 따른다. 아래 기존 기본 User Form의 별도 username 150자 규칙과
+독립 Django 기준을 자동으로 대체하지 않는다. 두 경로의 구현·이관과 환경별 검증 상태는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
+
+## 기존 기본 User 전용 Form
+
 `identity.NewUserCreationForm(manager)`는 기본 User 모델의 username·password1·password2 Form을 만든다.
 `NewAdminUserCreationForm(manager)`는 비밀번호 로그인을 끄는 명시적 선택을 추가하며, Admin 밖에서도 사용할 수 있다.
 두 Form은 같은 Schema IR의 저장 의미와 현재 Manager 권한을 사용한다. 일반 Form에는 Site의 staff 조건이 없고,

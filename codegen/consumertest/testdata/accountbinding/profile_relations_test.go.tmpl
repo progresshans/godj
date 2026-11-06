@@ -28,6 +28,7 @@ import (
     "github.com/progresshans/godj/apps"
     "github.com/progresshans/godj/auth"
     "github.com/progresshans/godj/db"
+    "github.com/progresshans/godj/forms"
     formmodel "github.com/progresshans/godj/forms/model"
     identityadmin "github.com/progresshans/godj/identity/admin"
     identityapi "github.com/progresshans/godj/identity/api"
@@ -242,6 +243,41 @@ func TestGeneratedProfileRelationLifecycle(t *testing.T) {
         if !present || !value.IsNull() || row.Revision() != 3 { t.Fatal("relation clear lost null/revision") }
         events, err := composed.Accounts().Reader().History(t.Context(), actor, targetID, 100); check(err)
         if len(events) != 3 { t.Fatal("relation operations lost atomic one-event auditing") }
+    })
+    run("reusable_form",func(t *testing.T){
+        creation,err:=accountmodel.NewCreationForm(composed.Accounts(),accountmodel.CreationFormConfig{});check(err);passwords:=creation.PasswordFields()
+        for _,mode:=range []string{"missing_relation","filtered_relation","late_filter","created"}{t.Run(mode,func(t *testing.T){
+            values:=form("reusable-"+mode+"@example.test")
+            values.Set(passwords.First,accountPasswordText);values.Set(passwords.Confirmation,accountPasswordText)
+            if mode=="missing_relation"{values.Del("department");values.Set(passwords.First,"partial-password");values.Set(passwords.Confirmation,"partial-password")}
+            if mode=="filtered_relation"{values.Set("department",strconv.FormatInt(denied.ID,10))}
+            before:=snapshot();audits,err:=auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context());check(err);policies:=partialPasswordChecks.Load()
+            bound,err:=creation.Bind(t.Context(),actor,forms.NewData(values));check(err)
+            afterBind,err:=auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context());check(err)
+            if !reflect.DeepEqual(before,snapshot())||!reflect.DeepEqual(audits,afterBind){t.Fatal("reusable relation Bind wrote native state")}
+            if mode=="missing_relation"||mode=="filtered_relation"{
+                if bound.Form().Valid()||bound.Form().Errors().ByField("department").Empty(){t.Fatal("reusable Form treated a requested key as relation authority")}
+                if mode=="missing_relation"&&(partialPasswordChecks.Load()!=policies+1||bound.Form().Errors().ByField(validation.Field(passwords.Confirmation)).Empty()){t.Fatal("missing FK suppressed independent reusable password diagnostics")}
+                return
+            }
+            if !bound.Form().Valid(){t.Fatal("reusable Form rejected allowed FK and OneToOne",bound.Form().Errors())}
+            pending,files,err:=creation.Prepare(t.Context(),actor,bound);check(err);if len(files)!=0{t.Fatal("relation-only Form published files")}
+            if mode=="late_filter"{department,err=@@PROFILES@@DepartmentObjects.Patch(t.Context(),backend,department,@@PROFILES@@DepartmentPatch{}.WithEnabled(false));check(err)}
+            result,failure:=creation.Commit(t.Context(),actor,pending)
+            if mode=="late_filter"{
+                department,err=@@PROFILES@@DepartmentObjects.Patch(t.Context(),backend,department,@@PROFILES@@DepartmentPatch{}.WithEnabled(true));check(err)
+                diagnostics,rejected:=validation.Rejected(failure)
+                if !rejected||diagnostics.ByField("department").Empty()||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("prepared Form retained stale relation authorization",failure)}
+                after,err:=auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context());check(err)
+                if !reflect.DeepEqual(before,snapshot())||!reflect.DeepEqual(audits,after){t.Fatal("rejected prepared FK retained account or audit")};return
+            }
+            check(failure)
+            row,err:=objects.Using(backend).Filter(key.Exact(result.ID)).Get(t.Context());check(err);stored,err:=objects.ModelValues(row);check(err)
+            if result.Revision!=1||!stored["department"].Equal(query.Integer(department.ID))||!stored["badge"].Equal(query.Integer(badge.ID)){t.Fatal("reusable Form lost typed FK or OneToOne")}
+            history,err:=composed.Accounts().Reader().History(t.Context(),actor,result.ID,10);check(err);if len(history)!=1{t.Fatal("reusable relation creation lost its atomic audit")}
+            remaining:=make([]@@ACCOUNT@@,0,len(before));for _,row:=range snapshot(){pk,_,err:=objects.PrimaryKey(row);check(err);id,_:=pk.Integer();if id!=result.ID{remaining=append(remaining,row)}}
+            if !reflect.DeepEqual(before,remaining){t.Fatal("reusable relation creation changed another account")}
+        })}
     })
     run("restart", func(t *testing.T) {
         reopened, err := database.Open(t.Context(), selected); check(err)

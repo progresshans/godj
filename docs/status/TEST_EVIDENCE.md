@@ -4299,6 +4299,82 @@ Admin 수정 fixture가 같은 이름을 재사용했다. Catalog 수정 값을 
 `job-127681214645.log` `8b73d573b25152c62fcabc332d531fad490d11cfa76b7f0570c9a68fabe55e41`,
 `job-127681207777.log` `c909420232d920f9c86606604da948cf2f51aa73bfe403f69df3b8cd829c6a09`다.
 
+## GDJ-0138 — 선택 모델 재사용 생성 Form과 Admin 공유
+
+`identity/model.NewCreationForm`에 Definition/Spec·Bind/Check·Prepare/Commit/Create를 연결했다. 같은 관리 owner의 선택,
+역할 정규화·credential 한도·파일·현재 관계/정책과 Creator를 사용한다. 기본은 usable password이며 명시적 설정으로
+unusable 선택을 추가한다. 모델 전체 이름을 피하는 private command 이름과 password-origin 진단 변환을 이 owner가
+소유한다. 선택 Admin의 별도 password form 구현을 제거하고 기존 bounded choice·파일 보고를 유지한 채 이 Form을 사용한다.
+
+직접 Bind는 현재 생성 인가 snapshot을 종료한 뒤 파일을 검사한다. 공통 ChoiceInput으로 key/default를 추출해 숫자 label을
+구성한 뒤 새 owner snapshot에서 실제 관계·filter·한도와 partial unique/password를 확인한다. Bind는 게시·해싱·쓰기 없이
+진단만 반환하며 읽기/cleanup 실패에는 bound 입력도 반환하지 않는다. Prepare는 정확한 source/선택을 확인하고 private
+credential 입력을 다시 bind해, 별도 spec에서 cross-validator를 제거한 확인 값도 hash나 파일 게시 전에 거부한다.
+
+검사 책임은 다음처럼 연결했다.
+
+- 기존 Admin의 password/profile 이름 충돌·required·mismatch·byte 한도·unusable 6개 child는 model owner의
+  `TestCreationFormPasswordInputsPreserveModelFields`로 옮겼다. 부모 포함 7개 relation 필수 selector를 대응 교체하고
+  다른 필수 항목은 유지한다. 기존 관리 구성 검사에 재사용 Form의 명시적 노출·사본·기본 required·zero owner를 추가했다.
+- 기본/custom 파일 생성 소비자의 기존 준비 수명 9개를 새 Form의 Bind/Prepare/Commit으로 연결했다. 기본 모델은 현재
+  staff=false actor로 실행하며 owner 권한을 유지한다. 기존 publication·hash·native 상태·최종 거부/unknown·사본 검사와
+  입력 buffer 종료를 그대로 유지한다. 직접 Creator의 typed/file 생성·18개 실패 및 실제 Admin/명령 경로도 남아 있다.
+- 같은 양 DB 소비자에 필수 child 11개를 추가했다. 부분 모델/강도 오류·mismatch·unusable의 NUL·없는/잘못된/과대 선택,
+  현재 인가 거부·read cleanup·다른 source/선택·위조 confirmation을 확인하며 저장/해싱/게시 무변경을 대조한다.
+- 필수 FK/OneToOne 생성 앱에 누락 FK와 독립 비밀번호 진단, 현재 filter 거부, Prepare 뒤 filter 회수, 실제 생성 4개를
+  추가했다. 원래 HTTP 생성·unique·변경·NULL·restart 검사는 유지한다.
+
+이 소비자와 제품 코드는 작성 상태다. 로컬 Go compile·생성기·DB·본문 테스트는 실행하지 않았다. gofmt·기본/custom 두
+fixture의 조립 문법·4,952개 필수 목록의 정확한 7개 소유권 이동·기존 child 보존·로컬 문서 링크 211개를 정적으로 확인했다.
+새 source의 실제 컴파일·양 DB·race/독립 앱·전체 환경은 원격 검증 대상이다. 넓게 시작한 Python helper 묶음은
+여러 shell fixture를 반복하는 단계에서 중단했으며 전체 PASS가 아니다. 잘못 지정한 class를 바로잡은 뒤 relation/core
+소유권과 relation/PostgreSQL 분할의 해당 네 검사를 통과했다. 고정 UserCreationForm의 150자·문자 문법·독립 Django 기준과
+남은 Directory/Manager 소비자 교체는 계속 미완료다.
+
+## GDJ-0138 — 92a8fe17 파일 준비 수명의 양 DB normal/race/CGO-disabled 원본
+
+Source `92a8fe177d7ac030ab1a296e4791edd0ebde8987`의
+[CI 42156601834](https://github.com/progresshans/godj/actions/runs/42156601834),
+[job 127692752625](https://github.com/progresshans/godj/actions/runs/42156601834/job/127692752625)를 확인했다.
+실제 checkout `0417a640e3d32bb7814ab2cd778827397f015c2f`와 source의 GitHub tree는
+`65bcfadd5a938aedfdf3709f055f073230adfb66`으로 같다. Artifact `13474932587`의 ZIP bytes/CRC와 내부 파일 hash,
+실제 shard의 필수 bytes·outer 이벤트·독립 생성 process의 원본을 대조했다.
+
+`core-account-profiles` CGO-disabled의 필수 outer 26개가 각각 한 번 run/pass했다. 기본/custom × SQLite/PostgreSQL의
+파일 생성 process 네 개에서 당시 source의 필수 74개가 각각 한 번 run/pass했고 skip/fail은 없다. 각 process의
+`prepared_form_lifecycle` child 9개도 모두 포함한다. Started/finished receipt와 stderr 0, 실제 전체 이벤트 종료를 확인했다.
+이 결과는 위에서 새로 작성한 재사용 CreationForm/Admin 본문이나 전체 I1의 수용 근거가 아니다.
+
+원본은 검증 보관소 `gdj0138-92a8fe17-ci-42156601834/`에 보존했다. ZIP SHA-256은
+`8a1bb4508f553900cf8d3f30cbdb7f95aae3388d24d6398d01366e71cc923958`,
+`profiles-cgo0-events.jsonl`은 `2beb800e35e1d82ac4e1475ceb3d217cda057fcb55a34922f0068afb77a1a59a`,
+네 process 원본과 개별 hash를 연결한 `profiles-cgo0-inspection.json`은
+`f4dcc66a5d7ee10f8f6930dde67838ba1f675920e64f9fea9adbff0694d21d78`이다.
+원본 job log `job-127692752625.log`는 `2e490b1d9039a201bc98837dbb73e4a9522d22e26c92f7b16eab8cfea86650b7`이다.
+
+같은 source의 normal [job 127692752759](https://github.com/progresshans/godj/actions/runs/42156601834/job/127692752759)와
+race [job 127692752755](https://github.com/progresshans/godj/actions/runs/42156601834/job/127692752755)도 같은 방식으로 대조했다.
+각각 outer 26개와 네 파일 생성 process의 필수 74개/준비 child 9개가 한 번씩 run/pass했다. Artifact ZIP hash는 normal
+`e9a1a1aec9510f4a4271e1d08127413027d49997765235fc58841cf193e76d5a`, race
+`54962ae8e4a613457b1ca6cffe7418ad448ab8a42cb309ae82630ca3fcbdf494`다. Child의 race는 argv가 아니라
+race build-tag의 `consumerRaceEnabled → generatedTestEnvironment → GOFLAGS=-trimpath -race`로 전달된다.
+현재 receipt는 argv만 기록하므로 이 환경 전달은 동일 source의 workflow·환경 helper와 연결해 확인했다. 처음 argv만으로
+race를 찾던 원본 검사 가정을 바로잡았으며, 실행 조건을 바꾸지 않았다. Normal/race의 inner bytes와 outer 로그의 SHA도 일치한다.
+세 모드의 근거를 연결한 `profiles-complete-inspection.json` SHA-256은
+`3072f4b4cbf5c7c8032127ec6ce267311de8586184abe98d41b6ef7b8d685e06`이다. 전체 platform·I1 및 후속 Form 본문은 별도 수용 대상이다.
+
+같은 source의 normal PostgreSQL account [job 127692752704](https://github.com/progresshans/godj/actions/runs/42156601834/job/127692752704)와
+Linux ARM64 relation [job 127692754602](https://github.com/progresshans/godj/actions/runs/42156601834/job/127692754602)는
+`custom_text_login/sqlite`의 `admin_history_snapshot_and_scope`에서 HTTP 500으로 실패했다. 앞선 catalog unique
+fixture 거부 지점은 지났지만 이력 snapshot의 수용은 미완료다. 당시 로그에는 별도 writer의 원인이 없으므로 실제 내부 오류를
+확정하지 않는다. 코드 대조에서 이 fixture는 WAL을 켜는 기존 native SQLite snapshot 소비자와 달리 기본 rollback journal에서
+열린 reader 동안 별도 writer commit을 요구했다. 두 HTTP history/choice 경합 fixture에만 실제 `journal_mode=WAL` 결과를
+관찰하는 설정을 추가하고, history hook의 writer 오류를 channel로 보존해 실패 메시지에 연결했다. 제품 기본 DB 설정이나
+이전 snapshot·다음 권한 거부·별도 commit의 정확한 상태 oracle은 바꾸지 않았다. 이 환경 수정의 효과는 후속 원격 확인 대상이다.
+
+원본 `job-127692752704.log` SHA-256은 `18b7faf82eeda4a658333ee252b669e0cd803318e70801336717cde8cf489530`,
+`job-127692754602.log`는 `d3d971d89741f6c9fecc2eaf121b525def79211a343dc9aceb2884fc2d0b31a2`다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

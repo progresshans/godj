@@ -2008,6 +2008,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		return result
 	}
 	run("admin_history_snapshot_and_scope", func(t *testing.T) {
+		accountConcurrentSnapshots(t, backendConfig)
 		writer, err := database.Open(t.Context(), backendConfig)
 		check(err)
 		defer func() { check(writer.Close()) }()
@@ -2039,8 +2040,9 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		event, err := accountaudit.Prepare(actor, model, target.ID, admin.ActionChange, []string{"password"}, clock())
 		check(err)
 		type observation struct {
-			reader db.Queryer
-			entry  accountaudit.Entry
+			reader  db.Queryer
+			entry   accountaudit.Entry
+			failure error
 		}
 		observed := make(chan observation, 1)
 		var calls atomic.Int64
@@ -2058,21 +2060,19 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 				entry, err = accountaudit.AppendIn(ctx, scope, event)
 				return err
 			})
-			if err == nil {
-				observed <- observation{reader: reader, entry: entry}
-			}
+			observed <- observation{reader: reader, entry: entry, failure: err}
 			return err
 		}})
 		defer faults.beforeQuery.Store(nil)
 		status, _, body = adminSend(browser, "GET", endpoint, nil)
-		if status != 200 || calls.Load() != 1 || !slices.Equal(historySequences(body), []int64{baseline[0].Sequence()}) {
-			t.Fatal("Admin history mixed old authority with a newly committed audit", status)
-		}
 		var seen observation
 		select {
 		case seen = <-observed:
 		default:
-			t.Fatal("history probe did not observe its separate commit")
+			t.Fatal("history probe did not observe its separate commit", status, calls.Load())
+		}
+		if status != 200 || calls.Load() != 1 || seen.failure != nil || !slices.Equal(historySequences(body), []int64{baseline[0].Sequence()}) {
+			t.Fatal("Admin history mixed old authority with a newly committed audit", status, calls.Load(), seen.failure)
 		}
 		after := snapshot()
 		if len(after.Audits) != len(before.Audits)+1 {
@@ -2137,6 +2137,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		}
 	}
 	run("admin_choice_snapshot_and_authority", func(t *testing.T) {
+		accountConcurrentSnapshots(t, backendConfig)
 		writer, err := database.Open(t.Context(), backendConfig)
 		check(err)
 		defer func() { check(writer.Close()) }()

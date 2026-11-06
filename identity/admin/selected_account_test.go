@@ -2,18 +2,15 @@ package identityadmin
 
 import (
 	"slices"
-	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
-	formmodel "github.com/progresshans/godj/forms/model"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
-	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
@@ -135,53 +132,5 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 	}
 	if probe.calls != 0 {
 		t.Fatal("registration performed I/O")
-	}
-}
-
-func TestSelectedAccountCreationKeepsPasswordInputsSeparateFromModel(t *testing.T) {
-	model := models.UserDescriptor{}.Metadata()
-	for _, name := range []string{"password1", "password2", "unusable_password"} {
-		field := model.Fields[1].Clone()
-		field.Name, field.GoName, field.Column, field.Kind, field.Unique, field.MaxLength = name, "Profile"+name, name, ir.FieldChar, false, 150
-		model.Fields = append(model.Fields, field)
-	}
-	inputs, err := accountCreationForm(model, formmodel.Definition{Fields: []string{"username", "password1", "password2", "unusable_password"}}, 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if inputs.first == "password1" || inputs.confirm == "password2" || inputs.unusable == "unusable_password" {
-		t.Fatal("command shadows real selected profile")
-	}
-	spec, err := inputs.definition.Spec(model)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, test := range []struct {
-		name, first, second string
-		disabled, valid     bool
-	}{
-		{"usable", "  λ private  ", "  λ private  ", false, true},
-		{"required", "", "", false, false}, {"mismatch", "one", "two", false, false},
-		{"byte_limit", strings.Repeat("界", 7), strings.Repeat("界", 7), false, false},
-		{"unusable_empty", "", "", true, true}, {"unusable_ignores_password", "one", "two", true, true},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			data := map[string][]string{"username": {"candidate"}, "password1": {"public one"}, "password2": {"public two"}, "unusable_password": {"public profile"}, inputs.first: {test.first}, inputs.confirm: {test.second}}
-			if test.disabled {
-				data[inputs.unusable] = []string{"on"}
-			}
-			bound, err := spec.Bind(t.Context(), forms.NewData(data), nil)
-			if err != nil || bound.Valid() != test.valid {
-				t.Fatal("creation password policy differs", err)
-			}
-			if test.valid {
-				if actual, _ := bound.Cleaned().String(inputs.first); actual != test.first {
-					t.Fatal("private password bytes changed")
-				}
-				if actual, _ := bound.Cleaned().String("password1"); actual != "public one" {
-					t.Fatal("real profile input overwritten by command")
-				}
-			}
-		})
 	}
 }

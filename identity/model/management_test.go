@@ -159,6 +159,37 @@ func TestAccountManagementRequiresSharedSourceAndPolicyBeforeIO(t *testing.T) {
 	if _, err := owner.ChoiceSources(admin.ActionDelete); err == nil {
 		t.Fatal("delete supplied assignments")
 	}
+	for _, allow := range []bool{false, true} {
+		form, err := accountmodel.NewCreationForm(owner, accountmodel.CreationFormConfig{AllowUnusablePassword: allow})
+		if err != nil {
+			t.Fatal(err)
+		}
+		names := form.PasswordFields()
+		if names.First != "password1" || names.Confirmation != "password2" || (names.Unusable != "") != allow {
+			t.Fatal("creation command inputs differ from their explicit policy")
+		}
+		for _, field := range form.Spec().Fields() {
+			if (field.Name() == names.First || field.Name() == names.Confirmation) && (field.Required() == allow || field.Widget() != forms.PasswordInput) {
+				t.Fatal("creation Form hid requiredness or exposed private input")
+			}
+		}
+		definition := form.Definition()
+		if !slices.Equal(definition.Fields, owner.Creator().Fields()) {
+			t.Fatal("reusable creation Form widened model exposure")
+		}
+		definition.Fields[0] = "encoded_password"
+		definition.ExtraFields[0] = forms.Field{}
+		if form.Definition().Fields[0] == "encoded_password" || form.Definition().ExtraFields[0].Name() != names.First {
+			t.Fatal("creation Form aliases its published definition")
+		}
+	}
+	if _, err := accountmodel.NewCreationForm[models.User](nil, accountmodel.CreationFormConfig{}); err == nil {
+		t.Fatal("creation Form accepted an uninitialized owner")
+	}
+	var zero *accountmodel.CreationForm[models.User]
+	if _, err := zero.Definition().Spec(models.UserDescriptor{}.Metadata()); err == nil {
+		t.Fatal("zero creation Form exposed all model fields")
+	}
 	if backend.calls != 0 || backend.writes != 0 || hasher.calls != before || calls != 0 {
 		t.Fatal("pure composition performed work")
 	}

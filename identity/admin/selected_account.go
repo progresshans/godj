@@ -10,11 +10,11 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/identity/internal/forminput"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
-	"github.com/progresshans/godj/validation"
 )
 
 // AccountRegistration controls presentation inside the management owner's
@@ -54,7 +54,7 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 	if err != nil {
 		return err
 	}
-	reader, creator, editor, deleter := management.Reader(), management.Creator(), management.Editor(), management.Deleter()
+	reader, editor, deleter := management.Reader(), management.Editor(), management.Deleter()
 	for _, name := range append(editor.Fields(), description.LoginField) {
 		if !slices.Contains(reader.Fields(), name) {
 			return &admin.ConfigError{Path: "account.read_fields", Code: "missing_form_or_label"}
@@ -91,22 +91,15 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return &admin.ConfigError{Path: "account.files", Code: "missing_reporter"}
 		}
 	}
-	creation, err := management.FormDefinition(admin.ActionAdd)
+	creation, err := accountmodel.NewCreationForm(management, accountmodel.CreationFormConfig{AllowUnusablePassword: true})
 	if err != nil {
 		return err
 	}
-	creationSpec, err := creation.Spec(metadata)
-	if err != nil {
-		return err
-	}
+	creationSpec := creation.Spec()
 	for _, field := range creationSpec.Fields() {
 		if field.AcceptsUpload() && presentation.ReportFileCreate == nil {
 			return &admin.ConfigError{Path: "account.create_files", Code: "missing_reporter"}
 		}
-	}
-	passwords, err := accountCreationForm(metadata, creation, management.Passwords().MaxPasswordBytes())
-	if err != nil {
-		return err
 	}
 	addChoices, err := management.ChoiceSources(admin.ActionAdd)
 	if err != nil {
@@ -140,7 +133,7 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 		return err
 	}
 	policy := description.Permissions
-	statusName := accountAuxiliaryNames(metadata)("password_usable", "_status")
+	statusName := forminput.AuxiliaryNames(metadata)("password_usable", "_status")
 	readOnly := []admin.ReadOnlyField[accountmodel.Profile[M]]{{Name: statusName, Label: "Password login", Value: func(profile accountmodel.Profile[M]) (string, error) {
 		if profile.PasswordUsable() {
 			return "Enabled", nil
@@ -170,7 +163,7 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 		AdditionalPermissions: policy.Additional, AdditionalAddPermissions: []auth.Permission{policy.Change},
 		ReadOnlyFields: readOnly,
 		RelatedChoices: changeChoices,
-		CreateForm:     &admin.FormConfig{Definition: passwords.definition, RelatedChoices: addChoices}, Commands: commands,
+		CreateForm:     &admin.FormConfig{Definition: creation.Definition(), RelatedChoices: addChoices}, Commands: commands,
 		List: func(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[accountmodel.Profile[M]], error) {
 			page, err := reader.List(ctx, actor, request.Offset, request.Limit)
 			return admin.Page[accountmodel.Profile[M]]{Items: page.Items, Total: page.Total, Offset: request.Offset, Limit: request.Limit}, operationError(err)
@@ -228,56 +221,20 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return initial, nil
 		},
 		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
-			var password *string
-			form := bound.Form()
-			if disabled, _ := form.Cleaned().Boolean(passwords.unusable); !disabled && form.Errors().ByField(validation.Field(passwords.confirm)).Empty() {
-				if raw, present := form.Cleaned().String(passwords.confirm); present && raw != "" {
-					password = &raw
-				}
-			}
-			diagnostics, err := management.CheckCreateForm(ctx, actor, bound, password)
-			if err != nil {
-				return operationError(err)
-			}
-			items := diagnostics.Password.All()
-			for index, item := range items {
-				if item.Field() == "password" {
-					items[index] = validation.New(validation.Field(passwords.confirm), item.Code(), item.Params()...)
-				}
-			}
-			return validation.Reject(validation.Join(diagnostics.Fields, validation.NewErrors(items...)), nil)
+			return operationError(creation.Check(ctx, actor, bound))
 		},
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return operationError(management.CheckChangeForm(ctx, actor, mutation.ID, mutation.Revision, bound))
 		},
 		Create: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, error) {
-			values, err := bound.Input()
-			if err != nil {
-				return admin.MutationResult{}, err
-			}
-			unusable, present := values.Boolean(passwords.unusable)
-			if !present {
-				return admin.MutationResult{}, invalidInput()
-			}
-			var result accountmodel.Creation
-			var publications []formmodel.FilePublication
-			if unusable {
-				result, publications, err = creator.CreateUnusableForm(ctx, actor, bound)
-			} else {
-				raw, a := values.String(passwords.first)
-				confirm, b := values.String(passwords.confirm)
-				if !a || !b || raw != confirm {
-					return admin.MutationResult{}, invalidInput()
-				}
-				result, publications, err = creator.CreateForm(ctx, actor, bound, raw)
-			}
+			result, publications, err := creation.Create(ctx, actor, bound)
 			if len(publications) != 0 {
 				report := newAccountFileCreationReport(result, publications, err)
 				if reported := presentation.ReportFileCreate(ctx, report); reported != nil {
 					err = errors.Join(err, reported)
 				}
 			}
-			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, selectedPasswordInputError(err, passwords.confirm)
+			return admin.MutationResult{ID: result.ID, Revision: result.Revision}, operationError(err)
 		},
 		Update: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm, _ admin.InlineSubmission) (admin.MutationResult, []string, error) {
 			result, publications, err := editor.UpdateForm(ctx, actor, mutation.ID, mutation.Revision, bound)

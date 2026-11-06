@@ -272,14 +272,16 @@ func TestGeneratedProfileFileCreation(t *testing.T){
         if _,err:=f.runtime.Authenticator().Authenticate(t.Context(),"unusable@example.test",accountPasswordText);err==nil{t.Fatal("unusable creation authenticated")}
         names:=creator.FileFields();names[0]="mutated";if creator.FileFields()[0]!="document"{t.Fatal("creation file policy aliases caller slice")}
     })
+    run("reusable_form_checks",f.reusableFormChecks)
     run("prepared_form_lifecycle",f.preparedForms)
     run("partial_password_before_files",func(t *testing.T){
         definition,err:=f.runtime.Accounts().Creator().FormDefinition();fileCheck(t,err)
         bound:=f.form(t,definition,f.data(t,"partial-password@example.test",false))
         before:=f.snapshot(t);saves,names,hashes,writes:=f.disk.saves.Load(),f.disk.names.Load(),f.hasher.calls.Load(),f.backend.writes.Load()
+        policies:=f.partialPasswordCalls.Load()
         raw:="partial-password"
         diagnostics,err:=f.runtime.Accounts().CheckCreateForm(t.Context(),f.actor,bound,&raw);fileCheck(t,err)
-        if !diagnostics.Fields.Empty()||diagnostics.Password.ByField("password").Empty()||f.partialPasswordCalls.Load()!=1{t.Fatal("file candidate suppressed independent credential diagnostics")}
+        if !diagnostics.Fields.Empty()||diagnostics.Password.ByField("password").Empty()||f.partialPasswordCalls.Load()!=policies+1{t.Fatal("file candidate suppressed independent credential diagnostics")}
         if f.disk.saves.Load()!=saves||f.disk.names.Load()!=names||f.hasher.calls.Load()!=hashes||f.backend.writes.Load()!=writes{t.Fatal("advisory password published files, hashed or wrote")};f.same(t,before)
     })
     run("admin_creation",func(t *testing.T){
@@ -388,22 +390,100 @@ func TestGeneratedProfileFileCreation(t *testing.T){
     })
 }
 
+func (f *creationFileFixture) reusableFormChecks(t *testing.T){
+    for _,mode:=range []string{"partial_policy","mismatch","unusable_nul","missing_choice","malformed_choice","choice_limit","denied","read_cleanup","foreign_source","foreign_selection","forged_confirmation"}{t.Run(mode,func(t *testing.T){
+        defer f.backend.readFailure.Store(false)
+        creation,err:=accountmodel.NewCreationForm(f.runtime.Accounts(),accountmodel.CreationFormConfig{AllowUnusablePassword:mode=="unusable_nul"});fileCheck(t,err);passwords:=creation.PasswordFields()
+        data:=f.data(t,"form-check-"+mode+"@example.test",false)
+        values:=map[string][]string{}
+        for _,name:=range []string{f.role.Login,"@@PROFILE@@","preset",f.role.Groups,f.role.Permissions}{values[name],_=data.Get(name)}
+        values[passwords.First]=[]string{accountPasswordText};values[passwords.Confirmation]=[]string{accountPasswordText}
+        switch mode{
+        case "partial_policy":values["@@PROFILE@@"]=[]string{"\x00"};values[passwords.First]=[]string{"partial-password"};values[passwords.Confirmation]=[]string{"partial-password"}
+        case "mismatch","forged_confirmation":values[passwords.First]=[]string{"partial-password"};values[passwords.Confirmation]=[]string{"different-password"}
+        case "unusable_nul":values[passwords.Unusable]=[]string{"on"};values[passwords.First]=[]string{"\x00"}
+        case "missing_choice":values[f.role.Groups]=[]string{"9223372036854775807"}
+        case "malformed_choice":values[f.role.Groups]=[]string{"not-a-key"}
+        case "choice_limit":values[f.role.Groups]=make([]string,accountmodel.MaximumAccountGroups+1);for i:=range values[f.role.Groups]{values[f.role.Groups][i]=strconv.FormatInt(f.groupID,10)}
+        }
+        document,_:=data.Files("document");portrait,_:=data.Files("portrait")
+        submitted:=forms.NewDataWithFiles(values,map[string][]uploads.File{"document":document,"portrait":portrait})
+        actor:=f.actor
+        if mode=="denied"{credential,err:=f.runtime.Authenticator().Authenticate(t.Context(),"typed@example.test",accountPasswordText);fileCheck(t,err);actor=credential.Principal()}
+        before:=f.snapshot(t);saves,names,opens,hashes,writes,policies:=f.disk.saves.Load(),f.disk.names.Load(),f.disk.opens.Load(),f.hasher.calls.Load(),f.backend.writes.Load(),f.partialPasswordCalls.Load()
+        var bound formmodel.BoundForm
+        switch mode{
+        case "foreign_source","foreign_selection","forged_confirmation":
+            definition:=creation.Definition()
+            if mode=="foreign_selection"{extra,err:=forms.CharField("injected_command",forms.WithRequired(false));fileCheck(t,err);definition.ExtraFields=append(definition.ExtraFields,extra)}
+            if mode=="forged_confirmation"{definition.Validators=nil}
+            if mode=="foreign_source"{
+                source:=f.metadata.Clone();source.DBTable+="_foreign"
+                spec,err:=definition.Spec(source);fileCheck(t,err);bound,err=formmodel.Bind(t.Context(),source,spec,submitted,nil,definition.PostClean);fileCheck(t,err)
+            }else{bound=f.form(t,definition,submitted)}
+            if mode!="forged_confirmation"{
+                f.backend.readFailure.Store(true)
+                failure:=creation.Check(t.Context(),actor,bound)
+                if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodeInvalidInput}){t.Fatal("foreign creation Form entered advisory scope",mode,failure)}
+            }else if !bound.Form().Valid(){t.Fatal("forged confirmation did not reach defensive preparation")}
+        default:
+            if mode=="read_cleanup"{f.backend.readFailure.Store(true)}
+            bound,err=creation.Bind(t.Context(),actor,submitted)
+        }
+        if mode=="denied"||mode=="read_cleanup"{
+            code:=accountmodel.CodePermission;if mode=="read_cleanup"{code=accountmodel.CodePersistence}
+            if !errors.Is(err,&accountmodel.Error{Code:code})||bound.Form().Bound()||len(bound.FieldNames())!=0||f.disk.opens.Load()!=opens{t.Fatal("failed creation admission exposed input or inspected files",mode,err)}
+        }else{
+            fileCheck(t,err)
+            result,publications,failure:=creation.Create(t.Context(),actor,bound)
+            if failure==nil||len(publications)!=0||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("invalid reusable Form created or published",mode,failure)}
+            if mode=="foreign_source"||mode=="foreign_selection"{
+                if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodeInvalidInput})||!f.backend.readFailure.Swap(false){t.Fatal("foreign creation Form reached DB preparation",failure)}
+            }else{
+                diagnostics,rejected:=validation.Rejected(failure);if !rejected{t.Fatal("reusable Form lost expected diagnostics",mode,failure)}
+                required:=[]validation.Field{validation.Field(f.role.Groups)}
+                switch mode{
+                case "partial_policy":required=[]validation.Field{"@@PROFILE@@",validation.Field(passwords.Confirmation)}
+                case "mismatch","forged_confirmation":required=[]validation.Field{validation.Field(passwords.Confirmation)}
+                case "unusable_nul":required=[]validation.Field{validation.Field(passwords.First)}
+                }
+                for _,field:=range required{if diagnostics.ByField(field).Empty(){t.Fatal("reusable Form omitted a diagnostic",mode,field)}}
+                if mode=="choice_limit"{found:=false;for _,item:=range diagnostics.ByField(validation.Field(f.role.Groups)).All(){found=found||item.Code()=="max_items"};if !found{t.Fatal("reusable Form dropped the submitted-key limit")}}
+            }
+        }
+        f.backend.readFailure.Store(false)
+        expectedPolicies:=policies;if mode=="partial_policy"{expectedPolicies++}
+        if f.partialPasswordCalls.Load()!=expectedPolicies||f.disk.saves.Load()!=saves||f.disk.names.Load()!=names||f.hasher.calls.Load()!=hashes||f.backend.writes.Load()!=writes{t.Fatal("invalid reusable Form performed private work or lost partial policy",mode)};f.same(t,before)
+    })}
+}
+
 func (f *creationFileFixture) preparedForms(t *testing.T){
+    // A direct reusable Form uses owner permissions without the Admin Site's
+    // staff gate. The custom fixture has a constant staff role; the default
+    // fixture exercises a genuinely nonstaff current principal throughout.
+    if field:=f.role.Staff.Field;field!=""{
+        prior:=f.actor;revision,_:=f.values(t,f.firstID)[f.role.Revision].Integer()
+        fileCheck(t,f.patch(t,f.firstID,map[string]query.Value{field:query.Boolean(false),f.role.Revision:query.Integer(revision+1)}))
+        credential,err:=f.runtime.Authenticator().Authenticate(t.Context(),"first@example.test",accountPasswordText);fileCheck(t,err);f.actor=credential.Principal()
+        if f.actor.Staff(){t.Fatal("direct creation did not receive the current nonstaff principal")}
+        defer func(){revision,_:=f.values(t,f.firstID)[f.role.Revision].Integer();fileCheck(t,f.patch(t,f.firstID,map[string]query.Value{field:query.Boolean(true),f.role.Revision:query.Integer(revision+1)}));f.actor=prior}()
+    }
     for _,mode:=range []string{"usable","unusable","abandon","model_policy","password_policy","revoked","audit","cleanup","unknown_commit"}{t.Run(mode,func(t *testing.T){
         defer func(){f.reject.Store(false);f.rejectPassword.Store(false);f.backend.mode.Store("")}()
-        creator:=f.runtime.Accounts().Creator();definition,err:=creator.FormDefinition();fileCheck(t,err)
+        creation,err:=accountmodel.NewCreationForm(f.runtime.Accounts(),accountmodel.CreationFormConfig{AllowUnusablePassword:mode=="unusable"});fileCheck(t,err);passwords:=creation.PasswordFields()
         login:="prepared-"+mode+"@example.test"
         document,err:=uploads.NewBuffer("same.txt","text/plain",f.document);fileCheck(t,err);defer document.Close()
         portrait,err:=uploads.NewBuffer("photo.png","image/png",f.portrait);fileCheck(t,err);defer portrait.Close()
         values:=map[string][]string{f.role.Login:{login},"@@PROFILE@@":{"NZ"},"preset":{"presets/first.png"},f.role.Groups:{strconv.FormatInt(f.groupID,10)},f.role.Permissions:{strconv.FormatInt(f.grantID,10)}}
-        bound:=f.form(t,definition,forms.NewDataWithFiles(values,map[string][]uploads.File{"document":{document.File()},"portrait":{portrait.File()}}))
+        values[passwords.First]=[]string{accountPasswordText};values[passwords.Confirmation]=[]string{accountPasswordText}
+        if mode=="unusable"{values[passwords.Unusable]=[]string{"on"};values[passwords.First]=[]string{"ignored first"};values[passwords.Confirmation]=[]string{"ignored second"};f.rejectPassword.Store(true)}
         before:=f.snapshot(t);saves,names,hashes,writes:=f.disk.saves.Load(),f.disk.names.Load(),f.hasher.calls.Load(),f.backend.writes.Load()
-        var pending accountmodel.PreparedCreation[fileAccount];var publications []formmodel.FilePublication
+        bound,err:=creation.Bind(t.Context(),f.actor,forms.NewDataWithFiles(values,map[string][]uploads.File{"document":{document.File()},"portrait":{portrait.File()}}));fileCheck(t,err)
+        if !bound.Form().Valid(){t.Fatal("reusable creation Bind rejected valid native fields",bound.Form().Errors())}
+        if f.disk.saves.Load()!=saves||f.disk.names.Load()!=names||f.hasher.calls.Load()!=hashes||f.backend.writes.Load()!=writes{t.Fatal("reusable creation Bind published, hashed or wrote")};f.same(t,before)
         wantHashes:=int64(1)
-        if mode=="unusable"{
-            f.rejectPassword.Store(true);wantHashes=0
-            pending,publications,err=creator.PrepareUnusableForm(t.Context(),f.actor,bound)
-        }else{pending,publications,err=creator.PrepareForm(t.Context(),f.actor,bound,accountPasswordText)}
+        if mode=="unusable"{wantHashes=0}
+        pending,publications,err:=creation.Prepare(t.Context(),f.actor,bound)
         fileCheck(t,err)
         if len(publications)!=2||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes||f.backend.writes.Load()!=writes{t.Fatal("Form preparation lost publications, repeated hashing or wrote native state")}
         for _,publication:=range publications{if publication.Outcome()!=storage.Published||!publication.Info().Valid(){t.Fatal("successful preparation returned an incomplete publication")}}
@@ -421,10 +501,10 @@ func (f *creationFileFixture) preparedForms(t *testing.T){
             result,err:=other.Creator().Commit(t.Context(),f.actor,retained)
             if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeInvalidInput})||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("prepared Form escaped its creator",err)}
             credential,err:=f.runtime.Authenticator().Authenticate(t.Context(),"typed@example.test",accountPasswordText);fileCheck(t,err)
-            result,err=creator.Commit(t.Context(),credential.Principal(),retained)
+            result,err=creation.Commit(t.Context(),credential.Principal(),retained)
             if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodePermission})||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("prepared Form escaped its actor",err)}
             canceled,cancel:=context.WithCancel(t.Context());cancel()
-            result,err=creator.Commit(canceled,f.actor,retained)
+            result,err=creation.Commit(canceled,f.actor,retained)
             if !errors.Is(err,context.Canceled)||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("canceled entry published a prepared account",err)}
             if f.backend.writes.Load()!=writes||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes{t.Fatal("invalid commit entry performed private work")};f.same(t,before)
         }
@@ -436,7 +516,7 @@ func (f *creationFileFixture) preparedForms(t *testing.T){
         case "audit","cleanup":f.backend.mode.Store(mode)
         case "unknown_commit":f.backend.mode.Store("unknown")
         }
-        result,failure:=creator.Commit(t.Context(),f.actor,pending)
+        result,failure:=creation.Commit(t.Context(),f.actor,pending)
         f.reject.Store(false);f.rejectPassword.Store(false)
         if mode=="revoked"{
             changes:=map[string]query.Value{f.role.Active.Field:query.Boolean(true),f.role.Revision:query.Integer(revision+2)};fileCheck(t,f.patch(t,f.firstID,changes))
@@ -456,7 +536,7 @@ func (f *creationFileFixture) preparedForms(t *testing.T){
             }
         }
         if f.backend.writes.Load()!=writes+1||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes{t.Fatal("prepared commit repeated publication, hashing or native write")}
-        replay,err:=creator.Commit(t.Context(),f.actor,retained)
+        replay,err:=creation.Commit(t.Context(),f.actor,retained)
         if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeConflict})||!reflect.DeepEqual(replay,accountmodel.Creation{}){t.Fatal("prepared copy was reusable after a native attempt",mode,err)}
         if f.backend.writes.Load()!=writes+1||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes{t.Fatal("prepared replay performed private work")}
         f.stored(t,publications)

@@ -401,6 +401,23 @@ Admin과 아래 재사용 Form은 같은 정의와 검증 단계를 사용한다
 
 ### 재사용 Form과 저장 전 준비
 
+선택 계정의 `identity/model.NewCreationForm`은 AccountManagement의 같은 생성 정의·credential 한도·부분 검증·Creator를
+소유하며, 직접 Bind와 선택 Admin의 Definition/Check/Create가 이 한 경로를 사용한다. 기본은 usable password이고 명시적
+설정으로 unusable 선택을 추가한다. Password 두 field와 optional choice는 전체 모델의 이름과 겹치지 않도록 결정적으로
+할당하며 실제 이름을 metadata로 반환한다. 모델의 `password` 진단은 그대로 두고 credential origin만 confirmation에 연결한다.
+
+직접 Bind는 현재 생성 권한의 snapshot 종료를 확인한 뒤 file/image 검사와 순수 ModelForm binding을 수행한다. Relation은
+IR default·NULL·key 문법을 공통 ChoiceInput으로 보존하고 숫자 label만 임시 구성한다. 이것은 조회/선택 권한이 아니며
+같은 owner의 새 snapshot에서 현재 존재·필터·중복·제출 및 최종 집합 한도를 검사한다. 읽기/cleanup 실패에는 bound 입력을
+게시하지 않는다. Admin은 기존 bounded choice 조회를 유지하고 같은 Definition/Check를 사용한다. 일반 Form에는 staff
+조건을 추가하지 않으며 owner의 add/change·추가 권한은 유지한다.
+
+준비는 정확한 모델과 전체 선택/명령 이름을 검사하고, valid Form에서도 private command 타입·required/confirmation·byte
+한도를 다시 검사한다. 유효성이 다른 spec으로 조작된 확인 값은 Creator로 전달하지 않는다. 이후 기존 PrepareForm/Commit의
+인가·파일 게시·hash·한 번의 시도·domain 계약을 공유한다. 파일 기록은 준비 객체 밖에서 보존하며 입력 수명 종료 후 Commit을
+지원한다. 선택 모델의 IR 길이/역할 정책을 이 Form에 적용하며 아래 기존 기본 User의 150자 입력·문자 문법/독립 기준 이관은
+별도 확인 대상으로 유지한다. 새 Form이 존재한다는 이유로 그 기준이나 고정 소비자를 제거하지 않는다.
+
 `NewUserCreationForm`과 `NewAdminUserCreationForm`은 기본 User IR에 대한 불변 Form이다. 후자는 명시적 사용 불가 password
 선택을 추가한다. `Bind(ctx, actor, data)`는 입력 정리와 read-only 검사를 합쳐 bound Form을 반환한다.
 Admin도 같은 `Definition`과 `Check`를 사용한다. 일반 재사용 Form에는 Site의 staff 조건이 없으며 Manager의 현재 add/change

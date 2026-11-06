@@ -20,8 +20,11 @@ func TestGeneratedAccountProfileFileCreation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := writeAccountProfileFileSource(t, custom, true, profileFileCreationConsumer+profileFileCommandConsumer)
 			required := []string{"TestGeneratedProfileFileCreation"}
-			for _, child := range []string{"command", "construction", "first_account", "first_failures", "typed_creation", "prepared_form_lifecycle", "partial_password_before_files", "admin_creation", "json_read_only", "failures", "concurrent_login", "restart"} {
+			for _, child := range []string{"command", "construction", "first_account", "first_failures", "typed_creation", "reusable_form_checks", "prepared_form_lifecycle", "partial_password_before_files", "admin_creation", "json_read_only", "failures", "concurrent_login", "restart"} {
 				required = append(required, required[0]+"/"+child)
+			}
+			for _, child := range []string{"partial_policy", "mismatch", "unusable_nul", "missing_choice", "malformed_choice", "choice_limit", "denied", "read_cleanup", "foreign_source", "foreign_selection", "forged_confirmation"} {
+				required = append(required, required[0]+"/reusable_form_checks/"+child)
 			}
 			for _, child := range []string{"usable", "unusable", "abandon", "model_policy", "password_policy", "revoked", "audit", "cleanup", "unknown_commit"} {
 				required = append(required, required[0]+"/prepared_form_lifecycle/"+child)

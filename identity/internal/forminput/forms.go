@@ -4,10 +4,32 @@ package forminput
 import (
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/internal/unicode16"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
+	"strconv"
 	"strings"
 	"unicode/utf8"
 )
+
+// AuxiliaryNames allocates command/presentation names around every real model
+// field. The local allocator also reserves each name it returns.
+func AuxiliaryNames(model ir.Model) func(string, string) string {
+	names := make(map[string]bool, len(model.Fields)+len(model.ManyToMany))
+	for _, field := range model.Fields {
+		names[field.Name] = true
+	}
+	for _, field := range model.ManyToMany {
+		names[field.Name] = true
+	}
+	return func(base, suffix string) string {
+		value := base
+		for index := 1; names[value]; index++ {
+			value = base + suffix + strconv.Itoa(index)
+		}
+		names[value] = true
+		return value
+	}
+}
 
 func PasswordFields(required bool) ([]forms.Field, error) {
 	first, err := forms.CharField("password1", forms.WithLabel("Password"), forms.WithWidget(forms.PasswordInput), forms.WithTrimWhitespace(false), forms.WithRequired(required))

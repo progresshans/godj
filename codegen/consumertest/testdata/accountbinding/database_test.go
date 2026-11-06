@@ -3,6 +3,7 @@ package consumer
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/settings/database"
+	modernsqlite "modernc.org/sqlite"
 )
 
 func accountDatabase(t *testing.T, schemas ...ir.Schema) database.Backend {
@@ -40,6 +42,31 @@ func accountDatabaseWithConfig(t *testing.T, schemas ...ir.Schema) (database.Bac
 	backend, selected := openAccountDatabase(t)
 	migrateAccountDatabase(t, backend, schemas...)
 	return backend, selected
+}
+
+// These concurrency fixtures require a separate writer to finish while an
+// older read snapshot remains live. SQLite's ordinary rollback journal cannot
+// provide that schedule. Configure and observe WAL only for those temporary
+// consumer databases; the product's default database configuration is unchanged.
+func accountConcurrentSnapshots(t *testing.T, selected database.Config) {
+	t.Helper()
+	if selected.Kind() != database.KindSQLite {
+		return
+	}
+	connector, err := modernsqlite.NewConnector(selected.SQLiteDatabase())
+	if err != nil {
+		t.Fatal("open concurrent SQLite fixture", err)
+	}
+	connection := sql.OpenDB(connector)
+	defer func() {
+		if err := connection.Close(); err != nil {
+			t.Error("close concurrent SQLite fixture", err)
+		}
+	}()
+	var mode string
+	if err := connection.QueryRowContext(t.Context(), "PRAGMA journal_mode=WAL").Scan(&mode); err != nil || mode != "wal" {
+		t.Fatal("concurrent SQLite fixture requires observed WAL", mode, err)
+	}
 }
 
 func openAccountDatabase(t *testing.T) (database.Backend, database.Config) {

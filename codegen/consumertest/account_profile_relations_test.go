@@ -24,8 +24,11 @@ func TestGeneratedAccountProfileRelations(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := writeAccountProfileRelationConsumer(t, custom)
 			required := []string{"TestGeneratedProfileRelationLifecycle"}
-			for _, child := range []string{"first_command", "partial_password_missing_relation", "bounded_choices", "admin_create", "one_to_one_unique", "json_edit", "current_choice", "partial_form", "nullable_clear", "restart"} {
+			for _, child := range []string{"first_command", "partial_password_missing_relation", "bounded_choices", "admin_create", "one_to_one_unique", "json_edit", "current_choice", "partial_form", "nullable_clear", "reusable_form", "restart"} {
 				required = append(required, required[0]+"/"+child)
+			}
+			for _, child := range []string{"missing_relation", "filtered_relation", "late_filter", "created"} {
+				required = append(required, required[0]+"/reusable_form/"+child)
 			}
 			runAccountConsumerDatabases(t, root, required)
 		})
