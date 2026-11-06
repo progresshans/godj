@@ -29,6 +29,9 @@ import (
 type AccountRegistration struct {
 	Slug       string
 	ListFields []string
+	// CreationLoginInput optionally narrows the declared login's creation Form
+	// input. It does not change storage, editing or the owner's unique policy.
+	CreationLoginInput accountmodel.CreationLoginInput
 	// ReportFileEdit is required when the edit owner accepts uploads. It
 	// receives every attempted publication and the final account outcome before
 	// HTTP error mapping can discard either. The application owns retention and
@@ -91,7 +94,7 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return &admin.ConfigError{Path: "account.files", Code: "missing_reporter"}
 		}
 	}
-	creation, err := accountmodel.NewCreationForm(management, accountmodel.CreationFormConfig{AllowUnusablePassword: true})
+	creation, err := accountmodel.NewCreationForm(management, accountmodel.CreationFormConfig{AllowUnusablePassword: true, LoginInput: presentation.CreationLoginInput})
 	if err != nil {
 		return err
 	}

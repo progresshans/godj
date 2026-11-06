@@ -34,6 +34,7 @@ HELPDESK_POSTGRES_ROOTS = frozenset({
 CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
+    'TestGeneratedAccountCreationInputPolicy',
 })
 THROUGH_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountThroughIdentityCreation',

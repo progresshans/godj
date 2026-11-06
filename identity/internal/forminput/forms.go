@@ -74,19 +74,19 @@ func CreationPasswords() forms.CrossValidator {
 	})
 }
 
-// UsernameField normalizes after stripping and avoids expensive normalization
+// UsernameNormalizer strips first and avoids expensive normalization
 // of an already overlong input. Length validation still observes the result.
-func UsernameNormalizer(limit int) func(string) string {
+func UsernameNormalizer(limit int, normalize func(string) string) func(string) string {
 	return func(value string) string {
 		value = unicode16.TrimSpace(value)
 		if utf8.RuneCountInString(value) > limit {
 			return value
 		}
-		return unicode16.NFKC(value)
+		return normalize(value)
 	}
 }
 
-func UsernameValidator(limit int) forms.FieldValidator {
+func UsernameValidator(field validation.Field, limit int) forms.FieldValidator {
 	return forms.FieldValidatorFunc(func(value forms.Value) validation.Errors {
 		text, ok := value.AsString()
 		if !ok || text == "" {
@@ -103,7 +103,7 @@ func UsernameValidator(limit int) forms.FieldValidator {
 			valid = valid && (unicode16.IsAlphanumeric(r) || strings.ContainsRune("_.@+-", r))
 		}
 		if !valid {
-			return validation.NewErrors(validation.New("username", "invalid"))
+			return validation.NewErrors(validation.New(field, "invalid"))
 		}
 		return validation.Errors{}
 	})

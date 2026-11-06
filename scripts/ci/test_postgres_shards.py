@@ -156,25 +156,31 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                 else:
                     self.assertFalse(set(expected) & set(selected))
 
-    def test_bindings_and_management_keep_separate_complete_roots(self):
-        for name, owner in (
-            ('TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels', 'core-account-consumers'),
-            ('TestGeneratedFirstAccountUsesRequiredProfiles', 'core-account-management'),
-        ):
+    def test_account_input_bindings_and_management_keep_complete_roots(self):
+        variants = ('default', 'custom', 'custom_normalized', 'custom_without_last_login',
+                    'custom_form_normalized', 'custom_short_login', 'custom_text_login')
+        roots = (
+            ('TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels', 'core-account-consumers', variants),
+            ('TestGeneratedAccountCreationInputPolicy', 'core-account-consumers', ('default', 'renamed')),
+            ('TestGeneratedFirstAccountUsesRequiredProfiles', 'core-account-management', variants),
+        )
+        by_owner = {}
+        for name, owner, variants in roots:
             root = MODULE + 'codegen/consumertest|' + name
             expected = [entry for entry in self.required if entry == root or entry.startswith(root + '/')]
             self.assertTrue(expected)
-            for variant in ('default', 'custom', 'custom_normalized', 'custom_without_last_login',
-                            'custom_form_normalized', 'custom_short_login', 'custom_text_login'):
+            for variant in variants:
                 for database in ('sqlite', 'postgres'):
                     self.assertIn(root + '/' + variant + '/' + database, expected)
-            for mode in ('normal', 'race', 'cgo0'):
-                for shard in partitions(mode):
-                    selected = plan(mode, shard, self.required)['required']
+            by_owner.setdefault(owner, set()).update(expected)
+        for mode in ('normal', 'race', 'cgo0'):
+            for shard in partitions(mode):
+                selected = set(plan(mode, shard, self.required)['required'])
+                for owner, expected in by_owner.items():
                     if shard == owner:
                         self.assertEqual(expected, selected)
                     else:
-                        self.assertFalse(set(expected) & set(selected))
+                        self.assertFalse(expected & selected)
 
     def test_selected_account_roots_and_future_children_have_their_own_owner_in_each_mode(self):
         isolated_roots = set(ISOLATED_ACCOUNT_CONSUMER_OWNERS)

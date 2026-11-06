@@ -415,8 +415,18 @@ IR default·NULL·key 문법을 공통 ChoiceInput으로 보존하고 숫자 lab
 준비는 정확한 모델과 전체 선택/명령 이름을 검사하고, valid Form에서도 private command 타입·required/confirmation·byte
 한도를 다시 검사한다. 유효성이 다른 spec으로 조작된 확인 값은 Creator로 전달하지 않는다. 이후 기존 PrepareForm/Commit의
 인가·파일 게시·hash·한 번의 시도·domain 계약을 공유한다. 파일 기록은 준비 객체 밖에서 보존하며 입력 수명 종료 후 Commit을
-지원한다. 선택 모델의 IR 길이/역할 정책을 이 Form에 적용하며 아래 기존 기본 User의 150자 입력·문자 문법/독립 기준 이관은
-별도 확인 대상으로 유지한다. 새 Form이 존재한다는 이유로 그 기준이나 고정 소비자를 제거하지 않는다.
+지원한다. 기본 입력은 선택 모델의 IR 길이/역할 정책을 따른다. `CreationFormConfig.LoginInput`에
+`UnicodeUsernameInput(150)`을 명시하면 실제 login 역할에만 별도 생성 입력 한도를 적용한다. 양수이며 유한한 저장 한도를
+넓힐 수 없다. Python 공백을 제거하고, 이미 원문 rune 한도가 넘으면 정규화를 생략하며, 선언된 쓰기 정규화 후의 길이도
+확인한다. 문자 문법은 Unicode 16의 letter/number와 `_.@+-`를 허용한다. 현재 unique 오류가 없을 때 모델 문법 진단을
+추가하되 strength 정책에는 model-only 오류의 candidate를 유지한다. 준비에서는 같은 입력 한도·문법을 다시 검사하며,
+느슨한 Form이나 model-clean 변경 때문에 재정규화한 값과 실제 candidate가 달라지는 경우도 거부한다. 이 순수 검사는
+파일 검사·DB 읽기·principal ID·hash 전에 끝난다.
+
+`identityadmin.AccountRegistration.CreationLoginInput`도 같은 정책을 선택한다. 기본 User의 256자 저장·편집 한도와 typed
+생성·명령·JSON의 정책을 전역으로 줄이지 않으며 case-insensitive 생성 unique는 기존 owner 설정이다. 고정 User의 원본
+Django 입력·저장 수명 기준은 선택 Form과 실제 Admin 소비자로도 연결한다. 새 본문의 환경별 수용과 남은 고정 소비자 제거는
+별도 확인 대상으로 유지하며, 새 Form이 존재한다는 이유로 기존 기준이나 소비자를 제거하지 않는다.
 
 `NewUserCreationForm`과 `NewAdminUserCreationForm`은 기본 User IR에 대한 불변 Form이다. 후자는 명시적 사용 불가 password
 선택을 추가한다. `Bind(ctx, actor, data)`는 입력 정리와 read-only 검사를 합쳐 bound Form을 반환한다.

@@ -5483,6 +5483,13 @@ github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/prof
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/profile_relations/failures/cleanup_failure
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/profile_relations/failures/unknown_commit
 github.com/progresshans/godj/db/postgres|TestPostgresAccountCredentialStore/profile_relations/failures/stale
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCreationInputPolicy
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCreationInputPolicy/default
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCreationInputPolicy/default/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCreationInputPolicy/default/postgres
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCreationInputPolicy/renamed
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCreationInputPolicy/renamed/sqlite
+github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountCreationInputPolicy/renamed/postgres
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileRelations
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileRelations/default
 github.com/progresshans/godj/codegen/consumertest|TestGeneratedAccountProfileRelations/default/sqlite

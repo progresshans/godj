@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/internal/forminput"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
 )
@@ -56,7 +57,7 @@ func (a *registration) registerUser(builder *admin.Builder) error {
 	// Creation adopts the default UserCreationForm input limit. Editing follows
 	// the declared storage field so an existing longer API/CLI-created username
 	// can still be displayed and retained without a hidden form-initial failure.
-	username := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithStringNormalizer(forminput.UsernameNormalizer(usernameLimit)), formmodel.WithValidators(forminput.UsernameValidator(usernameLimit)))
+	username := formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithStringNormalizer(forminput.UsernameNormalizer(usernameLimit, unicode16.NFKC)), formmodel.WithValidators(forminput.UsernameValidator("username", usernameLimit)))
 	groups, err := a.manager.UserGroupChoiceSource()
 	if err != nil {
 		return err

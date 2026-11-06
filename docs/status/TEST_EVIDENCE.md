@@ -4477,6 +4477,54 @@ reset 8개와 관리 22개 selector만 옮기며, 다른 owner의 항목과 순�
 원본 `job-127705902034.log`는 `44909d9f3e4377c704f5235b892a13f29bcd14c2ef7abeded36a5fcfe6cf30ab`,
 `race-account-timeout-inspection.json`은 `2ac11cd519b59b55593e15548a87995f97e081743f4bf16ddd4382201afd6914`다.
 
+Source `600de39195300fe6ccf6a9c602fdc2e4b2efee7b`의
+[CI 42166060029](https://github.com/progresshans/godj/actions/runs/42166060029)에서 분리한 관리 root의
+normal [job 127723269677](https://github.com/progresshans/godj/actions/runs/42166060029/job/127723269677),
+race [job 127723269579](https://github.com/progresshans/godj/actions/runs/42166060029/job/127723269579),
+CGO-disabled [job 127723269745](https://github.com/progresshans/godj/actions/runs/42166060029/job/127723269745)가 완료됐다.
+실제 checkout `b645fe6a5961381932328e202a0310956809896c`와 source의 GitHub tree는
+`bc38751cbebb3495016c337e1b8982205b8334ee`로 같다. API/job/ZIP digest·크기/CRC·전체 내부 파일 hash, source에 고정한
+planner/필수 bytes와 process 시작/종료·stderr·원본 이벤트를 대조했다. 검증 helper도 이 source의 bytes로 보관한다.
+
+각 모드에서 outer 필수 22개와 독립 생성 process 14개(일곱 모델 변형 × 양 DB)가 모두 완료됐고 skip/fail은 없다.
+각 process의 영향 HTTP/Admin 필수 108개를 별도로 대조했다. 여기에는 위에서 옮긴 상태/위조 입력/조회 권한/Django
+대조 8개가 모두 포함된다. 전체 내부 실행 test는 모드별 3,662개이며 각 run/pass가 한 번씩 나타난다. 부모의 기존
+엄격한 전체 child 검사도 실행됐으며 별도 verifier가 그 전체 목록 구문을 재구현했다고 주장하지 않는다.
+Race 전달은 source의 parent `-race`와 build-tag→`GOFLAGS` 경로, CGO-disabled 전달은 같은 workflow/helper와 연결한다.
+Child receipt는 argv를 기록하므로 환경을 직접 관찰한 receipt와 구분한다.
+
+분리한 reset·binding 작업도 세 모드에서 job 성공을 확인했다. 이 두 owner의 전체 raw child 원본 대조 및 전체 CI/platform
+수용을 이번 관리 root 대조로 대신하지 않는다. 위 결과는 후속 생성 입력 정책 본문의 PASS가 아니다.
+원본은 검증 보관소 `gdj0138-600de391-ci-42166060029/`에 보존했다. Normal/race/CGO-disabled 순서로 ZIP SHA-256은
+`63baea091b68a50f6a9144b204ea797dc603db6fc81918ac2e63c146b962575c` /
+`7557d8e5ccea3049357359930edcc0c5dafcb37bd296407b4d4682e6c42e3030` /
+`a385db55a90700933c6ef0c8221a35577539825305c9dd9ac41cb332f2e4a38d`다.
+`accounts-normal-inspection.json` / `accounts-race-inspection.json` / `accounts-cgo0-inspection.json` SHA-256은
+`c7eed96b237cf3a6ddc18bfdd9184a5f7983fe0658acb681e34f540dfb2291d5` /
+`e008942be2bc17d6d849463f772fba5380d3dfc14a4cb71741e5fa7bde33088b` /
+`d37c318e63f2b54466fc87c8919995590ad1825e0c00e7b1d513025adf1bc8b3`다.
+
+이어서 선택 `CreationFormConfig.LoginInput`과 Admin 등록에 `UnicodeUsernameInput(150)`을 추가했다. 원문 byte 한도 뒤
+Python 공백/원문 rune 한도/선택 정규화/정규화 후 길이와 Unicode 문법을 적용한다. Unique와 strength의 후보 관찰 순서를
+유지하고, valid BoundForm이라도 준비 시 한도·문법과 실제 candidate의 정규화 일치를 재검사한다. 저장 IR·편집·typed 생성의
+256자 한도와 owner의 case-insensitive unique는 별도다. 기존 고정 Form helper는 같은 동작을 인자화했고 삭제하지 않았다.
+
+새 `TestGeneratedAccountCreationInputPolicy`는 기본 모델과 login 이름을 바꾼 Char 모델을 독립 생성한다. 후자는 실제
+`username`/`password1` profile도 선언해 역할/명령 이름의 충돌을 확인한다. 기존 입력 JSON과 두 Django capture를 그대로
+공유하며 producer/runtime/Unicode/input digest를 연결한다. 세 Form 모드의 20개 입력·네 저장 수명, 두 Admin 모드의 20개
+실제 HTTP 입력과 비밀번호 비노출, 저장/편집 한도·원문 길이·위조 length/grammar/normalization·늦은 중복을 작성했다.
+모든 실패/준비는 전체 물리 행·관계·session·domain/audit snapshot을 대조하고 저장은 정확한 새 계정/감사 외의 행을 보존한다.
+새 준비 객체는 후보를 공개하지 않으므로 Django의 내부 instance 속성은 직접 비교하지 않는다. 저장된 credential/profile
+기본값과 준비 객체의 비노출·무저장으로 그 경계를 확인하며 기존 고정 lifecycle 기준 검사는 계속 실행한다.
+
+양 DB의 외부 필수 목록에 새 root/변형/DB를 추가했고 독립 process마다 필수 124개를 선언했다. PostgreSQL에서는
+binding과 같은 `core-account-consumers` owner에 배정하며 새 job이나 시간 제한 변경은 없다. 기존 필수 항목과 순서는
+그대로다. Template 치환 후 gofmt 문법·import 참조·diff/원문 bytes와 PostgreSQL 소유권/CLI/향후 child 13개 Python 검사
+(35.280초)를 확인했다. 추가 실행 소유권/상위 root 선택 세 검사와 relation 분할 한 검사도 통과했다. Relation 검사의
+최초 class 이름 오기는 로드 실패로 남기고 올바른 단일 검사만 다시 실행했다. 로컬 Go compiler/test/generator/DB는
+실행하지 않았다. 새 본문의 실제 컴파일·양 DB·race·
+CGO-disabled·전체 platform 수용과 고정 소비자 제거는 다음 source의 원격 확인 대상으로 남긴다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

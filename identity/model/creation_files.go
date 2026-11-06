@@ -18,7 +18,7 @@ func (creator *Creator[M]) FormDefinition() (formmodel.Definition, error) {
 	if creator == nil || creator.state == nil {
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
-	return creator.state.binding.formDefinition(creator.state.fields, profileFileOverrides(creator.state.files))
+	return creator.state.binding.formDefinition(creator.state.fields, profileFileOverrides(creator.state.files), CreationLoginInput{})
 }
 
 func (creator *Creator[M]) FileFields() []string {
@@ -83,7 +83,7 @@ func (definition FirstAccountDefinition[M]) FormDefinition() (formmodel.Definiti
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
 	state := definition.state.creation
-	return state.binding.formDefinition(state.fields, profileFileOverrides(state.files))
+	return state.binding.formDefinition(state.fields, profileFileOverrides(state.files), CreationLoginInput{})
 }
 
 func (owner *FirstAccount[M]) FormDefinition() (formmodel.Definition, error) {
@@ -91,7 +91,7 @@ func (owner *FirstAccount[M]) FormDefinition() (formmodel.Definition, error) {
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
 	state := owner.state.creation
-	return state.binding.formDefinition(state.fields, profileFileOverrides(state.files))
+	return state.binding.formDefinition(state.fields, profileFileOverrides(state.files), CreationLoginInput{})
 }
 
 // CreateForm provisions a fresh account/domain using an explicit operation ID

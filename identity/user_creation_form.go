@@ -10,6 +10,7 @@ import (
 	formmodel "github.com/progresshans/godj/forms/model"
 	"github.com/progresshans/godj/identity/internal/forminput"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/internal/unicode16"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -57,7 +58,7 @@ func newUserCreationForm(manager *Manager, unusableChoice bool) (*UserCreationFo
 		validator = forminput.CreationPasswords()
 	}
 	definition := formmodel.Definition{Fields: []string{"username"}, Overrides: []formmodel.Override{
-		formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithMaxLength(150), formmodel.WithStringNormalizer(forminput.UsernameNormalizer(150))),
+		formmodel.OverrideField("username", formmodel.WithLabel("Username"), formmodel.WithMaxLength(150), formmodel.WithStringNormalizer(forminput.UsernameNormalizer(150, unicode16.NFKC))),
 	}, ExtraFields: passwords, Validators: []forms.CrossValidator{validator}}
 	spec, err := definition.Spec(models.UserDescriptor{}.Metadata())
 	if err != nil {
@@ -122,7 +123,7 @@ func (form *UserCreationForm) Check(ctx context.Context, actor auth.Principal, b
 	}
 	checked = validation.NewErrors(items...)
 	if username := creationFormField(bound, "username"); username != nil && checked.ByField("username").Empty() {
-		checked = validation.Join(forminput.UsernameValidator(150).ValidateField(forms.String(*username)), checked)
+		checked = validation.Join(forminput.UsernameValidator("username", 150).ValidateField(forms.String(*username)), checked)
 	}
 	if !checked.Empty() {
 		return validation.Reject(checked, err)
@@ -188,7 +189,7 @@ func (form *UserCreationForm) Prepare(ctx context.Context, actor auth.Principal,
 		return PreparedUserCreation{}, validation.Reject(bound.Errors(), nil)
 	}
 	username, _ := bound.Cleaned().String("username")
-	if failures := forminput.UsernameValidator(150).ValidateField(forms.String(username)); !failures.Empty() {
+	if failures := forminput.UsernameValidator("username", 150).ValidateField(forms.String(username)); !failures.Empty() {
 		return PreparedUserCreation{}, validation.Reject(failures, nil)
 	}
 	input := NewUserCreate(principalID, username).WithCaseInsensitiveUsernameCheck()

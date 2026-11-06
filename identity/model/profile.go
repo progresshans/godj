@@ -373,7 +373,7 @@ func (editor *ProfileEditor[M]) FormDefinition() (formmodel.Definition, error) {
 	if editor == nil || editor.state == nil {
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
-	return editor.state.store.state.binding.formDefinition(editor.Fields(), profileFileOverrides(editor.state.files))
+	return editor.state.store.state.binding.formDefinition(editor.Fields(), profileFileOverrides(editor.state.files), CreationLoginInput{})
 }
 
 // UpdateForm keeps file publication separate from the final account write.

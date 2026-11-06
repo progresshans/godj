@@ -3,7 +3,6 @@ package identitytest
 import (
 	"context"
 	"crypto/sha256"
-	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -20,11 +19,9 @@ import (
 	"github.com/progresshans/godj/identity"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	"github.com/progresshans/godj/identity/models"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/validation"
 )
-
-//go:embed testdata/user-creation-*.json
-var userCreationReference embed.FS
 
 type creationCase struct{ Name, Username, Password1, Password2 string }
 type creationObservation struct {
@@ -37,7 +34,7 @@ type creationObservation struct {
 
 func RunUserCreationValidation(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
-	input, err := userCreationReference.ReadFile("testdata/user-creation-inputs.json")
+	input, err := identityreference.UserCreationInputs()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,7 +49,7 @@ func RunUserCreationValidation(t *testing.T, open func(*testing.T) (TransitionBa
 	}
 	var first []byte
 	for _, backend := range []string{"sqlite", "postgres"} {
-		payload, err := userCreationReference.ReadFile("testdata/user-creation-django61-" + backend + ".json")
+		payload, err := identityreference.UserCreation(backend)
 		if err != nil {
 			t.Fatal(err)
 		}

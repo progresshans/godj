@@ -5,6 +5,7 @@ import (
 
 	"github.com/progresshans/godj/auth"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/identity/internal/forminput"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/serializers"
 )
@@ -14,10 +15,10 @@ import (
 // checks; their raw byte envelopes run before normalization. It performs no
 // I/O or callback evaluation and does not grant authority to save these fields.
 func (binding Binding[M]) FormDefinition(fields []string) (formmodel.Definition, error) {
-	return binding.formDefinition(fields, nil)
+	return binding.formDefinition(fields, nil, CreationLoginInput{})
 }
 
-func (binding Binding[M]) formDefinition(fields []string, overrides []formmodel.Override) (formmodel.Definition, error) {
+func (binding Binding[M]) formDefinition(fields []string, overrides []formmodel.Override, loginInput CreationLoginInput) (formmodel.Definition, error) {
 	if binding.state == nil {
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
@@ -26,23 +27,31 @@ func (binding Binding[M]) formDefinition(fields []string, overrides []formmodel.
 		return formmodel.Definition{}, err
 	}
 	role := binding.state.role
+	if err := loginInput.validate(metadata, role.Login, fields); err != nil {
+		return formmodel.Definition{}, err
+	}
 	definition := formmodel.Definition{Fields: slices.Clone(fields), Overrides: slices.Clone(overrides)}
 	for _, name := range fields {
 		_, maximum := accountStringInputPolicy(role, name)
 		if maximum == 0 {
 			continue
 		}
-		definition.Overrides = append(definition.Overrides, formmodel.OverrideField(name,
-			formmodel.WithMaxInputBytes(maximum),
-			formmodel.WithStringNormalizer(func(value string) string {
-				if name == role.Login {
-					value = normalizeAccountLogin(role, value)
-				}
-				if name == role.Email {
-					value = normalizeAccountEmail(role, value)
-				}
-				return value
-			})))
+		normalize := func(value string) string {
+			if name == role.Login {
+				value = normalizeAccountLogin(role, value)
+			}
+			if name == role.Email {
+				value = normalizeAccountEmail(role, value)
+			}
+			return value
+		}
+		options := []formmodel.OverrideOption{formmodel.WithMaxInputBytes(maximum)}
+		if name == role.Login && loginInput.username {
+			normalize = forminput.UsernameNormalizer(loginInput.maximum, normalize)
+			options = append(options, formmodel.WithMaxLength(loginInput.maximum))
+		}
+		options = append(options, formmodel.WithStringNormalizer(normalize))
+		definition.Overrides = append(definition.Overrides, formmodel.OverrideField(name, options...))
 	}
 	if _, err := definition.Spec(metadata); err != nil {
 		return formmodel.Definition{}, err

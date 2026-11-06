@@ -19,6 +19,7 @@ import (
 // or authority. By default both password inputs are required.
 type CreationFormConfig struct {
 	AllowUnusablePassword bool
+	LoginInput            CreationLoginInput
 }
 
 // CreationPasswordFields names private command inputs. Names are chosen around
@@ -37,6 +38,8 @@ type CreationForm[M any] struct {
 	inputs     creationPasswordInputs
 	spec       forms.Spec
 	fields     []string
+	loginInput CreationLoginInput
+	loginSpec  forms.Spec
 }
 
 type creationPasswordInputs struct {
@@ -56,7 +59,7 @@ func NewCreationForm[M any](management *AccountManagement[M], config CreationFor
 		return nil, managementError(CodeInvalidConfig, nil)
 	}
 	creator := management.state.creator
-	definition, err := creator.FormDefinition()
+	definition, err := creator.state.binding.formDefinition(creator.state.fields, profileFileOverrides(creator.state.files), config.LoginInput)
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +71,15 @@ func NewCreationForm[M any](management *AccountManagement[M], config CreationFor
 	if err != nil {
 		return nil, err
 	}
-	form := &CreationForm[M]{management: management, inputs: inputs, spec: spec}
+	form := &CreationForm[M]{management: management, inputs: inputs, spec: spec, loginInput: config.LoginInput}
 	for _, field := range spec.Fields() {
 		form.fields = append(form.fields, field.Name())
+		if config.LoginInput.username && field.Name() == creator.state.binding.state.role.Login {
+			form.loginSpec, err = forms.NewSpec([]forms.Field{field})
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 	return form, nil
 }
@@ -188,7 +197,7 @@ func (form *CreationForm[M]) Check(ctx context.Context, actor auth.Principal, bo
 	if err != nil {
 		return err
 	}
-	return validation.Reject(validation.Join(diagnostics.Fields, form.passwordDiagnostics(diagnostics.Password)), nil)
+	return validation.Reject(validation.Join(diagnostics.Fields, form.loginDiagnostics(bound, diagnostics.Fields), form.passwordDiagnostics(diagnostics.Password)), nil)
 }
 
 // Bind admits current creation authority before file inspection, then binds
@@ -271,6 +280,10 @@ func (form *CreationForm[M]) Prepare(ctx context.Context, actor auth.Principal, 
 	if err != nil {
 		return PreparedCreation[M]{}, nil, err
 	}
+	loginFailures, err := form.prepareLogin(ctx, values)
+	if err != nil {
+		return PreparedCreation[M]{}, nil, err
+	}
 	names := form.inputs.names
 	data := make(map[string][]string, 3)
 	for _, name := range []string{names.First, names.Confirmation} {
@@ -291,8 +304,8 @@ func (form *CreationForm[M]) Prepare(ctx context.Context, actor auth.Principal, 
 	if err != nil {
 		return PreparedCreation[M]{}, nil, err
 	}
-	if !passwords.Valid() {
-		return PreparedCreation[M]{}, nil, validation.Reject(passwords.Errors(), nil)
+	if !passwords.Valid() || !loginFailures.Empty() {
+		return PreparedCreation[M]{}, nil, validation.Reject(validation.Join(loginFailures, passwords.Errors()), nil)
 	}
 	creator := form.management.state.creator
 	if disabled, _ := passwords.Cleaned().Boolean(names.Unusable); names.Unusable != "" && disabled {

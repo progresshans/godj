@@ -455,7 +455,7 @@ func (editor *AccountEditor[M]) FormDefinition() (formmodel.Definition, error) {
 	if editor == nil || editor.state == nil {
 		return formmodel.Definition{}, managementError(CodeInvalidConfig, nil)
 	}
-	return editor.state.sessions.state.credentials.state.binding.formDefinition(editor.Fields(), profileFileOverrides(editor.state.files))
+	return editor.state.sessions.state.credentials.state.binding.formDefinition(editor.Fields(), profileFileOverrides(editor.state.files), CreationLoginInput{})
 }
 
 // UpdateForm retains verified upload/clear/keep and image dimension intent.

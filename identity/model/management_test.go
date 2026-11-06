@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
 	sessiondb "github.com/progresshans/godj/sessions/database"
+	"github.com/progresshans/godj/validation"
 )
 
 func unitManagementConfig() accountmodel.AccountManagementConfig[models.User] {
@@ -183,6 +185,71 @@ func TestAccountManagementRequiresSharedSourceAndPolicyBeforeIO(t *testing.T) {
 			t.Fatal("creation Form aliases its published definition")
 		}
 	}
+	t.Run("username_input_configuration", func(t *testing.T) {
+		for _, maximum := range []int{-1, 0, 257} {
+			form, err := accountmodel.NewCreationForm(owner, accountmodel.CreationFormConfig{LoginInput: accountmodel.UnicodeUsernameInput(maximum)})
+			if form != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) {
+				t.Fatal("username projection accepted an invalid or wider limit", maximum, err)
+			}
+		}
+		form, err := accountmodel.NewCreationForm(owner, accountmodel.CreationFormConfig{LoginInput: accountmodel.UnicodeUsernameInput(150)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		definition, err := owner.Creator().FormDefinition()
+		if err != nil {
+			t.Fatal(err)
+		}
+		native, err := definition.Spec(models.UserDescriptor{}.Metadata())
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, field := range native.Fields() {
+			if field.Name() == "username" && field.MaxLength() != 256 {
+				t.Fatal("creation Form policy changed the model projection")
+			}
+		}
+		for _, field := range form.Spec().Fields() {
+			if field.Name() == "username" && field.MaxLength() != 150 {
+				t.Fatal("explicit username input limit was not projected")
+			}
+		}
+	})
+	t.Run("username_input_normalization", func(t *testing.T) {
+		form, err := accountmodel.NewCreationForm(owner, accountmodel.CreationFormConfig{LoginInput: accountmodel.UnicodeUsernameInput(150)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, field := range form.Spec().Fields() {
+			if field.Name() != "username" {
+				continue
+			}
+			spec, err := forms.NewSpec([]forms.Field{field})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, input := range []struct{ raw, want string }{
+				{" \x1cＦｒｅｄ\x1c ", "Fred"},
+				{strings.Repeat("A\u030a", 76), ""},
+				{strings.Repeat("ﬃ", 51), ""},
+			} {
+				bound, err := spec.Bind(t.Context(), forms.NewData(map[string][]string{"username": {input.raw}}), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				value, _ := bound.Cleaned().String("username")
+				if input.want != "" {
+					if !bound.Valid() || value != input.want {
+						t.Fatal("username whitespace or declared normalization changed")
+					}
+				} else if bound.Valid() || value != "" || bound.Errors().ByField(validation.Field("username")).Empty() {
+					t.Fatal("raw or normalized rune limit was bypassed")
+				}
+			}
+			return
+		}
+		t.Fatal("selected username disappeared")
+	})
 	if _, err := accountmodel.NewCreationForm[models.User](nil, accountmodel.CreationFormConfig{}); err == nil {
 		t.Fatal("creation Form accepted an uninitialized owner")
 	}

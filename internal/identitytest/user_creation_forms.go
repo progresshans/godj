@@ -16,12 +16,13 @@ import (
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/validation"
 )
 
 func RunUserCreationForms(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
-	input, err := userCreationReference.ReadFile("testdata/user-creation-inputs.json")
+	input, err := identityreference.UserCreationInputs()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +38,7 @@ func RunUserCreationForms(t *testing.T, open func(*testing.T) (TransitionBackend
 	}
 	var previous []byte
 	for _, backend := range []string{"sqlite", "postgres"} {
-		payload, err := userCreationReference.ReadFile("testdata/user-creation-django61-" + backend + ".json")
+		payload, err := identityreference.UserCreation(backend)
 		if err != nil {
 			t.Fatal(err)
 		}

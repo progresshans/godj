@@ -751,6 +751,12 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 모든 모델 변형을 세 모드의 별도 CI owner로 옮겼다. 필수 실행·기존 제한과 실패 수집은 유지한다. 같은 source의
 Form/HTTP 부분 수용, 두 실패와 새 실행 분할의 미확인 범위는 TEST_EVIDENCE에 기록한다.
 
+선택 생성 Form/Admin에 `UnicodeUsernameInput`을 명시적으로 연결했다. 실제 login 역할의 입력만 제한하고 IR 저장·편집
+한도와 owner의 정규화/unique 정책을 보존한다. 기본·이름을 바꾼 독립 생성 앱은 기존 Django 입력 20개와 세 생성 모드의
+준비/저장/포기/거부를 대조하며, 실제 Admin과 전체 native 행·관계/session/domain/audit도 확인한다. 느슨한 Form의 길이·문법·
+정규화 우회, 256자 저장/편집과 150자 생성 입력의 구분, 늦은 중복과 재시도 거부를 필수 소비자에 작성했다.
+원문 producer/capture와 고정 소비자는 유지하며 새 본문의 컴파일·환경별 실행은 다음 source의 원격 수용 대상이다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

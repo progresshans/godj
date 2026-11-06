@@ -71,7 +71,7 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 		// read-backed post-clean phase is exercised by the shared DB/HTTP suite.
 		var grammar validation.Errors
 		if value, present := form.Cleaned().Get("username"); present {
-			grammar = forminput.UsernameValidator(150).ValidateField(value)
+			grammar = forminput.UsernameValidator("username", 150).ValidateField(value)
 		}
 		form, err = form.WithErrors(grammar)
 		if err != nil {
