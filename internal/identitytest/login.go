@@ -199,20 +199,9 @@ func RunLoginLifecycle(t *testing.T, open func(*testing.T) (TransitionBackend, T
 		t.Fatal("reopen lost user", err)
 	}
 	requireLoginTime(t, account.Profile().LastLogin, loginInstant.Add(2*time.Second))
-	adminHTTP := newIdentityAdminHTTP(t, f, f.runtime)
-	adminHTTP.loginAdmin(t, adminHTTP.client, "manager", managementOldPassword)
-	adminHTTP.call(t, adminHTTP.client, "GET", adminObjectPath("users", "change", f.user.ID), nil, 200).contains(t, `data-field-name="last_login"`, loginInstant.Add(2*time.Second).Format(time.RFC3339Nano))
-	before := f.stored(t)
-	details, err := f.manager(t, f.runtime).User(t.Context(), f.actor, f.user.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	data := adminUserData(details)
-	data.Set("last_login", "2000-01-01T00:00:00Z")
-	adminHTTP.postForm(t, adminObjectPath("users", "change", f.user.ID), data, 400)
-	if !reflect.DeepEqual(before, f.stored(t)) {
-		t.Fatal("read-only login time became writable")
-	}
+	// Selected default/custom Admin display and forged LastLogin input are
+	// exercised by the generated management HTTP consumer and Article's actual
+	// composition. This historical suite retains the independent login oracle.
 }
 
 type loginBoundary struct {

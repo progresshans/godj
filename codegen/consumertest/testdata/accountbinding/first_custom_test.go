@@ -78,7 +78,7 @@ func firstCustomAccount(t *testing.T, adminMode string) {
 		return
 	}
 	if adminMode == "http" {
-		assertAccountManagementHTTP(t, backend, binding, hasher, row, "region", "priority", "description", project.NewAccountRuntime, func(t *testing.T, id int64) func() {
+		assertAccountManagementHTTP(t, backend, selected, binding, hasher, row, "region", "priority", "description", project.NewAccountRuntime, func(t *testing.T, id int64) func() {
 			guard, err := tickets.TicketObjects.Create(t.Context(), backend, tickets.NewTicketCreate("JSON protected", id))
 			if err != nil {
 				t.Fatal(err)

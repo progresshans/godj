@@ -65,6 +65,8 @@ nullable 물리 행까지 검사하며 생성/편집의 독립 권한·삭제/�
 고정 JSON application은 제거하고 기본/custom 관리 모두 선택 owner를 사용한다. 기존 native JSON의 입력/권한·revision·실패·
 credential 상태 검사는 생성 HTTP 소비자와 독립 SDK로 이관했다. 선택 Admin의 읽기 전용 비밀번호 상태 표시와 실제 profile
 이름 충돌을 분리하고, 고정 Admin의 저장 실패·결과 불명 검사를 기본/custom의 같은 native HTTP 소비자로 옮겼다.
+선택된 LastLogin의 명시적 읽기·Admin 표시와 Article/scaffold 기본 host 정책을 연결했고, 실제 로그인·세션 교체·재접속 및
+기본/renamed/역할 부재 소비자를 작성했다. 고정 Admin의 해당 표시/입력 검사는 이 선택 소비자로 이관했다.
 새 본문은 원격 검증 대상이다. 남은 Directory/Manager·Admin 소비자 교체와 새 source의
 이행·복구·JSON 전체 환경 수용은 계속 추적한다.
 전환 대상의 through 수명·

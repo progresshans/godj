@@ -691,8 +691,15 @@ password에 감사 실패·rollback/commit 뒤 결과 불명 30개 필수 child�
 고정 Admin의 감사 실패·commit 결과 불명 10개 native child를 기본/custom 생성 소비자로 이관했다. 같은 실제 JSON/Admin
 조립과 독립 전체 행·소속·session·audit 대조를 공유하며, unusable 생성/disable·rollback 결과 불명·읽기 cleanup도 포함한다.
 옛 selector의 제거와 새 필수 child 연결은 TEST_EVIDENCE에 기록하며, 남은 고정 Form·독립 기준·동시 쓰기/인가 검사는 유지한다.
-선택 Admin의 LastLogin 읽기 노출·표시와 나머지 고정 소비자의 교체는 남아 있다.
+LastLogin 조립은 아래 진행을 따르며 나머지 고정 소비자의 교체는 남아 있다.
 작성·정적 검사와 실제 Go/DB·원격 환경 수용은 구분한다.
+
+선택 계정 선언의 LastLogin 필드와 명시적 읽기 정책을 Admin의 기존 객체 화면에 연결했다. 별도 필드 이름·NULL·역할 부재를
+구분하며 생성/수정 입력은 늘리지 않는다. Article/scaffold 기본 정책에는 읽기만 추가했다. 기본/custom/LastLogin 없는 실제
+HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 로그인 시 정확한 timestamp·session 교체·revision/audit 보존,
+나중 조회·검증 오류 화면·위조 입력 거부와 별도 DB 연결/owner 재구성을 대조하도록 작성했다.
+고정 login 소비자의 Admin 표시 검사를 이 소비자와 Article로 옮겼으며 기존 Django login 원문·독립 대조와 native 실패 검사는 유지한다.
+코드 작성·정적 확인과 이 새 본문의 실제 양 DB·원격 수용은 TEST_EVIDENCE에서 구분한다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

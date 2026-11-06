@@ -32,7 +32,7 @@ func Policy() (accountmodel.RuntimeConfig[models.User, models.Group, models.Perm
 	permissionPermissions := accountmodel.CatalogPermissions{View: identity.ViewPermission, Add: identity.AddPermission, Change: identity.ChangePermission, Delete: identity.DeletePermission}
 	fields := []string{"username", "email", "first_name", "last_name", "active", "staff", "superuser", "groups", "permissions"}
 	result.Accounts = accountmodel.AccountManagementConfig[models.User]{
-		ReadFields: fields, CreateFields: fields, EditFields: fields,
+		ReadFields: append([]string{"last_login"}, fields...), CreateFields: fields, EditFields: fields,
 		Permissions:           accountPermissions,
 		GroupPermissions:      accountmodel.DeletionPermissions{Delete: groupPermissions.Delete, Change: groupPermissions.Change},
 		PermissionPermissions: accountmodel.DeletionPermissions{Delete: permissionPermissions.Delete, Change: permissionPermissions.Change},

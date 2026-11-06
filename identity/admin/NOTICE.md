@@ -65,3 +65,7 @@ Selected account registration derives this display from `Profile.PasswordUsable`
 It allocates a separate display name when a real model field uses the same name,
 retains that field's exposure policy, and uses the authorized stored snapshot
 when rendering a rejected edit. The display itself is never a form input.
+The optional LastLogin role is displayed only when explicitly selected for
+reading: NULL is `Never`, otherwise the recorded UTC instant is shown under
+the actual selected field name. An absent or unexposed role has no display.
+Presentation reads the same authorized profile and does not record a login.

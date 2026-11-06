@@ -4031,6 +4031,39 @@ PostgreSQL 5,881→5,871). 나머지 항목과 순서가 같은지 정적으로 
 사용자 지시에 따라 로컬 Go compile·generator·테스트 본문·DB 실행은 하지 않았다. 새 source의 compile·실제 기본/custom
 HTTP·양 DB·race/CGO-disabled·전체 platform 수용은 push 이후 원격 CI 대상이다.
 
+
+## GDJ-0138 — 선택 LastLogin의 읽기 정책과 실제 Admin 표시
+
+`d944658f9454ffc231915d60c5581acf1234da90` 다음 묶음에서 `AccountDescription.LastLoginField`로 선택 역할의
+선언을 전달하고, `RegisterAccount`는 그 필드가 reader의 명시적 읽기 정책에 있을 때만 Last login을 표시한다.
+기존 객체의 인가된 ModelView에서 실제 필드를 읽으며 NULL은 Never, 관측값은 UTC 시각이다. 역할 부재·읽기 제외는
+표시 부재이며, 필드 누락/잘못된 타입을 Never로 숨기지 않는다. 생성·수정 입력이나 추가 조회는 생기지 않는다.
+기본 등록의 읽기 제외와 opt-in 선언, server field의 Form 비노출 검사를 보강했다.
+
+Article과 scaffold의 기본 `accounts.Policy`는 `last_login`을 읽기 필드에만 추가했다. 실제 Article Admin 소비자는
+로그인한 관리자 timestamp와 새 계정의 Never, 생성 화면/입력 비노출, 위조 POST 거부 뒤 행 보존을 확인하도록 확장했다.
+고정 `internal/identitytest.RunLoginLifecycle`의 Admin 표시/위조 입력 부분은 이 실제 선택 소비자로 옮겼다. 원래
+Django login-lifecycle 원문과 비교, Directory 재접속·session/LastLogin native 오류/경합 본문은 유지한다.
+
+독립 생성 앱의 `TestGeneratedAccountManagementHTTP/admin_last_login_display`를 일곱 기본/custom 변형의
+양 DB 필수 child에 추가했다. `ReadFields`와 create/edit allowlist를 분리하고, 선택된 실제 LastLogin 이름으로 다음을 확인한다.
+
+- 인증/Resolve와 거부된 Admin HTTP 로그인은 timestamp·session·audit를 변경하지 않는다.
+- 로그인 전에는 실제 NULL과 Never, LastLogin이 없는 변형에서는 JSON/Admin 모두 해당 필드·표시 부재를 확인한다.
+- 서로 다른 시각의 두 Admin HTTP 로그인은 정확한 timestamp와 새 session 하나·직전 session만 폐기를 확인한다.
+  전체 native 계정값에서 LastLogin만 바뀌고 revision/profile/credential·소속·audit·다른 session 행은 보존돼야 한다.
+- 더 늦은 일반 접근은 LastLogin을 바꾸지 않는다. 정상 session 접근 시각 갱신은 허용하며, 각 고정 시각에서 화면/JSON과
+  거부된 Form을 대조할 때는 관리 browser의 정상 접근을 먼저 마친 뒤 전체 durable 무변경을 검사한다.
+- 조회 전용 화면·잘못된 Form 재표시·LastLogin 위조 POST, 별도 DB 연결과 generated runtime 재구성 뒤의 실제 값을 확인한다.
+  이는 새 connection/owner 재구성 소비자이며 별도 OS process restart의 새 실행 근거로 확대하지 않는다.
+
+이 목록은 작성·필수 실행 연결 기록이다. 로컬 Go compile/generator/테스트 본문·DB 실행은 사용자 지시에 따라 하지 않았다.
+영향 Go/템플릿 12개의 gofmt·어휘 수준 import 참조와 embed/호출 연결, 기존 필수 selector 보존을 정적으로 확인했다.
+Article과 scaffold 정책은 module 치환 뒤 동일하며 245개 문서 링크·diff 검사도 통과했다. 이 검사는 타입/compile 검증이 아니다.
+새 source의 실제 생성/타입·HTTP/DB·race/CGO-disabled·독립 기준·전체 platform은 원격 CI 대상이다.
+선행 `d944658f`의 [CI 42135035087](https://github.com/progresshans/godj/actions/runs/42135035087)는 이 LastLogin 변경을
+포함하지 않으며, 진행 중 상태를 이 새 소비자나 I1의 PASS로 계산하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -168,7 +168,10 @@ func (management *AccountManagement[M]) Passwords() *PasswordEditor[M] {
 type AccountDescription struct {
 	Identity                                                                          ir.ModelIdentity
 	KeyField, LoginField, PasswordField, RevisionField, GroupsField, PermissionsField string
-	Permissions                                                                       AccountPermissions
+	// LastLoginField identifies the optional observation role. Presentation
+	// still requires its explicit inclusion in the reader's field policy.
+	LastLoginField string
+	Permissions    AccountPermissions
 }
 
 func (management *AccountManagement[M]) Description() (AccountDescription, error) {
@@ -180,7 +183,7 @@ func (management *AccountManagement[M]) Description() (AccountDescription, error
 	metadata := state.creator.state.metadata
 	key, _ := primaryField(metadata)
 	return AccountDescription{Identity: role.Model, KeyField: key.Name, LoginField: role.Login, PasswordField: role.Password,
-		RevisionField: role.Revision, GroupsField: role.Groups, PermissionsField: role.Permissions,
+		RevisionField: role.Revision, GroupsField: role.Groups, PermissionsField: role.Permissions, LastLoginField: role.LastLogin,
 		Permissions: AccountPermissions{View: state.reader.state.view[0], Add: state.creator.state.required[0], Change: state.editor.state.required[0],
 			Delete: state.deleter.state.required[0], Additional: slices.Clone(state.reader.state.view[1:])}}, nil
 }

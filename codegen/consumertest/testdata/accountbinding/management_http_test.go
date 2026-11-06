@@ -261,7 +261,7 @@ func managementHTTPSetRevision[M any](t *testing.T, backend database.Backend, ma
 // The selected generated owners publish JSON and Admin on the same native
 // state. Their failure checks share independent row/session/audit observations;
 // each transport still uses its real authentication, parsing and response path.
-func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], hasher auth.PasswordHasher, original M, profileField, groupExtra, permissionExtra string,
+func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Backend, backendConfig database.Config, binding accountmodel.Binding[M], hasher auth.PasswordHasher, original M, profileField, groupExtra, permissionExtra string,
 	factory func(context.Context, sessiondb.Backend, auth.PasswordHasher, auth.Authorizer, accountmodel.RuntimeConfig[M, G, P]) (*accountmodel.Runtime[M, G, P], error), protect ...func(*testing.T, int64) func()) {
 	t.Helper()
 	check := func(err error) {
@@ -311,11 +311,16 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 	}
 	overlay := &managementHTTPOverlay{backend: faults}
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	clock := func() time.Time { return now }
+	var elapsed atomic.Int64
+	clock := func() time.Time { return now.Add(time.Duration(elapsed.Load())) }
+	readFields := slices.Clone(fields)
+	if role.LastLogin != "" {
+		readFields = append(readFields, role.LastLogin)
+	}
 	var blockedPasswordPolicy atomic.Bool
 	var passwordPolicies atomic.Int64
 	accountPolicy := accountmodel.AccountManagementConfig[M]{
-		ReadFields: fields, CreateFields: fields, EditFields: fields,
+		ReadFields: readFields, CreateFields: fields, EditFields: fields,
 		Permissions:           accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete", Additional: []auth.Permission{"account.manage"}},
 		GroupPermissions:      accountmodel.DeletionPermissions{Delete: "catalog.delete_group", Change: "catalog.change_group", Additional: []auth.Permission{"catalog.manage"}},
 		PermissionPermissions: accountmodel.DeletionPermissions{Delete: "catalog.delete_permission", Change: "catalog.change_permission", Additional: []auth.Permission{"catalog.manage"}},
@@ -749,7 +754,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			PasswordUsable bool `json:"password_usable"`
 		}
 		check(json.Unmarshal(body, &detail))
-		if status != 200 || detail.ID != created.ID || detail.Revision != created.Revision || !detail.PasswordUsable || len(detail.Fields) != len(fields) || header.Get("Revision") != "1" {
+		if status != 200 || detail.ID != created.ID || detail.Revision != created.Revision || !detail.PasswordUsable || len(detail.Fields) != len(readFields) || header.Get("Revision") != "1" {
 			t.Fatal("selected account response differs", status)
 		}
 		for _, name := range []string{role.Password, role.PrincipalID} {
@@ -1749,6 +1754,261 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		created = decodeReceipt(status, header, value, 200)
 		assertStatus(true, true)
 		login(newClient(), "api@example.test", restored)
+	})
+
+	run("admin_last_login_display", func(t *testing.T) {
+		const loginName, password = "login-observation@example.test", "selected login observation password"
+		fields := accountFields(loginName)
+		fields[role.Permissions] = []int64{grantKey("account.view"), grantKey("account.manage")}
+		if role.Staff.Field != "" {
+			fields[role.Staff.Field] = true
+		}
+		status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(fields, password), "", true)
+		target := decodeReceipt(status, header, body, 201)
+		endpoint := "/admin/accounts/change/?id=" + strconv.FormatInt(target.ID, 10)
+		storedValues := func() map[string]query.Value {
+			t.Helper()
+			row, err := objects.Using(faults.Backend).Filter(key.Exact(target.ID)).Get(t.Context())
+			check(err)
+			values, err := objects.ModelValues(row)
+			check(err)
+			return values
+		}
+		expectTime := func(values map[string]query.Value, want *time.Time) {
+			t.Helper()
+			if role.LastLogin == "" {
+				return
+			}
+			value, present := values[role.LastLogin]
+			if !present {
+				t.Fatal("selected stored LastLogin field is missing")
+			}
+			if want == nil {
+				if !value.IsNull() {
+					t.Fatal("unobserved account already has a login timestamp")
+				}
+				return
+			}
+			instant, valid := value.DateTime()
+			if !valid || !instant.Equal(*want) {
+				t.Fatal("native LastLogin differs from the successful HTTP login")
+			}
+		}
+		expectProfile := func(profile accountmodel.Profile[M], want *time.Time) {
+			t.Helper()
+			value, present := profile.View().Get(role.LastLogin)
+			if role.LastLogin == "" {
+				if present {
+					t.Fatal("absent LastLogin acquired an implicit field")
+				}
+				return
+			}
+			if !present {
+				t.Fatal("explicit LastLogin exposure is missing")
+			}
+			expectTime(map[string]query.Value{role.LastLogin: value}, want)
+		}
+		assertDisplay := func(want *time.Time) {
+			t.Helper()
+			// Warm the ordinary Admin session access at this instant before
+			// asserting that presentation itself preserves all durable state.
+			status, _, _ := adminSend(client, "GET", "/admin/", nil)
+			if status != 200 {
+				t.Fatal("managing browser lost current admission", status)
+			}
+			before := snapshot()
+			expectTime(storedValues(), want)
+			profile, err := owner.Reader().Get(t.Context(), actor, target.ID)
+			check(err)
+			expectProfile(profile, want)
+			status, _, body := send(client, "GET", path("accounts", target.ID), "", "", false)
+			var detail struct{ Fields map[string]json.RawMessage }
+			check(json.Unmarshal(body, &detail))
+			if status != 200 {
+				t.Fatal("selected LastLogin JSON read failed", status)
+			}
+			if role.LastLogin != "" {
+				raw, present := detail.Fields[role.LastLogin]
+				if !present {
+					t.Fatal("selected LastLogin missing from JSON")
+				}
+				var actual *time.Time
+				check(json.Unmarshal(raw, &actual))
+				if (actual == nil) != (want == nil) || actual != nil && !actual.Equal(*want) {
+					t.Fatal("JSON LastLogin differs from the native value")
+				}
+			} else if detail.Fields["last_login"] != nil || detail.Fields["seen"] != nil {
+				t.Fatal("absent LastLogin acquired an implicit JSON field")
+			}
+			status, _, body = adminSend(client, "GET", endpoint, nil)
+			if status != 200 {
+				t.Fatal("LastLogin Admin page", status)
+			}
+			if role.LastLogin == "" {
+				if strings.Contains(string(body), "Last login") {
+					t.Fatal("absent LastLogin rendered Never instead of staying absent")
+				}
+			} else {
+				label := "Never"
+				if want != nil {
+					label = want.UTC().Format(time.RFC3339Nano)
+				}
+				if !strings.Contains(string(body), `data-field-name="`+role.LastLogin+`">`+label) || strings.Contains(string(body), ` name="`+role.LastLogin+`"`) {
+					t.Fatal("LastLogin lost its read-only selected-field display")
+				}
+				invalid := accountFields(loginName)
+				invalid[profileField] = "forbidden"
+				submit := prepareAdmin(client, endpoint, invalid, strconv.FormatInt(target.Revision, 10))
+				status, _, body = submit()
+				if status != 200 || !strings.Contains(string(body), `data-field-name="`+role.LastLogin+`">`+label) {
+					t.Fatal("rejected edit lost the observed LastLogin", status)
+				}
+			}
+			if !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("LastLogin display changed account, membership, session or audit")
+			}
+		}
+		original := storedValues()
+		principal, _ := original[role.PrincipalID].String()
+		before := snapshot()
+		_, err := verifier.Authenticate(t.Context(), loginName, password)
+		check(err)
+		_, err = verifier.Resolve(t.Context(), principal)
+		check(err)
+		if !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("authentication or resolution wrote LastLogin")
+		}
+		assertDisplay(nil)
+		visitor := newClient()
+		loginToken := func(path string) string {
+			t.Helper()
+			status, _, page := adminSend(visitor, "GET", path, nil)
+			match := adminToken.FindSubmatch(page)
+			if status != 200 || len(match) != 2 {
+				t.Fatal("native Admin login lost its real form", status)
+			}
+			return string(match[1])
+		}
+		token := loginToken("/admin/login/")
+		before = snapshot()
+		status, header, _ = adminSend(visitor, "POST", "/admin/login/", url.Values{"username": {loginName}, "password": {"wrong password"}, "csrfmiddlewaretoken": {token}, "next": {"/admin/"}})
+		if status != 200 || header.Get("Location") != "" || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("denied Admin login changed LastLogin or sessions", status)
+		}
+		var previous sessions.ID
+		var previousDigest string
+		var observed time.Time
+		for attempt := 0; attempt < 2; attempt++ {
+			elapsed.Add(int64(time.Second))
+			source := "/admin/login/"
+			if previous.Valid() {
+				source = endpoint
+			}
+			token = loginToken(source)
+			before = snapshot()
+			at := clock()
+			status, header, _ = adminSend(visitor, "POST", "/admin/login/", url.Values{"username": {loginName}, "password": {password}, "csrfmiddlewaretoken": {token}, "next": {"/admin/"}})
+			if status != 302 || header.Get("Location") != "/admin/" {
+				t.Fatal("native Admin login did not publish its session", status)
+			}
+			var current sessions.ID
+			for _, cookie := range visitor.Jar.Cookies(baseURL) {
+				if cookie.Name == websession.DefaultSessionCookieName {
+					current, err = sessions.ParseID(cookie.Value)
+					check(err)
+				}
+			}
+			record, found, err := selected.Load(t.Context(), current)
+			check(err)
+			if !current.Valid() || current == previous || !found {
+				t.Fatal("successful Admin login did not rotate its durable session")
+			}
+			if value, _ := record.Value(auth.SessionPrincipalIDKey); value != principal {
+				t.Fatal("login stored another selected principal")
+			}
+			if previous.Valid() {
+				_, found, err := selected.Load(t.Context(), previous)
+				check(err)
+				if found {
+					t.Fatal("previous Admin login session survived rotation")
+				}
+			}
+			after := snapshot()
+			var oldValues, newValues map[string]query.Value
+			before.Accounts, oldValues, _ = managementHTTPWithout(t, objects, before.Accounts, target.ID)
+			after.Accounts, newValues, _ = managementHTTPWithout(t, objects, after.Accounts, target.ID)
+			expected := maps.Clone(oldValues)
+			if role.LastLogin != "" {
+				expected[role.LastLogin] = query.DateTime(at)
+			}
+			if !reflect.DeepEqual(expected, newValues) {
+				t.Fatal("login changed revision/profile/credential or missed LastLogin")
+			}
+			prior := make(map[string]sessionmodels.Session, len(before.Sessions))
+			for _, row := range before.Sessions {
+				prior[row.Digest] = row
+			}
+			var added string
+			for _, row := range after.Sessions {
+				if old, present := prior[row.Digest]; present {
+					if !reflect.DeepEqual(old, row) {
+						t.Fatal("login changed an unrelated session")
+					}
+					delete(prior, row.Digest)
+				} else {
+					if added != "" {
+						t.Fatal("login inserted multiple sessions")
+					}
+					added = row.Digest
+				}
+			}
+			if added == "" || previousDigest == "" && len(prior) != 0 || previousDigest != "" && (len(prior) != 1 || prior[previousDigest].Digest != previousDigest) {
+				t.Fatal("login removed the wrong session set")
+			}
+			before.Sessions = after.Sessions
+			if !reflect.DeepEqual(before, after) {
+				t.Fatal("login changed unrelated rows, memberships or management audit")
+			}
+			previous, previousDigest, observed = current, added, at
+			assertDisplay(&observed)
+		}
+		// A later ordinary access advances only session access metadata.
+		elapsed.Add(int64(time.Second))
+		beforeValues := storedValues()
+		status, _, body = adminSend(visitor, "GET", endpoint, nil)
+		if status != 200 || strings.Contains(string(body), ` name="`+role.Login+`"`) || !reflect.DeepEqual(beforeValues, storedValues()) {
+			t.Fatal("view-only access changed LastLogin or gained editable fields", status)
+		}
+		assertDisplay(&observed)
+		field := role.LastLogin
+		if field == "" {
+			field = "last_login"
+		}
+		forged := accountFields(loginName)
+		forged[field] = "2000-01-01T00:00:00Z"
+		submit := prepareAdmin(client, endpoint, forged, strconv.FormatInt(target.Revision, 10))
+		before = snapshot()
+		status, _, _ = submit()
+		if status != 400 || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("server-owned LastLogin became writable", status)
+		}
+		reopened, err := database.Open(t.Context(), backendConfig)
+		check(err)
+		defer func() {
+			if err := reopened.Close(); err != nil {
+				t.Error(err)
+			}
+		}()
+		rebuilt, err := factory(t.Context(), reopened, hasher, overlay, accountmodel.RuntimeConfig[M, G, P]{Accounts: accountPolicy, Catalog: catalogPolicy, Sessions: sessions.Config{Clock: clock}})
+		check(err)
+		profile, err := rebuilt.Accounts().Reader().Get(t.Context(), actor, target.ID)
+		check(err)
+		expectProfile(profile, &observed)
+		description, err := rebuilt.Accounts().Description()
+		check(err)
+		if description.LastLoginField != role.LastLogin {
+			t.Fatal("reconstructed owner lost the selected observation role")
+		}
 	})
 	run("delete_and_audit", func(t *testing.T) {
 		status, header, body := send(client, "DELETE", path("accounts", created.ID), "", strconv.FormatInt(created.Revision, 10), true)

@@ -63,6 +63,29 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 	if !slices.Equal(descriptor.ReadOnlyFields, []admin.ReadOnlyFieldDescriptor{{Name: "password_usable", Label: "Password login"}}) {
 		t.Fatal("selected password state lost its read-only presentation")
 	}
+	withLogin := config
+	withLogin.ReadFields = append(slices.Clone(config.ReadFields), "last_login")
+	loginOwner, err := project.NewAccountManagement(sessions, verifier, auth.PrincipalAuthorizer{}, withLogin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	loginBuilder := admin.NewBuilder(installed)
+	if err := RegisterAccount(loginBuilder, loginOwner, AccountRegistration{Slug: "accounts"}); err != nil {
+		t.Fatal(err)
+	}
+	loginRegistry, err := loginBuilder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	loginDescriptor, present := loginRegistry.Lookup("godj_identity", "user")
+	if !present || !slices.Equal(loginDescriptor.ReadOnlyFields, []admin.ReadOnlyFieldDescriptor{{Name: "password_usable", Label: "Password login"}, {Name: "last_login", Label: "Last login"}}) {
+		t.Fatal("explicit login-time exposure was lost")
+	}
+	for _, field := range append(loginDescriptor.FormFields, loginDescriptor.CreateFormFields...) {
+		if field.Name() == "last_login" {
+			t.Fatal("server login time became writable")
+		}
+	}
 	var created, edited []string
 	for _, field := range descriptor.CreateFormFields {
 		created = append(created, field.Name())

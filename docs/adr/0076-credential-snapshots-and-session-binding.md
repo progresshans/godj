@@ -1835,6 +1835,10 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 표시한다. 활성화 여부와는 독립적이며 생성 화면이나 쓰기 입력에 포함하지 않는다. 실제 profile이 `password_usable` 이름을
 사용하면 선언된 scalar/M2M과 충돌하지 않는 별도 표시 이름을 배정하며, 그 필드의 노출·저장 정책은 그대로 적용한다.
 검증 오류로 Form을 다시 표시할 때도 제출된 값이 아니라 인가된 기존 snapshot의 상태를 사용한다.
+선택 역할의 `LastLogin`은 같은 reader의 명시적 읽기 필드에 포함된 경우에만 기존 객체 화면에 표시한다. 선언된 실제 필드
+이름을 사용하며 NULL은 Never, 관측값은 UTC 시각으로 표시한다. 역할이 없거나 읽기 정책에서 제외됐으면 표시하지 않는다.
+표시는 추가 DB 조회나 login 기록을 수행하지 않으며 생성·수정 입력을 넓히지 않는다. Article과 scaffold의 기본 host 정책은
+이 필드를 읽기에만 선택한다. 별도 계정 모델의 이름·선택 여부를 기본 User의 `last_login`에서 추론하지 않는다.
 
 등록된 Create는 typed 입력을 준비한 뒤 Creator의 Prepare/Commit을 한 번 호출한다. Update/Delete와 password commands도
 기존 수명 owner에 위임하며 확인된 ID/revision/변경 field만 전달한다. 자기 비활성화나 비밀번호 변경으로 읽기 권한·현재 session이

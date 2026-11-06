@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"time"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -22,6 +23,8 @@ import (
 // an explicit unusable-password choice, all kept outside the stored model.
 // Existing-object pages display the password login state from the same
 // authorized profile, with a separate name when a real field uses that name.
+// The selected LastLogin field is displayed only when the owner explicitly
+// includes it in ReadFields; it remains absent from create/edit inputs.
 type AccountRegistration struct {
 	Slug       string
 	ListFields []string
@@ -137,17 +140,34 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 	}
 	policy := description.Permissions
 	statusName := accountAuxiliaryNames(metadata)("password_usable", "_status")
+	readOnly := []admin.ReadOnlyField[accountmodel.Profile[M]]{{Name: statusName, Label: "Password login", Value: func(profile accountmodel.Profile[M]) (string, error) {
+		if profile.PasswordUsable() {
+			return "Enabled", nil
+		}
+		return "Disabled", nil
+	}}}
+	if field := description.LastLoginField; field != "" && slices.Contains(reader.Fields(), field) {
+		readOnly = append(readOnly, admin.ReadOnlyField[accountmodel.Profile[M]]{Name: field, Label: "Last login", Value: func(profile accountmodel.Profile[M]) (string, error) {
+			value, present := profile.View().Get(field)
+			if !present {
+				return "", &admin.ConfigError{Path: "account.last_login", Code: "missing_snapshot_value"}
+			}
+			if value.IsNull() {
+				return "Never", nil
+			}
+			instant, valid := value.DateTime()
+			if !valid {
+				return "", &admin.ConfigError{Path: "account.last_login", Code: "invalid_snapshot_value"}
+			}
+			return instant.UTC().Format(time.RFC3339Nano), nil
+		}})
+	}
 	return admin.RegisterModel(builder, admin.ModelConfig[accountmodel.Profile[M]]{
 		AppLabel: description.Identity.AppLabel, Slug: presentation.Slug, Model: metadata,
 		FormFields: change.Fields, FormOverrides: change.Overrides, ListFields: list, RevisionField: description.RevisionField,
 		Permissions:           admin.Permissions{View: policy.View, Add: policy.Add, Change: policy.Change, Delete: policy.Delete},
 		AdditionalPermissions: policy.Additional, AdditionalAddPermissions: []auth.Permission{policy.Change},
-		ReadOnlyFields: []admin.ReadOnlyField[accountmodel.Profile[M]]{{Name: statusName, Label: "Password login", Value: func(profile accountmodel.Profile[M]) (string, error) {
-			if profile.PasswordUsable() {
-				return "Enabled", nil
-			}
-			return "Disabled", nil
-		}}},
+		ReadOnlyFields: readOnly,
 		RelatedChoices: changeChoices,
 		CreateForm:     &admin.FormConfig{Definition: passwords.definition, RelatedChoices: addChoices}, Commands: commands,
 		List: func(ctx context.Context, actor auth.Principal, request admin.ListRequest) (admin.Page[accountmodel.Profile[M]], error) {

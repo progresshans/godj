@@ -123,7 +123,7 @@ func TestAccountManagementRequiresSharedSourceAndPolicyBeforeIO(t *testing.T) {
 	}
 	config.Permissions.Additional[0], config.EditFields[0] = "forged", "encoded_password"
 	description, err := owner.Description()
-	if err != nil || description.Identity.ModelName != "user" || description.LoginField != "username" || description.PasswordField != "encoded_password" || !slices.Equal(description.Permissions.Additional, []auth.Permission{"account.manage"}) {
+	if err != nil || description.Identity.ModelName != "user" || description.LoginField != "username" || description.PasswordField != "encoded_password" || description.LastLoginField != "last_login" || !slices.Equal(description.Permissions.Additional, []auth.Permission{"account.manage"}) {
 		t.Fatal("description lost role or owned policy", err)
 	}
 	description.Permissions.Additional[0] = "forged"

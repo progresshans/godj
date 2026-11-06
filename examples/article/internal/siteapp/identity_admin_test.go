@@ -7,9 +7,12 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/auth/passwordpolicy"
@@ -88,6 +91,14 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 	}
 	login := call("GET", "/admin/login/", nil, 200)
 	call("POST", "/admin/login/", url.Values{"csrfmiddlewaretoken": {token(login)}, "username": {"admin"}, "password": {"admin-secret-password"}, "next": {"/admin/"}}, 302)
+	root, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(bootstrap.Account.ID)).Get(t.Context())
+	if err != nil || root.LastLogin == nil {
+		t.Fatal("Article Admin login did not persist the selected observation", err)
+	}
+	rootPage := call("GET", "/admin/users/change/?id="+strconv.FormatInt(root.ID, 10), nil, 200)
+	if !strings.Contains(rootPage, `data-field-name="last_login">`+root.LastLogin.UTC().Format(time.RFC3339Nano)) || strings.Contains(rootPage, ` name="last_login"`) {
+		t.Fatal("Article policy lost the read-only login timestamp")
+	}
 	index := call("GET", "/admin/", nil, 200)
 	for _, path := range []string{"/admin/users/", "/admin/groups/", "/admin/permissions/", "/admin/articles/"} {
 		if !strings.Contains(index, path) {
@@ -96,6 +107,9 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 		call("GET", path, nil, 200)
 	}
 	add := call("GET", "/admin/users/add/", nil, 200)
+	if strings.Contains(add, `data-field-name="last_login"`) || strings.Contains(add, ` name="last_login"`) {
+		t.Fatal("Article creation exposed server-owned login observation")
+	}
 	rejected := call("POST", "/admin/users/add/", url.Values{"csrfmiddlewaretoken": {token(add)}, "username": {"Rejected"}, "password1": {"¹²³⁴⁵⁶⁷⁸"}, "password2": {"¹²³⁴⁵⁶⁷⁸"}}, 200)
 	if !strings.Contains(rejected, `data-error-code="password_entirely_numeric"`) || strings.Contains(rejected, "¹²³⁴⁵⁶⁷⁸") {
 		t.Fatal("Article Admin lost built-in policy or exposed password")
@@ -123,6 +137,16 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 	row, found, err := models.UserObjects.Using(backend).Filter(models.UserFields.Username.Exact("Fred")).OrderBy(models.UserFields.ID.Asc()).First(t.Context())
 	if err != nil || !found || row.ID == bootstrap.Account.ID || row.PrincipalID == "" || !row.Active || row.Staff || row.Superuser {
 		t.Fatal("composition did not persist safe new user", err)
+	}
+	path := "/admin/users/change/?id=" + strconv.FormatInt(row.ID, 10)
+	page := call("GET", path, nil, 200)
+	if row.LastLogin != nil || !strings.Contains(page, `data-field-name="last_login">Never`) {
+		t.Fatal("new Article account fabricated a login observation")
+	}
+	call("POST", path, url.Values{"csrfmiddlewaretoken": {token(page)}, "expected_revision": {strconv.FormatInt(row.Revision, 10)}, "last_login": {"2000-01-01T00:00:00Z"}}, 400)
+	after, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(row.ID)).Get(t.Context())
+	if err != nil || !reflect.DeepEqual(after, row) {
+		t.Fatal("Article Admin accepted a forged login observation", err)
 	}
 	hasher, err := auth.NewDefaultPBKDF2()
 	if err != nil {

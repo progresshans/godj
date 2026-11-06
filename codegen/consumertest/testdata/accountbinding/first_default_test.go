@@ -74,7 +74,7 @@ func firstDefaultAccount(t *testing.T, profile firstProfileInput, adminMode stri
 		return
 	}
 	if adminMode == "http" {
-		assertAccountManagementHTTP(t, backend, binding, hasher, row, "first_name", "", "", project.NewAccountRuntime)
+		assertAccountManagementHTTP(t, backend, selected, binding, hasher, row, "first_name", "", "", project.NewAccountRuntime)
 		return
 	}
 	t.Run("admin_catalog", func(t *testing.T) {
