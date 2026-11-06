@@ -762,6 +762,18 @@ Form/HTTP 부분 수용, 두 실패와 새 실행 분할의 미확인 범위는 
 값과 직접 비교한다. 미초기화 Form의 전체 모델 노출 거부를 선택 owner에 추가했고 기존 고정 검사는 아직 유지한다.
 원격에서 새 입력 소비자의 세션 Config/OneToOne IR 참조 컴파일 실패를 확인해 실제 선언에 맞게 수정했다. 실패 원문과
 추가 수명 본문의 미실행·새 source 재검증 범위는 TEST_EVIDENCE에 기록한다.
+후속 `e1097096`에서 새 입력 소비자의 기본/renamed × 양 DB 필수 130개를 normal/race/CGO-disabled 원본으로 확인했다.
+고정 Python 3.14.3의 원문/변이 기준도 대조했다. 전체 platform과 남은 고정 소비자 이관은 계속 별도 수용 대상이다.
+고정 UserCreationForm은 [기존 Admin 등록](../identity/admin/user.go)에서도 사용한다. 이 public Form만 먼저 제거하지 않고
+남은 Admin 등록·소비자의 인가/실패/독립 기준 책임을 함께 선택 owner로 옮긴다. [사용 안내](../identity/USER_CREATION.md)는
+검증된 선택 Form의 입력 정책·준비 소유권을 먼저 설명하며 고정 경로의 남은 의존성을 구분한다.
+
+고정 Admin의 생성/비밀번호 변경 정책 실패 14개 검사를 선택 `Creator`/`PasswordEditor`의 독립 생성 앱으로 옮겼다.
+사전·최종 거부, rollback cleanup 실패·삼킨 오류·결과 불명, 사전·최종 취소의 진단 구분과 해싱/실제 native 시도 횟수를
+기본/renamed 모델에서 대조하도록 연결했다. 세 대상 세션·actor/익명 세션과 계정/catalog/관계/domain/audit의 전체 물리 상태를
+원래 native backend·취소되지 않은 context로 확인하고, 최종 생성 실패 뒤 준비 사본의 재시도도 거부해야 한다.
+옛 양 DB selector 28개의 검증 책임은 새 필수 child에 연결했다. 기존 고정 Admin 등록·생성 선택·독립 Django 입력 기준은
+유지하며 이 새 본문의 정적 확인과 실제 양 DB·race/process·전체 원격 실행은 TEST_EVIDENCE에서 구분한다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

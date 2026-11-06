@@ -4560,6 +4560,74 @@ OneToOne 행이나 열을 제외하지 않는다. 이는 선언과 gofmt에 근�
 네 입력 소비자의 같은 컴파일 오류를 확인했다. 해당 job log SHA-256은
 `ae74e53c0d3b6c9221a1ac34a64a677b89ffb48fbb5a708025bfea68d83a4232`이며, normal의 전체 artifact 대조와 구분한다.
 
+Source `e1097096d18b2b52fc5167c96f0de556398ceb2a`의
+[CI 42173911143 Python 3.14.3 job 127748501429](https://github.com/progresshans/godj/actions/runs/42173911143/job/127748501429)에서
+`UserCreationReferenceTests` 세 검사의 정확한 `ok` 종료를 확인했다. 실제 checkout
+`d5d0a129f20ed8d65f54c11ab41e005add38ee81`과 source는 tree `123e02193bb32910842e88a08e973ae57c0d2067`로 같다.
+Workflow의 격리된 Python 3.14.3/Django 6.1 runtime 검사, 실제 로그와 runner·test·입력/두 capture·suite source bytes를 연결했다.
+
+`test_native_reference_and_hash_seed`는 새 SQLite 관측을 seed 0/817로 반복하고 양 backend의 보관된 capture와
+observations/lifecycle/producer source/input digest를 대조한다. 이 unittest는 `GODJ_USER_CREATION_DATABASE`를 제거하므로
+새 PostgreSQL producer 실행으로 해석하지 않는다. `test_missing_phases_change_observations`의 네 변이와
+`test_deferred_save_and_hash_work_are_observed`의 강제 즉시 저장/중복 해싱 두 변이가 관측을 바꾸는지도 확인했다.
+전체 marker는 409개/skip 4개이며 위 세 검사는 모두 실행됐다. 네 Darwin 전용 제외 항목이나 Go 입력 소비자의 실제
+양 DB·mode 수용을 이 Python 결과로 대신하지 않는다.
+
+검증 보관소 `gdj0138-e1097096-ci-42173911143/`의 `job-127748501429.log` SHA-256은
+`e0b070794f76e9d026fab7ebd80e28074e3d2fe78c5716d20d8d4dcb4cc109bf`, source·실행 범위를 연결한
+`python-creation-inspection.json`은 `a42e2daa698d4bfa8b5b5c36e6fab3601d6332d8aaec3f7ae8bf6b2b833b97ab`다.
+
+같은 source/tree의 계정 consumer normal [job 127748502615](https://github.com/progresshans/godj/actions/runs/42173911143/job/127748502615),
+race [job 127748502850](https://github.com/progresshans/godj/actions/runs/42173911143/job/127748502850),
+CGO-disabled [job 127748502895](https://github.com/progresshans/godj/actions/runs/42173911143/job/127748502895)가 모두 성공했다.
+세 artifact의 API/job/ZIP digest·크기/CRC·모든 내부 파일 hash, source에 고정한 planner/필수 bytes, outer 및 독립 process의
+시작/종료·stderr·전체 이벤트를 대조했다. 이전 Config/IR 참조 컴파일 실패를 지나 실제 입력·수명 본문까지 실행됐다.
+
+각 모드에서 outer 필수 29개가 한 번씩 run/pass했고 독립 process 18개와 내부 test 1,104개가 모두 완료됐다. 새 입력
+소비자는 기본/renamed × SQLite/PostgreSQL의 네 process다. 각 process에서 정확한 부모 source의 반복 목록과 입력 JSON으로
+재구성한 필수 130개가 한 번씩 run/pass했다(관찰된 전체 child/ancestor는 137개). 세 Form 모드·두 실제 Admin 모드의 입력,
+저장 수명·한도·위조 값·늦은 중복과 준비 소유권 여섯 child를 모두 포함한다. Skip/fail·중복 run/pass·미종료 process는 없다.
+다른 binding process도 전체 이벤트 종료를 대조했고 부모의 기존 엄격한 필수 검사 역시 실행됐다.
+
+이 결과는 해당 Linux 소비자의 normal/race/CGO-disabled와 양 DB 수용이다. Race build-tag→`GOFLAGS=-trimpath -race` 및
+CGO-disabled 환경 전달은 실제 부모 실행과 같은 source의 workflow/helper에 연결했다. Child receipt는 argv만 기록하므로
+환경을 직접 관찰한 receipt로 표현하지 않는다. 전체 platform/cold-build CI, 남은 고정 소비자 이관 및 I1-01~08 전체 수용은
+별도이며 이 결과로 완료 처리하지 않는다. 기존 고정 Form/독립 원문 검사는 그대로 유지한다.
+
+같은 검증 보관소의 normal/race/CGO-disabled ZIP SHA-256은
+`9b55433ac4547468e55d7b8f9ba004208a5bfb60f48254b9f3cdc42ab39c90c0` /
+`f188ce159ef8a56b58ac4c16bb688fc817c6801fcfe820352a9a2654533a7180` /
+`33400f7bec7cd7d2df5cfb4b8d0abde6fbe4e2f5750d7b56082d4208cc575ddf`다.
+`input-normal-inspection.json` / `input-race-inspection.json` / `input-cgo0-inspection.json` SHA-256은
+`6974b0ce401e59debe60ae4b7fe5459465c95555b3ff43bcb18ac0d56b53fc20` /
+`3d5e0bd2c15d77f68d4f29e1a68eaba84bb02da5da5618c7ca775ce5dc19a048` /
+`af22edbea84fc453aba5f392b2c38a592a9cfbdd48e76b02a0606dacf654e0a6`이다.
+
+### 선택 계정 정책 실패 소비자 이관
+
+고정 `internal/identitytest/admin_password_policy.go`의 생성/비밀번호 변경 14개 본문과 양 DB의 해당 필수 selector 28개를
+독립 생성 앱의 `TestAccountPasswordPolicyBoundaries`로 옮겼다. 부모 `TestGeneratedAccountCreationInputPolicy`가 기본/renamed
+두 실제 모델을 생성하며 기존 입력/수명 130개와 새 정책 root+child 15개를 합친 process별 필수 145개를 대조한다.
+같은 부모의 SQLite/PostgreSQL·normal/race/CGO-disabled 실행 경로를 사용하고 기존 시간 제한·엄격한 child 검사·실패 수집은 유지한다.
+
+| 제거한 `Test{SQLite,Postgres}IdentityManagementAdmin` child | 새 생성 앱 child와 계속 확인하는 위험 |
+|---|---|
+| `{create,password}_policy_preflight` | `{create,password}/preflight`: 실제 typed source·credential 비노출, 1회 정책/0회 hash·write, 확인된 비밀번호 진단만 입력 오류로 반환 |
+| `{create,password}_policy_final` | `{create,password}/final`: 현재 native write fence의 두 번째 정책 거부, 1회 hash/1회 시도·callback, 확정 rollback 뒤만 입력 진단 공개 |
+| `{create,password}_policy_{cleanup,swallowed,unknown}` | `{create,password}/{cleanup,swallowed,unknown}`: 실제 native rollback 후 cleanup 원인 결합·오류를 삼킨 backend·결과 불명, fault 적용 횟수·원인·분류와 0 결과 확인 |
+| `{create,password}_policy_cancel_{preflight,final}` | `{create,password}/cancel_{preflight,final}`: 원래 취소 원인 보존, renderable 진단/결과 거부, 시점별 정책·hash·write 횟수 확인 |
+
+새 소비자는 사용 가능한 target credential과 대상 세션 3개·actor 세션·익명 세션을 먼저 저장한다. 모든 실패 뒤 원래 native
+backend의 하나의 read snapshot에서 전체 계정·catalog·물리 through·session·domain·audit 행을 대조한다. 취소한 operation의
+context나 실패 주입 owner를 oracle로 사용하지 않는다. 생성의 사전 실패는 유효한 준비 객체를 게시하지 않고, 최종 실패는
+준비 사본의 유일한 시도를 소모해 재호출이 추가 hash/DB 시도·저장을 수행하지 않아야 한다.
+
+이 이관은 정책 native 실패 경로의 검증 owner 변경이다. 기존 고정 Admin 등록의 나머지 생성 선택·HTTP/Form·독립 기준
+소비자는 유지한다. 코드 작성·gofmt/템플릿 구문·필수 목록 정적 확인과 새 본문의 실제 compile/DB 실행을 구분하며,
+`e1097096`의 앞선 130개 PASS를 새 145개 실행의 근거로 사용하지 않는다. 새 source의 전체 원격 CI와 원본 대조는 미확인이다.
+로컬 Go compile/test는 실행하지 않았다. Gofmt와 placeholder 치환 후 템플릿 구문 확인, 양 DB selector의 정확한 14개씩
+제거/새 기본·renamed 양 DB owner 보존 대조, Python relation/PostgreSQL shard 26개, 문서 링크 245개와 diff 검사를 통과했다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -16,6 +16,9 @@ import (
 //go:embed testdata/accountbinding/creation_input_test.go.tmpl
 var accountCreationInputConsumer string
 
+//go:embed testdata/accountbinding/password_policy_test.go.tmpl
+var accountPasswordPolicyConsumer string
+
 func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 	inputs, err := identityreference.UserCreationInputs()
 	if err != nil {
@@ -76,6 +79,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeGeneratedTestFile(t, root, "consumer/creation_input_test.go", formatted)
+			formatted, err = format.Source([]byte(accountPasswordPolicyConsumer))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGeneratedTestFile(t, root, "consumer/password_policy_test.go", formatted)
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/testdata/user-creation-inputs.json", inputs)
 			for _, vendor := range []string{"sqlite", "postgres"} {
@@ -110,6 +118,12 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 			for _, operation := range []string{"single_attempt_after_delete", "concurrent_copies", "unadmitted_calls"} {
 				for _, mode := range []string{"usable", "unusable"} {
 					required = append(required, required[0]+"/prepared_ownership/"+operation+"/"+mode)
+				}
+			}
+			required = append(required, "TestAccountPasswordPolicyBoundaries")
+			for _, operation := range []string{"create", "password"} {
+				for _, mode := range []string{"preflight", "final", "cleanup", "swallowed", "unknown", "cancel_preflight", "cancel_final"} {
+					required = append(required, "TestAccountPasswordPolicyBoundaries/"+operation+"/"+mode)
 				}
 			}
 			runAccountConsumerDatabases(t, root, required)

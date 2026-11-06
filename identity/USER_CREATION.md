@@ -39,10 +39,49 @@ Bind는 파일 검사 전 현재 add/change 및 추가 권한을 확인한다. S
 준비 실패·준비 포기·Commit 실패에서도 파일 기록은 호출자가 보존한다. PreparedCreation은 같은 creator·actor·domain과 한 번의
 native 시도에 묶이며, 최종 인가·관계/필터·unique·정책을 재확인한다. 확정 실패·unknown 뒤 사본으로 재시도할 수 없다.
 
-이 Form은 실제 선택 모델의 IR 입력 길이와 역할 정규화를 따른다. 아래 기존 기본 User Form의 별도 username 150자 규칙과
-독립 Django 기준을 자동으로 대체하지 않는다. 두 경로의 구현·이관과 환경별 검증 상태는 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
+같은 준비 객체의 복사본은 하나의 시도를 공유한다. 동시에 Commit해도 하나만 저장되며, 성공한 계정을 나중에 삭제해도
+소비한 준비 객체로 다시 만들 수 없다. 생성 권한이 있는 다른 actor도 원래 actor의 준비 객체를 넘겨받을 수 없다.
+다른 owner/actor 또는 시도 전 취소로 거부된 호출은 정당한 소유자의 시도를 소모하지 않는다. 로그인·last_login 기록과
+자동 session 생성은 계정 생성에 포함되지 않는다.
+
+## Login 입력 규칙
+
+기본 Form은 선택 모델의 IR 길이와 쓰기 정규화를 따른다. Username 입력 관례가 필요한 경우 실제 login 역할에
+`UnicodeUsernameInput(150)`을 명시한다. 필드 이름이 `username`일 필요는 없으며 동명의 다른 profile 필드에는 적용하지 않는다.
+
+```go
+creation, err := accountmodel.NewCreationForm(runtime.Accounts(), accountmodel.CreationFormConfig{
+    AllowUnusablePassword: true,
+    LoginInput:            accountmodel.UnicodeUsernameInput(150),
+})
+```
+
+한도는 양수여야 하고 유한한 저장 한도를 넓힐 수 없다. Python 공백을 제거한 원문의 rune 수가 이미 한도를 넘으면
+비싼 정규화를 생략한다. 정규화 자체는 선택 역할의 쓰기 정책을 따르며, 정규화 후 길이도 확인한다. 문자 문법은 Unicode 16의
+letter/number와 `_.@+-`다. 현재 unique 진단이 있으면 그것을 유지하고, 문법 오류만 있는 candidate는 비밀번호 강도 검사가
+관찰할 수 있다. 이 정책의 150자 생성 입력 한도와 기본 User의 256자 저장/편집 한도는 별도다.
+
+대소문자를 무시한 생성 중복 검사는 관리 owner의 `AccountManagementConfig.CaseInsensitiveCreationLogin`에서 선택한다.
+입력 정책이 그 설정이나 인증 정규화를 변경하지 않는다. 준비 단계는 valid Form의 candidate도 한도·문법으로 다시 확인하며,
+느슨한 Form이나 model-clean 변경으로 재정규화한 값과 실제 저장 후보가 달라지면 거부한다.
+
+선택 Admin도 같은 정책을 명시할 수 있다.
+
+```go
+err := identityadmin.RegisterAccount(builder, runtime.Accounts(), identityadmin.AccountRegistration{
+    Slug:               "accounts",
+    CreationLoginInput: accountmodel.UnicodeUsernameInput(150),
+})
+```
+
+Form을 거치지 않는 typed 생성은 `runtime.Accounts().Creator()`의 Prepare/PrepareUnusable/Commit을 사용한다.
+Principal ID 공급자는 관리 owner의 생성 설정에 두며 제출 필드로 노출하지 않는다. 기본/custom 소비자의 독립 Django 기준과
+환경별 수용은 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md)를 따른다.
 
 ## 기존 기본 User 전용 Form
+
+아래 API는 아직 기존 `identityadmin.Register` 경로에서도 사용한다. 선택 모델의 새 조립은 위 공통 Form/Admin owner를
+사용하며, 남은 고정 소비자의 이관 범위는 [현재 작업](../work/0138-custom-account-lifecycle.md)에 기록한다.
 
 `identity.NewUserCreationForm(manager)`는 기본 User 모델의 username·password1·password2 Form을 만든다.
 `NewAdminUserCreationForm(manager)`는 비밀번호 로그인을 끄는 명시적 선택을 추가하며, Admin 밖에서도 사용할 수 있다.

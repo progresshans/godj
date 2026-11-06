@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"example.com/godj-project-bundle/project"
 	@@IMPORTS@@
+	"example.com/godj-project-bundle/project"
 	auditmodels "github.com/progresshans/godj/account/audit/models"
 	domainmodels "github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/admin"
@@ -147,6 +147,7 @@ type creationInputFixture struct {
 	key      orm.AutoField[usernameAccount]
 	login    orm.StringField[usernameAccount]
 	runtime  *accountmodel.Runtime[usernameAccount, @@GROUP@@, @@PERMISSION@@]
+	config   accountmodel.RuntimeConfig[usernameAccount, @@GROUP@@, @@PERMISSION@@]
 	actor    auth.Principal
 	hasher   *creationInputHasher
 	ids      atomic.Int64
@@ -245,6 +246,7 @@ func newCreationInputFixture(t *testing.T, nonstaff bool) *creationInputFixture 
 			AccountPermissions: accountmodel.DeletionPermissions{Change: accounts.Change, Delete: accounts.Delete},
 		},
 	}
+	f.config = config
 	f.runtime, err = project.NewAccountRuntime(t.Context(), f.native, f.hasher, auth.PrincipalAuthorizer{}, config)
 	creationInputCheck(t, err)
 	credential, err := f.runtime.Authenticator().Authenticate(t.Context(), "manager", accountPasswordText)

@@ -55,7 +55,6 @@ func adminPermissions(t *testing.T, f *managementFixture, staff bool, permission
 func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
 	runAdminPasswordCreation(t, open)
-	runPasswordPolicyBoundaries(t, open)
 	runUserChangeModelValidation(t, open)
 	runCatalogModelValidation(t, open)
 	t.Run("real_forms_relations_password_history_and_host_delete", func(t *testing.T) {
