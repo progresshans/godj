@@ -842,6 +842,27 @@ func (h *creationInputHTTP) send(t *testing.T, method, path string, data url.Val
 	creationInputCheck(t, response.Body.Close())
 	return response.StatusCode, response.Header, raw
 }
+
+func creationInputDiagnostics(t *testing.T, form *accountmodel.CreationForm[usernameAccount], body []byte) validation.Errors {
+	t.Helper()
+	failures := []validation.Violation{}
+	for _, match := range regexp.MustCompile(`data-error-field="([^"]+)" data-error-code="([^"]+)"`).FindAllSubmatch(body, -1) {
+		failures = append(failures, validation.New(validation.Field(html.UnescapeString(string(match[1]))), validation.Code(html.UnescapeString(string(match[2])))))
+	}
+	names := form.PasswordFields()
+	for _, input := range regexp.MustCompile(`<input[^>]*>`).FindAll(body, -1) {
+		for _, name := range []string{names.First, names.Confirmation} {
+			if strings.Contains(string(input), `name="`+name+`"`) {
+				value := regexp.MustCompile(`value="([^"]*)"`).FindSubmatch(input)
+				if len(value) != 0 && len(value[1]) != 0 {
+					t.Fatal("rejected Admin form redisplayed a password")
+				}
+			}
+		}
+	}
+	return validation.NewErrors(failures...)
+}
+
 func (h *creationInputHTTP) probe(t *testing.T, mode string, probe creationInputCase, want creationInputObservation) {
 	t.Helper()
 	f := h.fixture
@@ -870,22 +891,8 @@ func (h *creationInputHTTP) probe(t *testing.T, mode string, probe creationInput
 	if status != expectedStatus || want.Valid && !strings.HasPrefix(header.Get("Location"), "/admin/accounts/") {
 		t.Fatal("selected Admin creation response", status)
 	}
-	failures := []validation.Violation{}
-	for _, match := range regexp.MustCompile(`data-error-field="([^"]+)" data-error-code="([^"]+)"`).FindAllSubmatch(body, -1) {
-		failures = append(failures, validation.New(validation.Field(html.UnescapeString(string(match[1]))), validation.Code(html.UnescapeString(string(match[2])))))
-	}
-	if !reflect.DeepEqual(f.codes(form, validation.NewErrors(failures...)), want.Codes) {
+	if !reflect.DeepEqual(f.codes(form, creationInputDiagnostics(t, form, body)), want.Codes) {
 		t.Fatal("Admin input phases differ from independent reference")
-	}
-	for _, input := range regexp.MustCompile(`<input[^>]*>`).FindAll(body, -1) {
-		for _, name := range []string{names.First, names.Confirmation} {
-			if strings.Contains(string(input), `name="`+name+`"`) {
-				value := regexp.MustCompile(`value="([^"]*)"`).FindSubmatch(input)
-				if len(value) != 0 && len(value[1]) != 0 {
-					t.Fatal("rejected Admin form redisplayed a password")
-				}
-			}
-		}
 	}
 	profiles := creationInputProfiles(want)
 	expectedHashes, expectedIDs := int64(0), int64(0)

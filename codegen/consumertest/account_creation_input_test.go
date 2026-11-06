@@ -19,6 +19,9 @@ var accountCreationInputConsumer string
 //go:embed testdata/accountbinding/password_policy_test.go.tmpl
 var accountPasswordPolicyConsumer string
 
+//go:embed testdata/accountbinding/admin_creation_choice_test.go.tmpl
+var accountAdminCreationChoiceConsumer string
+
 func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 	inputs, err := identityreference.UserCreationInputs()
 	if err != nil {
@@ -84,6 +87,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeGeneratedTestFile(t, root, "consumer/password_policy_test.go", formatted)
+			formatted, err = format.Source([]byte(accountAdminCreationChoiceConsumer))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGeneratedTestFile(t, root, "consumer/admin_creation_choice_test.go", formatted)
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/testdata/user-creation-inputs.json", inputs)
 			for _, vendor := range []string{"sqlite", "postgres"} {
@@ -92,6 +100,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 					t.Fatal(err)
 				}
 				writeGeneratedTestFile(t, root, "consumer/testdata/user-creation-django61-"+vendor+".json", reference)
+				reference, err = identityreference.UnusablePassword(vendor)
+				if err != nil {
+					t.Fatal(err)
+				}
+				writeGeneratedTestFile(t, root, "consumer/testdata/unusable-password-django61-"+vendor+".json", reference)
 			}
 			required := []string{"TestCreationInputPolicy"}
 			for _, surface := range []string{"form", "admin"} {
@@ -125,6 +138,17 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				for _, mode := range []string{"preflight", "final", "cleanup", "swallowed", "unknown", "cancel_preflight", "cancel_final"} {
 					required = append(required, "TestAccountPasswordPolicyBoundaries/"+operation+"/"+mode)
 				}
+			}
+			const choices = "TestAccountAdminCreationChoices"
+			required = append(required, choices, choices+"/password_choice", choices+"/policy_and_validation", choices+"/current_authority")
+			for _, name := range []string{"default_missing", "enabled_missing", "enabled_mismatch", "enabled_equal", "disabled_empty", "disabled_mismatch", "disabled_equal", "disabled_duplicate"} {
+				required = append(required, choices+"/password_choice/"+name)
+			}
+			for _, name := range []string{"csrf", "grammar", "disabled", "host_policy"} {
+				required = append(required, choices+"/policy_and_validation/"+name)
+			}
+			for _, mode := range []string{"usable", "unusable"} {
+				required = append(required, choices+"/current_authority/"+mode)
 			}
 			runAccountConsumerDatabases(t, root, required)
 		})

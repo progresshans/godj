@@ -1251,9 +1251,6 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswords/fence
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswords/competing_disable_and_replace
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswordHTTP
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswordHTTP/admin
-github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/creation_password_choice
-github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/unusable_creation_policy_and_validation
-github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityManagementAdmin/unusable_creation_current_authority
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityLoginLifecycle
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityLoginBoundaries
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityLoginBoundaries/expired_snapshot_does_not_publish_cleanup

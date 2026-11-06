@@ -4628,6 +4628,45 @@ context나 실패 주입 owner를 oracle로 사용하지 않는다. 생성의 �
 로컬 Go compile/test는 실행하지 않았다. Gofmt와 placeholder 치환 후 템플릿 구문 확인, 양 DB selector의 정확한 14개씩
 제거/새 기본·renamed 양 DB owner 보존 대조, Python relation/PostgreSQL shard 26개, 문서 링크 245개와 diff 검사를 통과했다.
 
+Source `c2b996ea5f3ec6874138027bff767eb17db303a6`의 [CI 42183029919](https://github.com/progresshans/godj/actions/runs/42183029919)
+core normal [job 127777398653](https://github.com/progresshans/godj/actions/runs/42183029919/job/127777398653),
+race [job 127777398598](https://github.com/progresshans/godj/actions/runs/42183029919/job/127777398598),
+CGO-disabled [job 127777398694](https://github.com/progresshans/godj/actions/runs/42183029919/job/127777398694)의 전체 job log에서
+`internal/identitytest/password_validators.go:200:17: undefined: policyRollbackBoundary`를 확인했다. 실제 checkout
+`50af035ab299d35b3f3f236b637c3ecf2d6be130`과 source는 tree `340c938f448383875930a9442ddddeaeef0aa2e4`로 같다.
+삭제한 파일의 경계를 내장 validator의 현재 프로필 검사 네 개가 아직 사용했다. 필요한 일반 coordinated transaction 경계를
+해당 소비자의 `validatorRollbackBoundary`로 옮겨 참조를 복구했다. 이 본문이 쓰지 않는 relation override는 복원하지 않았고,
+네 필수 검사와 실제 rollback·원인/결과 불명·session/audit 무변경 책임은 유지한다. 새 source의 컴파일 해소는 원격 미확인이다.
+
+검증 보관소 `gdj0138-c2b996ea-ci-42183029919/`에 원본을 보존했다. Normal/race/CGO-disabled job log SHA-256은
+`86760b22a5ca752bc563523123a0c7d2bd6e3a4542a36d95fd019cb339899622` /
+`b94aa66e2dccb4d50193b9bd9501f585eb7ae63c92ce55718987103f83d40dbf` /
+`20461ef4f05407cdc8b09a3f6d1f64f596b8bcc291aa054229b650a61cbf9448`이며
+`core-failure-inspection.json`은 `07aa52e48123bb075c6af72847c8cafbf56e7a49b088e239feb4aca2af68d42c`다.
+이는 컴파일 실패 원인 확인이며 test artifact 전체 수용이나 선택 앱의 145개 실행 여부를 대신하지 않는다.
+
+### 선택 Admin의 생성 비밀번호 선택 소비자 이관
+
+고정 `internal/identitytest/admin_password_creation.go`의 세 검증 책임과 양 DB의 해당 selector 6개를 독립 생성 앱의
+`TestAccountAdminCreationChoices`로 옮겼다. 기존 선택 입력 모듈의 기본/renamed 모델·실제 Admin Site·TCP·cookie/CSRF와
+원래 native 전체 행 snapshot을 재사용한다. 부모가 원래 `unusable-password-django61-{sqlite,postgres}.json` bytes를 그대로
+독립 모듈에 복사하며 runtime/version·다섯 producer source digest와 정확한 8개 관측을 대조한다.
+
+| 제거한 `Test{SQLite,Postgres}IdentityManagementAdmin` child | 새 생성 앱 child와 계속 확인하는 위험 |
+|---|---|
+| `creation_password_choice` | `password_choice/{default_missing,enabled_missing,enabled_mismatch,enabled_equal,disabled_empty,disabled_mismatch,disabled_equal,disabled_duplicate}`: 선택/기본값·required/confirmation/unique·실제 credential/active/login 관측을 독립 원문과 대조, raw 비밀번호 비노출·단 한 번의 hash/ID와 전체 native 무관 행 보존 |
+| `unusable_creation_policy_and_validation` | `policy_and_validation/{csrf,grammar,disabled,host_policy}`: unusable 선택의 CSRF·login 문법 검사, usable의 현재 typed policy와 command 진단, unusable의 policy/hash 생략·확정 저장, 모든 거부 뒤 전체 native 무변경 |
+| `unusable_creation_current_authority` | `current_authority/{usable,unusable}`: 최종 native relation write 직전 actor superuser/revision만 독립 확정, 정확히 한 번의 실패 시도, 추가 hash/ID/저장 없음, 전체 actor 필드와 나머지 모든 native 행 보존, 다음 cookie 요청의 현재 인가 |
+
+새 root·세 그룹·14개 child 18개를 이전 145개에 추가해 process별 필수 163개로 연결했다. 성공 시 새 계정과 그 감사 한 행을
+제외한 모든 계정/catalog/through/session/domain/audit를 비교하고, 권한 회수 시에는 actor의 의도한 두 필드만 달라야 한다.
+기존 입력 consumer의 비밀번호 비노출/진단 parser를 공유하며 기존 130개 입력·준비 수명과 정책 실패 14개는 유지한다.
+고정 Admin 등록·나머지 Form·validator/독립 기준 소비자는 계속 미완료 이관 대상이다.
+
+로컬 Go compile/test는 실행하지 않았다. Gofmt·템플릿 구문, Python CI 분할 검사 26개, 문서 링크 245개와 diff를 확인했다.
+양 DB에서 정확히 세 selector씩 제거하고 남은 내장 validator의 현재 프로필 필수 검사와 새 18개 필수 항목을 보존했는지도 대조했다. 새 163개 실제 본문,
+위 core 실패의 컴파일 해소 및 양 DB·normal/race/CGO-disabled·전체 platform/cold-build 결과는 새 source의 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

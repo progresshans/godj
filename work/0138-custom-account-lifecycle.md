@@ -775,6 +775,16 @@ Form/HTTP 부분 수용, 두 실패와 새 실행 분할의 미확인 범위는 
 옛 양 DB selector 28개의 검증 책임은 새 필수 child에 연결했다. 기존 고정 Admin 등록·생성 선택·독립 Django 입력 기준은
 유지하며 이 새 본문의 정적 확인과 실제 양 DB·race/process·전체 원격 실행은 TEST_EVIDENCE에서 구분한다.
 
+후속 원격 core compile에서 내장 비밀번호 validator 소비자가 삭제한 공통 시험 경계를 아직 참조하는 것을 확인했다.
+현재 프로필 재검사의 네 실패/rollback 검사는 보존하고 필요한 일반 transaction 경계를 해당 소비자 파일로 옮겼다.
+선택 정책 소비자 자체의 실행 결과와 이 core 컴파일 실패/수정의 수용은 TEST_EVIDENCE에서 구분한다.
+
+고정 Admin의 비밀번호 생성 선택 세 검증 책임도 기본/renamed 선택 Admin의 실제 HTTP 소비자로 옮겼다. 기존 Django
+SQLite/PostgreSQL `admin_creation` 원문 8개 관측과 실제 저장 credential·로그인 결과를 직접 대조한다. 비밀번호를 사용하지
+않아도 CSRF·login 문법·현재 인가는 유지하고 strength policy/hash는 호출하지 않아야 한다. 별도 native 권한 변경을 최종
+쓰기 직전에 확정해 usable/unusable 두 경로의 거부와 다음 요청의 현재 인가를 확인한다. 새 계정·audit 외의 전체 native
+상태 또는 권한 변경으로 허용한 actor 필드 두 개 외의 전체 상태를 대조하며, 새 본문의 실제 원격 수용은 미확인이다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -11,12 +11,42 @@ import (
 	"testing"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/validation"
 )
+
+// The remaining built-in validator consumer changes a profile during hashing
+// and observes the real rollback's reported completion. Keep this boundary
+// with that consumer until its current-profile checks move to the selected
+// owner as well.
+type validatorRollbackBoundary struct {
+	*systemstate.Runtime
+	mode  string
+	calls int
+}
+
+func (boundary *validatorRollbackBoundary) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
+	boundary.calls++
+	err := boundary.Runtime.CoordinatedAtomic(ctx, callback)
+	if _, rejected := validation.Rejected(err); !rejected {
+		return err
+	}
+	switch boundary.mode {
+	case "cleanup":
+		return errors.Join(err, errors.New("private-validator-fault"))
+	case "swallowed":
+		return nil
+	case "unknown":
+		return errors.Join(err, &query.Error{Code: query.CodeCommitOutcomeUnknown, Detail: "private-validator-fault"})
+	default:
+		return err
+	}
+}
 
 func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
@@ -197,7 +227,7 @@ func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBacken
 			if err != nil {
 				t.Fatal(err)
 			}
-			boundary := &policyRollbackBoundary{Runtime: f.runtime, mode: mode}
+			boundary := &validatorRollbackBoundary{Runtime: f.runtime, mode: mode}
 			manager, err := identity.NewManager(boundary, f.hasher, auth.PrincipalAuthorizer{}, identity.WithPasswordValidators(validators...))
 			if err != nil {
 				t.Fatal(err)

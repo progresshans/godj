@@ -1,0 +1,326 @@
+package consumer
+
+import (
+	"context"
+	"embed"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"net/url"
+	"reflect"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"testing"
+
+	"example.com/godj-project-bundle/project"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+)
+
+//go:embed testdata/unusable-password-django61-*.json
+var creationChoiceReferences embed.FS
+
+func creationChoiceReference(t *testing.T, actual map[string]any) {
+	t.Helper()
+	var previous map[string]string
+	for _, vendor := range []string{"sqlite", "postgres"} {
+		raw, err := creationChoiceReferences.ReadFile("testdata/unusable-password-django61-" + vendor + ".json")
+		creationInputCheck(t, err)
+		var reference struct {
+			Django, Python, Backend string
+			Sources                 map[string]string `json:"source_sha256"`
+			Observations            struct {
+				Creation map[string]any `json:"admin_creation"`
+			}
+		}
+		creationInputCheck(t, json.Unmarshal(raw, &reference))
+		if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Backend != map[string]string{"sqlite": "sqlite", "postgres": "postgresql"}[vendor] || len(reference.Sources) != 5 || len(reference.Observations.Creation) != 8 {
+			t.Fatal("Admin creation reference lost its pinned runtime or complete observations")
+		}
+		for _, name := range []string{"auth", "backends", "base_user", "forms", "hashers"} {
+			value := reference.Sources[name]
+			digest, err := hex.DecodeString(value)
+			if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != value {
+				t.Fatal("Admin creation reference lost its producer", name)
+			}
+		}
+		if previous != nil && !reflect.DeepEqual(previous, reference.Sources) {
+			t.Fatal("independent backend producer sources differ")
+		}
+		previous = reference.Sources
+		// Normalize only JSON representation, keeping the producer's complete
+		// observations unchanged and independent of the selected owner.
+		encoded, err := json.Marshal(actual)
+		creationInputCheck(t, err)
+		var normalized map[string]any
+		creationInputCheck(t, json.Unmarshal(encoded, &normalized))
+		if !reflect.DeepEqual(normalized, reference.Observations.Creation) {
+			t.Fatal("selected Admin creation differs from the independent reference", vendor)
+		}
+	}
+}
+
+func (h *creationInputHTTP) choiceData(t *testing.T, name, first, second, unusable string) url.Values {
+	t.Helper()
+	f := h.fixture
+	names := f.form(t, "admin_enabled").PasswordFields()
+	status, header, body := h.send(t, "GET", "/admin/accounts/add/", nil)
+	if status != http.StatusOK || header.Get("Cache-Control") != "no-store" {
+		t.Fatal("selected creation Form is unavailable", status)
+	}
+	for _, name := range []string{names.First, names.Confirmation, names.Unusable} {
+		if !strings.Contains(string(body), `name="`+name+`"`) {
+			t.Fatal("selected creation lost a password choice")
+		}
+	}
+	token := creationInputToken.FindSubmatch(body)
+	if len(token) != 2 {
+		t.Fatal("selected creation omitted its CSRF token")
+	}
+	data := url.Values{f.role.Login: {name}, names.First: {first}, names.Confirmation: {second}, "csrfmiddlewaretoken": {string(token[1])}}
+	for _, field := range f.config.Accounts.CreateFields {
+		if field != f.role.Login {
+			data.Set(field, "NZ")
+		}
+	}
+	if unusable != "" {
+		data.Set(names.Unusable, unusable)
+	}
+	return data
+}
+
+func (f *creationInputFixture) choiceSaved(t *testing.T, before creationInputState, name, raw string, usable bool) map[string]any {
+	t.Helper()
+	row, err := f.objects.Using(f.native).Filter(f.login.Exact(name)).Get(t.Context())
+	creationInputCheck(t, err)
+	key, present, err := f.objects.PrimaryKey(row)
+	creationInputCheck(t, err)
+	id, integer := key.Integer()
+	if !present || !integer {
+		t.Fatal("creation has no stored key")
+	}
+	properties := f.saved(t, before, accountmodel.Creation{ID: id, Revision: 1}, name, raw, usable)
+	_, failure := f.runtime.Authenticator().Authenticate(t.Context(), name, raw)
+	if failure != nil && !errors.Is(failure, auth.ErrInvalidCredentials) {
+		t.Fatal("creation authentication returned a storage error", failure)
+	}
+	return map[string]any{"usable": properties["usable"], "active": properties["active"], "matches_input": failure == nil}
+}
+
+type creationChoiceHook struct{ before func(context.Context) error }
+type creationChoiceBoundary struct {
+	database.Backend
+	hook                       atomic.Pointer[creationChoiceHook]
+	attempts, callbacks, hooks atomic.Int64
+}
+
+func (boundary *creationChoiceBoundary) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
+	boundary.attempts.Add(1)
+	if hook := boundary.hook.Swap(nil); hook != nil {
+		boundary.hooks.Add(1)
+		if err := hook.before(ctx); err != nil {
+			return err
+		}
+	}
+	return boundary.Backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
+		boundary.callbacks.Add(1)
+		return callback(scope)
+	})
+}
+
+func TestAccountAdminCreationChoices(t *testing.T) {
+	creationInputRun(t, "password_choice", func(t *testing.T) {
+		f := newCreationInputFixture(t, false)
+		h := f.admin(t)
+		form := f.form(t, "admin_enabled")
+		actual := map[string]any{}
+		for _, probe := range []struct {
+			name, first, second, unusable string
+			valid                         bool
+		}{
+			{"default_missing", "", "", "", false}, {"enabled_missing", "", "", "false", false},
+			{"enabled_mismatch", "left", "right", "false", false}, {"enabled_equal", "  new password  ", "  new password  ", "false", true},
+			{"disabled_empty", "", "", "true", true}, {"disabled_mismatch", "left", "right", "true", true},
+			{"disabled_equal", "  new password  ", "  new password  ", "true", true}, {"disabled_duplicate", "", "", "true", false},
+		} {
+			creationInputRun(t, probe.name, func(t *testing.T) {
+				name := "candidate_" + probe.name
+				if probe.name == "disabled_duplicate" {
+					name = "MEMBER"
+				}
+				data := h.choiceData(t, name, probe.first, probe.second, probe.unusable)
+				before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+				f.recorded(true)
+				status, header, body := h.send(t, "POST", "/admin/accounts/add/", data)
+				wantStatus, wantHashes, wantIDs, wantPolicies := 200, int64(0), int64(0), 0
+				if probe.valid {
+					wantStatus, wantIDs = 302, 1
+					if probe.unusable != "true" {
+						wantHashes, wantPolicies = 1, 4
+					}
+				}
+				if status != wantStatus || header.Get("Cache-Control") != "no-store" || probe.valid && !strings.HasPrefix(header.Get("Location"), "/admin/accounts/") || !probe.valid && header.Get("Location") != "" {
+					t.Fatal("creation choice response differs", status)
+				}
+				observed := map[string]any{"valid": status == 302, "errors": f.codes(form, creationInputDiagnostics(t, form, body))}
+				if probe.valid {
+					for key, value := range f.choiceSaved(t, before, name, probe.first, probe.unusable != "true") {
+						observed[key] = value
+					}
+				} else if !reflect.DeepEqual(before, f.snapshot(t)) {
+					t.Fatal("rejected creation choice changed native rows")
+				}
+				if f.hasher.calls.Load()-hashes != wantHashes || f.ids.Load()-ids != wantIDs || len(f.recorded(false)) != wantPolicies {
+					t.Fatal("creation choice performed unexpected password or identity work")
+				}
+				actual[probe.name] = observed
+			})
+		}
+		creationChoiceReference(t, actual)
+	})
+	creationInputRun(t, "policy_and_validation", func(t *testing.T) {
+		f := newCreationInputFixture(t, false)
+		var policies atomic.Int64
+		config := f.config
+		config.Accounts.ValidatePassword = func(_ context.Context, _ string, profile orm.ModelView[usernameAccount]) (validation.Errors, error) {
+			policies.Add(1)
+			metadata, valid := profile.Model()
+			if !valid || !metadata.Equal(f.metadata) {
+				return validation.Errors{}, errors.New("password policy received another model")
+			}
+			return validation.NewErrors(validation.New("password", "blocked_by_host")), nil
+		}
+		var err error
+		f.runtime, err = project.NewAccountRuntime(t.Context(), f.native, f.hasher, auth.PrincipalAuthorizer{}, config)
+		creationInputCheck(t, err)
+		h := f.admin(t)
+		form := f.form(t, "admin_enabled")
+		for _, mode := range []string{"csrf", "grammar", "disabled", "host_policy"} {
+			creationInputRun(t, mode, func(t *testing.T) {
+				name, unusable := "choice_"+mode, "true"
+				first, second := "ignored", "different"
+				if mode == "grammar" {
+					name = "bad/name"
+				}
+				if mode == "host_policy" {
+					unusable, first, second = "false", "password", "password"
+				}
+				data := h.choiceData(t, name, first, second, unusable)
+				if mode == "csrf" {
+					data.Del("csrfmiddlewaretoken")
+				}
+				before, hashes, ids, calls := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load(), policies.Load()
+				status, header, body := h.send(t, "POST", "/admin/accounts/add/", data)
+				wantStatus, wantIDs, wantCalls := 200, int64(0), int64(0)
+				wantErrors := map[string][]string{}
+				switch mode {
+				case "csrf":
+					wantStatus = 403
+				case "grammar":
+					wantErrors["username"] = []string{"invalid"}
+				case "disabled":
+					wantStatus, wantIDs = 302, 1
+				case "host_policy":
+					wantCalls = 1
+					wantErrors["password2"] = []string{"blocked_by_host"}
+				}
+				if status != wantStatus || header.Get("Cache-Control") != "no-store" || mode != "disabled" && header.Get("Location") != "" || !reflect.DeepEqual(f.codes(form, creationInputDiagnostics(t, form, body)), wantErrors) {
+					t.Fatal("unusable creation lost admission, input or host policy", mode, status)
+				}
+				if mode == "disabled" {
+					f.choiceSaved(t, before, name, first, false)
+				} else if !reflect.DeepEqual(before, f.snapshot(t)) {
+					t.Fatal("rejected choice changed stored rows", mode)
+				}
+				if policies.Load()-calls != wantCalls || f.hasher.calls.Load() != hashes || f.ids.Load()-ids != wantIDs {
+					t.Fatal("unusable choice ran strength policy or rejection hashed/allocated identity", mode)
+				}
+			})
+		}
+	})
+	creationInputRun(t, "current_authority", func(t *testing.T) {
+		for _, mode := range []string{"usable", "unusable"} {
+			creationInputRun(t, mode, func(t *testing.T) {
+				f := newCreationInputFixture(t, false)
+				boundary := &creationChoiceBoundary{Backend: f.native}
+				var err error
+				f.runtime, err = project.NewAccountRuntime(t.Context(), boundary, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+				creationInputCheck(t, err)
+				h := f.admin(t)
+				data := h.choiceData(t, "Candidate", "  replacement secret  ", "  replacement secret  ", strconv.FormatBool(mode == "unusable"))
+				root, err := f.objects.Using(f.native).Filter(f.login.Exact("manager")).Get(t.Context())
+				creationInputCheck(t, err)
+				values, err := f.objects.ModelValues(root)
+				creationInputCheck(t, err)
+				revision, integer := values[f.role.Revision].Integer()
+				if !integer || f.role.Superuser.Field == "" {
+					t.Fatal("authority fixture has no mutable role/revision")
+				}
+				values[f.role.Superuser.Field], values[f.role.Revision] = query.Boolean(false), query.Integer(revision+1)
+				key, present, err := f.objects.PrimaryKey(root)
+				creationInputCheck(t, err)
+				id, integer := key.Integer()
+				if !present || !integer {
+					t.Fatal("authority fixture has no stored key")
+				}
+				before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+				attempts, callbacks := boundary.attempts.Load(), boundary.callbacks.Load()
+				f.recorded(true)
+				boundary.hook.Store(&creationChoiceHook{before: func(ctx context.Context) error {
+					return f.native.CoordinatedAtomic(ctx, func(scope db.Session) error {
+						candidate, err := f.objects.ApplyValues(root, map[string]query.Value{f.role.Superuser.Field: query.Boolean(false), f.role.Revision: query.Integer(revision + 1)})
+						if err != nil {
+							return err
+						}
+						return f.objects.Save(ctx, scope, &candidate, orm.ForceUpdate[usernameAccount]())
+					})
+				}})
+				status, header, _ := h.send(t, "POST", "/admin/accounts/add/", data)
+				wantHashes, wantPolicies := int64(0), 0
+				if mode == "usable" {
+					wantHashes, wantPolicies = 1, 2
+				}
+				if status != 403 || header.Get("Location") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" || boundary.hooks.Load() != 1 || boundary.hook.Load() != nil || boundary.attempts.Load()-attempts != 1 || boundary.callbacks.Load()-callbacks != 1 || f.hasher.calls.Load()-hashes != wantHashes || f.ids.Load()-ids != 1 || len(f.recorded(false)) != wantPolicies {
+					t.Fatal("Admin creation admitted stale authority or repeated work", mode, status)
+				}
+				current, err := f.objects.Using(f.native).Filter(f.key.Exact(id)).Get(t.Context())
+				creationInputCheck(t, err)
+				stored, err := f.objects.ModelValues(current)
+				creationInputCheck(t, err)
+				if !reflect.DeepEqual(values, stored) {
+					t.Fatal("authority commit changed more than the actor role and revision")
+				}
+				after := f.snapshot(t)
+				table, index := f.metadata.DBTable, f.keys[f.metadata.DBTable]
+				var original []any
+				for _, row := range before[table] {
+					if row[index] == id {
+						original = row
+					}
+				}
+				replaced := 0
+				for i, row := range after[table] {
+					if row[index] == id {
+						after[table][i] = original
+						replaced++
+					}
+				}
+				if original == nil || replaced != 1 || !reflect.DeepEqual(before, after) {
+					t.Fatal("rejected creation changed rows beyond the independent authority commit")
+				}
+				beforeNext := f.snapshot(t)
+				status, _, _ = h.send(t, "GET", "/admin/accounts/add/", nil)
+				if status != 403 || !reflect.DeepEqual(beforeNext, f.snapshot(t)) {
+					t.Fatal("next request reused old creation authority")
+				}
+			})
+		}
+	})
+}

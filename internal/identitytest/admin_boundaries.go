@@ -14,7 +14,6 @@ type adminMutationBoundary struct {
 	*systemstate.Runtime
 	mode          string
 	calls, faults int
-	before        func(context.Context) error
 }
 
 func (b *adminMutationBoundary) after(err error) error {
@@ -25,20 +24,10 @@ func (b *adminMutationBoundary) after(err error) error {
 }
 func (b *adminMutationBoundary) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
 	b.calls++
-	if b.before != nil {
-		if err := b.before(ctx); err != nil {
-			return err
-		}
-	}
 	return b.after(b.Runtime.CoordinatedAtomicRelation(ctx, callback))
 }
 func (b *adminMutationBoundary) CoordinatedAtomic(ctx context.Context, callback func(db.Session) error) error {
 	b.calls++
-	if b.before != nil {
-		if err := b.before(ctx); err != nil {
-			return err
-		}
-	}
 	return b.after(b.Runtime.CoordinatedAtomic(ctx, callback))
 }
 func (b *adminMutationBoundary) AppendAudit(ctx context.Context, session db.Session, event admin.PreparedEvent) error {
