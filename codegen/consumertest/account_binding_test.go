@@ -345,6 +345,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 				required = append(required, "TestGeneratedAccountManagementHTTP/native_revision_"+resource)
 				for _, access := range []string{"none", "view", "change", "add", "add_change", "missing_common", "delete"} {
 					required = append(required, "TestGeneratedAccountManagementHTTP/admission_"+resource+"_"+access)
+					required = append(required, "TestGeneratedAccountManagementHTTP/admission_"+resource+"_"+access+"/admin")
 				}
 			}
 			for _, operation := range []string{"create", "password"} {

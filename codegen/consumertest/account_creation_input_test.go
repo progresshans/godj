@@ -155,6 +155,15 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 					required = append(required, "TestAccountPasswordPolicyBoundaries/"+operation+"/"+mode)
 				}
 			}
+			const defaults = "TestAccountAdminDefaultPasswordPolicy"
+			required = append(required, defaults)
+			for _, operation := range []string{"create", "password"} {
+				prefix := defaults + "/" + operation
+				required = append(required, prefix)
+				for _, name := range []string{"short", "common", "numeric", "similarity", "combined", "success_and_reopen"} {
+					required = append(required, prefix+"/"+name)
+				}
+			}
 			const choices = "TestAccountAdminCreationChoices"
 			required = append(required, choices, choices+"/password_choice", choices+"/policy_and_validation", choices+"/current_authority")
 			for _, name := range []string{"default_missing", "enabled_missing", "enabled_mismatch", "enabled_equal", "disabled_empty", "disabled_mismatch", "disabled_equal", "disabled_duplicate"} {

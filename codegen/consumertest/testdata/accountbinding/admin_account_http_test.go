@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"example.com/godj-project-bundle/project"
+	auditmodels "github.com/progresshans/godj/account/audit/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"

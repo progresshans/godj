@@ -805,6 +805,13 @@ read consumer와 catalog 전환은 모든 필수 leaf·원문·제한을 유지�
 새 필수 child와 현행 순수 source 검사에 연결했다. 독립 CI 목록의 숫자 포함 owner 인식 실패도 수정했으며, 작성/정적 확인과
 다음 source의 실제 원격 수용은 TEST_EVIDENCE에서 구분한다. 남은 내장 Admin 등록·비밀번호·독립 기준 이관은 계속 필요하다.
 
+고정 Admin의 권한별 화면·관계 선택과 기본 비밀번호 정책 검사를 선택 모델의 실제 HTTP 소비자로 옮겼다. 계정·그룹·권한의
+현재 grant를 같은 staff 세션에서 바꾸어 조회 전용 입력/POST 차단과 catalog 조회 권한 없는 관계 선택을 확인한다.
+기본/renamed 생성 앱은 기본 strength 정책의 오류 순서·private 입력·해싱 전 거부, 성공 시 정확한 credential·세션 폐기·
+감사와 재접속을 전체 native 상태로 대조한다. 기존 서비스·독립 Django 기준·현재 프로필 재검사는 유지하며 옛 양 DB selector
+38개의 책임 대응과 새 process별 필수 202개 본문의 실행 여부를 TEST_EVIDENCE에 둔다. 선행 생성 소비자의 import 누락은
+수정했고 별도 macOS race reload 시간 초과는 아직 원인·해결을 확인하지 못했다. 이를 새 Admin 이관의 성공 근거로 사용하지 않는다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

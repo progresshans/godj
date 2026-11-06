@@ -7,9 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/progresshans/godj/auth"
 	hostmodels "github.com/progresshans/godj/conformance/identityfixture/models"
-	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	"github.com/progresshans/godj/identity/models"
@@ -31,25 +29,6 @@ func adminUserData(value identity.UserDetails) url.Values {
 		data.Add("permissions", strconv.FormatInt(id, 10))
 	}
 	return data
-}
-
-func adminPermissions(t *testing.T, f *managementFixture, staff bool, permissions ...auth.Permission) {
-	t.Helper()
-	if err := f.backend.CoordinatedAtomic(t.Context(), func(session db.Session) error {
-		for _, code := range permissions {
-			permission, err := models.PermissionObjects.Create(t.Context(), session, models.NewPermissionCreate(string(code), string(code)))
-			if err != nil {
-				return err
-			}
-			if _, err := models.UserPermissionsLinkObjects.Create(t.Context(), session, models.NewUserPermissionsLinkCreate(f.root.ID, permission.ID)); err != nil {
-				return err
-			}
-		}
-		_, err := models.UserObjects.Patch(t.Context(), session, f.root, models.UserPatch{}.WithSuperuser(false).WithStaff(staff).WithRevision(2))
-		return err
-	}); err != nil {
-		t.Fatal(err)
-	}
 }
 
 func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
@@ -207,53 +186,6 @@ func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, 
 		}
 		f.assertOutcome(t, false)
 	})
-	for _, tc := range []struct {
-		name   string
-		grants []auth.Permission
-		path   string
-		status int
-		detail bool
-	}{
-		{"user_change_can_select_without_target_view", []auth.Permission{identity.ChangeUser}, "users/change", 200, false},
-		{"user_view_is_read_only", []auth.Permission{identity.ViewUser}, "users/change", 200, true},
-		{"user_add_requires_change", []auth.Permission{identity.AddUser}, "users/add", 403, false},
-		{"user_add_and_change", []auth.Permission{identity.AddUser, identity.ChangeUser}, "users/add", 200, false},
-		{"group_add_can_select_without_target_view", []auth.Permission{identity.AddGroup}, "groups/add", 200, false},
-		{"group_change_can_select_without_target_view", []auth.Permission{identity.ChangeGroup}, "groups/change", 200, false},
-		{"group_view_is_read_only", []auth.Permission{identity.ViewGroup}, "groups/change", 200, true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			backend, _ := open(t)
-			f := newManagementFixture(t, backend, 0)
-			group, _, _ := managementUserSelections(t, f)
-			adminPermissions(t, f, true, tc.grants...)
-			h := newIdentityAdminHTTP(t, f, f.runtime)
-			h.loginAdmin(t, h.client, "manager", managementOldPassword)
-			path := "/admin/" + tc.path + "/"
-			if strings.HasSuffix(tc.path, "change") {
-				id := f.user.ID
-				if strings.HasPrefix(tc.path, "groups") {
-					id = group.ID
-				}
-				path += "?id=" + strconv.FormatInt(id, 10)
-			}
-			result := h.call(t, h.client, "GET", path, nil, tc.status)
-			if tc.status == 200 && tc.detail {
-				result.contains(t, `data-admin-view="detail"`)
-				result.excludes(t, ` name="permissions"`, ` name="username"`, ` name="expected_revision"`)
-				h.call(t, h.client, "POST", path, url.Values{"csrfmiddlewaretoken": {result.token(t)}, "expected_revision": {"1"}}, 403)
-			}
-			if tc.status == 200 && !tc.detail && strings.HasPrefix(tc.path, "groups") {
-				result.contains(t, "View ticket", "Change ticket")
-			}
-			if tc.name == "user_change_can_select_without_target_view" {
-				h.call(t, h.client, "POST", "/admin/users/add/", url.Values{"username": {"Candidate"}, "unusable_password": {"on"}, "csrfmiddlewaretoken": {result.token(t)}}, 403)
-				result.contains(t, "Editors", "View ticket")
-				h.call(t, h.client, "GET", "/admin/groups/", nil, 403)
-				h.call(t, h.client, "GET", "/admin/permissions/", nil, 403)
-			}
-		})
-	}
 	t.Run("self_password_success_survives_session_revocation", func(t *testing.T) {
 		backend, _ := open(t)
 		f := newManagementFixture(t, backend, 3)

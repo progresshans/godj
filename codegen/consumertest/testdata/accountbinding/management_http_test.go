@@ -1435,6 +1435,17 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		for _, code := range []auth.Permission{resource.view, resource.add, resource.change, resource.remove, resource.common} {
 			grantKey(code)
 		}
+		adminName := "admin-permit-" + resource.name + "@example.test"
+		const adminSecret = "HTTP Admin permission password"
+		adminFields := accountFields(adminName)
+		adminFields[role.Permissions] = []int64{grantKey(resource.common)}
+		if role.Staff.Field != "" {
+			adminFields[role.Staff.Field] = true
+		}
+		status, header, value = send(client, "POST", "/api/identity/accounts/", creationBody(adminFields, adminSecret), "", true)
+		adminActor := decodeReceipt(status, header, value, 201)
+		adminBrowser := newClient()
+		login(adminBrowser, adminName, adminSecret)
 		for _, access := range []string{"none", "view", "change", "add", "add_change", "missing_common", "delete"} {
 			run("admission_"+resource.name+"_"+access, func(t *testing.T) {
 				admissionIndex++
@@ -1487,6 +1498,101 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 				}
 				if access == "delete" {
 					deleteStatus = 200
+				}
+				if !t.Run("admin", func(t *testing.T) {
+					// Reuse one real staff session while its stored grants change.
+					// Previous successful admission must not authorize later pages.
+					status, header, value := send(client, "PATCH", path("accounts", adminActor.ID), fieldsBody(map[string]any{role.Permissions: keys}), strconv.FormatInt(adminActor.Revision, 10), true)
+					adminActor = decodeReceipt(status, header, value, 200)
+					before := snapshot()
+					hashes, policies := trackedHasher.calls.Load(), passwordPolicies.Load()
+					expect := func(method, endpoint string, data url.Values, want int) []byte {
+						t.Helper()
+						status, _, body := adminSend(adminBrowser, method, endpoint, data)
+						if status != want || strings.Contains(string(body), adminSecret) {
+							t.Fatal("selected Admin permission matrix", resource.name, access, method, endpoint, status, want)
+						}
+						for _, account := range before.Accounts {
+							values, err := objects.ModelValues(account)
+							check(err)
+							encoded, _ := values[role.Password].String()
+							if encoded != "" && strings.Contains(string(body), encoded) {
+								t.Fatal("Admin admission exposed a stored credential")
+							}
+						}
+						return body
+					}
+					base := "/admin/" + resource.name + "/"
+					change := base + "change/?id=" + strconv.FormatInt(target.ID, 10)
+					expect("GET", base, nil, readStatus)
+					detail := expect("GET", change, nil, readStatus)
+					expect("GET", base+"history/?id="+strconv.FormatInt(target.ID, 10), nil, readStatus)
+					addStatus := 403
+					if createStatus == 201 {
+						addStatus = 200
+					}
+					expect("GET", base+"add/", nil, addStatus)
+					if access == "view" {
+						if !strings.Contains(string(detail), `data-admin-view="detail"`) || strings.Contains(string(detail), `name="expected_revision"`) {
+							t.Fatal("view-only Admin rendered a mutable form")
+						}
+						fields := []string{role.Login, profileField, role.Groups, role.Permissions}
+						if resource.name == "groups" {
+							fields = []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}
+						} else if resource.name == "permissions" {
+							fields = []string{role.Catalog.PermissionCode, role.Catalog.PermissionName}
+						}
+						for _, field := range fields {
+							if strings.Contains(string(detail), `name="`+field+`"`) {
+								t.Fatal("view-only detail exposed a writable model input", field)
+							}
+						}
+					}
+					index := expect("GET", "/admin/", nil, 200)
+					token := adminToken.FindSubmatch(index)
+					if len(token) != 2 {
+						t.Fatal("Admin index did not supply real CSRF state")
+					}
+					data := url.Values{"csrfmiddlewaretoken": {string(token[1])}, "expected_revision": {"1"}}
+					if changeStatus == 403 {
+						expect("POST", change, data, 403)
+					}
+					if addStatus == 403 {
+						expect("POST", base+"add/", data, 403)
+					}
+					if changeStatus == 200 || addStatus == 200 {
+						operation, suffix := "add", ""
+						if changeStatus == 200 {
+							operation, suffix = "change", "id="+strconv.FormatInt(target.ID, 10)+"&"
+						}
+						type choiceRequest struct {
+							field, search string
+							id            int64
+						}
+						var choices []choiceRequest
+						if resource.name == "accounts" {
+							choices = append(choices, choiceRequest{role.Groups, "API renamed", group.ID}, choiceRequest{role.Permissions, "api.assigned", permission.ID})
+							expect("GET", "/admin/groups/", nil, 403)
+						}
+						if resource.name == "groups" {
+							choices = append(choices, choiceRequest{role.Catalog.GroupPermissions, "api.assigned", permission.ID})
+						}
+						for _, choice := range choices {
+							status, headers, body := adminSend(adminBrowser, "GET", base+operation+"/choices/"+choice.field+"/?"+suffix+"q="+url.QueryEscape(choice.search)+"&limit=1", nil)
+							page := managementHTTPReadChoices(t, status, headers, body)
+							if len(page.Items) != 1 || page.Items[0].Value != strconv.FormatInt(choice.id, 10) || page.Items[0].Label == "" || page.More {
+								t.Fatal("Admin selection required unrelated catalog view or lost the selected model")
+							}
+						}
+						if len(choices) != 0 {
+							expect("GET", "/admin/permissions/", nil, 403)
+						}
+					}
+					if trackedHasher.calls.Load() != hashes || passwordPolicies.Load() != policies || !reflect.DeepEqual(before, snapshot()) {
+						t.Fatal("Admin admission reads or rejected posts changed native state or password work")
+					}
+				}) {
+					t.FailNow()
 				}
 				expect("GET", "/api/identity/"+resource.name+"/", "", "", readStatus)
 				expect("GET", path(resource.name, target.ID), "", "", readStatus)

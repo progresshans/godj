@@ -3,9 +3,7 @@ package identitytest
 import (
 	"context"
 	"errors"
-	"net/url"
 	"reflect"
-	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -13,7 +11,6 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
-	identityadmin "github.com/progresshans/godj/identity/admin"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
@@ -50,142 +47,96 @@ func (boundary *validatorRollbackBoundary) CoordinatedAtomic(ctx context.Context
 
 func RunPasswordValidators(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
-	for _, channel := range []string{"service", "admin"} {
-		for _, operation := range []string{"create", "password"} {
-			t.Run(channel+"/"+operation, func(t *testing.T) {
-				backend, other := open(t)
-				f := newManagementFixture(t, backend, 3)
-				validators, err := identity.DefaultPasswordValidators()
-				if err != nil {
-					t.Fatal(err)
-				}
-				manager, err := identity.NewManager(f.runtime, f.hasher, auth.PrincipalAuthorizer{}, identity.WithPasswordValidators(validators...))
-				if err != nil {
-					t.Fatal(err)
-				}
-				var adminHTTP *identityAdminHTTP
-				switch channel {
-				case "admin":
-					adminHTTP = newIdentityAdminHTTP(t, f, f.runtime, func(config identityadmin.Config) identityadmin.Config {
-						return config.WithPasswordValidators(validators...)
-					})
-					adminHTTP.loginAdmin(t, adminHTTP.client, "manager", managementOldPassword)
-				}
-				// The service and Admin own their policy slice after registration.
-				for i := range validators {
-					validators[i] = nil
-				}
-				similar := "candidate12"
-				if operation == "password" {
-					similar = "member12"
-				}
-				for _, probe := range []struct {
-					name, password string
-					codes          []string
-				}{
-					{"short", "Ａ９", []string{"password_too_short"}},
-					{"common", " PASSWORD ", []string{"password_too_common"}},
-					{"numeric", "¹²³⁴⁵⁶⁷⁸", []string{"password_entirely_numeric"}},
-					{"similarity", similar, []string{"password_too_similar"}},
-					{"combined", "123", []string{"password_too_short", "password_too_common", "password_entirely_numeric"}},
-				} {
-					t.Run(probe.name, func(t *testing.T) {
-						var codes []string
-						switch channel {
-						case "service":
-							var id int64
-							if operation == "create" {
-								value, failure := manager.CreateUser(t.Context(), f.actor, identity.NewUserCreate("candidate", "Candidate"), probe.password)
-								id, err = value.ID, failure
-							} else {
-								value, failure := manager.SetPassword(t.Context(), f.actor, f.user.ID, 1, probe.password)
-								id, err = value.ID, failure
-							}
-							failures, rejected := validation.Rejected(err)
-							if !rejected || id != 0 {
-								t.Fatal("policy rejection lost", err)
-							}
-							for _, failure := range failures.All() {
-								if failure.Field() != "password" {
-									t.Fatal("wrong policy field")
-								}
-								codes = append(codes, string(failure.Code()))
-							}
-						case "admin":
-							path := adminObjectPath("users", "command/password", f.user.ID)
-							if operation == "create" {
-								path = "/admin/users/add/"
-							}
-							values := url.Values{"password1": {probe.password}, "password2": {probe.password}}
-							if operation == "create" {
-								values.Set("username", "Candidate")
-							}
-							response := adminHTTP.postForm(t, path, values, 200)
-							for _, match := range regexp.MustCompile(`data-error-field="password2" data-error-code="([^"]+)"`).FindAllStringSubmatch(response.body, -1) {
-								codes = append(codes, match[1])
-							}
-							fields := regexp.MustCompile(`<input\b[^>]*\bname="(?:password1|password2)"[^>]*>`).FindAllString(response.body, -1)
-							if len(fields) != 2 {
-								t.Fatal("private password widgets missing")
-							}
-							for _, field := range fields {
-								if strings.Contains(field, `value="`) && !strings.Contains(field, `value=""`) {
-									t.Fatal("password was redisplayed")
-								}
-							}
-						}
-						if !slices.Equal(codes, probe.codes) || f.hasher.calls.Load() != 0 {
-							t.Fatal("policy order/hash boundary", codes, f.hasher.calls.Load())
-						}
-						if count, err := models.UserObjects.Using(backend).Count(t.Context()); err != nil || count != 2 {
-							t.Fatal("rejected policy wrote user", err)
-						}
-						if !reflect.DeepEqual(f.stored(t), f.user) {
-							t.Fatal("rejected policy changed profile")
-						}
-						f.assertOutcome(t, false)
-					})
-				}
-				// Successful policies leave the exact secret intact, including
-				// spaces, and enter the ordinary atomic credential lifecycle.
-				username := "Candidate"
-				if operation == "password" {
-					username = f.user.Username
-				}
-				switch channel {
-				case "service":
+	for _, operation := range []string{"create", "password"} {
+		t.Run("service/"+operation, func(t *testing.T) {
+			backend, other := open(t)
+			f := newManagementFixture(t, backend, 3)
+			validators, err := identity.DefaultPasswordValidators()
+			if err != nil {
+				t.Fatal(err)
+			}
+			manager, err := identity.NewManager(f.runtime, f.hasher, auth.PrincipalAuthorizer{}, identity.WithPasswordValidators(validators...))
+			if err != nil {
+				t.Fatal(err)
+			}
+			// The manager owns its policy slice after construction.
+			for i := range validators {
+				validators[i] = nil
+			}
+			similar := "candidate12"
+			if operation == "password" {
+				similar = "member12"
+			}
+			for _, probe := range []struct {
+				name, password string
+				codes          []string
+			}{
+				{"short", "Ａ９", []string{"password_too_short"}},
+				{"common", " PASSWORD ", []string{"password_too_common"}},
+				{"numeric", "¹²³⁴⁵⁶⁷⁸", []string{"password_entirely_numeric"}},
+				{"similarity", similar, []string{"password_too_similar"}},
+				{"combined", "123", []string{"password_too_short", "password_too_common", "password_entirely_numeric"}},
+			} {
+				t.Run(probe.name, func(t *testing.T) {
+					var codes []string
+					var id int64
 					if operation == "create" {
-						_, err = manager.CreateUser(t.Context(), f.actor, identity.NewUserCreate("candidate", "Candidate"), managementNewPassword)
+						value, failure := manager.CreateUser(t.Context(), f.actor, identity.NewUserCreate("candidate", "Candidate"), probe.password)
+						id, err = value.ID, failure
 					} else {
-						_, err = manager.SetPassword(t.Context(), f.actor, f.user.ID, 1, managementNewPassword)
+						value, failure := manager.SetPassword(t.Context(), f.actor, f.user.ID, 1, probe.password)
+						id, err = value.ID, failure
 					}
-					if err != nil {
-						t.Fatal(err)
+					failures, rejected := validation.Rejected(err)
+					if !rejected || id != 0 {
+						t.Fatal("policy rejection lost", err)
 					}
-				case "admin":
-					path := adminObjectPath("users", "command/password", f.user.ID)
-					values := url.Values{"password1": {managementNewPassword}, "password2": {managementNewPassword}}
-					if operation == "create" {
-						path = "/admin/users/add/"
-						values.Set("username", "Candidate")
+					for _, failure := range failures.All() {
+						if failure.Field() != "password" {
+							t.Fatal("wrong policy field")
+						}
+						codes = append(codes, string(failure.Code()))
 					}
-					adminHTTP.postForm(t, path, values, 302)
-				}
-				if f.hasher.calls.Load() != 1 {
-					t.Fatal("success did not hash exactly once")
-				}
-				f.assertOutcome(t, operation == "password")
-				reopened, err := systemstate.OpenIdentity(t.Context(), other, systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher.PasswordHasher, MaxSessions: 512})
-				if err != nil {
-					t.Fatal(err)
-				}
-				h := newIdentityHTTPWithRuntime(t, reopened)
-				h.login(t, h.client, username, managementNewPassword, 200)
-				if trimmed := strings.TrimSpace(managementNewPassword); trimmed != managementNewPassword {
-					h.login(t, h.newClient(t), username, trimmed, 401)
-				}
-			})
-		}
+					if !slices.Equal(codes, probe.codes) || f.hasher.calls.Load() != 0 {
+						t.Fatal("policy order/hash boundary", codes, f.hasher.calls.Load())
+					}
+					if count, err := models.UserObjects.Using(backend).Count(t.Context()); err != nil || count != 2 {
+						t.Fatal("rejected policy wrote user", err)
+					}
+					if !reflect.DeepEqual(f.stored(t), f.user) {
+						t.Fatal("rejected policy changed profile")
+					}
+					f.assertOutcome(t, false)
+				})
+			}
+			// Successful policies leave the exact secret intact, including
+			// spaces, and enter the ordinary atomic credential lifecycle.
+			username := "Candidate"
+			if operation == "password" {
+				username = f.user.Username
+			}
+			if operation == "create" {
+				_, err = manager.CreateUser(t.Context(), f.actor, identity.NewUserCreate("candidate", "Candidate"), managementNewPassword)
+			} else {
+				_, err = manager.SetPassword(t.Context(), f.actor, f.user.ID, 1, managementNewPassword)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if f.hasher.calls.Load() != 1 {
+				t.Fatal("success did not hash exactly once")
+			}
+			f.assertOutcome(t, operation == "password")
+			reopened, err := systemstate.OpenIdentity(t.Context(), other, systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher.PasswordHasher, MaxSessions: 512})
+			if err != nil {
+				t.Fatal(err)
+			}
+			h := newIdentityHTTPWithRuntime(t, reopened)
+			h.login(t, h.client, username, managementNewPassword, 200)
+			if trimmed := strings.TrimSpace(managementNewPassword); trimmed != managementNewPassword {
+				h.login(t, h.newClient(t), username, trimmed, 401)
+			}
+		})
 	}
 	t.Run("policy_is_explicit_and_authorization_precedes_rejection", func(t *testing.T) {
 		backend, _ := open(t)

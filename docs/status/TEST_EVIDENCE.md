@@ -4800,6 +4800,53 @@ Gofmt·diff·문서 링크 245개와 Python CI 분할/실행 owner 검사 37개(
 로컬 Go compile/test는 실행하지 않았다. 새 Form/Admin 이관과 CI 목록 보정의
 양 DB·normal/race/CGO-disabled·생성 process·전체 platform/cold-build 및 원본 수용은 다음 source에서 확인해야 한다.
 
+### 선택 Admin 권한별 화면과 기본 비밀번호 정책 이관
+
+2026-11-07, `b7ca6e06e20e9a7aae3ea76c9b2f378bca3b224f` 위에서 고정 Admin의 권한 화면 7개와 기본 비밀번호 정책의
+생성/변경 root·child 12개를 선택 모델 소비자로 옮겼다. SQLite/PostgreSQL 필수 목록에서 각각 19개, 총 38개 selector만
+제거했다. 서비스 validator의 다섯 입력·성공/재접속, 명시적 정책 선택·인가 우선과 현재 프로필 재검사 네 경계는 유지한다.
+독립 Django producer/capture와 고정 Admin의 나머지 실제 CRUD·private 입력·자기 비밀번호·Unicode/unusable 소비자도 유지한다.
+
+| 옛 고정 Admin 책임 | 선택 owner에서 계속 요구하는 검사 |
+|---|---|
+| user/group의 view-only 화면, add/change 조합, 관련 catalog의 view 권한 없는 선택 | `TestGeneratedAccountManagementHTTP/admission_{accounts,groups,permissions}_{none,view,change,add,add_change,missing_common,delete}/admin` 21개. 같은 실제 staff 세션의 현재 grant를 별도 root 요청으로 변경하고 목록·상세·이력·추가 화면, 읽기 전용 input/expected_revision 비노출, CSRF가 있는 금지 POST와 bounded 관계 선택을 대조한다. 관련 catalog 목록은 여전히 403이어야 한다. |
+| 기본 strength 정책 short/common/numeric/similarity/combined 오류의 순서와 해싱 전 거부 | `TestAccountAdminDefaultPasswordPolicy/{create,password}/{short,common,numeric,similarity,combined}`. 기본/renamed login 역할에 정책을 바인딩하며 호출자 선언 slice 변경이 정책을 바꾸지 않아야 한다. 두 private widget은 비어 있고 진단은 해당 confirmation field에만 나타나며 hash/ID/native 행은 바뀌지 않아야 한다. |
+| 성공 후 비밀번호 원문 보존·세션 폐기·재접속 | 같은 두 operation의 `success_and_reopen`. Create는 사전/최종 정책 fence와 ID/hash 한 번을, password는 정확한 Password/Revision 변경·대상 세션 세 개 폐기·선택 domain/actor/model/field의 감사 한 개를 확인한다. 별도로 연 DB의 생성 runtime에서 원문만 인증되고 이전/trimmed 값은 거부돼야 한다. 기존 실제 HTTP login 소비자는 유지한다. |
+
+Admin 권한 행렬의 원래 JSON actor는 non-staff로 유지하고 별도의 staff actor를 만든다. 각 Admin 검사 전후 원래 native
+backend의 전체 계정/catalog/물리 through/session/domain/audit를 비교하며, 비밀값 노출·hash/정책 호출도 금지한다.
+비밀번호 변경 성공은 native session의 실제 primary key로 폐기 대상을 대조하고, target Password/Revision·세 session·
+검증한 감사 한 개 외의 모든 물리 행을 보존해야 한다. 생성 성공은 기존 독립 native 생성 관측을 재사용한다.
+
+생성 부모는 위 Admin child 21개와 별도 기본 정책 root/group/leaf 15개를 필수로 요구한다. 입력 정책 소비자는
+기본/renamed × SQLite/PostgreSQL 각 process의 필수 목록을 187개에서 202개로 늘렸다. 기존 실패 주입·준비 수명·독립
+원문 검사를 제거하지 않았다. Gofmt·diff와 Python CI 분할 검사 27개(35.619초)는 통과했다. 로컬 Go compile/test는
+실행하지 않았으며 새 본문의 양 DB·normal/race/CGO-disabled·process·전체 platform 수용은 다음 source의 원격 확인 대상이다.
+
+### 선행 source의 생성 import 실패와 Intel macOS race reload 시간 초과
+
+Source `b7ca6e06`의 [CI 42240718977](https://github.com/progresshans/godj/actions/runs/42240718977), attempt 1은
+전체 성공이 아니다. 실제 checkout `c0db324ea97a795e782c947fe9257c39bdc003fa`와 제출 source의 tree는
+`7d38601fc608ed8232965b2705727a54fb89da76`로 같다.
+
+- Core-vet [job 127970950872](https://github.com/progresshans/godj/actions/runs/42240718977/job/127970950872)의 전체 원 로그에서
+  Python 104개(146.405초), `CI_TOOLS_VERIFIED tests=104 skips=0`와 job 성공을 확인했다. 숫자가 있는 실행 owner를 놓친
+  선행 Python 실패의 해소 근거이며 Go/DB 소비자 전체의 수용 근거는 아니다.
+- PostgreSQL management normal/race/CGO0의 job `127970955109`·`127970955328`·`127970956127`과 Linux arm64 normal
+  relation shard `127970971025`에서 생성 소비자의 `admin_account_http_test.go:617:16: undefined: auditmodels`를 확인했다.
+  공통 native 관측으로 옮긴 뒤에도 남은 delete 감사 조회가 쓰는 import를 복구했다. 새 source의 compile/실행은 별도 확인한다.
+- Intel macOS race [job 127970951623](https://github.com/progresshans/godj/actions/runs/42240718977/job/127970951623)은
+  Notes의 CLI 준비 10분 제한에서 종료됐다. 마지막 관측 단계는 `candidate_compile`이고 root는 631.36초 뒤 실패했다.
+  이어 Article은 첫 Admin login 요청에서 응답 header 대기 제한에 걸려 486.28초 뒤 실패했다. 각각 필수 8개/4개 중 root만
+  실행됐으며 기능 child는 수용되지 않았다. 원인은 확정하지 않았고 시간 제한·필수 검사·제품 코드를 완화하지 않았다.
+
+Reload artifact `13516714907`은 archive 크기 7,231 bytes, SHA-256
+`732beaf2305247819a2966331fd572c7d5ca3263d871244f56082865bcc7440b`와 ZIP CRC, 모든 `SHA256SUMS` payload 및
+source/run/attempt/platform을 대조했다. 원본과 실패 판정은 검증 보관소의
+`gdj0138-b7ca6e06-ci-42240718977/reload-failure-inspection.json`에 보존했다
+(SHA-256 `3eadea8907edba57f9473095309905533a4ef4354451724090b3ba8a69a4fb02`).
+이 실패 원본 대조를 새 Admin 이관이나 I1 전체 수용으로 계산하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
