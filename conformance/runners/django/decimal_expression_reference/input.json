@@ -1,0 +1,95 @@
+{
+  "rates": [
+    {
+      "code": "retail",
+      "factor": "1.25",
+      "flat": "0.5"
+    },
+    {
+      "code": "budget",
+      "factor": "0.5",
+      "flat": "-1"
+    },
+    {
+      "code": "missing",
+      "factor": null,
+      "flat": "2"
+    }
+  ],
+  "entries": [
+    {
+      "code": "a",
+      "bucket": "first",
+      "enabled": true,
+      "amount": "12.5",
+      "balance": "100",
+      "fine": "0.123456",
+      "wide": "0.1",
+      "rate": "retail"
+    },
+    {
+      "code": "b",
+      "bucket": "first",
+      "enabled": false,
+      "amount": "-7.25",
+      "balance": "200",
+      "fine": "-0.000001",
+      "wide": "0.2",
+      "rate": "budget"
+    },
+    {
+      "code": "c",
+      "bucket": "second",
+      "enabled": true,
+      "amount": null,
+      "balance": "0",
+      "fine": "1.000001",
+      "wide": "0.1",
+      "rate": null
+    },
+    {
+      "code": "d",
+      "bucket": "second",
+      "enabled": false,
+      "amount": "0",
+      "balance": "-0.5",
+      "fine": null,
+      "wide": null,
+      "rate": "retail"
+    },
+    {
+      "code": "e",
+      "bucket": "first",
+      "enabled": true,
+      "amount": "12.5",
+      "balance": "1",
+      "fine": "0.123456",
+      "wide": "0.1",
+      "rate": "missing"
+    },
+    {
+      "code": "f",
+      "bucket": "second",
+      "enabled": true,
+      "amount": "100",
+      "balance": "3",
+      "fine": "0.333333",
+      "wide": "0.3",
+      "rate": "budget"
+    }
+  ],
+  "adjustments": [
+    {
+      "entry": "a",
+      "bonus": "2.25"
+    },
+    {
+      "entry": "c",
+      "bonus": "0"
+    },
+    {
+      "entry": "e",
+      "bonus": null
+    }
+  ]
+}

@@ -1,0 +1,635 @@
+{
+  "django": "6.1",
+  "cases": [
+    {
+      "input": "",
+      "required": true,
+      "value": null,
+      "codes": [
+        "required"
+      ]
+    },
+    {
+      "input": " ",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "\t",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "0",
+      "required": true,
+      "value": "0",
+      "codes": []
+    },
+    {
+      "input": "-0",
+      "required": true,
+      "value": "0",
+      "codes": []
+    },
+    {
+      "input": "+0",
+      "required": true,
+      "value": "0",
+      "codes": []
+    },
+    {
+      "input": "001",
+      "required": true,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "-001",
+      "required": true,
+      "value": "-1",
+      "codes": []
+    },
+    {
+      "input": "+42",
+      "required": true,
+      "value": "42",
+      "codes": []
+    },
+    {
+      "input": "1.0",
+      "required": true,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "1.",
+      "required": true,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "-12.000",
+      "required": true,
+      "value": "-12",
+      "codes": []
+    },
+    {
+      "input": "1.2",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1e2",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "0x10",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "NaN",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "Infinity",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "+",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "-",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "_1",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1_",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1__0",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1_000",
+      "required": true,
+      "value": "1000",
+      "codes": []
+    },
+    {
+      "input": "-1_000.00",
+      "required": true,
+      "value": "-1000",
+      "codes": []
+    },
+    {
+      "input": "1 .0",
+      "required": true,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "1.0.0",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1 0",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": " 42 ",
+      "required": true,
+      "value": "42",
+      "codes": []
+    },
+    {
+      "input": "\u00a0-12\u2003",
+      "required": true,
+      "value": "-12",
+      "codes": []
+    },
+    {
+      "input": "\uff11\uff12\uff13",
+      "required": true,
+      "value": "123",
+      "codes": []
+    },
+    {
+      "input": "\u0661\u0662\u0663",
+      "required": true,
+      "value": "123",
+      "codes": []
+    },
+    {
+      "input": "\ud835\udfdc\ud835\udfda",
+      "required": true,
+      "value": "42",
+      "codes": []
+    },
+    {
+      "input": "\u00b2",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "\u0661_\u0662",
+      "required": true,
+      "value": "12",
+      "codes": []
+    },
+    {
+      "input": "1.\uff10\uff10",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "\u001c1",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1\u001c",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1.0\u001c",
+      "required": true,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "9223372036854775807",
+      "required": true,
+      "value": "9223372036854775807",
+      "codes": []
+    },
+    {
+      "input": "-9223372036854775808",
+      "required": true,
+      "value": "-9223372036854775808",
+      "codes": []
+    },
+    {
+      "input": "9223372036854775808",
+      "required": true,
+      "value": null,
+      "codes": [
+        "max_value"
+      ]
+    },
+    {
+      "input": "-9223372036854775809",
+      "required": true,
+      "value": null,
+      "codes": [
+        "min_value"
+      ]
+    },
+    {
+      "input": "00000000000000000000000000000000000000000000000000000000000000001",
+      "required": true,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "required": true,
+      "value": null,
+      "codes": [
+        "max_value"
+      ]
+    },
+    {
+      "input": "1\u0000",
+      "required": true,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "",
+      "required": false,
+      "value": null,
+      "codes": []
+    },
+    {
+      "input": " ",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "\t",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "0",
+      "required": false,
+      "value": "0",
+      "codes": []
+    },
+    {
+      "input": "-0",
+      "required": false,
+      "value": "0",
+      "codes": []
+    },
+    {
+      "input": "+0",
+      "required": false,
+      "value": "0",
+      "codes": []
+    },
+    {
+      "input": "001",
+      "required": false,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "-001",
+      "required": false,
+      "value": "-1",
+      "codes": []
+    },
+    {
+      "input": "+42",
+      "required": false,
+      "value": "42",
+      "codes": []
+    },
+    {
+      "input": "1.0",
+      "required": false,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "1.",
+      "required": false,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "-12.000",
+      "required": false,
+      "value": "-12",
+      "codes": []
+    },
+    {
+      "input": "1.2",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1e2",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "0x10",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "NaN",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "Infinity",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "+",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "-",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "_1",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1_",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1__0",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1_000",
+      "required": false,
+      "value": "1000",
+      "codes": []
+    },
+    {
+      "input": "-1_000.00",
+      "required": false,
+      "value": "-1000",
+      "codes": []
+    },
+    {
+      "input": "1 .0",
+      "required": false,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "1.0.0",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1 0",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": " 42 ",
+      "required": false,
+      "value": "42",
+      "codes": []
+    },
+    {
+      "input": "\u00a0-12\u2003",
+      "required": false,
+      "value": "-12",
+      "codes": []
+    },
+    {
+      "input": "\uff11\uff12\uff13",
+      "required": false,
+      "value": "123",
+      "codes": []
+    },
+    {
+      "input": "\u0661\u0662\u0663",
+      "required": false,
+      "value": "123",
+      "codes": []
+    },
+    {
+      "input": "\ud835\udfdc\ud835\udfda",
+      "required": false,
+      "value": "42",
+      "codes": []
+    },
+    {
+      "input": "\u00b2",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "\u0661_\u0662",
+      "required": false,
+      "value": "12",
+      "codes": []
+    },
+    {
+      "input": "1.\uff10\uff10",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "\u001c1",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1\u001c",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    },
+    {
+      "input": "1.0\u001c",
+      "required": false,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "9223372036854775807",
+      "required": false,
+      "value": "9223372036854775807",
+      "codes": []
+    },
+    {
+      "input": "-9223372036854775808",
+      "required": false,
+      "value": "-9223372036854775808",
+      "codes": []
+    },
+    {
+      "input": "9223372036854775808",
+      "required": false,
+      "value": null,
+      "codes": [
+        "max_value"
+      ]
+    },
+    {
+      "input": "-9223372036854775809",
+      "required": false,
+      "value": null,
+      "codes": [
+        "min_value"
+      ]
+    },
+    {
+      "input": "00000000000000000000000000000000000000000000000000000000000000001",
+      "required": false,
+      "value": "1",
+      "codes": []
+    },
+    {
+      "input": "999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999",
+      "required": false,
+      "value": null,
+      "codes": [
+        "max_value"
+      ]
+    },
+    {
+      "input": "1\u0000",
+      "required": false,
+      "value": null,
+      "codes": [
+        "invalid"
+      ]
+    }
+  ]
+}

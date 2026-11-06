@@ -1,0 +1,199 @@
+[
+  {
+    "name": "omitted",
+    "present": false
+  },
+  {
+    "name": "null",
+    "present": true,
+    "value": null
+  },
+  {
+    "name": "empty",
+    "present": true,
+    "value": ""
+  },
+  {
+    "name": "one",
+    "present": true,
+    "value": "Zg=="
+  },
+  {
+    "name": "two",
+    "present": true,
+    "value": "Zm8="
+  },
+  {
+    "name": "three",
+    "present": true,
+    "value": "Zm9v"
+  },
+  {
+    "name": "nonzero_pad_bits_one",
+    "present": true,
+    "value": "Zh=="
+  },
+  {
+    "name": "nonzero_pad_bits_two",
+    "present": true,
+    "value": "Zm9="
+  },
+  {
+    "name": "unpadded_one",
+    "present": true,
+    "value": "Zg"
+  },
+  {
+    "name": "unpadded_two",
+    "present": true,
+    "value": "Zm8"
+  },
+  {
+    "name": "one_extra_padding",
+    "present": true,
+    "value": "Zg==="
+  },
+  {
+    "name": "aligned_extra_padding",
+    "present": true,
+    "value": "Zm9v="
+  },
+  {
+    "name": "aligned_four_padding",
+    "present": true,
+    "value": "Zm9v===="
+  },
+  {
+    "name": "leading_padding",
+    "present": true,
+    "value": "=Zg=="
+  },
+  {
+    "name": "internal_padding",
+    "present": true,
+    "value": "Z=g="
+  },
+  {
+    "name": "only_padding",
+    "present": true,
+    "value": "===="
+  },
+  {
+    "name": "trailing_data",
+    "present": true,
+    "value": "Zg==YQ=="
+  },
+  {
+    "name": "newline",
+    "present": true,
+    "value": "Zg==\n"
+  },
+  {
+    "name": "crlf",
+    "present": true,
+    "value": "Zg==\r\n"
+  },
+  {
+    "name": "internal_newline",
+    "present": true,
+    "value": "Zg\n=="
+  },
+  {
+    "name": "padded_ascii",
+    "present": true,
+    "value": " \tZg==\r\n"
+  },
+  {
+    "name": "padded_unicode",
+    "present": true,
+    "value": " Zg==　"
+  },
+  {
+    "name": "vertical_whitespace",
+    "present": true,
+    "value": "\u001cZg==\u001f"
+  },
+  {
+    "name": "embedded_space",
+    "present": true,
+    "value": "Z g=="
+  },
+  {
+    "name": "nul",
+    "present": true,
+    "value": "Zg==\u0000"
+  },
+  {
+    "name": "zero_width",
+    "present": true,
+    "value": "​Zg=="
+  },
+  {
+    "name": "non_ascii",
+    "present": true,
+    "value": "읽기"
+  },
+  {
+    "name": "url_safe",
+    "present": true,
+    "value": "-_8="
+  },
+  {
+    "name": "binary",
+    "present": true,
+    "value": "AAH/AA=="
+  },
+  {
+    "name": "four",
+    "present": true,
+    "value": "AAECAw=="
+  },
+  {
+    "name": "over_four",
+    "present": true,
+    "value": "AAECAwQ="
+  },
+  {
+    "name": "ten",
+    "present": true,
+    "value": "AAECAwQFBgcICQ=="
+  },
+  {
+    "name": "bool_true",
+    "present": true,
+    "value": true
+  },
+  {
+    "name": "bool_false",
+    "present": true,
+    "value": false
+  },
+  {
+    "name": "integer",
+    "present": true,
+    "value": 1
+  },
+  {
+    "name": "float",
+    "present": true,
+    "value": 1.5
+  },
+  {
+    "name": "list",
+    "present": true,
+    "value": []
+  },
+  {
+    "name": "object",
+    "present": true,
+    "value": {}
+  },
+  {
+    "name": "list_bytes",
+    "present": true,
+    "value": [
+      0,
+      255
+    ]
+  }
+]

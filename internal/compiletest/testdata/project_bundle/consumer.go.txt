@@ -1,0 +1,5 @@
+package consumer
+
+import project "example.com/godj-project-bundle/project"
+
+var _ = project.GoDjProjectRelationFacadeGeneratorVersion

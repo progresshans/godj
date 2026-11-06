@@ -1,0 +1,3 @@
+package consumer
+import("github.com/progresshans/godj/clock";"github.com/progresshans/godj/examples/helpdesk/models")
+var _ = models.NewTicketCreate("duration",1).WithElapsed(clock.Time{})

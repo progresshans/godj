@@ -1,0 +1,85 @@
+// Package site assembles this project's HTTP surface. cmd/site restricts this
+// development application to a literal loopback listener before opening a DB.
+package site
+
+import (
+	"context"
+	"errors"
+	"net/http"
+
+	"github.com/progresshans/godj/admin"
+	apisessionauth "github.com/progresshans/godj/api/sessionauth"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/identity"
+	identityaccount "github.com/progresshans/godj/identity/account"
+	identityadmin "github.com/progresshans/godj/identity/admin"
+	identityapi "github.com/progresshans/godj/identity/api"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/web"
+	websessionauth "github.com/progresshans/godj/web/sessionauth"
+	"[[.Module]]/internal/accounts"
+	"[[.Module]]/project"
+)
+
+func Application(ctx context.Context, backend database.Backend) (*web.Application, error) {
+	configured, err := settings.New(settings.Definition{ProjectName: "[[.Module]]", InstalledApps: project.InstalledApps()})
+	if err != nil { return nil, err }
+	routes := []web.Route{{Name: "site:home", Method: http.MethodGet, Path: "/", Handler: func(*web.Request) (web.Response, error) {
+		return web.NewResponse(http.StatusOK, http.Header{"Content-Type": {"text/html; charset=utf-8"}}, []byte(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>GoDj project</title><main><h1>Your GoDj project is running</h1><p><a href="/admin/">Open administration</a></p><p>Create the initial account with godj createsuperuser after applying migrations.</p></main></html>`))
+	}}}
+	runtime, err := accounts.New(ctx, backend)
+	if err != nil { return nil, err }
+	inspection, err := runtime.InspectStartup(ctx)
+	if err != nil { return nil, err }
+	if inspection.Fresh() { return web.NewApplication(web.Config{Settings: configured, Routes: routes}) }
+	if !inspection.Ready() { return nil, errors.New("account storage is unavailable") }
+	builder := admin.NewBuilder(configured.Apps())
+	if err := identityadmin.RegisterAccount(builder, runtime.Accounts(), identityadmin.AccountRegistration{
+		Slug: "users", ListFields: []string{"id", "username", "email", "active", "staff", "superuser"},
+	}); err != nil { return nil, err }
+	if err := identityadmin.RegisterCatalog(builder, runtime.Catalog(), identityadmin.CatalogRegistration{
+		Groups: identityadmin.CatalogPresentation{Slug: "groups", ListFields: []string{"id", "name"}},
+		Permissions: identityadmin.CatalogPresentation{Slug: "permissions", ListFields: []string{"id", "code", "name"}},
+	}); err != nil { return nil, err }
+	if err := registerProjectModels(builder, runtime); err != nil { return nil, err }
+	registry, err := builder.Build()
+	if err != nil { return nil, err }
+	allowedNext, err := admin.SiteAllowedNextPaths(registry, "/admin")
+	if err != nil { return nil, err }
+	accountNext, err := identityaccount.AllowedNextPaths(identityaccount.DefaultBasePath)
+	if err != nil { return nil, err }
+	allowedNext = append(allowedNext, accountNext...)
+	webAuth, err := websessionauth.New(websessionauth.Config{
+		Sessions: runtime.Sessions(), Authenticator: runtime.Authenticator(), LoginPersistence: runtime.LoginPersistence(),
+		PasswordChangePersistence: runtime.PasswordChangePersistence(), Authorizer: auth.PrincipalAuthorizer{},
+		SessionCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
+		CSRFCookie: websessionauth.CookieConfig{Path: "/", AllowInsecure: true},
+		LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: allowedNext,
+	})
+	if err != nil { return nil, err }
+	adminSite, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "site", BasePath: "/admin", Registry: registry, Auth: webAuth, AdditionalNextPaths: accountNext})
+	if err != nil { return nil, err }
+	apiAuth, err := apisessionauth.New(webAuth)
+	if err != nil { return nil, err }
+	identityAPI, err := identityapi.NewManagement(runtime.Accounts(), runtime.Catalog(), identityapi.ManagementConfig{
+		Namespace: "site", Authentication: apiAuth,
+	})
+	if err != nil { return nil, err }
+	document, err := identityAPI.OpenAPI()
+	if err != nil { return nil, err }
+	schemaHandler, err := apiAuth.RequireAny(identity.ViewUser, func(*web.Request, auth.Principal) (web.Response, error) { return document.Response() }, identity.ChangeUser, identity.ViewGroup, identity.ChangeGroup, identity.ViewPermission, identity.ChangePermission)
+	if err != nil { return nil, err }
+	account, err := identityaccount.New(identityaccount.Config{Apps: configured.Apps(), Namespace: "site", Auth: webAuth})
+	if err != nil { return nil, err }
+	applicationRoutes, applicationMiddleware, err := projectRoutes(runtime, apiAuth)
+	if err != nil { return nil, err }
+	routes = append(routes, adminSite.Routes()...)
+	routes = append(routes, identityAPI.Routes()...)
+	routes = append(routes, account.Routes()...)
+	routes = append(routes, web.Route{Name: "site:identity-openapi", Method: http.MethodGet, Path: identityapi.BasePath + "openapi.json", Handler: schemaHandler})
+	routes = append(routes, applicationRoutes...)
+	middleware := append(identityAPI.Middleware(), account.Middleware()...)
+	middleware = append(middleware, applicationMiddleware...)
+	return web.NewApplication(web.Config{Settings: configured, Routes: routes, Middleware: middleware})
+}

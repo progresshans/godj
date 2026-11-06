@@ -1,0 +1,2072 @@
+{
+  "assignment": [
+    {
+      "name": "reverse_saved_required",
+      "states": {
+        "after_child_save": [
+          true
+        ],
+        "after_clear_save": [
+          true
+        ],
+        "after_owner_save": [
+          true
+        ],
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "before_save": [
+          true
+        ],
+        "cleared": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_required",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          false,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_success_required",
+      "states": {
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "cold_clear_required",
+      "states": {
+        "cleared": [
+          false,
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "read_after_clear": {
+          "error": "",
+          "selects": 1,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "replacement_required",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "failure_preserved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "reassigned": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "reassign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_duplicate": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_forward_required",
+      "states": {
+        "assigned": [
+          true,
+          true
+        ],
+        "saved": [
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "forward_clear_required",
+      "states": {
+        "cleared": [
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "reverse_saved_optional",
+      "states": {
+        "after_child_save": [
+          true
+        ],
+        "after_clear_save": [
+          true
+        ],
+        "after_owner_save": [
+          true
+        ],
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "before_save": [
+          true
+        ],
+        "cleared": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_optional",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true
+        ],
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          false,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "unsaved_reverse_success_optional",
+      "states": {
+        "child_saved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "owner_saved": [
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "cold_clear_optional",
+      "states": {
+        "cleared": [
+          false,
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "read_after_clear": {
+          "error": "",
+          "selects": 1,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "replacement_optional",
+      "states": {
+        "assigned": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "failure_preserved": [
+          true,
+          true,
+          true,
+          true
+        ],
+        "reassigned": [
+          true,
+          true,
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "reassign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_duplicate": {
+          "error": "IntegrityError",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    },
+    {
+      "name": "unsaved_forward_optional",
+      "states": {
+        "assigned": [
+          true,
+          true
+        ],
+        "saved": [
+          true,
+          true,
+          true
+        ]
+      },
+      "steps": {
+        "assign": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_unsaved": {
+          "error": "ValueError",
+          "selects": 0,
+          "writes": 0
+        }
+      }
+    },
+    {
+      "name": "forward_clear_optional",
+      "states": {
+        "cleared": [
+          true
+        ],
+        "stored": [
+          true
+        ]
+      },
+      "steps": {
+        "clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 0
+        },
+        "save_clear": {
+          "error": "",
+          "selects": 0,
+          "writes": 1
+        }
+      }
+    }
+  ],
+  "backend": "postgresql",
+  "database_version": "170005",
+  "django": "6.1",
+  "django_related_field_source_sha256": "ec8350235a0f3b3b17dcb6eb797fb1097c25a99ad5105d54174e68b94b24e1e3",
+  "eager": [
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "report",
+      "rows": [
+        {
+          "report": 1,
+          "root": 1
+        },
+        {
+          "report": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "optional",
+      "rows": [
+        {
+          "optional_report": null,
+          "root": 1
+        },
+        {
+          "optional_report": 1,
+          "root": 2
+        },
+        {
+          "optional_report": null,
+          "root": 3
+        },
+        {
+          "optional_report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "review",
+      "rows": [
+        {
+          "review": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "review": 2,
+          "review_approved": null,
+          "review_score": null,
+          "root": 2
+        },
+        {
+          "review": 3,
+          "review_approved": false,
+          "review_score": 12,
+          "root": 3
+        },
+        {
+          "review": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "multiple",
+      "rows": [
+        {
+          "optional_report": null,
+          "report": 1,
+          "review": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "optional_report": 1,
+          "report": null,
+          "review": 2,
+          "review_approved": null,
+          "review_score": null,
+          "root": 2
+        },
+        {
+          "optional_report": null,
+          "report": null,
+          "review": 3,
+          "review_approved": false,
+          "review_score": 12,
+          "root": 3
+        },
+        {
+          "optional_report": null,
+          "report": null,
+          "review": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 1,
+      "left_joins": 0,
+      "load_selects": 1,
+      "name": "present",
+      "rows": [
+        {
+          "report": 1,
+          "root": 1
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 1,
+      "load_selects": 1,
+      "name": "absent",
+      "rows": [
+        {
+          "report": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 2,
+      "load_selects": 1,
+      "name": "or_absent",
+      "rows": [
+        {
+          "report": 1,
+          "review": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "report": null,
+          "review": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 2,
+      "load_selects": 1,
+      "name": "reverse_forward",
+      "rows": [
+        {
+          "report": 1,
+          "report__ticket": 1,
+          "root": 1
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "reverse_forward_reverse",
+      "rows": [
+        {
+          "report": 1,
+          "report__ticket": 1,
+          "report__ticket__review": 1,
+          "report__ticket__review_approved": true,
+          "report__ticket__review_score": 5,
+          "root": 1
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__review": null,
+          "report__ticket__review_approved": null,
+          "report__ticket__review_score": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__review": null,
+          "report__ticket__review_approved": null,
+          "report__ticket__review_score": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__review": null,
+          "report__ticket__review_approved": null,
+          "report__ticket__review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 2,
+      "warm_statements": 1
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "optional_forward_reverse",
+      "rows": [
+        {
+          "optional_report": null,
+          "optional_report__ticket": null,
+          "optional_report__ticket__report": null,
+          "root": 1
+        },
+        {
+          "optional_report": 1,
+          "optional_report__ticket": 2,
+          "optional_report__ticket__report": null,
+          "root": 2
+        },
+        {
+          "optional_report": null,
+          "optional_report__ticket": null,
+          "optional_report__ticket__report": null,
+          "root": 3
+        },
+        {
+          "optional_report": null,
+          "optional_report__ticket": null,
+          "optional_report__ticket__report": null,
+          "root": 4
+        }
+      ],
+      "selects": 2,
+      "warm_statements": 1
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "review_forward_reverse",
+      "rows": [
+        {
+          "review": 1,
+          "review__ticket": 1,
+          "review__ticket__report": 1,
+          "review_approved": true,
+          "review_score": 5,
+          "root": 1
+        },
+        {
+          "review": 2,
+          "review__ticket": 2,
+          "review__ticket__report": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 2
+        },
+        {
+          "review": 3,
+          "review__ticket": 3,
+          "review__ticket__report": null,
+          "review_approved": false,
+          "review_score": 12,
+          "root": 3
+        },
+        {
+          "review": null,
+          "review__ticket": null,
+          "review__ticket__report": null,
+          "review_approved": null,
+          "review_score": null,
+          "root": 4
+        }
+      ],
+      "selects": 4,
+      "warm_statements": 3
+    },
+    {
+      "inner_joins": 0,
+      "left_joins": 3,
+      "load_selects": 1,
+      "name": "repeated_declaration",
+      "rows": [
+        {
+          "report": 1,
+          "report__ticket": 1,
+          "report__ticket__report": 1,
+          "root": 1
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__report": null,
+          "root": 2
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__report": null,
+          "root": 3
+        },
+        {
+          "report": null,
+          "report__ticket": null,
+          "report__ticket__report": null,
+          "root": 4
+        }
+      ],
+      "selects": 1,
+      "warm_statements": 0
+    }
+  ],
+  "field_shapes": {
+    "DefaultDetail": {
+      "hidden": false,
+      "many_to_one": false,
+      "null": false,
+      "one_to_one": true,
+      "reverse_name": "defaultdetail",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "Detail": {
+      "hidden": false,
+      "many_to_one": false,
+      "null": false,
+      "one_to_one": true,
+      "reverse_name": "detail",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "HiddenDetail": {
+      "hidden": true,
+      "many_to_one": false,
+      "null": false,
+      "one_to_one": true,
+      "reverse_name": "+",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "OptionalDetail": {
+      "hidden": false,
+      "many_to_one": false,
+      "null": true,
+      "one_to_one": true,
+      "reverse_name": "optional_detail",
+      "reverse_one_to_many": false,
+      "reverse_one_to_one": true,
+      "unique": true
+    },
+    "UniqueChild": {
+      "hidden": false,
+      "many_to_one": true,
+      "null": false,
+      "one_to_one": false,
+      "reverse_name": "unique_children",
+      "reverse_one_to_many": true,
+      "reverse_one_to_one": false,
+      "unique": true
+    }
+  },
+  "lookups": [
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_absent",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "report_present",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_field_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_not_equal",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "report_or_absent",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_exact",
+      "selects": 1
+    },
+    {
+      "ids": [
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_gt",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_gte",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_lt",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_lte",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_non_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_not_exact",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "score_in",
+      "selects": 1
+    },
+    {
+      "ids": [],
+      "inner_joins": 0,
+      "left_joins": 0,
+      "name": "score_empty_in",
+      "selects": 0
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_not_in",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "score_not_empty_in",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "approved_true",
+      "selects": 1
+    },
+    {
+      "ids": [
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "approved_false",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "approved_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "approved_not_true",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "title_contains",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "title_literal_wildcards",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "not_and",
+      "selects": 1
+    },
+    {
+      "ids": [],
+      "inner_joins": 1,
+      "left_joins": 1,
+      "name": "not_or",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "double_not",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "same_edge_or",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 2,
+      "name": "different_edge_or",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "root_or_reverse",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "optional_absent",
+      "selects": 1
+    },
+    {
+      "ids": [
+        2
+      ],
+      "inner_joins": 1,
+      "left_joins": 0,
+      "name": "optional_present",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1
+      ],
+      "inner_joins": 1,
+      "left_joins": 1,
+      "name": "mixed_collection_and",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "body_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "ratio_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "price_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "token_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "payload_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "day_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "at_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "clock_null",
+      "selects": 1
+    },
+    {
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "inner_joins": 0,
+      "left_joins": 1,
+      "name": "elapsed_null",
+      "selects": 1
+    }
+  ],
+  "migrations": [
+    {
+      "after": {
+        "hidden": false,
+        "many_to_one": false,
+        "null": false,
+        "one_to_one": true,
+        "reverse_name": "children",
+        "reverse_one_to_many": false,
+        "reverse_one_to_one": true,
+        "unique": true
+      },
+      "applied": false,
+      "autodetected": [
+        "AlterField"
+      ],
+      "before": {
+        "hidden": false,
+        "many_to_one": true,
+        "null": false,
+        "one_to_one": false,
+        "reverse_name": "children",
+        "reverse_one_to_many": true,
+        "reverse_one_to_one": false,
+        "unique": false
+      },
+      "constraints_after_attempt": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": true,
+          "name": "otohistory_child_owner_id_5703290d",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "exception": "IntegrityError",
+      "initial_constraints": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": true,
+          "name": "otohistory_child_owner_id_5703290d",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "initial_rows": [
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ],
+      "initially_unique": false,
+      "reopened_constraints": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_uniq",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "reopened_rows": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reverse_duplicate_saved": true,
+      "reversed_constraints": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": true,
+          "name": "otohistory_child_owner_id_5703290d",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "rows_after_attempt": [
+        [
+          1,
+          1
+        ],
+        [
+          2,
+          1
+        ]
+      ]
+    },
+    {
+      "after": {
+        "hidden": false,
+        "many_to_one": false,
+        "null": false,
+        "one_to_one": true,
+        "reverse_name": "children",
+        "reverse_one_to_many": false,
+        "reverse_one_to_one": true,
+        "unique": true
+      },
+      "applied": true,
+      "autodetected": [
+        "AlterField"
+      ],
+      "before": {
+        "hidden": false,
+        "many_to_one": true,
+        "null": false,
+        "one_to_one": false,
+        "reverse_name": "children",
+        "reverse_one_to_many": true,
+        "reverse_one_to_one": false,
+        "unique": true
+      },
+      "constraints_after_attempt": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_owner_id_key",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "initial_constraints": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_owner_id_key",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "initial_rows": [
+        [
+          1,
+          1
+        ]
+      ],
+      "initially_unique": true,
+      "reopened_constraints": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_owner_id_key",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "reopened_rows": [
+        [
+          1,
+          1
+        ]
+      ],
+      "reverse_duplicate_saved": false,
+      "reverse_exception": "IntegrityError",
+      "reversed_constraints": [
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": [
+            "otohistory_owner",
+            "id"
+          ],
+          "index": false,
+          "name": "otohistory_child_owner_id_5703290d_fk_otohistory_owner_id",
+          "primary_key": false,
+          "unique": false
+        },
+        {
+          "columns": [
+            "owner_id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_owner_id_key",
+          "primary_key": false,
+          "unique": true
+        },
+        {
+          "columns": [
+            "id"
+          ],
+          "foreign_key": null,
+          "index": false,
+          "name": "otohistory_child_pkey",
+          "primary_key": true,
+          "unique": true
+        }
+      ],
+      "rows_after_attempt": [
+        [
+          1,
+          1
+        ]
+      ]
+    }
+  ],
+  "observations": [
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "missing_reverse",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ]
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "cached_missing_reverse",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "missing_cache_after_external_insert",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "name": "reverse_after_refresh",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 1
+    },
+    {
+      "name": "cached_reverse",
+      "selects": 0,
+      "statements": [],
+      "value": 1
+    },
+    {
+      "name": "reciprocal_forward_cache",
+      "selects": 0,
+      "statements": [],
+      "value": 1
+    },
+    {
+      "name": "reverse_select_related",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        [
+          1,
+          true
+        ],
+        [
+          2,
+          false
+        ],
+        [
+          3,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "reverse_prefetch_related",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ],
+      "value": [
+        [
+          1,
+          true
+        ],
+        [
+          2,
+          false
+        ],
+        [
+          3,
+          false
+        ]
+      ]
+    },
+    {
+      "name": "reverse_filter",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        1
+      ]
+    },
+    {
+      "name": "missing_reverse_filter",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "reverse_exclude",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        2,
+        3
+      ]
+    },
+    {
+      "name": "reverse_or_absent",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "required_form_duplicate",
+      "selects": 3,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ],
+      "value": {
+        "errors": {
+          "parent": [
+            "unique"
+          ]
+        },
+        "valid": false
+      }
+    },
+    {
+      "name": "required_form_self",
+      "selects": 3,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ],
+      "value": {
+        "errors": {},
+        "valid": true
+      }
+    },
+    {
+      "name": "required_form_available",
+      "selects": 3,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ],
+      "value": {
+        "errors": {},
+        "valid": true
+      }
+    },
+    {
+      "name": "required_form_missing",
+      "selects": 0,
+      "statements": [],
+      "value": {
+        "errors": {
+          "parent": [
+            "required"
+          ]
+        },
+        "valid": false
+      }
+    },
+    {
+      "name": "form_invalid_target",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": {
+        "errors": {
+          "parent": [
+            "invalid_choice"
+          ]
+        },
+        "valid": false
+      }
+    },
+    {
+      "name": "optional_form_blank",
+      "selects": 0,
+      "statements": [],
+      "value": {
+        "errors": {},
+        "valid": true
+      }
+    },
+    {
+      "exception": "IntegrityError",
+      "name": "duplicate_rolls_back",
+      "selects": 0,
+      "statements": [
+        "UPDATE",
+        "INSERT"
+      ]
+    },
+    {
+      "name": "state_after_duplicate",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ],
+      "value": [
+        "second",
+        1
+      ]
+    },
+    {
+      "name": "nullable_forward",
+      "selects": 0,
+      "statements": [],
+      "value": null
+    },
+    {
+      "name": "multiple_nulls",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 2
+    },
+    {
+      "name": "set_null_delete",
+      "selects": 4,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT",
+        "SELECT",
+        "UPDATE",
+        "DELETE"
+      ],
+      "value": 1
+    },
+    {
+      "name": "set_null_child_retained",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        null,
+        3
+      ]
+    },
+    {
+      "exception": "ProtectedError",
+      "name": "protect_delete",
+      "selects": 4,
+      "statements": [
+        "SELECT",
+        "SELECT",
+        "SELECT",
+        "SELECT"
+      ]
+    },
+    {
+      "name": "state_after_protect",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ],
+      "value": [
+        true,
+        1
+      ]
+    },
+    {
+      "name": "reverse_assignment_before_save",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        2,
+        1
+      ]
+    },
+    {
+      "name": "save_reassigned_detail",
+      "selects": 0,
+      "statements": [
+        "UPDATE"
+      ],
+      "value": null
+    },
+    {
+      "name": "reassigned_detail_stored",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 2
+    },
+    {
+      "exception": "ValueError",
+      "name": "unsaved_target_save",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "unsaved_owner_reverse",
+      "selects": 0,
+      "statements": []
+    },
+    {
+      "name": "unique_fk_reverse_is_manager",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": true
+    },
+    {
+      "exception": "RelatedObjectDoesNotExist",
+      "name": "default_reverse_missing",
+      "selects": 2,
+      "statements": [
+        "SELECT",
+        "SELECT"
+      ]
+    },
+    {
+      "name": "hidden_reverse_absent",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": false
+    },
+    {
+      "name": "clear_required_reverse_in_memory",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": [
+        null,
+        2
+      ]
+    },
+    {
+      "exception": "IntegrityError",
+      "name": "save_cleared_required_reverse",
+      "selects": 0,
+      "statements": [
+        "UPDATE"
+      ]
+    },
+    {
+      "name": "failed_clear_preserves_storage",
+      "selects": 1,
+      "statements": [
+        "SELECT"
+      ],
+      "value": 2
+    }
+  ],
+  "outgoing_delete": {
+    "blocked_exception": "ProtectedError",
+    "blocked_memory": [
+      1,
+      1,
+      "preserved"
+    ],
+    "blocked_rows": [
+      1,
+      1,
+      1
+    ],
+    "deleted": 1,
+    "memory": [
+      null,
+      1,
+      "preserved"
+    ],
+    "rows": [
+      1,
+      0,
+      0
+    ]
+  },
+  "psycopg": "3.3.6",
+  "python": "3.14.3"
+}

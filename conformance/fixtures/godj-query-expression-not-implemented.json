@@ -1,0 +1,50 @@
+{
+  "format_version": 2,
+  "profile": {
+    "id": "django-6.1-sqlite-darwin-arm64",
+    "fingerprint": {
+      "django_version": "6.1",
+      "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+      "django_distribution_sha256": "6c132cd980c9392b06807d4ca52d72530d631dc65a85d9dacede00a780cefbbe",
+      "python_implementation": "CPython",
+      "python_version": "3.14.3",
+      "sqlite_version": "3.50.4",
+      "sqlite_source_id": "2025-07-30 19:33:53 4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3",
+      "database_engine": "django.db.backends.sqlite3",
+      "use_tz": true,
+      "timezone": "UTC",
+      "language_code": "en-us",
+      "locale": "C",
+      "platform": "darwin",
+      "architecture": "arm64"
+    },
+    "lock": {
+      "file": "uv.lock",
+      "sha256": "ad825e872092be26169a6706c0d9643e88875d877f24bffc5c1a3471d82b1fb7",
+      "manager": "uv",
+      "manager_version": "0.10.12"
+    }
+  },
+  "contracts": [
+    {"id": "QRY-034", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-035", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-036", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-037", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-038", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-039", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-040", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-041", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-042", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-043", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-044", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-045", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-046", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-047", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-048", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-049", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-050", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-051", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-052", "status": "not_implemented", "phase": "evaluation"},
+    {"id": "QRY-053", "status": "not_implemented", "phase": "evaluation"}
+  ]
+}

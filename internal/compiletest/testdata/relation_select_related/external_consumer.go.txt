@@ -1,0 +1,47 @@
+package consumer
+
+import (
+	"context"
+
+	"github.com/progresshans/godj/conformance/relationfixture/blog"
+	"github.com/progresshans/godj/conformance/relationfixture/project"
+	"github.com/progresshans/godj/db"
+)
+
+func consume(ctx context.Context, backend db.Queryer) ([]*project.BlogPostObject, error) {
+	objects, err := project.BindObjects()
+	if err != nil {
+		return nil, err
+	}
+	source := blog.PostObjects.Using(backend).OrderBy(blog.PostFields.ID.Asc())
+	selected := objects.BlogPost.SelectRelated(source)
+	if _, err := selected.ParseDynamic("author"); err != nil {
+		return nil, err
+	}
+	return selected.WithAuthor().All(ctx)
+}
+
+func count(ctx context.Context, backend db.Queryer) (int64, int64, error) {
+	objects, err := project.BindObjects()
+	if err != nil {
+		return 0, 0, err
+	}
+	selected := objects.BlogPost.SelectRelated(blog.PostObjects.Using(backend))
+	typed, err := selected.WithAuthor().Count(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	dynamic, err := selected.ParseDynamic("reviewer")
+	if err != nil {
+		return 0, 0, err
+	}
+	other, err := dynamic.Count(ctx)
+	return typed, other, err
+}
+
+func multiple(ctx context.Context, backend db.Queryer) ([]*project.BlogPostObject, error) {
+ objects, err := project.BindObjects()
+ if err != nil { return nil, err }
+ source := blog.PostObjects.Using(backend).OrderBy(blog.PostFields.ID.Asc())
+ return objects.BlogPost.SelectRelated(source).WithReviewer().WithAuthor().All(ctx)
+}

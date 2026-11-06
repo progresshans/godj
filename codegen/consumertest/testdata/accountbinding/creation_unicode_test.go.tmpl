@@ -1,0 +1,158 @@
+package consumer
+
+import (
+	"encoding/json"
+	"errors"
+	"reflect"
+	"slices"
+	"strings"
+	"testing"
+
+	"example.com/godj-project-bundle/project"
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	"github.com/progresshans/godj/auth"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+)
+
+// The service accepts the selected storage policy, independently of the
+// creation Form's 150-character and username-grammar policy. Both consume
+// the same unmodified Django observations, including Form-invalid inputs.
+func TestAccountCreationUnicodeStorage(t *testing.T) {
+	inputs, reference := accountUnicodeReference(t)
+	for index, input := range inputs {
+		want := reference[index]
+		creationInputRun(t, "create/"+input.Name, func(t *testing.T) {
+			f := newCreationInputFixture(t, false)
+			if f.role.WriteLoginNormalization != ir.AccountUnicode16NFKC || f.role.AuthenticateNormalization != ir.AccountExact {
+				t.Fatal("service Unicode fixture lost its separate storage/authentication policies")
+			}
+			values := map[string]query.Value{f.role.Login: query.String(input.Username), "@@PROFILE@@": query.String("NZ")}
+			if f.role.Email != "" {
+				if f.role.Email == f.role.Login || f.role.WriteEmailNormalization != ir.AccountUnicode16EmailDomain {
+					t.Fatal("service Unicode fixture lost its separate email-domain policy")
+				}
+				values[f.role.Email] = query.String(input.Email)
+				f.config.Accounts.ReadFields = append(slices.Clone(f.config.Accounts.ReadFields), f.role.Email)
+				f.config.Accounts.CreateFields = append(slices.Clone(f.config.Accounts.CreateFields), f.role.Email)
+				runtime, err := project.NewAccountRuntime(t.Context(), f.native, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+				creationInputCheck(t, err)
+				f.runtime = runtime
+			}
+			candidate, err := f.objects.Input(values)
+			creationInputCheck(t, err)
+			before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+			f.recorded(true)
+			const password = "  selected Unicode service secret  "
+			creator := f.runtime.Accounts().Creator()
+			prepared, err := creator.Prepare(t.Context(), f.actor, candidate, password)
+			creationInputCheck(t, err)
+			if f.hasher.calls.Load() != hashes+1 || f.ids.Load() != ids+1 || !reflect.DeepEqual(candidate.Values(), values) ||
+				!reflect.DeepEqual(f.recorded(false), []string{want.Username}) || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("Unicode preparation changed input/native state or did not normalize before one password check/hash")
+			}
+			created, err := creator.Commit(t.Context(), f.actor, prepared)
+			creationInputCheck(t, err)
+			if f.hasher.calls.Load() != hashes+1 || f.ids.Load() != ids+1 || created.RevokedSessions != 0 ||
+				!reflect.DeepEqual(f.recorded(false), []string{want.Username, want.Username, want.Username}) {
+				t.Fatal("Unicode commit repeated credential work or changed the policy's normalized profile")
+			}
+			f.saved(t, before, created, want.Username, password, true)
+			row, err := f.objects.Using(f.native).Filter(f.key.Exact(created.ID)).Get(t.Context())
+			creationInputCheck(t, err)
+			stored, err := f.objects.ModelValues(row)
+			creationInputCheck(t, err)
+			principalID, _ := stored[f.role.PrincipalID].String()
+			if f.role.Email != "" {
+				email, _ := stored[f.role.Email].String()
+				if email != want.Email {
+					t.Fatal("selected service email normalization differs from Django")
+				}
+			}
+			// Both declared fixtures put login, credential and this profile in
+			// that order; the default account's email follows its profile.
+			expectedFields := []string{f.role.Login, f.role.Password, "@@PROFILE@@"}
+			if f.role.Email != "" {
+				expectedFields = append(expectedFields, f.role.Email)
+			}
+			events, err := auditmodels.EventObjects.Using(f.native).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
+			creationInputCheck(t, err)
+			event := events[len(events)-1] // saved checked cardinality and exact ownership.
+			var changed []string
+			creationInputCheck(t, json.Unmarshal([]byte(event.ChangedFields), &changed))
+			if !slices.Equal(changed, expectedFields) || !slices.Equal(created.ChangedFields, expectedFields) || !event.RecordedAt.Equal(f.now) {
+				t.Fatal("Unicode service creation lost its exact change metadata or server time")
+			}
+			after := f.snapshot(t)
+			peer, err := database.Open(t.Context(), f.database)
+			creationInputCheck(t, err)
+			defer func() { creationInputCheck(t, peer.Close()) }()
+			reopened, err := project.NewAccountRuntime(t.Context(), peer, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+			creationInputCheck(t, err)
+			readHashes := f.hasher.calls.Load() // The authenticator owns a construction-time dummy hash.
+			credential, err := reopened.Authenticator().Authenticate(t.Context(), want.Username, password)
+			creationInputCheck(t, err)
+			domain, _ := f.actor.CredentialDomain()
+			if credential.Principal().ID() != principalID || !domain.MatchesPrincipal(credential.Principal()) {
+				t.Fatal("reopened service authenticated a different identity or domain")
+			}
+			for _, probe := range []struct{ login, password string }{
+				{want.Username, strings.TrimSpace(password)}, {input.Username, password},
+			} {
+				if probe.login == want.Username && probe.password == password {
+					continue
+				}
+				credential, err := reopened.Authenticator().Authenticate(t.Context(), probe.login, probe.password)
+				if !errors.Is(err, auth.ErrInvalidCredentials) || credential.Principal().Authenticated() || credential.SessionStamp() != "" {
+					t.Fatal("direct authentication silently normalized login or password", err)
+				}
+			}
+			profile, err := reopened.Accounts().Reader().Get(t.Context(), f.actor, created.ID)
+			creationInputCheck(t, err)
+			loginValue, present := profile.View().Get(f.role.Login)
+			login, _ := loginValue.String()
+			if !present || login != want.Username || profile.ID() != created.ID || profile.Revision() != 1 || !profile.PasswordUsable() {
+				t.Fatal("reopened authorized profile differs from the independent stored username")
+			}
+			if f.role.Email != "" {
+				value, present := profile.View().Get(f.role.Email)
+				email, _ := value.String()
+				if !present || email != want.Email {
+					t.Fatal("reopened profile lost the selected email role")
+				}
+			}
+			reloaded, err := f.objects.Using(peer).Filter(f.key.Exact(created.ID)).Get(t.Context())
+			creationInputCheck(t, err)
+			if !reflect.DeepEqual(row, reloaded) || f.hasher.calls.Load() != readHashes || f.ids.Load() != ids+1 || !reflect.DeepEqual(after, f.snapshot(t)) {
+				t.Fatal("reopen/authentication/profile read changed stored Unicode or another native row")
+			}
+		})
+	}
+	for _, probe := range []struct{ name, username string }{
+		{"ascii257", strings.Repeat("x", 257)}, {"hangul257", strings.Repeat("한", 257)},
+		{"astral257", strings.Repeat("\U000105c0", 257)}, {"ligature_expansion", strings.Repeat("ﬃ", 86)},
+		{"arabic_expansion", strings.Repeat("\ufdfa", 15)}, {"raw_bytes", strings.Repeat("x", auth.MaximumUsernameBytes+1)},
+	} {
+		creationInputRun(t, "storage_limits/"+probe.name, func(t *testing.T) {
+			f := newCreationInputFixture(t, false)
+			input, err := f.objects.Input(map[string]query.Value{f.role.Login: query.String(probe.username), "@@PROFILE@@": query.String("NZ")})
+			creationInputCheck(t, err)
+			before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+			f.recorded(true)
+			creator := f.runtime.Accounts().Creator()
+			prepared, failure := creator.Prepare(t.Context(), f.actor, input, "selected Unicode secret")
+			diagnostics, rejected := validation.Rejected(failure)
+			if !rejected || diagnostics.ByField(validation.Field(f.role.Login)).Empty() {
+				t.Fatal("selected storage accepted an oversized or expanded username", failure)
+			}
+			created, failure := creator.Commit(t.Context(), f.actor, prepared)
+			if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) || !reflect.DeepEqual(created, accountmodel.Creation{}) ||
+				f.hasher.calls.Load() != hashes || f.ids.Load() != ids || len(f.recorded(false)) != 0 || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("rejected storage input reached credential work or native state", failure)
+			}
+		})
+	}
+}

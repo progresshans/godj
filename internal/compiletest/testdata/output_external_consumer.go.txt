@@ -1,0 +1,21 @@
+package consumer
+
+import (
+	"context"
+	"github.com/progresshans/godj/api/output"
+	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/web"
+)
+
+type row struct { ID int64; Name string; Parent *int64 }
+func Response(ctx context.Context, rows []row) (web.Response, error) {
+	shape := output.Named("Row", output.Object(
+		output.Field("id", output.Int64(), func(value row) int64 { return value.ID }),
+		output.Field("name", output.String(), func(value row) string { return value.Name }),
+		output.Field("parent", output.Nullable(output.Int64()), func(value row) *int64 { return value.Parent }),
+	))
+	prepared, err := output.New(output.Array(shape, 0, 20), serializers.Limits{})
+	if err != nil { return web.Response{}, err }
+	if _, err := output.Components(prepared.Declaration()); err != nil { return web.Response{}, err }
+	return prepared.JSON(ctx, 200, rows)
+}

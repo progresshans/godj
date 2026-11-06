@@ -1,0 +1,8 @@
+package consumer
+
+import (
+"github.com/progresshans/godj/examples/helpdesk/models"
+"github.com/progresshans/godj/orm"
+)
+
+var _ = models.TicketFields.ServiceAt.ExactField(orm.F(models.TicketFields.DueAt))

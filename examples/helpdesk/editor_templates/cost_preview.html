@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Expected cost preview</title></head>
+<body><main><h1>Expected cost preview</h1><p>Category: {{ category }}</p>
+<p><a href="/tickets/summary/">Ticket summary</a> · <a href="/tickets/edit/">Ticket editor</a></p>
+<p>Adjusted cost = expected cost × multiplier + adjustment. Values keep their exact digits. Missing costs remain unset. This preview leaves stored tickets unchanged.</p>
+<form id="cost-adjustment" method="get" action="/tickets/cost-preview/">
+<label for="cost-factor">Multiplier</label> <input id="cost-factor" name="factor" value="{{ factor }}" inputmode="decimal" maxlength="8" required aria-describedby="cost-factor-help">
+<span id="cost-factor-help">Up to 2 whole digits and 4 decimal places.</span>
+<label for="cost-delta">Adjustment</label> <input id="cost-delta" name="delta" value="{{ delta }}" inputmode="decimal" maxlength="16" required aria-describedby="cost-delta-help">
+<span id="cost-delta-help">Up to 12 whole digits and 2 decimal places. Negative values subtract.</span>
+{% if has_minimum %}<input type="hidden" name="min_cost" value="{{ minimum }}">{% endif %}
+<button type="submit">Update preview</button> <a href="/tickets/cost-preview/">Reset preview</a>
+</form>
+<p>Use decimal notation without trailing fractional zeroes, such as 1.25 or 0.</p>
+<form id="cost-minimum" method="get" action="/tickets/cost-preview/">
+<input type="hidden" name="factor" value="{{ factor }}"><input type="hidden" name="delta" value="{{ delta }}">
+<label for="cost-min">Minimum adjusted cost</label> <input id="cost-min" name="min_cost" value="{{ minimum }}" inputmode="decimal" maxlength="23" required>
+<button type="submit">Filter current preview</button> {% if has_minimum %}<a href="{{ clear_minimum }}">Clear minimum</a>{% endif %}
+</form>
+<p>{{ total }} tickets. Page {{ page }}.</p>
+<table><caption>Tickets by adjusted cost, highest first; unset costs last</caption><thead><tr><th scope="col">Ticket</th><th scope="col">Expected cost</th><th scope="col">Adjusted cost</th></tr></thead><tbody>
+{% for row in rows %}<tr data-ticket-id="{{ row.id }}"><th scope="row">{{ row.subject }}</th><td>{{ row.original }}</td><td>{{ row.adjusted }}</td></tr>{% empty %}<tr><td colspan="3">No tickets on this page.</td></tr>{% endfor %}
+</tbody></table>
+<nav aria-label="Cost preview pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+</main></body></html>

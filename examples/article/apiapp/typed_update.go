@@ -1,0 +1,94 @@
+package apiapp
+
+import (
+	"context"
+	"errors"
+	"net/http"
+
+	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/api/output"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/examples/article/articleapp"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/validation"
+	"github.com/progresshans/godj/web"
+)
+
+func (a *Application) typedUpdate(authentication api.Authentication, mode serializers.Mode, bodyDescription, orderDescription string) (endpoint.Endpoint, error) {
+	name, method, summary, component := Namespace+":article-update", http.MethodPut, "Update an Article", "ArticleReplace"
+	if mode == serializers.ModePartial {
+		name, method, summary, component = Namespace+":article-partial-update", http.MethodPatch, "Partially update an Article", "ArticlePatch"
+	}
+	// DRF's target lookup precedes body I/O. Permission/CSRF remain outside
+	// both stages, and the write rechecks current state in its own transaction.
+	current := endpoint.Resolve(endpoint.PathInt64("id"), func(request *web.Request, actor auth.Principal, id int64) (articlemodels.Article, error) {
+		if id <= 0 {
+			return articlemodels.Article{}, endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
+		}
+		article, found, err := a.getSelected(request.Context(), actor, articleapp.ArticleChangePermission, id)
+		if err != nil {
+			return articlemodels.Article{}, typedArticleFailure(err)
+		}
+		if !found {
+			return articlemodels.Article{}, endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
+		}
+		return article, nil
+	})
+	body := endpoint.Resolve(endpoint.JSONBody(component, a.body, mode, bodyDescription), func(_ *web.Request, _ auth.Principal, value orm.ModelInput[articlemodels.Article]) (orm.ModelInput[articlemodels.Article], error) {
+		if diagnostics := articleTextDiagnostics(value); !diagnostics.Empty() {
+			return orm.ModelInput[articlemodels.Article]{}, endpoint.Reject(400, api.CodeValidationError, diagnostics)
+		}
+		return value, nil
+	})
+	return endpoint.New(authentication, endpoint.Config[endpoint.Pair[articlemodels.Article, orm.ModelInput[articlemodels.Article]], articlemodels.Article]{
+		Route: web.Route{Name: name, Method: method, Path: DetailPath}, Summary: summary, Description: orderDescription,
+		Admission: endpoint.All(articleapp.ArticleChangePermission), Input: endpoint.Sequence(current, body), Output: a.response,
+		Success: []endpoint.Status{{Code: http.StatusOK, Description: "The updated Article."}},
+		Errors: []endpoint.Status{
+			{Code: 400, Description: "The body cannot be parsed or a field or query parameter is invalid."},
+			{Code: 403, Description: "The current account no longer permits this operation."},
+			{Code: 404, Description: "The Article or requested page does not exist, or its identifier is invalid."},
+			{Code: 413, Description: "The request body exceeds 4096 bytes."},
+			{Code: 415, Description: "The request Content-Type is not supported application/json."},
+		},
+		Handle: func(request *web.Request, actor auth.Principal, input endpoint.Pair[articlemodels.Article, orm.ModelInput[articlemodels.Article]]) (output.Prepared[articlemodels.Article], error) {
+			prepare := func(ctx context.Context, article articlemodels.Article, _ []string) (output.Prepared[articlemodels.Article], error) {
+				return a.response.Prepare(ctx, http.StatusOK, article)
+			}
+			prepared, err := withArticleAccess(request.Context(), a, actor, articleapp.ArticleChangePermission, true, func(work context.Context, repository articleapp.Repository) (output.Prepared[articlemodels.Article], error) {
+				if mode == serializers.ModePartial {
+					return articleapp.PatchAndPrepare(work, repository, input.First.ID, input.Second, prepare)
+				}
+				return articleapp.UpdateAndPrepare(work, repository, input.First.ID, input.Second, prepare)
+			})
+			if err != nil {
+				return output.Prepared[articlemodels.Article]{}, typedArticleFailure(err)
+			}
+			return prepared, nil
+		},
+	})
+}
+
+func typedArticleFailure(err error) error {
+	if err == errArticleAccessDenied {
+		return endpoint.Reject(403, api.CodePermissionDenied, validation.NewErrors())
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) || errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) {
+		return err
+	}
+	if diagnostics, rejected := validation.Rejected(err); rejected {
+		return endpoint.Reject(400, api.CodeValidationError, diagnostics)
+	}
+	if missing, expected := err.(*articleapp.Error); expected && missing != nil && missing.Code == articleapp.CodeNotFound && missing.Cause == nil {
+		return endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
+	}
+	if err == articleapp.ErrNotFound {
+		return endpoint.Reject(404, api.CodeNotFound, validation.NewErrors())
+	}
+	return err
+}

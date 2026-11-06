@@ -1,0 +1,128 @@
+package article_test
+
+import (
+	"context"
+	_ "embed"
+	"reflect"
+	"testing"
+
+	"github.com/progresshans/godj/db/sqlite"
+	articlemodels "github.com/progresshans/godj/examples/article/models"
+	"github.com/progresshans/godj/migrations"
+	migrationdefinition "github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/systemstate"
+)
+
+//go:embed migrations/0001_initial.godj.json
+var articleProjectInitialDefinition []byte
+
+//go:embed migrations/godj_conformance_0002_alter_article_summary.godj.json
+var articleProjectBlankDefinition []byte
+
+//go:embed migrations/godj_conformance_0003_article_slug.godj.json
+var articleProjectSlugDefinition []byte
+
+func articleCurrentDefinitionSources() []migrationdefinition.Source {
+	return []migrationdefinition.Source{
+		{SourceID: "migrations/0001_initial.godj.json", Document: append([]byte(nil), articleProjectInitialDefinition...)},
+		{SourceID: "migrations/godj_conformance_0002_alter_article_summary.godj.json", Document: append([]byte(nil), articleProjectBlankDefinition...)},
+		{SourceID: "migrations/godj_conformance_0003_article_slug.godj.json", Document: append([]byte(nil), articleProjectSlugDefinition...)},
+	}
+}
+
+func TestArticleStableMigrationRootFreshLatestAndReopenNoop(t *testing.T) {
+	loaded, report, err := migrationdefinition.Load(append(articleCurrentDefinitionSources(), systemstate.InitialDefinitionSource())...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.DocumentsReceived != 4 || report.HeadersValidated != 4 || report.OperationsDecoded != 6 ||
+		report.PlannerConstruction != 1 || report.DefinitionsPublished != 4 || report.DefinitionSetsPublished != 1 {
+		t.Fatalf("definition load report = %+v", report)
+	}
+	if sources := loaded.Sources(); len(sources) != 4 ||
+		sources[0].SourceID != "migrations/0001_initial.godj.json" ||
+		sources[1].SourceID != "migrations/godj_conformance_0002_alter_article_summary.godj.json" ||
+		sources[2].SourceID != "migrations/godj_conformance_0003_article_slug.godj.json" ||
+		sources[3].SourceID != "systemstate/godj_system.0001_initial" {
+		t.Fatalf("definition sources = %+v", sources)
+	}
+
+	ctx := context.Background()
+	databasePath := t.TempDir() + "/article.sqlite3"
+	firstBackend, err := sqlite.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstState, err := (migrations.Executor{Backend: firstBackend}).Migrate(
+		ctx,
+		loaded,
+		migrations.LatestLifecycleRequest(),
+	)
+	if err != nil {
+		_ = firstBackend.Close()
+		t.Fatal(err)
+	}
+	created, err := articlemodels.ArticleObjects.Create(
+		ctx,
+		firstBackend,
+		articlemodels.NewArticleCreate("Explicit migrate survives reopen"),
+	)
+	if err != nil {
+		_ = firstBackend.Close()
+		t.Fatal(err)
+	}
+	if created.ID != 1 {
+		_ = firstBackend.Close()
+		t.Fatalf("created Article ID = %d, want 1", created.ID)
+	}
+	if err := firstBackend.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	secondBackend, err := sqlite.Open(ctx, databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := secondBackend.Close(); err != nil {
+			t.Errorf("close reopened Article backend: %v", err)
+		}
+	}()
+	secondState, err := (migrations.Executor{Backend: secondBackend}).Migrate(
+		ctx,
+		loaded,
+		migrations.LatestLifecycleRequest(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(secondState, firstState) {
+		t.Fatalf("reopened no-op state differs\nfirst=%+v\nsecond=%+v", firstState, secondState)
+	}
+
+	articles, err := articlemodels.ArticleObjects.Using(secondBackend).All(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(articles) != 1 || articles[0].ID != created.ID || articles[0].Title != created.Title {
+		t.Fatalf("reopened Articles = %+v, want persisted row %+v", articles, created)
+	}
+	session, err := secondBackend.OpenRevisionFencedSession(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	records, readErr := session.ReadAppliedMigrations(ctx)
+	closeErr := session.Close(ctx)
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
+	}
+	if len(records) != 4 || records[0].App != "godj_conformance" || records[0].Name != "0001_initial" ||
+		records[1].App != "godj_conformance" || records[1].Name != "0002_alter_article_summary" ||
+		records[2].App != "godj_conformance" || records[2].Name != "0003_article_slug" ||
+		records[3].App != "godj_system" || records[3].Name != "0001_initial" {
+		t.Fatalf("applied migration history = %+v", records)
+	}
+}

@@ -1,35 +1,15 @@
 from __future__ import annotations
 
+
 import unittest
 from typing import Any
 from unittest.mock import patch
 
 from django.db import connection
 
+from conformance.runners.django.tests.values import decode_primary_keys
 from conformance.runners.django import query_cache_scenarios as scenarios
 from conformance.runners.django import scenarios as base_scenarios
-
-
-def _decode(value: dict[str, Any]) -> Any:
-    kind = value["type"]
-    if kind == "null":
-        return None
-    if kind == "bool":
-        return value["value"]
-    if kind == "int":
-        return int(value["value"])
-    if kind == "string":
-        return value["value"]
-    if kind == "pk":
-        return _decode(value["value"])
-    if kind == "list":
-        return [_decode(item) for item in value["items"]]
-    if kind == "object":
-        return {
-            field["name"]: _decode(field["value"])
-            for field in value["fields"]
-        }
-    raise AssertionError(f"unsupported test value kind {kind!r}")
 
 
 class QueryCacheScenarioTests(unittest.TestCase):
@@ -57,9 +37,9 @@ class QueryCacheScenarioTests(unittest.TestCase):
             self.assertEqual(observation["phase"], "evaluation")
             self.assertIsNone(observation["error"])
             observations[contract_id] = {
-                "result": _decode(observation["result"]),
-                "db_state": _decode(observation["db_state"]),
-                "metrics": _decode(observation["metrics"]),
+                "result": decode_primary_keys(observation["result"]),
+                "db_state": decode_primary_keys(observation["db_state"]),
+                "metrics": decode_primary_keys(observation["metrics"]),
             }
         return observations
 
@@ -143,12 +123,12 @@ class QueryCacheScenarioTests(unittest.TestCase):
                 second = cursor.execute("SELECT 2").fetchone()[0]
             return first, second
 
-        result, metrics = scenarios._capture(two_queries)
+        result, metrics = scenarios.capture_statements(connection, two_queries, classify=scenarios._statement_kind)
         self.assertEqual(result, (1, 2))
         self.assertEqual(metrics["query_count"], 2)
         self.assertEqual(metrics["statement_kinds"], ["SELECT", "SELECT"])
 
-        result, metrics = scenarios._capture(lambda: "no I/O")
+        result, metrics = scenarios.capture_statements(connection, lambda: "no I/O", classify=scenarios._statement_kind)
         self.assertEqual(result, "no I/O")
         self.assertEqual(metrics, {"query_count": 0, "statement_kinds": []})
 
@@ -170,12 +150,12 @@ class QueryCacheScenarioTests(unittest.TestCase):
         for index, scenario in enumerate(scenarios.SCENARIOS.values(), 11):
             contract_id = f"QRY-{index:03d}"
             capture_index = 0
-            original_capture = scenarios._capture
+            original_capture = scenarios.capture_statements
             original_missing_table = scenarios._capture_missing_table
 
-            def instrument_capture(operation):
+            def instrument_capture(*args, **kwargs):
                 nonlocal capture_index
-                result, metrics = original_capture(operation)
+                result, metrics = original_capture(*args, **kwargs)
                 capture_index += 1
                 metrics["capture_token"] = f"capture-{capture_index}"
                 return result, metrics
@@ -191,7 +171,7 @@ class QueryCacheScenarioTests(unittest.TestCase):
                 self.subTest(contract=contract_id),
                 patch.object(
                     scenarios,
-                    "_capture",
+                    "capture_statements",
                     side_effect=instrument_capture,
                 ) as capture,
                 patch.object(
@@ -206,7 +186,7 @@ class QueryCacheScenarioTests(unittest.TestCase):
                 (capture.call_count, missing_table.call_count),
                 expected_calls[contract_id],
             )
-            metric_steps = _decode(observation["metrics"])["steps"]
+            metric_steps = decode_primary_keys(observation["metrics"])["steps"]
             self.assertEqual(
                 len({step["capture_token"] for step in metric_steps}),
                 len(metric_steps),
@@ -232,7 +212,7 @@ class QueryCacheScenarioTests(unittest.TestCase):
                 contract_id = f"QRY-{index:03d}"
                 with self.subTest(contract=contract_id):
                     observation = scenario(contract_id)
-                    rows = _decode(observation["db_state"])["articles"]
+                    rows = decode_primary_keys(observation["db_state"])["articles"]
                     sentinel = next(row for row in rows if row["id"] == 1)
                     self.assertEqual(sentinel["title"], sentinel_title)
 

@@ -1,0 +1,68 @@
+{
+  "format_version": 1,
+  "producer": {
+    "name": "article-postgres-e2e",
+    "version": "1"
+  },
+  "migration": {
+    "app": "godj_conformance",
+    "name": "0001_initial",
+    "dependencies": [],
+    "operations": [
+      {
+        "kind": "create_model",
+        "app_label": "godj_conformance",
+        "model": {
+          "name": "article",
+          "go_name": "Article",
+          "db_table": "godj_conformance_article",
+          "fields": [
+            {
+              "name": "id",
+              "go_name": "ID",
+              "column": "id",
+              "kind": "auto",
+              "primary_key": true,
+              "nullable": false,
+              "max_length": 0,
+              "default": null
+            },
+            {
+              "name": "title",
+              "go_name": "Title",
+              "column": "title",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 200,
+              "default": null
+            },
+            {
+              "name": "published",
+              "go_name": "Published",
+              "column": "published",
+              "kind": "boolean",
+              "primary_key": false,
+              "nullable": false,
+              "max_length": 0,
+              "default": {
+                "kind": "boolean",
+                "boolean": false
+              }
+            },
+            {
+              "name": "summary",
+              "go_name": "Summary",
+              "column": "summary",
+              "kind": "char",
+              "primary_key": false,
+              "nullable": true,
+              "max_length": 200,
+              "default": null
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

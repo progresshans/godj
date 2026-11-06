@@ -1,0 +1,10 @@
+package consumer
+import (
+    "context"
+    "github.com/progresshans/godj/api/input"
+    "github.com/progresshans/godj/validation"
+)
+type row struct{}
+type other struct{}
+var body input.Body[row]
+var _, _ = input.NewList(body, input.ListConfig{MaxItems: 1}, input.ListValidator[other](func(context.Context,other)(validation.Errors,error){return validation.Errors{},nil}))

@@ -1,0 +1,9 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/web"
+)
+
+var invalid = endpoint.Resolve(endpoint.PathInt64("id"), func(*web.Request, auth.Principal, string) (string, error) { return "", nil })

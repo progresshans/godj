@@ -1,0 +1,351 @@
+{
+  "django": "6.1",
+  "observations": [
+    {
+      "name": "author_all",
+      "count": 4,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\""
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 4,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_filtered",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\" WHERE \"count_reference_post\".\"title\" IN ('1', '3')"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        3
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_post\".\"title\" IN ('1', '3') ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_limit",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_offset_limit",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        2,
+        3
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_past_end",
+      "count": 0,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" ORDER BY \"count_reference_post\".\"id\" ASC LIMIT -1 OFFSET 20) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC LIMIT -1 OFFSET 20"
+      ],
+      "warm_count": 0,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_empty_in",
+      "count": 0,
+      "cold_sql": [],
+      "cold_populated_cache": false,
+      "all_ids": [],
+      "all_sql": [],
+      "warm_count": 0,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_none",
+      "count": 0,
+      "cold_sql": [],
+      "cold_populated_cache": false,
+      "all_ids": [],
+      "all_sql": [],
+      "warm_count": 0,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_related_filter",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_author\".\"name\" = 'Bob'"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        3,
+        4
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_author\".\"name\" = 'Bob' ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_reverse_filter",
+      "count": 3,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") WHERE \"count_reference_comment\".\"body\" = 'match'"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 3,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_reverse_distinct",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT DISTINCT \"count_reference_post\".\"id\" AS \"col1\", \"count_reference_post\".\"title\" AS \"col2\", \"count_reference_post\".\"author_id\" AS \"col3\", \"count_reference_post\".\"reviewer_id\" AS \"col4\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") WHERE \"count_reference_comment\".\"body\" = 'match') subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT DISTINCT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "author_reverse_slice",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"author_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_all",
+      "count": 4,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\""
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 4,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_filtered",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\" WHERE \"count_reference_post\".\"title\" IN ('1', '3')"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        3
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_post\".\"title\" IN ('1', '3') ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_limit",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_offset_limit",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        2,
+        3
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_past_end",
+      "count": 0,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" ORDER BY \"count_reference_post\".\"id\" ASC LIMIT -1 OFFSET 20) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") ORDER BY \"count_reference_post\".\"id\" ASC LIMIT -1 OFFSET 20"
+      ],
+      "warm_count": 0,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_empty_in",
+      "count": 0,
+      "cold_sql": [],
+      "cold_populated_cache": false,
+      "all_ids": [],
+      "all_sql": [],
+      "warm_count": 0,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_none",
+      "count": 0,
+      "cold_sql": [],
+      "cold_populated_cache": false,
+      "all_ids": [],
+      "all_sql": [],
+      "warm_count": 0,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_related_filter",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_author\".\"name\" = 'Bob'"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        3
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_author\".\"name\" = 'Bob' ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_reverse_filter",
+      "count": 3,
+      "cold_sql": [
+        "SELECT COUNT(*) AS \"__count\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") WHERE \"count_reference_comment\".\"body\" = 'match'"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 3,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_reverse_distinct",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT DISTINCT \"count_reference_post\".\"id\" AS \"col1\", \"count_reference_post\".\"title\" AS \"col2\", \"count_reference_post\".\"author_id\" AS \"col3\", \"count_reference_post\".\"reviewer_id\" AS \"col4\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") WHERE \"count_reference_comment\".\"body\" = 'match') subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT DISTINCT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    },
+    {
+      "name": "reviewer_reverse_slice",
+      "count": 2,
+      "cold_sql": [
+        "SELECT COUNT(*) FROM (SELECT \"count_reference_post\".\"id\" AS \"col1\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1) subquery"
+      ],
+      "cold_populated_cache": false,
+      "all_ids": [
+        1,
+        2
+      ],
+      "all_sql": [
+        "SELECT \"count_reference_post\".\"id\", \"count_reference_post\".\"title\", \"count_reference_post\".\"author_id\", \"count_reference_post\".\"reviewer_id\", \"count_reference_author\".\"id\", \"count_reference_author\".\"name\" FROM \"count_reference_post\" INNER JOIN \"count_reference_comment\" ON (\"count_reference_post\".\"id\" = \"count_reference_comment\".\"post_id\") LEFT OUTER JOIN \"count_reference_author\" ON (\"count_reference_post\".\"reviewer_id\" = \"count_reference_author\".\"id\") WHERE \"count_reference_comment\".\"body\" = 'match' ORDER BY \"count_reference_post\".\"id\" ASC LIMIT 2 OFFSET 1"
+      ],
+      "warm_count": 2,
+      "warm_queries": 0
+    }
+  ]
+}

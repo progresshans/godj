@@ -1,0 +1,66 @@
+{
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "kind": "independent-annotation-reference-inputs-v1",
+  "license": "BSD-3-Clause",
+  "runtime": {
+    "architecture": "arm64",
+    "django": "6.1",
+    "platform": "darwin",
+    "python": "3.14.3",
+    "sqlite": "3.50.4",
+    "sqlite_source_id": "2025-07-30 19:33:53 4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3"
+  },
+  "source_verification": "ten relevant installed modules byte-equal to pinned upstream; no full-wheel digest claim",
+  "sources": {
+    "db/backends/base/operations.py": {
+      "bytes": 34378,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/base/operations.py",
+      "sha256": "1fe091964e3633c6ed2dfdf45cd785083a01c69e7e32dabdb5c0c55f06e90b99"
+    },
+    "db/backends/postgresql/operations.py": {
+      "bytes": 15521,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/postgresql/operations.py",
+      "sha256": "49cde1854e7cee24f376fff3b2647c8ff315b854e96224241154ec167cb345ef"
+    },
+    "db/backends/sqlite3/operations.py": {
+      "bytes": 15892,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/backends/sqlite3/operations.py",
+      "sha256": "3c4a8181a63d08f1da9b1b07b030b819b8afac7c95b9c3d978c2c7b20344f9cd"
+    },
+    "db/models/aggregates.py": {
+      "bytes": 15427,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/aggregates.py",
+      "sha256": "5306e824e61be06dc20c1d322586f84697f9ecec7064b33405235feae5441eb1"
+    },
+    "db/models/expressions.py": {
+      "bytes": 77894,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/expressions.py",
+      "sha256": "5e2cd9d23b08da0ff7cfedab7f20164bce1f0ab61de9947a7219d2a14d344971"
+    },
+    "db/models/fields/__init__.py": {
+      "bytes": 103134,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/fields/__init__.py",
+      "sha256": "744392031020fc9599ec341132f8c793a8c0ce1e3981b4b304d3b3fcccb8535f"
+    },
+    "db/models/functions/mixins.py": {
+      "bytes": 2382,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/functions/mixins.py",
+      "sha256": "52aa47632177dc948459876081ecd3b5692b3243ca1447d6e9e9c892e8f381a4"
+    },
+    "db/models/query.py": {
+      "bytes": 118105,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/query.py",
+      "sha256": "5e86af673328a1d6800342f4bec9d4e2352b7919bebef349d98962d67569eae6"
+    },
+    "db/models/sql/compiler.py": {
+      "bytes": 96047,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/compiler.py",
+      "sha256": "38e5ed0147669e8085f00b02646e5b7436ece76f6bb399bef4acd4ae9f07feb4"
+    },
+    "db/models/sql/query.py": {
+      "bytes": 123905,
+      "pinned_url": "https://raw.githubusercontent.com/django/django/fe0a859f537d4238cf49fca39073513206f83122/django/db/models/sql/query.py",
+      "sha256": "dc599140baef8c28a832279007873f8dfd42c5b8aa0d4451c95aae2076425a01"
+    }
+  }
+}

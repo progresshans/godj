@@ -1,0 +1,12 @@
+package blog
+
+func (post Post) DisplayTitle() string {
+	return post.Title
+}
+
+func (post *Post) NormalizeTitle() {
+	if post == nil {
+		return
+	}
+	post.Title = "normalized:" + post.Title
+}

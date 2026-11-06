@@ -1,0 +1,586 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "pillow": "12.3.0",
+  "libtiff": "4.7.1",
+  "sources": {
+    "django.forms.fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "PIL.TiffImagePlugin": "440b2a3a80b280d18cda3fc70d9fd206e2fa44e9897c9550f70b51395047b273"
+  },
+  "tools": {
+    "tiffcp": "f995bc7cc8b8de44d52ea3bda06f31ba51f62d49538ce735b3b8a358ee7b2a65",
+    "tiffinfo": "e9d24a9e061c8846ee007fa470ba11a672d06a0c3fa8d79660578f404818c863"
+  },
+  "observation": "BigTIFF validity and pixels are established by LibTIFF full decode. Django/Pillow acceptance is recorded separately; Pillow 12.3.0 misidentifies big-endian BigTIFF. Compressed Pillow big_tiff=True output may remain classic TIFF, so generation uses tiffcp -8.",
+  "payloads": {
+    "le_raw": "SUkrAAgAAAAiAAAAAAAAABFEdzBjlk+CtVqNwHms35jL/gsAAAAAAAAAAAEDAAEAAAAAAAAAAwAAAAAAAAABAQMAAQAAAAAAAAACAAAAAAAAAAIBAwADAAAAAAAAAAgACAAIAAAAAwEDAAEAAAAAAAAAAQAAAAAAAAAGAQMAAQAAAAAAAAACAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAVAQMAAQAAAAAAAAADAAAAAAAAABYBAwABAAAAAAAAAAIAAAAAAAAAFwEQAAEAAAAAAAAAEgAAAAAAAAAcAQMAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAA",
+    "be_raw": "TU0AKwAIAAAAAAAAAAAAIhFEdzBjlk+CtVqNwHms35jL/gAAAAAAAAALAQAAAwAAAAAAAAABAAMAAAAAAAABAQADAAAAAAAAAAEAAgAAAAAAAAECAAMAAAAAAAAAAwAIAAgACAAAAQMAAwAAAAAAAAABAAEAAAAAAAABBgADAAAAAAAAAAEAAgAAAAAAAAERABAAAAAAAAAAAQAAAAAAAAAQARIAAwAAAAAAAAABAAEAAAAAAAABFQADAAAAAAAAAAEAAwAAAAAAAAEWAAMAAAAAAAAAAQACAAAAAAAAARcAEAAAAAAAAAABAAAAAAAAABIBHAADAAAAAAAAAAEAAQAAAAAAAAAAAAAAAAAA",
+    "le_pages": "SUkrAAgAAAAoAAAAAAAAAIAESIdxgY0sT0EtS0jWAeVY30wy39AQAAsAAAAAAAAAAAEDAAEAAAAAAAAAAwAAAAAAAAABAQMAAQAAAAAAAAACAAAAAAAAAAIBAwADAAAAAAAAAAgACAAIAAAAAwEDAAEAAAAAAAAABQAAAAAAAAAGAQMAAQAAAAAAAAACAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAVAQMAAQAAAAAAAAADAAAAAAAAABYBAwABAAAAAAAAAAIAAAAAAAAAFwEQAAEAAAAAAAAAFwAAAAAAAAAcAQMAAQAAAAAAAAABAAAAAAAAAIABAAAAAAAAgARIh3GBjSxPQS1NyhaiNYDzVjfCTLfwxLUOPMRTEUW7qDrWBI8eooLYUI56UcgYUjcMmAAzMwfKSFHxxUhdSDDdkyBc1FU4JJ8V5oTbOQ66dqmbIMGtEKlHOdKSTFfCxcgXaADGzvERVgIACwAAAAAAAAAAAQMAAQAAAAAAAAAHAAAAAAAAAAEBAwABAAAAAAAAAAUAAAAAAAAAAgEDAAMAAAAAAAAACAAIAAgAAAADAQMAAQAAAAAAAAAFAAAAAAAAAAYBAwABAAAAAAAAAAIAAAAAAAAAEQEQAAEAAAAAAAAAFAEAAAAAAAASAQMAAQAAAAAAAAABAAAAAAAAABUBAwABAAAAAAAAAAMAAAAAAAAAFgEDAAEAAAAAAAAABQAAAAAAAAAXARAAAQAAAAAAAABrAAAAAAAAABwBAwABAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAA=",
+    "be_pages": "TU0AKwAIAAAAAAAAAAAAInicE3QplweDqN4DEAYAJaoD6AAAAAAAAAAMAQAAAwAAAAAAAAABAAMAAAAAAAABAQADAAAAAAAAAAEAAgAAAAAAAAECAAMAAAAAAAAAAwAIAAgACAAAAQMAAwAAAAAAAAABAAgAAAAAAAABBgADAAAAAAAAAAEAAgAAAAAAAAERABAAAAAAAAAAAQAAAAAAAAAQARIAAwAAAAAAAAABAAEAAAAAAAABFQADAAAAAAAAAAEAAwAAAAAAAAEWAAMAAAAAAAAAAQACAAAAAAAAARcAEAAAAAAAAAABAAAAAAAAABIBHAADAAAAAAAAAAEAAQAAAAAAAAE9AAMAAAAAAAAAAQACAAAAAAAAAAAAAAAAAUR4nBN0KZfHAFG9BzAFF1/jxBR8Ix+EKWiaMRtTEAC7oxFxAAAAAAAAAAwBAAADAAAAAAAAAAEABwAAAAAAAAEBAAMAAAAAAAAAAQAFAAAAAAAAAQIAAwAAAAAAAAADAAgACAAIAAABAwADAAAAAAAAAAEACAAAAAAAAAEGAAMAAAAAAAAAAQACAAAAAAAAAREAEAAAAAAAAAABAAAAAAAAASIBEgADAAAAAAAAAAEAAQAAAAAAAAEVAAMAAAAAAAAAAQADAAAAAAAAARYAAwAAAAAAAAABAAUAAAAAAAABFwAQAAAAAAAAAAEAAAAAAAAAIgEcAAMAAAAAAAAAAQABAAAAAAAAAT0AAwAAAAAAAAABAAIAAAAAAAAAAAAAAAAAAA==",
+    "le_packbits": "SUkrAAgAAAAkAAAAAAAAAAgRRHcwY5ZPgrUIWo3AeazfmMv+CwAAAAAAAAAAAQMAAQAAAAAAAAADAAAAAAAAAAEBAwABAAAAAAAAAAIAAAAAAAAAAgEDAAMAAAAAAAAACAAIAAgAAAADAQMAAQAAAAAAAAAFgAAAAAAAAAYBAwABAAAAAAAAAAIAAAAAAAAAEQEQAAEAAAAAAAAAEAAAAAAAAAASAQMAAQAAAAAAAAABAAAAAAAAABUBAwABAAAAAAAAAAMAAAAAAAAAFgEDAAEAAAAAAAAAAgAAAAAAAAAXARAAAQAAAAAAAAAUAAAAAAAAABwBAwABAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAA=",
+    "le_strips": "SUkrAAgAAAAyAQAAAAAAAIAESIdw/BYNB4RCYVC4ZDICgBaRrAD8Fg0HhEJhULhkMgKAKNrAkPwWDQeEQmFQuGQyAoA7A+Ug/BYNB4RCYVC4ZDICgA1NCbD8Fg0HhEJhULhkMgKAH5YuQPwWDQeEQmFQuGQyAoAx30LQ/BYNB4RCYVC4ZDICgAQIZ2D8Fg0HhEJhULhkMgKAFlGL8PwWDQeEQmFQuGQyAoAomqCA/BYNB4RCYVC4ZDICgDrDxRD8Fg0HhEJhULhkMgKADQzpoPwWDQeEQmFQuGQyAoAfVg4w/BYNB4RCYVC4ZDICgDGfIsD8Fg0HhEJhULhkMgKAA8hHUPwWDQeEQmFQuGQyAoAWEWvg/BYNB4RCYVC4ZDICgChagHD8Fg0HhEJhULhkMgIADAAAAAAAAAAAAQMAAQAAAAAAAAATAAAAAAAAAAEBAwABAAAAAAAAABEAAAAAAAAAAgEDAAMAAAAAAAAACAAIAAgAAAADAQMAAQAAAAAAAAAFAAAAAAAAAAYBAwABAAAAAAAAAAIAAAAAAAAAEQEQABEAAAAAAAAAVAIAAAAAAAASAQMAAQAAAAAAAAABAAAAAAAAABUBAwABAAAAAAAAAAMAAAAAAAAAFgEDAAEAAAAAAAAAAQAAAAAAAAAXAQMAEQAAAAAAAAAyAgAAAAAAABwBAwABAAAAAAAAAAEAAAAAAAAAPQEDAAEAAAAAAAAAAgAAAAAAAAAAAAAAAAAAABEAEQARABEAEQARABEAEQARABEAEQARABEAEQARABEAEQAQAAAAAAAAACEAAAAAAAAAMgAAAAAAAABDAAAAAAAAAFQAAAAAAAAAZQAAAAAAAAB2AAAAAAAAAIcAAAAAAAAAmAAAAAAAAACpAAAAAAAAALoAAAAAAAAAywAAAAAAAADcAAAAAAAAAO0AAAAAAAAA/gAAAAAAAAAPAQAAAAAAACABAAAAAAAA",
+    "be_tiles": "TU0AKwAIAAAAAAAAAAABpHicE3QplycFRPUeIEn94mucJKl/Ix9EknrTjNkkqa/b+IQk9cd/6ZKkXsC5jCT1kT37SVK/6CoHSepfywWSpN4kfRZJ6ms3PCZJ/bGfOiSp53cqJUl9RPc+ktQDAPpCbpl4nGM0SZcHA319fXkigFftBpLUTz72kyT1d/idSFKvGtFNkvq8hVdIUr/9lSxJ6hmM00hS71mzniT1k47+IEn9bT5HktSrhHeRpD53wWWS1G97KUOS+v9GqSSp96heR5J6ACuNcZl4nFt4hV2eFOBVuwHC0NfXJ0b95GM/SVJ/h9+JJPWqEd0kqc9beIUk9dtfyZKknsE4jST1njXrSVI/6egPktTf5nMkSb1KeBdJ6nMXXCZJ/baXMiSp/2+USpJ6j+p1JKkHAD2rckl4nJt45Ls8GOjr68sTAbxqN5CkfvKxnySpv8PvRJJ61YhuktTnLbxCkvrtr2RJUs9gnEaSes+a9SSpn3T0B0nqb/M5kqReJbyLJPW5Cy6TpH7bSxmS1P83SiVJvUf1OpLUAwA6KHNJAAAAAAAAAA0BAAADAAAAAAAAAAEAEwAAAAAAAAEBAAMAAAAAAAAAAQARAAAAAAAAAQIAAwAAAAAAAAADAAgACAAIAAABAwADAAAAAAAAAAEACAAAAAAAAAEGAAMAAAAAAAAAAQACAAAAAAAAARIAAwAAAAAAAAABAAEAAAAAAAABFQADAAAAAAAAAAEAAwAAAAAAAAEcAAMAAAAAAAAAAQABAAAAAAAAAT0AAwAAAAAAAAABAAIAAAAAAAABQgADAAAAAAAAAAEAEAAAAAAAAAFDAAMAAAAAAAAAAQAQAAAAAAAAAUQAEAAAAAAAAAAEAAAAAAAAArgBRQADAAAAAAAAAAQAYQBmAGYAZwAAAAAAAAAAAAAAAAAAABAAAAAAAAAAcQAAAAAAAADXAAAAAAAAAT0=",
+    "be_tile": "TU0AKwAIAAAAAAAAAAADEBFEdzBjlk+CtQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFqNwHms35jL/gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAQAAAwAAAAAAAAABAAMAAAAAAAABAQADAAAAAAAAAAEAAgAAAAAAAAECAAMAAAAAAAAAAwAIAAgACAAAAQMAAwAAAAAAAAABAAEAAAAAAAABBgADAAAAAAAAAAEAAgAAAAAAAAESAAMAAAAAAAAAAQABAAAAAAAAARUAAwAAAAAAAAABAAMAAAAAAAABHAADAAAAAAAAAAEAAQAAAAAAAAFCAAMAAAAAAAAAAQAQAAAAAAAAAUMAAwAAAAAAAAABABAAAAAAAAABRAAQAAAAAAAAAAEAAAAAAAAAEAFFABAAAAAAAAAAAQAAAAAAAAMAAAAAAAAAAAA=",
+    "le_gray16": "SUkrAAgAAAAcAAAAAAAAAAEB4AS/CNocuSCYJAoAAAAAAAAAAAEDAAEAAAAAAAAAAwAAAAAAAAABAQMAAQAAAAAAAAACAAAAAAAAAAIBAwABAAAAAAAAABAAAAAAAAAAAwEDAAEAAAAAAAAAAQAAAAAAAAAGAQMAAQAAAAAAAAABAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAWAQMAAQAAAAAAAAACAAAAAAAAABcBEAABAAAAAAAAAAwAAAAAAAAAHAEDAAEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAA==",
+    "be_gray16": "TU0AKwAIAAAAAAAAAAAAHoAAQCA2/BA42oJBICAAAAAAAAAAAAsBAAADAAAAAAAAAAEAAwAAAAAAAAEBAAMAAAAAAAAAAQACAAAAAAAAAQIAAwAAAAAAAAABABAAAAAAAAABAwADAAAAAAAAAAEABQAAAAAAAAEGAAMAAAAAAAAAAQABAAAAAAAAAREAEAAAAAAAAAABAAAAAAAAABABEgADAAAAAAAAAAEAAQAAAAAAAAEWAAMAAAAAAAAAAQACAAAAAAAAARcAEAAAAAAAAAABAAAAAAAAAA0BHAADAAAAAAAAAAEAAQAAAAAAAAE9AAMAAAAAAAAAAQACAAAAAAAAAAAAAAAAAAA=",
+    "le_rgba": "SUkrAAgAAAAoAAAAAAAAABFEd/8wY5b/T4K1/1qNwP95rN//mMv+/wwAAAAAAAAAAAEDAAEAAAAAAAAAAwAAAAAAAAABAQMAAQAAAAAAAAACAAAAAAAAAAIBAwAEAAAAAAAAAAgACAAIAAgAAwEDAAEAAAAAAAAAAQAAAAAAAAAGAQMAAQAAAAAAAAACAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAVAQMAAQAAAAAAAAAEAAAAAAAAABYBAwABAAAAAAAAAAIAAAAAAAAAFwEQAAEAAAAAAAAAGAAAAAAAAAAcAQMAAQAAAAAAAAABAAAAAAAAAFIBAwABAAAAAAAAAAIAAAAAAAAAAAAAAAAAAAA=",
+    "be_palette": "TU0AKwAIAAAAAAAAAAAAGoAERgTy0eUxAQAAAAAAAAAACwEAAAMAAAAAAAAAAQADAAAAAAAAAQEAAwAAAAAAAAABAAIAAAAAAAABAgADAAAAAAAAAAEACAAAAAAAAAEDAAMAAAAAAAAAAQAFAAAAAAAAAQYAAwAAAAAAAAABAAMAAAAAAAABEQAQAAAAAAAAAAEAAAAAAAAAEAESAAMAAAAAAAAAAQABAAAAAAAAARYAAwAAAAAAAAABAAIAAAAAAAABFwAQAAAAAAAAAAEAAAAAAAAACQEcAAMAAAAAAAAAAQABAAAAAAAAAUAAAwAAAAAAAAMAAAAAAAAAAQYAAAAAAAAAAAAAAQACAAMABAAFAAYABwAIAAkACgALAAwADQAOAA8AEAARABIAEwAUABUAFgAXABgAGQAaABsAHAAdAB4AHwAgACEAIgAjACQAJQAmACcAKAApACoAKwAsAC0ALgAvADAAMQAyADMANAA1ADYANwA4ADkAOgA7ADwAPQA+AD8AQABBAEIAQwBEAEUARgBHAEgASQBKAEsATABNAE4ATwBQAFEAUgBTAFQAVQBWAFcAWABZAFoAWwBcAF0AXgBfAGAAYQBiAGMAZABlAGYAZwBoAGkAagBrAGwAbQBuAG8AcABxAHIAcwB0AHUAdgB3AHgAeQB6AHsAfAB9AH4AfwCAAIEAggCDAIQAhQCGAIcAiACJAIoAiwCMAI0AjgCPAJAAkQCSAJMAlACVAJYAlwCYAJkAmgCbAJwAnQCeAJ8AoAChAKIAowCkAKUApgCnAKgAqQCqAKsArACtAK4ArwCwALEAsgCzALQAtQC2ALcAuAC5ALoAuwC8AL0AvgC/AMAAwQDCAMMAxADFAMYAxwDIAMkAygDLAMwAzQDOAM8A0ADRANIA0wDUANUA1gDXANgA2QDaANsA3ADdAN4A3wDgAOEA4gDjAOQA5QDmAOcA6ADpAOoA6wDsAO0A7gDvAPAA8QDyAPMA9AD1APYA9wD4APkA+gD7APwA/QD+AP8A/wD+AP0A/AD7APoA+QD4APcA9gD1APQA8wDyAPEA8ADvAO4A7QDsAOsA6gDpAOgA5wDmAOUA5ADjAOIA4QDgAN8A3gDdANwA2wDaANkA2ADXANYA1QDUANMA0gDRANAAzwDOAM0AzADLAMoAyQDIAMcAxgDFAMQAwwDCAMEAwAC/AL4AvQC8ALsAugC5ALgAtwC2ALUAtACzALIAsQCwAK8ArgCtAKwAqwCqAKkAqACnAKYApQCkAKMAogChAKAAnwCeAJ0AnACbAJoAmQCYAJcAlgCVAJQAkwCSAJEAkACPAI4AjQCMAIsAigCJAIgAhwCGAIUAhACDAIIAgQCAAH8AfgB9AHwAewB6AHkAeAB3AHYAdQB0AHMAcgBxAHAAbwBuAG0AbABrAGoAaQBoAGcAZgBlAGQAYwBiAGEAYABfAF4AXQBcAFsAWgBZAFgAVwBWAFUAVABTAFIAUQBQAE8ATgBNAEwASwBKAEkASABHAEYARQBEAEMAQgBBAEAAPwA+AD0APAA7ADoAOQA4ADcANgA1ADQAMwAyADEAMAAvAC4ALQAsACsAKgApACgAJwAmACUAJAAjACIAIQAgAB8AHgAdABwAGwAaABkAGAAXABYAFQAUABMAEgARABAADwAOAA0ADAALAAoACQAIAAcABgAFAAQAAwACAAEAAAAAAAAAAQABAAIAAgADAAMABAAEAAUABQAGAAYABwAHAAgACAAJAAkACgAKAAsACwAMAAwADQANAA4ADgAPAA8AEAAQABEAEQASABIAEwATABQAFAAVABUAFgAWABcAFwAYABgAGQAZABoAGgAbABsAHAAcAB0AHQAeAB4AHwAfACAAIAAhACEAIgAiACMAIwAkACQAJQAlACYAJgAnACcAKAAoACkAKQAqACoAKwArACwALAAtAC0ALgAuAC8ALwAwADAAMQAxADIAMgAzADMANAA0ADUANQA2ADYANwA3ADgAOAA5ADkAOgA6ADsAOwA8ADwAPQA9AD4APgA/AD8AQABAAEEAQQBCAEIAQwBDAEQARABFAEUARgBGAEcARwBIAEgASQBJAEoASgBLAEsATABMAE0ATQBOAE4ATwBPAFAAUABRAFEAUgBSAFMAUwBUAFQAVQBVAFYAVgBXAFcAWABYAFkAWQBaAFoAWwBbAFwAXABdAF0AXgBeAF8AXwBgAGAAYQBhAGIAYgBjAGMAZABkAGUAZQBmAGYAZwBnAGgAaABpAGkAagBqAGsAawBsAGwAbQBtAG4AbgBvAG8AcABwAHEAcQByAHIAcwBzAHQAdAB1AHUAdgB2AHcAdwB4AHgAeQB5AHoAegB7AHsAfAB8AH0AfQB+AH4AfwB/AA==",
+    "le_group3": "SUkrAAgAAAAYAAAAAAAAAAAR0OACaodACQAAAAAAAAAAAQMAAQAAAAAAAAADAAAAAAAAAAEBAwABAAAAAAAAAAIAAAAAAAAAAwEDAAEAAAAAAAAAAwAAAAAAAAAGAQMAAQAAAAAAAAABAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAWAQMAAQAAAAAAAAACAAAAAAAAABcBEAABAAAAAAAAAAgAAAAAAAAAHAEDAAEAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAA==",
+    "be_group4": "TU0AKwAIAAAAAAAAAAAAFglSUAEAEAAAAAAAAAAJAQAAAwAAAAAAAAABAAMAAAAAAAABAQADAAAAAAAAAAEAAgAAAAAAAAEDAAMAAAAAAAAAAQAEAAAAAAAAAQYAAwAAAAAAAAABAAEAAAAAAAABEQAQAAAAAAAAAAEAAAAAAAAAEAESAAMAAAAAAAAAAQABAAAAAAAAARYAAwAAAAAAAAABAAIAAAAAAAABFwAQAAAAAAAAAAEAAAAAAAAABgEcAAMAAAAAAAAAAQABAAAAAAAAAAAAAAAAAAA=",
+    "le_cmyk": "SUkrAAgAAAAoAAAAAAAAABEfNREwHzURTx81EVofNRF5HzURmB81EQsAAAAAAAAAAAEDAAEAAAAAAAAAAwAAAAAAAAABAQMAAQAAAAAAAAACAAAAAAAAAAIBAwAEAAAAAAAAAAgACAAIAAgAAwEDAAEAAAAAAAAAAQAAAAAAAAAGAQMAAQAAAAAAAAAFAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAVAQMAAQAAAAAAAAAEAAAAAAAAABYBAwABAAAAAAAAAAIAAAAAAAAAFwEQAAEAAAAAAAAAGAAAAAAAAAAcAQMAAQAAAAAAAAABAAAAAAAAAAAAAAAAAAAA",
+    "le_jpeg": "SUkrAAgAAABOAAAAAAAAAP/Y/8AAEQgAAgADAwEiAAIRAQMRAf/aAAwDAQACEQMRAD8A63S9Osf7Lt/9Dt/uf88l/wAKKKK948Q//9kADgAAAAAAAAAAAQMAAQAAAAAAAAADAAAAAAAAAAEBAwABAAAAAAAAAAIAAAAAAAAAAgEDAAMAAAAAAAAACAAIAAgAAAADAQMAAQAAAAAAAAAHAAAAAAAAAAYBAwABAAAAAAAAAAYAAAAAAAAAEQEQAAEAAAAAAAAAEAAAAAAAAAASAQMAAQAAAAAAAAABAAAAAAAAABUBAwABAAAAAAAAAAMAAAAAAAAAFgEDAAEAAAAAAAAAAgAAAAAAAAAXARAAAQAAAAAAAAA9AAAAAAAAABwBAwABAAAAAAAAAAEAAAAAAAAAWwEHAD4CAAAAAAAApgEAAAAAAAASAgMAAgAAAAAAAAACAAIAAAAAABQCBQAGAAAAAAAAAHYBAAAAAAAAAAAAAAAAAAAAAAAAAQAAAP8AAAABAAAAgAAAAAEAAAD/AAAAAQAAAIAAAAABAAAA/wAAAAEAAAD/2P/bAEMACAYGBwYFCAcHBwkJCAoMFA0MCwsMGRITDxQdGh8eHRocHCAkLicgIiwjHBwoNyksMDE0NDQfJzk9ODI8LjM0Mv/bAEMBCQkJDAsMGA0NGDIhHCEyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMv/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/Z",
+    "late_pixels": "SUkrAAgAAAAoAAAAAAAAAIAESIdxgY0sT0EtS0jWAeVY30wy39AQAAsAAAAAAAAAAAEDAAEAAAAAAAAAAwAAAAAAAAABAQMAAQAAAAAAAAACAAAAAAAAAAIBAwADAAAAAAAAAAgACAAIAAAAAwEDAAEAAAAAAAAABQAAAAAAAAAGAQMAAQAAAAAAAAACAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAVAQMAAQAAAAAAAAADAAAAAAAAABYBAwABAAAAAAAAAAIAAAAAAAAAFwEQAAEAAAAAAAAAFwAAAAAAAAAcAQMAAQAAAAAAAAABAAAAAAAAAIABAAAAAAAA//9Ih3GBjSxPQS1NyhaiNYDzVjfCTLfwxLUOPMRTEUW7qDrWBI8eooLYUI56UcgYUjcMmAAzMwfKSFHxxUhdSDDdkyBc1FU4JJ8V5oTbOQ66dqmbIMGtEKlHOdKSTFfCxcgXaADGzvERVgIACwAAAAAAAAAAAQMAAQAAAAAAAAAHAAAAAAAAAAEBAwABAAAAAAAAAAUAAAAAAAAAAgEDAAMAAAAAAAAACAAIAAgAAAADAQMAAQAAAAAAAAAFAAAAAAAAAAYBAwABAAAAAAAAAAIAAAAAAAAAEQEQAAEAAAAAAAAAFAEAAAAAAAASAQMAAQAAAAAAAAABAAAAAAAAABUBAwABAAAAAAAAAAMAAAAAAAAAFgEDAAEAAAAAAAAABQAAAAAAAAAXARAAAQAAAAAAAABrAAAAAAAAABwBAwABAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAA=",
+    "late_directory": "SUkrAAgAAAAoAAAAAAAAAIAESIdxgY0sT0EtS0jWAeVY30wy39AQAAsAAAAAAAAAAAEDAAEAAAAAAAAAAwAAAAAAAAABAQMAAQAAAAAAAAACAAAAAAAAAAIBAwADAAAAAAAAAAgACAAIAAAAAwEDAAEAAAAAAAAABQAAAAAAAAAGAQMAAQAAAAAAAAACAAAAAAAAABEBEAABAAAAAAAAABAAAAAAAAAAEgEDAAEAAAAAAAAAAQAAAAAAAAAVAQMAAQAAAAAAAAADAAAAAAAAABYBAwABAAAAAAAAAAIAAAAAAAAAFwEQAAEAAAAAAAAAFwAAAAAAAAAcAQMAAQAAAAAAAAABAAAAAAAAAIABAAAAAAAAgARIh3GBjSxPQS1NyhaiNYDzVjfCTLfwxLUOPMRTEUW7qDrWBI8eooLYUI56UcgYUjcMmAAzMwfKSFHxxUhdSDDdkyBc1FU4JJ8V5oTbOQ66dqmbIMGtEKlHOdKSTFfCxcgXaADGzvERVgIACwAAAAAAAAAAAQMAAQAAAAAAAAAHAAAAAAAAAAEBAwABAAAAAAAAAAUAAAAAAAAAAgEDAAMAAAAAAAAACAAIAAgAAAADAQMAAQAAAAAAAAAFAAAAAAAAAAYBAwABAAAAAAAAAAIAAAAAAAAAEQEQAAEAAAAAAAAAFAEAAAAAAAASAQMAAQAAAAAAAAABAAAAAAAAABUBAwABAAAAAAAAAAMAAAAAAAAAFgEDAAEAAAAAAAAABQAAAAAAAAAXARAAAQAAAAAAAABrAAAAAAAAAA=="
+  },
+  "cases": [
+    {
+      "name": "le_raw",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "be_raw",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": false,
+        "errors": [
+          "invalid_image"
+        ],
+        "warnings": [
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. ",
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. "
+        ]
+      }
+    },
+    {
+      "name": "le_pages",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 2
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        },
+        {
+          "width": 7,
+          "height": 5,
+          "pixels_rgba16_sha256": "ca6e1e77335c79aa4c69421b2bb6e5c62c5b04173a0a247bb83813ce30ade5f2"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "be_pages",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 2
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        },
+        {
+          "width": 7,
+          "height": 5,
+          "pixels_rgba16_sha256": "ca6e1e77335c79aa4c69421b2bb6e5c62c5b04173a0a247bb83813ce30ade5f2"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": false,
+        "errors": [
+          "invalid_image"
+        ],
+        "warnings": [
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. ",
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. "
+        ]
+      }
+    },
+    {
+      "name": "le_packbits",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "le_strips",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 19,
+        "height": 17,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 19,
+          "height": 17,
+          "pixels_rgba16_sha256": "0cf49c53446d7709deda64bc464e83c0be71ffafd8e88c3cae07a29874bec2ea"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "be_tiles",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 19,
+        "height": 17,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 19,
+          "height": 17,
+          "pixels_rgba16_sha256": "0cf49c53446d7709deda64bc464e83c0be71ffafd8e88c3cae07a29874bec2ea"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": false,
+        "errors": [
+          "invalid_image"
+        ],
+        "warnings": [
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. ",
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. "
+        ]
+      }
+    },
+    {
+      "name": "be_tile",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": false,
+        "errors": [
+          "invalid_image"
+        ],
+        "warnings": [
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. ",
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. "
+        ]
+      }
+    },
+    {
+      "name": "le_gray16",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "156aaea2917e98e243fc1bc9d8844f652de25b0aab15f7efbcfcd4e2d61cc714"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "be_gray16",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "156aaea2917e98e243fc1bc9d8844f652de25b0aab15f7efbcfcd4e2d61cc714"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": false,
+        "errors": [
+          "invalid_image"
+        ],
+        "warnings": [
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. ",
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. "
+        ]
+      }
+    },
+    {
+      "name": "le_rgba",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "be_palette",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "40174c8493aa0177c93f57059f4d1651169f842e056616d508c9200275c4f856"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": false,
+        "errors": [
+          "invalid_image"
+        ],
+        "warnings": [
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. ",
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. "
+        ]
+      }
+    },
+    {
+      "name": "le_group3",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "a8fe802449629290963a8cb5790f2714c00e5fb46967afff496df0894215e39c"
+        }
+      ],
+      "classic_payload": "SUkqABAAAAAAEdDgAmqHQAkAAAEDAAEAAAADAAAAAQEDAAEAAAACAAAAAwEDAAEAAAADAAAABgEDAAEAAAABAAAAEQEEAAEAAAAIAAAAEgEDAAEAAAABAAAAFgEDAAEAAAACAAAAFwEEAAEAAAAIAAAAHAEDAAEAAAABAAAAAAAAAA==",
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "be_group4",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "a8fe802449629290963a8cb5790f2714c00e5fb46967afff496df0894215e39c"
+        }
+      ],
+      "classic_payload": "SUkqAA4AAAAJUlABABAJAAABAwABAAAAAwAAAAEBAwABAAAAAgAAAAMBAwABAAAABAAAAAYBAwABAAAAAQAAABEBBAABAAAACAAAABIBAwABAAAAAQAAABYBAwABAAAAAgAAABcBBAABAAAABgAAABwBAwABAAAAAQAAAAAAAAA=",
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": false,
+        "errors": [
+          "invalid_image"
+        ],
+        "warnings": [
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. ",
+          "Corrupt EXIF data.  Expecting to read 2 bytes but only got 0. "
+        ]
+      }
+    },
+    {
+      "name": "le_cmyk",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "f1943a648828ad451aece26a819f52b5936599a3e7be399441b530aa76d13e04"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "le_jpeg",
+      "filename": "picture.tiff",
+      "valid": true,
+      "cleaned": {
+        "format": "tiff",
+        "content_type": "image/tiff",
+        "width": 3,
+        "height": 2,
+        "frames": 1
+      },
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "13044f95fbfdcf97efcd7dd4be6a68ad529512ed40baaee0ba02e353ba49d87f"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 0,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "late_pixels",
+      "filename": "picture.tiff",
+      "valid": false,
+      "cleaned": null,
+      "native_frames": [],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 1,
+        "tiffcp_exit": 1
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    },
+    {
+      "name": "late_directory",
+      "filename": "picture.tiff",
+      "valid": false,
+      "cleaned": null,
+      "native_frames": [
+        {
+          "width": 3,
+          "height": 2,
+          "pixels_rgba16_sha256": "1cf3c4f1337f0ce1abf13c17296a117f4aa11a320e44ae1867eddbc0527b14f1"
+        }
+      ],
+      "classic_payload": null,
+      "libtiff": {
+        "tiffinfo_exit": 1,
+        "tiffcp_exit": 0
+      },
+      "django": {
+        "valid": true,
+        "errors": [],
+        "warnings": []
+      }
+    }
+  ]
+}

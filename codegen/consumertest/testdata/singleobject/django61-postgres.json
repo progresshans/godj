@@ -1,0 +1,283 @@
+{
+  "backend": "postgresql",
+  "creation": {
+    "create": {
+      "calls": [
+        {
+          "in_atomic_block": true
+        }
+      ],
+      "created": true,
+      "detail": "from factory",
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    "create_outside_filter": {
+      "actual_detail": "actual",
+      "created": true,
+      "in_original_filter": false,
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ]
+    },
+    "existing": {
+      "calls": [],
+      "created": false,
+      "detail": "from factory",
+      "same_key": true,
+      "transaction_commands": []
+    },
+    "final_rows": {
+      "rows": [
+        {
+          "category__name": "other",
+          "detail": "",
+          "external": null,
+          "name": "once"
+        },
+        {
+          "category__name": "support",
+          "detail": "from factory",
+          "external": null,
+          "name": "once"
+        },
+        {
+          "category__name": "support",
+          "detail": "",
+          "external": null,
+          "name": "outer-after"
+        },
+        {
+          "category__name": "support",
+          "detail": "",
+          "external": null,
+          "name": "outer-before"
+        },
+        {
+          "category__name": "support",
+          "detail": "actual",
+          "external": null,
+          "name": "outside-filter"
+        },
+        {
+          "category__name": "support",
+          "detail": "",
+          "external": null,
+          "name": "parent-after"
+        },
+        {
+          "category__name": "support",
+          "detail": "",
+          "external": null,
+          "name": "parent-before"
+        },
+        {
+          "category__name": "support",
+          "detail": "",
+          "external": "reserved",
+          "name": "unique-owner"
+        }
+      ]
+    },
+    "invalid_create_default": {
+      "error": "FieldError",
+      "exists": false
+    },
+    "multiple_matches": {
+      "error": "MultipleObjectsReturned",
+      "factory_calls": 0
+    },
+    "nested_unique_failure": {
+      "inner_absent": true,
+      "outer_count": 2,
+      "transaction_commands": [
+        "SAVEPOINT",
+        "ROLLBACK TO SAVEPOINT",
+        "RELEASE SAVEPOINT"
+      ]
+    },
+    "release_is_not_commit": {
+      "absent": true,
+      "transaction_commands": [
+        "BEGIN",
+        "SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "ROLLBACK"
+      ]
+    },
+    "unrelated_unique_conflict": {
+      "absent": true,
+      "error": "IntegrityError",
+      "parent_preserved": true,
+      "transaction_commands": [
+        "SAVEPOINT",
+        "ROLLBACK TO SAVEPOINT",
+        "RELEASE SAVEPOINT"
+      ]
+    }
+  },
+  "django": "6.1",
+  "get": {
+    "empty_predicate": {
+      "native": {
+        "error_message": "Label matching query does not exist.",
+        "order_by": false,
+        "queries": 0
+      },
+      "outcome": {
+        "error": "DoesNotExist"
+      }
+    },
+    "empty_slice": {
+      "native": {
+        "error_message": "Label matching query does not exist.",
+        "order_by": false,
+        "queries": 0
+      },
+      "outcome": {
+        "error": "DoesNotExist"
+      }
+    },
+    "many_matches": {
+      "native": {
+        "error_message": "get() returned more than one Label -- it returned more than 20!",
+        "order_by": false,
+        "queries": 1
+      },
+      "outcome": {
+        "error": "MultipleObjectsReturned",
+        "more_than_twenty": true
+      }
+    },
+    "missing": {
+      "native": {
+        "error_message": "Label matching query does not exist.",
+        "order_by": false,
+        "queries": 1
+      },
+      "outcome": {
+        "error": "DoesNotExist"
+      }
+    },
+    "multiple": {
+      "native": {
+        "error_message": "get() returned more than one Label -- it returned 3!",
+        "order_by": false,
+        "queries": 1
+      },
+      "outcome": {
+        "error": "MultipleObjectsReturned",
+        "more_than_twenty": false
+      }
+    },
+    "single": {
+      "native": {
+        "error_message": null,
+        "order_by": false,
+        "queries": 1
+      },
+      "outcome": {
+        "detail": "original",
+        "name": "single"
+      }
+    },
+    "slice_offset": {
+      "native": {
+        "error_message": null,
+        "order_by": true,
+        "queries": 1
+      },
+      "outcome": {
+        "detail": "b",
+        "name": "several-b"
+      }
+    },
+    "slice_one": {
+      "native": {
+        "error_message": null,
+        "order_by": true,
+        "queries": 1
+      },
+      "outcome": {
+        "detail": "c",
+        "name": "several-c"
+      }
+    },
+    "unsliced_order_removed": {
+      "native": {
+        "error_message": null,
+        "order_by": false,
+        "queries": 1
+      },
+      "outcome": {
+        "detail": "a",
+        "name": "several-a"
+      }
+    },
+    "warm_get_after_delete": {
+      "native": {
+        "error_message": "Label matching query does not exist.",
+        "order_by": false,
+        "queries": 1
+      },
+      "outcome": {
+        "error": "DoesNotExist"
+      }
+    },
+    "warm_get_refresh": {
+      "native": {
+        "queries": 1
+      },
+      "outcome": {
+        "cache_after": "original",
+        "cached": "original",
+        "returned": "updated",
+        "shares_cached_object": false
+      }
+    }
+  },
+  "kind": "django-single-object-reference-v1",
+  "observer_sha256": "ff7785c3a378e27fb4df460ac75ee1b8396cffa1afadf161b3b0fe51915e6112",
+  "python": "3.14.3",
+  "race": {
+    "final_rows": [
+      {
+        "detail": "leader",
+        "name": "shared"
+      }
+    ],
+    "insert_attempts": [
+      1,
+      1
+    ],
+    "postgres_blocking_observed": true,
+    "results": [
+      {
+        "created": true,
+        "detail": "leader",
+        "factory_calls": 1,
+        "transaction_commands": [
+          "BEGIN",
+          "COMMIT"
+        ]
+      },
+      {
+        "created": false,
+        "detail": "leader",
+        "factory_calls": 1,
+        "transaction_commands": [
+          "BEGIN",
+          "ROLLBACK"
+        ]
+      }
+    ],
+    "rows_visible_before_commit": 0
+  },
+  "source_sha256": {
+    "queryset": "5e86af673328a1d6800342f4bec9d4e2352b7919bebef349d98962d67569eae6",
+    "transaction": "aee995a682da7157a7ef415521e4d3336c25fd5a25c1b8582e2453c5f1d30a79"
+  }
+}

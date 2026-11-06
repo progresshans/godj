@@ -1,0 +1,7 @@
+package invalid
+
+import "github.com/progresshans/godj/conformance/relationfixture/project"
+
+func invalidIsNullValue(objects project.Objects) {
+	_ = objects.BlogPost.Reviewer.IsNull("true")
+}

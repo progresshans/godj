@@ -19,8 +19,8 @@ from django.db.migrations.operations.fields import AddField
 from django.db.migrations.operations.models import CreateModel
 from django.db.migrations.recorder import MigrationRecorder
 from django.db.migrations.state import ProjectState
-from django.db.models.fields import NOT_PROVIDED
 
+from .migration_observation import managed_schema, state_value
 from .normalizer import normalize
 from .scenarios import configure_django
 
@@ -43,11 +43,6 @@ _DIVERGENT_TABLE = "godj_state_live_decoy"
 _MANAGED_TABLE_PREFIX = "godj_state_"
 _DDL_KINDS = frozenset({"ALTER", "CREATE", "DROP", "TRUNCATE"})
 _WRITE_KINDS = frozenset({"DELETE", "INSERT", "REPLACE", "UPDATE"})
-_FIELD_KINDS = {
-    "AutoField": "auto",
-    "BooleanField": "boolean",
-    "CharField": "char",
-}
 
 
 def _key_value(key: NodeKey) -> dict[str, str]:
@@ -195,86 +190,6 @@ def _graph_facts(migrations: Mapping[NodeKey, Migration]) -> dict[str, Any]:
     }
 
 
-def _default_value(
-    field: models.Field[Any, Any], field_kind: str
-) -> dict[str, Any]:
-    default = field.default
-    if default is NOT_PROVIDED:
-        return {"present": False, "type": "absent", "value": None}
-    if callable(default):
-        raise AssertionError("callable defaults are outside this contract")
-    if field_kind == "boolean" and isinstance(default, bool):
-        default_type = "bool"
-    elif field_kind == "char" and isinstance(default, str):
-        default_type = "string"
-    else:
-        raise AssertionError(
-            f"unsupported default type in state fixture: {type(default).__name__}"
-        )
-    return {"present": True, "type": default_type, "value": default}
-
-
-def _state_value(state: ProjectState) -> dict[str, Any]:
-    apps: dict[str, list[dict[str, Any]]] = {}
-    for (app_label, model_key), model_state in sorted(state.models.items()):
-        if model_state.name_lower != model_key:
-            raise AssertionError("ProjectState model key/name_lower mismatch")
-        db_table = model_state.options.get("db_table")
-        if not isinstance(db_table, str) or not db_table:
-            raise AssertionError("state fixture models must declare an explicit db_table")
-        fields = []
-        for field_name, field in model_state.fields.items():
-            max_length = field.max_length
-            internal_type = field.get_internal_type()
-            try:
-                field_kind = _FIELD_KINDS[internal_type]
-            except KeyError as error:
-                raise AssertionError(
-                    f"unsupported field kind in state fixture: {internal_type}"
-                ) from error
-            if field_kind == "char":
-                if (
-                    isinstance(max_length, bool)
-                    or not isinstance(max_length, int)
-                    or max_length <= 0
-                ):
-                    raise AssertionError(
-                        "char field max_length must be a positive int"
-                    )
-            elif max_length is not None:
-                raise AssertionError(
-                    "non-char field max_length must be None"
-                )
-            fields.append(
-                {
-                    "column": field.db_column or field_name,
-                    "default": _default_value(field, field_kind),
-                    "kind": field_kind,
-                    "max_length": max_length,
-                    "name": field_name,
-                    "nullable": field.null,
-                    "primary_key": field.primary_key,
-                }
-            )
-        apps.setdefault(app_label, []).append(
-            {
-                "db_table": db_table,
-                "fields": fields,
-                "name": model_key,
-            }
-        )
-    return {
-        "apps": [
-            {
-                "label": app_label,
-                "models": sorted(models_value, key=lambda item: item["name"]),
-            }
-            for app_label, models_value in sorted(apps.items())
-        ],
-        "format_version": 1,
-    }
-
-
 def _statement_kind(sql: str) -> str:
     rendered = sql.lstrip().upper()
     return rendered.split(None, 1)[0] if rendered else "EMPTY"
@@ -295,51 +210,13 @@ def _capture(
     return result, statements
 
 
-def _type_family(type_code: Any) -> str:
-    rendered = str(type_code).lower()
-    if "int" in rendered:
-        return "integer"
-    if "char" in rendered or "clob" in rendered or "text" in rendered:
-        return "text"
-    if "bool" in rendered:
-        return "boolean"
-    return rendered
-
-
-def _managed_schema() -> list[dict[str, Any]]:
-    inventory: list[dict[str, Any]] = []
-    with connection.cursor() as cursor:
-        for table in sorted(connection.introspection.table_names(cursor)):
-            if not table.startswith(_MANAGED_TABLE_PREFIX):
-                continue
-            description = connection.introspection.get_table_description(
-                cursor, table
-            )
-            inventory.append(
-                {
-                    "columns": [
-                        {
-                            "name": column.name,
-                            "nullable": column.null_ok,
-                            "type_family": _type_family(column.type_code),
-                        }
-                        for column in sorted(
-                            description, key=lambda item: item.name
-                        )
-                    ],
-                    "name": table,
-                }
-            )
-    return inventory
-
-
 def _database_snapshot() -> dict[str, Any]:
     recorder = MigrationRecorder(connection)
     recorder_present = recorder.has_table()
     applied = sorted(recorder.applied_migrations()) if recorder_present else []
     return {
         "applied_migrations": _key_values(applied),
-        "managed_schema": _managed_schema(),
+        "managed_schema": managed_schema(connection, _MANAGED_TABLE_PREFIX, primary_keys=False, datetime_types=False),
         "recorder_present": recorder_present,
     }
 
@@ -472,11 +349,11 @@ def _project_state_observation(
             migrations = _fixture_migrations()
             loader = _FixtureMigrationLoader(None, list(migrations.items()))
             state = loader.project_state(nodes=nodes, at_end=at_end)
-            return _state_value(state), _graph_facts(migrations)
+            return state_value(state), _graph_facts(migrations)
 
-        (state_value, graph), statements = _capture(reconstruct)
+        (observed_state, graph), statements = _capture(reconstruct)
         after = _database_snapshot()
-        _assert_live_schema_is_divergent(state_value, after)
+        _assert_live_schema_is_divergent(observed_state, after)
         request = {
             "mode": mode,
             "position": "after" if at_end else "before",
@@ -484,7 +361,7 @@ def _project_state_observation(
         }
         return _success_observation(
             contract_id,
-            {"state": state_value},
+            {"state": observed_state},
             before,
             after,
             statements,
@@ -529,7 +406,7 @@ def _applied_state_observation(
                 "known_applied_migrations": _key_values(
                     [key for key in applied if key in known_nodes]
                 ),
-                "state": _state_value(state),
+                "state": state_value(state),
                 "unknown_applied_migrations": _key_values(
                     [key for key in applied if key not in known_nodes]
                 ),

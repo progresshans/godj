@@ -1,0 +1,841 @@
+"""Authored public-API observations of pinned Django 6.1 (BSD-3-Clause).
+Independent preparatory evidence: does not import GoDj or expected snapshots.
+"""
+import hashlib
+import concurrent.futures
+import threading
+import inspect
+import json
+import os
+import platform
+import sys
+import tempfile
+import types
+from pathlib import Path
+
+import django
+from django.apps import AppConfig
+from django.conf import settings
+
+
+def observe():
+    assert django.get_version() == "6.1" and not settings.configured
+    database = os.environ.get("GODJ_M2M_DATABASE")
+    if database:
+        assert database.startswith("godj_m2m_")
+    with tempfile.TemporaryDirectory(prefix="godj-m2m-django-") as directory:
+        apps = []
+        for name in ("m2mowners", "m2mlabels"):
+            module = types.ModuleType(name)
+            module.__file__ = str(Path(directory) / (name + ".py"))
+            module.__path__ = [directory]
+            module.ReferenceConfig = type("ReferenceConfig", (AppConfig,), {
+                "name": name, "label": name, "path": directory, "__module__": name,
+            })
+            sys.modules[name] = module
+            apps.append(name + ".ReferenceConfig")
+        config = {"ENGINE": "django.db.backends.sqlite3", "NAME": str(Path(directory) / "reference.sqlite3")}
+        if database:
+            config = {"ENGINE": "django.db.backends.postgresql", "NAME": database, "HOST": "localhost", "PORT": 5432}
+        settings.configure(SECRET_KEY="independent-reference-only", INSTALLED_APPS=apps,
+                           DATABASES={"default": config}, DEFAULT_AUTO_FIELD="django.db.models.BigAutoField",
+                           USE_TZ=True, TIME_ZONE="UTC", LANGUAGE_CODE="en-us")
+        django.setup()
+        from django.db import DatabaseError, IntegrityError, connection, connections, models, transaction
+        from django.db.models import Prefetch, Q, prefetch_related_objects
+        from django.test.utils import CaptureQueriesContext
+        from django.db.models.signals import m2m_changed
+        from django.db.models.fields.related_descriptors import create_forward_many_to_many_manager
+
+        class Label(models.Model):
+            name = models.CharField(max_length=64)
+            note = models.CharField(max_length=64, null=True)
+            class Meta:
+                app_label = "m2mlabels"
+                db_table = "m2m_label"
+                ordering = ["name"]
+
+        class Owner(models.Model):
+            name = models.CharField(max_length=64)
+            labels = models.ManyToManyField(Label, related_name="owners")
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_owner"
+                ordering = ["name"]
+
+        class RankedOwner(models.Model):
+            name = models.CharField(max_length=64)
+            labels = models.ManyToManyField(Label, through="m2mowners.RankedLink", through_fields=("owner", "label"), related_name="ranked_owners")
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_ranked_owner"
+
+        class RankedLink(models.Model):
+            owner = models.ForeignKey(RankedOwner, on_delete=models.CASCADE)
+            label = models.ForeignKey(Label, on_delete=models.CASCADE)
+            token = models.IntegerField(unique=True)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_ranked_link"
+                constraints = [models.UniqueConstraint(fields=["owner", "label"], name="m2m_ranked_pair")]
+
+        class LooseOwner(models.Model):
+            name = models.CharField(max_length=64)
+            labels = models.ManyToManyField(Label, through="m2mowners.LooseLink", through_fields=("owner", "label"), related_name="loose_owners")
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_loose_owner"
+
+        class LooseLink(models.Model):
+            owner = models.ForeignKey(LooseOwner, null=True, on_delete=models.CASCADE)
+            label = models.ForeignKey(Label, null=True, on_delete=models.CASCADE)
+            amount = models.IntegerField()
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_loose_link"
+
+        class RankedBadge(models.Model):
+            owner = models.OneToOneField(RankedOwner, on_delete=models.CASCADE, related_name="badge")
+            name = models.CharField(max_length=64)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_ranked_badge"
+
+        class Guard(models.Model):
+            link = models.ForeignKey(RankedLink, on_delete=models.PROTECT)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_guard"
+
+        class Cascade(models.Model):
+            link = models.ForeignKey(RankedLink, on_delete=models.CASCADE)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_cascade"
+
+        class Optional(models.Model):
+            link = models.ForeignKey(RankedLink, null=True, on_delete=models.SET_NULL)
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_optional"
+
+        class Node(models.Model):
+            name = models.CharField(max_length=64)
+            friends = models.ManyToManyField("self")
+            follows = models.ManyToManyField("self", symmetrical=False, related_name="followers")
+            class Meta:
+                app_label = "m2mowners"
+                db_table = "m2m_node"
+                ordering = ["name"]
+
+        declared = [Label, Owner, RankedOwner, RankedLink, LooseOwner, LooseLink, RankedBadge, Guard, Cascade, Optional, Node]
+        automatic = [Owner.labels.through, Node.friends.through, Node.follows.through]
+        physical = declared + automatic
+        results = {}
+        created = False
+        def clear():
+            with transaction.atomic():
+                for model in reversed(physical):
+                    model.objects.all().delete()
+        def names(manager):
+            return sorted(value.name for value in manager.all())
+        def seed():
+            labels = [Label.objects.create(name=name) for name in ("a", "b", "c")]
+            owners = [Owner.objects.create(name=name) for name in ("first", "second")]
+            return labels, owners
+        def state():
+            return {"owners": list(Owner.objects.order_by("name").values_list("name", flat=True)),
+                    "labels": list(Label.objects.order_by("name").values_list("name", flat=True)),
+                    "links": list(Owner.labels.through.objects.order_by("owner__name", "label__name").values_list("owner__name", "label__name"))}
+        def error(operation):
+            try:
+                operation()
+            except Exception as failure:
+                return type(failure).__name__
+            return None
+        try:
+            with connection.schema_editor() as editor:
+                for model in declared:
+                    editor.create_model(model)
+            created = True
+            field = Owner._meta.get_field("labels")
+            through = field.remote_field.through
+            results["declaration"] = {"column": field.column, "concrete": field.concrete,
+                "physical_fields": [f.name for f in through._meta.fields],
+                "pair": through._meta.unique_together,
+                "policies": [f.remote_field.on_delete.__name__ for f in through._meta.fields if f.is_relation],
+                "owner_fields": [f.name for f in Owner._meta.local_fields]}
+
+            (a, b, c), (first, second) = seed()
+            returned = first.labels.add(a, b, a, b.pk)
+            a.owners.add(second, first)
+            first.labels.add()
+            results["add_and_reverse"] = {"return": returned, "state": state(), "reverse_a": names(a.owners)}
+            first.labels.remove(a, a.pk, 9223372036854775807)
+            results["remove"] = {"state": state(), "reverse_a": names(a.owners)}
+            first.labels.clear()
+            results["clear"] = state()
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b)
+            retained = through.objects.get(owner=first, label=b).pk
+            returned = first.labels.set([b, c, b])
+            results["set_delta"] = {"return": returned, "state": state(), "retained_identity": through.objects.get(owner=first, label=b).pk == retained}
+            retained = through.objects.get(owner=first, label=b).pk
+            first.labels.set([b, c], clear=True)
+            results["set_clear"] = {"state": state(), "retained_identity": through.objects.get(owner=first, label=b).pk == retained}
+            first.labels.set([])
+            results["set_empty"] = state()
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b)
+            before = state()
+            mutations = []
+            def fail_insert(execute, sql, params, many, context):
+                if sql.lstrip().upper().startswith("DELETE"):
+                    mutations.append("delete")
+                if sql.lstrip().upper().startswith("INSERT"):
+                    raise DatabaseError("independent late insertion failure")
+                return execute(sql, params, many, context)
+            with connection.execute_wrapper(fail_insert):
+                failure = error(lambda: first.labels.set([b, c]))
+            results["set_late_failure"] = {"error": failure, "delete_executed": "delete" in mutations, "rows_preserved": state() == before}
+            def invalid_iterable():
+                yield c
+                raise ValueError("independent iterable failure")
+            failure = error(lambda: first.labels.set(invalid_iterable(), clear=True))
+            results["set_iterable_failure"] = {"error": failure, "rows_preserved": state() == before}
+            failure = error(lambda: first.labels.add(c, 9223372036854775807))
+            results["missing_target"] = {"error": failure, "rows_preserved": state() == before}
+            results["unsaved_inputs"] = {"owner": error(lambda: Owner(name="unsaved").labels.all()),
+                "add_target": error(lambda: first.labels.add(Label(name="unsaved"))),
+                "remove_target": error(lambda: first.labels.remove(Label(name="unsaved"))),
+                "wrong_model": error(lambda: first.labels.add(second)), "rows_preserved": state() == before}
+            clear()
+
+            zero = Owner.objects.create(pk=0, name="zero")
+            a = Label.objects.create(pk=0, name="zero-label")
+            zero.labels.add(a)
+            results["explicit_zero"] = {"owner": zero.pk, "target": a.pk, "members": names(zero.labels), "links": through.objects.count()}
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a)
+            current = Owner.objects.prefetch_related("labels").get(pk=first.pk)
+            other = Owner.objects.prefetch_related("labels").get(pk=first.pk)
+            held = current.labels.all()
+            before = sorted(value.name for value in held)
+            current.labels.add(b)
+            results["cache_mutation"] = {"before": before, "current": names(current.labels), "other_snapshot": names(other.labels), "held_query": sorted(value.name for value in held), "held_query_clone": names(held)}
+            cached = Owner.objects.prefetch_related("labels").get(pk=first.pk)
+            before = names(cached.labels)
+            first.labels.add(c)
+            failure = error(lambda: cached.labels.add(Label(name="unsaved")))
+            results["cache_failed_add"] = {"before": before, "error": failure, "after": names(cached.labels)}
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            ranked = RankedOwner.objects.create(name="ranked")
+            evaluations = []
+            def token():
+                evaluations.append(1)
+                return 10
+            ranked.labels.add(a, through_defaults={"token": token})
+            ranked.labels.add(a, through_defaults={"token": token})
+            original = RankedLink.objects.get(owner=ranked, label=a)
+            failure = error(lambda: ranked.labels.add(b, c, through_defaults={"token": 20}))
+            results["explicit_through_conflicts"] = {"callable_evaluations": len(evaluations), "existing_token": original.token,
+                "other_unique_error": failure, "rows": list(RankedLink.objects.order_by("label__name").values_list("label__name", "token"))}
+            ranked.labels.set([a, b], through_defaults={"token": 30})
+            results["explicit_through_set"] = {"retained_identity": RankedLink.objects.get(owner=ranked, label=a).pk == original.pk,
+                "rows": list(RankedLink.objects.order_by("label__name").values_list("label__name", "token"))}
+            clear()
+
+            x, y, z = [Node.objects.create(name=name) for name in ("x", "y", "z")]
+            x.friends.add(y, x)
+            results["self_symmetric"] = {"x": names(x.friends), "y": names(y.friends), "links": Node.friends.through.objects.count()}
+            y.friends.remove(x)
+            results["self_symmetric_remove"] = {"x": names(x.friends), "y": names(y.friends), "links": Node.friends.through.objects.count()}
+            x.follows.add(y, x)
+            results["self_directed"] = {"x": names(x.follows), "y": names(y.follows), "y_followers": names(y.followers), "links": Node.follows.through.objects.count()}
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b)
+            second.labels.add(b)
+            filtered = Owner.objects.filter(labels__name__in=["a", "b"])
+            results["query_multiplicity"] = {"names": list(filtered.order_by("name").values_list("name", flat=True)),
+                "count": filtered.count(), "distinct": list(filtered.order_by("name").distinct().values_list("name", flat=True)),
+                "reverse": list(Label.objects.filter(owners__name__in=["first", "second"]).order_by("name").values_list("name", flat=True))}
+
+            empty = Owner.objects.create(name="empty")
+            a.note = "red"
+            a.save(update_fields=["note"])
+            def query_names(queryset):
+                return list(queryset.order_by("name").values_list("name", flat=True))
+            qa, qb = Q(labels__name="a"), Q(labels__name="b")
+            results["query_filter_scopes"] = {
+                "same_filter": query_names(Owner.objects.filter(qa & qb)),
+                "successive_filters": query_names(Owner.objects.filter(qa).filter(qb)),
+                "successive_membership": query_names(Owner.objects.filter(labels__name__in=["a", "b"]).filter(labels__name__in=["a", "b"])),
+                "reused_predicate": query_names(Owner.objects.filter(qa).filter(qa)),
+                "same_member_fields": query_names(Owner.objects.filter(qa, labels__note="red")),
+                "two_collections": query_names(Owner.objects.filter(labels__owners__name="first")),
+                "three_collections": query_names(Owner.objects.filter(labels__owners__labels__name="a")),
+                "reverse_successive": query_names(Label.objects.filter(owners__name="first").filter(owners__name="second")),
+            }
+            results["query_boolean_presence"] = {
+                "or_root": query_names(Owner.objects.filter(qa | Q(name="empty"))),
+                "or_members": query_names(Owner.objects.filter(qa | qb)),
+                "not_a": query_names(Owner.objects.filter(~qa)),
+                "not_and": query_names(Owner.objects.filter(~(qa & qb))),
+                "not_or": query_names(Owner.objects.filter(~(qa | qb))),
+                "double_not": query_names(Owner.objects.filter(~~qa)),
+                "positive_and_negative": query_names(Owner.objects.filter(qa & ~qb)),
+                "or_negative": query_names(Owner.objects.filter(qa | ~qb)),
+                "absent": query_names(Owner.objects.filter(labels__isnull=True)),
+                "present": query_names(Owner.objects.filter(labels__isnull=False)),
+                "field_null": query_names(Owner.objects.filter(labels__note__isnull=True)),
+                "exclude_field_null": query_names(Owner.objects.exclude(labels__note__isnull=True)),
+                "empty_membership": query_names(Owner.objects.filter(labels__name__in=[])),
+                "empty_or_root": query_names(Owner.objects.filter(Q(labels__name__in=[]) | Q(name="empty"))),
+            }
+            results["query_boolean_order"] = {
+                "positive_first": query_names(Owner.objects.filter(qa & ~qb)),
+                "negative_first": query_names(Owner.objects.filter(~qb & qa)),
+                "successive_negative": query_names(Owner.objects.filter(qa).filter(~qb)),
+                "successive_positive": query_names(Owner.objects.filter(~qb).filter(qa)),
+                "negative_same_field": query_names(Owner.objects.filter(qa & ~Q(labels__note="red"))),
+                "or_negative_first": query_names(Owner.objects.filter(~qb | qa)),
+                "double_not_pair": query_names(Owner.objects.filter(~~(qa & qb))),
+            }
+            held_members = first.labels.all()
+            results["query_manager_scopes"] = {
+                "direct": query_names(first.labels.filter(owners__name="second")),
+                "manager_all": query_names(first.labels.all().filter(owners__name="second")),
+                "ordered": query_names(first.labels.order_by("name").filter(owners__name="second")),
+                "successive": query_names(first.labels.filter(owners__name="first").filter(owners__name="second")),
+                "scalar_first": query_names(first.labels.filter(name="b").filter(owners__name="second")),
+                "empty_first": query_names(first.labels.filter().filter(owners__name="second")),
+                "query_clone": query_names(held_members.all().filter(owners__name="second")),
+                "distinct_first": query_names(first.labels.distinct().filter(owners__name="second")),
+                "or_root": query_names(first.labels.filter(Q(owners__name="second") | Q(name="a"))),
+            }
+            loose_empty, loose_mixed, loose_null = [LooseOwner.objects.create(name=name) for name in ("loose-empty", "loose-mixed", "loose-null")]
+            for owner, label, amount in ((loose_mixed, a, 1), (loose_mixed, a, 2), (loose_mixed, b, 3),
+                                         (loose_mixed, None, 4), (loose_null, None, 5), (loose_null, None, 6), (None, a, 7)):
+                LooseLink.objects.create(owner=owner, label=label, amount=amount)
+            results["query_nullable_links"] = {
+                "members": query_names(LooseOwner.objects.filter(labels__name__in=["a", "b"])),
+                "distinct": query_names(LooseOwner.objects.filter(labels__name__in=["a", "b"]).distinct()),
+                "absent": query_names(LooseOwner.objects.filter(labels__isnull=True)),
+                "present": query_names(LooseOwner.objects.filter(labels__isnull=False)),
+                "field_null": query_names(LooseOwner.objects.filter(labels__note__isnull=True)),
+                "field_present": query_names(LooseOwner.objects.filter(labels__note__isnull=False)),
+                "exclude_a": query_names(LooseOwner.objects.exclude(labels__name="a")),
+                "exclude_null": query_names(LooseOwner.objects.exclude(labels__note__isnull=True)),
+                "reverse_absent": query_names(Label.objects.filter(loose_owners__isnull=True)),
+                "shared_through_predicate": query_names(LooseOwner.objects.filter(labels__name="a", looselink__amount=3)),
+                "successive_through_predicate": query_names(LooseOwner.objects.filter(labels__name="a").filter(looselink__amount=3)),
+            }
+
+            clear()
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a)
+            events = []
+            def changed(sender, action, instance, reverse, model, pk_set, **kwargs):
+                targets = None if pk_set is None else sorted(model.objects.filter(pk__in=pk_set).values_list("name", flat=True))
+                events.append({"action": action, "reverse": reverse, "owner": instance.name, "targets": targets})
+            m2m_changed.connect(changed, sender=through, weak=False)
+            try:
+                first.labels.add(a, b, a)
+                first.labels.add(a)
+                b.owners.add(second)
+                results["signals_add_duplicate_reverse"] = list(events)
+                events.clear()
+                before = state()
+                with connection.execute_wrapper(fail_insert):
+                    failure = error(lambda: first.labels.set([b, c]))
+                results["signals_rollback"] = {"error": failure, "events": list(events), "rows_preserved": state() == before}
+                events.clear()
+                first.labels.clear()
+                results["signals_clear"] = list(events)
+            finally:
+                m2m_changed.disconnect(changed, sender=through)
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            ready = threading.Barrier(2)
+            def add_concurrently():
+                try:
+                    owner = Owner.objects.get(pk=first.pk)
+                    target = Label.objects.get(pk=a.pk)
+                    ready.wait(timeout=10)
+                    return error(lambda: owner.labels.add(target))
+                finally:
+                    connections.close_all()
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as workers:
+                futures = [workers.submit(add_concurrently) for _ in range(2)]
+                outcomes = [future.result(timeout=20) for future in futures]
+            results["concurrent_duplicate_add"] = {"errors": outcomes, "state": state()}
+
+            clear()
+            (a, b, c), _ = seed()
+            loose = LooseOwner.objects.create(name="loose")
+            for amount in (4, 5):
+                LooseLink.objects.create(owner=loose, label=a, amount=amount)
+            null_target = LooseLink.objects.create(owner=loose, amount=6)
+            null_source = LooseLink.objects.create(label=a, amount=7)
+            initial_ids = list(LooseLink.objects.order_by("pk").values_list("pk", flat=True))
+            before = names(loose.labels)
+            distinct = names(loose.labels.distinct())
+            loose.labels.add(a)
+            loose.labels.set([a])
+            retained = list(LooseLink.objects.order_by("pk").values_list("pk", flat=True)) == initial_ids
+            loose.labels.remove(a)
+            after_remove = list(LooseLink.objects.order_by("amount").values_list("amount", flat=True))
+            loose.labels.clear()
+            after_clear = list(LooseLink.objects.order_by("amount").values_list("amount", flat=True))
+            a.loose_owners.clear()
+            results["nullable_duplicates"] = {"before": before, "distinct": distinct, "set_retained_all_ids": retained,
+                "after_remove": after_remove, "after_clear": after_clear, "after_reverse_clear_count": LooseLink.objects.count()}
+
+            clear()
+            (a, b, c), _ = seed()
+            ranked = RankedOwner.objects.create(name="ranked")
+            ranked.labels.add(a, through_defaults={"token": 17})
+            ranked.labels.add(b, through_defaults={"token": 22})
+            first = RankedLink.objects.get(owner=ranked, label=a)
+            second = RankedLink.objects.get(owner=ranked, label=b)
+            guard = Guard.objects.create(link=second)
+            child = Cascade.objects.create(link=first)
+            optional = Optional.objects.create(link=first)
+            failed = error(ranked.labels.clear)
+            protected_count = RankedLink.objects.count()
+            guard.delete()
+            ranked.labels.remove(a)
+            optional.refresh_from_db()
+            results["incoming_link_policy"] = {"clear_error": failed, "protected_link_count": protected_count,
+                "cascade_count": Cascade.objects.count(), "optional_null": optional.link_id is None,
+                "remaining": names(ranked.labels), "endpoint_count": Label.objects.count()}
+
+            clear()
+            (a, b, c), (first, second) = seed()
+            empty = Owner.objects.create(name="empty")
+            first.labels.add(a, b)
+            second.labels.add(b)
+            duplicate = Owner.objects.get(pk=first.pk)
+            batch = [first, empty, second, duplicate]
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(batch, "labels")
+            prefetch_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_membership"] = [names(owner.labels) for owner in batch]
+            warm_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects([], "labels")
+            empty_reads = len(captured)
+            held = first.labels.all()
+            with CaptureQueriesContext(connection) as captured:
+                refined = names(first.labels.filter(name="a"))
+            refined_reads = len(captured)
+            first.labels.add(c)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_cache"] = {"after_add": names(first.labels), "duplicate_snapshot": names(duplicate.labels),
+                    "other_owner": names(second.labels), "held_snapshot": sorted(value.name for value in held), "refined": refined}
+            results["prefetch_queries"] = {"batch": prefetch_reads, "warm": warm_reads, "empty": empty_reads,
+                "refined": refined_reads, "after_mutation": len(captured)}
+
+            clear()
+            (a, b, c), _ = seed()
+            loose = [LooseOwner.objects.create(name=name) for name in ("empty", "mixed", "null")]
+            for owner, label, amount in [(loose[1], a, 1), (loose[1], b, 2), (loose[1], a, 3),
+                                         (loose[1], None, 4), (loose[2], None, 5), (None, a, 6)]:
+                LooseLink.objects.create(owner=owner, label=label, amount=amount)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(loose, "labels")
+                prefetch_related_objects([a, b, c], "loose_owners")
+            batch_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                forward = [names(owner.labels) for owner in loose]
+                reverse = [names(label.loose_owners) for label in (a, b, c)]
+            results["prefetch_nullable"] = {"forward": forward, "reverse": reverse, "batch_queries": batch_reads, "warm_queries": len(captured)}
+
+            clear()
+            nodes = [Node.objects.create(name=name) for name in ("x", "y", "z")]
+            nodes[0].friends.add(nodes[0], nodes[1])
+            nodes[0].follows.add(nodes[1])
+            nodes[2].follows.add(nodes[0])
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(nodes, "friends", "follows", "followers")
+            batch_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_self"] = {name: [names(getattr(node, name)) for node in nodes] for name in ("friends", "follows", "followers")}
+            results["prefetch_self"]["batch_queries"] = batch_reads
+            results["prefetch_self"]["warm_queries"] = len(captured)
+            clear()
+
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b)
+            second.labels.add(b, c)
+            duplicate = Owner.objects.get(pk=first.pk)
+            empty = Owner.objects.create(name="empty")
+            nested_batch = [first, second, duplicate, empty]
+            def label_graph(owner):
+                return [[label.name, [[related.name, names(related.labels)] for related in label.owners.all()]]
+                        for label in owner.labels.all()]
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(nested_batch, "labels__owners__labels")
+            nested_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                nested_graph = [label_graph(owner) for owner in nested_batch]
+            nested_warm_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                refined_graph = [[label.name, [[related.name, names(related.labels)] for related in label.owners.all()]]
+                                 for label in first.labels.filter(name="b")]
+            results["prefetch_nested"] = {"members": nested_graph, "batch_queries": nested_reads,
+                "warm_queries": nested_warm_reads, "refined": refined_graph, "refined_queries": len(captured)}
+
+            clear()
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b, c)
+            second.labels.add(b)
+            duplicate = Owner.objects.get(pk=first.pk)
+            empty = Owner.objects.create(name="empty")
+            filtered_batch = [first, second, duplicate, empty]
+            filtered_labels = Label.objects.filter(name__in=["a", "c"]).order_by("-name").prefetch_related("owners")
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(filtered_batch, Prefetch("labels", queryset=filtered_labels))
+            filtered_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                filtered_graph = [[[label.name, names(label.owners)] for label in owner.labels.all()] for owner in filtered_batch]
+            filtered_warm_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                filtered_refined = [[label.name, names(label.owners)] for label in first.labels.filter(name="a")]
+            results["prefetch_filtered"] = {"members": filtered_graph, "batch_queries": filtered_reads,
+                "warm_queries": filtered_warm_reads, "refined": filtered_refined, "refined_queries": len(captured)}
+            held_filtered = first.labels.all()
+            first.labels.add(b)
+            with CaptureQueriesContext(connection) as captured:
+                results["prefetch_filtered_cache"] = {"after_noop_add": [value.name for value in first.labels.all()],
+                    "held": [value.name for value in held_filtered], "duplicate": [value.name for value in duplicate.labels.all()]}
+            results["prefetch_filtered_cache"]["queries"] = len(captured)
+            conflict = None
+            try:
+                list(Owner.objects.prefetch_related("labels__owners", Prefetch("labels", queryset=Label.objects.filter(name="a"))))
+            except ValueError as error:
+                conflict = type(error).__name__
+            with CaptureQueriesContext(connection) as captured:
+                reordered = list(Owner.objects.filter(pk=first.pk).prefetch_related(
+                    Prefetch("labels", queryset=Label.objects.filter(name="a")), "labels__owners"))
+                reordered_graph = [[label.name, names(label.owners)] for label in reordered[0].labels.all()]
+            results["prefetch_order_conflicts"] = {"redefined": conflict, "filtered_first": reordered_graph, "queries": len(captured)}
+
+            clear()
+            (a, b, c), (first, second) = seed()
+            first.labels.add(a, b)
+            second.labels.add(b, c)
+            def filtered_relation_members(queryset, selected=None):
+                owners = [Owner.objects.get(pk=owner.pk) for owner in (selected if selected is not None else [first, second])]
+                with CaptureQueriesContext(connection) as captured:
+                    prefetch_related_objects(owners, Prefetch("labels", queryset=queryset.order_by("name")))
+                batch_queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    members = [names(owner.labels) for owner in owners]
+                return {"members": members, "batch_queries": batch_queries, "warm_queries": len(captured)}
+            results["prefetch_filtered_relation"] = {
+                "owner_second": filtered_relation_members(Label.objects.filter(owners__name="second")),
+                "owner_either": filtered_relation_members(Label.objects.filter(owners__name__in=["first", "second"])),
+                "successive_owners": filtered_relation_members(Label.objects.filter(owners__name="first").filter(owners__name="second")),
+                "successive_only_first": filtered_relation_members(Label.objects.filter(owners__name="first").filter(owners__name="second"), [first]),
+                "successive_only_second": filtered_relation_members(Label.objects.filter(owners__name="first").filter(owners__name="second"), [second]),
+                "distinct_owners": filtered_relation_members(Label.objects.filter(owners__name__in=["first", "second"]).distinct()),
+                "excluded_owner": filtered_relation_members(Label.objects.exclude(owners__name="second")),
+            }
+
+            clear()
+            a, b, c = [Label.objects.create(name=name) for name in ("a", "b", "c")]
+            first = RankedOwner.objects.create(name="first")
+            second = RankedOwner.objects.create(name="second")
+            for token, owner, label in [(1, first, a), (2, first, b), (3, second, b)]:
+                RankedLink.objects.create(owner=owner, label=label, token=token)
+            with CaptureQueriesContext(connection) as captured:
+                eager_roots = list(RankedLink.objects.order_by("token").select_related("owner").prefetch_related("owner__labels"))
+            eager_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                eager_graph = [[link.token, link.owner.name, names(link.owner.labels)] for link in eager_roots]
+            results["prefetch_eager_owner"] = {"members": eager_graph, "batch_queries": eager_reads, "warm_queries": len(captured)}
+            with CaptureQueriesContext(connection) as captured:
+                child_roots = list(RankedOwner.objects.order_by("name").prefetch_related(Prefetch("rankedlink_set",
+                    queryset=RankedLink.objects.order_by("-token").select_related("label"))))
+            eager_reads = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                child_graph = [[owner.name, [[link.token, link.label.name] for link in owner.rankedlink_set.all()]] for owner in child_roots]
+            results["prefetch_eager_child"] = {"members": child_graph, "batch_queries": eager_reads, "warm_queries": len(captured)}
+
+            single_cases = {}
+            def probe_relation(value, attr, render):
+                try:
+                    target = getattr(value, attr)
+                    return None if target is None else render(target)
+                except Exception as failure:
+                    return {"error": type(failure).__name__}
+            def probe_single(query, attr, render):
+                with CaptureQueriesContext(connection) as captured:
+                    try:
+                        roots = list(query)
+                    except Exception as failure:
+                        return {"error": type(failure).__name__, "batch_queries": len(captured)}
+                queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    graph = [probe_relation(value, attr, render) for value in roots]
+                return {"members": graph, "batch_queries": queries, "warm_queries": len(captured)}
+            def render_owner(owner):
+                return [owner.name, names(owner.labels)]
+            base_links = RankedLink.objects.order_by("token")
+            custom_owners = RankedOwner.objects.filter(name="first").order_by("-name").prefetch_related("labels")
+            single_cases["required_filtered"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=custom_owners)), "owner", render_owner)
+            single_cases["required_eager_custom_children"] = probe_single(base_links.select_related("owner").prefetch_related(
+                Prefetch("owner", queryset=custom_owners)), "owner", render_owner)
+            single_cases["required_eager_explicit_children"] = probe_single(base_links.select_related("owner").prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.filter(name="first")), "owner__labels"), "owner", render_owner)
+            single_cases["required_join_duplicates"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.filter(labels__name__in=["a", "b"]).order_by("-name"))),
+                "owner", lambda owner: owner.name)
+            single_cases["required_slice"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.order_by("name")[:1])), "owner", lambda owner: owner.name)
+            single_cases["required_named_slice"] = probe_single(base_links.prefetch_related(
+                Prefetch("owner", queryset=RankedOwner.objects.order_by("name")[:1], to_attr="owner_row")), "owner_row", lambda owner: owner.name)
+            loose_first = LooseOwner.objects.create(name="first")
+            loose_second = LooseOwner.objects.create(name="second")
+            for index, owner in enumerate([loose_first, loose_second, None]):
+                LooseLink.objects.create(owner=owner, label=a, amount=index)
+            single_cases["nullable_filtered"] = probe_single(LooseLink.objects.order_by("amount").prefetch_related(
+                Prefetch("owner", queryset=LooseOwner.objects.filter(name="first"))), "owner", lambda owner: owner.name)
+            RankedBadge.objects.create(owner=first, name="hidden")
+            RankedBadge.objects.create(owner=second, name="visible")
+            single_cases["reverse_filtered"] = probe_single(RankedOwner.objects.order_by("name").prefetch_related(
+                Prefetch("badge", queryset=RankedBadge.objects.filter(name="visible"))), "badge", lambda badge: badge.name)
+            for link in [RankedLink.objects.get(token=1), RankedLink.objects.get(token=2), None]:
+                Optional.objects.create(link=link)
+            single_cases["target_eager"] = probe_single(Optional.objects.order_by("pk").prefetch_related(
+                Prefetch("link", queryset=RankedLink.objects.filter(token=1).select_related("owner"))), "link", lambda link: [link.token, link.owner.name])
+            results["prefetch_custom_single"] = single_cases
+            clear()
+
+            # A sliced target is a named list snapshot. Django cannot install
+            # it as a normal related-manager cache because the owner filter
+            # would be applied to an already sliced QuerySet.
+            slice_cases = {}
+            slice_labels = [Label.objects.create(name=name) for name in ("a", "b", "c", "d", "e")]
+            slice_first, slice_second, slice_empty = [Owner.objects.create(name=name) for name in ("first", "second", "empty")]
+            slice_first.labels.add(*slice_labels[:4])
+            slice_second.labels.add(*slice_labels[1:])
+
+            def sliced_members(target, owners=None, nested=False):
+                if owners is None:
+                    owners = [Owner.objects.get(pk=value.pk) for value in (slice_first, slice_second, slice_first, slice_empty)]
+                with CaptureQueriesContext(connection) as captured:
+                    prefetch_related_objects(owners, Prefetch("labels", queryset=target, to_attr="label_rows"))
+                batch_queries = len(captured)
+                window_queries = sum("ROW_NUMBER() OVER (PARTITION BY" in item["sql"] for item in captured)
+                with CaptureQueriesContext(connection) as captured:
+                    members = [[([label.name, names(label.owners)] if nested else label.name)
+                                for label in owner.label_rows] for owner in owners]
+                warm_queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    managers = [[label.name for label in owner.labels.all()] for owner in owners]
+                return {"members": members, "batch_queries": batch_queries, "window_queries": window_queries,
+                        "warm_queries": warm_queries, "managers": managers, "manager_queries": len(captured)}
+
+            for case, start, stop, descending in (("head", 0, 1, False), ("middle", 1, 3, False),
+                    ("tail", 2, None, False), ("empty", 0, 0, False), ("beyond", 9, 10, False),
+                    ("descending", 1, 3, True)):
+                target = Label.objects.order_by("-name" if descending else "name")[start:stop]
+                slice_cases[case] = sliced_members(target)
+            slice_cases["nested"] = sliced_members(Label.objects.order_by("name").prefetch_related("owners")[1:2], nested=True)
+            slice_cases["empty_batch"] = sliced_members(Label.objects.order_by("name")[:1], [])
+
+            def sliced_manager_error(relation, target, owners):
+                failure = None
+                with CaptureQueriesContext(connection) as captured:
+                    try:
+                        prefetch_related_objects(owners, Prefetch(relation, queryset=target))
+                    except Exception as exception:
+                        failure = type(exception).__name__
+                return {"error": failure, "queries": len(captured)}
+
+            slice_cases["manager_error"] = sliced_manager_error("labels", Label.objects.order_by("name")[:1],
+                [Owner.objects.get(pk=slice_first.pk)])
+            ranked_owners = [RankedOwner.objects.create(name=name) for name in ("first", "second")]
+            for index, owner in enumerate(ranked_owners):
+                for offset, label in enumerate(slice_labels[:3]):
+                    RankedLink.objects.create(owner=owner, label=label, token=index * 3 + offset + 1)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects(ranked_owners, Prefetch("rankedlink_set",
+                    queryset=RankedLink.objects.select_related("label").order_by("-token")[1:2], to_attr="link_rows"))
+            reverse_queries = len(captured)
+            with CaptureQueriesContext(connection) as captured:
+                reverse_members = [[[link.token, link.label.name] for link in owner.link_rows] for owner in ranked_owners]
+            slice_cases["reverse_eager"] = {"members": reverse_members, "batch_queries": reverse_queries, "warm_queries": len(captured)}
+            slice_cases["reverse_manager_error"] = sliced_manager_error("rankedlink_set", RankedLink.objects.order_by("token")[:1],
+                [RankedOwner.objects.get(pk=ranked_owners[0].pk)])
+            loose_owner = LooseOwner.objects.create(name="duplicates")
+            for amount, label in enumerate([slice_labels[0], slice_labels[0], slice_labels[1]]):
+                LooseLink.objects.create(owner=loose_owner, label=label, amount=amount)
+            with CaptureQueriesContext(connection) as captured:
+                prefetch_related_objects([loose_owner], Prefetch("labels",
+                    queryset=Label.objects.filter(name__in=["a", "b"]).order_by("name").distinct()[:2], to_attr="label_rows"))
+            slice_cases["distinct_duplicates"] = {"members": [label.name for label in loose_owner.label_rows], "batch_queries": len(captured)}
+            clear()
+
+            # First join determines output ownership; the latest matching join
+            # determines membership and therefore the window partition. A row
+            # for an unrequested first owner still consumes its window rank.
+            slice_a, slice_b = [Label.objects.create(name=name) for name in ("a", "b")]
+            slice_first, slice_second, slice_outside = [Owner.objects.create(name=name) for name in ("first", "second", "outside")]
+            slice_first.labels.add(slice_b)
+            slice_outside.labels.add(slice_a)
+            slice_second.labels.add(slice_a, slice_b)
+            scoped_slice = Label.objects.filter(owners__name__in=["first", "outside"]).filter(owners__name="second").order_by("name")
+            for case, start, stop in (("scope_head", 0, 1), ("scope_tail", 1, 2)):
+                owners = [Owner.objects.get(pk=value.pk) for value in (slice_first, slice_second)]
+                slice_cases[case] = sliced_members(scoped_slice[start:stop], owners)
+            results["prefetch_slices"] = slice_cases
+            clear()
+
+            stream_cases = {}
+            stream_labels = [Label.objects.create(name=name) for name in ("a", "b", "c")]
+            stream_owners = [Owner.objects.create(name="owner-" + str(index)) for index in range(4)]
+            for owner, selected in zip(stream_owners, ([0, 1], [1], [], [2])):
+                owner.labels.add(*(stream_labels[index] for index in selected))
+            def stream_graph(owner, alias=None, nested=False):
+                targets = getattr(owner, alias) if alias else owner.labels.all()
+                return [owner.name, [[target.name, names(target.owners)] if nested else target.name for target in targets]]
+            def stream_observation(queryset, size, stop=None, nested=False, alias=None, raise_at=None):
+                members = []
+                failure = None
+                iterator = None
+                with CaptureQueriesContext(connection) as captured:
+                    try:
+                        iterator = queryset.iterator(chunk_size=size)
+                        for owner in iterator:
+                            members.append(stream_graph(owner, alias, nested))
+                            if raise_at is not None and len(members) == raise_at:
+                                raise RuntimeError("authored callback failure")
+                            if stop is not None and len(members) == stop:
+                                break
+                    except Exception as error_value:
+                        failure = type(error_value).__name__
+                    finally:
+                        if iterator is not None:
+                            iterator.close()
+                queries = len(captured)
+                with CaptureQueriesContext(connection) as captured:
+                    full = [stream_graph(owner, alias, nested) for owner in queryset]
+                return {"members": members, "queries": queries, "error": failure,
+                        "full_after": full, "full_after_queries": len(captured)}
+            def stream_source():
+                return Owner.objects.order_by("pk").prefetch_related("labels")
+            for size in [1, 2, 3, 8]:
+                stream_cases["chunk_" + str(size)] = stream_observation(stream_source(), size)
+            for size, name in [(None, "missing"), (0, "zero"), (-1, "negative")]:
+                stream_cases["invalid_" + name] = stream_observation(stream_source(), size)
+            stream_cases["early_stop"] = stream_observation(stream_source(), 2, stop=1)
+            stream_cases["callback_error"] = stream_observation(stream_source(), 2, raise_at=1)
+            stream_cases["nested_filtered"] = stream_observation(Owner.objects.order_by("pk").prefetch_related(
+                Prefetch("labels", queryset=Label.objects.filter(name__in=["a", "b"]).order_by("-name").prefetch_related("owners"))), 2, nested=True)
+            scoped_stream = Label.objects.filter(owners__name="owner-0").filter(owners__name="owner-1").order_by("name")
+            for size in [1, 2]:
+                stream_cases["owner_scope_" + str(size)] = stream_observation(Owner.objects.order_by("pk").prefetch_related(
+                    Prefetch("labels", queryset=scoped_stream[:1], to_attr="label_rows")), size, alias="label_rows")
+            with transaction.atomic():
+                stream_cases["transaction"] = stream_observation(stream_source(), 2)
+                stream_cases["transaction"]["count_after_close"] = Owner.objects.count()
+            warmed = stream_source()
+            held = list(warmed)
+            Label.objects.filter(pk=stream_labels[0].pk).update(name="a-new")
+            stream_cases["warm_cache"] = stream_observation(warmed, 2)
+            stream_cases["warm_cache"]["held"] = [stream_graph(owner) for owner in held]
+            results["prefetch_stream"] = stream_cases
+            clear()
+
+            from django.db import migrations
+            from django.db.migrations.state import ProjectState
+            history = ProjectState()
+            applied = []
+            def advance(operation):
+                nonlocal history
+                before = history
+                after = before.clone()
+                operation.state_forwards("m2mhistory", after)
+                with connection.schema_editor() as editor:
+                    operation.database_forwards("m2mhistory", editor, before, after)
+                applied.append((operation, before, after))
+                history = after
+            def reverse_history():
+                nonlocal history
+                operation, before, after = applied[-1]
+                with connection.schema_editor() as editor:
+                    operation.database_backwards("m2mhistory", editor, after, before)
+                applied.pop()
+                history = before
+            def historical_rows():
+                return {name: list(history.apps.get_model("m2mhistory", name).objects.order_by("name").values_list("name", flat=True)) for name in ("Label", "Owner")}
+            try:
+                for model_name, table in [("Label", "m2m_history_label"), ("Owner", "m2m_history_owner")]:
+                    advance(migrations.CreateModel(name=model_name,
+                        fields=[("id", models.BigAutoField(primary_key=True)), ("name", models.CharField(max_length=64))],
+                        options={"db_table": table}))
+                hlabel = history.apps.get_model("m2mhistory", "Label").objects.create(name="existing-label")
+                howner = history.apps.get_model("m2mhistory", "Owner").objects.create(name="existing-owner")
+                before = historical_rows()
+                add = migrations.AddField(model_name="owner", name="labels", field=models.ManyToManyField("m2mhistory.Label", related_name="owners"))
+                advance(add)
+                howner = history.apps.get_model("m2mhistory", "Owner").objects.get(pk=howner.pk)
+                hlabel = history.apps.get_model("m2mhistory", "Label").objects.get(pk=hlabel.pk)
+                howner.labels.add(hlabel)
+                link_key = howner.labels.through.objects.get().pk
+                table = howner.labels.through._meta.db_table
+                results["migration_add"] = {"endpoints_preserved": historical_rows() == before, "members": names(howner.labels), "through_table": table}
+                advance(migrations.RenameField(model_name="owner", old_name="labels", new_name="tags"))
+                renamed = history.apps.get_model("m2mhistory", "Owner").objects.get(pk=howner.pk)
+                renamed_table = renamed.tags.through._meta.db_table
+                results["migration_rename"] = {"endpoints_preserved": historical_rows() == before, "members": names(renamed.tags),
+                    "link_identity_preserved": renamed.tags.through.objects.get().pk == link_key,
+                    "old_table_absent": table not in connection.introspection.table_names(), "new_table": renamed_table}
+                reverse_history()
+                restored = history.apps.get_model("m2mhistory", "Owner").objects.get(pk=howner.pk)
+                results["migration_rename_reverse"] = {"members": names(restored.labels), "link_identity_preserved": restored.labels.through.objects.get().pk == link_key,
+                    "renamed_table_absent": renamed_table not in connection.introspection.table_names()}
+                reverse_history()
+                results["migration_reverse"] = {"endpoints_preserved": historical_rows() == before, "through_absent": table not in connection.introspection.table_names()}
+                advance(add)
+                restored = history.apps.get_model("m2mhistory", "Owner").objects.get(pk=howner.pk)
+                results["migration_reapply"] = {"endpoints_preserved": historical_rows() == before, "members": names(restored.labels)}
+            finally:
+                while applied:
+                    reverse_history()
+            with connection.cursor() as cursor:
+                cursor.execute("SHOW server_version_num" if database else "SELECT sqlite_version()")
+                version = cursor.fetchone()[0]
+            return {"django": django.get_version(), "python": platform.python_version(), "backend": connection.vendor,
+                "database_version": version, "observations": results,
+                "source_sha256": {name: hashlib.sha256(Path(inspect.getsourcefile(value)).read_bytes()).hexdigest()
+                    for name, value in [("Model", models.Model), ("ManyToManyField", models.ManyToManyField),
+                                        ("ManyRelatedManager", create_forward_many_to_many_manager), ("QuerySet", models.QuerySet)]}}
+        finally:
+            if created:
+                clear()
+                with connection.schema_editor() as editor:
+                    for model in reversed(declared):
+                        editor.delete_model(model)
+                assert not connection.introspection.table_names()
+            connection.close()
+
+
+if __name__ == "__main__":
+    print(json.dumps(observe(), sort_keys=True, separators=(",", ":")))

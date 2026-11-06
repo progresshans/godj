@@ -1,0 +1,530 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "sources": {
+    "django.forms.fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "django.forms.widgets": "e743c7612a74ca1106ef1ee9aca760e7bcbff1901be7d186b1bb1f63ee830b47"
+  },
+  "cases": [
+    {
+      "name": "required_missing",
+      "required": true,
+      "existing": false,
+      "files": [],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": false,
+      "errors": [
+        "required"
+      ],
+      "changed": [],
+      "cleaned": null,
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "optional_missing",
+      "required": false,
+      "existing": false,
+      "files": [],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "null"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "required_existing",
+      "required": true,
+      "existing": true,
+      "files": [],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "private/old.txt"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "optional_existing",
+      "required": false,
+      "existing": true,
+      "files": [],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "private/old.txt"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "new_file",
+      "required": true,
+      "existing": false,
+      "files": [
+        [
+          "new.txt",
+          "hello"
+        ]
+      ],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "new.txt",
+        "size": 5
+      },
+      "calls": [
+        "new.txt"
+      ],
+      "multipart": true
+    },
+    {
+      "name": "same_name_is_changed",
+      "required": true,
+      "existing": true,
+      "files": [
+        [
+          "old.txt",
+          "hello"
+        ]
+      ],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "old.txt",
+        "size": 5
+      },
+      "calls": [
+        "old.txt"
+      ],
+      "multipart": true
+    },
+    {
+      "name": "empty_rejected",
+      "required": true,
+      "existing": false,
+      "files": [
+        [
+          "empty.txt",
+          ""
+        ]
+      ],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": false,
+      "errors": [
+        "empty"
+      ],
+      "changed": [
+        "document"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "empty_allowed",
+      "required": true,
+      "existing": false,
+      "files": [
+        [
+          "empty.txt",
+          ""
+        ]
+      ],
+      "raw": {},
+      "allow_empty": true,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "empty.txt",
+        "size": 0
+      },
+      "calls": [
+        "empty.txt"
+      ],
+      "multipart": true
+    },
+    {
+      "name": "filename_limit",
+      "required": true,
+      "existing": false,
+      "files": [
+        [
+          "longname.txt",
+          "ok"
+        ]
+      ],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": 8,
+      "clearable": true,
+      "valid": false,
+      "errors": [
+        "max_length"
+      ],
+      "changed": [
+        "document"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "unicode_filename",
+      "required": true,
+      "existing": false,
+      "files": [
+        [
+          "가나다.txt",
+          "ok"
+        ]
+      ],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": 7,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "가나다.txt",
+        "size": 2
+      },
+      "calls": [
+        "가나다.txt"
+      ],
+      "multipart": true
+    },
+    {
+      "name": "existing_not_revalidated",
+      "required": true,
+      "existing": true,
+      "files": [],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": 2,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "private/old.txt"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "clear",
+      "required": false,
+      "existing": true,
+      "files": [],
+      "raw": {
+        "document-clear": "on"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "clear"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "clear_missing",
+      "required": false,
+      "existing": false,
+      "files": [],
+      "raw": {
+        "document-clear": "on"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "clear"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "clear_and_upload",
+      "required": false,
+      "existing": true,
+      "files": [
+        [
+          "new.txt",
+          "ok"
+        ]
+      ],
+      "raw": {
+        "document-clear": "on"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": false,
+      "errors": [
+        "contradiction"
+      ],
+      "changed": [
+        "document"
+      ],
+      "cleaned": null,
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "required_ignores_clear",
+      "required": true,
+      "existing": true,
+      "files": [],
+      "raw": {
+        "document-clear": "on"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "private/old.txt"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "required_clear_upload",
+      "required": true,
+      "existing": true,
+      "files": [
+        [
+          "new.txt",
+          "ok"
+        ]
+      ],
+      "raw": {
+        "document-clear": "on"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "new.txt",
+        "size": 2
+      },
+      "calls": [
+        "new.txt"
+      ],
+      "multipart": true
+    },
+    {
+      "name": "plain_widget_ignores_clear",
+      "required": false,
+      "existing": true,
+      "files": [],
+      "raw": {
+        "document-clear": "on"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": false,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "private/old.txt"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "post_cannot_supply_file",
+      "required": true,
+      "existing": false,
+      "files": [],
+      "raw": {
+        "document": "private/forged.txt"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": false,
+      "errors": [
+        "required"
+      ],
+      "changed": [],
+      "cleaned": null,
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "post_cannot_replace_initial",
+      "required": true,
+      "existing": true,
+      "files": [],
+      "raw": {
+        "document": "private/forged.txt"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "private/old.txt"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "false_clear",
+      "required": false,
+      "existing": true,
+      "files": [],
+      "raw": {
+        "document-clear": "false"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [],
+      "cleaned": {
+        "kind": "existing",
+        "name": "private/old.txt"
+      },
+      "calls": [],
+      "multipart": true
+    },
+    {
+      "name": "repeated_file",
+      "required": true,
+      "existing": false,
+      "files": [
+        [
+          "one.txt",
+          "1"
+        ],
+        [
+          "two.txt",
+          "2"
+        ]
+      ],
+      "raw": {},
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "upload",
+        "name": "two.txt",
+        "size": 1
+      },
+      "calls": [
+        "two.txt"
+      ],
+      "multipart": true
+    },
+    {
+      "name": "non_boolean_clear",
+      "required": false,
+      "existing": true,
+      "files": [],
+      "raw": {
+        "document-clear": "unexpected"
+      },
+      "allow_empty": false,
+      "maximum": null,
+      "clearable": true,
+      "valid": true,
+      "errors": [],
+      "changed": [
+        "document"
+      ],
+      "cleaned": {
+        "kind": "clear"
+      },
+      "calls": [],
+      "multipart": true
+    }
+  ]
+}

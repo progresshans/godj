@@ -1,0 +1,391 @@
+{
+  "django": "6.1",
+  "drf": "3.18.0",
+  "backend": "sqlite",
+  "observations": [
+    {
+      "field": "status",
+      "widget": "Select",
+      "required": true,
+      "form_choices": [
+        [
+          "open",
+          "Open"
+        ],
+        [
+          "closed",
+          "Closed"
+        ]
+      ],
+      "cases": [
+        {
+          "input": null,
+          "model": {
+            "errors": [
+              "null"
+            ]
+          },
+          "form": {
+            "errors": [
+              "required"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "null"
+            ]
+          }
+        },
+        {
+          "input": "",
+          "model": {
+            "errors": [
+              "blank"
+            ]
+          },
+          "form": {
+            "errors": [
+              "required"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": "open",
+          "model": {
+            "value": "open",
+            "type": "str"
+          },
+          "form": {
+            "value": "open",
+            "type": "str"
+          },
+          "serializer": {
+            "value": "open",
+            "type": "str"
+          }
+        },
+        {
+          "input": " open ",
+          "model": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": "closed",
+          "model": {
+            "value": "closed",
+            "type": "str"
+          },
+          "form": {
+            "value": "closed",
+            "type": "str"
+          },
+          "serializer": {
+            "value": "closed",
+            "type": "str"
+          }
+        },
+        {
+          "input": "bad",
+          "model": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": 1,
+          "model": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": true,
+          "model": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "field": "priority",
+      "widget": "Select",
+      "required": false,
+      "form_choices": [
+        [
+          "",
+          "- Select an option -"
+        ],
+        [
+          -1,
+          "Low"
+        ],
+        [
+          0,
+          "Normal"
+        ],
+        [
+          1,
+          "High"
+        ]
+      ],
+      "cases": [
+        {
+          "input": null,
+          "model": {
+            "value": null,
+            "type": "NoneType"
+          },
+          "form": {
+            "value": null,
+            "type": "NoneType"
+          },
+          "serializer": {
+            "value": null,
+            "type": "NoneType"
+          }
+        },
+        {
+          "input": "",
+          "model": {
+            "errors": [
+              "invalid"
+            ]
+          },
+          "form": {
+            "value": null,
+            "type": "NoneType"
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": -1,
+          "model": {
+            "value": -1,
+            "type": "int"
+          },
+          "form": {
+            "value": -1,
+            "type": "int"
+          },
+          "serializer": {
+            "value": -1,
+            "type": "int"
+          }
+        },
+        {
+          "input": 0,
+          "model": {
+            "value": 0,
+            "type": "int"
+          },
+          "form": {
+            "value": 0,
+            "type": "int"
+          },
+          "serializer": {
+            "value": 0,
+            "type": "int"
+          }
+        },
+        {
+          "input": 1,
+          "model": {
+            "value": 1,
+            "type": "int"
+          },
+          "form": {
+            "value": 1,
+            "type": "int"
+          },
+          "serializer": {
+            "value": 1,
+            "type": "int"
+          }
+        },
+        {
+          "input": 2,
+          "model": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": "0",
+          "model": {
+            "value": 0,
+            "type": "int"
+          },
+          "form": {
+            "value": 0,
+            "type": "int"
+          },
+          "serializer": {
+            "value": 0,
+            "type": "int"
+          }
+        },
+        {
+          "input": " 0 ",
+          "model": {
+            "value": 0,
+            "type": "int"
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": false,
+          "model": {
+            "value": 0,
+            "type": "int"
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": true,
+          "model": {
+            "value": 1,
+            "type": "int"
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        },
+        {
+          "input": "false",
+          "model": {
+            "errors": [
+              "invalid"
+            ]
+          },
+          "form": {
+            "errors": [
+              "invalid_choice"
+            ]
+          },
+          "serializer": {
+            "errors": [
+              "invalid_choice"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "save_without_clean": {
+        "status": "bad",
+        "priority": 99,
+        "display": "bad",
+        "serialized": {
+          "status": "bad",
+          "priority": 99
+        }
+      }
+    },
+    {
+      "serializer_absence_default": 99,
+      "serializer_supplied_default": {
+        "errors": [
+          "invalid_choice"
+        ]
+      }
+    },
+    {
+      "choices_only_sql": [],
+      "state_operations": [
+        "AlterField"
+      ]
+    }
+  ]
+}

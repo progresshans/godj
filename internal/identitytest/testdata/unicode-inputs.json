@@ -1,0 +1,64 @@
+{
+  "cases": [
+    {
+      "name": "outlined_latin",
+      "username": "𜳖lpha",
+      "email": "Mixed@Ᲊ.EXAMPLE"
+    },
+    {
+      "name": "todhri",
+      "username": "𐗀𐗁",
+      "email": "Mixed@Ɤ.TEST"
+    },
+    {
+      "name": "new_digit",
+      "username": "num𐵀",
+      "email": "  Mixed@ΟΣ.ΣΟΣ  "
+    },
+    {
+      "name": "korean150",
+      "username": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한",
+      "email": "abc@example.test"
+    },
+    {
+      "name": "astral150",
+      "username": "𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀",
+      "email": ""
+    },
+    {
+      "name": "astral256",
+      "username": "𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀𐗀",
+      "email": "x@EXAMPLE.TEST"
+    },
+    {
+      "name": "ascii256",
+      "username": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "email": "unchanged without at "
+    },
+    {
+      "name": "nonstarter31",
+      "username": "á́́́́́́́́́́́́́́́́́́́́́́́́́́́́́́",
+      "email": "Mixed@AΣͅ"
+    },
+    {
+      "name": "reorder",
+      "username": "Ḍ̇",
+      "email": "\u001cMixed@Ᲊ.EXAMPLE\u001f"
+    },
+    {
+      "name": "hangul",
+      "username": "각",
+      "email": "x@İ.TEST"
+    },
+    {
+      "name": "fullwidth",
+      "username": "Ｆｒｅｄ",
+      "email": "Mixed@EXAMPLE.COM"
+    },
+    {
+      "name": "compatibility_expansion",
+      "username": "ﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃ",
+      "email": ""
+    }
+  ]
+}

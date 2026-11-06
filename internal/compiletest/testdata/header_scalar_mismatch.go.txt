@@ -1,0 +1,8 @@
+package consumer
+
+import "github.com/progresshans/godj/api/parameters"
+
+func wrong() parameters.Header[string] {
+	header, _ := parameters.NewHeader("X-Count", parameters.Required(parameters.CanonicalInt64(1, 9)), 1, "")
+	return header
+}

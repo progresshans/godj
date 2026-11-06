@@ -1,0 +1,255 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"os/signal"
+	"slices"
+	"strings"
+	"syscall"
+
+	selectedmodel "{{.ModelImport}}"
+	{{if .CatalogImport}}catalogmodel "{{.CatalogImport}}"{{end}}
+	"example.com/godj-project-bundle/project"
+	audit "github.com/progresshans/godj/account/audit"
+	"github.com/progresshans/godj/account/domain"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	formmodel "github.com/progresshans/godj/forms/model"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	defaultmodel "github.com/progresshans/godj/identity/models"
+	defaultproject "github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/migrations"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/project/command"
+	"github.com/progresshans/godj/project/compatibility"
+	"github.com/progresshans/godj/project/firstaccount"
+	"github.com/progresshans/godj/query"
+	sessiondb "github.com/progresshans/godj/sessions/database"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/storage"
+	"github.com/progresshans/godj/uploads"
+)
+
+const provisionArgument = {{.ProvisionArgument}}
+const profileField = {{.Profile}}
+const rawPassword = "parent-private-password"
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	brokenPipe := make(chan os.Signal, 1)
+	signal.Notify(brokenPipe, syscall.SIGPIPE)
+	defer signal.Stop(brokenPipe)
+	if handled, err := compatibility.Serve(ctx, os.Args[1:], os.Stdout); handled {
+		if err != nil { os.Exit(1) }
+		return
+	}
+	if len(os.Args) == 2 && os.Args[1] == "init" {
+		if err := initialize(ctx); err != nil {
+			// No private input exists in this test-only migration phase.
+			_, _ = fmt.Fprintf(os.Stderr, "parent fixture initialization: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	if len(os.Args) == 4 && os.Args[1] == "inspect" {
+		if err := inspect(ctx, os.Args[2], os.Args[3]); err != nil { fail("inspect") }
+		return
+	}
+	selected, err := selectedCommand()
+	if err != nil { fail("declaration") }
+	registry, err := command.New(command.Config{FirstAccount: selected})
+	if err != nil { fail("registry") }
+	if len(os.Args) == 2 && os.Args[1] == provisionArgument && strings.Contains(os.Getenv("GODJ_PARENT_MODE"), "response_loss") {
+		_ = os.Stdout.Close()
+	}
+	if err := registry.Serve(ctx, os.Args[1:], command.Streams{Stdin: os.Stdin, Stdout: os.Stdout, Stderr: os.Stderr}); err != nil {
+		os.Exit(command.ExitCode(err))
+	}
+}
+
+func fail(stage string) {
+	_, _ = os.Stderr.WriteString("parent fixture failed: " + stage + "\n")
+	os.Exit(1)
+}
+
+func open(ctx context.Context) (database.Backend, error) {
+	selected, err := database.SQLite(os.Getenv("GODJ_PARENT_DATABASE"))
+	if err != nil { return nil, err }
+	return database.Open(ctx, selected)
+}
+
+func trace(event string) error {
+	file, err := os.OpenFile(os.Getenv("GODJ_PARENT_TRACE"), os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+	if err != nil { return err }
+	_, writeErr := file.WriteString(event + "\n")
+	return errors.Join(writeErr, file.Close())
+}
+
+type backend struct { database.Backend; mode string }
+
+func (value *backend) Close() error {
+	err := errors.Join(value.Backend.Close(), trace("close"))
+	if strings.Contains(value.mode,"cleanup") { return errors.Join(err, errors.New("private cleanup failure")) }
+	return err
+}
+
+// These probes surround real native operations. Unknown is injected after a
+// real commit, and cleanup failure after the actual close; neither is a claimed
+// network-loss or driver-close experiment.
+func (value *backend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	native, ok := value.Backend.(db.CoordinatedRelationAtomic)
+	if !ok { return errors.New("native relation backend missing") }
+	err := native.CoordinatedAtomicRelation(ctx, write)
+	if err == nil && value.mode == "unknown" { return &query.Error{Code: query.CodeCommitOutcomeUnknown} }
+	return err
+}
+
+func selectedCommand() (firstaccount.Command, error) {
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
+	if err != nil { return firstaccount.Command{}, err }
+	acquire := func(ctx context.Context) (firstaccount.Backend, error) {
+		opened, err := open(ctx)
+		if err != nil { return nil, err }
+		if err := trace("open"); err != nil { return nil, errors.Join(err, opened.Close()) }
+		return &backend{Backend: opened, mode: os.Getenv("GODJ_PARENT_MODE")}, nil
+	}
+	if os.Getenv("GODJ_PARENT_MODE") == "foreign" {
+		foreign, err := defaultproject.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[defaultmodel.User]{
+			CreationPolicy: accountmodel.CreationPolicy[defaultmodel.User]{Fields: []string{"username"}, MaxPasswordBytes: 64}, EvidenceSHA256: strings.Repeat("f", 64),
+		})
+		if err != nil { return firstaccount.Command{}, err }
+		return firstaccount.New(foreign, acquire, firstaccount.Config{})
+	}
+	binding, err := project.BindAccount()
+	if err != nil { return firstaccount.Command{}, err }
+	role, err := binding.Role()
+	if err != nil { return firstaccount.Command{}, err }
+	capabilities,err:=project.BindCollections();if err!=nil{return firstaccount.Command{},err}
+	target:=orm.NewManager[{{.PermissionType}}]({{.PermissionType}}Descriptor{})
+	collectionConfig:=accountmodel.ProfileCollectionConfig[{{.PermissionType}}]{MaximumItems:3,
+		Choices:formmodel.ModelChoiceConfig[{{.PermissionType}}]{Label:func({{.PermissionType}})(string,error){return "Interest",nil}},
+		Filter:func(_ context.Context,_ db.Queryer,actor auth.Principal,origin accountmodel.ProfileRelationOrigin)([]orm.Predicate[{{.PermissionType}}],error){if actor.Authenticated()||origin.Operation()!=accountmodel.ProfileRelationFirstAccount{return nil,errors.New("wrong operator selection scope")};return nil,nil},
+	}
+	interests,err:=accountmodel.NewProfileCollection(binding,"interests",capabilities.{{.CollectionPrefix}}Interests,target,collectionConfig);if err!=nil{return firstaccount.Command{},err}
+	optional,err:=accountmodel.NewProfileCollection(binding,"optional_interests",capabilities.{{.CollectionPrefix}}OptionalInterests,target,collectionConfig);if err!=nil{return firstaccount.Command{},err}
+	var files []accountmodel.ProfileFile[selectedmodel.{{.ModelType}}]
+	for _,name:=range []string{"document","portrait"}{
+		field:=name
+		policy,err:=accountmodel.NewProfileFile(binding,name,accountmodel.ProfileFileConfig[selectedmodel.{{.ModelType}}]{Backend:commandStorage{directory:os.Getenv("GODJ_PARENT_STORAGE"),mode:os.Getenv("GODJ_PARENT_MODE")},Name:func(_ selectedmodel.{{.ModelType}}, upload uploads.File)(string,error){return field+"/"+upload.Name(),nil}})
+		if err!=nil{return firstaccount.Command{},err};files=append(files,policy)
+	}
+	selected, err := project.NewFirstAccountDefinition(hasher, accountmodel.FirstAccountConfig[selectedmodel.{{.ModelType}}]{
+		CreationPolicy: accountmodel.CreationPolicy[selectedmodel.{{.ModelType}}]{Fields: []string{role.Login, profileField,"document","portrait","interests","optional_interests"}, Files:files, Collections:[]accountmodel.ProfileCollection[selectedmodel.{{.ModelType}}]{interests,optional}, MaxPasswordBytes: 64},
+		EvidenceSHA256: strings.Repeat("d", 64),
+	})
+	if err != nil { return firstaccount.Command{}, err }
+	return firstaccount.New(selected, acquire, firstaccount.Config{MaxFileBytes:1<<20,MaxFilesBytes:2<<20,ReportFiles:recordFileReport})
+}
+
+// Construction retains only configuration; each explicit Save owns a real
+// filesystem handle. Description/validation never opens the storage directory.
+type commandStorage struct{directory,mode string}
+func (value commandStorage) Save(ctx context.Context,name string,reader io.Reader,options storage.SaveOptions)(storage.Info,error){
+	if value.mode=="file_partial"&&strings.HasPrefix(name,"portrait/"){return storage.Info{},&storage.Error{Code:"fixture_refused",Outcome:storage.NotPublished}}
+	root,err:=storage.OpenFilesystem(ctx,storage.FilesystemConfig{Directory:value.directory});if err!=nil{return storage.Info{},err}
+	info,err:=root.Save(ctx,name,reader,options)
+	if closeErr:=root.Close();closeErr!=nil{outcome:=storage.Uncertain;if err==nil{outcome=storage.Published};err=&storage.Error{Code:"fixture_close",Outcome:outcome,Cause:errors.Join(err,closeErr)}}
+	return info,err
+}
+func (commandStorage) Open(context.Context,string)(io.ReadCloser,error){return nil,errors.New("unexpected file open")}
+func (commandStorage) Stat(context.Context,string)(storage.Info,error){return storage.Info{},errors.New("unexpected file stat")}
+func (commandStorage) Delete(context.Context,string)error{return errors.New("unexpected file deletion")}
+
+func recordFileReport(_ context.Context,report firstaccount.FileReport)error{
+	type publication struct{Field,Name,Outcome string;Size int64;Failed bool}
+	result:=struct{Operation string `json:"operation"`;Created,Failed bool;Files []publication}{Operation:report.OperationID(),Created:report.Creation().Account.Revision==1,Failed:report.Err()!=nil}
+	for _,file:=range report.Files(){result.Files=append(result.Files,publication{Field:file.Field(),Name:file.Info().Name(),Outcome:string(file.Outcome()),Size:file.Info().Size(),Failed:file.Err()!=nil})}
+	document,err:=json.Marshal(result);if err!=nil{return err}
+	if err:=os.WriteFile(filepath.Join(os.Getenv("GODJ_PARENT_FILE_REPORTS"),report.OperationID()+".json"),document,0600);err!=nil{return err}
+	if strings.HasPrefix(os.Getenv("GODJ_PARENT_MODE"),"file_report"){return errors.New("private file report failure")}
+	return nil
+}
+
+func initialize(ctx context.Context) (result error) {
+	opened, err := open(ctx)
+	if err != nil { return err }
+	defer func() { result = errors.Join(result, opened.Close()) }()
+	sources := domain.MigrationSources()
+	sources = append(sources, audit.MigrationSources()...)
+	sources = append(sources, sessiondb.MigrationSources()...)
+	sources = append(sources,{{.MigrationSources}})
+	loaded, _, err := definition.Load(sources...)
+	if err != nil { return err }
+	if _, err := (migrations.Executor{Backend: opened}).Migrate(ctx, loaded, migrations.LatestLifecycleRequest()); err != nil { return err }
+	binding,err:=project.BindAccount();if err!=nil{return err};role,err:=binding.Role();if err!=nil{return err}
+	target:=orm.NewManager[{{.PermissionType}}]({{.PermissionType}}Descriptor{})
+	for index,code:=range []string{"app.first_interest","app.second_interest"}{
+		prepared,err:=target.PrepareValues(nil,map[string]query.Value{role.Catalog.PermissionName:query.String(code),role.Catalog.PermissionCode:query.String(code),role.Catalog.PermissionRevision:query.Integer(1)});if err!=nil{return err}
+		row,err:=prepared.Model();if err!=nil{return err};if err:=prepared.Save(ctx,opened,&row);err!=nil{return err}
+		key,present,err:=target.PrimaryKey(row);if err!=nil||!present||!key.Equal(query.Integer(int64(index+1))){return errors.New("fixture target key differs")}
+	}
+	command, err := selectedCommand()
+	if err != nil { return err }
+	description, err := command.Description()
+	if err != nil { return err }
+	document, err := json.Marshal(description)
+	if err != nil { return err }
+	return os.WriteFile(os.Getenv("GODJ_PARENT_DESCRIPTION"), document, 0600)
+}
+
+func inspect(ctx context.Context, status, operation string) (result error) {
+	opened, err := open(ctx)
+	if err != nil { return err }
+	defer func() { result = errors.Join(result, opened.Close()) }()
+	store, err := project.NewAccountSessionStore(opened, sessiondb.Config{})
+	if err != nil { return err }
+	observed, err := store.InspectStartup(ctx)
+	if err != nil { return err }
+	binding, err := project.BindAccount()
+	if err != nil { return err }
+	objects, err := binding.Objects()
+	if err != nil { return err }
+	rows, err := objects.Using(opened).All(ctx)
+	if err != nil { return err }
+	if status == "fresh" {
+		if !observed.Fresh() || observed.Ready() || len(rows) != 0 || observed.AuditEvents() != 0 || observed.SessionRecords() != 0 { return errors.New("unexpected fresh state") }
+		return nil
+	}
+	if status != "created" || !observed.Ready() || observed.Fresh() || len(rows) != 1 || observed.AuditEvents() != 1 || observed.SessionRecords() != 0 { return errors.New("unexpected created state") }
+	role, err := binding.Role()
+	if err != nil { return err }
+	values, err := objects.ModelValues(rows[0])
+	if err != nil { return err }
+	login, _ := values[role.Login].String()
+	profile, _ := values[profileField].String()
+	if login != "parent@example.test" || profile != "NZ" { return errors.New("selected model values changed") }
+	capabilities,err:=project.BindCollections();if err!=nil{return err}
+	interests,err:=capabilities.{{.CollectionPrefix}}Interests.From(opened,rows[0]);if err!=nil{return err}
+	selected,err:=interests.All(ctx);if err!=nil{return err}
+	target:=orm.NewManager[{{.PermissionType}}]({{.PermissionType}}Descriptor{});var keys []int64
+	for _,row:=range selected{value,present,err:=target.PrimaryKey(row);if err!=nil||!present{return errors.New("missing stored interest key")};key,valid:=value.Integer();if !valid{return errors.New("wrong stored interest key type")};keys=append(keys,key)}
+	slices.Sort(keys);if !slices.Equal(keys,[]int64{1,2}){return errors.New("private pipe lost collection order/deduplication or durable membership")}
+	optional,err:=capabilities.{{.CollectionPrefix}}OptionalInterests.From(opened,rows[0]);if err!=nil{return err};empty,err:=optional.All(ctx);if err!=nil||len(empty)!=0{return errors.New("explicit empty collection changed")}
+	if !values["portrait_width"].Equal(query.Integer(2))||!values["portrait_height"].Equal(query.Integer(3)){return errors.New("image dimensions lost")}
+	for _,field:=range []string{"document","portrait"}{
+		name,ok:=values[field].String();if !ok||!strings.HasPrefix(name,field+"/"){return errors.New("selected account lost actual file name")}
+		content,err:=os.ReadFile(filepath.Join(os.Getenv("GODJ_PARENT_STORAGE"),filepath.FromSlash(name)));if err!=nil||len(content)==0{return errors.New("selected account lost published content")}
+	}
+	receipt, err := domain.Lookup(ctx, opened, operation)
+	if err != nil || receipt.OperationID() != operation || receipt.Sequence() != 1 || receipt.RoleFingerprint() != observed.Ownership().RoleFingerprint() { return errors.New("parent operation receipt lost") }
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
+	if err != nil { return err }
+	verifier, err := store.Authenticator(ctx, hasher)
+	if err != nil { return err }
+	credential, err := verifier.Authenticate(ctx, login, rawPassword)
+	if err != nil || !credential.Principal().Active() || !credential.Principal().Staff() || !credential.Principal().Superuser() { return errors.New("selected account cannot authenticate") }
+	return nil
+}

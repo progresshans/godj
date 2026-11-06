@@ -1,14 +1,13 @@
 package protocol
 
 import (
-	"path/filepath"
 	"testing"
 )
 
 func TestQueryCachePassingManifestKeepsExplicitNotImplementedBaseline(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadQueryCacheArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "query-cache")
 	if len(manifest.Contracts) != 11 {
 		t.Fatalf("query-cache manifest has %d contracts, want 11", len(manifest.Contracts))
 	}
@@ -50,12 +49,12 @@ func TestQueryCachePassingManifestKeepsExplicitNotImplementedBaseline(t *testing
 func TestQueryCacheOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, _ := loadQueryCacheArtifacts(t)
+	profile, manifest, oracle, _ := loadContractArtifacts(t, "query-cache")
 	for _, contract := range manifest.Contracts {
 		contract := contract
 		t.Run(contract.ID+" query count", func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			observation := queryCacheObservation(t, &actual, contract.ID)
+			observation := observationByID(t, &actual, contract.ID)
 			steps := objectField(t, observation.Metrics, "steps")
 			if steps.Type != ValueList || len(steps.Items) == 0 {
 				t.Fatalf("%s metric steps must be a non-empty list: %#v", contract.ID, steps)
@@ -63,7 +62,7 @@ func TestQueryCacheOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 			queryCount := objectField(t, &steps.Items[0], "query_count")
 			changed := "999999"
 			queryCount.Text = &changed
-			assertQueryCacheMutationDiffers(t, profile, manifest, oracle, actual, contract.ID)
+			assertOnlyContractDiffers(t, profile, manifest, oracle, actual, contract.ID)
 		})
 	}
 
@@ -153,28 +152,28 @@ func TestQueryCacheOraclePayloadMutationsCannotFalseGreen(t *testing.T) {
 		test := test
 		t.Run(test.name, func(t *testing.T) {
 			actual := cloneSuite(t, oracle)
-			observation := queryCacheObservation(t, &actual, test.contractID)
+			observation := observationByID(t, &actual, test.contractID)
 			test.mutate(t, observation)
-			assertQueryCacheMutationDiffers(t, profile, manifest, oracle, actual, test.contractID)
+			assertOnlyContractDiffers(t, profile, manifest, oracle, actual, test.contractID)
 		})
 	}
 
 	t.Run("failed evaluation retry error code", func(t *testing.T) {
 		actual := cloneSuite(t, oracle)
-		observation := queryCacheObservation(t, &actual, "QRY-019")
+		observation := observationByID(t, &actual, "QRY-019")
 		step := queryCacheResultStep(t, observation, "failed_evaluation")
 		errorValue := objectField(t, step, "error")
 		code := objectField(t, errorValue, "code")
 		changed := "different_error"
 		code.Text = &changed
-		assertQueryCacheMutationDiffers(t, profile, manifest, oracle, actual, "QRY-019")
+		assertOnlyContractDiffers(t, profile, manifest, oracle, actual, "QRY-019")
 	})
 }
 
 func TestQueryCacheArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) {
 	t.Parallel()
 
-	profile, manifest, oracle, baseline := loadQueryCacheArtifacts(t)
+	profile, manifest, oracle, baseline := loadContractArtifacts(t, "query-cache")
 	for _, artifact := range []struct {
 		name  string
 		suite ObservationSuite
@@ -204,55 +203,6 @@ func TestQueryCacheArtifactsRejectOrderPhaseAndProfileMutations(t *testing.T) {
 				t.Fatal("profile mutation produced a false green")
 			}
 		})
-	}
-}
-
-func loadQueryCacheArtifacts(t *testing.T) (Profile, Manifest, ObservationSuite, ObservationSuite) {
-	t.Helper()
-	root := conformanceRepositoryRoot(t)
-	profile, err := LoadProfile(filepath.Join(root, "conformance", "profiles", "django-6.1-sqlite-darwin-arm64.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	manifest, err := LoadManifest(filepath.Join(root, "conformance", "contracts", "query-cache-manifest.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	oracle, err := LoadObservationSuite(filepath.Join(root, "conformance", "oracles", "django-6.1-sqlite-darwin-arm64", "query-cache-oracle.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline, err := LoadObservationSuite(filepath.Join(root, "conformance", "fixtures", "godj-query-cache-not-implemented.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return profile, manifest, oracle, baseline
-}
-
-func queryCacheObservation(t *testing.T, suite *ObservationSuite, contractID string) *Observation {
-	t.Helper()
-	for index := range suite.Contracts {
-		if suite.Contracts[index].ID == contractID {
-			return &suite.Contracts[index]
-		}
-	}
-	t.Fatalf("query-cache observation %s is missing", contractID)
-	return nil
-}
-
-func assertQueryCacheMutationDiffers(t *testing.T, profile Profile, manifest Manifest, oracle, actual ObservationSuite, contractID string) {
-	t.Helper()
-	differences, err := Compare(profile, manifest, oracle, actual)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(differences) == 0 {
-		t.Fatal("query-cache payload mutation produced a false green")
-	}
-	for _, difference := range differences {
-		if difference.ContractID != contractID {
-			t.Fatalf("mutation reported against %q, want %q: %#v", difference.ContractID, contractID, differences)
-		}
 	}
 }
 

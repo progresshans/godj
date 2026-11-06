@@ -1,0 +1,2007 @@
+{
+  "django": "6.1",
+  "timezone": "UTC",
+  "backend": "sqlite",
+  "cases": [
+    {
+      "name": "id:values",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:values:not",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:values:or",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:values:and",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:without-null",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:without-null:not",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:without-null:or",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:without-null:and",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 2
+        },
+        {
+          "kind": "integer",
+          "integer": 4
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:empty",
+      "field": "id",
+      "values": [],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "id:empty:not",
+      "field": "id",
+      "values": [],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:empty:or",
+      "field": "id",
+      "values": [],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:empty:and",
+      "field": "id",
+      "values": [],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "id:null-only",
+      "field": "id",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "id:null-only:not",
+      "field": "id",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:null-only:or",
+      "field": "id",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:null-only:and",
+      "field": "id",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "id:missing",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "id:missing:not",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:missing:or",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "id:missing:and",
+      "field": "id",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "name:values",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:values:not",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:values:or",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:values:and",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:without-null",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:without-null:not",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:without-null:or",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:without-null:and",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "beta"
+        },
+        {
+          "kind": "string",
+          "string": "delta"
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:empty",
+      "field": "name",
+      "values": [],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "name:empty:not",
+      "field": "name",
+      "values": [],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:empty:or",
+      "field": "name",
+      "values": [],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:empty:and",
+      "field": "name",
+      "values": [],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "name:null-only",
+      "field": "name",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "name:null-only:not",
+      "field": "name",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:null-only:or",
+      "field": "name",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:null-only:and",
+      "field": "name",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "name:missing",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "name:missing:not",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:missing:or",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "name:missing:and",
+      "field": "name",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "note:values",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:values:not",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:values:or",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:values:and",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "note:without-null",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:without-null:not",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:without-null:or",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:without-null:and",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": ""
+        },
+        {
+          "kind": "string",
+          "string": ""
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "note:empty",
+      "field": "note",
+      "values": [],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "note:empty:not",
+      "field": "note",
+      "values": [],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:empty:or",
+      "field": "note",
+      "values": [],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:empty:and",
+      "field": "note",
+      "values": [],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "note:null-only",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "note:null-only:not",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:null-only:or",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:null-only:and",
+      "field": "note",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "note:missing",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "note:missing:not",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:missing:or",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "note:missing:and",
+      "field": "note",
+      "values": [
+        {
+          "kind": "string",
+          "string": "missing"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "rank:values",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:values:not",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:values:or",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:values:and",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:without-null",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:without-null:not",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:without-null:or",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:without-null:and",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": -1
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        },
+        {
+          "kind": "integer",
+          "integer": 0
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:empty",
+      "field": "rank",
+      "values": [],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "rank:empty:not",
+      "field": "rank",
+      "values": [],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:empty:or",
+      "field": "rank",
+      "values": [],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:empty:and",
+      "field": "rank",
+      "values": [],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "rank:null-only",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "rank:null-only:not",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:null-only:or",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:null-only:and",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "rank:missing",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "rank:missing:not",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:missing:or",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "rank:missing:and",
+      "field": "rank",
+      "values": [
+        {
+          "kind": "integer",
+          "integer": 999
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "at:values",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:values:not",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:values:or",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:values:and",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:without-null",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:without-null:not",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:without-null:or",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:without-null:and",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T03:34:56.123456+00:00"
+        },
+        {
+          "kind": "datetime",
+          "datetime": "2026-09-19T12:34:56.123456+09:00"
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:empty",
+      "field": "at",
+      "values": [],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "at:empty:not",
+      "field": "at",
+      "values": [],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:empty:or",
+      "field": "at",
+      "values": [],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:empty:and",
+      "field": "at",
+      "values": [],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "at:null-only",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "at:null-only:not",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:null-only:or",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:null-only:and",
+      "field": "at",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "at:missing",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2020-01-01T00:00:00+00:00"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "at:missing:not",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2020-01-01T00:00:00+00:00"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:missing:or",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2020-01-01T00:00:00+00:00"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "at:missing:and",
+      "field": "at",
+      "values": [
+        {
+          "kind": "datetime",
+          "datetime": "2020-01-01T00:00:00+00:00"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "active:values",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:values:not",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:values:or",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:values:and",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "active:without-null",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:without-null:not",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:without-null:or",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:without-null:and",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": false
+        },
+        {
+          "kind": "boolean",
+          "boolean": false
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 1
+    },
+    {
+      "name": "active:empty",
+      "field": "active",
+      "values": [],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "active:empty:not",
+      "field": "active",
+      "values": [],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:empty:or",
+      "field": "active",
+      "values": [],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:empty:and",
+      "field": "active",
+      "values": [],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "active:null-only",
+      "field": "active",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "plain",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "active:null-only:not",
+      "field": "active",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:null-only:or",
+      "field": "active",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:null-only:and",
+      "field": "active",
+      "values": [
+        {
+          "kind": "null"
+        }
+      ],
+      "composition": "and",
+      "ids": [],
+      "queries": 0
+    },
+    {
+      "name": "active:missing",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": true
+        }
+      ],
+      "composition": "plain",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:missing:not",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": true
+        }
+      ],
+      "composition": "not",
+      "ids": [
+        1,
+        3
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:missing:or",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": true
+        }
+      ],
+      "composition": "or",
+      "ids": [
+        1,
+        2,
+        4
+      ],
+      "queries": 1
+    },
+    {
+      "name": "active:missing:and",
+      "field": "active",
+      "values": [
+        {
+          "kind": "boolean",
+          "boolean": true
+        }
+      ],
+      "composition": "and",
+      "ids": [
+        2,
+        4
+      ],
+      "queries": 1
+    }
+  ]
+}

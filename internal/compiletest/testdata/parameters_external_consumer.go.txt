@@ -1,0 +1,18 @@
+package consumer
+
+import "github.com/progresshans/godj/api/parameters"
+
+type queryDTO struct { Page int64; Search *string; Token string }
+
+func typedQuery(raw string) (queryDTO, error) {
+	query, err := parameters.New(2048,
+		parameters.Field("page", parameters.Default(parameters.CanonicalInt64(1, 100), 1), func(row *queryDTO, value int64) { row.Page = value }, "Page."),
+		parameters.Field("search", parameters.Optional(parameters.String(64, true)), func(row *queryDTO, value *string) { row.Search = value }, "Search."),
+		parameters.Field("token", parameters.Required(parameters.String(32, false)), func(row *queryDTO, value string) { row.Token = value }, "Token."),
+	)
+	if err != nil { return queryDTO{}, err }
+	_ = query.Parameters()
+	value, violations, err := query.Parse(raw)
+	if !violations.Empty() { return queryDTO{}, nil }
+	return value, err
+}

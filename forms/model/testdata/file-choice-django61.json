@@ -1,0 +1,436 @@
+{
+  "cases": [
+    {
+      "case": "same",
+      "changed": [],
+      "cleaned": "files/a.txt",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "document": "files/a.txt"
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "files/a.txt",
+      "name_field": "document",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "changed",
+      "changed": [
+        "document"
+      ],
+      "cleaned": "files/b.txt",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "document": "files/b.txt"
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "files/b.txt",
+      "name_field": "document",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "unknown",
+      "changed": [
+        "document"
+      ],
+      "cleaned": null,
+      "errors": {
+        "document": [
+          "invalid_choice"
+        ]
+      },
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "document": "files/c.txt"
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "files/a.txt",
+      "name_field": "document",
+      "valid": false,
+      "widget": "Select"
+    },
+    {
+      "case": "empty",
+      "changed": [
+        "document"
+      ],
+      "cleaned": "",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "document": ""
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "",
+      "name_field": "document",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "omitted",
+      "changed": [
+        "document"
+      ],
+      "cleaned": "",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {},
+      "model": "Document",
+      "multipart": false,
+      "name": "",
+      "name_field": "document",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "clear",
+      "changed": [
+        "document"
+      ],
+      "cleaned": "",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "document-clear": "on"
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "",
+      "name_field": "document",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "upload_only",
+      "changed": [
+        "document"
+      ],
+      "cleaned": "",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": true,
+      "initial": "files/a.txt",
+      "input": {},
+      "model": "Document",
+      "multipart": false,
+      "name": "",
+      "name_field": "document",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "text_and_upload",
+      "changed": [
+        "document"
+      ],
+      "cleaned": "files/b.txt",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": true,
+      "initial": "files/a.txt",
+      "input": {
+        "document": "files/b.txt"
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "files/b.txt",
+      "name_field": "document",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "optional_omitted",
+      "changed": [
+        "optional"
+      ],
+      "cleaned": null,
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {},
+      "model": "Document",
+      "multipart": false,
+      "name": "files/a.txt",
+      "name_field": "optional",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "optional_empty",
+      "changed": [
+        "optional"
+      ],
+      "cleaned": null,
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "optional": ""
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "files/a.txt",
+      "name_field": "optional",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "optional_same",
+      "changed": [],
+      "cleaned": "files/a.txt",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "optional": "files/a.txt"
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "files/a.txt",
+      "name_field": "optional",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "defaulted_omitted",
+      "changed": [
+        "defaulted"
+      ],
+      "cleaned": "",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {},
+      "model": "Document",
+      "multipart": false,
+      "name": "files/a.txt",
+      "name_field": "defaulted",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "defaulted_empty",
+      "changed": [
+        "defaulted"
+      ],
+      "cleaned": "",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "defaulted": ""
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "",
+      "name_field": "defaulted",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "defaulted_same",
+      "changed": [],
+      "cleaned": "files/a.txt",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "initial": "files/a.txt",
+      "input": {
+        "defaulted": "files/a.txt"
+      },
+      "model": "Document",
+      "multipart": false,
+      "name": "files/a.txt",
+      "name_field": "defaulted",
+      "valid": true,
+      "widget": "Select"
+    },
+    {
+      "case": "image_same",
+      "changed": [],
+      "cleaned": "images/a.png",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "height": 2,
+      "initial": "images/a.png",
+      "input": {
+        "photo": "images/a.png"
+      },
+      "model": "Photograph",
+      "multipart": false,
+      "name": "images/a.png",
+      "name_field": "photo",
+      "reads": [
+        "images/a.png"
+      ],
+      "valid": true,
+      "widget": "Select",
+      "width": 3
+    },
+    {
+      "case": "image_changed",
+      "changed": [
+        "photo"
+      ],
+      "cleaned": "images/b.png",
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "height": 5,
+      "initial": "images/a.png",
+      "input": {
+        "photo": "images/b.png"
+      },
+      "model": "Photograph",
+      "multipart": false,
+      "name": "images/b.png",
+      "name_field": "photo",
+      "reads": [
+        "images/b.png"
+      ],
+      "valid": true,
+      "widget": "Select",
+      "width": 7
+    },
+    {
+      "case": "image_unknown",
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "errors": {
+        "photo": [
+          "invalid_choice"
+        ]
+      },
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "height": 23,
+      "initial": "images/a.png",
+      "input": {
+        "photo": "images/other.png"
+      },
+      "model": "Photograph",
+      "multipart": false,
+      "name": "images/a.png",
+      "name_field": "photo",
+      "reads": [],
+      "valid": false,
+      "widget": "Select",
+      "width": 19
+    },
+    {
+      "case": "image_missing_content",
+      "exception": "FileNotFoundError",
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "height": 23,
+      "initial": "images/a.png",
+      "input": {
+        "photo": "images/absent.png"
+      },
+      "model": "Photograph",
+      "multipart": false,
+      "name_field": "photo",
+      "reads": [
+        "images/absent.png"
+      ],
+      "widget": "Select",
+      "width": 19
+    },
+    {
+      "case": "image_empty",
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "height": 2,
+      "initial": "images/a.png",
+      "input": {
+        "photo": ""
+      },
+      "model": "Photograph",
+      "multipart": false,
+      "name": "images/a.png",
+      "name_field": "photo",
+      "reads": [
+        "images/a.png"
+      ],
+      "valid": true,
+      "widget": "Select",
+      "width": 3
+    },
+    {
+      "case": "image_omitted",
+      "changed": [
+        "photo"
+      ],
+      "cleaned": null,
+      "errors": {},
+      "field": "TypedChoiceField",
+      "has_upload": false,
+      "height": 2,
+      "initial": "images/a.png",
+      "input": {},
+      "model": "Photograph",
+      "multipart": false,
+      "name": "images/a.png",
+      "name_field": "photo",
+      "reads": [
+        "images/a.png",
+        "images/b.png"
+      ],
+      "valid": true,
+      "widget": "Select",
+      "width": 3
+    }
+  ],
+  "django": "6.1",
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "file_fields_sha256": "fed8e0f0f32feb483bcc96fb16ce417f77493079981c252182a4fee17b4298c8",
+  "persistence": {
+    "after_rollback": {
+      "height": 2,
+      "name": "images/a.png",
+      "width": 3
+    },
+    "original_exists": true,
+    "selected": {
+      "height": 5,
+      "name": "images/b.png",
+      "width": 7
+    },
+    "selected_exists": true
+  },
+  "pillow": "12.3.0",
+  "python": "3.14.3"
+}

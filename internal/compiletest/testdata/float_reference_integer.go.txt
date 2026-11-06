@@ -1,0 +1,6 @@
+package misuse
+import (
+ "github.com/progresshans/godj/examples/helpdesk/models"
+ "github.com/progresshans/godj/orm"
+)
+var _ = models.TicketFields.Effort.ExactField(orm.F[models.Ticket,int64](models.TicketFields.Priority))

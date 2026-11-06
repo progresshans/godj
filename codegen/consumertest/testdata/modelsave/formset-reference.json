@@ -1,0 +1,1427 @@
+{
+  "backend": "sqlite",
+  "cases": [
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        1
+      ],
+      "error": null,
+      "events": [
+        [
+          0,
+          "update"
+        ],
+        [
+          1,
+          "delete"
+        ],
+        [
+          3,
+          "create"
+        ]
+      ],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "mixed",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        0,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        0
+      ],
+      "error": null,
+      "events": [
+        [
+          0,
+          "delete"
+        ],
+        [
+          1,
+          "update"
+        ],
+        [
+          3,
+          "create"
+        ]
+      ],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "reordered",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        1,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        }
+      ]
+    },
+    {
+      "changed": [],
+      "deleted": [],
+      "error": null,
+      "events": [],
+      "has_keys": [],
+      "name": "unchanged",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ],
+      "selected": [],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "ORDER"
+        ],
+        [
+          "ORDER"
+        ]
+      ],
+      "deleted": [],
+      "error": null,
+      "events": [
+        [
+          0,
+          "update"
+        ],
+        [
+          2,
+          "update"
+        ]
+      ],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "order_only",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "ORDER": "3",
+          "id": "1",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "ORDER": "2",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "ORDER": "1",
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ],
+      "selected": [
+        0,
+        2
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "labels"
+        ]
+      ],
+      "deleted": [],
+      "error": null,
+      "events": [
+        [
+          0,
+          "update"
+        ]
+      ],
+      "has_keys": [
+        true
+      ],
+      "name": "collection_only",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ],
+      "selected": [
+        0
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ]
+    },
+    {
+      "changed": [],
+      "deleted": [],
+      "error": null,
+      "events": [],
+      "has_keys": [],
+      "name": "post_clean_only",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ],
+      "selected": [],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        1
+      ],
+      "error": null,
+      "events": [],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "deferred",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        0,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "server-changed"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "server-new"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        1
+      ],
+      "error": null,
+      "events": [],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "deferred_delete",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        0,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "server-changed"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "server-new"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [],
+      "error": null,
+      "events": [
+        [
+          3,
+          "create"
+        ],
+        [
+          3,
+          "create"
+        ]
+      ],
+      "has_keys": [
+        true
+      ],
+      "name": "new_repeat",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        1
+      ],
+      "error": "RuntimeError",
+      "events": [
+        [
+          0,
+          "update"
+        ],
+        [
+          1,
+          "delete"
+        ],
+        [
+          3,
+          "create"
+        ]
+      ],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "late_failure",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        0,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        1
+      ],
+      "error": "RuntimeError",
+      "events": [
+        [
+          0,
+          "update"
+        ],
+        [
+          1,
+          "delete"
+        ],
+        [
+          3,
+          "create"
+        ]
+      ],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "late_failure_atomic",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        0,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        1
+      ],
+      "error": "RuntimeError",
+      "events": [
+        [
+          0,
+          "update"
+        ],
+        [
+          1,
+          "delete"
+        ],
+        [
+          3,
+          "create"
+        ]
+      ],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "collection_failure",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        0,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [],
+          "title": "new"
+        }
+      ]
+    },
+    {
+      "changed": [
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ],
+        [
+          "title",
+          "labels",
+          "reviewers"
+        ]
+      ],
+      "deleted": [
+        1
+      ],
+      "error": "RuntimeError",
+      "events": [
+        [
+          0,
+          "update"
+        ],
+        [
+          1,
+          "delete"
+        ],
+        [
+          3,
+          "create"
+        ]
+      ],
+      "has_keys": [
+        true,
+        true
+      ],
+      "name": "collection_failure_atomic",
+      "prepare_queries": 0,
+      "rows": [
+        {
+          "id": "1",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        },
+        {
+          "DELETE": "on",
+          "id": "2",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "id": "3",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        },
+        {
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "new"
+        },
+        {
+          "title": ""
+        },
+        {
+          "DELETE": "on",
+          "title": "discard"
+        }
+      ],
+      "selected": [
+        0,
+        3
+      ],
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "one"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "two"
+        },
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "three"
+        }
+      ]
+    }
+  ],
+  "django": "6.1",
+  "python": "3.14.3",
+  "source_sha256": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910"
+}

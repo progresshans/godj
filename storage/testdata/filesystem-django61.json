@@ -1,0 +1,64 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "sources": {
+    "django.core.files.storage.base": "774578b9e5c43daf46fb4fb5f0d020b96c2c4c1df795b4100d8643a0296203c9",
+    "django.core.files.storage.filesystem": "58590ed08e59875f970c889188deeb1d914a56d61da7e750652fd797a631ffeb"
+  },
+  "cases": [
+    {
+      "proposed": "reports/archive.tar.gz",
+      "content": "original",
+      "max_length": 0,
+      "saved": "reports/archive.tar.gz",
+      "size": 8,
+      "exists": true
+    },
+    {
+      "proposed": "reports/archive.tar.gz",
+      "content": "second",
+      "max_length": 28,
+      "saved": "reports/archi_AAAAAAA.tar.gz",
+      "size": 6,
+      "exists": true
+    },
+    {
+      "proposed": "empty",
+      "content": "",
+      "max_length": 0,
+      "saved": "empty",
+      "size": 0,
+      "exists": true
+    },
+    {
+      "proposed": "docs/가나다라마바사아자차카.txt",
+      "content": "unicode",
+      "max_length": 19,
+      "saved": "docs/가나_AAAAAAA.txt",
+      "size": 7,
+      "exists": true
+    },
+    {
+      "proposed": "impossible.txt",
+      "content": "too short",
+      "max_length": 5,
+      "error": "SuspiciousFileOperation"
+    },
+    {
+      "proposed": "../outside.txt",
+      "content": "escape",
+      "max_length": 0,
+      "error": "SuspiciousFileOperation"
+    },
+    {
+      "proposed": "ordinary file.txt",
+      "content": "space",
+      "max_length": 0,
+      "saved": "ordinary file.txt",
+      "size": 5,
+      "exists": true
+    }
+  ],
+  "original_preserved": true,
+  "delete_missing_idempotent": true
+}

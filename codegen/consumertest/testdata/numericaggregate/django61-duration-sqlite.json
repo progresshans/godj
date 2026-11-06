@@ -1,0 +1,1195 @@
+{
+  "backend": "sqlite",
+  "cases": [
+    {
+      "actions": [
+        {
+          "name": "Sum_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "3",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "3",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "3",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Sum_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "3",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "3",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "3",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING SUM(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "2",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "2",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "2",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Avg_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "2",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "2",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "2",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_1",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "2",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_2",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 2 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_1",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_2",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "2",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 2 ORDER BY 1 ASC"
+          ]
+        }
+      ],
+      "input": [
+        {
+          "elapsed": {
+            "microseconds": "1",
+            "type": "timedelta"
+          },
+          "group_key": "all"
+        },
+        {
+          "elapsed": {
+            "microseconds": "2",
+            "type": "timedelta"
+          },
+          "group_key": "all"
+        }
+      ],
+      "name": "duration_half_even_up",
+      "physical_after": [
+        [
+          "all",
+          true,
+          null,
+          null,
+          null,
+          {
+            "text": "1",
+            "type": "int"
+          },
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "all",
+          true,
+          null,
+          null,
+          null,
+          {
+            "text": "2",
+            "type": "int"
+          },
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "row_count_after": 2
+    },
+    {
+      "actions": [
+        {
+          "name": "Sum_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "5",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "5",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "5",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Sum_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "5",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "5",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "5",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING SUM(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "2",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "2",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "2",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Avg_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "2",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "2",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "2",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_1",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "2",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_2",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "2",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 2 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_1",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_2",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 2 ORDER BY 1 ASC"
+          ]
+        }
+      ],
+      "input": [
+        {
+          "elapsed": {
+            "microseconds": "2",
+            "type": "timedelta"
+          },
+          "group_key": "all"
+        },
+        {
+          "elapsed": {
+            "microseconds": "3",
+            "type": "timedelta"
+          },
+          "group_key": "all"
+        }
+      ],
+      "name": "duration_half_even_down",
+      "physical_after": [
+        [
+          "all",
+          true,
+          null,
+          null,
+          null,
+          {
+            "text": "2",
+            "type": "int"
+          },
+          null,
+          null,
+          null,
+          null
+        ],
+        [
+          "all",
+          true,
+          null,
+          null,
+          null,
+          {
+            "text": "3",
+            "type": "int"
+          },
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "row_count_after": 2
+    },
+    {
+      "actions": [
+        {
+          "name": "Sum_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "9223372036854775807",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "9223372036854775807",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "9223372036854775807",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Sum_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "9223372036854775807",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "9223372036854775807",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "9223372036854775807",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING SUM(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Avg_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "9223372036854775808",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "9223372036854775808",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "9223372036854775808",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_1",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "9223372036854775808",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_2",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "9223372036854775808",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 2 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_1",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_2",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 2 ORDER BY 1 ASC"
+          ]
+        }
+      ],
+      "input": [
+        {
+          "elapsed": {
+            "microseconds": "9223372036854775807",
+            "type": "timedelta"
+          },
+          "group_key": "all"
+        }
+      ],
+      "name": "duration_upper_int64_identity",
+      "physical_after": [
+        [
+          "all",
+          true,
+          null,
+          null,
+          null,
+          {
+            "text": "9223372036854775807",
+            "type": "int"
+          },
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "row_count_after": 1
+    },
+    {
+      "actions": [
+        {
+          "name": "Sum_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "-9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "-9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "-9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Sum_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Sum_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", SUM(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", SUM(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Sum_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", SUM(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING SUM(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_plain",
+          "result": {
+            "value": {
+              "microseconds": "-9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_distinct",
+          "result": {
+            "value": {
+              "microseconds": "-9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filtered",
+          "result": {
+            "value": {
+              "microseconds": "-9223372036854775808",
+              "type": "timedelta"
+            }
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_filter_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"id\" < 0) AS \"value\" FROM \"numeric_aggregate_measure\""
+          ]
+        },
+        {
+          "name": "Avg_elapsed_native_empty",
+          "result": {
+            "value": null
+          },
+          "sql": [
+            "SELECT AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"value\" FROM \"numeric_aggregate_measure\" WHERE \"numeric_aggregate_measure\".\"id\" < 0"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_folded_empty",
+          "result": {
+            "value": null
+          },
+          "sql": []
+        },
+        {
+          "name": "Avg_elapsed_groups",
+          "result": [
+            {
+              "group_key": "all",
+              "opened": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              },
+              "total": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              },
+              "unique": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\", AVG(\"numeric_aggregate_measure\".\"elapsed\") FILTER (WHERE \"numeric_aggregate_measure\".\"enabled\" = 1) AS \"opened\", AVG(DISTINCT \"numeric_aggregate_measure\".\"elapsed\") AS \"unique\" FROM \"numeric_aggregate_measure\" GROUP BY 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_null",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") IS NULL ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_1",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_gte_2",
+          "result": [],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") >= 2 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_1",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 1 ORDER BY 1 ASC"
+          ]
+        },
+        {
+          "name": "Avg_elapsed_having_lte_2",
+          "result": [
+            {
+              "group_key": "all",
+              "total": {
+                "microseconds": "-9223372036854775808",
+                "type": "timedelta"
+              }
+            }
+          ],
+          "sql": [
+            "SELECT \"numeric_aggregate_measure\".\"group_key\" AS \"group_key\", AVG(\"numeric_aggregate_measure\".\"elapsed\") AS \"total\" FROM \"numeric_aggregate_measure\" GROUP BY 1 HAVING AVG(\"numeric_aggregate_measure\".\"elapsed\") <= 2 ORDER BY 1 ASC"
+          ]
+        }
+      ],
+      "input": [
+        {
+          "elapsed": {
+            "microseconds": "-9223372036854775808",
+            "type": "timedelta"
+          },
+          "group_key": "all"
+        }
+      ],
+      "name": "duration_lower_int64_identity",
+      "physical_after": [
+        [
+          "all",
+          true,
+          null,
+          null,
+          null,
+          {
+            "text": "-9223372036854775808",
+            "type": "int"
+          },
+          null,
+          null,
+          null,
+          null
+        ]
+      ],
+      "row_count_after": 1
+    }
+  ],
+  "database_profile": {
+    "sqlite": "3.50.4",
+    "sqlite_source_id": "2025-07-30 19:33:53 4d8adfb30e03f9cf27f800a2c1ba3c48fb4ca1b08b0f5ed59a4d5ecbf45e20a3"
+  },
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "kind": "django-duration-aggregate-boundary-reference-v1",
+  "license": "BSD-3-Clause",
+  "observer_sha256": "87fbe1d81e52b3b042105d3b22f00814e1fbad17939a5e1303032a75ffe008ea",
+  "result_field_types": {
+    "Avg_amount": {
+      "class": "FloatField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": false
+    },
+    "Avg_elapsed": {
+      "class": "DurationField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": true
+    },
+    "Avg_full_price": {
+      "class": "DecimalField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": false
+    },
+    "Avg_full_whole_price": {
+      "class": "DecimalField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": false
+    },
+    "Avg_precise_price": {
+      "class": "DecimalField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": false
+    },
+    "Avg_price": {
+      "class": "DecimalField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": false
+    },
+    "Avg_score": {
+      "class": "FloatField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": true
+    },
+    "Avg_wide_price": {
+      "class": "DecimalField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": false
+    },
+    "Sum_amount": {
+      "class": "BigIntegerField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": true
+    },
+    "Sum_elapsed": {
+      "class": "DurationField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": true
+    },
+    "Sum_full_price": {
+      "class": "DecimalField",
+      "decimal_places": 1000,
+      "max_digits": 1000,
+      "null": true
+    },
+    "Sum_full_whole_price": {
+      "class": "DecimalField",
+      "decimal_places": 0,
+      "max_digits": 1000,
+      "null": true
+    },
+    "Sum_precise_price": {
+      "class": "DecimalField",
+      "decimal_places": 24,
+      "max_digits": 40,
+      "null": true
+    },
+    "Sum_price": {
+      "class": "DecimalField",
+      "decimal_places": 2,
+      "max_digits": 14,
+      "null": true
+    },
+    "Sum_score": {
+      "class": "FloatField",
+      "decimal_places": null,
+      "max_digits": null,
+      "null": true
+    },
+    "Sum_wide_price": {
+      "class": "DecimalField",
+      "decimal_places": 2,
+      "max_digits": 40,
+      "null": true
+    }
+  },
+  "runtime": {
+    "architecture": "arm64",
+    "django": "6.1",
+    "platform": "darwin",
+    "python": "3.14.3"
+  },
+  "scope": "reference observations only; no GoDj implementation or conformance claim",
+  "source_verification_sha256": "8584f23e350a2908bd25e1419f657abc1384e8e2502ccd2abe89c887eb844d7c"
+}

@@ -1,0 +1,391 @@
+{
+  "backend": "postgresql",
+  "cases": [
+    {
+      "case": "separate_create_defaults",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "COMMIT"
+      ],
+      "update_statements": 0,
+      "value": {
+        "calls": [
+          {
+            "atomic": true,
+            "label": "create"
+          }
+        ],
+        "created": true,
+        "detail": "create",
+        "name": "separate",
+        "revision": 7
+      }
+    },
+    {
+      "case": "existing_uses_update_defaults_only",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "update_statements": 1,
+      "value": {
+        "calls": [
+          {
+            "atomic": true,
+            "label": "updated"
+          }
+        ],
+        "created": false,
+        "detail": "updated",
+        "name": "separate",
+        "revision": 7
+      }
+    },
+    {
+      "case": "omitted_create_defaults_uses_update_defaults",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "COMMIT"
+      ],
+      "update_statements": 0,
+      "value": {
+        "calls": [
+          {
+            "atomic": true,
+            "label": "shared-value"
+          }
+        ],
+        "created": true,
+        "detail": "shared-value",
+        "name": "shared",
+        "revision": 0
+      }
+    },
+    {
+      "case": "existing_empty_defaults",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "update_statements": 0,
+      "value": {
+        "created": false,
+        "detail": "updated",
+        "name": "separate",
+        "revision": 7
+      }
+    },
+    {
+      "case": "existing_update_unique_failure",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "ROLLBACK"
+      ],
+      "update_statements": 1,
+      "value": {
+        "calls": [
+          {
+            "atomic": true,
+            "label": "shared"
+          }
+        ],
+        "error": "IntegrityError"
+      }
+    },
+    {
+      "case": "outer_rollback_undoes_update_and_creation",
+      "select_lock_clauses": [
+        "FOR UPDATE",
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "SAVEPOINT",
+        "SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "ROLLBACK"
+      ],
+      "update_statements": 1,
+      "value": {
+        "new_row_exists": false,
+        "old_detail": "updated",
+        "provisional": [
+          {
+            "created": false,
+            "detail": "parent-change",
+            "name": "separate",
+            "revision": 7
+          },
+          {
+            "created": true,
+            "detail": "parent-create",
+            "name": "parent-new",
+            "revision": 0
+          }
+        ]
+      }
+    },
+    {
+      "case": "filtered_create_can_leave_predicate",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "COMMIT"
+      ],
+      "update_statements": 0,
+      "value": {
+        "created": true,
+        "detail": "outside",
+        "name": "outside-filter",
+        "revision": 0
+      }
+    },
+    {
+      "case": "ambiguous_never_resolves_defaults",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "ROLLBACK"
+      ],
+      "update_statements": 0,
+      "value": {
+        "calls": [],
+        "error": "MultipleObjectsReturned"
+      }
+    },
+    {
+      "case": "for_update_outside_transaction",
+      "select_lock_clauses": [],
+      "transaction_commands": [],
+      "update_statements": 0,
+      "value": {
+        "error": "TransactionManagementError"
+      }
+    },
+    {
+      "case": "nowait_and_skip_locked_rejected_at_construction",
+      "select_lock_clauses": [],
+      "transaction_commands": [],
+      "update_statements": 0,
+      "value": {
+        "error": "ValueError"
+      }
+    },
+    {
+      "case": "no_key_skip_locked_and_of_self",
+      "select_lock_clauses": [
+        "FOR NO KEY UPDATE OF \"gdj_upsert_item\" SKIP LOCKED"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "update_statements": 0,
+      "value": {
+        "name": "separate"
+      }
+    },
+    {
+      "case": "nullable_join_unqualified_lock",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "ROLLBACK"
+      ],
+      "update_statements": 0,
+      "value": {
+        "error": "NotSupportedError"
+      }
+    },
+    {
+      "case": "nullable_join_locks_only_self",
+      "select_lock_clauses": [
+        "FOR UPDATE OF \"gdj_upsert_item\""
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "COMMIT"
+      ],
+      "update_statements": 0,
+      "value": {
+        "category": null,
+        "name": "separate"
+      }
+    },
+    {
+      "case": "native_upsert_resets_explicit_lock_options",
+      "select_lock_clauses": [
+        "FOR UPDATE"
+      ],
+      "transaction_commands": [
+        "BEGIN",
+        "SAVEPOINT",
+        "RELEASE SAVEPOINT",
+        "COMMIT"
+      ],
+      "update_statements": 1,
+      "value": {
+        "created": false,
+        "detail": "after configured lock",
+        "name": "separate",
+        "revision": 7
+      }
+    }
+  ],
+  "contention": [
+    {
+      "case": "existing_row_serializes_updates",
+      "final_rows": [
+        {
+          "counter": 2,
+          "name": "shared"
+        }
+      ],
+      "lock_options_while_held": {
+        "nowait_sqlstate": "55P03",
+        "skip_locked_names": [
+          "free"
+        ]
+      },
+      "native_blocking_observed": true,
+      "results": [
+        {
+          "counter": 1,
+          "create_factory_calls": 0,
+          "created": false,
+          "locked_selects": 1,
+          "observed_before_update": 0,
+          "transaction_commands": [
+            "BEGIN",
+            "COMMIT"
+          ],
+          "update_factory_calls": 1
+        },
+        {
+          "counter": 2,
+          "create_factory_calls": 0,
+          "created": false,
+          "locked_selects": 1,
+          "observed_before_update": 1,
+          "transaction_commands": [
+            "BEGIN",
+            "COMMIT"
+          ],
+          "update_factory_calls": 1
+        }
+      ],
+      "visible_before_release": [
+        0
+      ]
+    },
+    {
+      "case": "unique_creation_loser_locks_then_updates",
+      "final_rows": [
+        {
+          "counter": 2,
+          "name": "shared"
+        }
+      ],
+      "lock_options_while_held": null,
+      "native_blocking_observed": true,
+      "results": [
+        {
+          "counter": 1,
+          "create_factory_calls": 1,
+          "created": true,
+          "locked_selects": 1,
+          "observed_before_update": null,
+          "transaction_commands": [
+            "BEGIN",
+            "SAVEPOINT",
+            "RELEASE SAVEPOINT",
+            "COMMIT"
+          ],
+          "update_factory_calls": 0
+        },
+        {
+          "counter": 2,
+          "create_factory_calls": 1,
+          "created": false,
+          "locked_selects": 2,
+          "observed_before_update": 1,
+          "transaction_commands": [
+            "BEGIN",
+            "SAVEPOINT",
+            "ROLLBACK TO SAVEPOINT",
+            "RELEASE SAVEPOINT",
+            "COMMIT"
+          ],
+          "update_factory_calls": 1
+        }
+      ],
+      "visible_before_release": []
+    }
+  ],
+  "django": "6.1",
+  "final_rows": [
+    {
+      "detail": "ambiguous",
+      "name": "ambiguous-a",
+      "revision": 0
+    },
+    {
+      "detail": "ambiguous",
+      "name": "ambiguous-b",
+      "revision": 0
+    },
+    {
+      "detail": "outside",
+      "name": "outside-filter",
+      "revision": 0
+    },
+    {
+      "detail": "after configured lock",
+      "name": "separate",
+      "revision": 7
+    },
+    {
+      "detail": "shared-value",
+      "name": "shared",
+      "revision": 0
+    }
+  ],
+  "kind": "django-update-or-create-reference-v1",
+  "observer_sha256": "f5814eb8daa2f00468c373218095a20b9a81104fcb378a290f680e08ec8e836f",
+  "python": "3.14.3",
+  "source_sha256": {
+    "Atomic": "aee995a682da7157a7ef415521e4d3336c25fd5a25c1b8582e2453c5f1d30a79",
+    "QuerySet": "5e86af673328a1d6800342f4bec9d4e2352b7919bebef349d98962d67569eae6",
+    "SQLCompiler": "38e5ed0147669e8085f00b02646e5b7436ece76f6bb399bef4acd4ae9f07feb4"
+  }
+}

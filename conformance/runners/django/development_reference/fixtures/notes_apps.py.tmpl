@@ -1,0 +1,9 @@
+from django.apps import AppConfig
+from projectsite.lifecycle import record_ready
+
+
+class NotesConfig(AppConfig):
+    name = "notes"
+
+    def ready(self):
+        record_ready(self)

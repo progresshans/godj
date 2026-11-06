@@ -1,5 +1,9 @@
 # ADR-0012: QuerySet 평가 상태의 ownership과 terminal API를 명시한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0012-queryset-evaluation-cache-ownership.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0007, GDJ-0008, QRY-011..QRY-021, Q-007, Q-011
@@ -63,7 +67,9 @@ type QuerySet[M any] struct {
 }
 ```
 
-- `Manager.Using`은 항상 새 evaluation state를 만듭니다.
+- `NewManager`는 metadata의 immutable deep snapshot과 기본 plan을 한 번 준비합니다. `Using`은 이 plan을 공유하고
+  항상 새 evaluation state를 만듭니다. GDJ-0067에서 반복 준비 비용을 생성 시점으로 옮겼으며, metadata 변경을 반영하려면
+  새 Manager가 필요합니다. 쓰기 operation도 같은 snapshot을 사용하되 callback에 전달하는 metadata는 복제합니다.
 - 직접 Go value copy는 같은 logical QuerySet으로 정의하고 state pointer를 공유합니다.
 - `Filter`, `OrderBy`, 성공한 `Limit`와 `Fresh`는 plan이 실질적으로 같아도 새 state를
   만듭니다. Source cache를 derived handle에 복사하지 않습니다.
@@ -139,48 +145,3 @@ Cold terminal과 동시에 실행 중인 `All`은 같은 flight로 합치지 않
 - request/transaction/hook 전체의 goroutine safety
 - transaction callback 밖으로 나온 session-bound QuerySet의 수명
 - PostgreSQL과 다른 backend의 query optimization
-
-## 검증
-
-저장소 밖 `/tmp/godj-adr0012-spike`의 별도 Go 1.26 module에서 direct-copy 32-goroutine
-singleflight, derived/fresh 독립 state, empty success cache, 일반 failure 재시도, owner
-cancellation 뒤 live waiter 재시도, waiter-only cancellation 격리, nullable `*string`과
-동시 caller mutation deep clone, 위 terminal method-expression compile을 검증했습니다.
-
-```text
-go test -count=1 ./...                       PASS, 10 tests
-go vet ./...                                 PASS
-go test -race -count=1 ./...                 PASS
-go test -count=50 -shuffle=on ./...          PASS
-go test -race -count=10 -shuffle=on ./...    PASS
-```
-
-Spike의 `queryset.go` SHA-256은
-`9324a19af02faeea12193d40e153edbb5943d03d0d9e361fdb0354d8406e7675`, test는
-`6827b58e947eedb5a93ca97c2d3ee55efd02d8643f8ee95af2e407993f3ac2b9`입니다. 이 경로는
-결정 증거일 뿐 제품 source가 아니었습니다. 이 spike 시점에는 GDJ-0008이 같은 불변
-조건을 checked-in unit/compile/race/SQLite/differential test로 다시 검증해야 했으며,
-ADR Accepted만으로 QRY-011..021 제품 지원이나 `passing`을 뜻하지 않았습니다.
-
-### Checked-in 제품 검증
-
-GDJ-0008은 위 결정을 저장소 제품 source에 구현했습니다. `orm.QuerySet[M]`의 direct-copy/
-chain/fresh ownership, 성공/실패/cancellation 상태 전이, 같은 state `All` singleflight,
-owner 취소 뒤 live waiter 재시도와 waiter-only cancellation 격리, cold/warm terminal,
-callback iterator와 rows cleanup을 unit/race/SQLite test로 검증했습니다. External consumer
-compile-positive/negative gate는 terminal signature와 cross-model callback/result type
-오용을 확인합니다. `godj-codegen-m2-v3`가 nullable pointer를 deep clone하는
-`CloneModel`을 만들고 기존 `CloneWriteModel`이 이에 위임하는 것도 golden, deterministic
-generation과 drift gate로 고정했습니다.
-
-실제 GoDj adapter는 QRY-011..021 모두 Django oracle과 의미적으로 0-diff입니다. 두 독립
-Go actual은 각각 56,283 bytes, SHA-256
-`c7ccad635a13e3e071cba4d46b79d3110e24b2e9501a1ca95054ded520b0fa92`로 서로
-byte-identical합니다. Django oracle은 56,426 bytes, SHA-256
-`d899ba46a6361a35d954cc60ba92d4c9f7b80158b6c7df6fcc2e0bf74f406682`이므로 서로 다른 두
-runtime artifact 자체가 byte-identical하다는 뜻은 아닙니다. Protocol comparator가 계약된
-result/error/DB state/metrics를 0-diff로 판정했습니다. Static query fixture의 ordered 11
-mismatch와 arbitrary unknown scenario fail-closed도 계속 유지합니다. 전체 명령과 checkout
-증거는
-[EVID-20260808-007](../status/TEST_EVIDENCE.md#evid-20260808-007--gdj-0008-queryset-evaluation-and-cache-product-slice)에
-기록합니다.

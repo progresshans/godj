@@ -1,0 +1,45 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/api/output"
+	"github.com/progresshans/godj/api/parameters"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/web"
+	"net/http"
+	"strconv"
+)
+
+func headerEndpoint(authentication api.Authentication, fields http.Header) (endpoint.Endpoint, error) {
+	revision, err := parameters.NewHeader("If-Revision", parameters.Required(parameters.CanonicalInt64(1, 99)), 2, "Row revision.")
+	if err != nil {
+		return endpoint.Endpoint{}, err
+	}
+	var exact parameters.Header[int64] = revision
+	_, _, err = exact.Parse(fields)
+	if err != nil {
+		return endpoint.Endpoint{}, err
+	}
+	_ = exact.MaxBytes()
+	var parameter openapi.Parameter = exact.Parameter()
+	_ = parameter
+	tag, err := parameters.NewHeader("X-Tag", parameters.Optional(parameters.String(16, true)), 16, "")
+	if err != nil {
+		return endpoint.Endpoint{}, err
+	}
+	out, err := output.New(output.String(), serializers.Limits{})
+	if err != nil {
+		return endpoint.Endpoint{}, err
+	}
+	input := endpoint.NoQuery(endpoint.Sequence(endpoint.Header(exact), endpoint.Header(tag)))
+	return endpoint.New(authentication, endpoint.Config[endpoint.Pair[int64, *string], string]{
+		Route: web.Route{Name: "consumer:condition", Method: "POST", Path: "/condition/"}, Admission: endpoint.Authenticated(), Input: input, Output: out,
+		Success: []endpoint.Status{{Code: 200, Description: "Value."}},
+		Handle: func(request *web.Request, _ auth.Principal, value endpoint.Pair[int64, *string]) (output.Prepared[string], error) {
+			return out.Prepare(request.Context(), 200, strconv.FormatInt(value.First, 10))
+		},
+	})
+}

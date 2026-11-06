@@ -1,0 +1,392 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "pillow": "12.3.0",
+  "sources": {
+    "django.db.models.fields.files": "fed8e0f0f32feb483bcc96fb16ce417f77493079981c252182a4fee17b4298c8"
+  },
+  "metadata": {
+    "max_length": 100,
+    "width_field": "width",
+    "height_field": "height"
+  },
+  "cases": [
+    {
+      "case": {
+        "name": "new_empty"
+      },
+      "valid": true,
+      "changed": [],
+      "errors": {},
+      "photo": null,
+      "width": null,
+      "height": null,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": null,
+          "width": null,
+          "height": null
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "retain",
+        "existing": true
+      },
+      "valid": true,
+      "changed": [],
+      "errors": {},
+      "photo": "photos/old.png",
+      "width": 3,
+      "height": 2,
+      "reads": 1,
+      "clean": [
+        {
+          "photo": "photos/old.png",
+          "width": 3,
+          "height": 2
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "retain_stale_dimensions",
+        "existing": true,
+        "width": 19,
+        "height": 23
+      },
+      "valid": true,
+      "changed": [],
+      "errors": {},
+      "photo": "photos/old.png",
+      "width": 3,
+      "height": 2,
+      "reads": 1,
+      "clean": [
+        {
+          "photo": "photos/old.png",
+          "width": 3,
+          "height": 2
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "clear",
+        "existing": true,
+        "clear": true
+      },
+      "valid": true,
+      "changed": [
+        "photo"
+      ],
+      "errors": {},
+      "photo": "",
+      "width": null,
+      "height": null,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "",
+          "width": null,
+          "height": null
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "clear_empty",
+        "clear": true
+      },
+      "valid": true,
+      "changed": [
+        "photo"
+      ],
+      "errors": {},
+      "photo": "",
+      "width": null,
+      "height": null,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "",
+          "width": null,
+          "height": null
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "upload",
+        "upload": true
+      },
+      "valid": true,
+      "changed": [
+        "photo"
+      ],
+      "errors": {},
+      "photo": "new.png",
+      "width": 7,
+      "height": 5,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "new.png",
+          "width": 7,
+          "height": 5
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "replace",
+        "existing": true,
+        "upload": true
+      },
+      "valid": true,
+      "changed": [
+        "photo"
+      ],
+      "errors": {},
+      "photo": "new.png",
+      "width": 7,
+      "height": 5,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "new.png",
+          "width": 7,
+          "height": 5
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "replace_same_name",
+        "existing": true,
+        "upload": true,
+        "filename": "old.png"
+      },
+      "valid": true,
+      "changed": [
+        "photo"
+      ],
+      "errors": {},
+      "photo": "old.png",
+      "width": 7,
+      "height": 5,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "old.png",
+          "width": 7,
+          "height": 5
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "contradiction",
+        "existing": true,
+        "upload": true,
+        "clear": true
+      },
+      "valid": false,
+      "changed": [
+        "photo"
+      ],
+      "errors": {
+        "photo": [
+          "contradiction"
+        ]
+      },
+      "photo": "photos/old.png",
+      "width": 3,
+      "height": 2,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "photos/old.png",
+          "width": 3,
+          "height": 2
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "invalid",
+        "existing": true,
+        "invalid": true
+      },
+      "valid": false,
+      "changed": [
+        "photo"
+      ],
+      "errors": {
+        "photo": [
+          "invalid_image"
+        ]
+      },
+      "photo": "photos/old.png",
+      "width": 3,
+      "height": 2,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "photos/old.png",
+          "width": 3,
+          "height": 2
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "forged_reference",
+        "existing": true,
+        "forged": true
+      },
+      "valid": true,
+      "changed": [],
+      "errors": {},
+      "photo": "photos/old.png",
+      "width": 3,
+      "height": 2,
+      "reads": 1,
+      "clean": [
+        {
+          "photo": "photos/old.png",
+          "width": 3,
+          "height": 2
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "forged_dimensions",
+        "existing": true,
+        "spoof": true
+      },
+      "valid": true,
+      "changed": [],
+      "errors": {},
+      "photo": "photos/old.png",
+      "width": 3,
+      "height": 2,
+      "reads": 1,
+      "clean": [
+        {
+          "photo": "photos/old.png",
+          "width": 3,
+          "height": 2
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "upload_ignores_dimensions",
+        "upload": true,
+        "spoof": true
+      },
+      "valid": true,
+      "changed": [
+        "photo"
+      ],
+      "errors": {},
+      "photo": "new.png",
+      "width": 7,
+      "height": 5,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "new.png",
+          "width": 7,
+          "height": 5
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "late_form_error",
+        "existing": true,
+        "upload": true,
+        "late": true
+      },
+      "valid": false,
+      "changed": [
+        "photo"
+      ],
+      "errors": {
+        "__all__": [
+          "late"
+        ]
+      },
+      "photo": "new.png",
+      "width": 7,
+      "height": 5,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "new.png",
+          "width": 7,
+          "height": 5
+        }
+      ]
+    },
+    {
+      "case": {
+        "name": "excluded_image",
+        "existing": true,
+        "upload": true,
+        "excluded": true
+      },
+      "valid": true,
+      "changed": [],
+      "errors": {},
+      "photo": "photos/old.png",
+      "width": 3,
+      "height": 2,
+      "reads": 0,
+      "clean": [
+        {
+          "photo": "photos/old.png",
+          "width": 3,
+          "height": 2
+        }
+      ]
+    }
+  ],
+  "storage": {
+    "first": {
+      "name": "photos/same.png",
+      "width": 7,
+      "height": 5
+    },
+    "collision": {
+      "name": "photos/same_AAAAAAA.png",
+      "width": 9,
+      "height": 6
+    },
+    "assigned_before_rollback": {
+      "name": "photos/rollback.png",
+      "width": 11,
+      "height": 8
+    },
+    "after_rollback": {
+      "name": "photos/same.png",
+      "width": 7,
+      "height": 5
+    },
+    "rollback_file_exists": true,
+    "cleared": {
+      "name": "",
+      "width": null,
+      "height": null,
+      "original_exists": true
+    },
+    "deleted": {
+      "file_exists": true
+    }
+  }
+}

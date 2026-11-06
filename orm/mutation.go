@@ -28,13 +28,8 @@ func NewCreateMutation[M any](value M, table string, assignments []query.Assignm
 }
 
 func NewPatchMutation[M any](value M, table string, assignments []query.Assignment) Mutation[M] {
-	if len(assignments) == 0 {
-		return InvalidMutation[M](&query.Error{
-			Category: query.CategoryQuery,
-			Code:     query.CodeEmptyPatch,
-			Detail:   "patch has no explicit field changes",
-		})
-	}
+	// An empty patch still carries its source model and table for complete
+	// validation. Each operation decides whether a validated no-op is allowed.
 	return newMutation(MutationPatch, value, table, assignments)
 }
 

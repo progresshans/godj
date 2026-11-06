@@ -1,0 +1,22 @@
+{
+  "groups": [
+    {"key": "g1", "limit": 10},
+    {"key": "g2", "limit": -2}
+  ],
+  "data": [
+    {"key": "d1", "amount": 3, "score": 1.5, "price": "12.50", "elapsed": 3, "flag": false, "group": "g1"},
+    {"key": "d2", "amount": null, "score": -2.0, "price": "0.00", "elapsed": null, "flag": true, "group": null},
+    {"key": "d3", "amount": -4, "score": null, "price": null, "elapsed": -2, "flag": true, "group": "g2"}
+  ],
+  "measures": [
+    {"code": "a", "amount": 5, "other": 2, "enabled": true, "datum": "d1"},
+    {"code": "b", "amount": -2, "other": -3, "enabled": false, "datum": "d2"},
+    {"code": "c", "amount": 4, "other": null, "enabled": false, "datum": null},
+    {"code": "d", "amount": -5, "other": 5, "enabled": true, "datum": "d3"},
+    {"code": "e", "amount": 1, "other": 1, "enabled": true, "datum": "d1"}
+  ],
+  "details": [
+    {"measure": "a", "bonus": 7, "enabled": true},
+    {"measure": "c", "bonus": 8, "enabled": false}
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "pillow": "12.3.0",
+  "sources": {
+    "django.db.models.fields.files": "fed8e0f0f32feb483bcc96fb16ce417f77493079981c252182a4fee17b4298c8",
+    "django.core.files.images": "32985b35b2436e046568049eed52caff8232271c45b3b5cc5533d0238915fc33"
+  },
+  "payloads": {
+    "full": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFElEQVR4nGMU1XZkAAMmCMXAwAAACSIAhTscDVMAAAAASUVORK5CYII=",
+    "replacement": "iVBORw0KGgoAAAANSUhEUgAAAAcAAAAFCAIAAAAG+GGPAAAAFElEQVR4nGMU1XZkwABMmEJUEQUAONQAi8hU3iQAAAAASUVORK5CYII=",
+    "corrupt": "bm90IGFuIGltYWdl",
+    "header_only": "iVBORw0KGgoAAAANSUhEUgAAAAMAAAACCAIAAAASFvFNAAAAFElEQVQ="
+  },
+  "cases": [
+    {
+      "case": {
+        "name": "stale",
+        "file": "images/full.png",
+        "width": true,
+        "height": true
+      },
+      "before": {
+        "name": "images/full.png",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "images/full.png",
+        "width": 3,
+        "height": 2
+      },
+      "error": null,
+      "opens": 1,
+      "closes": 1
+    },
+    {
+      "case": {
+        "name": "width_only",
+        "file": "images/full.png",
+        "width": true,
+        "height": false
+      },
+      "before": {
+        "name": "images/full.png",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "images/full.png",
+        "width": 3,
+        "height": 23
+      },
+      "error": null,
+      "opens": 1,
+      "closes": 1
+    },
+    {
+      "case": {
+        "name": "height_only",
+        "file": "images/full.png",
+        "width": false,
+        "height": true
+      },
+      "before": {
+        "name": "images/full.png",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "images/full.png",
+        "width": 19,
+        "height": 2
+      },
+      "error": null,
+      "opens": 1,
+      "closes": 1
+    },
+    {
+      "case": {
+        "name": "no_dimensions",
+        "file": "images/full.png",
+        "width": false,
+        "height": false
+      },
+      "before": {
+        "name": "images/full.png",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "images/full.png",
+        "width": 19,
+        "height": 23
+      },
+      "error": null,
+      "opens": 0,
+      "closes": 0
+    },
+    {
+      "case": {
+        "name": "null",
+        "file": null,
+        "width": true,
+        "height": true
+      },
+      "before": {
+        "name": null,
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": null,
+        "width": null,
+        "height": null
+      },
+      "error": null,
+      "opens": 0,
+      "closes": 0
+    },
+    {
+      "case": {
+        "name": "empty",
+        "file": "",
+        "width": true,
+        "height": true
+      },
+      "before": {
+        "name": "",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "",
+        "width": null,
+        "height": null
+      },
+      "error": null,
+      "opens": 0,
+      "closes": 0
+    },
+    {
+      "case": {
+        "name": "missing",
+        "file": "images/missing.png",
+        "width": true,
+        "height": true
+      },
+      "before": {
+        "name": "images/missing.png",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "images/missing.png",
+        "width": 19,
+        "height": 23
+      },
+      "error": "FileNotFoundError",
+      "opens": 1,
+      "closes": 0
+    },
+    {
+      "case": {
+        "name": "corrupt",
+        "file": "images/corrupt.png",
+        "width": true,
+        "height": true
+      },
+      "before": {
+        "name": "images/corrupt.png",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "images/corrupt.png",
+        "width": null,
+        "height": null
+      },
+      "error": null,
+      "opens": 1,
+      "closes": 1
+    },
+    {
+      "case": {
+        "name": "header_only",
+        "file": "images/header_only.png",
+        "width": true,
+        "height": true
+      },
+      "before": {
+        "name": "images/header_only.png",
+        "width": 19,
+        "height": 23
+      },
+      "after": {
+        "name": "images/header_only.png",
+        "width": 3,
+        "height": 2
+      },
+      "error": null,
+      "opens": 1,
+      "closes": 1
+    }
+  ],
+  "cache": {
+    "first": {
+      "name": "images/full.png",
+      "width": 3,
+      "height": 2
+    },
+    "reused": {
+      "value": {
+        "name": "images/full.png",
+        "width": 3,
+        "height": 2
+      },
+      "opens": 0
+    },
+    "fresh": {
+      "value": {
+        "name": "images/full.png",
+        "width": 7,
+        "height": 5
+      },
+      "opens": 1
+    }
+  },
+  "persistence": {
+    "before": {
+      "photo": "images/full.png",
+      "width": 19,
+      "height": 23
+    },
+    "candidate": {
+      "name": "images/full.png",
+      "width": 7,
+      "height": 5
+    },
+    "before_save": {
+      "photo": "images/full.png",
+      "width": 19,
+      "height": 23
+    },
+    "after_rollback": {
+      "photo": "images/full.png",
+      "width": 19,
+      "height": 23
+    },
+    "after_save": {
+      "photo": "images/full.png",
+      "width": 7,
+      "height": 5
+    }
+  }
+}
