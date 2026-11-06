@@ -4813,7 +4813,8 @@ Gofmt·diff·문서 링크 245개와 Python CI 분할/실행 owner 검사 37개(
 | 기본 strength 정책 short/common/numeric/similarity/combined 오류의 순서와 해싱 전 거부 | `TestAccountAdminDefaultPasswordPolicy/{create,password}/{short,common,numeric,similarity,combined}`. 기본/renamed login 역할에 정책을 바인딩하며 호출자 선언 slice 변경이 정책을 바꾸지 않아야 한다. 두 private widget은 비어 있고 진단은 해당 confirmation field에만 나타나며 hash/ID/native 행은 바뀌지 않아야 한다. |
 | 성공 후 비밀번호 원문 보존·세션 폐기·재접속 | 같은 두 operation의 `success_and_reopen`. Create는 사전/최종 정책 fence와 ID/hash 한 번을, password는 정확한 Password/Revision 변경·대상 세션 세 개 폐기·선택 domain/actor/model/field의 감사 한 개를 확인한다. 별도로 연 DB의 생성 runtime에서 원문만 인증되고 이전/trimmed 값은 거부돼야 한다. 기존 실제 HTTP login 소비자는 유지한다. |
 
-Admin 권한 행렬의 원래 JSON actor는 non-staff로 유지하고 별도의 staff actor를 만든다. 각 Admin 검사 전후 원래 native
+Admin 권한 행렬은 staff 필드가 있는 모델에서 원래 JSON actor의 false 값을 유지하고 별도의 staff actor를 만든다.
+Staff가 상수 true인 custom 변형은 그 선언을 유지한다. 각 Admin 검사 전후 원래 native
 backend의 전체 계정/catalog/물리 through/session/domain/audit를 비교하며, 비밀값 노출·hash/정책 호출도 금지한다.
 비밀번호 변경 성공은 native session의 실제 primary key로 폐기 대상을 대조하고, target Password/Revision·세 session·
 검증한 감사 한 개 외의 모든 물리 행을 보존해야 한다. 생성 성공은 기존 독립 native 생성 관측을 재사용한다.
@@ -4846,6 +4847,28 @@ source/run/attempt/platform을 대조했다. 원본과 실패 판정은 검증 �
 `gdj0138-b7ca6e06-ci-42240718977/reload-failure-inspection.json`에 보존했다
 (SHA-256 `3eadea8907edba57f9473095309905533a4ef4354451724090b3ba8a69a4fb02`).
 이 실패 원본 대조를 새 Admin 이관이나 I1 전체 수용으로 계산하지 않는다.
+
+### 독립 Unicode 원문의 선택 Admin 생성·저장 한도 편집 이관
+
+2026-11-07, `43a7ead7e7a9e9e81f888189642a405b3c038f23` 위에서 기존 `unicode-inputs.json`과
+`unicode-django61.json` 원문을 기본/renamed 선택 계정 생성 앱에 연결했다. 원문 bytes는 변경하지 않았으며 같은 파일을
+공유하는 accessor만 추가했다. Python 3.14.3·Unicode 16.0.0·Django 6.1과 입력 digest·producer digest 형식·12개 순서를
+생성된 별도 module 안에서 대조한다. 기존 live Python producer/변이 검사와 고정 Manager의 이메일/저장 정규화 기준은 유지한다.
+
+| 이전 고정 소비자의 책임 | 새 필수 실행 |
+|---|---|
+| `IdentityUnicodeProfile/admin/{12 inputs}` | `TestAccountAdminUnicodeInput/create/{same names}`: 실제 Admin POST의 성공/실패·전체 필드 오류 코드와 정규화된 저장 login을 독립 원문에 대조한다. 실패 시 hash/ID/전체 native 상태 불변, 성공 시 정확히 한 계정·감사/default와 별도 DB 연결의 인증을 확인한다. |
+| Manager child 안에 있던 `astral256`·`ascii256`·`compatibility_expansion` Admin 수정 | `TestAccountAdminUnicodeInput/edit_stored_width/{same three names}`: 독립 기준의 저장 값을 선택 creator로 준비하고, 150자 생성 Form 한도를 넘는 255/256자 login이 실제 수정 Form을 통과해야 한다. Login 보존·profile 변경·기본 모델의 email domain 정규화·revision·정확한 감사 한 개를 확인한다. |
+
+수정 성공은 typed 원래 행과 수정 가능한 profile/email·revision 외 필드가 같은지 검사한다. 별도 native 관측에서도 그 대상
+행과 검증한 감사 한 개 외의 전체 account/catalog/through/session/domain/mapping을 보존해야 한다. Password hash/ID를
+생성하지 않고 기존 credential을 화면에 노출하지 않아야 한다. 모든 생성·수정 요청은 실제 Admin 로그인/CSRF 경로를 사용한다.
+
+고정 Admin child 12개씩, 양 DB 총 24개 selector를 제거했다. Manager의 12개 독립 정규화·reopen/login, storage overflow,
+bootstrap와 역사 adoption 검사는 유지한다. 새 root 1개와 child 15개를 생성 부모의 필수 목록에 넣어 입력 소비자는
+기본/renamed × SQLite/PostgreSQL 각 process에서 218개를 요구한다. 원래 202개는 그대로 유지한다.
+Gofmt·diff, Python CI 분할 검사 27개(36.644초)는 통과했다. 로컬 Go compile/test는 실행하지 않았으며 이 Unicode 본문의
+양 DB·normal/race/CGO-disabled·process·전체 platform 실행과 같은 source 수용은 원격에서 확인해야 한다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

@@ -812,6 +812,11 @@ read consumer와 catalog 전환은 모든 필수 leaf·원문·제한을 유지�
 38개의 책임 대응과 새 process별 필수 202개 본문의 실행 여부를 TEST_EVIDENCE에 둔다. 선행 생성 소비자의 import 누락은
 수정했고 별도 macOS race reload 시간 초과는 아직 원인·해결을 확인하지 못했다. 이를 새 Admin 이관의 성공 근거로 사용하지 않는다.
 
+독립 Unicode 원문 12개의 Admin 생성과 저장 한도 255/256자 login의 수정 세 경계도 기본/renamed 선택 모델로 옮겼다.
+실제 오류 코드·정규화된 저장 값·재접속과 profile/email·revision·감사의 정확한 변경, 전체 native 상태와 비밀값 비노출을
+대조한다. 고정 Manager의 정규화·overflow·bootstrap·역사 adoption 기준과 live Python producer는 유지한다.
+양 DB의 옛 Admin selector 24개 대응과 process별 필수 218개의 실제 실행 여부는 TEST_EVIDENCE에 기록한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -5,7 +5,6 @@ import (
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -73,49 +72,6 @@ func RunIdentityUnicodeProfile(t *testing.T, open func(*testing.T) (TransitionBa
 			current, err := manager.User(t.Context(), f.actor, created.ID)
 			if err != nil || current.Username != want.Username || current.Revision != 1 {
 				t.Fatal("reopen/login changed profile", err)
-			}
-			// Valid storage-width names above the creation form's limit remain
-			// editable; an unchanged value must not fail form initialization.
-			if input.Name == "astral256" || input.Name == "ascii256" || input.Name == "compatibility_expansion" {
-				adminHTTP := newIdentityAdminHTTP(t, f, f.runtime)
-				adminHTTP.loginAdmin(t, adminHTTP.client, "manager", managementOldPassword)
-				data := adminUserData(current)
-				data.Set("first_name", "Round trip")
-				// The manager corpus also observes non-email strings; submit a
-				// valid replacement when exercising the Admin email validator.
-				data.Set("email", "Edited@EXAMPLE.TEST")
-				adminHTTP.postForm(t, adminObjectPath("users", "change", created.ID), data, 302)
-				after, err := manager.User(t.Context(), f.actor, created.ID)
-				if err != nil || after.Username != want.Username || after.FirstName != "Round trip" || after.Email != "Edited@example.test" || after.Revision != 2 {
-					t.Fatal("edit lost storage-width username", err)
-				}
-			}
-		})
-		t.Run("admin/"+input.Name, func(t *testing.T) {
-			backend, _ := open(t)
-			f := newManagementFixture(t, backend, 0)
-			h := newIdentityAdminHTTP(t, f, f.runtime)
-			h.loginAdmin(t, h.client, "manager", managementOldPassword)
-			status := 200
-			if want.FormValid {
-				status = 302
-			}
-			h.postForm(t, "/admin/users/add/", url.Values{"username": {input.Username}, "password1": {managementNewPassword}, "password2": {managementNewPassword}}, status)
-			count, err := models.UserObjects.Using(backend).Count(t.Context())
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !want.FormValid {
-				if count != 2 || f.hasher.calls.Load() != 0 {
-					t.Fatal("rejected form hashed or wrote")
-				}
-				return
-			}
-			if count != 3 || f.hasher.calls.Load() != 1 || want.FormUsername == nil {
-				t.Fatal("accepted form did not create exactly one user")
-			}
-			if _, err := f.runtime.Authenticator().Authenticate(t.Context(), *want.FormUsername, managementNewPassword); err != nil {
-				t.Fatal("created Unicode form account cannot authenticate", err)
 			}
 		})
 	}

@@ -25,6 +25,9 @@ var accountAdminCreationChoiceConsumer string
 //go:embed testdata/accountbinding/creation_read_validation_test.go.tmpl
 var accountCreationReadValidationConsumer string
 
+//go:embed testdata/accountbinding/admin_unicode_test.go.tmpl
+var accountAdminUnicodeConsumer string
+
 func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 	inputs, err := identityreference.UserCreationInputs()
 	if err != nil {
@@ -33,6 +36,18 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 	var cases []struct{ Name string }
 	if err := json.Unmarshal(inputs, &cases); err != nil || len(cases) != 20 {
 		t.Fatal("creation input corpus is incomplete", err)
+	}
+	unicodeInputs, err := identityreference.UnicodeInputs()
+	if err != nil {
+		t.Fatal(err)
+	}
+	unicodeReference, err := identityreference.Unicode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var unicodeCases struct{ Cases []struct{ Name string } }
+	if err := json.Unmarshal(unicodeInputs, &unicodeCases); err != nil || len(unicodeCases.Cases) != 12 {
+		t.Fatal("Unicode input corpus is incomplete", err)
 	}
 	for _, custom := range []bool{false, true} {
 		variant := "default"
@@ -100,8 +115,15 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeGeneratedTestFile(t, root, "consumer/creation_read_validation_test.go", formatted)
+			formatted, err = format.Source([]byte(strings.ReplaceAll(accountAdminUnicodeConsumer, "@@PROFILE@@", profile)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGeneratedTestFile(t, root, "consumer/admin_unicode_test.go", formatted)
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/testdata/user-creation-inputs.json", inputs)
+			writeGeneratedTestFile(t, root, "consumer/testdata/unicode-inputs.json", unicodeInputs)
+			writeGeneratedTestFile(t, root, "consumer/testdata/unicode-django61.json", unicodeReference)
 			for _, vendor := range []string{"sqlite", "postgres"} {
 				reference, err := identityreference.UserCreation(vendor)
 				if err != nil {
@@ -115,6 +137,13 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				writeGeneratedTestFile(t, root, "consumer/testdata/unusable-password-django61-"+vendor+".json", reference)
 			}
 			required := []string{"TestCreationInputPolicy"}
+			required = append(required, "TestAccountAdminUnicodeInput")
+			for _, probe := range unicodeCases.Cases {
+				required = append(required, "TestAccountAdminUnicodeInput/create/"+probe.Name)
+			}
+			for _, name := range []string{"astral256", "ascii256", "compatibility_expansion"} {
+				required = append(required, "TestAccountAdminUnicodeInput/edit_stored_width/"+name)
+			}
 			for _, surface := range []string{"form", "admin"} {
 				modes := []string{"standard", "admin_enabled", "admin_disabled"}
 				if surface == "admin" {

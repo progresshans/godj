@@ -1,0 +1,177 @@
+package consumer
+
+import (
+	"crypto/sha256"
+	"embed"
+	"encoding/hex"
+	"encoding/json"
+	"net/url"
+	"reflect"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+
+	"example.com/godj-project-bundle/project"
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/settings/database"
+)
+
+//go:embed testdata/unicode-*.json
+var adminUnicodeReferences embed.FS
+
+func TestAccountAdminUnicodeInput(t *testing.T) {
+	raw, err := adminUnicodeReferences.ReadFile("testdata/unicode-inputs.json")
+	creationInputCheck(t, err)
+	var inputs struct {
+		Cases []struct{ Name, Username, Email string }
+	}
+	creationInputCheck(t, json.Unmarshal(raw, &inputs))
+	referenceRaw, err := adminUnicodeReferences.ReadFile("testdata/unicode-django61.json")
+	creationInputCheck(t, err)
+	var reference struct {
+		Django, Python, Unicode string
+		InputSHA                string `json:"input_sha256"`
+		ProducerSHA             string `json:"base_user_sha256"`
+		Cases                   []struct {
+			Name, Username, Email string
+			Valid                 bool    `json:"form_valid"`
+			FormUsername          *string `json:"form_username"`
+			Codes                 map[string][]string
+		}
+	}
+	creationInputCheck(t, json.Unmarshal(referenceRaw, &reference))
+	digest := sha256.Sum256(raw)
+	producer, err := hex.DecodeString(reference.ProducerSHA)
+	if err != nil || len(producer) != 32 || hex.EncodeToString(producer) != reference.ProducerSHA ||
+		reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Unicode != "16.0.0" ||
+		reference.InputSHA != hex.EncodeToString(digest[:]) || len(inputs.Cases) != 12 || len(reference.Cases) != len(inputs.Cases) {
+		t.Fatal("selected Admin Unicode reference lost its pinned input or producer")
+	}
+	for index, input := range inputs.Cases {
+		want := reference.Cases[index]
+		if input.Name != want.Name || want.Valid != (want.FormUsername != nil) {
+			t.Fatal("Unicode reference ordering or cleaned-value presence differs")
+		}
+		creationInputRun(t, "create/"+input.Name, func(t *testing.T) {
+			f := newCreationInputFixture(t, false)
+			h := f.admin(t)
+			const rawPassword = "  selected Unicode secret  "
+			data := h.choiceData(t, input.Username, rawPassword, rawPassword, "false")
+			before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+			status, headers, body := h.send(t, "POST", "/admin/accounts/add/", data)
+			form := f.form(t, "admin_enabled")
+			if !reflect.DeepEqual(f.codes(form, creationInputDiagnostics(t, form, body)), want.Codes) || strings.Contains(string(body), rawPassword) {
+				t.Fatal("selected Admin Unicode diagnostics differ from the independent reference")
+			}
+			if !want.Valid {
+				if status != 200 || headers.Get("Location") != "" || f.hasher.calls.Load() != hashes || f.ids.Load() != ids || !reflect.DeepEqual(before, f.snapshot(t)) {
+					t.Fatal("rejected Unicode input hashed, allocated or changed native state")
+				}
+				return
+			}
+			if status != 302 || headers.Get("Location") == "" || f.hasher.calls.Load() != hashes+1 || f.ids.Load() != ids+1 {
+				t.Fatal("accepted Unicode input did not commit one selected account")
+			}
+			f.choiceSaved(t, before, *want.FormUsername, rawPassword, true)
+			peer, err := database.Open(t.Context(), f.database)
+			creationInputCheck(t, err)
+			defer func() { creationInputCheck(t, peer.Close()) }()
+			reopened, err := project.NewAccountRuntime(t.Context(), peer, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+			creationInputCheck(t, err)
+			_, err = reopened.Authenticator().Authenticate(t.Context(), *want.FormUsername, rawPassword)
+			creationInputCheck(t, err)
+		})
+		if input.Name != "astral256" && input.Name != "ascii256" && input.Name != "compatibility_expansion" {
+			continue
+		}
+		creationInputRun(t, "edit_stored_width/"+input.Name, func(t *testing.T) {
+			f := newCreationInputFixture(t, false)
+			created := f.insert(t, want.Username)
+			// The creation-only username limit must not become an edit limit.
+			// An independently captured stored value is already present here.
+			if f.role.Email != "" && f.role.Email != f.role.Login {
+				f.config.Accounts.ReadFields = append(slices.Clone(f.config.Accounts.ReadFields), f.role.Email)
+				f.config.Accounts.EditFields = append(slices.Clone(f.config.Accounts.EditFields), f.role.Email)
+			}
+			f.runtime, err = project.NewAccountRuntime(t.Context(), f.native, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+			creationInputCheck(t, err)
+			h := f.admin(t)
+			path := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
+			status, _, page := h.send(t, "GET", path, nil)
+			token := creationInputToken.FindSubmatch(page)
+			if status != 200 || len(token) != 2 {
+				t.Fatal("stored-width login could not initialize its edit form", status)
+			}
+			data := url.Values{f.role.Login: {want.Username}, "@@PROFILE@@": {"KR"}, "expected_revision": {"1"}, "csrfmiddlewaretoken": {string(token[1])}}
+			fields := []string{"@@PROFILE@@"}
+			if f.role.Email != "" && f.role.Email != f.role.Login {
+				data.Set(f.role.Email, "Edited@EXAMPLE.TEST")
+				fields = append(fields, f.role.Email)
+			}
+			previous, err := f.objects.Using(f.native).Filter(f.key.Exact(created.ID)).Get(t.Context())
+			creationInputCheck(t, err)
+			previousValues, err := f.objects.ModelValues(previous)
+			creationInputCheck(t, err)
+			before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+			status, headers, body := h.send(t, "POST", path, data)
+			if status != 302 || headers.Get("Location") == "" || f.hasher.calls.Load() != hashes || f.ids.Load() != ids {
+				t.Fatal("stored-width edit was rejected or performed credential work", status)
+			}
+			current, err := f.objects.Using(f.native).Filter(f.key.Exact(created.ID)).Get(t.Context())
+			creationInputCheck(t, err)
+			values, err := f.objects.ModelValues(current)
+			creationInputCheck(t, err)
+			login, _ := values[f.role.Login].String()
+			profile, _ := values["@@PROFILE@@"].String()
+			revision, _ := values[f.role.Revision].Integer()
+			if login != want.Username || profile != "KR" || revision != 2 {
+				t.Fatal("stored-width edit changed the independent username or lost its profile/revision")
+			}
+			reset := map[string]query.Value{"@@PROFILE@@": previousValues["@@PROFILE@@"], f.role.Revision: previousValues[f.role.Revision]}
+			if f.role.Email != "" && f.role.Email != f.role.Login {
+				email, _ := values[f.role.Email].String()
+				if email != "Edited@example.test" {
+					t.Fatal("edit lost the explicit email-domain normalization")
+				}
+				reset[f.role.Email] = previousValues[f.role.Email]
+			}
+			preserved, err := f.objects.ApplyValues(current, reset)
+			creationInputCheck(t, err)
+			if !reflect.DeepEqual(previous, preserved) {
+				t.Fatal("stored-width edit overwrote another typed field")
+			}
+			events, err := auditmodels.EventObjects.Using(f.native).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
+			creationInputCheck(t, err)
+			auditTable := (auditmodels.EventDescriptor{}).Metadata().DBTable
+			after := f.snapshot(t)
+			if len(events) != len(before[auditTable])+1 || len(after[auditTable]) != len(events) {
+				t.Fatal("stored-width edit omitted or duplicated its audit")
+			}
+			event := events[len(events)-1]
+			var changed []string
+			creationInputCheck(t, json.Unmarshal([]byte(event.ChangedFields), &changed))
+			slices.Sort(fields)
+			domain, _ := f.actor.CredentialDomain()
+			if event.Domain != domain.Identifier() || event.ActorID != f.actor.ID() || event.Model != f.role.Model.AppLabel+"."+f.role.Model.ModelName || event.ObjectID != created.ID || event.Action != string(admin.ActionChange) || !event.RecordedAt.Equal(f.now) || !slices.Equal(changed, fields) {
+				t.Fatal("stored-width edit lost exact audit ownership")
+			}
+			for index, row := range before[f.metadata.DBTable] {
+				if row[f.keys[f.metadata.DBTable]] == created.ID {
+					after[f.metadata.DBTable][index] = row
+				}
+			}
+			after[auditTable] = after[auditTable][:len(before[auditTable])]
+			if !reflect.DeepEqual(before, after) {
+				t.Fatal("stored-width edit changed unrelated native state")
+			}
+			encoded, _ := values[f.role.Password].String()
+			if encoded != "" && (strings.Contains(string(page), encoded) || strings.Contains(string(body), encoded)) {
+				t.Fatal("stored-width edit exposed a credential")
+			}
+		})
+	}
+}
