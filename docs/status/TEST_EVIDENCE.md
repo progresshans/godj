@@ -4443,6 +4443,40 @@ workflow·helper source와 연결해 확인한다. ZIP SHA-256은 `b20e73546fd9d
 이로써 해당 source의 profile/Form 영향 소비자는 normal/race/CGO-disabled에서 원본을 대조했다. 전체 I1 및 후속 상태
 이관의 같은 source 수용은 여전히 별도다.
 
+같은 CI의 ORM 쓰기 race [job 127705901903](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705901903)는
+package의 누적 30분 제한으로 실패했다. 잘린 job 진단에만 의존하지 않고 같은 checkout의 artifact `13478442043`을 받아
+크기/ZIP digest/CRC·내부 hash·원본 이벤트와 process receipt를 확인했다. 앞선 10개 root가 1,718.44초를 사용했고,
+그중 `TestGeneratedAccountResetUsesSelectedModels`는 744.27초였다. 마지막 `TestGeneratedUpdateOrCreate`는
+1분 22초 경과 시 잘렸으며 child 시작 receipt만 있고 완료 receipt는 없다. 이 root의 기능 성공이나 개별 5분 제한 초과로
+판정하지 않는다. 해당 package와 전체 CI는 PASS가 아니다.
+
+계정 reset의 root와 일곱 변형 전체를 `core-account-reset`으로 분리했다. normal/race/CGO-disabled에 같은 40분 job·30분
+package 제한을 적용하고 개별 child·필수 목록·mode·capture 제외·실패 원본 업로드를 유지한다. 기존 ORM 쓰기 root는
+그대로다. 이 첫 분할에서 같은 필수 manifest의 reset selector 8개만 이동함을 확인했고 PostgreSQL 분할/CLI·향후 child·
+전체 workflow 판정/실패 조건·script 크기 등 Python 17개 검사가 통과했다(33.808초). 뒤이어 아래 관리 root 분할까지
+반영한 최종 소유권을 다시 대조했다. 로컬 Go는 실행하지 않았고 분리 뒤 실제 원격 완료는 다음 source에서 확인한다.
+
+실패 원본은 같은 검증 보관소의 `writes-race-events.jsonl`, artifact ZIP과 `job-127705901903.log`에 보존했다.
+ZIP SHA-256은 `32ee113b6fbbbb130364148e07e506cc755d4c3a141050d12bad7cc0423c401e`, 원본 job log는
+`f598fa48783aee5d2573caf8b6d4ebe8329c79c83038f65ccd897bc754d6ad3d`,
+`race-write-timeout-inspection.json`은 `135abe3315aa9c76f8aa875bd353fa85f36991f847b95ff3c9fff9dac3bdb2f0`이다.
+
+계정 consumer race [job 127705902034](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705902034)도
+누적 30분 제한으로 실패했다. 같은 source/tree의 artifact `13478173174` 원본에서 binding root가 729.30초 뒤 통과하고,
+뒤이은 관리 root가 17분 51초 실행 뒤 여섯 번째 `custom_short_login/sqlite`에서 잘렸음을 확인했다. 24개 child의 완료
+receipt와 이 child의 시작만 있으며 뒤 변형은 미실행이다. 관리 root 전체의 race PASS로 사용하지 않는다.
+
+`TestGeneratedFirstAccountUsesRequiredProfiles` 전체를 `core-account-management`로 옮겨 binding과 별도 실행한다.
+같은 시간 제한·일곱 모델 변형·양 DB·실패 원본·엄격한 child 목록을 유지한다. 두 분할을 합친 최종 planner는 세 모드에서
+reset 8개와 관리 22개 selector만 옮기며, 다른 owner의 항목과 순서는 그대로다. PostgreSQL core 좌표는 49→55이고
+필수 5,863개가 매 모드 정확히 한 owner를 갖는다. 완전한 두 root의 분리와 14개 모델/DB 조합을 명시적으로 확인하는
+검사를 추가했다. 최종 PostgreSQL 분할·CLI·향후 child·workflow 연결·script 크기 Python 14개 검사는 통과했다(33.060초).
+실제 분리 후 완료·새 상태 이관·전체 source의 수용은 새 CI 대상이다.
+
+같은 보관소의 계정 race ZIP SHA-256은 `4df2059857ce1da6c03c4ed8494a78a2ae27b1bb725d69b1dfc625707ddbc563`,
+원본 `job-127705902034.log`는 `44909d9f3e4377c704f5235b892a13f29bcd14c2ef7abeded36a5fcfe6cf30ab`,
+`race-account-timeout-inspection.json`은 `2ac11cd519b59b55593e15548a87995f97e081743f4bf16ddd4382201afd6914`다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

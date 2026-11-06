@@ -34,7 +34,6 @@ HELPDESK_POSTGRES_ROOTS = frozenset({
 CONSUMER_PACKAGE = MODULE + 'codegen/consumertest'
 ACCOUNT_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels',
-    'TestGeneratedFirstAccountUsesRequiredProfiles',
 })
 THROUGH_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountThroughIdentityCreation',
@@ -42,6 +41,14 @@ THROUGH_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountCatalogThroughCreation',
 })
 ISOLATED_ACCOUNT_CONSUMER_OWNERS = {
+    # In CI 42160675054, bindings consumed 729.30s before management reached
+    # the shared deadline in its sixth variant. Keep all seven variants and
+    # both native backends together under a separate complete-root owner.
+    'TestGeneratedFirstAccountUsesRequiredProfiles': 'core-account-management',
+    # CI 42160675054 spent 744.27s in selected reset before the following
+    # ORM write roots exhausted their shared 30m deadline. Keep reset's full
+    # model variants in one account owner, with unchanged per-child limits.
+    'TestGeneratedAccountResetUsesSelectedModels': 'core-account-reset',
     'TestGeneratedAccountTransition': 'core-account-transition',
     'TestGeneratedAccountCatalogTransition': 'core-account-catalog',
     'TestGeneratedAccountCatalogCreation': 'core-account-catalog-creation',
@@ -64,7 +71,6 @@ PROFILE_CONSUMER_ROOTS = frozenset({
     'TestGeneratedAccountProfileFileCreation',
 })
 WRITE_CONSUMER_ROOTS = frozenset({
-    'TestGeneratedAccountResetUsesSelectedModels',
     'TestGeneratedBulkCreate', 'TestGeneratedBulkCreateReference',
     'TestGeneratedBulkUpdate', 'TestGeneratedBulkUpdateReference',
     'TestGeneratedQueryUpdate', 'TestGeneratedQueryUpdateReference',
@@ -153,7 +159,7 @@ def plan(mode, shard, entries):
         # 543 + 616 seconds in CI 40417732116 before the read package reached its
         # cumulative 30-minute deadline. The unsplit normal package also hit
         # 30 minutes before its whole job expired. Use these complete-root
-        # owners in every mode, retaining reset with writes and all new roots.
+        # owners in every mode, retaining complete roots and all new children.
         # CI 40593130751 then reached 30 minutes after 490.73s + 571.99s
         # in bindings/first-account and 590.40s in three profile roots. Keep
         # every profile root and its future children in a separate owner.

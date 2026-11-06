@@ -21,7 +21,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
     def test_current_required_tests_have_exactly_one_owner_in_each_mode(self):
         result = audit(self.required)
         self.assertEqual(len(self.required), result['required_tests'])
-        self.assertEqual(49, result['core_coordinates'])
+        self.assertEqual(55, result['core_coordinates'])
         for mode in ('normal', 'cgo0'):
             self.assert_nonconsumer_core(mode, self.required)
             self.assertEqual(list((*FRAMEWORK, *POSTGRES, *PROCESSES)), plan(mode, 'core', self.required)['packages'])
@@ -141,7 +141,7 @@ class PostgreSQLPartitionTests(unittest.TestCase):
             self.assertIn(read, plan(mode, 'core-consumers', required)['required'])
             self.assertNotIn(read, plan(mode, 'core-consumer-writes', required)['required'])
 
-    def test_selected_account_reset_keeps_every_variant_in_the_write_partition(self):
+    def test_selected_account_reset_keeps_every_variant_in_its_own_partition(self):
         root = MODULE + 'codegen/consumertest|TestGeneratedAccountResetUsesSelectedModels'
         expected = [entry for entry in self.required if entry == root or entry.startswith(root + '/')]
         self.assertTrue(expected)
@@ -149,10 +149,32 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         self.assertIn(root + '/custom_without_last_login', expected)
         self.assertIn(root + '/custom_without_email', expected)
         for mode in ('normal', 'race', 'cgo0'):
-            writes = plan(mode, 'core-consumer-writes', self.required)['required']
-            reads = plan(mode, 'core-consumers', self.required)['required']
-            self.assertTrue(set(expected) <= set(writes))
-            self.assertFalse(set(expected) & set(reads))
+            for shard in partitions(mode):
+                selected = plan(mode, shard, self.required)['required']
+                if shard == 'core-account-reset':
+                    self.assertEqual(expected, selected)
+                else:
+                    self.assertFalse(set(expected) & set(selected))
+
+    def test_bindings_and_management_keep_separate_complete_roots(self):
+        for name, owner in (
+            ('TestGeneratedAccountBindingsUseDefaultAndIndependentCustomModels', 'core-account-consumers'),
+            ('TestGeneratedFirstAccountUsesRequiredProfiles', 'core-account-management'),
+        ):
+            root = MODULE + 'codegen/consumertest|' + name
+            expected = [entry for entry in self.required if entry == root or entry.startswith(root + '/')]
+            self.assertTrue(expected)
+            for variant in ('default', 'custom', 'custom_normalized', 'custom_without_last_login',
+                            'custom_form_normalized', 'custom_short_login', 'custom_text_login'):
+                for database in ('sqlite', 'postgres'):
+                    self.assertIn(root + '/' + variant + '/' + database, expected)
+            for mode in ('normal', 'race', 'cgo0'):
+                for shard in partitions(mode):
+                    selected = plan(mode, shard, self.required)['required']
+                    if shard == owner:
+                        self.assertEqual(expected, selected)
+                    else:
+                        self.assertFalse(set(expected) & set(selected))
 
     def test_selected_account_roots_and_future_children_have_their_own_owner_in_each_mode(self):
         isolated_roots = set(ISOLATED_ACCOUNT_CONSUMER_OWNERS)
