@@ -4145,6 +4145,35 @@ selector 보존·필수 child·템플릿 placeholder 연결, 245개 문서 링�
 독립 기준·전체 platform 수용은 새 source의 원격 CI 대상이다. 선행 [CI 42139237147](https://github.com/progresshans/godj/actions/runs/42139237147)의
 진행 중 결과를 이 Form 변경의 PASS로 사용하지 않는다. 고정 소비자의 남은 교체와 I1 전체 수용은 미완료다.
 
+
+## GDJ-0138 — 부분 Form 검사의 필수 실행 owner 수정
+
+Source `286cfe8590c5b75a687f3d5a58a3854fa6aca161`의
+[CI 42142105426](https://github.com/progresshans/godj/actions/runs/42142105426),
+[Portable Go normal core-vet](https://github.com/progresshans/godj/actions/runs/42142105426/job/127645324787)는
+CI tooling의 필수 실행 owner 검사에서 실패했다. 실제 checkout은 `888a4bfc5efda30783757a8aacb50047fbbd7c48`이며,
+`TestCandidateValuesRetainModelErrorsAndIncompleteFields`의 패키지 `forms/model`이 relation 소유가 아닌데
+`relation-required.txt`에 추가된 것이 원인이다. 원격 tooling 102개 중 해당 1개가 실패했고 이 job의 Go 본문은 실행되지 않았다.
+
+해당 필수 항목 한 개를 기존 `portable-core-required.txt`로 옮겼다. Test 본문·필수 PASS 요구·normal/race/CGO-disabled
+범위와 package owner는 유지하며, 검사 삭제나 relation 범위 확대는 하지 않는다. 원래 relation 항목의 나머지 순서/내용은 보존한다.
+로컬은 Go를 실행하지 않는 기존 `test_required_relation_inventory_has_an_execution_owner`와
+`test_required_core_inventory_has_its_existing_portable_owner` 두 Python 검사만 실행했고 0.013초에 통과했다.
+
+원본 로그는 검증 보관소 `gdj0138-partial-password-ci-v1/ci-42142105426-job-127645324787.log`에 보존했다
+(SHA-256 `d2be040bd39eab6396930e5bdc8bdcd63a5050b3b9bded31e7161101f80c343d`).
+별도로 같은 `286cfe85` source의 [CGO-disabled core job](https://github.com/progresshans/godj/actions/runs/42142105426/job/127645324679)이
+완료됐다. Artifact `13468601642`의 ZIP digest `97acfcd40da09276716dacd0751aa98c8a18a2f17059017da9c70a0d99dc325a`를
+GitHub metadata·job log·다운로드 bytes와 대조하고 내부 file hash를 검사했다. 원래 portable 필수 목록 330개가 HEAD 파일과
+동일하며, 전체 raw events에 새 Form root의 run/pass가 각각 1개이고 fail/skip이 없음을 확인했다. 기존 141개 package와
+필수 330개 및 추가 Form root의 event 검증도 통과했다. Job 보고 14,708 run·600 skip은 전체 I1 또는 native PostgreSQL 수용
+횟수가 아니다. 원본 ZIP·events·`core-cgo0-inspection.json`은 위 검증 보관소에 유지한다. Events SHA-256은
+`36d00a890e2b28afc11b8cca425f728376c12ba62c444d4e54d238e71b7ed228`이다.
+
+이 결과는 해당 source의 Form root 실행과 기존 portable core 목록에 한정한다. 새 owner 목록의 normal/race/CGO-disabled,
+생성 HTTP·양 DB·전체 platform과 같은 최종 source의 전체 수용은 후속 CI에서 확인한다.
+남은 고정 Admin/Directory/Manager 소비자 교체와 I1 전체 수용도 계속 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -4958,5 +4958,4 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/manageme
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/management_form_passwords/denied
 github.com/progresshans/godj/db/sqlite|TestSQLiteAccountCredentialStore/management_form_passwords/cancel
 github.com/progresshans/godj/orm|TestModelViewInputKeepsMissingValuesSourceAndOwnership
-github.com/progresshans/godj/forms/model|TestCandidateValuesRetainModelErrorsAndIncompleteFields
 github.com/progresshans/godj/identity/model|TestSelectedPasswordPolicyAcceptsMissingAttributesWithoutInventingValues
