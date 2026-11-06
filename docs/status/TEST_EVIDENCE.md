@@ -4945,6 +4945,52 @@ Gofmt·diff와 Python CI 분할 검사 27개(36.584초)는 통과했다. 로컬 
 고정 API 제거·새 host Admin/표시/독립 Form 소비자·native 상태 관측 및 위 수정의 양 DB·normal/race/CGO-disabled·
 생성 process·전체 platform/cold-build와 필수 원본 수용은 다음 source에서 확인해야 한다.
 
+### 고정 Manager의 Unicode 저장 기준을 선택 Creator로 이관
+
+2026-11-07, `60ea3ccd7704d9ed4f087010fe0c624856fc77ec` 위에서 `RunIdentityUnicodeProfile`의 Manager 생성
+12개와 저장/정규화 확장 거부 한 child 안의 여섯 입력을 선택 owner로 옮겼다. 기존 bootstrap·역사 operator adoption의
+두 child와 각 DB root는 유지한다. 독립 `unicode-inputs.json`·`unicode-django61.json` 원문과 Python producer를 변경하지
+않았으며, 입력 SHA-256은 `4739dfe607b3d1a83d0edb736b294373a5da4b9cd731f1a182f86b0fb9f0eaf3`다.
+
+`TestGeneratedAccountCreationInputPolicy`의 기본/renamed 앱은 `TestAccountCreationUnicodeStorage`를 함께 실행한다.
+기존 Admin 기준과 같은 원문 loader가 Django 6.1·Python 3.14.3·Unicode 16.0.0, 입력 hash·producer hash·사례 순서를
+검사한다. 새 서비스는 Form의 유효 여부와 별도로 독립 저장 username/email을 대조한다. 기본 모델은 명시적 email 역할의
+domain 정규화를 확인하고, email 역할을 생략한 renamed 모델은 동명 `username`/`password1` profile을 보존해야 한다.
+
+- 12개 생성: Prepare의 입력 사본/전체 native 불변·해싱/ID 공급 한 번·정규화된 정책 입력, Commit의 최종 정책 재검사,
+  실제 계정·감사 외 모든 계정/catalog/through/session/domain/mapping 행 보존과 정확한 변경 필드/시각을 확인한다.
+- 새 native 연결에서 generated runtime을 다시 구성한다. 정규화된 저장 이름과 원래 password로만 인증되며, 변경 전 이름과
+  trim한 password는 비인증 credential만 반환해야 한다. 현재 인가를 거친 profile·typed 저장 행·revision과 전체 상태를
+  다시 비교한다. 이 재접속과 별도 server process restart를 혼동하지 않는다.
+- ASCII/한글/astral 257자·ligature/Arabic 정규화 확장·raw byte 초과 여섯 입력은 각각 필수 child다. 유효한 ModelInput의
+  서비스 거부와 빈 준비 값 Commit 거부를 확인하며 strength policy·해싱·ID 공급 0회 및 전체 native 상태 불변을 요구한다.
+- 기존 선택 HTTP 로그인 변형은 login Form의 exact/NFKC 정책과 직접 인증 정책의 구분을 계속 소유한다. 역사 runtime의
+  Unicode bootstrap/adoption과 세션/로그인 실패 소비자도 유지한다.
+
+옛 DB별 Manager selector 13개씩 총 26개를 제거하고, 생성 subprocess마다 새 root/leaf 19개를 필수 목록에 추가했다.
+기존 226개에 더해 기본/renamed × SQLite/PostgreSQL 각각 245개 실행을 요구한다. 기존 필수 항목의 상대 순서는 유지했다.
+이관 검토에서 기존 Unicode 편집의 감사 필드를 사전순으로 기대하던 검사를 고쳤다. 실제 감사는 모델 선언 순서의 profile,
+email을 보존하며 새 생성 검사도 login/password/profile/email의 정확한 선언 순서를 대조한다. 제품 순서 정책을 바꾸지 않았다.
+
+Source `60ea3ccd`의 [CI 42257040293](https://github.com/progresshans/godj/actions/runs/42257040293), attempt 1
+PostgreSQL normal `core-account-consumers` [job 128027292743](https://github.com/progresshans/godj/actions/runs/42257040293/job/128027292743)에서
+같은 Unicode 편집 assertion 실패를 확인했다. 실제 checkout `fd11e88f2774633cc7a5ad233ccb2e443f5a5479`는 해당 source를
+parent로 포함하며 tree `716f9060715dbc25fa04433b2ac3287d5ca9809a`가 제출 source와 같음을 GitHub Git API·로컬 객체로 대조했다.
+콘솔의 60,000바이트 진단은 잘려 있어 artifact `13525130094`의 전체 원본을 별도로 읽었다. Archive 258,183바이트의
+SHA-256 `149202efca783ab13cc888b28da5aedad077f8808b9591d4387c9f0d0f41e210`은 GitHub metadata와 같다.
+기본 앱의 SQLite/PostgreSQL 두 subprocess 모두 `TestAccountAdminUnicodeInput/edit_stored_width/astral256`에서 실패했고,
+원 stdout 크기도 각 finished metadata와 일치했다. 기존 검사는 선언 순서 `first_name,email`을 `email,first_name`으로
+정렬하여 비교하고 있었다. 이 기대 순서 보정의 실제 PASS는 새 source에서 확인한다.
+원 로그·artifact 78개 파일·두 실패 process와 source 대조 기록은 검증 보관소의
+`gdj0138-60ea3ccd-ci-42257040293/failure-inspection.json`에 보존했다
+(SHA-256 `3348f58cbb1c484a9fd03b70da612f1725c1e1407fcb9ddd04742592e4151bf4`).
+
+Gofmt·diff, Python CI 분할 검사 27개(35.470초)와 변경 Markdown 4개의 상대 링크 211개를 통과했다.
+원문 hash/사례 순서와 필수 목록의 나머지 항목/순서가 그대로임을 정적으로 확인했다
+(relation 4,708→4,695, PostgreSQL 5,631→5,618).
+로컬 Go compile/test·생성·DB 실행은 하지 않았다. 새 본문과 이관의 양 DB·normal/race/CGO-disabled·독립 생성 process·
+전체 platform/cold-build 및 같은 source 원본 수용은 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

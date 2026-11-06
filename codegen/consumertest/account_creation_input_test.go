@@ -28,6 +28,9 @@ var accountCreationReadValidationConsumer string
 //go:embed testdata/accountbinding/admin_unicode_test.go.tmpl
 var accountAdminUnicodeConsumer string
 
+//go:embed testdata/accountbinding/creation_unicode_test.go.tmpl
+var accountCreationUnicodeConsumer string
+
 func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 	inputs, err := identityreference.UserCreationInputs()
 	if err != nil {
@@ -120,6 +123,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeGeneratedTestFile(t, root, "consumer/admin_unicode_test.go", formatted)
+			formatted, err = format.Source([]byte(strings.ReplaceAll(accountCreationUnicodeConsumer, "@@PROFILE@@", profile)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGeneratedTestFile(t, root, "consumer/creation_unicode_test.go", formatted)
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/testdata/user-creation-inputs.json", inputs)
 			writeGeneratedTestFile(t, root, "consumer/testdata/unicode-inputs.json", unicodeInputs)
@@ -143,6 +151,13 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 			}
 			for _, name := range []string{"astral256", "ascii256", "compatibility_expansion"} {
 				required = append(required, "TestAccountAdminUnicodeInput/edit_stored_width/"+name)
+			}
+			required = append(required, "TestAccountCreationUnicodeStorage")
+			for _, probe := range unicodeCases.Cases {
+				required = append(required, "TestAccountCreationUnicodeStorage/create/"+probe.Name)
+			}
+			for _, name := range []string{"ascii257", "hangul257", "astral257", "ligature_expansion", "arabic_expansion", "raw_bytes"} {
+				required = append(required, "TestAccountCreationUnicodeStorage/storage_limits/"+name)
 			}
 			for _, surface := range []string{"form", "admin"} {
 				modes := []string{"standard", "admin_enabled", "admin_disabled"}

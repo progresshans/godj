@@ -830,6 +830,13 @@ Email이 없으면 이 정책도 없다. Login과 email이 같은 필드면 logi
 어느 정책도 암묵적인 대소문자 무시 조회나 unique 비교를 만들지 않는다. 저장·Form·인증 정책은 계정 역할 fingerprint에
 포함되므로 정책 변경 시 기존 저장 domain을 그대로 사용할 수 없다.
 
+선택 `Creator.Prepare`의 서버 `ModelInput`에는 위 저장 정규화와 실제 IR/credential 한도가 적용된다.
+별도 생성 Form의 `UnicodeUsernameInput(150)` 문법·길이 정책을 이 서비스에 암묵적으로 적용하지 않는다.
+[독립 Unicode 소비자](../../codegen/consumertest/testdata/accountbinding/creation_unicode_test.go.tmpl)는
+Form 유효 여부와 별개인 Django manager 저장 원문을 기본/renamed 모델의 생성·재접속·인가된 profile로 대조한다.
+정확 비교 인증에 정규화 전 이름을 전달하거나 password의 공백을 바꿔 인증할 수 없어야 한다.
+역사 `ProvisionIdentity`/adoption의 별도 원문 보존 검사는 계속 해당 runtime의 소비자가 소유한다.
+
 계정 역할은 프로젝트 source identity이며 model의 물리 DDL history가 아니다. 역할 변경은 생성 snapshot과
 프로젝트 명령 digest를 바꾸지만 이미 적용한 migration 정의를 고쳐 쓰지 않는다. Private wire와 사본은 역할과
 상수의 소유권을 유지하며, 닫힌 JSON shape·문자열·aggregate node 한도를 decode/clone 전에 검사한다.
