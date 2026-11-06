@@ -4636,7 +4636,7 @@ CGO-disabled [job 127777398694](https://github.com/progresshans/godj/actions/run
 `50af035ab299d35b3f3f236b637c3ecf2d6be130`과 source는 tree `340c938f448383875930a9442ddddeaeef0aa2e4`로 같다.
 삭제한 파일의 경계를 내장 validator의 현재 프로필 검사 네 개가 아직 사용했다. 필요한 일반 coordinated transaction 경계를
 해당 소비자의 `validatorRollbackBoundary`로 옮겨 참조를 복구했다. 이 본문이 쓰지 않는 relation override는 복원하지 않았고,
-네 필수 검사와 실제 rollback·원인/결과 불명·session/audit 무변경 책임은 유지한다. 새 source의 컴파일 해소는 원격 미확인이다.
+네 필수 검사와 실제 rollback·원인/결과 불명·session/audit 무변경 책임은 유지한다. 컴파일 해소의 후속 확인은 아래 source 근거를 따른다.
 
 검증 보관소 `gdj0138-c2b996ea-ci-42183029919/`에 원본을 보존했다. Normal/race/CGO-disabled job log SHA-256은
 `86760b22a5ca752bc563523123a0c7d2bd6e3a4542a36d95fd019cb339899622` /
@@ -4666,6 +4666,46 @@ CGO-disabled [job 127777398694](https://github.com/progresshans/godj/actions/run
 로컬 Go compile/test는 실행하지 않았다. Gofmt·템플릿 구문, Python CI 분할 검사 26개, 문서 링크 245개와 diff를 확인했다.
 양 DB에서 정확히 세 selector씩 제거하고 남은 내장 validator의 현재 프로필 필수 검사와 새 18개 필수 항목을 보존했는지도 대조했다. 새 163개 실제 본문,
 위 core 실패의 컴파일 해소 및 양 DB·normal/race/CGO-disabled·전체 platform/cold-build 결과는 새 source의 원격 확인 대상이다.
+
+Source `9174f964c2d8bbfde71a9dd7de157e7abbb0c141`의 [CI 42185236648](https://github.com/progresshans/godj/actions/runs/42185236648)
+core normal [job 127784557298](https://github.com/progresshans/godj/actions/runs/42185236648/job/127784557298),
+race [job 127784557135](https://github.com/progresshans/godj/actions/runs/42185236648/job/127784557135),
+CGO-disabled [job 127784557196](https://github.com/progresshans/godj/actions/runs/42185236648/job/127784557196)가 성공했다.
+전체 job log는 `internal/identitytest`와 `db/postgres`를 포함한 실제 Go 명령의 exit 0, 141 package·필수 331개·run 14,707개·
+skip 599개를 보고한다. 실제 checkout `b124c4ac9ea618f9e5cce8687edea7799a18a70b`과 source의 tree는
+`96eb44c8f9eb1aef13a0cd1adbdddf9c4bf5e896`로 같다. 앞선 `policyRollbackBoundary` 미정의 컴파일 실패는 세 모드에서 해소됐다.
+이 확인은 core 컴파일 해소 범위다. 이 owner가 생략하는 실제 DB 검사·독립 생성 입력 소비자 163개 및 전체 platform 수용을
+뜻하지 않으며 artifact 전체 이벤트를 재대조한 결과로 표현하지 않는다. 새 후속 source의 범위도 별도다.
+
+검증 보관소 `gdj0138-9174f964-ci-42185236648/`의 normal/race/CGO-disabled job log SHA-256은
+`abb338f87caae6069c3afc69c3a4b813baa689cddcc952b3d3ba8f95a084ba22` /
+`eeb36aa637e6989d0ebbdf6a775a2ec1119f3155287c1ed5c9e5f4f74dd710e1` /
+`fde4dc21f9623aa1bd93fc67b65acfe9658e78f3c1abdf47bfcba1a31c9eb541`이고,
+source·checkout tree·실제 명령/집계 보고를 묶은 `core-compile-inspection-all-modes.json`은
+`946d0873049af8783fdea3455929be01928fa4585eab1fdab2fe0f81ee1d9bd3`다.
+
+### 선택 생성 Form의 읽기/해싱 경합 소비자 이관
+
+고정 `RunUserCreationValidation`과 양 DB wrapper를 제거하고 해당 root/child 53개씩, 총 106개 필수 selector의 책임을
+기존 선택 입력 소비자와 새 `TestAccountCreationReadValidation`에 통합했다. 남은 고정 `UserCreationForm` 소비자가 사용하는
+`creationCase`/`creationObservation` 타입은 그 파일로 옮겼다. 독립 producer/capture·공통 password policy와 기존 필수 검사는 유지한다.
+
+| 제거한 `Test{SQLite,Postgres}IdentityUserCreationValidation` 범위 | 선택 생성 앱의 지속 검증 |
+|---|---|
+| `admin_{enabled,disabled}` 각 입력 20개 | `TestCreationInputPolicy/admin/admin_{enabled,disabled}`가 같은 원문 bytes의 복합 진단·정규화·부분 profile·비밀번호 비노출과 실제 저장/hash/ID·전체 native 행을 대조한다. 세 standalone Form 모드도 기존대로 실행한다. |
+| `current_authority_precedes_diagnostics` | `TestAccountCreationReadValidation/current_authority_precedes_diagnostics`: 현재 DB에서 권한을 회수한 원래 actor의 Check가 입력 진단·policy/hash/ID 작업을 수행하지 못한다. |
+| `read_failures_are_not_input/{read_end_failure,read_zero,read_nil,read_twice,read_swallowed_failure,canceled}` | 같은 새 root의 동명 child: 원래 후보의 실제 model+password 복합 진단을 먼저 확인한다. Native scope의 종료/호출 횟수·실제 query 오류·취소를 주입해 원인과 persistence 분류를 유지하고 진단을 게시하지 않는다. |
+| `revoked_authority`, `duplicate_after_hash` | 같은 새 root의 실제 Admin HTTP child: hasher 안에서 별도로 연 native DB owner가 권한 변경 또는 경쟁 계정 생성을 확정한다. 원래 요청은 403 또는 unique 진단을 내고 한 번의 hash만 수행하며, 독립 writer의 정확한 변경 외에는 전체 native 상태가 같아야 한다. |
+
+읽기 실패는 대상·actor·익명 세션과 전체 계정/catalog/through/session/domain/audit를 원래 native backend와 취소되지 않은
+context로 대조한다. Fault owner를 oracle로 사용하지 않는다. 해싱 경합은 별도 native 연결의 실제 commit이 끝나야 hasher가
+반환하므로 hashing 중 이전 읽기 scope를 잡아둔 상태를 성공으로 처리하지 않는다. 경쟁 계정의 실제 credential/default·정확한
+추가 감사 한 행과 의도한 actor role/revision만 허용하며, rejected Form의 비밀번호가 HTML에 다시 나오지 않아야 한다.
+
+기존 163개에 새 root/그룹·child 11개를 더해 process별 필수 174개를 요구한다. 기본/renamed × 양 DB와 기존 모드별 실행
+owner·시간 제한·엄격한 run/pass 검사를 유지한다. Gofmt·템플릿 구문, Python CI 분할 검사 26개, 문서 링크 245개·diff 및
+106개 selector의 정확한 제거/생성 모델·DB parent 보존과 남은 타입 참조를 대조했으며,
+로컬 Go compile/test는 실행하지 않았다. 새 174개 본문·양 DB/race·전체 원격 수용은 아직 미확인이다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

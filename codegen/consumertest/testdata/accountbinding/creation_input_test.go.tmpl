@@ -131,15 +131,28 @@ func creationInputReferenceData(t *testing.T) ([]creationInputCase, creationInpu
 type creationInputHasher struct {
 	auth.PasswordHasher
 	calls atomic.Int64
+	hook  atomic.Pointer[creationInputHashHook]
 }
+
+type creationInputHashHook struct{ run func(context.Context) error }
 
 func (hasher *creationInputHasher) Hash(ctx context.Context, raw string) (string, error) {
 	hasher.calls.Add(1)
-	return hasher.PasswordHasher.Hash(ctx, raw)
+	encoded, err := hasher.PasswordHasher.Hash(ctx, raw)
+	if err == nil {
+		if hook := hasher.hook.Swap(nil); hook != nil {
+			err = hook.run(ctx)
+		}
+	}
+	if err != nil {
+		return "", err
+	}
+	return encoded, nil
 }
 
 type creationInputFixture struct {
 	native   database.Backend
+	database database.Config
 	binding  accountmodel.Binding[usernameAccount]
 	role     ir.AccountRole
 	objects  orm.Manager[usernameAccount]
@@ -182,7 +195,7 @@ func newCreationInputFixture(t *testing.T, nonstaff bool) *creationInputFixture 
 		}
 	}
 	schemas := []ir.Schema{@@SCHEMAS@@}
-	f.native = accountDatabase(t, schemas...)
+	f.native, f.database = accountDatabaseWithConfig(t, schemas...)
 	base, _ := accountPassword(t)
 	f.hasher = &creationInputHasher{PasswordHasher: base}
 	fields := []string{f.role.Login, "@@PROFILE@@"}

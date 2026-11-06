@@ -114,6 +114,35 @@ func (f *creationInputFixture) choiceSaved(t *testing.T, before creationInputSta
 	return map[string]any{"usable": properties["usable"], "active": properties["active"], "matches_input": failure == nil}
 }
 
+func (f *creationInputFixture) actorChangedOnly(t *testing.T, before creationInputState, id int64, expected map[string]query.Value) {
+	t.Helper()
+	current, err := f.objects.Using(f.native).Filter(f.key.Exact(id)).Get(t.Context())
+	creationInputCheck(t, err)
+	stored, err := f.objects.ModelValues(current)
+	creationInputCheck(t, err)
+	if !reflect.DeepEqual(expected, stored) {
+		t.Fatal("authority commit changed more than the actor role and revision")
+	}
+	after := f.snapshot(t)
+	table, index := f.metadata.DBTable, f.keys[f.metadata.DBTable]
+	var original []any
+	for _, row := range before[table] {
+		if row[index] == id {
+			original = row
+		}
+	}
+	replaced := 0
+	for i, row := range after[table] {
+		if row[index] == id {
+			after[table][i] = original
+			replaced++
+		}
+	}
+	if original == nil || replaced != 1 || !reflect.DeepEqual(before, after) {
+		t.Fatal("rejected creation changed rows beyond the independent authority commit")
+	}
+}
+
 type creationChoiceHook struct{ before func(context.Context) error }
 type creationChoiceBoundary struct {
 	database.Backend
@@ -290,31 +319,7 @@ func TestAccountAdminCreationChoices(t *testing.T) {
 				if status != 403 || header.Get("Location") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" || boundary.hooks.Load() != 1 || boundary.hook.Load() != nil || boundary.attempts.Load()-attempts != 1 || boundary.callbacks.Load()-callbacks != 1 || f.hasher.calls.Load()-hashes != wantHashes || f.ids.Load()-ids != 1 || len(f.recorded(false)) != wantPolicies {
 					t.Fatal("Admin creation admitted stale authority or repeated work", mode, status)
 				}
-				current, err := f.objects.Using(f.native).Filter(f.key.Exact(id)).Get(t.Context())
-				creationInputCheck(t, err)
-				stored, err := f.objects.ModelValues(current)
-				creationInputCheck(t, err)
-				if !reflect.DeepEqual(values, stored) {
-					t.Fatal("authority commit changed more than the actor role and revision")
-				}
-				after := f.snapshot(t)
-				table, index := f.metadata.DBTable, f.keys[f.metadata.DBTable]
-				var original []any
-				for _, row := range before[table] {
-					if row[index] == id {
-						original = row
-					}
-				}
-				replaced := 0
-				for i, row := range after[table] {
-					if row[index] == id {
-						after[table][i] = original
-						replaced++
-					}
-				}
-				if original == nil || replaced != 1 || !reflect.DeepEqual(before, after) {
-					t.Fatal("rejected creation changed rows beyond the independent authority commit")
-				}
+				f.actorChangedOnly(t, before, id, values)
 				beforeNext := f.snapshot(t)
 				status, _, _ = h.send(t, "GET", "/admin/accounts/add/", nil)
 				if status != 403 || !reflect.DeepEqual(beforeNext, f.snapshot(t)) {

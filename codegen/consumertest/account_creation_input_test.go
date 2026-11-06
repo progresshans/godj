@@ -22,6 +22,9 @@ var accountPasswordPolicyConsumer string
 //go:embed testdata/accountbinding/admin_creation_choice_test.go.tmpl
 var accountAdminCreationChoiceConsumer string
 
+//go:embed testdata/accountbinding/creation_read_validation_test.go.tmpl
+var accountCreationReadValidationConsumer string
+
 func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 	inputs, err := identityreference.UserCreationInputs()
 	if err != nil {
@@ -92,6 +95,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeGeneratedTestFile(t, root, "consumer/admin_creation_choice_test.go", formatted)
+			formatted, err = format.Source([]byte(accountCreationReadValidationConsumer))
+			if err != nil {
+				t.Fatal(err)
+			}
+			writeGeneratedTestFile(t, root, "consumer/creation_read_validation_test.go", formatted)
 			writeGeneratedTestFile(t, root, "consumer/database_test.go", accountBindingDatabaseConsumer)
 			writeGeneratedTestFile(t, root, "consumer/testdata/user-creation-inputs.json", inputs)
 			for _, vendor := range []string{"sqlite", "postgres"} {
@@ -149,6 +157,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 			}
 			for _, mode := range []string{"usable", "unusable"} {
 				required = append(required, choices+"/current_authority/"+mode)
+			}
+			const reads = "TestAccountCreationReadValidation"
+			required = append(required, reads, reads+"/current_authority_precedes_diagnostics", reads+"/read_failures_are_not_input", reads+"/revoked_authority", reads+"/duplicate_after_hash")
+			for _, mode := range []string{"read_end_failure", "read_zero", "read_nil", "read_twice", "read_swallowed_failure", "canceled"} {
+				required = append(required, reads+"/read_failures_are_not_input/"+mode)
 			}
 			runAccountConsumerDatabases(t, root, required)
 		})

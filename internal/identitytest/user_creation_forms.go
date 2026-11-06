@@ -20,6 +20,15 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
+type creationCase struct{ Name, Username, Password1, Password2 string }
+type creationObservation struct {
+	Valid     bool
+	Codes     map[string][]string
+	Username  *string   `json:"cleaned_username"`
+	Profiles  []*string `json:"policy_profiles"`
+	UserDelta int       `json:"user_delta"`
+}
+
 func RunUserCreationForms(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
 	input, err := identityreference.UserCreationInputs()

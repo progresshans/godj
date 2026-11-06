@@ -785,6 +785,13 @@ SQLite/PostgreSQL `admin_creation` 원문 8개 관측과 실제 저장 credentia
 쓰기 직전에 확정해 usable/unusable 두 경로의 거부와 다음 요청의 현재 인가를 확인한다. 새 계정·audit 외의 전체 native
 상태 또는 권한 변경으로 허용한 actor 필드 두 개 외의 전체 상태를 대조하며, 새 본문의 실제 원격 수용은 미확인이다.
 
+고정 Admin 생성 검증의 독립 입력 40개는 같은 원문을 사용하는 선택 Form/Admin 입력 소비자로 통합했다. 현재 인가 우선·
+읽기 scope 실패 6종·해싱 중 권한 회수/중복 생성은 선택 Form과 실제 Admin의 새 기본/renamed 소비자로 옮겼다.
+조회 실패 전에는 같은 후보가 실제 복합 진단을 내는지 확인하고, 오류 주입 뒤 진단·hash·ID·전체 native 상태의 비게시/무변경을
+검사한다. 해싱 중 별도로 연 실제 DB 연결의 권한 변경/경쟁 계정만 남아야 한다. 옛 양 DB root/child 106개의 책임 대응은
+TEST_EVIDENCE에 기록했으며, 고정 public Form이 아직 쓰는 입력 corpus 타입은 해당 소비자에 남겼다. 새 174개 필수 본문의
+원격 실행은 미확인이고, 선행 source의 core 컴파일 해소와 별도로 수용한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
