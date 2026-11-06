@@ -377,7 +377,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 				if variant.custom {
 					required = append(required, catalogParent+"/partial_constraint")
 				}
-				for _, name := range []string{"create_permission", "bounded_choices", "create_group", "partial_unique", "invalid_choice", "change_group_partial_unique", "change_permission_partial_unique", "csrf", "stale", "protected_input", "additional_permission", "choice_operation", "update_and_history", "delete_collected_membership"} {
+				for _, name := range []string{"create_permission", "bounded_choices", "create_group", "rendered_labels", "partial_unique", "invalid_choice", "change_group_partial_unique", "change_permission_partial_unique", "csrf", "stale", "protected_input", "additional_permission", "choice_operation", "update_and_history", "delete_collected_membership"} {
 					required = append(required, catalogParent+"/"+name)
 				}
 				required = append(required, parent)

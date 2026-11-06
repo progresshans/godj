@@ -22,7 +22,8 @@ func TestSelectedAccountPasswordCommandsPreservePrivateInputsAndPolicy(t *testin
 			t.Fatal("invalid owner admitted")
 		}
 	}
-	store, err := project.NewAccountSessionStore(configOnlyBackend{}, sessiondb.Config{})
+	probe := &catalogRegistrationProbe{}
+	store, err := project.NewAccountSessionStore(probe, sessiondb.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,6 +80,9 @@ func TestSelectedAccountPasswordCommandsPreservePrivateInputsAndPolicy(t *testin
 	form, err := commands[1].Form.Bind(t.Context(), forms.NewData(nil), nil)
 	if err != nil || form.Valid() {
 		t.Fatal("disable did not require explicit confirmation", err)
+	}
+	if probe.calls != 0 {
+		t.Fatal("password command construction or pure binding performed storage I/O")
 	}
 }
 

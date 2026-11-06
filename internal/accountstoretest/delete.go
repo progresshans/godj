@@ -37,6 +37,7 @@ func runAccountDeletion(t *testing.T, open Open, storedKey StoredKeyFixture) {
 		run  func(*testing.T, Backend, func(*testing.T) Backend)
 	}{
 		{"delete_lifecycle", accountDeletionLifecycle},
+		{"delete_admin_host_lifecycle", accountDeletionAdmin},
 		{"delete_catalog_lifecycle", accountCatalogDeletion},
 		{"delete_authority", accountDeletionAuthority},
 		{"delete_failures", accountDeletionFailures},
@@ -252,6 +253,7 @@ func deletionSnapshot(t *testing.T, backend Backend) map[string]any {
 			"membership": deletionRows(t, scope, links.MembershipObjects), "grant_link": deletionRows(t, scope, links.GrantLinkObjects), "direct": deletionRows(t, scope, people.MemberGrantsLinkObjects),
 			"ticket": deletionRows(t, scope, tickets.TicketObjects), "session": deletionRows(t, scope, sessionmodels.SessionObjects),
 			"audit": deletionRows(t, scope, auditmodels.EventObjects), "domain": deletionRows(t, scope, domainmodels.TransitionObjects),
+			"mapping": deletionRows(t, scope, domainmodels.MappingObjects),
 		}
 		return nil
 	}); err != nil {

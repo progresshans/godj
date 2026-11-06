@@ -4892,6 +4892,59 @@ password policy 호출이 바뀌지 않아야 한다. `disable`·`repeat_disable
 Gofmt·diff와 Python CI 분할 검사 27개(36.141초)는 통과했다. 로컬 Go compile/test는 실행하지 않았다.
 새 본문과 관측 공통화의 양 DB·normal/race/CGO-disabled·process·전체 platform 및 같은 source 수용은 원격 확인 대상이다.
 
+### 고정 Admin 등록·기본 User 전용 Form 제거와 마지막 소비자 이관
+
+2026-11-07, `b6b068cbaf48ce34bc10702d907eac16dde6f6c0` 위에서 고정 `identityadmin.Register/Config`의
+User/Group/Permission 등록과 `identity.UserCreationForm`을 제거했다. 기본 User도 선택 `AccountManagement`·`Catalog`·
+`CreationForm`으로 조립한다. 호환 shim은 추가하지 않았다. 역사 Directory/Manager의 나머지 서비스·이행 소비자와
+독립 Django producer/capture는 유지한다. 삭제한 고정 API의 컴파일·새 본문 실행과 I1 전체 수용은 별도 원격 확인 대상이다.
+
+| 제거한 고정 경로의 검증 책임 | 현행 검사와 보강 |
+|---|---|
+| Admin CRUD의 생성 기본값/정규화·중복 전 hash 금지·profile/email·no-op·stale·password/history/reopen | 기본/custom 생성 앱의 계정 Admin lifecycle, 기존 생성 입력/정책/Unicode 소비자, `admin_password/change`와 이후 실제 재로그인. Native 전체 행 대조 및 private 입력/CSRF 거부를 유지한다. |
+| Host PROTECT/CASCADE와 무관한 session 보존 | 양 DB `AccountCredentialStore/delete_admin_host_lifecycle/{csrf,stale,protected,commit}`. 실제 TCP Admin 로그인/CSRF·별도 연결의 descendant PROTECT·guard 해제 후 CASCADE/SET_NULL/관계/세션/감사를 확인한다. 기존 native 실패·인가·경합 검사도 유지한다. |
+| Catalog label HTML escaping·중복 선택 | 생성 `admin_catalog/rendered_labels`가 실제 목록·수정 화면·관계 label의 markup을 escape하고 원래 native 상태/hash가 변하지 않음을 검사한다. 생성은 첫 페이지와 뒤 페이지의 permission을 중복 제출하고 실제 정규화된 두 key를 확인한다. 기존 수정/삭제와 group revision/audit 검사를 유지한다. |
+| 등록의 무 I/O·노출/명령/권한·선언 복사와 비밀값 비노출 | `TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO`, 선택 catalog/password 등록 및 `TestSelectedRuntimeSharesSessionPasswordAndManagementOwners`. Add+Change·revision·password/disable 명령·private widget/checkbox와 반환 descriptor의 field 복사도 명시적으로 대조한다. 제거한 Config 옵션을 유지하기 위한 별도 adapter는 두지 않는다. |
+| 초기화되지 않은 생성 Form의 전체 저장 필드 노출 | 기존 필수 `TestUninitializedSelectedCreationFormCannotExposeStorageFields`가 nil/빈 Form·owner를 거부하고 명시적 빈 field 선택을 유지한다. |
+| Django 순수 Form 입력 기준 | `TestIdentityFormDjangoReferenceSubset`가 선택 `RegisterAccount`와 명시적 `UnicodeUsernameInput(150)`의 실제 필드를 사용한다. Username 26·email 304·confirmation 8개 원문과 기존 root/leaf selector 339개는 그대로다. 이 순수 입력 기준과 별도 DB/HTTP post-clean 소비자의 범위를 구분한다. |
+
+Host 삭제는 기존 생성 custom fixture의 계정 두 개·catalog 두 개·세 through 집합과 SET_NULL survivor를 사용한다.
+서비스 receipt의 count 검증과 native 저장 상태 검증을 분리했다. HTTP와 commit 뒤 결과 불명 관측은 존재하지 않는 receipt를
+행 수에서 만들어 넣지 않는다. fixture가 만든 실제 대상 session primary key 세 개를 기록하고, 원래 snapshot에서
+명시한 row ID·필드 변경만 계산해 전체 모델·관계·session·domain/mapping을 비교한다. 새 감사 일곱 개는 각각의 model/object/
+actor/domain/action/field/시각을 확인하고 기존 감사 원문은 유지해야 한다. 같은 관측을 native lifecycle/commit 후 실패에도 적용한다.
+
+고정 Admin root/child와 등록 단위 selector 11개(SQLite 6, PostgreSQL 5)를 정리하고 양 DB에 새 host Admin root/child
+5개씩을 추가했다. 나머지 필수 목록의 순서를 보존했다. Shared 관계 ID 표시 함수는 선택 등록에 옮겼고, 고정 identity 오류
+mapping·조회 revision helper는 남기지 않았다. 원문 JSON bytes·digest·사례 수와 기존 독립 selector 339개가 그대로임을
+정적으로 확인했다. 사용자 안내·현행 ADR·입력 provenance와 CURRENT/work에 현재 API 및 남은 Directory/Manager 경계를 반영했다.
+
+### 선행 CI의 Admin 권한 입력과 native Form 해싱 관측 보정
+
+Source `b6b068cb`의 [CI 42251544467](https://github.com/progresshans/godj/actions/runs/42251544467), attempt 1에서
+다음 실패를 확인했다. 세 job의 원 로그와 GitHub commit metadata에서 실제 checkout
+`eddad3720869db08d06ca9269f4a89ccdd4070ad`가 제출 source와 같은 tree
+`58efcc5b0c2567f01badb02fc18ace0a45c1cbff`이며 해당 source를 parent로 포함함을 대조했다.
+
+- PostgreSQL management normal/cgo0 job `128010686810`·`128010687115`는
+  `admission_accounts_none/admin`의 add POST가 기대 403 대신 400을 반환했다. 시험이 기존 객체용 `expected_revision`을
+  생성 POST에도 넣어 transport의 예약 입력 거부가 먼저 실행됐다. Add에는 실제 CSRF만 보내 current permission 경계에
+  도달하게 고쳤으며 제품의 예약 입력 거부·인가 우선순위와 상태 불변 조건은 변경하지 않았다.
+- Linux arm64 normal runtime [job 128010699718](https://github.com/progresshans/godj/actions/runs/42251544467/job/128010699718)은
+  native management Form의 hash/state 결합 assertion과 `change_revoked` 구성에서 실패했다. 각 변형이 만드는 인증기의
+  bounded dummy hash를 시작 시 한 번의 기준값에 계속 비교하고, scope 실패 검사에서는 이를 0회로 기대하고 있었다.
+  변형 구성의 dummy hash 한 번을 명시적으로 계산하고 실제 advisory 호출 전후 hash 증가 0·callback 0·전체 native 불변을
+  계속 요구한다. `change_revoked`는 Add와 Change를 같은 권한으로 설정해 구성 자체가 거부됐다. 두 권한을 서로 바꾸어
+  유효한 구성으로 만든 뒤 별도 연결이 실제 Change grant를 제거하도록 유지했다. 새 source에서 남은 결과를 다시 확인한다.
+
+원 로그와 source 대조 기록은 검증 보관소의 `gdj0138-b6b068cb-ci-42251544467/failure-inspection.json`에 보존했다
+(SHA-256 `72ceda2fe0c4c3a9796f5d68b8b2dc18bffcecaf54df4076ec0bbf6c9eadc46b`). 실패 수정의 정적 타당성을
+새 원격 PASS로 사용하지 않는다. 기존 Intel macOS race reload 시간 초과도 아직 같은 source의 해소 근거가 없다.
+
+Gofmt·diff와 Python CI 분할 검사 27개(36.584초)는 통과했다. 로컬 Go compile/test는 실행하지 않았다.
+고정 API 제거·새 host Admin/표시/독립 Form 소비자·native 상태 관측 및 위 수정의 양 DB·normal/race/CGO-disabled·
+생성 process·전체 platform/cold-build와 필수 원본 수용은 다음 source에서 확인해야 한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

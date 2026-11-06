@@ -1,3 +1,5 @@
+// Package identityadmin binds selected account and catalog lifecycle owners to
+// common Admin without exposing credential rows or replacing Schema IR fields.
 package identityadmin
 
 import (

@@ -19,8 +19,9 @@ of the regular input corpus. Built-in password strength policies and their separ
 are documented in [Password validation](../PASSWORD_VALIDATION.md). Hosts choose
 the policy explicitly; confirmation remains a separate form requirement.
 
-The historical built-in creation form narrows username input to 150 code points; editing retains
-the User Schema IR's 256-code-point storage limit. The credential and private
+The selected creation form can explicitly narrow its login input to 150 code points;
+editing retains the selected Schema IR's storage limit, including the default
+User's 256-code-point profile. The credential and private
 CLI transport allow 1,024 UTF-8 bytes, with model character bounds checked
 separately before persistence. This explicit GoDj storage profile does not
 claim Django's default User schema or complete UserCreationForm parity.
@@ -46,7 +47,7 @@ Go's Admin consumes those validation results while retaining current authority,
 no hash/write during checking, and atomic final writes. It does not expose the
 Python model instance or claim its `save(commit=False)` object lifecycle.
 
-The reusable [User creation form](../user_creation_form.go) uses the same pure
+The reusable [selected creation form](../model/creation_form.go) uses the same pure
 rules and read-only phases. Its explicit prepare/commit service adopts Django's
 hash-before-save, deferred persistence and invalid-form no-write behavior from
 `django/contrib/auth/forms.py`, `base_user.py`, `hashers.py`,
@@ -77,5 +78,5 @@ a mismatch or an explicit unusable choice suppresses strength checks. Its typed
 partial model view preserves declared values and absence without reproducing
 Python's unsaved object layout. The selected model's IR remains the input schema;
 this does not claim that every custom model has the built-in UsernameField rules.
-The existing independent fixed-model observer remains required until its complete
-input contract has a selected-model consumer.
+The independent fixed-model observers remain required as reference producers
+for the selected-model consumers; their source and input captures are retained.

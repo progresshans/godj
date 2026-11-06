@@ -57,6 +57,9 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 	if !present || len(registry.All()) != 1 || descriptor.Slug != "accounts" || !slices.Equal(descriptor.ListFields, []string{"id", "username", "revision"}) || !slices.Equal(descriptor.AdditionalPermissions, []auth.Permission{"account.manage"}) {
 		t.Fatal("actual account registration widened or lost owner policy")
 	}
+	if descriptor.RevisionField != "revision" || !slices.Equal(descriptor.AddPermissions, []auth.Permission{"account.add", "account.change"}) || len(descriptor.Commands) != 2 || descriptor.Commands[0].Name != "password" || descriptor.Commands[1].Name != "disable-password" {
+		t.Fatal("selected registration lost revision, combined creation authority or password commands")
+	}
 	if !slices.Equal(descriptor.ReadOnlyFields, []admin.ReadOnlyFieldDescriptor{{Name: "password_usable", Label: "Password login"}}) {
 		t.Fatal("selected password state lost its read-only presentation")
 	}
@@ -91,6 +94,9 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 				t.Fatal("creation secret is public text")
 			}
 		}
+		if field.Name() == "unusable_password" && field.Widget() != forms.Checkbox {
+			t.Fatal("selected unusable-password choice lost its explicit control")
+		}
 	}
 	for _, field := range descriptor.FormFields {
 		edited = append(edited, field.Name())
@@ -98,6 +104,11 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 	// The allowlist selects fields; ModelForm preserves their Schema IR order.
 	if !slices.Equal(created, []string{"username", "groups", "password1", "password2", "unusable_password"}) || !slices.Equal(edited, []string{"first_name", "email", "active", "permissions"}) {
 		t.Fatal("read/create/edit policies merged", created, edited)
+	}
+	descriptor.CreateFormFields[0] = forms.Field{}
+	again, present := registry.Lookup("godj_identity", "user")
+	if !present || again.CreateFormFields[0].Name() != "username" {
+		t.Fatal("returned selected descriptor aliases registered form fields")
 	}
 	for _, mode := range []string{"nil_owner", "nil_builder", "unreadable_edit", "missing_label", "collection_column", "secret_column", "missing_slug"} {
 		t.Run(mode, func(t *testing.T) {

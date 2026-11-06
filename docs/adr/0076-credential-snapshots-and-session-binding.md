@@ -321,24 +321,16 @@ GoDj 코드/기대 결과를 import하지 않는다. Django 소스는 저장소 
 
 ## 실제 Identity Admin 소비자와 입력 정책
 
-`identity/admin.Register`는 호스트가 제공한 backend·hasher·authorizer·전체 관계 삭제 정책으로 User/Group/Permission을
-등록한다. Startup에는 I/O가 없으며, opaque Config의 옵션과 validator slice는 복사본이다. Article의 실제 Admin composition이
-이 등록을 호출한다. Browser는 principal ID·encoded password·revision 값을 모델 필드로 지정하지 못한다.
-Revision은 앞서 정의한 별도 조건으로만 제출한다. 생성 principal ID는 호스트가 선택하는 불투명한 값이다.
+계정과 catalog는 `identityadmin.RegisterAccount`·`RegisterCatalog`로 선택된 수명 owner에 등록한다.
+고정 User/Group/Permission을 다시 해석하는 `Register`·`Config`와 기본 User 전용 생성 Form은 제거했다.
+현재 역할·전체 host source·노출/권한·credential/session의 단일 해석은 아래 선택 owner 절을 따른다.
+Article과 새 생성 앱도 같은 조립을 사용한다. Browser는 principal ID·encoded password·revision을 모델 필드로
+지정하지 못하며 revision은 별도 조건으로 제출한다. Principal ID는 host owner의 서버 공급자가 만든다.
 
-User 생성은 username·password1·password2와 명시적 unusable_password 선택을 받는다. Profile/role·그룹·직접 권한은 편집 Form이 소유하고,
-별도 password command는 Manager가 확정한 ID/revision을 바로 반환한다. Profile 변경과 삭제는 선행 snapshot의 revision을
-제출 조건과 비교한 뒤 Manager의 마지막 CAS를 수행한다. 삭제 결과는 확정 성공 뒤에만 선행 snapshot을 게시한다.
-확정 PROTECT rollback만 기존 protected 화면으로 표현하고 cleanup failure·unknown은 실행 실패로 남긴다.
-
-User 관계 선택은 현재 `change_user`, Group 생성/편집의 Permission 선택은 각각 현재 `add_group`/`change_group`을 요구한다.
-Target catalog의 view 권한을 별도로 요구하지 않는다. 인가와 선택 목록은 같은 native read snapshot에서 읽고,
-ID 순서의 완전한 목록만 반환한다. 4,096개를 초과하면 명시적 오류로 거부하며 저장된 선택을 조용히 잘라내지 않는다.
-이 선택 목록 한도와 실제 사용자 그룹/유효 권한의 256개 한도는 다른 조건이다. 큰 catalog의 검색/페이지 선택 UI는 별도 확장이다.
-
-History도 현재 view/change 인가·대상 존재·감사를 같은 read snapshot에서 읽는다. Runtime의 별도 Atomic 조회를 중첩하지 않고
-`AuditHistoryInSnapshot`에 살아 있는 borrowed reader를 전달한다. Reader lifetime·결과 identity·오름차순 sequence·한도를 확인하고,
-query/읽기 종료/취소 오류에는 결과를 게시하지 않는다. History backend의 permission 모양 원인을 실제 권한 거부로 낮추지 않는다.
+관계 선택은 해당 계정/그룹의 현재 add/change와 모든 추가 권한을 요구하며 별도 target catalog view 권한을 요구하지 않는다.
+같은 native snapshot에서 bounded 검색·현재 key Resolve를 수행하고 저장된 선택을 조용히 자르지 않는다.
+History는 선택 ProfileReader/Catalog의 현재 domain·인가·대상 존재와 값 없는 audit를 같은 snapshot에서 읽는다.
+빌린 reader 수명·완전한 scope 종료와 진단 분류를 유지하며 취소·cleanup/unknown을 입력 거부로 낮추지 않는다.
 
 View-only actor는 change GET 주소에서 선택된 model field의 읽기 전용 상세를 볼 수 있다. Password widget은 제외하고
 relation은 저장된 ID를 표시한다. 선택 가능한 target catalog를 조회하지 않으며, 같은 주소의 POST는 change 권한을 요구한다.
@@ -348,9 +340,9 @@ Form의 `WithStringNormalizer`는 whitespace 처리 뒤 required/length/validato
 Initial과 raw redisplay를 변경하지 않으며 changed 비교에도 같은 변환을 사용한다. Model override의 max length는 IR의 저장
 한도를 넓히지 않고 입력 한도를 좁힐 수 있다. Static choice는 암묵적으로 trim하지 않고 명시적 normalizer를 적용한 값으로
 기존 선택값을 검사한다. `WithMaxInputBytes`는 callback 전에 원문 한도를 확인한다.
-기존 기본 identity Form의 Username 생성은 Python whitespace strip·NFKC·150자·문자 문법을 적용한다.
-편집은 IR의 256자 한도를 사용해 API/CLI에서 정상 생성한 긴 이름도 Form initial과 저장을 왕복할 수 있다.
-기존 기본 identity Form은 raw 글자 수가 해당 한도를 넘으면 NFKC를 생략하는 UsernameField의 비용 경계를 유지한다.
+선택 생성 Form은 실제 login 역할에 `UnicodeUsernameInput(150)`을 명시해 Python whitespace strip·선언된 NFKC·150자·문자 문법을 적용할 수 있다.
+편집은 IR 한도를 사용해 기본 User의 256자 이름도 Form initial과 저장을 왕복한다.
+원문 글자 수가 생성 입력 한도를 넘으면 정규화를 생략하는 UsernameField의 비용 경계를 유지한다.
 선택 계정 Form은 위의 역할 정책·원문 byte 한도와 실제 선택 모델의 IR 길이를 사용한다.
 Email은 고정 Django EmailValidator의 quoted local/Unicode BMP domain/IP literal 문법을 적용한다. Password 두 값은 strip/NFKC
 없이 비교하고 mismatch를 password2에 표시하며 모든 재표시에서 원문을 비공개로 유지한다.
@@ -373,7 +365,7 @@ Private createsuperuser protocol의 username 상한은 1,024바이트, password�
 Wire grammar/version은 유지하며 malformed·truncated·과대 입력은 기존처럼 거부한다. Legacy operator의 저장 256자 한도는 유지한다.
 이 전송 상한은 Go-native SYS-023 결정이며 Django 기본 User의 150자 저장 스키마와 같다는 주장이 아니다.
 
-기본 UserCreationForm의 재사용·저장 수명은 아래에 정의하며 custom user model은 별도 범위다.
+기본 및 custom 모델의 재사용 Form·저장 수명은 아래 선택 owner 계약을 따른다. 구현과 환경별 수용은 구분한다.
 [독립 observer](../../conformance/runners/django/identity_admin_reference.py), 실행 source/환경/범위는 TEST_EVIDENCE를 따른다.
 
 ### 생성 Form의 복합 오류와 읽기 검증
@@ -384,8 +376,8 @@ Callback은 불변 Form의 오류를 먼저 확인하고 성공한 입력만 검
 확인된 `validation.Reject`만 `WithErrors`로 합치며 미선택 field 진단, wrapped/cleanup 오류와 취소는 실행 실패로 남긴다.
 Pure `forms.Spec`에 DB I/O를 넣지 않는다. 이 읽기 검증은 저장 권한이나 재사용할 수 있는 성공 증명이 아니다.
 
-Identity 생성은 `Manager.CheckUserCreation`으로 같은 read snapshot의 현재 add_user/change_user 권한과
-DB `iexact` 중복을 검사하고, 남은 password2를 host 정책에 전달한다. 이름의 required/길이/NUL 오류나 중복은
+선택 생성은 같은 read snapshot의 현재 add/change·추가 권한과 명시한 대소문자 무시 중복 정책을 검사하고,
+남은 confirmation 입력을 typed host 정책에 전달한다. 남은 역사 Manager 소비자의 `CheckUserCreation`과 제품 owner를 구분한다. 이름의 required/길이/NUL 오류나 중복은
 candidate username을 비운다. 모델 문자 문법 오류는 candidate 이름을 유지한 채 strength 검사도 수행한다.
 따라서 중복 이름과 짧은 password, 누락된 password1과 유효한 password2의 정책 오류를 한 번에 표시한다.
 Confirmation mismatch 또는 password2의 field 오류는 strength 검사를 생략한다. 사용 불가 password 선택은
@@ -394,10 +386,9 @@ required/confirmation/strength를 생략하지만 입력 field의 NUL 오류까�
 고정 Django `UserCreationForm.clean_username` → Form clean → model post-clean → password validation의 외부 결과를
 [독립 양 DB observer](../../conformance/runners/django/user_creation_reference.py)로 관찰했다. Go Profile의 문자열은
 native 후보의 None/빈 username을 빈 문자열로 표현한다. DB 조회 수와 Python 내부 instance 구조를 복제하지 않는다.
-읽기 종료가 성공한 뒤에만 진단을 게시하며 ID 발급·hash·write는 하지 않는다. 최종 CreateUser는 현재 인가·중복·policy를
-다시 preflight하고 hash 뒤 coordinated write fence에서 재검사한다. 저장은 기존 원자적 user/관계/audit 계약을 유지한다.
-Admin과 아래 재사용 Form은 같은 정의와 검증 단계를 사용한다. Custom user model이나 Python 객체 내부 구조의
-호환을 이 경로의 지원으로 주장하지 않는다.
+읽기 종료가 성공한 뒤에만 진단을 게시하며 ID 발급·hash·write는 하지 않는다. 최종 Creator는 현재 인가·중복·policy를
+다시 preflight하고 hash 뒤 coordinated write fence에서 재검사한다. 저장은 원자적 계정/관계/audit 계약을 유지한다.
+Admin과 아래 재사용 Form은 같은 정의와 검증 단계를 사용한다. Python 객체 내부 구조의 호환은 목표가 아니다.
 
 ### 재사용 Form과 저장 전 준비
 
@@ -428,11 +419,11 @@ IR default·NULL·key 문법을 공통 ChoiceInput으로 보존하고 숫자 lab
 Django 입력·저장 수명 기준은 선택 Form과 실제 Admin 소비자로도 연결한다. 새 본문의 환경별 수용과 남은 고정 소비자 제거는
 별도 확인 대상으로 유지하며, 새 Form이 존재한다는 이유로 기존 기준이나 소비자를 제거하지 않는다.
 
-`NewUserCreationForm`과 `NewAdminUserCreationForm`은 기본 User IR에 대한 불변 Form이다. 후자는 명시적 사용 불가 password
-선택을 추가한다. `Bind(ctx, actor, data)`는 입력 정리와 read-only 검사를 합쳐 bound Form을 반환한다.
-Admin도 같은 `Definition`과 `Check`를 사용한다. 일반 재사용 Form에는 Site의 staff 조건이 없으며 Manager의 현재 add/change
-조건은 유지한다. 익명 signup이나 role 입력을 자동으로 공개하지 않는다. 초기화되지 않은 Form의 Definition은 명시적 빈 field
-선택으로 실패하며 nil 선택의 '전체 model field' 의미로 되돌아가 private 저장 필드를 노출하지 않는다.
+기본 User도 이 선택 Form과 등록을 사용하며 과거 전용 생성 Form과 Admin Config는 남기지 않는다.
+초기화되지 않은 Form의 Definition은 명시적 빈 field 선택으로 실패한다. Nil 선택의 전체 model field 의미로 되돌아가
+private 저장 필드를 노출하지 않는다. 독립 Django 입력·준비/저장 기준은 선택 소비자로 이어지며 producer/capture를 유지한다.
+
+다음 Manager 준비/저장 설명은 남은 역사·서비스 소비자의 계약이다. 현재 제품 Form/Admin은 위의 선택 Creator를 사용한다.
 
 `Prepare`는 cleaned 값의 선택·타입·confirmation·문자 문법을 다시 검사한 뒤 현재 Manager에서 credential을 준비한다.
 `Manager.PrepareUserCreation`은 정규화·현재 인가·관계·중복·policy 읽기를 끝내고 hash를 한 번 수행한다.
@@ -445,19 +436,20 @@ Admin도 같은 `Definition`과 `Check`를 사용한다. 일반 재사용 Form�
 실패나 unknown에는 UserDetails를 게시하지 않고 자동 재시도하지 않는다. 후보의 모든 복사본은 한 번의 저장 시도를 공유한다.
 해당 시도에 진입하면 확정 실패·unknown에도 소비 상태를 유지하며 재시도에는 새 Prepare가 필요하다.
 성공한 사용자가 삭제된 후에도 과거 credential을 재생성할 수 없다. 소유자 거부·진입 전 취소는 후보를 소비하지 않는다.
-기존 CreateUser/CreateUserWithUnusablePassword와 Form.Create도 이 prepare/commit 경로를 사용한다.
+남은 Manager의 CreateUser/CreateUserWithUnusablePassword도 이 prepare/commit 경로를 사용한다.
 
 고정 Django의 `save(commit=False)`에서 hash 시점·저장 없음·나중 save의 외부 결과를 양 DB에서 관찰한다.
 Python unsaved model의 mutable 속성·password getter·암묵적 권한은 복제하지 않는다. 추가 profile/role/관계는 typed UserCreate로
-준비 전에 선택하고, 그 선택 전체를 마지막 write에서 검사한다. 기본 User Form과 준비/확정의 구현은 모든 ModelForm 저장이나
-custom user model의 완료가 아니다. [사용 흐름](../../identity/USER_CREATION.md)과 실제 환경별 Evidence를 함께 따른다.
+준비 전에 선택하고, 그 선택 전체를 마지막 write에서 검사한다. 이 역사 Manager 경로를 모든 ModelForm 저장이나
+선택 모델 제품의 전체 수용으로 계산하지 않는다. [사용 흐름](../../identity/USER_CREATION.md)과 실제 환경별 Evidence를 함께 따른다.
 
 ## 내장 password validator와 공통 정책 선택
 
 `DefaultPasswordValidators()`는 고정 Django startproject의 similarity·최소 8자·common·numeric 순서를 반환한다.
 자동으로 전역 정책을 켜지 않으며, policy 생략은 기존 빈 AUTH_PASSWORD_VALIDATORS 의미를 유지한다.
-Manager의 WithPasswordValidators, Admin의 동일 옵션, API Config.PasswordValidators는 caller slice를 분리해 소유한다.
-Article의 WithPasswordValidators는 두 HTTP surface에 같은 정책을 전달한다.
+현재 조립은 선택 binding의 typed 정책을 하나의 runtime에 전달해 Form/Admin/API·self-service/reset이 공유한다.
+`Binding.DefaultPasswordValidator`는 실제 속성 선언의 복사본을 소유한다. 남은 역사 Manager의 WithPasswordValidators도
+caller slice를 분리하지만 고정 Admin/API Config 경로는 제거했다.
 
 길이는 Unicode 글자 수, 숫자 판정은 Unicode 16 isdigit이다. Similarity는 선택한 public profile 문자열의 full lowercase,
 Python `\W+` 분리(양 끝의 빈 부분 포함), 전체 값에 대한 quick_ratio의 multiset overlap과 inclusive threshold를 따른다.

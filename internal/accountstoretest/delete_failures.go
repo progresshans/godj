@@ -174,10 +174,9 @@ func accountDeletionFailures(t *testing.T, backend Backend, reopen func(*testing
 			if committed {
 				if mode != "post_commit_cancel" {
 					after := deletionSnapshot(t, reopen(t))
-					// The public result stays empty; this independently observed
-					// expectation only checks that the native commit really ran.
-					expected := accountmodel.AccountDeletion{ID: tree.root.ID, Revision: 1, DeletedRows: deletionModelCount(before) - deletionModelCount(after), RevokedSessions: len(tree.removed)}
-					assertDeletionTree(t, reopen(t), f, tree, before, expected)
+					// No public receipt exists. Check the actual native effects
+					// directly without synthesizing one from those same rows.
+					assertDeletionTreeState(t, reopen(t), f, tree, before, after)
 				}
 			} else {
 				requireDeletionUnchanged(t, reopen(t), before)

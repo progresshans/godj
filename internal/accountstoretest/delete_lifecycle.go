@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	auditmodels "github.com/progresshans/godj/account/audit/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/conformance/accountdeletefixture/access"
 	"github.com/progresshans/godj/conformance/accountdeletefixture/links"
@@ -15,6 +16,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/sessions"
 	sessiondb "github.com/progresshans/godj/sessions/database"
+	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 )
 
 type deletionTree struct {
@@ -22,6 +24,7 @@ type deletionTree struct {
 	group, groupSurvivor           access.Team
 	permission, permissionSurvivor access.Grant
 	removed, preserved             []sessions.Record
+	removedRows                    map[int64]bool
 	historical                     sessions.Store
 	historicalRecord               sessions.Record
 }
@@ -77,7 +80,20 @@ func deletionTreeFixture(t *testing.T, backend Backend, f *deletionFixture, pref
 			t.Fatal(err)
 		}
 	}
+	priorSessions := make(map[int64]bool)
+	for _, row := range deletionRows(t, backend, sessionmodels.SessionObjects) {
+		priorSessions[row.ID] = true
+	}
 	tree.removed = []sessions.Record{deletionSession(t, f.manager, tree.root.Subject), deletionSession(t, f.manager, tree.root.Subject), deletionSession(t, f.manager, tree.child.Subject)}
+	tree.removedRows = make(map[int64]bool)
+	for _, row := range deletionRows(t, backend, sessionmodels.SessionObjects) {
+		if !priorSessions[row.ID] {
+			tree.removedRows[row.ID] = true
+		}
+	}
+	if len(tree.removedRows) != len(tree.removed) {
+		t.Fatal("deletion fixture did not create every physical target session")
+	}
 	tree.preserved = []sessions.Record{deletionSession(t, f.manager, tree.survivor.Subject), deletionSession(t, f.manager, f.actorRow.Subject), deletionSession(t, f.manager, "")}
 	database, err := sessiondb.New(backend, sessiondb.Config{})
 	if err != nil {
@@ -101,6 +117,13 @@ func assertDeletionTree(t *testing.T, backend Backend, f *deletionFixture, tree 
 	if result.ID != tree.root.ID || result.Revision != 1 || result.DeletedRows != deletionModelCount(before)-deletionModelCount(after) || result.RevokedSessions != len(tree.removed) {
 		t.Fatal("confirmed deletion metadata did not match actual rows and sessions", result)
 	}
+	assertDeletionTreeState(t, backend, f, tree, before, after)
+}
+
+// HTTP publishes only its committed redirect. Observe the same complete native
+// effects without inventing a service receipt from the rows being checked.
+func assertDeletionTreeState(t *testing.T, backend Backend, f *deletionFixture, tree deletionTree, before, after map[string]any) {
+	t.Helper()
 	for _, id := range []int64{tree.root.ID, tree.child.ID} {
 		if n, err := people.MemberObjects.Using(backend).Filter(people.MemberFields.ID.Exact(id)).Count(t.Context()); err != nil || n != 0 {
 			t.Fatal("cascaded account remains", err)
@@ -151,12 +174,70 @@ func assertDeletionTree(t *testing.T, backend Backend, f *deletionFixture, tree 
 		{"access.grant", tree.permissionSurvivor.ID, admin.ActionChange, []string{"reviewer"}},
 	} {
 		history := deletionHistory(t, backend, f.actor, target.model, target.id)
-		if len(history) != 1 || history[0].Action() != target.action || history[0].ActorID() != f.actor.ID() || !history[0].Domain().MatchesPrincipal(f.actor) || !slices.Equal(history[0].ChangedFields(), target.fields) {
+		if len(history) != 1 || history[0].Action() != target.action || history[0].ActorID() != f.actor.ID() || !history[0].Domain().MatchesPrincipal(f.actor) || !history[0].At().Equal(joined) || !slices.Equal(history[0].ChangedFields(), target.fields) {
 			t.Fatal("collected lifecycle audit is missing, duplicated or misattributed", target.model, target.id)
 		}
 	}
 	if len(deletionHistory(t, backend, f.actor, "people.member", tree.copies.ID)) != 0 {
 		t.Fatal("unchanged membership owner received an audit")
+	}
+	// Expected identities and field changes come from the authored fixture,
+	// independently of the collector's plan and public management projections.
+	expected := make(map[string]any, len(before))
+	for name, rows := range before {
+		expected[name] = rows
+	}
+	members := slices.DeleteFunc(slices.Clone(before["member"].([]people.Member)), func(row people.Member) bool {
+		return row.ID == tree.root.ID || row.ID == tree.child.ID
+	})
+	for i := range members {
+		if members[i].ID == tree.survivor.ID {
+			members[i].Version, members[i].ReviewerID, members[i].GrantRefID = 2, nil, nil
+		}
+	}
+	expected["member"] = members
+	teams := slices.DeleteFunc(slices.Clone(before["team"].([]access.Team)), func(row access.Team) bool { return row.ID == tree.group.ID })
+	for i := range teams {
+		if teams[i].ID == tree.groupSurvivor.ID {
+			teams[i].Version, teams[i].ReviewerID = 2, nil
+		}
+	}
+	expected["team"] = teams
+	grants := slices.DeleteFunc(slices.Clone(before["grant"].([]access.Grant)), func(row access.Grant) bool { return row.ID == tree.permission.ID })
+	for i := range grants {
+		if grants[i].ID == tree.permissionSurvivor.ID {
+			grants[i].Version, grants[i].ReviewerID = 2, nil
+		}
+	}
+	expected["grant"] = grants
+	expected["membership"] = slices.DeleteFunc(slices.Clone(before["membership"].([]links.Membership)), func(row links.Membership) bool {
+		return row.MemberID == tree.root.ID || row.MemberID == tree.child.ID || row.TeamID == tree.group.ID || row.AnchorID != nil && *row.AnchorID == tree.root.ID
+	})
+	expected["grant_link"] = slices.DeleteFunc(slices.Clone(before["grant_link"].([]links.GrantLink)), func(row links.GrantLink) bool {
+		return row.TeamID == tree.group.ID || row.GrantID == tree.permission.ID || row.AnchorID != nil && *row.AnchorID == tree.root.ID
+	})
+	expected["direct"] = slices.DeleteFunc(slices.Clone(before["direct"].([]people.MemberGrantsLink)), func(row people.MemberGrantsLink) bool {
+		return row.SourceID == tree.root.ID || row.SourceID == tree.child.ID || row.TargetID == tree.permission.ID
+	})
+	expected["session"] = slices.DeleteFunc(slices.Clone(before["session"].([]sessionmodels.Session)), func(row sessionmodels.Session) bool { return tree.removedRows[row.ID] })
+	previousAudit, currentAudit := before["audit"].([]auditmodels.Event), after["audit"].([]auditmodels.Event)
+	if len(currentAudit) != len(previousAudit)+7 {
+		t.Fatal("collected lifecycle appended unexpected audit rows")
+	}
+	// Each of the seven new entries was checked independently above; compare
+	// every earlier audit byte as well as every unrelated table row below.
+	after["audit"] = currentAudit[:len(previousAudit)]
+	if len(expected) != len(after) {
+		t.Fatal("deletion observation lost a table")
+	}
+	for name, rows := range expected {
+		actual, present := after[name]
+		if !present || reflect.ValueOf(rows).Len() != reflect.ValueOf(actual).Len() {
+			t.Fatal("collected lifecycle changed unexpected row cardinality", name)
+		}
+		if reflect.ValueOf(rows).Len() != 0 && !reflect.DeepEqual(rows, actual) {
+			t.Fatal("collected lifecycle changed unexpected native fields", name)
+		}
 	}
 }
 

@@ -1558,7 +1558,9 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 						expect("POST", change, data, 403)
 					}
 					if addStatus == 403 {
-						expect("POST", base+"add/", data, 403)
+						// Creation has no existing revision. Keep transport valid
+						// so this probe reaches the current permission boundary.
+						expect("POST", base+"add/", url.Values{"csrfmiddlewaretoken": {string(token[1])}}, 403)
 					}
 					if changeStatus == 200 || addStatus == 200 {
 						operation, suffix := "add", ""

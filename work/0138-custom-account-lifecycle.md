@@ -764,9 +764,9 @@ Form/HTTP 부분 수용, 두 실패와 새 실행 분할의 미확인 범위는 
 추가 수명 본문의 미실행·새 source 재검증 범위는 TEST_EVIDENCE에 기록한다.
 후속 `e1097096`에서 새 입력 소비자의 기본/renamed × 양 DB 필수 130개를 normal/race/CGO-disabled 원본으로 확인했다.
 고정 Python 3.14.3의 원문/변이 기준도 대조했다. 전체 platform과 남은 고정 소비자 이관은 계속 별도 수용 대상이다.
-고정 UserCreationForm은 [기존 Admin 등록](../identity/admin/user.go)에서도 사용한다. 이 public Form만 먼저 제거하지 않고
-남은 Admin 등록·소비자의 인가/실패/독립 기준 책임을 함께 선택 owner로 옮긴다. [사용 안내](../identity/USER_CREATION.md)는
-검증된 선택 Form의 입력 정책·준비 소유권을 먼저 설명하며 고정 경로의 남은 의존성을 구분한다.
+고정 UserCreationForm과 Admin 등록은 마지막 소비자의 인가/실패/독립 기준 책임까지 선택 owner에 연결한 뒤 제거했다.
+[사용 안내](../identity/USER_CREATION.md)는 현행 선택 Form의 입력 정책·준비 소유권을 설명한다.
+API 제거와 새 소비자 본문의 환경별 실행은 아래 진행 및 TEST_EVIDENCE에서 구분한다.
 
 고정 Admin의 생성/비밀번호 변경 정책 실패 14개 검사를 선택 `Creator`/`PasswordEditor`의 독립 생성 앱으로 옮겼다.
 사전·최종 거부, rollback cleanup 실패·삼킨 오류·결과 불명, 사전·최종 취소의 진단 구분과 해싱/실제 native 시도 횟수를
@@ -820,6 +820,12 @@ read consumer와 catalog 전환은 모든 필수 leaf·원문·제한을 유지�
 고정 Admin의 비밀번호 비활성화·반복·복구도 선택 모델의 실제 HTTP로 옮겼다. CSRF/confirmation/stale 거부, 비활성화의
 정책·해싱 생략과 marker/revision 회전, 대상 세션 폐기·정확한 감사, 복구 정책 재적용·재접속을 전체 native 상태로 대조한다.
 기존 독립 unusable 기준과 실패/경합 검사는 유지하며 process별 필수 226개 본문의 원격 수용은 별도로 확인한다.
+
+마지막 고정 Admin CRUD/비밀번호/입력 소비자를 선택 owner에 연결하고 고정 Register/Config·User 전용 Form을 제거했다.
+실제 Admin의 host PROTECT 거부와 CASCADE/SET_NULL·세션·catalog/through·감사 효과는 별도 native 연결의 전체 상태로
+확인하도록 보강했다. Independent Django Form 원문은 선택 등록의 필드를 사용하고, HTML label escaping·중복 관계 선택·
+등록 metadata 복사·권한·비밀 입력과 초기화 실패 경계는 현행 필수 검사에 유지한다. 호환 shim은 두지 않으며 남은
+Directory/Manager의 역사·서비스 소비자는 유지한다. 이 제품 API 정리와 새 원격 본문의 수용은 별도다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

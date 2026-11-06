@@ -177,6 +177,7 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		}
 		return data
 	}
+	const permissionLabel, groupLabel = "HTTP <permission>", "HTTP <group>"
 	var permissionID, groupID, lastID int64
 	t.Run("create_permission", func(t *testing.T) {
 		page := get("/admin/grants/add/")
@@ -185,7 +186,7 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				t.Fatal("selected permission form field missing", name)
 			}
 		}
-		data := permissionData("catalog.http", "HTTP permission")
+		data := permissionData("catalog.http", permissionLabel)
 		data.Set("csrfmiddlewaretoken", csrf(page))
 		status, headers, _ := send("POST", "/admin/grants/add/", data)
 		if status != 302 || !strings.HasPrefix(headers.Get("Location"), "/admin/grants/") {
@@ -232,7 +233,7 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		if strings.Contains(page, "Page permission 19") {
 			t.Fatal("unbounded initial choice enumeration")
 		}
-		data := groupData("HTTP group", lastID)
+		data := groupData(groupLabel, permissionID, lastID, lastID)
 		data.Set("csrfmiddlewaretoken", csrf(page))
 		status, _, _ := send("POST", "/admin/teams/add/", data)
 		if status != 302 {
@@ -247,14 +248,35 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 		stored, err := groups.Get(t.Context(), actor, groupID)
 		check(err)
 		keys, present := stored.View().Collection(role.Catalog.GroupPermissions)
-		if !present || !slices.Equal(keys, []int64{lastID}) {
+		if !present || !slices.Equal(keys, []int64{permissionID, lastID}) {
 			t.Fatal("form relation selection lost")
+		}
+	})
+	t.Run("rendered_labels", func(t *testing.T) {
+		before, hashes := snapshot(), hashObserver.calls.Load()
+		for _, probe := range []struct {
+			path   string
+			labels []string
+		}{
+			{"/admin/grants/", []string{permissionLabel}},
+			{"/admin/teams/", []string{groupLabel}},
+			{"/admin/teams/change/?id=" + strconv.FormatInt(groupID, 10), []string{groupLabel, permissionLabel}},
+		} {
+			page := get(probe.path)
+			for _, label := range probe.labels {
+				if !strings.Contains(page, html.EscapeString(label)) || strings.Contains(page, label) {
+					t.Fatal("stored catalog label was omitted or rendered as HTML", probe.path)
+				}
+			}
+		}
+		if hashObserver.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("catalog rendering changed native rows or password work")
 		}
 	})
 	if permissionExtra != "" {
 		t.Run("partial_constraint", func(t *testing.T) {
 			path := "/admin/grants/add/"
-			data := permissionData("", "HTTP permission")
+			data := permissionData("", permissionLabel)
 			data.Set("csrfmiddlewaretoken", csrf(get(path)))
 			before := snapshot()
 			status, headers, body := send("POST", path, data)
@@ -285,7 +307,7 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				data.Set(role.Catalog.PermissionName, "")
 			}
 			if mode == "invalid_choice" {
-				path, data = "/admin/teams/add/", groupData("HTTP group", 9_999_999)
+				path, data = "/admin/teams/add/", groupData(groupLabel, 9_999_999)
 			}
 			if mode == "change_group_partial_unique" {
 				path, data = groupPath, groupData(occupiedGroup, lastID)
@@ -298,7 +320,7 @@ func assertCatalogAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				data.Set("expected_revision", "1")
 			}
 			if mode == "stale" {
-				path, data = groupPath, groupData("HTTP group", lastID)
+				path, data = groupPath, groupData(groupLabel, lastID)
 				data.Set("expected_revision", "2")
 			}
 			page := get(path)

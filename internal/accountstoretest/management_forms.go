@@ -160,7 +160,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 	}
 	hasher := &creationHasher{PasswordHasher: f.hasher}
 	owner := accountManagement(t, backend, hasher, config)
-	beforeHash := hasher.calls.Load()
+	expectedHashes := hasher.calls.Load()
 	target := roleTarget(t, backend, f, "form-target")
 	formValidationSessions(t, backend, passwordCredential(t, f, target))
 	before, err := models.UserObjects.Using(backend).OrderBy(models.UserFields.ID.Asc()).All(t.Context())
@@ -178,12 +178,14 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 				copy := config
 				copy.CaseInsensitiveCreationLogin = true
 				selected = accountManagement(t, backend, hasher, copy)
+				expectedHashes++ // New authenticator performs one bounded dummy hash.
 				data["username"] = []string{strings.ToUpper(f.user.Username)}
 			}
 			if mode == "change_revoked" {
 				copy := config
-				copy.Permissions.Change = "account.direct"
+				copy.Permissions.Add, copy.Permissions.Change = config.Permissions.Change, config.Permissions.Add
 				selected = accountManagement(t, backend, hasher, copy)
+				expectedHashes++
 			}
 			if mode == "create_requires_change" || mode == "additional_permission" {
 				copy := config
@@ -193,6 +195,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 					copy.Permissions.Additional = []auth.Permission{"account.unheld"}
 				}
 				selected = accountManagement(t, backend, hasher, copy)
+				expectedHashes++
 			}
 			if mode == "old_domain" {
 				namespace, err := f.binding.CredentialDomain([32]byte{9})
@@ -232,6 +235,9 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 						t.Error(err)
 					}
 				})
+			}
+			if hasher.calls.Load() != expectedHashes {
+				t.Fatal("management variant changed authenticator setup work")
 			}
 			expected := formNativeSnapshot(t, backend)
 			var err error
@@ -299,13 +305,16 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 					requireProfileCode(t, err, accountmodel.CodePermission)
 				}
 			}
-			if !reflect.DeepEqual(expected, formNativeSnapshot(t, backend)) || calls != 0 || hasher.calls.Load() != beforeHash {
-				t.Fatal("advisory check changed native state or invoked write/password work")
+			if !reflect.DeepEqual(expected, formNativeSnapshot(t, backend)) {
+				t.Fatal("advisory check changed native state")
+			}
+			if calls != 0 || hasher.calls.Load() != expectedHashes {
+				t.Fatal("advisory check invoked write/password work", calls, hasher.calls.Load(), expectedHashes)
 			}
 		})
 	}
 	after, err := models.UserObjects.Using(reopen(t)).OrderBy(models.UserFields.ID.Asc()).All(t.Context())
-	if err != nil || !reflect.DeepEqual(before, after) || len(profileHistory(t, backend, actor, target.ID)) != 0 || calls != 0 || hasher.calls.Load() != beforeHash {
+	if err != nil || !reflect.DeepEqual(before, after) || len(profileHistory(t, backend, actor, target.ID)) != 0 || calls != 0 || hasher.calls.Load() != expectedHashes {
 		t.Fatal("advisory check mutated rows, audit, password or callbacks", err)
 	}
 	// A successful advisory observation cannot reserve uniqueness or replace
@@ -320,7 +329,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 		t.Fatal(err)
 	}
 	_, err = owner.Creator().Prepare(t.Context(), actor, input, password)
-	if failures, rejected := validation.Rejected(err); !rejected || failures.ByField("username").Empty() || hasher.calls.Load() != beforeHash {
+	if failures, rejected := validation.Rejected(err); !rejected || failures.ByField("username").Empty() || hasher.calls.Load() != expectedHashes {
 		t.Fatal("advisory check bypassed later uniqueness or hashed duplicate", err)
 	}
 }
@@ -382,6 +391,7 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 			}
 			bound := managementBoundForm(t, owner, map[string][]string{"username": {f.user.Username}, "email": {"invalid"}}, current, nil, nil)
 			before := formNativeSnapshot(t, backend)
+			hashes := hasher.calls.Load()
 			var err error
 			if current == nil {
 				err = managementCreationFormError(t, owner, ctx, actor, bound)
@@ -410,7 +420,7 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 					t.Fatal("original borrowed validation reader survived its scope")
 				}
 			}
-			if !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) || hasher.calls.Load() != 0 {
+			if !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) || hasher.calls.Load() != hashes {
 				t.Fatal("failed advisory scope changed native state or hashed a password")
 			}
 		})

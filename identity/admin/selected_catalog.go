@@ -26,6 +26,14 @@ type CatalogRegistration struct {
 	Groups, Permissions CatalogPresentation
 }
 
+func integerValues(ids []int64) templates.Value {
+	values := make([]templates.Value, len(ids))
+	for i, id := range ids {
+		values[i] = templates.Integer(id)
+	}
+	return templates.List(values...)
+}
+
 // RegisterCatalog binds the actual selected Group/Permission types and current
 // lifecycle owner to the common Admin. It performs no I/O. Publish the Builder
 // only after registration succeeds; a failure may leave earlier registrations.

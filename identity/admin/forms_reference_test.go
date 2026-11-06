@@ -8,8 +8,15 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/forms"
 	"github.com/progresshans/godj/identity/internal/forminput"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/identity/project"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -40,6 +47,48 @@ type formReference struct {
 	}
 }
 
+func selectedIdentityForReference(t *testing.T) admin.Registry {
+	t.Helper()
+	probe := &catalogRegistrationProbe{}
+	store, err := project.NewAccountSessionStore(probe, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifier, err := store.Authenticator(t.Context(), hasher)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, err := project.NewAccountManagement(store, verifier, auth.PrincipalAuthorizer{}, accountmodel.AccountManagementConfig[models.User]{
+		ReadFields: []string{"username", "email"}, CreateFields: []string{"username"}, EditFields: []string{"username", "email"},
+		Permissions:           accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"},
+		GroupPermissions:      accountmodel.DeletionPermissions{Change: "catalog.change_group", Delete: "catalog.delete_group"},
+		PermissionPermissions: accountmodel.DeletionPermissions{Change: "catalog.change_permission", Delete: "catalog.delete_permission"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	installed, err := apps.New(project.InstalledApps())
+	if err != nil {
+		t.Fatal(err)
+	}
+	builder := admin.NewBuilder(installed)
+	if err := RegisterAccount(builder, owner, AccountRegistration{Slug: "accounts", CreationLoginInput: accountmodel.UnicodeUsernameInput(150)}); err != nil {
+		t.Fatal(err)
+	}
+	registry, err := builder.Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if probe.calls != 0 {
+		t.Fatal("selected reference registration performed storage I/O")
+	}
+	return registry
+}
+
 func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 	var inputs inputCorpus
 	var expected formReference
@@ -56,7 +105,7 @@ func TestIdentityFormDjangoReferenceSubset(t *testing.T) {
 	if len(inputs.Usernames) != len(expected.Usernames) || len(inputs.Passwords) != len(expected.Passwords) || len(inputs.Emails) != len(expected.Emails) {
 		t.Fatal("reference omitted inputs")
 	}
-	registry := registeredIdentityForTest(t)
+	registry := selectedIdentityForReference(t)
 	descriptor, _ := registry.Lookup("godj_identity", "user")
 	spec, err := forms.NewSpec(descriptor.CreateFormFields, forminput.CreationPasswords())
 	if err != nil {
