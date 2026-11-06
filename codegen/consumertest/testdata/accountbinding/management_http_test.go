@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"example.com/godj-project-bundle/project"
+	accountaudit "github.com/progresshans/godj/account/audit"
 	auditmodels "github.com/progresshans/godj/account/audit/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
@@ -49,6 +50,8 @@ import (
 // commits before losing its acknowledgement; it is not a network experiment.
 type managementHTTPBackend struct {
 	database.Backend
+	beforeWrite     atomic.Pointer[managementHTTPWriteHook]
+	beforeHistory   atomic.Pointer[managementHTTPHistoryHook]
 	writeFault      atomic.Value
 	readFault       atomic.Bool
 	writes          atomic.Int64
@@ -57,13 +60,44 @@ type managementHTTPBackend struct {
 	readFailures    atomic.Int64
 }
 
+type managementHTTPWriteHook struct{ before func(context.Context) error }
+type managementHTTPHistoryHook struct {
+	before func(context.Context, db.Queryer) error
+}
+
 func (backend *managementHTTPBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
-	err := backend.Backend.ReadSnapshot(ctx, read)
+	err := backend.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+		if backend.beforeHistory.Load() == nil {
+			return read(reader)
+		}
+		validator, ok := reader.(db.SessionValidator)
+		if !ok {
+			return errors.New("native history probe lost its borrowed scope")
+		}
+		return read(&managementHTTPHistoryReader{Queryer: reader, SessionValidator: validator, backend: backend})
+	})
 	if backend.readFault.Swap(false) {
 		backend.readFailures.Add(1)
 		return errors.Join(err, errors.New("private cleanup failure"))
 	}
 	return err
+}
+
+type managementHTTPHistoryReader struct {
+	db.Queryer
+	db.SessionValidator
+	backend *managementHTTPBackend
+}
+
+func (reader *managementHTTPHistoryReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if plan.Table() == "godj_account_audit_event" {
+		if hook := reader.backend.beforeHistory.Swap(nil); hook != nil {
+			if err := hook.before(ctx, reader.Queryer); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return reader.Queryer.Query(ctx, plan)
 }
 
 func (backend *managementHTTPBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
@@ -84,6 +118,11 @@ func (backend *managementHTTPBackend) CoordinatedAtomicRelation(ctx context.Cont
 
 func (backend *managementHTTPBackend) coordinated(ctx context.Context, write func(db.Session) error, invoke func(context.Context, func(db.Session) error) error) error {
 	backend.writes.Add(1)
+	if hook := backend.beforeWrite.Swap(nil); hook != nil {
+		if err := hook.before(ctx); err != nil {
+			return err
+		}
+	}
 	fault, _ := backend.writeFault.Swap("").(string)
 	if fault == "cancel" {
 		canceled, cancel := context.WithCancel(ctx)
@@ -185,11 +224,12 @@ func (hasher *managementHTTPHasher) Hash(ctx context.Context, raw string) (strin
 // separates the management owner's snapshot from session resolution snapshots.
 type managementHTTPOverlay struct {
 	catalogAdminOverlay
-	backend                *managementHTTPBackend
-	failReadAfterAdmission atomic.Bool
-	writeAfterAdmission    atomic.Value
-	writeStart             atomic.Int64
-	writeArmed             atomic.Int64
+	backend                 *managementHTTPBackend
+	failReadAfterAdmission  atomic.Bool
+	writeAfterAdmission     atomic.Value
+	writeHookAfterAdmission atomic.Pointer[managementHTTPWriteHook]
+	writeStart              atomic.Int64
+	writeArmed              atomic.Int64
 }
 
 func (overlay *managementHTTPOverlay) Allowed(ctx context.Context, actor auth.Principal, permission auth.Permission) (bool, error) {
@@ -198,6 +238,11 @@ func (overlay *managementHTTPOverlay) Allowed(ctx context.Context, actor auth.Pr
 		overlay.backend.readFault.Store(true)
 	}
 	if err == nil && allowed {
+		if hook := overlay.writeHookAfterAdmission.Swap(nil); hook != nil {
+			overlay.writeStart.Store(overlay.backend.writes.Load())
+			overlay.backend.beforeWrite.Store(hook)
+			overlay.writeArmed.Add(1)
+		}
 		if fault, _ := overlay.writeAfterAdmission.Swap("").(string); fault != "" {
 			// Admin's normal session access has its own transaction. Arm the
 			// lifecycle failure after that access, before the final owner fence.
@@ -1547,6 +1592,217 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			}
 		}
 	})
+
+	// The submitting browser has its own authority so the independent root
+	// observer can still compare all native state after that authority changes.
+	boundaryActor := func(name string) (receipt, *http.Client, auth.Principal) {
+		t.Helper()
+		fields := accountFields(name)
+		fields[role.Superuser.Field] = true
+		if role.Staff.Field != "" {
+			fields[role.Staff.Field] = true
+		}
+		status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(fields, "boundary actor password"), "", true)
+		created := decodeReceipt(status, header, body, 201)
+		browser := newClient()
+		login(browser, name, "boundary actor password")
+		credential, err := verifier.Authenticate(t.Context(), name, "boundary actor password")
+		check(err)
+		return created, browser, credential.Principal()
+	}
+	nativeChange := func(ctx context.Context, scope db.Session, id int64, values map[string]query.Value) error {
+		row, err := objects.Using(scope).Filter(key.Exact(id)).Get(ctx)
+		if err != nil {
+			return err
+		}
+		updated, err := objects.ApplyValues(row, values)
+		if err != nil {
+			return err
+		}
+		names := make([]string, 0, len(values))
+		for name := range values {
+			names = append(names, name)
+		}
+		slices.Sort(names)
+		return objects.Save(ctx, scope, &updated, orm.UpdateFieldNames[M](names...))
+	}
+	expectNativeChange := func(expected *durable, id int64, values map[string]query.Value) {
+		t.Helper()
+		_, _, index := managementHTTPWithout(t, objects, expected.Accounts, id)
+		if index < 0 {
+			t.Fatal("native boundary target missing")
+		}
+		expected.Accounts = slices.Clone(expected.Accounts)
+		updated, err := objects.ApplyValues(expected.Accounts[index], values)
+		check(err)
+		expected.Accounts[index] = updated
+	}
+	for _, mode := range []string{"revision", "authority"} {
+		run("admin_write_fence_"+mode, func(t *testing.T) {
+			writer, err := database.Open(t.Context(), backendConfig)
+			check(err)
+			defer func() { check(writer.Close()) }()
+			submitter, browser, _ := boundaryActor("fence-" + mode + "@example.test")
+			fields := accountFields("target-" + mode + "@example.test")
+			status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(fields, "boundary target password"), "", true)
+			target := decodeReceipt(status, header, body, 201)
+			fields[profileField] = "NZ"
+			submit := prepareAdmin(browser, "/admin/accounts/change/?id="+strconv.FormatInt(target.ID, 10), fields, strconv.FormatInt(target.Revision, 10))
+			before := snapshot()
+			expected := before
+			changedID, want := target.ID, 409
+			changes := map[string]query.Value{"password": query.String("competing winner"), role.Revision: query.Integer(target.Revision + 1)}
+			if mode == "authority" {
+				changedID, want = submitter.ID, 403
+				changes = map[string]query.Value{role.Superuser.Field: query.Boolean(false), role.Revision: query.Integer(submitter.Revision + 1)}
+			}
+			expectNativeChange(&expected, changedID, changes)
+			var calls atomic.Int64
+			hashes, armed := trackedHasher.calls.Load(), overlay.writeArmed.Load()
+			overlay.writeHookAfterAdmission.Store(&managementHTTPWriteHook{before: func(ctx context.Context) error {
+				calls.Add(1)
+				return writer.CoordinatedAtomic(ctx, func(scope db.Session) error { return nativeChange(ctx, scope, changedID, changes) })
+			}})
+			defer func() { overlay.writeHookAfterAdmission.Store(nil); faults.beforeWrite.Store(nil) }()
+			status, header, _ = submit()
+			if status != want || header.Get("Location") != "" || calls.Load() != 1 ||
+				overlay.writeArmed.Load() != armed+1 || faults.writes.Load()-overlay.writeStart.Load() != 1 || trackedHasher.calls.Load() != hashes {
+				t.Fatal("Admin final fence did not reject exactly one late native write", mode, status)
+			}
+			if !reflect.DeepEqual(expected, snapshot()) {
+				t.Fatal("rejected Admin write changed state beyond the independent competing commit", mode)
+			}
+		})
+	}
+	historySequences := func(body []byte) []int64 {
+		t.Helper()
+		matches := regexp.MustCompile(`data-sequence="([0-9]+)"`).FindAllSubmatch(body, -1)
+		result := make([]int64, len(matches))
+		for index, match := range matches {
+			sequence, err := strconv.ParseInt(string(match[1]), 10, 64)
+			check(err)
+			result[index] = sequence
+		}
+		return result
+	}
+	run("admin_history_snapshot_and_scope", func(t *testing.T) {
+		writer, err := database.Open(t.Context(), backendConfig)
+		check(err)
+		defer func() { check(writer.Close()) }()
+		submitter, browser, retainedActor := boundaryActor("history-reader@example.test")
+		status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(accountFields("history-target@example.test"), "history target password"), "", true)
+		target := decodeReceipt(status, header, body, 201)
+		endpoint := "/admin/accounts/history/?id=" + strconv.FormatInt(target.ID, 10)
+		baseline, err := owner.Reader().History(t.Context(), retainedActor, target.ID, 100)
+		check(err)
+		if len(baseline) != 1 || baseline[0].Action() != admin.ActionAdd {
+			t.Fatal("history baseline is not the real creation event")
+		}
+		// Establish ordinary session access before comparing read-only state.
+		status, _, body = adminSend(browser, "GET", endpoint, nil)
+		if status != 200 || !slices.Equal(historySequences(body), []int64{baseline[0].Sequence()}) {
+			t.Fatal("initial Admin history differs", status)
+		}
+		before := snapshot()
+		expected := before
+		targetChanges := map[string]query.Value{"password": query.String("history winner"), role.Revision: query.Integer(target.Revision + 1)}
+		actorChanges := map[string]query.Value{role.Superuser.Field: query.Boolean(false), role.Revision: query.Integer(submitter.Revision + 1)}
+		expectNativeChange(&expected, target.ID, targetChanges)
+		expectNativeChange(&expected, submitter.ID, actorChanges)
+		domain, bound := actor.CredentialDomain()
+		if !bound {
+			t.Fatal("history actor lost selected domain")
+		}
+		model := role.Model.AppLabel + "." + role.Model.ModelName
+		event, err := accountaudit.Prepare(actor, model, target.ID, admin.ActionChange, []string{"password"}, clock())
+		check(err)
+		type observation struct {
+			reader db.Queryer
+			entry  accountaudit.Entry
+		}
+		observed := make(chan observation, 1)
+		var calls atomic.Int64
+		faults.beforeHistory.Store(&managementHTTPHistoryHook{before: func(ctx context.Context, reader db.Queryer) error {
+			calls.Add(1)
+			var entry accountaudit.Entry
+			err := writer.CoordinatedAtomic(ctx, func(scope db.Session) error {
+				if err := nativeChange(ctx, scope, target.ID, targetChanges); err != nil {
+					return err
+				}
+				if err := nativeChange(ctx, scope, submitter.ID, actorChanges); err != nil {
+					return err
+				}
+				var err error
+				entry, err = accountaudit.AppendIn(ctx, scope, event)
+				return err
+			})
+			if err == nil {
+				observed <- observation{reader: reader, entry: entry}
+			}
+			return err
+		}})
+		defer faults.beforeHistory.Store(nil)
+		status, _, body = adminSend(browser, "GET", endpoint, nil)
+		if status != 200 || calls.Load() != 1 || !slices.Equal(historySequences(body), []int64{baseline[0].Sequence()}) {
+			t.Fatal("Admin history mixed old authority with a newly committed audit", status)
+		}
+		var seen observation
+		select {
+		case seen = <-observed:
+		default:
+			t.Fatal("history probe did not observe its separate commit")
+		}
+		after := snapshot()
+		if len(after.Audits) != len(before.Audits)+1 {
+			t.Fatal("competing history commit lost or duplicated audit")
+		}
+		added := after.Audits[len(before.Audits)]
+		if added.ID != seen.entry.Sequence() || added.Domain != domain.Identifier() || added.ActorID != actor.ID() ||
+			added.Model != model || added.ObjectID != target.ID || added.Action != string(admin.ActionChange) ||
+			added.ChangedFields != `["password"]` || !added.RecordedAt.Equal(clock()) {
+			t.Fatal("competing history audit lost its exact native semantics")
+		}
+		after.Audits = after.Audits[:len(before.Audits)]
+		if !reflect.DeepEqual(expected, after) {
+			t.Fatal("history read changed state beyond the separate authorized commit")
+		}
+		for _, reader := range []db.Queryer{seen.reader, faults.Backend} {
+			if entries, err := accountaudit.HistoryIn(t.Context(), reader, domain, model, target.ID, 100); err == nil || entries != nil {
+				t.Fatal("expired or root history reader impersonated a borrowed scope")
+			}
+		}
+		entries, err := owner.Reader().History(t.Context(), retainedActor, target.ID, 100)
+		failure, valid := err.(*accountmodel.Error)
+		if !valid || failure.Code != accountmodel.CodePermission || entries != nil {
+			t.Fatal("retained history actor reused revoked authority", err)
+		}
+		status, _, body = adminSend(browser, "GET", endpoint, nil)
+		if status != 403 || len(historySequences(body)) != 0 {
+			t.Fatal("next Admin history retained revoked authority", status)
+		}
+		status, _, body = adminSend(client, "GET", endpoint, nil)
+		if status != 200 || !slices.Equal(historySequences(body), []int64{baseline[0].Sequence(), seen.entry.Sequence()}) {
+			t.Fatal("fresh authorized Admin history omitted the concurrent commit", status)
+		}
+	})
+	run("admin_history_storage_failure", func(t *testing.T) {
+		before := snapshot()
+		cause := errors.Join(errors.New("private history query failure"), &accountmodel.Error{Code: accountmodel.CodePermission})
+		var calls atomic.Int64
+		hook := &managementHTTPHistoryHook{before: func(context.Context, db.Queryer) error { calls.Add(1); return cause }}
+		faults.beforeHistory.Store(hook)
+		defer faults.beforeHistory.Store(nil)
+		entries, err := owner.Reader().History(t.Context(), actor, created.ID, 100)
+		failure, valid := err.(*accountmodel.Error)
+		if !valid || failure.Code != accountmodel.CodePersistence || !errors.Is(err, cause) || entries != nil || calls.Load() != 1 {
+			t.Fatal("history storage failure was downgraded or published provisional entries", err)
+		}
+		faults.beforeHistory.Store(hook)
+		status, header, body := adminSend(client, "GET", "/admin/accounts/history/?id="+strconv.FormatInt(created.ID, 10), nil)
+		if status != 500 || header.Get("Location") != "" || len(historySequences(body)) != 0 || calls.Load() != 2 || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("Admin history storage failure became a permission refusal or changed native state", status)
+		}
+	})
 	run("admin_status_display_boundary", func(t *testing.T) {
 		before := snapshot()
 		hashes := trackedHasher.calls.Load()
@@ -1682,8 +1938,8 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			if status != 200 || !seen || !reflect.DeepEqual(before, snapshot()) {
 				t.Fatal("password status list mutated or omitted target", status)
 			}
-			page := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
-			status, _, value = adminSend(client, "GET", page, nil)
+			adminPage := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
+			status, _, value = adminSend(client, "GET", adminPage, nil)
 			label := "Disabled"
 			if usable {
 				label = "Enabled"
@@ -1693,7 +1949,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			}
 			invalid := accountFields("api@example.test")
 			invalid[profileField], invalid[role.Active.Field] = "forbidden", active
-			submit := prepareAdmin(client, page, invalid, strconv.FormatInt(created.Revision, 10))
+			submit := prepareAdmin(client, adminPage, invalid, strconv.FormatInt(created.Revision, 10))
 			status, _, value = submit()
 			if status != 200 || !strings.Contains(string(value), `data-field-name="`+statusName+`">`+label) || !reflect.DeepEqual(before, snapshot()) {
 				t.Fatal("rejected Admin edit lost the observed credential status", status)

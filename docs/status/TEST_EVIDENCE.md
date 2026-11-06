@@ -4064,6 +4064,41 @@ Article과 scaffold 정책은 module 치환 뒤 동일하며 245개 문서 링�
 선행 `d944658f`의 [CI 42135035087](https://github.com/progresshans/godj/actions/runs/42135035087)는 이 LastLogin 변경을
 포함하지 않으며, 진행 중 상태를 이 새 소비자나 I1의 PASS로 계산하지 않는다.
 
+
+## GDJ-0138 — 선택 Admin의 최종 쓰기·이력 snapshot 검사 이관
+
+선행 source `dac3621a992fb108847396f0ef468b1422cf4cb7`의
+[CI 42136886955](https://github.com/progresshans/godj/actions/runs/42136886955),
+[ubuntu arm64 normal relation shard 2/19](https://github.com/progresshans/godj/actions/runs/42136886955/job/127627825428)에서
+일곱 생성 변형 모두 `management_http_test.go:1685`의 compile 실패를 확인했다. 실제 checkout은
+`52789c03f034bb919a5caf71c735ff012ef60d74`이며 JSON 목록 `page`와 Admin URL `page :=`의 같은 scope 충돌이다.
+URL을 `adminPage`로 분리했다. 이 실패는 해당 생성 HTTP 본문을 실행한 결과가 아니며 앞선 LastLogin/상태 표시의 PASS로 쓰지 않는다.
+원본 로그는 검증 보관소 `gdj0138-admin-boundaries-v1/ci-42136886955-job-127627825428.log`에 보존했다
+(SHA-256 `baa658fb9011e6ecddf3b870041222c7ba9bc0349b978c46755b4d20071d39c7`).
+
+같은 후속 묶음에서 고정 `RunManagementAdmin`의 아래 네 child를 실제 선택 모델의 생성 HTTP 소비자로 옮겼다.
+새 child는 `TestGeneratedAccountManagementHTTP/` 아래 있으며 기본/custom·정규화·LastLogin 부재·짧은 Char/Text
+일곱 변형의 양 DB 실행에서 각각 필수로 요구한다. 이는 별도 connection의 실제 native 쓰기를 HTTP 요청 중 끼워 넣는 검사다.
+별도 OS process나 새로운 Django 기준 실행으로 확대하지 않는다.
+
+| 고정 소비자에서 제거한 child | 선택 모델의 계속되는 검증 책임 |
+| --- | --- |
+| `write_fence_rechecks_revision` | `admin_write_fence_revision`: 실제 Form의 사전 조회·인가 뒤 최종 transaction 직전에 별도 연결로 대상 profile/revision을 변경한다. 요청은 409이고 경쟁 쓰기 외 모든 행·소속·session·audit를 보존하며 hash와 재시도가 없어야 한다. |
+| `write_fence_rechecks_authority` | `admin_write_fence_authority`: 별도 browser 주체의 superuser 권한과 revision을 최종 fence 직전에 변경한다. 403과 경쟁 쓰기만 반영된 전체 durable 상태, 정확히 한 번의 관리 transaction을 대조한다. |
+| `history_shares_authorization_snapshot_and_reader_expires` | `admin_history_snapshot_and_scope`: 현재 인가·대상 조회 뒤 audit SELECT 직전에 별도 연결이 대상/주체 변경과 audit를 함께 commit한다. 진행 중 HTML은 원래 audit만, 다음 retained principal·browser는 권한 거부, 새 인가 조회는 새 audit까지 반환해야 한다. 종료된 borrowed reader와 root backend의 history 사용도 거부한다. |
+| `history_storage_failure_is_not_permission_denial` | `admin_history_storage_failure`: native audit SELECT에서 private 저장 오류와 permission 오류를 합친다. typed owner는 원인을 가진 `persistence_failure`·nil 결과, 실제 Admin은 500·부분 이력/원인 비노출·전체 durable 무변경을 확인한다. |
+
+검사 hook은 atomic으로 한 번만 소비하며 HTTP session 접근 transaction 뒤에 최종 쓰기 hook을 설정한다.
+이력은 실제 native snapshot의 수명 검사를 전달하고 audit SELECT에서만 개입한다. 주체의 권한을 바꾼 뒤에도 별도의
+root 관찰자가 전체 native 계정·catalog·소속·session·audit를 대조한다. 경쟁 commit의 audit 필드와 시각도 독립 대조한다.
+SQLite/PostgreSQL 고정 selector는 위 네 개씩만 제거했다(relation 4,950→4,946; PostgreSQL 5,871→5,867).
+나머지 selector·기존 생성 child·Django 원문과 고정 Form/password/selection·Directory/Manager 검사는 유지한다.
+
+로컬 Go compile·generator·테스트·DB 실행은 사용자 지시에 따라 하지 않았다. 변경 Go 4개의 gofmt·어휘 수준 import 참조,
+소비자 embed와 필수 child 연결·selector 보존·245개 문서 링크·diff를 정적으로 확인했다. 이는 타입/compile 검증이 아니다.
+CI 분할 Python 검사 25개가 27.569초에 통과했다. 실제 생성/타입·HTTP·양 DB·race·
+CGO-disabled·전체 platform 수용은 이 변경을 push한 후의 원격 CI 대상이다. 고정 Admin 제품 전체와 I1 수용은 아직 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

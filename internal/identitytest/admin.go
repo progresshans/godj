@@ -55,8 +55,6 @@ func adminPermissions(t *testing.T, f *managementFixture, staff bool, permission
 func RunManagementAdmin(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
 	runAdminPasswordCreation(t, open)
-	runAdminFailureBoundaries(t, open)
-	runAdminReadBoundaries(t, open)
 	runAdminSelectionBoundaries(t, open)
 	runPasswordPolicyBoundaries(t, open)
 	runUserChangeModelValidation(t, open)

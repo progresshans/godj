@@ -701,6 +701,12 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 고정 login 소비자의 Admin 표시 검사를 이 소비자와 Article로 옮겼으며 기존 Django login 원문·독립 대조와 native 실패 검사는 유지한다.
 코드 작성·정적 확인과 이 새 본문의 실제 양 DB·원격 수용은 TEST_EVIDENCE에서 구분한다.
 
+
+고정 Admin의 최종 쓰기 revision/현재 권한 경합과 이력 snapshot·borrowed 수명·저장 오류 분류 네 검사를 기본/custom
+생성 HTTP의 양 DB 필수 child로 이관했다. 별도 native 연결의 경쟁 commit만 반영되고 거부/조회 요청은 계정·catalog·
+소속·session·audit를 추가 변경하지 않아야 한다. 같은 source의 생성 소비자에서 발견된 JSON 목록/Admin URL 이름 충돌도
+수정했다. 남은 고정 Form·selection·password 검사는 유지하며 작성/정적 확인과 원격 실행은 TEST_EVIDENCE에서 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
