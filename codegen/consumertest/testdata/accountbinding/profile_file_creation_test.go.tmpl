@@ -50,6 +50,7 @@ type creationFileFixture struct{
     actor auth.Principal
     firstID,groupID,grantID int64
     reject,rejectPassword atomic.Bool
+    partialPasswordCalls atomic.Int64
     reports creationFileReports
     clock func()time.Time
     document,portrait []byte
@@ -89,7 +90,16 @@ func newCreationFileFixture(t *testing.T)*creationFileFixture{
         if secret!=""||!strings.HasPrefix(document,"document/"){return validation.Errors{},errors.New("validator did not receive redacted actual storage names")}
         if f.reject.Load(){return validation.NewErrors(validation.New("document","rejected")),nil};return validation.Errors{},nil
     }
-    passwordPolicy:=func(context.Context,string,fileAccount)(validation.Errors,error){if f.rejectPassword.Load(){return validation.NewErrors(validation.New(validation.NonField,"rejected_password")),nil};return validation.Errors{},nil}
+    passwordPolicy:=func(_ context.Context,raw string,profile orm.ModelView[fileAccount])(validation.Errors,error){
+        if raw=="partial-password" {
+            f.partialPasswordCalls.Add(1)
+            for _,name:=range []string{"document","second_document","portrait","preset","portrait_width","portrait_height","preset_width","preset_height"}{
+                if _,present:=profile.Get(name);present{return validation.Errors{},errors.New("advisory policy received a file reference or derived dimension")}
+            }
+            return validation.NewErrors(validation.New("password","partial_strength")),nil
+        }
+        if f.rejectPassword.Load(){return validation.NewErrors(validation.New(validation.NonField,"rejected_password")),nil};return validation.Errors{},nil
+    }
     f.config=accountmodel.RuntimeConfig[fileAccount,@@GROUP@@,@@PERMISSION@@]{Sessions:sessions.Config{Clock:f.clock},
         Accounts:accountmodel.AccountManagementConfig[fileAccount]{ReadFields:read,CreateFields:create,EditFields:edit,Files:f.files,Permissions:accounts,Now:f.clock,ValidateCreate:validate,ValidatePassword:passwordPolicy,
             GroupPermissions:accountmodel.DeletionPermissions{Change:groups.Change,Delete:groups.Delete},PermissionPermissions:accountmodel.DeletionPermissions{Change:permissions.Change,Delete:permissions.Delete}},
@@ -261,6 +271,15 @@ func TestGeneratedProfileFileCreation(t *testing.T){
         if f.hasher.calls.Load()!=beforeHashes{t.Fatal("unusable file creation hashed a password")}
         if _,err:=f.runtime.Authenticator().Authenticate(t.Context(),"unusable@example.test",accountPasswordText);err==nil{t.Fatal("unusable creation authenticated")}
         names:=creator.FileFields();names[0]="mutated";if creator.FileFields()[0]!="document"{t.Fatal("creation file policy aliases caller slice")}
+    })
+    run("partial_password_before_files",func(t *testing.T){
+        definition,err:=f.runtime.Accounts().Creator().FormDefinition();fileCheck(t,err)
+        bound:=f.form(t,definition,f.data(t,"partial-password@example.test",false))
+        before:=f.snapshot(t);saves,names,hashes,writes:=f.disk.saves.Load(),f.disk.names.Load(),f.hasher.calls.Load(),f.backend.writes.Load()
+        raw:="partial-password"
+        diagnostics,err:=f.runtime.Accounts().CheckCreateForm(t.Context(),f.actor,bound,&raw);fileCheck(t,err)
+        if !diagnostics.Fields.Empty()||diagnostics.Password.ByField("password").Empty()||f.partialPasswordCalls.Load()!=1{t.Fatal("file candidate suppressed independent credential diagnostics")}
+        if f.disk.saves.Load()!=saves||f.disk.names.Load()!=names||f.hasher.calls.Load()!=hashes||f.backend.writes.Load()!=writes{t.Fatal("advisory password published files, hashed or wrote")};f.same(t,before)
     })
     run("admin_creation",func(t *testing.T){
         configured:=f.settings(t)

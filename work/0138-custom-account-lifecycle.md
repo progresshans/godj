@@ -707,6 +707,13 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 소속·session·audit를 추가 변경하지 않아야 한다. 같은 source의 생성 소비자에서 발견된 JSON 목록/Admin URL 이름 충돌도
 수정했다. 남은 고정 Form·selection·password 검사는 유지하며 작성/정적 확인과 원격 실행은 TEST_EVIDENCE에서 구분한다.
 
+
+선택 생성 Form의 부분 오류와 비밀번호 정책을 같은 인가된 읽기 snapshot에서 대조하도록 연결했다. PasswordValidator는
+실제 모델 source의 typed ModelView를 받고 최종 생성·변경·reset의 전체 값과 Form의 미완성 값을 구분한다. 필수 FK를 0으로
+채우거나 ID/시각/hash/파일을 만들지 않으며 모델 오류와 credential 진단의 namespace를 분리한다. 모든 기존 typed 정책
+소비자를 같은 ABI로 옮겼고, 기본/custom 실제 HTTP·필수 FK·파일 생성 소비자와 양 DB 실패 검사를 추가했다. 고정 Form의
+별도 username 규칙·Django 독립 기준 검사는 유지한다. API 작성/정적 확인과 실제 원격 수용은 TEST_EVIDENCE에서 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/progresshans/godj/auth/passwordpolicy"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
@@ -22,6 +23,8 @@ type PasswordAttribute struct{ Field, Label string }
 // Nil attributes selects the actual login and optional distinct email roles;
 // an explicit empty slice selects no similarity attributes. Additional profile
 // attributes are opt-in, retain their declared order and never use a User DTO.
+// Missing attributes in an advisory view contribute no similarity text; other
+// strength rules still run. Zero views and different source metadata fail.
 // Construction reads no rows, invokes no validator and performs no hashing.
 func (binding Binding[M]) DefaultPasswordValidator(attributes ...PasswordAttribute) (PasswordValidator[M], error) {
 	if binding.state == nil {
@@ -63,22 +66,23 @@ func (binding Binding[M]) DefaultPasswordValidator(attributes ...PasswordAttribu
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
-	return func(ctx context.Context, raw string, row M) (validation.Errors, error) {
+	return func(ctx context.Context, raw string, profile orm.ModelView[M]) (validation.Errors, error) {
 		if nilModelValue(ctx) {
 			return validation.Errors{}, managementError(CodeInvalidInput, nil)
 		}
 		if err := ctx.Err(); err != nil {
 			return validation.Errors{}, err
 		}
-		values, err := binding.state.objects.ModelValues(row)
-		if err != nil {
-			return validation.Errors{}, managementError(CodeInvalidInput, err)
+		source, valid := profile.Model()
+		if !valid || !source.Equal(metadata) {
+			return validation.Errors{}, managementError(CodeInvalidInput, nil)
 		}
 		selected := make([]passwordpolicy.Attribute, len(owned))
 		for i, attribute := range owned {
-			value, present := values[attribute.Field]
+			value, present := profile.Get(attribute.Field)
 			if !present {
-				return validation.Errors{}, managementError(CodeInvalidInput, nil)
+				selected[i] = passwordpolicy.Attribute{Label: attribute.Label}
+				continue
 			}
 			text, ok := value.String()
 			if !ok && !(value.IsNull() && fields[attribute.Field].Nullable) {

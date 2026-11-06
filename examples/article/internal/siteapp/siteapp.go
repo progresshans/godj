@@ -28,6 +28,7 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/mail"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
@@ -167,7 +168,7 @@ func New(ctx context.Context, config Config) (*web.Application, error) {
 			return nil, errors.New("article site application: nil password validator")
 		}
 	}
-	runtimeConfig.Accounts.ValidatePassword = func(ctx context.Context, raw string, value models.User) (validation.Errors, error) {
+	runtimeConfig.Accounts.ValidatePassword = func(ctx context.Context, raw string, value orm.ModelView[models.User]) (validation.Errors, error) {
 		var failures validation.Errors
 		for _, validator := range validators {
 			if err := ctx.Err(); err != nil {

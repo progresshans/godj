@@ -11,6 +11,7 @@ import (
 	"example.com/godj-project-bundle/tickets"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/settings/database"
@@ -59,8 +60,8 @@ func TestSelectedAccountReset(t *testing.T) {
 		}
 		other, err := people.MemberObjects.Create(t.Context(), backend, people.NewMemberCreate("selected-other", "other@example.test", encoded, "KR"))
 		resetCheck(t, err)
-		runSelectedResetHTTP(t, backend, reopen, binding, project.NewAccountSessionStore, project.NewAccountPasswordResetter, hasher, row, other, func(_ context.Context, raw string, current people.Member) (validation.Errors, error) {
-			if current.Subject != row.Subject || current.Region != "NZ" || current.Secret != "" {
+		runSelectedResetHTTP(t, backend, reopen, binding, project.NewAccountSessionStore, project.NewAccountPasswordResetter, hasher, row, other, func(_ context.Context, raw string, current orm.ModelView[people.Member]) (validation.Errors, error) {
+			if passwordViewString(t, current, "subject") != row.Subject || passwordViewString(t, current, "region") != "NZ" || passwordViewString(t, current, "secret") != "" {
 				return validation.Errors{}, errors.New("selected custom reset lost typed required profile")
 			}
 			if len(raw) < 12 {

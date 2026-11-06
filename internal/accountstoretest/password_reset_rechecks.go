@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/validation"
@@ -35,16 +36,16 @@ func passwordResetRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 			config := selectedResetConfig(t, &now)
 			policies := 0
-			config.ValidatePassword = func(_ context.Context, _ string, row models.User) (validation.Errors, error) {
+			config.ValidatePassword = func(_ context.Context, _ string, row orm.ModelView[models.User]) (validation.Errors, error) {
 				policies++
-				if row.EncodedPassword != "" {
+				if passwordViewString(t, row, "encoded_password") != "" {
 					t.Fatal("reset policy exposed encoded password")
 				}
-				if row.FirstName == "after-hash" {
+				if passwordViewString(t, row, "first_name") == "after-hash" {
 					if mode == "policy_rejection" {
 						return validation.NewErrors(validation.New("password", "similar_profile")), nil
 					}
-					if mode != "current_profile" || row.Username != "renamed-"+mode || row.Revision != 7 {
+					if mode != "current_profile" || passwordViewString(t, row, "username") != "renamed-"+mode || passwordViewInteger(t, row, "revision") != 7 {
 						t.Fatal("reset policy missed current typed state")
 					}
 				}

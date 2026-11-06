@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
 )
@@ -29,16 +30,16 @@ func passwordRechecks(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 			tracked := &passwordScopeOwner{Backend: backend}
 			hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
 			policies := 0
-			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{ValidatePassword: func(_ context.Context, _ string, row models.User) (validation.Errors, error) {
+			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{ValidatePassword: func(_ context.Context, _ string, row orm.ModelView[models.User]) (validation.Errors, error) {
 				policies++
-				if row.EncodedPassword != "" {
+				if passwordViewString(t, row, "encoded_password") != "" {
 					t.Fatal("policy exposed encoded credential")
 				}
-				if row.FirstName == "after-hash" {
+				if passwordViewString(t, row, "first_name") == "after-hash" {
 					if mode == "policy_rejection" {
 						return validation.NewErrors(validation.New("password", "similar_profile")), nil
 					}
-					if mode != "current_profile" || row.Username != "updated-"+mode || row.Revision != 7 {
+					if mode != "current_profile" || passwordViewString(t, row, "username") != "updated-"+mode || passwordViewInteger(t, row, "revision") != 7 {
 						t.Fatal("policy lost current typed profile")
 					}
 				}

@@ -6,6 +6,7 @@ import (
 	"github.com/progresshans/godj/auth/passwordpolicy"
 	"github.com/progresshans/godj/examples/article/internal/accounttest"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
 	"io"
 	"net/http"
@@ -40,7 +41,7 @@ func TestArticleOrdinaryAccountPasswordSurfaceAndStaffSeparation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	application, err := New(t.Context(), NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(func(_ context.Context, raw string, _ models.User) (validation.Errors, error) {
+	application, err := New(t.Context(), NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(func(_ context.Context, raw string, _ orm.ModelView[models.User]) (validation.Errors, error) {
 		return minimum.ValidatePassword(raw, nil), nil
 	}))
 	if err != nil {

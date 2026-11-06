@@ -13,6 +13,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	sessiondb "github.com/progresshans/godj/sessions/database"
@@ -74,8 +75,8 @@ func passwordResetLifecycle(t *testing.T, backend Backend, reopen func(*testing.
 			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 			config := selectedResetConfig(t, &now)
 			var policyScopes []int64
-			config.ValidatePassword = func(_ context.Context, _ string, row models.User) (validation.Errors, error) {
-				if row.ID != target.ID || row.EncodedPassword != "" || row.FirstName != "preserved" {
+			config.ValidatePassword = func(_ context.Context, _ string, row orm.ModelView[models.User]) (validation.Errors, error) {
+				if passwordViewInteger(t, row, "id") != target.ID || passwordViewString(t, row, "encoded_password") != "" || passwordViewString(t, row, "first_name") != "preserved" {
 					t.Fatal("reset policy did not receive actual private typed profile")
 				}
 				policyScopes = append(policyScopes, tracked.scopes.Load())

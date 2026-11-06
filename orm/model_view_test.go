@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 func TestModelViewOwnsSelectionSourceAndStoredKeyPresence(t *testing.T) {
@@ -167,5 +168,77 @@ func TestModelViewCollectionsOwnCompleteSelectionsWithoutImplicitValues(t *testi
 	}
 	if invalid, err := (orm.ModelView[models.User]{}).WithCollections(nil); err == nil || invalid.Collections() != nil {
 		t.Fatal("zero view acquired collection state")
+	}
+}
+
+type foreignViewInputDescriptor struct{ models.UserDescriptor }
+
+func (foreignViewInputDescriptor) Metadata() ir.Model {
+	model := (models.UserDescriptor{}).Metadata()
+	model.DBTable = "foreign_user_source"
+	return model
+}
+
+func TestModelViewInputKeepsMissingValuesSourceAndOwnership(t *testing.T) {
+	objects := models.UserObjects
+	values := map[string]query.Value{"username": query.String("partial-user"), "last_login": query.Null()}
+	input, err := objects.Input(values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, err = input.WithCollections(map[string][]int64{"groups": {7, 0}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := objects.ViewInput(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	values["username"] = query.String("changed-input")
+	copied := view.Values()
+	copied["username"] = query.String("changed-view")
+	if key, present := view.PrimaryKey(); present || !key.IsNull() {
+		t.Fatal("partial input invented a stored key")
+	}
+	if value, present := view.Get("username"); !present || !value.Equal(query.String("partial-user")) {
+		t.Fatal("input view borrowed its values")
+	}
+	if value, present := view.Get("last_login"); !present || !value.IsNull() {
+		t.Fatal("explicit nullable value became absent")
+	}
+	for _, name := range []string{"id", "date_joined", "principal_id", "encoded_password", "revision", "active"} {
+		if _, present := view.Get(name); present {
+			t.Fatal("unavailable/default field became an implicit value", name)
+		}
+	}
+	keys, loaded := view.Collection("groups")
+	if !loaded || !slices.Equal(keys, []int64{7, 0}) {
+		t.Fatal("input collection lost explicit presence")
+	}
+	keys[0] = 99
+	if current, _ := view.Collection("groups"); !slices.Equal(current, []int64{7, 0}) {
+		t.Fatal("input view borrowed collection storage")
+	}
+	bound, err := input.WithTargetKey(query.Integer(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	withKey, err := objects.ViewInput(bound)
+	key, present := withKey.PrimaryKey()
+	if err != nil || !present || !key.Equal(query.Integer(0)) {
+		t.Fatal("explicit zero target became unsaved", err)
+	}
+	if _, exposed := withKey.Get("id"); exposed {
+		t.Fatal("target binding implicitly exposed the key")
+	}
+	foreign := orm.NewManager[models.User](foreignViewInputDescriptor{})
+	for _, manager := range []orm.Manager[models.User]{foreign, {}} {
+		rejected, err := manager.ViewInput(input)
+		if _, valid := rejected.Model(); err == nil || valid || rejected.Values() != nil {
+			t.Fatal("foreign input source produced a view")
+		}
+	}
+	if rejected, err := objects.ViewInput(orm.ModelInput[models.User]{}); err == nil || rejected.Values() != nil {
+		t.Fatal("zero input produced a view")
 	}
 }

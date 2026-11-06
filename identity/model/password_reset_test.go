@@ -17,6 +17,7 @@ import (
 	"github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	sessiondb "github.com/progresshans/godj/sessions/database"
@@ -75,7 +76,7 @@ func TestAccountPasswordResetterRequiresExactSourceAndOwnersBeforeIO(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	config := accountmodel.PasswordResetConfig[models.User]{Keys: keys, Clock: func() time.Time { callbacks++; return time.Now() }, ValidatePassword: func(context.Context, string, models.User) (validation.Errors, error) {
+	config := accountmodel.PasswordResetConfig[models.User]{Keys: keys, Clock: func() time.Time { callbacks++; return time.Now() }, ValidatePassword: func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 		callbacks++
 		return validation.Errors{}, nil
 	}}

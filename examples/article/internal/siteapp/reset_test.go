@@ -24,6 +24,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/mail"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -64,7 +65,7 @@ func TestArticleCompositionSharesResetPolicyAndNativePersistence(t *testing.T) {
 		t.Fatal(err)
 	}
 	var reports atomic.Int64
-	cfg := NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(func(_ context.Context, raw string, _ models.User) (validation.Errors, error) {
+	cfg := NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(func(_ context.Context, raw string, _ orm.ModelView[models.User]) (validation.Errors, error) {
 		return minimum.ValidatePassword(raw, nil), nil
 	}).WithPasswordReset(accountmodel.RuntimeResetConfig{Keys: keys}, outbox, identity.PasswordResetMailConfig{From: from, Origin: "https://reset.example.test"}, func(context.Context, error) { reports.Add(1) })
 	application, err := New(t.Context(), cfg)

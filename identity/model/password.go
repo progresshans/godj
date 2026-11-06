@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/validation"
 )
@@ -34,11 +35,15 @@ func credentialPasswordRejection(err error) error {
 }
 
 // PasswordValidator is a pure, concurrent-safe strength policy over the raw
-// password and actual detached typed profile, with its encoded password blank.
+// password and an owned view of the actual typed model source. Complete
+// lifecycle checks project the detached profile with its encoded password blank.
+// Advisory creation forms can omit invalid/unavailable values, including
+// required relations and server-owned identity/time fields. Missing is never a
+// fabricated zero or a stored row. Policies must handle absent attributes.
 // Return value-free diagnostics on "password" or NonField; do not retain either
 // argument or publish external effects. Creation and password changes apply the
 // selected policy before hashing and again to current state at the write fence.
-type PasswordValidator[M any] func(context.Context, string, M) (validation.Errors, error)
+type PasswordValidator[M any] func(context.Context, string, orm.ModelView[M]) (validation.Errors, error)
 
 // Keep the private callback cause even when it is itself a rejection. Only
 // value-free diagnostics returned without a failure become form validation.
@@ -50,7 +55,36 @@ func validateAccountPassword[M any](ctx context.Context, binding Binding[M], val
 	if err != nil {
 		return managementError(CodePersistence, err)
 	}
-	diagnostics, failure := validate(ctx, raw, detached)
+	metadata, err := binding.state.objects.Metadata()
+	if err != nil {
+		return managementError(CodePersistence, err)
+	}
+	fields := make([]string, len(metadata.Fields))
+	for index, field := range metadata.Fields {
+		fields[index] = field.Name
+	}
+	profile, err := binding.state.objects.View(detached, fields...)
+	if err != nil {
+		return managementError(CodePersistence, err)
+	}
+	return validateAccountPasswordView(ctx, binding, validate, raw, profile)
+}
+
+func validateAccountPasswordView[M any](ctx context.Context, binding Binding[M], validate PasswordValidator[M], raw string, profile orm.ModelView[M]) error {
+	metadata, valid := profile.Model()
+	owned, err := binding.state.objects.Metadata()
+	if err != nil || !valid || !metadata.Equal(owned) {
+		return managementError(CodeInvalidConfig, err)
+	}
+	if value, present := profile.Get(binding.state.role.Password); present {
+		if encoded, textual := value.String(); !textual || encoded != "" {
+			return managementError(CodeInvalidConfig, nil)
+		}
+	}
+	if validate == nil {
+		return ctx.Err()
+	}
+	diagnostics, failure := validate(ctx, raw, profile)
 	if err := errors.Join(failure, ctx.Err()); err != nil {
 		return managementError(CodePersistence, err)
 	}

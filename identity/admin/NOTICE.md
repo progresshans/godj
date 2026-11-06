@@ -69,3 +69,13 @@ The optional LastLogin role is displayed only when explicitly selected for
 reading: NULL is `Never`, otherwise the recorded UTC instant is shown under
 the actual selected field name. An absent or unexposed role has no display.
 Presentation reads the same authorized profile and does not record a login.
+
+Selected account creation also combines independent field/uniqueness errors and
+password strength diagnostics after current authorization. It keeps the pinned
+confirmation order: a missing first input does not discard a valid confirmation;
+a mismatch or an explicit unusable choice suppresses strength checks. Its typed
+partial model view preserves declared values and absence without reproducing
+Python's unsaved object layout. The selected model's IR remains the input schema;
+this does not claim that every custom model has the built-in UsernameField rules.
+The existing independent fixed-model observer remains required until its complete
+input contract has a selected-model consumer.

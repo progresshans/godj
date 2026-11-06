@@ -17,6 +17,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/validation"
@@ -76,6 +77,22 @@ func managementBoundForm(t *testing.T, owner *accountmodel.AccountManagement[mod
 	return bound.BoundForm()
 }
 
+// Model-only advisory callers deliberately omit the credential command.
+func managementCreationFormError(t *testing.T, owner *accountmodel.AccountManagement[models.User], ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
+	t.Helper()
+	diagnostics, err := owner.CheckCreateForm(ctx, actor, bound, nil)
+	if !diagnostics.Password.Empty() {
+		t.Fatal("absent password command acquired diagnostics")
+	}
+	if err != nil {
+		if !diagnostics.Fields.Empty() {
+			t.Fatal("failed snapshot published provisional diagnostics")
+		}
+		return err
+	}
+	return validation.Reject(diagnostics.Fields, nil)
+}
+
 func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
@@ -90,7 +107,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 		calls++
 		return validation.Errors{}, nil
 	}
-	config.ValidatePassword = func(context.Context, string, models.User) (validation.Errors, error) {
+	config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 		calls++
 		return validation.Errors{}, nil
 	}
@@ -190,7 +207,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 			case "both_invalid_choices":
 				data["groups"], data["permissions"] = []string{strconv.FormatInt(mathMaxKey, 10)}, []string{strconv.FormatInt(mathMaxKey, 10)}
 				bound := managementBoundForm(t, selected, data, nil, []int64{mathMaxKey}, []int64{mathMaxKey})
-				err = selected.CheckCreateForm(t.Context(), acting, bound)
+				err = managementCreationFormError(t, selected, t.Context(), acting, bound)
 				failures, rejected := validation.Rejected(err)
 				if !rejected || failures.ByField("username").Empty() || failures.ByField("groups").Empty() || failures.ByField("permissions").Empty() {
 					t.Fatal("partial input suppressed independent checks", err)
@@ -200,7 +217,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 				if bound.Form().Errors().ByField("email").Empty() {
 					t.Fatal("partial-invalid fixture is valid")
 				}
-				err = selected.CheckCreateForm(t.Context(), acting, bound)
+				err = managementCreationFormError(t, selected, t.Context(), acting, bound)
 				if mode == "partial_unique" || mode == "normalized_unique" || mode == "case_insensitive_unique" {
 					failures, rejected := validation.Rejected(err)
 					if !rejected || failures.ByField("username").Empty() || !failures.ByField("email").Empty() {
@@ -219,7 +236,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 	// A successful advisory observation cannot reserve uniqueness or replace
 	// the creator's final validation after another connection commits.
 	bound := managementBoundForm(t, owner, map[string][]string{"username": {"form-race"}, "email": {"person@example.test"}}, nil, nil, nil)
-	if err := owner.CheckCreateForm(t.Context(), actor, bound); err != nil {
+	if err := managementCreationFormError(t, owner, t.Context(), actor, bound); err != nil {
 		t.Fatal(err)
 	}
 	roleTarget(t, reopen(t), f, "form-race")
@@ -287,7 +304,7 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 			bound := managementBoundForm(t, owner, map[string][]string{"username": {f.user.Username}, "email": {"invalid"}}, current, nil, nil)
 			var err error
 			if current == nil {
-				err = owner.CheckCreateForm(ctx, actor, bound)
+				err = managementCreationFormError(t, owner, ctx, actor, bound)
 			} else {
 				err = owner.CheckChangeForm(ctx, actor, current.ID, current.Revision, bound)
 			}
@@ -319,7 +336,7 @@ func managementFormNonpositiveKeys(t *testing.T, backend Backend, storedKey Stor
 			if err := owner.CheckChangeForm(t.Context(), actor, id, row.Revision, bound); err != nil {
 				t.Fatal("existing signed key treated as creation", err)
 			}
-			requireProfileCode(t, owner.CheckCreateForm(t.Context(), actor, bound), accountmodel.CodeInvalidInput)
+			requireProfileCode(t, managementCreationFormError(t, owner, t.Context(), actor, bound), accountmodel.CodeInvalidInput)
 		})
 	}
 }

@@ -14,12 +14,14 @@ import (
     "regexp"
     "strconv"
     "strings"
+    "sync/atomic"
     "testing"
     "time"
 
     @@IMPORTS@@
     "example.com/godj-project-bundle/project"
     "github.com/progresshans/godj/account/domain"
+    auditmodels "github.com/progresshans/godj/account/audit/models"
     "github.com/progresshans/godj/admin"
     "github.com/progresshans/godj/api"
     apisession "github.com/progresshans/godj/api/sessionauth"
@@ -35,6 +37,7 @@ import (
     "github.com/progresshans/godj/query"
     "github.com/progresshans/godj/settings"
     "github.com/progresshans/godj/settings/database"
+    "github.com/progresshans/godj/validation"
     "github.com/progresshans/godj/web"
     websession "github.com/progresshans/godj/web/sessionauth"
 )
@@ -114,8 +117,16 @@ func TestGeneratedProfileRelationLifecycle(t *testing.T) {
     accountPermissions := accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"}
     groupPermissions := accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}
     permissionPermissions := accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}
+    var partialPasswordChecks atomic.Int64
     runtimeConfig := accountmodel.RuntimeConfig[@@ACCOUNT@@, @@GROUP@@, @@PERMISSION@@]{
         Accounts: accountmodel.AccountManagementConfig[@@ACCOUNT@@]{ReadFields: fields, CreateFields: fields, EditFields: fields, Relations: relations, Permissions: accountPermissions,
+            ValidatePassword: func(_ context.Context, raw string, profile orm.ModelView[@@ACCOUNT@@]) (validation.Errors,error) {
+                if raw != "partial-password" { return validation.Errors{},nil }
+                partialPasswordChecks.Add(1)
+                if _,present := profile.Get("department"); present { return validation.Errors{},errors.New("missing required relation became a fabricated policy value") }
+                if _,present := profile.PrimaryKey(); present { return validation.Errors{},errors.New("partial policy invented a stored identity") }
+                return validation.NewErrors(validation.New("password","partial_strength")),nil
+            },
             GroupPermissions: accountmodel.DeletionPermissions{Change: groupPermissions.Change, Delete: groupPermissions.Delete},
             PermissionPermissions: accountmodel.DeletionPermissions{Change: permissionPermissions.Change, Delete: permissionPermissions.Delete}},
         Catalog: accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]{
@@ -165,6 +176,18 @@ func TestGeneratedProfileRelationLifecycle(t *testing.T) {
     jsonSend := func(method, path, body, revision string) (int, http.Header, string) { return send(method, path, api.JSONContentType, body, revision, token("/admin/accounts/add/")) }
     form := func(name string) url.Values { return url.Values{role.Login: {name}, "@@PROFILE@@": {"NZ"}, "department": {strconv.FormatInt(department.ID, 10)}, "badge": {strconv.FormatInt(badge.ID, 10)}} }
     var targetID int64
+    run("partial_password_missing_relation", func(t *testing.T) {
+        data := form("incomplete@example.test")
+        data.Del("department")
+        data.Set("password1","partial-password"); data.Set("password2","partial-password")
+        data.Set("csrfmiddlewaretoken",token("/admin/accounts/add/"))
+        before := snapshot()
+        audits,err := auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context());check(err)
+        status,headers,body := send("POST","/admin/accounts/add/","application/x-www-form-urlencoded",data.Encode(),"","")
+        if status!=200 || headers.Get("Location")!="" || partialPasswordChecks.Load()!=1 || !strings.Contains(body,`data-error-field="department" data-error-code="required"`) || !strings.Contains(body,`data-error-field="password2" data-error-code="partial_strength"`) || strings.Contains(body,`value="partial-password"`) { t.Fatal("missing typed relation suppressed independent password diagnostics",status) }
+        after,err := auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context());check(err)
+        if !reflect.DeepEqual(before,snapshot()) || !reflect.DeepEqual(audits,after) { t.Fatal("partial relation/password validation wrote account or audit") }
+    })
     run("bounded_choices", func(t *testing.T) {
         status, headers, body := send("GET", "/admin/accounts/add/choices/department/?limit=1", "", "", "", "")
         var page struct { Items []struct{Value, Label string}; More bool; Limit int }

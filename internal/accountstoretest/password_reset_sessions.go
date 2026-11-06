@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
@@ -54,7 +55,7 @@ func passwordResetSessionFence(t *testing.T, backend Backend, reopen func(*testi
 				}
 			}
 			if mode == "final_policy_expiry" {
-				config.ValidatePassword = func(context.Context, string, models.User) (validation.Errors, error) {
+				config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 					if tracked.scopes.Load() != 0 {
 						now = previous.IdleExpiresAt()
 					}

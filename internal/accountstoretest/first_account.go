@@ -20,6 +20,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/validation"
 )
@@ -88,9 +89,9 @@ func firstAccountLifecycle(t *testing.T, backend Backend, reopen func(*testing.T
 		}
 		return validation.Errors{}, nil
 	}
-	config.ValidatePassword = func(_ context.Context, raw string, row models.User) (validation.Errors, error) {
+	config.ValidatePassword = func(_ context.Context, raw string, row orm.ModelView[models.User]) (validation.Errors, error) {
 		strengths++
-		if raw != password || row.EncodedPassword != "" || !row.Superuser {
+		if raw != password || passwordViewString(t, row, "encoded_password") != "" || !passwordViewBoolean(t, row, "superuser") {
 			t.Fatal("first password policy did not see protected profile")
 		}
 		return validation.Errors{}, nil

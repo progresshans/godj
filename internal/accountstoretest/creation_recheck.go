@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/validation"
@@ -42,11 +43,11 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 					return validation.NewErrors(validation.New("first_name", "policy")), nil
 				}
 			case "password_policy":
-				config.ValidatePassword = func(context.Context, string, models.User) (validation.Errors, error) {
+				config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 					return validation.NewErrors(validation.New("password", "policy")), nil
 				}
 			case "password_policy_failure":
-				config.ValidatePassword = func(context.Context, string, models.User) (validation.Errors, error) {
+				config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 					return validation.NewErrors(validation.New("password", "policy")), errors.New("private strength failure")
 				}
 			case "additional_grant":
@@ -95,7 +96,7 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 	}
 	config := creationConfig()
 	reject := false
-	config.ValidatePassword = func(context.Context, string, models.User) (validation.Errors, error) {
+	config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 		if reject {
 			return validation.NewErrors(validation.New("password", "changed_policy")), nil
 		}

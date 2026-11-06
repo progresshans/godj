@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/validation"
@@ -22,9 +23,9 @@ func passwordValidation(t *testing.T, backend Backend, reopen func(*testing.T) B
 	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
 	mode, calls := "", 0
 	fault := errors.New("private password policy failure")
-	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{MaxPasswordBytes: 64, ValidatePassword: func(_ context.Context, raw string, row models.User) (validation.Errors, error) {
+	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{MaxPasswordBytes: 64, ValidatePassword: func(_ context.Context, raw string, row orm.ModelView[models.User]) (validation.Errors, error) {
 		calls++
-		if row.EncodedPassword != "" || row.PrincipalID != f.user.PrincipalID {
+		if passwordViewString(t, row, "encoded_password") != "" || passwordViewString(t, row, "principal_id") != f.user.PrincipalID {
 			t.Fatal("password policy did not receive detached selected account")
 		}
 		diagnostics := validation.NewErrors(validation.New("password", "too_short"))
@@ -215,4 +216,35 @@ func passwordSessionAdmission(t *testing.T, backend Backend, reopen func(*testin
 			}
 		})
 	}
+}
+
+// Password policies receive present values from the actual source; these
+// assertions must not mistake an absent field for a valid Go zero value.
+func passwordViewString[M any](t *testing.T, view orm.ModelView[M], name string) string {
+	t.Helper()
+	value, present := view.Get(name)
+	text, valid := value.String()
+	if !present || !valid {
+		t.Fatal("password view lost a present string", name)
+	}
+	return text
+}
+func passwordViewInteger[M any](t *testing.T, view orm.ModelView[M], name string) int64 {
+	t.Helper()
+	value, present := view.Get(name)
+	number, valid := value.Integer()
+	if !present || !valid {
+		t.Fatal("password view lost a present integer", name)
+	}
+	return number
+}
+
+func passwordViewBoolean[M any](t *testing.T, view orm.ModelView[M], name string) bool {
+	t.Helper()
+	value, present := view.Get(name)
+	flag, valid := value.Boolean()
+	if !present || !valid {
+		t.Fatal("password view lost a present boolean", name)
+	}
+	return flag
 }

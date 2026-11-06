@@ -62,6 +62,29 @@ func (manager Manager[M]) View(value M, fields ...string) (ModelView[M], error) 
 	return view, nil
 }
 
+// ViewInput projects explicitly present, already-cleaned values without
+// constructing a complete model. Missing fields stay missing: no default,
+// zero-valued required relation or stored identity is invented. This is an
+// advisory view, not proof of validation, current read access or write access.
+func (manager Manager[M]) ViewInput(input ModelInput[M]) (ModelView[M], error) {
+	if err := manager.checkInput(input); err != nil {
+		return ModelView[M]{}, err
+	}
+	values := input.Values()
+	var fields []string
+	for _, field := range manager.prepared.metadata.Fields {
+		if _, present := values[field.Name]; present {
+			fields = append(fields, field.Name)
+		}
+	}
+	key := query.Null()
+	if selected, bound := input.TargetKey(); bound {
+		key = selected
+	}
+	return ModelView[M]{state: &modelViewState{model: manager.prepared.metadata, values: values, fields: fields,
+		collections: input.Collections(), key: key, present: !key.IsNull()}}, nil
+}
+
 func (view ModelView[M]) Model() (ir.Model, bool) {
 	if view.state == nil {
 		return ir.Model{}, false

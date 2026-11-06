@@ -426,3 +426,24 @@ func assertStoredAccount[M any](t *testing.T, backend database.Backend, binding 
 	}
 	return before
 }
+
+// Password policies receive present values from the actual source; these
+// assertions must not mistake an absent field for a valid Go zero value.
+func passwordViewString[M any](t *testing.T, view orm.ModelView[M], name string) string {
+	t.Helper()
+	value, present := view.Get(name)
+	text, valid := value.String()
+	if !present || !valid {
+		t.Fatal("password view lost a present string", name)
+	}
+	return text
+}
+func passwordViewInteger[M any](t *testing.T, view orm.ModelView[M], name string) int64 {
+	t.Helper()
+	value, present := view.Get(name)
+	number, valid := value.Integer()
+	if !present || !valid {
+		t.Fatal("password view lost a present integer", name)
+	}
+	return number
+}

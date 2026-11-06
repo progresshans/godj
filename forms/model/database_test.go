@@ -169,3 +169,34 @@ func TestModelDatabaseChecksRejectUnownedDiagnosticsBeforeNextStage(t *testing.T
 		t.Fatal("unowned diagnostic reached next stage", err, calls)
 	}
 }
+
+func TestCandidateValuesRetainModelErrorsAndIncompleteFields(t *testing.T) {
+	metadata := blankModel(t, schema.CharField("label", "Label", 10), schema.IntegerField("counter", "Counter"))
+	bound, err := (formmodel.Definition{}).Bind(t.Context(), metadata, forms.NewData(map[string][]string{"label": {"proposal"}, "counter": {"invalid"}}), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bound, err = bound.WithErrors(validation.NewErrors(validation.New("label", "model_policy")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	values, err := bound.CandidateValues()
+	if err != nil || !values["label"].Equal(query.String("proposal")) || !values["counter"].IsNull() {
+		t.Fatal("candidate fabricated a number or discarded the model-clean value", err)
+	}
+	valid, err := bound.ValidationValues()
+	if err != nil || len(valid) != 0 {
+		t.Fatal("invalid candidate became database-check input", err)
+	}
+	values["label"] = query.String("mutated")
+	current, err := bound.CandidateValues()
+	if err != nil || !current["label"].Equal(query.String("proposal")) {
+		t.Fatal("candidate values borrowed caller storage", err)
+	}
+	if _, err := bound.Input(); err == nil {
+		t.Fatal("partial candidate became persistence input")
+	}
+	if values, err := (formmodel.BoundForm{}).CandidateValues(); err == nil || values != nil {
+		t.Fatal("unbound form produced candidate values")
+	}
+}

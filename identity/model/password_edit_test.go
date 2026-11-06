@@ -15,6 +15,7 @@ import (
 	"github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/validation"
@@ -60,7 +61,7 @@ func TestAccountPasswordEditorRequiresExactSourceAndOwnersBeforeIO(t *testing.T)
 	calls := 0
 	config := accountmodel.PasswordEditConfig[models.User]{ChangePermission: "account.change", AdditionalPermissions: []auth.Permission{"account.password"},
 		Now: func() time.Time { calls++; return time.Now() },
-		ValidatePassword: func(context.Context, string, models.User) (validation.Errors, error) {
+		ValidatePassword: func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 			calls++
 			return validation.Errors{}, nil
 		},

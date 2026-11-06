@@ -115,9 +115,9 @@ func creationLifecycle(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 		row.PrincipalID = "modified-copy"
 		return validation.Errors{}, nil
 	}
-	config.ValidatePassword = func(_ context.Context, raw string, row models.User) (validation.Errors, error) {
+	config.ValidatePassword = func(_ context.Context, raw string, row orm.ModelView[models.User]) (validation.Errors, error) {
 		passwordValidations++
-		if raw != password || row.Username != "new-user" || row.EncodedPassword != "" || row.PrincipalID == "modified-copy" {
+		if raw != password || passwordViewString(t, row, "username") != "new-user" || passwordViewString(t, row, "encoded_password") != "" || passwordViewString(t, row, "principal_id") == "modified-copy" {
 			t.Fatal("password policy saw wrong profile or credential")
 		}
 		return validation.Errors{}, nil

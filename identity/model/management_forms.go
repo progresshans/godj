@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/validation"
 )
@@ -32,21 +33,69 @@ func (management *AccountManagement[M]) FormDefinition(action admin.Action) (for
 	}
 }
 
-// CheckCreateForm performs read-only, current-authorized advisory checks even
-// when unrelated fields are invalid. It does not generate principal IDs, hash
-// passwords, call final model validators or reserve unique values.
-func (management *AccountManagement[M]) CheckCreateForm(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
-	return management.checkForm(ctx, actor, 0, 0, bound, true)
+// CreationFormDiagnostics separates actual model fields from credential
+// command diagnostics, even when the model has a field named password.
+// Fields contains new snapshot diagnostics; the bound form keeps prior errors.
+// Neither result is write authority or a prepared creation capability.
+type CreationFormDiagnostics struct {
+	Fields, Password validation.Errors
+}
+
+// CheckCreateForm checks partial model input and an optional already-cleaned
+// password in one currently authorized snapshot. Nil password means unusable
+// or rejected confirmation input. No principal ID, clock, hash, file publication
+// or final model validator is invoked. Execution/cleanup failure returns no
+// diagnostics; callers map Password into their own command-field namespace.
+func (management *AccountManagement[M]) CheckCreateForm(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm, password *string) (CreationFormDiagnostics, error) {
+	var result CreationFormDiagnostics
+	var raw string
+	if password != nil {
+		raw = *password
+	}
+	err := management.checkForm(ctx, actor, 0, 0, bound, true, func(work context.Context, failures validation.Errors) error {
+		if password == nil {
+			return nil
+		}
+		state := management.state.creator.state
+		if raw == "" {
+			result.Password = validation.NewErrors(validation.New("password", "required"))
+			return nil
+		}
+		if len(raw) > state.config.MaxPasswordBytes {
+			result.Password = validation.NewErrors(validation.New("password", "max_length"))
+			return nil
+		}
+		if state.config.ValidatePassword == nil {
+			return work.Err()
+		}
+		profile, err := state.formPasswordProfile(bound, failures)
+		if err != nil {
+			return err
+		}
+		err = validateAccountPasswordView(work, state.binding, state.config.ValidatePassword, raw, profile)
+		if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+			result.Password = diagnostics
+			return nil
+		}
+		return err
+	})
+	if diagnostics, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+		result.Fields, err = diagnostics, nil
+	}
+	if err != nil {
+		return CreationFormDiagnostics{}, err
+	}
+	return result, nil
 }
 
 // CheckChangeForm verifies exact model/target/revision ownership. Current
 // authority, target integrity, memberships and partial uniqueness share one
 // snapshot. No diagnostic or conflict is published before cleanup succeeds.
 func (management *AccountManagement[M]) CheckChangeForm(ctx context.Context, actor auth.Principal, id, revision int64, bound formmodel.BoundForm) error {
-	return management.checkForm(ctx, actor, id, revision, bound, false)
+	return management.checkForm(ctx, actor, id, revision, bound, false, nil)
 }
 
-func (management *AccountManagement[M]) checkForm(ctx context.Context, actor auth.Principal, id, revision int64, bound formmodel.BoundForm, create bool) error {
+func (management *AccountManagement[M]) checkForm(ctx context.Context, actor auth.Principal, id, revision int64, bound formmodel.BoundForm, create bool, after func(context.Context, validation.Errors) error) error {
 	if err := management.validCall(ctx, actor); err != nil {
 		return err
 	}
@@ -270,7 +319,16 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 				return objects.ValidateUniqueConstraints(ctx, scope, values, current)
 			},
 		})
-		return catalogFormCheck{failures: validation.Join(failures, unique)}, true, err
+		if err != nil {
+			return catalogFormCheck{}, true, err
+		}
+		failures = validation.Join(failures, unique)
+		if after != nil {
+			if err := after(work, failures); err != nil {
+				return catalogFormCheck{}, true, err
+			}
+		}
+		return catalogFormCheck{failures: failures}, true, nil
 	})
 	if err != nil {
 		return err
@@ -279,4 +337,52 @@ func (management *AccountManagement[M]) checkForm(ctx context.Context, actor aut
 		return managementError(CodeConflict, nil)
 	}
 	return validation.Reject(result.failures, nil)
+}
+
+func (state *creationState[M]) formPasswordProfile(bound formmodel.BoundForm, failures validation.Errors) (orm.ModelView[M], error) {
+	metadata, role := state.metadata, state.binding.state.role
+	initial, err := orm.InitialModelValues(metadata)
+	if err != nil {
+		return orm.ModelView[M]{}, err
+	}
+	candidate, err := bound.CandidateValues()
+	if err != nil {
+		return orm.ModelView[M]{}, err
+	}
+	selected := bound.FieldNames()
+	values := make(map[string]query.Value)
+	for _, field := range metadata.Fields {
+		if field.PrimaryKey || field.Name == role.PrincipalID || field.Name == role.Revision || field.Name == role.CreatedAt ||
+			field.Name == role.LastLogin || field.Name == role.Password || field.Kind.IsFile() || state.dimensions[field.Name] != "" {
+			continue
+		}
+		value := initial[field.Name]
+		if state.allowed[field.Name] && slices.Contains(selected, field.Name) {
+			value = candidate[field.Name]
+			// Model-only errors retain their constructed value; field cleaning
+			// already retained the initial value on failure. A duplicate login
+			// must not become the strength policy's candidate identity.
+			if field.Name == role.Login && !failures.ByField(validation.Field(field.Name)).Empty() {
+				value = initial[field.Name]
+			} else {
+				normalized := map[string]query.Value{field.Name: value}
+				if err := normalizeAccountInput(metadata, role, normalized); err == nil {
+					value = normalized[field.Name]
+				} else if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+					value = initial[field.Name]
+				} else {
+					return orm.ModelView[M]{}, err
+				}
+			}
+		}
+		if !value.IsNull() || field.Nullable {
+			values[field.Name] = value
+		}
+	}
+	values[role.Password] = query.String("")
+	input, err := state.binding.state.objects.Input(values)
+	if err != nil {
+		return orm.ModelView[M]{}, err
+	}
+	return state.binding.state.objects.ViewInput(input)
 }

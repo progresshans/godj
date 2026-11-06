@@ -11,6 +11,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/validation"
@@ -32,9 +33,9 @@ func passwordResetValidation(t *testing.T, backend Backend, reopen func(*testing
 			config := selectedResetConfig(t, &now)
 			config.MaxPasswordBytes = 64
 			calls := 0
-			config.ValidatePassword = func(_ context.Context, _ string, row models.User) (validation.Errors, error) {
+			config.ValidatePassword = func(_ context.Context, _ string, row orm.ModelView[models.User]) (validation.Errors, error) {
 				calls++
-				if row.ID != f.user.ID || row.PrincipalID != f.user.PrincipalID || row.EncodedPassword != "" || tracked.scopes.Load() != 0 {
+				if passwordViewInteger(t, row, "id") != f.user.ID || passwordViewString(t, row, "principal_id") != f.user.PrincipalID || passwordViewString(t, row, "encoded_password") != "" || tracked.scopes.Load() != 0 {
 					t.Fatal("reset preflight policy lost selected private profile or retained a DB scope")
 				}
 				diagnostics := validation.NewErrors(validation.New("password", "weak"))

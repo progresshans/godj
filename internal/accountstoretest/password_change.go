@@ -16,6 +16,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	sessiondb "github.com/progresshans/godj/sessions/database"
@@ -126,9 +127,9 @@ func passwordChangeLifecycle(t *testing.T, backend Backend, reopen func(*testing
 	tracked := &passwordScopeOwner{Backend: backend}
 	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
 	policyCalls := 0
-	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{ValidatePassword: func(_ context.Context, raw string, row models.User) (validation.Errors, error) {
+	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{ValidatePassword: func(_ context.Context, raw string, row orm.ModelView[models.User]) (validation.Errors, error) {
 		policyCalls++
-		if row.ID != f.user.ID || row.PrincipalID != f.user.PrincipalID || row.EncodedPassword != "" || row.FirstName != f.user.FirstName {
+		if passwordViewInteger(t, row, "id") != f.user.ID || passwordViewString(t, row, "principal_id") != f.user.PrincipalID || passwordViewString(t, row, "encoded_password") != "" || passwordViewString(t, row, "first_name") != f.user.FirstName {
 			return validation.Errors{}, errors.New("typed password policy lost current profile or leaked encoded password")
 		}
 		if len(raw) < 12 {

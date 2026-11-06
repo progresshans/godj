@@ -188,6 +188,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"role_edit_and_deactivation", roleEditAndDeactivation},
 		{"account_profile_and_roles", combinedProfileAndRoles},
 		{"management_form_checks", managementFormChecks},
+		{"management_form_passwords", managementFormPasswords},
 		{"management_form_failures", managementFormFailures},
 		{"management_form_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 			managementFormNonpositiveKeys(t, backend, storedKey)

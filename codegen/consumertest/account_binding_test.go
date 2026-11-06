@@ -297,7 +297,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			for _, name := range []string{"composed_runtime", "typed_default_password_policy", "shared_reset_policy"} {
 				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
 			}
-			for _, name := range []string{"catalog_create", "create_and_login", "selected_read_and_list", "csrf", "additional_permission", "add_requires_change", "password_policy", "model_password_policy", "protected_input", "credential_namespace", "revision_before_body", "put_defaults_and_omitted_collections", "update_noop_and_history", "catalog_put_and_permissions", "native_rollback", "unknown_after_native_commit", "read_cleanup_failure", "admin_read_cleanup_failure", "admin_status_display_boundary", "admin_last_login_display", "password_revokes_sessions", "delete_and_audit", "self_deactivation_keeps_confirmed_receipt"} {
+			for _, name := range []string{"catalog_create", "create_and_login", "selected_read_and_list", "csrf", "additional_permission", "add_requires_change", "password_policy", "model_password_policy", "protected_input", "credential_namespace", "revision_before_body", "put_defaults_and_omitted_collections", "update_noop_and_history", "catalog_put_and_permissions", "native_rollback", "unknown_after_native_commit", "read_cleanup_failure", "admin_read_cleanup_failure", "admin_status_display_boundary", "admin_partial_password_diagnostics", "admin_last_login_display", "password_revokes_sessions", "delete_and_audit", "self_deactivation_keeps_confirmed_receipt"} {
 				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
 			}
 			for _, name := range []string{"admin_write_fence_revision", "admin_write_fence_authority", "admin_history_snapshot_and_scope", "admin_history_storage_failure"} {
@@ -334,7 +334,7 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 				required = append(required, "TestGeneratedAccountManagementHTTP/protected_delete_cleanup")
 			}
 			required = append(required, "TestGeneratedAccountAdminLifecycle")
-			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
+			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "duplicate_and_password", "choice_and_password", "missing_first_password", "mismatch_suppresses_policy", "unusable_suppresses_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {
 				required = append(required, "TestGeneratedAccountAdminLifecycle/"+name)
 			}
 			for _, name := range []string{"csrf", "stale", "protected_input", "cross_field", "self_deactivation"} {

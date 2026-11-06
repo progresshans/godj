@@ -14,6 +14,7 @@ import (
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/templates"
+	"github.com/progresshans/godj/validation"
 )
 
 // AccountRegistration controls presentation inside the management owner's
@@ -227,7 +228,24 @@ func RegisterAccount[M any](builder *admin.Builder, management *accountmodel.Acc
 			return initial, nil
 		},
 		ValidateCreate: func(ctx context.Context, actor auth.Principal, bound formmodel.BoundForm) error {
-			return operationError(management.CheckCreateForm(ctx, actor, bound))
+			var password *string
+			form := bound.Form()
+			if disabled, _ := form.Cleaned().Boolean(passwords.unusable); !disabled && form.Errors().ByField(validation.Field(passwords.confirm)).Empty() {
+				if raw, present := form.Cleaned().String(passwords.confirm); present && raw != "" {
+					password = &raw
+				}
+			}
+			diagnostics, err := management.CheckCreateForm(ctx, actor, bound, password)
+			if err != nil {
+				return operationError(err)
+			}
+			items := diagnostics.Password.All()
+			for index, item := range items {
+				if item.Field() == "password" {
+					items[index] = validation.New(validation.Field(passwords.confirm), item.Code(), item.Params()...)
+				}
+			}
+			return validation.Reject(validation.Join(diagnostics.Fields, validation.NewErrors(items...)), nil)
 		},
 		ValidateChange: func(ctx context.Context, actor auth.Principal, mutation admin.Mutation, bound formmodel.BoundForm) error {
 			return operationError(management.CheckChangeForm(ctx, actor, mutation.ID, mutation.Revision, bound))

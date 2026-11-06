@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
@@ -86,7 +87,7 @@ func passwordCommitFailures(t *testing.T, backend Backend, reopen func(*testing.
 			owner.decorate = func(scope db.Session) db.Session { return &passwordFaultScope{scope, mode, fault, effects} }
 			hasher := &passwordChangeHasher{PasswordHasher: f.hasher}
 			final := false
-			configured := passwordComposition(t, owner, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{ValidatePassword: func(context.Context, string, models.User) (validation.Errors, error) {
+			configured := passwordComposition(t, owner, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{ValidatePassword: func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 				if final && (mode == "validator_rejection" || mode == "validator_failure" || mode == "cleanup_failure" || mode == "swallowed_rejection") {
 					diagnostics := validation.NewErrors(validation.New("password", "changed_policy"))
 					if mode == "validator_failure" {

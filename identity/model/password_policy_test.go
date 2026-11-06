@@ -10,6 +10,8 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/modeldef"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
 )
 
 func TestSelectedPasswordPolicyUsesDeclaredAttributesAndRawPassword(t *testing.T) {
@@ -17,13 +19,17 @@ func TestSelectedPasswordPolicyUsesDeclaredAttributesAndRawPassword(t *testing.T
 	row := credentialRow()
 	row.Username, row.Email, row.FirstName = "abcdefgh", "person@example.test", "Synthetic-Profile-Character-Gamma"
 	before := row
+	profile, err := models.UserObjects.View(row, "username", "email", "first_name")
+	if err != nil {
+		t.Fatal(err)
+	}
 	attributes := []accountmodel.PasswordAttribute{{Field: "first_name", Label: "display name"}}
 	selected, err := binding.DefaultPasswordValidator(attributes...)
 	if err != nil {
 		t.Fatal(err)
 	}
 	attributes[0] = accountmodel.PasswordAttribute{Field: "email", Label: "private label"}
-	diagnostics, err := selected(t.Context(), row.FirstName, row)
+	diagnostics, err := selected(t.Context(), row.FirstName, profile)
 	if err != nil || len(diagnostics.All()) != 1 || diagnostics.All()[0].Code() != "password_too_similar" ||
 		len(diagnostics.All()[0].Params()) != 1 || diagnostics.All()[0].Params()[0].Value() != "display name" {
 		t.Fatal("typed policy lost its selected field or copied declaration", err, diagnostics)
@@ -32,37 +38,37 @@ func TestSelectedPasswordPolicyUsesDeclaredAttributesAndRawPassword(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diagnostics, err := defaultPolicy(t.Context(), row.FirstName, row); err != nil || !diagnostics.Empty() {
+	if diagnostics, err := defaultPolicy(t.Context(), row.FirstName, profile); err != nil || !diagnostics.Empty() {
 		t.Fatal("unselected profile became an implicit policy", err)
 	}
 	// Passwords are not NFKC-normalized even though selected login writes are.
-	if diagnostics, err := defaultPolicy(t.Context(), "ａｂｃｄｅｆｇｈ", row); err != nil || !diagnostics.Empty() {
+	if diagnostics, err := defaultPolicy(t.Context(), "ａｂｃｄｅｆｇｈ", profile); err != nil || !diagnostics.Empty() {
 		t.Fatal("password was normalized before strength checks", err)
 	}
-	if diagnostics, err := defaultPolicy(t.Context(), row.Username, row); err != nil || diagnostics.Empty() {
+	if diagnostics, err := defaultPolicy(t.Context(), row.Username, profile); err != nil || diagnostics.Empty() {
 		t.Fatal("actual login role was omitted", err)
 	}
 	withoutAttributes, err := binding.DefaultPasswordValidator([]accountmodel.PasswordAttribute{}...)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if diagnostics, err := withoutAttributes(t.Context(), row.FirstName, row); err != nil || !diagnostics.Empty() {
+	if diagnostics, err := withoutAttributes(t.Context(), row.FirstName, profile); err != nil || !diagnostics.Empty() {
 		t.Fatal("explicit empty attribute policy changed", err)
 	}
 	for _, raw := range []string{"123", "password", "１２３４５６７８", "\xff"} {
-		if diagnostics, err := withoutAttributes(t.Context(), raw, row); err != nil || diagnostics.Empty() {
+		if diagnostics, err := withoutAttributes(t.Context(), raw, profile); err != nil || diagnostics.Empty() {
 			t.Fatal("default strength rule disappeared", err)
 		}
 	}
 	if !reflect.DeepEqual(row, before) {
 		t.Fatal("password policy mutated its typed profile")
 	}
-	if _, err := selected(nil, row.FirstName, row); err == nil {
+	if _, err := selected(nil, row.FirstName, profile); err == nil {
 		t.Fatal("nil context accepted")
 	}
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	if diagnostics, err := selected(ctx, row.FirstName, row); !errors.Is(err, context.Canceled) || !diagnostics.Empty() {
+	if diagnostics, err := selected(ctx, row.FirstName, profile); !errors.Is(err, context.Canceled) || !diagnostics.Empty() {
 		t.Fatal("cancellation became password diagnostics", err)
 	}
 }
@@ -94,5 +100,30 @@ func TestSelectedPasswordPolicyRejectsSecretAndInvalidAttributesBeforeUse(t *tes
 	var zero accountmodel.Binding[models.User]
 	if policy, err := zero.DefaultPasswordValidator(); policy != nil || err == nil {
 		t.Fatal("unbound policy accepted")
+	}
+}
+
+func TestSelectedPasswordPolicyAcceptsMissingAttributesWithoutInventingValues(t *testing.T) {
+	binding := credentialBinding(t, modeldef.AccountRole())
+	policy, err := binding.DefaultPasswordValidator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	input, err := models.UserObjects.Input(map[string]query.Value{"first_name": query.String("partial")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	view, err := models.UserObjects.ViewInput(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if errors, err := policy(t.Context(), "unrelated long phrase", view); err != nil || !errors.Empty() {
+		t.Fatal("unavailable login became a fabricated attribute", err)
+	}
+	if errors, err := policy(t.Context(), "123", view); err != nil || errors.ByField("password").Empty() {
+		t.Fatal("missing attributes suppressed independent strength rules", err)
+	}
+	if errors, err := policy(t.Context(), "unrelated long phrase", orm.ModelView[models.User]{}); err == nil || !errors.Empty() {
+		t.Fatal("zero view admitted password policy")
 	}
 }

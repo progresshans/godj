@@ -1282,10 +1282,11 @@ typed password 정책·byte 한도를 자동으로 공유한다. 별도 reset �
 
 모델 독립 `auth/passwordpolicy`가 고정 Django의 similarity·최소 길이·공통 사전·Unicode numeric 알고리즘과 사전 bytes를
 소유한다. 기존 기본 Profile과 선택 typed 모델은 이 한 구현에 실제 속성을 공급한다. `Binding.DefaultPasswordValidator`는
-명시한 문자열 필드/정적 label을 검사하고 실제 detached M의 값을 사용한다. 인자가 없으면 현재 선택 login/email 역할만
+명시한 문자열 필드/정적 label을 검사하고 같은 모델 source의 `orm.ModelView[M]` 값을 사용한다. 인자가 없으면 현재 선택 login/email 역할만
 선택하며 추가 profile은 명시적으로 넣는다. Credential·principal identity·revision·서버 시각은 선택할 수 없다. 일반 profile의
 이름이 password여도 실제 credential 역할과 다르면 별개다. Nullable NULL·원문 비밀번호·고정 Unicode와 진단 순서를 유지하고,
-취소와 잘못된 모델 표현을 강도 거부로 바꾸지 않는다. 사전 원본/라이선스와 기존 독립 Django 비교 근거는 유지한다.
+Form 사전 검사의 없는 속성은 유사도 비교에서 제외하고 독립 강도 규칙은 계속 적용한다. Zero/다른 IR의 view와 취소를
+강도 거부로 바꾸지 않는다. 사전 원본/라이선스와 기존 독립 Django 비교 근거는 유지한다.
 
 Article/scaffold의 공개 조립은 다음 경계를 사용한다. 명시적 채운 DB 전환과 환경별 실제 수용이 끝나기 전에는 I1 전체 완료로 계산하지 않는다.
 
@@ -1707,9 +1708,13 @@ policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거
 가진 별도 reader를 허용하지 않는다. 이 구성 검사는 I/O·해싱·callback을 실행하지 않으며 새 hasher를 따로 받지도 않는다.
 인증기 구성에 필요한 bounded dummy hash만 실제 인증기 생성 시 DB scope 밖에서 준비한다.
 
-공통 `PasswordValidator[M]`는 생성과 변경에서 실제 detached typed profile을 받는다. Password 역할 필드는 빈 문자열이며
-기본 User DTO나 동적 입력 map으로 대체하지 않는다. 순수하고 동시 호출에 안전한 정책이며 비밀번호·profile을 보관하거나
-외부 부작용을 일으키지 않는다. 진단은 값 없는 `password`/NonField만 허용한다. Callback 오류·취소·감싼 rejection은
+공통 `PasswordValidator[M]`는 원문 비밀번호와 실제 Schema IR에 결합한 `orm.ModelView[M]`을 받는다. 생성·변경·reset의
+완전한 lifecycle 검사는 detached typed model의 모든 scalar를 투영하며 Password 역할 값은 빈 문자열이다. 생성 Form의
+읽기 사전 검사는 아직 없는 required 값과 서버 identity/revision/시각, 파일·파생 크기를 제외한 부분 view를 사용한다.
+없는 값과 실제 NULL/0/false를 구분하고, required FK를 0으로 채우거나 임의의 typed row를 만들지 않는다. `ViewInput`은
+명시적 `ModelInput[M]`의 동일 source·값 존재와 target binding을 보존하는 순수 투영이며 인가나 저장 준비 증명이 아니다.
+View의 source/value/collection accessor는 사본이며 callback은 순수하고 동시 호출에 안전해야 한다. 비밀번호·profile을
+보관하거나 외부 부작용을 일으키지 않는다. 이 정책 ABI는 기본 User DTO나 이름만 맞춘 map adapter를 추가하지 않는다. 진단은 값 없는 `password`/NonField만 허용한다. Callback 오류·취소·감싼 rejection은
 입력 오류로 노출하지 않는다. 정책이 없어도 필수 문자열·byte 한도·hasher 검사는 유지한다. 한도는 기본 1,024 bytes,
 구성 범위는 1~4,096 bytes이며 실제 생성 IR의 encoded field 한도도 별도로 검사한다.
 
@@ -1821,7 +1826,21 @@ operation과 모든 추가 권한을 유지한다. 각 owner는 매번 현재 �
 덕분에 cleaning에 실패한 보호 필드도 선행 admission에서 거부한다. Command 전용 입력은 모델 DB 검사에서 제외한다.
 현재 권한과 대상 무결성·유효 소속, 각 선택 key와 effective grant 한도, 정규화된 unique field/복합 unique를 한 native snapshot에서
 검사한다. 다른 필드가 invalid여도 독립 검사는 계속하고, 앞선 진단으로 제외를 다시 계산한다. Cleanup 실패에는 진단·부재·conflict도
-게시하지 않는다. 이 단계는 principal ID·시각·비밀번호를 만들거나 typed 최종 정책을 실행하지 않으며, 성공도 값을 예약하지 않는다.
+게시하지 않는다. 이 단계는 principal ID·시각·hash·파일 저장을 만들거나 typed 최종 모델 validator를 실행하지 않으며,
+성공도 값을 예약하지 않는다.
+
+`CheckCreateForm(ctx, actor, bound, password)`는 같은 인가된 snapshot에서 현재 partial unique/관계 검사와 선택적인
+비밀번호 정책을 수행하고 `CreationFormDiagnostics{Fields, Password}`를 반환한다. Fields는 기존 bound field 오류 외에
+새로 확인한 모델 진단이며, Password는 별도 credential command 진단이다. 실행/정리 실패에는 둘 다 비운다. Nil password는
+확인 입력 오류 또는 unusable 선택이다. 확인 값이 유효하면 password1 누락·다른 field 오류와도 strength 진단을 함께 표시한다.
+필드 cleaning에서 거부한 값은 원래 candidate의 IR default/empty 상태, model-only 오류는 구성된 candidate 값을 유지한다.
+현재 unique에서 거부한 login은 원래 initial 값으로 되돌린다. 서버 callback을 호출해 없는 값을 채우지 않으며 nullable NULL은
+보존하고 nonnullable required NULL은 view에서 빠진다. Pending filename을 저장 경로로 간주하지 않도록 파일과 파생 크기는
+이 사전 view에 포함하지 않는다. 기본 강도 정책은 없는 속성을 건너뛰면서 길이/사전/numeric 검사는 유지한다.
+
+Admin은 cleaned confirmation에 오류가 없고 unusable이 아닌 경우에만 원문 confirmation을 전달한다. 비밀번호 진단만
+충돌 없이 배정한 confirmation 이름으로 매핑하고, 실제 모델의 `password` 필드 진단은 원래 field에 남긴다. 사전 검사는
+최종 생성의 인가·유일성·관계·typed 모델/같은 password 정책 재검사와 hash/commit 경계를 대체하지 않는다.
 
 Add와 Change의 그룹/직접 권한 선택지는 각각의 노출과 전체 account operation 정책에 묶인다. 실제 typed catalog의 label/code,
 IR field·관계 source를 사용하고 현재 읽기 scope에서 bounded 검색/Resolve한다. 별도 catalog view 권한을 강요하지 않는다.

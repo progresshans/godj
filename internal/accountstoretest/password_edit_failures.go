@@ -12,6 +12,7 @@ import (
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
@@ -34,12 +35,12 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 			config := passwordEditConfig()
 			policies := 0
-			config.ValidatePassword = func(_ context.Context, _ string, row models.User) (validation.Errors, error) {
+			config.ValidatePassword = func(_ context.Context, _ string, row orm.ModelView[models.User]) (validation.Errors, error) {
 				policies++
-				if row.EncodedPassword != "" {
+				if passwordViewString(t, row, "encoded_password") != "" {
 					t.Fatal("typed policy exposed hash")
 				}
-				if row.FirstName == "after-hash" && mode == "policy_rejection" {
+				if passwordViewString(t, row, "first_name") == "after-hash" && mode == "policy_rejection" {
 					return validation.NewErrors(validation.New("password", "similar_profile")), nil
 				}
 				return validation.Errors{}, nil
@@ -165,7 +166,7 @@ func passwordAdminCommitFailures(t *testing.T, backend Backend, reopen func(*tes
 				config.Now = func() time.Time { return time.Time{} }
 			}
 			final := false
-			config.ValidatePassword = func(context.Context, string, models.User) (validation.Errors, error) {
+			config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 				if final && (mode == "validator_rejection" || mode == "validator_failure" || mode == "cleanup_failure" || mode == "swallowed_rejection") {
 					diagnostics := validation.NewErrors(validation.New("password", "changed_policy"))
 					if mode == "validator_failure" {

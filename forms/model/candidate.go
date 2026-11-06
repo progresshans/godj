@@ -5,6 +5,29 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
+// CandidateValues returns the model candidate, including retained defaults and
+// values rejected by model checks. Required NULL means an incomplete candidate,
+// never a zero-valued model or writable input. Command fields are not included.
+// Use ValidationValues for uniqueness and Input for validated persistence.
+func (bound BoundForm) CandidateValues() (map[string]query.Value, error) {
+	if !bound.form.Bound() {
+		return nil, &Error{Path: "form", Code: "unbound"}
+	}
+	values := make(map[string]query.Value, len(bound.model.Fields))
+	for _, field := range bound.model.Fields {
+		value, present := bound.candidate.Get(field.Name)
+		if !present {
+			return nil, &Error{Path: "candidate." + field.Name, Code: "missing_value"}
+		}
+		scalar, valid := queryValue(value)
+		if !valid {
+			return nil, &Error{Path: "candidate." + field.Name, Code: "type_mismatch"}
+		}
+		values[field.Name] = scalar
+	}
+	return values, nil
+}
+
 // ValidationValues snapshots selected scalar model values after the currently
 // applied errors and exclusions. Recompute it after each validation stage; an
 // earlier snapshot intentionally retains its earlier membership. Collections

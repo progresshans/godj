@@ -19,6 +19,7 @@ import (
 	"github.com/progresshans/godj/examples/article/internal/accounttest"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -34,7 +35,7 @@ func TestArticleCompositionPublishesIdentityAdminWithDurableUserCreation(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	validators := []accountmodel.PasswordValidator[models.User]{func(_ context.Context, raw string, _ models.User) (validation.Errors, error) {
+	validators := []accountmodel.PasswordValidator[models.User]{func(_ context.Context, raw string, _ orm.ModelView[models.User]) (validation.Errors, error) {
 		return minimum.ValidatePassword(raw, nil), nil
 	}}
 	config := NewConfig(backend).WithLoopbackAuthentication().WithPasswordValidators(validators...)

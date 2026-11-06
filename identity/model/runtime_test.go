@@ -16,6 +16,7 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -38,7 +39,7 @@ func TestSelectedRuntimeSharesSessionPasswordAndManagementOwners(t *testing.T) {
 	config.Accounts.PrincipalID = func(context.Context) (string, error) { callbacks++; return "private-principal", nil }
 	config.Accounts.Now = func() time.Time { callbacks++; return time.Now() }
 	config.Accounts.MaxPasswordBytes = 80
-	config.Accounts.ValidatePassword = func(context.Context, string, models.User) (validation.Errors, error) {
+	config.Accounts.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 		callbacks++
 		return validation.Errors{}, nil
 	}

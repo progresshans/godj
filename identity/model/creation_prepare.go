@@ -240,16 +240,12 @@ func (state *creationState[M]) checkCandidate(ctx context.Context, scope db.Quer
 		}
 	}
 	if !candidate.unusable && state.config.ValidatePassword != nil {
-		row, err := detached()
-		if err != nil {
-			return err
+		failure := validateAccountPassword(ctx, binding, state.config.ValidatePassword, candidate.raw, candidate.row)
+		if err := validateAuthorityScope(ctx, validator); err != nil {
+			return errors.Join(failure, err)
 		}
-		diagnostics, failure := state.config.ValidatePassword(ctx, candidate.raw, row)
-		if err := errors.Join(failure, validateAuthorityScope(ctx, validator)); err != nil {
-			return err
-		}
-		if err := passwordPolicyDiagnostics(diagnostics); err != nil {
-			return credentialPasswordRejection(err)
+		if failure != nil {
+			return credentialPasswordRejection(failure)
 		}
 	}
 	if err := validateAuthorityScope(ctx, validator); err != nil {

@@ -20,7 +20,7 @@ func TestGeneratedAccountProfileFileCreation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := writeAccountProfileFileSource(t, custom, true, profileFileCreationConsumer+profileFileCommandConsumer)
 			required := []string{"TestGeneratedProfileFileCreation"}
-			for _, child := range []string{"command", "construction", "first_account", "first_failures", "typed_creation", "admin_creation", "json_read_only", "failures", "concurrent_login", "restart"} {
+			for _, child := range []string{"command", "construction", "first_account", "first_failures", "typed_creation", "partial_password_before_files", "admin_creation", "json_read_only", "failures", "concurrent_login", "restart"} {
 				required = append(required, required[0]+"/"+child)
 			}
 			for _, child := range []string{"construction", "preflight", "created", "mutated_input", "abandon", "not_fresh", "partial", "validation", "hash", "audit", "cleanup", "unknown", "canceled", "report_error", "report_panic", "report_goexit"} {

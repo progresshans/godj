@@ -13,6 +13,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
@@ -222,8 +223,8 @@ func TestCustomAccountBindingOwnsTypedRowsAndHostGraph(t *testing.T) {
 	})
 	var currentPassword string
 	t.Run("password_change", func(t *testing.T) {
-		currentPassword = assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "member@EXAMPLE.TEST", row, func(_ context.Context, raw string, current people.Member) (validation.Errors, error) {
-			if current.ID != row.ID || current.Region != "JP JSON" || current.Secret != "" || current.Subject != "member-1" {
+		currentPassword = assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "member@EXAMPLE.TEST", row, func(_ context.Context, raw string, current orm.ModelView[people.Member]) (validation.Errors, error) {
+			if passwordViewInteger(t, current, "id") != row.ID || passwordViewString(t, current, "region") != "JP JSON" || passwordViewString(t, current, "secret") != "" || passwordViewString(t, current, "subject") != "member-1" {
 				return validation.Errors{}, errors.New("custom password policy lost the actual typed profile")
 			}
 			if len(raw) < 12 {

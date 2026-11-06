@@ -380,12 +380,9 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			}
 			return validation.Errors{}, nil
 		},
-		ValidatePassword: func(_ context.Context, raw string, candidate M) (validation.Errors, error) {
+		ValidatePassword: func(_ context.Context, raw string, candidate orm.ModelView[M]) (validation.Errors, error) {
 			passwordPolicies.Add(1)
-			values, err := objects.ModelValues(candidate)
-			if err != nil {
-				return validation.Errors{}, err
-			}
+			values := candidate.Values()
 			if encoded, _ := values[role.Password].String(); encoded != "" {
 				return validation.Errors{}, errors.New("password policy received encoded material")
 			}
@@ -447,8 +444,10 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		policy, err := binding.DefaultPasswordValidator(accountmodel.PasswordAttribute{Field: role.Login, Label: "login"},
 			accountmodel.PasswordAttribute{Field: "password", Label: "profile label"})
 		check(err)
+		profile, err := objects.View(original, role.Login, "password")
+		check(err)
 		for _, raw := range []string{actorLogin, "password", "12345678"} {
-			diagnostics, err := policy(t.Context(), raw, original)
+			diagnostics, err := policy(t.Context(), raw, profile)
 			check(err)
 			if diagnostics.Empty() {
 				t.Fatal("selected typed policy omitted a strength check")
@@ -1801,6 +1800,24 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		status, header, body := adminSend(client, "GET", "/admin/accounts/history/?id="+strconv.FormatInt(created.ID, 10), nil)
 		if status != 500 || header.Get("Location") != "" || len(historySequences(body)) != 0 || calls.Load() != 2 || !reflect.DeepEqual(before, snapshot()) {
 			t.Fatal("Admin history storage failure became a permission refusal or changed native state", status)
+		}
+	})
+
+	run("admin_partial_password_diagnostics", func(t *testing.T) {
+		fields := accountFields(actorLogin)
+		fields["password"] = strings.Repeat("p", 65)
+		fields["password1"], fields["password2"] = "weak", "weak"
+		submit := prepareAdmin(client, "/admin/accounts/add/", fields, "")
+		before := snapshot()
+		hashes, policies := trackedHasher.calls.Load(), passwordPolicies.Load()
+		status, headers, body := submit()
+		for field, code := range map[string]string{role.Login: "unique", "password": "max_length", "password2": "weak"} {
+			if !strings.Contains(string(body), `data-error-field="`+field+`" data-error-code="`+code+`"`) {
+				t.Fatal("partial field/credential diagnostics lost their namespace", field)
+			}
+		}
+		if status != 200 || headers.Get("Location") != "" || strings.Contains(string(body), `value="weak"`) || trackedHasher.calls.Load() != hashes || passwordPolicies.Load() != policies+1 || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("combined password Form diagnostics wrote, hashed, retried or disclosed a command", status)
 		}
 	})
 	run("admin_status_display_boundary", func(t *testing.T) {

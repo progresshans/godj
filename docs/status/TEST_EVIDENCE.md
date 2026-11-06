@@ -4099,6 +4099,52 @@ SQLite/PostgreSQL 고정 selector는 위 네 개씩만 제거했다(relation 4,9
 CI 분할 Python 검사 25개가 27.569초에 통과했다. 실제 생성/타입·HTTP·양 DB·race·
 CGO-disabled·전체 platform 수용은 이 변경을 push한 후의 원격 CI 대상이다. 고정 Admin 제품 전체와 I1 수용은 아직 미완료다.
 
+
+## GDJ-0138 — 선택 생성 Form의 복합 비밀번호 진단과 부분 typed view
+
+`bc839492edeb759f3d72285c08f4d658bd1ee3ad` 다음 묶음에서 선택 Admin의 Form field 오류가 비밀번호 정책 검사를
+막던 차이를 수정했다. `PasswordValidator[M]`는 실제 모델 source의 `orm.ModelView[M]`을 받는다. 전체 생성/변경/reset은
+현재 detached typed model을 투영하고 credential 역할은 빈 문자열로 유지한다. Form 사전 검사에서는 아직 없는 required
+값·서버 key/principal/revision/시각과 파일/파생 크기를 제외한다. 필수 FK를 0으로 채운 typed row나 별도 User DTO를 만들지 않는다.
+`Manager.ViewInput`은 입력의 정확한 source·명시적 scalar/collection 존재·target key를 복사하며 defaults/인가를 만들지 않는다.
+`BoundForm.CandidateValues`는 field cleaning 뒤 candidate와 model-only 오류의 값을 보존하고, required NULL을 입력이나
+Go zero로 승격하지 않는다. Unique 검사용 `ValidationValues`와 저장용 `Input`의 기존 경계는 유지한다.
+
+`AccountManagement.CheckCreateForm`은 optional cleaned password를 받아 같은 현재 인가 snapshot에서 partial model/unique/
+관계 검사와 strength 정책을 확인하고 `CreationFormDiagnostics{Fields, Password}`를 반환한다. 기존 bound 오류는 유지하고
+새로 얻은 두 진단만 분리한다. Snapshot cleanup·policy 실행 오류/취소에는 둘 다 비운다. ID source·clock·hash·파일 저장·최종
+모델 validator는 실행하지 않으며 최종 creation preflight/write fence의 모든 검사도 유지한다. Admin은 확인 입력의 오류나
+unusable 선택 때 policy를 건너뛰고, 확인이 유효하면 첫 비밀번호 누락과 독립 model 오류에도 정책을 적용한다. Credential 진단만
+실제 confirmation 이름으로 옮기므로 profile의 `password` field 오류와 섞이지 않는다.
+
+기존 생성·최초 계정·자기/관리 비밀번호·reset·Article 정책과 모든 해당 typed 소비자를 같은 ABI로 옮겼다. Callback에서 확인하던
+현재 profile/ID/revision·encoding 비노출·인가 재검사·scope/실패 조건은 유지하고, 없는 값을 Go zero로 읽지 않는 assertion을 사용한다.
+기존 fixed UserCreationForm의 별도 username 입력 정책·재사용 수명과 Django 독립 observer는 제거하지 않았다. 이 변경을 그
+고정 Form의 완전한 교체나 custom 모델 전부의 Django UsernameField 호환으로 주장하지 않는다.
+
+새 필수 검증 본문과 연결:
+
+- 순수 ORM/Form/기본 강도 검사 3개: 미완성 required 값과 명시적 NULL/0·source 불일치·사본 소유권, model 오류 candidate와
+  DB/저장 입력의 분리, 없는 문자열 속성에서도 독립 strength 규칙 유지·zero view 거부.
+- 양 DB `management_form_passwords` 아래 12개: duplicate·missing login·invalid email·model-only 오류·nil password·byte 한도,
+  callback failure·wrapped rejection·잘못된 진단 field·cleanup·권한 거부·취소. 전체 native 계정/catalog/소속/audit 행을 재접속해
+  비교하고 callback 횟수와 ID/clock/최종 validator/hash의 무실행을 확인하도록 작성했다.
+- 일곱 생성 변형의 실제 Admin child 6개: duplicate/choice 오류와 strength, 첫 입력 누락과 strength, mismatch/unusable 때 policy
+  무실행, 실제 profile `password`의 max_length·login unique·credential weak 세 진단의 동시 표시와 durable 무변경.
+- 기본/custom required-FK 생성 소비자의 `partial_password_missing_relation`: 실제 Admin에서 필수 department가 없는데도
+  confirmation 진단을 표시하고, policy view에 가짜 relation/key가 없으며 계정/audit가 변하지 않아야 한다.
+- 기본/custom 파일 생성 소비자의 `partial_password_before_files`: uploads/파일 기본값/파생 크기를 policy에 노출하지 않고,
+  부분 strength 거부가 storage name 할당·publication·hash·write를 실행하지 않는지 확인한다. 실제 파일 publication 뒤의 기존
+  model/password 거부·cleanup/unknown 소비자는 유지한다.
+
+기존 필수 selector를 모두 보존한 채 relation은 4,946→4,962, PostgreSQL은 5,867→5,880으로 늘렸다.
+생성 앱의 새 child도 해당 부모의 엄격한 필수 실행 목록에 추가했다. 변경 Go 46개의 gofmt·어휘 수준 import 참조,
+selector 보존·필수 child·템플릿 placeholder 연결, 245개 문서 링크와 diff를 정적으로 확인했다. CI 분할 Python 검사 25개는
+27.692초에 통과했다. 이는 Go 타입/생성/테스트 본문이나 native DB 실행 결과가 아니다.
+사용자 지시에 따라 로컬 Go compile·generator·테스트·DB 실행은 하지 않았다. 새 ABI·실제 HTTP·양 DB·race/CGO-disabled·
+독립 기준·전체 platform 수용은 새 source의 원격 CI 대상이다. 선행 [CI 42139237147](https://github.com/progresshans/godj/actions/runs/42139237147)의
+진행 중 결과를 이 Form 변경의 PASS로 사용하지 않는다. 고정 소비자의 남은 교체와 I1 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

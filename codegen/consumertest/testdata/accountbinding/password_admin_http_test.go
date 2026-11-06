@@ -140,12 +140,9 @@ func assertAccountAdminPasswordHTTP[M any](t *testing.T, backend database.Backen
 	overlay := &adminPasswordOverlay{}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	policyCalls := atomic.Int64{}
-	owner, err := factory(selected, verifier, overlay, accountmodel.PasswordEditConfig[M]{ChangePermission: "account.password", AdditionalPermissions: []auth.Permission{"account.password_confirm"}, MaxPasswordBytes: 64, Now: func() time.Time { return now }, ValidatePassword: func(_ context.Context, raw string, row M) (validation.Errors, error) {
+	owner, err := factory(selected, verifier, overlay, accountmodel.PasswordEditConfig[M]{ChangePermission: "account.password", AdditionalPermissions: []auth.Permission{"account.password_confirm"}, MaxPasswordBytes: 64, Now: func() time.Time { return now }, ValidatePassword: func(_ context.Context, raw string, row orm.ModelView[M]) (validation.Errors, error) {
 		policyCalls.Add(1)
-		values, err := objects.ModelValues(row)
-		if err != nil {
-			return validation.Errors{}, err
-		}
+		values := row.Values()
 		encoded, _ := values[role.Password].String()
 		profile, _ := values[profileField].String()
 		if encoded != "" || profile != profileValue {

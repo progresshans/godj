@@ -11,6 +11,7 @@ import (
 	"example.com/godj-project-bundle/project"
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/orm"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 	"github.com/progresshans/godj/validation"
 )
@@ -152,8 +153,8 @@ func TestDefaultAccountBindingOwnsTypedRows(t *testing.T) {
 	})
 	var currentPassword string
 	t.Run("password_change", func(t *testing.T) {
-		currentPassword = assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "alice", row, func(_ context.Context, raw string, current models.User) (validation.Errors, error) {
-			if current.ID != row.ID || current.FirstName != "Updated Alice JSON" || current.EncodedPassword != "" {
+		currentPassword = assertAccountPasswordHTTP(t, backend, binding, sessionStore, hasher, "alice", row, func(_ context.Context, raw string, current orm.ModelView[models.User]) (validation.Errors, error) {
+			if passwordViewInteger(t, current, "id") != row.ID || passwordViewString(t, current, "first_name") != "Updated Alice JSON" || passwordViewString(t, current, "encoded_password") != "" {
 				return validation.Errors{}, errors.New("default password policy lost the actual typed profile")
 			}
 			if len(raw) < 12 {

@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -81,17 +82,16 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 	check(err)
 	actor := credential.Principal()
 	overlay := &catalogAdminOverlay{}
+	var passwordCalls atomic.Int64
 	owner, err := factory(selected, verifier, overlay, accountmodel.AccountManagementConfig[M]{
 		ReadFields: fields, CreateFields: fields, EditFields: fields,
 		Permissions:           accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete", Additional: []auth.Permission{"account.manage"}},
 		GroupPermissions:      accountmodel.DeletionPermissions{Delete: "catalog.delete_group", Change: "catalog.change_group"},
 		PermissionPermissions: accountmodel.DeletionPermissions{Delete: "catalog.delete_permission", Change: "catalog.change_permission"},
 		Now:                   clock, MaxPasswordBytes: 64,
-		ValidatePassword: func(_ context.Context, raw string, candidate M) (validation.Errors, error) {
-			values, err := objects.ModelValues(candidate)
-			if err != nil {
-				return validation.Errors{}, err
-			}
+		ValidatePassword: func(_ context.Context, raw string, candidate orm.ModelView[M]) (validation.Errors, error) {
+			passwordCalls.Add(1)
+			values := candidate.Values()
 			if secret, _ := values[role.Password].String(); secret != "" {
 				return validation.Errors{}, errors.New("policy received encoded secret")
 			}
@@ -300,7 +300,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			t.Fatal("choice read changed durable state")
 		}
 	})
-	for _, mode := range []string{"partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "csrf", "protected_input", "additional_permission", "add_requires_change"} {
+	for _, mode := range []string{"partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "duplicate_and_password", "choice_and_password", "missing_first_password", "mismatch_suppresses_policy", "unusable_suppresses_policy", "csrf", "protected_input", "additional_permission", "add_requires_change"} {
 		t.Run(mode, func(t *testing.T) {
 			path := "/admin/accounts/add/"
 			page := get(client, path)
@@ -339,6 +339,25 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 				data.Set("password1", "weak")
 				data.Set("password2", "weak")
 				code = "weak"
+			case "duplicate_and_password", "choice_and_password", "missing_first_password", "mismatch_suppresses_policy", "unusable_suppresses_policy":
+				data.Set("password1", "weak")
+				data.Set("password2", "weak")
+				code = "weak"
+				switch mode {
+				case "duplicate_and_password":
+					data.Set(role.Login, loginName)
+				case "choice_and_password":
+					data.Set(role.Groups, "9223372036854775807")
+				case "missing_first_password":
+					data.Set("password1", "")
+				case "mismatch_suppresses_policy":
+					data.Set("password1", "different")
+					code = "password_mismatch"
+				case "unusable_suppresses_policy":
+					data.Set(role.Login, loginName)
+					data.Set("unusable_password", "on")
+					code = "unique"
+				}
 			case "csrf":
 				data.Del("csrfmiddlewaretoken")
 				want = 403
@@ -357,6 +376,7 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			if mode == "add_requires_change" {
 				overlay.denied.Store(auth.Permission("account.change"))
 			}
+			calls := passwordCalls.Load()
 			status, headers, body := send(client, "POST", path, data)
 			if mode == "additional_permission" || mode == "add_requires_change" {
 				denied, _, _ := send(client, "GET", "/admin/accounts/add/choices/"+role.Groups+"/?limit=1", nil)
@@ -373,6 +393,23 @@ func assertAccountAdminHTTP[M, G, P any](t *testing.T, backend database.Backend,
 			}
 			if strings.Contains(body, accountPasswordText) || strings.Contains(body, `value="weak"`) {
 				t.Fatal("creation refusal echoed password")
+			}
+			switch mode {
+			case "duplicate_and_password", "choice_and_password", "missing_first_password":
+				field, other := role.Login, "unique"
+				if mode == "choice_and_password" {
+					field, other = role.Groups, "invalid_choice"
+				}
+				if mode == "missing_first_password" {
+					field, other = "password1", "required"
+				}
+				if passwordCalls.Load() != calls+1 || !strings.Contains(body, `data-error-field="`+field+`" data-error-code="`+other+`"`) || !strings.Contains(body, `data-error-field="password2" data-error-code="weak"`) {
+					t.Fatal("partial model or confirmation input suppressed independent password diagnostics", mode)
+				}
+			case "mismatch_suppresses_policy", "unusable_suppresses_policy":
+				if passwordCalls.Load() != calls || strings.Contains(body, `data-error-code="weak"`) {
+					t.Fatal("rejected or disabled confirmation invoked strength policy", mode)
+				}
 			}
 			if mode == "invalid_choice" && !strings.Contains(body, `data-error-code="unique"`) {
 				t.Fatal("bad relation suppressed login uniqueness")
