@@ -272,6 +272,7 @@ func TestGeneratedProfileFileCreation(t *testing.T){
         if _,err:=f.runtime.Authenticator().Authenticate(t.Context(),"unusable@example.test",accountPasswordText);err==nil{t.Fatal("unusable creation authenticated")}
         names:=creator.FileFields();names[0]="mutated";if creator.FileFields()[0]!="document"{t.Fatal("creation file policy aliases caller slice")}
     })
+    run("prepared_form_lifecycle",f.preparedForms)
     run("partial_password_before_files",func(t *testing.T){
         definition,err:=f.runtime.Accounts().Creator().FormDefinition();fileCheck(t,err)
         bound:=f.form(t,definition,f.data(t,"partial-password@example.test",false))
@@ -385,6 +386,107 @@ func TestGeneratedProfileFileCreation(t *testing.T){
         current,err:=restarted.Accounts().Reader().Get(t.Context(),f.actor,typedID);fileCheck(t,err)
         if width,present:=current.View().Get("portrait_width");!present||!width.Equal(query.Integer(4)){t.Fatal("creation image dimensions lost on restart")};f.same(t,before)
     })
+}
+
+func (f *creationFileFixture) preparedForms(t *testing.T){
+    for _,mode:=range []string{"usable","unusable","abandon","model_policy","password_policy","revoked","audit","cleanup","unknown_commit"}{t.Run(mode,func(t *testing.T){
+        defer func(){f.reject.Store(false);f.rejectPassword.Store(false);f.backend.mode.Store("")}()
+        creator:=f.runtime.Accounts().Creator();definition,err:=creator.FormDefinition();fileCheck(t,err)
+        login:="prepared-"+mode+"@example.test"
+        document,err:=uploads.NewBuffer("same.txt","text/plain",f.document);fileCheck(t,err);defer document.Close()
+        portrait,err:=uploads.NewBuffer("photo.png","image/png",f.portrait);fileCheck(t,err);defer portrait.Close()
+        values:=map[string][]string{f.role.Login:{login},"@@PROFILE@@":{"NZ"},"preset":{"presets/first.png"},f.role.Groups:{strconv.FormatInt(f.groupID,10)},f.role.Permissions:{strconv.FormatInt(f.grantID,10)}}
+        bound:=f.form(t,definition,forms.NewDataWithFiles(values,map[string][]uploads.File{"document":{document.File()},"portrait":{portrait.File()}}))
+        before:=f.snapshot(t);saves,names,hashes,writes:=f.disk.saves.Load(),f.disk.names.Load(),f.hasher.calls.Load(),f.backend.writes.Load()
+        var pending accountmodel.PreparedCreation[fileAccount];var publications []formmodel.FilePublication
+        wantHashes:=int64(1)
+        if mode=="unusable"{
+            f.rejectPassword.Store(true);wantHashes=0
+            pending,publications,err=creator.PrepareUnusableForm(t.Context(),f.actor,bound)
+        }else{pending,publications,err=creator.PrepareForm(t.Context(),f.actor,bound,accountPasswordText)}
+        fileCheck(t,err)
+        if len(publications)!=2||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes||f.backend.writes.Load()!=writes{t.Fatal("Form preparation lost publications, repeated hashing or wrote native state")}
+        for _,publication:=range publications{if publication.Outcome()!=storage.Published||!publication.Info().Valid(){t.Fatal("successful preparation returned an incomplete publication")}}
+        f.same(t,before);f.stored(t,publications)
+        // End the input lifetime before any commit. The prepared operation
+        // must own actual stored names and derived values, never reopen uploads.
+        fileCheck(t,document.Close());fileCheck(t,portrait.Close())
+        for _,file:=range []uploads.File{document.File(),portrait.File()}{
+            reader,err:=file.Open(t.Context());if reader!=nil{_ = reader.Close()};if !errors.Is(err,&uploads.Error{Code:"closed"}){t.Fatal("prepared input lifetime did not end",err)}
+        }
+        if mode=="abandon"{f.same(t,before);f.stored(t,publications);return}
+        retained:=pending
+        if mode=="usable"{
+            other,err:=project.NewAccountManagement(f.runtime.SessionStore(),f.runtime.Authenticator(),auth.PrincipalAuthorizer{},f.config.Accounts);fileCheck(t,err)
+            result,err:=other.Creator().Commit(t.Context(),f.actor,retained)
+            if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeInvalidInput})||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("prepared Form escaped its creator",err)}
+            credential,err:=f.runtime.Authenticator().Authenticate(t.Context(),"typed@example.test",accountPasswordText);fileCheck(t,err)
+            result,err=creator.Commit(t.Context(),credential.Principal(),retained)
+            if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodePermission})||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("prepared Form escaped its actor",err)}
+            canceled,cancel:=context.WithCancel(t.Context());cancel()
+            result,err=creator.Commit(canceled,f.actor,retained)
+            if !errors.Is(err,context.Canceled)||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("canceled entry published a prepared account",err)}
+            if f.backend.writes.Load()!=writes||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes{t.Fatal("invalid commit entry performed private work")};f.same(t,before)
+        }
+        revision,_:=f.values(t,f.firstID)[f.role.Revision].Integer()
+        switch mode{
+        case "model_policy":f.reject.Store(true)
+        case "password_policy":f.rejectPassword.Store(true)
+        case "revoked":fileCheck(t,f.patch(t,f.firstID,map[string]query.Value{f.role.Active.Field:query.Boolean(false),f.role.Revision:query.Integer(revision+1)}))
+        case "audit","cleanup":f.backend.mode.Store(mode)
+        case "unknown_commit":f.backend.mode.Store("unknown")
+        }
+        result,failure:=creator.Commit(t.Context(),f.actor,pending)
+        f.reject.Store(false);f.rejectPassword.Store(false)
+        if mode=="revoked"{
+            changes:=map[string]query.Value{f.role.Active.Field:query.Boolean(true),f.role.Revision:query.Integer(revision+2)};fileCheck(t,f.patch(t,f.firstID,changes))
+            accounts:=before["accounts"].([]fileAccount)
+            for i,row:=range accounts{key,_,err:=f.objects.PrimaryKey(row);fileCheck(t,err);id,_:=key.Integer();if id==f.firstID{accounts[i],err=f.objects.ApplyValues(row,changes);fileCheck(t,err)}}
+        }
+        success:=mode=="usable"||mode=="unusable"
+        if success{fileCheck(t,failure);f.confirmed(t,result,publications,login)}else{
+            if failure==nil||!reflect.DeepEqual(result,accountmodel.Creation{}){t.Fatal("failed prepared commit published confirmed metadata",mode,failure)}
+            switch mode{
+            case "model_policy","password_policy":
+                diagnostics,rejected:=validation.Rejected(failure);if !rejected||diagnostics.Empty(){t.Fatal("final prepared policy was not rechecked",mode,failure)}
+                field:=validation.Field("document");if mode=="password_policy"{field=validation.NonField};if diagnostics.ByField(field).Empty(){t.Fatal("final prepared policy lost its diagnostic field",mode)}
+            case "revoked":if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodePermission}){t.Fatal("prepared Form retained revoked authority",failure)}
+            case "audit","cleanup":if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodePersistence}){t.Fatal("prepared rollback lost its persistence failure",failure)}
+            case "unknown_commit":if !errors.Is(failure,&accountmodel.Error{Code:accountmodel.CodeOutcomeUnknown}){t.Fatal("prepared commit lost uncertainty",failure)}
+            }
+        }
+        if f.backend.writes.Load()!=writes+1||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes{t.Fatal("prepared commit repeated publication, hashing or native write")}
+        replay,err:=creator.Commit(t.Context(),f.actor,retained)
+        if !errors.Is(err,&accountmodel.Error{Code:accountmodel.CodeConflict})||!reflect.DeepEqual(replay,accountmodel.Creation{}){t.Fatal("prepared copy was reusable after a native attempt",mode,err)}
+        if f.backend.writes.Load()!=writes+1||f.disk.saves.Load()!=saves+2||f.disk.names.Load()!=names+2||f.hasher.calls.Load()!=hashes+wantHashes{t.Fatal("prepared replay performed private work")}
+        f.stored(t,publications)
+        if !success&&mode!="unknown_commit"{f.same(t,before);return}
+        // Reconcile through native rows, independently of the returned receipt.
+        // Unknown acknowledgement remains an error even though these rows exist.
+        rows,err:=f.objects.Using(f.native).Filter(f.login.Exact(login)).All(t.Context());fileCheck(t,err)
+        if len(rows)!=1{t.Fatal("prepared commit did not leave exactly one account")}
+        key,present,err:=f.objects.PrimaryKey(rows[0]);fileCheck(t,err);id,integer:=key.Integer()
+        if !present||!integer||id<=0||success&&result.ID!=id{t.Fatal("prepared account has the wrong native identity")}
+        stored,err:=f.objects.ModelValues(rows[0]);fileCheck(t,err)
+        if !stored[f.role.Revision].Equal(query.Integer(1))||!stored["portrait_width"].Equal(query.Integer(4))||!stored["portrait_height"].Equal(query.Integer(6)){t.Fatal("prepared commit lost revision or image dimensions")}
+        for _,publication:=range publications{if !stored[publication.Field()].Equal(query.String(publication.Info().Name())){t.Fatal("prepared commit did not use actual publication names")}}
+        encoded,_:=stored[f.role.Password].String()
+        if auth.IsPasswordUsable(encoded)!=(mode!="unusable"){t.Fatal("prepared credential usability changed")}
+        if mode!="unusable"{valid,err:=f.hasher.Verify(t.Context(),accountPasswordText,encoded);fileCheck(t,err);if !valid{t.Fatal("prepared commit lost its single encoded password")}}
+        after:=f.snapshot(t);accounts:=after["accounts"].([]fileAccount);audits:=after["audits"].([]auditmodels.Event)
+        if len(accounts)!=len(before["accounts"].([]fileAccount))+1||len(audits)!=len(before["audits"].([]auditmodels.Event))+1{t.Fatal("prepared commit left partial or duplicated durable state")}
+        event:=audits[len(audits)-1];domain,_:=f.actor.CredentialDomain()
+        if event.ObjectID!=id||event.Model!=f.role.Model.AppLabel+"."+f.role.Model.ModelName||event.ActorID!=f.actor.ID()||event.Domain!=domain.Identifier()||event.Action!=string(admin.ActionAdd){t.Fatal("prepared audit has another owner, target or action")}
+        var changed []string;fileCheck(t,json.Unmarshal([]byte(event.ChangedFields),&changed))
+        for _,name:=range []string{"document","portrait","portrait_width","portrait_height"}{if !slices.Contains(changed,name){t.Fatal("prepared audit omitted derived fields")}}
+        if success&&!slices.Equal(changed,result.ChangedFields){t.Fatal("prepared receipt differs from native audit")}
+        collections:=after["collections"].(map[int64]map[string][]int64)
+        if len(collections[id])!=2||!slices.Equal(collections[id][f.role.Groups],[]int64{f.groupID})||!slices.Equal(collections[id][f.role.Permissions],[]int64{f.grantID}){t.Fatal("prepared commit lost selected memberships")}
+        delete(collections,id)
+        after["accounts"]=slices.DeleteFunc(slices.Clone(accounts),func(row fileAccount)bool{key,_,err:=f.objects.PrimaryKey(row);fileCheck(t,err);value,_:=key.Integer();return value==id})
+        after["audits"]=audits[:len(audits)-1]
+        if !reflect.DeepEqual(before,after){t.Fatal("prepared commit changed unrelated accounts, catalogs, memberships, sessions or domain history")}
+    })}
 }
 
 func (f *creationFileFixture) settings(t *testing.T)settings.Settings{

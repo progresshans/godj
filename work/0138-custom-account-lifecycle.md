@@ -728,6 +728,12 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 같은 native snapshot의 전체 물리 행·through ID·domain 이력을 직접 대조하고 현재 권한/실패의 실제 HTTP 검사는 유지한다.
 검사 범위와 실행 제한은 바꾸지 않았으며 실제 속도·양 DB·race 수용은 새 source의 원격 확인 대상이다.
 
+선택 모델 파일 Form의 공개 `PrepareForm`/`PrepareUnusableForm`을 같은 Creator 준비 경로에 연결했다. 파일 게시 기록과
+준비 객체를 함께 돌려주며 입력 수명 종료 후 Commit·준비 포기·최종 거부/unknown·사본 재사용 거부 소비자를 양 DB의
+기본/custom 생성 앱에 추가했다. 독립 재사용 생성 Form 전체의 대체는 아직 아니며 기존 고정 Form의 Django 입력 기준은
+유지한다. 원격에서 추가로 발견한 custom 그룹 이름의 실패 fixture 간 unique 충돌을 고유한 수정 값으로 바로잡았다.
+새 API·소비자와 fixture 수정의 실행 여부는 TEST_EVIDENCE에서 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

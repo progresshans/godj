@@ -1482,6 +1482,12 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 							}
 							changedField, revisionField, model = role.Catalog.PermissionName, role.Catalog.PermissionRevision, role.Catalog.Permission
 						}
+						changedValue := "NZ"
+						if resource != "accounts" {
+							// A prior unknown commit leaves its requested name stored.
+							// Keep later probes distinct even when that field is unique.
+							changedValue = "updated-" + name
+						}
 						// Custom schemas require these collections in a full Form.
 						// Use real choices so native failure probes reach persistence;
 						// observe their rollback/commit alongside every scalar row.
@@ -1510,7 +1516,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 								targetSession = login(newClient(), name, "native-fault-password")
 							}
 							method, endpoint, revision = "PATCH", path(resource, target.ID), strconv.FormatInt(target.Revision, 10)
-							changed := map[string]any{changedField: "NZ"}
+							changed := map[string]any{changedField: changedValue}
 							if resource == "accounts" {
 								changed[role.Active.Field] = false
 							}
@@ -1541,7 +1547,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 								}
 							}
 							if operation == "update" {
-								action, values[changedField] = "change", "NZ"
+								action, values[changedField] = "change", changedValue
 								if resource == "accounts" {
 									values[role.Active.Field] = false
 								}
@@ -1708,7 +1714,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 							expected := maps.Clone(oldValues)
 							expected[revisionField] = query.Integer(target.Revision + 1)
 							if operation == "update" {
-								expected[changedField] = query.String("NZ")
+								expected[changedField] = query.String(changedValue)
 								if resource == "accounts" {
 									expected[role.Active.Field] = query.Boolean(false)
 								}

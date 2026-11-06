@@ -4255,6 +4255,50 @@ update/password는 기존 link ID까지 유지해야 한다. Rollback·현재 �
 [CI 42151726660](https://github.com/progresshans/godj/actions/runs/42151726660)은 이전 source의 실행이며,
 이 oracle 변경의 생성/양 DB/race 및 시간 제한 수용은 후속 source의 전체 원격 CI에서 확인한다.
 
+## GDJ-0138 — Form 준비와 파일 게시 기록의 지연 Commit
+
+`Creator.PrepareForm`/`PrepareUnusableForm`을 기존 단일 준비 구현에 공개했다. 성공한 준비 객체는 원래 BoundForm을
+보유하지 않으며, 계정 DB 쓰기 없이 실제 파일 이름·이미지 크기·현재 인가와 정책을 확인하고 hash를 한 번 준비한다.
+기존 `CreateForm`/`CreateUnusableForm`도 이 경로를 호출한 뒤 Commit하므로 파일 실패·즉시 생성의 기존 검사를 유지한다.
+게시 기록은 준비 객체와 별도 반환하며, 준비 포기·최종 거부·unknown에서 파일 삭제나 자동 재시도를 추가하지 않았다.
+
+기본/custom 생성 앱의 기존 실제 파일 fixture에 `prepared_form_lifecycle`과 필수 child 9개를 추가했다. Usable/unusable,
+포기, 모델/비밀번호 정책의 최종 거부, 준비 후 권한 회수, 실제 audit/cleanup rollback, 실제 commit 뒤 acknowledgement
+unknown을 검사한다. 준비 후 DB 무변경·정확한 게시/해싱 횟수·모든 파일 원문을 대조하고 `uploads.Buffer.Close`로 입력
+수명을 끝낸 뒤 Commit한다. 다른 owner/actor·진입 전 취소의 무효과와 그 뒤 정상 Commit, 모든 native 시도 뒤 사본 재사용
+거부도 포함한다. 확정/unknown의 native 행·revision·파일 이름·크기·소속·audit와 나머지 계정/catalog/session/domain의
+무변경을 함께 비교하며 unknown을 성공 receipt로 바꾸지 않는다. 기존 18개 파일 실패와 실제 Admin/명령 검사는 그대로다.
+
+제품·부모 필수 목록·기본/custom 조립 template의 gofmt 문법, diff와 현행 문서의 로컬 링크 209개를 정적으로 확인했다.
+로컬 Go compile·생성기·테스트·DB는 실행하지 않았다. 새 소비자의 기본/custom 양 DB·race·전체 환경 실행은 후속 source의
+원격 CI 대상이다. 이 준비 API는
+독립 재사용 생성 Form 전체의 완료가 아니며, 기존 Form의 Django username 입력 기준·독립 원문·소유권 검사는 유지한다.
+
+## GDJ-0138 — 9fe8c2f1 부분 원본 대조와 고유 catalog 수정 fixture
+
+Source `9fe8c2f1a79d85657fd42275fd0403e894777665`의
+[CI 42153058142](https://github.com/progresshans/godj/actions/runs/42153058142)를 확인했다. 실제 checkout
+`9f2bb9c09656c0cd6871be1ce4df2db66a32e352`와 source의 GitHub tree는 모두
+`26ec08fc6892d8376b7d9d265f36b2ae4dcd19b3`이다. CGO-disabled portable core
+[job 127681206834](https://github.com/progresshans/godj/actions/runs/42153058142/job/127681206834)의 artifact
+`13473147678`을 원본 ZIP CRC·내부 파일 hash·현행 required bytes·실행 이벤트와 대조했다. 141 package의 필수 331개가
+각각 한 번 run/pass했고 필수 skip/fail은 없다. 전체 이벤트의 별도 소유 skip 600개는 해당 기능의 PASS로 세지 않는다.
+이 부분 결과는 생성 계정 HTTP·native PostgreSQL·race 및 이후 추가한 Form 준비 API의 수용 근거가 아니다.
+
+Linux ARM64 normal relation [job 127681214645](https://github.com/progresshans/godj/actions/runs/42153058142/job/127681214645)와
+PostgreSQL normal account [job 127681207777](https://github.com/progresshans/godj/actions/runs/42153058142/job/127681207777)는
+`custom_text_login`의 `failure_admin_groups_update_audit_failure`에서 실패했다. 실제 SQLite/PostgreSQL 오류는
+`title/unique`, HTTP 200·native write/hash 0회다. 앞선 JSON unknown commit이 그룹 이름 `NZ`를 실제 저장했고 뒤의
+Admin 수정 fixture가 같은 이름을 재사용했다. Catalog 수정 값을 매 probe의 고유 이름으로 바꾸고 실제 저장 값 oracle에도
+같은 요청 값을 반영했다. 계정 프로필의 `NZ` choice와 모델 unique·한 번의 write/audit 실패·전체 rollback 조건은 유지한다.
+이는 원본과 코드로 확인한 fixture 수정이며 수정 후 native 실행 PASS는 아니다. 전체 CI와 I1은 미완료다.
+
+원본은 검증 보관소 `gdj0138-9fe8c2f1-ci-42153058142/`에 보존했다.
+`core-cgo0-inspection.json` SHA-256 `e091f5b2ccf045aee4f44079b67bd850f2a9e038ec4be1b0c31b72ec6faf63e2`,
+`core-cgo0-events.jsonl` `21beae9ce4e5aa7ae2a4fee5eac6ec52e44b0459f20490637f9413db731e81cc`,
+`job-127681214645.log` `8b73d573b25152c62fcabc332d531fad490d11cfa76b7f0570c9a68fabe55e41`,
+`job-127681207777.log` `c909420232d920f9c86606604da948cf2f51aa73bfe403f69df3b8cd829c6a09`다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

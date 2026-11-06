@@ -28,11 +28,30 @@ func (creator *Creator[M]) FileFields() []string {
 	return profileFileNames(creator.state.files)
 }
 
-// CreateForm keeps uploads within the caller's current form/request lifetime.
-// Current admission precedes publication; actual stored names are validated
-// before hashing and again in the final native transaction. Every attempted
-// publication is returned even if validation, hashing, commit or cleanup fails.
-// Storage and the database are separate outcomes; neither is retried or undone.
+// PrepareForm prepares a selected model Form without writing account rows,
+// memberships or audit. Current admission precedes file publication; actual
+// storage names and current policy are checked before hashing once. Uploads
+// must remain live during this call. A successful candidate no longer retains
+// the submitted Form or its uploads and can be passed to Commit later.
+//
+// Every attempted publication is returned, including when preparation fails.
+// The caller must retain these records through abandonment or Commit failure
+// for its own reconciliation. Storage publication and database commit remain
+// separate outcomes: neither this method nor Commit deletes files or retries.
+// Prepared copies share the same creator/actor/domain binding and one attempt.
+func (creator *Creator[M]) PrepareForm(ctx context.Context, actor auth.Principal, form formmodel.BoundForm, password string) (PreparedCreation[M], []formmodel.FilePublication, error) {
+	return creator.prepare(ctx, actor, orm.ModelInput[M]{}, password, false, &form)
+}
+
+// PrepareUnusableForm has the same publication and ownership contract as
+// PrepareForm, but does not invoke password hashing or strength policy.
+func (creator *Creator[M]) PrepareUnusableForm(ctx context.Context, actor auth.Principal, form formmodel.BoundForm) (PreparedCreation[M], []formmodel.FilePublication, error) {
+	return creator.prepare(ctx, actor, orm.ModelInput[M]{}, "", true, &form)
+}
+
+// CreateForm prepares and commits within the caller's current request. It
+// returns the same publication records even when the final native write fails.
+// Use PrepareForm and Commit to separate those stages explicitly.
 func (creator *Creator[M]) CreateForm(ctx context.Context, actor auth.Principal, form formmodel.BoundForm, password string) (Creation, []formmodel.FilePublication, error) {
 	return creator.createForm(ctx, actor, form, password, false)
 }
@@ -44,7 +63,14 @@ func (creator *Creator[M]) CreateUnusableForm(ctx context.Context, actor auth.Pr
 }
 
 func (creator *Creator[M]) createForm(ctx context.Context, actor auth.Principal, form formmodel.BoundForm, password string, unusable bool) (Creation, []formmodel.FilePublication, error) {
-	prepared, publications, err := creator.prepare(ctx, actor, orm.ModelInput[M]{}, password, unusable, &form)
+	var prepared PreparedCreation[M]
+	var publications []formmodel.FilePublication
+	var err error
+	if unusable {
+		prepared, publications, err = creator.PrepareUnusableForm(ctx, actor, form)
+	} else {
+		prepared, publications, err = creator.PrepareForm(ctx, actor, form, password)
+	}
 	if err != nil {
 		return Creation{}, publications, err
 	}

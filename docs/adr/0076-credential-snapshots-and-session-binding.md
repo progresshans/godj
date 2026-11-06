@@ -1598,7 +1598,8 @@ CreateFields/EditFields의 합집합에 대해 검증하고 각 owner에는 해�
 같은 정규화·이미지 검사 정책을 제공한다. 생성은 새로운 Form이므로 기존 key나 조작된 초기 파일 참조를 받아들이지 않는다.
 IR default와 canonical choices의 선택은 새 업로드와 구분한다.
 
-`Creator.CreateForm`/`CreateUnusableForm`은 현재 요청 안에서 한 번의 준비·게시·commit을 수행한다. 유효한 Form에서
+`Creator.PrepareForm`/`PrepareUnusableForm`은 준비 객체와 모든 파일 게시 기록을 함께 반환하며 계정·소속·audit를 쓰지 않는다.
+`CreateForm`/`CreateUnusableForm`은 같은 준비 경로와 `Commit`을 현재 요청 안에서 순서대로 호출한다. 유효한 Form에서
 pending file만 제외한 typed 입력으로 서버 identity·시각·고정 역할과 다른 값을 준비한다. 첫 native snapshot은 현재
 domain·add/change·추가 권한·관계/소속과 실제로 준비된 값의 unique를 검사한다. Pending 파일 및 그것을 포함한 전체 unique
 제약은 여기서 미루고, 업로드 client filename을 DB 저장 이름으로 검사하지 않는다. Admin의 부분 unique 검사도 같은 경계를 따른다.
@@ -1610,8 +1611,12 @@ Snapshot 종료 뒤 모든 이름 정책을 검사하고 DB 밖에서 파일을 
 경로는 기존 사전 검사/해싱 단계를 유지한다. Unusable 생성은 hash/strength policy를 호출하지 않는다.
 
 파일 의존 validator는 실제 이름이 준비된 뒤, 여전히 해싱 전에 호출한다. 따라서 파일 게시 뒤 validation·hash 실패가 날 수
-있으며 모든 `FilePublication`을 반환한다. 불완전/불확실 게시에서 DB 단계로 진행하지 않는다. 업로드 수명을 준비 객체로
-연장하지 않으며 자동 재시도·파일 삭제·DB/파일 분산 원자성을 제공하지 않는다.
+있으며 준비 실패에도 모든 `FilePublication`을 반환한다. 불완전/불확실 게시에서 DB 단계로 진행하지 않는다. 업로드는 준비
+호출이 끝날 때까지 유효해야 하며, 성공한 준비 객체는 원래 Form/업로드를 보유하지 않는다. 호출자는 입력을 닫은 뒤 나중에
+Commit할 수 있고 준비 포기·최종 거부·unknown에서도 게시 기록을 따로 보관해 직접 대조한다. 준비 객체의 사본은 같은
+creator·actor·domain과 한 번의 native 시도에 묶인다. 잘못된 owner/actor 및 진입 전 취소는 시도를 소비하지 않지만,
+native 시도에 진입한 뒤 실패/unknown은 재사용할 수 없다. 업로드 수명을 연장하거나 자동 재시도·파일 삭제·DB/파일 분산
+원자성을 제공하지 않는다.
 
 `FirstAccount.CreateForm(ctx, operationID, bound, password)`는 호출자가 게시 전에 보관한 명시적 operation ID를 요구한다.
 파일 게시 전·후와 최종 transaction에서 계정/domain의 부재를 확인한다. 마지막 단계의 domain·계정·첫 감사는 원자적이며,
