@@ -724,6 +724,10 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 수정했다. 실제 Form 입력·unknown commit의 정확한 관계 상태와 전체 rollback 검사를 유지한다. 원격 race의 누적 시간 제한과
 후속 새 본문 실행까지 확인해야 하며, 실패 원본·수정 범위는 TEST_EVIDENCE에 둔다.
 
+시간 제한 경로에서 반복되던 Helpdesk 관계 전체 조립과 계정 HTTP의 행별 관리 인가 조회를 저장 상태 oracle에서 제거했다.
+같은 native snapshot의 전체 물리 행·through ID·domain 이력을 직접 대조하고 현재 권한/실패의 실제 HTTP 검사는 유지한다.
+검사 범위와 실행 제한은 바꾸지 않았으며 실제 속도·양 DB·race 수용은 새 source의 원격 확인 대상이다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

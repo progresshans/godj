@@ -24,6 +24,7 @@ import (
 	"example.com/godj-project-bundle/project"
 	accountaudit "github.com/progresshans/godj/account/audit"
 	auditmodels "github.com/progresshans/godj/account/audit/models"
+	domainmodels "github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/api"
 	apisession "github.com/progresshans/godj/api/sessionauth"
@@ -185,6 +186,110 @@ func managementHTTPInsertChoice[M any](ctx context.Context, scope db.Session, ma
 		return err
 	}
 	return manager.Save(ctx, scope, &row, orm.ForceInsert[M]())
+}
+
+type managementHTTPLink struct{ ID, Source, Target int64 }
+type managementHTTPCollection struct {
+	source, target ir.ModelIdentity
+	field          string
+	plan           query.Plan
+}
+
+// Resolve only the physical fixture schema. All three columns are observed;
+// a future explicit/payload-bearing through model must add its own full-row
+// oracle instead of silently inheriting this automatic-link projection.
+func managementHTTPCollectionPlans(t *testing.T, project orm.ProjectBinding, role ir.AccountRole) []managementHTTPCollection {
+	t.Helper()
+	var result []managementHTTPCollection
+	seen := make(map[string]bool)
+	for _, expected := range []struct {
+		source, target ir.ModelIdentity
+		field          string
+	}{{role.Model, role.Catalog.Group, role.Groups}, {role.Model, role.Catalog.Permission, role.Permissions}, {role.Catalog.Group, role.Catalog.Permission, role.Catalog.GroupPermissions}} {
+		found := false
+		for _, relation := range project.ManyToManyRelations() {
+			if relation.Source != expected.source || relation.Field != expected.field {
+				continue
+			}
+			metadata, present := project.Model(relation.Through.Model)
+			if found || !present || relation.Target != expected.target || !relation.Automatic || relation.Symmetry != ir.ManyToManyDirected || len(metadata.Fields) != 3 || seen[metadata.DBTable] {
+				t.Fatal("native collection observation does not own the complete physical fixture")
+			}
+			fields := make([]query.FieldRef, 3)
+			var selected [3]bool
+			for _, field := range metadata.Fields {
+				index := -1
+				switch {
+				case field.PrimaryKey && field.Kind == ir.FieldAuto && !field.Nullable:
+					index = 0
+				case field.Name == relation.Through.SourceField && field.Kind == ir.FieldForeignKey && !field.Nullable && field.Relation != nil && field.Relation.Target == relation.Source:
+					index = 1
+				case field.Name == relation.Through.TargetField && field.Kind == ir.FieldForeignKey && !field.Nullable && field.Relation != nil && field.Relation.Target == relation.Target:
+					index = 2
+				}
+				if index < 0 || selected[index] {
+					t.Fatal("native collection observation omitted or duplicated a stored column")
+				}
+				selected[index] = true
+				fields[index] = query.NewFieldRef(field.Name, field.Column, query.FieldInteger, false)
+			}
+			if selected != [3]bool{true, true, true} {
+				t.Fatal("native collection coordinates are incomplete")
+			}
+			plan := query.NewPlan(metadata.DBTable, fields).WithOrderings(query.NewOrdering(fields[0], query.Ascending))
+			result = append(result, managementHTTPCollection{source: relation.Source, target: relation.Target, field: relation.Field, plan: plan})
+			found, seen[metadata.DBTable] = true, true
+		}
+		if !found {
+			t.Fatal("native collection observation lost a selected relation")
+		}
+	}
+	return result
+}
+
+func managementHTTPReadLinks(ctx context.Context, backend db.Queryer, plan query.Plan) ([]managementHTTPLink, error) {
+	rows, err := backend.Query(ctx, plan)
+	if err != nil {
+		if rows != nil {
+			err = errors.Join(err, rows.Close())
+		}
+		return nil, err
+	}
+	if rows == nil {
+		return nil, errors.New("native collection observation has no rowset")
+	}
+	var result []managementHTTPLink
+	for rows.Next() {
+		var row managementHTTPLink
+		if err := rows.Scan(&row.ID, &row.Source, &row.Target); err != nil {
+			return nil, errors.Join(err, rows.Close())
+		}
+		if len(result) != 0 && result[len(result)-1].ID >= row.ID {
+			return nil, errors.Join(errors.New("native link identity/order is not unique"), rows.Close())
+		}
+		result = append(result, row)
+	}
+	if err := errors.Join(rows.Err(), rows.Close(), ctx.Err()); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func managementHTTPRowIndexes[M any](t *testing.T, manager orm.Manager[M], rows []M) map[int64]int {
+	t.Helper()
+	result := make(map[int64]int, len(rows))
+	for index, row := range rows {
+		key, present, err := manager.PrimaryKey(row)
+		id, integer := key.Integer()
+		if err != nil || !present || !integer {
+			t.Fatal("native snapshot row has no stored integer identity", err)
+		}
+		if _, duplicate := result[id]; duplicate {
+			t.Fatal("native snapshot duplicated a stored row")
+		}
+		result[id] = index
+	}
+	return result
 }
 
 func (reader *managementHTTPQueryReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
@@ -771,6 +876,14 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 	}
 	client := newClient()
 	actorSession := login(client, actorLogin, accountPasswordText)
+	groupObjects, permissionObjects := catalog.Groups().Manager(), catalog.Permissions().Manager()
+	groupKey, err := groupObjects.PrimaryKeyField()
+	check(err)
+	permissionKey, err := permissionObjects.PrimaryKeyField()
+	check(err)
+	projectBinding, err := binding.Project()
+	check(err)
+	collectionPlans := managementHTTPCollectionPlans(t, projectBinding, role)
 	type durable struct {
 		Accounts         []M
 		Groups           []G
@@ -779,42 +892,90 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		GroupPermissions [][]int64
 		Sessions         []sessionmodels.Session
 		Audits           []auditmodels.Event
+		NativeLinks      map[string][]managementHTTPLink
+		Domains          []domainmodels.Transition
+		Mappings         []domainmodels.Mapping
 	}
 	snapshot := func() durable {
 		t.Helper()
-		rows, err := objects.Using(backend).OrderBy(key.Asc()).All(t.Context())
-		check(err)
-		groupKey, err := catalog.Groups().Manager().PrimaryKeyField()
-		check(err)
-		groups, err := catalog.Groups().Manager().Using(backend).OrderBy(orm.NewAutoField[G](groupKey).Asc()).All(t.Context())
-		check(err)
-		groupPermissions := make([][]int64, len(groups))
-		for index, row := range groups {
-			pk, _, err := catalog.Groups().Manager().PrimaryKey(row)
-			check(err)
-			id, _ := pk.Integer()
-			current, err := catalog.Groups().Get(t.Context(), actor, id)
-			check(err)
-			groupPermissions[index], _ = current.View().Collection(role.Catalog.GroupPermissions)
+		// One native read per physical table, independent of the management
+		// reader under test. This observes every stored value and link identity
+		// without repeating current-actor/target resolution for every fixture row.
+		state := durable{NativeLinks: make(map[string][]managementHTTPLink)}
+		visits := 0
+		check(faults.Backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+			visits++
+			if visits != 1 {
+				return errors.New("native state observation repeated its snapshot callback")
+			}
+			var err error
+			if state.Accounts, err = objects.Using(scope).OrderBy(key.Asc()).All(t.Context()); err != nil {
+				return err
+			}
+			if state.Groups, err = groupObjects.Using(scope).OrderBy(orm.NewAutoField[G](groupKey).Asc()).All(t.Context()); err != nil {
+				return err
+			}
+			if state.Permissions, err = permissionObjects.Using(scope).OrderBy(orm.NewAutoField[P](permissionKey).Asc()).All(t.Context()); err != nil {
+				return err
+			}
+			for _, collection := range collectionPlans {
+				links, err := managementHTTPReadLinks(t.Context(), scope, collection.plan)
+				if err != nil {
+					return err
+				}
+				state.NativeLinks[collection.plan.Table()] = links
+			}
+			if state.Sessions, err = sessionmodels.SessionObjects.Using(scope).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context()); err != nil {
+				return err
+			}
+			if state.Audits, err = auditmodels.EventObjects.Using(scope).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context()); err != nil {
+				return err
+			}
+			if state.Domains, err = domainmodels.TransitionObjects.Using(scope).OrderBy(domainmodels.TransitionFields.ID.Asc()).All(t.Context()); err != nil {
+				return err
+			}
+			state.Mappings, err = domainmodels.MappingObjects.Using(scope).OrderBy(domainmodels.MappingFields.ID.Asc()).All(t.Context())
+			return err
+		}))
+		if visits != 1 {
+			t.Fatal("native state observation skipped its snapshot callback")
 		}
-		permissionKey, err := catalog.Permissions().Manager().PrimaryKeyField()
-		check(err)
-		permissions, err := catalog.Permissions().Manager().Using(backend).OrderBy(orm.NewAutoField[P](permissionKey).Asc()).All(t.Context())
-		check(err)
-		members := make([]map[string][]int64, len(rows))
-		for index, row := range rows {
-			pk, _, err := objects.PrimaryKey(row)
-			check(err)
-			id, _ := pk.Integer()
-			profile, err := owner.Reader().Get(t.Context(), actor, id)
-			check(err)
-			members[index] = profile.View().Collections()
+		indexes := map[ir.ModelIdentity]map[int64]int{
+			role.Model:              managementHTTPRowIndexes(t, objects, state.Accounts),
+			role.Catalog.Group:      managementHTTPRowIndexes(t, groupObjects, state.Groups),
+			role.Catalog.Permission: managementHTTPRowIndexes(t, permissionObjects, state.Permissions),
 		}
-		s, err := sessionmodels.SessionObjects.Using(backend).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context())
-		check(err)
-		a, err := auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
-		check(err)
-		return durable{rows, groups, permissions, members, groupPermissions, s, a}
+		state.Memberships = make([]map[string][]int64, len(state.Accounts))
+		for index := range state.Memberships {
+			state.Memberships[index] = map[string][]int64{role.Groups: nil, role.Permissions: nil}
+		}
+		state.GroupPermissions = make([][]int64, len(state.Groups))
+		for _, collection := range collectionPlans {
+			pairs := make(map[[2]int64]bool)
+			for _, row := range state.NativeLinks[collection.plan.Table()] {
+				index, sourceExists := indexes[collection.source][row.Source]
+				_, targetExists := indexes[collection.target][row.Target]
+				pair := [2]int64{row.Source, row.Target}
+				if !sourceExists || !targetExists || pairs[pair] {
+					t.Fatal("native collection contains an orphan or duplicate relation", collection.field)
+				}
+				pairs[pair] = true
+				if collection.source == role.Model {
+					state.Memberships[index][collection.field] = append(state.Memberships[index][collection.field], row.Target)
+				} else {
+					state.GroupPermissions[index] = append(state.GroupPermissions[index], row.Target)
+				}
+			}
+		}
+		for _, fields := range state.Memberships {
+			for _, keys := range fields {
+				slices.Sort(keys)
+			}
+		}
+		for _, keys := range state.GroupPermissions {
+			slices.Sort(keys)
+		}
+		return state
 	}
 	var permission, group, created receipt
 	run("catalog_create", func(t *testing.T) {
@@ -1512,6 +1673,34 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 							before.Permissions, oldValues, _ = managementHTTPWithout(t, catalog.Permissions().Manager(), before.Permissions, target.ID)
 							after.Permissions, newValues, _ = managementHTTPWithout(t, catalog.Permissions().Manager(), after.Permissions, target.ID)
 						}
+						// Creation/deletion may add/remove exactly the target's own
+						// physical links. Updates must preserve their identities as
+						// well as the logical sets checked above; all other rows stay.
+						var removeOwnLinks *durable
+						if creation {
+							removeOwnLinks = &after
+						} else if operation == "delete" {
+							removeOwnLinks = &before
+						}
+						if removeOwnLinks != nil {
+							removeOwnLinks.NativeLinks = maps.Clone(removeOwnLinks.NativeLinks)
+							for _, collection := range collectionPlans {
+								if collection.source != model {
+									continue
+								}
+								table := collection.plan.Table()
+								stored := removeOwnLinks.NativeLinks[table]
+								remaining := slices.DeleteFunc(slices.Clone(stored), func(row managementHTTPLink) bool { return row.Source == target.ID })
+								want, _ := fields[collection.field].([]int64)
+								if len(stored)-len(remaining) != len(want) {
+									t.Fatal("unknown result changed a different physical relation set")
+								}
+								if len(remaining) == 0 {
+									remaining = nil
+								}
+								removeOwnLinks.NativeLinks[table] = remaining
+							}
+						}
 						if (oldValues == nil) != creation || (newValues == nil) != (operation == "delete") {
 							t.Fatal("unknown result has wrong durable existence")
 						}
@@ -1931,7 +2120,6 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		}
 	})
 
-	groupObjects, permissionObjects := catalog.Groups().Manager(), catalog.Permissions().Manager()
 	groupMetadata, err := groupObjects.Metadata()
 	check(err)
 	permissionMetadata, err := permissionObjects.Metadata()

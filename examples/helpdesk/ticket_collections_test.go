@@ -14,7 +14,6 @@ import (
 
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/examples/helpdesk/models"
-	"github.com/progresshans/godj/examples/helpdesk/project"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
 )
@@ -44,11 +43,9 @@ type collectionObservation struct {
 
 func collectionLinks(t *testing.T, ctx context.Context, backend *systemstate.Runtime, ticketID int64) map[int64]int64 {
 	t.Helper()
-	relations, err := project.BindRelations()
-	if err != nil {
-		t.Fatal(err)
-	}
-	links, err := models.TicketLabelObjects.Using(backend).Filter(relations.ModelsTicketLabel.Ticket.ID.Exact(ticketID)).OrderBy(models.TicketLabelFields.ID.Asc()).All(ctx)
+	// Observe stored link coordinates directly. This oracle must not rebuild
+	// every project relation or depend on a joined target projection per row.
+	links, err := models.TicketLabelObjects.Using(backend).Filter(models.TicketLabelFields.TicketID.Exact(ticketID)).OrderBy(models.TicketLabelFields.ID.Asc()).All(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

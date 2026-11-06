@@ -4225,6 +4225,36 @@ PostgreSQL normal account consumer `job-127649502601.log`
 `2bfd06aa6feb55cbbf913ef1958f2481d474b686dca8d5ea784d4419229a1b86`이다.
 해시 baseline·유효 Form fixture 수정은 코드/원본 대조이며 수정 후 Go·양 DB 실행 PASS는 아직 아니다.
 
+## GDJ-0138 — native 비교의 반복 인가·관계 조립 제거
+
+`5b2fa956` 후속에서 원격 race 시간 제한의 반복 비용을 확인했다. 앞서 보존한
+[job 127649502468](https://github.com/progresshans/godj/actions/runs/42143360503/job/127649502468)의 timeout stack은
+`collectionLinks → project.BindRelations → QueryRelation.String → relationQueryRoute.validate → reflect.DeepEqual`에 있었다.
+이는 전체 시간의 profiler 비율이 아니지만, priority 검사에서 각 원래 ticket의 저장 관계를 대조할 때 프로젝트 전체 관계를
+반복 구성하는 코드 경로와 일치한다. 같은 helper는 collection/inline/priority 등의 실제 native 검사에서도 사용한다.
+
+Helpdesk의 `collectionLinks`는 이미 생성된 `TicketLabelFields.TicketID`로 해당 물리 행을 직접 조회하도록 바꿨다.
+전체 link 행·정확한 저장 link ID·중복 거부와 정렬은 유지한다. 대상 ID를 읽기 위해 관계 target을 다시 join하거나
+전체 프로젝트의 relation/query 필드를 재구성하지 않는다. 제품의 관계 API와 별도로 저장된 FK 좌표를 관찰한다.
+
+생성 계정 HTTP의 `snapshot`도 계정/그룹마다 관리 owner를 다시 호출하던 부분을 native 전체 테이블 관찰로 바꿨다.
+같은 실제 schema/역할 binding에서 세 automatic through의 table·PK·두 FK를 확인하며, 세 column 전체가 아니거나
+explicit/payload through면 이 fixture oracle의 범위 밖으로 명시적으로 실패한다. 한 native snapshot 안에서 계정·catalog·
+세 through·session·audit·domain transition/mapping의 모든 행을 읽고 rowset scan/iteration/close와 snapshot 종료를 확인한다.
+계정/그룹 수마다 반복하던 현재 actor/domain/권한 조회가 사라지며 조회문 구성은 10개 물리 테이블에 한 번씩이다.
+실제 원격 실행 횟수·속도 개선이나 timeout 해결 완료는 아직 주장하지 않는다.
+
+기존 논리 membership 대조는 raw FK에서 구성하고 orphan·중복 pair를 거부한다. 여기에 physical link ID와 domain/mapping
+전체 값 비교를 추가했다. Unknown creation/deletion은 정확한 대상의 source link만 제외한 뒤 다른 모든 행을 비교하고,
+update/password는 기존 link ID까지 유지해야 한다. Rollback·현재 권한·read cleanup·snapshot 경합·실제 HTTP와
+기본/custom 양 DB 필수 child는 모두 유지한다. 권한 검증은 기존 실제 요청/권한 회수 소비자가 계속 담당하며,
+저장 상태 oracle은 검사 대상 관리 reader의 출력에 의존하지 않는다.
+
+변경 Go의 gofmt·diff·import 참조·기존 child/필수 목록 보존·문서 링크를 정적으로 확인했다. 로컬 Go는 실행하지 않았다.
+테스트나 CI 좌표·package/job 제한은 줄이거나 늘리지 않았다. 진행 중인
+[CI 42151726660](https://github.com/progresshans/godj/actions/runs/42151726660)은 이전 source의 실행이며,
+이 oracle 변경의 생성/양 DB/race 및 시간 제한 수용은 후속 source의 전체 원격 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
