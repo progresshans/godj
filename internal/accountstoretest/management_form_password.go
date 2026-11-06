@@ -116,6 +116,9 @@ func managementFormPasswords(t *testing.T, backend Backend, reopen func(*testing
 				return diagnostics, nil
 			}
 			owner := accountManagement(t, probe, hasher, config)
+			// Authenticator construction prepares its timing-defense hash. The
+			// advisory request must perform no additional hashing afterward.
+			hashes := hasher.calls.Load()
 			if mode == "cleanup" {
 				probe.read = func(ctx context.Context, read func(db.Queryer) error) error {
 					return errors.Join(backend.ReadSnapshot(ctx, read), fault)
@@ -193,8 +196,14 @@ func managementFormPasswords(t *testing.T, backend Backend, reopen func(*testing
 			if mode == "nil_password" || mode == "too_long" || mode == "denied" {
 				expectedCalls = 0
 			}
-			if calls != expectedCalls || effects != 0 || hasher.calls.Load() != 0 || !reflect.DeepEqual(before, snapshot(reopen(t))) {
-				t.Fatal("advisory password retried, invoked final sources or changed durable state", mode, calls, effects)
+			if calls != expectedCalls || effects != 0 || hasher.calls.Load() != hashes {
+				t.Fatal("advisory password retried or invoked final sources", mode, calls, effects, hasher.calls.Load()-hashes)
+			}
+			after := snapshot(reopen(t))
+			for table, expected := range before {
+				if !reflect.DeepEqual(expected, after[table]) {
+					t.Fatal("advisory password changed durable state", mode, table)
+				}
 			}
 		})
 	}

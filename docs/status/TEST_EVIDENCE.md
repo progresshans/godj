@@ -4174,6 +4174,57 @@ GitHub metadata·job log·다운로드 bytes와 대조하고 내부 file hash를
 생성 HTTP·양 DB·전체 platform과 같은 최종 source의 전체 수용은 후속 CI에서 확인한다.
 남은 고정 Admin/Directory/Manager 소비자 교체와 I1 전체 수용도 계속 필요하다.
 
+## GDJ-0138 — 선택 모델 Admin의 목록 조회 검증 이관
+
+`2c1ce5c2` 후속으로 고정 `internal/identitytest/admin_selections.go`의 실제 선택 목록 검사를
+기본/custom 일곱 생성 변형의 `TestGeneratedAccountManagementHTTP`로 옮겼다. 각 변형은 기존 엄격한
+SQLite/PostgreSQL 실행 owner를 사용하며 새 child 35개를 필수 실행 목록에 연결했다. 작성한 본문과 실제 환경별 PASS는 구분한다.
+
+| 기존 검증 책임 | 선택 모델의 대체 소비자 |
+|---|---|
+| `choice_snapshot_current_authority_and_detached_results` | `admin_choice_snapshot_and_authority`: 별도 native 연결이 그룹 이름/revision과 조회자의 superuser/revision을 함께 commit한다. 진행 중 목록은 기존 snapshot을 유지하고 다음 같은 browser는 대상 SELECT 없이 403이어야 한다. 독립 root의 새 조회와 전체 durable 상태로 정확한 경쟁 변경만 확인한다. |
+| `choices_and_history_publish_nothing_after_read_failure`와 여섯 child | `admin_read_scope_{target}_{mode}` 32개: 계정 그룹·직접 권한·그룹 권한 선택 및 계정 이력에 종료 실패, callback 0회·nil·root reader·2회·swallowed query failure·취소·permission 모양을 포함한 joined query failure를 적용한다. 실제 snapshot 진입/callback/대상 query 실패 횟수와 500의 빈 결과·비공개·no-store·durable 무변경을 확인한다. |
+| 같은 본문의 미지원 삭제 선택 source | `admin_choice_unsupported_action`: 계정과 catalog 두 owner가 삭제 동작을 명시적으로 거부하고 상태를 보존한다. |
+| `large_choice_catalog_has_complete_pages_and_search` | `admin_choice_complete_pages_and_search`: 그룹/권한을 각각 121개 추가하고 기존 행까지 포함한 native 전체 정렬을 세 HTTP 선택 경로의 모든 50개 페이지와 정확히 대조한다. 100번째 이후 이름/권한 코드 검색, 빈 결과 envelope, 응답 사본과 durable 무변경도 확인한다. |
+
+옛 선택 검사 parent/child 9개씩만 양 DB 필수 파일에서 제거했다. Relation은 4,961→4,952,
+PostgreSQL은 5,880→5,871이며 나머지 항목의 내용·순서는 보존했다. 생성 앱에 추가한 35개는 일곱 변형의 양 DB
+child event 검증을 통해 각각 요구한다. 기존 선택 모델의 처음 페이지·잘못된 선택·최종 쓰기 재검사와 독립 Django 기준도 유지한다.
+
+삭제한 helper를 생성 Form의 `read_failures_are_not_input` 여섯 child도 사용하고 있었다. 해당 소비자는 기존 공통
+`managementBoundary`와 자체 취소 scope를 사용하는 `creationReadBoundary`로 옮겨 그대로 보존했다. Form oracle과 그 필수
+selector는 삭제하지 않았으며 남은 고정 Form/Directory/Manager/Admin 교체를 완료로 표시하지 않는다.
+
+로컬은 gofmt·diff·잔여 참조·필수 목록 보존/추가 연결을 정적으로 확인했다. Python 실행 owner/분할 검사 4개가
+0.409초에 통과했다. 최초 저장소 root에서의 Python 호출은 모듈 검색 경로 오류로 본문을 실행하지 못했으며,
+`scripts/ci`에서 다시 실행한 결과만 PASS다. 사용자 지시에 따라 로컬 Go compile·generator·테스트·DB는 실행하지 않았다.
+새 생성/실제 HTTP·양 DB·race·전체 platform 수용은 새 source의 원격 CI 대상이다. 이전
+[CI 42143360503](https://github.com/progresshans/godj/actions/runs/42143360503)의 진행 중 결과는 새 본문의 PASS가 아니다.
+
+같은 이전 CI에서 확인한 실패도 이 변경 묶음에 반영했다. 제출 head `2c1ce5c27bc0719611c3ec2cda75e00212814bda`와
+실제 checkout `edb7d398ea32e0d30bcba9ecfb9efc71dcbcccea`의 tree는 모두
+`978e8383c79dae4343f66ded36c81734be893afb`다.
+
+- 양 DB `management_form_passwords` 12개는 마지막 무변경 assertion에서 실패했다. 코드 대조 결과 owner 구성의
+  `NewStoredAuthenticator`가 timing-defense dummy hash를 한 번 준비하는데 검사가 누적 hash 횟수 0을 요구했다.
+  owner 구성 직후 baseline을 잡아 advisory 요청의 추가 해싱 0회를 확인하도록 고쳤다. ID/clock/최종 validator 무호출과
+  재접속한 모든 native 행의 비교는 유지하며, 이후 실패 때 어느 책임이 달랐는지 구분하도록 assertion을 나눴다.
+- 생성 HTTP `failure_admin_accounts_create_audit_failure`는 500 대신 200, write/hash 각각 0회로 실패했다.
+  사용자 정의 IR의 계정 그룹/직접 권한과 그룹 권한은 `Blank=false`인데 실패 fixture가 full Form에서 이를 생략하고 있었다.
+  실제 기존 group/permission key를 입력하고 최종 write 경합 fixture에도 같은 유효 입력을 적용했다. JSON의 생략 의미나
+  제품의 필수 Form 정책을 완화하지 않았다. Unknown commit의 target collection을 정확히 대조하고 전체 rollback·audit·
+  session 검사를 유지한다. 후속 실패 원본에는 값 없는 field/code 진단도 남기도록 보강했다.
+- macOS Intel race command job `127649501313`은 GitHub/proxy.golang.org DNS 실패로 dependency 준비에서 중단됐다.
+  Race PostgreSQL core job `127649502468`은 Helpdesk 공개 소비자 실행 중 package 18분 제한,
+  account consumer job `127649502563`은 누적 package 30분 제한에 도달했다. 이 환경/시간 제한을 PASS로 대체하거나
+  검사를 삭제하지 않았다. 정상 입력으로 진행될 후속 native 본문과 전체 실행 소유권/시간 검증도 여전히 필요하다.
+
+대표 원본 로그 5개는 검증 보관소 `gdj0138-form-ci-42143360503/`에 보존했다. SQLite runtime
+`job-127649510929.log` SHA-256 `422a9aee8ae3bb47673185bcc1387a8c332b9f707473a114aa90fa8f6de37e7c`,
+PostgreSQL normal account consumer `job-127649502601.log`
+`2bfd06aa6feb55cbbf913ef1958f2481d474b686dca8d5ea784d4419229a1b86`이다.
+해시 baseline·유효 Form fixture 수정은 코드/원본 대조이며 수정 후 Go·양 DB 실행 PASS는 아직 아니다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

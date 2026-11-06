@@ -705,7 +705,7 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 고정 Admin의 최종 쓰기 revision/현재 권한 경합과 이력 snapshot·borrowed 수명·저장 오류 분류 네 검사를 기본/custom
 생성 HTTP의 양 DB 필수 child로 이관했다. 별도 native 연결의 경쟁 commit만 반영되고 거부/조회 요청은 계정·catalog·
 소속·session·audit를 추가 변경하지 않아야 한다. 같은 source의 생성 소비자에서 발견된 JSON 목록/Admin URL 이름 충돌도
-수정했다. 남은 고정 Form·selection·password 검사는 유지하며 작성/정적 확인과 원격 실행은 TEST_EVIDENCE에서 구분한다.
+수정했다. 남은 고정 Form·password 검사는 유지하며 작성/정적 확인과 원격 실행은 TEST_EVIDENCE에서 구분한다.
 
 
 선택 생성 Form의 부분 오류와 비밀번호 정책을 같은 인가된 읽기 snapshot에서 대조하도록 연결했다. PasswordValidator는
@@ -713,6 +713,16 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 채우거나 ID/시각/hash/파일을 만들지 않으며 모델 오류와 credential 진단의 namespace를 분리한다. 모든 기존 typed 정책
 소비자를 같은 ABI로 옮겼고, 기본/custom 실제 HTTP·필수 FK·파일 생성 소비자와 양 DB 실패 검사를 추가했다. 고정 Form의
 별도 username 규칙·Django 독립 기준 검사는 유지한다. API 작성/정적 확인과 실제 원격 수용은 TEST_EVIDENCE에서 구분한다.
+
+고정 Admin의 선택 목록 snapshot·현재 권한·조회 실패·전체 페이지/검색 검사를 기본/custom 생성 앱의 실제 HTTP로 옮겼다.
+별도 native 연결에서 catalog와 조회자의 권한을 함께 바꿔 일관된 현재 조회와 다음 요청의 거부를 확인하고, 계정 그룹·직접 권한·
+그룹 권한 선택 및 계정 이력에 scope 실패 8종을 적용한다. 전체 native 행·소속·session·audit 대조와 필수 child 목록을 유지한다.
+기존 생성 Form의 같은 실패 probe는 해당 독립 기준 소비자에 남겼다. 검증 책임 대응과 정적 확인은 TEST_EVIDENCE에 기록하며,
+이 새 본문의 양 DB·race·생성 앱 실행과 전체 원격 수용은 미확인이다.
+
+원격에서 확인한 부분 비밀번호 검사의 초기화 hash baseline과 사용자 정의 필수 collection이 빠진 Admin 실패 fixture를
+수정했다. 실제 Form 입력·unknown commit의 정확한 관계 상태와 전체 rollback 검사를 유지한다. 원격 race의 누적 시간 제한과
+후속 새 본문 실행까지 확인해야 하며, 실패 원본·수정 범위는 TEST_EVIDENCE에 둔다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

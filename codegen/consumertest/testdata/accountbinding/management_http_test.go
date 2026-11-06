@@ -51,7 +51,9 @@ import (
 type managementHTTPBackend struct {
 	database.Backend
 	beforeWrite     atomic.Pointer[managementHTTPWriteHook]
-	beforeHistory   atomic.Pointer[managementHTTPHistoryHook]
+	beforeQuery     atomic.Pointer[managementHTTPQueryHook]
+	beforeSnapshot  atomic.Pointer[managementHTTPSnapshotHook]
+	snapshotFaults  atomic.Int64
 	writeFault      atomic.Value
 	readFault       atomic.Bool
 	writes          atomic.Int64
@@ -61,20 +63,35 @@ type managementHTTPBackend struct {
 }
 
 type managementHTTPWriteHook struct{ before func(context.Context) error }
-type managementHTTPHistoryHook struct {
-	before func(context.Context, db.Queryer) error
+type managementHTTPQueryHook struct {
+	matches func(query.Plan) bool
+	before  func(context.Context, db.Queryer) error
+}
+
+type managementHTTPSnapshotHook struct {
+	skip atomic.Int64
+	read func(context.Context, func(db.Queryer) error) error
+}
+
+func managementHTTPAuditQuery(plan query.Plan) bool {
+	return plan.Table() == "godj_account_audit_event"
 }
 
 func (backend *managementHTTPBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
-	err := backend.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-		if backend.beforeHistory.Load() == nil {
+	readScope := backend.Backend.ReadSnapshot
+	if hook := backend.beforeSnapshot.Load(); hook != nil && hook.skip.Add(-1) < 0 && backend.beforeSnapshot.CompareAndSwap(hook, nil) {
+		backend.snapshotFaults.Add(1)
+		readScope = hook.read
+	}
+	err := readScope(ctx, func(reader db.Queryer) error {
+		if backend.beforeQuery.Load() == nil {
 			return read(reader)
 		}
 		validator, ok := reader.(db.SessionValidator)
 		if !ok {
-			return errors.New("native history probe lost its borrowed scope")
+			return errors.New("native query probe lost its borrowed scope")
 		}
-		return read(&managementHTTPHistoryReader{Queryer: reader, SessionValidator: validator, backend: backend})
+		return read(&managementHTTPQueryReader{Queryer: reader, SessionValidator: validator, backend: backend})
 	})
 	if backend.readFault.Swap(false) {
 		backend.readFailures.Add(1)
@@ -83,18 +100,97 @@ func (backend *managementHTTPBackend) ReadSnapshot(ctx context.Context, read fun
 	return err
 }
 
-type managementHTTPHistoryReader struct {
+type managementHTTPQueryReader struct {
 	db.Queryer
 	db.SessionValidator
 	backend *managementHTTPBackend
 }
 
-func (reader *managementHTTPHistoryReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	if plan.Table() == "godj_account_audit_event" {
-		if hook := reader.backend.beforeHistory.Swap(nil); hook != nil {
-			if err := hook.before(ctx, reader.Queryer); err != nil {
-				return nil, err
+type managementHTTPFailingReader struct {
+	db.Queryer
+	db.SessionValidator
+	matches  func(query.Plan) bool
+	failures *atomic.Int64
+	cause    error
+}
+
+func (reader *managementHTTPFailingReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if reader.matches(plan) {
+		reader.failures.Add(1)
+		return nil, reader.cause
+	}
+	return reader.Queryer.Query(ctx, plan)
+}
+
+type managementHTTPChoice struct{ Value, Label string }
+type managementHTTPChoicePage struct {
+	Items  []managementHTTPChoice `json:"items"`
+	Offset int                    `json:"offset"`
+	Limit  int                    `json:"limit"`
+	More   bool                   `json:"more"`
+}
+
+func managementHTTPReadChoices(t *testing.T, status int, header http.Header, body []byte) managementHTTPChoicePage {
+	t.Helper()
+	var page managementHTTPChoicePage
+	if err := json.Unmarshal(body, &page); err != nil {
+		t.Fatal("invalid choice response", status, err)
+	}
+	if status != 200 || header.Get("Content-Type") != "application/json; charset=utf-8" ||
+		header.Get("X-Content-Type-Options") != "nosniff" || header.Get("Cache-Control") != "no-store" || page.Items == nil {
+		t.Fatal("choice response lost its bounded JSON envelope", status)
+	}
+	return page
+}
+
+func managementHTTPNativeChoices[M any](t *testing.T, manager orm.Manager[M], rows []M, name, code string) []managementHTTPChoice {
+	t.Helper()
+	result := make([]managementHTTPChoice, len(rows))
+	for index, row := range rows {
+		pk, present, err := manager.PrimaryKey(row)
+		if err != nil || !present {
+			t.Fatal("native choice key missing", err)
+		}
+		id, integer := pk.Integer()
+		if !integer {
+			t.Fatal("native choice key is not an integer")
+		}
+		values, err := manager.ModelValues(row)
+		if err != nil {
+			t.Fatal(err)
+		}
+		label, valid := values[name].String()
+		if !valid {
+			t.Fatal("native choice name missing")
+		}
+		if code != "" {
+			value, valid := values[code].String()
+			if !valid {
+				t.Fatal("native choice code missing")
 			}
+			label = value + " — " + label
+		}
+		result[index] = managementHTTPChoice{strconv.FormatInt(id, 10), label}
+	}
+	return result
+}
+
+func managementHTTPInsertChoice[M any](ctx context.Context, scope db.Session, manager orm.Manager[M], values map[string]query.Value) error {
+	prepared, err := manager.PrepareValues(nil, values)
+	if err != nil {
+		return err
+	}
+	row, err := prepared.Model()
+	if err != nil {
+		return err
+	}
+	return manager.Save(ctx, scope, &row, orm.ForceInsert[M]())
+}
+
+func (reader *managementHTTPQueryReader) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
+	if hook := reader.backend.beforeQuery.Load(); hook != nil && hook.matches(plan) && reader.backend.beforeQuery.CompareAndSwap(hook, nil) {
+		if err := hook.before(ctx, reader.Queryer); err != nil {
+			return nil, err
 		}
 	}
 	return reader.Queryer.Query(ctx, plan)
@@ -228,6 +324,8 @@ type managementHTTPOverlay struct {
 	failReadAfterAdmission  atomic.Bool
 	writeAfterAdmission     atomic.Value
 	writeHookAfterAdmission atomic.Pointer[managementHTTPWriteHook]
+	snapshotAfterAdmission  atomic.Pointer[managementHTTPSnapshotHook]
+	snapshotArmed           atomic.Int64
 	writeStart              atomic.Int64
 	writeArmed              atomic.Int64
 }
@@ -238,6 +336,10 @@ func (overlay *managementHTTPOverlay) Allowed(ctx context.Context, actor auth.Pr
 		overlay.backend.readFault.Store(true)
 	}
 	if err == nil && allowed {
+		if hook := overlay.snapshotAfterAdmission.Swap(nil); hook != nil {
+			overlay.backend.beforeSnapshot.Store(hook)
+			overlay.snapshotArmed.Add(1)
+		}
 		if hook := overlay.writeHookAfterAdmission.Swap(nil); hook != nil {
 			overlay.writeStart.Store(overlay.backend.writes.Load())
 			overlay.backend.beforeWrite.Store(hook)
@@ -623,6 +725,10 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			case bool:
 				if value {
 					data.Set(field, "on")
+				}
+			case []int64:
+				for _, id := range value {
+					data.Add(field, strconv.FormatInt(id, 10))
 				}
 			default:
 				t.Fatal("unsupported Admin field observation", field)
@@ -1215,6 +1321,17 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 							}
 							changedField, revisionField, model = role.Catalog.PermissionName, role.Catalog.PermissionRevision, role.Catalog.Permission
 						}
+						// Custom schemas require these collections in a full Form.
+						// Use real choices so native failure probes reach persistence;
+						// observe their rollback/commit alongside every scalar row.
+						if transport == "admin" {
+							if resource == "accounts" {
+								fields[role.Groups] = []int64{group.ID}
+								fields[role.Permissions] = []int64{permission.ID}
+							} else if resource == "groups" {
+								fields[role.Catalog.GroupPermissions] = []int64{permission.ID}
+							}
+						}
 						body := fieldsBody(fields)
 						if resource == "accounts" {
 							body = creationBody(fields, "native-fault-password")
@@ -1306,7 +1423,8 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 							wantHashes = 1
 						}
 						if status != wantStatus || faults.writes.Load()-writes != 1 || trackedHasher.calls.Load()-hashes != wantHashes || header.Get("Revision") != "" || header.Get("Location") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" {
-							t.Fatal("failure retried, missed native work or published a receipt", status, faults.writes.Load()-writes, trackedHasher.calls.Load()-hashes)
+							diagnostics := regexp.MustCompile(`data-error-field="[^"]*" data-error-code="[^"]*"`).FindAllString(string(value), -1)
+							t.Fatal("failure retried, missed native work or published a receipt", status, faults.writes.Load()-writes, trackedHasher.calls.Load()-hashes, diagnostics)
 						}
 						if (operation == "create_unusable" || operation == "disable") && passwordPolicies.Load() != policies {
 							t.Fatal("unusable command invoked password policy")
@@ -1362,9 +1480,14 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 								index int
 							}{{&before, oldIndex}, {&after, newIndex}} {
 								if item.index >= 0 {
-									for _, keys := range item.state.Memberships[item.index] {
-										if len(keys) != 0 {
-											t.Fatal("unexpected target membership")
+									if len(item.state.Memberships[item.index]) != 2 {
+										t.Fatal("unknown account result lost its complete collection observation")
+									}
+									for _, name := range []string{role.Groups, role.Permissions} {
+										want, _ := fields[name].([]int64)
+										actual, present := item.state.Memberships[item.index][name]
+										if !present || !slices.Equal(actual, want) {
+											t.Fatal("unknown account result lost exact target memberships", name)
 										}
 									}
 									item.state.Memberships = slices.Delete(slices.Clone(item.state.Memberships), item.index, item.index+1)
@@ -1378,8 +1501,9 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 								index int
 							}{{&before, oldIndex}, {&after, newIndex}} {
 								if item.index >= 0 {
-									if len(item.state.GroupPermissions[item.index]) != 0 {
-										t.Fatal("unexpected target group permission")
+									want, _ := fields[role.Catalog.GroupPermissions].([]int64)
+									if !slices.Equal(item.state.GroupPermissions[item.index], want) {
+										t.Fatal("unknown group result lost exact target permissions")
 									}
 									item.state.GroupPermissions = slices.Delete(slices.Clone(item.state.GroupPermissions), item.index, item.index+1)
 								}
@@ -1441,6 +1565,8 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 									if !valid || actual != int64(expected) {
 										t.Fatal("unknown create lost submitted integer", field)
 									}
+								case []int64:
+									// Exact native collections were compared above.
 								default:
 									t.Fatal("missing independent field observation", field)
 								}
@@ -1643,6 +1769,8 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			defer func() { check(writer.Close()) }()
 			submitter, browser, _ := boundaryActor("fence-" + mode + "@example.test")
 			fields := accountFields("target-" + mode + "@example.test")
+			fields[role.Groups] = []int64{group.ID}
+			fields[role.Permissions] = []int64{permission.ID}
 			status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(fields, "boundary target password"), "", true)
 			target := decodeReceipt(status, header, body, 201)
 			fields[profileField] = "NZ"
@@ -1721,7 +1849,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		}
 		observed := make(chan observation, 1)
 		var calls atomic.Int64
-		faults.beforeHistory.Store(&managementHTTPHistoryHook{before: func(ctx context.Context, reader db.Queryer) error {
+		faults.beforeQuery.Store(&managementHTTPQueryHook{matches: managementHTTPAuditQuery, before: func(ctx context.Context, reader db.Queryer) error {
 			calls.Add(1)
 			var entry accountaudit.Entry
 			err := writer.CoordinatedAtomic(ctx, func(scope db.Session) error {
@@ -1740,7 +1868,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			}
 			return err
 		}})
-		defer faults.beforeHistory.Store(nil)
+		defer faults.beforeQuery.Store(nil)
 		status, _, body = adminSend(browser, "GET", endpoint, nil)
 		if status != 200 || calls.Load() != 1 || !slices.Equal(historySequences(body), []int64{baseline[0].Sequence()}) {
 			t.Fatal("Admin history mixed old authority with a newly committed audit", status)
@@ -1788,18 +1916,192 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		before := snapshot()
 		cause := errors.Join(errors.New("private history query failure"), &accountmodel.Error{Code: accountmodel.CodePermission})
 		var calls atomic.Int64
-		hook := &managementHTTPHistoryHook{before: func(context.Context, db.Queryer) error { calls.Add(1); return cause }}
-		faults.beforeHistory.Store(hook)
-		defer faults.beforeHistory.Store(nil)
+		hook := &managementHTTPQueryHook{matches: managementHTTPAuditQuery, before: func(context.Context, db.Queryer) error { calls.Add(1); return cause }}
+		faults.beforeQuery.Store(hook)
+		defer faults.beforeQuery.Store(nil)
 		entries, err := owner.Reader().History(t.Context(), actor, created.ID, 100)
 		failure, valid := err.(*accountmodel.Error)
 		if !valid || failure.Code != accountmodel.CodePersistence || !errors.Is(err, cause) || entries != nil || calls.Load() != 1 {
 			t.Fatal("history storage failure was downgraded or published provisional entries", err)
 		}
-		faults.beforeHistory.Store(hook)
+		faults.beforeQuery.Store(hook)
 		status, header, body := adminSend(client, "GET", "/admin/accounts/history/?id="+strconv.FormatInt(created.ID, 10), nil)
 		if status != 500 || header.Get("Location") != "" || len(historySequences(body)) != 0 || calls.Load() != 2 || !reflect.DeepEqual(before, snapshot()) {
 			t.Fatal("Admin history storage failure became a permission refusal or changed native state", status)
+		}
+	})
+
+	groupObjects, permissionObjects := catalog.Groups().Manager(), catalog.Permissions().Manager()
+	groupMetadata, err := groupObjects.Metadata()
+	check(err)
+	permissionMetadata, err := permissionObjects.Metadata()
+	check(err)
+	choiceQuery := func(table string) func(query.Plan) bool {
+		return func(plan query.Plan) bool {
+			limit, limited := plan.Limit()
+			return plan.Table() == table && limited && limit == 6
+		}
+	}
+	run("admin_choice_snapshot_and_authority", func(t *testing.T) {
+		writer, err := database.Open(t.Context(), backendConfig)
+		check(err)
+		defer func() { check(writer.Close()) }()
+		submitter, browser, _ := boundaryActor("choice-reader@example.test")
+		fields := map[string]any{role.Catalog.GroupName: "coherent-choice original"}
+		if groupExtra != "" {
+			fields[groupExtra] = 7
+		}
+		status, header, body := send(client, "POST", "/api/identity/groups/", fieldsBody(fields), "", true)
+		target := decodeReceipt(status, header, body, 201)
+		endpoint := "/admin/accounts/change/choices/" + role.Groups + "/?id=" + strconv.FormatInt(created.ID, 10) + "&q=coherent-choice&limit=5"
+		status, header, body = adminSend(browser, "GET", endpoint, nil)
+		page := managementHTTPReadChoices(t, status, header, body)
+		original := []managementHTTPChoice{{strconv.FormatInt(target.ID, 10), "coherent-choice original"}}
+		if !slices.Equal(page.Items, original) || page.More || page.Offset != 0 || page.Limit != 5 {
+			t.Fatal("choice baseline differs from the committed native row")
+		}
+		before := snapshot()
+		expected := before
+		actorChanges := map[string]query.Value{role.Superuser.Field: query.Boolean(false), role.Revision: query.Integer(submitter.Revision + 1)}
+		expectNativeChange(&expected, submitter.ID, actorChanges)
+		_, _, index := managementHTTPWithout(t, groupObjects, expected.Groups, target.ID)
+		if index < 0 {
+			t.Fatal("native group boundary target missing")
+		}
+		groupChanges := map[string]query.Value{role.Catalog.GroupName: query.String("coherent-choice concurrent"), role.Catalog.GroupRevision: query.Integer(target.Revision + 1)}
+		updated, err := groupObjects.ApplyValues(expected.Groups[index], groupChanges)
+		check(err)
+		expected.Groups = slices.Clone(expected.Groups)
+		expected.Groups[index] = updated
+		var calls atomic.Int64
+		matches := choiceQuery(groupMetadata.DBTable)
+		faults.beforeQuery.Store(&managementHTTPQueryHook{matches: matches, before: func(ctx context.Context, _ db.Queryer) error {
+			calls.Add(1)
+			return writer.CoordinatedAtomic(ctx, func(scope db.Session) error {
+				row := updated
+				if err := groupObjects.Save(ctx, scope, &row, orm.UpdateFieldNames[G](role.Catalog.GroupName, role.Catalog.GroupRevision)); err != nil {
+					return err
+				}
+				return nativeChange(ctx, scope, submitter.ID, actorChanges)
+			})
+		}})
+		defer faults.beforeQuery.Store(nil)
+		status, header, body = adminSend(browser, "GET", endpoint, nil)
+		page = managementHTTPReadChoices(t, status, header, body)
+		if calls.Load() != 1 || faults.beforeQuery.Load() != nil || !slices.Equal(page.Items, original) {
+			t.Fatal("choices mixed old authority with a concurrent catalog commit")
+		}
+		page.Items[0].Label = "caller edit"
+		probe := &managementHTTPQueryHook{matches: matches, before: func(context.Context, db.Queryer) error {
+			calls.Add(1)
+			return errors.New("private revoked choice query")
+		}}
+		faults.beforeQuery.Store(probe)
+		status, _, body = adminSend(browser, "GET", endpoint, nil)
+		if status != 403 || calls.Load() != 1 || faults.beforeQuery.Load() != probe || strings.Contains(string(body), `"items"`) {
+			t.Fatal("revoked browser retained choice authority or performed target I/O", status)
+		}
+		faults.beforeQuery.Store(nil)
+		status, header, body = adminSend(client, "GET", endpoint, nil)
+		fresh := managementHTTPReadChoices(t, status, header, body)
+		if !slices.Equal(fresh.Items, []managementHTTPChoice{{original[0].Value, "coherent-choice concurrent"}}) || !reflect.DeepEqual(expected, snapshot()) {
+			t.Fatal("fresh choice omitted the concurrent commit or read changed durable state")
+		}
+	})
+	for _, target := range []struct {
+		name, endpoint string
+		skip           int64
+		matches        func(query.Plan) bool
+	}{
+		{"account_groups", "/admin/accounts/change/choices/" + role.Groups + "/?id=" + strconv.FormatInt(created.ID, 10) + "&limit=5", 1, choiceQuery(groupMetadata.DBTable)},
+		{"account_permissions", "/admin/accounts/change/choices/" + role.Permissions + "/?id=" + strconv.FormatInt(created.ID, 10) + "&limit=5", 1, choiceQuery(permissionMetadata.DBTable)},
+		{"group_permissions", "/admin/groups/add/choices/" + role.Catalog.GroupPermissions + "/?limit=5", 0, choiceQuery(permissionMetadata.DBTable)},
+		{"account_history", "/admin/accounts/history/?id=" + strconv.FormatInt(created.ID, 10), 0, managementHTTPAuditQuery},
+	} {
+		for _, mode := range []string{"read_end_failure", "read_zero", "read_nil", "read_root", "read_twice", "read_swallowed_failure", "canceled", "joined_query_failure"} {
+			run("admin_read_scope_"+target.name+"_"+mode, func(t *testing.T) {
+				status, _, _ := adminSend(client, "GET", target.endpoint, nil)
+				if status != 200 {
+					t.Fatal("read boundary baseline failed", status)
+				}
+				before := snapshot()
+				var callbacks, queryFailures atomic.Int64
+				cause := errors.Join(errors.New("private choice query failure"), &accountmodel.Error{Code: accountmodel.CodePermission})
+				hook := &managementHTTPSnapshotHook{read: func(ctx context.Context, read func(db.Queryer) error) error {
+					invoke := func(reader db.Queryer) error { callbacks.Add(1); return read(reader) }
+					switch mode {
+					case "read_zero":
+						return nil
+					case "read_nil":
+						return invoke(nil)
+					case "read_root":
+						return invoke(faults.Backend)
+					case "read_twice":
+						return faults.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+							first := invoke(reader)
+							return errors.Join(first, invoke(reader))
+						})
+					case "read_swallowed_failure", "joined_query_failure":
+						return faults.Backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+							validator, valid := reader.(db.SessionValidator)
+							if !valid {
+								return errors.New("private missing choice scope validator")
+							}
+							err := invoke(&managementHTTPFailingReader{Queryer: reader, SessionValidator: validator, matches: target.matches, failures: &queryFailures, cause: cause})
+							if mode == "read_swallowed_failure" {
+								return nil
+							}
+							return err
+						})
+					case "canceled":
+						work, cancel := context.WithCancel(ctx)
+						defer cancel()
+						err := faults.Backend.ReadSnapshot(work, func(reader db.Queryer) error {
+							err := invoke(reader)
+							cancel()
+							return err
+						})
+						return errors.Join(err, work.Err())
+					default:
+						return errors.Join(faults.Backend.ReadSnapshot(ctx, invoke), errors.New("private read cleanup failure"))
+					}
+				}}
+				// Change choice routes load the target once before searching;
+				// add choices and history enter their owner snapshot directly.
+				hook.skip.Store(target.skip)
+				armed, faultsBefore := overlay.snapshotArmed.Load(), faults.snapshotFaults.Load()
+				overlay.snapshotAfterAdmission.Store(hook)
+				defer overlay.snapshotAfterAdmission.Store(nil)
+				defer faults.beforeSnapshot.Store(nil)
+				status, headers, body := adminSend(client, "GET", target.endpoint, nil)
+				wantCallbacks := int64(1)
+				if mode == "read_zero" {
+					wantCallbacks = 0
+				} else if mode == "read_twice" {
+					wantCallbacks = 2
+				}
+				wantFailures := int64(0)
+				if mode == "read_swallowed_failure" || mode == "joined_query_failure" {
+					wantFailures = 1
+				}
+				if overlay.snapshotArmed.Load() != armed+1 || faults.snapshotFaults.Load() != faultsBefore+1 || overlay.snapshotAfterAdmission.Load() != nil || faults.beforeSnapshot.Load() != nil || callbacks.Load() != wantCallbacks || queryFailures.Load() != wantFailures {
+					t.Fatal("read boundary did not exercise the exact owner scope", callbacks.Load(), queryFailures.Load())
+				}
+				if status != 500 || headers.Get("Location") != "" || headers.Get("Revision") != "" || headers.Get("Retry-After") != "" || headers.Get("Cache-Control") != "no-store" || string(body) != "Internal Server Error\n" || !reflect.DeepEqual(before, snapshot()) {
+					t.Fatal("read scope failure published provisional data or changed native state", status)
+				}
+			})
+		}
+	}
+	run("admin_choice_unsupported_action", func(t *testing.T) {
+		before := snapshot()
+		choices, err := owner.ChoiceSources(admin.ActionDelete)
+		if choices != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) {
+			t.Fatal("account choices accepted an unsupported operation", err)
+		}
+		source, err := catalog.GroupPermissionChoiceSource(admin.ActionDelete)
+		if source != nil || !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("catalog choices accepted an unsupported operation or changed native state", err)
 		}
 	})
 
@@ -2297,6 +2599,103 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		decodeReceipt(status, header, body, 200)
 		status, header, body = send(client, "DELETE", path("permissions", permission.ID), "", strconv.FormatInt(permission.Revision, 10), true)
 		decodeReceipt(status, header, body, 200)
+	})
+	run("admin_choice_complete_pages_and_search", func(t *testing.T) {
+		const total = 121
+		check(faults.Backend.CoordinatedAtomic(t.Context(), func(scope db.Session) error {
+			for i := range total {
+				if err := managementHTTPInsertChoice(t.Context(), scope, groupObjects, map[string]query.Value{
+					role.Catalog.GroupName: query.String(fmt.Sprintf("choice-%04d", i)), role.Catalog.GroupRevision: query.Integer(1),
+				}); err != nil {
+					return err
+				}
+				if err := managementHTTPInsertChoice(t.Context(), scope, permissionObjects, map[string]query.Value{
+					role.Catalog.PermissionCode: query.String(fmt.Sprintf("choice.p%04d", i)),
+					role.Catalog.PermissionName: query.String(fmt.Sprintf("choice-%04d", i)), role.Catalog.PermissionRevision: query.Integer(1),
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}))
+		// Observe every row, including earlier fixtures, from the native typed
+		// managers. HTTP pages must match the complete independent ordering.
+		status, _, _ := adminSend(client, "GET", "/admin/", nil)
+		if status != 200 {
+			t.Fatal("choice pagination lost managing admission", status)
+		}
+		before := snapshot()
+		groups := managementHTTPNativeChoices(t, groupObjects, before.Groups, role.Catalog.GroupName, "")
+		permissions := managementHTTPNativeChoices(t, permissionObjects, before.Permissions, role.Catalog.PermissionName, role.Catalog.PermissionCode)
+		for _, target := range []struct {
+			endpoint string
+			expected []managementHTTPChoice
+			terms    []string
+		}{
+			{"/admin/accounts/change/choices/" + role.Groups + "/?id=" + strconv.FormatInt(actorID, 10), groups, []string{"choice-0120"}},
+			{"/admin/accounts/change/choices/" + role.Permissions + "/?id=" + strconv.FormatInt(actorID, 10), permissions, []string{"choice-0120", "choice.p0120"}},
+			{"/admin/groups/add/choices/" + role.Catalog.GroupPermissions + "/", permissions, []string{"choice-0120", "choice.p0120"}},
+		} {
+			address, err := url.Parse(target.endpoint)
+			check(err)
+			var seen []managementHTTPChoice
+			for offset := 0; ; offset += 50 {
+				params := address.Query()
+				params.Set("offset", strconv.Itoa(offset))
+				params.Set("limit", "50")
+				address.RawQuery = params.Encode()
+				status, header, body := adminSend(client, "GET", address.String(), nil)
+				page := managementHTTPReadChoices(t, status, header, body)
+				end := min(offset+50, len(target.expected))
+				if page.Offset != offset || page.Limit != 50 || page.More != (end < len(target.expected)) || !slices.Equal(page.Items, target.expected[offset:end]) {
+					t.Fatal("choice page omitted, duplicated or reordered a native catalog row", target.endpoint, offset)
+				}
+				seen = append(seen, page.Items...)
+				if !page.More {
+					break
+				}
+			}
+			if !slices.Equal(seen, target.expected) || len(seen) < total {
+				t.Fatal("complete choice catalog was silently truncated")
+			}
+			params := address.Query()
+			params.Set("offset", "0")
+			params.Set("limit", "5")
+			for _, term := range target.terms {
+				params.Set("q", term)
+				address.RawQuery = params.Encode()
+				var expected []managementHTTPChoice
+				for _, item := range target.expected {
+					if strings.Contains(item.Label, term) {
+						expected = append(expected, item)
+					}
+				}
+				if len(expected) != 1 || slices.Index(target.expected, expected[0]) < 100 {
+					t.Fatal("search fixture does not require querying beyond the first page")
+				}
+				status, header, body := adminSend(client, "GET", address.String(), nil)
+				page := managementHTTPReadChoices(t, status, header, body)
+				if page.Offset != 0 || page.Limit != 5 || page.More || !slices.Equal(page.Items, expected) {
+					t.Fatal("choice search only filtered an initial page", term)
+				}
+				page.Items[0].Label = "caller edit"
+				status, header, body = adminSend(client, "GET", address.String(), nil)
+				fresh := managementHTTPReadChoices(t, status, header, body)
+				if !slices.Equal(fresh.Items, expected) {
+					t.Fatal("choice response retained a caller edit")
+				}
+			}
+			params.Set("q", "choice-catalog-has-no-such-row")
+			address.RawQuery = params.Encode()
+			status, header, body := adminSend(client, "GET", address.String(), nil)
+			empty := managementHTTPReadChoices(t, status, header, body)
+			if len(empty.Items) != 0 || empty.More || empty.Offset != 0 || empty.Limit != 5 {
+				t.Fatal("empty choice search lost its bounded envelope")
+			}
+		}
+		if !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("choice pagination or response mutation changed native state")
+		}
 	})
 	run("self_password_keeps_confirmed_receipt", func(t *testing.T) {
 		fields := accountFields("rescue@example.test")

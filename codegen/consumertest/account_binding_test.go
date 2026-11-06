@@ -303,6 +303,14 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			for _, name := range []string{"admin_write_fence_revision", "admin_write_fence_authority", "admin_history_snapshot_and_scope", "admin_history_storage_failure"} {
 				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
 			}
+			for _, name := range []string{"admin_choice_snapshot_and_authority", "admin_choice_unsupported_action", "admin_choice_complete_pages_and_search"} {
+				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
+			}
+			for _, target := range []string{"account_groups", "account_permissions", "group_permissions", "account_history"} {
+				for _, mode := range []string{"read_end_failure", "read_zero", "read_nil", "read_root", "read_twice", "read_swallowed_failure", "canceled", "joined_query_failure"} {
+					required = append(required, "TestGeneratedAccountManagementHTTP/admin_read_scope_"+target+"_"+mode)
+				}
+			}
 			for _, transport := range []string{"json", "admin"} {
 				for _, resource := range []string{"accounts", "groups", "permissions"} {
 					operations := []string{"create", "update", "delete"}

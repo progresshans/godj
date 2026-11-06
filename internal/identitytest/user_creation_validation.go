@@ -188,6 +188,27 @@ func RunUserCreationValidation(t *testing.T, open func(*testing.T) (TransitionBa
 	runCreationReadBoundaries(t, open)
 }
 
+// The fixed creation-form oracle still owns these read failure checks after
+// selection HTTP consumers move to the selected account runtime.
+type creationReadBoundary struct {
+	identity.ManagementBackend
+	mode string
+}
+
+func (boundary *creationReadBoundary) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+	if boundary.mode == "canceled" {
+		work, cancel := context.WithCancel(ctx)
+		defer cancel()
+		err := boundary.ManagementBackend.ReadSnapshot(work, func(reader db.Queryer) error {
+			err := read(reader)
+			cancel()
+			return err
+		})
+		return errors.Join(err, work.Err())
+	}
+	return (&managementBoundary{ManagementBackend: boundary.ManagementBackend, mode: boundary.mode}).ReadSnapshot(ctx, read)
+}
+
 func runCreationReadBoundaries(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Run("current_authority_precedes_diagnostics", func(t *testing.T) {
 		backend, _ := open(t)
@@ -216,12 +237,7 @@ func runCreationReadBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 		beforeSessions, beforeAudit := snapshotIdentitySystemRows(t, backend)
 		for _, mode := range []string{"read_end_failure", "read_zero", "read_nil", "read_twice", "read_swallowed_failure", "canceled"} {
 			t.Run(mode, func(t *testing.T) {
-				ctx, cancel := context.WithCancel(t.Context())
-				defer cancel()
-				boundary := &adminSelectionBoundary{Runtime: f.runtime, mode: mode}
-				if mode == "canceled" {
-					boundary.cancel = cancel
-				}
+				boundary := &creationReadBoundary{ManagementBackend: f.runtime, mode: mode}
 				policy := identity.PasswordValidatorFunc(func(string, identity.Profile) validation.Errors {
 					return validation.NewErrors(validation.New("password", "policy_rejected"))
 				})
@@ -230,7 +246,7 @@ func runCreationReadBoundaries(t *testing.T, open func(*testing.T) (TransitionBa
 					t.Fatal(err)
 				}
 				username, password := "MEMBER", "weak"
-				err = manager.CheckUserCreation(ctx, f.actor, &username, &password)
+				err = manager.CheckUserCreation(t.Context(), f.actor, &username, &password)
 				if _, rejected := validation.Rejected(err); err == nil || rejected {
 					t.Fatal("failed snapshot became input", err)
 				}
