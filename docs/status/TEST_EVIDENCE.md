@@ -3958,7 +3958,7 @@ chunked 본문을 업무 I/O 전에 거부하도록 보완하고 세 resource의
 | 자기 password disable 이후 확정 응답과 session 폐기·복구 | 생성 HTTP `self_password_keeps_confirmed_receipt`: 자기 browser 폐기, 다른 관리자 browser의 복구와 새 로그인; 자기 비활성화의 확정 응답도 유지 |
 | last_login의 실제 저장 시각·read-only 노출, 권한 catalog 삭제의 owner revision·재접속 | 독립 SDK의 `identity_*_last_login`·catalog CRUD·host 삭제와 부모의 새 runtime/DB 대조; 생성 HTTP의 서버 field 거부와 기존 native login 관측 |
 
-관련 생성 소비자는 [management_json_test.go](../../codegen/consumertest/testdata/accountbinding/management_json_test.go),
+관련 생성 소비자는 [management_http_test.go](../../codegen/consumertest/testdata/accountbinding/management_http_test.go),
 독립 SDK는 [identity_session.go](../../api/openapi/consumertest/testdata/client/cmd/consumer/identity_session.go)와
 [parent fixture](../../api/openapi/consumertest/identity_fixtures_test.go)가 소유한다. 위 대응은 코드·필수 실행 연결을 뜻하며
 새 본문의 실제 PASS를 뜻하지 않는다. 새 생성 child는 default에 33개, 각 custom 변형에 34개를 더 필수로 요구한다.
@@ -3994,6 +3994,42 @@ owner로 연결하되 실제 borrowed scope의 validator·relation/conflict capa
 60,000-byte 절단 표시가 있으므로 해당 관측은 위 실패 지점의 진단에만 사용한다. 이를 전체 child 실행 대조나 성공 증거로 사용하지 않는다.
 보정 뒤의 실제 원격 본문은 새 source에서 확인한다.
 현재 고정 JSON 제거 source와 선행 source를 구분한다. 남은 Directory/Manager/Admin 소비자와 I1-01~08 전체 수용은 미완료다.
+
+
+## GDJ-0138 — 선택 Admin의 상태 표시와 실제 HTTP 실패 검증 이관
+
+`a479ec020c92823aba884ba03382052fe63b7d54` 다음 묶음에서 선택 `RegisterAccount`의 기존 객체 화면에
+인가된 `Profile.PasswordUsable`의 읽기 전용 Enabled/Disabled 표시를 추가했다. 기존 고정 Admin에만 있던 표시다.
+같은 snapshot의 활성화와는 독립적이고 생성 화면에 노출하거나 제출값으로 받지 않는다. 실제 모델의 scalar/M2M 이름과
+충돌하면 별도 표시 이름을 배정한다. 기본 등록의 선언 검사와 실제 custom `password_usable` profile(default `profile-status`)을
+생성해, 비노출 필드가 상태 표시로 노출되거나 덮이지 않는 소비자를 작성했다. 실제 HTTP는 usable/disabled/inactive/restored
+상태·거부된 Form 재표시·조회 전용 권한·현재 권한 회수·위조 상태 입력 뒤 전체 durable 상태를 대조한다.
+
+생성 소비자를 `management_http_test.go`와 `TestGeneratedAccountManagementHTTP`로 바꾸고 같은 generated runtime의
+AccountManagement/Catalog를 실제 JSON과 Admin 두 transport에 등록했다. 각자 CSRF·입력·인가·응답 처리를 실행하며
+완전한 typed 행·소속·session·audit 관측은 공유한다. Admin의 정상 세션 접근도 자체 transaction을 사용하므로 실패 주입은
+HTTP 인가 뒤 lifecycle owner의 transaction에만 걸고, 그 뒤의 실제 쓰기 횟수를 따로 대조한다. 이 분리는 세션 검증이나
+갱신을 우회하지 않으며 고정 clock에서 거부/rollback 전후 session payload 전체가 같아야 한다.
+
+| 이관/확장한 위험 | 새 필수 실행과 보존한 확인 |
+|---|---|
+| 고정 Admin의 create/create_unusable/update/delete/password × audit failure/unknown commit 10개 child | `failure_admin_accounts_*`의 실제 TCP Form·native audit INSERT 이후 실패·commit 뒤 응답 유실, 한 번의 lifecycle transaction/hash·성공/redirect/Retry-After 비게시 |
+| 계정/catalog 전송과 결과 불명의 일관성 | JSON/Admin 각각 accounts 6종(create/create_unusable/update/delete/password/disable), groups/permissions 각각 3종 CRUD × audit_failure/unknown_rollback/unknown = 각각 36개, 합계 72개 필수 child |
+| rollback 이후 부분 행·소속·session·audit와 commit 뒤 무관한 값 변조 | 양 transport가 같은 전체 native snapshot을 비교; unknown commit의 정확한 target/revision·제출 필드·hash/unusable 상태·audit actor/action·대상 session만 폐기 확인 |
+| unusable 생성/disable의 비밀번호 작업 생략 | 실패/unknown을 포함해 hash 0·password policy 0, 결과 불명 응답과 실제 저장 상태를 각각 확인 |
+| Admin 읽기 cleanup 뒤 부분 page/오진단 | `admin_read_cleanup_failure`: 세 resource의 list/detail/history에서 인가 뒤 cleanup 오류 1회, 500·부분 응답 비노출·durable 무변경 |
+| 선택 상태 표시의 이름 충돌·권한·입력 경계 | `admin_status_display_boundary`와 `nullable_password_and_status`: 기본/별도 모델의 실제 HTML·잘못된 Form·readonly 사용자와 현재 권한 회수·서버 상태 위조 거부 |
+
+기존 JSON 30개 failure child는 protocol 이름만 명시하고 모두 유지했으며 unusable create/disable 6개와 Admin 36개를 추가했다.
+두 Admin 전용 child를 더해 생성 variant마다 필수 child는 44개 증가했다. 기존 JSON·Admin lifecycle·공개 첫 계정·Django 독립 기준은
+계속 요구한다. SQLite/PostgreSQL의 고정 Admin selector는 각각 위 10개만 제거했다(relation 4,960→4,950,
+PostgreSQL 5,881→5,871). 나머지 항목과 순서가 같은지 정적으로 대조했다. 고정 Admin의 늦은 별도 connection 쓰기·현재 인가,
+독립 Form 기준·password 정책/cleanup과 Directory/Manager 검사는 유지한다. 따라서 고정 Admin 제품 전체의 제거 완료는 아니다.
+
+로컬은 변경 Go 파일의 gofmt·어휘 수준 import 참조, 소비자 embed/진입점·필수 child 연결, selector 제거 범위와 diff를 확인했다.
+이 확인은 타입 검사나 compile이 아니다. Python relation shard 13개(0.311초), PostgreSQL shard 12개(27.736초)가 통과했다.
+사용자 지시에 따라 로컬 Go compile·generator·테스트 본문·DB 실행은 하지 않았다. 새 source의 compile·실제 기본/custom
+HTTP·양 DB·race/CGO-disabled·전체 platform 수용은 push 이후 원격 CI 대상이다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

@@ -19,11 +19,13 @@ of the regular input corpus. Built-in password strength policies and their separ
 are documented in [Password validation](../PASSWORD_VALIDATION.md). Hosts choose
 the policy explicitly; confirmation remains a separate form requirement.
 
-The creation form narrows username input to 150 code points; editing retains
+The historical built-in creation form narrows username input to 150 code points; editing retains
 the User Schema IR's 256-code-point storage limit. The credential and private
 CLI transport allow 1,024 UTF-8 bytes, with model character bounds checked
 separately before persistence. This explicit GoDj storage profile does not
 claim Django's default User schema or complete UserCreationForm parity.
+Selected account registration uses its declared Schema IR and host input
+policy, including its own login field, length and normalization.
 
 The creation checkbox also follows `AdminUserCreationForm` and
 `SetUnusablePasswordMixin` from that pinned `forms.py`: disabled password login
@@ -59,3 +61,7 @@ login state derived from the same authorized user snapshot. This follows
 `AbstractBaseUser.has_usable_password()` in the pinned `base_user.py`, with
 transitions observed independently on both databases. It does not reproduce
 the Python read-only hash widget or disclose the stored password encoding.
+Selected account registration derives this display from `Profile.PasswordUsable`.
+It allocates a separate display name when a real model field uses the same name,
+retains that field's exposure policy, and uses the authorized stored snapshot
+when rendering a rejected edit. The display itself is never a form input.

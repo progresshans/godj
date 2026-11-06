@@ -13,7 +13,7 @@ type accountPasswordInputs struct {
 	first, confirm, unusable string
 }
 
-func accountCreationForm(model ir.Model, definition formmodel.Definition, maximum int) (accountPasswordInputs, error) {
+func accountAuxiliaryNames(model ir.Model) func(string, string) string {
 	names := make(map[string]bool, len(model.Fields)+len(model.ManyToMany)+3)
 	for _, field := range model.Fields {
 		names[field.Name] = true
@@ -21,17 +21,21 @@ func accountCreationForm(model ir.Model, definition formmodel.Definition, maximu
 	for _, field := range model.ManyToMany {
 		names[field.Name] = true
 	}
-	// An application may use the familiar command names for real profile
-	// fields. Allocate deterministic, separate names without shadowing them.
-	name := func(base string) string {
+	return func(base, suffix string) string {
 		value := base
-		for suffix := 1; names[value]; suffix++ {
-			value = base + "_command" + strconv.Itoa(suffix)
+		for index := 1; names[value]; index++ {
+			value = base + suffix + strconv.Itoa(index)
 		}
 		names[value] = true
 		return value
 	}
-	result := accountPasswordInputs{definition: definition.Clone(), first: name("password1"), confirm: name("password2"), unusable: name("unusable_password")}
+}
+
+func accountCreationForm(model ir.Model, definition formmodel.Definition, maximum int) (accountPasswordInputs, error) {
+	// A real selected profile may use a familiar command name. Keep those
+	// inputs separate from each other and every declared model field.
+	name := accountAuxiliaryNames(model)
+	result := accountPasswordInputs{definition: definition.Clone(), first: name("password1", "_command"), confirm: name("password2", "_command"), unusable: name("unusable_password", "_command")}
 	first, err := forms.CharField(result.first, forms.WithLabel("Password"), forms.WithWidget(forms.PasswordInput), forms.WithTrimWhitespace(false), forms.WithRequired(false))
 	if err != nil {
 		return accountPasswordInputs{}, err

@@ -25,8 +25,8 @@ func TestGeneratedAccountAdminLifecycle(t *testing.T) {
 	firstCustomAccount(t, "management")
 }
 
-func TestGeneratedAccountManagementJSON(t *testing.T) {
-	firstCustomAccount(t, "json")
+func TestGeneratedAccountManagementHTTP(t *testing.T) {
+	firstCustomAccount(t, "http")
 }
 
 func firstCustomAccount(t *testing.T, adminMode string) {
@@ -42,8 +42,8 @@ func firstCustomAccount(t *testing.T, adminMode string) {
 		t.Fatal("positive custom fixture requires fixed staff=true")
 	}
 	backend, selected := accountDatabaseWithConfig(t, access.GoDjRelationSchema(), people.GoDjRelationSchema(), tickets.GoDjRelationSchema())
-	if adminMode == "json" {
-		backend = &managementJSONBackend{Backend: backend}
+	if adminMode == "http" {
+		backend = &managementHTTPBackend{Backend: backend}
 	}
 	hasher, _ := accountPassword(t)
 	config := firstConsumerConfig[people.Member](role, "region")
@@ -77,8 +77,8 @@ func firstCustomAccount(t *testing.T, adminMode string) {
 		assertAccountAdminHTTP(t, backend, binding, sessions, hasher, row, "region", "priority", "description", project.NewAccountManagement, project.NewAccountCatalog)
 		return
 	}
-	if adminMode == "json" {
-		assertAccountManagementJSON(t, backend, binding, hasher, row, "region", "priority", "description", project.NewAccountRuntime, func(t *testing.T, id int64) func() {
+	if adminMode == "http" {
+		assertAccountManagementHTTP(t, backend, binding, hasher, row, "region", "priority", "description", project.NewAccountRuntime, func(t *testing.T, id int64) func() {
 			guard, err := tickets.TicketObjects.Create(t.Context(), backend, tickets.NewTicketCreate("JSON protected", id))
 			if err != nil {
 				t.Fatal(err)

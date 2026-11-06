@@ -686,6 +686,14 @@ password에 감사 실패·rollback/commit 뒤 결과 불명 30개 필수 child�
 선택 DELETE의 본문 무시를 거부로 고쳤다. 역사 service/Admin·Django 원문은 유지하며 남은 고정 Directory/Manager/Admin 교체와
 새 native 본문·전체 환경 수용은 완료로 계산하지 않는다.
 
+선택 Admin의 기존 객체 화면에 같은 인가된 Profile의 읽기 전용 비밀번호 로그인 상태를 연결했다. 활성화·검증 오류·
+조회 전용 권한과 실제 profile의 이름 충돌을 구분하며, 생성 입력이나 credential encoding으로 노출하지 않는다.
+고정 Admin의 감사 실패·commit 결과 불명 10개 native child를 기본/custom 생성 소비자로 이관했다. 같은 실제 JSON/Admin
+조립과 독립 전체 행·소속·session·audit 대조를 공유하며, unusable 생성/disable·rollback 결과 불명·읽기 cleanup도 포함한다.
+옛 selector의 제거와 새 필수 child 연결은 TEST_EVIDENCE에 기록하며, 남은 고정 Form·독립 기준·동시 쓰기/인가 검사는 유지한다.
+선택 Admin의 LastLogin 읽기 노출·표시와 나머지 고정 소비자의 교체는 남아 있다.
+작성·정적 검사와 실제 Go/DB·원격 환경 수용은 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

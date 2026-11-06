@@ -3,8 +3,6 @@ package identitytest
 import (
 	"context"
 	"errors"
-	"net/url"
-	"reflect"
 	"testing"
 
 	"github.com/progresshans/godj/admin"
@@ -56,77 +54,9 @@ func (b *adminMutationBoundary) AppendAudit(ctx context.Context, session db.Sess
 
 func runAdminFailureBoundaries(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
-	for _, operation := range []string{"create", "create_unusable", "update", "delete", "password"} {
-		for _, mode := range []string{"audit_failure", "unknown_commit"} {
-			t.Run(operation+"_"+mode, func(t *testing.T) {
-				backend, _ := open(t)
-				f := newManagementFixture(t, backend, 3)
-				boundary := &adminMutationBoundary{Runtime: f.runtime, mode: mode}
-				h := newIdentityAdminHTTP(t, f, boundary)
-				h.loginAdmin(t, h.client, "manager", managementOldPassword)
-				beforeSessions, beforeAudit := snapshotIdentitySystemRows(t, backend)
-				want := 500
-				if mode == "unknown_commit" {
-					want = 503
-				}
-				var response adminHTTPResult
-				switch operation {
-				case "create":
-					response = h.postForm(t, "/admin/users/add/", url.Values{"username": {"Candidate"}, "password1": {managementNewPassword}, "password2": {managementNewPassword}}, want)
-				case "create_unusable":
-					response = h.postForm(t, "/admin/users/add/", url.Values{"username": {"Candidate"}, "unusable_password": {"on"}}, want)
-				case "update":
-					before, err := f.manager(t, f.runtime).User(t.Context(), f.actor, f.user.ID)
-					if err != nil {
-						t.Fatal(err)
-					}
-					data := adminUserData(before)
-					data.Set("first_name", "Changed")
-					response = h.postForm(t, adminObjectPath("users", "change", f.user.ID), data, want)
-				case "delete":
-					response = h.postForm(t, adminObjectPath("users", "delete", f.user.ID), url.Values{}, want)
-				case "password":
-					response = h.postForm(t, adminObjectPath("users", "command/password", f.user.ID), url.Values{"password1": {managementNewPassword}, "password2": {managementNewPassword}}, want)
-				}
-				if boundary.calls != 1 || mode == "audit_failure" && boundary.faults != 1 || response.header.Get("Location") != "" || response.header.Get("Retry-After") != "" {
-					t.Fatal("failed/unknown operation retried, redirected or missed boundary")
-				}
-				if operation == "create_unusable" {
-					want := int64(2)
-					if mode == "unknown_commit" {
-						want = 3
-					}
-					if count, err := models.UserObjects.Using(backend).Count(t.Context()); err != nil || count != want || f.hasher.calls.Load() != 0 {
-						t.Fatal("unusable creation outcome or password work changed", err)
-					}
-				}
-				afterSessions, afterAudit := snapshotIdentitySystemRows(t, backend)
-				if mode == "audit_failure" {
-					if !reflect.DeepEqual(beforeSessions, afterSessions) || !reflect.DeepEqual(beforeAudit, afterAudit) {
-						t.Fatal("failed audit left side effects")
-					}
-					f.assertOutcome(t, false)
-				} else {
-					switch operation {
-					case "create", "create_unusable":
-						if count, err := models.UserObjects.Using(backend).Count(t.Context()); err != nil || count != 3 {
-							t.Fatal("unknown create was not committed", err)
-						}
-					case "update":
-						if row := f.stored(t); row.FirstName != "Changed" || row.Revision != 2 {
-							t.Fatal("unknown update was not committed")
-						}
-					case "delete":
-						if found, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(f.user.ID)).Exists(t.Context()); err != nil || found {
-							t.Fatal("unknown delete was not committed", err)
-						}
-					case "password":
-						f.assertOutcome(t, true)
-					}
-				}
-			})
-		}
-	}
+	// Audit failure and uncertain HTTP completion are owned by the generated
+	// selected-model JSON/Admin consumer. Retain the independent late-writer
+	// checks until their selected-model replacement is complete.
 	for _, kind := range []string{"revision", "authority"} {
 		t.Run("write_fence_rechecks_"+kind, func(t *testing.T) {
 			backend, second := open(t)

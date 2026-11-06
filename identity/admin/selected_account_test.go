@@ -60,6 +60,9 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 	if !present || len(registry.All()) != 1 || descriptor.Slug != "accounts" || !slices.Equal(descriptor.ListFields, []string{"id", "username", "revision"}) || !slices.Equal(descriptor.AdditionalPermissions, []auth.Permission{"account.manage"}) {
 		t.Fatal("actual account registration widened or lost owner policy")
 	}
+	if !slices.Equal(descriptor.ReadOnlyFields, []admin.ReadOnlyFieldDescriptor{{Name: "password_usable", Label: "Password login"}}) {
+		t.Fatal("selected password state lost its read-only presentation")
+	}
 	var created, edited []string
 	for _, field := range descriptor.CreateFormFields {
 		created = append(created, field.Name())

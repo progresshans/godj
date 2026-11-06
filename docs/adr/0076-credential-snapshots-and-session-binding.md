@@ -1831,6 +1831,10 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 않으며 host는 slug와 읽을 수 있는 scalar 목록 열을 선택한다. 비밀번호/확인 입력은 공백을 보존하는 private widget과 byte 한도를
 사용한다. 명시적 unusable 선택은 별도이며 빈 비밀번호를 그 선택으로 추론하지 않는다. Command 이름이 실제 profile 이름과 겹치면
 결정적으로 별도 이름을 배정한다. 실제 stored Password/PrincipalID·revision·서버 timestamp는 쓰기 입력에 포함하지 않는다.
+기존 객체의 수정·조회 전용 화면은 같은 인가된 `Profile.PasswordUsable`에서 비밀번호 로그인 Enabled/Disabled 상태를
+표시한다. 활성화 여부와는 독립적이며 생성 화면이나 쓰기 입력에 포함하지 않는다. 실제 profile이 `password_usable` 이름을
+사용하면 선언된 scalar/M2M과 충돌하지 않는 별도 표시 이름을 배정하며, 그 필드의 노출·저장 정책은 그대로 적용한다.
+검증 오류로 Form을 다시 표시할 때도 제출된 값이 아니라 인가된 기존 snapshot의 상태를 사용한다.
 
 등록된 Create는 typed 입력을 준비한 뒤 Creator의 Prepare/Commit을 한 번 호출한다. Update/Delete와 password commands도
 기존 수명 owner에 위임하며 확인된 ID/revision/변경 field만 전달한다. 자기 비활성화나 비밀번호 변경으로 읽기 권한·현재 session이

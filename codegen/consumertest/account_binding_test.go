@@ -49,8 +49,8 @@ var accountBindingAdminCatalogHTTPConsumer []byte
 //go:embed testdata/accountbinding/admin_account_http_test.go
 var accountBindingAdminAccountHTTPConsumer []byte
 
-//go:embed testdata/accountbinding/management_json_test.go
-var accountBindingManagementJSONConsumer []byte
+//go:embed testdata/accountbinding/management_http_test.go
+var accountBindingManagementHTTPConsumer []byte
 
 //go:embed testdata/accountbinding/password_admin_http_test.go
 var accountBindingPasswordAdminHTTPConsumer []byte
@@ -252,6 +252,12 @@ func firstAccountConsumerSpec(t *testing.T, variant accountLoginVariant) codegen
 			// familiar name. It must stay independent across typed JSON and errors.
 			model.Fields = append(model.Fields, ir.Field{Name: "password", GoName: "Password", Kind: ir.FieldChar, MaxLength: 64,
 				Default: &ir.Scalar{Kind: ir.ScalarString, String: "profile-default"}})
+			if variant.custom {
+				// The derived Admin status must not shadow even an unexposed
+				// real profile field with the familiar presentation name.
+				model.Fields = append(model.Fields, ir.Field{Name: "password_usable", GoName: "PasswordUsable", Kind: ir.FieldChar, MaxLength: 64,
+					Default: &ir.Scalar{Kind: ir.ScalarString, String: "profile-status"}})
+			}
 			for k := range model.Fields {
 				field := &model.Fields[k]
 				if variant.custom && field.Name == "region" {
@@ -284,43 +290,45 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/admin_mutation_http_test.go", accountBindingAdminMutationHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_catalog_http_test.go", accountBindingAdminCatalogHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_account_http_test.go", accountBindingAdminAccountHTTPConsumer)
-			writeGeneratedTestFile(t, root, "consumer/management_json_test.go", accountBindingManagementJSONConsumer)
+			writeGeneratedTestFile(t, root, "consumer/management_http_test.go", accountBindingManagementHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
-			required = append(required, "TestGeneratedAccountManagementJSON")
+			required = append(required, "TestGeneratedAccountManagementHTTP")
 			for _, name := range []string{"composed_runtime", "typed_default_password_policy", "shared_reset_policy"} {
-				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
+				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
 			}
-			for _, name := range []string{"catalog_create", "create_and_login", "selected_read_and_list", "csrf", "additional_permission", "add_requires_change", "password_policy", "model_password_policy", "protected_input", "credential_namespace", "revision_before_body", "put_defaults_and_omitted_collections", "update_noop_and_history", "catalog_put_and_permissions", "native_rollback", "unknown_after_native_commit", "read_cleanup_failure", "password_revokes_sessions", "delete_and_audit", "self_deactivation_keeps_confirmed_receipt"} {
-				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
+			for _, name := range []string{"catalog_create", "create_and_login", "selected_read_and_list", "csrf", "additional_permission", "add_requires_change", "password_policy", "model_password_policy", "protected_input", "credential_namespace", "revision_before_body", "put_defaults_and_omitted_collections", "update_noop_and_history", "catalog_put_and_permissions", "native_rollback", "unknown_after_native_commit", "read_cleanup_failure", "admin_read_cleanup_failure", "admin_status_display_boundary", "password_revokes_sessions", "delete_and_audit", "self_deactivation_keeps_confirmed_receipt"} {
+				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
 			}
-			for _, resource := range []string{"accounts", "groups", "permissions"} {
-				operations := []string{"create", "update", "delete"}
-				if resource == "accounts" {
-					operations = append(operations, "password")
-				}
-				for _, operation := range operations {
-					for _, mode := range []string{"audit_failure", "unknown_rollback", "unknown"} {
-						required = append(required, "TestGeneratedAccountManagementJSON/failure_"+resource+"_"+operation+"_"+mode)
+			for _, transport := range []string{"json", "admin"} {
+				for _, resource := range []string{"accounts", "groups", "permissions"} {
+					operations := []string{"create", "update", "delete"}
+					if resource == "accounts" {
+						operations = append(operations, "password", "create_unusable", "disable")
+					}
+					for _, operation := range operations {
+						for _, mode := range []string{"audit_failure", "unknown_rollback", "unknown"} {
+							required = append(required, "TestGeneratedAccountManagementHTTP/failure_"+transport+"_"+resource+"_"+operation+"_"+mode)
+						}
 					}
 				}
 			}
 			for _, name := range []string{"native_input_rejections", "nullable_password_and_status", "self_password_keeps_confirmed_receipt"} {
-				required = append(required, "TestGeneratedAccountManagementJSON/"+name)
+				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
 			}
 			for _, resource := range []string{"accounts", "groups", "permissions"} {
-				required = append(required, "TestGeneratedAccountManagementJSON/native_revision_"+resource)
+				required = append(required, "TestGeneratedAccountManagementHTTP/native_revision_"+resource)
 				for _, access := range []string{"none", "view", "change", "add", "add_change", "missing_common", "delete"} {
-					required = append(required, "TestGeneratedAccountManagementJSON/admission_"+resource+"_"+access)
+					required = append(required, "TestGeneratedAccountManagementHTTP/admission_"+resource+"_"+access)
 				}
 			}
 			for _, operation := range []string{"create", "password"} {
 				for _, mode := range []string{"invalid_input", "wrapped_input", "failure"} {
-					required = append(required, "TestGeneratedAccountManagementJSON/hasher_"+operation+"_"+mode)
+					required = append(required, "TestGeneratedAccountManagementHTTP/hasher_"+operation+"_"+mode)
 				}
 			}
 			if variant.custom {
-				required = append(required, "TestGeneratedAccountManagementJSON/protected_delete_cleanup")
+				required = append(required, "TestGeneratedAccountManagementHTTP/protected_delete_cleanup")
 			}
 			required = append(required, "TestGeneratedAccountAdminLifecycle")
 			for _, name := range []string{"bounded_choices", "partial_unique", "invalid_choice", "password_required", "password_mismatch", "password_bytes", "password_policy", "csrf", "protected_input", "additional_permission", "add_requires_change", "create_usable", "create_unusable", "stale", "edit_policy", "edit_additional", "choice_operation", "update_and_history", "password_command", "self_deactivation", "delete_and_audit"} {

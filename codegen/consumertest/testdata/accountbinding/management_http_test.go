@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -28,6 +29,7 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
+	identityadmin "github.com/progresshans/godj/identity/admin"
 	identityapi "github.com/progresshans/godj/identity/api"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/orm"
@@ -45,7 +47,7 @@ import (
 
 // These failures surround the real native transaction. The unknown case
 // commits before losing its acknowledgement; it is not a network experiment.
-type managementJSONBackend struct {
+type managementHTTPBackend struct {
 	database.Backend
 	writeFault      atomic.Value
 	readFault       atomic.Bool
@@ -55,7 +57,7 @@ type managementJSONBackend struct {
 	readFailures    atomic.Int64
 }
 
-func (backend *managementJSONBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+func (backend *managementHTTPBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
 	err := backend.Backend.ReadSnapshot(ctx, read)
 	if backend.readFault.Swap(false) {
 		backend.readFailures.Add(1)
@@ -64,11 +66,11 @@ func (backend *managementJSONBackend) ReadSnapshot(ctx context.Context, read fun
 	return err
 }
 
-func (backend *managementJSONBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
+func (backend *managementHTTPBackend) CoordinatedAtomic(ctx context.Context, write func(db.Session) error) error {
 	return backend.coordinated(ctx, write, backend.Backend.CoordinatedAtomic)
 }
 
-func (backend *managementJSONBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+func (backend *managementHTTPBackend) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
 	return backend.coordinated(ctx, func(scope db.Session) error {
 		relation, ok := scope.(db.RelationSession)
 		if !ok {
@@ -80,7 +82,7 @@ func (backend *managementJSONBackend) CoordinatedAtomicRelation(ctx context.Cont
 	})
 }
 
-func (backend *managementJSONBackend) coordinated(ctx context.Context, write func(db.Session) error, invoke func(context.Context, func(db.Session) error) error) error {
+func (backend *managementHTTPBackend) coordinated(ctx context.Context, write func(db.Session) error, invoke func(context.Context, func(db.Session) error) error) error {
 	backend.writes.Add(1)
 	fault, _ := backend.writeFault.Swap("").(string)
 	if fault == "cancel" {
@@ -99,9 +101,9 @@ func (backend *managementJSONBackend) coordinated(ctx context.Context, write fun
 				if !valid {
 					return errors.New("native relation audit probe lacks conflict insertion")
 				}
-				scope = &managementJSONAuditScope{RelationSession: relation, ConflictInserter: conflict, SessionValidator: validator, failures: &backend.auditFaults}
+				scope = &managementHTTPAuditScope{RelationSession: relation, ConflictInserter: conflict, SessionValidator: validator, failures: &backend.auditFaults}
 			} else {
-				scope = &managementJSONAtomicAuditScope{Session: scope, SessionValidator: validator, failures: &backend.auditFaults}
+				scope = &managementHTTPAtomicAuditScope{Session: scope, SessionValidator: validator, failures: &backend.auditFaults}
 			}
 		}
 		if err := write(scope); err != nil {
@@ -128,13 +130,13 @@ func (backend *managementJSONBackend) coordinated(ctx context.Context, write fun
 	return err
 }
 
-type managementJSONAtomicAuditScope struct {
+type managementHTTPAtomicAuditScope struct {
 	db.Session
 	db.SessionValidator
 	failures *atomic.Int64
 }
 
-func (scope *managementJSONAtomicAuditScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+func (scope *managementHTTPAtomicAuditScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	key, err := scope.Session.Insert(ctx, plan)
 	if err == nil && plan.Table() == "godj_account_audit_event" {
 		scope.failures.Add(1)
@@ -143,14 +145,14 @@ func (scope *managementJSONAtomicAuditScope) Insert(ctx context.Context, plan qu
 	return key, err
 }
 
-type managementJSONAuditScope struct {
+type managementHTTPAuditScope struct {
 	db.RelationSession
 	db.ConflictInserter
 	db.SessionValidator
 	failures *atomic.Int64
 }
 
-func (scope *managementJSONAuditScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
+func (scope *managementHTTPAuditScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
 	key, err := scope.RelationSession.Insert(ctx, plan)
 	if err == nil && plan.Table() == "godj_account_audit_event" {
 		scope.failures.Add(1)
@@ -159,13 +161,13 @@ func (scope *managementJSONAuditScope) Insert(ctx context.Context, plan query.In
 	return key, err
 }
 
-type managementJSONHasher struct {
+type managementHTTPHasher struct {
 	auth.PasswordHasher
 	calls atomic.Int64
 	fault atomic.Value
 }
 
-func (hasher *managementJSONHasher) Hash(ctx context.Context, raw string) (string, error) {
+func (hasher *managementHTTPHasher) Hash(ctx context.Context, raw string) (string, error) {
 	hasher.calls.Add(1)
 	mode, _ := hasher.fault.Load().(string)
 	switch mode {
@@ -181,23 +183,35 @@ func (hasher *managementJSONHasher) Hash(ctx context.Context, raw string) (strin
 
 // Arm a cleanup failure only after HTTP authentication and admission. This
 // separates the management owner's snapshot from session resolution snapshots.
-type managementJSONOverlay struct {
+type managementHTTPOverlay struct {
 	catalogAdminOverlay
-	backend                *managementJSONBackend
+	backend                *managementHTTPBackend
 	failReadAfterAdmission atomic.Bool
+	writeAfterAdmission    atomic.Value
+	writeStart             atomic.Int64
+	writeArmed             atomic.Int64
 }
 
-func (overlay *managementJSONOverlay) Allowed(ctx context.Context, actor auth.Principal, permission auth.Permission) (bool, error) {
+func (overlay *managementHTTPOverlay) Allowed(ctx context.Context, actor auth.Principal, permission auth.Permission) (bool, error) {
 	allowed, err := overlay.catalogAdminOverlay.Allowed(ctx, actor, permission)
 	if err == nil && allowed && overlay.failReadAfterAdmission.Swap(false) {
 		overlay.backend.readFault.Store(true)
+	}
+	if err == nil && allowed {
+		if fault, _ := overlay.writeAfterAdmission.Swap("").(string); fault != "" {
+			// Admin's normal session access has its own transaction. Arm the
+			// lifecycle failure after that access, before the final owner fence.
+			overlay.writeStart.Store(overlay.backend.writes.Load())
+			overlay.backend.writeFault.Store(fault)
+			overlay.writeArmed.Add(1)
+		}
 	}
 	return allowed, err
 }
 
 // Observe full native rows independently of HTTP output, then remove just the
 // target so callers can compare every unrelated durable value and relation.
-func managementJSONWithout[M any](t *testing.T, manager orm.Manager[M], rows []M, target int64) ([]M, map[string]query.Value, int) {
+func managementHTTPWithout[M any](t *testing.T, manager orm.Manager[M], rows []M, target int64) ([]M, map[string]query.Value, int) {
 	t.Helper()
 	for index, row := range rows {
 		pk, present, err := manager.PrimaryKey(row)
@@ -222,7 +236,7 @@ func managementJSONWithout[M any](t *testing.T, manager orm.Manager[M], rows []M
 // Seed a preexisting large row revision through the same typed Query AST used
 // by application bulk updates. This fixture bypasses the management API, which
 // must never expose revision as writable request data.
-func managementJSONSetRevision[M any](t *testing.T, backend database.Backend, manager orm.Manager[M], id int64, field string, revision int64) {
+func managementHTTPSetRevision[M any](t *testing.T, backend database.Backend, manager orm.Manager[M], id int64, field string, revision int64) {
 	t.Helper()
 	metadata, err := manager.Metadata()
 	if err != nil {
@@ -244,9 +258,10 @@ func managementJSONSetRevision[M any](t *testing.T, backend database.Backend, ma
 	}
 }
 
-// The selected generated owners publish their shared JSON application. The
-// consumer supplies no handwritten CRUD callbacks or default account DTO.
-func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], hasher auth.PasswordHasher, original M, profileField, groupExtra, permissionExtra string,
+// The selected generated owners publish JSON and Admin on the same native
+// state. Their failure checks share independent row/session/audit observations;
+// each transport still uses its real authentication, parsing and response path.
+func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Backend, binding accountmodel.Binding[M], hasher auth.PasswordHasher, original M, profileField, groupExtra, permissionExtra string,
 	factory func(context.Context, sessiondb.Backend, auth.PasswordHasher, auth.Authorizer, accountmodel.RuntimeConfig[M, G, P]) (*accountmodel.Runtime[M, G, P], error), protect ...func(*testing.T, int64) func()) {
 	t.Helper()
 	check := func(err error) {
@@ -261,9 +276,9 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			t.FailNow()
 		}
 	}
-	faults, ok := backend.(*managementJSONBackend)
+	faults, ok := backend.(*managementHTTPBackend)
 	if !ok {
-		t.Fatal("JSON consumer lacks its native completion probe")
+		t.Fatal("HTTP consumer lacks its native completion probe")
 	}
 	role, err := binding.Role()
 	check(err)
@@ -272,6 +287,13 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 	stored, err := objects.ModelValues(original)
 	check(err)
 	actorLogin, _ := stored[role.Login].String()
+	statusName := "password_usable"
+	if value, present := stored["password_usable"]; present {
+		if actual, valid := value.String(); !valid || actual != "profile-status" {
+			t.Fatal("missing real status-name profile fixture")
+		}
+		statusName = "password_usable_status1"
+	}
 	keyField, err := objects.PrimaryKeyField()
 	check(err)
 	key := orm.NewAutoField[M](keyField)
@@ -287,7 +309,7 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			fields = append(fields, field)
 		}
 	}
-	overlay := &managementJSONOverlay{backend: faults}
+	overlay := &managementHTTPOverlay{backend: faults}
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	clock := func() time.Time { return now }
 	var blockedPasswordPolicy atomic.Bool
@@ -350,7 +372,7 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 		Permission:         accountmodel.CatalogModelConfig[P]{ReadFields: permissionFields, WriteFields: permissionFields, Permissions: accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission", Additional: []auth.Permission{"catalog.manage"}}},
 		AccountPermissions: accountmodel.DeletionPermissions{Delete: "account.delete", Change: "account.change", Additional: []auth.Permission{"account.manage"}}, Now: clock,
 	}
-	trackedHasher := &managementJSONHasher{PasswordHasher: hasher}
+	trackedHasher := &managementHTTPHasher{PasswordHasher: hasher}
 	composed, err := factory(t.Context(), backend, trackedHasher, overlay, accountmodel.RuntimeConfig[M, G, P]{
 		Accounts: accountPolicy, Catalog: catalogPolicy, Sessions: sessions.Config{Clock: clock},
 	})
@@ -430,8 +452,24 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			return result.Apply(response)
 		}},
 	)
-	configured, err := settings.New(settings.Definition{ProjectName: "selected_account_json", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "selectedapi"})})
+	configured, err := settings.New(settings.Definition{ProjectName: "selected_account_http", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "selectedapi"})})
 	check(err)
+	adminBuilder := admin.NewBuilder(configured.Apps())
+	check(identityadmin.RegisterAccount(adminBuilder, owner, identityadmin.AccountRegistration{Slug: "accounts"}))
+	check(identityadmin.RegisterCatalog(adminBuilder, catalog, identityadmin.CatalogRegistration{
+		Groups: identityadmin.CatalogPresentation{Slug: "groups"}, Permissions: identityadmin.CatalogPresentation{Slug: "permissions"},
+	}))
+	adminRegistry, err := adminBuilder.Build()
+	check(err)
+	adminPaths, err := admin.SiteAllowedNextPaths(adminRegistry, "/admin")
+	check(err)
+	adminRuntime, err := websession.New(websession.Config{Sessions: manager, Authenticator: verifier, Authorizer: overlay, LoginPersistence: persistence, Clock: clock,
+		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
+		LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: adminPaths})
+	check(err)
+	adminSite, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "selectedapi", Registry: adminRegistry, Auth: adminRuntime})
+	check(err)
+	routes = append(routes, adminSite.Routes()...)
 	application, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, Middleware: management.Middleware()})
 	check(err)
 	server := httptest.NewServer(application)
@@ -503,6 +541,48 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			t.Fatal("private execution cause reached HTTP")
 		}
 		return status, header, value
+	}
+	adminSend := func(client *http.Client, method, endpoint string, data url.Values) (int, http.Header, []byte) {
+		t.Helper()
+		request, err := http.NewRequestWithContext(t.Context(), method, server.URL+endpoint, strings.NewReader(data.Encode()))
+		check(err)
+		if method == "POST" {
+			request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			request.Header.Set("Origin", server.URL)
+		}
+		status, headers, body := readResponse(client.Do(request))
+		if strings.Contains(string(body), "private") {
+			t.Fatal("Admin published a private execution cause")
+		}
+		return status, headers, body
+	}
+	adminToken := regexp.MustCompile(`name="csrfmiddlewaretoken" value="([A-Za-z0-9_-]{128})"`)
+	prepareAdmin := func(client *http.Client, endpoint string, fields map[string]any, revision string) func() (int, http.Header, []byte) {
+		t.Helper()
+		status, _, body := adminSend(client, "GET", endpoint, nil)
+		token := adminToken.FindSubmatch(body)
+		if status != 200 || len(token) != 2 {
+			t.Fatal("Admin preparation did not render its real form", endpoint, status)
+		}
+		data := url.Values{"csrfmiddlewaretoken": {string(token[1])}}
+		for field, value := range fields {
+			switch value := value.(type) {
+			case string:
+				data.Set(field, value)
+			case int:
+				data.Set(field, strconv.Itoa(value))
+			case bool:
+				if value {
+					data.Set(field, "on")
+				}
+			default:
+				t.Fatal("unsupported Admin field observation", field)
+			}
+		}
+		if revision != "" {
+			data.Set("expected_revision", revision)
+		}
+		return func() (int, http.Header, []byte) { return adminSend(client, "POST", endpoint, data) }
 	}
 	encode := func(value any) string { raw, err := json.Marshal(value); check(err); return string(raw) }
 	fieldsBody := func(fields map[string]any) string { return encode(map[string]any{"fields": fields}) }
@@ -891,11 +971,11 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			target := decodeReceipt(status, header, value, 201)
 			switch resource {
 			case "accounts":
-				managementJSONSetRevision(t, faults.Backend, objects, target.ID, role.Revision, revision)
+				managementHTTPSetRevision(t, faults.Backend, objects, target.ID, role.Revision, revision)
 			case "groups":
-				managementJSONSetRevision(t, faults.Backend, catalog.Groups().Manager(), target.ID, role.Catalog.GroupRevision, revision)
+				managementHTTPSetRevision(t, faults.Backend, catalog.Groups().Manager(), target.ID, role.Catalog.GroupRevision, revision)
 			case "permissions":
-				managementJSONSetRevision(t, faults.Backend, catalog.Permissions().Manager(), target.ID, role.Catalog.PermissionRevision, revision)
+				managementHTTPSetRevision(t, faults.Backend, catalog.Permissions().Manager(), target.ID, role.Catalog.PermissionRevision, revision)
 			}
 			before := snapshot()
 			writes := faults.writes.Load()
@@ -1060,222 +1140,299 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 	// renamed generated models. Every mode reaches one real write transaction;
 	// acknowledgement-loss cases never authorize a blind retry.
 	failureIndex := 0
-	for _, resource := range []string{"accounts", "groups", "permissions"} {
-		operations := []string{"create", "update", "delete"}
-		if resource == "accounts" {
-			operations = append(operations, "password")
-		}
-		for _, operation := range operations {
-			for _, mode := range []string{"audit_failure", "unknown_rollback", "unknown"} {
-				run("failure_"+resource+"_"+operation+"_"+mode, func(t *testing.T) {
-					failureIndex++
-					name := fmt.Sprintf("fault%d@example.test", failureIndex)
-					fields, changedField, revisionField, model := accountFields(name), profileField, role.Revision, role.Model
-					if resource == "groups" {
-						fields = map[string]any{role.Catalog.GroupName: name}
-						if groupExtra != "" {
-							fields[groupExtra] = 7
-						}
-						changedField, revisionField, model = role.Catalog.GroupName, role.Catalog.GroupRevision, role.Catalog.Group
-					} else if resource == "permissions" {
-						fields = map[string]any{role.Catalog.PermissionCode: fmt.Sprintf("jsonfault.p%d", failureIndex), role.Catalog.PermissionName: name}
-						if permissionExtra != "" {
-							fields[permissionExtra] = "failure fixture"
-						}
-						changedField, revisionField, model = role.Catalog.PermissionName, role.Catalog.PermissionRevision, role.Catalog.Permission
-					}
-					body := fieldsBody(fields)
-					if resource == "accounts" {
-						body = creationBody(fields, "native-fault-password")
-					}
-					method, endpoint, revision := "POST", "/api/identity/"+resource+"/", ""
-					var target receipt
-					var targetSession sessions.ID
-					if operation != "create" {
-						status, header, value := send(client, method, endpoint, body, "", true)
-						target = decodeReceipt(status, header, value, 201)
-						if resource == "accounts" {
-							targetSession = login(newClient(), name, "native-fault-password")
-						}
-						method, endpoint, revision = "PATCH", path(resource, target.ID), strconv.FormatInt(target.Revision, 10)
-						changed := map[string]any{changedField: "NZ"}
-						if resource == "accounts" {
-							changed[role.Active.Field] = false
-						}
-						body = fieldsBody(changed)
-						if operation == "delete" {
-							method, body = "DELETE", ""
-						}
-						if operation == "password" {
-							method, endpoint = "POST", endpoint+"password/"
-							body = encode(map[string]any{"credential": map[string]any{"password": "native-replacement-password"}})
-						}
-					}
-					before := snapshot()
-					writes, hashes, auditFailures := faults.writes.Load(), trackedHasher.calls.Load(), faults.auditFaults.Load()
-					faults.writeFault.Store(mode)
-					status, header, value := send(client, method, endpoint, body, revision, true)
-					wantStatus, wantHashes := 503, int64(0)
-					if mode == "audit_failure" {
-						wantStatus = 500
-					}
-					if resource == "accounts" && (operation == "create" || operation == "password") {
-						wantHashes = 1
-					}
-					if status != wantStatus || faults.writes.Load()-writes != 1 || trackedHasher.calls.Load()-hashes != wantHashes || header.Get("Revision") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" {
-						t.Fatal("failure retried, missed native work or published a receipt", status, faults.writes.Load()-writes, trackedHasher.calls.Load()-hashes)
-					}
-					if (faults.auditFaults.Load()-auditFailures == 1) != (mode == "audit_failure") {
-						t.Fatal("audit failure was not reached exactly once")
-					}
-					if mode == "audit_failure" {
-						if string(value) != "Internal Server Error\n" {
-							t.Fatal("execution failure exposed diagnostics or partial result")
-						}
-					} else {
-						var failure map[string]json.RawMessage
-						check(json.Unmarshal(value, &failure))
-						if failure["id"] != nil || failure["revision"] != nil || string(failure["code"]) != `"outcome_unknown"` {
-							t.Fatal("failure published target metadata or lost uncertainty")
-						}
-					}
-					after := snapshot()
-					if mode != "unknown" {
-						if !reflect.DeepEqual(before, after) {
-							t.Fatal("confirmed native rollback retained rows, memberships, sessions or audit")
-						}
-						return
-					}
-					if len(after.Audits) != len(before.Audits)+1 {
-						t.Fatal("committed unknown result lost or duplicated its audit")
-					}
-					event := after.Audits[len(before.Audits)]
-					action := admin.ActionChange
-					if operation == "create" {
-						action, target.ID = admin.ActionAdd, event.ObjectID
-					}
-					if operation == "delete" {
-						action = admin.ActionDelete
-					}
-					if event.ObjectID != target.ID || event.Model != model.AppLabel+"."+model.ModelName || event.ActorID != actor.ID() || event.Action != string(action) {
-						t.Fatal("unknown result audit has another target, actor or action")
-					}
-					after.Audits = after.Audits[:len(before.Audits)]
-					var oldValues, newValues map[string]query.Value
-					oldIndex, newIndex := -1, -1
-					switch resource {
-					case "accounts":
-						before.Accounts, oldValues, oldIndex = managementJSONWithout(t, objects, before.Accounts, target.ID)
-						after.Accounts, newValues, newIndex = managementJSONWithout(t, objects, after.Accounts, target.ID)
-						for _, item := range []struct {
-							state *durable
-							index int
-						}{{&before, oldIndex}, {&after, newIndex}} {
-							if item.index >= 0 {
-								for _, keys := range item.state.Memberships[item.index] {
-									if len(keys) != 0 {
-										t.Fatal("unexpected target membership")
-									}
-								}
-								item.state.Memberships = slices.Delete(slices.Clone(item.state.Memberships), item.index, item.index+1)
+	for _, transport := range []string{"json", "admin"} {
+		for _, resource := range []string{"accounts", "groups", "permissions"} {
+			operations := []string{"create", "update", "delete"}
+			if resource == "accounts" {
+				operations = append(operations, "password", "create_unusable", "disable")
+			}
+			for _, operation := range operations {
+				for _, mode := range []string{"audit_failure", "unknown_rollback", "unknown"} {
+					run("failure_"+transport+"_"+resource+"_"+operation+"_"+mode, func(t *testing.T) {
+						creation := operation == "create" || operation == "create_unusable"
+						failureIndex++
+						name := fmt.Sprintf("fault%d@example.test", failureIndex)
+						fields, changedField, revisionField, model := accountFields(name), profileField, role.Revision, role.Model
+						if resource == "groups" {
+							fields = map[string]any{role.Catalog.GroupName: name}
+							if groupExtra != "" {
+								fields[groupExtra] = 7
 							}
-						}
-					case "groups":
-						before.Groups, oldValues, oldIndex = managementJSONWithout(t, catalog.Groups().Manager(), before.Groups, target.ID)
-						after.Groups, newValues, newIndex = managementJSONWithout(t, catalog.Groups().Manager(), after.Groups, target.ID)
-						for _, item := range []struct {
-							state *durable
-							index int
-						}{{&before, oldIndex}, {&after, newIndex}} {
-							if item.index >= 0 {
-								if len(item.state.GroupPermissions[item.index]) != 0 {
-									t.Fatal("unexpected target group permission")
-								}
-								item.state.GroupPermissions = slices.Delete(slices.Clone(item.state.GroupPermissions), item.index, item.index+1)
+							changedField, revisionField, model = role.Catalog.GroupName, role.Catalog.GroupRevision, role.Catalog.Group
+						} else if resource == "permissions" {
+							fields = map[string]any{role.Catalog.PermissionCode: fmt.Sprintf("jsonfault.p%d", failureIndex), role.Catalog.PermissionName: name}
+							if permissionExtra != "" {
+								fields[permissionExtra] = "failure fixture"
 							}
+							changedField, revisionField, model = role.Catalog.PermissionName, role.Catalog.PermissionRevision, role.Catalog.Permission
 						}
-					case "permissions":
-						before.Permissions, oldValues, _ = managementJSONWithout(t, catalog.Permissions().Manager(), before.Permissions, target.ID)
-						after.Permissions, newValues, _ = managementJSONWithout(t, catalog.Permissions().Manager(), after.Permissions, target.ID)
-					}
-					if (oldValues == nil) != (operation == "create") || (newValues == nil) != (operation == "delete") {
-						t.Fatal("unknown result has wrong durable existence")
-					}
-					if operation == "update" || operation == "password" {
-						expected := maps.Clone(oldValues)
-						expected[revisionField] = query.Integer(target.Revision + 1)
-						if operation == "update" {
-							expected[changedField] = query.String("NZ")
+						body := fieldsBody(fields)
+						if resource == "accounts" {
+							body = creationBody(fields, "native-fault-password")
+						}
+						if operation == "create_unusable" {
+							body = creationBody(fields, nil)
+						}
+						method, endpoint, revision := "POST", "/api/identity/"+resource+"/", ""
+						var target receipt
+						var targetSession sessions.ID
+						if !creation {
+							status, header, value := send(client, method, endpoint, body, "", true)
+							target = decodeReceipt(status, header, value, 201)
 							if resource == "accounts" {
-								expected[role.Active.Field] = query.Boolean(false)
+								targetSession = login(newClient(), name, "native-fault-password")
+							}
+							method, endpoint, revision = "PATCH", path(resource, target.ID), strconv.FormatInt(target.Revision, 10)
+							changed := map[string]any{changedField: "NZ"}
+							if resource == "accounts" {
+								changed[role.Active.Field] = false
+							}
+							body = fieldsBody(changed)
+							if operation == "delete" {
+								method, body = "DELETE", ""
+							}
+							if operation == "password" || operation == "disable" {
+								method, endpoint = "POST", endpoint+"password/"
+								var password any = "native-replacement-password"
+								if operation == "disable" {
+									password = nil
+								}
+								body = encode(map[string]any{"credential": map[string]any{"password": password}})
+							}
+						}
+						submit := func() (int, http.Header, []byte) { return send(client, method, endpoint, body, revision, true) }
+						if transport == "admin" {
+							values := maps.Clone(fields)
+							action := "add"
+							if resource == "accounts" {
+								values[role.Active.Field] = true
+							}
+							if creation && resource == "accounts" {
+								values["password1"], values["password2"] = "native-fault-password", "native-fault-password"
+								if operation == "create_unusable" {
+									values["unusable_password"] = true
+								}
+							}
+							if operation == "update" {
+								action, values[changedField] = "change", "NZ"
+								if resource == "accounts" {
+									values[role.Active.Field] = false
+								}
+							}
+							if operation == "delete" {
+								action, values = "delete", map[string]any{"confirm": "yes"}
+							}
+							if operation == "password" {
+								action, values = "command/password", map[string]any{"password1": "native-replacement-password", "password2": "native-replacement-password"}
+							}
+							if operation == "disable" {
+								action, values = "command/disable-password", map[string]any{"confirm": true}
+							}
+							endpoint = "/admin/" + resource + "/" + action + "/"
+							if !creation {
+								endpoint += "?id=" + strconv.FormatInt(target.ID, 10)
+							}
+							submit = prepareAdmin(client, endpoint, values, revision)
+						}
+						before := snapshot()
+						writes, hashes, auditFailures, armed := faults.writes.Load(), trackedHasher.calls.Load(), faults.auditFaults.Load(), overlay.writeArmed.Load()
+						policies := passwordPolicies.Load()
+						if transport == "admin" {
+							overlay.writeAfterAdmission.Store(mode)
+						} else {
+							faults.writeFault.Store(mode)
+						}
+						status, header, value := submit()
+						if transport == "admin" {
+							if overlay.writeArmed.Load()-armed != 1 {
+								t.Fatal("Admin never reached the mutation admission boundary")
+							}
+							writes = overlay.writeStart.Load()
+						}
+						wantStatus, wantHashes := 503, int64(0)
+						if mode == "audit_failure" {
+							wantStatus = 500
+						}
+						if resource == "accounts" && (operation == "create" || operation == "password") {
+							wantHashes = 1
+						}
+						if status != wantStatus || faults.writes.Load()-writes != 1 || trackedHasher.calls.Load()-hashes != wantHashes || header.Get("Revision") != "" || header.Get("Location") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" {
+							t.Fatal("failure retried, missed native work or published a receipt", status, faults.writes.Load()-writes, trackedHasher.calls.Load()-hashes)
+						}
+						if (operation == "create_unusable" || operation == "disable") && passwordPolicies.Load() != policies {
+							t.Fatal("unusable command invoked password policy")
+						}
+						if (faults.auditFaults.Load()-auditFailures == 1) != (mode == "audit_failure") {
+							t.Fatal("audit failure was not reached exactly once")
+						}
+						if mode == "audit_failure" {
+							if string(value) != "Internal Server Error\n" {
+								t.Fatal("execution failure exposed diagnostics or partial result")
+							}
+						} else if transport == "admin" {
+							if string(value) != "The outcome is unknown. Check the current stored state before starting another operation. Do not retry automatically.\n" {
+								t.Fatal("Admin lost the uncertain outcome or published target metadata")
 							}
 						} else {
-							encoded, _ := newValues[role.Password].String()
-							valid, err := hasher.Verify(t.Context(), "native-replacement-password", encoded)
+							var failure map[string]json.RawMessage
+							check(json.Unmarshal(value, &failure))
+							if failure["id"] != nil || failure["revision"] != nil || string(failure["code"]) != `"outcome_unknown"` {
+								t.Fatal("failure published target metadata or lost uncertainty")
+							}
+						}
+						after := snapshot()
+						if mode != "unknown" {
+							if !reflect.DeepEqual(before, after) {
+								t.Fatal("confirmed native rollback retained rows, memberships, sessions or audit")
+							}
+							return
+						}
+						if len(after.Audits) != len(before.Audits)+1 {
+							t.Fatal("committed unknown result lost or duplicated its audit")
+						}
+						event := after.Audits[len(before.Audits)]
+						action := admin.ActionChange
+						if creation {
+							action, target.ID = admin.ActionAdd, event.ObjectID
+						}
+						if operation == "delete" {
+							action = admin.ActionDelete
+						}
+						if event.ObjectID != target.ID || event.Model != model.AppLabel+"."+model.ModelName || event.ActorID != actor.ID() || event.Action != string(action) {
+							t.Fatal("unknown result audit has another target, actor or action")
+						}
+						after.Audits = after.Audits[:len(before.Audits)]
+						var oldValues, newValues map[string]query.Value
+						oldIndex, newIndex := -1, -1
+						switch resource {
+						case "accounts":
+							before.Accounts, oldValues, oldIndex = managementHTTPWithout(t, objects, before.Accounts, target.ID)
+							after.Accounts, newValues, newIndex = managementHTTPWithout(t, objects, after.Accounts, target.ID)
+							for _, item := range []struct {
+								state *durable
+								index int
+							}{{&before, oldIndex}, {&after, newIndex}} {
+								if item.index >= 0 {
+									for _, keys := range item.state.Memberships[item.index] {
+										if len(keys) != 0 {
+											t.Fatal("unexpected target membership")
+										}
+									}
+									item.state.Memberships = slices.Delete(slices.Clone(item.state.Memberships), item.index, item.index+1)
+								}
+							}
+						case "groups":
+							before.Groups, oldValues, oldIndex = managementHTTPWithout(t, catalog.Groups().Manager(), before.Groups, target.ID)
+							after.Groups, newValues, newIndex = managementHTTPWithout(t, catalog.Groups().Manager(), after.Groups, target.ID)
+							for _, item := range []struct {
+								state *durable
+								index int
+							}{{&before, oldIndex}, {&after, newIndex}} {
+								if item.index >= 0 {
+									if len(item.state.GroupPermissions[item.index]) != 0 {
+										t.Fatal("unexpected target group permission")
+									}
+									item.state.GroupPermissions = slices.Delete(slices.Clone(item.state.GroupPermissions), item.index, item.index+1)
+								}
+							}
+						case "permissions":
+							before.Permissions, oldValues, _ = managementHTTPWithout(t, catalog.Permissions().Manager(), before.Permissions, target.ID)
+							after.Permissions, newValues, _ = managementHTTPWithout(t, catalog.Permissions().Manager(), after.Permissions, target.ID)
+						}
+						if (oldValues == nil) != creation || (newValues == nil) != (operation == "delete") {
+							t.Fatal("unknown result has wrong durable existence")
+						}
+						if operation == "update" || operation == "password" || operation == "disable" {
+							expected := maps.Clone(oldValues)
+							expected[revisionField] = query.Integer(target.Revision + 1)
+							if operation == "update" {
+								expected[changedField] = query.String("NZ")
+								if resource == "accounts" {
+									expected[role.Active.Field] = query.Boolean(false)
+								}
+							} else {
+								encoded, _ := newValues[role.Password].String()
+								if operation == "disable" {
+									if auth.IsPasswordUsable(encoded) {
+										t.Fatal("unknown disable retained a usable credential")
+									}
+								} else {
+									valid, err := hasher.Verify(t.Context(), "native-replacement-password", encoded)
+									check(err)
+									if !valid {
+										t.Fatal("unknown password result lost replacement")
+									}
+								}
+								if reflect.DeepEqual(newValues[role.Password], oldValues[role.Password]) {
+									t.Fatal("unknown password result retained its old credential")
+								}
+								expected[role.Password] = newValues[role.Password]
+							}
+							if !reflect.DeepEqual(expected, newValues) {
+								t.Fatal("unknown update lost requested values or changed unrelated fields")
+							}
+						}
+						if creation {
+							actualRevision, valid := newValues[revisionField].Integer()
+							if !valid || actualRevision != 1 {
+								t.Fatal("unknown create lost initial revision")
+							}
+							for field, expected := range fields {
+								switch expected := expected.(type) {
+								case string:
+									if resource == "accounts" && field == role.Email && role.Email != role.Login {
+										expected = "Contact@example.test"
+									}
+									actual, valid := newValues[field].String()
+									if !valid || actual != expected {
+										t.Fatal("unknown create lost submitted field", field)
+									}
+								case int:
+									actual, valid := newValues[field].Integer()
+									if !valid || actual != int64(expected) {
+										t.Fatal("unknown create lost submitted integer", field)
+									}
+								default:
+									t.Fatal("missing independent field observation", field)
+								}
+							}
+							if resource == "accounts" {
+								encoded, _ := newValues[role.Password].String()
+								if operation == "create_unusable" {
+									if auth.IsPasswordUsable(encoded) {
+										t.Fatal("unknown unusable creation published a usable credential")
+									}
+								} else {
+									valid, err := hasher.Verify(t.Context(), "native-fault-password", encoded)
+									check(err)
+									if !valid {
+										t.Fatal("unknown create lost requested credential")
+									}
+								}
+							}
+						}
+						if resource == "accounts" && !creation {
+							_, found, err := selected.Load(t.Context(), targetSession)
 							check(err)
-							if !valid || reflect.DeepEqual(newValues[role.Password], oldValues[role.Password]) {
-								t.Fatal("unknown password result lost replacement")
+							if found || len(after.Sessions) != len(before.Sessions)-1 {
+								t.Fatal("unknown account mutation did not revoke only the target session")
 							}
-							expected[role.Password] = newValues[role.Password]
-						}
-						if !reflect.DeepEqual(expected, newValues) {
-							t.Fatal("unknown update lost requested values or changed unrelated fields")
-						}
-					}
-					if operation == "create" {
-						actualRevision, valid := newValues[revisionField].Integer()
-						if !valid || actualRevision != 1 {
-							t.Fatal("unknown create lost initial revision")
-						}
-						for field, expected := range fields {
-							switch expected := expected.(type) {
-							case string:
-								if resource == "accounts" && field == role.Email && role.Email != role.Login {
-									expected = "Contact@example.test"
+							prior := make(map[int64]sessionmodels.Session, len(before.Sessions))
+							for _, row := range before.Sessions {
+								prior[row.ID] = row
+							}
+							for _, row := range after.Sessions {
+								if !reflect.DeepEqual(prior[row.ID], row) {
+									t.Fatal("unknown mutation changed an unrelated session")
 								}
-								actual, valid := newValues[field].String()
-								if !valid || actual != expected {
-									t.Fatal("unknown create lost submitted field", field)
-								}
-							case int:
-								actual, valid := newValues[field].Integer()
-								if !valid || actual != int64(expected) {
-									t.Fatal("unknown create lost submitted integer", field)
-								}
-							default:
-								t.Fatal("missing independent field observation", field)
 							}
+							before.Sessions = after.Sessions
 						}
-						if resource == "accounts" {
-							encoded, _ := newValues[role.Password].String()
-							valid, err := hasher.Verify(t.Context(), "native-fault-password", encoded)
-							check(err)
-							if !valid {
-								t.Fatal("unknown create lost requested credential")
-							}
+						if !reflect.DeepEqual(before, after) {
+							t.Fatal("unknown mutation changed unrelated rows, memberships, sessions or audit")
 						}
-					}
-					if resource == "accounts" && operation != "create" {
-						_, found, err := selected.Load(t.Context(), targetSession)
-						check(err)
-						if found || len(after.Sessions) != len(before.Sessions)-1 {
-							t.Fatal("unknown account mutation did not revoke only the target session")
-						}
-						prior := make(map[int64]sessionmodels.Session, len(before.Sessions))
-						for _, row := range before.Sessions {
-							prior[row.ID] = row
-						}
-						for _, row := range after.Sessions {
-							if !reflect.DeepEqual(prior[row.ID], row) {
-								t.Fatal("unknown mutation changed an unrelated session")
-							}
-						}
-						before.Sessions = after.Sessions
-					}
-					if !reflect.DeepEqual(before, after) {
-						t.Fatal("unknown mutation changed unrelated rows, memberships, sessions or audit")
-					}
-				})
+					})
+				}
 			}
 		}
 	}
@@ -1369,6 +1526,72 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			}
 		}
 	})
+	run("admin_read_cleanup_failure", func(t *testing.T) {
+		for _, target := range []struct {
+			resource string
+			id       int64
+		}{{"accounts", created.ID}, {"groups", group.ID}, {"permissions", permission.ID}} {
+			for _, endpoint := range []string{"/admin/" + target.resource + "/", "/admin/" + target.resource + "/change/?id=" + strconv.FormatInt(target.id, 10), "/admin/" + target.resource + "/history/?id=" + strconv.FormatInt(target.id, 10)} {
+				before := snapshot()
+				failures := faults.readFailures.Load()
+				overlay.failReadAfterAdmission.Store(true)
+				status, header, body := adminSend(client, "GET", endpoint, nil)
+				if status != 500 || faults.readFailures.Load()-failures != 1 || overlay.failReadAfterAdmission.Load() || header.Get("Location") != "" || header.Get("Retry-After") != "" || header.Get("Cache-Control") != "no-store" || string(body) != "Internal Server Error\n" || !reflect.DeepEqual(before, snapshot()) {
+					t.Fatal("Admin read cleanup exposed a partial page or changed durable state", endpoint, status)
+				}
+			}
+		}
+	})
+	run("admin_status_display_boundary", func(t *testing.T) {
+		before := snapshot()
+		hashes := trackedHasher.calls.Load()
+		status, _, page := adminSend(client, "GET", "/admin/accounts/add/", nil)
+		if status != 200 || strings.Contains(string(page), `data-field-name="`+statusName+`"`) {
+			t.Fatal("creation displayed an unstored password state")
+		}
+		endpoint := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
+		for _, field := range slices.Compact([]string{"password_usable", statusName}) {
+			fields := accountFields("api@example.test")
+			fields[field] = "false"
+			submit := prepareAdmin(client, endpoint, fields, strconv.FormatInt(created.Revision, 10))
+			status, headers, _ := submit()
+			if status != 400 || headers.Get("Location") != "" || trackedHasher.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("derived status or hidden profile became a mutable input", field, status)
+			}
+		}
+
+		viewerFields := accountFields("status-viewer@example.test")
+		viewerFields[role.Permissions] = []int64{grantKey("account.view"), grantKey("account.manage")}
+		if role.Staff.Field != "" {
+			viewerFields[role.Staff.Field] = true
+		}
+		status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(viewerFields, "status-view-password"), "", true)
+		viewer := decodeReceipt(status, header, body, 201)
+		observer := newClient()
+		login(observer, "status-viewer@example.test", "status-view-password")
+		before = snapshot()
+		status, _, body = adminSend(observer, "GET", endpoint, nil)
+		if status != 200 || !strings.Contains(string(body), `data-field-name="`+statusName+`">Enabled`) || strings.Contains(string(body), ` name="`+role.Login+`"`) || strings.Contains(string(body), "Change password") || strings.Contains(string(body), "profile-status") {
+			t.Fatal("view-only selected account lost status or gained writable controls", status)
+		}
+		token := adminToken.FindSubmatch(body)
+		if len(token) != 2 {
+			t.Fatal("view-only status page lost CSRF")
+		}
+		status, _, _ = adminSend(observer, "POST", "/admin/accounts/command/disable-password/?id="+strconv.FormatInt(created.ID, 10), url.Values{
+			"csrfmiddlewaretoken": {string(token[1])}, "expected_revision": {strconv.FormatInt(created.Revision, 10)}, "confirm": {"on"},
+		})
+		if status != 403 || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("view-only status admitted a credential mutation", status)
+		}
+		status, header, body = send(client, "PATCH", path("accounts", viewer.ID), fieldsBody(map[string]any{role.Permissions: []int64{}}), strconv.FormatInt(viewer.Revision, 10), true)
+		decodeReceipt(status, header, body, 200)
+		before = snapshot()
+		status, _, body = adminSend(observer, "GET", endpoint, nil)
+		if status != 403 || strings.Contains(string(body), "Password login") || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("status presentation retained revoked authority", status)
+		}
+	})
 	run("password_revokes_sessions", func(t *testing.T) {
 		a, b := newClient(), newClient()
 		first := login(a, "api@example.test", "created-password")
@@ -1453,6 +1676,32 @@ func assertAccountManagementJSON[M, G, P any](t *testing.T, backend database.Bac
 			}
 			if status != 200 || !seen || !reflect.DeepEqual(before, snapshot()) {
 				t.Fatal("password status list mutated or omitted target", status)
+			}
+			page := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
+			status, _, value = adminSend(client, "GET", page, nil)
+			label := "Disabled"
+			if usable {
+				label = "Enabled"
+			}
+			if status != 200 || !strings.Contains(string(value), `data-field-name="`+statusName+`">`+label) || strings.Contains(string(value), ` name="`+statusName+`"`) || strings.Contains(string(value), "profile-status") || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("selected Admin lost read-only credential state or confused it with activation", status)
+			}
+			invalid := accountFields("api@example.test")
+			invalid[profileField], invalid[role.Active.Field] = "forbidden", active
+			submit := prepareAdmin(client, page, invalid, strconv.FormatInt(created.Revision, 10))
+			status, _, value = submit()
+			if status != 200 || !strings.Contains(string(value), `data-field-name="`+statusName+`">`+label) || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("rejected Admin edit lost the observed credential status", status)
+			}
+			if statusName != "password_usable" {
+				row, err := objects.Using(backend).Filter(key.Exact(created.ID)).Get(t.Context())
+				check(err)
+				values, err := objects.ModelValues(row)
+				check(err)
+				profile, valid := values["password_usable"].String()
+				if !valid || profile != "profile-status" {
+					t.Fatal("derived state overwrote the unrelated real profile")
+				}
 			}
 		}
 		assertStatus(false, true)
