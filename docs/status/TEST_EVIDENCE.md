@@ -4525,6 +4525,41 @@ binding과 같은 `core-account-consumers` owner에 배정하며 새 job이나 �
 실행하지 않았다. 새 본문의 실제 컴파일·양 DB·race·
 CGO-disabled·전체 platform 수용과 고정 소비자 제거는 다음 source의 원격 확인 대상으로 남긴다.
 
+후속 이관에서는 `RunUserCreationForms`의 복사본 단일 시도와 삭제 후 재사용 검사를 선택 Form의
+`prepared_ownership/{single_attempt_after_delete,concurrent_copies,unadmitted_calls}/{usable,unusable}` 여섯 child로 작성했다.
+동시 복사본 넷 중 정확히 하나만 생성되고 나머지는 receipt 없는 conflict여야 한다. 생성 뒤 삭제한 객체의 복사본도
+새 계정·ID·hash·감사를 만들지 못한다. 각 경우 전체 물리 행·관계/session/domain과 정확한 생성/삭제 감사 소유권을 비교한다.
+준비 전후 ID/hash와 무저장 경계, 저장된 credential/profile 다섯 속성과 Django lifecycle 값의 직접 대조도 유지한다.
+내부 준비 후보를 공개하지 않는 abandoned 관측은 저장되지 않았음과 비노출로 확인한다.
+다른 actor는 현재 생성 Form을 통과할 권한이 실제로 있지만 원래 actor의 준비 값은 Commit하지 못한다. 취소된 호출과
+빈 준비 값도 거부한 뒤, 원래 actor의 한 번의 Commit이 성공해야 한다. 일반 권한 부족으로 소유권 검사가 가려지지 않게 한다.
+
+독립 process의 엄격한 필수 목록은 124→130개이며 기존 항목은 유지한다. 선택 Form의 nil/zero owner가 `Fields=nil`로
+모든 private 모델 필드를 투영하지 못하는 단위 root도 relation 필수 목록에 추가했다. 기존 고정 소비자는 삭제하지 않았다.
+이 추가 본문의 gofmt 문법·diff/기존 필수 목록 보존과 문서 링크를 확인했다. 실행 소유권·relation 분할 Python 두 검사도
+통과했다(0.016초). 원문은 backend마다 새 값으로 decode해 이전 capture의 map 항목이 누락을 가리지 않게 한다.
+실제 compile·양 DB·race 실행은 새 source의 원격 확인 대상이다.
+
+Source `fde5dc65b2a6245fcce8332645a6986c91d926c2`의
+[CI 42171427397 normal 계정 job 127740439812](https://github.com/progresshans/godj/actions/runs/42171427397/job/127740439812)은
+새 입력 소비자 네 process(기본/renamed × SQLite/PostgreSQL)의 컴파일 실패로 끝났다. 실제 checkout
+`d39927329a753f26cf9295ba893ea8c5c2efaa2f`와 source는 tree `2169f7da16caf65ad0750ea50141f66c2e772667`로 같다.
+API/job/ZIP digest·크기/CRC·78개 내부 파일 hash, source의 실제 planner/필수 bytes, 네 process의 시작/종료와 실패 원본을
+확인했다. 네 원본 모두 `sessiondb.Config`를 `sessions.Config`에 대입한 오류·그 Config에 없는 `Clock`·존재하지 않는
+`ir.FieldOneToOne` 참조를 보고했다. 입력 정책의 runtime test는 하나도 시작하지 않았으며 양 DB 입력 수용으로 계산하지 않는다.
+
+공개 선언을 다시 확인해 template을 `sessions.Config{Clock: clock}`으로 고쳤다. OneToOne은 별도 field kind가 아니라
+`FieldForeignKey`의 `RelationOneToOne` cardinality/unique 의미이므로 기존 FK 물리 값 투영으로 처리한다. Snapshot에서
+OneToOne 행이나 열을 제외하지 않는다. 이는 선언과 gofmt에 근거한 수정이며 새 source의 실제 재컴파일·본문 실행은 미확인이다.
+원본 보관소는 `gdj0138-fde5dc65-ci-42171427397/`이며 artifact `13481544925` ZIP SHA-256은
+`9bc47fc051895703009839606dca55830206b2cc2cfa9a1c794f30285fe3c493`, `job-127740439812.log`는
+`353f42b9dcebb4db1b1dd6a6d82b5f0c2a028cd6fd8f2e05ff6da8b3a9239fe6`이다.
+네 실패 원문·source hash·검증 범위를 연결한 `normal-input-build-failure-inspection.json` SHA-256은
+`a3311a7dcce70ec11980a6bdd3ecbb3cd5a4eee230f4b46d1da27b5efb56c16c`이다.
+같은 CI의 race [job 127740439550](https://github.com/progresshans/godj/actions/runs/42171427397/job/127740439550) 로그에서도
+네 입력 소비자의 같은 컴파일 오류를 확인했다. 해당 job log SHA-256은
+`ae74e53c0d3b6c9221a1ac34a64a677b89ffb48fbb5a708025bfea68d83a4232`이며, normal의 전체 artifact 대조와 구분한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

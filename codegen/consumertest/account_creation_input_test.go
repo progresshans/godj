@@ -107,6 +107,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 			for _, child := range []string{"stored_limit", "raw_normalization_limit", "forged_length", "forged_grammar", "forged_normalization", "late_duplicate"} {
 				required = append(required, required[0]+"/boundaries/"+child)
 			}
+			for _, operation := range []string{"single_attempt_after_delete", "concurrent_copies", "unadmitted_calls"} {
+				for _, mode := range []string{"usable", "unusable"} {
+					required = append(required, required[0]+"/prepared_ownership/"+operation+"/"+mode)
+				}
+			}
 			runAccountConsumerDatabases(t, root, required)
 		})
 	}

@@ -10,6 +10,26 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 )
 
+func TestUninitializedSelectedCreationFormCannotExposeStorageFields(t *testing.T) {
+	for _, form := range []*CreationForm[models.User]{nil, {}} {
+		definition := form.Definition()
+		if definition.Fields == nil || len(definition.Fields) != 0 {
+			t.Fatal("uninitialized creation Form selected all model fields")
+		}
+		if _, err := definition.Spec(models.UserDescriptor{}.Metadata()); err == nil {
+			t.Fatal("uninitialized creation Form projected private storage fields")
+		}
+		if _, err := form.Spec().Unbound(nil); err == nil {
+			t.Fatal("uninitialized creation Form published a usable spec")
+		}
+	}
+	for _, owner := range []*AccountManagement[models.User]{nil, {}} {
+		if form, err := NewCreationForm(owner, CreationFormConfig{}); err == nil || form != nil {
+			t.Fatal("uninitialized management owner was accepted")
+		}
+	}
+}
+
 func TestCreationFormPasswordInputsPreserveModelFields(t *testing.T) {
 	model := models.UserDescriptor{}.Metadata()
 	for _, name := range []string{"password1", "password2", "unusable_password"} {
