@@ -193,6 +193,11 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 					required = append(required, prefix+"/"+name)
 				}
 			}
+			const disablement = "TestAccountAdminPasswordDisablement"
+			required = append(required, disablement)
+			for _, mode := range []string{"csrf", "confirmation", "stale", "disable", "repeat_disable", "restore_policy", "restore_and_reopen"} {
+				required = append(required, disablement+"/"+mode)
+			}
 			const choices = "TestAccountAdminCreationChoices"
 			required = append(required, choices, choices+"/password_choice", choices+"/policy_and_validation", choices+"/current_authority")
 			for _, name := range []string{"default_missing", "enabled_missing", "enabled_mismatch", "enabled_equal", "disabled_empty", "disabled_mismatch", "disabled_equal", "disabled_duplicate"} {

@@ -17,6 +17,3 @@ func openPostgresUnusablePair(t *testing.T) (identitytest.TransitionBackend, ide
 func TestPostgresIdentityUnusablePasswords(t *testing.T) {
 	identitytest.RunUnusablePasswords(t, openPostgresUnusablePair)
 }
-func TestPostgresIdentityUnusablePasswordHTTP(t *testing.T) {
-	identitytest.RunUnusablePasswordHTTP(t, openPostgresUnusablePair)
-}

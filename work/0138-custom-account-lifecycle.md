@@ -817,6 +817,10 @@ read consumer와 catalog 전환은 모든 필수 leaf·원문·제한을 유지�
 대조한다. 고정 Manager의 정규화·overflow·bootstrap·역사 adoption 기준과 live Python producer는 유지한다.
 양 DB의 옛 Admin selector 24개 대응과 process별 필수 218개의 실제 실행 여부는 TEST_EVIDENCE에 기록한다.
 
+고정 Admin의 비밀번호 비활성화·반복·복구도 선택 모델의 실제 HTTP로 옮겼다. CSRF/confirmation/stale 거부, 비활성화의
+정책·해싱 생략과 marker/revision 회전, 대상 세션 폐기·정확한 감사, 복구 정책 재적용·재접속을 전체 native 상태로 대조한다.
+기존 독립 unusable 기준과 실패/경합 검사는 유지하며 process별 필수 226개 본문의 원격 수용은 별도로 확인한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -4870,6 +4870,28 @@ bootstrap와 역사 adoption 검사는 유지한다. 새 root 1개와 child 15�
 Gofmt·diff, Python CI 분할 검사 27개(36.644초)는 통과했다. 로컬 Go compile/test는 실행하지 않았으며 이 Unicode 본문의
 양 DB·normal/race/CGO-disabled·process·전체 platform 실행과 같은 source 수용은 원격에서 확인해야 한다.
 
+### 선택 Admin 비밀번호 비활성화·반복·복구 소비자 이관
+
+2026-11-07, `57f0ad6ad4bb0bb984d2ca118c24722482237baf` 위에서 고정 `RunUnusablePasswordHTTP/admin`의 검증 책임을
+기본/renamed 생성 앱의 `TestAccountAdminPasswordDisablement`로 옮겼다. 옛 양 DB wrapper/root/child selector 네 개를
+제거했으며 `RunUnusablePasswords`의 독립 Django 기준·native 실패/경합·현재 credential/session 관측은 유지한다.
+
+새 필수 child `csrf`·`confirmation`·`stale`는 실제 로그인/CSRF Form으로 요청하며 거부 뒤 전체 native 상태·hash·ID·
+password policy 호출이 바뀌지 않아야 한다. `disable`·`repeat_disable`은 모든 strength 입력을 거부하는 host 정책이 있어도
+이를 호출하지 않고 각각 새로운 unusable marker·revision·감사 한 개를 확정한다. 최초 비활성화는 실제 저장한 대상 세션
+세 개를 폐기하고 actor·익명 세션을 유지하며, 반복은 남은 세션을 바꾸지 않아야 한다.
+
+`restore_policy`는 unusable 상태에도 복구 strength 정책이 적용되어 hash/쓰기 전에 거부됨을 확인한다.
+`restore_and_reopen`은 허용한 정책의 사전/최종 두 호출·hash 한 번·정확한 Password/Revision과 감사 한 개를 대조하고,
+별도로 연 DB의 생성 runtime에서 공백을 포함한 새 원문만 인증되고 이전/trimmed 비밀번호는 거부돼야 한다.
+
+기존 기본 정책 성공 검사와 세션 fixture/native 성공 관측을 공유한다. 실제 session primary key, 전체 typed 계정 행,
+원래 native backend의 account/catalog/through/session/domain/mapping/audit를 비교한다. 허용한 Password/Revision·
+대상 세션 세 개·독립적으로 확인한 감사 한 개 외의 상태는 그대로여야 한다. 기존 default policy의 호출 횟수·해싱·재접속과
+일곱 정책 실패 경계는 유지한다. 필수 root/child 여덟 개를 추가하여 기본/renamed × 양 DB 각 process는 226개를 요구한다.
+Gofmt·diff와 Python CI 분할 검사 27개(36.141초)는 통과했다. 로컬 Go compile/test는 실행하지 않았다.
+새 본문과 관측 공통화의 양 DB·normal/race/CGO-disabled·process·전체 platform 및 같은 source 수용은 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

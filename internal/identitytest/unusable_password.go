@@ -14,7 +14,6 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
-	identityadmin "github.com/progresshans/godj/identity/admin"
 	"github.com/progresshans/godj/identity/models"
 	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/sessions"
@@ -329,33 +328,4 @@ func (b beforePasswordWrite) CoordinatedAtomic(ctx context.Context, callback fun
 		return err
 	}
 	return b.ManagementBackend.CoordinatedAtomic(ctx, callback)
-}
-
-func RunUnusablePasswordHTTP(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
-	t.Run("admin", func(t *testing.T) {
-		backend, _ := open(t)
-		f := newManagementFixture(t, backend, 3)
-		policy := identity.PasswordValidatorFunc(func(string, identity.Profile) validation.Errors {
-			return validation.NewErrors(validation.New("password", "blocked_by_host"))
-		})
-		h := newIdentityAdminHTTP(t, f, f.runtime, func(config identityadmin.Config) identityadmin.Config { return config.WithPasswordValidators(policy) })
-		h.loginAdmin(t, h.client, "manager", managementOldPassword)
-		path := adminObjectPath("users", "command/disable-password", f.user.ID)
-		form := h.call(t, h.client, "GET", path, nil, 200)
-		h.call(t, h.client, "POST", path, url.Values{"confirm": {"on"}, "expected_revision": {"1"}}, 403)
-		h.postForm(t, path, url.Values{}, 200)
-		h.call(t, h.client, "POST", path, url.Values{"confirm": {"on"}, "expected_revision": {"2"}, "csrfmiddlewaretoken": {form.token(t)}}, 409)
-		f.assertOutcome(t, false)
-		h.postForm(t, path, url.Values{"confirm": {"on"}}, 302)
-		h.postForm(t, path, url.Values{"confirm": {"on"}}, 302)
-		if f.stored(t).Revision != 3 || !strings.HasPrefix(f.stored(t).EncodedPassword, "!") || f.hasher.calls.Load() != 0 {
-			t.Fatal("Admin disablement lost state or invoked password policy/hash")
-		}
-		if _, err := f.manager(t, f.runtime).SetPassword(t.Context(), f.actor, f.user.ID, 3, managementNewPassword); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := f.runtime.Authenticator().Authenticate(t.Context(), "member", managementNewPassword); err != nil {
-			t.Fatal("restore after Admin disablement failed", err)
-		}
-	})
 }

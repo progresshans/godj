@@ -1218,8 +1218,6 @@ github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswords/fence
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswords/fence_target_revision
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswords/fence_target_hash_without_revision
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswords/competing_disable_and_replace
-github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswordHTTP
-github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityUnusablePasswordHTTP/admin
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityLoginLifecycle
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityLoginBoundaries
 github.com/progresshans/godj/db/sqlite|TestSQLiteIdentityLoginBoundaries/expired_snapshot_does_not_publish_cleanup

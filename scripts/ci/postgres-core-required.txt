@@ -845,8 +845,6 @@ github.com/progresshans/godj/db/postgres|TestPostgresIdentityUnusablePasswords/f
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUnusablePasswords/fence_target_revision
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUnusablePasswords/fence_target_hash_without_revision
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityUnusablePasswords/competing_disable_and_replace
-github.com/progresshans/godj/db/postgres|TestPostgresIdentityUnusablePasswordHTTP
-github.com/progresshans/godj/db/postgres|TestPostgresIdentityUnusablePasswordHTTP/admin
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityLoginLifecycle
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityLoginBoundaries
 github.com/progresshans/godj/db/postgres|TestPostgresIdentityLoginBoundaries/expired_snapshot_does_not_publish_cleanup
