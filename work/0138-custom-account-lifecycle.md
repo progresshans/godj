@@ -832,6 +832,18 @@ Directory/Manager의 역사·서비스 소비자는 유지한다. 이 제품 API
 대조한다. Form에서 거부하는 긴 이름과 결합 문자도 저장 서비스의 별도 정책으로 확인한다. 역사 bootstrap/adoption의
 정규화·원문 보존 검사는 유지하며, 새 필수 본문의 환경별 실행과 남은 서비스 이관은 별도다.
 
+고정 catalog Manager의 대량 소유자·합집합·경합 일곱 검증 책임을 선택 Catalog/AccountEditor에 연결했다. 권한 삭제가
+257개 사용자와 257개 그룹의 직접 소유자 revision을 정확히 한 번 바꾸고 간접 소유자·세션을 보존하는지, 마지막 소유자의
+overflow가 전체 변경을 rollback하는지 대조한다. 257번째 회원의 직접 권한/다른 그룹 합집합·중복, 그룹을 통한 현재 권한과
+자기 회수, 별도 연결의 unique/revision 경합 및 그룹 확장 대 계정 가입을 확인하도록 구성했다. Native 관측은 기존 Form과
+같은 열 개 테이블의 모든 typed 행을 사용하며 성공도 독립 입력으로 계산한 변경·정확한 감사 외의 상태를 보존해야 한다.
+옛 selector 대응과 새 필수 root/child의 원격 실행 여부는 TEST_EVIDENCE를 따른다. 기존 catalog의 독립 기준과 실패 검사는 유지한다.
+
+선택 Admin의 조회 전용 검사는 실제 HTML 요소/속성으로 표시와 입력을 구분하며, 누락·중복·실제 입력을 거부하는 control을
+필수 목록에 연결했다. Host 삭제의 Admin 변형은 새 domain 초기화 전 Staff 역할을 명시하고 같은 완전한 생성 host graph의
+공통 runtime을 사용한다. 원래 비staff generated 역할의 domain 불일치 거부도 확인한다. 실제 원격 실패와 보정·수용 범위는
+TEST_EVIDENCE에서 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

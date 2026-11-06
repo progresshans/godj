@@ -79,7 +79,7 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 			if bound.Form().Valid() {
 				t.Fatal("partial-invalid fixture is valid")
 			}
-			expected := formNativeSnapshot(t, backend)
+			expected := accountNativeSnapshot(t, backend)
 			var err error
 			switch mode {
 			case "partial_unique":
@@ -161,7 +161,7 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 				if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), backend, &link); err != nil || count != 1 {
 					t.Fatal(err)
 				}
-				expected = formNativeSnapshot(t, backend)
+				expected = accountNativeSnapshot(t, backend)
 				t.Cleanup(func() {
 					restored, err := models.UserPermissionsLinkObjects.Create(context.Background(), backend, models.NewUserPermissionsLinkCreate(link.SourceID, link.TargetID))
 					if err != nil {
@@ -180,7 +180,7 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 				}
 				requireProfileCode(t, owner.Permissions().CheckCreateForm(t.Context(), actor, bound), accountmodel.CodePermission)
 			}
-			if !reflect.DeepEqual(expected, formNativeSnapshot(t, backend)) {
+			if !reflect.DeepEqual(expected, accountNativeSnapshot(t, backend)) {
 				t.Fatal("catalog advisory validation changed native state")
 			}
 		})
@@ -215,7 +215,7 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 						}
 					})
 				}
-				before := formNativeSnapshot(t, backend)
+				before := accountNativeSnapshot(t, backend)
 				var err error
 				if current == nil {
 					err = groups.CheckCreateForm(t.Context(), actor, bound)
@@ -231,7 +231,7 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 					t.Fatal("unordered duplicate choices were not normalized for validation", err)
 				}
 				after, _ := bound.Form().Cleaned().Integers("permissions")
-				if !slices.Equal(cleaned, after) || !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) {
+				if !slices.Equal(cleaned, after) || !reflect.DeepEqual(before, accountNativeSnapshot(t, backend)) {
 					t.Fatal("advisory choice validation mutated input or native state")
 				}
 			})
@@ -275,10 +275,10 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 				}
 				f.grants[probe.grant] = restored
 			})
-			before := formNativeSnapshot(t, backend)
+			before := accountNativeSnapshot(t, backend)
 			err := probe.check()
 			requireProfileCode(t, err, accountmodel.CodePermission)
-			if _, rejected := validation.Rejected(err); rejected || !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) {
+			if _, rejected := validation.Rejected(err); rejected || !reflect.DeepEqual(before, accountNativeSnapshot(t, backend)) {
 				t.Fatal("cached authority disclosed diagnostics or changed native state", err)
 			}
 		})
@@ -369,7 +369,7 @@ func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 			}
 			resource := catalog.Permissions()
 			bound := catalogBoundForm(t, resource, map[string][]string{"code": {permission.Code}, "name": {""}}, nil)
-			before := formNativeSnapshot(t, backend)
+			before := accountNativeSnapshot(t, backend)
 			if mode == "conflict_cleanup" {
 				stale := permission
 				stale.Revision++
@@ -400,7 +400,7 @@ func catalogFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					t.Fatal("original catalog validation reader survived its scope")
 				}
 			}
-			if !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) {
+			if !reflect.DeepEqual(before, accountNativeSnapshot(t, backend)) {
 				t.Fatal("failed catalog advisory scope changed native state")
 			}
 		})

@@ -98,7 +98,6 @@ func RunCatalogManagement(t *testing.T, open func(*testing.T) (TransitionBackend
 	t.Run("lifecycle_matches_reference_and_host_relations", func(t *testing.T) { runCatalogLifecycle(t, open) })
 	t.Run("current_permission_admission_matches_django", func(t *testing.T) { runCatalogAdmission(t, open) })
 	runCatalogBoundaries(t, open)
-	runCatalogLimits(t, open)
 }
 
 func runCatalogLifecycle(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {

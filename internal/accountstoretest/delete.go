@@ -123,11 +123,16 @@ func provisionDeletion(t *testing.T, backend Backend) *deletionFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	credentials, err := project.NewAccountCredentialStore(backend)
+	return provisionDeletionBinding(t, backend, binding)
+}
+
+func provisionDeletionBinding(t *testing.T, backend Backend, binding accountmodel.Binding[people.Member]) *deletionFixture {
+	t.Helper()
+	credentials, err := accountmodel.NewCredentialStore(backend, binding, access.TeamDescriptor{}, access.GrantDescriptor{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+	store, err := accountmodel.NewSessionStore(credentials, sessiondb.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}

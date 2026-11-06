@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	auditmodels "github.com/progresshans/godj/account/audit/models"
-	domainmodels "github.com/progresshans/godj/account/domain/models"
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -22,40 +20,8 @@ import (
 	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
 	sessiondb "github.com/progresshans/godj/sessions/database"
-	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 	"github.com/progresshans/godj/validation"
 )
-
-// Keep the observation on the original native backend and an uncanceled
-// context. No management reader or injected scope can hide a partial write.
-func formNativeSnapshot(t *testing.T, backend Backend) []any {
-	t.Helper()
-	var state []any
-	visits := 0
-	err := backend.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
-		visits++
-		if visits != 1 {
-			return errors.New("form observation repeated its native callback")
-		}
-		state = []any{
-			deletionRows(t, scope, models.UserObjects),
-			deletionRows(t, scope, models.GroupObjects),
-			deletionRows(t, scope, models.PermissionObjects),
-			deletionRows(t, scope, models.UserGroupsLinkObjects),
-			deletionRows(t, scope, models.UserPermissionsLinkObjects),
-			deletionRows(t, scope, models.GroupPermissionsLinkObjects),
-			deletionRows(t, scope, sessionmodels.SessionObjects),
-			deletionRows(t, scope, auditmodels.EventObjects),
-			deletionRows(t, scope, domainmodels.TransitionObjects),
-			deletionRows(t, scope, domainmodels.MappingObjects),
-		}
-		return nil
-	})
-	if err != nil || visits != 1 {
-		t.Fatal("form native observation did not complete", err, visits)
-	}
-	return state
-}
 
 func formValidationSessions(t *testing.T, backend Backend, credential auth.Credential) {
 	t.Helper()
@@ -239,7 +205,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 			if hasher.calls.Load() != expectedHashes {
 				t.Fatal("management variant changed authenticator setup work")
 			}
-			expected := formNativeSnapshot(t, backend)
+			expected := accountNativeSnapshot(t, backend)
 			var err error
 			switch mode {
 			case "change_revoked":
@@ -305,7 +271,7 @@ func managementFormChecks(t *testing.T, backend Backend, reopen func(*testing.T)
 					requireProfileCode(t, err, accountmodel.CodePermission)
 				}
 			}
-			if !reflect.DeepEqual(expected, formNativeSnapshot(t, backend)) {
+			if !reflect.DeepEqual(expected, accountNativeSnapshot(t, backend)) {
 				t.Fatal("advisory check changed native state")
 			}
 			if calls != 0 || hasher.calls.Load() != expectedHashes {
@@ -390,7 +356,7 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 				current = &row
 			}
 			bound := managementBoundForm(t, owner, map[string][]string{"username": {f.user.Username}, "email": {"invalid"}}, current, nil, nil)
-			before := formNativeSnapshot(t, backend)
+			before := accountNativeSnapshot(t, backend)
 			hashes := hasher.calls.Load()
 			var err error
 			if current == nil {
@@ -420,7 +386,7 @@ func managementFormFailures(t *testing.T, backend Backend, _ func(*testing.T) Ba
 					t.Fatal("original borrowed validation reader survived its scope")
 				}
 			}
-			if !reflect.DeepEqual(before, formNativeSnapshot(t, backend)) || hasher.calls.Load() != hashes {
+			if !reflect.DeepEqual(before, accountNativeSnapshot(t, backend)) || hasher.calls.Load() != hashes {
 				t.Fatal("failed advisory scope changed native state or hashed a password")
 			}
 		})

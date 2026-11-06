@@ -4991,6 +4991,100 @@ Gofmt·diff, Python CI 분할 검사 27개(35.470초)와 변경 Markdown 4개의
 로컬 Go compile/test·생성·DB 실행은 하지 않았다. 새 본문과 이관의 양 DB·normal/race/CGO-disabled·독립 생성 process·
 전체 platform/cold-build 및 같은 source 원본 수용은 원격 확인 대상이다.
 
+### Catalog의 대량 소유자·권한 합집합·경합 책임 이관
+
+2026-11-07, `069aead322c8f0315e5e68aebe20ef13ddc3721e` 위에서 고정 `RunCatalogManagement`의 한도/경합
+일곱 검증 책임을 선택 `CatalogResource`와 `AccountEditor`의 실제 native 소비자로 옮겼다. 기존 catalog CRUD/독립 Django
+기준·인가·scope/cleanup·host PROTECT·실패 경로와 선택 모델의 기존 검사는 유지했다. 새 본문 작성과 현재 source의 환경별
+수용은 구분한다.
+
+| 옛 Manager child | 선택 `AccountCredentialStore`의 현행 책임 |
+|---|---|
+| `delete_versions_direct_owners_across_batches_and_rolls_back_overflow` | `catalog_permission_owner_batches/{late_owner_overflow,complete_direct_owners,stale_owner_revisions}`. 권한 한 개·사용자 직접 through 257개·그룹 through 257개, 총 515개 삭제를 실제 receipt와 독립 전후 행으로 대조한다. 직접 사용자/그룹만 revision +1, 간접 사용자·전체 세션·그 외 필드/관계는 보존하고 정확한 삭제 감사 한 개만 추가한다. 마지막 그룹 revision overflow의 전체 rollback과 이후 양쪽 소유자의 stale 거부를 확인한다. |
+| `group_union_checks_every_member_across_batches` | `catalog_group_union_batches/{late_member_rejection,clear_direct_and_expand,oversized_selection}`. 257번째 회원의 직접 권한으로 인한 257개 합집합을 거부한다. 선택 AccountEditor로 직접 권한을 지운 후 256개 확장을 허용하고, 회원 행/revision·credential/session은 추가 변경하지 않는다. 257개 직접 선택도 거부한다. |
+| `other_group_union_and_overlap_are_preserved` | `catalog_overlapping_group_union/{other_group_overflow,overlap_is_counted_once}`. 다른 그룹 255개+직접 한 개의 실제 합집합에 새 권한을 더하면 거부하고, 중복 255개 선택은 한 번만 계산해 허용한다. 기존 through ID와 전체 행을 유지한다. |
+| `current_group_authority_and_self_revocation` | `catalog_group_self_revocation/{current_group_authority,stale_authority_rejected}`. 과거 actor의 grant 목록 대신 현재 그룹 권한으로 자신의 유일한 Change grant를 제거하고, 이전 권한을 가진 actor의 다음 변경은 거부한다. 현재 domain·credential stamp·세션/계정 행과 감사도 대조한다. |
+| `competing_group_creators_and_editors`, `competing_permission_creators_and_editors` | `catalog_unique_competition/{group,permission}/{create,edit}`. 서로 다른 native 연결의 실제 선택 owner 두 개가 동시에 시도한다. 같은 unique 값의 생성은 한 승자/한 입력 거부, 같은 revision의 수정은 한 승자/한 conflict이며 losing 결과는 비어 있어야 한다. 행·revision·감사가 한 번만 바뀌고 다른 모든 상태는 보존한다. |
+| `group_edit_competes_with_user_join_under_one_fence` | `catalog_group_edit_versus_join`. 그룹의 255→256 권한 확장과 직접 권한 한 개를 가진 계정의 가입이 한 native coordination 경계에서 경쟁한다. 정확히 하나만 성공하며 결과에 따라 실제 membership/through·group/account revision·권한 1개 또는 256개·감사 한 개를 독립적으로 확인한다. |
+
+공통 native 관측을 이름 있는 typed 상태로 옮겼다. 기존 Form 검사는 같은 모델 열 개와 같은 snapshot/행 순서를 계속
+비교한다. 새 catalog 성공 관측은 before-state와 명시한 대상 ID·필드/관계만으로 expected state를 만들며 실제 서비스의
+receipt에서 저장 상태를 합성하지 않는다. 자동 생성 through key는 요청한 source/target 쌍과 정확한 추가 개수를 확인한
+뒤에만 기대 상태에 포함한다. 원래 audit prefix와 새 domain/actor/model/object/action/field/시각을 검증하고, 그 외
+user/group/permission/three through/session/domain/mapping 행을 전체 비교한다. 경합은 두 호출의 반환을 모두 받은 뒤
+fixture를 해제하며, 취소/오류를 정상 충돌이나 validation으로 바꾸지 않는다.
+
+옛 DB별 일곱 selector 총 14개를 정리하고 선택 native root/child 22개씩 총 44개를 필수 목록에 추가했다. 나머지 항목과
+상대 순서는 유지한다(relation 4,695→4,710, PostgreSQL 5,618→5,633). 생성 앱의 기존 필수 245개와 모든 독립 원문은
+변경하지 않았다. 로컬 Go compile/test·생성·DB 실행은 하지 않았으며 새 native 본문·관측 공통화의 실제 양 DB·race·
+CGO-disabled·전체 platform 및 같은 source의 원격 수용은 미확인이다.
+
+Gofmt·diff와 Python CI 분할 검사 27개(42.289초), 변경 Markdown 세 파일의 상대 링크 181개를 통과했다.
+필수 목록의 제거 7개/추가 22개와 나머지 순서, native 관측의 동일한 열 개 모델/조회 순서를 정적으로 대조했다.
+
+### 선택 Admin 조회 전용 HTML 관측 보정
+
+Source `069aead3`의 [CI 42260172960](https://github.com/progresshans/godj/actions/runs/42260172960), attempt 1
+PostgreSQL normal `core-account-management` [job 128038144581](https://github.com/progresshans/godj/actions/runs/42260172960/job/128038144581)에서
+기본/custom 일곱 변형 × SQLite/PostgreSQL, 총 14개 생성 subprocess가 `admission_accounts_view/admin`의 같은 assertion으로
+실패했다. 원본 artifact `13524734508`의 62개 파일과 각 subprocess의 전체 stdout/finished 크기를 대조했다. Archive
+269,722바이트의 SHA-256 `06b717f509961d7c19a8f64adda6aaa34e7ed23398665610ada8430cc85d6941`은 GitHub metadata와 같다.
+실제 checkout `dd925bbfe868670ee0a33b5bf3ff0896dcb1d8bf`의 tree
+`070198a4997492f8930229f9bdf049953e4e17e9`와 source parent를 GitHub Git API·로컬 객체로 대조했다.
+
+옛 `strings.Contains` 검사는 정상 detail 표시의 `data-field-name="contact"`에서도 `name="contact"`를 찾았다.
+해당 source의 실제 detail template와 predicate를 정적으로 대조해 오탐 경계를 확인했다. 생성 소비자는 HTML parser로
+실제 body/detail과 각 `dd` 표시 한 개를 확인하고, input/select/textarea/button의 정확한 name 속성 및 revision 입력을
+거부하도록 바꿨다. Escaped 입력 모양의 표시 text·logout CSRF 양성 control, 실제 입력 네 종류·revision·누락·중복·잘못된
+view의 여덟 음성 control을 별도 필수 root/child 아홉 개로 연결했다. 실제 HTTP의 권한별 GET/POST와 전체 native/hash
+불변 조건은 유지했고 제품의 admission/rendering 코드는 바꾸지 않았다.
+
+원 로그·artifact·14개 실패 process와 source 대조는 검증 보관소의
+`gdj0138-069aead3-ci-42260172960/failure-inspection.json`에 보존했다
+(SHA-256 `08031f9443eba30563a28a2aa42d1309ec158b4eba9820778a2643b4960e6faf`). 이 기록은 실패 확인과 정적 원인 대조이며
+새 Go guard나 14개 HTTP 소비자의 PASS가 아니다. 새 source의 전체 원격 결과에서 후속 assertion도 확인해야 한다.
+
+### 069aead3의 선택 생성 입력 normal 원본 대조
+
+같은 [CI 42260172960](https://github.com/progresshans/godj/actions/runs/42260172960)의 normal `core-account-consumers`
+[job 128038144574](https://github.com/progresshans/godj/actions/runs/42260172960/job/128038144574)는 성공했다.
+해당 job 로그의 checkout도 `dd925bbfe868670ee0a33b5bf3ff0896dcb1d8bf`이며 위 source/tree와 같다.
+Artifact `13525454177`의 271,493바이트 archive SHA-256
+`86ea1e0d94f68e9b50438a11efae3aaa78a04bcb0b5c0ae2ed0f25ccc4f826bc`를 GitHub metadata와 대조했다.
+
+원본 outer event stream의 필수 selector·실제 import package·skip 부재를 검사했다. 기본/renamed × SQLite/PostgreSQL
+네 생성 process의 전체 stdout·finished 크기/오류와 stderr 0바이트를 확인하고, source의 명시된 245개 root/leaf를
+각 stream에서 다시 검사해 모두 PASS를 확인했다. Unicode Admin 생성 12개와 저장 한도 편집 세 개, Creator 저장 원문 12개와
+한도 거부 여섯 개, 기존 입력/준비 수명·정책 실패·기본 정책·비밀번호 비활성화/복구를 포함한다. 독립 기준은 고정 원문 소비이며
+이 job의 결과를 모든 Python producer나 browser/process/platform 실행의 성공으로 확대하지 않는다.
+
+Archive 78개 파일·필수 245개 manifest·source·검사 명령/결과는 검증 보관소의
+`gdj0138-069aead3-ci-42260172960/normal-input-consumers-inspection.json`에 보존했다
+(SHA-256 `a01e79d01658ad7eced8cc5c8163ad3b9fd2c5b2998ff0f644f3968304a8d2cc`). 이것은 `069aead3`의 해당 normal 범위만
+확인한 결과다. Race/CGO-disabled·전체 CI와 현재 작성한 catalog 이관/HTML guard의 수용은 별도다.
+
+### 선택 등록의 공통 권한과 Admin 삭제 fixture 역할 보정
+
+같은 `069aead3` 실행의 Linux arm64 normal runtime [job 128038155386](https://github.com/progresshans/godj/actions/runs/42260172960/job/128038155386)에서
+선택 등록 metadata 검사와 `delete_admin_host_lifecycle` 초기 로그인 두 실패를 확인했다. 실제 checkout은 위와 같은
+`dd925bbfe868670ee0a33b5bf3ff0896dcb1d8bf`다. Artifact `13526032733`의 765,516바이트 archive SHA-256
+`351061ae4fa4983904f5f41f1a84bd2b4f55e9e81c87dbf61c91643746c656bb`를 GitHub metadata와 대조하고
+11,166,563바이트 전체 event stream을 읽었다. 이 실패로 시작하지 못한 Admin 삭제의 후속 child를 통과로 계산하지 않는다.
+
+- 등록 검사는 생성의 Add+Change만 기대하고 공통 Additional `account.manage`를 누락했다. 실제 순서인 Add+Additional+Change
+  세 권한을 요구하도록 고치고, 비밀번호/비활성화 두 command도 Change+Additional을 유지하는지 각각 확인한다.
+- 삭제용 서비스 fixture는 Staff가 항상 false인 계정 역할이다. Superuser만 true로 만든 계정은 실제 Admin 로그인에
+  진입할 수 없으므로 200 거부가 정상이다. Admin 소비자는 새 DB domain을 초기화하기 전에 명시적 Staff=true 역할을
+  선택한다. 완전한 생성 모델/host schema를 그 역할로 bind하고, 같은 generated collection/deleter capability와 공통
+  `NewRuntime`을 연결한다. 기존 비staff 역할의 generated credential store로 이 domain을 읽으면 원래 source mismatch
+  검사가 거부하고 전체 상태가 그대로여야 한다. 인증 뒤 flags를 바꾸거나 실제 Admin admission을 우회하지 않는다.
+
+기존 서비스 소비자는 원래 generated 역할을 계속 사용한다. 공유 provisioning helper는 전달받은 하나의 binding으로
+credential/session/domain 소유권을 구성하며 이 Admin 변형과 별도 생성 앱의 generated factory 검증 범위를 구분한다.
+현재 source의 실제 login→PROTECT→해제/삭제 및 전체 native oracle 본문은 원격에서 다시 확인해야 한다.
+원본 여덟 파일·source·진단은 `gdj0138-069aead3-ci-42260172960/runtime-failure-inspection.json`에 보존했다
+(SHA-256 `4ebde2810d562d6fdd9cba4a8240e54989a049eb2ebdc6d356d2ce0f9f5aa994`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

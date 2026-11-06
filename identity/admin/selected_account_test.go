@@ -57,8 +57,16 @@ func TestSelectedAccountRegistrationPreservesExposureAndPolicyBeforeIO(t *testin
 	if !present || len(registry.All()) != 1 || descriptor.Slug != "accounts" || !slices.Equal(descriptor.ListFields, []string{"id", "username", "revision"}) || !slices.Equal(descriptor.AdditionalPermissions, []auth.Permission{"account.manage"}) {
 		t.Fatal("actual account registration widened or lost owner policy")
 	}
-	if descriptor.RevisionField != "revision" || !slices.Equal(descriptor.AddPermissions, []auth.Permission{"account.add", "account.change"}) || len(descriptor.Commands) != 2 || descriptor.Commands[0].Name != "password" || descriptor.Commands[1].Name != "disable-password" {
-		t.Fatal("selected registration lost revision, combined creation authority or password commands")
+	if descriptor.RevisionField != "revision" || !slices.Equal(descriptor.AddPermissions, []auth.Permission{"account.add", "account.manage", "account.change"}) {
+		t.Fatal("selected registration lost revision or combined creation authority")
+	}
+	if len(descriptor.Commands) != 2 || descriptor.Commands[0].Name != "password" || descriptor.Commands[1].Name != "disable-password" {
+		t.Fatal("selected registration lost password commands")
+	}
+	for _, command := range descriptor.Commands {
+		if !slices.Equal(command.Permissions, []auth.Permission{"account.change", "account.manage"}) {
+			t.Fatal("selected password command lost the owner's additional permission")
+		}
 	}
 	if !slices.Equal(descriptor.ReadOnlyFields, []admin.ReadOnlyFieldDescriptor{{Name: "password_usable", Label: "Password login"}}) {
 		t.Fatal("selected password state lost its read-only presentation")

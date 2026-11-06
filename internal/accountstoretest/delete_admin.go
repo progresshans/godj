@@ -16,11 +16,13 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/conformance/accountdeletefixture/access"
+	"github.com/progresshans/godj/conformance/accountdeletefixture/links"
 	"github.com/progresshans/godj/conformance/accountdeletefixture/people"
 	"github.com/progresshans/godj/conformance/accountdeletefixture/project"
 	"github.com/progresshans/godj/conformance/accountdeletefixture/tickets"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
 	"github.com/progresshans/godj/web"
@@ -28,14 +30,40 @@ import (
 )
 
 func accountDeletionAdmin(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
-	f := provisionDeletion(t, backend)
-	tree := deletionTreeFixture(t, backend, f, "admin")
 	check := func(t *testing.T, err error) {
 		t.Helper()
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
+	base, err := project.BindAccount()
+	check(t, err)
+	role, err := base.Role()
+	check(t, err)
+	if role.Staff.Constant == nil || *role.Staff.Constant {
+		t.Fatal("nonstaff service fixture lost the Admin role's negative control")
+	}
+	// The service fixture deliberately has no staff users. Select an explicit
+	// Admin role before initializing a fresh domain, using the same complete
+	// generated model graph and relation capabilities. Do not override admission
+	// or patch a credential's role flags after authentication.
+	staff := true
+	role.Staff = ir.AccountBoolean{Constant: &staff}
+	binding, err := accountmodel.Bind(role, people.MemberDescriptor{}, access.GoDjRelationSchema(), links.GoDjRelationSchema(), people.GoDjRelationSchema(), tickets.GoDjRelationSchema())
+	check(t, err)
+	f := provisionDeletionBinding(t, backend, binding)
+	if !f.actor.Staff() {
+		t.Fatal("Admin deletion fixture did not select a staff account role")
+	}
+	beforeRoleCheck := deletionSnapshot(t, backend)
+	serviceRole, err := project.NewAccountCredentialStore(backend)
+	check(t, err)
+	wrong, found, failure := serviceRole.CredentialByID(t.Context(), f.actorRow.Subject)
+	if failure == nil || found || wrong.Principal().Authenticated() {
+		t.Fatal("the nonstaff generated role inherited another declared credential domain")
+	}
+	requireDeletionUnchanged(t, backend, beforeRoleCheck)
+	tree := deletionTreeFixture(t, backend, f, "admin")
 	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
 	check(t, err)
 	clock := func() time.Time { return joined }
@@ -54,7 +82,15 @@ func accountDeletionAdmin(t *testing.T, backend Backend, reopen func(*testing.T)
 			AccountPermissions: deletionConfig().Account, Now: clock,
 		},
 	}
-	runtime, err := project.NewAccountRuntime(t.Context(), backend, hasher, auth.PrincipalAuthorizer{}, config)
+	source, err := binding.Project()
+	check(t, err)
+	collections, err := project.BindCollectionsIn(source)
+	check(t, err)
+	policies, err := project.BindRelationDeleters()
+	check(t, err)
+	runtime, err := accountmodel.NewRuntime(t.Context(), backend, binding, access.TeamDescriptor{}, access.GrantDescriptor{},
+		collections.PeopleMemberTeams, collections.PeopleMemberGrants, collections.AccessTeamGrants,
+		policies.PeopleMember, policies.AccessTeam, policies.AccessGrant, hasher, auth.PrincipalAuthorizer{}, config)
 	check(t, err)
 	configured, err := settings.New(settings.Definition{ProjectName: "deletion_admin", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "github.com/progresshans/godj/internal/accountstoretest", Label: "deleteadmin"})})
 	check(t, err)

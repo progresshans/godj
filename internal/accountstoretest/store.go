@@ -105,6 +105,12 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"catalog_affected_batches", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 			catalogAffectedBatches(t, backend, reopen, storedKey)
 		}},
+		{"catalog_permission_owner_batches", catalogPermissionOwnerBatches},
+		{"catalog_group_union_batches", catalogGroupUnionBatches},
+		{"catalog_overlapping_group_union", catalogOverlappingGroupUnion},
+		{"catalog_group_self_revocation", catalogGroupSelfRevocation},
+		{"catalog_unique_competition", catalogUniqueCompetition},
+		{"catalog_group_edit_versus_join", catalogGroupEditVersusJoin},
 		{"catalog_authority_and_domain", catalogAuthorityAndDomain},
 		{"catalog_operation_policies", catalogOperationPolicies},
 		{"catalog_target_integrity", catalogTargetIntegrity},

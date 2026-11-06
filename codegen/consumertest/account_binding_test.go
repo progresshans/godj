@@ -302,6 +302,10 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
 			required = append(required, "TestGeneratedAccountManagementHTTP")
+			required = append(required, "TestAccountManagementReadOnlyMarkup")
+			for _, name := range []string{"input", "select", "textarea", "button", "revision", "duplicate", "missing", "wrong_view"} {
+				required = append(required, "TestAccountManagementReadOnlyMarkup/"+name)
+			}
 			for _, name := range []string{"composed_runtime", "typed_default_password_policy", "shared_reset_policy"} {
 				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
 			}

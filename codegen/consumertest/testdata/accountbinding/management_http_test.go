@@ -47,7 +47,73 @@ import (
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web"
 	websession "github.com/progresshans/godj/web/sessionauth"
+	"golang.org/x/net/html"
 )
+
+func managementReadOnlyDetail(body []byte, fields []string) error {
+	root, err := html.Parse(bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	selected, displayed := make(map[string]bool), make(map[string]int)
+	for _, field := range fields {
+		selected[field] = true
+	}
+	detail, editable := false, false
+	var walk func(*html.Node)
+	walk = func(node *html.Node) {
+		if node.Type == html.ElementNode {
+			control := node.Data == "input" || node.Data == "select" || node.Data == "textarea" || node.Data == "button"
+			for _, attribute := range node.Attr {
+				if node.Data == "body" && attribute.Key == "data-admin-view" && attribute.Val == "detail" {
+					detail = true
+				}
+				if node.Data == "dd" && attribute.Key == "data-field-name" && selected[attribute.Val] {
+					displayed[attribute.Val]++
+				}
+				if control && attribute.Key == "name" && (selected[attribute.Val] || attribute.Val == "expected_revision") {
+					editable = true
+				}
+			}
+		}
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			walk(child)
+		}
+	}
+	walk(root)
+	if !detail || editable {
+		return errors.New("view-only detail is missing or contains a writable model control")
+	}
+	for _, field := range fields {
+		if displayed[field] != 1 {
+			return errors.New("view-only detail omitted or duplicated a selected field")
+		}
+	}
+	return nil
+}
+
+func TestAccountManagementReadOnlyMarkup(t *testing.T) {
+	const display = `<body data-admin-view="detail"><dd data-field-name="contact">&lt;input name="contact"&gt;</dd>`
+	if err := managementReadOnlyDetail([]byte(display+`<form action="/admin/logout/"><input name="csrfmiddlewaretoken"></form></body>`), []string{"contact"}); err != nil {
+		t.Fatal("display metadata or escaped content was mistaken for a form control", err)
+	}
+	for _, probe := range []struct{ name, body string }{
+		{"input", display + `<input name="contact"></body>`},
+		{"select", display + `<select name='contact'></select></body>`},
+		{"textarea", display + `<textarea name=contact></textarea></body>`},
+		{"button", display + `<button name="contact">Submit</button></body>`},
+		{"revision", display + `<input type="hidden" name="expected_revision" value="1"></body>`},
+		{"duplicate", display + `<dd data-field-name="contact">Duplicate</dd></body>`},
+		{"missing", `<body data-admin-view="detail"></body>`},
+		{"wrong_view", `<body data-admin-view="change"><dd data-field-name="contact">Display</dd></body>`},
+	} {
+		t.Run(probe.name, func(t *testing.T) {
+			if err := managementReadOnlyDetail([]byte(probe.body), []string{"contact"}); err == nil {
+				t.Fatal("read-only observation accepted incomplete or writable markup")
+			}
+		})
+	}
+}
 
 //go:embed testdata/unusable-password-django61-*.json
 var managementPasswordReferences embed.FS
@@ -1533,19 +1599,14 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 					}
 					expect("GET", base+"add/", nil, addStatus)
 					if access == "view" {
-						if !strings.Contains(string(detail), `data-admin-view="detail"`) || strings.Contains(string(detail), `name="expected_revision"`) {
-							t.Fatal("view-only Admin rendered a mutable form")
-						}
 						fields := []string{role.Login, profileField, role.Groups, role.Permissions}
 						if resource.name == "groups" {
 							fields = []string{role.Catalog.GroupName, role.Catalog.GroupPermissions}
 						} else if resource.name == "permissions" {
 							fields = []string{role.Catalog.PermissionCode, role.Catalog.PermissionName}
 						}
-						for _, field := range fields {
-							if strings.Contains(string(detail), `name="`+field+`"`) {
-								t.Fatal("view-only detail exposed a writable model input", field)
-							}
+						if err := managementReadOnlyDetail(detail, fields); err != nil {
+							t.Fatal("view-only Admin projection", err)
 						}
 					}
 					index := expect("GET", "/admin/", nil, 200)
