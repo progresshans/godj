@@ -4375,6 +4375,74 @@ fixture 거부 지점은 지났지만 이력 snapshot의 수용은 미완료다.
 원본 `job-127692752704.log` SHA-256은 `18b7faf82eeda4a658333ee252b669e0cd803318e70801336717cde8cf489530`,
 `job-127692754602.log`는 `d3d971d89741f6c9fecc2eaf121b525def79211a343dc9aceb2884fc2d0b31a2`다.
 
+이어서 고정 `RunPasswordStatus`의 책임을 기본/custom 선택 계정의 기존 실제 HTTP 소비자로 옮겼다. 원본 Django 6.1 /
+Python 3.14.3의 SQLite/PostgreSQL `unusable-password` JSON bytes를 공유 embed로 옮겨 독립 생성 module에 그대로 복사한다.
+기존 unusable password·Admin 생성 원문 대조도 같은 bytes를 계속 사용한다. 선택 소비자는 두 producer의 버전·backend·
+source digest 형식과 실제 관찰한 다섯 상태의 순서·값을 대조한다. 원본 capture와 생산 Python은 변경하지 않았다.
+
+- 고정 `usable/disabled/inactive_disabled/restored_inactive/reactivated`는 기존 HTTP 상태 전환 안에서 native credential,
+  선택 `CredentialStore`, `ProfileReader`, JSON detail/list, Admin GET 및 잘못된 수정 화면을 함께 관찰한다. 해시 원문 비노출·
+  추가 해싱 없음·전체 native 저장 상태 무변경·동명 profile 보존을 유지한다. 다섯 child와 `django_reference`를 모두 필수로 추가했다.
+- `forged_state_is_not_an_input`과 `view_only_and_current_authority`는 `admin_status_display_boundary` 아래 동명 필수 child로 유지한다.
+  새 계정 화면에는 미저장 상태가 없고, 위조 status 입력은 400이며, 조회 전용 사용자는 credential 명령을 실행할 수 없다.
+  권한 회수 뒤 같은 session의 재조회 거부·두 password 명령/입력 control 부재와 저장 상태 보존도 대조한다.
+- 대응한 고정 root·7개 child만 양 DB 필수 목록에서 제거했다. 다른 필수 항목의 값/순서는 유지하며 새 관측은 기존 생성 root의
+  기본/custom 7개 변형과 양 DB 안에서 필수다. 고정 User Form의 150자·문자 문법 및 나머지 unusable/Django 검사는 유지한다.
+
+이 이관은 gofmt·diff·참조 bytes/필수 selector 대응·CI 실행 소유권과 분할 Python 네 검사까지 확인했다. 로컬 Go는 실행하지
+않았으며 새 관측의 실제 컴파일·양 DB·race/CGO-disabled·전체 platform 실행과 원본 대조는 후속 source의 원격 확인 대상이다.
+
+Source `c5fe243a22cac922d12d767b566d8876dd88df42`의
+[CI 42160675054](https://github.com/progresshans/godj/actions/runs/42160675054)에서 위 재사용 Form을 포함한 profile의
+normal [job 127705901724](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705901724)와
+CGO-disabled [job 127705902085](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705902085)가 성공했다.
+실제 checkout `cfb6bb746c4203e0576fbb9476160d5d32c04250`와 source는 GitHub tree
+`2b1fc8f65e9f375451d18c3fdb8503e0ec6493a2`가 같다. 각 artifact의 API/job digest·ZIP 크기/CRC·모든 내부 파일 hash,
+source의 shard 계획·필수 bytes와 원본 이벤트를 대조했다. 초기 비교에서 plan JSON은 목록 대신 `required_tests` 개수를
+기록한다는 표현 차이를 바로잡았다. 필수 목록 bytes 자체와 manifest hash는 별도로 일치해야 한다.
+
+두 모드 각각 outer 필수 26개가 한 번씩 run/pass했다. 기본/custom × SQLite/PostgreSQL의 파일 생성 process 네 개에서
+필수 86개(재사용 Form 11개·준비 수명 9개 포함), FK process 네 개에서 필수 16개(새 재사용 4개 포함)가 각각 한 번씩
+run/pass했고 skip/fail은 없다. 시작/종료 receipt·stderr 0·원본 byte 길이와 outer에 기록된 inner SHA도 일치한다.
+이 결과는 방금 이관한 비밀번호 상태/Django 관측이나 전체 I1의 수용 근거가 아니다.
+
+같은 source의 계정 consumer normal [job 127705901721](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705901721)와
+CGO-disabled [job 127705901816](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705901816)도 위 방식으로 대조했다.
+각각 outer 필수 44개·독립 process 28개·내부 test 4,106개의 완료를 확인했고 skip/fail은 없다. 일곱 모델 변형 × 양 DB의
+첫 계정 process 14개마다 source에 선언된 영향 HTTP/Admin child 100개도 별도로 대조했다. 이 목록에는 history/choice
+snapshot 경합·32개 read-scope 실패·부분 비밀번호 오류·생성/변경 Admin이 포함된다. 전체 inner 필수 목록은 source에 묶인
+부모의 기존 엄격한 검사도 실행한다. 별도 원본 검사가 모든 inner 목록 구문을 재구현했다는 뜻은 아니다.
+SQLite WAL fixture 수정 뒤 이전 실패 지점과 후속 HTTP 검사가 통과했다. 계정 HTTP의 race·전체 platform/최종 CI와 새 상태 이관은 미확인이다.
+
+원본·검사 script·근거 연결은 검증 보관소 `gdj0138-c5fe243a-ci-42160675054/`에 둔다. Profile normal/CGO-disabled ZIP SHA-256은
+`ae5a7a96cda84288d240433eb9aef96e996324fe1807820b2a24777a45f1a930` /
+`929910868dea4f187486cc73bd643656521cc545bda55afbbfc59e3c5979bfae`이며,
+`profiles-normal-inspection.json` / `profiles-cgo0-inspection.json` SHA-256은
+`752ad5c7a16dfce4beb4ae84d9e0e8eb5568e714791865c534f56da8d65e2795` /
+`6d4e5495ca3cccf30f1e161453bb22bbad71651ea9c238d63c5710110901d9f1`이다.
+계정 normal/CGO-disabled ZIP SHA-256은 `a1428e71c6119575fc8216d7d01383be8c003ee58416901e2ca48dda70bd496b` /
+`6f4714d3999db4a315e4738edaeb92a31c12badc9c5db10db4722c8d6ca867c0`이며,
+`accounts-normal-inspection.json` / `accounts-cgo0-inspection.json` SHA-256은
+`5ac627fc79ecfbf545c765f9b62e35c4dc9de31540531c5d252053303342f2b8` /
+`5c00072512ec2b755a6f3dfed1a42afef3021340dadef8ed7519e83a9fba5468`이다.
+
+같은 checkout의 고정 Python 3.14.3 [job 127705900592](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705900592)에서
+`test_unusable_password_reference`의 hash-seed/양 capture 대조와 독립 변이 검사 두 개가 각각 `ok`로 끝났다.
+원문 producer·테스트·두 capture·suite/profile 설정 bytes가 source와 같음을 확인했다. 전체 Python marker는 409개/skip 4개이며
+이 네 항목의 별도 exact Darwin 수용을 이 기록으로 주장하지 않는다. 위 두 producer 검사는 skip 대상이 아니다.
+`unusable-reference-inspection.json` SHA-256은 `0b54bb0540398b4b77ba19dc82240c9b3c13adefa025bd4dd39020adbd8c2408`,
+원본 `job-127705900592.log`는 `2c368ad27d3dd47a9fdc70ea4efd3383d705ac7257229ca77dcb17d7cb61feae`다.
+이 생산자 확인은 새 선택 상태 소비자 본문의 실행을 대신하지 않는다.
+
+같은 source의 profile race [job 127705902013](https://github.com/progresshans/godj/actions/runs/42160675054/job/127705902013)도
+같은 tree·artifact·원본 조건으로 확인했다. outer 26개와 기본/custom × 양 DB의 파일 생성 각 86개·FK 각 16개가 각각
+한 번 run/pass했고 skip/fail은 없다. 실제 parent는 `-race`이며 독립 child에는 같은 source의 race build tag와
+`generatedTestEnvironment → GOFLAGS=-trimpath -race`로 전달한다. Child receipt는 argv를 기록하므로 환경 전파는
+workflow·helper source와 연결해 확인한다. ZIP SHA-256은 `b20e73546fd9d11644c0858e311dc2e17f8e95a5035623fb40d51508ba8884a0`,
+`profiles-race-inspection.json`은 `1e4c4230eb95ede39018cfc3a394fe8dd7bbbff2a76c5ff88bf47081a3889e68`이다.
+이로써 해당 source의 profile/Form 영향 소비자는 normal/race/CGO-disabled에서 원본을 대조했다. 전체 I1 및 후속 상태
+이관의 같은 source 수용은 여전히 별도다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

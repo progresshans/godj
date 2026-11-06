@@ -740,7 +740,12 @@ HTTP 소비자는 인증 조회/로그인 거부의 무변경, 두 번의 Admin 
 연결했다. 추가 부분 오류·위조 Form·인가/cleanup 11개와 필수 FK/OneToOne·늦은 filter 회수 4개 소비자를 양 DB에 작성했다.
 기존 기본 User Form의 별도 Django 입력 기준과 고정 소비자 이관, 새 본문의 실제 환경별 수용은 미완료다.
 원격 history snapshot 실패 뒤 SQLite HTTP 경합 fixture의 WAL 설정·실제 모드 확인과 writer 원인 보존을 추가했다.
-이 수정과 새 Form 본문은 다음 source의 원격 확인 대상이며 제품 DB 기본 설정은 유지한다.
+이 수정과 새 Form의 같은 source 원격 결과·남은 환경은 TEST_EVIDENCE에 기록하며 제품 DB 기본 설정은 유지한다.
+
+고정 Directory/Manager의 비밀번호 상태 검사를 선택 계정의 실제 저장소·프로필·JSON·Admin 소비자로 옮겼다. 기존 상태
+전환의 다섯 관찰을 원본 Django SQLite/PostgreSQL capture에 연결하고, 위조 입력·조회 전용/회수 권한·해시 비노출·
+추가 해싱/저장 무변경·동명 프로필 보존을 유지한다. 대응한 고정 상태 root만 정리했으며 기본 User 입력 규칙과 나머지
+독립 기준 소비자는 유지한다. 필수 목록 이관과 정적 확인, 새 본문의 실제 원격 수용은 TEST_EVIDENCE에서 구분한다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

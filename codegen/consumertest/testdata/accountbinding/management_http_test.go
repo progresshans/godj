@@ -3,6 +3,8 @@ package consumer
 import (
 	"bytes"
 	"context"
+	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -46,6 +48,48 @@ import (
 	"github.com/progresshans/godj/web"
 	websession "github.com/progresshans/godj/web/sessionauth"
 )
+
+//go:embed testdata/unusable-password-django61-*.json
+var managementPasswordReferences embed.FS
+
+type managementPasswordStatus struct {
+	State  string `json:"state"`
+	Usable bool   `json:"usable"`
+	Active bool   `json:"active"`
+}
+
+func managementPasswordStatusReference(t *testing.T, actual []managementPasswordStatus) {
+	t.Helper()
+	for _, vendor := range []string{"sqlite", "postgres"} {
+		raw, err := managementPasswordReferences.ReadFile("testdata/unusable-password-django61-" + vendor + ".json")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var reference struct {
+			Django, Python, Backend string
+			Sources                 map[string]string `json:"source_sha256"`
+			Observations            struct {
+				Status []managementPasswordStatus `json:"password_status"`
+			}
+		}
+		if err := json.Unmarshal(raw, &reference); err != nil {
+			t.Fatal(err)
+		}
+		if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Backend != map[string]string{"sqlite": "sqlite", "postgres": "postgresql"}[vendor] || len(reference.Sources) != 5 || len(reference.Observations.Status) != 5 {
+			t.Fatal("password status reference is incomplete or from another runtime")
+		}
+		for _, name := range []string{"auth", "backends", "base_user", "forms", "hashers"} {
+			value := reference.Sources[name]
+			digest, err := hex.DecodeString(value)
+			if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != value {
+				t.Fatal("password status reference lost its producer", name)
+			}
+		}
+		if !reflect.DeepEqual(actual, reference.Observations.Status) {
+			t.Fatal("selected password status differs from pinned Django", vendor, actual)
+		}
+	}
+}
 
 // These failures surround the real native transaction. The unknown case
 // commits before losing its acknowledgement; it is not a network experiment.
@@ -2317,54 +2361,166 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 			t.Fatal("combined password Form diagnostics wrote, hashed, retried or disclosed a command", status)
 		}
 	})
-	run("admin_status_display_boundary", func(t *testing.T) {
+	var passwordStates []managementPasswordStatus
+	assertStatus := func(t *testing.T, state string, usable, active bool) {
+		t.Helper()
 		before := snapshot()
 		hashes := trackedHasher.calls.Load()
-		status, _, page := adminSend(client, "GET", "/admin/accounts/add/", nil)
-		if status != 200 || strings.Contains(string(page), `data-field-name="`+statusName+`"`) {
-			t.Fatal("creation displayed an unstored password state")
+		row, err := objects.Using(faults.Backend).Filter(key.Exact(created.ID)).Get(t.Context())
+		check(err)
+		stored, err := objects.ModelValues(row)
+		check(err)
+		encoded, valid := stored[role.Password].String()
+		principal, identified := stored[role.PrincipalID].String()
+		if !valid || encoded == "" || !identified || principal == "" {
+			t.Fatal("native password status lost its credential source")
 		}
-		endpoint := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
-		for _, field := range slices.Compact([]string{"password_usable", statusName}) {
-			fields := accountFields("api@example.test")
-			fields[field] = "false"
-			submit := prepareAdmin(client, endpoint, fields, strconv.FormatInt(created.Revision, 10))
-			status, headers, _ := submit()
-			if status != 400 || headers.Get("Location") != "" || trackedHasher.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
-				t.Fatal("derived status or hidden profile became a mutable input", field, status)
+		profile, err := owner.Reader().Get(t.Context(), actor, created.ID)
+		check(err)
+		current, found, err := composed.Credentials().CredentialByID(t.Context(), principal)
+		check(err)
+		if !found || profile.PasswordUsable() != usable || current.HasUsablePassword() != usable || current.Principal().Active() != active {
+			t.Fatal("selected profile and credential store disagree about password status")
+		}
+		private := func(body []byte) {
+			t.Helper()
+			if bytes.Contains(body, []byte(encoded)) {
+				t.Fatal("password status exposed the native encoding")
 			}
 		}
-
-		viewerFields := accountFields("status-viewer@example.test")
-		viewerFields[role.Permissions] = []int64{grantKey("account.view"), grantKey("account.manage")}
-		if role.Staff.Field != "" {
-			viewerFields[role.Staff.Field] = true
+		published, err := json.Marshal(profile)
+		check(err)
+		private(published)
+		type observation struct {
+			ID, Revision   int64
+			Fields         map[string]json.RawMessage
+			PasswordUsable *bool `json:"password_usable"`
 		}
-		status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(viewerFields, "status-view-password"), "", true)
-		viewer := decodeReceipt(status, header, body, 201)
-		observer := newClient()
-		login(observer, "status-viewer@example.test", "status-view-password")
-		before = snapshot()
-		status, _, body = adminSend(observer, "GET", endpoint, nil)
-		if status != 200 || !strings.Contains(string(body), `data-field-name="`+statusName+`">Enabled`) || strings.Contains(string(body), ` name="`+role.Login+`"`) || strings.Contains(string(body), "Change password") || strings.Contains(string(body), "profile-status") {
-			t.Fatal("view-only selected account lost status or gained writable controls", status)
+		checkStatus := func(row observation) {
+			var enabled bool
+			check(json.Unmarshal(row.Fields[role.Active.Field], &enabled))
+			if row.ID != created.ID || row.Revision != created.Revision || row.PasswordUsable == nil || *row.PasswordUsable != usable || enabled != active {
+				t.Fatal("derived password status is missing, mistyped or confused with activation")
+			}
+			if row.Fields[role.Password] != nil || row.Fields[role.PrincipalID] != nil {
+				t.Fatal("password status exposed a stored credential")
+			}
 		}
-		token := adminToken.FindSubmatch(body)
-		if len(token) != 2 {
-			t.Fatal("view-only status page lost CSRF")
+		status, _, value := send(client, "GET", path("accounts", created.ID), "", "", false)
+		private(value)
+		var detail observation
+		check(json.Unmarshal(value, &detail))
+		if status != 200 {
+			t.Fatal("password status detail", status)
 		}
-		status, _, _ = adminSend(observer, "POST", "/admin/accounts/command/disable-password/?id="+strconv.FormatInt(created.ID, 10), url.Values{
-			"csrfmiddlewaretoken": {string(token[1])}, "expected_revision": {strconv.FormatInt(created.Revision, 10)}, "confirm": {"on"},
-		})
-		if status != 403 || !reflect.DeepEqual(before, snapshot()) {
-			t.Fatal("view-only status admitted a credential mutation", status)
+		checkStatus(detail)
+		status, _, value = send(client, "GET", "/api/identity/accounts/?limit=100", "", "", false)
+		private(value)
+		var page struct{ Items []observation }
+		check(json.Unmarshal(value, &page))
+		seen := false
+		for _, item := range page.Items {
+			if item.ID == created.ID {
+				checkStatus(item)
+				seen = true
+			}
 		}
-		status, header, body = send(client, "PATCH", path("accounts", viewer.ID), fieldsBody(map[string]any{role.Permissions: []int64{}}), strconv.FormatInt(viewer.Revision, 10), true)
-		decodeReceipt(status, header, body, 200)
-		before = snapshot()
-		status, _, body = adminSend(observer, "GET", endpoint, nil)
-		if status != 403 || strings.Contains(string(body), "Password login") || !reflect.DeepEqual(before, snapshot()) {
-			t.Fatal("status presentation retained revoked authority", status)
+		if status != 200 || !seen || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("password status list mutated or omitted target", status)
+		}
+		adminPage := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
+		status, _, value = adminSend(client, "GET", adminPage, nil)
+		private(value)
+		label := "Disabled"
+		if usable {
+			label = "Enabled"
+		}
+		if status != 200 || !strings.Contains(string(value), `data-field-name="`+statusName+`">`+label) || !strings.Contains(string(value), "Password login") || strings.Contains(string(value), ` name="`+statusName+`"`) || strings.Contains(string(value), "profile-status") || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("selected Admin lost read-only credential state or confused it with activation", status)
+		}
+		invalid := accountFields("api@example.test")
+		invalid[profileField], invalid[role.Active.Field] = "forbidden", active
+		submit := prepareAdmin(client, adminPage, invalid, strconv.FormatInt(created.Revision, 10))
+		status, _, value = submit()
+		private(value)
+		if status != 200 || !strings.Contains(string(value), `data-field-name="`+statusName+`">`+label) || !strings.Contains(string(value), "Password login") || strings.Contains(string(value), ` name="`+statusName+`"`) || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("rejected Admin edit lost the observed credential status", status)
+		}
+		if statusName != "password_usable" {
+			row, err := objects.Using(backend).Filter(key.Exact(created.ID)).Get(t.Context())
+			check(err)
+			values, err := objects.ModelValues(row)
+			check(err)
+			profile, valid := values["password_usable"].String()
+			if !valid || profile != "profile-status" {
+				t.Fatal("derived state overwrote the unrelated real profile")
+			}
+		}
+		if trackedHasher.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
+			t.Fatal("password status observation hashed or changed durable state")
+		}
+		if state != "" {
+			passwordStates = append(passwordStates, managementPasswordStatus{State: state, Usable: profile.PasswordUsable(), Active: current.Principal().Active()})
+		}
+	}
+	run("admin_status_display_boundary", func(t *testing.T) {
+		if !t.Run("usable", func(t *testing.T) { assertStatus(t, "usable", true, true) }) {
+			t.FailNow()
+		}
+		endpoint := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
+		if !t.Run("forged_state_is_not_an_input", func(t *testing.T) {
+			before := snapshot()
+			hashes := trackedHasher.calls.Load()
+			status, _, page := adminSend(client, "GET", "/admin/accounts/add/", nil)
+			if status != 200 || strings.Contains(string(page), `data-field-name="`+statusName+`"`) {
+				t.Fatal("creation displayed an unstored password state")
+			}
+			for _, field := range slices.Compact([]string{"password_usable", statusName}) {
+				fields := accountFields("api@example.test")
+				fields[field] = "false"
+				submit := prepareAdmin(client, endpoint, fields, strconv.FormatInt(created.Revision, 10))
+				status, headers, _ := submit()
+				if status != 400 || headers.Get("Location") != "" || trackedHasher.calls.Load() != hashes || !reflect.DeepEqual(before, snapshot()) {
+					t.Fatal("derived status or hidden profile became a mutable input", field, status)
+				}
+			}
+		}) {
+			t.FailNow()
+		}
+		if !t.Run("view_only_and_current_authority", func(t *testing.T) {
+			viewerFields := accountFields("status-viewer@example.test")
+			viewerFields[role.Permissions] = []int64{grantKey("account.view"), grantKey("account.manage")}
+			if role.Staff.Field != "" {
+				viewerFields[role.Staff.Field] = true
+			}
+			status, header, body := send(client, "POST", "/api/identity/accounts/", creationBody(viewerFields, "status-view-password"), "", true)
+			viewer := decodeReceipt(status, header, body, 201)
+			observer := newClient()
+			login(observer, "status-viewer@example.test", "status-view-password")
+			before := snapshot()
+			status, _, body = adminSend(observer, "GET", endpoint, nil)
+			if status != 200 || !strings.Contains(string(body), `data-field-name="`+statusName+`">Enabled`) || strings.Contains(string(body), ` name="`+role.Login+`"`) || strings.Contains(string(body), ` name="`+statusName+`"`) || strings.Contains(string(body), "Change password") || strings.Contains(string(body), "Disable password login") || strings.Contains(string(body), "profile-status") {
+				t.Fatal("view-only selected account lost status or gained writable controls", status)
+			}
+			token := adminToken.FindSubmatch(body)
+			if len(token) != 2 {
+				t.Fatal("view-only status page lost CSRF")
+			}
+			status, _, _ = adminSend(observer, "POST", "/admin/accounts/command/disable-password/?id="+strconv.FormatInt(created.ID, 10), url.Values{
+				"csrfmiddlewaretoken": {string(token[1])}, "expected_revision": {strconv.FormatInt(created.Revision, 10)}, "confirm": {"on"},
+			})
+			if status != 403 || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("view-only status admitted a credential mutation", status)
+			}
+			status, header, body = send(client, "PATCH", path("accounts", viewer.ID), fieldsBody(map[string]any{role.Permissions: []int64{}}), strconv.FormatInt(viewer.Revision, 10), true)
+			decodeReceipt(status, header, body, 200)
+			before = snapshot()
+			status, _, body = adminSend(observer, "GET", endpoint, nil)
+			if status != 403 || strings.Contains(string(body), "Password login") || !reflect.DeepEqual(before, snapshot()) {
+				t.Fatal("status presentation retained revoked authority", status)
+			}
+		}) {
+			t.FailNow()
 		}
 	})
 	run("password_revokes_sessions", func(t *testing.T) {
@@ -2414,72 +2570,9 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 				t.Fatal("nullable command bypassed transport or revision", status)
 			}
 		}
-		assertStatus := func(usable, active bool) {
-			t.Helper()
-			before := snapshot()
-			type observation struct {
-				ID, Revision   int64
-				Fields         map[string]json.RawMessage
-				PasswordUsable *bool `json:"password_usable"`
-			}
-			checkStatus := func(row observation) {
-				var enabled bool
-				check(json.Unmarshal(row.Fields[role.Active.Field], &enabled))
-				if row.ID != created.ID || row.Revision != created.Revision || row.PasswordUsable == nil || *row.PasswordUsable != usable || enabled != active {
-					t.Fatal("derived password status is missing, mistyped or confused with activation")
-				}
-				if row.Fields[role.Password] != nil || row.Fields[role.PrincipalID] != nil {
-					t.Fatal("password status exposed a stored credential")
-				}
-			}
-			status, _, value := send(client, "GET", path("accounts", created.ID), "", "", false)
-			var detail observation
-			check(json.Unmarshal(value, &detail))
-			if status != 200 {
-				t.Fatal("password status detail", status)
-			}
-			checkStatus(detail)
-			status, _, value = send(client, "GET", "/api/identity/accounts/?limit=100", "", "", false)
-			var page struct{ Items []observation }
-			check(json.Unmarshal(value, &page))
-			seen := false
-			for _, item := range page.Items {
-				if item.ID == created.ID {
-					checkStatus(item)
-					seen = true
-				}
-			}
-			if status != 200 || !seen || !reflect.DeepEqual(before, snapshot()) {
-				t.Fatal("password status list mutated or omitted target", status)
-			}
-			adminPage := "/admin/accounts/change/?id=" + strconv.FormatInt(created.ID, 10)
-			status, _, value = adminSend(client, "GET", adminPage, nil)
-			label := "Disabled"
-			if usable {
-				label = "Enabled"
-			}
-			if status != 200 || !strings.Contains(string(value), `data-field-name="`+statusName+`">`+label) || strings.Contains(string(value), ` name="`+statusName+`"`) || strings.Contains(string(value), "profile-status") || !reflect.DeepEqual(before, snapshot()) {
-				t.Fatal("selected Admin lost read-only credential state or confused it with activation", status)
-			}
-			invalid := accountFields("api@example.test")
-			invalid[profileField], invalid[role.Active.Field] = "forbidden", active
-			submit := prepareAdmin(client, adminPage, invalid, strconv.FormatInt(created.Revision, 10))
-			status, _, value = submit()
-			if status != 200 || !strings.Contains(string(value), `data-field-name="`+statusName+`">`+label) || !reflect.DeepEqual(before, snapshot()) {
-				t.Fatal("rejected Admin edit lost the observed credential status", status)
-			}
-			if statusName != "password_usable" {
-				row, err := objects.Using(backend).Filter(key.Exact(created.ID)).Get(t.Context())
-				check(err)
-				values, err := objects.ModelValues(row)
-				check(err)
-				profile, valid := values["password_usable"].String()
-				if !valid || profile != "profile-status" {
-					t.Fatal("derived state overwrote the unrelated real profile")
-				}
-			}
+		if !t.Run("disabled", func(t *testing.T) { assertStatus(t, "disabled", false, true) }) {
+			t.FailNow()
 		}
-		assertStatus(false, true)
 		row, err := objects.Using(backend).Filter(key.Exact(created.ID)).Get(t.Context())
 		check(err)
 		previous, err := objects.ModelValues(row)
@@ -2499,7 +2592,7 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		if auth.IsPasswordUsable(encoded) || reflect.DeepEqual(previous[role.Password], after[role.Password]) || trackedHasher.calls.Load() != hashes || passwordPolicies.Load() != policies {
 			t.Fatal("repeated null did not rotate independently of policy/hash")
 		}
-		assertStatus(false, true)
+		assertStatus(t, "", false, true)
 		status, header, value = send(client, "POST", "/api/identity/accounts/", creationBody(accountFields("without@example.test"), nil), "", true)
 		without := decodeReceipt(status, header, value, 201)
 		profile, err := owner.Reader().Get(t.Context(), actor, without.ID)
@@ -2514,16 +2607,25 @@ func assertAccountManagementHTTP[M, G, P any](t *testing.T, backend database.Bac
 		}
 		status, header, value = send(client, "PATCH", path("accounts", created.ID), fieldsBody(map[string]any{role.Active.Field: false}), strconv.FormatInt(created.Revision, 10), true)
 		created = decodeReceipt(status, header, value, 200)
-		assertStatus(false, false)
+		if !t.Run("inactive_disabled", func(t *testing.T) { assertStatus(t, "inactive_disabled", false, false) }) {
+			t.FailNow()
+		}
 		blockedPasswordPolicy.Store(false)
 		const restored = "  restored JSON password  "
 		status, header, value = send(client, "POST", command, encode(map[string]any{"credential": map[string]any{"password": restored}}), strconv.FormatInt(created.Revision, 10), true)
 		created = decodeReceipt(status, header, value, 200)
-		assertStatus(true, false)
+		if !t.Run("restored_inactive", func(t *testing.T) { assertStatus(t, "restored_inactive", true, false) }) {
+			t.FailNow()
+		}
 		status, header, value = send(client, "PATCH", path("accounts", created.ID), fieldsBody(map[string]any{role.Active.Field: true}), strconv.FormatInt(created.Revision, 10), true)
 		created = decodeReceipt(status, header, value, 200)
-		assertStatus(true, true)
+		if !t.Run("reactivated", func(t *testing.T) { assertStatus(t, "reactivated", true, true) }) {
+			t.FailNow()
+		}
 		login(newClient(), "api@example.test", restored)
+		if !t.Run("django_reference", func(t *testing.T) { managementPasswordStatusReference(t, passwordStates) }) {
+			t.FailNow()
+		}
 	})
 
 	run("admin_last_login_display", func(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/identity/modeldef"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/internal/migrationautodetect"
 	"github.com/progresshans/godj/internal/testenv"
 	"github.com/progresshans/godj/internal/testschema"
@@ -291,6 +292,13 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			writeGeneratedTestFile(t, root, "consumer/admin_catalog_http_test.go", accountBindingAdminCatalogHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/admin_account_http_test.go", accountBindingAdminAccountHTTPConsumer)
 			writeGeneratedTestFile(t, root, "consumer/management_http_test.go", accountBindingManagementHTTPConsumer)
+			for _, vendor := range []string{"sqlite", "postgres"} {
+				reference, err := identityreference.UnusablePassword(vendor)
+				if err != nil {
+					t.Fatal(err)
+				}
+				writeGeneratedTestFile(t, root, "consumer/testdata/unusable-password-django61-"+vendor+".json", reference)
+			}
 			writeGeneratedTestFile(t, root, "consumer/first_test.go", source)
 			required := []string{"TestGeneratedFirstAccountBootstrap", "TestGeneratedAdminAccountMutation"}
 			required = append(required, "TestGeneratedAccountManagementHTTP")
@@ -326,6 +334,12 @@ func TestGeneratedFirstAccountUsesRequiredProfiles(t *testing.T) {
 			}
 			for _, name := range []string{"native_input_rejections", "nullable_password_and_status", "self_password_keeps_confirmed_receipt"} {
 				required = append(required, "TestGeneratedAccountManagementHTTP/"+name)
+			}
+			for _, name := range []string{"usable", "forged_state_is_not_an_input", "view_only_and_current_authority"} {
+				required = append(required, "TestGeneratedAccountManagementHTTP/admin_status_display_boundary/"+name)
+			}
+			for _, name := range []string{"disabled", "inactive_disabled", "restored_inactive", "reactivated", "django_reference"} {
+				required = append(required, "TestGeneratedAccountManagementHTTP/nullable_password_and_status/"+name)
 			}
 			for _, resource := range []string{"accounts", "groups", "permissions"} {
 				required = append(required, "TestGeneratedAccountManagementHTTP/native_revision_"+resource)

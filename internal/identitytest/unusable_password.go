@@ -2,7 +2,6 @@ package identitytest
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -17,14 +16,12 @@ import (
 	"github.com/progresshans/godj/identity"
 	identityadmin "github.com/progresshans/godj/identity/admin"
 	"github.com/progresshans/godj/identity/models"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/validation"
 	"github.com/progresshans/godj/web/sessionauth"
 )
-
-//go:embed testdata/unusable-password-django61-*.json
-var unusablePasswordReferences embed.FS
 
 func assertUnusableReference(t *testing.T, key string, actual any) {
 	t.Helper()
@@ -37,7 +34,7 @@ func assertUnusableReference(t *testing.T, key string, actual any) {
 		t.Fatal(err)
 	}
 	for _, backend := range []string{"sqlite", "postgres"} {
-		data, err := unusablePasswordReferences.ReadFile("testdata/unusable-password-django61-" + backend + ".json")
+		data, err := identityreference.UnusablePassword(backend)
 		if err != nil {
 			t.Fatal(err)
 		}

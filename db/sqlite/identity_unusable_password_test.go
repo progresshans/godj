@@ -11,7 +11,3 @@ func TestSQLiteIdentityUnusablePasswords(t *testing.T) {
 func TestSQLiteIdentityUnusablePasswordHTTP(t *testing.T) {
 	identitytest.RunUnusablePasswordHTTP(t, openSQLiteIdentityPair)
 }
-
-func TestSQLiteIdentityPasswordStatus(t *testing.T) {
-	identitytest.RunPasswordStatus(t, openSQLiteIdentityPair)
-}
