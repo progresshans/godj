@@ -17,16 +17,6 @@ func TestSQLiteIdentityPasswordResetConcurrency(t *testing.T) {
 	identitytest.RunPasswordResetConcurrency(t, openSQLiteIdentityPair)
 }
 
-func TestSQLiteIdentityPasswordResetMail(t *testing.T) {
-	identitytest.RunPasswordResetMail(t, "sqlite", openSQLiteIdentityPair)
-}
-func TestSQLiteIdentityPasswordResetMailBoundaries(t *testing.T) {
-	identitytest.RunPasswordResetMailBoundaries(t, openSQLiteIdentityPair)
-}
-func TestSQLiteIdentityPasswordResetMailSnapshotBinding(t *testing.T) {
-	identitytest.RunPasswordResetMailSnapshotBinding(t, openSQLiteIdentityPair)
-}
-
 func TestSQLiteIdentityPasswordResetComposition(t *testing.T) {
 	identitytest.RunPasswordResetComposition(t, openSQLiteIdentityPair)
 }

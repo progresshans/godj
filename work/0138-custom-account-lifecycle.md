@@ -950,6 +950,14 @@ variadic validator 모양을 새 API에 복제하지 않으며, 선택 nil 정�
 오류는 원인의 동적 타입에 관계없이 transaction 결과 owner가 같은 오류를 안전하게 확인할 수 있게 한다. 이 이관의
 실제 원격 실행과 reset에 남은 역사 조립·고정 서비스 제거는 아직 완료가 아니다.
 
+Reset 메일의 고정 세 root와 41개 필수 항목은 선택 소비자의 대응과 보강으로 이관했다. 기존 12개 독립 후보 선택,
+256개 완전한 후보 집합·257개 초과 시 발송 금지와 snapshot 결합은 전체 native/host 상태를 대조한다.
+전달한 토큰→proof→재설정은 anonymous/self/other browser별 정확한 payload·수명·entropy·hash·폐기·감사를 검사한다.
+읽기 scope/종료/취소·입구 거부 17개와 렌더링/전송 실패·접수 전후 불명/취소 9개를 실제 선택 owner에 연결했으며,
+다른 연결의 credential/profile 변경도 snapshot 검증에 포함했다. 남은 고정 reset HTTP가 사용하는 helper 본문은 보존했다.
+Django 6.1/Python 3.14.3·8개 source digest·12개 후보 관측을 확인하되 원문/producer는 바꾸지 않는다.
+작성·정적 대응과 현재 source의 원격 실행은 TEST_EVIDENCE에서 구분하며 reset 전체 수용은 계속 남아 있다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

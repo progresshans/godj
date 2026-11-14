@@ -17,16 +17,6 @@ func TestPostgresIdentityPasswordResetConcurrency(t *testing.T) {
 	identitytest.RunPasswordResetConcurrency(t, openPostgresIdentityPair)
 }
 
-func TestPostgresIdentityPasswordResetMail(t *testing.T) {
-	identitytest.RunPasswordResetMail(t, "postgres", openPostgresIdentityPair)
-}
-func TestPostgresIdentityPasswordResetMailBoundaries(t *testing.T) {
-	identitytest.RunPasswordResetMailBoundaries(t, openPostgresIdentityPair)
-}
-func TestPostgresIdentityPasswordResetMailSnapshotBinding(t *testing.T) {
-	identitytest.RunPasswordResetMailSnapshotBinding(t, openPostgresIdentityPair)
-}
-
 func TestPostgresIdentityPasswordResetComposition(t *testing.T) {
 	identitytest.RunPasswordResetComposition(t, openPostgresIdentityPair)
 }

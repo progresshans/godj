@@ -239,6 +239,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	runCatalogMutationOutcomes(t, open)
 	runUserManagementReferences(t, referenceBackend, open)
 	runSelfPasswordNative(t, open)
+	runResetMailNative(t, open)
 	runAccountHTTP(t, open)
 	runCreationUsernamePolicy(t, referenceBackend, open)
 	runUnusableReference(t, open)

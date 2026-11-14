@@ -18,7 +18,6 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/mail"
-	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 )
 
@@ -28,10 +27,13 @@ func selectedResetMailer(t *testing.T, owner *accountmodel.PasswordResetter[mode
 	if err != nil {
 		t.Fatal(err)
 	}
-	mailer, err := identity.NewPasswordResetMailer(owner, sender, identity.PasswordResetMailConfig{From: from, Origin: "https://reset.example.test", ConfirmPath: "/account/reset", SiteName: "Selected", Renderer: renderer})
+	config := identity.PasswordResetMailConfig{From: from, Origin: "https://reset.example.test", ConfirmPath: "/account/reset", SiteName: "Selected", Renderer: renderer}
+	mailer, err := identity.NewPasswordResetMailer(owner, sender, config)
 	if err != nil {
 		t.Fatal(err)
 	}
+	config.Origin, config.ConfirmPath, config.SiteName = "https://wrong.example.test", "/wrong", "Changed"
+	config.From, config.Renderer = mail.Address{}, nil
 	return mailer
 }
 func selectedResetMemory(t *testing.T) *mail.Memory {
@@ -49,11 +51,11 @@ func selectedResetDelivery(t *testing.T, message mail.Message) (string, string) 
 			continue
 		}
 		link, err := url.Parse(line)
-		if err != nil || link.Host != "reset.example.test" || link.User != nil || link.RawQuery != "" || link.Fragment != "" {
+		if err != nil || link.Scheme != "https" || link.Host != "reset.example.test" || link.User != nil || link.RawQuery != "" || link.Fragment != "" {
 			t.Fatal("selected reset link escaped trusted origin", err)
 		}
 		parts := strings.Split(link.Path, "/")
-		if len(parts) != 6 || parts[5] != "" {
+		if len(parts) != 6 || parts[1] != "account" || parts[2] != "reset" || parts[5] != "" {
 			t.Fatal("selected reset link is malformed")
 		}
 		id, err := base64.RawURLEncoding.Strict().DecodeString(parts[3])
@@ -67,7 +69,8 @@ func selectedResetDelivery(t *testing.T, message mail.Message) (string, string) 
 }
 
 func passwordResetMail(t *testing.T, referenceBackend string, backend Backend, reopen func(*testing.T) Backend) {
-	f := provision(t, backend, ir.AccountExact)
+	host := provisionUserReference(t, backend)
+	f := host.base
 	now := joined
 	tracked := &passwordScopeOwner{Backend: backend}
 	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
@@ -102,7 +105,7 @@ func passwordResetMail(t *testing.T, referenceBackend string, backend Backend, r
 			if errors.Empty() != observation.Valid || cleaned != observation.Cleaned || !observation.UsersUnchanged {
 				t.Fatal("selected reset input differs from pinned Django reference")
 			}
-			before := passwordState(t, backend)
+			before := userReferenceSnapshot(t, reopen(t))
 			memory := selectedResetMemory(t)
 			hasher.hashes.Store(0)
 			hasher.verifies.Store(0)
@@ -127,21 +130,27 @@ func passwordResetMail(t *testing.T, referenceBackend string, backend Backend, r
 				if err != nil || expected.Encoded() != encoded || len(message.Recipients()) != 1 || message.Recipients()[0].Mailbox() != address.Mailbox() || message.From().Mailbox() != "sender@example.test" {
 					t.Fatal("selected recipient/signature binding differs", err)
 				}
+				if message.Subject() != "Password reset on Selected" || !strings.Contains(message.Text(), "Selected") {
+					t.Fatal("selected reset mail lost its owned content configuration")
+				}
 				actual = append(actual, row.Username)
 			}
 			slices.Sort(actual)
 			if !slices.Equal(actual, observation.Delivered) || !slices.Equal(actual, observation.Selected) || hasher.hashes.Load() != 0 || hasher.verifies.Load() != 0 || tracked.writes.Load() != 0 {
 				t.Fatal("selected native candidate set differs from Django", actual, observation.Delivered)
 			}
-			passwordUnchanged(t, reopen(t), before)
+			assertUserReferenceState(t, before, userReferenceSnapshot(t, reopen(t)), host.actor.Principal())
 		})
 	}
 }
 
 func passwordResetMailBound(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
-	f := provision(t, backend, ir.AccountExact)
+	host := provisionUserReference(t, backend)
+	f := host.base
 	now := joined
-	configured := passwordComposition(t, backend, &now, f.hasher, accountmodel.PasswordChangeConfig[models.User]{})
+	tracked := &passwordScopeOwner{Backend: backend}
+	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
+	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 	owner := selectedResetOwner(t, configured, selectedResetConfig(t, &now))
 	const email = "bounded@candidate.test"
 	rows := make([]models.User, auth.MaximumPasswordResetCandidates)
@@ -154,8 +163,9 @@ func passwordResetMailBound(t *testing.T, backend Backend, reopen func(*testing.
 	}
 	memory := selectedResetMemory(t)
 	mailer := selectedResetMailer(t, owner, memory, nil)
+	hasher.hashes.Store(0)
 	t.Run("inclusive_256", func(t *testing.T) {
-		before := passwordState(t, backend)
+		before := userReferenceSnapshot(t, reopen(t))
 		if err := mailer.Request(t.Context(), email); err != nil {
 			t.Fatal("inclusive selected candidate bound refused", err)
 		}
@@ -163,19 +173,31 @@ func passwordResetMailBound(t *testing.T, backend Backend, reopen func(*testing.
 		if err != nil || len(messages) != 256 {
 			t.Fatal("selected bounded delivery set was truncated", err, len(messages))
 		}
-		passwordUnchanged(t, reopen(t), before)
+		for index, delivery := range messages {
+			id, _ := selectedResetDelivery(t, delivery.Message())
+			if id != rows[index].PrincipalID || len(delivery.Message().Recipients()) != 1 || delivery.Message().Recipients()[0].Mailbox() != email {
+				t.Fatal("inclusive candidate delivery was duplicated, reordered or misdirected")
+			}
+		}
+		if tracked.writes.Load() != 0 || hasher.hashes.Load() != 0 || hasher.verifies.Load() != 0 {
+			t.Fatal("inclusive mail candidate read wrote state or performed password work")
+		}
+		assertUserReferenceState(t, before, userReferenceSnapshot(t, reopen(t)), host.actor.Principal())
 	})
 	if _, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("reset-bound-overflow", "reset-bound-overflow", "!disabled", joined).WithEmail(email)); err != nil {
 		t.Fatal(err)
 	}
 	t.Run("overflow_before_usable_filter", func(t *testing.T) {
-		before := passwordState(t, backend)
+		before := userReferenceSnapshot(t, reopen(t))
 		err := mailer.Request(t.Context(), email)
 		requireProfileCode(t, err, accountmodel.CodePersistence)
 		if messages, err := memory.Snapshot(); err != nil || len(messages) != 0 {
 			t.Fatal("overflow sent a usable prefix", err)
 		}
-		passwordUnchanged(t, reopen(t), before)
+		if tracked.writes.Load() != 0 || hasher.hashes.Load() != 0 || hasher.verifies.Load() != 0 {
+			t.Fatal("overflow mail candidate read wrote state or performed password work")
+		}
+		assertUserReferenceState(t, before, userReferenceSnapshot(t, reopen(t)), host.actor.Principal())
 	})
 }
 
@@ -200,9 +222,10 @@ func (owner *resetSnapshotBoundary) ReadSnapshot(ctx context.Context, callback f
 }
 
 func passwordResetMailSnapshot(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
-	f := provision(t, backend, ir.AccountExact)
+	host := provisionUserReference(t, backend)
+	f := host.base
 	now := joined
-	for _, mode := range []string{"email", "login", "last_login", "inactive"} {
+	for _, mode := range []string{"email", "login", "last_login", "inactive", "credential", "profile"} {
 		t.Run(mode, func(t *testing.T) {
 			target := roleTarget(t, backend, f, "reset-snapshot-"+mode)
 			target, err := models.UserObjects.Patch(t.Context(), backend, target, models.UserPatch{}.WithEmail(mode+"@candidate.test"))
@@ -210,26 +233,45 @@ func passwordResetMailSnapshot(t *testing.T, backend Backend, reopen func(*testi
 				t.Fatal(err)
 			}
 			boundary := &resetSnapshotBoundary{Backend: backend}
-			configured := passwordComposition(t, boundary, &now, f.hasher, accountmodel.PasswordChangeConfig[models.User]{})
+			tracked := &passwordScopeOwner{Backend: boundary}
+			hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
+			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 			owner := selectedResetOwner(t, configured, selectedResetConfig(t, &now))
 			expected := selectedResetToken(t, owner, target.PrincipalID)
 			other := reopen(t)
-			var checkpoint passwordDurableState
+			var checkpoint userReferenceState
 			boundary.after = func() error {
+				before := userReferenceSnapshot(t, other)
+				row := target
 				patch := models.UserPatch{}.WithRevision(7)
+				row.Revision = 7
 				switch mode {
 				case "email":
 					patch = patch.WithEmail("replacement@candidate.test")
+					row.Email = "replacement@candidate.test"
 				case "login":
 					patch = patch.WithUsername("replacement-login")
+					row.Username = "replacement-login"
 				case "last_login":
-					patch = patch.WithLastLogin(now.Add(time.Microsecond))
+					at := now.Add(time.Microsecond)
+					patch, row.LastLogin = patch.WithLastLogin(at), &at
 				case "inactive":
 					patch = patch.WithActive(false)
+					row.Active = false
+				case "credential":
+					encoded, err := f.hasher.Hash(t.Context(), selfPassword)
+					if err != nil {
+						return err
+					}
+					patch, row.EncodedPassword = patch.WithEncodedPassword(encoded), encoded
+				case "profile":
+					patch, row.FirstName = patch.WithFirstName("Latest"), "Latest"
 				}
 				_, err := models.UserObjects.Patch(t.Context(), other, target, patch)
 				if err == nil {
-					checkpoint = passwordState(t, other)
+					checkpoint = userReferenceSnapshot(t, other)
+					userReferenceReplace(&before.account, row)
+					assertUserReferenceState(t, before, checkpoint, host.actor.Principal())
 				}
 				return err
 			}
@@ -242,6 +284,7 @@ func passwordResetMailSnapshot(t *testing.T, backend Backend, reopen func(*testi
 				return identity.PasswordResetMailContent{Subject: "Selected", Text: data.Link()}, nil
 			})
 			memory := selectedResetMemory(t)
+			hasher.hashes.Store(0)
 			if err := selectedResetMailer(t, owner, memory, renderer).Request(t.Context(), target.Email); err != nil {
 				t.Fatal(err)
 			}
@@ -254,9 +297,12 @@ func passwordResetMailSnapshot(t *testing.T, backend Backend, reopen func(*testi
 			if id != expected.PrincipalID() || encoded != expected.Encoded() || message.Recipients()[0].Mailbox() != target.Email {
 				t.Fatal("mail mixed old token and current recipient")
 			}
-			passwordUnchanged(t, reopen(t), checkpoint)
+			if hasher.hashes.Load() != 0 || hasher.verifies.Load() != 0 || tracked.writes.Load() != 0 {
+				t.Fatal("snapshot-bound mail hashed, verified or wrote native state")
+			}
+			assertUserReferenceState(t, checkpoint, userReferenceSnapshot(t, reopen(t)), host.actor.Principal())
 			proof, err := owner.StartPasswordReset(t.Context(), sessions.ID{}, id, encoded)
-			if mode == "login" {
+			if mode == "login" || mode == "profile" {
 				if err != nil || !proof.ID().Valid() {
 					t.Fatal("unsigned profile/login change invalidated reset", err)
 				}
@@ -264,7 +310,7 @@ func passwordResetMailSnapshot(t *testing.T, backend Backend, reopen func(*testi
 				if err != auth.ErrInvalidResetProof || !reflect.DeepEqual(proof, sessions.Record{}) {
 					t.Fatal("old delivery accepted after signed observation changed", err)
 				}
-				passwordUnchanged(t, reopen(t), checkpoint)
+				assertUserReferenceState(t, checkpoint, userReferenceSnapshot(t, reopen(t)), host.actor.Principal())
 			}
 		})
 	}

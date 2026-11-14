@@ -5757,6 +5757,48 @@ Opaque 오류를 대조하면서 `account/domain`의 값형 storage wrapper가 s
 로컬 gofmt·diff·Markdown 245개 링크 검사와 Python CI owner/분할 검사 37개(153.920초)가 통과했다.
 Go compile/test·generate·DB/HTTP는 실행하지 않았고 새 native 본문·race·CGO0 및 전체 환경 수용은 새 source의 원격 CI에서 확인한다.
 
+자기 비밀번호 묶음은 source `9bc650961338206bbb0dc9d0c888c8ca87ba231d`와
+[CI 43649326835](https://github.com/progresshans/godj/actions/runs/43649326835)에 제출했다. 후속 reset 메일 이관을
+포함한 source의 전체 수용과 구분한다.
+
+### Reset 메일의 선택 owner 이관
+
+2026-11-15, source `9bc65096` 위에서 고정 reset mail·boundaries·snapshot 세 root의 필수 41개를 선택 소비자에
+연결했다. 기존 선택 후보 12개와 inclusive 256/overflow 검사를 host fixture로 옮겨 전체 account/catalog/session/
+domain/audit와 host FK 상태를 대조한다. 256개 발송은 recipient의 순서·identity·주소를 모두 확인하고 unusable 257번째
+후보도 usable 필터 전 한도를 넘으면 발송 prefix가 없어야 한다. Mail config의 호출자 재할당과 subject/site/origin/path
+소유권을 확인한다.
+
+새 `password_reset_mail_delivery`는 메모리 전송에서 받은 실제 토큰을 사용해 anonymous/self/other browser의
+proof 진입과 재설정을 실행한다. 예상 native 행은 요청 전 snapshot·저장 전 해시 계측·entropy에서 만들고 생성된 row key만
+실제 DB에서 대조한다. 정확한 payload·수명·hash/revision·session 폐기·self audit와 host 상태, 재접속·옛 password·
+token replay 거부를 확인한다. 자기 browser는 clear만 수행하고 새 entropy를 사용하지 않아야 한다.
+
+`password_reset_mail_read_failures`의 17개는 읽기 생략/nil/typed-nil/root/validator 부재/반복·query/close/숨긴 오류/
+cleanup/취소와 입력/context 거부를 전체 mailer에서 검사한다. 읽기 실패 뒤 rendering/delivery·hash·verify·entropy·
+native write가 시작되지 않아야 한다. `password_reset_mail_failures`의 9개는 완전한 snapshot·rendering 뒤 전송 순서,
+renderer 실패 시 prefix 금지, 전송 실패·불명 시 수신 측 접수 전/후 불명 모두에서 해당 recipient 재시도 금지와 형제 진행, 취소 및 마지막 확정 발송 뒤의
+취소 의미를 확인한다. 원인·오류 분류·비밀값 진단과 전체 durable 상태를 함께 비교한다.
+
+Snapshot 결합은 email/login/LastLogin/inactive에 credential/profile을 추가했다. 다른 연결에서 실제 경쟁 patch의
+예상 전체 상태를 먼저 대조하고 이전 snapshot의 recipient·token이 함께 전달되는지 확인한다. Signed 상태 변경은
+이전 token을 거부하며 unsigned login/profile 변경은 유효성을 유지한다.
+
+고정 mail/source 소비자는 제거했고 남은 reset HTTP가 사용하는 4개 함수와 sender adapter는 별도 fixture로 옮겼다.
+이동한 helper의 본문 동일성과 남은 참조를 정적으로 확인했다. Reset HTTP·확인/동시 변경·역사 제품 API의 제거는 별도다.
+두 Django 원문은 이전 source와 동일하다(SQLite SHA-256 `7577cc82f767729c73a35476a0ead7c7ffde6ec352712eb0dd8126632566ce0e`,
+PostgreSQL `f826c2f731d76d331550971fd88142d41f524042c5f4b63732b5836ee30fc875`). 공통 loader는 Django 6.1/
+Python 3.14.3, DB, 8개 source digest와 중복 없는 12개 후보 관측을 요구한다. Producer는 변경하지 않았다.
+
+양 DB의 41개 항목은 모두 현재 선택 필수 항목으로 연결했고 34개씩 추가했다. Relation은 4,844→4,837,
+PostgreSQL은 5,882→5,875이며 나머지 항목의 상대 순서를 유지한다. 정적 책임 map은 검증 보관소
+`gdj0138-selected-reset-mail-migration-v1/responsibility-map.json`에 보존했다
+(SHA-256 `284a72c1c26927c00c3dc674f26d6720100d076d263834234dc6e738c8bb37c6`).
+새 본문의 실제 실행·원본 대조와 이 정적 대응은 구분한다. 로컬 Go compile/test·generate·DB는 실행하지 않았다.
+로컬 포맷·diff·245개 문서 링크 검사는 통과했고 Python CI owner/분할 검사 37개는 154.096초에 통과했다.
+전송 접수 후 결과 불명 항목을 추가한 최종 목록의 실행 owner/분할 검사 4개도 5.944초에 통과했다.
+새 native mail/proof/reset 본문과 전체 DB·race·CGO0/platform 검증은 후속 source의 원격 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
