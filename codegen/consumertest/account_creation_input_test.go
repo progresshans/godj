@@ -103,7 +103,7 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				t.Fatal(err)
 			}
 			writeGeneratedTestFile(t, root, "consumer/creation_input_test.go", formatted)
-			formatted, err = format.Source([]byte(accountPasswordPolicyConsumer))
+			formatted, err = format.Source([]byte(strings.ReplaceAll(accountPasswordPolicyConsumer, "@@PROFILE@@", profile)))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -198,6 +198,16 @@ func TestGeneratedAccountCreationInputPolicy(t *testing.T) {
 				for _, mode := range []string{"preflight", "final", "cleanup", "swallowed", "unknown", "cancel_preflight", "cancel_final"} {
 					required = append(required, "TestAccountPasswordPolicyBoundaries/"+operation+"/"+mode)
 				}
+			}
+			const currentProfile = "TestAccountDefaultPasswordPolicyCurrentProfile"
+			required = append(required, currentProfile)
+			for _, mode := range []string{"final", "cleanup", "swallowed", "unknown"} {
+				required = append(required, currentProfile+"/"+mode)
+			}
+			const admission = "TestAccountPasswordPolicyAdmission"
+			required = append(required, admission)
+			for _, mode := range []string{"denied_creation", "stale_password", "omitted_creation_policy", "omitted_password_policy"} {
+				required = append(required, admission+"/"+mode)
 			}
 			const defaults = "TestAccountAdminDefaultPasswordPolicy"
 			required = append(required, defaults)

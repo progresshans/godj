@@ -5376,6 +5376,44 @@ scalar/catalog/through/domain/audit/host/session 원문을 대조하고, 경합�
 최종 필수 목록의 Python CI 분할 검사 27개는 33.228초에 통과했다.
 새 본문·양 DB·race·CGO-disabled·전체 platform/cold-build의 실제 실행과 I1 수용은 현재 source의 전체 원격 CI에서 확인한다.
 
+Source `2180eeb5ec01987c76dc3ed94abbdd660e6712c3`의
+[CI 43631404938](https://github.com/progresshans/godj/actions/runs/43631404938) attempt 1에서 core
+normal/race/CGO0 작업 `132558810632`/`132558810573`/`132558810635`이 성공했다. 실제 checkout
+`763193778333abd5e1055309e096a5acb6b7af64`과 제출 source의 tree
+`f43abc05391e5211cb1cba29048199d83de36eb1`이 같으며 각 runner는 141 package·필수 331개·run 14,699개·
+범위 밖 skip 592개를 보고했다. 전체 raw log·요약·source·해시는 검증 보관소의
+`gdj0138-2180eeb5-ci-43631404938/core-progress.json`에 연결했다
+(SHA-256 `2636ed53e18e4548501c52675a9ff495685a30a00b7aa72bc35fc6e3e3990a7b`).
+당시 전체는 23 success / 40 running / 301 queued였고 SQLite runtime의 실제 실행 단계가 시작됐다.
+Core 성공은 username의 native DB 본문이나 아래 후속 password 소비자·I1 전체 수용을 증명하지 않는다.
+
+### 관리 비밀번호 정책의 현재 프로필·선택 소비자 이관
+
+2026-11-15, `2180eeb5` 위에서 `IdentityPasswordValidators`의 서비스 검증 책임을 외부 생성
+`TestGeneratedAccountCreationInputPolicy`의 기본/renamed × SQLite/PostgreSQL 소비자로 옮겼다.
+기존 공통 password validator 원문·Django 독립 관측·기본/선택 단위 검사는 그대로 유지한다.
+
+| 이전 검증 책임 | 선택 소비자와 유지·보강한 확인 |
+|---|---|
+| 생성/관리 변경의 다섯 약한 입력과 진단 순서 | `TestAccountAdminDefaultPasswordPolicy`의 create/password × short/common/numeric/similarity/combined. 기존 실제 Admin의 private widget·오류 필드/순서·무 hash·전체 상태 비교에 더해 같은 입력을 Creator.Prepare/PasswordEditor.SetPassword에 직접 전달한다. Form 없이도 같은 password 진단과 빈 결과·무 hash·무 durable 변경을 확인한다. 사전 생성이 서버 principal source를 한 번 호출해도 candidate나 DB 행을 게시하지 않는 경계를 유지한다. |
+| 성공의 원문 공백·재접속/HTTP 인증 | 같은 root의 `success_and_reopen`. 한 번의 hash/commit·정확한 행/관계/audit·대상 세션 폐기를 유지한다. 독립 재접속 runtime의 실제 TCP/CSRF에서 trim한 비밀번호를 401과 전체 무변경으로 거부하고 원문으로 로그인한다. cookie의 공개 session record·현재 principal/stamp, 선언한 LastLogin만 바뀐 typed 행, 새 세션 한 행 외 전체 native 무변경을 대조한다. |
+| 명시적 정책과 권한/revision 선행 | `TestAccountPasswordPolicyAdmission`의 네 child. 무권한 생성과 stale password 변경은 정책/hash/쓰기 전에 거부한다. 별도 owner에서 정책을 명시적으로 생략하면 `1`로 생성·관리 변경·인증이 가능하며 일반 세션 폐기/audit의 원자 수명을 유지한다. |
+| Hash 중 실제 프로필 편집과 최종 기본 정책 | `TestAccountDefaultPasswordPolicyCurrentProfile`의 final/cleanup/swallowed/unknown. 실제 PBKDF2 callback 안에서 5초 제한의 독립 native transaction이 `first_name` 또는 `region`만 바꾸고 revision/hash를 유지한다. 기본 similarity validator가 `NZ`→`Zebracascade`를 읽으며 사전 scope 0/최종 scope 1·hash 1회·write/callback 1회를 요구한다. 실제 native rollback의 정확한 similarity 진단과 최종 분류·원인을 각각 확인한다. |
+
+새 현재 프로필 fixture는 대상 세션 세 개와 다른 계정·익명 세션을 보유한다. 전체 native snapshot의 예상 변경은
+독립 writer에 요청한 필드/값으로 구성하며 실패 후 상태에서 기대값을 복사하지 않는다. 모든 실패 모드에서 그 한
+프로필 변경만 보존되고 원래 비밀번호·세션은 유효하며 거부한 새 비밀번호는 인증하지 못한다.
+Cleanup은 persistence, 실제 rollback 뒤 주입한 결과 불명 보고는 commit outcome unknown으로 유지한다. Callback 거부를 삼킨 성공
+보고는 공통 atomic-result의 현행 `outcome_unknown`/`transaction_outcome_unknown` 계약으로 확인하며, 옛 고정
+fixture의 persistence 분류를 선택 owner에 맞추기 위해 제품 의미를 바꾸지 않는다.
+
+고정 root/child 18개씩과 전용 wrapper/helper를 제거했다. Native 필수 목록은 relation 4,878→4,860,
+PostgreSQL 5,801→5,783이며 다른 항목·상대 순서는 그대로다. 외부 생성 소비자의 엄격한 필수 목록에는 새 두 root와
+여덟 child, 즉 각 기본/renamed × DB process마다 10개를 추가했고 기존 기본 정책의 10개 약한 입력 child와 두 성공
+child도 강화했다. 필수 child 누락/skip/잘린 event는 기존 strict verifier가 거부한다. 포맷·diff·호출/import·필수 항목
+차이와 변경 문서의 상대 링크 181개를 확인했고 최종 목록의 Python CI 분할 검사 27개는 33.200초에 통과했다.
+로컬 Go compile/test·generate·DB/HTTP 본문은 실행하지 않았으며, 새 본문과 I1 전체 수용은 현재 source의 전체 원격 실행에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
