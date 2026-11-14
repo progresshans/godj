@@ -19,6 +19,11 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
+// Opaque host errors need not have comparable dynamic values.
+type passwordOpaqueError []string
+
+func (passwordOpaqueError) Error() string { return "private-password-fault" }
+
 type passwordChangeBoundary struct {
 	TransitionBackend
 	mode                   string
@@ -80,7 +85,7 @@ type passwordChangeFaultSession struct {
 func (s *passwordChangeFaultSession) fault() error {
 	s.owner.faults++
 	if s.owner.mode == "opaque" {
-		return loginOpaqueError{"private-password-fault"}
+		return passwordOpaqueError{"private-password-fault"}
 	}
 	return errors.New("private-password-fault")
 }

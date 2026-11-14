@@ -245,14 +245,21 @@ func (store *accountLoginStore[M]) write(ctx context.Context, mutate func(contex
 	result, err := accountSessionWrite(ctx, store.SessionStore, func(work context.Context, scope db.Session, scoped *sessiondb.Store) (accountLoginPublication, error) {
 		observed, err := store.owner.recorder.observeIn(work, scope, store.login)
 		if err != nil {
-			return accountLoginPublication{}, err
+			if err == auth.ErrInvalidCredentials {
+				return accountLoginPublication{}, err
+			}
+			// Admission and credential-read failures cannot mint a retryable
+			// session collision, even when a host returns CodeEntropy itself.
+			return accountLoginPublication{}, accountSessionFailure(sessions.CodeStoreFailure, err)
 		}
 		record, err := mutate(work, scoped)
 		if err != nil || !record.present {
 			return accountLoginPublication{}, err
 		}
 		if err := store.owner.recorder.recordIn(work, scope, observed, store.login.At); err != nil {
-			return accountLoginPublication{}, err
+			// Only mutate's own confirmed refusal may ask the manager for new
+			// entropy. A LastLogin write has no authority to signal collision.
+			return accountLoginPublication{}, accountSessionFailure(sessions.CodeStoreFailure, err)
 		}
 		return accountLoginPublication{record.record, true, observed.credential}, nil
 	})

@@ -5509,7 +5509,48 @@ Artifact `14130184688` (`relation-product-linux-arm64-normal-0-1`, 780,948 bytes
 경합까지 확인했다. 원본·각 파일 hash·45개 이름/횟수·source/tree와 판정은 같은 보관소의
 `sqlite-native-verification.json`에 있다(SHA-256 `81113ec2cefb5ef6d62c4b69838b086ce0ee4b8e6367b2c10e1ea7434768c246`).
 로컬 Go/DB를 다시 실행하지 않았다. 이 결과는 `3962f51b`의 Linux arm64 normal SQLite 근거이며,
-새 unusable의 PostgreSQL·race/CGO0·다른 platform과 I1 전체 수용은 여전히 미완료다.
+다른 환경의 확인은 아래와 구분한다.
+
+같은 source의 Linux amd64 normal PostgreSQL core 작업 `132572821874`도 성공했다. 실제 checkout/tree는 위와 같으며,
+artifact `14130867919` (`postgres-product-normal-core-1`, 1,039,593 bytes)의 SHA-256
+`8d467e032654e11d644dc7e54231ee18a8559228401f424abfa2b990cc4ea4a9`를 GitHub metadata와 대조했다.
+현재 source의 planner·필수 목록·package·원본 event와 empty stderr를 대조한 결과 18 package·run/pass 8,353개·
+skip 0, 필수 5,401개와 같은 unusable 대상 45개가 각각 정확히 한 번 실행·통과했다. 계정 store의 pass는 1,535개다.
+원본·hash·source/tree·대상별 횟수는 같은 보관소 `postgres-native-verification.json`에 있다
+(SHA-256 `4b1e8d11d0d27ed01b3feea2714faddbd8c1431d7a4843bba7f6eb50e44cdb46`).
+이 두 native 좌표의 결과를 이후 로그인 변경이나 race/CGO0·나머지 platform·I1 전체의 PASS로 사용하지 않는다.
+
+### 선택 계정 로그인 관측·실패·재시도 소유권 이관
+
+2026-11-15, 선행 `05598749` 위에서 고정 `IdentityLoginLifecycle`/`IdentityLoginBoundaries`와 선택 store의
+부분 실패 root를 선택 `Runtime`·독립 세션 DB의 실제 소비자로 이관했다. 기존 Django 6.1/Python 3.14.3 양 DB
+원문·producer·mutation control은 그대로 유지하고 embedding만 공용 reference package로 옮겼다.
+
+| 기존 위험·소비자 | 현재 검증 책임 |
+|---|---|
+| 독립 로그인 수명·재접속 | `login_reference`의 아홉 child. Authenticate/Resolve 무변경, password/nonstaff 거부, 익명→로그인·같은 계정 회전·다른 계정 fresh replacement, Access·logout과 재접속 후 선택 ProfileReader를 실제 TCP/CSRF·cookie·전체 native 14개 테이블과 대조한다. 여섯 관측·authentication-only·아홉 producer hash를 확인하고 Django의 반복 key 보존과 Go의 회전 차이를 명시한다. |
+| 생성·회전·교체의 실패와 native prefix | `login_write_failures`의 세 operation에서 callback 누락/nil/root/repeated, 조회 실패·삼킨 실패, session DELETE/INSERT·LastLogin UPDATE 전후를 검사한다. 반환 결과는 완전한 zero이고 한 번의 native 시도·무 password 작업과 정확한 write prefix, 다른 계정·host·catalog·domain·audit·세션의 보존을 요구한다. |
+| 확정 rollback·commit 결과 불명·취소 | 같은 세 operation의 callback 취소·native context 취소·별도 native owner의 확정 rollback, unknown rollback/commit와 commit 뒤 취소를 구분한다. 쓰기 전 실제 entropy에서 얻은 ID와 요청의 값·시각·principal/stamp로 예상 record를 구성하고, 저장 DB에서는 생성 row key만 얻어 전체 상태를 대조한다. Unknown은 capability를 게시하지 않고 확정 commit 뒤 취소는 성공을 유지한다. |
+| Admission 오류의 분류·비교 가능성 | `login_admission` 세 operation × 아홉 child. 정확한 거부 sentinel, joined denial/unknown, entropy/capacity 모양, cancellation, slice-backed 오류, cleanup/삼킨 거부에서 한 번의 callback·무 변경과 원인·불명 분류를 유지한다. |
+| 세션 만료와 실제 충돌 control | `login_expired`의 idle/absolute가 cleanup을 별도로 commit하지 않는다. `login_collision`의 세 operation은 실제 기존 ID 충돌 뒤 새 entropy 한 번만 재시도하고 충돌 행·다른 세션을 보존하며 정확한 LastLogin·새 record만 확정한다. |
+| 현재 권한·credential와 동시 편집 | `login_current_fences`는 독립 연결의 password/inactive/nonstaff/grant/delete 뒤 현재 거부와 profile-only 허용을 확인한다. `login_concurrent_edits`는 profile/password 명령과 로그인 두 native fence에 함께 도달한 뒤 전체 행·정확한 audit/revision·최종 세션 폐기를 대조하고, timeout·취소·worker join을 유지한다. |
+| Native 오류가 collision을 가장하는 경우 | 위 write root의 session 조회·INSERT 전후·DELETE 뒤 entropy 모양 오류와 `SessionDatabase/retry_provenance`의 rotate/replace × 여섯 child. Standalone Store의 실제 native 조회/쓰기 오류 및 실제 collision 뒤 cleanup/unknown이 새 entropy나 두 번째 transaction을 유발하지 않아야 한다. 전체 namespace의 물리 행과 정확한 쓰기 횟수를 확인한다. |
+
+검토에서 선택 `LoginPersistence`의 admission/LastLogin과 borrowed/standalone DB Store의 native I/O가 공개
+`sessions.CodeEntropy`를 직접 반환하면 Manager.Rotate/Replace가 ID collision으로 재시도할 수 있음을 확인했다.
+선택 recorder 오류는 StoreFailure로 감싸고, 공통 DB Store는 실제 충돌의 내부 소유 표식을 확인한 뒤에만 직접
+collision을 반환하도록 수정했다. Public cause는 유지하며 cleanup·unknown에서는 재시도하지 않는다.
+이 경로 분석과 수정 작성은 실행 재현의 PASS를 뜻하지 않는다.
+
+기존 DB별 로그인 관련 root/child 67개를 선택 계정 126개로 이관하고 standalone 세션 DB 15개를 추가했다.
+Relation 목록은 4,868→4,942, PostgreSQL은 5,791→5,865이며 나머지 필수 항목과 상대 순서를 보존한다.
+고정 로그인 전용 helper는 제거하고 남은 password/reset 소비자가 쓰는 시각과 noncomparable 오류 fixture는 소유 파일에
+유지한다. 로컬 Go compile/test·generate·DB/HTTP는 실행하지 않으며 새 본문·양 DB·race/CGO-disabled·전체
+platform/cold-build와 I1 수용은 현재 source의 원격 확인 대상이다.
+
+이 변경 묶음의 gofmt·diff·import/호출·필수 항목 대응과 기존 독립 원문/producer 무변경을 정적으로 확인했다.
+최종 필수 목록에서 Python CI 분할 검사 27개가 33.523초에 통과했고 Markdown 245개 문서의 local 링크를 확인했다.
+이 정적 검사는 새 Go 본문의 compile·실행 성공을 뜻하지 않는다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

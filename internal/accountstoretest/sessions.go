@@ -211,24 +211,6 @@ func sessionLoginAndDomain(t *testing.T, backend Backend, reopen func(*testing.T
 	}
 }
 
-type loginMutationScope struct {
-	db.Session
-	fault    error
-	inserted *int
-}
-
-func (scope *loginMutationScope) ValidateSession(ctx context.Context) error {
-	return scope.Session.(db.SessionValidator).ValidateSession(ctx)
-}
-func (scope *loginMutationScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
-	key, err := scope.Session.Insert(ctx, plan)
-	if err == nil && plan.Table() == "godj_sessions_session" {
-		*scope.inserted++
-		return key, scope.fault
-	}
-	return key, err
-}
-
 func sessionCredentialRecheck(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	credential := profileActor(t, f)
@@ -310,90 +292,6 @@ func sessionOptionalLastLogin(t *testing.T, backend Backend, _ func(*testing.T) 
 	}
 	if row := profileRow(t, backend, f.user.ID); !reflect.DeepEqual(row, f.user) {
 		t.Fatal("absent role wrote an undeclared timestamp")
-	}
-}
-func sessionLoginFailures(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
-	f := provision(t, backend, ir.AccountExact)
-	credential := profileActor(t, f)
-	now := joined
-	base, manager, _ := accountSessions(t, backend, &now)
-	previous, err := manager.Create(t.Context(), map[string]string{"anonymous": "rollback"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, mode := range []string{"skipped", "nil_session", "root_session", "repeated", "write_failure", "session_insert", "denied", "denied_cleanup", "admission_error", "swallowed_rejection", "unknown_rollback", "unknown_commit", "cancel_confirmed_rollback", "post_commit_cancel"} {
-		t.Run(mode, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-			fault := errors.New("private selected login failure")
-			probe := &profileFaultBackend{Backend: backend, mode: mode, fault: fault, cancel: cancel}
-			inserted := 0
-			if mode == "session_insert" {
-				probe.decorate = func(scope db.Session) db.Session { return &loginMutationScope{scope, fault, &inserted} }
-			}
-			if mode == "denied_cleanup" {
-				probe.mode = "cleanup_failure"
-			}
-			_, _, owner := accountSessions(t, probe, &now)
-			before := profileRow(t, backend, f.user.ID)
-			count := accountSessionCount(t, backend)
-			login := selectedSessionLogin(credential, previous, now.Add(time.Minute))
-			if mode == "denied" || mode == "denied_cleanup" || mode == "swallowed_rejection" {
-				login.Admit = func(context.Context, auth.Principal) error { return auth.ErrInvalidCredentials }
-			}
-			if mode == "admission_error" {
-				login.Admit = func(context.Context, auth.Principal) error { return fault }
-			}
-			result, err := owner.Login(ctx, login)
-			committed := mode == "unknown_commit" || mode == "post_commit_cancel"
-			if mode == "post_commit_cancel" {
-				if err != nil || !result.Record.ID().Valid() || ctx.Err() == nil {
-					t.Fatal("late cancellation erased committed login", err)
-				}
-			} else if err == nil || result.Record.ID().Valid() || result.Credential.SessionStamp() != "" {
-				t.Fatal("failed login published result", err)
-			}
-			if mode == "denied" {
-				if err != auth.ErrInvalidCredentials {
-					t.Fatal("confirmed admission denial lost", err)
-				}
-			} else if err == auth.ErrInvalidCredentials {
-				t.Fatal("execution failure became admission denial")
-			}
-			if (mode == "write_failure" || mode == "session_insert" || mode == "denied_cleanup" || mode == "admission_error") && !errors.Is(err, fault) {
-				t.Fatal("login private cause lost", err)
-			}
-			if (mode == "skipped" || mode == "repeated" || mode == "swallowed_rejection") && !errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) {
-				t.Fatal("unknown login callback lost", err)
-			}
-			if (mode == "unknown_commit" || mode == "unknown_rollback") && !errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
-				t.Fatal("native unknown login outcome lost", err)
-			}
-			if probe.calls != 1 || mode == "session_insert" && inserted != 1 {
-				t.Fatal("login retried or missed native write", probe.calls, inserted)
-			}
-			after := profileRow(t, reopen(t), f.user.ID)
-			if committed {
-				if after.LastLogin == nil || !after.LastLogin.Equal(login.At) || after.Revision != before.Revision || accountSessionCount(t, backend) != count {
-					t.Fatal("login commit did not couple timestamp/session")
-				}
-				accountSessionRecord(t, base, previous, false)
-				// Reconcile the durable new bearer only when it was confirmed to
-				// this caller. Unknown commits return no raw bearer capability.
-				if mode == "post_commit_cancel" {
-					accountSessionRecord(t, base, result.Record, true)
-				}
-				previous, err = manager.Create(t.Context(), map[string]string{"anonymous": "rollback"})
-				if err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				if !reflect.DeepEqual(before, after) || accountSessionCount(t, backend) != count {
-					t.Fatal("failed login retained partial state")
-				}
-				accountSessionRecord(t, base, previous, true)
-			}
-		})
 	}
 }
 

@@ -1732,6 +1732,9 @@ Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replac
 이 관측 필드를 갱신하지 않는다.
 
 한 번의 callback과 확정 commit 뒤에만 credential/record를 게시한다. 원인 없는 확정 collision만 entropy 재시도가 가능하고,
+현재 credential/admission·LastLogin의 오류는 세션 ID collision이 아니다. 해당 callback이나 native session 조회·INSERT·DELETE가
+같은 공개 `CodeEntropy`를 반환해도 실행 실패로 감싸고 cause를 보존한다. 독립 DB Store는 실제 collision을 내부 소유 표식으로
+구분하며, 직접 transaction과 borrowed scope 모두에서 외부 오류가 재시도를 요청하지 못하게 한다.
 확정된 동일 admission sentinel만 일반 인증 거부로 돌려준다. Cleanup·취소·callback 소유권 위반·unknown 결과에 포함된
 거부는 storage failure와 원인 연결을 유지한다. `Manager.Load`도 AccessPolicy의 오류를 그대로 반환받은 경우에만 일반
 policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거부로 축소하지 않는다.

@@ -22,15 +22,21 @@ import (
 )
 
 type userReferenceHTTP struct {
-	server *httptest.Server
-	client *http.Client
+	server      *httptest.Server
+	client      *http.Client
+	loginStatus int
 }
 
 func newUserReferenceHTTP(t *testing.T, selected *accountmodel.Runtime[models.User, models.Group, models.Permission]) *userReferenceHTTP {
 	t.Helper()
+	return newUserReferenceHTTPConfigured(t, selected, func() time.Time { return joined }, 204)
+}
+
+func newUserReferenceHTTPConfigured(t *testing.T, selected *accountmodel.Runtime[models.User, models.Group, models.Permission], clock func() time.Time, loginStatus int) *userReferenceHTTP {
+	t.Helper()
 	runtime, err := websession.New(websession.Config{
 		Sessions: selected.Sessions(), Authenticator: selected.Authenticator(), LoginPersistence: selected.LoginPersistence(), Authorizer: auth.PrincipalAuthorizer{},
-		Clock: func() time.Time { return joined }, SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
+		Clock: clock, SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true},
 		LoginPath: "/login/", FallbackPath: "/change/", AllowedNextPaths: []string{"/view/", "/change/"},
 	})
 	if err != nil {
@@ -57,15 +63,43 @@ func newUserReferenceHTTP(t *testing.T, selected *accountmodel.Runtime[models.Us
 			if err := runtime.VerifyCSRF(request, httpRequest.PostForm["csrfmiddlewaretoken"]); err != nil {
 				return web.HTML(403, []byte("CSRF rejected"))
 			}
-			result, err := runtime.Login(request, httpRequest.PostForm.Get("username"), httpRequest.PostForm.Get("password"))
+			var result websession.LoginResult
+			var err error
+			if httpRequest.PostForm.Get("staff") == "required" {
+				result, err = runtime.LoginStaff(request, httpRequest.PostForm.Get("username"), httpRequest.PostForm.Get("password"), "")
+			} else {
+				result, err = runtime.Login(request, httpRequest.PostForm.Get("username"), httpRequest.PostForm.Get("password"))
+			}
+			if err == auth.ErrInvalidCredentials {
+				return web.HTML(401, []byte("invalid credentials"))
+			}
 			if err != nil {
 				return web.Response{}, err
 			}
-			response, err := web.NewResponse(204, nil, nil)
+			response, err := web.NewResponse(loginStatus, nil, nil)
 			if err != nil {
 				return web.Response{}, err
 			}
 			return result.Apply(response)
+		}},
+		{Name: "userreference:logout", Method: http.MethodPost, Path: "/logout/", Handler: func(request *web.Request) (web.Response, error) {
+			httpRequest := request.HTTP()
+			httpRequest.Body = http.MaxBytesReader(nil, httpRequest.Body, 64<<10)
+			if err := httpRequest.ParseForm(); err != nil {
+				return web.Response{}, err
+			}
+			if err := runtime.VerifyCSRF(request, httpRequest.PostForm["csrfmiddlewaretoken"]); err != nil {
+				return web.HTML(403, []byte("CSRF rejected"))
+			}
+			change, err := runtime.Logout(request)
+			if err != nil {
+				return web.Response{}, err
+			}
+			response, err := web.NewResponse(200, nil, nil)
+			if err != nil {
+				return web.Response{}, err
+			}
+			return change.Apply(response)
 		}},
 	}
 	for _, action := range []string{"view", "change"} {
@@ -100,7 +134,7 @@ func newUserReferenceHTTP(t *testing.T, selected *accountmodel.Runtime[models.Us
 	client := server.Client()
 	client.Jar, client.Timeout = jar, 30*time.Second
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &userReferenceHTTP{server, client}
+	return &userReferenceHTTP{server: server, client: client, loginStatus: loginStatus}
 }
 
 func (browser *userReferenceHTTP) close() { browser.server.Close() }
@@ -115,6 +149,12 @@ func (browser *userReferenceHTTP) request(t *testing.T, method, path string, dat
 }
 
 func (browser *userReferenceHTTP) exchange(t *testing.T, method, path string, data url.Values) (int, string) {
+	t.Helper()
+	response, body := browser.send(t, method, path, data)
+	return response.StatusCode, body
+}
+
+func (browser *userReferenceHTTP) send(t *testing.T, method, path string, data url.Values) (*http.Response, string) {
 	t.Helper()
 	request, err := http.NewRequestWithContext(t.Context(), method, browser.server.URL+path, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -132,21 +172,37 @@ func (browser *userReferenceHTTP) exchange(t *testing.T, method, path string, da
 	if err != nil || len(raw) > 64<<10 {
 		t.Fatal("selected user HTTP response is incomplete", response.StatusCode, err)
 	}
-	for _, secret := range []string{userReferencePassword, "reference-created", "pbkdf2_sha256$"} {
+	for _, secret := range []string{password, userReferencePassword, "reference-created", "pbkdf2_sha256$"} {
 		if strings.Contains(string(raw), secret) {
 			t.Fatal("selected user HTTP disclosed credential data")
 		}
 	}
-	return response.StatusCode, string(raw)
+	return response, string(raw)
 }
 
 func (browser *userReferenceHTTP) login(t *testing.T, login, password string) sessions.ID {
+	t.Helper()
+	_, id := browser.loginAttempt(t, login, password, false, browser.loginStatus)
+	return id
+}
+
+func (browser *userReferenceHTTP) loginAttempt(t *testing.T, login, password string, staff bool, want int) (*http.Response, sessions.ID) {
 	t.Helper()
 	token := browser.request(t, http.MethodGet, "/login/", nil, 200)
 	if len(token) != 128 {
 		t.Fatal("selected HTTP login lost CSRF token")
 	}
-	browser.request(t, http.MethodPost, "/login/", url.Values{"username": {login}, "password": {password}, "csrfmiddlewaretoken": {token}}, 204)
+	data := url.Values{"username": {login}, "password": {password}, "csrfmiddlewaretoken": {token}}
+	if staff {
+		data.Set("staff", "required")
+	}
+	response, _ := browser.send(t, http.MethodPost, "/login/", data)
+	if response.StatusCode != want {
+		t.Fatal("selected login response differs", response.StatusCode, want)
+	}
+	if want != 200 && want != 204 {
+		return response, sessions.ID{}
+	}
 	address, err := url.Parse(browser.server.URL)
 	if err != nil {
 		t.Fatal(err)
@@ -157,11 +213,11 @@ func (browser *userReferenceHTTP) login(t *testing.T, login, password string) se
 			if err != nil {
 				t.Fatal(err)
 			}
-			return id
+			return response, id
 		}
 	}
 	t.Fatal("selected HTTP login did not issue a session cookie")
-	return sessions.ID{}
+	return response, sessions.ID{}
 }
 
 func (browser *userReferenceHTTP) expect(t *testing.T, path string, status int) {

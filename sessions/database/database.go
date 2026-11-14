@@ -209,10 +209,13 @@ func writeStore[T any](ctx context.Context, store *Store, write func(context.Con
 		if completion != nil {
 			return zero, failure(sessions.CodeStoreFailure, errors.Join(err, completion))
 		}
-		if rejected, owned := err.(*accessRejection); owned {
+		if rejected, owned := err.(*writeRejection); owned {
 			return zero, rejected.cause
 		}
 		if err != nil {
+			if classified, ok := err.(*sessions.Error); ok && classified != nil && classified.Code == sessions.CodeEntropy {
+				return zero, failure(sessions.CodeStoreFailure, err)
+			}
 			return zero, err
 		}
 		return value, nil
@@ -235,22 +238,24 @@ func writeStore[T any](ctx context.Context, store *Store, write func(context.Con
 	// Only a direct confirmed refusal can invite fresh entropy. An uncertain
 	// outcome or cleanup error containing that refusal must retain its cause.
 	if !errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown}) && !errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) {
-		if own, valid := observed.(*accessRejection); valid && own != nil && err == own {
+		if own, valid := observed.(*writeRejection); valid && own != nil && err == own {
 			return zero, own.cause
 		}
-		if own, valid := observed.(*sessions.Error); valid && own != nil && own.Cause == nil && err == own {
+		if own, valid := observed.(*sessions.Error); valid && own != nil && own.Cause == nil && own.Code != sessions.CodeEntropy && err == own {
 			return zero, own
 		}
 	}
 	return zero, failure(sessions.CodeStoreFailure, err)
 }
 
-// The only producer is AccessPolicy.Apply, before mutation. The transaction
-// owner may release its original classification only after exact rollback.
-type accessRejection struct{ cause error }
+// Only a verified collision or AccessPolicy.Apply may mint a direct refusal.
+// Native I/O cannot request new entropy by returning the same public error
+// code. The transaction owner releases this cause only after exact rollback;
+// a borrowed scope leaves that decision to its enclosing owner.
+type writeRejection struct{ cause error }
 
-func (*accessRejection) Error() string           { return "session access policy rejected" }
-func (rejection *accessRejection) Unwrap() error { return rejection.cause }
+func (*writeRejection) Error() string           { return "session operation rejected" }
+func (rejection *writeRejection) Unwrap() error { return rejection.cause }
 
 func validNamespace(namespace string) bool {
 	return namespace != "" && len(namespace) <= 128 && utf8.ValidString(namespace) && !strings.ContainsRune(namespace, 0)

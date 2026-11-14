@@ -50,6 +50,7 @@ func Run(t *testing.T, open Open) {
 		{"borrowed_scope", borrowedScope},
 		{"read_completion", readCompletion},
 		{"write_completion", writeCompletion},
+		{"retry_provenance", retryProvenance},
 		{"stored_integrity", storedIntegrity},
 		{"concurrent_capacity", concurrentCapacity},
 	} {

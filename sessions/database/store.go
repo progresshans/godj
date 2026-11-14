@@ -119,7 +119,7 @@ func (store *Store) Access(ctx context.Context, id sessions.ID, policy sessions.
 		}
 		next, status, err := policy.Apply(id, current)
 		if err != nil {
-			return accessedRecord{}, &accessRejection{cause: err}
+			return accessedRecord{}, &writeRejection{cause: err}
 		}
 		if status == sessions.AccessExpired {
 			if err := deleteRow(work, scope, row); err != nil {
@@ -198,7 +198,7 @@ func (store *Store) replace(ctx context.Context, oldID sessions.ID, replacement 
 			if _, err := sessionwire.Decode(collision.Payload, replacement.ID(), store.state.database.limits); err != nil {
 				return loadedRecord{}, err
 			}
-			return loadedRecord{}, &sessions.Error{Code: sessions.CodeEntropy, Detail: "replacement session identifier collided"}
+			return loadedRecord{}, &writeRejection{cause: &sessions.Error{Code: sessions.CodeEntropy, Detail: "replacement session identifier collided"}}
 		}
 		published := replacement
 		if !fresh {

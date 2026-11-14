@@ -134,7 +134,6 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"catalog_commit_failures", catalogCommitFailures},
 		{"catalog_relation_rollback", catalogRelationRollback},
 		{"session_login_and_domain", sessionLoginAndDomain},
-		{"session_login_failures", sessionLoginFailures},
 		{"session_credential_recheck", sessionCredentialRecheck},
 		{"session_revoked_previous", sessionRevokedPrevious},
 		{"session_optional_last_login", sessionOptionalLastLogin},
@@ -244,6 +243,13 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	runUnusableWriteFailures(t, open)
 	runUnusableFences(t, open)
 	runUnusableConcurrentReplacement(t, open)
+	runLoginReference(t, open)
+	runLoginWriteFailures(t, open)
+	runLoginAdmission(t, open)
+	runLoginExpired(t, open)
+	runLoginCollision(t, open)
+	runLoginCurrentFences(t, open)
+	runLoginConcurrentEdits(t, open)
 	runUserHostDeletion(t, open)
 	runStartupSchemaRequired(t, open)
 	runAccountDeletion(t, open, storedKey)

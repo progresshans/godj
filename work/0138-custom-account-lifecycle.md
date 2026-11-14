@@ -910,8 +910,16 @@ strength 진단보다 먼저 적용되는지 확인한다. 실제 hash callback�
 기본 정책을 다시 적용한 복구와 재접속/LastLogin을 전체 native 행과 정확한 감사로 대조한다. 읽기/쓰기 scope 실패,
 실제 세션 삭제·audit 뒤 실패와 확정 rollback/결과 불명/취소, 현재 그룹 권한 회수·target revision/hash 재검사,
 독립 연결의 비활성화 대 비밀번호 교체 경합도 선택 owner로 옮겼다. 같은 원문·producer·entropy 검사를 유지하고
-옛 고정 root를 제거했으며 필수 목록 대응과 새 본문의 환경별 실행은 TEST_EVIDENCE에 구분한다. 남은 로그인·
-고정 validator adapter/독립 기준과 고정 credential 서비스 전체의 이관·I1 수용은 계속 필요하다.
+옛 고정 root를 제거했으며 필수 목록 대응과 새 본문의 환경별 실행은 TEST_EVIDENCE에 구분한다.
+
+고정 로그인 관측·경계를 선택 `Runtime`으로 옮겼다. 원문·producer와 반복 로그인 회전의 명시적 차이를 유지하며 실제
+TCP/CSRF 로그인·다른 사용자 교체·접근·logout·재접속을 확인하도록 작성했다. 세션 생성/회전/교체의 실패와 실제 native
+쓰기 prefix, 확정 rollback/결과 불명/취소, 현재 credential·권한 재검사와 profile/password 경합은 전체 native 행을 대조한다.
+Unknown commit의 예상 bearer는 DB 결과가 아닌 쓰기 전 실제 entropy에서 얻고 요청으로 시각·payload·principal/stamp를
+재구성한다. 인가·LastLogin과 native 세션 I/O가 반환한 entropy 모양 오류의 재시도 오분류를 수정했으며,
+공통 DB Store의 실제 collision만 재시도되는 control과 cleanup/unknown 거부도 연결했다. 고정 로그인 root·전용 helper를
+제거하고 password/reset이 쓰는 시각 fixture는 유지한다. 새 본문의 환경별 실행과 고정 validator adapter/독립 기준·
+나머지 credential 서비스의 이관, 같은 source의 I1 전체 수용은 계속 필요하다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
