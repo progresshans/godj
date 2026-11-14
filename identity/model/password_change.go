@@ -249,6 +249,14 @@ type accountPasswordStore[M any] struct {
 	rejection error
 }
 
+// Only this owner can mark a current authentication/policy refusal or a
+// collision observed by its bound session store. Arbitrary native errors
+// cannot request a retry or become renderable password diagnostics.
+type accountPasswordRefusal struct{ cause error }
+
+func (*accountPasswordRefusal) Error() string         { return "account password change rejected" }
+func (refusal *accountPasswordRefusal) Unwrap() error { return refusal.cause }
+
 // Expiry cleanup is part of the password transaction, never an independent
 // effect of a rejected password change.
 func (store *accountPasswordStore[M]) Delete(context.Context, sessions.ID) error {
@@ -267,16 +275,19 @@ func (store *accountPasswordStore[M]) Rotate(ctx context.Context, oldID sessions
 		principalID, _ := currentSession.Value(auth.SessionPrincipalIDKey)
 		stamp, _ := currentSession.Value(auth.SessionCredentialStampKey)
 		if !present || principalID != prepared.before.credential.Principal().ID() || !prepared.before.credential.MatchesSessionStamp(stamp) {
-			return zero, auth.ErrInvalidCredentials
+			return zero, &accountPasswordRefusal{auth.ErrInvalidCredentials}
 		}
 		current, err := store.owner.accountIn(work, scope, principalID, stamp)
 		if err != nil {
 			return zero, err
 		}
 		if !current.valid || current.id != prepared.before.id {
-			return zero, auth.ErrInvalidCredentials
+			return zero, &accountPasswordRefusal{auth.ErrInvalidCredentials}
 		}
 		if err := store.owner.validate(work, prepared.raw, current.row); err != nil {
+			if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+				return zero, &accountPasswordRefusal{err}
+			}
 			return zero, err
 		}
 		bound, err := currentSession.WithValue(auth.SessionCredentialStampKey, prepared.after.SessionStamp())
@@ -292,10 +303,13 @@ func (store *accountPasswordStore[M]) Rotate(ctx context.Context, oldID sessions
 		}
 		record, rotated, err := scoped.Rotate(work, oldID, replacement)
 		if err != nil {
+			if collision, valid := err.(*sessions.Error); valid && collision != nil && collision.Code == sessions.CodeEntropy && collision.Cause == nil {
+				return zero, &accountPasswordRefusal{collision}
+			}
 			return zero, err
 		}
 		if !rotated {
-			return zero, auth.ErrInvalidCredentials
+			return zero, &accountPasswordRefusal{auth.ErrInvalidCredentials}
 		}
 		binding := store.state.credentials.state.binding
 		objects, role := binding.state.objects, binding.state.role
@@ -334,14 +348,17 @@ func (store *accountPasswordStore[M]) Rotate(ctx context.Context, oldID sessions
 		return auth.PasswordChangeResult{Credential: credential, Record: record}, nil
 	})
 	if err != nil {
-		if err == auth.ErrInvalidCredentials {
-			store.rejection = err
-		} else if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
-			store.rejection = err
+		// accountSessionWrite releases this exact marker only after confirmed
+		// rollback. Cleanup, cancellation and unknown outcomes keep it wrapped.
+		if refusal, owned := err.(*accountPasswordRefusal); owned {
+			if refusal.cause == auth.ErrInvalidCredentials {
+				store.rejection = refusal.cause
+			} else if _, rejected := validation.Rejected(refusal.cause); rejected {
+				store.rejection = refusal.cause
+			}
+			return sessions.Record{}, false, refusal.cause
 		}
-		// Only a direct, cause-free collision from confirmed rollback reaches
-		// Manager's bounded ID retry. Unknown/cleanup remains wrapped by write.
-		return sessions.Record{}, false, err
+		return sessions.Record{}, false, accountPasswordFailure(err)
 	}
 	store.current = result.Credential
 	return result.Record, true, nil

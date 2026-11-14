@@ -5632,6 +5632,34 @@ empty stderr를 대조했다. 각 mode는 141 package·run 14,784개·pass 14,26
 이 core 근거로 선택 정책의 실제 56개 본문·역사 password/reset의 native/HTTP·전체 platform/cold-build 또는
 I1-01~08 수용을 대신하지 않는다. 해당 현재 source의 실행과 원본 대조는 계속 남아 있다.
 
+### 선택 자기 비밀번호 변경의 native 상태와 오류 출처
+
+2026-11-15, `534bb1a0` 위에서 선택 자기 비밀번호 변경의 최종 인증/정책 거부와 실제 session collision을 private
+표식으로 구분했다. `accountSessionWrite`의 확인된 rollback만 해당 표식을 풀며, native 계정 쓰기가 반환한 entropy,
+인증 거부 또는 validation 모양 오류는 실행 오류로 유지한다. 확인되지 않은 결과나 cleanup 오류를 재시도하지 않는다.
+기존 실제 collision retry/소진/entropy/unknown 검사와 현재 profile·권한·credential 재검사는 유지했다.
+
+기존 선택 password 실패의 사용자·session·audit 관측을 계정/catalog/through·domain/mapping 전체로 넓혔다.
+추가한 `self_password_lifecycle`은 일반 사용자의 변경·같은 비밀번호의 새 salt·기존 session 회전·다른 session 폐기와
+재접속을 확인한다. 현재 namespace의 오래된 stamp 세션은 폐기하고 다른 사용자·anonymous·역사 namespace와 host FK는
+보존해야 한다. Hash와 bearer는 저장 전 hasher/entropy에서 독립 관찰하고 요청의 payload·수명·credential로 예상 session을
+만든다. 전체 native/host 상태와 정확한 자기 감사·LastLogin 보존을 비교한다.
+
+`self_password_write_failures`는 query와 회전 삭제·session 삽입·password 갱신·다른 session 삭제·audit 삽입 전후의
+실제 쓰기 prefix, 잘못된/누락/반복 callback, 현재 정책 거부·실패·cleanup, 취소와 확정 rollback/unknown commit을 확인한다.
+비밀번호 갱신 전후에 entropy/authentication/validation 모양의 native 오류 여섯 개를 주입해 한 번의 hash/verify/write만
+실행하고 입력 거부로 표시하지 않도록 요구한다. Unknown commit의 예상 행에도 반환 result나 저장된 payload를 사용하지 않는다.
+관측 가능한 opaque 새 행 key만 허용하고 전체 나머지 값과 역사 prefix를 독립 대조한다. 이 결과 불명 실험은 실제 native
+commit/rollback 뒤 acknowledgement 오류 주입이며 실제 네트워크 단절 실험이 아니다.
+
+새 root/child 34개씩을 양 DB 필수 목록에 추가했다. 기존 필수 항목과 상대 순서는 유지하며 relation은 4,826→4,860,
+PostgreSQL은 5,865→5,899다. 고정 자기 비밀번호/Account HTTP의 기존 146개 필수 항목은 아직 제거하지 않았다.
+이 작성은 그 소비자의 선택 owner 이관 완료나 I1-01~08 수용 완료가 아니다.
+
+로컬 gofmt·diff·import/호출·필수 항목의 누락/중복/상대 순서를 정적으로 확인했다. CI owner/분할 Python 검사 37개가
+154.497초에 통과했고 Markdown 245개 문서의 링크를 확인했다. Go compile/test·generate·DB/HTTP는 실행하지 않았다.
+새 source의 실제 native 본문과 영향 및 전체 환경 확인은 원격 CI가 소유한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

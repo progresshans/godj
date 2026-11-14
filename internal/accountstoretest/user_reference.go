@@ -99,7 +99,12 @@ func userReferenceRows(t *testing.T, scope db.Queryer) userReferenceState {
 
 func assertUserReferenceState(t *testing.T, expected, actual userReferenceState, actor auth.Principal, events ...catalogExpectedEvent) {
 	t.Helper()
-	assertCatalogRows(t, expected.account, actual.account, actor, events...)
+	assertUserReferenceStateAt(t, expected, actual, actor, joined, events...)
+}
+
+func assertUserReferenceStateAt(t *testing.T, expected, actual userReferenceState, actor auth.Principal, at time.Time, events ...catalogExpectedEvent) {
+	t.Helper()
+	assertCatalogRowsAt(t, expected.account, actual.account, actor, at, events...)
 	if !reflect.DeepEqual(expected.notes, actual.notes) || !reflect.DeepEqual(expected.guards, actual.guards) ||
 		!reflect.DeepEqual(expected.accessNotes, actual.accessNotes) || !reflect.DeepEqual(expected.accessGuards, actual.accessGuards) {
 		t.Fatal("selected user operation changed unexpected host rows")

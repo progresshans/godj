@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
@@ -69,6 +70,11 @@ func assertCatalogState(t *testing.T, backend Backend, expected accountNativeSta
 
 func assertCatalogRows(t *testing.T, expected, actual accountNativeState, actor auth.Principal, events ...catalogExpectedEvent) {
 	t.Helper()
+	assertCatalogRowsAt(t, expected, actual, actor, joined, events...)
+}
+
+func assertCatalogRowsAt(t *testing.T, expected, actual accountNativeState, actor auth.Principal, at time.Time, events ...catalogExpectedEvent) {
+	t.Helper()
 	old := len(expected.audits)
 	if len(actual.audits) != old+len(events) || old > 0 && !reflect.DeepEqual(expected.audits, actual.audits[:old]) {
 		t.Fatal("catalog mutation changed historical audit or added an unexpected event")
@@ -88,7 +94,7 @@ func assertCatalogRows(t *testing.T, expected, actual accountNativeState, actor 
 			t.Fatal(err)
 		}
 		if event.ID <= last || event.Domain != domain.Identifier() || event.ActorID != actor.ID() || event.Model != "godj_identity."+want.model ||
-			event.ObjectID != want.id || event.Action != string(want.action) || !slices.Equal(fields, want.fields) || !event.RecordedAt.Equal(joined) {
+			event.ObjectID != want.id || event.Action != string(want.action) || !slices.Equal(fields, want.fields) || !event.RecordedAt.Equal(at.UTC().Truncate(time.Microsecond)) {
 			t.Fatal("catalog audit differs from the exact authorized effect")
 		}
 		last = event.ID

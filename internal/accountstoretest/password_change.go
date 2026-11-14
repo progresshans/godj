@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	auditmodels "github.com/progresshans/godj/account/audit/models"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
@@ -20,7 +19,6 @@ import (
 	"github.com/progresshans/godj/schema/ir"
 	"github.com/progresshans/godj/sessions"
 	sessiondb "github.com/progresshans/godj/sessions/database"
-	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -234,26 +232,12 @@ func passwordChangeLifecycle(t *testing.T, backend Backend, reopen func(*testing
 // Compare exact stored account, audit and session payloads after every refused
 // operation. Counts alone would miss an overwritten bearer, payload or hash.
 type passwordDurableState struct {
-	users    []models.User
-	sessions []sessionmodels.Session
-	audits   []auditmodels.Event
+	accountNativeState
 }
 
 func passwordState(t *testing.T, backend Backend) passwordDurableState {
 	t.Helper()
-	users, err := models.UserObjects.Using(backend).OrderBy(models.UserFields.ID.Asc()).All(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	records, err := sessionmodels.SessionObjects.Using(backend).OrderBy(sessionmodels.SessionFields.ID.Asc()).All(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	audits, err := auditmodels.EventObjects.Using(backend).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
-	return passwordDurableState{users, records, audits}
+	return passwordDurableState{accountNativeSnapshot(t, backend)}
 }
 
 func passwordUnchanged(t *testing.T, backend Backend, before passwordDurableState) {

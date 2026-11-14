@@ -928,6 +928,13 @@ Unknown commit의 예상 bearer는 DB 결과가 아닌 쓰기 전 실제 entropy
 transaction/HTTP 검증을 유지한다. 이 advisory 정책 비교는 계정의 IR 저장 validation이나 실제 생성·변경·reset 수용을
 대신하지 않는다. 새 source의 core·선택 모델·native 소비자 실행은 TEST_EVIDENCE에서 구분한다.
 
+선택 자기 비밀번호 변경은 최종 인증/정책 거부와 자기 session store의 실제 collision에 private 표식을 붙인다.
+확인된 rollback 뒤에만 해당 거부를 게시하거나 세션 ID를 다시 준비하며, native I/O의 같은 모양 오류는 실행 실패로
+유지한다. 일반 사용자의 변경·동일 비밀번호 재해싱·재접속과 실제 쓰기 전/후 실패·취소·결과 불명 검사는 전체 계정,
+catalog/through·host·domain·역사 session/audit를 대조한다. 새 비밀번호·bearer는 DB 결과가 아니라 해시/entropy 단계에서
+관찰하고 나머지 예상 값은 요청과 이전 행에서 만든다. 기존 선택 password 실패 관측도 세 테이블에서 전체 native 행으로
+넓혔다. 이 보강의 원격 실행 및 고정 Account HTTP/reset 소비자의 이관은 계속 필요하다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
