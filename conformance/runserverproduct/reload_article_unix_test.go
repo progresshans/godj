@@ -49,7 +49,7 @@ func newReloadArticleClient(t *testing.T, process *reloadProcess, username, pass
 		t.Fatal("reload login has no CSRF token")
 	}
 	*sensitive = append(*sensitive, password, string(match[1]))
-	logged, err := requestAuthenticatedRunserver(client.client, "POST", client.base+"/admin/login/", "", url.Values{
+	logged, err := loginAuthenticatedRunserver(client.client, client.base+"/admin/login/", url.Values{
 		"username": {username}, "password": {password}, "csrfmiddlewaretoken": {string(match[1])}, "next": {"/admin/"},
 	}.Encode())
 	if err != nil || logged.status != 302 {

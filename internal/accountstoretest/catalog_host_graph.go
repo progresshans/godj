@@ -35,6 +35,7 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 	}
 	sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 	sources = append(sources, accountaudit.MigrationSources()...)
+	sources = append(sources, sessiondb.MigrationSources()...)
 	sources = append(sources, definition.Source{SourceID: "catalog-host/0001_initial", Document: document})
 	loaded, _, err := definition.Load(sources...)
 	if err != nil {

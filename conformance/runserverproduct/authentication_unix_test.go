@@ -397,11 +397,9 @@ func exerciseAuthenticatedRunserverArticle(
 		"password":            {password},
 		"next":                {"/admin/articles/"},
 	}
-	login, err := requestAuthenticatedRunserver(
+	login, err := loginAuthenticatedRunserver(
 		client,
-		http.MethodPost,
 		baseURL+"/admin/login/",
-		"",
 		form.Encode(),
 	)
 	if err != nil {
@@ -470,6 +468,19 @@ type authenticatedRunserverHTTPResult struct {
 	header      http.Header
 	cookies     []*http.Cookie
 	body        []byte
+}
+
+// Real production-cost password verification also runs inside race-built
+// servers. Give its single POST a separate bounded budget while keeping the
+// ordinary request deadline, transport and browser cookie jar unchanged.
+func loginAuthenticatedRunserver(client *http.Client, target, form string) (authenticatedRunserverHTTPResult, error) {
+	login := &http.Client{Transport: client.Transport, CheckRedirect: client.CheckRedirect, Jar: client.Jar, Timeout: 30 * time.Second}
+	started := time.Now()
+	result, err := requestAuthenticatedRunserver(login, http.MethodPost, target, "", form)
+	if err != nil {
+		return result, fmt.Errorf("single Admin login after %s: %w", time.Since(started).Round(time.Millisecond), err)
+	}
+	return result, nil
 }
 
 func requestAuthenticatedRunserverEventually(

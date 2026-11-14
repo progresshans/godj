@@ -176,9 +176,25 @@ func accountDeletionAdmin(t *testing.T, backend Backend, reopen func(*testing.T)
 		_, page := call(t, "GET", path, nil, 200)
 		before := deletionSnapshot(t, reopen(t))
 		header, _ := call(t, "POST", path, url.Values{"confirm": {"yes"}, "expected_revision": {"1"}, "csrfmiddlewaretoken": {token(t, page)}}, 302)
-		if header.Get("Location") != "/admin/accounts/" {
+		location, err := url.Parse(header.Get("Location"))
+		if err != nil || location.Scheme != "" || location.Host != "" || location.User != nil || location.Opaque != "" ||
+			location.Fragment != "" || location.RawPath != "" || location.Path != "/admin/accounts/" {
 			t.Fatal("confirmed Admin deletion lost its safe redirect")
 		}
+		notice, err := url.ParseQuery(location.RawQuery)
+		if err != nil || len(notice) != 2 || len(notice["notice"]) != 1 || notice.Get("notice") != "deleted" ||
+			len(notice["sig"]) != 1 || len(notice.Get("sig")) != 43 {
+			t.Fatal("confirmed Admin deletion omitted its signed notice")
+		}
+		_, body := call(t, "GET", location.String(), nil, 200)
+		if !strings.Contains(body, "Object deleted.") {
+			t.Fatal("confirmed Admin deletion notice was not accepted by the actual list page")
+		}
+		// Keep the signature but change its message. A successful redirect must
+		// not make a forged notice valid or turn a later GET into another write.
+		notice.Set("notice", "changed")
+		location.RawQuery = notice.Encode()
+		call(t, "GET", location.String(), nil, 400)
 		call(t, "GET", path, nil, 404)
 		after := deletionSnapshot(t, reopen(t))
 		assertDeletionTreeState(t, reopen(t), f, tree, before, after)

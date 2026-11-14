@@ -844,6 +844,10 @@ overflow가 전체 변경을 rollback하는지 대조한다. 257번째 회원의
 공통 runtime을 사용한다. 원래 비staff generated 역할의 domain 불일치 거부도 확인한다. 실제 원격 실패와 보정·수용 범위는
 TEST_EVIDENCE에서 구분한다.
 
+전체 CI에서 드러난 catalog fixture의 session migration 누락과 PostgreSQL 자동 key 복원 의존을 보정했다.
+Admin 삭제는 실제 서명된 성공 알림·위조 메시지 거부·삭제 후 상태를 함께 관측한다. 누적 consumer 실행은 전체 root/child
+소유권을 유지해 분산하며 reload의 준비와 단일 로그인 한도도 구분한다. 보정 작성과 새 source의 환경별 수용은 별도다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

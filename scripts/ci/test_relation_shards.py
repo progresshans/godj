@@ -119,8 +119,8 @@ class RelationShardTest(unittest.TestCase):
         self.assertEqual(actual, matrix())
         self.assertLessEqual(len(actual['include']), 256, 'GitHub must admit the complete matrix')
         expected_counts = {
-            ('ubuntu-24.04', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
-            ('ubuntu-24.04-arm', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
+            ('ubuntu-24.04', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'race'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
+            ('ubuntu-24.04-arm', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'race'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('ubuntu-24.04-arm', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
             ('macos-15-intel', 'normal'): 5 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-15-intel', 'race'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-15-intel', 'cgo0'): 5 + len(ISOLATED_ACCOUNT_ROOTS),
             ('macos-26', 'normal'): 3 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-26', 'race'): 4 + len(ISOLATED_ACCOUNT_ROOTS), ('macos-26', 'cgo0'): 3 + len(ISOLATED_ACCOUNT_ROOTS),
         }
@@ -159,7 +159,7 @@ class RelationShardTest(unittest.TestCase):
     def test_linux_race_isolates_long_account_roots_without_longer_deadlines(self):
         for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm'):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == 'race']
-            count = 4 + len(ISOLATED_ACCOUNT_ROOTS)
+            count = 5 + len(ISOLATED_ACCOUNT_ROOTS)
             self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
             self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
 

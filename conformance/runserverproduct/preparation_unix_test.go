@@ -31,7 +31,7 @@ const runserverPreparationTimeout = 5 * time.Minute
 // A new project resolves its module, generates and checks its bundle, and
 // compiles both server and command runtimes before publication. Those cold
 // builds share one CLI invocation, so they need a separate aggregate budget.
-const runserverScaffoldTimeout = 10 * time.Minute
+const runserverScaffoldTimeout = 15 * time.Minute
 const maximumRunserverGoAudit = 64 << 10
 
 type runserverGoAuditRecord struct {

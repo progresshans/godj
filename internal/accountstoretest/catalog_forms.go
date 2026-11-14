@@ -17,7 +17,6 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/identity/project"
-	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -194,26 +193,29 @@ func catalogFormChecks(t *testing.T, backend Backend, reopen func(*testing.T) Ba
 					current = &row
 				}
 				name := "Advisory group"
+				selected := permission
 				if mode == "stale_selection" {
 					name = group.Name
+					// Delete a case-owned choice after binding. The shared permission
+					// remains available to the other uniqueness and authority checks;
+					// restoring its generated key is not a portable fixture operation.
+					var err error
+					selected, err = models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate("catalog.form_stale_"+operation, "Removed choice"))
+					if err != nil {
+						t.Fatal(err)
+					}
 				}
-				keys := []string{strconv.FormatInt(permission.ID, 10), strconv.FormatInt(f.account.grants[0].ID, 10), strconv.FormatInt(permission.ID, 10)}
-				bound := catalogBoundForm(t, groups, map[string][]string{"name": {name}, "permissions": keys}, current, permission.ID, f.account.grants[0].ID)
+				keys := []string{strconv.FormatInt(selected.ID, 10), strconv.FormatInt(f.account.grants[0].ID, 10), strconv.FormatInt(selected.ID, 10)}
+				bound := catalogBoundForm(t, groups, map[string][]string{"name": {name}, "permissions": keys}, current, selected.ID, f.account.grants[0].ID)
 				if !bound.Form().Valid() {
 					t.Fatal("catalog selection did not pass its independent input choices")
 				}
 				cleaned, _ := bound.Form().Cleaned().Integers("permissions")
 				if mode == "stale_selection" {
-					removed := permission
+					removed := selected
 					if count, err := models.PermissionObjects.Delete(t.Context(), reopen(t), &removed); err != nil || count != 1 {
 						t.Fatal("separate writer did not remove the selected permission", err)
 					}
-					t.Cleanup(func() {
-						restored := permission
-						if err := models.PermissionObjects.Save(context.Background(), backend, &restored, orm.ForceInsert[models.Permission]()); err != nil {
-							t.Error(err)
-						}
-					})
 				}
 				before := accountNativeSnapshot(t, backend)
 				var err error

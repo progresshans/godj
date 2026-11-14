@@ -198,7 +198,7 @@ func exerciseStartedIdentity(address, username, password string, create bool, se
 		return errors.New("scaffold login omitted CSRF")
 	}
 	*sensitive = append(*sensitive, string(match[1]))
-	login, err := requestAuthenticatedRunserver(client, http.MethodPost, base+"/admin/login/", "", url.Values{
+	login, err := loginAuthenticatedRunserver(client, base+"/admin/login/", url.Values{
 		"username": {username}, "password": {password}, "csrfmiddlewaretoken": {string(match[1])}, "next": {"/admin/"},
 	}.Encode())
 	if err != nil || login.status != 302 || login.header.Get("Location") != "/admin/" {

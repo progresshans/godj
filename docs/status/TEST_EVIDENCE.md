@@ -5085,6 +5085,40 @@ credential/session/domain 소유권을 구성하며 이 Admin 변형과 별도 �
 원본 여덟 파일·source·진단은 `gdj0138-069aead3-ci-42260172960/runtime-failure-inspection.json`에 보존했다
 (SHA-256 `4ebde2810d562d6fdd9cba4a8240e54989a049eb2ebdc6d356d2ce0f9f5aa994`).
 
+### 56d1d317 전체 CI 실패 대조와 native fixture·실행 시간 보정
+
+2026-11-15, 중단 뒤 source `56d1d317d06ede2c68a0601cae5300c0be47e4a5`의
+[CI 42266912162](https://github.com/progresshans/godj/actions/runs/42266912162), attempt 1을 다시 확인했다.
+2026-11-07 UTC에 failure로 종료됐으며 365개 job은 success 344개·failure 19개·skip 2개다. 의존 실패로 실행하지 못한
+전체 conformance와 독립 project 비교를 성공으로 계산하지 않는다. 실제 checkout `0fc3697a2d6060e440f6dd691e81b418c352d3e1`의
+tree `ee937daa56c18714653b77d9b325f613a09e3e44`가 제출 source와 같고 부모에 해당 source가 있음을 GitHub Git API로 대조했다.
+
+집계 job을 제외한 실패 18개의 전체 원 로그를 보존했다. SQLite arm64 normal runtime artifact `13528748296`,
+PostgreSQL race `core-postgres-2` artifact `13528814454`, Linux 양 architecture race의 일반 consumer owner 8개와
+Intel macOS race reload artifact `13530100115`를 내려받아 GitHub metadata의 archive 크기/digest와 각 파일 hash를 확인했다.
+Reload의 source JSON·13개 파일 seal도 대조했다. 원본과 진단은 검증 보관소의
+`gdj0138-56d1d317-ci-42266912162/failure-inspection.json`에 있다
+(SHA-256 `a4b33294626e26525fc454878f894faa7fcee7bf2e104bc9a1a38bb3ea871c19`). 이것은 실패 분석이며 새 변경의 PASS가 아니다.
+
+| 실제 실패 | 현행 보정과 유지한 검사 |
+|---|---|
+| SQLite 12개 runtime·PostgreSQL 세 모드에서 새 catalog root 6개가 session 생성 중 `store_failure`로 중단 | 공통 fixture는 `catalog_form_`에만 session migration을 설치하고 새 catalog root에는 설치하지 않았다. `catalog_` 전체와 후속 host migration 정의에 같은 session 소스를 포함했다. 대량 직접 소유자·합집합·자기 권한 회수·경합·세션 보존의 후속 child는 해당 실행에서 시작하지 못했으며 새 source에서 필수 실행을 확인한다. |
+| PostgreSQL 세 모드의 `catalog_form_checks` | stale 선택지 fixture가 공유 Permission을 삭제한 뒤 같은 자동 key로 `ForceInsert`해 명시적 generated-key 거부를 받았다. 이후 unordered/current-authority 검사도 삭제된 행을 참조했다. create/change별 별도 Permission을 정상 생성→Form bind→별도 연결에서 삭제하며 공유 행은 보존한다. 두 독립 진단·입력 불변·전체 native 상태·권한 회수와 최종 unique 재검사를 유지한다. |
+| 양 DB의 `delete_admin_host_lifecycle/commit` | 실제 Admin은 서명된 삭제 알림 query를 붙여 redirect하지만 fixture는 query 없는 URL만 기대했다. 정확한 로컬 목록 경로·notice/sig 단일 값만 허용하고 실제 GET에서 성공 알림을 확인한다. 동일 서명의 메시지를 바꾼 GET은 400이어야 하며, 삭제 대상의 404·credential 부재와 전체 host/session/audit 효과를 계속 확인한다. |
+| Linux amd64/arm64 race 일반 consumer shard 17 | 완료 root의 시간 합이 각각 1,999.52초/2,088.07초인 상태에서 35분 package 제한에 도달했다. 전체 일반 root 115개를 4→5개 owner로 분산한다. 기존 account root 16개의 별도 owner, runtime owner와 package/job 제한을 유지한다. |
+| Intel macOS race reload | Notes의 첫 `startproject`가 10분 동안 declaration→candidate compile→command runtime→metadata로 진행하다 한정 종료됐다. 전체 scaffold 준비 한도를 15분으로 조정하고 기존 각 flow의 25분 package, 시작·종료·취소·process 부재·output 제한을 유지한다. Article은 초기 로그인 POST가 5초 client 제한에 걸렸다. 상세 대기 원인은 원본만으로 확정하지 않았으며, production-cost 해싱을 유지한 단일 login POST에 30초 한도와 실패 경과 진단을 적용한다. 일반 요청은 5초이며 재시도하지 않는 로그인·cookie jar·CSRF·실제 race binary 검사를 유지한다. |
+
+Linux race의 원본 discovery는 두 architecture 모두 131개 root다. 변경 planner에 원본 전체 required/package 목록을 넣어
+모든 root·필수 child를 정확히 한 번, runtime package는 하나의 owner에 배정하는지 정적으로 대조했다.
+관측된 root 시간만 새 분할에 더하면 최대 1,549.40초/1,606.90초이며 이는 새 실행 시간의 보장이나 PASS가 아니다.
+미완료 root의 시간은 추정값으로 채우지 않았다. 전체 relation matrix는 247→249개이며 12개 OS/arch/mode 좌표와
+필수 실행 목록·skip/누락/중복/잘린 stream 거부 조건은 유지한다.
+
+로컬에서는 Gofmt·diff·변경 Markdown 세 파일의 상대 링크 181개와 Python CI 분할 검사 27개(34.322초)를 통과했다.
+Go compile/test·생성·DB 실행은 하지 않았다.
+새 native 본문과 signed notice·실제 PostgreSQL stale 선택지, 전체 reload flow와 후속 독립 비교의 수용은 새 source의
+원격 CI에서 확인한다. 이전에 성공한 job이나 여기서 작성한 보정만으로 현재 I1 전체 수용을 주장하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

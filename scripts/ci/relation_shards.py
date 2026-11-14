@@ -53,11 +53,11 @@ def matrix():
     for runner, goos, goarch in PLATFORMS:
         for mode in ('normal', 'race', 'cgo0'):
             # Keep ordinary consumer owners separate from the runtime owner.
-            # The selected-account consumers made both Linux race shard 3
-            # coordinates reach the cumulative 35-minute package limit. Add
-            # one consumer owner on those coordinates; retain their deadlines
-            # and discover/assign every complete root with the same algorithm.
-            count = 4 if goos == 'linux' and mode == 'race' else 3
+            # Linux race's ordinary owner accumulated 1,999.52s/2,088.07s
+            # of completed roots in CI 42266912162 before the 35m deadline.
+            # Five ordinary owners distribute those same complete roots;
+            # discovery, child ownership and all deadlines remain unchanged.
+            count = 5 if goos == 'linux' and mode == 'race' else 3
             # CI 40980880097 exhausted Linux normal (both architectures) and
             # amd64 CGO0 at 35m with a 0-22s consumer still running. Give the
             # same complete account roots independent owners in every mode;

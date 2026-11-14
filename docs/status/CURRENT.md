@@ -1,6 +1,6 @@
 # 현재 상태
 
-- 갱신: 2026-11-07
+- 갱신: 2026-11-15
 - 현재: [전체 범위 실행 계획](../EXECUTION_PLAN.md)의
   [I1 / GDJ-0138 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md)을 구현·검증 중이다.
   [PR #8](https://github.com/progresshans/godj/pull/8)과 후속 변경을
@@ -10,7 +10,8 @@
 
 ## 다음
 
-1. I1의 현재 source에서 전체 원격 CI와 필수 원본을 대조한다. 선택 계정·프로필·catalog·collection/through 관리,
+1. 확인한 native fixture·Admin 삭제 관측·누적 실행 시간 보정 뒤 I1의 현재 source에서 전체 원격 CI와 필수 원본을 대조한다.
+   선택 계정·프로필·catalog·collection/through 관리,
    공개 첫 계정 명령, 명시적 모델 전환과 native 필수 FK graph를 포함한다. 기본/custom 변형·독립 SDK·실제 browser·
    별도 process·migration/restart, 양 DB·race·CGO-disabled·전체 platform/cold-build의 요구를 유지한다.
 2. 역사 `systemstate`의 최초 선택 domain 이행·원문 보존·퇴역 runtime 차단·receipt/복구를 양 DB에서 확인한다.
