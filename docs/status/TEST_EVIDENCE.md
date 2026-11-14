@@ -5566,8 +5566,22 @@ pass 14,105개·skip 520개이며 필수 331개는 모두 정확히 한 번 실�
 같은 source의 새 로그인/재시도 본문과 상위 계정·세션 DB root를 합친 DB별 143개는
 `login-target-inventory.json`에 원문 hash와 정확한 필수 이름으로 고정했다
 (SHA-256 `7715842cd2bfdb33444b45659b01342b1a2f226dd0477142cf09ea075f0caf2f`).
-현재 PostgreSQL normal 본문은 실행 중이며 이 새 대상의 양 DB·race/CGO0·platform 전체 원본 대조와 I1 수용은
-미완료다. Core compile/필수 실행으로 이를 대신하지 않으며 로컬 Go/DB도 실행하지 않았다.
+이 core 기록 시점에 PostgreSQL normal 본문은 실행 중이었다. 아래 native 좌표와 나머지 양 DB·race/CGO0·platform
+전체 원본 대조 및 I1 수용은 구분하며 Core compile/필수 실행으로 이를 대신하지 않는다. 로컬 Go/DB도 실행하지 않았다.
+
+같은 `f6d8c0f3`의 Linux arm64 normal SQLite runtime 작업 `132585761158`은 본문·artifact 게시·clean worktree까지
+성공했다. Artifact `14132646564` (`relation-product-linux-arm64-normal-0-1`, 783,490 bytes)의 SHA-256
+`8ddfda06afb78eaf4be94adab17b2205da27a075d440c7868a3eee2a2ad8ce3f`를 GitHub metadata와 대조했고 실제 checkout/tree는
+위 core와 같다. 제출 source의 relation 4,942개→workflow 4,946개→runtime 4,563개 필수 항목을 같은 source의
+planner와 원본 consumer discovery 131개로 재구성하고 required/package/run 파일을 byte 단위로 확인했다.
+전체 68 package·run/pass 10,969개·skip 0이며 모든 필수 항목과 새 추적 대상 143개가 정확히 한 번 실행·통과했다.
+계정 store의 pass는 1,646개다. 따라서 이 좌표에서 독립 TCP 로그인 수명, 세 경로의 native 실패 prefix·현재 인가와
+경합, 실제 collision retry와 인가/LastLogin/native I/O의 entropy 모양 오류 거부까지 확인했다. 첫 로컬 대조 script가
+compile 추가 항목을 workflow 본문에서 찾으려 한 오류는 실제 `compile-required.txt` 원문을 사용하도록 고친 뒤 다시 대조했다.
+이것은 제품 테스트 실패가 아니며 실행 원본은 변경하지 않았다.
+원본·source/tree·대상별 횟수·파일 hash와 판정은 같은 보관소 `sqlite-native-verification.json`에 있다
+(SHA-256 `82f86d9c5a19ee3f5601b13b72c34a935837872c4be869d0ea16fca8b4c9975b`).
+이 결과는 뒤의 정책 이관 source나 PostgreSQL·race/CGO0·나머지 platform·I1 전체 수용을 포함하지 않는다.
 
 ### 공통 password policy 독립 기준과 선택 모델 소비자
 
