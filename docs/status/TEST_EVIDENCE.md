@@ -5836,6 +5836,58 @@ zero record/clear 결과 및 hash·verify·write 횟수를 비교한다.
 실제 새 native 본문·양 DB·race·CGO0/platform 실행은 새 source의 원격 CI에서 확인하며 로컬 Go는 실행하지 않았다.
 로컬 gofmt 9개 Go 파일·diff·245개 문서 링크 검사와 최종 목록의 Python CI owner/분할 검사 37개(157.023초)는 통과했다.
 
+Source `36b86d4f7c0410b0a16334a14d9e9bda9839285d`의
+[CI 43651171679](https://github.com/progresshans/godj/actions/runs/43651171679)에서 macOS arm64 normal 프로젝트 검사
+`132619945687`은 새 프로젝트 준비 중 모듈 검증 HTTPS의 TLS handshake timeout으로 실패했다. `go mod download all`
+prewarm 단계는 성공했지만 `TestActualGodjCreatesuperuserInterruptRestoresPTYAndDiscardsQueuedSecret`의
+프로젝트 준비가 `candidate_build_failed`로 끝났다. 해당 PTY 본문과 후속 cold external CLI build·clean worktree 단계는
+완료하지 않았으며 제품/환경 PASS로 계산하지 않는다. 검증 범위·module checksum 조건을 바꾸지 않고 후속 source에서 재확인한다.
+실제 checkout `6f9487b9e2871f8247600c40f184b50a41f6b532`의 tree `e976cadd89a53452f393232bdebedcd20b7ede89`가
+제출 source와 같음을 대조했다. 원본과 판정은 검증 보관소
+`gdj0138-36b86d4f-ci-43651171679/project-check-network-failure.json`에 보존했다
+(SHA-256 `4da0e31e6c255dfe6f8e2eb8eeb8d8055f2c5b2f7bb07893038e125680c55dfd`).
+
+### Reset 직접 서비스의 선택 owner 이관
+
+2026-11-15, source `36b86d4f` 위에서 고정 direct·boundaries·concurrency·composition 네 root의 62개 필수 항목/DB를
+선택 소비자로 옮겼다. 기존 선택 read/validation/admission/write와 source/owner 구성 검사는 유지하며 추가 네 root와
+child 39개를 필수 목록에 연결했다. 원자성·실패 분류·hash 밖 scope·현재 권한/상태 책임을 대응시킨 뒤 고정 wrapper와
+본문을 제거했다. 공개 prepared 값의 재사용/전달 및 borrowed reader의 모양은 선택 API의 계약이 아니므로 복제하지 않는다.
+해당 책임은 한 호출의 내부 준비·정확한 owner·advisory 읽기·최종 native transaction/rollback으로 검사한다.
+
+`password_reset_bindings`는 unchanged·password·same_password·LastLogin 초/마이크로초·email/대소문자·username·
+profile·inactive·unusable의 11개 native 관측을 양 DB Django 원문의 active/usable/password_changed/valid와 대조한다.
+Django와 다른 inactive 거부·LastLogin 전체 정밀도는 명시적으로 유지한다. `password_reset_clock_keys`는 시간 5개와
+잘못된 clock, 결정성·fallback 허용/제거·새 active key 발급을 확인한다. 미래 토큰 거부의 의도된 차이를 보존하며 session
+clock은 token clock과 분리한다. 이 읽기들은 hash·strength·write·entropy나 native/host 상태를 바꾸지 않아야 한다.
+
+`password_reset_configuration`은 generated host factory와 정확한 runtime owner를 사용한다. 호출자가 key bytes와
+config의 key/clock/timeout/byte limit/정책을 바꿔도 기존 owner가 자기 값을 유지해야 한다. 빈/짧은 입력은 Check/Reset에서
+직접 거부하고 hash·write가 없어야 한다. Nil advisory 확인은 strength를 실행하지 않으며 non-nil 확인과 사전/최종 정책의
+scope를 각각 0/0/1로 대조한다. 변경·같은 원문의 새 salt 두 수명에서 LastLogin 보존·공백을 포함한 원문·정확한 browser
+payload/수명·한 번의 hash·전체 native commit·재사용 무작업·재접속을 확인한다. 같은 key/clock의 재구성 owner가 발급한
+현재 토큰과 대조한 뒤 소비된 토큰을 거부하므로 key나 clock 불일치만으로 replay 거부 검사를 통과할 수 없다.
+
+`password_reset_current`의 10개는 실제 별도 연결이 hash 도중 profile/policy/password/email/LastLogin/active/usable/
+삭제 또는 token clock을 바꾼 뒤 그 writer의 전체 native/host checkpoint를 먼저 확인한다. 허용된 profile 편집은 현재
+값을 이어받으며 다른 거부는 경쟁 상태를 덮지 않아야 한다. `password_reset_concurrent`의 기존 다섯 사례도 별도 연결·
+owner·실제 entropy를 사용한다. Reset/자기 변경/관리자 변경/login/deactivate의 정확한 한 승자, hash/verify/policy/write
+횟수와 승자의 전체 행·폐기·audit·재접속을 비교한다. `password_reset_many_sessions`는 257개 대상 세션을 실제 폐기하고
+다른 계정·익명·동일 bearer의 역사 namespace·host FK를 보존하는지 전체 상태로 확인한다.
+
+고정 session/HTTP에서 계속 쓰는 `resetConfig`/`resetToken`/`assertResetCommit`의 본문은 별도 fixture로 그대로 옮겼다.
+기존 선택 nonpositive-key helper도 본문을 유지했다. Django 원문과 producer는 변경하지 않았다. 공통 loader는 기존
+Django 6.1/Python 3.14.3·8개 source digest·12개 후보 관측 외에 bindings/clock/keys/confirmed의 누락·추가 field를 검사한다.
+양 DB의 공유 관측을 비교하며 DB prefilter 차이가 있는 후보 집합을 서로 같다고 요구하지 않는다.
+
+Relation 필수 목록은 4,917→4,894, PostgreSQL은 5,955→5,932이며 고정 reset의 나머지 11개 root/211개 항목/DB를
+보존했다. 62개 전체의 책임 대응·새 39개·다른 항목의 상대 순서·세 helper 본문·원문 동일성은 검증 보관소
+`gdj0138-selected-reset-direct-migration-v1/responsibility-map.json`에 보존했다
+(SHA-256 `481384eff8db9bdeb211de1ecada02e0d33b49878a78430ae8a1c780b5fba7e7`).
+로컬 gofmt 11개 Go 파일·diff·245개 문서 링크 검사와 최종 필수 목록의 Python CI owner/분할 검사 37개(156.106초)는
+통과했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 본문의 실제 양 DB·race·CGO0·platform 실행과 원본 대조,
+남은 고정 session/HTTP 및 제품 credential 서비스의 이관은 계속 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

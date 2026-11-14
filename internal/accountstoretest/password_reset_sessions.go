@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
@@ -232,30 +233,36 @@ func passwordResetEntropy(t *testing.T, backend Backend, reopen func(*testing.T)
 }
 
 func passwordResetManySessions(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
-	f := provision(t, backend, ir.AccountExact)
-	now := joined
-	tracked := &passwordScopeOwner{Backend: backend}
-	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
-	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
-	owner := selectedResetOwner(t, configured, selectedResetConfig(t, &now))
-	credential := profileActor(t, f)
-	var prior []sessions.Record
-	for range 257 {
-		prior = append(prior, passwordSession(t, configured.manager, credential, "target-many"))
+	f := provisionSelfPassword(t, backend)
+	for len(f.targetSessions) < 257 {
+		f.targetSessions = append(f.targetSessions, passwordSession(t, f.runtime.Sessions(), f.credential, "native-batch-target"))
 	}
-	control, err := configured.manager.Create(t.Context(), map[string]string{"cart": "untouched"})
-	if err != nil {
-		t.Fatal(err)
+	owner := resetNativeOwner(t, f)
+	token := selectedResetToken(t, owner, f.target.PrincipalID)
+	previous := f.targetSessions[0]
+	before := userReferenceSnapshot(t, reopen(t))
+	entropy := f.entropy.count()
+	proof := selectedResetProof(t, owner, previous, token)
+	afterEntry := userReferenceSnapshot(t, reopen(t))
+	expected, expectedProof := resetEntryExpected(t, f, before, afterEntry, previous, f.entropy.one(t, entropy), token.Encoded())
+	if !reflect.DeepEqual(proof.Snapshot(), expectedProof.Snapshot()) {
+		t.Fatal("multi-batch reset fixture lost its exact proof")
 	}
-	proof := selectedResetProof(t, owner, prior[0], selectedResetToken(t, owner, f.user.PrincipalID))
-	hasher.hashes.Store(0)
-	tracked.writes.Store(0)
-	result, err := owner.ResetPassword(t.Context(), proof.ID(), f.user.PrincipalID, password+"-batch")
-	if err != nil || !result.ClearSession || hasher.hashes.Load() != 1 || tracked.writes.Load() != 1 || accountSessionCount(t, reopen(t)) != 1 || profileRow(t, backend, f.user.ID).Revision != 2 || len(profileHistory(t, backend, credential.Principal(), f.user.ID)) != 1 {
-		t.Fatal("multi-batch reset revocation was not one complete transition", err)
+	assertUserReferenceState(t, expected, afterEntry, f.actor.Principal())
+	f.targetSessions[0] = expectedProof
+	f.owner.hasher.hashes.Store(0)
+	f.owner.hasher.verifies.Store(0)
+	f.owner.boundary.calls = 0
+	entropy = f.entropy.count()
+	f.instant.Add(int64(time.Minute))
+	result, err := owner.ResetPassword(t.Context(), proof.ID(), f.target.PrincipalID, selfPassword)
+	if err != nil || f.owner.hasher.hashes.Load() != 1 || f.owner.hasher.verifies.Load() != 0 || f.owner.boundary.calls != 1 || f.entropy.count() != entropy {
+		t.Fatal("multi-batch reset did not remain one complete transition without new entropy", err)
 	}
-	for _, record := range append(prior, proof) {
-		accountSessionRecord(t, configured.store, record, false)
+	after := userReferenceSnapshot(t, reopen(t))
+	expected, envelope := resetFinishExpected(t, f, f.owner, afterEntry, after, expectedProof, sessions.ID{})
+	if !reflect.DeepEqual(result, envelope) {
+		t.Fatal("multi-batch self reset did not clear its current browser")
 	}
-	accountSessionRecord(t, configured.store, control, true)
+	assertUserReferenceStateAt(t, expected, after, f.credential.Principal(), f.clock(), catalogExpectedEvent{"user", f.target.ID, admin.ActionChange, []string{"encoded_password"}})
 }

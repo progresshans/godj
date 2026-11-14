@@ -224,3 +224,31 @@ func passwordResetLifecycle(t *testing.T, backend Backend, reopen func(*testing.
 		})
 	}
 }
+
+func passwordResetNonpositiveKeys(t *testing.T, backend Backend, storedKey StoredKeyFixture) {
+	f := provision(t, backend, ir.AccountExact)
+	now := joined
+	configured := passwordComposition(t, backend, &now, f.hasher, accountmodel.PasswordChangeConfig[models.User]{})
+	owner := selectedResetOwner(t, configured, selectedResetConfig(t, &now))
+	for _, key := range []int64{0, -17} {
+		t.Run(fmt.Sprintf("key_%d", key), func(t *testing.T) {
+			row := roleTarget(t, backend, f, fmt.Sprintf("reset-key-%d", key))
+			storedKey(t, backend, "user", row.ID, key)
+			(models.UserDescriptor{}).SetPrimaryKey(&row, key)
+			old := passwordSession(t, configured.manager, passwordCredential(t, f, row), "signed-key")
+			proof := selectedResetProof(t, owner, sessions.Record{}, selectedResetToken(t, owner, row.PrincipalID))
+			result, err := owner.ResetPassword(t.Context(), proof.ID(), row.PrincipalID, password+"-new")
+			if err != nil || !result.Record.ID().Valid() || result.ClearSession {
+				t.Fatal("present nonpositive reset key was lost", err)
+			}
+			stored := profileRow(t, backend, key)
+			entries := profileHistory(t, backend, passwordCredential(t, f, stored).Principal(), key)
+			if stored.Revision != 2 || stored.EncodedPassword == row.EncodedPassword || len(entries) != 1 || entries[0].ObjectID() != key {
+				t.Fatal("nonpositive reset row/audit mismatch")
+			}
+			accountSessionRecord(t, configured.store, old, false)
+			accountSessionRecord(t, configured.store, proof, false)
+			accountSessionRecord(t, configured.store, result.Record, true)
+		})
+	}
+}

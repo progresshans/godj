@@ -965,6 +965,13 @@ Django 6.1/Python 3.14.3·8개 source digest·12개 후보 관측을 확인하�
 쓰기 prefix·전체 native/host 상태·저장 전 해시/entropy를 비교하고, 258번째 대상 폐기 뒤 실패와 정상 거부/실제 충돌의
 대조군을 유지한다. 이 보강은 남은 고정 reset 소비자 이관이나 현재 source의 실제 원격 통과를 뜻하지 않는다.
 
+고정 reset 직접·경계·경합·조립 네 root의 62개 필수 항목/DB를 선택 owner에 연결했다. 기존 선택 읽기·쓰기·admission·
+설정 오류 검사에 더해 Django 양 DB 원문의 상태 11개·시간·key·완료 관측을 실제 native 행과 비교한다. 설정 사본·사전
+강도 거부·재접속·같은 원문의 새 hash·proof 재사용 거부, hash 중 별도 연결의 현재 변경과 다섯 동시 작업의 한 승자를
+전체 계정/catalog/session/audit/host 상태로 대조한다. 대량 폐기는 대상 257개와 다른 계정·익명·역사 namespace를 확인한다.
+역사 공개 prepared/borrowed API의 모양을 선택 API에 추가하지 않고 한 호출의 내부 준비·최종 native 현재 검사·원자성을
+검증한다. 남은 고정 session/HTTP의 세 helper 본문은 보존했다. 이 작성·정적 대응과 실제 원격 수용은 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

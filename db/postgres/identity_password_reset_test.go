@@ -6,21 +6,6 @@ import (
 	"github.com/progresshans/godj/internal/identitytest"
 )
 
-func TestPostgresIdentityPasswordReset(t *testing.T) {
-	identitytest.RunPasswordReset(t, openPostgresIdentityPair)
-}
-func TestPostgresIdentityPasswordResetBoundaries(t *testing.T) {
-	identitytest.RunPasswordResetBoundaries(t, openPostgresIdentityPair)
-}
-
-func TestPostgresIdentityPasswordResetConcurrency(t *testing.T) {
-	identitytest.RunPasswordResetConcurrency(t, openPostgresIdentityPair)
-}
-
-func TestPostgresIdentityPasswordResetComposition(t *testing.T) {
-	identitytest.RunPasswordResetComposition(t, openPostgresIdentityPair)
-}
-
 func TestPostgresIdentityPasswordResetSessions(t *testing.T) {
 	identitytest.RunPasswordResetSessions(t, openPostgresIdentityPair)
 }

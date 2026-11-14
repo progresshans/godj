@@ -76,11 +76,11 @@ func passwordResetMail(t *testing.T, referenceBackend string, backend Backend, r
 	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
 	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 	owner := selectedResetOwner(t, configured, selectedResetConfig(t, &now))
-	observations, err := identityreference.ResetRequests(referenceBackend)
+	reference, err := identityreference.ResetObservations(referenceBackend)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, observation := range observations {
+	for _, observation := range reference.Requests {
 		t.Run(observation.Label, func(t *testing.T) {
 			accounts := map[string]models.User{}
 			for i, input := range observation.Accounts {

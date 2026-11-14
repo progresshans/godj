@@ -147,7 +147,6 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"password_reset_session_fence", passwordResetSessionFence},
 		{"password_reset_entropy", passwordResetEntropy},
 		{"password_reset_many_sessions", passwordResetManySessions},
-		{"password_reset_concurrent", passwordResetConcurrent},
 		{"password_reset_mail", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 			passwordResetMail(t, referenceBackend, backend, reopen)
 		}},
@@ -239,6 +238,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	runSelfPasswordNative(t, open)
 	runResetMailNative(t, open)
 	runResetWriteNative(t, open)
+	runResetNativeReferences(t, open)
 	runAccountHTTP(t, open)
 	runCreationUsernamePolicy(t, referenceBackend, open)
 	runUnusableReference(t, open)

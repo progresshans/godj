@@ -1977,6 +1977,8 @@ hash·touch·cleanup·쓰기 없이 현재 proof/계정을 읽고, nil password�
 
 완료는 사전 typed 정책 뒤 DB scope 밖에서 한 번 hash하고, 이전 stamp와 같거나 unusable인 encoded 결과를 거부한다. 같은
 원문도 새 salt로 실제 변경할 수 있다. 내부 준비 값은 한 호출의 bounded collision 재시도에만 쓰이며 외부로 반환하지 않는다.
+역사 reset의 공개 `Prepare`/`ApplyIn`/`CheckTokenIn`을 선택 owner의 호환 API로 제공하지 않는다. 조립 owner가 native
+snapshot·transaction의 수명과 provisional password/session/audit를 소유하며, advisory 확인 결과를 별도 쓰기에 재사용할 수 없다.
 최종 transaction에서 현재 proof의 target/token·인증 principal/stamp 존재와 값, 계정 key/domain/서명·typed 정책을 재검사한다.
 현재 profile·grants·revision은 그대로 이어받아 Password/Revision만 갱신한다. 로그인 시각은 변경하지 않는다.
 
