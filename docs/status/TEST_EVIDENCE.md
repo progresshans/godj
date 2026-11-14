@@ -5694,6 +5694,22 @@ Relation 목록은 4,860→4,876, PostgreSQL은 5,899→5,915이며 다른 필�
 37개는 156.018초에 통과했다. Go compile/test·generate·DB/HTTP는 실행하지 않았다. 실제 새 native HTTP 본문·race·CGO0
 및 전체 환경은 새 source의 원격 CI에서 확인한다.
 
+Source `59f1cec7473b0368331f9312d9d04cac39dde375`의
+[CI 43646404828](https://github.com/progresshans/godj/actions/runs/43646404828) core normal/race/CGO0 작업
+`132605260998`/`132605260968`/`132605261017`이 남은 reset fixture의 `accountHTTP` 참조 때문에 compile에 실패했다.
+실제 checkout `3bd2af3dc1ebb1a935f028e1a7fb9057e1b17198`의 tree `00ee2fa95e2cadaa4e9742ce422606743b65f00c`가
+제출 source와 같고, 세 원본에서 같은 오류를 확인했다. Account HTTP 소비자의 직접 호출뿐 아니라 reset의 구조체
+embedding도 이관했어야 했다. 이 실행은 새 HTTP 또는 native 본문의 PASS가 아니다.
+
+Reset fixture가 기존 `identityHTTP`와 자기 runtime·manager·clock을 직접 소유하도록 수정했다. 필요한 send/current
+메서드의 본문은 이전과 같고 nonstaff setup을 실제 소비자 안으로 옮겼다. 제거한 Account HTTP owner를 복원하거나
+호환 alias를 추가하지 않았다. Reset 본문·필수 항목은 유지하고 로컬 Go는 실행하지 않았다. 포맷·diff·남은 선언/참조와
+이동한 메서드의 본문을 정적으로 확인하며 실제 compile/native 실행은 수정 source의 원격 CI에서 다시 확인한다.
+
+세 decoded job log와 source/tree·원인·수정 경계·파일 hash는 검증 보관소
+`gdj0138-59f1cec7-ci-43646404828/compile-failure-diagnosis.json`에 보존했다
+(SHA-256 `a297b054564aab5d522155780303c302437c728a080151bc6239fae42fda6b70`).
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -30,7 +31,10 @@ import (
 const resetConsumerPassword = "  replacement reset consumer password  "
 
 type resetAccountHTTP struct {
-	*accountHTTP
+	*identityHTTP
+	runtime     *systemstate.Runtime
+	manager     *sessions.Manager
+	now         atomic.Int64
 	persistence *systemstate.PasswordResetPersistence
 	reports     atomic.Int64
 	reportHook  func(error)
@@ -38,7 +42,7 @@ type resetAccountHTTP struct {
 
 func newResetAccountHTTP(t *testing.T, f *managementFixture, backend TransitionBackend, sender mail.Sender) *resetAccountHTTP {
 	t.Helper()
-	h := &resetAccountHTTP{accountHTTP: &accountHTTP{}}
+	h := &resetAccountHTTP{}
 	h.now.Store(loginInstant.UnixNano())
 	clock := func() time.Time { return time.Unix(0, h.now.Load()).UTC() }
 	var err error
@@ -103,6 +107,51 @@ func newResetAccountHTTP(t *testing.T, f *managementFixture, backend TransitionB
 	f.hasher.calls.Store(0)
 	return h
 }
+func (h *resetAccountHTTP) send(t *testing.T, client *http.Client, method, path, body, media string, headers http.Header) (*http.Response, string) {
+	t.Helper()
+	request, err := http.NewRequest(method, h.server.URL+path, strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Header = headers.Clone()
+	if request.Header == nil {
+		request.Header = make(http.Header)
+	}
+	if media != "" {
+		request.Header.Set("Content-Type", media)
+	}
+	response, err := client.Do(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := io.ReadAll(response.Body)
+	closeErr := response.Body.Close()
+	if err != nil || closeErr != nil {
+		t.Fatal(err, closeErr)
+	}
+	return response, string(data)
+}
+
+func (h *resetAccountHTTP) current(t *testing.T, client *http.Client) sessions.Record {
+	t.Helper()
+	base, _ := url.Parse(h.server.URL)
+	for _, cookie := range client.Jar.Cookies(base) {
+		if cookie.Name != sessionauth.DefaultSessionCookieName {
+			continue
+		}
+		id, err := sessions.ParseID(cookie.Value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		record, found, err := h.runtime.SessionStore().Load(t.Context(), id)
+		if err != nil || !found {
+			t.Fatal("cookie has no committed session", err)
+		}
+		return record
+	}
+	t.Fatal("no current cookie")
+	return sessions.Record{}
+}
 func resetConsumerHeaders(t *testing.T, response *http.Response) {
 	t.Helper()
 	if response.Header.Get("Cache-Control") != "no-store" || response.Header.Get("Referrer-Policy") != "no-referrer" || response.Header.Get("WWW-Authenticate") != "" {
@@ -164,7 +213,9 @@ func RunPasswordResetConsumer(t *testing.T, open func(*testing.T) (TransitionBac
 			t.Run(surface+"/"+mode, func(t *testing.T) {
 				backend, other := open(t)
 				f := newManagementFixture(t, backend, 7)
-				ordinaryAccount(t, f)
+				if _, err := models.UserObjects.Patch(t.Context(), f.backend, f.user, models.UserPatch{}.WithStaff(false)); err != nil {
+					t.Fatal(err)
+				}
 				memory := resetMemory(t)
 				h := newResetAccountHTTP(t, f, backend, memory)
 				previous := resetPrevious(t, h.runtime, h.manager, mode, f.user.PrincipalID)
