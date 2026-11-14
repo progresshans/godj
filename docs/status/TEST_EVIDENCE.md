@@ -5613,6 +5613,25 @@ Portable core는 331→490, relation은 4,942→4,826이며 PostgreSQL 목록 5,
 Python 검사 29개가 53.261초에 통과했고 Markdown 245개 문서의 링크를 확인했다. 로컬 Go compile/test·generate·DB/HTTP는
 실행하지 않았다. 새 source의 core·선택 모델 본문과 역사 소비자·전체 환경 실행은 원격 확인 대상이다.
 
+정책 이관 `38d0656c`와 선행 로그인 SQLite 기록을 포함한 source
+`07be959183883a995f1957b038d048d30d7f76c6`의
+[CI 43642609972](https://github.com/progresshans/godj/actions/runs/43642609972) attempt 1에서 core normal/race/CGO0
+작업 `132593464194`/`132593464186`/`132593464189`이 모두 성공했다. 실제 checkout
+`fac2896d3e053b4e003e5a9152da05e0379f0e6e`의 tree `6c50eb02288e0189a246eb48399e0f1bf6546a65`가 제출 source와
+같음을 확인했다. 각 artifact의 GitHub digest·run/attempt/head·원본 event·필수 원문·command/package·clean worktree와
+empty stderr를 대조했다. 각 mode는 141 package·run 14,784개·pass 14,264개·skip 520개이며, 필수 490개와 그 안의
+공통 정책 161개는 모두 정확히 한 번 실행·통과했다. 156개 원문 사례·16,245개 matrix·58,920개 사전 변형과 구성/사본/동시
+호출을 포함하며 범위 밖 skip을 native DB 성공으로 계산하지 않는다.
+
+원본·각 파일 hash·metadata·source/tree와 판정은 검증 보관소
+`gdj0138-07be9591-ci-43642609972/core-progress.json`에 있다
+(SHA-256 `4bdbeb8aaebdf4acf82247d4e217c4dcd914ec0387ff638617cf50f85bec7351`).
+공통 정책 161개와 새/기존 선택 정책 56개의 source-bound 필수 목록은 같은 보관소
+`password-policy-target-inventory.json`에 있다
+(SHA-256 `017ef383c9feb32ba84e46d9d215f02b2b794fabc6f0e3ab70f36f95f4f68c85`).
+이 core 근거로 선택 정책의 실제 56개 본문·역사 password/reset의 native/HTTP·전체 platform/cold-build 또는
+I1-01~08 수용을 대신하지 않는다. 해당 현재 source의 실행과 원본 대조는 계속 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
