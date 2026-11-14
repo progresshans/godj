@@ -883,12 +883,19 @@ TEST_EVIDENCE에서 구분하며 이 소비자 이관만으로 고정 사용자 
 실제 session/audit 쓰기 뒤 rollback, 실제 관계 삭제 뒤 outer rollback·만료 scope와 commit 결과 불명을 관측한다.
 Hash 중 독립 연결의 권한 회수, 두 생성 요청의 실제 hash barrier와 단일 candidate 재사용 경합, 편집의 한 승자와
 256/257 합집합 경계를 유지한다. 빠진 음수 key와 실제 0/음수 저장 key의 지원을 구분하며 입력/저장 한도와 Form 정책은
-현행 계약을 따른다. 로그인·username·unusable·비밀번호 정책의 고정 소비자와 필요한 helper는 남긴다. 이 코드·필수 목록의
+현행 계약을 따른다. 로그인·unusable·비밀번호 정책의 고정 소비자와 필요한 helper는 남긴다. 이 코드·필수 목록의
 원격 본문 실행 및 I1 전체 수용은 미완료이며, 선행 HTTP accessor compile 수정의 core 확인과 구분한다.
 
 실제 SQLite 실행에서 발견한 공통 fixture의 세션 schema 누락과 audit 주입 scope의 conflict-insert capability 손실을
 보정했다. 표준 fixture는 이름과 무관하게 전체 계정 runtime schema를 갖추며, 관계 쓰기 probe는 필요한 native 기능을
 보존하고 의도한 실제 audit INSERT를 확인한다. 실패 원본과 수정 source의 후속 실행은 TEST_EVIDENCE에서 구분한다.
+
+Username 중복의 독립 Django 11개 관측과 선택적 대소문자 정책을 선택 `Runtime` 생성 owner로 옮겼다. 같은 입력으로
+정책 사용/미사용을 비교하고 정확한 로그인 구분을 유지한다. Hash 중 독립 연결의 중복 유입과 두 대소문자 후보의 실제
+hash barrier/commit 경합, 인가 선행·조회/cleanup/audit 실패·결과 불명과 candidate 소모를 대조한다. 일반 관측은
+host·다른 계정·익명 세션을 포함한 14개 테이블, 경합은 전체 native 열 테이블과 정확한 audit를 확인한다.
+원문·producer·기본 Form 150자/별도 IR 저장 정책은 유지하며 해당 고정 root·전용 fault helper만 제거했다.
+필수 목록 연결과 정적 확인은 완료했고 실제 양 DB·race·CGO-disabled 본문은 현재 source의 원격 확인 대상이다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

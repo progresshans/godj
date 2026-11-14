@@ -239,6 +239,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	}
 	runCatalogMutationOutcomes(t, open)
 	runUserManagementReferences(t, referenceBackend, open)
+	runCreationUsernamePolicy(t, referenceBackend, open)
 	runUserHostDeletion(t, open)
 	runStartupSchemaRequired(t, open)
 	runAccountDeletion(t, open, storedKey)

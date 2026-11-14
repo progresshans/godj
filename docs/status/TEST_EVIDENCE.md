@@ -5337,6 +5337,45 @@ PostgreSQL 5,809→5,800이다. 로컬 Go compile/test·generate·DB 본문은 �
 새 본문·양 DB·race·CGO-disabled·전체 platform/cold-build의
 실행은 후속 source의 전체 원격 CI에서 확인하며 I1은 미완료다.
 
+후속 source `a322408b7205fcd89cba14d6d23cb20c8fe072ad`의
+[CI 43629943013](https://github.com/progresshans/godj/actions/runs/43629943013) attempt 1에서 core
+normal/race/CGO0 작업 `132554363229`/`132554363198`/`132554363207`이 성공했다. 실제 checkout
+`c84acfc5826675f3e311d828fefe47c21f0de4d1`과 제출 source의 tree
+`c2e811fa18abfeda772a5d12adc5408aeca78849` 일치를 확인했다. 각 runner는 141 package·필수 331개·
+run 14,700개·이 owner의 범위 밖 skip 593개를 보고했다. 전체 raw log와 source/요약/해시는 검증 보관소의
+`gdj0138-a322408b-ci-43629943013/core-progress.json`에 연결했다
+(SHA-256 `5df5e3607c528524d23c3a5e46410e93ebac1352d99ac024f129b4f04d0014ba`).
+확인 당시 전체는 28 success / 40 running / 296 queued이며 native DB와 전체 CI 수용은 미확인이다.
+이 core 결과를 아래 새 username 소비자나 native fixture 수정 본문의 PASS로 사용하지 않는다.
+
+### Username 중복 정책의 선택 생성 owner 이관
+
+2026-11-15, `a322408b` 위에서 `IdentityCreationUsernamePolicy`의 검증 책임을 선택 생성 owner로 옮겼다.
+선택 `creation_username_policy`는 실제 host project의 `NewAccountRuntime`과 명시적 정책을 사용한다.
+기존 `iexacttest.CreationReference`의 SQLite/PostgreSQL 11개 입력·독립 Django 결과·producer·mutation control은
+변경하지 않았다. 고정 Form 문법·150자 입력 한도와 custom IR의 저장/정규화 정책은 이 중복 정책과 구분한다.
+
+| 이전 검증 책임 | 선택 소비자와 확인 내용 |
+|---|---|
+| 11개 독립 생성 관측 | `creation_username_policy/reference_00`~`reference_10`. 기존 저장 spelling·accepted·정규화된 username·오류 code 전체를 원문과 비교한다. 성공은 실제 hash 1회·쓰기 owner 1회·정확한 행/audit와 인증, 거부는 빈 candidate·무 hash/쓰기·전체 무변경을 요구한다. |
+| 선택적 정책과 로그인 구분 | `optional_policy_and_exact_login`. 동일한 ModelInput을 정책 사용/미사용 owner에 전달하며 `member`/`MEMBER`의 각 비밀번호는 해당 계정만 인증하고 `Member`는 거부한다. |
+| Hash 중 중복 유입 | `duplicate_during_hash`. DB scope 밖 실제 hash callback 안에서 독립 연결로 `RACE`를 저장하고 `race`의 최종 저장을 `unique`로 거부한다. 경쟁자가 요청한 행 외 전체 상태 보존과 candidate 재사용 거부·단일 hash/쓰기 시도를 확인한다. |
+| 대소문자 생성 경합 | `creation_concurrent_writes/case_variants`. 두 native 연결과 두 실제 hash barrier 뒤 commit하여 정확한 `unique` 패자와 한 승자를 요구한다. 준비/commit 전체 20초 제한·취소·worker 종료와 전체 native 행/audit 대조를 유지한다. |
+| 인가·읽기 정리 실패 | `denied_before_duplicate_lookup`, `duplicate_cleanup_failure`. 실제 무권한 actor는 IExact 조회 전에 거부하고, duplicate를 읽은 뒤 cleanup 실패는 validation으로 게시하지 않는다. 빈 결과·무 hash/쓰기·원인·전체 상태를 비교한다. |
+| 사전/최종 IExact 조회 실패 | `lookup_failure_read`, `lookup_failure_write`. 현재 인가 뒤 정확한 조회만 실패시키며 native scope·관계·conflict-insert 기능을 보존한다. 한 번의 주입·hash 0/1회·쓰기 0/1회·원인 연결/비공개·빈 결과와 전체 무변경을 확인한다. |
+| Audit 실패·commit 결과 불명 | `audit_failure`, `unknown_commit`. 실제 user/audit INSERT 이후 rollback과 실제 commit 후 acknowledgement 실패를 구분한다. 결과를 게시하지 않고 candidate를 소모하며, 정확한 전체 rollback 또는 요청 행/audit만 남은 상태와 재시도 거부를 비교한다. |
+
+관측/실패 fixture는 보호된 무관 host graph, 기존 계정·actor·익명 세션 각 세 개를 포함한다. 14개 테이블의 전체
+scalar/catalog/through/domain/audit/host/session 원문을 대조하고, 경합은 기존 전체 native 열 테이블 oracle을 공유한다.
+현재 인가·저장/cleanup·해싱의 실제 소비자를 유지하며 고정 username 테스트 root와 더 이상 호출되지 않는 전용 helper만
+제거했다. 로그인·unusable·비밀번호 정책과 필요한 고정 서비스/host helper는 남아 있다.
+
+양 DB 필수 목록에서 고정 root/child 20개씩을 선택 root/child 21개씩으로 옮겼다. 다른 항목과 상대 순서는 보존하며
+전체 목록은 relation 4,877→4,878, PostgreSQL 5,800→5,801이다. 로컬 Go compile/test·generate·DB 본문은 실행하지 않았다.
+포맷·diff·호출/import·정확한 selector 차이와 변경 문서 세 개의 상대 링크 181개를 확인했다.
+최종 필수 목록의 Python CI 분할 검사 27개는 33.228초에 통과했다.
+새 본문·양 DB·race·CGO-disabled·전체 platform/cold-build의 실제 실행과 I1 수용은 현재 source의 전체 원격 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

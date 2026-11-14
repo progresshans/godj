@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/progresshans/godj/internal/identitytest"
 	"github.com/progresshans/godj/internal/iexacttest"
 	"github.com/progresshans/godj/query"
 )
@@ -33,16 +32,4 @@ func TestPostgresIExactMatchesDjango(t *testing.T) {
 		}
 	}
 	iexacttest.RunQueries(t, backend, "postgres")
-}
-
-func TestPostgresIdentityCreationUsernamePolicy(t *testing.T) {
-	url := postgresIntegrationURL(t)
-	identitytest.RunCreationUsernamePolicy(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
-		namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
-		first := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-		second := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-		first.database.SetMaxOpenConns(1)
-		second.database.SetMaxOpenConns(1)
-		return first, second
-	}, "postgres")
 }

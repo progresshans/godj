@@ -14,24 +14,31 @@ import (
 	"github.com/progresshans/godj/admin"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/schema/ir"
-	"github.com/progresshans/godj/validation"
 )
 
 func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
-	for _, mode := range []string{"same_login", "same_candidate"} {
+	for _, mode := range []string{"same_login", "same_candidate", "case_variants"} {
 		t.Run(mode, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 20*time.Second)
+			defer cancel()
 			creators := make([]*accountmodel.Creator[models.User], 2)
 			hashers := make([]*passwordChangeHasher, 2)
 			encoded := make([]atomic.Value, 2)
 			principals := make([]string, 2)
+			logins := []string{"concurrent-" + mode, "concurrent-" + mode}
+			if mode == "case_variants" {
+				logins = []string{"case-variant", "CASE-VARIANT"}
+			}
 			for i, storage := range []Backend{backend, reopen(t)} {
 				tracked := &creationOwner{Backend: storage}
 				principals[i] = fmt.Sprintf("creation-race-%s-%d", mode, i)
 				principal := principals[i]
 				config := creationConfig()
+				config.CaseInsensitiveLogin = mode == "case_variants"
 				config.PrincipalID = func(context.Context) (string, error) { return principal, nil }
 				hashers[i] = &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes, encode: func(ctx context.Context, raw string) (string, error) {
 					value, err := f.hasher.Hash(ctx, raw)
@@ -45,16 +52,15 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 			before := accountNativeSnapshot(t, reopen(t))
 			candidates := make([]accountmodel.PreparedCreation[models.User], 2)
 			wantHashes := int64(1)
-			input := creationInput(t, "concurrent-"+mode)
+			inputs := []orm.ModelInput[models.User]{creationInput(t, logins[0]), creationInput(t, logins[1])}
 			if mode == "same_candidate" {
-				first, err := creators[0].Prepare(t.Context(), actor, input, password)
+				first, err := creators[0].Prepare(ctx, actor, inputs[0], password)
 				if err != nil {
 					t.Fatal(err)
 				}
 				candidates[0], candidates[1], creators[1] = first, first, creators[0]
 			} else {
 				wantHashes = 2
-				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 				arrived, release := make(chan struct{}, 2), make(chan struct{})
 				var once sync.Once
 				unblock := func() { once.Do(func() { close(release) }) }
@@ -79,7 +85,7 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 					workers.Add(1)
 					go func() {
 						defer workers.Done()
-						candidate, err := creators[i].Prepare(ctx, actor, input, password)
+						candidate, err := creators[i].Prepare(ctx, actor, inputs[i], password)
 						done <- preparation{i, candidate, err}
 					}()
 				}
@@ -116,10 +122,14 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 				err    error
 			}
 			start, done := make(chan struct{}), make(chan outcome, 2)
+			var commits sync.WaitGroup
+			defer func() { cancel(); commits.Wait() }()
 			for i := range 2 {
+				commits.Add(1)
 				go func() {
+					defer commits.Done()
 					<-start
-					result, err := creators[i].Commit(t.Context(), actor, candidates[i])
+					result, err := creators[i].Commit(ctx, actor, candidates[i])
 					done <- outcome{i, result, err}
 				}()
 			}
@@ -127,7 +137,12 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 			successes, rejections := 0, 0
 			var winner outcome
 			for range 2 {
-				out := <-done
+				var out outcome
+				select {
+				case out = <-done:
+				case <-ctx.Done():
+					t.Fatal("concurrent creation did not finish inside its deadline", ctx.Err())
+				}
 				if out.err == nil {
 					successes++
 					winner = out
@@ -142,12 +157,13 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 						if !errors.Is(out.err, &accountmodel.Error{Code: accountmodel.CodeConflict}) {
 							t.Fatal(out.err)
 						}
-					} else if diagnostics, rejected := validation.Rejected(out.err); !rejected || diagnostics.ByField("username").Empty() {
-						t.Fatal("duplicate race bypassed final validation", out.err)
+					} else {
+						usernameUnique(t, out.err)
 					}
 					rejections++
 				}
 			}
+			commits.Wait()
 			if successes != 1 || rejections != 1 || hashers[0].hashes.Load()+hashers[1].hashes.Load() != wantHashes {
 				t.Fatal("creation race did not have one winner or repeated hashing")
 			}
@@ -158,7 +174,7 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 			if mode == "same_candidate" {
 				origin = 0
 			}
-			expected := userReferenceExpectedRow(winner.result.ID, "concurrent-"+mode, "", encoded[origin].Load().(string))
+			expected := userReferenceExpectedRow(winner.result.ID, logins[origin], "", encoded[origin].Load().(string))
 			expected.PrincipalID = principals[origin]
 			userReferenceReplace(&before, expected)
 			assertCatalogRows(t, before, accountNativeSnapshot(t, reopen(t)), actor, catalogExpectedEvent{"user", expected.ID, admin.ActionAdd, userReferenceCreationFields})

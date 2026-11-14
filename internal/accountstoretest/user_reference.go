@@ -112,7 +112,7 @@ type userReferenceFixture struct {
 	encoded atomic.Value
 }
 
-func userReferenceRuntime(t *testing.T, backend Backend, hasher auth.PasswordHasher) *accountmodel.Runtime[models.User, models.Group, models.Permission] {
+func userReferenceConfig(t *testing.T) accountmodel.RuntimeConfig[models.User, models.Group, models.Permission] {
 	t.Helper()
 	config, err := hostaccounts.Policy()
 	if err != nil {
@@ -122,6 +122,12 @@ func userReferenceRuntime(t *testing.T, backend Backend, hasher auth.PasswordHas
 	config.Catalog.Now = config.Accounts.Now
 	config.Sessions.Clock = config.Accounts.Now
 	config.Accounts.PrincipalID = func(context.Context) (string, error) { return "reference-created", nil }
+	return config
+}
+
+func userReferenceRuntime(t *testing.T, backend Backend, hasher auth.PasswordHasher) *accountmodel.Runtime[models.User, models.Group, models.Permission] {
+	t.Helper()
+	config := userReferenceConfig(t)
 	runtime, err := hostproject.NewAccountRuntime(t.Context(), backend, hasher, auth.PrincipalAuthorizer{}, config)
 	if err != nil {
 		t.Fatal(err)

@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/progresshans/godj/internal/identitytest"
 	"github.com/progresshans/godj/internal/iexacttest"
 	"github.com/progresshans/godj/query"
 )
@@ -38,8 +37,4 @@ func TestSQLiteIExactMatchesDjango(t *testing.T) {
 		}
 	}
 	iexacttest.RunQueries(t, backend, "sqlite")
-}
-
-func TestSQLiteIdentityCreationUsernamePolicy(t *testing.T) {
-	identitytest.RunCreationUsernamePolicy(t, openSQLiteIdentityPair, "sqlite")
 }

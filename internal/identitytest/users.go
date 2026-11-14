@@ -1,19 +1,14 @@
 package identitytest
 
 import (
-	"context"
-	"errors"
 	"testing"
 
-	"github.com/progresshans/godj/admin"
 	hostdef "github.com/progresshans/godj/conformance/identityfixture/modeldef"
 	hostproject "github.com/progresshans/godj/conformance/identityfixture/project"
-	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/systemstate"
 )
 
@@ -64,32 +59,4 @@ func managementUserSelections(t *testing.T, f *managementFixture) (models.Group,
 		}
 	}
 	return group, view, change
-}
-
-type userManagementBoundary struct {
-	identity.ManagementBackend
-	mode          string
-	calls, faults int
-}
-
-func (b *userManagementBoundary) CoordinatedAtomicRelation(ctx context.Context, callback func(db.RelationSession) error) error {
-	b.calls++
-	owner, ok := b.ManagementBackend.(db.CoordinatedRelationAtomic)
-	if !ok {
-		return errors.New("missing native relation owner")
-	}
-	if err := owner.CoordinatedAtomicRelation(ctx, callback); err != nil {
-		return err
-	}
-	if b.mode == "unknown_commit" {
-		return &query.Error{Code: query.CodeCommitOutcomeUnknown, Detail: "private-user-management-fault"}
-	}
-	return nil
-}
-func (b *userManagementBoundary) AppendAudit(ctx context.Context, session db.Session, event admin.PreparedEvent) error {
-	if b.mode == "audit_failure" {
-		b.faults++
-		return errors.New("private-user-management-fault")
-	}
-	return b.ManagementBackend.AppendAudit(ctx, session, event)
 }
