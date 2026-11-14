@@ -5119,6 +5119,36 @@ Go compile/test·생성·DB 실행은 하지 않았다.
 새 native 본문과 signed notice·실제 PostgreSQL stale 선택지, 전체 reload flow와 후속 독립 비교의 수용은 새 source의
 원격 CI에서 확인한다. 이전에 성공한 job이나 여기서 작성한 보정만으로 현재 I1 전체 수용을 주장하지 않는다.
 
+### 선택 Catalog의 독립 lifecycle·admission 관측 이관
+
+2026-11-15, `2993e102854a22b76c0594e6ab66a9503cf5bec2` 위에서 고정 Manager의 catalog lifecycle/admission
+소비자를 선택 `CatalogResource`·생성 `AccountEditor`/`ProfileReader`·credential/session owner로 옮겼다.
+`catalog-django61-{sqlite,postgres}.json`의 원문, 독립 Python producer와 세 mutation control은 변경하지 않았다.
+각 native DB는 대응하는 Django 6.1/Python 3.14.3 capture의 backend·세 source digest·일곱 관측 항목을 확인한다.
+이관은 현재 제품의 의미를 독립 원문에 연결하는 작업이며 새 본문의 실행 PASS가 아니다.
+
+| 옛 Manager 소비자 | 현행 선택 owner의 필수 소비자 |
+|---|---|
+| `lifecycle_matches_reference_and_host_relations` | `AccountCredentialStore/catalog_native_reference`와 `group_created`, `group_edited`, `permission_renamed`, `rollback`, `permission_deleted`, `group_deleted`, `reopen` child. 실제 입력·반환 collection 사본, 중복 정규화, held/fresh 권한, 선택 AccountEditor 소속 변경·ProfileReader 읽기, group/permission no-op과 stale owner 거부를 확인한다. 두 실제 audit INSERT 뒤 실패의 전체 rollback, host CASCADE/SET_NULL과 직접 owner revision, credential/session 보존 및 생성 authenticator의 재접속을 포함한다. |
+| `current_permission_admission_matches_django`와 Group/Permission × none/view/add/change/delete 열 child | `AccountCredentialStore/catalog_native_admission`과 같은 열 조합. 실제 DB에서 관측한 과거 superuser/모든 권한을 가진 actor를 유지한 채 다른 연결에서 superuser를 회수하고 현재 grant 하나만 부여한다. 상세/목록의 view-or-change, 생성·no-op 수정·삭제를 호출해 독립 원문과 대조한다. 거부 시 빈 결과와 전체 native 상태, 성공 시 요청한 한 행·정확한 audit 외의 보존을 확인한다. |
+
+Host fixture는 기존 전체 schema와 역할 binding을 공유하며 고정 systemstate runtime을 열지 않는다. 기존 열 개 account
+테이블 관측을 같은 scope의 typed 행 읽기로 추출하고, 새 host 관측은 같은 native snapshot에서 AccessNote/AccessGuard도
+함께 읽는다. 수정·no-op·rollback·삭제의 예상 상태는 앞선 행과 명시한 요청 효과로 계산한다. 새 감사의 domain·actor·model·
+object·action·field·시각과 역사 prefix를 대조하며 host·session·domain/mapping의 다른 변경은 허용하지 않는다.
+기존 host PROTECT·인가 오류·read/write scope·cleanup·unknown/취소·모든 mutation 실패 검사는 각 현행 owner에 유지한다.
+기본 User의 고정 Manager와 역사 Directory/password/login runtime 자체를 제거하거나 새 경로의 호환 wrapper로 바꾸지 않았다.
+
+DB별 옛 root/child 12개를 선택 root/child 19개로 교체했다. 나머지 selector와 상대 순서는 그대로다
+(relation 4,710→4,717, PostgreSQL 5,633→5,640). 새 native 필수 실행 38개와 기존 독립 producer/mutation 실행은 원격에서
+확인한다. 원문 두 개와 producer/control 두 파일의 bytes가 직전 source와 같은지도 정적으로 대조했다.
+
+로컬 Gofmt·diff·변경 Markdown 세 파일의 상대 링크 181개와 Python CI 분할 검사 27개(33.942초)를 통과했다.
+Go compile/test·생성·DB 실행은 하지 않았다.
+선행 `2993e102`의 [CI 43615876432](https://github.com/progresshans/godj/actions/runs/43615876432)는 이관 작업 중 진행 중이며,
+그 결과는 후속 source나 새 독립 소비자의 수용 근거가 아니다. 선택 모델의 양 DB·race·CGO-disabled·전체 platform/cold-build,
+독립 생성 앱·browser/process와 남은 고정 서비스 이관을 포함한 I1-01~08 수용은 계속 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -20,7 +20,8 @@ import (
 	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+func provisionCatalogHost(t *testing.T, backend Backend) *catalogFixture {
+	t.Helper()
 	local, err := hostdef.Schema()
 	if err != nil {
 		t.Fatal(err)
@@ -47,7 +48,7 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 	// The role's durable domain is initialized against the complete host
 	// source, exactly like the subsequently composed relation capabilities.
 	f := provision(t, backend, ir.AccountExact, local)
-	credential, _ := catalogAuthority(t, backend, f)
+	credential, grants := catalogAuthority(t, backend, f)
 	collections, err := hostproject.BindCollections()
 	if err != nil {
 		t.Fatal(err)
@@ -64,7 +65,12 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 	if err != nil {
 		t.Fatal(err)
 	}
-	actor := credential.Principal()
+	return &catalogFixture{account: f, credential: credential, catalog: catalog, grants: grants}
+}
+
+func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+	owner := provisionCatalogHost(t, backend)
+	f, catalog, actor := owner.account, owner.catalog, owner.credential.Principal()
 	permission, err := catalog.Permissions().Create(t.Context(), actor, catalogPermissionInput(t, map[string]query.Value{"code": query.String("host.catalog"), "name": query.String("Host catalog")}))
 	if err != nil {
 		t.Fatal(err)

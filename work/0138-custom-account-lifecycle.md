@@ -848,6 +848,10 @@ TEST_EVIDENCE에서 구분한다.
 Admin 삭제는 실제 서명된 성공 알림·위조 메시지 거부·삭제 후 상태를 함께 관측한다. 누적 consumer 실행은 전체 root/child
 소유권을 유지해 분산하며 reload의 준비와 단일 로그인 한도도 구분한다. 보정 작성과 새 source의 환경별 수용은 별도다.
 
+Catalog의 독립 Django lifecycle/admission도 선택 Catalog·AccountEditor·ProfileReader와 credential/session 소비자로
+옮겼다. 원문·producer·mutation control은 그대로 유지하며 host 관계·현재 권한 회수·no-op·rollback·stale owner·재접속과
+전체 native 상태를 대조한다. 고정 Manager의 나머지 실패/경계 소비자와 역사 runtime은 남아 있으며 실제 수용은 TEST_EVIDENCE를 따른다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

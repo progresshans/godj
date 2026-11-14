@@ -64,6 +64,11 @@ func catalogExpectedGrantAdditions(t *testing.T, before, after []models.GroupPer
 func assertCatalogState(t *testing.T, backend Backend, expected accountNativeState, actor auth.Principal, events ...catalogExpectedEvent) {
 	t.Helper()
 	actual := accountNativeSnapshot(t, backend)
+	assertCatalogRows(t, expected, actual, actor, events...)
+}
+
+func assertCatalogRows(t *testing.T, expected, actual accountNativeState, actor auth.Principal, events ...catalogExpectedEvent) {
+	t.Helper()
 	old := len(expected.audits)
 	if len(actual.audits) != old+len(events) || old > 0 && !reflect.DeepEqual(expected.audits, actual.audits[:old]) {
 		t.Fatal("catalog mutation changed historical audit or added an unexpected event")

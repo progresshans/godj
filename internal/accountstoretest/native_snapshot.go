@@ -35,22 +35,27 @@ func accountNativeSnapshot(t *testing.T, backend Backend) accountNativeState {
 		if visits != 1 {
 			return errors.New("account observation repeated its native callback")
 		}
-		state = accountNativeState{
-			users:       deletionRows(t, scope, models.UserObjects),
-			groups:      deletionRows(t, scope, models.GroupObjects),
-			permissions: deletionRows(t, scope, models.PermissionObjects),
-			memberships: deletionRows(t, scope, models.UserGroupsLinkObjects),
-			direct:      deletionRows(t, scope, models.UserPermissionsLinkObjects),
-			grants:      deletionRows(t, scope, models.GroupPermissionsLinkObjects),
-			sessions:    deletionRows(t, scope, sessionmodels.SessionObjects),
-			audits:      deletionRows(t, scope, auditmodels.EventObjects),
-			domains:     deletionRows(t, scope, domainmodels.TransitionObjects),
-			mappings:    deletionRows(t, scope, domainmodels.MappingObjects),
-		}
+		state = accountNativeRows(t, scope)
 		return nil
 	})
 	if err != nil || visits != 1 {
 		t.Fatal("native account observation did not complete", err, visits)
 	}
 	return state
+}
+
+func accountNativeRows(t *testing.T, scope db.Queryer) accountNativeState {
+	t.Helper()
+	return accountNativeState{
+		users:       deletionRows(t, scope, models.UserObjects),
+		groups:      deletionRows(t, scope, models.GroupObjects),
+		permissions: deletionRows(t, scope, models.PermissionObjects),
+		memberships: deletionRows(t, scope, models.UserGroupsLinkObjects),
+		direct:      deletionRows(t, scope, models.UserPermissionsLinkObjects),
+		grants:      deletionRows(t, scope, models.GroupPermissionsLinkObjects),
+		sessions:    deletionRows(t, scope, sessionmodels.SessionObjects),
+		audits:      deletionRows(t, scope, auditmodels.EventObjects),
+		domains:     deletionRows(t, scope, domainmodels.TransitionObjects),
+		mappings:    deletionRows(t, scope, domainmodels.MappingObjects),
+	}
 }

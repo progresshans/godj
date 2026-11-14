@@ -99,6 +99,12 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"profile_read_coherent_page", profileReadCoherentPage},
 		{"profile_read_target_integrity", profileReadTargetIntegrity},
 		{"catalog_crud", catalogCRUD},
+		{"catalog_native_reference", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+			selectedCatalogReference(t, referenceBackend, backend, reopen)
+		}},
+		{"catalog_native_admission", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+			selectedCatalogAdmissionReference(t, referenceBackend, backend, reopen)
+		}},
 		{"catalog_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 			catalogNonpositiveKeys(t, backend, storedKey)
 		}},
