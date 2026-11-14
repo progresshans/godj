@@ -106,5 +106,6 @@ Unknown outcome은 503 `outcome_unknown`이며 Retry-After나 자동 재시도�
 
 필수 파일을 공급하는 생성은 `Creator.CreateForm`과 Admin multipart 경로를 사용한다. 파일을 생략한 JSON 생성은 필수 입력
 거부이며 문자열 이름을 업로드로 취급하지 않는다. 첫 계정의 typed Form owner도 별도 명시적 operation ID를 받는다.
-고정 User 전용 JSON application은 제거했으며 기본 계정도 위 선택 owner를 사용한다. 남은 Directory/Manager·Admin host 교체와
+고정 User 전용 JSON application과 Manager의 catalog CRUD·Form 검사·choice API는 제거했으며 기본 계정/catalog도 위 선택 owner를 사용한다.
+남은 Directory/Manager의 사용자·credential 서비스 이관과
 공개 첫 명령·파일/추가 M2M·채운 DB 전환·복구의 같은 source 전체 환경 수용은 I1에서 추적한다.

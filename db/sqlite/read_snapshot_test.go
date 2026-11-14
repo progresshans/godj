@@ -167,7 +167,3 @@ func openSQLiteIdentityPair(t *testing.T) (identitytest.TransitionBackend, ident
 	second.database.SetMaxOpenConns(1)
 	return first, second
 }
-
-func TestSQLiteIdentityCatalogManagement(t *testing.T) {
-	identitytest.RunCatalogManagement(t, openSQLiteIdentityPair)
-}

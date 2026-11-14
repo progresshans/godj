@@ -26,6 +26,18 @@ import (
 )
 
 var handoffFailure = errors.New("private handoff boundary failure")
+
+func handoffRows[T any](t *testing.T, objects interface {
+	All(context.Context) ([]T, error)
+}) []T {
+	t.Helper()
+	rows, err := objects.All(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rows
+}
+
 var handoffAt = time.Date(2026, 11, 6, 1, 2, 3, 456789000, time.UTC)
 
 type handoffFixture struct {
@@ -81,8 +93,8 @@ func handoffState(t *testing.T, backend TransitionBackend) []any {
 	result, err := db.ReadSnapshotResult(t.Context(), backend, func(_ context.Context, scope db.Queryer) ([]any, error) {
 		sessionRows, audit := snapshotIdentitySystemRows(t, scope)
 		return []any{
-			catalogRows(t, models.UserObjects.Using(scope).OrderBy(models.UserFields.ID.Asc())), catalogRows(t, models.GroupObjects.Using(scope).OrderBy(models.GroupFields.ID.Asc())), catalogRows(t, models.PermissionObjects.Using(scope).OrderBy(models.PermissionFields.ID.Asc())),
-			catalogRows(t, models.UserGroupsLinkObjects.Using(scope).OrderBy(models.UserGroupsLinkFields.ID.Asc())), catalogRows(t, models.UserPermissionsLinkObjects.Using(scope).OrderBy(models.UserPermissionsLinkFields.ID.Asc())), catalogRows(t, models.GroupPermissionsLinkObjects.Using(scope).OrderBy(models.GroupPermissionsLinkFields.ID.Asc())), sessionRows, audit,
+			handoffRows(t, models.UserObjects.Using(scope).OrderBy(models.UserFields.ID.Asc())), handoffRows(t, models.GroupObjects.Using(scope).OrderBy(models.GroupFields.ID.Asc())), handoffRows(t, models.PermissionObjects.Using(scope).OrderBy(models.PermissionFields.ID.Asc())),
+			handoffRows(t, models.UserGroupsLinkObjects.Using(scope).OrderBy(models.UserGroupsLinkFields.ID.Asc())), handoffRows(t, models.UserPermissionsLinkObjects.Using(scope).OrderBy(models.UserPermissionsLinkFields.ID.Asc())), handoffRows(t, models.GroupPermissionsLinkObjects.Using(scope).OrderBy(models.GroupPermissionsLinkFields.ID.Asc())), sessionRows, audit,
 		}, nil
 	})
 	handoffMust(t, err)

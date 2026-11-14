@@ -99,6 +99,9 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"profile_read_coherent_page", profileReadCoherentPage},
 		{"profile_read_target_integrity", profileReadTargetIntegrity},
 		{"catalog_crud", catalogCRUD},
+		{"catalog_input_boundaries", catalogInputBoundaries},
+		{"catalog_value_semantics", catalogValueSemantics},
+		{"catalog_rejected_cleanup", catalogRejectedCleanup},
 		{"catalog_native_reference", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 			selectedCatalogReference(t, referenceBackend, backend, reopen)
 		}},

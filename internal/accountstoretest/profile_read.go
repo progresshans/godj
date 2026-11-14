@@ -204,9 +204,42 @@ func profileReadAuthorityAndDomain(t *testing.T, backend Backend, reopen func(*t
 			calls++
 			return accepted, errors.Join(fault, &accountmodel.Error{Code: accountmodel.CodePermission})
 		}), accountmodel.ProfileReadConfig{Fields: profileReadConfig().Fields, ViewPermission: "account.direct", ChangePermission: "account.team"})
-		if value, err := failing.Get(t.Context(), actor, f.user.ID); !errors.Is(err, fault) || calls != 1 || value.Revision() != 0 || strings.Contains(fmt.Sprintf("%+v", err), "private") {
-			t.Fatal("overlay failure fell back or exposed data", calls, err)
-		}
+		t.Run(fmt.Sprintf("overlay_error_%t", accepted), func(t *testing.T) {
+			before := accountNativeSnapshot(t, reopen(t))
+			for _, operation := range []string{"get", "list", "history"} {
+				t.Run(operation, func(t *testing.T) {
+					calls = 0
+					var err error
+					switch operation {
+					case "get":
+						value, failure := failing.Get(t.Context(), actor, f.user.ID)
+						err = failure
+						if value.ID() != 0 || value.Revision() != 0 || value.View().Values() != nil {
+							t.Fatal("failed profile read published data")
+						}
+					case "list":
+						page, failure := failing.List(t.Context(), actor, 0, 100)
+						err = failure
+						if page.Items != nil || page.Total != 0 {
+							t.Fatal("failed profile list published data")
+						}
+					case "history":
+						entries, failure := failing.History(t.Context(), actor, f.user.ID, 100)
+						err = failure
+						if entries != nil {
+							t.Fatal("failed profile history published entries")
+						}
+					}
+					requireProfileCode(t, err, accountmodel.CodePersistence)
+					if !errors.Is(err, fault) || calls != 1 || strings.Contains(fmt.Sprintf("%+v", err), "private") {
+						t.Fatal("overlay failure fell back or exposed data", calls, err)
+					}
+					if !reflect.DeepEqual(before, accountNativeSnapshot(t, reopen(t))) {
+						t.Fatal("profile overlay error changed native state")
+					}
+				})
+			}
+		})
 	}
 	strict := profileReader(t, backend, f, auth.PrincipalAuthorizer{}, profileReadConfig())
 	if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), writer, &f.direct); err != nil || count != 1 {

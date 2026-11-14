@@ -855,8 +855,19 @@ Catalog의 독립 Django lifecycle/admission도 선택 Catalog·AccountEditor·P
 Catalog의 read/write scope·여섯 mutation 실패 책임을 선택 owner로 옮겼다. Group/Permission의 생성·수정·삭제는 실제
 scalar/through/직접 owner revision/audit 뒤 실패, 확정 rollback·commit 결과 불명·취소를 전체 native/host 상태로 대조한다.
 두 자원의 상세/목록/역사 조회는 실제 현재 인가 뒤 오류를 주입하며 성공/거부 control·결과 비게시·원인 보존을 확인한다.
-기존 고정 입력/정책·PROTECT·rejected cleanup·authorizer 검사는 유지한다. 새 필수 본문의 실제 원격 수용과 선행 source의
+고정 입력/정책·PROTECT·rejected cleanup·authorizer 검증 책임은 아래의 선택 owner 보강으로 연결한다. 새 필수 본문의 실제 원격 수용과 선행 source의
 reload 8개 환경 부분 확인은 TEST_EVIDENCE에서 구분한다.
+
+Catalog의 남은 입력/unique/stale·Unicode/생략/명시적 빈 선택·페이지/deny overlay·PROTECT·cleanup 검사를 선택 owner에
+연결했다. 잘못된 typed 입력과 실패 결과는 metadata를 게시하지 않고 전체 native account/catalog/host/session/domain/audit
+행을 보존해야 한다. Catalog 두 자원과 ProfileReader의 단건/목록/이력에서 permission 모양의 인가 오류도 change 권한으로
+우회하지 않으며 원인 보존·진단 비노출과 실제 인가 호출 횟수를 대조한다. 기존 PROTECT 검사는 살아 있는 세션과 전체
+물리 행 관측을 포함한다. 기본 권한 이름은 현행 앱 정책에서 계속 사용한다.
+
+고정 Manager의 catalog CRUD·입력 DTO·Form 검사와 사용되지 않는 고정 choice API를 제거했다. 기본/custom catalog는
+생성 `NewAccountCatalog`와 동일 typed owner·Form/Admin/API를 사용한다. 역사 handoff가 필요로 하는 원문 관측은 해당
+소비자가 계속 소유하며, 남은 Directory/Manager의 사용자·credential 서비스는 아직 이관 대상이다. 새 구현과 필수 실행의
+환경별 수용을 구분하고, 선행 `e49d2350`의 양 DB catalog 실패·관리·전환·독립 역사 process 원본 대조는 TEST_EVIDENCE에 둔다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

@@ -3,6 +3,7 @@ package accountstoretest
 import (
 	"reflect"
 	"testing"
+	"time"
 
 	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/account/domain"
@@ -17,6 +18,7 @@ import (
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/sessions"
 	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
@@ -71,6 +73,20 @@ func provisionCatalogHost(t *testing.T, backend Backend) *catalogFixture {
 func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	owner := provisionCatalogHost(t, backend)
 	f, catalog, actor := owner.account, owner.catalog, owner.credential.Principal()
+	store, err := hostproject.NewAccountSessionStore(backend, sessiondb.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := sessions.NewManager(store, sessions.Config{Clock: func() time.Time { return joined }})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{"first", "second", "third"} {
+		passwordSession(t, manager, owner.credential, marker)
+	}
+	if _, err := manager.Create(t.Context(), map[string]string{"anonymous": "preserved"}); err != nil {
+		t.Fatal(err)
+	}
 	permission, err := catalog.Permissions().Create(t.Context(), actor, catalogPermissionInput(t, map[string]query.Value{"code": query.String("host.catalog"), "name": query.String("Host catalog")}))
 	if err != nil {
 		t.Fatal(err)
@@ -94,6 +110,7 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 		t.Fatal(err)
 	}
 	before := profileRow(t, backend, f.user.ID)
+	protected := catalogHostSnapshot(t, reopen(t))
 	for _, target := range []string{"group", "permission"} {
 		if !t.Run("protected_"+target, func(t *testing.T) {
 			var result accountmodel.CatalogDeletion
@@ -124,6 +141,9 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 			if len(catalogAudit(t, backend, actor, "group", group.ID)) != 1 || len(catalogAudit(t, backend, actor, "permission", permission.ID)) != 1 {
 				t.Fatal("protected deletion appended audit")
 			}
+			if !reflect.DeepEqual(protected, catalogHostSnapshot(t, reopen(t))) {
+				t.Fatal("protected catalog deletion changed native account/catalog/host/session/domain/audit state")
+			}
 		}) {
 			return
 		}
@@ -149,5 +169,8 @@ func catalogHostGraph(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 	}
 	if len(catalogAudit(t, backend, actor, "group", group.ID)) != 2 || len(catalogAudit(t, backend, actor, "permission", permission.ID)) != 2 {
 		t.Fatal("host deletion audit is not atomic")
+	}
+	if !reflect.DeepEqual(protected.account.sessions, catalogHostSnapshot(t, reopen(t)).account.sessions) {
+		t.Fatal("catalog deletion changed unrelated credential sessions")
 	}
 }

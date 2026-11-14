@@ -65,4 +65,6 @@ POST는 원래 입력의 key만 해석하고 `Resolve` 결과로 검증한다. �
 Admin은 writer 호출 직전 선택을 다시 확인한다. 최종 writer는 현재 DB 권한·관계·revision·고유성과 commit을 계속 소유한다.
 inline의 transaction 내부 재검증에는 [`ModelInline.BindCurrent`](inlines.md)와 `InlineCurrent.ResolveChoices`를 사용한다.
 Helpdesk는 [범주별 선언](../examples/helpdesk/admin_choices.go)을, 계정 관리는
-[현재 권한과 같은 읽기 snapshot의 선언](../identity/management_choices.go)을 사용한다.
+[선택 계정의 현재 권한과 같은 읽기 snapshot](../identity/model/management_choices.go)을 사용한다.
+Catalog의 권한 선택은 같은 프로젝트 source에 묶인
+[`Catalog.GroupPermissionChoiceSource`](../identity/model/catalog_choices.go)를 사용한다.

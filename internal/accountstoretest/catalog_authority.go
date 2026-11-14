@@ -141,9 +141,31 @@ func catalogAuthorityAndDomain(t *testing.T, backend Backend, reopen func(*testi
 		if err != nil {
 			t.Fatal(err)
 		}
-		if result, err := failing.Groups().Get(t.Context(), actor, group.ID); !errors.Is(err, fault) || result.Revision() != 0 || calls != 1 || strings.Contains(fmt.Sprintf("%+v", err), "private") {
-			t.Fatal("catalog overlay error fell back or leaked", err)
-		}
+		t.Run(fmt.Sprintf("overlay_error_%t", accepted), func(t *testing.T) {
+			before := accountNativeSnapshot(t, reopen(t))
+			for _, kind := range []string{"group", "permission"} {
+				t.Run(kind, func(t *testing.T) {
+					for _, operation := range []string{"get", "list", "history"} {
+						t.Run(operation, func(t *testing.T) {
+							calls = 0
+							var err error
+							if kind == "group" {
+								err = catalogFailedRead(t, t.Context(), failing.Groups(), actor, group.ID, operation)
+							} else {
+								err = catalogFailedRead(t, t.Context(), failing.Permissions(), actor, permission.ID, operation)
+							}
+							requireProfileCode(t, err, accountmodel.CodePersistence)
+							if !errors.Is(err, fault) || calls != 1 || strings.Contains(fmt.Sprintf("%+v", err), "private") {
+								t.Fatal("catalog overlay error fell back or leaked", err)
+							}
+							if !reflect.DeepEqual(before, accountNativeSnapshot(t, reopen(t))) {
+								t.Fatal("catalog overlay error changed native state")
+							}
+						})
+					}
+				})
+			}
+		})
 	}
 	groupInput := catalogGroupInput(t, map[string]query.Value{"name": query.String("should never persist")}, nil)
 	permissionInput := catalogPermissionInput(t, map[string]query.Value{"code": query.String("authority.denied"), "name": query.String("Should never persist")})

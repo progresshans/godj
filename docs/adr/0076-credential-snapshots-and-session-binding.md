@@ -165,17 +165,23 @@ Active에서 inactive로 바뀌면 현재 저장된 대상 session을 같은 tra
 
 ## Group·Permission 관리와 직접 관계의 revision
 
-`identity.Manager`는 Group·Permission의 생성·단건/페이지 조회·편집·삭제를 제공한다. 조회에는 각 모델의 현재 view 또는 change,
-생성에는 add, 편집에는 change, 삭제에는 delete 권한을 요구한다. 생성에 change를 추가로 요구하는 UserAdmin과 구분한다.
+생성 `NewAccountCatalog`와 `identity/model.Catalog[G, P]`가 선택 Group·Permission의 생성·단건/페이지 조회·편집·삭제를
+소유한다. 실제 descriptor·선택 account domain·동일 SessionStore·전체 host relation graph에 묶이며, 별도 고정
+`identity.Manager` catalog CRUD·입력 DTO·Form 검사·choice 구현은 두지 않는다. 기본 권한 이름은 선택 owner의 앱 정책에서도
+사용하므로 `identity.ViewGroup` 등의 상수로 유지한다. 조회에는 각 모델의 현재 view 또는 change와 모든 추가 권한,
+생성에는 add와 추가 권한, 편집에는 change와 추가 권한, 삭제에는 delete와 추가 권한을 요구한다.
+생성에 change를 추가로 요구하는 계정 owner와 구분한다.
 이 기준은 고정 Django의 GroupAdmin과 명시적으로 등록한 표준 Permission ModelAdmin 관찰을 따른다. Django가 Permission을
 기본 admin에 등록한다는 뜻은 아니다. 실제 Admin의 active staff 진입 조건은 별도 경계이며 service는 현재 저장 권한과 deny overlay를 확인한다.
 
 조회에서 대체 change 권한을 검사하는 조건은 프레임워크가 확정한 권한 거부뿐이다. Actor 읽기·인가 callback 오류는 실행 실패로
-유지한다. 오류의 cause에 permission-denied 분류가 들어 있다는 이유로 정상 조회에 도달하지 않는다. User 조회에도 같은 경계를 적용한다.
+유지한다. 오류의 cause에 permission-denied 분류가 들어 있다는 이유로 정상 조회에 도달하지 않는다. 선택 ProfileReader의
+단건·목록·이력에도 같은 경계를 적용한다.
 
-Group name은 150자, Permission name은 255자까지의 비어 있지 않은 UTF-8/NUL 없는 값이다. Service는 trim·대소문자 변환을
-하지 않으며 Form의 입력 표현과 구분한다. Permission code는 기존 auth의 canonical lowercase dotted name이다. Code 변경은
-Permission ID와 직접/그룹 할당을 보존하고 다음 credential resolution에 반영한다. 생성 입력과 patch는 caller collection을 복사하며,
+이름은 비어 있지 않은 UTF-8/NUL 없는 값이며 실제 모델 IR의 길이 한도를 따른다. 기본 Group name은 150자,
+Permission name은 255자다. Service는 암묵적으로 trim·대소문자 변환을 하지 않으며 Form의 입력 표현과 구분한다.
+Permission code는 기존 auth의 canonical lowercase dotted name이다. Code 변경은 Permission ID와 직접/그룹 할당을 보존하고
+다음 credential resolution에 반영한다. 생성·수정의 typed `ModelInput`은 실제 source와 scalar/collection presence를 소유하며,
 Group permission 입력 생략은 유지, 명시적 빈 집합은 해제다. 중복 ID는 같은 선택으로 정규화하지만 입력 개수 한도는 정규화 전에 검사한다.
 실제 변화가 없으면 revision·audit를 늘리지 않는다. List는 ID 순서의 최대 100개 scalar page이고 상세 collection을 행마다 조회하지 않는다.
 
@@ -189,10 +195,13 @@ Revision은 해당 row와 직접 관리 collection의 변경 충돌을 소유한
 Permission 삭제는 직접 할당 User와 해당 Permission을 가진 Group의 revision을 같은 transaction에서 증가시킨다.
 Owner 행도 256개씩 처리하며 overflow·손상·뒤 batch 실패는 앞에서 갱신한 revision과 삭제를 모두 rollback한다.
 그룹을 통해 권한만 상속하는 User의 revision은 이 이유로 바꾸지 않는다. Group permission 편집이나 Permission code 변경도
-User의 직접 collection을 바꾸지 않는다. Credential/hash·session stamp와 session bytes는 유지하고 다음 요청에서 현재 권한을 평가한다.
+User의 직접 collection을 바꾸지 않는다. 권한 할당 변경만으로는 credential/hash·session stamp와 session bytes를 바꾸지 않고
+다음 요청에서 현재 권한을 평가한다.
 
-삭제는 호스트가 제공한 전체 typed relation deleter로 CASCADE·PROTECT·SET_NULL을 실행하며 identity-only 정책을 자동 선택하지 않는다.
-Owner revision·관계 삭제·값 없는 audit는 같은 transaction이다. 삭제 응답에는 ID·revision·건수만 담아 delete 권한으로 profile을 공개하지 않는다.
+삭제는 생성 프로젝트에 묶인 전체 typed relation deleter로 CASCADE·PROTECT·SET_NULL을 실행하며 identity-only 정책을 자동 선택하지 않는다.
+Host graph가 추가 계정/catalog의 수명을 바꾸면 같은 선택 lifecycle owner가 필요한 현재 권한·revision·세션 폐기도 조정한다.
+Owner revision·관계 삭제·값 없는 audit는 같은 transaction이다. 삭제 결과는 확정 ID·revision·건수·폐기 세션 수만 담으며
+delete 권한으로 profile을 공개하지 않는다. 저장된 0·음수 key는 존재하는 signed identity이며 미저장 값으로 취급하지 않는다.
 삭제 audit의 대상은 삭제한 resource다. 영향을 받은 owner마다 별도의 편집 audit를 만들지는 않는다.
 실패·unknown outcome에는 성공 DTO가 없고 재시도하지 않는다. 확정 commit 뒤 늦은 취소는 성공을 뒤집지 않는다.
 이 서비스의 구현과 환경별 검증은 실제 관리 Form/Admin/API·독립 client, 전체 identity product milestone의 완료와 구분한다.

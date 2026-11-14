@@ -5197,6 +5197,52 @@ mutation은 parent/operation/leaf 75개를 추가했으며, 새 두 범위의 �
 Go compile/test·생성·DB 본문은 실행하지 않았으며, 새 필수 본문·양 DB·race·CGO-disabled 및 전체 환경 수용은 다음 source의
 원격 CI에서 확인한다. I1-01~08 전체 수용은 계속 미완료다.
 
+### e49d2350 부분 원본 대조와 고정 catalog 관리 경로 제거
+
+2026-11-15, source `e49d235099399153936a96ca8c618555630405d7`의
+[CI 43619717217](https://github.com/progresshans/godj/actions/runs/43619717217), attempt 1에서 완료된 원본을 대조했다.
+실제 checkout `777bc37e164f7b85615cb0db9eb9ea12bec7fd8e`는 해당 source를 부모로 가지며 tree
+`979f9eae22f254e66c1893ba5471eb6245f5c46e`가 제출 source와 같다. Archive metadata의 크기/digest, 내부 파일 hash,
+같은 source의 planner·필수 목록, 전체 이벤트의 시작/종료·누락·skip과 별도 소비자 process의 종료를 확인했다.
+다음 수는 필수 root/child의 실행 항목이며 서로 다른 모드·process의 중복 실행을 별도 집계한다.
+
+| 확인한 범위 | 실제 실행 좌표와 원본 |
+|---|---|
+| 새 catalog 조회·여섯 mutation 실패 | SQLite/Linux arm64 normal과 PostgreSQL 17.10/Linux amd64 race에서 각각 필수 180개. 독립 lifecycle/admission 19개도 양쪽에서 대조했다. `catalog-native-sqlite-verification.json`, `catalog-native-postgres-race-verification.json`. |
+| 기본/custom 계정과 생성 입력 | Linux amd64 normal, 양 DB의 18개 process·필수 1,536개. `account-consumers-verification.json`. |
+| 관리 Form/Admin/API | Linux amd64 normal·CGO-disabled 각각 양 DB의 14개 process·필수 4,150개. `management-verification.json`. |
+| 선택 password reset | Linux amd64 normal·CGO-disabled 각각 7개 모델 process 안의 양 DB·필수 707개. `reset-verification.json`. |
+| 계정 모델 전환과 host 참조 | Linux amd64 normal·CGO-disabled 각각 양 DB의 2개 process·필수 276개. `transition-verification.json`. |
+| Catalog 전환·생성·FK 변형 | 기록된 8개 shard/mode 좌표의 40개 process·필수 1,470개. 필수 FK 순환은 normal·race·CGO-disabled 각 양 DB의 4개 process·필수 72개다. `catalog-variants-verification.json`. |
+| 역사 이행→custom 모델→host schema 정리 | Linux amd64 normal·race·CGO-disabled 각각 양 DB의 2개 process·필수 14개. 별도 operator PID·준비 후 source 변경 거부·commit 후 명시적 process 종료로 응답 유실과 receipt 복구·재접속/현재 인가·역사 원문 보존을 대조했다. `historical-handoff-verification.json`. |
+
+검증 보관소 `gdj0138-e49d2350-ci-43619717217/verified-partial-index.json`은 위 범위와 core/catalog·through의
+부분 원본 대조 10개 보고서의 SHA-256·제외 범위를 연결한다
+(SHA-256 `939d3a08ef11be42e77a36f81a40365a9f90185566ce0ae6d6f9d0707a061ac3`).
+각 보고서의 source hash는 작업트리의 후속 변경 대신 `e49d2350` Git blob과 다시 대조했다. 전체 CI는 후속 구현 중
+진행 중이었으며 이 부분 실행을 전체 플랫폼·실제 Chromium·공개 Article 명령 또는 I1-01~08의 완료로 확대하지 않는다.
+
+이어서 고정 Manager의 남은 catalog 검증 책임을 선택 owner로 옮겼다.
+
+| 제거한 고정 소비자의 책임 | 현재 선택 소비자 |
+|---|---|
+| missing/empty/Unicode/NUL/UTF-8/중복·없는 선택·stale 입력 | `catalog_input_boundaries`의 19개 leaf와 기존 `catalog_read_failures`의 실제 not-found 거부. 준비되지 않은 입력은 source 없는 `ModelInput`으로 구분한다. |
+| 생략·명시적 빈 집합·150자 Unicode·페이지·deny overlay | `catalog_value_semantics`는 입력과 변경 전 행에서 계산한 정확한 effect/audit, 같은 native count/page와 caller 사본, 두 자원의 8개 거부 operation을 확인한다. |
+| Group/Permission host PROTECT | 기존 `catalog_host_graph/protected_group`·`protected_permission`에 실제 세션·익명 세션과 전체 12개 테이블 행의 보존을 추가했다. 보호 해제 후 CASCADE/SET_NULL과 세션 보존도 유지한다. |
+| 거부 뒤 cleanup 실패 | `catalog_rejected_cleanup/group`·`permission`은 실제 native unique 거부·한 번의 owner 호출·cleanup 원인 보존·비게시·전체 행 보존을 확인하며 입력 진단으로 낮추지 않는다. |
+| permission 모양 authorizer 오류의 잘못된 fallback | `catalog_authority_and_domain/overlay_error_*`와 `profile_read_authority_and_domain/overlay_error_*`의 단건·목록·이력. overlay가 true/false를 반환해도 동반 오류는 실행 실패이며 한 번의 호출 뒤 현재 change 권한으로 우회하지 않는다. |
+
+고정 catalog CRUD·입력/출력 DTO·Form 검사·고정 choice 구현을 제거했다. 모든 살아 있는 catalog 소비자는 생성
+`NewAccountCatalog`·typed `Catalog`와 그 선택 Form/Admin/API/choice를 사용한다. 기본 catalog 권한 이름은 실제
+앱 정책에서 계속 사용하므로 유지한다. 역사 handoff에 필요한 row 관측 helper는 그 소비자로 옮겼고 원문 관측을 유지했다.
+남은 고정 사용자·credential 서비스와 역사 runtime까지 제거한 것은 아니다.
+
+양 DB manifest에서 고정 root/child 7개씩을 제거하고 선택 root/child 72개씩을 추가했다. 기존 다른 항목·상대 순서는
+유지하며 relation 4,811→4,876, PostgreSQL 5,734→5,799다. 기존 독립 원문·producer·mutation control과 모델/생성물/
+적용 migration bytes는 바꾸지 않았다. Gofmt·diff·호출/selector·변경 Markdown 링크와 Python CI 분할 27개(34.608초)를
+확인했다. 로컬 Go compile/test·generate·DB 본문은 실행하지 않았다. 새 제거·검사 보강의 실제 양 DB·race·CGO-disabled·
+전체 platform/cold-build 수용은 다음 source의 원격 실행 대상이며, 위 선행 source의 결과를 새 변경의 PASS로 사용하지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
