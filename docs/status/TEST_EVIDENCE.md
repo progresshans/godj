@@ -5387,6 +5387,28 @@ normal/race/CGO0 작업 `132558810632`/`132558810573`/`132558810635`이 성공�
 당시 전체는 23 success / 40 running / 301 queued였고 SQLite runtime의 실제 실행 단계가 시작됐다.
 Core 성공은 username의 native DB 본문이나 아래 후속 password 소비자·I1 전체 수용을 증명하지 않는다.
 
+같은 source의 `Relation product (ubuntu-24.04-arm, normal, runtime)` 작업 `132558816648`이 실제 본문·
+artifact 게시·clean worktree까지 성공했다. Job log의 실제 checkout은 위와 같으며, 원본 artifact
+`14128793137` (`relation-product-linux-arm64-normal-0-1`, 780,300 bytes)의 SHA-256
+`3069172b7b762478c76de04e0595d46e409114c4c437297900b6c4444e859d64`를 GitHub metadata와 대조했다.
+원본 JSON event 68 package의 run/pass 10,905개·skip 0, shard 필수 4,499개의 정확히 한 번 run/pass를 확인했다.
+계정 store 아래 실제 pass는 1,504개이며, 별도 지정한 181개 필수 항목도 모두 실행·통과했다.
+
+Source의 relation 목록 4,878개를 CI가 project-check owner 제외·normal compile 필수 추가로 4,882개로 만들고,
+이 native shard가 generated-consumer root를 다른 shard에 맡겨 4,499개를 선택한 과정을 실제 discovery 131개와
+같은 source의 Python planner로 재구성했다. 실행 목록과 package 목록은 artifact와 byte 단위로 같았다.
+동일 source의 event/partition verifier와 독립 횟수 대조를 모두 적용했으며 로컬 Go·DB·HTTP를 재실행하지 않았다.
+
+이 좌표에서 세션 schema 누락으로 실패했던 `profile_read_authority_and_domain/overlay_error_false`·`true`의
+get/list/history, 실제 audit INSERT 뒤 rollback 및 그 뒤 사용자 비활성화/재활성화·재접속 TCP 현재 권한·host CASCADE
+세션 폐기까지 통과했다. Username 11개 독립 기준과 선택 정책·late duplicate·조회/cleanup/audit/unknown, 대소문자
+경합, 사용자 관리의 전체 상태/권한 회수/합집합/host 삭제 실패 검사도 같은 원본에서 확인했다.
+전체 log·ZIP·각 파일 해시·181개 이름/횟수와 판정은 검증 보관소의
+`gdj0138-2180eeb5-ci-43631404938/sqlite-native-verification.json`에 있다
+(SHA-256 `a0f3836e761538dac66c450e3c6f17d620a94ed4ce7afc0a839ca4a3aa68f443`).
+이것은 `2180eeb5`의 Linux arm64 normal SQLite 근거다. PostgreSQL·race/CGO0·나머지 platform이나
+후속 `769b7a6c`의 새 password 소비자 본문·I1 전체 수용으로 확대하지 않는다.
+
 ### 관리 비밀번호 정책의 현재 프로필·선택 소비자 이관
 
 2026-11-15, `2180eeb5` 위에서 `IdentityPasswordValidators`의 서비스 검증 책임을 외부 생성
