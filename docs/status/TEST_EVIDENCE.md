@@ -5243,6 +5243,36 @@ Go compile/test·생성·DB 본문은 실행하지 않았으며, 새 필수 본�
 확인했다. 로컬 Go compile/test·generate·DB 본문은 실행하지 않았다. 새 제거·검사 보강의 실제 양 DB·race·CGO-disabled·
 전체 platform/cold-build 수용은 다음 source의 원격 실행 대상이며, 위 선행 source의 결과를 새 변경의 PASS로 사용하지 않는다.
 
+### 선택 사용자 관리의 독립 수명·입력·권한 관측 이관
+
+2026-11-15, `457c9ceda909f7df71330b9b52f90c43ccdc612b` 위에서 고정 `Manager`의 독립 사용자 관측을 선택
+`Runtime`과 `AccountManagement`의 실제 owner로 옮겼다. 기존 `management-django61-{sqlite,postgres}.json`,
+독립 Django producer와 mutation control은 변경하지 않았다. 선택 소비자는 해당 native backend의 원문을 직접 읽고
+Django 6.1·Python 3.14.3, 네 producer source digest와 여섯 observation의 존재를 확인한다.
+
+| 기존 검증 책임 | 선택 owner의 필수 소비자 |
+|---|---|
+| 생성·편집·삭제 수명과 독립 관측 | `AccountCredentialStore/user_native_reference`의 여섯 단계. 생성 준비가 DB를 바꾸지 않으며 DB scope 밖 한 번의 실제 PBKDF2 hash, 입력 NFKC·email 정규화·중복 선택을 확인한다. 생성·편집·rollback·삭제를 같은 원문에 대조한다. |
+| no-op·사본·audit 실패·비활성화 | 위 수명의 `edit_and_detached_noop`, `audit_write_rollback`, `deactivate_and_reactivate`. 실제 감사 INSERT 뒤 실패 원인·한 번의 write owner 호출·빈 결과, 14개 native 테이블의 전체 행 보존과 대상 세션만 폐기를 확인한다. 다른 계정의 세 세션과 익명 세션·host 행도 보존 대상이다. |
+| 재접속·HTTP·host 삭제 | 같은 수명의 `reopen_and_http_current_permissions`, `host_cascade_session_and_reference_delete`. 재구성한 선택 runtime으로 실제 TCP·CSRF·로그인을 수행하고 durable cookie의 principal/stamp·LastLogin·비밀번호/관리 revision 보존, view 403/change 200과 삭제 뒤 같은 브라우저의 403을 확인한다. Host CASCADE와 정확한 through·session 삭제, 여섯 audit와 네 필드뿐인 삭제 metadata를 대조한다. |
+| 독립 email 정규화 | `user_native_email`과 Unicode I·final/nonfinal sigma·Python whitespace 네 child. 원문의 네 기대값으로 예상 사용자 행을 구성하고 각 편집의 revision·audit 및 다른 모든 native/host 상태 보존을 대조한다. |
+| 현재 권한별 admission | `user_native_admission`의 none/view/add/change/delete/add_change 여섯 child. 과거 superuser credential을 유지하고 실제 DB에서 superuser를 회수한 뒤 현재 권한으로 단건/목록·no-op 편집·생성·삭제를 호출한다. 거부는 직접 permission 분류·빈 결과·무 hash·전체 무변경, 성공은 정확한 행/audit·delete-only 허용을 독립 원문과 대조한다. |
+
+상태 관측은 주입하지 않은 native backend의 한 snapshot에서 계정/catalog/through/session/domain/audit 열 테이블과
+host 네 테이블을 읽는다. 예상 행은 변경 전 상태와 요청·독립 원문으로 구성한다. 새 through key만 실제 할당 결과에서
+받고 source/target은 요청에서 재구성하며, 세션 폐기 대상은 앞선 실제 저장/HTTP login에서 cookie·credential과 한 행의
+정확한 추가를 확인한 뒤 고정한다. 삭제 결과의 count만으로 무결성을 판단하지 않는다.
+
+고정 사용자 테스트의 세 root와 여섯 admission child만 제거했으며 남은 PROTECT·입력·범위/cleanup·권한 회수·
+경합·borrowed transaction·credential 검사는 유지했다. 양 DB 필수 목록은 각각 9개를 제거하고 19개를 추가해
+relation 4,876→4,886, PostgreSQL 5,799→5,809가 됐다. 변경 전후의 다른 selector와 상대 순서를 유지했다.
+
+로컬은 gofmt·diff·호출/selector·변경 Markdown 링크를 확인했다. 처음 Python unittest 호출은 import 경로가 없어
+검사를 시작하지 못했고, `PYTHONPATH=scripts/ci python3 -m unittest test_relation_shards test_postgres_shards`로
+수정해 27개를 33.619초에 통과했다. 로컬 Go compile/test·generate·DB 본문은 실행하지 않았다. 이 변경의 실제
+양 DB·HTTP·race·CGO-disabled·전체 platform/cold-build 수용은 새 source의 원격 실행 대상이다. 선행 source의
+CI 작업 성공을 새 소비자의 실행 근거로 사용하지 않으며 고정 사용자 서비스와 I1 전체 수용은 여전히 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

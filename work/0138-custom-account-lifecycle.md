@@ -869,6 +869,14 @@ Catalog의 남은 입력/unique/stale·Unicode/생략/명시적 빈 선택·페�
 소비자가 계속 소유하며, 남은 Directory/Manager의 사용자·credential 서비스는 아직 이관 대상이다. 새 구현과 필수 실행의
 환경별 수용을 구분하고, 선행 `e49d2350`의 양 DB catalog 실패·관리·전환·독립 역사 process 원본 대조는 TEST_EVIDENCE에 둔다.
 
+사용자 관리의 독립 Django 수명·email 정규화·현재 권한별 admission 관측을 선택 `Runtime`의 생성/편집/조회/삭제 owner로
+옮겼다. 같은 원문·producer·mutation control을 유지하며, 실제 host source와 재접속 후 TCP 로그인·권한별 응답·LastLogin·
+동일 브라우저 폐기를 연결했다. 14개 native 테이블의 전체 행, 요청에서 재구성한 through 관계, 정확한 audit와 세션 원문을
+비교하며 no-op·caller 사본·감사 INSERT 뒤 rollback·대상만 비활성화/삭제를 확인하도록 작성했다. 여섯 현재 권한 조합은
+과거 superuser actor를 유지한 채 DB의 권한을 회수한 뒤 읽기·생성·no-op 편집·삭제를 호출하고 독립 기준과 대조한다.
+기존 사용자·credential의 나머지 실패·경합 소비자는 유지한다. 필수 목록 이관과 정적 확인, 새 본문의 환경별 실행은
+TEST_EVIDENCE에서 구분하며 이 소비자 이관만으로 고정 사용자 서비스나 I1을 완료한 것으로 계산하지 않는다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -2,12 +2,9 @@ package identitytest
 
 import (
 	"context"
-	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 	"testing"
 	"time"
 
@@ -22,56 +19,9 @@ import (
 	"github.com/progresshans/godj/migrations"
 	"github.com/progresshans/godj/migrations/definition"
 	"github.com/progresshans/godj/query"
-	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/validation"
 )
-
-//go:embed testdata/management-django61-*.json
-var managementReferences embed.FS
-
-func assertManagementReference(t *testing.T, key string, value any) {
-	t.Helper()
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var actual any
-	if err := json.Unmarshal(encoded, &actual); err != nil {
-		t.Fatal(err)
-	}
-	for _, backend := range []string{"sqlite", "postgres"} {
-		data, err := managementReferences.ReadFile("testdata/management-django61-" + backend + ".json")
-		if err != nil {
-			t.Fatal(err)
-		}
-		var reference struct {
-			Django       string
-			Observations map[string]any
-		}
-		if err := json.Unmarshal(data, &reference); err != nil || reference.Django != "6.1" {
-			t.Fatal("invalid reference", err)
-		}
-		if !reflect.DeepEqual(actual, reference.Observations[key]) {
-			t.Fatalf("%s differs from independent %s: %#v != %#v", key, backend, actual, reference.Observations[key])
-		}
-	}
-}
-
-func managedGrants(t *testing.T, runtime *systemstate.Runtime, principalID string) []string {
-	t.Helper()
-	credential, err := runtime.Authenticator().Resolve(t.Context(), principalID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	result := []string{}
-	for _, permission := range credential.Principal().Permissions() {
-		if strings.HasPrefix(string(permission), "helpdesk.ticket.") {
-			result = append(result, strings.TrimPrefix(string(permission), "helpdesk.ticket."))
-		}
-	}
-	return result
-}
 
 func managementHostSources(t *testing.T) []definition.Source {
 	t.Helper()
@@ -122,215 +72,8 @@ func managementUserSelections(t *testing.T, f *managementFixture) (models.Group,
 	return group, view, change
 }
 
-func managedSession(t *testing.T, runtime *systemstate.Runtime, principalID string) sessions.ID {
-	t.Helper()
-	credential, err := runtime.Authenticator().Resolve(t.Context(), principalID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	manager, err := sessions.NewManager(runtime.SessionStore(), sessions.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	record, err := manager.Create(t.Context(), map[string]string{auth.SessionPrincipalIDKey: principalID, auth.SessionCredentialStampKey: credential.SessionStamp(), "application_value": "preserve"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return record.ID()
-}
-
 func RunUserManagement(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
 	t.Helper()
-	t.Run("lifecycle_matches_reference_and_host_policy", func(t *testing.T) {
-		backend, second := open(t)
-		f := newManagementFixture(t, backend, 3)
-		policy := managementHost(t, backend)
-		group, view, change := managementUserSelections(t, f)
-		manager := f.manager(t, f.runtime)
-		keys := []int64{group.ID, group.ID}
-		input := identity.NewUserCreate("new-member", "Ｆｒｅｄ").WithEmail("Mixed@EXAMPLE.COM").WithGroups(keys...).WithPermissions(view.ID, view.ID)
-		keys[0] = 99999
-		created, err := manager.CreateUser(t.Context(), f.actor, input, managementOldPassword)
-		if err != nil {
-			t.Fatal(err)
-		}
-		credential, err := f.runtime.Authenticator().Authenticate(t.Context(), "Fred", managementOldPassword)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assertManagementReference(t, "created", map[string]any{"username": created.Username, "email": created.Email, "active": created.Active, "staff": created.Staff, "superuser": created.Superuser, "password_usable": credential.Principal().Authenticated(), "groups": len(created.GroupIDs), "direct_permissions": len(created.PermissionIDs), "effective": managedGrants(t, f.runtime, created.PrincipalID)})
-		if created.Revision != 1 || f.hasher.calls.Load() != 1 || created.DateJoined.IsZero() {
-			t.Fatal("created identity envelope")
-		}
-		id := managedSession(t, f.runtime, created.PrincipalID)
-		if _, err := hostmodels.NoteObjects.Create(t.Context(), backend, hostmodels.NewNoteCreate("Keep until deletion", created.ID)); err != nil {
-			t.Fatal(err)
-		}
-		edited, err := manager.UpdateUser(t.Context(), f.actor, created.ID, 1, identity.UserPatch{}.WithUsername("Renamed").WithFirstName("Edited").WithStaff(true).WithGroups().WithPermissions(change.ID))
-		if err != nil {
-			t.Fatal(err)
-		}
-		after, err := f.runtime.Authenticator().Authenticate(t.Context(), "Renamed", managementOldPassword)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assertManagementReference(t, "edited", map[string]any{"username": edited.Username, "first_name": edited.FirstName, "staff": edited.Staff, "same_identity": created.PrincipalID == edited.PrincipalID && created.ID == edited.ID, "same_password": after.MatchesSessionStamp(credential.SessionStamp()), "groups": len(edited.GroupIDs), "effective": managedGrants(t, f.runtime, edited.PrincipalID)})
-		if _, found, err := f.runtime.SessionStore().Load(t.Context(), id); err != nil || !found {
-			t.Fatal("profile/grant edit revoked credential session", err)
-		}
-		if _, err := manager.UpdateUser(t.Context(), f.actor, created.ID, 2, identity.UserPatch{}.WithPermissions(change.ID, change.ID)); err != nil {
-			t.Fatal(err)
-		}
-		details, err := manager.User(t.Context(), f.actor, created.ID)
-		if err != nil || details.Revision != 2 {
-			t.Fatal("no-op changed revision", err)
-		}
-		details.PermissionIDs[0] = 99999
-		current, err := manager.User(t.Context(), f.actor, created.ID)
-		if err != nil || current.PermissionIDs[0] != change.ID {
-			t.Fatal("returned relation slice aliases state", err)
-		}
-		fault := &userManagementBoundary{ManagementBackend: f.runtime, mode: "audit_failure"}
-		if result, err := f.manager(t, fault).UpdateUser(t.Context(), f.actor, created.ID, 2, identity.UserPatch{}.WithFirstName("rollback").WithGroups(group.ID).WithPermissions()); err == nil || result.ID != 0 || fault.faults != 1 {
-			t.Fatal("audit rollback boundary not reached", err)
-		}
-		rolled, err := manager.User(t.Context(), f.actor, created.ID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rolledCredential, err := f.runtime.Authenticator().Resolve(t.Context(), created.PrincipalID)
-		if err != nil {
-			t.Fatal(err)
-		}
-		assertManagementReference(t, "rollback", map[string]any{"first_name": rolled.FirstName, "groups": len(rolled.GroupIDs), "effective": managedGrants(t, f.runtime, rolled.PrincipalID), "same_password": rolledCredential.MatchesSessionStamp(credential.SessionStamp())})
-		if _, err := manager.UpdateUser(t.Context(), f.actor, created.ID, 2, identity.UserPatch{}.WithActive(false)); err != nil {
-			t.Fatal(err)
-		}
-		if _, found, err := f.runtime.SessionStore().Load(t.Context(), id); err != nil || found {
-			t.Fatal("deactivation did not delete target session", err)
-		}
-		if _, err := f.runtime.Authenticator().Resolve(t.Context(), created.PrincipalID); !errors.Is(err, auth.ErrInvalidCredentials) {
-			t.Fatal("inactive identity authenticated", err)
-		}
-		if _, err := manager.UpdateUser(t.Context(), f.actor, created.ID, 3, identity.UserPatch{}.WithActive(true)); err != nil {
-			t.Fatal(err)
-		}
-		reopened, err := systemstate.OpenIdentity(t.Context(), second, systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher.PasswordHasher, MaxSessions: 512})
-		if err != nil {
-			t.Fatal(err)
-		}
-		httpClient := newIdentityHTTPWithRuntime(t, reopened)
-		httpClient.login(t, httpClient.client, "Renamed", managementOldPassword, 200)
-		httpClient.expect(t, httpClient.client, "/view/", 403, managementOldPassword)
-		httpClient.expect(t, httpClient.client, "/change/", 200, managementOldPassword)
-		if _, err := manager.UpdateUser(t.Context(), f.actor, created.ID, 4, identity.UserPatch{}.WithGroups(group.ID)); err != nil {
-			t.Fatal(err)
-		}
-		deleted, err := manager.DeleteUser(t.Context(), f.actor, created.ID, 5, policy.AccountsUser)
-		if err != nil || deleted.ID != created.ID || deleted.Revision != 5 || deleted.DeletedRows < 3 {
-			t.Fatal("host deletion failed", err)
-		}
-		encodedDeletion, encodeErr := json.Marshal(deleted)
-		if encodeErr != nil {
-			t.Fatal(encodeErr)
-		}
-		var deletionFields map[string]any
-		if err := json.Unmarshal(encodedDeletion, &deletionFields); err != nil || len(deletionFields) != 3 {
-			t.Fatal("deletion disclosed profile fields", err)
-		}
-		httpClient.expect(t, httpClient.client, "/change/", 403, managementOldPassword)
-		userExists, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(created.ID)).Exists(t.Context())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if count, err := hostmodels.NoteObjects.Using(backend).Count(t.Context()); err != nil || count != 0 {
-			t.Fatal("host CASCADE omitted", err)
-		}
-		groupExists, err := models.GroupObjects.Using(backend).Filter(models.GroupFields.ID.Exact(group.ID)).Exists(t.Context())
-		if err != nil {
-			t.Fatal(err)
-		}
-		permissionExists, err := models.PermissionObjects.Using(backend).Filter(models.PermissionFields.ID.Exact(view.ID)).Exists(t.Context())
-		if err != nil {
-			t.Fatal(err)
-		}
-		memberships, err := models.UserGroupsLinkObjects.Using(backend).Count(t.Context())
-		if err != nil {
-			t.Fatal(err)
-		}
-		assertManagementReference(t, "deleted", map[string]any{"user_exists": userExists, "memberships": memberships, "group_exists": groupExists, "permission_exists": permissionExists})
-		history, err := f.runtime.AuditHistory(t.Context(), "godj_identity.user", created.ID, 20)
-		if err != nil || len(history) != 6 || history[0].Action != admin.ActionAdd || history[5].Action != admin.ActionDelete {
-			t.Fatal("lifecycle audit missing or no-op/rollback audited", len(history), err)
-		}
-		for _, event := range history {
-			if event.ActorID != f.actor.ID() || event.DisplayLabel != "" {
-				t.Fatal("audit actor/value exposure")
-			}
-		}
-	})
-	t.Run("unicode_normalization_matches_reference", func(t *testing.T) {
-		backend, _ := open(t)
-		f := newManagementFixture(t, backend, 0)
-		manager := f.manager(t, f.runtime)
-		inputs := []string{"Upper@İ.EXAMPLE", "x@ΟΣ", "x@ΟΣ.EXAMPLE", "\x1cUpper@EXAMPLE.COM\x1f"}
-		values := make([]string, 0, len(inputs))
-		revision := int64(1)
-		for _, input := range inputs {
-			result, err := manager.UpdateUser(t.Context(), f.actor, f.user.ID, revision, identity.UserPatch{}.WithEmail(input))
-			if err != nil {
-				t.Fatal(err)
-			}
-			values = append(values, result.Email)
-			revision = result.Revision
-		}
-		assertManagementReference(t, "email_normalization", values)
-	})
-	t.Run("current_permission_admission_matches_django", func(t *testing.T) {
-		observations := map[string]map[string]bool{}
-		for _, action := range []string{"none", "view", "add", "change", "delete", "add_change"} {
-			t.Run(action, func(t *testing.T) {
-				backend, _ := open(t)
-				f := newManagementFixture(t, backend, 0)
-				policy := managementHost(t, backend)
-				if _, err := models.UserObjects.Patch(t.Context(), backend, f.root, models.UserPatch{}.WithSuperuser(false).WithRevision(2)); err != nil {
-					t.Fatal(err)
-				}
-				granted := map[string]bool{}
-				if action != "none" {
-					for _, permission := range strings.Split(action, "_") {
-						granted[permission] = true
-						p, err := models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate("godj_identity."+permission+"_user", permission))
-						if err != nil {
-							t.Fatal(err)
-						}
-						if _, err := models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(f.root.ID, p.ID)); err != nil {
-							t.Fatal(err)
-						}
-					}
-				}
-				manager := f.manager(t, f.runtime)
-				_, viewErr := manager.User(t.Context(), f.actor, f.user.ID)
-				_, pageErr := manager.Users(t.Context(), f.actor, 0, 10)
-				_, updateErr := manager.UpdateUser(t.Context(), f.actor, f.user.ID, 1, identity.UserPatch{})
-				_, createErr := manager.CreateUser(t.Context(), f.actor, identity.NewUserCreate("created-for-admission", "created-for-admission"), managementOldPassword)
-				_, deleteErr := manager.DeleteUser(t.Context(), f.actor, f.user.ID, 1, policy.AccountsUser)
-				for _, err := range []error{viewErr, pageErr, updateErr, createErr, deleteErr} {
-					if err != nil && !errors.Is(err, &identity.Error{Code: identity.CodePermission}) {
-						t.Fatal("admission failed outside permission boundary", err)
-					}
-				}
-				if (pageErr == nil) != (viewErr == nil) {
-					t.Fatal("page/detail authority diverged")
-				}
-				if createErr != nil && f.hasher.calls.Load() != 0 {
-					t.Fatal("denied creation hashed password")
-				}
-				observations[action] = map[string]bool{"view": viewErr == nil, "add": granted["add"], "change": updateErr == nil, "delete": deleteErr == nil, "create": createErr == nil}
-			})
-		}
-		assertManagementReference(t, "admission", observations)
-	})
 	t.Run("host_protect_and_failed_delete_preserve_every_row", func(t *testing.T) {
 		backend, _ := open(t)
 		f := newManagementFixture(t, backend, 3)

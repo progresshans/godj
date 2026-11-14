@@ -24,9 +24,9 @@ import (
 	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
-type catalogReference map[string]json.RawMessage
+type identityObservationReference map[string]json.RawMessage
 
-func loadCatalogReference(t *testing.T, vendor string) catalogReference {
+func loadCatalogReference(t *testing.T, vendor string) identityObservationReference {
 	t.Helper()
 	raw, err := identityreference.Catalog(vendor)
 	if err != nil {
@@ -35,7 +35,7 @@ func loadCatalogReference(t *testing.T, vendor string) catalogReference {
 	var reference struct {
 		Django, Python, Backend string
 		Sources                 map[string]string `json:"source_sha256"`
-		Observations            catalogReference
+		Observations            identityObservationReference
 	}
 	if err := json.Unmarshal(raw, &reference); err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func loadCatalogReference(t *testing.T, vendor string) catalogReference {
 	return reference.Observations
 }
 
-func (reference catalogReference) assert(t *testing.T, name string, value any) {
+func (reference identityObservationReference) assert(t *testing.T, name string, value any) {
 	t.Helper()
 	encoded, err := json.Marshal(value)
 	if err != nil {
@@ -69,7 +69,7 @@ func (reference catalogReference) assert(t *testing.T, name string, value any) {
 		t.Fatal(err)
 	}
 	if err := json.Unmarshal(reference[name], &expected); err != nil || !reflect.DeepEqual(actual, expected) {
-		t.Fatal("selected catalog differs from the independent native observation", name, err)
+		t.Fatal("selected identity differs from the independent native observation", name, err)
 	}
 }
 
