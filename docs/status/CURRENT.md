@@ -31,7 +31,8 @@
    선택 owner에서 확인한다. 선택 로그인의 독립 TCP 수명·세 경로의 전체 native 실패/경합과 실제 collision만 재시도되는
    현재 source를 원격에서 확인한다. 고정 validator factory를 제거한 공통 독립 기준·선택 typed 정책의 실행을 확인하고,
    자기 비밀번호 변경의 전체 native/host 상태·쓰기 prefix와 오류 분류 보강을 원격에서 확인하고,
-   남은 Account HTTP/reset과 사용자·credential 서비스의 무결성 책임을 선택 owner로 연결한다.
+   선택 Account HTTP의 Form/JSON·입구 거부·전체 native/host 실패 검사를 원격에서 확인하고,
+   남은 고정 자기 비밀번호 변경/reset과 사용자·credential 서비스의 무결성 책임을 선택 owner로 연결한다.
 4. [I1-01~08 수용 요구](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)의 제품·생성기·실제 소비자와
    같은 source의 검증 근거를 모두 연결한 뒤 완료를 판단한다. 세부 미완료 범위는 해당 work에 유지한다.
 

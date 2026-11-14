@@ -334,6 +334,9 @@ func (backend *profileFaultBackend) runAtomic(ctx context.Context, callback func
 		if backend.mode == "unknown_rollback" {
 			return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown}
 		}
+		if backend.mode == "callback_cancel" {
+			return context.Canceled
+		}
 		if backend.mode == "cancel_before_commit" || backend.mode == "cancel_confirmed_rollback" {
 			backend.cancel()
 			if backend.mode == "cancel_confirmed_rollback" {

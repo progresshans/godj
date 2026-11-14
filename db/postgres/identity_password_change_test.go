@@ -18,19 +18,3 @@ func TestPostgresIdentityPasswordChangeConcurrency(t *testing.T) {
 func TestPostgresIdentityPasswordChangeHTTP(t *testing.T) {
 	identitytest.RunPasswordChangeHTTP(t, openPostgresIdentityPair)
 }
-
-func TestPostgresIdentityAccountHTTP(t *testing.T) {
-	identitytest.RunAccountHTTP(t, openPostgresIdentityPair)
-}
-
-func TestPostgresIdentityAccountHTTPRefusals(t *testing.T) {
-	identitytest.RunAccountHTTPRefusals(t, openPostgresIdentityPair)
-}
-
-func TestPostgresIdentityAccountHTTPBoundaries(t *testing.T) {
-	identitytest.RunAccountHTTPBoundaries(t, openPostgresIdentityPair)
-}
-
-func TestPostgresIdentityAccountEntryRefusals(t *testing.T) {
-	identitytest.RunAccountEntryRefusals(t, openPostgresIdentityPair)
-}

@@ -2,7 +2,6 @@ package identitytest
 
 import (
 	"context"
-	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,13 +15,11 @@ import (
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/validation"
 )
-
-//go:embed testdata/password-change-django61-*.json
-var passwordChangeReferences embed.FS
 
 const selfPassword = "  replacement private password  "
 
@@ -200,7 +197,7 @@ func RunPasswordChange(t *testing.T, open func(*testing.T) (TransitionBackend, T
 		// Native Django keeps the other row until access. GoDj revokes it in
 		// the password transaction; both make the old session unauthenticated.
 		for _, database := range []string{"sqlite", "postgres"} {
-			payload, err := passwordChangeReferences.ReadFile("testdata/password-change-django61-" + database + ".json")
+			payload, err := identityreference.PasswordChange(database)
 			if err != nil {
 				t.Fatal(err)
 			}

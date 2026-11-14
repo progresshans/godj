@@ -5660,6 +5660,40 @@ PostgreSQL은 5,865→5,899다. 고정 자기 비밀번호/Account HTTP의 기�
 154.497초에 통과했고 Markdown 245개 문서의 링크를 확인했다. Go compile/test·generate·DB/HTTP는 실행하지 않았다.
 새 source의 실제 native 본문과 영향 및 전체 환경 확인은 원격 CI가 소유한다.
 
+### Account HTTP의 선택 runtime 이관
+
+2026-11-15, `45d3a8ec` 위에서 고정 `IdentityAccountHTTP`/`IdentityAccountHTTPRefusals`/
+`IdentityAccountHTTPBoundaries`/`IdentityAccountEntryRefusals`를 선택 `Runtime`의 실제 Account 앱 소비자로 옮겼다.
+새 runtime은 생성된 전체 host graph와 같은 session/authenticator/password owner를 사용하며, 일반 사용자와 모든 모델
+권한을 거부하는 HTTP authorizer에서도 자기 비밀번호 변경을 허용해야 한다. 기존 82개 필수 항목의 책임을 대조하고
+선택 98개로 연결했다. 비밀번호 갱신 직후 오류와 여섯 native 오류 모양을 양 표면에 추가하고 표면별 parent도 요구한다.
+
+| 기존 책임 | 선택 소비자 |
+|---|---|
+| 복합 Form 오류·비밀번호 비노출 | `account_password_form`의 기존 10개 사례. 원래 두 Django capture의 상태·진단·cookie 부재·password/session 불변·LastLogin을 대조한다. |
+| Form/JSON 변경·동일 비밀번호·CSRF 재사용·재접속·logout | `account_password_lifecycle/{form,json}`. 모델 권한 없는 사용자, 현재/다른/이전 bearer, raw password 공백과 cookie 속성을 유지하고 전체 native/host 상태와 정확한 감사·payload·수명을 비교한다. |
+| 미디어·shape·크기·query·CSRF/origin·credential 거부 | `account_password_refusals/{form,json}`의 기존 16개씩. stale setup/cleanup을 구분하며 만료·anonymous·중복 cookie에도 durable 상태가 바뀌지 않아야 한다. |
+| 쓰기 실패·취소·결과 불명 | `account_password_failures/{form,json}`의 14개씩. 원래 7개 경계와 갱신 직후/오류 출처 보강을 포함하며 실제 native prefix, 한 번의 hash/verify/write, cookie 비게시·원래 browser bearer와 전체 결과를 대조한다. |
+| 로그인·로그아웃 입구 거부 | `account_entry_refusals`의 기존 12개 로그인·5개 logout 사례. escaped username·정규화·현재 active·입력/CSRF/origin·method와 native 상태 보존을 유지한다. |
+
+성공과 unknown commit의 예상 session은 실제 쓰기 전 entropy·hasher 관찰 및 이전 행/요청으로 만든다. 새 opaque key만
+최종 snapshot에서 연결하고 다른 계정·anonymous·역사 namespace·host FK와 감사 prefix를 보존한다. HTTP fixture는
+실제 TCP 요청 전후를 channel로 이어 callback 구성과 native 관측의 동기화를 명시한다. 이 channel은 HTTP/DB 작업을
+대신하지 않으며 테스트 내 상태의 race를 막는다. Cancellation 사례는 native callback의 취소 오류와 확인된 rollback이며
+클라이언트 TCP 단절 실험이 아니다.
+
+독립 Django bytes와 producer는 변경하지 않았다. 고정 소비자가 직접 embed하던 원문을 공통 testdata loader로 읽으며,
+새 소비자는 Django 6.1/CPython 3.14.3·DB·9개 source digest·10개 refusal 집합도 확인한다. 두 capture의 공통 의미와
+GoDj의 eager session 폐기 차이를 유지한다. 남은 고정 자기 비밀번호의 직접·공통 Web 64개 필수 항목과 reset 검사는
+계속 남아 있다. 이전 82개 제거가 이 나머지의 이관 또는 전체 I1 수용을 뜻하지 않는다.
+
+두 원문의 SHA-256은 SQLite `4205775b069f8a8c27c4539eb2a8ae095bbe30e8972dd867750e60de5854a72c`,
+PostgreSQL `a0d473106c506462b04e2eb548a80e94a2a35540cc2e292337eb863db95e3abf`로 이전 source와 동일했다.
+Relation 목록은 4,860→4,876, PostgreSQL은 5,899→5,915이며 다른 필수 항목의 상대 순서와 중복 부재를 대조했다.
+로컬 gofmt·diff·82개에서 98개로의 정적 대응과 Markdown 245개 링크 검사를 통과했다. Python CI owner/분할 검사
+37개는 156.018초에 통과했다. Go compile/test·generate·DB/HTTP는 실행하지 않았다. 실제 새 native HTTP 본문·race·CGO0
+및 전체 환경은 새 source의 원격 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
