@@ -40,6 +40,12 @@ func (owner *passwordScopeOwner) CoordinatedAtomic(ctx context.Context, write fu
 	defer owner.scopes.Add(-1)
 	return owner.Backend.CoordinatedAtomic(ctx, write)
 }
+func (owner *passwordScopeOwner) CoordinatedAtomicRelation(ctx context.Context, write func(db.RelationSession) error) error {
+	owner.writes.Add(1)
+	owner.scopes.Add(1)
+	defer owner.scopes.Add(-1)
+	return owner.Backend.CoordinatedAtomicRelation(ctx, write)
+}
 
 type passwordChangeHasher struct {
 	auth.PasswordHasher

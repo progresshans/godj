@@ -5436,6 +5436,58 @@ child도 강화했다. 필수 child 누락/skip/잘린 event는 기존 strict ve
 차이와 변경 문서의 상대 링크 181개를 확인했고 최종 목록의 Python CI 분할 검사 27개는 33.200초에 통과했다.
 로컬 Go compile/test·generate·DB/HTTP 본문은 실행하지 않았으며, 새 본문과 I1 전체 수용은 현재 source의 전체 원격 실행에서 확인한다.
 
+### 비밀번호 정책 이관 source의 core 확인
+
+Source `62ea03ffd26f21806b4f179ee55ef8a8dd306aad`의
+[CI 43633642667](https://github.com/progresshans/godj/actions/runs/43633642667) attempt 1에서 core
+normal/race/CGO0 작업 `132565762532`/`132565762552`/`132565762561`이 성공했다. 실제 checkout
+`399e357332b5b9113bbe95a8801fc215798777dd`의 tree `e5e5ea18abd828a25a084dd7e3111aba691d5644`는
+제출 source와 같다. 각 runner는 141 package·필수 331개·run 14,698개·범위 밖 skip 591개를 보고했고
+clean worktree까지 완료했다. 전체 raw log·GitHub job metadata·엄격한 runner 요약·source/tree 대조는
+검증 보관소의 `gdj0138-62ea03ff-ci-43633642667/core-progress.json`에 있다
+(SHA-256 `c422e9195df86793087602af7c4537c66b17fe2c8a65fa88b7cba8402b0a79b7`).
+이 core 성공을 native 본문·전체 platform·I1 수용이나 아래 후속 unusable 변경의 PASS로 사용하지 않는다.
+
+같은 실행의 PostgreSQL normal `core-account-consumers` 작업 `132565763608`도 실제 실행·게시·clean worktree까지
+성공했다. Artifact `14129718030`의 273,043 bytes와 SHA-256
+`f39f9e332d2b84b7673b049d90723874eff542793ef4e9203b35a43852d2f099`를 GitHub metadata에 대조했다.
+같은 source의 전체 PostgreSQL 목록으로 planner를 재구성해 artifact의 필수 29개와 package/plan 원문이 같음을 확인했고,
+외부 root/child 29개의 run/pass 각 1회·skip 0을 전체 JSON에서 확인했다.
+
+기본/renamed × SQLite/PostgreSQL의 네 `TestGeneratedAccountCreationInputPolicy` process는 각각 run/pass 264개·skip 0,
+현재 source에서 재구성한 필수 255개를 정확히 한 번 실행·통과했다. 새 현재 프로필/정책 admission 10개와
+기존 기본 정책의 직접 서비스·Admin·재접속 TCP 검사를 포함한다. 같은 artifact의 생성 process 18개 모두 종료/완전한 event를
+확인했으며 각 stdout digest는 부모 test가 기록한 digest와 일치했다. 전체 원본·source 파일 hash·필수 이름/횟수는
+`gdj0138-62ea03ff-ci-43633642667/password-policy-native-normal-verification.json`에 있다
+(SHA-256 `c1d9c92b1fcbc2d9c62cd0c03dc696ccbfd12781123b926959f480fc92dcf563`).
+이는 `62ea03ff`의 Linux amd64 normal 양 DB 생성 소비자 근거이며 race/CGO0·다른 platform·후속 unusable 본문과
+I1 전체 수용으로 확대하지 않는다. 로컬 Go/DB를 다시 실행하지 않고 원격 원본과 같은 source의 Python reader를 대조했다.
+
+### Unusable 비밀번호의 선택 소비자 이관
+
+2026-11-15, `62ea03ff` 위에서 고정 `IdentityUnusablePasswords`의 검증 책임을
+`AccountCredentialStore`의 선택 owner로 옮겼다. `conformance/identityfixture`의 실제 생성 `NewAccountRuntime`과
+host graph·기본 typed 비밀번호 정책을 사용하며 Django 6.1/Python 3.14.3 양 DB 원문·producer 및 auth의
+entropy/encoding·독립 hash 검사는 변경하지 않았다.
+
+| 이전 검증 책임 | 선택 소비자와 유지·보강한 확인 |
+|---|---|
+| 생성·resolve·네 입력 거부·반복 비활성화·복구의 독립 기준 | `unusable_reference`의 일곱 child. `created`/`checks`/`rotations`/`restored`를 같은 양 DB 원문과 대조한다. 반복 전의 trusted 대체 인증 세션을 공개 store/record와 실제 한 행 delta로 결합하고, 실제 TCP 200→403·새 marker/stamp·대상만 폐기한다. 복구는 기본 정책 두 번/hash 한 번과 새 runtime의 TCP/CSRF 로그인·정확한 LastLogin·네 password 감사까지 연결한다. |
+| Read callback·scope·조회/close·cleanup 실패 | 기존 `password_admin_read_failures` 12개 child를 usable/unusable 양 명령에서 실행한다. 각각 새 snapshot 한 번, 무 policy/hash/write, 원인 보존·비게시와 actor/익명 세션을 포함한 전체 native 열 테이블 무변경을 요구한다. 취소는 두 번째 명령에도 별도 새 context를 사용한다. |
+| Write callback·scope·실제 UPDATE/DELETE/audit 뒤 실패 | `unusable_write_failures` 16개 child. 누락/nil/root/repeated callback, 계정 UPDATE·두 번째와 258번째 실제 세션 DELETE·audit INSERT, cleanup/삼킨 실패·잘못된 clock을 관측한다. 예상한 실제 write 횟수와 무 policy/hash/재시도, 전체 14개 native account/catalog/host/session/domain/audit 테이블을 대조한다. |
+| 확정 rollback·commit 결과 불명·취소 | 같은 write root에서 unknown rollback/commit·native context 취소·별도 native owner가 확인한 rollback·확정 commit 후 취소를 구분한다. 미확정 응답은 빈 결과와 실제 native 원인/불명 분류를 유지하고, durable 결과는 전체 rollback 또는 정확한 marker/revision·세션 폐기·audit만 허용한다. |
+| 현재 인가·target revision/credential 재검사 | `unusable_fences` 네 child. 과거 superuser actor를 전달하되 DB에서는 group Change 권한만 부여한 뒤, 별도 5초 native transaction이 actor 비활성화·group grant 삭제·target revision/hash를 바꾼다. 최종 거부는 그 요청한 외부 변경만 남기고 전체 상태·기존 세션을 보존해야 한다. |
+| Disable 대 usable replace 경합 | `unusable_concurrent_replacement`. 독립 연결의 두 명령이 실제 native write 전까지 함께 도달한 뒤 한 승자·한 conflict만 허용한다. 전체 상태·정확한 감사·세션 폐기·현재 인증과 stamp, 비활성화의 무 hash/policy와 교체 한 번 hash·실제 단계별 policy 횟수를 확인한다. 전체 15초 context·취소·worker join을 유지한다. |
+
+고정 양 DB root/child 23개씩을 제거하고 새 선택 root/child 31개씩을 필수 실행에 연결했다. Relation 목록은
+4,860→4,868, PostgreSQL은 5,783→5,791이며 다른 항목과 상대 순서는 그대로다. 고정 root 전용 helper는 제거하고,
+다른 login/password/reset 소비자가 쓰는 PostgreSQL 단일 연결 pair는 공통 fixture로 옮겨 그대로 유지했다.
+Username의 실제 hash·write 관측 owner를 공통화했고 scalar/relation scope 소유권을 모두 추적한다.
+
+로컬 gofmt·diff·import/호출·필수 항목 대응과 독립 원문/producer 무변경을 확인했다. 최종 필수 목록의 Python CI
+분할 검사 27개는 33.215초에 통과했다. 로컬 Go compile/test·generate·DB/HTTP는 실행하지 않았다. 새 Go 본문·양 DB·
+race/CGO-disabled·전체 platform의 현재 source 실행은 원격 확인 대상이며 I1 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

@@ -19,7 +19,9 @@ import (
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
+	"github.com/progresshans/godj/orm"
 	"github.com/progresshans/godj/sessions"
+	"github.com/progresshans/godj/validation"
 )
 
 const userReferencePassword = "original-reference-password"
@@ -133,6 +135,41 @@ func userReferenceRuntime(t *testing.T, backend Backend, hasher auth.PasswordHas
 		t.Fatal(err)
 	}
 	return runtime
+}
+
+type userReferenceOwner struct {
+	runtime  *accountmodel.Runtime[models.User, models.Group, models.Permission]
+	boundary *profileFaultBackend
+	hasher   *passwordChangeHasher
+	encoded  atomic.Value
+	policies atomic.Int64
+}
+
+func newUserReferenceOwner(t *testing.T, backend Backend, f *userReferenceFixture, config accountmodel.RuntimeConfig[models.User, models.Group, models.Permission]) *userReferenceOwner {
+	t.Helper()
+	owner := &userReferenceOwner{boundary: &profileFaultBackend{Backend: backend}}
+	tracked := &passwordScopeOwner{Backend: owner.boundary}
+	owner.hasher = &passwordChangeHasher{PasswordHasher: f.base.hasher, scopes: &tracked.scopes, encode: func(ctx context.Context, raw string) (string, error) {
+		encoded, err := f.base.hasher.Hash(ctx, raw)
+		if err == nil {
+			owner.encoded.Store(encoded)
+		}
+		return encoded, err
+	}}
+	if policy := config.Accounts.ValidatePassword; policy != nil {
+		config.Accounts.ValidatePassword = func(ctx context.Context, raw string, profile orm.ModelView[models.User]) (validation.Errors, error) {
+			owner.policies.Add(1)
+			return policy(ctx, raw, profile)
+		}
+	}
+	var err error
+	owner.runtime, err = hostproject.NewAccountRuntime(t.Context(), tracked, owner.hasher, auth.PrincipalAuthorizer{}, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The authenticator's real startup dummy hash is separate from a command.
+	owner.hasher.hashes.Store(0)
+	return owner
 }
 
 func provisionUserReference(t *testing.T, backend Backend) *userReferenceFixture {

@@ -6,8 +6,8 @@ import (
 )
 
 func TestPostgresIdentityLoginLifecycle(t *testing.T) {
-	identitytest.RunLoginLifecycle(t, openPostgresUnusablePair)
+	identitytest.RunLoginLifecycle(t, openPostgresIdentityPair)
 }
 func TestPostgresIdentityLoginBoundaries(t *testing.T) {
-	identitytest.RunLoginBoundaries(t, openPostgresUnusablePair)
+	identitytest.RunLoginBoundaries(t, openPostgresIdentityPair)
 }

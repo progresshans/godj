@@ -27,7 +27,8 @@
    hash 중 권한 회수·생성/편집 경합·권한 합집합 경계를 확인한다. Username 중복의 독립 관측·선택적 정책·정확한 로그인·
    hash 중 중복 유입·대소문자 경합과 조회/cleanup/audit/결과 불명 검사를 선택 owner에서 확인한다. 기본 비밀번호 정책의
    직접 서비스·HTTP·해싱 중 현재 프로필 재검사와 실패 분류를 기본/renamed 생성 앱에서 확인한다.
-   남은 로그인·unusable·고정 validator adapter/독립 기준과 사용자·credential 서비스의 무결성 책임을 대조한다.
+   Unusable 생성·반복 회전·복구의 독립 기준, 전체 native 상태·실제 HTTP·세션 폐기와 읽기/쓰기 실패·취소·현재 인가/경합을
+   선택 owner에서 확인한다. 남은 로그인·고정 validator adapter/독립 기준과 사용자·credential 서비스의 무결성 책임을 대조한다.
 4. [I1-01~08 수용 요구](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)의 제품·생성기·실제 소비자와
    같은 source의 검증 근거를 모두 연결한 뒤 완료를 판단한다. 세부 미완료 범위는 해당 work에 유지한다.
 

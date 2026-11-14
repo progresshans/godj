@@ -905,6 +905,14 @@ strength 진단보다 먼저 적용되는지 확인한다. 실제 hash callback�
 구분하도록 작성했다. 전체 native 행과 다른 계정·익명 세션은 보존하며 새 필수 본문은 원격 확인 대상이다.
 고정 validator adapter의 독립 기준·unusable·login·역사 runtime과 I1의 나머지 수용은 계속 남아 있다.
 
+고정 unusable 서비스의 생성·인증 거부·반복 비활성화·복구를 선택 `Runtime`의 독립 Django 관측에 연결했다.
+실제 비밀번호 없는 credential로 발급한 대체 인증 세션의 TCP 권한 응답, 매번 새로운 marker/stamp·대상 세션 폐기,
+기본 정책을 다시 적용한 복구와 재접속/LastLogin을 전체 native 행과 정확한 감사로 대조한다. 읽기/쓰기 scope 실패,
+실제 세션 삭제·audit 뒤 실패와 확정 rollback/결과 불명/취소, 현재 그룹 권한 회수·target revision/hash 재검사,
+독립 연결의 비활성화 대 비밀번호 교체 경합도 선택 owner로 옮겼다. 같은 원문·producer·entropy 검사를 유지하고
+옛 고정 root를 제거했으며 필수 목록 대응과 새 본문의 환경별 실행은 TEST_EVIDENCE에 구분한다. 남은 로그인·
+고정 validator adapter/독립 기준과 고정 credential 서비스 전체의 이관·I1 수용은 계속 필요하다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -6,13 +6,11 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
-	hostproject "github.com/progresshans/godj/conformance/identityfixture/project"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
@@ -47,34 +45,11 @@ func provisionUsernamePolicy(t *testing.T, backend Backend, stored string) *user
 	return f
 }
 
-type usernameCreationOwner struct {
-	runtime  *accountmodel.Runtime[models.User, models.Group, models.Permission]
-	boundary *profileFaultBackend
-	hasher   *passwordChangeHasher
-	encoded  atomic.Value
-}
-
-func newUsernameCreationOwner(t *testing.T, backend Backend, f *usernameFixture, checked bool) *usernameCreationOwner {
+func newUsernameCreationOwner(t *testing.T, backend Backend, f *usernameFixture, checked bool) *userReferenceOwner {
 	t.Helper()
-	owner := &usernameCreationOwner{boundary: &profileFaultBackend{Backend: backend}}
-	tracked := &creationOwner{Backend: owner.boundary}
-	owner.hasher = &passwordChangeHasher{PasswordHasher: f.base.hasher, scopes: &tracked.scopes, encode: func(ctx context.Context, raw string) (string, error) {
-		encoded, err := f.base.hasher.Hash(ctx, raw)
-		if err == nil {
-			owner.encoded.Store(encoded)
-		}
-		return encoded, err
-	}}
 	config := userReferenceConfig(t)
 	config.Accounts.CaseInsensitiveCreationLogin = checked
-	var err error
-	owner.runtime, err = hostproject.NewAccountRuntime(t.Context(), tracked, owner.hasher, auth.PrincipalAuthorizer{}, config)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Exclude the real authenticator's startup dummy hash from creation work.
-	owner.hasher.hashes.Store(0)
-	return owner
+	return newUserReferenceOwner(t, backend, f.userReferenceFixture, config)
 }
 
 func usernameUnique(t *testing.T, err error) []string {
@@ -87,7 +62,7 @@ func usernameUnique(t *testing.T, err error) []string {
 	return []string{string(items[0].Code())}
 }
 
-func usernameCommitted(t *testing.T, backend Backend, before userReferenceState, f *usernameFixture, owner *usernameCreationOwner, login string) accountmodel.Creation {
+func usernameCommitted(t *testing.T, backend Backend, before userReferenceState, f *usernameFixture, owner *userReferenceOwner, login string) accountmodel.Creation {
 	t.Helper()
 	after := userReferenceSnapshot(t, backend)
 	var matches []models.User

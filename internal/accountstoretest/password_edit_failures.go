@@ -251,13 +251,21 @@ func passwordAdminCommitFailures(t *testing.T, backend Backend, reopen func(*tes
 func passwordAdminReadFailures(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
+	now := joined
+	_, sessions, _ := accountSessions(t, backend, &now)
+	passwordSession(t, sessions, profileActor(t, f), "read-failure-preserved")
+	if _, err := sessions.Create(t.Context(), map[string]string{"anonymous": "read-failure-preserved"}); err != nil {
+		t.Fatal(err)
+	}
 	for _, mode := range []string{"skipped", "nil", "typed_nil", "root", "repeated", "query", "close", "swallowed", "cleanup", "cancel", "denial_cleanup", "missing_cleanup"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			fault := errors.New("private administrative password read failure")
 			readOwner := &creationSnapshotBackend{Backend: backend}
+			reads := 0
 			readOwner.read = snapshotFunc(func(ctx context.Context, observe func(db.Queryer) error) error {
+				reads++
 				switch mode {
 				case "skipped":
 					return nil
@@ -290,11 +298,15 @@ func passwordAdminReadFailures(t *testing.T, backend Backend, reopen func(*testi
 				}
 				return err
 			})
-			now := joined
 			tracked := &passwordScopeOwner{Backend: readOwner}
 			hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
 			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 			config, id := passwordEditConfig(), f.user.ID
+			policies := 0
+			config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
+				policies++
+				return validation.Errors{}, nil
+			}
 			if mode == "denial_cleanup" {
 				config.AdditionalPermissions = []auth.Permission{"account.absent"}
 			}
@@ -303,19 +315,38 @@ func passwordAdminReadFailures(t *testing.T, backend Backend, reopen func(*testi
 			}
 			owner := passwordEditOwner(t, configured, config)
 			hasher.hashes.Store(0)
-			before := passwordState(t, backend)
-			result, err := owner.SetPassword(ctx, actor, id, 1, password+"-new")
-			passwordEditNoResult(t, result, err)
-			requireProfileCode(t, err, accountmodel.CodePersistence)
-			if hasher.hashes.Load() != 0 || tracked.writes.Load() != 0 {
-				t.Fatal("failed snapshot progressed to mutation")
-			}
-			if mode == "query" || mode == "close" || mode == "swallowed" || mode == "cleanup" || mode == "denial_cleanup" || mode == "missing_cleanup" {
-				if !errors.Is(err, fault) {
-					t.Fatal("read cleanup cause lost", fmt.Sprintf("%v", err))
+			before := accountNativeSnapshot(t, backend)
+			for _, unusable := range []bool{false, true} {
+				beforeReads := reads
+				work := ctx
+				if mode == "cancel" && unusable {
+					// The second command must enter a fresh read snapshot before
+					// its own cleanup cancellation, rather than inherit the first.
+					work, cancel = context.WithCancel(t.Context())
+					defer cancel()
 				}
+				var result accountmodel.PasswordEditResult
+				var err error
+				if unusable {
+					result, err = owner.SetUnusablePassword(work, actor, id, 1)
+				} else {
+					result, err = owner.SetPassword(work, actor, id, 1, password+"-new")
+				}
+				passwordEditNoResult(t, result, err)
+				requireProfileCode(t, err, accountmodel.CodePersistence)
+				if hasher.hashes.Load() != 0 || policies != 0 || tracked.writes.Load() != 0 || reads != beforeReads+1 {
+					t.Fatal("failed snapshot progressed to password work or mutation")
+				}
+				if mode == "query" || mode == "close" || mode == "swallowed" || mode == "cleanup" || mode == "denial_cleanup" || mode == "missing_cleanup" {
+					if !errors.Is(err, fault) {
+						t.Fatal("read cleanup cause lost", fmt.Sprintf("%v", err))
+					}
+				}
+				if mode == "cancel" && !errors.Is(err, context.Canceled) {
+					t.Fatal("password read cleanup lost cancellation", err)
+				}
+				assertCatalogRows(t, before, accountNativeSnapshot(t, reopen(t)), actor)
 			}
-			passwordUnchanged(t, reopen(t), before)
 		})
 	}
 }

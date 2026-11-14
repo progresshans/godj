@@ -107,6 +107,15 @@ func (browser *userReferenceHTTP) close() { browser.server.Close() }
 
 func (browser *userReferenceHTTP) request(t *testing.T, method, path string, data url.Values, want int) string {
 	t.Helper()
+	status, body := browser.exchange(t, method, path, data)
+	if status != want {
+		t.Fatal("selected user HTTP response differs", status, want)
+	}
+	return body
+}
+
+func (browser *userReferenceHTTP) exchange(t *testing.T, method, path string, data url.Values) (int, string) {
+	t.Helper()
 	request, err := http.NewRequestWithContext(t.Context(), method, browser.server.URL+path, strings.NewReader(data.Encode()))
 	if err != nil {
 		t.Fatal(err)
@@ -120,15 +129,15 @@ func (browser *userReferenceHTTP) request(t *testing.T, method, path string, dat
 	}
 	defer response.Body.Close()
 	raw, err := io.ReadAll(io.LimitReader(response.Body, (64<<10)+1))
-	if err != nil || len(raw) > 64<<10 || response.StatusCode != want {
-		t.Fatal("selected user HTTP response differs", response.StatusCode, want, err)
+	if err != nil || len(raw) > 64<<10 {
+		t.Fatal("selected user HTTP response is incomplete", response.StatusCode, err)
 	}
 	for _, secret := range []string{userReferencePassword, "reference-created", "pbkdf2_sha256$"} {
 		if strings.Contains(string(raw), secret) {
 			t.Fatal("selected user HTTP disclosed credential data")
 		}
 	}
-	return string(raw)
+	return response.StatusCode, string(raw)
 }
 
 func (browser *userReferenceHTTP) login(t *testing.T, login, password string) sessions.ID {

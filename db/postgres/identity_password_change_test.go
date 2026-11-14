@@ -7,30 +7,30 @@ import (
 )
 
 func TestPostgresIdentityPasswordChange(t *testing.T) {
-	identitytest.RunPasswordChange(t, openPostgresUnusablePair)
+	identitytest.RunPasswordChange(t, openPostgresIdentityPair)
 }
 func TestPostgresIdentityPasswordChangeBoundaries(t *testing.T) {
-	identitytest.RunPasswordChangeBoundaries(t, openPostgresUnusablePair)
+	identitytest.RunPasswordChangeBoundaries(t, openPostgresIdentityPair)
 }
 func TestPostgresIdentityPasswordChangeConcurrency(t *testing.T) {
-	identitytest.RunPasswordChangeConcurrency(t, openPostgresUnusablePair)
+	identitytest.RunPasswordChangeConcurrency(t, openPostgresIdentityPair)
 }
 func TestPostgresIdentityPasswordChangeHTTP(t *testing.T) {
-	identitytest.RunPasswordChangeHTTP(t, openPostgresUnusablePair)
+	identitytest.RunPasswordChangeHTTP(t, openPostgresIdentityPair)
 }
 
 func TestPostgresIdentityAccountHTTP(t *testing.T) {
-	identitytest.RunAccountHTTP(t, openPostgresUnusablePair)
+	identitytest.RunAccountHTTP(t, openPostgresIdentityPair)
 }
 
 func TestPostgresIdentityAccountHTTPRefusals(t *testing.T) {
-	identitytest.RunAccountHTTPRefusals(t, openPostgresUnusablePair)
+	identitytest.RunAccountHTTPRefusals(t, openPostgresIdentityPair)
 }
 
 func TestPostgresIdentityAccountHTTPBoundaries(t *testing.T) {
-	identitytest.RunAccountHTTPBoundaries(t, openPostgresUnusablePair)
+	identitytest.RunAccountHTTPBoundaries(t, openPostgresIdentityPair)
 }
 
 func TestPostgresIdentityAccountEntryRefusals(t *testing.T) {
-	identitytest.RunAccountEntryRefusals(t, openPostgresUnusablePair)
+	identitytest.RunAccountEntryRefusals(t, openPostgresIdentityPair)
 }
