@@ -100,7 +100,7 @@ func RunPasswordResetSessions(t *testing.T, open func(*testing.T) (TransitionBac
 			backend, other := open(t)
 			f := newManagementFixture(t, backend, 7)
 			now := loginInstant
-			minimum, err := identity.NewMinimumLengthValidator(8)
+			minimum, err := legacyMinimumPasswordPolicy(8)
 			if err != nil {
 				t.Fatal(err)
 			}

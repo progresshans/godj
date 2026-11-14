@@ -52,7 +52,7 @@ func newAccountHTTP(t *testing.T, f *managementFixture, backend TransitionBacken
 	if err != nil {
 		t.Fatal(err)
 	}
-	minimum, err := identity.NewMinimumLengthValidator(8)
+	minimum, err := legacyMinimumPasswordPolicy(8)
 	if err != nil {
 		t.Fatal(err)
 	}

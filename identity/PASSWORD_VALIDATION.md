@@ -1,34 +1,11 @@
 # Password validation
 
-`DefaultPasswordValidators()` returns the four validators configured by Django
-startproject, in order: user-attribute similarity, minimum length 8, common
-passwords, and entirely numeric passwords. Calling the factory does not enable
-policies globally. Omitting a Manager/Admin/API policy retains Django's empty
-`AUTH_PASSWORD_VALIDATORS` behavior.
-
-```go
-validators, err := identity.DefaultPasswordValidators()
-if err != nil {
-    return err
-}
-manager, err := identity.NewManager(backend, hasher, authorizer,
-    identity.WithPasswordValidators(validators...))
-```
-
-Admin uses `Config.WithPasswordValidators`; JSON API uses
-`Config.PasswordValidators`. Article's `siteapp.Config.WithPasswordValidators`
-selects the same policy for both surfaces. Constructors snapshot their slices;
-validators must remain pure and safe for simultaneous calls. Validation does
-not perform filesystem or database I/O and never changes the password hashed.
-The manager applies the policy after current authorization and again inside
-the final write fence. Failed or uncertain rollback is an execution failure,
-not a renderable password rejection.
-
-## Selected account models
-
-`auth/passwordpolicy` owns the model-independent rules and pinned dictionary.
-The built-in account validators above select attributes from `identity.Profile`;
-selected models use their real typed binding without constructing that profile.
+`Binding.DefaultPasswordValidator` builds a policy for the selected account's
+typed profile. It applies the four rules configured by Django startproject in
+order: attribute similarity, minimum length 8, common passwords, and entirely
+numeric passwords. The factory performs no I/O and installs no global policy.
+An omitted runtime policy retains Django's empty `AUTH_PASSWORD_VALIDATORS`
+strength-validation behavior.
 
 ```go
 binding, err := project.BindAccount()
@@ -38,8 +15,20 @@ validate, err := binding.DefaultPasswordValidator(
     accountmodel.PasswordAttribute{Field: "display_name", Label: "display name"},
 )
 if err != nil { return err }
-// Use validate in the selected CreationPolicy or AccountManagementConfig.
+// Set the selected runtime's config.Accounts.ValidatePassword to validate.
 ```
+
+The selected runtime shares this policy across Form/Admin/API, self-service
+changes and password reset. Services check current authorization before the
+policy, then recheck the current profile inside the final write fence after
+hashing. Failed or uncertain rollback is an execution failure; it cannot be
+rendered as an ordinary password rejection. Validators must remain pure and
+safe for simultaneous calls, and never change the password bytes hashed.
+
+`auth/passwordpolicy` owns the model-independent algorithms and pinned
+dictionary. Its `Default()` factory returns the four immutable rules for hosts
+that compose a custom typed policy. There is no separate fixed-Profile built-in
+validator API.
 
 Fields must belong to the selected model and have a string scalar kind. Labels
 are static declaration metadata. Credential/principal identity, revision and
@@ -59,7 +48,7 @@ account creation, administrative changes, self-service changes and its optional
 
 - `NewMinimumLengthValidator(n)` counts Unicode scalar values, including
   combining characters, and emits `password_too_short` with `min_length`.
-- `NewUserAttributeSimilarityValidator(SimilarityConfig{...})` lowercases the
+- `passwordpolicy.NewSimilarityValidator(maximum)` lowercases the
   password and selected profile values using pinned Unicode 16, splits values
   on Python `\W+`, and compares each part and the full value using Django's
   `SequenceMatcher.quick_ratio` behavior (character multiset overlap). The
@@ -81,10 +70,11 @@ malformed strings produce `invalid` rather than replacement characters.
 
 ## Go configuration boundaries
 
-Minimum length must be nonnegative. Similarity supports `username`,
-`first_name`, `last_name` and `email`; unknown attributes are explicit
-configuration errors. Nil attributes choose all four; an empty slice chooses
-none. Zero threshold chooses 0.7. Explicit thresholds must be finite and at
+Minimum length must be nonnegative. The model-independent similarity rule
+reads the ordered `[]passwordpolicy.Attribute` supplied for each invocation;
+nil or empty values select no attributes. The typed binding above owns field
+selection, source validation and the declared-attribute copy. Zero threshold
+chooses 0.7. Explicit thresholds must be finite and at
 least 0.1; values above 1 select no similarity rejection, as in Django. These
 are typed Go configuration decisions, not Python object/introspection parity.
 
@@ -114,6 +104,11 @@ shared dictionary. Configuration formatting never exposes dictionary contents.
 The [independent observer](../conformance/runners/django/password_validation_reference.py)
 executes Django validators and `validate_password` on synthetic inputs. It does
 not read Go implementation/output. Tests compare individual and accumulated
-errors/parameters, a similarity matrix, and all dictionary entries with case
-and whitespace variants. Execution scope and results belong to
+errors/parameters for all 156 cases, a 16,245-case similarity matrix, and all
+19,640 dictionary entries in 58,920 case/whitespace variants. The unchanged
+[input corpus](../auth/passwordpolicy/testdata/password-inputs.json) and
+[observation](../auth/passwordpolicy/testdata/password-django61.json) also supply
+41 default-rule cases to the selected binding's typed advisory-profile test.
+These pure observations do not prove account storage or HTTP acceptance.
+Execution scope and results belong to
 [TEST_EVIDENCE](../docs/status/TEST_EVIDENCE.md).

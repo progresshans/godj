@@ -454,11 +454,12 @@ Python unsaved model의 mutable 속성·password getter·암묵적 권한은 복
 
 ## 내장 password validator와 공통 정책 선택
 
-`DefaultPasswordValidators()`는 고정 Django startproject의 similarity·최소 8자·common·numeric 순서를 반환한다.
+`auth/passwordpolicy.Default()`는 고정 Django startproject의 similarity·최소 8자·common·numeric 순서를 반환한다.
 자동으로 전역 정책을 켜지 않으며, policy 생략은 기존 빈 AUTH_PASSWORD_VALIDATORS 의미를 유지한다.
 현재 조립은 선택 binding의 typed 정책을 하나의 runtime에 전달해 Form/Admin/API·self-service/reset이 공유한다.
-`Binding.DefaultPasswordValidator`는 실제 속성 선언의 복사본을 소유한다. 남은 역사 Manager의 WithPasswordValidators도
-caller slice를 분리하지만 고정 Admin/API Config 경로는 제거했다.
+`Binding.DefaultPasswordValidator`는 실제 속성 선언의 복사본을 소유한다. 고정 Profile용 내장 validator factory는 제거하며,
+남은 역사 password/reset 소비자는 같은 공통 규칙을 host callback으로 조립한다. 역사 Manager의 WithPasswordValidators도
+caller slice를 분리하지만 이 계약이 별도의 고정 제품 조립을 요구하지 않는다.
 
 길이는 Unicode 글자 수, 숫자 판정은 Unicode 16 isdigit이다. Similarity는 선택한 public profile 문자열의 full lowercase,
 Python `\W+` 분리(양 끝의 빈 부분 포함), 전체 값에 대한 quick_ratio의 multiset overlap과 inclusive threshold를 따른다.
@@ -466,8 +467,9 @@ Common은 pinned Django의 19,640개 사전과 lower/strip한 후보를 비교�
 모든 진단은 password field의 안정적인 code와 비공개 값이 없는 params이며 구성 순서대로 누적한다.
 현재 인가·revision 검사, hash 전과 마지막 fence의 현재 profile 검사, session/audit 원자성과 rollback/unknown 구분은 유지한다.
 
-Go 구성은 최소 길이 nonnegative, finite similarity >= 0.1(0은 기본 0.7), Profile의 네 public 문자열 속성을 지원한다.
-Nil 속성은 기본 네 개, 명시적 empty는 검사 대상 없음이다. 사전은 constructor가 복사하는 문자열 목록이며 nil은 고정 사전,
+Go 구성은 최소 길이 nonnegative, finite similarity >= 0.1(0은 기본 0.7)을 지원한다. 공통 규칙은 호출마다 명시한
+문자열 속성과 static label을 받으며, 선택 binding은 실제 모델의 필드·source와 선언 복사본을 소유한다. 선택 선언의
+nil은 실제 login·선택 email 역할, 명시적 empty는 검사 대상 없음이다. 사전은 constructor가 복사하는 문자열 목록이며 nil은 고정 사전,
 empty는 빈 목록이다. 사용자 사전은 UTF-8/1,000,000개/16 MiB를 검증하며 외부 파일 I/O는 caller가 구성 전에 소유한다.
 Malformed UTF-8을 고쳐서 허용하지 않는다. Source·license·정확한 parameter 의미는
 [Password validation](../../identity/PASSWORD_VALIDATION.md)에 기록한다. 임의 Python user 속성 반사는 지원하지 않으며 Form·self-service·reset은 각 소비자 계약을 따른다.

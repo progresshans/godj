@@ -112,7 +112,7 @@ func RunPasswordReset(t *testing.T, open func(*testing.T) (TransitionBackend, Tr
 			t.Fatal(err)
 		}
 		f.user = user
-		minimum, err := identity.NewMinimumLengthValidator(8)
+		minimum, err := legacyMinimumPasswordPolicy(8)
 		if err != nil {
 			t.Fatal(err)
 		}

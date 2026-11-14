@@ -16,7 +16,7 @@ from django.conf import settings
 
 def observe():
     assert django.get_version() == "6.1" and platform.python_version() == "3.14.3" and unicodedata.unidata_version == "16.0.0"
-    path = Path(__file__).resolve().parents[3] / "identity/testdata/password-inputs.json"
+    path = Path(__file__).resolve().parents[3] / "auth/passwordpolicy/testdata/password-inputs.json"
     inputs = json.loads(path.read_text())
     settings.configure(SECRET_KEY="synthetic-password-validator-reference", INSTALLED_APPS=["django.contrib.auth", "django.contrib.contenttypes"], USE_TZ=True, LANGUAGE_CODE="en-us")
     django.setup()

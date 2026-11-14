@@ -17,7 +17,6 @@ import (
 	"github.com/progresshans/godj/apps"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity"
 	identityaccount "github.com/progresshans/godj/identity/account"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/mail"
@@ -55,7 +54,7 @@ func newResetAccountHTTP(t *testing.T, f *managementFixture, backend TransitionB
 	if err != nil {
 		t.Fatal(err)
 	}
-	minimum, err := identity.NewMinimumLengthValidator(8)
+	minimum, err := legacyMinimumPasswordPolicy(8)
 	if err != nil {
 		t.Fatal(err)
 	}

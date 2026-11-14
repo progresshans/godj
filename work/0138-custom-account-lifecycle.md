@@ -918,8 +918,15 @@ TCP/CSRF 로그인·다른 사용자 교체·접근·logout·재접속을 확인
 Unknown commit의 예상 bearer는 DB 결과가 아닌 쓰기 전 실제 entropy에서 얻고 요청으로 시각·payload·principal/stamp를
 재구성한다. 인가·LastLogin과 native 세션 I/O가 반환한 entropy 모양 오류의 재시도 오분류를 수정했으며,
 공통 DB Store의 실제 collision만 재시도되는 control과 cleanup/unknown 거부도 연결했다. 고정 로그인 root·전용 helper를
-제거하고 password/reset이 쓰는 시각 fixture는 유지한다. 새 본문의 환경별 실행과 고정 validator adapter/독립 기준·
-나머지 credential 서비스의 이관, 같은 source의 I1 전체 수용은 계속 필요하다.
+제거하고 password/reset이 쓰는 시각 fixture는 유지한다. 새 본문의 환경별 실행과 나머지 credential 서비스의 이관,
+같은 source의 I1 전체 수용은 계속 필요하다.
+
+고정 Profile용 내장 validator factory를 제거하고 독립 Django의 156개 사례·16,245개 유사도 matrix·58,920개 사전
+변형을 공통 `auth/passwordpolicy`의 필수 core 소비자로 옮겼다. 입력·관측 bytes는 그대로이며 producer는 입력 위치만
+바꾼다. 선택 binding은 같은 원문의 기본 규칙 41개를 typed advisory ModelView로 비교하고 선언 사본·동시 호출별 값
+분리를 검사한다. 남은 역사 password/reset 테스트는 공통 최소 길이 규칙을 자기 host callback으로 조립하며 기존
+transaction/HTTP 검증을 유지한다. 이 advisory 정책 비교는 계정의 IR 저장 validation이나 실제 생성·변경·reset 수용을
+대신하지 않는다. 새 source의 core·선택 모델·native 소비자 실행은 TEST_EVIDENCE에서 구분한다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

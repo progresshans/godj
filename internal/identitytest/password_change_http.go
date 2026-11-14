@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/progresshans/godj/auth"
-	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/systemstate"
@@ -39,7 +38,7 @@ func RunPasswordChangeHTTP(t *testing.T, open func(*testing.T) (TransitionBacken
 			if err != nil {
 				t.Fatal(err)
 			}
-			minimum, err := identity.NewMinimumLengthValidator(8)
+			minimum, err := legacyMinimumPasswordPolicy(8)
 			if err != nil {
 				t.Fatal(err)
 			}

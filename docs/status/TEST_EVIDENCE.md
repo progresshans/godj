@@ -5569,6 +5569,36 @@ pass 14,105개·skip 520개이며 필수 331개는 모두 정확히 한 번 실�
 현재 PostgreSQL normal 본문은 실행 중이며 이 새 대상의 양 DB·race/CGO0·platform 전체 원본 대조와 I1 수용은
 미완료다. Core compile/필수 실행으로 이를 대신하지 않으며 로컬 Go/DB도 실행하지 않았다.
 
+### 공통 password policy 독립 기준과 선택 모델 소비자
+
+2026-11-15, `d24a0e16` 위에서 고정 Profile용 내장 validator factory와 전용 검사를 제거했다. 실제 제품은 선택
+`Binding.DefaultPasswordValidator`와 `auth/passwordpolicy`를 이미 공유하며, 남은 역사 password/reset의 여섯 소비자는
+같은 공통 최소 길이 규칙을 자기 host callback으로 조립한다. 기존 transaction/HTTP 본문은 그대로이며 이 경로의
+선택 owner 이관 완료를 뜻하지 않는다. 고정 `WithPasswordValidators`의 callback 오류·사본 검사는 남은 owner와 함께 유지한다.
+
+| 검증 책임 | 현재 소비자 |
+|---|---|
+| 독립 개별/누적 진단과 순서 | `auth/passwordpolicy.TestPasswordValidatorsMatchPinnedDjango`의 156개 child. 원래 parameter·profile 속성 순서·nil/empty 사전을 그대로 전달하며 네 규칙과 누적 code/params를 같은 Django capture와 비교한다. |
+| 유사도 전체 조합과 사전 전체 | 같은 package의 `TestPasswordSimilarityMatrixAndCompleteCommonDictionary`. 유사도 16,245개의 framed digest와 19,640개 사전의 58,920개 원문/대문자/공백 변형 digest를 유지한다. |
+| 잘못된 구성·사본·병렬 호출 | `TestPasswordValidatorConfigurationOwnershipAndConcurrency`가 threshold/minimum/dictionary 거부·dictionary 사본·진단 비노출·default slice 분리·UTF-8 거부와 16×50 동시 호출을 확인한다. 호출별 속성 비보존 검사는 기존 `TestStrengthRulesUseIndependentAttributesWithoutRetainingValues`가 계속 소유한다. |
+| 선택 필드 선언과 실제 정책 조립 | `identity/model.TestSelectedPasswordPolicyMatchesPinnedDjango`의 41개 child는 원문의 최소 8자·기준 0.7·기본 사전 사례를 typed ModelInput/ModelView로 전달해 실제 선택 정책의 누적 진단을 대조한다. 네 필드/label은 입력 기준에 맞게 명시하며, 다른 parameter 사례는 공통 규칙의 156개 소비자가 소유한다. |
+| 선택 선언 사본·동시 profile 분리 | `TestSelectedPasswordPolicyDeclarationOwnershipAndConcurrency`는 constructor 뒤 caller 선언을 바꾸고, 같은 정책에서 두 typed profile을 16×50회 교대로 사용해 원래 field/label·호출별 값 분리를 요구한다. 미지정/secret/잘못된 타입·source·취소의 기존 선택 정책 검사는 유지한다. |
+
+원래 입력·관측 bytes는 `auth/passwordpolicy/testdata`로 이동했고 SHA-256은 각각
+`327998dafb506e757e28709daa7d37d617fe93e4381eed9ba842d32de6782e5e`,
+`7afdd8dca011248e83e4757027c539de27c600cd2983a823493e6de6915da8e7`로 동일하다. 원본 producer는 읽는 입력 경로만 바꿨으며
+관찰 로직은 변경하지 않았다. 공유 fixture loader는 고정 runtime/Unicode·producer/input hash·156개 이름/순서·모든 진단
+분류를 확인하고 호출별 새 값을 반환한다. 이것은 Python observer를 이번에 새로 실행했다는 의미가 아니다.
+
+기존 relation의 159개 필수 항목을 공통 정책의 portable core로 옮기고 선택 정책 43개를 relation에 추가했다.
+Portable core는 331→490, relation은 4,942→4,826이며 PostgreSQL 목록 5,865개와 나머지 필수 항목의 상대 순서는 유지한다.
+이동한 순수 정책 검사가 native DB나 기본/custom 앱의 저장·HTTP 검증을 대신하지 않는다. 선택 41개도 저장 validation
+이전 advisory profile에 대한 정책 관측이며 그 값이 IR 저장 제약을 통과했다고 계산하지 않는다.
+
+로컬 gofmt·diff·import/호출·필수 항목 대응과 원문 bytes·producer의 path-only 변경을 정적으로 확인했다. CI owner/분할
+Python 검사 29개가 53.261초에 통과했고 Markdown 245개 문서의 링크를 확인했다. 로컬 Go compile/test·generate·DB/HTTP는
+실행하지 않았다. 새 source의 core·선택 모델 본문과 역사 소비자·전체 환경 실행은 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

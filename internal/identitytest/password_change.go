@@ -252,7 +252,7 @@ func RunPasswordChange(t *testing.T, open func(*testing.T) (TransitionBackend, T
 		t.Run("refusal/"+mode, func(t *testing.T) {
 			backend, _ := open(t)
 			f := newManagementFixture(t, backend, 4)
-			minimum, err := identity.NewMinimumLengthValidator(8)
+			minimum, err := legacyMinimumPasswordPolicy(8)
 			if err != nil {
 				t.Fatal(err)
 			}
