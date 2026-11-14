@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/progresshans/godj/auth"
+	hostproject "github.com/progresshans/godj/conformance/identityfixture/project"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
-	"github.com/progresshans/godj/identity/project"
 	"github.com/progresshans/godj/query"
+	sessiondb "github.com/progresshans/godj/sessions/database"
 )
 
 type catalogReadBackend struct {
@@ -32,13 +34,14 @@ type catalogReadProbe struct {
 	table     string
 	skip      int
 	matches   int
+	ready     func() bool
 }
 
 func (probe *catalogReadProbe) ValidateSession(ctx context.Context) error {
 	return probe.validator.ValidateSession(ctx)
 }
 func (probe *catalogReadProbe) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	matched := plan.Table() == probe.table
+	matched := plan.Table() == probe.table && (probe.ready == nil || probe.ready())
 	if matched {
 		probe.matches++
 	}
@@ -58,7 +61,7 @@ func catalogFailedRead[M any](t *testing.T, ctx context.Context, resource accoun
 	switch operation {
 	case "get":
 		value, err := resource.Get(ctx, actor, id)
-		if value.Revision() != 0 || value.View().Values() != nil {
+		if _, loaded := value.View().Collection("permissions"); value.ID() != 0 || value.Revision() != 0 || value.View().Values() != nil || loaded {
 			t.Fatal("failed catalog read retained selected data")
 		}
 		return err
@@ -77,12 +80,42 @@ func catalogFailedRead[M any](t *testing.T, ctx context.Context, resource accoun
 	}
 }
 
-func catalogReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
-	f := provisionCatalog(t, backend)
+func catalogReadFailures(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+	f := provisionCatalogOperation(t, backend)
+	t.Run("group", func(t *testing.T) {
+		catalogResourceReadFailures(t, backend, reopen, f, "group", f.group.ID, func(catalog *accountmodel.Catalog[models.Group, models.Permission]) accountmodel.CatalogResource[models.Group] {
+			return catalog.Groups()
+		})
+	})
+	t.Run("permission", func(t *testing.T) {
+		catalogResourceReadFailures(t, backend, reopen, f, "permission", f.permission.ID, func(catalog *accountmodel.Catalog[models.Group, models.Permission]) accountmodel.CatalogResource[models.Permission] {
+			return catalog.Permissions()
+		})
+	})
+}
+
+func catalogResourceReadFailures[M any](t *testing.T, backend Backend, reopen func(*testing.T) Backend, f *catalogOperationFixture, kind string, target int64, selectResource func(*accountmodel.Catalog[models.Group, models.Permission]) accountmodel.CatalogResource[M]) {
 	actor := f.credential.Principal()
-	group, err := f.catalog.Groups().Create(t.Context(), actor, catalogGroupInput(t, map[string]query.Value{"name": query.String("read failure target")}, nil))
-	if err != nil {
-		t.Fatal(err)
+	resource := selectResource(f.catalog)
+	if !t.Run("baseline", func(t *testing.T) {
+		before := catalogHostSnapshot(t, reopen(t))
+		detail, err := resource.Get(t.Context(), actor, target)
+		if err != nil || detail.ID() != target || detail.Revision() != 1 {
+			t.Fatal("catalog read failure control did not load its target", err)
+		}
+		page, err := resource.List(t.Context(), actor, 0, 100)
+		if err != nil || page.Total == 0 || len(page.Items) == 0 {
+			t.Fatal("catalog read failure control did not load its page", err)
+		}
+		history, err := resource.History(t.Context(), actor, target, 100)
+		if err != nil || len(history) != 1 {
+			t.Fatal("catalog read failure control did not load its actual audit", err)
+		}
+		if !reflect.DeepEqual(before, catalogHostSnapshot(t, reopen(t))) {
+			t.Fatal("catalog read control changed native state")
+		}
+	}) {
+		return
 	}
 	for _, mode := range []string{"skipped", "nil", "typed_nil", "root", "repeated", "query", "close", "swallowed", "cleanup", "cancel", "denial_cleanup", "missing_cleanup"} {
 		t.Run(mode, func(t *testing.T) {
@@ -95,7 +128,10 @@ func catalogReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					defer cancel()
 					fault := errors.New("private catalog read cleanup details")
 					owner := &catalogReadBackend{Backend: backend}
+					calls, authorized := 0, false
+					var probe *catalogReadProbe
 					owner.read = func(ctx context.Context, observe func(db.Queryer) error) error {
+						calls++
 						switch mode {
 						case "skipped":
 							return nil
@@ -107,9 +143,9 @@ func catalogReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 							return observe(backend)
 						}
 						err := backend.ReadSnapshot(ctx, func(scope db.Queryer) error {
-							// Fail the catalog target/history query after current authority
-							// has completed, so partial selected results cannot escape.
-							probe := &catalogReadProbe{Queryer: scope, validator: scope.(db.SessionValidator), table: "godj_identity_group", skip: 1}
+							// Arm only after actual current authority succeeds. Group and
+							// Permission use different numbers of credential lookup queries.
+							probe = &catalogReadProbe{Queryer: scope, validator: scope.(db.SessionValidator), table: "godj_identity_" + kind, ready: func() bool { return authorized }}
 							if operation == "history" {
 								probe.table = "godj_account_audit_event"
 								probe.skip = 0
@@ -136,17 +172,50 @@ func catalogReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					}
 					config := catalogConfig()
 					if mode == "denial_cleanup" {
-						config.Group.Permissions.View, config.Group.Permissions.Change = "catalog.absent_view", "catalog.absent_change"
+						policy := &config.Group.Permissions
+						if kind == "permission" {
+							policy = &config.Permission.Permissions
+						}
+						policy.View, policy.Change = "catalog.absent_view", "catalog.absent_change"
 					}
-					catalog, err := project.NewAccountCatalog(catalogSessions(t, owner), auth.PrincipalAuthorizer{}, config)
+					overlay := overlayFunc(func(ctx context.Context, current auth.Principal, permission auth.Permission) (bool, error) {
+						allowed, err := (auth.PrincipalAuthorizer{}).Allowed(ctx, current, permission)
+						authorized = allowed && err == nil
+						return allowed, err
+					})
+					store, err := hostproject.NewAccountSessionStore(owner, sessiondb.Config{})
 					if err != nil {
 						t.Fatal(err)
 					}
-					id := group.ID
+					catalog, err := hostproject.NewAccountCatalog(store, overlay, config)
+					if err != nil {
+						t.Fatal(err)
+					}
+					id := target
 					if mode == "missing_cleanup" {
 						id = mathMaxKey
 					}
-					err = catalogFailedRead(t, ctx, catalog.Groups(), actor, id, operation)
+					before := catalogHostSnapshot(t, reopen(t))
+					if mode == "denial_cleanup" {
+						controlStore, err := hostproject.NewAccountSessionStore(backend, sessiondb.Config{})
+						if err != nil {
+							t.Fatal(err)
+						}
+						control, err := hostproject.NewAccountCatalog(controlStore, auth.PrincipalAuthorizer{}, config)
+						if err != nil {
+							t.Fatal(err)
+						}
+						requireProfileCode(t, catalogFailedRead(t, t.Context(), selectResource(control), actor, id, operation), accountmodel.CodePermission)
+					}
+					err = catalogFailedRead(t, ctx, selectResource(catalog), actor, id, operation)
+					if calls != 1 {
+						t.Fatal("catalog read retried its snapshot owner", calls)
+					}
+					if mode == "query" || mode == "close" || mode == "swallowed" {
+						if !authorized || probe == nil || probe.matches != 1 {
+							t.Fatal("catalog read did not reach its target after current authority")
+						}
+					}
 					requireProfileCode(t, err, accountmodel.CodePersistence)
 					if strings.Contains(fmt.Sprintf("%+v", err), "private") {
 						t.Fatal("catalog read disclosed private cause")
@@ -159,14 +228,23 @@ func catalogReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					if mode == "cancel" && !errors.Is(err, context.Canceled) {
 						t.Fatal("catalog read lost cancellation")
 					}
+					if !reflect.DeepEqual(before, catalogHostSnapshot(t, reopen(t))) {
+						t.Fatal("failed catalog read changed native state")
+					}
 				})
 			}
 		})
 	}
-	// A missing permission must also retain a clean zero result; the typed
-	// resource does not turn an absent row into its zero-valued model.
-	for _, operation := range []string{"get", "history"} {
-		err := catalogFailedRead[models.Permission](t, t.Context(), f.catalog.Permissions(), actor, mathMaxKey, operation)
-		requireProfileCode(t, err, accountmodel.CodeNotFound)
-	}
+	t.Run("not_found", func(t *testing.T) {
+		for _, operation := range []string{"get", "history"} {
+			t.Run(operation, func(t *testing.T) {
+				before := catalogHostSnapshot(t, reopen(t))
+				err := catalogFailedRead(t, t.Context(), resource, actor, mathMaxKey, operation)
+				requireProfileCode(t, err, accountmodel.CodeNotFound)
+				if !reflect.DeepEqual(before, catalogHostSnapshot(t, reopen(t))) {
+					t.Fatal("absent catalog read changed native state")
+				}
+			})
+		}
+	})
 }

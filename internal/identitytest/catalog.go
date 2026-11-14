@@ -6,17 +6,7 @@ import (
 
 	hostmodels "github.com/progresshans/godj/conformance/identityfixture/models"
 	"github.com/progresshans/godj/identity/models"
-	identityproject "github.com/progresshans/godj/identity/project"
 )
-
-func catalogRelations(t *testing.T) identityproject.Relations {
-	t.Helper()
-	relations, err := identityproject.BindRelations()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return relations
-}
 
 func catalogRows[T any](t *testing.T, objects interface {
 	All(context.Context) ([]T, error)

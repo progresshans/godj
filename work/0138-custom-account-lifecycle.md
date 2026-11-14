@@ -852,6 +852,12 @@ Catalog의 독립 Django lifecycle/admission도 선택 Catalog·AccountEditor·P
 옮겼다. 원문·producer·mutation control은 그대로 유지하며 host 관계·현재 권한 회수·no-op·rollback·stale owner·재접속과
 전체 native 상태를 대조한다. 고정 Manager의 나머지 실패/경계 소비자와 역사 runtime은 남아 있으며 실제 수용은 TEST_EVIDENCE를 따른다.
 
+Catalog의 read/write scope·여섯 mutation 실패 책임을 선택 owner로 옮겼다. Group/Permission의 생성·수정·삭제는 실제
+scalar/through/직접 owner revision/audit 뒤 실패, 확정 rollback·commit 결과 불명·취소를 전체 native/host 상태로 대조한다.
+두 자원의 상세/목록/역사 조회는 실제 현재 인가 뒤 오류를 주입하며 성공/거부 control·결과 비게시·원인 보존을 확인한다.
+기존 고정 입력/정책·PROTECT·rejected cleanup·authorizer 검사는 유지한다. 새 필수 본문의 실제 원격 수용과 선행 source의
+reload 8개 환경 부분 확인은 TEST_EVIDENCE에서 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

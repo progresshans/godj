@@ -5149,6 +5149,54 @@ Go compile/test·생성·DB 실행은 하지 않았다.
 그 결과는 후속 source나 새 독립 소비자의 수용 근거가 아니다. 선택 모델의 양 DB·race·CGO-disabled·전체 platform/cold-build,
 독립 생성 앱·browser/process와 남은 고정 서비스 이관을 포함한 I1-01~08 수용은 계속 미완료다.
 
+### fd8ce105 reload 부분 대조와 선택 Catalog 실패 경계 이관
+
+2026-11-15, source `fd8ce10537dc5331842f5b8a7f8ab4533031db84`의
+[CI 43617626401](https://github.com/progresshans/godj/actions/runs/43617626401), attempt 1에서 완료된 reload 8개 좌표의
+원본을 대조했다. GitHub Git API의 실제 checkout `60b6469acead9c882945828e1cfeebc8256e0ace`는 해당 source를 부모로
+가지며 tree `83640d5d434e74da66485c9d8f34c826a89107a6`가 제출 source와 같다. 각 archive의 metadata 크기/digest,
+repository/run/attempt/event/head/checkout/tree·clean status, 13개 파일의 SHA-256 seal을 확인했다.
+같은 source의 필수 목록·실행 planner로 Notes/Article 두 root와 필수 child의 완전한 실행·종료를 다시 확인했다.
+
+| 실제 reload 환경 | 확인한 artifact ID |
+|---|---|
+| Linux amd64 normal / race / CGO-disabled | `14122713429` / `14123172095` / `14123350558` |
+| Linux arm64 normal / race / CGO-disabled | `14122921840` / `14122902336` / `14123740107` |
+| macOS arm64 normal / CGO-disabled | `14123156742` / `14123425612` |
+
+원본과 source/manifest·실행 대조는 검증 보관소의
+`gdj0138-fd8ce105-ci-43617626401/reload-inventory-eight.json`에 있다
+(SHA-256 `54e6044541696b2aff9ca1d1bb6641dd061bda82a8495d5e6386a86249338a39`).
+전체 CI는 이관 작성 중 계속 진행 중이었다. 이 부분 결과를 새 catalog 독립 본문, Intel macOS timeout 해소,
+남은 reload 좌표나 전체 플랫폼의 완료로 확대하지 않으며 아래 후속 변경의 실행 근거로 사용하지 않는다.
+
+같은 source 위에서 고정 Manager의 catalog read/write scope·mutation 실패 소비자를 선택 owner로 옮겼다.
+새 `catalog_mutation_outcomes`는 Group/Permission × 생성/수정/삭제 각각의 실제 native DB를 열어 68개 leaf를 실행하도록
+작성했다. scope 누락·nil/root·반복·삼킨 query 오류, 실제 scalar/직접 계정 revision/audit INSERT 뒤 실패와 group through
+INSERT 뒤 실패를 구분한다. 요청 취소는 별도 native owner가 rollback을 확정하도록 하며, 결과 불명은 실제 rollback/commit
+뒤 acknowledgement를 주입하고 확인된 commit 이후 취소는 정확한 성공 metadata를 반환해야 한다. 네트워크 단절 실험은 아니다.
+
+| 제거한 고정 소비자 | 선택 owner에서 유지·보강한 책임 |
+|---|---|
+| `read_scope_failure_never_publishes_catalog` | `catalog_read_failures/group`·`permission`의 Get/List/History에 각각 성공 control, query/rows-close·scope/cleanup·취소·denial/missing cleanup을 연결한다. 현재 인가가 실제 허용된 뒤 대상 query에 오류를 주입하고, 반환 ID/선택 scalar/collection/page/history를 비워야 한다. 별도 정상 owner의 거부 control과 실제 존재하지 않는 대상도 확인한다. |
+| `write_scope_contract_never_publishes_catalog` | 여섯 mutation 각각의 skipped/nil/root/repeated/swallowed_query child. native owner 호출·오류 주입 횟수와 결과 비게시, 전체 물리 상태 보존을 대조한다. |
+| 여섯 mutation의 audit/cancel/unknown/late-cancel·update/membership 실패 36개 | 대응하는 `catalog_mutation_outcomes/<operation>/<mode>`로 연결한다. 실제 write 뒤 실패를 확인하고 rollback과 commit을 독립 재접속으로 구분한다. 성공도 요청과 변경 전 행에서 계산한 정확한 상태 및 audit 외의 변경을 허용하지 않는다. |
+
+공통 fixture는 현재 선택 domain·전체 host graph를 사용한다. 계정/catalog/through/session/domain/mapping/audit와
+AccessNote/AccessGuard의 12개 테이블 모든 typed 행을 같은 native snapshot에서 읽는다. 세 member 세션·actor/익명 세션,
+별도 PROTECT graph를 보존하며 삭제의 직접 owner revision과 CASCADE/SET_NULL, 변경 후 실제 권한 합집합·재접속을 확인한다.
+고정 Manager의 입력/unique/stale·페이지/Unicode·deny overlay·PROTECT·rejected cleanup·authorizer 오류 소비자와 역사 runtime은
+유지한다. 기존 선택 validator·일반 native-context 취소·collection rollback 소비자도 유지한다.
+
+DB별 고정 필수 selector 38개를 제거하고 기존 선택 read root/child 48개를 두 자원의 105개로 확장했다.
+mutation은 parent/operation/leaf 75개를 추가했으며, 새 두 범위의 필수 항목은 DB별 180개다.
+나머지 selector와 상대 순서는 그대로다(relation 4,717→4,811, PostgreSQL 5,640→5,734).
+원문·독립 producer/mutation control 및 제품 API·생성물을 변경하지 않았다.
+
+로컬 Gofmt·diff·변경 Markdown의 상대 링크와 Python CI 분할 검사 27개(34.767초)를 확인했다.
+Go compile/test·생성·DB 본문은 실행하지 않았으며, 새 필수 본문·양 DB·race·CGO-disabled 및 전체 환경 수용은 다음 source의
+원격 CI에서 확인한다. I1-01~08 전체 수용은 계속 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

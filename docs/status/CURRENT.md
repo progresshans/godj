@@ -21,7 +21,8 @@
    고정 JSON/Admin 등록과 기본 User 전용 Form 제거, 선택 Admin의 host 삭제·비밀번호 상태·LastLogin·복합 진단·권한별 화면·정책,
    비밀번호 비활성화/복구·명시적 login 입력 정책·Unicode 생성 서비스/저장 한도 편집과 독립 기준 소비자 이관을 원격에서 확인하고,
    catalog의 대량 직접 소유자·권한 합집합·현재 그룹 권한/가입 경합과 독립 lifecycle/admission 소비자의 선택 owner 이관을
-   확인한다. 남은 고정 서비스의 독립 기준·실패·인가·데이터 무결성 책임을 대조한다.
+   확인한다. 두 catalog 자원의 조회 실패·여섯 mutation의 scope/실제 write/취소/결과 불명과 전체 native/host 상태 검증을
+   원격에서 확인하고, 남은 고정 입력·인가·PROTECT·cleanup 및 서비스의 무결성 책임을 대조한다.
 4. [I1-01~08 수용 요구](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)의 제품·생성기·실제 소비자와
    같은 source의 검증 근거를 모두 연결한 뒤 완료를 판단한다. 세부 미완료 범위는 해당 work에 유지한다.
 

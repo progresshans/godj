@@ -233,6 +233,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			test.run(t, backend, reopen)
 		})
 	}
+	runCatalogMutationOutcomes(t, open)
 	runStartupSchemaRequired(t, open)
 	runAccountDeletion(t, open, storedKey)
 	runCollectionChanges(t, open, storedKey, generatedKeys)
