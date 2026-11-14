@@ -371,9 +371,18 @@ type profileReadFaultRows struct {
 
 func (rows *profileReadFaultRows) Close() error { return errors.Join(rows.Rows.Close(), rows.fault) }
 
-func profileReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+func profileReadFailures(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
-	actor := profileActor(t, f).Principal()
+	credential := profileActor(t, f)
+	actor := credential.Principal()
+	now := joined
+	_, manager, _ := accountSessions(t, backend, &now)
+	passwordSession(t, manager, credential, "profile read actor")
+	if _, err := manager.Create(t.Context(), map[string]string{"anonymous": "preserved"}); err != nil {
+		t.Fatal(err)
+	}
+	observer := reopen(t)
+	before := accountNativeSnapshot(t, observer)
 	for _, mode := range []string{"skipped", "nil", "typed_nil", "root", "repeated", "query", "close", "swallowed", "cleanup", "cancel", "denial_cleanup", "missing_cleanup"} {
 		t.Run(mode, func(t *testing.T) {
 			for _, operation := range []string{"get", "list", "history"} {
@@ -460,6 +469,7 @@ func profileReadFailures(t *testing.T, backend Backend, _ func(*testing.T) Backe
 					if mode == "cancel" && !errors.Is(err, context.Canceled) {
 						t.Fatal("read cancellation lost")
 					}
+					assertCatalogRows(t, before, accountNativeSnapshot(t, observer), actor)
 				})
 			}
 		})

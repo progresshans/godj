@@ -877,6 +877,19 @@ Catalog의 남은 입력/unique/stale·Unicode/생략/명시적 빈 선택·페�
 기존 사용자·credential의 나머지 실패·경합 소비자는 유지한다. 필수 목록 이관과 정적 확인, 새 본문의 환경별 실행은
 TEST_EVIDENCE에서 구분하며 이 소비자 이관만으로 고정 사용자 서비스나 I1을 완료한 것으로 계산하지 않는다.
 
+고정 사용자 관리의 나머지 실패·입력·권한 회수·합집합·경합 검증 책임을 선택 owner로 연결하고 해당 고정 테스트 root를
+제거했다. 선택 생성·편집 실패는 단순 count/대상 관측을 전체 native 행·정확한 요청 effect/audit 비교로 보강했다.
+선택 읽기/준비의 scope/cleanup 실패도 actor·익명 세션을 포함한 전체 무변경을 대조한다. 기본 host 삭제는 PROTECT,
+실제 session/audit 쓰기 뒤 rollback, 실제 관계 삭제 뒤 outer rollback·만료 scope와 commit 결과 불명을 관측한다.
+Hash 중 독립 연결의 권한 회수, 두 생성 요청의 실제 hash barrier와 단일 candidate 재사용 경합, 편집의 한 승자와
+256/257 합집합 경계를 유지한다. 빠진 음수 key와 실제 0/음수 저장 key의 지원을 구분하며 입력/저장 한도와 Form 정책은
+현행 계약을 따른다. 로그인·username·unusable·비밀번호 정책의 고정 소비자와 필요한 helper는 남긴다. 이 코드·필수 목록의
+원격 본문 실행 및 I1 전체 수용은 미완료이며, 선행 HTTP accessor compile 수정의 core 확인과 구분한다.
+
+실제 SQLite 실행에서 발견한 공통 fixture의 세션 schema 누락과 audit 주입 scope의 conflict-insert capability 손실을
+보정했다. 표준 fixture는 이름과 무관하게 전체 계정 runtime schema를 갖추며, 관계 쓰기 probe는 필요한 native 기능을
+보존하고 의도한 실제 audit INSERT를 확인한다. 실패 원본과 수정 source의 후속 실행은 TEST_EVIDENCE에서 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

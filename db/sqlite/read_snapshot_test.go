@@ -125,10 +125,6 @@ func TestSQLiteIdentityPasswordManagement(t *testing.T) {
 	identitytest.RunPasswordManagement(t, openSQLiteIdentityPair)
 }
 
-func TestSQLiteIdentityUserManagement(t *testing.T) {
-	identitytest.RunUserManagement(t, openSQLiteIdentityPair)
-}
-
 func TestSQLiteIdentityPermissionRevisionMigration(t *testing.T) {
 	backend, _ := openSQLiteIdentityPair(t)
 	identitytest.RunPermissionRevisionMigration(t, backend)

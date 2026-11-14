@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
@@ -21,8 +24,9 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
 	hasher := &creationHasher{PasswordHasher: f.hasher}
-	for _, mode := range []string{"duplicate_login", "duplicate_principal", "case_insensitive", "missing_group", "missing_permission", "model_policy", "password_policy", "password_policy_failure", "additional_grant"} {
+	for _, mode := range []string{"duplicate_login", "duplicate_principal", "case_insensitive", "missing_group", "missing_permission", "missing_negative_group", "missing_login", "outer_whitespace_login", "model_policy", "password_policy", "password_policy_failure", "additional_grant"} {
 		t.Run(mode, func(t *testing.T) {
+			before := accountNativeSnapshot(t, reopen(t))
 			config := creationConfig()
 			login := "preflight-" + mode
 			input := creationInput(t, login)
@@ -38,6 +42,12 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 				input = roleInput(t, map[string]query.Value{"username": query.String(login)}, map[string][]int64{"groups": {mathMaxKey}})
 			case "missing_permission":
 				input = roleInput(t, map[string]query.Value{"username": query.String(login)}, map[string][]int64{"permissions": {mathMaxKey}})
+			case "missing_negative_group":
+				input = roleInput(t, map[string]query.Value{"username": query.String(login)}, map[string][]int64{"groups": {-7}})
+			case "missing_login":
+				input = creationInput(t, "")
+			case "outer_whitespace_login":
+				input = creationInput(t, " unique")
 			case "model_policy":
 				config.Validate = func(context.Context, db.Queryer, models.User, accountmodel.AccountMemberships) (validation.Errors, error) {
 					return validation.NewErrors(validation.New("first_name", "policy")), nil
@@ -53,9 +63,10 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 			case "additional_grant":
 				config.AdditionalPermissions = []auth.Permission{"account.absent"}
 			}
-			creator := accountCreator(t, backend, hasher, config)
-			_, err := creator.Prepare(t.Context(), actor, input, password)
-			if err == nil || hasher.calls.Load() != 0 {
+			owner := &profileFaultBackend{Backend: backend}
+			creator := accountCreator(t, owner, hasher, config)
+			candidate, err := creator.Prepare(t.Context(), actor, input, password)
+			if err == nil || hasher.calls.Load() != 0 || owner.calls != 0 || !reflect.DeepEqual(candidate, accountmodel.PreparedCreation[models.User]{}) {
 				t.Fatal("invalid creation reached hash", mode, err)
 			}
 			_, rejected := validation.Rejected(err)
@@ -69,6 +80,7 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 			} else if !rejected {
 				t.Fatal("input rejection lost", mode, err)
 			}
+			assertCatalogRows(t, before, accountNativeSnapshot(t, reopen(t)), actor)
 		})
 	}
 	creator := accountCreator(t, backend, hasher, creationConfig())
@@ -152,6 +164,54 @@ func creationPreflightAndRecheck(t *testing.T, backend Backend, reopen func(*tes
 	if hasher.calls.Load() != 4 {
 		t.Fatal("final refusal performed extra hashing", hasher.calls.Load())
 	}
+}
+
+func creationAuthorityDuringHash(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
+	f := provision(t, backend, ir.AccountExact)
+	actor := profileActor(t, f).Principal()
+	writer, observer := reopen(t), reopen(t)
+	owner := &profileFaultBackend{Backend: backend}
+	tracked := &creationOwner{Backend: owner}
+	before := accountNativeSnapshot(t, observer)
+	writes := 0
+	hasher := &creationHasher{PasswordHasher: f.hasher, before: func(ctx context.Context) error {
+		if tracked.scopes.Load() != 0 {
+			return errors.New("creation hash retained a native scope")
+		}
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		return writer.CoordinatedAtomic(ctx, func(scope db.Session) error {
+			link := f.direct
+			count, err := models.UserPermissionsLinkObjects.Delete(ctx, scope, &link)
+			if err != nil {
+				return err
+			}
+			if count != 1 {
+				return errors.New("hash fixture did not remove exactly one current grant")
+			}
+			writes++
+			return nil
+		})
+	}}
+	creator := accountCreator(t, tracked, hasher, creationConfig())
+	candidate, err := creator.Prepare(t.Context(), actor, creationInput(t, "revoked-during-hash"), password)
+	if err != nil || hasher.calls.Load() != 1 || writes != 1 || owner.calls != 0 {
+		t.Fatal("creation did not permit independent current authority change during its hash", err)
+	}
+	before.direct = slices.DeleteFunc(slices.Clone(before.direct), func(link models.UserPermissionsLink) bool { return link.ID == f.direct.ID })
+	assertCatalogRows(t, before, accountNativeSnapshot(t, observer), actor)
+	result, err := creator.Commit(t.Context(), actor, candidate)
+	requireProfileCode(t, err, accountmodel.CodePermission)
+	if !reflect.DeepEqual(result, accountmodel.Creation{}) || owner.calls != 1 || hasher.calls.Load() != 1 {
+		t.Fatal("revoked creator published or repeated password/write work")
+	}
+	assertCatalogRows(t, before, accountNativeSnapshot(t, observer), actor)
+	result, err = creator.Commit(t.Context(), actor, candidate)
+	requireProfileCode(t, err, accountmodel.CodeConflict)
+	if !reflect.DeepEqual(result, accountmodel.Creation{}) || owner.calls != 1 || hasher.calls.Load() != 1 {
+		t.Fatal("revoked creation candidate was reused")
+	}
+	assertCatalogRows(t, before, accountNativeSnapshot(t, observer), actor)
 }
 
 type creationEncodedHasher struct {

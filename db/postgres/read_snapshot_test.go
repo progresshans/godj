@@ -111,15 +111,3 @@ func TestPostgresIdentityUserEmailMigration(t *testing.T) {
 	backend.database.SetMaxOpenConns(1)
 	identitytest.RunUserEmailMigration(t, backend)
 }
-
-func TestPostgresIdentityUserManagement(t *testing.T) {
-	url := postgresIntegrationURL(t)
-	identitytest.RunUserManagement(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
-		namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
-		first := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-		second := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-		first.database.SetMaxOpenConns(1)
-		second.database.SetMaxOpenConns(1)
-		return first, second
-	})
-}

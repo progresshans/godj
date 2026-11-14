@@ -20,7 +20,6 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/sessions"
-	sessionmodels "github.com/progresshans/godj/sessions/database/models"
 )
 
 const userReferencePassword = "original-reference-password"
@@ -76,17 +75,24 @@ func userReferenceSnapshot(t *testing.T, backend Backend) userReferenceState {
 		if visits != 1 {
 			return errors.New("repeated native user observation")
 		}
-		state.account = accountNativeRows(t, scope)
-		state.notes = deletionRows(t, scope, hostmodels.NoteObjects)
-		state.guards = deletionRows(t, scope, hostmodels.GuardObjects)
-		state.accessNotes = deletionRows(t, scope, hostmodels.AccessNoteObjects)
-		state.accessGuards = deletionRows(t, scope, hostmodels.AccessGuardObjects)
+		state = userReferenceRows(t, scope)
 		return nil
 	})
 	if err != nil || visits != 1 {
 		t.Fatal("native user observation did not complete", err)
 	}
 	return state
+}
+
+func userReferenceRows(t *testing.T, scope db.Queryer) userReferenceState {
+	t.Helper()
+	return userReferenceState{
+		account:      accountNativeRows(t, scope),
+		notes:        deletionRows(t, scope, hostmodels.NoteObjects),
+		guards:       deletionRows(t, scope, hostmodels.GuardObjects),
+		accessNotes:  deletionRows(t, scope, hostmodels.AccessNoteObjects),
+		accessGuards: deletionRows(t, scope, hostmodels.AccessGuardObjects),
+	}
 }
 
 func assertUserReferenceState(t *testing.T, expected, actual userReferenceState, actor auth.Principal, events ...catalogExpectedEvent) {
@@ -274,29 +280,8 @@ func userReferenceSession(t *testing.T, runtime *accountmodel.Runtime[models.Use
 	if principal != credential.Principal().ID() || !credential.MatchesSessionStamp(stamp) {
 		t.Fatal("session changed principal or credential")
 	}
-	known := map[int64]bool{}
-	for _, row := range before.account.sessions {
-		known[row.ID] = true
-	}
-	var added []sessionmodels.Session
-	for _, row := range after.account.sessions {
-		if !known[row.ID] {
-			added = append(added, row)
-		}
-	}
-	if len(added) != 1 || added[0].ID <= 0 {
-		t.Fatal("session setup did not add exactly one row")
-	}
-	before.account.sessions = append(slices.Clone(before.account.sessions), added[0])
-	slices.SortFunc(before.account.sessions, func(a, b sessionmodels.Session) int {
-		if a.ID < b.ID {
-			return -1
-		}
-		if a.ID > b.ID {
-			return 1
-		}
-		return 0
-	})
+	var key int64
+	before.account, key = accountNativeSessionAddition(t, before.account, after.account)
 	assertUserReferenceState(t, before, after, actor)
-	return added[0].ID
+	return key
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/progresshans/godj/validation"
 )
 
-func creationBounds(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+func creationBounds(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
 	hasher := &creationHasher{PasswordHasher: f.hasher}
@@ -63,12 +63,18 @@ func creationBounds(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			before := hasher.calls.Load()
+			unchanged := accountNativeSnapshot(t, reopen(t))
 			input := roleInput(t, map[string]query.Value{"username": query.String("bounds-" + test.name), "active": query.Boolean(test.active)}, map[string][]int64{"groups": test.groups, "permissions": test.permissions})
 			prepared, err := creator.Prepare(t.Context(), actor, input, password)
 			if test.rejected {
-				if _, rejected := validation.Rejected(err); !rejected || hasher.calls.Load() != before {
+				field := validation.Field("permissions")
+				if test.name == "raw_groups257" {
+					field = "groups"
+				}
+				if failures, rejected := validation.Rejected(err); !rejected || failures.ByField(field).Empty() || hasher.calls.Load() != before {
 					t.Fatal("creation bound passed or hashed", err)
 				}
+				assertCatalogRows(t, unchanged, accountNativeSnapshot(t, reopen(t)), actor)
 				return
 			}
 			if err != nil {
@@ -97,6 +103,7 @@ func creationBounds(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	if _, err := models.GroupPermissionsLinkObjects.Create(t.Context(), backend, models.NewGroupPermissionsLinkCreate(wide.ID, f.grants[0].ID)); err != nil {
 		t.Fatal(err)
 	}
+	unchanged := accountNativeSnapshot(t, reopen(t))
 	if result, err := creator.Commit(t.Context(), actor, pending); result.Revision != 0 {
 		t.Fatal("expanded catalog created overflowing account")
 	} else if _, rejected := validation.Rejected(err); !rejected {
@@ -105,6 +112,7 @@ func creationBounds(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	if creationExists(t, backend, "expanded-before-commit") {
 		t.Fatal("overflow left a partial account")
 	}
+	assertCatalogRows(t, unchanged, accountNativeSnapshot(t, reopen(t)), actor)
 }
 
 func creationNonpositiveChoices(t *testing.T, backend Backend, fixtureKey StoredKeyFixture) {

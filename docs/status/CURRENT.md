@@ -10,7 +10,7 @@
 
 ## 다음
 
-1. 고정 catalog Manager 제거·검사 보강과 독립 사용자 관리 관측의 선택 owner 이관 뒤 I1의 현재 source에서 전체 원격 CI와 필수 원본을 대조한다.
+1. 고정 catalog Manager 제거·사용자 관리 검사 이관과 선택 실패/경합 검증 보강 뒤 I1의 현재 source에서 전체 원격 CI와 필수 원본을 대조한다.
    선택 계정·프로필·catalog·collection/through 관리,
    공개 첫 계정 명령, 명시적 모델 전환과 native 필수 FK graph를 포함한다. 기본/custom 변형·독립 SDK·실제 browser·
    별도 process·migration/restart, 양 DB·race·CGO-disabled·전체 platform/cold-build의 요구를 유지한다.
@@ -23,7 +23,9 @@
    catalog의 대량 직접 소유자·권한 합집합·현재 그룹 권한/가입 경합과 독립 lifecycle/admission 소비자의 선택 owner 이관을
    확인한다. 두 catalog 자원의 조회 실패·여섯 mutation의 scope/실제 write/취소/결과 불명과 전체 native/host 상태 검증을
    원격에서 확인한다. 사용자 생성·편집·삭제 수명, email 정규화·권한별 admission과 HTTP/세션/host 상태의 선택 소비자를
-   원격에서 확인하고, 새 선택 입력·인가·PROTECT·cleanup 검사 및 남은 사용자·credential 서비스의 무결성 책임을 대조한다.
+   원격에서 확인한다. 선택 생성·편집·읽기 실패의 전체 native 상태, host 삭제의 rollback/결과 불명·scope 수명과 실제
+   hash 중 권한 회수·생성/편집 경합·권한 합집합 경계를 확인한다. 남은 로그인·username·unusable·비밀번호 정책의
+   고정 소비자와 사용자·credential 서비스의 무결성 책임을 대조한다.
 4. [I1-01~08 수용 요구](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)의 제품·생성기·실제 소비자와
    같은 source의 검증 근거를 모두 연결한 뒤 완료를 판단한다. 세부 미완료 범위는 해당 work에 유지한다.
 

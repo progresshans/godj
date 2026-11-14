@@ -191,6 +191,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"first_account_concurrent", firstAccountConcurrent},
 		{"creation_lifecycle", creationLifecycle},
 		{"creation_preflight_and_recheck", creationPreflightAndRecheck},
+		{"creation_authority_during_hash", creationAuthorityDuringHash},
 		{"creation_hasher_failures", creationHasherFailures},
 		{"creation_commit_failures", creationCommitFailures},
 		{"creation_read_failures", creationReadFailures},
@@ -223,9 +224,9 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 			backend, reopen := open(t)
 			sources := append(identity.MigrationSources(), domain.MigrationSources()...)
 			sources = append(sources, accountaudit.MigrationSources()...)
-			if strings.HasPrefix(test.name, "session_") || strings.HasPrefix(test.name, "role_") || strings.HasPrefix(test.name, "password_") || strings.HasPrefix(test.name, "startup_") || strings.HasPrefix(test.name, "management_form_") || strings.HasPrefix(test.name, "catalog_") || test.name == "first_account_lifecycle" || test.name == "account_profile_and_roles" {
-				sources = append(sources, sessiondb.MigrationSources()...)
-			}
+			// Every standard fixture has the same complete account runtime
+			// schema, including the tables read by native state observations.
+			sources = append(sources, sessiondb.MigrationSources()...)
 			loaded, _, err := definition.Load(sources...)
 			if err != nil {
 				t.Fatal(err)
@@ -238,6 +239,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	}
 	runCatalogMutationOutcomes(t, open)
 	runUserManagementReferences(t, referenceBackend, open)
+	runUserHostDeletion(t, open)
 	runStartupSchemaRequired(t, open)
 	runAccountDeletion(t, open, storedKey)
 	runCollectionChanges(t, open, storedKey, generatedKeys)

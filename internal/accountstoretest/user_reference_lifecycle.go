@@ -10,6 +10,7 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	hostmodels "github.com/progresshans/godj/conformance/identityfixture/models"
+	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/query"
@@ -145,10 +146,12 @@ func userReferenceLifecycle(t *testing.T, vendor string, backend Backend, reopen
 	if !t.Run("audit_write_rollback", func(t *testing.T) {
 		before := userReferenceSnapshot(t, reopen(t))
 		fault := errors.New("selected reference audit insert failed after write")
-		injected := &profileFaultBackend{Backend: backend, mode: "audit_failure", fault: fault}
+		injected := &profileFaultBackend{Backend: backend, mode: "reference_audit_failure", fault: fault}
+		effects := map[string]int{}
+		injected.decorate = func(scope db.Session) db.Session { return newRoleFaultScope(t, scope, "audit_failure", fault, effects) }
 		failedRuntime := userReferenceRuntime(t, injected, f.base.hasher)
 		result, err := failedRuntime.Accounts().Editor().Update(t.Context(), actor, row.ID, 2, roleInput(t, map[string]query.Value{"first_name": query.String("rollback")}, map[string][]int64{"groups": {group.ID}, "permissions": {}}))
-		if !errors.Is(err, fault) || !reflect.DeepEqual(result, accountmodel.AccountChange{}) || injected.calls != 1 {
+		if !errors.Is(err, fault) || !reflect.DeepEqual(result, accountmodel.AccountChange{}) || injected.calls != 1 || effects["godj_account_audit_event"] != 1 {
 			t.Fatal("selected audit failure did not cross actual write boundary", err)
 		}
 		assertUserReferenceState(t, before, userReferenceSnapshot(t, reopen(t)), actor)

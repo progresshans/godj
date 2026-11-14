@@ -2,6 +2,7 @@ package accountstoretest
 
 import (
 	"errors"
+	"slices"
 	"testing"
 
 	auditmodels "github.com/progresshans/godj/account/audit/models"
@@ -22,6 +23,37 @@ type accountNativeState struct {
 	audits      []auditmodels.Event
 	domains     []domainmodels.Transition
 	mappings    []domainmodels.Mapping
+}
+
+// Bind an opaque session allocation only after its public store/record has
+// been checked by the caller. Preserve every pre-existing row and let the
+// caller compare all remaining tables with the same native after-state.
+func accountNativeSessionAddition(t *testing.T, before, after accountNativeState) (accountNativeState, int64) {
+	t.Helper()
+	known := map[int64]bool{}
+	for _, row := range before.sessions {
+		known[row.ID] = true
+	}
+	var added []sessionmodels.Session
+	for _, row := range after.sessions {
+		if !known[row.ID] {
+			added = append(added, row)
+		}
+	}
+	if len(added) != 1 || added[0].ID <= 0 {
+		t.Fatal("session setup did not add exactly one native row")
+	}
+	before.sessions = append(slices.Clone(before.sessions), added[0])
+	slices.SortFunc(before.sessions, func(a, b sessionmodels.Session) int {
+		if a.ID < b.ID {
+			return -1
+		}
+		if a.ID > b.ID {
+			return 1
+		}
+		return 0
+	})
+	return before, added[0].ID
 }
 
 // Observe the original native backend with an uncanceled context, independently

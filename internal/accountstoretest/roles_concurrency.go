@@ -3,8 +3,11 @@ package accountstoretest
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"slices"
 	"testing"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
@@ -31,31 +34,48 @@ func roleConcurrentRevision(t *testing.T, backend Backend, reopen func(*testing.
 		t.Fatal(err)
 	}
 	editors := []*accountmodel.AccountEditor[models.User]{first, second}
+	before := accountNativeSnapshot(t, reopen(t))
 	start := make(chan struct{})
-	done := make(chan error, 2)
+	type outcome struct {
+		field  string
+		result accountmodel.AccountChange
+		err    error
+	}
+	done := make(chan outcome, 2)
 	for i, field := range []string{"staff", "superuser"} {
 		input := roleInput(t, map[string]query.Value{field: query.Boolean(true), "first_name": query.String(field)}, nil)
-		go func() { <-start; _, err := editors[i].Update(t.Context(), actor, target.ID, 1, input); done <- err }()
+		go func() {
+			<-start
+			result, err := editors[i].Update(t.Context(), actor, target.ID, 1, input)
+			done <- outcome{field, result, err}
+		}()
 	}
 	close(start)
 	success, conflicts := 0, 0
+	var winner outcome
 	for range 2 {
-		err := <-done
-		if err == nil {
+		out := <-done
+		if out.err == nil {
 			success++
-		} else if errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeConflict}) {
+			winner = out
+		} else if errors.Is(out.err, &accountmodel.Error{Code: accountmodel.CodeConflict}) {
 			conflicts++
+			if !reflect.DeepEqual(out.result, accountmodel.AccountChange{}) {
+				t.Fatal("concurrent edit loser published metadata")
+			}
 		} else {
-			t.Fatal(err)
+			t.Fatal(out.err)
 		}
 	}
-	row := profileRow(t, reopen(t), target.ID)
-	if success != 1 || conflicts != 1 || row.Revision != 2 || row.Staff == row.Superuser || len(profileHistory(t, backend, actor, target.ID)) != 1 {
+	fields := []string{"first_name", winner.field}
+	if success != 1 || conflicts != 1 || winner.result.ID != target.ID || winner.result.Revision != 2 || winner.result.RevokedSessions != 0 || !slices.Equal(winner.result.ChangedFields, fields) {
 		t.Fatal("same revision role writes did not have one winner")
 	}
-	if row.Staff && row.FirstName != "staff" || row.Superuser && row.FirstName != "superuser" {
-		t.Fatal("concurrent edit combined different winners' profile and role")
-	}
+	expected := target
+	expected.FirstName, expected.Revision = winner.field, 2
+	expected.Staff, expected.Superuser = winner.field == "staff", winner.field == "superuser"
+	userReferenceReplace(&before, expected)
+	assertCatalogRows(t, before, accountNativeSnapshot(t, reopen(t)), actor, catalogExpectedEvent{"user", target.ID, admin.ActionChange, fields})
 }
 
 func roleConcurrentCatalogExpansion(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {

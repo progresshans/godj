@@ -5286,6 +5286,57 @@ login persistence는 유지한다. 원본은 검증 보관소의 `gdj0138-f0fc34
 로컬은 공개 API 서명·기존 소비자의 호출 방식·gofmt·diff를 확인했으며 Go 실행은 하지 않았다. 수정 소스의 compile과
 새 사용자 lifecycle/admission·실제 DB/HTTP 실행은 다음 원격 CI에서 확인한다. 이 실패 실행을 수용 완료로 세지 않는다.
 
+수정 source `ecc2cf799726bcaf2bd73309e5654403500a187e`의
+[CI 43627808558](https://github.com/progresshans/godj/actions/runs/43627808558) attempt 1에서 portable core 일반
+`132547736624`, race `132547736681`, CGO-disabled `132547735974` 작업이 성공했다. 각 원본의 실제 checkout
+`d205a448263c0c0c75ad080c282f157ce1c08aac`과 source의 tree가
+`fc31ca624e57cfec4c112668dc8ea2aa3c164023`으로 같음을 확인했다. 이 대조는 HTTP accessor의 compile 실패 해소 범위다.
+Core runner summary는 각 141 package·필수 331개·범위 외 skip 594개를 보고하며, 실제 DB/HTTP 사용자 관리 본문의
+실행이나 전체 artifact event 대조를 대신하지 않는다. 원본 세 log와 source 연결은 검증 보관소
+`gdj0138-ecc2cf79-ci-43627808558/http-accessor-compile-resolution.json`에 보존했다
+(SHA-256 `2992c8f337c320a3a66c7cb63880ee12bb75ad594638293fd9696bc4054c1014`).
+
+같은 CI의 Linux arm64 normal runtime 작업 `132547741571`은 실제 SQLite 본문에서 실패했다.
+`profile_read_authority_and_domain/overlay_error_{false,true}`는 전체 상태 관측에 필요한 `godj_sessions_session`
+테이블이 없었고, `user_native_reference/audit_write_rollback`은 의도한 audit fault의 원인까지 도달하지 못했다.
+실제 checkout은 위와 같은 `d205a448`이다. 전자는 로그에 명시된 schema 누락이며, 후자는 source의 collection 준비가
+`db.ConflictInserter`를 요구하지만 주입한 scalar wrapper가 이를 보존하지 않는 경로로 진단했다. 로컬 재현은 하지 않았다.
+
+표준 account fixture에 이름별 예외 없이 공통 세션 schema를 적용하고, 관계·conflict-insert 기능을 보존하는 기존
+role mutation probe의 생성 경로를 공유했다. 사용자 관측은 정확한 injected cause·한 번의 owner 호출뿐 아니라 실제
+audit INSERT 횟수도 요구한다. 원본 `sqlite-runtime-132547741571.log`의 SHA-256은
+`7c24ed0f59ab669b78760738c160b6b5914dddb1fdcb9e556fe754a479804cb7`이고, 같은 검증 보관소의
+`native-user-fixture-failures.json` SHA-256은 `ab374d6aaf1f775b5a0da4e936227f1a2de9d267cb5293153f4b0a42fe811b6d`다.
+수정 source의 native 본문·뒤 lifecycle 단계는 새 원격 CI에서 확인한다. Core 성공을 이 실패 본문의 성공으로 확대하지 않는다.
+
+### 고정 사용자 관리 검증의 선택 owner 이관과 전체 상태 보강
+
+2026-11-15, `ecc2cf79` 위에서 남은 `IdentityUserManagement` 검증 책임을 다음 선택 소비자로 옮겼다. 새 작성과
+현행 source의 실제 원격 수용을 구분하며, 위 core 결과는 이 후속 변경의 PASS가 아니다.
+
+| 이전 검증 책임 | 선택 소비자와 유지·보강한 확인 |
+|---|---|
+| 잘못된/중복/없는 선택의 생성 전 거부 | `creation_preflight_and_recheck`의 12개 child. 없는 음수 group, 빈 login·앞 공백 login도 확인하며 직접 입력 거부·빈 candidate·무 hash·write owner 0회·전체 native 무변경을 대조한다. 실제 저장된 0/음수 key의 지원은 기존 별도 소비자에 유지한다. |
+| Hash 중 현재 권한 회수 | `creation_authority_during_hash`. DB scope가 없는 hash callback 안에서 별도 연결로 실제 grant를 제거한다. 이미 관측한 actor로 Commit하면 거부되고, 독립 grant 삭제 외 전체 상태를 보존하며 candidate 재사용·다시 hash/write를 거부한다. |
+| 생성의 audit/commit 결과 불명 및 실패 | `creation_commit_failures`의 17개 child. 실제 scalar/audit/두 through 쓰기와 validator·scope·cleanup·취소·unknown을 유지한다. 실제 hash를 기록하고 서버 principal·요청에서 예상 행/관계를 구성해 전체 열 테이블과 정확한 audit를 비교한다. 실패/unknown의 빈 결과와 candidate 소모, 알려진 commit 뒤 취소의 성공 metadata를 구분한다. |
+| 편집의 scalar/through/audit 실패·취소·unknown | `role_commit_failures`의 18개 child. 실제 쓰기 순서별 fault·원인·한 번의 owner 호출을 유지한다. 대상 한 세션의 폐기는 사전에 공개 store/record와 native 추가를 결합해 식별하며, 다른 계정·익명 세션과 전체 scalar/catalog/through/domain/audit 행을 함께 대조한다. |
+| 준비·읽기의 scope/cleanup 실패 | `creation_read_failures`의 12개 child와 `profile_read_failures`의 get/list/history 및 12개 scope 상황. 기존 빈 결과·분류·원인·무 hash에 더해 살아 있는 actor/익명 세션과 전체 native 무변경을 확인한다. |
+| Host PROTECT·삭제 rollback·borrowed 수명·unknown | `user_host_delete`의 다섯 child. 실제 session/audit 쓰기 뒤 실패, 직접 borrowed 삭제가 실제 네 행을 제거한 상태와 outer rollback의 복원을 확인한다. 만료 scope의 재실행을 거부하며, unknown commit은 결과를 게시하지 않아도 실제 target/through/host/session 삭제와 정확한 audit가 남는 상태를 확인한다. 모든 단계는 14개 테이블과 무관한 보호된 host graph를 비교한다. |
+| 유효 권한 합집합 한도 | `creation_bounds`와 `role_bounds`. 256 허용·257 거부·중복 합집합·inactive 거부와 후속 catalog 확장 재확인을 유지한다. 거부 시 전체 native 상태를 비교하며, 편집은 일반 프로필 변경을 함께 요청해 partial scalar 저장도 거부한다. |
+| 생성/편집 경합 | `creation_concurrent_writes`의 두 child와 `role_concurrent_revision`. 별도 생성 요청 두 개가 실제 DB scope 밖 hash barrier에 도달한 뒤 준비·commit하고, 같은 candidate 경쟁도 유지한다. 승자의 서버 principal/hash·전체 예상 행/audit와 패자의 빈 결과를 대조한다. 편집은 호출에서 관측한 승자의 프로필/역할 두 변경만 확정됐는지 전체 상태로 확인한다. |
+
+모든 표준 계정 fixture에 세션 migration을 적용해 전체 snapshot의 관측 범위를 실제 schema로 갖춘다. 세션 추가의
+불투명 row와 전체 상태 비교 helper를 공유하며 원문·producer·생성 모델/ABI·적용 제품 migration은 변경하지 않았다.
+사용하지 않는 고정 fault 분기와 고정 사용자 관리 root를 제거했지만, 다른 로그인·username·unusable·비밀번호 정책
+소비자가 사용하는 Manager와 host/helper는 유지한다. 고정 API 전체 퇴역이나 역사 runtime 제거를 주장하지 않는다.
+
+양 DB 필수 목록에서 고정 root/child 19개씩을 제거하고 선택 root/child 10개씩을 추가했다. 관련 선택 11개 root의
+필수 항목은 각각 131개이며, 다른 항목·상대 순서는 보존한다. 전체 목록은 relation 4,886→4,877,
+PostgreSQL 5,809→5,800이다. 로컬 Go compile/test·generate·DB 본문은 실행하지 않았다. 포맷·diff·selector/호출과
+변경 문서 세 개의 상대 링크 181개를 확인했다. 최종 목록의 Python CI 분할 검사 27개는 33.149초에 통과했다.
+새 본문·양 DB·race·CGO-disabled·전체 platform/cold-build의
+실행은 후속 source의 전체 원격 CI에서 확인하며 I1은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

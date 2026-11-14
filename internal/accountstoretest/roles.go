@@ -277,13 +277,16 @@ func roleAuthorityAndDomain(t *testing.T, backend Backend, reopen func(*testing.
 	}
 }
 
-func roleBounds(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
+func roleBounds(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	actor := profileActor(t, f).Principal()
 	target := roleTarget(t, backend, f, "role-bounds")
 	now := joined
 	store, _, _ := accountSessions(t, backend, &now)
-	editor := roleEditor(t, store)
+	editor, err := project.NewAccountEditor(store, auth.PrincipalAuthorizer{}, accountEditConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
 	reader := roleReader(t, backend)
 	var groups, permissions []int64
 	var wide models.Group
@@ -327,22 +330,28 @@ func roleBounds(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	if result, err := editor.Update(t.Context(), actor, target.ID, 2, roleInput(t, nil, map[string][]int64{"groups": {wide.ID}})); err != nil || result.Revision != 3 {
 		t.Fatal("256 effective grants rejected", err)
 	}
-	for _, input := range []orm.ModelInput[models.User]{
-		roleInput(t, nil, map[string][]int64{"permissions": {f.grants[0].ID}}),
+	unchanged := accountNativeSnapshot(t, reopen(t))
+	for index, input := range []orm.ModelInput[models.User]{
+		roleInput(t, map[string]query.Value{"first_name": query.String("must roll back")}, map[string][]int64{"permissions": {f.grants[0].ID}}),
 		roleInput(t, nil, map[string][]int64{"groups": {mathMaxKey}}),
 		roleInput(t, nil, map[string][]int64{"permissions": {mathMaxKey}}),
 		roleInput(t, nil, map[string][]int64{"groups": make([]int64, 257)}),
 		roleInput(t, nil, map[string][]int64{"permissions": make([]int64, 257)}),
 	} {
 		result, err := editor.Update(t.Context(), actor, target.ID, 3, input)
-		if _, rejected := validation.Rejected(err); !rejected || result.Revision != 0 {
+		field := []validation.Field{"permissions", "groups", "permissions", "groups", "permissions"}[index]
+		if failures, rejected := validation.Rejected(err); !rejected || failures.ByField(field).Empty() || result.Revision != 0 {
 			t.Fatal("role choice/bound accepted", err)
 		}
+		assertCatalogRows(t, unchanged, accountNativeSnapshot(t, reopen(t)), actor)
 	}
 	assertRoleKeys(t, reader, actor, target.ID, []int64{wide.ID}, nil)
-	if result, err := editor.Update(t.Context(), actor, target.ID, 3, roleInput(t, map[string]query.Value{"active": query.Boolean(false)}, map[string][]int64{"permissions": {f.grants[0].ID}})); err == nil || result.Revision != 0 {
-		t.Fatal("inactive candidate bypassed permission bound")
+	if result, err := editor.Update(t.Context(), actor, target.ID, 3, roleInput(t, map[string]query.Value{"active": query.Boolean(false)}, map[string][]int64{"permissions": {f.grants[0].ID}})); result.Revision != 0 {
+		t.Fatal("inactive candidate published a result past the permission bound")
+	} else if failures, rejected := validation.Rejected(err); !rejected || failures.ByField("permissions").Empty() {
+		t.Fatal("inactive candidate bypassed permission bound", err)
 	}
+	assertCatalogRows(t, unchanged, accountNativeSnapshot(t, reopen(t)), actor)
 	if result, err := editor.Update(t.Context(), actor, target.ID, 3, roleInput(t, nil, map[string][]int64{"groups": nil, "permissions": permissions})); err != nil || result.Revision != 4 {
 		t.Fatal("256 direct grants rejected", err)
 	}

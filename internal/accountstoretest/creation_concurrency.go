@@ -1,9 +1,17 @@
 package accountstoretest
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"reflect"
+	"slices"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/progresshans/godj/admin"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/schema/ir"
@@ -15,49 +23,120 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 	actor := profileActor(t, f).Principal()
 	for _, mode := range []string{"same_login", "same_candidate"} {
 		t.Run(mode, func(t *testing.T) {
-			hasher := &creationHasher{PasswordHasher: f.hasher}
-			creators := []*accountmodel.Creator[models.User]{accountCreator(t, backend, hasher, creationConfig()), accountCreator(t, reopen(t), hasher, creationConfig())}
-			first, err := creators[0].Prepare(t.Context(), actor, creationInput(t, "concurrent-"+mode), password)
-			if err != nil {
-				t.Fatal(err)
+			creators := make([]*accountmodel.Creator[models.User], 2)
+			hashers := make([]*passwordChangeHasher, 2)
+			encoded := make([]atomic.Value, 2)
+			principals := make([]string, 2)
+			for i, storage := range []Backend{backend, reopen(t)} {
+				tracked := &creationOwner{Backend: storage}
+				principals[i] = fmt.Sprintf("creation-race-%s-%d", mode, i)
+				principal := principals[i]
+				config := creationConfig()
+				config.PrincipalID = func(context.Context) (string, error) { return principal, nil }
+				hashers[i] = &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes, encode: func(ctx context.Context, raw string) (string, error) {
+					value, err := f.hasher.Hash(ctx, raw)
+					if err == nil {
+						encoded[i].Store(value)
+					}
+					return value, err
+				}}
+				creators[i] = accountCreator(t, tracked, hashers[i], config)
 			}
-			candidates := []accountmodel.PreparedCreation[models.User]{first, first}
-			wantHash := int64(1)
+			before := accountNativeSnapshot(t, reopen(t))
+			candidates := make([]accountmodel.PreparedCreation[models.User], 2)
+			wantHashes := int64(1)
+			input := creationInput(t, "concurrent-"+mode)
 			if mode == "same_candidate" {
-				creators[1] = creators[0]
-			} else {
-				candidates[1], err = creators[1].Prepare(t.Context(), actor, creationInput(t, "concurrent-"+mode), password)
+				first, err := creators[0].Prepare(t.Context(), actor, input, password)
 				if err != nil {
 					t.Fatal(err)
 				}
-				wantHash = 2
+				candidates[0], candidates[1], creators[1] = first, first, creators[0]
+			} else {
+				wantHashes = 2
+				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+				arrived, release := make(chan struct{}, 2), make(chan struct{})
+				var once sync.Once
+				unblock := func() { once.Do(func() { close(release) }) }
+				var workers sync.WaitGroup
+				defer func() { cancel(); unblock(); workers.Wait() }()
+				type preparation struct {
+					index     int
+					candidate accountmodel.PreparedCreation[models.User]
+					err       error
+				}
+				done := make(chan preparation, 2)
+				for i := range 2 {
+					hashers[i].beforeHash = func(ctx context.Context) error {
+						arrived <- struct{}{}
+						select {
+						case <-release:
+							return nil
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}
+					workers.Add(1)
+					go func() {
+						defer workers.Done()
+						candidate, err := creators[i].Prepare(ctx, actor, input, password)
+						done <- preparation{i, candidate, err}
+					}()
+				}
+				for range 2 {
+					select {
+					case <-arrived:
+					case early := <-done:
+						t.Fatal("creation did not reach both native-scope-free hashes", early.err)
+					case <-ctx.Done():
+						t.Fatal("concurrent preparation retained a scope or failed to reach hashing", ctx.Err())
+					}
+				}
+				unblock()
+				for range 2 {
+					select {
+					case out := <-done:
+						if out.err != nil {
+							t.Fatal(out.err)
+						}
+						candidates[out.index] = out.candidate
+					case <-ctx.Done():
+						t.Fatal("concurrent creation preparation did not finish", ctx.Err())
+					}
+				}
+				workers.Wait()
+				for _, hasher := range hashers {
+					hasher.beforeHash = nil
+				}
 			}
-			before := creationCounts(t, backend)
+			assertCatalogRows(t, before, accountNativeSnapshot(t, reopen(t)), actor)
 			type outcome struct {
+				index  int
 				result accountmodel.Creation
 				err    error
 			}
-			start := make(chan struct{})
-			done := make(chan outcome, 2)
+			start, done := make(chan struct{}), make(chan outcome, 2)
 			for i := range 2 {
 				go func() {
 					<-start
 					result, err := creators[i].Commit(t.Context(), actor, candidates[i])
-					done <- outcome{result, err}
+					done <- outcome{i, result, err}
 				}()
 			}
 			close(start)
 			successes, rejections := 0, 0
+			var winner outcome
 			for range 2 {
 				out := <-done
 				if out.err == nil {
 					successes++
-					if out.result.Revision != 1 {
-						t.Fatal("winner has no revision")
+					winner = out
+					if out.result.ID <= 0 || out.result.Revision != 1 || out.result.RevokedSessions != 0 || !slices.Equal(out.result.ChangedFields, userReferenceCreationFields) {
+						t.Fatal("creation winner metadata differs")
 					}
 				} else {
-					if out.result.Revision != 0 {
-						t.Fatal("loser exposed row")
+					if !reflect.DeepEqual(out.result, accountmodel.Creation{}) {
+						t.Fatal("creation loser exposed metadata")
 					}
 					if mode == "same_candidate" {
 						if !errors.Is(out.err, &accountmodel.Error{Code: accountmodel.CodeConflict}) {
@@ -69,10 +148,20 @@ func creationConcurrentWrites(t *testing.T, backend Backend, reopen func(*testin
 					rejections++
 				}
 			}
-			after := creationCounts(t, reopen(t))
-			if successes != 1 || rejections != 1 || hasher.calls.Load() != wantHash || after[0] != before[0]+1 || after[3] != before[3]+1 || after[1] != before[1] || after[2] != before[2] {
-				t.Fatal("creation race did not produce exactly one whole account", before, after)
+			if successes != 1 || rejections != 1 || hashers[0].hashes.Load()+hashers[1].hashes.Load() != wantHashes {
+				t.Fatal("creation race did not have one winner or repeated hashing")
 			}
+			if slices.ContainsFunc(before.users, func(row models.User) bool { return row.ID == winner.result.ID }) {
+				t.Fatal("creation overwrote an existing user")
+			}
+			origin := winner.index
+			if mode == "same_candidate" {
+				origin = 0
+			}
+			expected := userReferenceExpectedRow(winner.result.ID, "concurrent-"+mode, "", encoded[origin].Load().(string))
+			expected.PrincipalID = principals[origin]
+			userReferenceReplace(&before, expected)
+			assertCatalogRows(t, before, accountNativeSnapshot(t, reopen(t)), actor, catalogExpectedEvent{"user", expected.ID, admin.ActionAdd, userReferenceCreationFields})
 		})
 	}
 }
