@@ -49,14 +49,15 @@ func newUserReferenceHTTP(t *testing.T, selected *accountmodel.Runtime[models.Us
 			return token.Apply(response)
 		}},
 		{Name: "userreference:login", Method: http.MethodPost, Path: "/login/", Handler: func(request *web.Request) (web.Response, error) {
-			request.HTTP.Body = http.MaxBytesReader(nil, request.HTTP.Body, 64<<10)
-			if err := request.HTTP.ParseForm(); err != nil {
+			httpRequest := request.HTTP()
+			httpRequest.Body = http.MaxBytesReader(nil, httpRequest.Body, 64<<10)
+			if err := httpRequest.ParseForm(); err != nil {
 				return web.Response{}, err
 			}
-			if err := runtime.VerifyCSRF(request, request.HTTP.PostForm["csrfmiddlewaretoken"]); err != nil {
+			if err := runtime.VerifyCSRF(request, httpRequest.PostForm["csrfmiddlewaretoken"]); err != nil {
 				return web.HTML(403, []byte("CSRF rejected"))
 			}
-			result, err := runtime.Login(request, request.HTTP.PostForm.Get("username"), request.HTTP.PostForm.Get("password"))
+			result, err := runtime.Login(request, httpRequest.PostForm.Get("username"), httpRequest.PostForm.Get("password"))
 			if err != nil {
 				return web.Response{}, err
 			}

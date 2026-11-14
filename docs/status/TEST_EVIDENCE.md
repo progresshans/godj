@@ -5273,6 +5273,19 @@ relation 4,876→4,886, PostgreSQL 5,799→5,809가 됐다. 변경 전후의 다
 양 DB·HTTP·race·CGO-disabled·전체 platform/cold-build 수용은 새 source의 원격 실행 대상이다. 선행 source의
 CI 작업 성공을 새 소비자의 실행 근거로 사용하지 않으며 고정 사용자 서비스와 I1 전체 수용은 여전히 미완료다.
 
+`f0fc34f2b4f6afb1175b6c901f1dab8d990f0a14`의
+[CI 43627180305](https://github.com/progresshans/godj/actions/runs/43627180305) attempt 1에서 CGO-disabled core 작업
+`132545807723`이 새 HTTP 소비자의 compile 오류로 실패했다. `web.Request.HTTP()`를 필드처럼 접근한 네 위치가
+원인이며 실제 checkout `bc2d4fff295fa89ce1e5172333675e556ab333e1`과 제출 source의 tree
+`211294903ebfdeeb526e8c798704488aa75156bf`가 같음을 GitHub commit 객체로 확인했다.
+
+Handler 안에서 공개 `HTTP()` 메서드를 한 번 호출해 반환된 표준 요청을 파싱하도록 수정했다. Body 한도·CSRF·선택
+login persistence는 유지한다. 원본은 검증 보관소의 `gdj0138-f0fc34f2-ci-43627180305/cgo-core-132545807723.log`
+(SHA-256 `1a7651adcb9a17529dbacaf2baa5eb590e309f94826809a5790780eac1e491de`), 진단과 source 연결은
+`http-consumer-compile-failure.json`에 보존했다(SHA-256 `b824925eea4387e5d8db61faafb2ad23e528d06fbd7cde68450d46c311ec4841`).
+로컬은 공개 API 서명·기존 소비자의 호출 방식·gofmt·diff를 확인했으며 Go 실행은 하지 않았다. 수정 소스의 compile과
+새 사용자 lifecycle/admission·실제 DB/HTTP 실행은 다음 원격 CI에서 확인한다. 이 실패 실행을 수용 완료로 세지 않는다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
