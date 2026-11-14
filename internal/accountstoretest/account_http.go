@@ -50,7 +50,7 @@ func (denyAccountPermission) Allowed(context.Context, auth.Principal, auth.Permi
 	return false, nil
 }
 
-func newAccountHTTP(t *testing.T, f *loginFixture, backend Backend, policy accountmodel.PasswordValidator[models.User]) *accountHTTP {
+func newAccountHTTP(t *testing.T, f *loginFixture, backend Backend, policy accountmodel.PasswordValidator[models.User], extra ...func(*sessionauth.Runtime) []web.Route) *accountHTTP {
 	t.Helper()
 	minimum, err := passwordpolicy.NewMinimumLengthValidator(8)
 	if err != nil {
@@ -86,7 +86,11 @@ func newAccountHTTP(t *testing.T, f *loginFixture, backend Backend, policy accou
 	if err != nil {
 		t.Fatal(err)
 	}
-	application, err := web.NewApplication(web.Config{Settings: configured, Routes: account.Routes(), Middleware: account.Middleware()})
+	routes := account.Routes()
+	for _, additional := range extra {
+		routes = append(routes, additional(runtime)...)
+	}
+	application, err := web.NewApplication(web.Config{Settings: configured, Routes: routes, Middleware: account.Middleware()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -237,6 +241,8 @@ type passwordHTTPReference struct {
 		}
 		Success      map[string]any
 		SamePassword map[string]any `json:"same_password"`
+		Failures     map[string]map[string]any
+		Changes      map[string]map[string]any `json:"post_validation_change"`
 	}
 }
 
@@ -250,7 +256,7 @@ func readPasswordHTTPReference(t *testing.T, vendor string) passwordHTTPReferenc
 	if err := json.Unmarshal(raw, &reference); err != nil {
 		t.Fatal(err)
 	}
-	if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Backend != map[string]string{"sqlite": "sqlite", "postgres": "postgresql"}[vendor] || len(reference.Sources) != 9 || len(reference.Observations.Refusals) != 10 {
+	if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Backend != map[string]string{"sqlite": "sqlite", "postgres": "postgresql"}[vendor] || len(reference.Sources) != 9 || len(reference.Observations.Refusals) != 10 || len(reference.Observations.Failures) != 3 || len(reference.Observations.Changes) != 2 {
 		t.Fatal("incomplete independent password HTTP reference")
 	}
 	for _, name := range []string{"auth", "backends", "base_user", "forms", "hashers", "models", "session_backend", "session_middleware", "views"} {
@@ -261,4 +267,17 @@ func readPasswordHTTPReference(t *testing.T, vendor string) passwordHTTPReferenc
 		}
 	}
 	return reference
+}
+
+func assertPasswordReferenceDeviations(t *testing.T) {
+	t.Helper()
+	for _, vendor := range []string{"sqlite", "postgres"} {
+		reference := readPasswordHTTPReference(t, vendor).Observations
+		// Native selected failures keep the whole transaction unchanged and
+		// reject a current password/inactive change. The pinned Django view
+		// saves its cached user before cycling/saving the session instead.
+		if reference.Failures["password_write"]["password_changed"] != false || reference.Failures["session_cycle"]["password_changed"] != true || reference.Failures["session_final_save"]["password_changed"] != true || reference.Changes["inactive"]["active"] != true || reference.Changes["password_changed"]["concurrent_password_valid"] != false || reference.Changes["password_changed"]["new_password_valid"] != true {
+			t.Fatal("independent password transaction/current-fence differences changed", vendor)
+		}
+	}
 }

@@ -356,7 +356,7 @@ func RunPasswordResetBoundaries(t *testing.T, open func(*testing.T) (TransitionB
 			backend, _ := open(t)
 			f := newManagementFixture(t, backend, 4)
 			now := loginInstant
-			boundary := &passwordChangeBoundary{TransitionBackend: backend, mode: mode}
+			boundary := &resetMutationBoundary{TransitionBackend: backend, mode: mode}
 			if mode == "token_cleanup" {
 				boundary.mode = "validation_cleanup"
 			}

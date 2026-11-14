@@ -514,4 +514,4 @@ type storageError struct{ cause error }
 func (storageError) Error() string                    { return "account domain: storage operation failed" }
 func (e storageError) Unwrap() error                  { return e.cause }
 func (e storageError) Format(state fmt.State, _ rune) { _, _ = state.Write([]byte(e.Error())) }
-func failure(err error) error                         { return storageError{cause: err} }
+func failure(err error) error                         { return &storageError{cause: err} }

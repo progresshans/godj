@@ -635,7 +635,7 @@ func RunPasswordResetConsumerBoundaries(t *testing.T, open func(*testing.T) (Tra
 			t.Run(surface+"/"+mode, func(t *testing.T) {
 				backend, _ := open(t)
 				f := newManagementFixture(t, backend, 4)
-				boundary := &passwordChangeBoundary{TransitionBackend: backend, mode: mode}
+				boundary := &resetMutationBoundary{TransitionBackend: backend, mode: mode}
 				memory := resetMemory(t)
 				h := newResetAccountHTTP(t, f, boundary, memory)
 				h.requestMail(t, surface, f.user.Email)

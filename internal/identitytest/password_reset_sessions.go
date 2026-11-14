@@ -284,7 +284,7 @@ func RunPasswordResetSessionBoundaries(t *testing.T, open func(*testing.T) (Tran
 				backend, _ := open(t)
 				f := newManagementFixture(t, backend, 7)
 				now := loginInstant
-				boundary := &passwordChangeBoundary{TransitionBackend: backend, mode: mode}
+				boundary := &resetMutationBoundary{TransitionBackend: backend, mode: mode}
 				validations := 0
 				validator := identity.PasswordValidatorFunc(func(string, identity.Profile) validation.Errors {
 					validations++
@@ -508,7 +508,7 @@ func RunPasswordResetSessionRaces(t *testing.T, open func(*testing.T) (Transitio
 			backend, _ := open(t)
 			f := newManagementFixture(t, backend, 4)
 			now := loginInstant
-			boundary := &passwordChangeBoundary{TransitionBackend: backend}
+			boundary := &resetMutationBoundary{TransitionBackend: backend}
 			if mode == "unknown" {
 				boundary.mode = "collision_unknown"
 			}
@@ -587,7 +587,7 @@ func RunPasswordResetSessionEntry(t *testing.T, open func(*testing.T) (Transitio
 				backend, other := open(t)
 				f := newManagementFixture(t, backend, 1)
 				now := loginInstant
-				boundary := &passwordChangeBoundary{TransitionBackend: backend, mode: mode}
+				boundary := &resetMutationBoundary{TransitionBackend: backend, mode: mode}
 				entropy := &resetEntropyHook{}
 				runtime, p := resetSessionBinding(t, f, boundary, &now, sessions.Config{Random: entropy})
 				previous := resetPrevious(t, runtime, p.Sessions(), kind, f.user.PrincipalID)
@@ -651,7 +651,7 @@ func RunPasswordResetSessionHTTP(t *testing.T, open func(*testing.T) (Transition
 			backend, _ := open(t)
 			f := newManagementFixture(t, backend, 4)
 			now := loginInstant
-			boundary := &passwordChangeBoundary{TransitionBackend: backend}
+			boundary := &resetMutationBoundary{TransitionBackend: backend}
 			runtime, p := resetSessionBinding(t, f, boundary, &now, sessions.Config{})
 			kind := mode
 			if kind == "unknown" {

@@ -1,6 +1,10 @@
 package identitytest
 
 import (
+	"encoding/json"
+	"fmt"
+	"strings"
+	"testing"
 	"time"
 
 	"github.com/progresshans/godj/auth/passwordpolicy"
@@ -22,4 +26,17 @@ func legacyMinimumPasswordPolicy(minimum int) (identity.PasswordValidator, error
 	return identity.PasswordValidatorFunc(func(raw string, _ identity.Profile) validation.Errors {
 		return rule.ValidatePassword(raw, nil)
 	}), nil
+}
+
+const selfPassword = "  replacement private password  "
+
+func requirePasswordPrivate(t *testing.T, value any, material ...string) {
+	t.Helper()
+	encoded, _ := json.Marshal(value)
+	diagnostic := fmt.Sprintf("%v %+v %#v %s %q %d %x", value, value, value, value, value, value, value) + string(encoded)
+	for _, secret := range material {
+		if secret != "" && strings.Contains(diagnostic, secret) {
+			t.Fatal("password material appeared in diagnostics")
+		}
+	}
 }

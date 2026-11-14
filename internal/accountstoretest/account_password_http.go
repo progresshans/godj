@@ -110,7 +110,9 @@ func accountPasswordLifecycle(t *testing.T, open Open, surface string) {
 		t.Fatal("missing account CSRF header")
 	}
 	h.now.Add(int64(time.Minute))
+	initial := previous
 	var firstChanged sessions.Record
+	var firstHash string
 	for index := range 2 {
 		old := password
 		if index == 1 {
@@ -165,6 +167,7 @@ func accountPasswordLifecycle(t *testing.T, open Open, surface string) {
 		accountSessionRecord(t, h.runtime.SessionStore(), otherRecord, false)
 		if index == 0 {
 			firstChanged = envelope.Record
+			firstHash = f.owner.encoded.Load().(string)
 		}
 		f.target.EncodedPassword, f.target.Revision = f.owner.encoded.Load().(string), f.target.Revision+1
 		f.credential, f.targetSessions, previous = envelope.Credential, []sessions.Record{envelope.Record}, envelope.Record
@@ -174,8 +177,11 @@ func accountPasswordLifecycle(t *testing.T, open Open, surface string) {
 	if err != nil || credential.Principal().Staff() || credential.Principal().Superuser() || credential.Principal().Has(identity.ChangeUser) || !credential.MatchesSessionStamp(f.credential.SessionStamp()) {
 		t.Fatal("account password reopen lost ordinary self authority", err)
 	}
-	for _, raw := range []string{password, strings.TrimSpace(selfPassword)} {
-		if _, err := reopened.runtime.Authenticator().Authenticate(t.Context(), "member", raw); err != auth.ErrInvalidCredentials {
+	validities := make([]bool, 2)
+	for index, raw := range []string{password, strings.TrimSpace(selfPassword)} {
+		_, err := reopened.runtime.Authenticator().Authenticate(t.Context(), "member", raw)
+		validities[index] = err == nil
+		if err != auth.ErrInvalidCredentials {
 			t.Fatal("old or trimmed password unexpectedly authenticates", err)
 		}
 	}
@@ -204,9 +210,23 @@ func accountPasswordLifecycle(t *testing.T, open Open, surface string) {
 	if f.target.LastLogin == nil || !f.target.LastLogin.Equal(nativeLoginInstant) {
 		t.Fatal("self password change overwrote last login")
 	}
+	_, oldPresent, err := reopened.runtime.SessionStore().Load(t.Context(), initial.ID())
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := profileRow(t, reopen(t), f.target.ID)
+	if stored.LastLogin == nil {
+		t.Fatal("password reference lost last login")
+	}
+	common := map[string]any{"session_rotated": firstChanged.ID() != initial.ID(), "old_session_retained": oldPresent, "old_password_valid": validities[0], "new_password_valid": credential.Principal().Authenticated(), "trimmed_password_valid": validities[1], "last_login": stored.LastLogin.Format("2006-01-02T15:04:05.999999-07:00"), "active": stored.Active, "staff": stored.Staff, "superuser": stored.Superuser}
 	for _, vendor := range []string{"sqlite", "postgres"} {
 		reference := readPasswordHTTPReference(t, vendor)
-		if reference.Observations.Success["other_session_before_access"] != true || reference.Observations.Success["old_session_retained"] != false || reference.Observations.Success["trimmed_password_valid"] != false || reference.Observations.SamePassword["hash_changed"] != true || reference.Observations.SamePassword["key_changed"] != true || reference.Observations.SamePassword["last_login"] != f.target.LastLogin.Format("2006-01-02T15:04:05.999999-07:00") {
+		for key, actual := range common {
+			if !reflect.DeepEqual(reference.Observations.Success[key], actual) {
+				t.Fatal("selected self password common behavior differs from Django", vendor, key)
+			}
+		}
+		if reference.Observations.Success["other_session_before_access"] != true || reference.Observations.SamePassword["hash_changed"] != (stored.EncodedPassword != firstHash) || reference.Observations.SamePassword["key_changed"] != (previous.ID() != firstChanged.ID()) || reference.Observations.SamePassword["last_login"] != common["last_login"] {
 			t.Fatal("independent self password behavior or eager revocation difference changed")
 		}
 	}

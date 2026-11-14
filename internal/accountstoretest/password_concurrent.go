@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
@@ -22,22 +23,27 @@ import (
 )
 
 func passwordConcurrent(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
-	f := provision(t, backend, ir.AccountExact)
-	credential := profileActor(t, f)
-	now := joined
+	f := provisionSelfPassword(t, backend)
+	f.instant.Store(nativeLoginInstant.Add(time.Minute).UnixNano())
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
-	defer cancel()
 	ready, start := make(chan struct{}, 2), make(chan struct{})
-	owners := make([]passwordFixture, 2)
-	hashers := make([]*passwordChangeHasher, 2)
-	previous := make([]sessions.Record, 2)
+	var once sync.Once
+	unblock := func() { once.Do(func() { close(start) }) }
+	var workers sync.WaitGroup
+	defer func() { cancel(); unblock(); workers.Wait() }()
+	owners := make([]*userReferenceOwner, 2)
+	entropy := make([]loginEntropy, 2)
+	previous := f.targetSessions[:2]
 	for i, connection := range []Backend{backend, reopen(t)} {
-		hashers[i] = &passwordChangeHasher{PasswordHasher: f.hasher}
-		owners[i] = passwordComposition(t, connection, &now, hashers[i], accountmodel.PasswordChangeConfig[models.User]{})
-		previous[i] = passwordSession(t, owners[i].manager, credential, fmt.Sprintf("writer-%d", i))
-		hashers[i].hashes.Store(0)
-		hashers[i].beforeHash = func(ctx context.Context) error {
-			ready <- struct{}{}
+		config := f.config(t)
+		config.Sessions.Random = &entropy[i]
+		owners[i] = newUserReferenceOwner(t, connection, f.userReferenceFixture, config)
+		owners[i].hasher.beforeHash = func(ctx context.Context) error {
+			select {
+			case ready <- struct{}{}:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 			select {
 			case <-start:
 				return nil
@@ -46,58 +52,82 @@ func passwordConcurrent(t *testing.T, backend Backend, reopen func(*testing.T) B
 			}
 		}
 	}
-	var wait sync.WaitGroup
-	results, failures := make([]auth.PasswordChangeResult, 2), make([]error, 2)
+	before := userReferenceSnapshot(t, reopen(t))
+	type outcome struct {
+		index  int
+		result auth.PasswordChangeResult
+		err    error
+	}
+	done := make(chan outcome, 2)
 	for i := range owners {
-		wait.Add(1)
+		workers.Add(1)
 		go func(i int) {
-			defer wait.Done()
-			results[i], failures[i] = owners[i].owner.ChangePassword(ctx, previous[i].ID(), password, fmt.Sprintf("concurrent-new-password-%d", i))
+			defer workers.Done()
+			result, err := owners[i].runtime.PasswordChangePersistence().ChangePassword(ctx, previous[i].ID(), password, fmt.Sprintf("concurrent-new-password-%d", i))
+			done <- outcome{i, result, err}
 		}(i)
 	}
 	for range 2 {
 		select {
 		case <-ready:
+		case result := <-done:
+			t.Fatal("password writer finished before both hash barriers", result.err)
 		case <-ctx.Done():
-			t.Fatal("both password requests did not reach the hash barrier")
+			t.Fatal("both password requests did not reach the outside-scope hash barrier", ctx.Err())
 		}
 	}
-	close(start)
-	wait.Wait()
+	unblock()
 	winner := -1
-	for i, err := range failures {
-		if hashers[i].hashes.Load() != 1 {
-			t.Fatal("concurrent password request rehashed")
-		}
-		if err == nil {
-			if winner != -1 || !results[i].Record.ID().Valid() {
-				t.Fatal("concurrent password writes published more than one session")
+	var won auth.PasswordChangeResult
+	for range 2 {
+		select {
+		case result := <-done:
+			i := result.index
+			if owners[i].hasher.hashes.Load() != 1 || owners[i].hasher.verifies.Load() != 1 || owners[i].boundary.calls != 1 {
+				t.Fatal("concurrent password request repeated hash, verification or native write")
 			}
-			winner = i
-		} else {
-			passwordNoResult(t, results[i], err)
-			if err != auth.ErrInvalidCredentials {
-				t.Fatal("concurrent password loser was not a confirmed stale credential", err)
+			if result.err == nil {
+				if winner != -1 || !result.result.Record.ID().Valid() || owners[i].policies.Load() != 2 {
+					t.Fatal("concurrent password writes published more than one authority or skipped the final policy")
+				}
+				winner, won = i, result.result
+			} else {
+				passwordNoResult(t, result.result, result.err)
+				if result.err != auth.ErrInvalidCredentials {
+					t.Fatal("concurrent password loser was not a confirmed stale credential", result.err)
+				}
 			}
+		case <-ctx.Done():
+			t.Fatal("concurrent password writes did not finish", ctx.Err())
 		}
 	}
+	workers.Wait()
 	if winner < 0 {
 		t.Fatal("no password writer won")
 	}
-	for _, record := range previous {
-		accountSessionRecord(t, owners[0].store, record, false)
-	}
-	accountSessionRecord(t, owners[1].store, results[winner].Record, true)
-	row := profileRow(t, reopen(t), f.user.ID)
-	if row.Revision != 2 || accountSessionCount(t, backend) != 1 || len(profileHistory(t, backend, credential.Principal(), f.user.ID)) != 1 {
-		t.Fatal("concurrent password commit was not one account/session/audit transition")
-	}
 	for i := range owners {
-		_, err := owners[i].authenticator.Authenticate(t.Context(), row.Username, fmt.Sprintf("concurrent-new-password-%d", i))
+		id := entropy[i].one(t, 0)
+		if i != winner {
+			if _, found, err := f.runtime.SessionStore().Load(t.Context(), id); err != nil || found {
+				t.Fatal("losing password request persisted its candidate session", err)
+			}
+		}
+	}
+	after := userReferenceSnapshot(t, reopen(t))
+	expected, envelope := selfPasswordExpected(t, f, owners[winner], before, after, previous[winner], entropy[winner].one(t, 0), f.clock())
+	assertSelfPasswordResult(t, won, envelope)
+	assertUserReferenceStateAt(t, expected, after, f.credential.Principal(), f.clock(), catalogExpectedEvent{"user", f.target.ID, admin.ActionChange, []string{"encoded_password"}})
+	for _, record := range f.targetSessions {
+		accountSessionRecord(t, f.runtime.SessionStore(), record, false)
+	}
+	accountSessionRecord(t, f.runtime.SessionStore(), envelope.Record, true)
+	for i := range owners {
+		_, err := owners[i].runtime.Authenticator().Authenticate(t.Context(), f.target.Username, fmt.Sprintf("concurrent-new-password-%d", i))
 		if i == winner && err != nil || i != winner && err != auth.ErrInvalidCredentials {
 			t.Fatal("durable password differs from winning request", err)
 		}
 	}
+	assertUserReferenceState(t, after, userReferenceSnapshot(t, reopen(t)), f.actor.Principal())
 }
 
 func passwordEntropy(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
@@ -112,8 +142,21 @@ func passwordEntropy(t *testing.T, backend Backend, reopen func(*testing.T) Back
 	for _, mode := range []string{"confirmed_retry", "exhausted", "unknown_collision", "entropy_failure"} {
 		t.Run(mode, func(t *testing.T) {
 			target := roleTarget(t, backend, f, "password-entropy-"+mode)
-			current := passwordSession(t, manager, passwordCredential(t, f, target), "current")
-			data := append(append([]byte{}, collisionBytes...), bytes.Repeat([]byte{41}, 32)...)
+			credential := passwordCredential(t, f, target)
+			current := passwordSession(t, manager, credential, "current")
+			oldBytes, err := base64.RawURLEncoding.DecodeString(current.ID().Encoded())
+			if err != nil {
+				t.Fatal(err)
+			}
+			freshBytes := bytes.Repeat([]byte{41}, 32)
+			freshID, err := sessions.ParseID(base64.RawURLEncoding.EncodeToString(freshBytes))
+			if err != nil {
+				t.Fatal(err)
+			}
+			data := append(append(append([]byte{}, oldBytes...), collisionBytes...), freshBytes...)
+			if mode == "unknown_collision" {
+				data = append(append([]byte{}, collisionBytes...), freshBytes...)
+			}
 			if mode == "exhausted" {
 				data = bytes.Repeat(collisionBytes, 4)
 			}
@@ -143,15 +186,43 @@ func passwordEntropy(t *testing.T, backend Backend, reopen func(*testing.T) Back
 				t.Fatal(err)
 			}
 			hasher.hashes.Store(0)
+			var encoded string
+			hasher.encode = func(ctx context.Context, raw string) (string, error) {
+				value, err := f.hasher.Hash(ctx, raw)
+				if err == nil {
+					encoded = value
+				}
+				return value, err
+			}
 			before := passwordState(t, backend)
 			result, err := passwordOwner.ChangePassword(t.Context(), current.ID(), password, password+"-new")
 			if hasher.hashes.Load() != 1 {
 				t.Fatal("session entropy retried password hash")
 			}
 			if mode == "confirmed_retry" {
-				if err != nil || owner.calls != 2 || random.Len() != 0 || profileRow(t, backend, target.ID).Revision != 2 || len(profileHistory(t, backend, result.Credential.Principal(), target.ID)) != 1 {
+				if err != nil || owner.calls != 2 || random.Len() != 0 || result.Record.ID() != freshID {
 					t.Fatal("confirmed collision did not retry only rotation", err)
 				}
+				domain, _ := credential.Principal().CredentialDomain()
+				expectedCredential, err := auth.NewCredentialForDomain(domain, target.Username, encoded, credential.Principal())
+				if err != nil {
+					t.Fatal(err)
+				}
+				snapshot := current.Snapshot()
+				snapshot.ID, snapshot.Values[auth.SessionCredentialStampKey] = freshID, expectedCredential.SessionStamp()
+				expectedRecord, err := sessions.RestoreRecord(snapshot, sessions.Limits{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				assertSelfPasswordResult(t, result, auth.PasswordChangeResult{Credential: expectedCredential, Record: expectedRecord})
+				after := accountNativeSnapshot(t, reopen(t))
+				expected := before.accountNativeState
+				row := target
+				row.EncodedPassword, row.Revision = encoded, row.Revision+1
+				userReferenceReplace(&expected, row)
+				loginRemoveRecord(t, &expected, loginNamespace(t, credential), current.ID())
+				loginPutRecord(t, &expected, after, loginNamespace(t, credential), expectedRecord, false)
+				assertCatalogRowsAt(t, expected, after, credential.Principal(), now, catalogExpectedEvent{"user", target.ID, admin.ActionChange, []string{"encoded_password"}})
 				accountSessionRecord(t, base, current, false)
 				accountSessionRecord(t, base, result.Record, true)
 			} else {

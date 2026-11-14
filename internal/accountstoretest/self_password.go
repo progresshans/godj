@@ -2,6 +2,7 @@ package accountstoretest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -96,9 +97,37 @@ func assertSelfPasswordResult(t *testing.T, result, expected auth.PasswordChange
 	}
 }
 
+func selfPasswordPrivate(t *testing.T, value any, material ...string) {
+	t.Helper()
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal("password diagnostic serialization failed", err)
+	}
+	diagnostic := fmt.Sprintf("%v %+v %#v %s %q %d %x", value, value, value, value, value, value, value) + string(encoded)
+	for _, secret := range material {
+		if secret != "" && strings.Contains(diagnostic, secret) {
+			t.Fatal("password material appeared in diagnostics")
+		}
+	}
+}
+
 func selfPasswordLifecycle(t *testing.T, open Open) {
 	backend, reopen := open(t)
 	f := provisionSelfPassword(t, backend)
+	// Cross the native inventory batch boundary with interleaved target,
+	// unrelated authenticated and anonymous rows, including late target rows.
+	for index := range 260 {
+		switch index % 3 {
+		case 0:
+			f.targetSessions = append(f.targetSessions, passwordSession(t, f.runtime.Sessions(), f.credential, fmt.Sprintf("self-batch-target-%d", index)))
+		case 1:
+			passwordSession(t, f.runtime.Sessions(), f.actor, fmt.Sprintf("self-batch-control-%d", index))
+		case 2:
+			if _, err := f.runtime.Sessions().Create(t.Context(), map[string]string{"anonymous": fmt.Sprintf("self-batch-%d", index)}); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
 	old := password
 	for _, mode := range []string{"changed", "same_password_new_salt"} {
 		if !t.Run(mode, func(t *testing.T) {
@@ -123,12 +152,7 @@ func selfPasswordLifecycle(t *testing.T, open Open) {
 				t.Fatal("self password repeated or skipped hash, verification, policy or persistence")
 			}
 			for _, value := range []any{result, f.runtime.PasswordChangePersistence()} {
-				for _, format := range []string{"%v", "%+v", "%#v"} {
-					text := fmt.Sprintf(format, value)
-					if strings.Contains(text, next) || strings.Contains(text, f.owner.encoded.Load().(string)) || strings.Contains(text, result.Record.ID().Encoded()) {
-						t.Fatal("self password diagnostics exposed private material")
-					}
-				}
+				selfPasswordPrivate(t, value, old, next, f.target.EncodedPassword, f.owner.encoded.Load().(string), previous.ID().Encoded(), result.Record.ID().Encoded(), f.credential.SessionStamp(), result.Credential.SessionStamp())
 			}
 			reopened := newUserReferenceOwner(t, reopen(t), f.userReferenceFixture, f.config(t))
 			credential, err := reopened.runtime.Authenticator().Authenticate(t.Context(), f.target.Username, next)
@@ -149,6 +173,7 @@ func selfPasswordLifecycle(t *testing.T, open Open) {
 			return
 		}
 	}
+	assertPasswordReferenceDeviations(t)
 }
 
 type selfPasswordFaultScope struct {
@@ -158,6 +183,10 @@ type selfPasswordFaultScope struct {
 	effects *[]string
 	faults  *int
 }
+
+type selfPasswordOpaqueError []string
+
+func (selfPasswordOpaqueError) Error() string { return "private self password opaque fault" }
 
 func (scope *selfPasswordFaultScope) ValidateSession(ctx context.Context) error {
 	return scope.Session.(db.SessionValidator).ValidateSession(ctx)
@@ -237,7 +266,7 @@ func (scope *selfPasswordFaultScope) Delete(ctx context.Context, plan query.Dele
 }
 
 func selfPasswordWriteFailures(t *testing.T, open Open) {
-	modes := []string{"skipped", "nil_session", "root_session", "repeated", "query", "before_rotation", "after_rotation", "before_session", "after_session", "before_password", "after_password", "before_revoke", "after_revoke", "before_audit", "after_audit", "validator_rejection", "validator_failure", "validator_cleanup", "swallowed_rejection", "cancel_before_commit", "cancel_confirmed_rollback", "unknown_rollback", "unknown_commit", "post_commit_cancel"}
+	modes := []string{"skipped", "nil_session", "root_session", "repeated", "query", "opaque", "swallowed_failure", "before_rotation", "after_rotation", "before_session", "after_session", "before_password", "after_password", "before_revoke", "after_revoke", "before_audit", "after_audit", "validator_rejection", "validator_failure", "validator_cleanup", "swallowed_rejection", "callback_cancel", "cancel_before_commit", "cancel_confirmed_rollback", "unknown_rollback", "unknown_commit", "post_commit_cancel"}
 	for _, point := range []string{"before_password", "after_password"} {
 		for _, kind := range []string{"entropy", "authentication", "diagnostics"} {
 			modes = append(modes, point+"_"+kind)
@@ -258,6 +287,12 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 				}
 			}
 			var fault error = errors.New("private self password native fault")
+			if mode == "opaque" {
+				point, fault = "query", selfPasswordOpaqueError{"private opaque material"}
+			}
+			if mode == "swallowed_failure" {
+				point = "query"
+			}
 			switch kind {
 			case "entropy":
 				fault = &sessions.Error{Code: sessions.CodeEntropy}
@@ -267,6 +302,9 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 				fault = validation.Reject(validation.NewErrors(validation.New("password", "native_failure")), nil)
 			}
 			boundary := &profileFaultBackend{Backend: backend, mode: point, fault: fault, cancel: cancel}
+			if mode == "swallowed_failure" {
+				boundary.mode = "swallowed_rejection"
+			}
 			if mode == "validator_cleanup" {
 				boundary.mode = "cleanup_failure"
 			}
@@ -309,7 +347,7 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 						t.Fatal("native self password failure became renderable refusal", err)
 					}
 					code := accountmodel.CodePersistence
-					if mode == "skipped" || mode == "repeated" || mode == "swallowed_rejection" || mode == "unknown_commit" || mode == "unknown_rollback" || errors.Is(boundary.nativeError, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) || errors.Is(boundary.nativeError, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
+					if mode == "skipped" || mode == "repeated" || mode == "swallowed_rejection" || mode == "swallowed_failure" || mode == "unknown_commit" || mode == "unknown_rollback" || errors.Is(boundary.nativeError, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) || errors.Is(boundary.nativeError, &query.Error{Code: query.CodeCommitOutcomeUnknown}) {
 						code = accountmodel.CodeOutcomeUnknown
 					}
 					requireProfileCode(t, err, code)
@@ -341,11 +379,16 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 				t.Fatal("self password fault missed its native write prefix", mode, effects, want)
 			}
 			if point == "query" || strings.HasPrefix(point, "before_") || strings.HasPrefix(point, "after_") {
-				if faults != 1 || !errors.Is(err, fault) {
+				matches := errors.Is(err, fault)
+				if mode == "opaque" {
+					var observed selfPasswordOpaqueError
+					matches = errors.As(err, &observed) && reflect.DeepEqual(observed, fault)
+				}
+				if faults != 1 || !matches {
 					t.Fatal("self password native error lost its unique cause", err)
 				}
 			}
-			if mode == "cancel_before_commit" || mode == "cancel_confirmed_rollback" {
+			if mode == "callback_cancel" || mode == "cancel_before_commit" || mode == "cancel_confirmed_rollback" {
 				if !errors.Is(err, context.Canceled) || boundary.nativeError == nil || !errors.Is(err, boundary.nativeError) {
 					t.Fatal("self password cancellation lost its native outcome", err)
 				}
@@ -368,6 +411,7 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 					t.Fatal("self password failure disclosed private material")
 				}
 			}
+			selfPasswordPrivate(t, err, password, owner.encoded.Load().(string), id.Encoded(), "private self password native fault", "private self password opaque fault", "private opaque material")
 		})
 	}
 }
@@ -375,4 +419,8 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 func runSelfPasswordNative(t *testing.T, open Open) {
 	t.Run("self_password_lifecycle", func(t *testing.T) { selfPasswordLifecycle(t, open) })
 	t.Run("self_password_write_failures", func(t *testing.T) { selfPasswordWriteFailures(t, open) })
+	t.Run("self_password_configuration", func(t *testing.T) { selfPasswordConfiguration(t, open) })
+	t.Run("self_password_refusals", func(t *testing.T) { selfPasswordRefusals(t, open) })
+	t.Run("self_password_current", func(t *testing.T) { selfPasswordCurrent(t, open) })
+	t.Run("self_password_web", func(t *testing.T) { selfPasswordWeb(t, open) })
 }

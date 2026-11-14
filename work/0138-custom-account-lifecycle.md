@@ -933,7 +933,7 @@ transaction/HTTP 검증을 유지한다. 이 advisory 정책 비교는 계정의
 유지한다. 일반 사용자의 변경·동일 비밀번호 재해싱·재접속과 실제 쓰기 전/후 실패·취소·결과 불명 검사는 전체 계정,
 catalog/through·host·domain·역사 session/audit를 대조한다. 새 비밀번호·bearer는 DB 결과가 아니라 해시/entropy 단계에서
 관찰하고 나머지 예상 값은 요청과 이전 행에서 만든다. 기존 선택 password 실패 관측도 세 테이블에서 전체 native 행으로
-넓혔다. 이 보강의 원격 실행 및 고정 자기 비밀번호/reset 소비자의 이관은 계속 필요하다.
+넓혔다. 이 보강의 원격 실행 및 고정 reset 소비자의 이관은 계속 필요하다.
 
 Account HTTP의 Form/JSON 비밀번호 변경·입구 거부 소비자를 선택 runtime과 생성 host graph로 옮겼다. 기존 Django
 Form 오류 원문과 실제 TCP/cookie jar·CSRF·정규화·raw password·session 수명·재접속/로그아웃을 유지하며, 성공과
@@ -941,6 +941,14 @@ unknown commit의 예상 hash/bearer를 저장 전에 관찰한다. 거부·실�
 쓰기 prefix를 대조하고 native 오류가 HTTP 입력 오류나 로그인 redirect로 오인되지 않도록 요구한다. 고정 네 HTTP
 root는 선택 소비자로 대체했으며 남은 reset이 사용하는 parser와 자기 비밀번호의 직접/공통 Web 검사는 유지한다.
 작성·필수 목록 이관과 실제 환경별 실행은 TEST_EVIDENCE에서 구분한다.
+
+남은 고정 자기 비밀번호의 직접/경계/경합/공통 Web 소비자를 선택 owner로 옮겼다. 기존 선택 session admission·hasher·
+정확한 manager/verifier binding과 연결하며, 설정 사본·비밀값 비노출·대량 session inventory·현재 profile/grant·
+서로 다른 연결의 hash 중 편집/삭제/rotation·두 변경 중 한 승자의 전체 native/host 상태를 대조한다. 공통 Web의
+ChangePassword/Apply는 별도 host route에서 확인하고 Account의 Form/JSON 의미와 구분한다. 고정 prepared-value와
+variadic validator 모양을 새 API에 복제하지 않으며, 선택 nil 정책은 명시된 대로 강도 규칙만 생략한다. Domain storage
+오류는 원인의 동적 타입에 관계없이 transaction 결과 owner가 같은 오류를 안전하게 확인할 수 있게 한다. 이 이관의
+실제 원격 실행과 reset에 남은 역사 조립·고정 서비스 제거는 아직 완료가 아니다.
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,

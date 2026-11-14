@@ -5710,6 +5710,53 @@ Reset fixture가 기존 `identityHTTP`와 자기 runtime·manager·clock을 직�
 `gdj0138-59f1cec7-ci-43646404828/compile-failure-diagnosis.json`에 보존했다
 (SHA-256 `a297b054564aab5d522155780303c302437c728a080151bc6239fae42fda6b70`).
 
+수정 source `7827708baac0a38f0e6e2bc8df2862999b744ffd`의
+[CI 43647507181](https://github.com/progresshans/godj/actions/runs/43647507181) core normal/race/CGO0
+작업 `132608638343`/`132608638362`/`132608638387`이 모두 성공했다. 세 원본의 실제 checkout은
+`fc0f8cc42dc11b9401bf0ce4bec03290aed01065`이며 tree `90cd56843bb8c61868408cda052d0067f6758730`가
+제출 source와 같다. 각 모드에서 141개 package, 필수 490개 통과와 14,761개 run을 확인했다. 별도 환경에서 실행하는
+500개 skip을 native DB 성공으로 계산하지 않는다. 이 근거는 reset fixture의 compile 복구 범위이며 다음 자기 비밀번호
+변경 묶음이나 I1 전체의 수용 근거가 아니다. 원본·판정은 `gdj0138-7827708b-ci-43647507181/core-recovery.json`에
+보존했다(SHA-256 `3eacde2cabf633e0d4b612f4585df33d61df1ad70c503f0c522f5d9e3b40331b`).
+
+### 자기 비밀번호의 선택 owner 수용 책임 이관
+
+2026-11-15, reset fixture 의존성 수정 `7827708b` 위에서 남은 고정 자기 비밀번호 네 root의 64개 필수 항목을
+선택 소비자에 연결했다. 이미 존재하는 선택 session admission·hasher·read/commit/현재 상태 검사와 정확한
+manager/verifier 소유권 검사를 유지하고, 부족한 아래 경계를 보강했다. 작성과 정적 대응을 실제 본문 PASS로 계산하지 않는다.
+
+| 기존 책임 | 현재 선택 소비자 |
+|---|---|
+| 준비/설정 소유·비밀값 비노출·잘못된 구성 | `self_password_configuration`, 기존 `TestPasswordChangeRequiresExactSessionAndCredentialOwnersBeforeIO`와 lifecycle의 모든 fmt/JSON 진단. 선택 API는 준비 token을 외부에 게시하지 않으며 config의 limit/callback 재할당이 기존 owner를 바꾸지 않아야 한다. |
+| 입력·context·현재 session 거부와 hash 실패 | 새 `self_password_refusals`의 6개 직접 호출과 기존 `password_session_admission`/`password_hasher_failures`. 결과는 zero이고 새 hash/entropy/write 및 전체 native/host 변경을 금지한다. |
+| 대량 session 수명·충돌/entropy·쓰기 실패 | `self_password_lifecycle`의 260개 추가 혼합 session과 전체 상태, `password_entropy`의 이전 ID 건너뛰기→실제 collision→성공·소진·unknown·entropy 실패, `self_password_write_failures`의 실제 prefix/결과 불명 및 opaque·숨긴 I/O 실패·callback 취소. |
+| 해싱 중 실제 다른 연결의 상태 변경 | `self_password_current`의 10개 사례. 선택 management가 profile/policy/grant/password/inactive/delete를 실제 변경하고, 별도 session owner가 logout/rotation을 수행한다. 각 경쟁 변경의 전체 행과 audit를 먼저 대조한 뒤 pending password의 결과를 확인한다. 만료 경계도 계속 보존한다. |
+| 두 password 변경 중 한 승자 | 보강한 기존 `password_concurrent`. 두 hash barrier·별도 연결·개별 entropy/encoded hash와 단일 native write를 요구하며 승자의 정확한 account/session/audit 및 전체 host 상태를 대조한다. |
+| 공통 Web runtime의 native 통합 | `self_password_web`의 기존 8개 동작. host route가 ChangePassword/Apply를 직접 호출하며 실제 TCP·CSRF·cookie jar·두 번째 동일 password·이전/다른 browser 폐기·rollback/unknown을 확인한다. header 입력은 test protocol이며 Form/JSON parsing 증거로 쓰지 않는다. |
+
+기존 prepared-value owner 검사는 외부 준비 값을 받지 않는 선택 서비스의 정확한 binding·설정 사본·진단 경계로 옮겼다.
+옛 variadic interface 목록의 typed-nil 원소를 새 function field에 복제하지 않았다. 선택 nil callback은 기존 계약대로
+강도 규칙 없음이며 필수 입력·byte 한도·session/credential·hasher 검사는 남는다. 이 차이를 정적 책임 map에 명시했다.
+Reset이 아직 쓰는 mutation boundary와 비밀값 진단 helper는 reset/공통 fixture로 옮겼고 그 본문을 보존했다.
+사용되지 않는 역사 HTTP factory의 password callback/clock 인자도 제거했다. 역사 reset을 조립하는 제품 API의 제거
+또는 reset 전체 수용 완료를 뜻하지 않는다.
+
+Django의 공통 성공·같은 password 결과는 실제 선택 HTTP/native 관측과 대조하도록 보강했다. Eager session 폐기,
+원자 rollback과 현재 profile/credential 재검사는 원문의 session cycle/final-save 실패 및 cached-user 재저장과 구분한다.
+원문·producer bytes는 그대로이며 9개 source digest·10개 refusal·3개 failure·2개 current-state observation을 요구한다.
+
+Opaque 오류를 대조하면서 `account/domain`의 값형 storage wrapper가 slice 원인을 포함하면 transaction owner의
+오류 동일성 확인에서 비교 panic을 일으킬 수 있는 경로를 확인했다. Wrapper를 안정적인 pointer로 반환하도록 바꿨다.
+공개 RequireIn의 opaque 원인을 CoordinatedAtomicResult로 전달하는 단위 회귀와 실제 선택 password의 native query
+회귀를 연결했다. 로컬 Go로 재현/실행한 결과는 아니며 새 source의 원격 실행에서 확인한다.
+
+양 DB의 기존 64개는 모두 현재 필수 항목에 대응하고 31개씩을 추가했다. Domain 오류 단위 1개를 relation에 별도로
+추가하여 relation은 4,876→4,844, PostgreSQL은 5,915→5,882가 된다. 다른 항목의 상대 순서와 scope는 유지한다.
+정적 책임 map은 검증 보관소 `gdj0138-selected-self-password-migration-v1/responsibility-map.json`에 보존했다
+(SHA-256 `21f08b2f23fbedd488cba24f9ea3fb176fc6d8d1662aa605c4707464162f7616`).
+로컬 gofmt·diff·Markdown 245개 링크 검사와 Python CI owner/분할 검사 37개(153.920초)가 통과했다.
+Go compile/test·generate·DB/HTTP는 실행하지 않았고 새 native 본문·race·CGO0 및 전체 환경 수용은 새 source의 원격 CI에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
