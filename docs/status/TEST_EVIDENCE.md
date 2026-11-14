@@ -5552,6 +5552,23 @@ platform/cold-build와 I1 수용은 현재 source의 원격 확인 대상이다.
 최종 필수 목록에서 Python CI 분할 검사 27개가 33.523초에 통과했고 Markdown 245개 문서의 local 링크를 확인했다.
 이 정적 검사는 새 Go 본문의 compile·실행 성공을 뜻하지 않는다.
 
+후속 source `f6d8c0f3d625c62d1b07d938488dfb30e12ac1e2`의
+[CI 43640105874](https://github.com/progresshans/godj/actions/runs/43640105874) attempt 1에서 core normal/race/CGO0
+작업 `132585755438`/`132585755451`/`132585755637`이 모두 성공했다. 각 mode의 전체 원본 artifact,
+GitHub digest·run/attempt·job metadata·clean worktree와 제출 source의 필수 원문·검사기를 대조했다.
+실제 checkout `609b0d966e60467c639e20a7c7e7f472a563e5b1`의 tree
+`fe44c5d4729ef38ec648de68aac568ea6e88ca6e`는 제출 source와 같다. 각 mode는 141 package·run 14,625개·
+pass 14,105개·skip 520개이며 필수 331개는 모두 정확히 한 번 실행·통과했다. 이 skip을 native DB 성공으로 계산하지 않는다.
+원본·각 파일 hash·metadata·source/tree와 판정은 검증 보관소
+`gdj0138-f6d8c0f3-ci-43640105874/core-progress.json`에 있다
+(SHA-256 `0120c852e8b33bef1359fae91242f0d64eeed48fc07681de833fe6ee4d50bcbd`).
+
+같은 source의 새 로그인/재시도 본문과 상위 계정·세션 DB root를 합친 DB별 143개는
+`login-target-inventory.json`에 원문 hash와 정확한 필수 이름으로 고정했다
+(SHA-256 `7715842cd2bfdb33444b45659b01342b1a2f226dd0477142cf09ea075f0caf2f`).
+현재 PostgreSQL normal 본문은 실행 중이며 이 새 대상의 양 DB·race/CGO0·platform 전체 원본 대조와 I1 수용은
+미완료다. Core compile/필수 실행으로 이를 대신하지 않으며 로컬 Go/DB도 실행하지 않았다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
