@@ -5799,6 +5799,43 @@ PostgreSQL은 5,882→5,875이며 나머지 항목의 상대 순서를 유지한
 전송 접수 후 결과 불명 항목을 추가한 최종 목록의 실행 owner/분할 검사 4개도 5.944초에 통과했다.
 새 native mail/proof/reset 본문과 전체 DB·race·CGO0/platform 검증은 후속 source의 원격 CI에서 확인한다.
 
+### 선택 reset 쓰기의 실패 출처와 전체 상태
+
+2026-11-15, source `fceb8a28` 위에서 선택 reset의 쓰기 오류 전달 경로를 검토했다. `accountSessionWrite`가 확정
+rollback 뒤 전달한 callback 원인을 reset이 오류 타입만으로 proof/validation 거부로 분류하거나, password 쓰기에서
+나온 원인 없는 entropy 오류를 manager에 그대로 넘길 수 있었다. 해당 reset owner가 직접 판정한 현재 proof·정책
+거부와 정확한 session store가 관측한 충돌만 표시하도록 수정했다. 표시되지 않은 native 오류는 원인을 보존한
+persistence/unknown 실패이며 새 hash·native write·entropy 재시도를 요청할 수 없다. 표시된 오류도 cleanup·
+callback 수명 위반·결과 불명을 통과하면 일반 거부로 해제되지 않는다. 이 경로 판독을 로컬 Go 재현 결과로 기록하지 않는다.
+
+기존 선택 `password_reset_commit_failures`/`password_reset_entry_failures`의 필수 48개는 새
+`password_reset_write_failures`에 모두 대응한다. Create 25·rotate 27·finish 38·clear 33, 총 123개 사례를 작성했다.
+각 사례는 독립 native/host fixture와 재접속 관측을 사용한다. 정상 setup proof도 요청 전 상태·entropy로 만든 예상값과
+먼저 비교한다. 결과 불명에서 반환값이 없어도 실제 committed 행을 저장 전 hash·ID와 요청 전 payload·수명으로 대조한다.
+생성된 row key 외에는 사후 DB 값으로 예상 결과를 만들지 않는다.
+
+네 경로는 생략/nil/root/반복 scope, query/opaque/숨긴 오류, 현재 proof 거부와 cleanup/숨김, 잘못된 clock, callback/
+실제 context 취소·확정 rollback, unknown rollback/commit과 commit 후 취소를 검사한다. 각 경로의 실제
+rotation/session/password/revoke/audit에 대해 쓰기 전·후 실패와 정확한 수행 prefix를 확인한다. Finish는 258개 대상
+세션을 준비해 batch 256을 지난 마지막 폐기 후에도 account·catalog·domain·audit·host·다른 namespace를 포함한
+전체 상태가 rollback되어야 한다. Clear는 모든 결과에서 새 bearer entropy를 사용하지 않는다.
+
+Session insert 또는 password update 전·후에 entropy/proof/validation과 같은 타입의 native 오류를 주입한다.
+기존 preflight와 현재 proof/policy 거부, `password_reset_entropy`의 create/rotate/finish 실제 collision·소진·unknown·
+entropy 실패 및 self-clear의 무 entropy 대조군을 함께 유지한다. 저장 원인의 직접 검사와 모든 fmt/JSON의 비밀값 비노출,
+zero record/clear 결과 및 hash·verify·write 횟수를 비교한다.
+
+자기 비밀번호와 reset의 native DML 관측은 공통 test scope로 옮겼고, 기존 세 자기 변경/HTTP 호출은 기본 첫 실패
+의미를 유지한다. Reset의 session 예상값·진입·완료 행 변환은 메일 소비자와 공유하며 사후 제품 reset 결과를 예상
+상태에 복사하지 않는다. 원문 Django capture·producer와 남은 고정 reset 273개 항목/DB는 변경하지 않았다.
+
+기존 48개 항목을 제거하고 root/stage를 포함한 128개를 추가하여 relation은 4,837→4,917, PostgreSQL은 5,875→5,955다.
+다른 필수 항목의 순서·중복 부재와 모든 이전 책임의 대응은 검증 보관소
+`gdj0138-selected-reset-write-provenance-v1/responsibility-map.json`에 보존했다
+(SHA-256 `9f37600d3ae0ff82e7f37d9d9cd1eb164af191f67c1af4c10383a32770760354`).
+실제 새 native 본문·양 DB·race·CGO0/platform 실행은 새 source의 원격 CI에서 확인하며 로컬 Go는 실행하지 않았다.
+로컬 gofmt 9개 Go 파일·diff·245개 문서 링크 검사와 최종 목록의 Python CI owner/분할 검사 37개(157.023초)는 통과했다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

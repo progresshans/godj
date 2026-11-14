@@ -958,6 +958,13 @@ Reset 메일의 고정 세 root와 41개 필수 항목은 선택 소비자의 �
 Django 6.1/Python 3.14.3·8개 source digest·12개 후보 관측을 확인하되 원문/producer는 바꾸지 않는다.
 작성·정적 대응과 현재 source의 원격 실행은 TEST_EVIDENCE에서 구분하며 reset 전체 수용은 계속 남아 있다.
 
+선택 reset의 쓰기 경계가 저장소에서 온 proof/validation 오류를 직접 입력 거부로, password 쓰기의 entropy 오류를
+충돌 재시도로 취급할 수 있는 경로를 수정했다. 해당 owner가 현재 proof·정책과 실제 session store의 충돌을 표시하고
+정확한 rollback 확인 뒤에만 그 결과를 해제한다. 원인·cleanup·취소·결과 불명과 zero 결과 게시 조건은 유지한다.
+선택 진입/완료 실패의 기존 48개 필수 항목을 네 경로 123개 사례와 root/stage를 포함한 128개 항목으로 대체했다.
+쓰기 prefix·전체 native/host 상태·저장 전 해시/entropy를 비교하고, 258번째 대상 폐기 뒤 실패와 정상 거부/실제 충돌의
+대조군을 유지한다. 이 보강은 남은 고정 reset 소비자 이관이나 현재 source의 실제 원격 통과를 뜻하지 않는다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -59,7 +59,7 @@ func accountPasswordFailures(t *testing.T, open Open) {
 						if !armed {
 							return scope
 						}
-						return &selfPasswordFaultScope{scope, point, fault, &effects, &faults}
+						return &passwordWriteFaultScope{Session: scope, mode: point, fault: fault, effects: &effects, faults: &faults}
 					}
 					policy := func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 						policies++

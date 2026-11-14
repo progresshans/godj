@@ -176,95 +176,6 @@ func selfPasswordLifecycle(t *testing.T, open Open) {
 	assertPasswordReferenceDeviations(t)
 }
 
-type selfPasswordFaultScope struct {
-	db.Session
-	mode    string
-	fault   error
-	effects *[]string
-	faults  *int
-}
-
-type selfPasswordOpaqueError []string
-
-func (selfPasswordOpaqueError) Error() string { return "private self password opaque fault" }
-
-func (scope *selfPasswordFaultScope) ValidateSession(ctx context.Context) error {
-	return scope.Session.(db.SessionValidator).ValidateSession(ctx)
-}
-func (scope *selfPasswordFaultScope) fail() error { (*scope.faults)++; return scope.fault }
-func (scope *selfPasswordFaultScope) Query(ctx context.Context, plan query.Plan) (db.Rows, error) {
-	if scope.mode == "query" {
-		return nil, scope.fail()
-	}
-	return scope.Session.Query(ctx, plan)
-}
-func (scope *selfPasswordFaultScope) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
-	name := "insert:" + plan.Table()
-	if plan.Table() == "godj_sessions_session" {
-		name = "session"
-	}
-	if plan.Table() == "godj_account_audit_event" {
-		name = "audit"
-	}
-	if scope.mode == "before_"+name {
-		return 0, scope.fail()
-	}
-	key, err := scope.Session.Insert(ctx, plan)
-	if err == nil {
-		if key <= 0 {
-			return 0, errors.New("self password native insert did not allocate a key")
-		}
-		*scope.effects = append(*scope.effects, name)
-		if scope.mode == "after_"+name {
-			return 0, scope.fail()
-		}
-	}
-	return key, err
-}
-func (scope *selfPasswordFaultScope) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
-	name := "update:" + plan.Table()
-	if plan.Table() == "godj_identity_user" {
-		name = "password"
-	}
-	if scope.mode == "before_"+name {
-		return 0, scope.fail()
-	}
-	count, err := scope.Session.Update(ctx, plan)
-	if err == nil {
-		if count != 1 {
-			return 0, errors.New("self password native update did not affect one row")
-		}
-		*scope.effects = append(*scope.effects, name)
-		if scope.mode == "after_"+name {
-			return 0, scope.fail()
-		}
-	}
-	return count, err
-}
-func (scope *selfPasswordFaultScope) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
-	name := "delete:" + plan.Table()
-	if plan.Table() == "godj_sessions_session" {
-		name = "revoke"
-		if len(*scope.effects) == 0 {
-			name = "rotation"
-		}
-	}
-	if scope.mode == "before_"+name {
-		return 0, scope.fail()
-	}
-	count, err := scope.Session.Delete(ctx, plan)
-	if err == nil {
-		if count != 1 {
-			return 0, errors.New("self password native delete did not affect one row")
-		}
-		*scope.effects = append(*scope.effects, name)
-		if scope.mode == "after_"+name {
-			return 0, scope.fail()
-		}
-	}
-	return count, err
-}
-
 func selfPasswordWriteFailures(t *testing.T, open Open) {
 	modes := []string{"skipped", "nil_session", "root_session", "repeated", "query", "opaque", "swallowed_failure", "before_rotation", "after_rotation", "before_session", "after_session", "before_password", "after_password", "before_revoke", "after_revoke", "before_audit", "after_audit", "validator_rejection", "validator_failure", "validator_cleanup", "swallowed_rejection", "callback_cancel", "cancel_before_commit", "cancel_confirmed_rollback", "unknown_rollback", "unknown_commit", "post_commit_cancel"}
 	for _, point := range []string{"before_password", "after_password"} {
@@ -288,7 +199,7 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 			}
 			var fault error = errors.New("private self password native fault")
 			if mode == "opaque" {
-				point, fault = "query", selfPasswordOpaqueError{"private opaque material"}
+				point, fault = "query", passwordWriteOpaqueError{"private opaque material"}
 			}
 			if mode == "swallowed_failure" {
 				point = "query"
@@ -311,7 +222,7 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 			var effects []string
 			faults := 0
 			boundary.decorate = func(scope db.Session) db.Session {
-				return &selfPasswordFaultScope{scope, point, fault, &effects, &faults}
+				return &passwordWriteFaultScope{Session: scope, mode: point, fault: fault, effects: &effects, faults: &faults}
 			}
 			config := f.config(t)
 			final := false
@@ -381,7 +292,7 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 			if point == "query" || strings.HasPrefix(point, "before_") || strings.HasPrefix(point, "after_") {
 				matches := errors.Is(err, fault)
 				if mode == "opaque" {
-					var observed selfPasswordOpaqueError
+					var observed passwordWriteOpaqueError
 					matches = errors.As(err, &observed) && reflect.DeepEqual(observed, fault)
 				}
 				if faults != 1 || !matches {
@@ -411,7 +322,7 @@ func selfPasswordWriteFailures(t *testing.T, open Open) {
 					t.Fatal("self password failure disclosed private material")
 				}
 			}
-			selfPasswordPrivate(t, err, password, owner.encoded.Load().(string), id.Encoded(), "private self password native fault", "private self password opaque fault", "private opaque material")
+			selfPasswordPrivate(t, err, password, owner.encoded.Load().(string), id.Encoded(), "private self password native fault", "private password opaque fault", "private opaque material")
 		})
 	}
 }

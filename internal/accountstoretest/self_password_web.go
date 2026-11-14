@@ -33,7 +33,7 @@ func selfPasswordWeb(t *testing.T, open Open) {
 			faults := 0
 			boundary.decorate = func(scope db.Session) db.Session {
 				if armed && mode == "rollback" {
-					return &selfPasswordFaultScope{scope, "after_password", fault, &effects, &faults}
+					return &passwordWriteFaultScope{Session: scope, mode: "after_password", fault: fault, effects: &effects, faults: &faults}
 				}
 				return scope
 			}

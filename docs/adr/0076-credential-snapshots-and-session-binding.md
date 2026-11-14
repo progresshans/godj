@@ -1987,7 +1987,9 @@ manager 한도와 현재 clock을 적용하며, final policy 뒤의 현재 세�
 Password 필드의 domain audit를 같은 transaction에 포함한다. 익명·다른 계정·역사 namespace 세션은 보존한다.
 
 회전 delete/insert·password update·뒤 batch 폐기·audit 뒤의 오류는 앞선 효과와 함께 rollback한다. 확정 rollback의 직접
-proof/원인 없는 policy 거부만 일반 입력으로 유지한다. Cleanup·callback scope 위반·unknown 결과는 결과 record/clear cookie
+proof/원인 없는 policy 거부만 일반 입력으로 유지한다. 거부와 충돌의 출처는 reset owner가 같은 scope에서 확인한다.
+저장소 I/O가 같은 proof·validation·entropy 오류 타입을 반환한 사실만으로 입력 거부나 새 ID 재시도를 허용하지 않는다.
+Cleanup·callback scope 위반·unknown 결과는 결과 record/clear cookie
 없이 원인을 보존하며 자동 재시도하지 않는다. 확정 ID collision만 manager의 최대 네 번 entropy 시도를 허용하며 hash는 반복하지
 않는다. 확정 commit 뒤의 취소는 성공을 되돌리지 않는다. 실제 Form/JSON·메일·DB 재접속 소비자의 작성, 실행, 별도 process
 restart와 scaffold/runtime 전체 조립은 각각 독립된 수용 범위이며 TEST_EVIDENCE에서 구분한다.

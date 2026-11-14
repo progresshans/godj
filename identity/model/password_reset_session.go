@@ -191,6 +191,14 @@ func (store *passwordResetSessionStore[M]) Rotate(ctx context.Context, oldID ses
 	return result.record, result.present, err
 }
 
+// Only this reset owner can identify a current proof/policy refusal or a
+// collision observed by its exact session store. Native I/O errors cannot
+// impersonate those decisions, even when their dynamic type is the same.
+type accountResetRefusal struct{ cause error }
+
+func (*accountResetRefusal) Error() string         { return "account password reset rejected" }
+func (refusal *accountResetRefusal) Unwrap() error { return refusal.cause }
+
 func (store *passwordResetSessionStore[M]) write(ctx context.Context, oldID sessions.ID, candidate sessions.Record, clear bool) (accountSessionRecord, error) {
 	result, err := accountSessionWrite(ctx, store.SessionStore, func(work context.Context, scope db.Session, scoped *sessiondb.Store) (accountSessionRecord, error) {
 		var zero accountSessionRecord
@@ -207,23 +215,23 @@ func (store *passwordResetSessionStore[M]) write(ctx context.Context, oldID sess
 				return zero, err
 			}
 			if !present {
-				return zero, auth.ErrInvalidResetProof
+				return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 			}
 			if store.prepared != nil {
 				encoded, err := passwordResetProofToken(current, store.principalID)
 				if err != nil || !hmac.Equal([]byte(encoded), []byte(store.encodedToken)) {
-					return zero, auth.ErrInvalidResetProof
+					return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 				}
 				for _, key := range []string{auth.SessionPrincipalIDKey, auth.SessionCredentialStampKey} {
 					before, had := store.previous.Value(key)
 					now, has := current.Value(key)
 					if had != has || !hmac.Equal([]byte(before), []byte(now)) {
-						return zero, auth.ErrInvalidResetProof
+						return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 					}
 				}
 			}
 		} else if store.prepared != nil || clear {
-			return zero, auth.ErrInvalidResetProof
+			return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 		}
 		account, err := state.accountIn(work, scope, store.principalID)
 		if err != nil {
@@ -234,13 +242,16 @@ func (store *passwordResetSessionStore[M]) write(ctx context.Context, oldID sess
 			return zero, err
 		}
 		if !account.present || !state.config.Keys.Accepts(account.observation, store.token, now.Unix(), state.config.Timeout) {
-			return zero, auth.ErrInvalidResetProof
+			return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 		}
 		if store.prepared != nil {
 			if account.id != store.prepared.before.id {
-				return zero, auth.ErrInvalidResetProof
+				return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 			}
 			if err := state.validatePassword(work, store.prepared.raw, account.row); err != nil {
+				if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
+					return zero, &accountResetRefusal{err}
+				}
 				return zero, err
 			}
 		}
@@ -252,13 +263,13 @@ func (store *passwordResetSessionStore[M]) write(ctx context.Context, oldID sess
 				return zero, err
 			}
 			if !active {
-				return zero, auth.ErrInvalidResetProof
+				return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 			}
 		}
 		if clear {
 			currentID, _ := current.Value(auth.SessionPrincipalIDKey)
 			if store.prepared == nil || currentID != store.principalID {
-				return zero, auth.ErrInvalidResetProof
+				return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 			}
 			if err := store.applyIn(work, scope, scoped, account, now); err != nil {
 				return zero, err
@@ -299,7 +310,7 @@ func (store *passwordResetSessionStore[M]) write(ctx context.Context, oldID sess
 			return zero, err
 		}
 		if !active {
-			return zero, auth.ErrInvalidResetProof
+			return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 		}
 		if !oldID.Valid() {
 			created, err := scoped.Create(work, candidate)
@@ -310,10 +321,13 @@ func (store *passwordResetSessionStore[M]) write(ctx context.Context, oldID sess
 		}
 		published, rotated, err := scoped.Rotate(work, oldID, candidate)
 		if err != nil {
+			if collision, valid := err.(*sessions.Error); valid && collision != nil && collision.Code == sessions.CodeEntropy && collision.Cause == nil {
+				return zero, &accountResetRefusal{collision}
+			}
 			return zero, err
 		}
 		if !rotated {
-			return zero, auth.ErrInvalidResetProof
+			return zero, &accountResetRefusal{auth.ErrInvalidResetProof}
 		}
 		if store.prepared != nil {
 			if err := store.applyIn(work, scope, scoped, account, now); err != nil {
@@ -323,15 +337,19 @@ func (store *passwordResetSessionStore[M]) write(ctx context.Context, oldID sess
 		return accountSessionRecord{published, true}, nil
 	})
 	if err != nil {
-		if err == auth.ErrInvalidResetProof {
-			store.rejection = err
-		} else if _, rejected := validation.Rejected(err); rejected && errors.Unwrap(err) == nil {
-			store.rejection = err
+		// accountSessionWrite releases this exact marker only after confirmed
+		// rollback. Cleanup, cancellation and unknown outcomes keep it wrapped.
+		if refusal, owned := err.(*accountResetRefusal); owned {
+			if refusal.cause == auth.ErrInvalidResetProof {
+				store.rejection = refusal.cause
+			} else if _, rejected := validation.Rejected(refusal.cause); rejected {
+				store.rejection = refusal.cause
+			}
+			return accountSessionRecord{}, refusal.cause
 		}
-		// Only a direct, cause-free session collision after confirmed rollback
-		// reaches Manager's existing bounded ID retry. No password work repeats.
+		return accountSessionRecord{}, accountPasswordFailure(err)
 	}
-	return result, err
+	return result, nil
 }
 
 func (store *passwordResetSessionStore[M]) applyIn(ctx context.Context, scope db.Session, scoped *sessiondb.Store, current passwordResetAccount[M], now time.Time) error {

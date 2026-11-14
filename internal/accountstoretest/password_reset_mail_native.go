@@ -1,7 +1,6 @@
 package accountstoretest
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"reflect"
@@ -19,37 +18,6 @@ import (
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/validation"
 )
-
-func resetNativeOwner(t *testing.T, f *loginFixture) *accountmodel.PasswordResetter[models.User] {
-	t.Helper()
-	keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{66}, 32))
-	if err != nil {
-		t.Fatal(err)
-	}
-	owner, err := f.runtime.PasswordResetter(accountmodel.RuntimeResetConfig{Keys: keys, Clock: f.clock})
-	if err != nil || owner.Sessions() != f.runtime.Sessions() {
-		t.Fatal("native reset lost its composed session owner", err)
-	}
-	return owner
-}
-
-func resetExpectedRotation(t *testing.T, previous sessions.Record, id sessions.ID, values map[string]string, at time.Time) sessions.Record {
-	t.Helper()
-	snapshot := previous.Snapshot()
-	snapshot.ID, snapshot.Values, snapshot.AccessedAt = id, values, at
-	snapshot.IdleExpiresAt = at.Add(loginIdle)
-	if snapshot.IdleExpiresAt.After(snapshot.AbsoluteExpiresAt) {
-		snapshot.IdleExpiresAt = snapshot.AbsoluteExpiresAt
-	}
-	if id == previous.ID() {
-		t.Fatal("reset reused the previous bearer")
-	}
-	record, err := sessions.RestoreRecord(snapshot, sessions.Limits{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	return record
-}
 
 func passwordResetMailDelivery(t *testing.T, open Open) {
 	for _, mode := range []string{"anonymous", "self", "other"} {
@@ -91,17 +59,11 @@ func passwordResetMailDelivery(t *testing.T, open Open) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			values := previous.Values()
-			values[auth.SessionResetPrincipalIDKey], values[auth.SessionResetTokenKey] = principalID, token
-			expectedProof := resetExpectedRotation(t, previous, f.entropy.one(t, entropy), values, f.clock())
+			afterEntry := userReferenceSnapshot(t, reopen(t))
+			expected, expectedProof := resetEntryExpected(t, f, before, afterEntry, previous, f.entropy.one(t, entropy), token)
 			if !reflect.DeepEqual(proof.Snapshot(), expectedProof.Snapshot()) || f.owner.boundary.calls != 1 {
 				t.Fatal("delivered token entry lost its exact native proof")
 			}
-			afterEntry := userReferenceSnapshot(t, reopen(t))
-			expected := before
-			namespace := loginNamespace(t, f.credential)
-			loginRemoveRecord(t, &expected.account, namespace, previous.ID())
-			loginPutRecord(t, &expected.account, afterEntry.account, namespace, expectedProof, false)
 			assertUserReferenceState(t, expected, afterEntry, f.actor.Principal())
 			if mode == "self" {
 				f.targetSessions[0] = expectedProof
@@ -117,25 +79,17 @@ func passwordResetMailDelivery(t *testing.T, open Open) {
 				t.Fatal("reset did not prepare a new hash before persistence")
 			}
 			after := userReferenceSnapshot(t, reopen(t))
-			expected = afterEntry
-			row := f.target
-			row.EncodedPassword, row.Revision = encoded, row.Revision+1
-			userReferenceReplace(&expected.account, row)
-			for _, record := range f.targetSessions {
-				loginRemoveRecord(t, &expected.account, namespace, record.ID())
-			}
+			var id sessions.ID
 			if mode == "self" {
-				if !reflect.DeepEqual(result, auth.PasswordResetResult{ClearSession: true}) || f.entropy.count() != entropy {
+				if f.entropy.count() != entropy {
 					t.Fatal("self reset retained authority or consumed unnecessary entropy")
 				}
 			} else {
-				values := previous.Values()
-				expectedRecord := resetExpectedRotation(t, expectedProof, f.entropy.one(t, entropy), values, f.clock())
-				if result.ClearSession || !reflect.DeepEqual(result.Record.Snapshot(), expectedRecord.Snapshot()) {
-					t.Fatal("reset changed unrelated browser authority or payload")
-				}
-				loginRemoveRecord(t, &expected.account, namespace, expectedProof.ID())
-				loginPutRecord(t, &expected.account, after.account, namespace, expectedRecord, false)
+				id = f.entropy.one(t, entropy)
+			}
+			expected, envelope := resetFinishExpected(t, f, f.owner, afterEntry, after, expectedProof, id)
+			if result.ClearSession != envelope.ClearSession || !reflect.DeepEqual(result.Record.Snapshot(), envelope.Record.Snapshot()) {
+				t.Fatal("reset changed unrelated browser authority or payload")
 			}
 			assertUserReferenceStateAt(t, expected, after, f.credential.Principal(), f.clock(), catalogExpectedEvent{"user", f.target.ID, admin.ActionChange, []string{"encoded_password"}})
 			reopened := newUserReferenceOwner(t, reopen(t), f.userReferenceFixture, f.config(t))

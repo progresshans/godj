@@ -141,8 +141,6 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"password_change_lifecycle", passwordChangeLifecycle},
 		{"password_reset_lifecycle", passwordResetLifecycle},
 		{"password_reset_rechecks", passwordResetRechecks},
-		{"password_reset_commit_failures", passwordResetCommitFailures},
-		{"password_reset_entry_failures", passwordResetEntryFailures},
 		{"password_reset_read_failures", passwordResetReadFailures},
 		{"password_reset_validation", passwordResetValidation},
 		{"password_reset_admission", passwordResetAdmission},
@@ -240,6 +238,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	runUserManagementReferences(t, referenceBackend, open)
 	runSelfPasswordNative(t, open)
 	runResetMailNative(t, open)
+	runResetWriteNative(t, open)
 	runAccountHTTP(t, open)
 	runCreationUsernamePolicy(t, referenceBackend, open)
 	runUnusableReference(t, open)
