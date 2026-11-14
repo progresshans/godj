@@ -5488,6 +5488,29 @@ Username의 실제 hash·write 관측 owner를 공통화했고 scalar/relation s
 분할 검사 27개는 33.215초에 통과했다. 로컬 Go compile/test·generate·DB/HTTP는 실행하지 않았다. 새 Go 본문·양 DB·
 race/CGO-disabled·전체 platform의 현재 source 실행은 원격 확인 대상이며 I1 수용은 미완료다.
 
+후속 source `3962f51b40d70d70a002a0bc1a1a2a915abf0876`의
+[CI 43635866858](https://github.com/progresshans/godj/actions/runs/43635866858) attempt 1에서 core normal/race/CGO0
+작업 `132572821015`/`132572821105`/`132572821080`이 모두 성공했다. 실제 checkout
+`73709ce5dc81860bb614b46d17d6bc3cb77922ce`의 tree `25deb4f6317e60456fb4dabf4d55854afe58eed2`는 제출 source와
+같다. 각 runner의 141 package·필수 331개·run 14,675개·범위 밖 skip 569개와 clean worktree를 전체 raw log·GitHub
+metadata·필수 원문 hash로 확인했다. 검증 보관소의 `gdj0138-3962f51b-ci-43635866858/core-progress.json`
+SHA-256은 `4449c0f416731f2dd0966d29eb88300d5602f4adcac4e23ad4b778fc0de3f0ed`다.
+
+같은 source의 Linux arm64 normal SQLite runtime 작업 `132572827157`도 본문·게시·clean worktree까지 성공했다.
+Artifact `14130184688` (`relation-product-linux-arm64-normal-0-1`, 780,948 bytes)의 SHA-256
+`760bd4c81be13dedeced22c9bcd97267219c5d7290b7b26d40a3c697a56ee5e8`를 GitHub metadata와 대조했다.
+전체 원본은 68 package·run/pass 10,895개·skip 0이며 필수 4,489개가 정확히 한 번 실행·통과했다.
+현재 source의 relation 목록 4,868개→workflow 4,872개→runtime 4,489개를 실제 consumer discovery 131개와
+같은 source의 planner로 재구성해 manifest/package/run 파일을 byte 단위로 대조했다.
+
+계정 store 아래 pass 1,535개 중 새 unusable 31개, 보강한 read root/child 13개와 상위 store root의 총 45개는
+별도 source-bound 목록과 run/pass 횟수를 대조했다. 따라서 이 좌표에서 독립 생성/반복/복구·실제 TCP·세션 stamp,
+전체 native 상태·실제 실패 prefix·native 취소/확정 rollback/unknown, 현재 인가/credential fence와 disable/replace
+경합까지 확인했다. 원본·각 파일 hash·45개 이름/횟수·source/tree와 판정은 같은 보관소의
+`sqlite-native-verification.json`에 있다(SHA-256 `81113ec2cefb5ef6d62c4b69838b086ce0ee4b8e6367b2c10e1ea7434768c246`).
+로컬 Go/DB를 다시 실행하지 않았다. 이 결과는 `3962f51b`의 Linux arm64 normal SQLite 근거이며,
+새 unusable의 PostgreSQL·race/CGO0·다른 platform과 I1 전체 수용은 여전히 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
