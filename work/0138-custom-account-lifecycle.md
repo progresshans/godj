@@ -979,6 +979,14 @@ payload 한도와 실제 collision/entropy 실패는 전체 계정·세션·audi
 실제 TCP·CSRF·opaque cookie와 확정 실패/결과 불명의 native 효과를 따로 확인한다. 고정 Account Form/JSON 다섯 root의
 120개 항목/DB와 필요한 HTTP helper·독립 원문은 보존했으며 새 본문의 실제 원격 수용은 계속 필요하다.
 
+마지막 고정 reset Account Form/JSON 다섯 root의 120개 필수 항목/DB를 선택 runtime의 172개 항목으로 옮겼다.
+실제 메일과 token 교환·CSRF·다른 연결의 HTTP owner 재구성·완료/replay, 독립 Django Form 오류와 raw-token POST,
+동일한 공개 접수 응답·수신 측 접수 후 결과 불명·비공개 오류 보고를 전체 native/host 상태와 비교한다. 저장소에서 온
+proof/validation/entropy 오류가 일반 입력으로 오인되지 않고, 직접 정책 거부·rollback·unknown commit이 각각 올바른
+HTTP 상태·쿠키·실제 효과로 나타나도록 검사한다. 고정 reset wrapper와 전용 fixture는 제거했으며 일반 Account startup
+검사는 opaque authority를 직접 사용한다. 실제 같은 key/다른 생성 owner 거부와 custom 변형의 외부 소비자는 유지한다.
+새 본문의 원격 실행·전체 I1 수용과 남은 고정 사용자/credential 제품 서비스 정리는 계속 필요하다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

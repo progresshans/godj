@@ -37,7 +37,8 @@
    Reset 진입·회전·완료·현재 browser 제거의 전체 상태와 저장 오류/직접 거부/실제 충돌의 출처 구분을 원격에서 확인한다.
    Reset 직접 서비스의 독립 토큰 기준·설정 소유·현재 상태·단일 승자·대량 폐기 검사의 선택 owner 이관을
    원격에서 확인한다. Reset 세션·공통 Web의 독립 세션 기준·현재 browser·단일 proof 소비·gate·충돌 검사의
-   선택 owner 이관을 확인하고, 남은 고정 reset Account Form/JSON과 사용자·credential 서비스의 무결성 책임을 연결한다.
+   선택 owner 이관을 확인한다. Reset Account Form/JSON의 성공·거부·동일한 공개 접수 응답·저장 실패와
+   비공개 오류 보고의 선택 소비자 이관을 확인하고, 남은 고정 사용자·credential 제품 서비스의 무결성 책임을 연결한다.
 4. [I1-01~08 수용 요구](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)의 제품·생성기·실제 소비자와
    같은 source의 검증 근거를 모두 연결한 뒤 완료를 판단한다. 세부 미완료 범위는 해당 work에 유지한다.
 

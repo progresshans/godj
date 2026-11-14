@@ -5941,6 +5941,55 @@ DB·8개 source digest·세 browser 관측과 실제 boolean 필드를 확인한
 통과했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 본문의 양 DB·race·CGO0·전체 platform 실행과 원본 대조는
 새 source의 원격 CI에서 확인하며 고정 Account Form/JSON 및 credential 제품 서비스의 이관은 계속 남아 있다.
 
+### Reset Account Form·JSON의 선택 owner 이관
+
+2026-11-15, source `3688ecbe` 위에서 마지막 고정 reset Account 성공·acknowledgement·확인 거부·저장 실패·요청 거부
+다섯 root의 120개 필수 항목/DB를 선택 runtime으로 옮겼다. 기존 실제 요청 case를 보존하고 root/parent와 보강 사례를
+포함한 172개 항목/DB를 연결했다. DB wrapper 두 파일과 고정 reset HTTP 본문 및 전용 boundary/mail/credential fixture를
+제거했다. 고정 제품 API 자체의 제거와 새 source의 환경별 수용은 이 검사 이관과 구분한다.
+
+`account_reset_http`는 Form/JSON × missing/anonymous/self/other의 실제 메일→raw link→서버 proof→완료 흐름이다.
+선택 runtime·공통 Web·Account application과 메일러는 같은 reset authority를 사용한다. Native host fixture와 실제 TCP의
+요청 시작/완료를 동기화한다. 각 진입·완료의 예상 hash와 bearer는 저장 전에 관찰하며 생성된 DB row key만 사후 값으로
+대조한다. 다른 연결에서 HTTP owner를 재구성하고 이전 browser jar를 이어 사용하여 proof·CSRF·일반/자기/다른 사용자
+상태와 전체 account/catalog/domain/session/audit/host 값을 확인한다. 공백이 포함된 새 password·옛 password 거부·
+raw link/proof replay·현재 credential과 세션 stamp도 실제 재접속 관측으로 대조한다.
+
+접수 응답은 known/unknown/inactive/unusable, delivery 오류·unknown·수신 측 접수 후 unknown·panic·취소, snapshot
+오류와 reporter panic의 11개씩을 사용한다. 모든 유효 email에 같은 Form 302 본문/목적지 또는 JSON 204와 cookie 부재를
+요구한다. Sender 호출·실제 Memory 수신·report 횟수와 private 원인을 각각 확인해 접수 사실과 호출 결과를 혼동하지
+않도록 한다. Unknown delivery는 수신 측 접수 전/후 모두 해당 recipient를 재시도하지 않아야 한다. 보고 오류는
+fmt/JSON에서도 token/password/주소를 드러내지 않으며 실패를 public 응답으로 노출하지 않는다. 모든 요청은 hash·verify·
+policy·session entropy·write가 없고 전체 native/host 상태를 유지해야 한다.
+
+확인 거부는 CSRF/origin/query·empty query·추가/중복/null·string/body 크기·media·wrong/missing proof·비정규 uid·
+missing/weak password·method/route/Accept를 보존한다. JSON proof 거부의 `invalid_reset_link`도 확인한다. 네 Form 진단은
+양 DB Django 원문의 mismatch/required/weak/weak_mismatch를 직접 비교하며 confirmation 실패가 강도 진단을 추가하지
+않는 의미를 유지한다. Raw-token POST는 password를 변경하지 않고 현재 proof만 회전해야 하며 이때도 전체 native
+예상값·정확한 cookie·단일 entropy/write를 비교한다. 요청 email 거부의 15개씩은 escaping·정규화·엄격한 parser·한도를
+보존하고 발송·비공개 오류 보고·쿠키·native 변화가 없어야 한다.
+
+저장 실패는 Form/JSON 각각 27개를 작성했다. Password/session/rotation/audit/revoke의 실제 DML prefix, 취소·unknown
+rollback/commit, 확정 정책 거부/cleanup/실행 실패, self clear와 새 proof 진입의 unknown, 진입 insert 뒤 실패, 읽기와
+쓰기에서 반환한 proof/validation/entropy 모양의 native 오류를 대조한다. 일반 실행 오류 500·결과 불명 503·직접 정책
+거부 Form 200/JSON 400을 구분하고, unknown JSON의 `outcome_unknown`, cookie/Retry-After 부재와 정확한 private report를
+요구한다. 실제 commit은 저장 전 값으로 만든 전체 상태와 비교하며, rollback/거부는 이전 native/host 상태를 유지해야 한다.
+현재 browser의 session/CSRF cookie는 실패·결과 불명 모두에서 그대로여야 한다. 같은 오류 타입이라는 이유로 native
+실패가 일반 입력 거부나 session 재시도로 바뀌면 통과하지 않는다.
+
+순수 Account startup 검사는 고정 `identity.PasswordResetter` 대신 no-I/O mail source와 opaque authority를 조립한다.
+기존 다른 owner 거부 selector를 `other_owner`로 바꿨다. 실제 같은 key의 서로 다른 생성 owner 조립 거부는 기존
+`TestGeneratedAccountResetUsesSelectedModels`의 양 DB `owner_mix_rejected` 필수 child와 custom 변형에서 계속 검증한다.
+기존 외부 생성 소비자·독립 Django HTTP 원문·producer는 변경하지 않았으며 metadata reader만 세션/Form 소비자에서 공유한다.
+
+Relation 필수 목록은 4,832→4,884, PostgreSQL은 5,870→5,922다. 고정 reset DB 항목은 0이며 기존 120개의 책임 대응,
+새 172개, 한 unit selector 변경과 다른 항목의 상대 순서·원문 동일성은 검증 보관소
+`gdj0138-selected-reset-http-migration-v1/responsibility-map.json`에 보존했다
+(SHA-256 `c41ec58f40dddce7a04247bee2b59ca9a8101ff65e2acfd211fc2b7388c2940d`).
+로컬 gofmt 9개 Go 파일·diff·245개 문서 링크 검사와 최종 필수 목록의 Python CI owner/분할 검사 37개(154.690초)는
+통과했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 본문의 실제 양 DB·race·CGO0·전체 platform 실행과 필수 원본
+대조, 고정 사용자/credential 제품 서비스 정리와 I1 전체 수용은 계속 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

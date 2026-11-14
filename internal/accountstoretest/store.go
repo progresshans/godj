@@ -236,6 +236,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	runResetMailNative(t, open)
 	runResetWriteNative(t, open)
 	runResetNativeReferences(t, open)
+	runAccountResetHTTP(t, open)
 	runAccountHTTP(t, open)
 	runCreationUsernamePolicy(t, referenceBackend, open)
 	runUnusableReference(t, open)

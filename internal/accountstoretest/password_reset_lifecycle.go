@@ -21,31 +21,41 @@ type resetSessionReference struct {
 	Observations            struct {
 		Success            map[string]map[string]json.RawMessage
 		SessionSaveFailure map[string]json.RawMessage `json:"session_save_failure"`
+		PasswordErrors     map[string]struct {
+			Errors map[string][]string
+			Status int
+		} `json:"password_errors"`
 	}
+}
+
+func resetHTTPReference(t *testing.T, vendor string) resetSessionReference {
+	t.Helper()
+	raw, err := identityreference.ResetHTTP(vendor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reference resetSessionReference
+	if err := json.Unmarshal(raw, &reference); err != nil {
+		t.Fatal(err)
+	}
+	if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Backend != map[string]string{"sqlite": "sqlite", "postgres": "postgresql"}[vendor] || len(reference.Sources) != 8 || len(reference.Observations.Success) != 3 {
+		t.Fatal("incomplete or mismatched independent reset session reference")
+	}
+	for _, name := range []string{"auth", "csrf", "forms", "hashers", "session_backend", "session_middleware", "tokens", "views"} {
+		value := reference.Sources[name]
+		digest, err := hex.DecodeString(value)
+		if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != value {
+			t.Fatal("missing independent reset HTTP source digest")
+		}
+	}
+	return reference
 }
 
 func resetSessionObservation(t *testing.T, mode string) map[string]bool {
 	t.Helper()
 	var first map[string]bool
 	for _, vendor := range []string{"sqlite", "postgres"} {
-		raw, err := identityreference.ResetHTTP(vendor)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var reference resetSessionReference
-		if err := json.Unmarshal(raw, &reference); err != nil {
-			t.Fatal(err)
-		}
-		if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Backend != map[string]string{"sqlite": "sqlite", "postgres": "postgresql"}[vendor] || len(reference.Sources) != 8 || len(reference.Observations.Success) != 3 {
-			t.Fatal("incomplete or mismatched independent reset session reference")
-		}
-		for _, name := range []string{"auth", "csrf", "forms", "hashers", "session_backend", "session_middleware", "tokens", "views"} {
-			value := reference.Sources[name]
-			digest, err := hex.DecodeString(value)
-			if err != nil || len(digest) != 32 || hex.EncodeToString(digest) != value {
-				t.Fatal("missing independent reset HTTP source digest")
-			}
-		}
+		reference := resetHTTPReference(t, vendor)
 		boolean := func(values map[string]json.RawMessage, name string) bool {
 			var value *bool
 			if err := json.Unmarshal(values[name], &value); err != nil || value == nil {

@@ -1,7 +1,6 @@
 package identityaccount
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -17,9 +16,21 @@ import (
 	"github.com/progresshans/godj/web/sessionauth"
 )
 
-type resetConfigBackend struct{ identity.ManagementBackend }
-type resetConfigHasher struct{ auth.PasswordHasher }
 type resetConfigSender struct{ t *testing.T }
+type resetConstructionSource struct {
+	t         *testing.T
+	authority auth.PasswordResetAuthority
+}
+
+func (s resetConstructionSource) PasswordResetAuthority() auth.PasswordResetAuthority {
+	return s.authority
+}
+func (s resetConstructionSource) PasswordResetEmailAvailable() bool { return true }
+func (s resetConstructionSource) PasswordResetCandidates(context.Context, string) ([]auth.PasswordResetToken, error) {
+	s.t.Fatal("reset startup read mail candidates")
+	return nil, nil
+}
+
 type resetConstructionGuard struct {
 	constructionGuard
 	authority auth.PasswordResetAuthority
@@ -47,7 +58,7 @@ func (g resetConstructionGuard) ResetPassword(context.Context, sessions.ID, stri
 }
 
 func TestPasswordResetConstructionAndConfigOwnership(t *testing.T) {
-	for _, mode := range []string{"valid", "nil_mailer", "zero_mailer", "nil_reporter", "missing_persistence", "same_keys_other_owner", "wrong_link_prefix", "api_overlap"} {
+	for _, mode := range []string{"valid", "nil_mailer", "zero_mailer", "nil_reporter", "missing_persistence", "other_owner", "wrong_link_prefix", "api_overlap"} {
 		t.Run(mode, func(t *testing.T) {
 			store, err := sessions.NewMemoryStore(1)
 			if err != nil {
@@ -57,15 +68,8 @@ func TestPasswordResetConstructionAndConfigOwnership(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{51}, 32))
-			if err != nil {
-				t.Fatal(err)
-			}
-			resetter, err := identity.NewPasswordResetter(resetConfigBackend{}, resetConfigHasher{}, identity.PasswordResetConfig{Keys: keys})
-			if err != nil {
-				t.Fatal(err)
-			}
-			guard := resetConstructionGuard{constructionGuard{t, manager}, resetter.PasswordResetAuthority()}
+			source := resetConstructionSource{t, auth.NewPasswordResetAuthority()}
+			guard := resetConstructionGuard{constructionGuard{t, manager}, source.PasswordResetAuthority()}
 			paths, err := AllowedNextPaths("")
 			if err != nil {
 				t.Fatal(err)
@@ -86,13 +90,10 @@ func TestPasswordResetConstructionAndConfigOwnership(t *testing.T) {
 			if mode == "wrong_link_prefix" {
 				prefix = "/wrong/reset"
 			}
-			if mode == "same_keys_other_owner" {
-				resetter, err = identity.NewPasswordResetter(resetConfigBackend{}, resetConfigHasher{}, identity.PasswordResetConfig{Keys: keys})
-				if err != nil {
-					t.Fatal(err)
-				}
+			if mode == "other_owner" {
+				source = resetConstructionSource{t, auth.NewPasswordResetAuthority()}
 			}
-			mailer, err := identity.NewPasswordResetMailer(resetter, resetConfigSender{t}, identity.PasswordResetMailConfig{From: from, Origin: "https://reset.example.test", ConfirmPath: prefix})
+			mailer, err := identity.NewPasswordResetMailer(source, resetConfigSender{t}, identity.PasswordResetMailConfig{From: from, Origin: "https://reset.example.test", ConfirmPath: prefix})
 			if err != nil {
 				t.Fatal(err)
 			}
