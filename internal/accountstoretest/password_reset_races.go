@@ -17,7 +17,7 @@ import (
 )
 
 func passwordResetConcurrent(t *testing.T, open Open) {
-	for _, mode := range []string{"reset", "self_change", "administrator", "login", "deactivate"} {
+	for _, mode := range []string{"reset", "shared_proof", "self_change", "administrator", "login", "deactivate"} {
 		t.Run(mode, func(t *testing.T) {
 			backend, reopen := open(t)
 			f := provisionSelfPassword(t, backend)
@@ -28,6 +28,8 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 			switch mode {
 			case "reset":
 				peerPrevious = selectedResetProof(t, base, sessions.Record{}, token)
+			case "shared_proof":
+				peerPrevious = proof
 			case "self_change":
 				peerPrevious = f.targetSessions[0]
 			case "login":
@@ -81,7 +83,7 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 					} else {
 						runtime := owners[1].runtime
 						switch mode {
-						case "reset":
+						case "reset", "shared_proof":
 							result.reset, result.err = resetters[1].ResetPassword(ctx, peerPrevious.ID(), f.target.PrincipalID, peerPassword)
 						case "self_change":
 							result.password, result.err = runtime.PasswordChangePersistence().ChangePassword(ctx, peerPrevious.ID(), password, peerPassword)
@@ -140,7 +142,7 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 			if mode == "self_change" {
 				peerVerifies = 1
 			}
-			if mode == "reset" || mode == "self_change" || mode == "login" {
+			if mode == "reset" || mode == "shared_proof" || mode == "self_change" || mode == "login" {
 				peerEntropy = 1
 			}
 			if owners[0].hasher.hashes.Load() != 1 || owners[0].hasher.verifies.Load() != 0 || owners[1].hasher.hashes.Load() != peerHashes || owners[1].hasher.verifies.Load() != peerVerifies ||
@@ -161,7 +163,7 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 				}
 				assertUserReferenceStateAt(t, expected, after, f.credential.Principal(), f.clock(), catalogExpectedEvent{"user", f.target.ID, admin.ActionChange, []string{"encoded_password"}})
 				switch mode {
-				case "reset":
+				case "reset", "shared_proof":
 					selectedResetNoResult(t, peer.reset, peer.err)
 					if peer.err != auth.ErrInvalidResetProof {
 						t.Fatal("losing reset was not a direct stale-proof refusal", peer.err)
@@ -192,7 +194,7 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 				}
 				winningPassword = peerPassword
 				switch mode {
-				case "reset":
+				case "reset", "shared_proof":
 					expected, envelope := resetFinishExpected(t, f, owners[1], before, after, peerPrevious, peerID)
 					if peer.reset.ClearSession != envelope.ClearSession || !reflect.DeepEqual(peer.reset.Record.Snapshot(), envelope.Record.Snapshot()) {
 						t.Fatal("winning peer reset lost its exact native result")

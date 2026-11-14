@@ -5888,6 +5888,59 @@ Relation 필수 목록은 4,917→4,894, PostgreSQL은 5,955→5,932이며 고�
 통과했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 본문의 실제 양 DB·race·CGO0·platform 실행과 원본 대조,
 남은 고정 session/HTTP 및 제품 credential 서비스의 이관은 계속 필요하다.
 
+### Reset 세션과 공통 Web의 선택 owner 이관
+
+2026-11-15, source `175b8347` 위에서 고정 session/lifecycle·boundaries·races·entry·직접 Web·latest의 여섯 root,
+필수 91개 항목/DB를 선택 소비자로 옮겼다. 앞서 작성한 네 native 쓰기 경로와 기존 구성/admission/현재 계정 검사를
+재사용하고 빠진 실제 소비자를 보강한 뒤 고정 본문과 wrapper를 제거했다. 기존 선택 lifecycle·gate·entropy의 필수
+항목을 유지하면서 전체 native/host 상태를 비교하도록 본문을 바꿨다. 이 정적 대응은 실제 Go 본문 실행 결과가 아니다.
+
+선택 `password_reset_lifecycle`은 missing/anonymous/self/other/expired/same_password 여섯 수명을 새로운 host fixture에서
+실행한다. 전달 metadata·proof 진입의 예상 행과 사전 검사의 무작업을 확인하고, 별도 연결에서 재구성한 owner로 완료한다.
+저장 전 hash·entropy·요청 전 상태로 만든 전체 예상값과 browser payload/수명·eager 폐기·self audit·LastLogin·재사용 거부를
+비교한다. Django 양 DB의 세 browser 관측에서 인증·token 제거·LastLogin·비밀번호·이전 stamp와 원문 공백의 의미를
+대조한다. Same-password 대조군의 원문에는 주변 공백이 없으므로 trim은 같은 입력이며 실제 인증도 성공해야 한다.
+Django의 lazy session 폐기와 session 저장 실패 뒤 password 변경을 유지하는 차이는 원문에서 명시적으로 확인한다.
+GoDj의 eager 폐기와 전체 native rollback은 현재 소비자에서 별도로 요구한다.
+
+`password_reset_browser_current` 아홉 사례는 hash 도중 실제 다른 연결이 logout·다른 target의 proof 회전·같은 bearer의
+target/token/authentication ID/stamp/양쪽·payload 또는 idle 수명을 바꾼다. 해당 writer의 전체 checkpoint를 먼저 대조한다.
+현재 payload·연장된 idle은 보존하고 바뀐 authority는 직접 거부하며, 실패가 새 proof를 지우거나 예전 target을 허용하지
+않아야 한다. 원래 계정 token은 같은 issue 시각/key로 다시 발급해 proof 교체로 변하지 않았음을 확인한다.
+`password_reset_browser_admission` 여섯 사례는 empty/missing/other target·malformed entry와 새/기존 browser의
+manager value 한도를 확인한다. 정확한 store/verifier에 더 엄격한 manager를 조립하며 한도 오류를 입력 거부로 숨기지 않는다.
+
+기존 concurrent root에는 서로 다른 두 proof 외에 같은 proof를 두 연결에서 소비하는 대조군을 추가했다. 양 owner의
+독립 hash/entropy·현재 policy·한 번의 native 시도와 정확한 한 승자의 전체 상태를 검사한다. Gate 아홉 사례는 새 후보·
+기존 browser·anonymous/self 완료의 대기 후 만료, 최종 policy 뒤 만료, 별도 token clock, 실제 현재 payload 한도와
+entropy 이후의 독립 Email 변경을 검사한다. Worker는 취소·gate 해제·종료를 함께 정리하며 timeout을 완료로 처리하지 않는다.
+
+Entropy는 create/rotate/finish 각각 실제 충돌→성공·소진·unknown collision·reader 실패를 전체 상태와 비교한다.
+기존 bearer와 같은 후보는 DB 쓰기 없이 건너뛰고 실제 충돌만 최대 네 번 재시도하며 hash는 한 번이다. 성공 ID와 hash는
+저장 전에 정하고 결과 불명에서는 retry/cookie/result를 금지한다. Self clear는 빈 entropy reader로도 전체 폐기·audit만
+commit해야 한다. 현재 policy 호출 수와 실제 write 수·남은 bytes·원인 오류를 확인한다.
+
+`password_reset_web` 여덟 사례는 host route가 common Web Start/Check/Reset/Apply를 호출하는 실제 TCP 소비자다.
+Missing/anonymous/self/other의 정확한 cookie·token 없는 redirect·현재 인증과 독립 CSRF cookie를 검사한다. Fresh browser·
+CSRF·약한 비밀번호 거부는 hash/쓰기 없이 전체 상태를 유지한다. 진입·완료의 실제 DML 후 rollback과 unknown commit은
+공통 Web에서 500 및 cookie 부재를 요구하며, unknown이어도 실제 native 효과는 저장 전 값으로 대조한다. Account Form/JSON의
+제품 503·오류 body·메일 acknowledgement와는 별도 계약이다. HTTP 요청의 시작/완료를 동기화하는 fixture transport만
+자기 비밀번호 소비자와 공유했으며 기존 route·세션 owner 조립은 유지한다.
+
+고정 HTTP가 쓰는 `resetPrevious`를 본문 그대로 fixture로 옮기고 `resetConfig`/`assertResetCommit`도 유지했다.
+사용자가 없어진 token helper는 제거했다. Reset HTTP 원문은 공통 accessor로 제공하며 원본/producer는 변경하지 않았다.
+SQLite SHA-256 `3c41242018ff13018234ab52697d01f83a3bb17c94c7c8b2d2f9d56f14f6122c`, PostgreSQL
+`ea8cfea98393f28aa328efcfefddf7f2328fa8915f91a920b10cd7a7ada4c169`다. 선택 기준 소비자는 Django 6.1/Python 3.14.3·
+DB·8개 source digest·세 browser 관측과 실제 boolean 필드를 확인한다.
+
+새 29개 필수 항목을 추가하고 기존 91개를 대응시켜 relation은 4,894→4,832, PostgreSQL은 5,932→5,870이다.
+나머지 고정 Account Form/JSON의 다섯 root/120개 항목/DB와 다른 항목의 상대 순서를 보존했다. 책임 대응·원문·helper
+동일성은 검증 보관소 `gdj0138-selected-reset-session-migration-v1/responsibility-map.json`에 보존했다
+(SHA-256 `21c0079fdb8ff71fc71c0fa5c295d5f92eda712cd779581e1091ac80ffaf0e80`).
+로컬 gofmt 16개 Go 파일·diff·245개 문서 링크 검사와 최종 필수 목록의 Python CI owner/분할 검사 37개(152.810초)는
+통과했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 본문의 양 DB·race·CGO0·전체 platform 실행과 원본 대조는
+새 source의 원격 CI에서 확인하며 고정 Account Form/JSON 및 credential 제품 서비스의 이관은 계속 남아 있다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

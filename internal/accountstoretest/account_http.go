@@ -67,7 +67,7 @@ func newAccountHTTP(t *testing.T, f *loginFixture, backend Backend, policy accou
 	}
 	f.owner = newUserReferenceOwner(t, backend, f.userReferenceFixture, config)
 	f.runtime = f.owner.runtime
-	h := &accountHTTP{f: f, runtime: f.runtime, manager: f.runtime.Sessions(), now: &f.instant, begin: make(chan struct{}, 1), done: make(chan struct{}, 1)}
+	h := &accountHTTP{f: f, runtime: f.runtime, manager: f.runtime.Sessions(), now: &f.instant}
 	next, err := identityaccount.AllowedNextPaths("")
 	if err != nil {
 		t.Fatal(err)
@@ -94,8 +94,15 @@ func newAccountHTTP(t *testing.T, f *loginFixture, backend Backend, policy accou
 	if err != nil {
 		t.Fatal(err)
 	}
+	h.serve(t, application)
+	return h
+}
+
+func (h *accountHTTP) serve(t *testing.T, application *web.Application) {
+	t.Helper()
 	// Join each actual TCP request with its fixture setup and native observation.
 	// Network completion alone does not synchronize injected test callbacks.
+	h.begin, h.done = make(chan struct{}, 1), make(chan struct{}, 1)
 	h.server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		<-h.begin
 		defer func() { h.done <- struct{}{} }()
@@ -103,7 +110,6 @@ func newAccountHTTP(t *testing.T, f *loginFixture, backend Backend, policy accou
 	}))
 	t.Cleanup(h.server.Close)
 	h.client = h.newClient(t)
-	return h
 }
 
 func (h *accountHTTP) newClient(t *testing.T) *http.Client {

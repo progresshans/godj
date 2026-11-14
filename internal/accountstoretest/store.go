@@ -139,13 +139,10 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"session_optional_last_login", sessionOptionalLastLogin},
 		{"session_domain_snapshot", sessionDomainSnapshot},
 		{"password_change_lifecycle", passwordChangeLifecycle},
-		{"password_reset_lifecycle", passwordResetLifecycle},
 		{"password_reset_rechecks", passwordResetRechecks},
 		{"password_reset_read_failures", passwordResetReadFailures},
 		{"password_reset_validation", passwordResetValidation},
 		{"password_reset_admission", passwordResetAdmission},
-		{"password_reset_session_fence", passwordResetSessionFence},
-		{"password_reset_entropy", passwordResetEntropy},
 		{"password_reset_many_sessions", passwordResetManySessions},
 		{"password_reset_mail", func(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
 			passwordResetMail(t, referenceBackend, backend, reopen)

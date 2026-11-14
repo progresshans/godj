@@ -972,6 +972,13 @@ Django 6.1/Python 3.14.3·8개 source digest·12개 후보 관측을 확인하�
 역사 공개 prepared/borrowed API의 모양을 선택 API에 추가하지 않고 한 호출의 내부 준비·최종 native 현재 검사·원자성을
 검증한다. 남은 고정 session/HTTP의 세 helper 본문은 보존했다. 이 작성·정적 대응과 실제 원격 수용은 구분한다.
 
+고정 reset 세션·공통 Web 여섯 root의 91개 필수 항목/DB도 선택 owner로 옮겼다. Native 성공 수명은 다른 연결의
+재구성 owner가 proof를 소비하며 Django 세션 원문과 현재 인증·토큰 제거·LastLogin·원문 비밀번호를 대조한다. 같은 proof의
+단일 승자, 실제 별도 연결의 logout/재설정 대상/동일 bearer payload·인증 교체, 새 idle 수명, gate 대기 뒤 현재 시각·Email·
+payload 한도와 실제 collision/entropy 실패는 전체 계정·세션·audit·host 상태로 비교한다. 공통 Web의 직접 호출/Apply는
+실제 TCP·CSRF·opaque cookie와 확정 실패/결과 불명의 native 효과를 따로 확인한다. 고정 Account Form/JSON 다섯 root의
+120개 항목/DB와 필요한 HTTP helper·독립 원문은 보존했으며 새 본문의 실제 원격 수용은 계속 필요하다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

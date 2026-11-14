@@ -20,6 +20,7 @@ import (
 	"github.com/progresshans/godj/db"
 	identityaccount "github.com/progresshans/godj/identity/account"
 	"github.com/progresshans/godj/identity/models"
+	identityreference "github.com/progresshans/godj/internal/identitytest/testdata"
 	"github.com/progresshans/godj/mail"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
@@ -598,7 +599,7 @@ func RunPasswordResetConsumerRefusals(t *testing.T, open func(*testing.T) (Trans
 			// Actual native SetPasswordForm errors, including confirmation suppressing
 			// password policy, are compared against the previously captured view.
 			if surface == "form" {
-				raw, err := resetHTTPReferences.ReadFile("testdata/password-reset-http-django61-sqlite.json")
+				raw, err := identityreference.ResetHTTP("sqlite")
 				if err != nil {
 					t.Fatal(err)
 				}
