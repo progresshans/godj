@@ -48,13 +48,14 @@ Candidate 검증은 compile만 하며 dependency init이나 test body를 실행�
 관계 PK와 구분되는 opaque 인증·감사 identity다. 초기 historical migration은 라이브러리가 제공하며 적용·adoption은 호스트의
 명시적 작업이다. `conformance/identityfixture`는 같은 라이브러리 User 타입에 호스트 FK·보호 정책을 추가하는 실제 소비자다.
 
-이 저장 모델은 아직 다중 사용자 인증·credential 관리 제품이 아니다. Inactive/staff/superuser admission,
-기존 operator adoption과 관리 UI/API는 GDJ-0100의 남은 구현이다.
+현재 인증·credential·관리 UI/API는 선택한 모델에 묶인 `identity/model` runtime이 소유한다.
+기본 모델의 역사 migration·operator adoption과 현재 선택 runtime의 수용은 구분하며,
+GDJ-0138의 구현 및 환경별 검증 범위는 현행 work와 TEST_EVIDENCE를 따른다.
 
 ## 현재 계정의 조회와 표현
 
-`identity.Directory`는 username 또는 opaque principal ID로 저장된 사용자와 직접·그룹 권한의 합집합을 읽는다.
-동일 permission의 여러 연결은 DISTINCT로 합치고 canonical code 순서로 반환한다. 기존 auth 한도인 256개보다
+생성 `NewAccountCredentialStore`와 공통 `identity/model.CredentialStore`는 선택한 login 또는 opaque principal ID로
+현재 domain·사용자·직접/그룹 권한의 합집합을 읽는다. 같은 permission은 합치고 canonical code 순서로 반환한다. Auth 한도인 256개보다
 하나 더 읽어 초과를 거부하며, 잘린 권한 목록을 유효한 계정으로 내보내지 않는다. 잘못된 저장 revision·identity·
 credential envelope·permission도 오류이며 부분 결과를 반환하지 않는다. 비밀번호 알고리즘 검증은 실제 인증기의 책임이다.
 
@@ -62,17 +63,22 @@ credential envelope·permission도 오류이며 부분 결과를 반환하지 �
 `db.SnapshotReader`의 읽기 전용 callback을 사용한다. PostgreSQL은 REPEATABLE READ READ ONLY,
 SQLite는 pinned connection의 첫 읽기 snapshot을 사용한다. 일반 READ COMMITTED Atomic으로 이 보장을 대신하지 않는다.
 고정 연결·rowset·만료·취소·panic/Goexit·실패한 종료의 discard/retention은 backend가 소유한다.
-종료 실패는 write commit-unknown 성공/실패 판정이 아니며, Directory는 정상 종료된 조회만 게시한다.
+종료 실패는 write commit-unknown 성공/실패 판정이 아니며, 저장소는 정상 종료된 조회만 게시한다.
 여러 SELECT의 일관성은 GoDj가 선택한 계약이며 Django 기본 transaction이 같은 snapshot을 보장한다고 주장하지 않는다.
 
-반환 `Account`는 private credential과 profile을 가진 불변 데이터 관찰이다. Profile의 nullable timestamp와 권한 slice는
-복사본을 반환하고 기본 진단은 redacted, JSON은 명시한 Profile만 출력한다. Raw `models.User`의 EncodedPassword는
-저장용 필드로 남으며 raw model을 응답·로그에 직접 사용하면 안 된다. 관리 serializer가 허용할 필드는 후속 소비자가 소유한다.
-Directory는 active/staff/superuser 값을 보존하지만 로그인이나 권한 허용을 결정하지 않는다. 비활성 계정의 저장된 grant도
-조회할 수 있다. Per-user/group cache는 없고 다음 조회는 새 snapshot을 읽으며 이미 반환한 Account는 바꾸지 않는다.
+반환 `auth.Credential`은 불변의 비공개 인증 관찰이다. 프로필은 현재 인가를 수행하는 typed `ProfileReader`와 명시적으로
+선택한 `ModelView`가 소유한다. Nullable timestamp·권한·collection의 외부 변경은 반환한 관찰을 바꾸지 않는다.
+Raw 모델의 encoded password는 저장용 필드이며 응답·로그에 직접 사용하지 않는다. Form/Admin/API는 같은 선택과 노출 정책을 따른다.
+Credential 저장소는 active/staff/superuser 값을 보존하지만 로그인이나 권한 허용을 결정하지 않는다. 비활성 계정의 저장된 grant도
+조회할 수 있다. Per-user/group cache는 없고 다음 조회는 새 snapshot을 읽으며 이미 반환한 credential은 바꾸지 않는다.
+
+고정 `identity.Directory`·`Account`·`Profile`·인증/로그인 기록 팩토리는 공개 제품 경로에서 제거했다. 역사 `systemstate.OpenIdentity`가
+쓰는 기본 User 조회·원래 credential stamp·last_login 기록·Username 정규화는 `systemstate`의 비공개 구현이다.
+이 경로는 원래 receipt·읽기/쓰기 소유권과 handoff 뒤 퇴역 거부를 유지하며, 선택 domain의 조회·관리 API로 사용할 수 없다.
 
 [독립 Django runner](../../conformance/runners/django/identity_reference.py)는 고정 6.1의 User/Group/Permission,
 ModelBackend와 AdminSite를 직접 실행한다. 권한 합집합·보유 객체와 새 객체·그룹 삭제 결과를 GoDj 조회와 비교한다.
-8개 active/staff/superuser 조합과 미등록·비정규 permission의 관찰도 보관하되 아직 GoDj admission 구현 증거로 세지 않는다.
+8개 active/staff/superuser 조합과 미등록·비정규 permission도 선택 인증/Resolve 소비자가 대조한다.
+독립 원문·producer는 유지하고 native snapshot·현재 상태 경합·HTTP/세션 검사는 별도로 수행한다.
 출처와 라이선스는 [SOURCES](../SOURCES.md)와 [Django license](../../LICENSE.django)를 따른다.
 Source·환경별 실행 결과는 [TEST_EVIDENCE](../status/TEST_EVIDENCE.md)가 소유한다.

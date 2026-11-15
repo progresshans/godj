@@ -258,7 +258,9 @@ no-replace 게시를 분리한다. Source reader와 Random은 빌린 callback이
 
 System-state coordination은 credential/session/audit와 application mutation의 원자성이 필요한 경계를 묶는다.
 같은 schema를 사용하는 협력 runtime은 같은 hash profile·session 한도·CSRF policy를 사용해야 한다.
-Identity runtime은 현재 User/Group/Permission을 native read snapshot에서 관찰하고 password work 전 읽기 범위를 종료한다.
+선택 identity runtime은 현재 domain·계정·catalog를 native read snapshot에서 관찰하고 password work 전 읽기 범위를 종료한다.
+역사 `systemstate.OpenIdentity`의 기본 User 저장소와 로그인 기록은 비공개 구현이며 같은 원래 receipt·gate·DB fence를 따른다.
+선택 계정으로 handoff한 뒤에는 이미 열린 역사 runtime도 각 읽기/쓰기 소유권 검사에서 거부한다.
 Adoption은 source policy 검증·User/권한/receipt·source 비활성 표시를 같은 DB fence 아래 원자적으로 수행한다. Session rotation/logout/revocation 뒤의
 거부와 application permission은 실제 DB·HTTP 흐름에서 검증한다. Process-local lock만으로 여러 runtime을 안전하다고 하지 않는다.
 

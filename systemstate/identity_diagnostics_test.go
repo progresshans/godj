@@ -1,4 +1,4 @@
-package identity
+package systemstate
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/progresshans/godj/db"
 )
 
-func TestAccountAndDirectoryKeepInvalidVerbFallbackOpaque(t *testing.T) {
+func TestHistoricalIdentityDiagnosticsKeepFallbackOpaque(t *testing.T) {
 	const marker = "identity-diagnostic-private-marker"
 	principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: "diagnostic-user", Active: true})
 	if err != nil {
@@ -20,12 +20,11 @@ func TestAccountAndDirectoryKeepInvalidVerbFallbackOpaque(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	account := Account{state: &accountState{profile: Profile{Username: marker}, credential: credential}}
-	directory, err := NewDirectory(diagnosticBackend{Secret: marker})
+	directory, err := newIdentityDirectory(identityDiagnosticBackend{Secret: marker})
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, value := range []any{account, &account, directory, *directory} {
+	for _, value := range []any{credential, &credential, directory, *directory} {
 		for _, format := range []string{"%v", "%+v", "%#v", "%d", "%f", "%p", "%w"} {
 			if strings.Contains(fmt.Sprintf(format, value), marker) {
 				t.Fatal("identity diagnostic exposed private state", format)
@@ -34,6 +33,8 @@ func TestAccountAndDirectoryKeepInvalidVerbFallbackOpaque(t *testing.T) {
 	}
 }
 
-type diagnosticBackend struct{ Secret string }
+type identityDiagnosticBackend struct{ Secret string }
 
-func (diagnosticBackend) ReadSnapshot(context.Context, func(db.Queryer) error) error { return nil }
+func (identityDiagnosticBackend) ReadSnapshot(context.Context, func(db.Queryer) error) error {
+	return nil
+}

@@ -38,29 +38,6 @@ func TestPostgresReadSnapshotRejectsInvalidCallsBeforeConnection(t *testing.T) {
 	}
 }
 
-func TestPostgresIdentityDirectoryUsesOneCurrentReadSnapshot(t *testing.T) {
-	url := postgresIntegrationURL(t)
-	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
-	reader := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-	writer := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-	identitytest.RunDirectory(t, reader, writer)
-}
-
-func TestPostgresIdentityDirectoryRejectsPartialOrInvalidState(t *testing.T) {
-	url := postgresIntegrationURL(t)
-	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
-	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-	identitytest.RunDirectoryValidation(t, backend)
-}
-
-func TestPostgresStoredIdentityAuthenticationAndHTTP(t *testing.T) {
-	url := postgresIntegrationURL(t)
-	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
-	backend := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-	backend.database.SetMaxOpenConns(1)
-	identitytest.RunAuthentication(t, backend)
-}
-
 func TestPostgresOperatorAdoptionPreservesSessionAuditAndOwnership(t *testing.T) {
 	url := postgresIntegrationURL(t)
 	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)

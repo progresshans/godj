@@ -1009,6 +1009,19 @@ HTTP 상태·쿠키·실제 효과로 나타나도록 검사한다. 고정 reset
 고정 목록 helper의 검증 책임과 nullable 값·collection 사본·생략/빈 집합·순서/중복은 공통 선택 소비자에 유지한다.
 이 구현과 static 확인, 새 원격 본문의 실제 수용 및 남은 Directory 소비자의 경계 정리는 별도로 추적한다.
 
+고정 공개 Directory·Account/Profile·인증/로그인 기록 팩토리와 Username 정규화를 제거했다. 실제 제품 호출자였던
+`systemstate.OpenIdentity`의 원래 기본 User 조회·credential·last_login과 provisioning 정규화는 비공개 역사 구현으로 옮겼다.
+원래 snapshot callback/cleanup·credential/권한 한도·프로필 표현 검사·LoginInput과 stamp 의미를 유지하며,
+역사 schema·receipt·session/audit·handoff 뒤 퇴역 차단은 바꾸지 않는다. 더 이상 쓰지 않는 고정 공개 프로필 DTO는 남기지 않았다.
+
+양 DB의 고정 조회/인증 root 세 개는 선택 owner로 이관했다. 권한 합집합·역할 8종·그룹 삭제는 기존 독립 Django 소비자가,
+snapshot·복사본·입력/저장 한도는 공통 선택 소비자가 담당한다. 저장된 revision/credential/login/principal 손상 네 가지는
+실제 DB에 주입하고 조회·상세·목록·이력의 비게시와 전체 native/host 상태를 확인한다. 검증 중 비밀번호·같은 비밀번호의
+재해싱·이름·활성·삭제·역할 변경은 한 연결의 읽기 scope 종료와 최종 재검사를 함께 관찰한다. HTTP는 선택 native 세션으로
+사용자 간 분리·그룹 권한 회수/직접 복구·superuser deny overlay·staff·이름 변경·비밀번호 교체·비활성·재활성화를 확인한다.
+역사 전용 unit은 systemstate의 필수 실행으로 옮겼고 독립 원문은 유지한다. 이 소비자 작성과 현재 source의 실제 환경별
+실행 결과 및 I1 수용은 TEST_EVIDENCE에서 구분한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

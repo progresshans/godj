@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"path"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -261,4 +262,16 @@ func (mailer *PasswordResetMailer) Request(ctx context.Context, email string) er
 	}
 	// A sender's confirmed acceptance is not revoked by late cancellation.
 	return nil
+}
+
+func nilIdentityValue(value any) bool {
+	if value == nil {
+		return true
+	}
+	switch reflect.ValueOf(value).Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflect.ValueOf(value).IsNil()
+	default:
+		return false
+	}
 }

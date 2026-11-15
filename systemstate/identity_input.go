@@ -1,4 +1,4 @@
-package identity
+package systemstate
 
 import (
 	"strings"
@@ -15,11 +15,11 @@ func identityInputError(field validation.Field, code validation.Code) error {
 	return validation.Reject(validation.NewErrors(validation.New(field, code)), nil)
 }
 
-// NormalizeUsername applies the pinned Unicode profile and the User's Schema
+// normalizeIdentityUsername applies the pinned Unicode profile and the User's Schema
 // IR storage limit. It does not strip input or select a case-insensitive policy.
 // Historical provisioning uses this policy before explicit account handoff.
 // Selected runtime writes use their declared binding policy instead.
-func NormalizeUsername(value string) (string, error) {
+func normalizeIdentityUsername(value string) (string, error) {
 	// Bound work before normalization as well as the final credential envelope.
 	if auth.ValidateUsername(value) != nil {
 		return "", identityInputError("username", "invalid")
@@ -51,7 +51,7 @@ func validateIdentityTexts(values ...identityText) error {
 			}
 			found = true
 			if (field.Kind != ir.FieldChar && field.Kind != ir.FieldEmail) || field.MaxLength <= 0 {
-				return identityFailure(CodeInvalidConfig, "user", nil)
+				return &Error{Code: CodeInvalidConfig, Field: "user", Detail: "historical identity text metadata is invalid"}
 			}
 			if utf8.RuneCountInString(item.value) > field.MaxLength {
 				return identityInputError(validation.Field(item.name), "invalid")
@@ -59,7 +59,7 @@ func validateIdentityTexts(values ...identityText) error {
 			break
 		}
 		if !found {
-			return identityFailure(CodeInvalidConfig, "user", nil)
+			return &Error{Code: CodeInvalidConfig, Field: "user", Detail: "historical identity text metadata is invalid"}
 		}
 	}
 	return nil

@@ -9,7 +9,6 @@ import (
 	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/internal/systemstatehandoff"
 	migrationbackend "github.com/progresshans/godj/migrations/backend"
 	"github.com/progresshans/godj/query"
@@ -85,7 +84,7 @@ type Runtime struct {
 	authenticator     auth.CredentialAuthenticator
 	sessionStore      *durableSessionStore
 	auditCapacity     int
-	loginRecorder     *identity.LoginRecorder
+	loginRecorder     *identityLoginRecorder
 	identityOwnership IdentityTransition
 	operatorOwnership bool
 }

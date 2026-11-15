@@ -6088,6 +6088,50 @@ Python CI owner/분할 검사 37개(154.688초), 마지막 native child 추가 �
 역사 정규화 본문 동일성·필수 목록/원문과 선행 core 목록 digest를 확인했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 제품 API 제거와 새 저장 문자열 거부·필수 실행의
 전체 원격 수용, 남은 Directory 소비자 경계 및 I1 전체 수용은 계속 필요하다.
 
+## GDJ-0138 — 고정 Directory 제거와 선택 조회·인증 수용 이관
+
+선행 source `3e3f1d900ea77dba8d5cd4af888cae88948f2676`의
+[CI 43658530906](https://github.com/progresshans/godj/actions/runs/43658530906)는 364개 작업을 구성하고 실행 중임을 확인했다.
+2026-11-15의 중간 조회에서 성공 13·실행 중 39·대기 312였고 실패는 아직 없었다. 전체 결과나 필수 로그 대조가 아니며,
+아래의 후속 Directory 제거 source의 검증 결과로 사용하지 않는다.
+
+그 source 위에서 공개 고정 `identity.Directory`·`Account`·`Profile`·`NewAuthenticator`·`LoginRecorder`·`NormalizeUsername`을
+제거했다. 유일한 제품 호출자였던 역사 `systemstate.OpenIdentity`의 기본 User 조회·credential 생성·현재 grant·last_login
+기록과 provisioning 정규화는 `systemstate` 비공개 구현으로 옮겼다. 사용하지 않는 고정 프로필 DTO/JSON은 남기지 않는다.
+읽기 callback/종료·권한 SQL·한도·credential 검증·login 재검사/쓰기·Username 정규화의 본문은 private 이름과 반환 wrapper
+제거를 정규화해 기존과 대조했다. 메일러의 nil 검사 helper는 본문 그대로 옮겼다. 역사 scope/퇴역 guard와 handoff 본문,
+schema·migration·생성물·독립 Django 원문/producer는 변경하지 않았다.
+
+고정 native root 세 개씩의 책임은 선택 소비자로 연결했다. 기존 `native_identity_reference`가 독립 권한 합집합·보유/새 객체·
+역할 8종·그룹 삭제를 대조한다. 선택 snapshot 검사는 동시 활성·staff·superuser·login·permission 변경과 새/이전 lookup을
+확인하고, 권한 분리 네 child는 없음·직접·그룹·겹침을 두 lookup으로 관찰한다. 정리 실패·callback 위반·취소 일곱 사례는
+개별 필수 child로 연결하고 오류의 private cause·전체 native 상태 보존 검사를 유지했다.
+
+새 저장 손상 네 child는 revision 0·빈 credential·비정규 login·principal을 실제 양 DB가 저장할 수 있는 typed ORM 값으로
+주입한다. 선택 credential·상세·목록의 유효 prefix·이력은 실패 시 결과를 게시하지 않고 일반 입력 거부로 바꾸지 않는다.
+전체 native/host 행·hasher/entropy 작업 없음과 별도 연결의 복구 후 성공을 관찰한다. 이 네 가지와 선행 일반 profile의
+길이·UTF-8·NUL 순수 projection 회귀는 서로 다른 검증 범위다.
+
+비밀번호 검증 중 변경 여섯 child는 password·동일 비밀번호 재해싱·이름·활성·삭제·역할을 관찰한다. 양 DB의 한 연결
+owner와 같은 operation context로 실제 commit해 읽기 scope/입장 잠금이 남지 않음을 확인하고, 현재 역할만 성공하며
+credential 변경은 정확한 거부와 빈 결과를 반환하도록 검사한다. fixture의 변경 외 모든 native/host 상태와 세션은 보존한다.
+HTTP의 11단계는 실제 TCP·공통 Web/API와 선택 native 세션을 사용한다. 사용자 간 분리·그룹 grant 회수/직접 복구·
+superuser deny overlay·staff 한계·login 변경·password 교체·재로그인·비활성·재활성화를 확인한다. 독립 행/권한/domain과
+쓰기 전 entropy에서 예상 credential·세션을 만들고, 무효 browser만의 실제 삭제와 다른 계정·역사 namespace·host 보존을
+전체 행으로 대조한다. Raw ORM 변경은 협력 revision을 거치지 않는 writer에 대한 인증 재검사이며 관리 명령의 audit 수용으로
+계산하지 않는다. 고정 MemoryStore HTTP와 기본 Directory 직접 소비자는 제거했다.
+
+Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 선택 35 추가), PostgreSQL은 5,912→5,917(30 제거·35 추가)이다.
+역사 unit 5개와 snapshot child 5개는 기존 `systemstate` 실행 담당의 portable core 필수 목록으로 옮겨 490→500이 됐다.
+삭제된 항목 전부의 대응·다른 항목의 상대 순서·추가 목록과 원문 digest는
+`gdj0138-directory-retirement-v1/responsibility-map.json`에 기록했다
+(SHA-256 `b9412046882bd6ea69478b758cc63a477aa351fcde660173142877ef24209f22`).
+
+로컬 gofmt 17개 Go 파일·diff·245개 문서 링크와 Python CI owner/분할 검사 43개(157.910초)는 통과했다. 제거 API의 import alias를
+포함한 qualified 참조·옮긴 package의 import cycle/선언 충돌·정적 import 소비·역사 본문과 필수 목록/원문 동일성도 확인했다.
+로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 source의 실제 양 DB·race·CGO-disabled·process/browser·전체 platform과
+필수 원본 대조 및 I1-01~08 수용은 계속 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

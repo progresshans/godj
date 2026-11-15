@@ -5,7 +5,6 @@ import (
 	"errors"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
-	"github.com/progresshans/godj/identity"
 	"github.com/progresshans/godj/internal/systemstatehandoff"
 	"github.com/progresshans/godj/sessions"
 )
@@ -98,19 +97,16 @@ func OpenIdentity(ctx context.Context, backend IdentityBackend, config IdentityR
 	if calls != 1 {
 		return nil, identityCallbackFailure()
 	}
-	directory, err := identity.NewDirectory(runtime)
+	directory, err := newIdentityDirectory(runtime)
 	if err != nil {
 		return nil, err
 	}
-	authenticator, err := identity.NewAuthenticator(ctx, directory, config.PasswordHasher)
+	authenticator, err := auth.NewStoredAuthenticator(ctx, directory, config.PasswordHasher)
 	if err != nil {
 		return nil, err
 	}
 	runtime.authenticator = authenticator
-	runtime.loginRecorder, err = identity.NewLoginRecorder(directory)
-	if err != nil {
-		return nil, err
-	}
+	runtime.loginRecorder = &identityLoginRecorder{directory: directory}
 	runtime.sessionStore = store
 	runtime.auditCapacity = capacity
 	return runtime, nil

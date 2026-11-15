@@ -21,7 +21,7 @@ Stamp는 password verifier나 bearer credential이 아니며 client cookie·응�
 
 비밀번호 교체와 재해싱은 stamp를 변경한다. 사용자 이름과 권한은 stamp에 포함하지 않는다.
 현재 권한은 매 요청의 Principal에서 읽는다. 사용자·그룹·권한의 durable 저장은 [identity 앱](0077-reusable-app-models-and-host-relation-ownership.md)의
-Directory가 한 DB snapshot으로 제공한다. 저장 인증과 기존 operator의 전환/관리는 아래처럼 구분한다.
+선택 CredentialStore가 현재 domain과 같은 DB snapshot으로 제공한다. 저장 인증과 기존 operator의 전환/관리는 아래처럼 구분한다.
 누락·위조·stale stamp, 다른 ID, 비활성·없는 사용자는 서버 세션을 폐기하고 anonymous로 처리한다.
 폐기 실패나 backend 오류는 익명 성공으로 숨기지 않는다. 이전 형식의 ID-only 세션을 자동 승격하지 않는다.
 
@@ -93,7 +93,7 @@ transaction-outcome-unknown 분류를 유지한다. 이미 완료한 전환을 �
 전환을 요구하고, orphan state·잘못된 migration·corruption·읽기 종료 실패를 public-only 성공으로 바꾸지 않는다.
 이 현재 startup 결정은 SYS-028의 GoDj 결정 관찰과 연결하며, legacy OpenExisting의 policy 검증은 SYS-027에 계속 남는다.
 
-Credential·Account·ModelInput·선택 ModelView/Profile·인증기·Directory·전환 receipt는 내부 상태를 불투명한 pointer 뒤에 둔다. Formatter가 일반 진단 형식을 가리고,
+Credential·ModelInput·선택 ModelView/Profile·인증기·CredentialStore·전환 receipt는 비공개 상태와 명시적 표현 경계를 갖는다. Formatter가 일반 진단 형식을 가리고,
 Formatter보다 먼저 처리되는 잘못된 `%p`/`%w`의 reflection fallback도 비밀 필드에 도달하지 않는다.
 사용자가 명시적으로 선택한 Profile JSON에는 공개 계정 정보만 포함되며 비밀번호 해시·stamp는 나오지 않는다.
 
@@ -502,8 +502,8 @@ Username 정규화·중복 검사와 현재 add/change 권한·감사 transactio
 
 ## 현재 password 상태의 읽기 전용 표현
 
-`Profile.PasswordUsable`은 profile을 만드는 동일한 User 행의 encoded password에서 계산한다.
-별도 저장 필드·조회·hasher 작업·캐시를 추가하지 않는다. Directory/Account와 Manager의 목록·상세·성공 결과가 같은 값을 가진다.
+선택 `Profile.PasswordUsable()`은 profile을 만드는 동일한 계정 행의 encoded password에서 계산한다.
+별도 저장 필드·조회·hasher 작업·캐시를 추가하지 않는다. 선택 관리 목록·상세·성공 결과가 같은 값을 가진다.
 `auth.IsPasswordUsable`은 `!` prefix의 의도적인 사용 불가 상태를 구분하는 표현용 predicate다.
 지원 hash 알고리즘·인코딩 검증·active/staff/권한·로그인 성공의 판정에 사용하지 않는다.
 Go의 빈/zero credential은 false이며 정상 저장 credential의 기존 envelope 검증은 유지한다.
@@ -861,7 +861,7 @@ Text 또는 공통 인증 한도보다 큰 필드는 1,024의 Form 문자 한도
 `CredentialStore`→`StoredAuthenticator`/선택 인증기→`sessionauth.Runtime`은 같은 credential source의 metadata만 전달한다.
 Metadata 제공은 DB 조회나 password work를 하지 않는다. 일반 인증기에는 이 추가 capability를 강제하지 않지만,
 공통 계정 Application과 Admin Site를 조립할 때 누락·잘못된 metadata는 시작 오류이며 기본 User로 대체하지 않는다.
-기존 Directory 인증기는 자신의 명시적인 기본 계정 binding으로 이 capability를 제공한다. MemoryAuthenticator는
+역사 `systemstate.OpenIdentity`의 비공개 저장소는 원래 기본 계정 binding으로 이 capability를 제공한다. MemoryAuthenticator는
 Form을 제공하는 소비자가 생성 시 넘긴 불변 선언만 반환하며 이를 생략한 일반 인증에 Form 정책을 추론하지 않는다.
 
 `forms/auth.NewLoginSpec`은 공통 계정 Application과 Admin의 같은 AuthenticationForm 정의다. Wire field 이름은
@@ -922,8 +922,8 @@ unknown write의 rollback을 확정하지 않고 원래 write fence와 작업 �
 `RequireIn`과 generated binding의 `RequireDomainIn`은 계정 조회와 같은 stable snapshot/write handle에서 선택 역할을
 확인한다. `RequirePrincipalDomainIn`은 그 세대로 actor를 검사한 후 현재 ID/권한을 읽게 하는 경계이며 active·permission
 판단을 대신하지 않는다. `Read`/`Lookup`은 정확히 한 snapshot callback과 cleanup이 성공한 뒤에만 값을 게시한다.
-이전에 얻은 receipt를 현재 권한 cache로 쓰지 않는다. 기존 Directory/Manager·startup·첫 계정 명령·Form/Admin/API와
-채운 DB의 명시적 mapping 연결은 GDJ-0138에 남아 있으며, 이 기반을 전체 모델 전환 보호 완료로 표시하지 않는다.
+이전에 얻은 receipt를 현재 권한 cache로 쓰지 않는다. Startup·첫 계정 명령·Form/Admin/API와 채운 DB의 명시적 mapping은
+GDJ-0138의 선택 owner에 연결하며, 이 기반 자체를 전체 모델 전환 보호의 환경별 수용 완료로 표시하지 않는다.
 
 
 ## 선택 계정과 권한을 읽는 공통 저장소
@@ -971,8 +971,8 @@ Principal 없이 error로 반환하며 다른 권한의 대안으로 넘어갈 �
 
 반환 Principal은 해당 scope의 잠정 관측이며 다음 쓰기에 재사용하는 권한 증표가 아니다. 관리 owner는 같은 scope에서
 대상 revision·typed 입력·관계·session/audit를 처리하고 commit 또는 read cleanup이 확인된 뒤에만 결과를 게시한다.
-아래 typed profile owner는 이 경계에서 실제 수정과 audit를 묶는다. 기존 기본 Directory/Manager의 교체와 공개
-관리 소비자 전체의 연결은 GDJ-0138에 남아 있다.
+아래 typed profile owner는 이 경계에서 실제 수정과 audit를 묶는다. 고정 공개 Directory/Manager는 제거했고,
+현재 선택 소비자와 역사 이행의 환경별 수용은 GDJ-0138에서 추적한다.
 
 ## 선택 계정의 typed profile 수정
 

@@ -39,59 +39,6 @@ func TestSQLiteReadSnapshotRejectsInvalidCallsBeforeConnection(t *testing.T) {
 	}
 }
 
-func TestSQLiteIdentityDirectoryUsesOneCurrentReadSnapshot(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "identity.sqlite3")
-	reader, err := Open(t.Context(), path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := reader.Close(); err != nil {
-			t.Error(err)
-		}
-	})
-	if _, err := reader.database.ExecContext(t.Context(), "PRAGMA journal_mode=WAL"); err != nil {
-		t.Fatal(err)
-	}
-	writer, err := Open(t.Context(), path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := writer.Close(); err != nil {
-			t.Error(err)
-		}
-	})
-	identitytest.RunDirectory(t, reader, writer)
-}
-
-func TestSQLiteIdentityDirectoryRejectsPartialOrInvalidState(t *testing.T) {
-	backend, err := OpenMemory(t.Context(), t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() {
-		if err := backend.Close(); err != nil {
-			t.Error(err)
-		}
-	})
-	identitytest.RunDirectoryValidation(t, backend)
-}
-
-func TestSQLiteStoredIdentityAuthenticationAndHTTP(t *testing.T) {
-	backend, err := OpenMemory(t.Context(), t.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	backend.database.SetMaxOpenConns(1)
-	t.Cleanup(func() {
-		if err := backend.Close(); err != nil {
-			t.Error(err)
-		}
-	})
-	identitytest.RunAuthentication(t, backend)
-}
-
 func TestSQLiteOperatorAdoptionPreservesSessionAuditAndOwnership(t *testing.T) {
 	backend, err := OpenMemory(t.Context(), t.Name())
 	if err != nil {

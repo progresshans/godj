@@ -1,4 +1,4 @@
-package identity
+package systemstate
 
 import (
 	"context"
@@ -14,34 +14,36 @@ import (
 	"github.com/progresshans/godj/query"
 )
 
-type snapshotFunc func(context.Context, func(db.Queryer) error) error
+type identitySnapshotFunc func(context.Context, func(db.Queryer) error) error
 
-func (function snapshotFunc) ReadSnapshot(ctx context.Context, callback func(db.Queryer) error) error {
+func (function identitySnapshotFunc) ReadSnapshot(ctx context.Context, callback func(db.Queryer) error) error {
 	return function(ctx, callback)
 }
 
-func TestStoredProfileCannotUseTheByteEnvelopeToEscapeIR(t *testing.T) {
+func TestHistoricalProfileCannotUseTheByteEnvelopeToEscapeIR(t *testing.T) {
 	for _, row := range []models.User{
 		{ID: 1, Revision: 1, Username: strings.Repeat("x", 257)},
 		{ID: 1, Revision: 1, Username: "valid", FirstName: strings.Repeat("한", 151)},
 		{ID: 1, Revision: 1, Username: "valid", Email: strings.Repeat("x", 255)},
 	} {
-		directory := &Directory{}
+		directory := &identityDirectory{}
 		// An invalid stored profile must be rejected before permissions or any
 		// other lookup can run, including for a caller with an empty reader.
-		if account, err := directory.accountFromRow(t.Context(), nil, row); err == nil || account.Profile().ID != 0 {
+		if account, err := directory.credentialFromRow(t.Context(), nil, row); err == nil || account.SessionStamp() != "" {
 			t.Fatal("invalid stored profile published", err)
 		}
 	}
 }
 
-type queryFailure struct{ err error }
+type identityQueryFailure struct{ err error }
 
-func (value queryFailure) Query(context.Context, query.Plan) (db.Rows, error) { return nil, value.err }
+func (value identityQueryFailure) Query(context.Context, query.Plan) (db.Rows, error) {
+	return nil, value.err
+}
 
-func TestDirectoryRejectsInvalidCallsAndSnapshotContractFailure(t *testing.T) {
-	var typedNil snapshotFunc
-	if _, err := NewDirectory(typedNil); !errors.Is(err, &auth.Error{Code: auth.CodeInvalidConfig}) {
+func TestHistoricalDirectoryRejectsInvalidCallsAndSnapshotContractFailure(t *testing.T) {
+	var typedNil identitySnapshotFunc
+	if _, err := newIdentityDirectory(typedNil); !errors.Is(err, &auth.Error{Code: auth.CodeInvalidConfig}) {
 		t.Fatal("typed nil snapshot backend accepted", err)
 	}
 	for _, mode := range []string{"zero_callbacks", "nil_reader", "twice", "ignored_error", "canceled_after_callback"} {
@@ -49,29 +51,29 @@ func TestDirectoryRejectsInvalidCallsAndSnapshotContractFailure(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			failure := errors.New("private driver failure")
-			directory, err := NewDirectory(snapshotFunc(func(ctx context.Context, callback func(db.Queryer) error) error {
+			directory, err := newIdentityDirectory(identitySnapshotFunc(func(ctx context.Context, callback func(db.Queryer) error) error {
 				switch mode {
 				case "zero_callbacks":
 					return nil
 				case "nil_reader":
 					return callback(nil)
 				case "twice":
-					_ = callback(queryFailure{failure})
-					return callback(queryFailure{failure})
+					_ = callback(identityQueryFailure{failure})
+					return callback(identityQueryFailure{failure})
 				case "canceled_after_callback":
-					_ = callback(queryFailure{failure})
+					_ = callback(identityQueryFailure{failure})
 					cancel()
 					return nil
 				default:
-					_ = callback(queryFailure{failure})
+					_ = callback(identityQueryFailure{failure})
 					return nil
 				}
 			}))
 			if err != nil {
 				t.Fatal(err)
 			}
-			account, found, err := directory.ByUsername(ctx, "member")
-			if err == nil || found || account.Profile().ID != 0 {
+			account, found, err := directory.CredentialByUsername(ctx, "member")
+			if err == nil || found || account.SessionStamp() != "" {
 				t.Fatal("broken snapshot published identity", found, err)
 			}
 			if mode == "ignored_error" && !errors.Is(err, failure) || mode == "canceled_after_callback" && !errors.Is(err, context.Canceled) {
@@ -80,34 +82,34 @@ func TestDirectoryRejectsInvalidCallsAndSnapshotContractFailure(t *testing.T) {
 		})
 	}
 	calls := 0
-	directory, err := NewDirectory(snapshotFunc(func(context.Context, func(db.Queryer) error) error { calls++; return nil }))
+	directory, err := newIdentityDirectory(identitySnapshotFunc(func(context.Context, func(db.Queryer) error) error { calls++; return nil }))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := directory.ByUsername(t.Context(), "bad\x00name"); err == nil {
+	if _, _, err := directory.CredentialByUsername(t.Context(), "bad\x00name"); err == nil {
 		t.Fatal("invalid username was accepted")
 	}
-	if _, _, err := directory.ByPrincipalID(t.Context(), " invalid-id"); err == nil {
+	if _, _, err := directory.CredentialByID(t.Context(), " invalid-id"); err == nil {
 		t.Fatal("invalid principal was accepted")
 	}
-	if _, _, err := directory.ByUsername(nil, "member"); err == nil {
+	if _, _, err := directory.CredentialByUsername(nil, "member"); err == nil {
 		t.Fatal("nil context was accepted")
 	}
 	canceled, cancel := context.WithCancel(t.Context())
 	cancel()
-	if _, _, err := directory.ByUsername(canceled, "member"); !errors.Is(err, context.Canceled) || calls != 0 {
+	if _, _, err := directory.CredentialByUsername(canceled, "member"); !errors.Is(err, context.Canceled) || calls != 0 {
 		t.Fatal("invalid call reached snapshot backend", calls, err)
 	}
 }
 
-func TestDirectoryFailuresDoNotRenderDriverSecrets(t *testing.T) {
+func TestHistoricalDirectoryFailuresDoNotRenderDriverSecrets(t *testing.T) {
 	const secret = "must-not-appear-in-error-or-json"
 	cause := errors.New(secret)
-	directory, err := NewDirectory(snapshotFunc(func(context.Context, func(db.Queryer) error) error { return cause }))
+	directory, err := newIdentityDirectory(identitySnapshotFunc(func(context.Context, func(db.Queryer) error) error { return cause }))
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, failure := directory.ByPrincipalID(t.Context(), "member")
+	_, _, failure := directory.CredentialByID(t.Context(), "member")
 	if !errors.Is(failure, cause) {
 		t.Fatal("failure cause was not preserved")
 	}

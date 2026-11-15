@@ -1,4 +1,4 @@
-package identity
+package systemstate
 
 import (
 	"context"
@@ -10,28 +10,21 @@ import (
 	"github.com/progresshans/godj/internal/temporal"
 )
 
-// LoginRecorder uses an already coordinated transaction. The owner must couple
+// identityLoginRecorder uses an already coordinated transaction. The owner must couple
 // this observation with authenticated session persistence and roll both back on
 // failure. It is never called by Authenticate, Resolve, session Access or logout.
-type LoginRecorder struct{ directory *Directory }
+type identityLoginRecorder struct{ directory *identityDirectory }
 
-func (*LoginRecorder) Format(state fmt.State, _ rune) {
-	_, _ = state.Write([]byte("identity.LoginRecorder{redacted}"))
-}
-
-func NewLoginRecorder(directory *Directory) (*LoginRecorder, error) {
-	if directory == nil || directory.state == nil {
-		return nil, &auth.Error{Code: auth.CodeInvalidConfig, Field: "login", Detail: "identity directory is uninitialized"}
-	}
-	return &LoginRecorder{directory: directory}, nil
+func (*identityLoginRecorder) Format(state fmt.State, _ rune) {
+	_, _ = state.Write([]byte("systemstate.identityLoginRecorder{redacted}"))
 }
 
 // RecordIn rechecks current credential and admission before updating only the
 // observational last_login field. Management revision, password, roles, grants
 // and audit history are unchanged. The returned credential is provisional until
 // the transaction owner confirms commit.
-func (recorder *LoginRecorder) RecordIn(ctx context.Context, session db.Session, login auth.SessionLogin) (auth.Credential, error) {
-	if ctx == nil || nilIdentityValue(session) || recorder == nil || recorder.directory == nil {
+func (recorder *identityLoginRecorder) RecordIn(ctx context.Context, session db.Session, login auth.SessionLogin) (auth.Credential, error) {
+	if ctx == nil || isNilInterface(session) || recorder == nil || recorder.directory == nil {
 		return auth.Credential{}, &auth.Error{Code: auth.CodeInvalidInput, Field: "login", Detail: "login transaction is incomplete"}
 	}
 	if err := ctx.Err(); err != nil {
@@ -47,11 +40,10 @@ func (recorder *LoginRecorder) RecordIn(ctx context.Context, session db.Session,
 	if !found {
 		return auth.Credential{}, auth.ErrInvalidCredentials
 	}
-	account, err := recorder.directory.accountFromRow(ctx, session, row)
+	current, err := recorder.directory.credentialFromRow(ctx, session, row)
 	if err != nil {
 		return auth.Credential{}, identityReadFailure(err)
 	}
-	current := account.value().credential
 	if !current.Principal().Authenticated() || !current.MatchesSessionStamp(login.Credential.SessionStamp()) {
 		return auth.Credential{}, auth.ErrInvalidCredentials
 	}

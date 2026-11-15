@@ -32,7 +32,7 @@ func newUserReferenceHTTP(t *testing.T, selected *accountmodel.Runtime[models.Us
 	return newUserReferenceHTTPConfigured(t, selected, func() time.Time { return joined }, 204)
 }
 
-func newUserReferenceHTTPConfigured(t *testing.T, selected *accountmodel.Runtime[models.User, models.Group, models.Permission], clock func() time.Time, loginStatus int) *userReferenceHTTP {
+func newUserReferenceHTTPConfigured(t *testing.T, selected *accountmodel.Runtime[models.User, models.Group, models.Permission], clock func() time.Time, loginStatus int, extra ...func(*websession.Runtime) []web.Route) *userReferenceHTTP {
 	t.Helper()
 	runtime, err := websession.New(websession.Config{
 		Sessions: selected.Sessions(), Authenticator: selected.Authenticator(), LoginPersistence: selected.LoginPersistence(), Authorizer: auth.PrincipalAuthorizer{},
@@ -117,6 +117,9 @@ func newUserReferenceHTTPConfigured(t *testing.T, selected *accountmodel.Runtime
 			}
 			return web.HTML(200, []byte("allowed"))
 		}})
+	}
+	for _, additional := range extra {
+		routes = append(routes, additional(runtime)...)
 	}
 	configured, err := settings.New(settings.Definition{ProjectName: "selected_user_reference", InstalledApps: append(hostproject.InstalledApps(), apps.Config{Name: "github.com/progresshans/godj/internal/accountstoretest", Label: "userreference"})})
 	if err != nil {

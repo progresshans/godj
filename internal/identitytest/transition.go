@@ -24,7 +24,8 @@ import (
 )
 
 type TransitionBackend interface {
-	DirectoryBackend
+	ProductBackend
+	db.Atomic
 	systemstate.IdentityBackend
 }
 

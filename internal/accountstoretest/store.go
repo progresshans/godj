@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -238,6 +239,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	runResetNativeReferences(t, open)
 	runAccountResetHTTP(t, open)
 	runAccountHTTP(t, open)
+	runAuthenticationNative(t, open)
 	runCreationUsernamePolicy(t, referenceBackend, open)
 	runUnusableReference(t, open)
 	runUnusableWriteFailures(t, open)
@@ -384,6 +386,55 @@ func permissionUnion(t *testing.T, backend Backend, reopen func(*testing.T) Back
 	if err != nil || found || missing.SessionStamp() != "" {
 		t.Fatal("missing account", err)
 	}
+	missing, found, err = store.CredentialByID(t.Context(), "absent")
+	if err != nil || found || !reflect.DeepEqual(missing, auth.Credential{}) {
+		t.Fatal("missing principal published partial state", err)
+	}
+	var unassigned models.User
+	for _, mode := range []string{"none", "direct", "group", "overlap"} {
+		t.Run(mode, func(t *testing.T) {
+			row, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("isolated-"+mode, "isolated-"+mode, f.user.EncodedPassword, joined))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want []auth.Permission
+			if mode == "none" {
+				unassigned = row
+			}
+			if mode == "direct" || mode == "overlap" {
+				permission := f.grants[0]
+				if mode == "overlap" {
+					permission = f.grants[1]
+				}
+				if _, err := models.UserPermissionsLinkObjects.Create(t.Context(), backend, models.NewUserPermissionsLinkCreate(row.ID, permission.ID)); err != nil {
+					t.Fatal(err)
+				}
+				want = []auth.Permission{auth.Permission(permission.Code)}
+			}
+			if mode == "group" || mode == "overlap" {
+				if _, err := models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(row.ID, f.group.ID)); err != nil {
+					t.Fatal(err)
+				}
+				want = []auth.Permission{"account.shared", "account.team"}
+			}
+			before := accountNativeSnapshot(t, reopen(t))
+			for _, read := range []func() (auth.Credential, bool, error){
+				func() (auth.Credential, bool, error) { return store.CredentialByID(t.Context(), row.PrincipalID) },
+				func() (auth.Credential, bool, error) { return store.CredentialByUsername(t.Context(), row.Username) },
+			} {
+				current, found, err := read()
+				if err != nil || !found || current.Principal().ID() != row.PrincipalID || !slices.Equal(current.Principal().Permissions(), want) {
+					t.Fatal("selected account leaked or lost another account's grants", err)
+				}
+			}
+			if !reflect.DeepEqual(before, accountNativeSnapshot(t, reopen(t))) {
+				t.Fatal("permission isolation read changed native state")
+			}
+		})
+	}
+	if current, found, err := store.CredentialByID(t.Context(), unassigned.PrincipalID); err != nil || !found || len(current.Principal().Permissions()) != 0 {
+		t.Fatal("later memberships contaminated an unassigned account", err)
+	}
 }
 
 type snapshotFunc func(context.Context, func(db.Queryer) error) error
@@ -428,7 +479,7 @@ func coherentSnapshot(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 			probe := &observedReader{Queryer: reader, change: func() error {
 				changed = true
 				return writer.CoordinatedAtomic(ctx, func(tx db.Session) error {
-					if _, err := models.UserObjects.Patch(ctx, tx, f.user, models.UserPatch{}.WithActive(false).WithRevision(2)); err != nil {
+					if _, err := models.UserObjects.Patch(ctx, tx, f.user, models.UserPatch{}.WithActive(false).WithStaff(true).WithSuperuser(true).WithUsername("renamed").WithRevision(2)); err != nil {
 						return err
 					}
 					_, err := models.PermissionObjects.Patch(ctx, tx, f.grants[0], models.PermissionPatch{}.WithCode("account.changed").WithRevision(2))
@@ -444,14 +495,21 @@ func coherentSnapshot(t *testing.T, backend Backend, reopen func(*testing.T) Bac
 	}
 	before, found, err := store.CredentialByID(t.Context(), f.user.PrincipalID)
 	requireGrants(t, before, found, err, "account.direct", "account.shared", "account.team")
-	if !changed || !before.Principal().Active() {
+	if !changed || !before.Principal().Active() || before.Principal().Staff() || before.Principal().Superuser() {
 		t.Fatal("account/permission snapshot mixed observations")
 	}
 	after, found, err := f.store.CredentialByID(t.Context(), f.user.PrincipalID)
 	requireGrants(t, after, found, err, "account.changed", "account.shared", "account.team")
-	if after.Principal().Active() {
+	if after.Principal().Active() || !after.Principal().Staff() || !after.Principal().Superuser() {
 		t.Fatal("fresh snapshot retained old account state")
 	}
+	if got, found, err := f.store.CredentialByUsername(t.Context(), "alice"); err != nil || found || got.SessionStamp() != "" {
+		t.Fatal("old login remained visible after the native snapshot", err)
+	}
+	if got, found, err := f.store.CredentialByUsername(t.Context(), "renamed"); err != nil || !found || !reflect.DeepEqual(got.Principal(), after.Principal()) {
+		t.Fatal("fresh login lookup missed current roles and grants", err)
+	}
+	requireGrants(t, before, true, nil, "account.direct", "account.shared", "account.team")
 }
 
 type probeHasher struct {
@@ -539,53 +597,61 @@ func passwordRecheck(t *testing.T, backend Backend, reopen func(*testing.T) Back
 func readContract(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
 	f := provision(t, backend, ir.AccountExact)
 	fault := errors.New("private snapshot cleanup secret")
+	before := accountNativeSnapshot(t, backend)
 	for _, scenario := range []string{"cleanup", "twice", "zero", "nil", "typed_nil", "ignored_callback_error", "cancel"} {
-		ctx, cancel := context.WithCancel(t.Context())
-		scopes := snapshotFunc(func(ctx context.Context, callback func(db.Queryer) error) error {
-			switch scenario {
-			case "zero":
-				return nil
-			case "nil":
-				_ = callback(nil)
-				return nil
-			case "typed_nil":
-				var reader *observedReader
-				_ = callback(reader)
-				return nil
-			case "ignored_callback_error":
-				return backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
-					_ = callback(&profileReadProbe{Queryer: reader, validator: reader.(db.SessionValidator), fault: fault})
+		t.Run(scenario, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			scopes := snapshotFunc(func(ctx context.Context, callback func(db.Queryer) error) error {
+				switch scenario {
+				case "zero":
 					return nil
-				})
+				case "nil":
+					_ = callback(nil)
+					return nil
+				case "typed_nil":
+					var reader *observedReader
+					_ = callback(reader)
+					return nil
+				case "ignored_callback_error":
+					return backend.ReadSnapshot(ctx, func(reader db.Queryer) error {
+						_ = callback(&profileReadProbe{Queryer: reader, validator: reader.(db.SessionValidator), fault: fault})
+						return nil
+					})
+				}
+				if err := backend.ReadSnapshot(ctx, callback); err != nil {
+					return err
+				}
+				switch scenario {
+				case "cleanup":
+					return fault
+				case "twice":
+					_ = backend.ReadSnapshot(ctx, callback)
+				case "cancel":
+					cancel()
+				}
+				return nil
+			})
+			store, err := accountmodel.NewCredentialStore(scopes, f.binding, models.GroupDescriptor{}, models.PermissionDescriptor{})
+			if err != nil {
+				t.Fatal(err)
 			}
-			if err := backend.ReadSnapshot(ctx, callback); err != nil {
-				return err
+			got, found, err := store.CredentialByID(ctx, f.user.PrincipalID)
+			cancel()
+			if err == nil || found || got.SessionStamp() != "" {
+				t.Fatal(scenario, "published failed snapshot")
 			}
-			switch scenario {
-			case "cleanup":
-				return fault
-			case "twice":
-				_ = backend.ReadSnapshot(ctx, callback)
-			case "cancel":
-				cancel()
+			if (scenario == "cleanup" || scenario == "ignored_callback_error") && (!errors.Is(err, fault) || strings.Contains(fmt.Sprintf("%+v", err), "private")) {
+				t.Fatal("failure cause or redaction", scenario, err)
 			}
-			return nil
+			if scenario == "cancel" && !errors.Is(err, context.Canceled) {
+				t.Fatal("cancellation lost", err)
+			}
+			selfPasswordPrivate(t, err, fault.Error())
 		})
-		store, err := accountmodel.NewCredentialStore(scopes, f.binding, models.GroupDescriptor{}, models.PermissionDescriptor{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		got, found, err := store.CredentialByID(ctx, f.user.PrincipalID)
-		cancel()
-		if err == nil || found || got.SessionStamp() != "" {
-			t.Fatal(scenario, "published failed snapshot")
-		}
-		if (scenario == "cleanup" || scenario == "ignored_callback_error") && (!errors.Is(err, fault) || strings.Contains(fmt.Sprintf("%+v", err), "private")) {
-			t.Fatal("failure cause or redaction", scenario, err)
-		}
-		if scenario == "cancel" && !errors.Is(err, context.Canceled) {
-			t.Fatal("cancellation lost", err)
-		}
+	}
+	if !reflect.DeepEqual(before, accountNativeSnapshot(t, backend)) {
+		t.Fatal("failed snapshot observation changed native state")
 	}
 }
 
