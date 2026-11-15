@@ -5990,6 +5990,24 @@ Relation 필수 목록은 4,832→4,884, PostgreSQL은 5,870→5,922다. 고정 
 통과했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 본문의 실제 양 DB·race·CGO0·전체 platform 실행과 필수 원본
 대조, 고정 사용자/credential 제품 서비스 정리와 I1 전체 수용은 계속 필요하다.
 
+## GDJ-0138 — 고정 자기 비밀번호·reset 제품 API 제거
+
+2026-11-15, source `c732d76f` 위에서 고정 `identity.PasswordChanger`·`PasswordResetter`와 `systemstate`의 두 persistence
+어댑터를 제거했다. 자기 변경·reset의 모든 실제 소비자가 선택 owner로 이관된 뒤 남은 상호 참조와 전용 runtime 필드를
+확인했다. 기본/사용자 정의 계정은 `identity/model`의 정확한 store·manager·verifier·typed 정책을 사용한다. 공통 token,
+메일러와 Account/Web 계약 및 역사 schema·provision/transition/handoff 코드는 유지한다.
+
+메일 설정 검사에서 제거 타입 하나만 빼고 실제 키가 있는 선택 `PasswordResetConfig[M]`와 `RuntimeResetConfig`, owner의
+fmt 다섯 형식·JSON 비노출을 기존 필수 unit root에서 대조하도록 보강했다. Caller 설정을 비운 뒤가 아니라 원래 키를 가진
+설정 사본을 검사한다. Mail 내용/수신자/URL·시작 시 다른 owner 거부와 현재 선택 session/HTTP/native 실패 검사는 유지한다.
+필수 실행 목록, 독립 Django 원문/producer와 생성물은 변경하지 않았다. 현행 Account 사용법과 ADR의 공개 조립 설명을
+선택 runtime에 맞췄다. 남은 고정 Manager의 관리자 비밀번호 검사·사용자 서비스와 Directory/역사 이행은 별도 범위다.
+
+로컬에서는 제거한 API/필드의 잔여 참조, gofmt·diff·문서 링크와 Python CI 실행 owner 검사 두 개를 확인했다.
+Go compile/test/generate/DB는 실행하지 않았다. 선행 source의 [CI 43655914923](https://github.com/progresshans/godj/actions/runs/43655914923)는
+아직 진행 중이며 새 API 제거 source의 통과 근거가 아니다. 이 변경의 전체 원격 compile·양 DB·race·CGO0·process·platform과
+필수 원본 대조 및 I1 전체 수용은 계속 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

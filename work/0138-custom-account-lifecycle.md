@@ -987,6 +987,12 @@ HTTP 상태·쿠키·실제 효과로 나타나도록 검사한다. 고정 reset
 검사는 opaque authority를 직접 사용한다. 실제 같은 key/다른 생성 owner 거부와 custom 변형의 외부 소비자는 유지한다.
 새 본문의 원격 실행·전체 I1 수용과 남은 고정 사용자/credential 제품 서비스 정리는 계속 필요하다.
 
+자기 비밀번호 변경과 reset의 고정 제품 서비스·`systemstate` 어댑터를 제거했다. 기본/사용자 정의 모델 모두 선택 runtime의
+정확한 store·manager·verifier와 정책을 사용하며, 공개 prepared-value 호환 API는 두지 않는다. 공통 token/메일/HTTP 계약과
+역사 schema·handoff·원문/producer는 유지한다. 키가 실제로 들어 있는 선택 reset 설정의 fmt/JSON 비노출 검사를 보강했으며
+기존 필수 실행 항목은 그대로다. 남은 고정 Manager 관리자 비밀번호 검사와 사용자 서비스, Directory·역사 이행은 별도다.
+제품 API 제거와 정적 확인을 현재 source의 양 DB·원격 전체 수용으로 계산하지 않는다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

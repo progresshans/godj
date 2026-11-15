@@ -86,8 +86,6 @@ type Runtime struct {
 	sessionStore      *durableSessionStore
 	auditCapacity     int
 	loginRecorder     *identity.LoginRecorder
-	passwordConfirmer auth.PasswordConfirmer
-	passwordHasher    auth.PasswordHasher
 	identityOwnership IdentityTransition
 	operatorOwnership bool
 }

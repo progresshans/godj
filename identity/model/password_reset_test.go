@@ -131,15 +131,22 @@ func TestAccountPasswordResetterRequiresExactSourceAndOwnersBeforeIO(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
+	diagnosticConfig := config
 	config.Keys = auth.PasswordResetKeyRing{}
 	config.MaxPasswordBytes = 1
 	if persistence.Sessions() != manager || !source.PasswordResetEmailAvailable() || owner.MaxPasswordBytes() != 1024 || !source.PasswordResetAuthority().Valid() || source.PasswordResetAuthority().Matches(second.PasswordResetAuthority()) {
 		t.Fatal("reset metadata did not retain its exact owner")
 	}
-	for _, value := range []any{owner, config} {
+	for _, value := range []any{owner, diagnosticConfig, accountmodel.RuntimeResetConfig{Keys: keys}} {
 		data, err := json.Marshal(value)
-		if err != nil || strings.Contains(string(data), strings.Repeat("@", 32)) || !strings.Contains(fmt.Sprintf("%#v", value), "redacted") {
+		if err != nil || strings.Contains(string(data), strings.Repeat("@", 32)) {
 			t.Fatal("reset diagnostics leaked", err)
+		}
+		for _, format := range []string{"%v", "%+v", "%#v", "%s", "%q"} {
+			text := fmt.Sprintf(format, value)
+			if !strings.Contains(text, "redacted") || strings.Contains(text, strings.Repeat("@", 32)) {
+				t.Fatal("reset formatting leaked configuration")
+			}
 		}
 	}
 	for _, invalid := range []string{"", "bad\x00principal"} {

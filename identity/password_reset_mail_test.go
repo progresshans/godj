@@ -224,11 +224,7 @@ func TestPasswordResetMailConfigurationAndDiagnostics(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	keys, err := auth.NewPasswordResetKeyRing(bytes.Repeat([]byte{51}, 32))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, item := range []any{value, content, config, mailer, PasswordResetConfig{Keys: keys}} {
+	for _, item := range []any{value, content, config, mailer} {
 		for _, format := range []string{"%v", "%+v", "%#v", "%s", "%q"} {
 			text := fmt.Sprintf(format, item)
 			if strings.Contains(text, "private-reset-") || strings.Contains(text, "example.test") {

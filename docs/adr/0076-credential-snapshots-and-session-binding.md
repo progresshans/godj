@@ -583,11 +583,11 @@ Username 변경은 같은 ID의 확인을 무효화하지 않는다. Hash/creden
 일반 인증 거부가 된다. 이를 감싼 실행 오류·취소는 원인과 private diagnostic 경계를 유지한다.
 확인 자체는 password/last_login/session을 쓰지 않는다.
 
-Self-service는 명시적인 `PasswordChangePersistence`로 준비하며 정확한 session manager와 native identity runtime에 결합한다.
-현재 세션 ID가 본인을 식별하고 target ID·관리 change_user 권한은 입력으로 받지 않는다. Legacy operator에는 이 capability가 없다.
-`PasswordChanger`는 이전 credential stamp와 old password를 확인하고, 별도로 주입한 password policy를 현재 profile에 적용한다.
-새 hash는 종료된 read scope 밖에서 한 번 생성한다. 불변 prepared 값은 raw/encoded password getter가 없고 fmt/JSON에 값이 나오지 않는다.
-호출자는 이 값을 request 이후 보관하지 않는다. 관리 비밀번호 정책과 같은 정책을 주입하는 책임은 composition에 있다.
+Self-service는 선택 `Runtime.PasswordChangePersistence()`로 준비하며 정확한 session manager·선택 source·credential owner에 결합한다.
+현재 세션 ID가 본인을 식별하고 target ID·관리 change_user 권한은 입력으로 받지 않는다. 역사 `systemstate.Runtime`에는 이 capability가 없다.
+선택 owner는 이전 credential stamp와 old password를 확인하고, 생성/관리 변경과 공유하는 typed password policy를 현재 profile에 적용한다.
+새 hash는 종료된 read scope 밖에서 한 번 생성한다. 준비 값은 한 호출 내부에만 있으며 raw/encoded password getter나
+공개 prepared API를 제공하지 않는다. 개별 Store로 직접 조립할 때도 같은 정책·byte 한도를 공유할 책임은 composition에 있다.
 
 최종 native write fence 안에서 현재 User의 active/credential과 실제 저장 session의 ID/principal/stamp를 다시 확인한다.
 Profile policy도 현재 행으로 다시 검증한다. 현재 세션 payload와 원래 absolute lifetime을 보존하며 ID와 stamp를 회전하고,
@@ -648,16 +648,17 @@ rollback/unknown 검증을 구분한다. Reset과 기본 UserCreationForm은 이
 
 ## 비밀번호 재설정 token과 원자 저장
 
-`identity.PasswordResetter`는 `ManagementBackend`와 명시적 hasher·`PasswordResetConfig`에 결합한다.
+`identity/model.PasswordResetter[M]`는 선택 `SessionStore[M]`와 정확한 manager·verifier·typed 설정에 결합한다.
+고정 User용 resetter와 `systemstate`의 password change/reset 어댑터는 제거했으며, 기본 User도 같은 선택 owner를 사용한다.
 서버 내부의 `IssueToken(ctx, principalID)`는 현재 active/usable 계정을 읽어 수신자에게만 전달할 값을 만든다.
 이 함수를 identifier 기반 공개 조회 API로 노출하지 않는다. 수신자 선택은 reset 저장 owner가 소유하고,
-공통 email 정규화·메일 전달은 아래 계약을 따른다. 실제 HTTP 소비자는 `identity/account`에 연결한다. `CheckPassword`는 token과 선택적인 새 password를 읽기 전용으로 검사하며,
+공통 email 정규화·메일 전달은 아래 계약을 따른다. 실제 HTTP 소비자는 `identity/account`에 연결한다. `CheckPasswordReset`은 저장 proof와 선택적인 새 password를 읽기 전용으로 검사하며,
 새 hash·write admission·session을 만들지 않는다. Raw token은 명시적인 `Encoded()`로만 꺼내고 fmt/JSON에서는 감춘다.
 
 `auth.PasswordResetKeyRing`은 active 1개와 validation 전용 최대 7개의 서로 다른 32-byte 키를 소유 복사한다.
 키의 생성·보관·배포는 host가 맡고 CSRF/session 키와 공유하는 API를 제공하지 않는다. 검증은 모든 등록 키를 확인한다.
 Token은 domain-separated HMAC-SHA256의 전체 MAC과 canonical base-36 Unix 초를 raw URL-base64와 함께 인코딩한다.
-HMAC 입력은 길이 framing한 저장 row ID·stable principal ID·credential stamp·email 원문·UTC last_login·발급 시각이다.
+HMAC 입력은 길이 framing한 저장 row ID·stable principal ID·선택 domain에 결합한 credential stamp·email 원문·UTC last_login·발급 시각이다.
 URL에는 password·stamp·email을 넣지 않으며 wire 형식은 Django와 호환되지 않는다.
 기본 만료는 Django와 같은 72시간이고 host는 양의 정수 초 duration을 선택한다. 경계 초는 유효하며 미래 발급은 거부한다.
 Key ring과 validator 목록은 생성 후 불변이고 clock/validator callback은 pure·concurrency-safe여야 한다.
@@ -747,25 +748,19 @@ redirect에는 raw token이 없으며, 다른 브라우저·다른 계정의 hid
 Native HTTP 관찰은 이 결과를 감추지 않는다. GoDj는 기존 reset 계약의 최종 active/usable 재검사와 즉시 세션 폐기를 유지하며,
 확인에 사용한 session/proof 정리도 password·revocation·audit와 같은 native transaction에 결합한다.
 
-그 결합을 위해 `PasswordResetter.Prepare`는 읽기 종료 뒤 hash를 한 번 준비하고 owner에 결합한 불변
-`PreparedPasswordReset`을 반환한다. `ApplyIn`은 호출자의 같은 저장 영역에 속한 coordinated transaction 안에서
-현재 token·account·만료·password policy를 다시 확인하고 password/현재 revision·대상 session 폐기·audit를 쓴다.
-자체 transaction을 열거나 commit하지 않으며, 이후 proof 저장이 실패하면 호출자가 전체 변경을 rollback해야 한다.
-이 값은 호출 작업 동안만 보유한다. 실패 또는 unknown 결과를 자동 재시도하지 않고, 확인된 rollback 뒤 명시적으로 재사용해도
-최종 인가를 생략하지 않는다. 다른 resetter의 준비 값은 거부한다. 기존 `ResetPassword`도 같은 Prepare/ApplyIn 경로를 사용한다.
+선택 reset owner는 읽기 종료 뒤 hash를 한 번 준비하고, 같은 native transaction 안에서 현재 token·account·만료·typed
+password policy를 다시 확인하여 password/현재 revision·대상 session 폐기·proof 정리·audit를 쓴다. 준비 값과 borrowed
+scope 관찰은 내부 구현이며 공개 `Prepare`/`ApplyIn`/`CheckTokenIn`은 제공하지 않는다. 뒤의 proof 저장이 실패해도 같은
+owner가 전체 변경을 rollback한다. Advisory 확인은 후속 쓰기 권한이 아니며 실패 또는 unknown 결과를 자동 재시도하지 않는다.
+Native fixture나 transaction/runtime 검증과 실제 공개 HTTP 검증의 범위는 계속 구분한다.
 
-`CheckTokenIn`은 같은 저장 영역의 빌린 coherent read/write scope에서 현재 token만 관찰한다. 새 snapshot·hash·write를 만들지
-않으며 세션에 proof를 저장할 때 같은 fence에서 admission을 확인하기 위한 것이다. 이 관찰은 나중의 write 권한이 아니다.
-실제 proof session persistence와 Web runtime은 아래 계약을 사용하며 Form/API·독립 client는 마지막 소비자 계약을 따른다.
-Native fixture나 transaction/runtime 검증과 실제 공개 HTTP 검증의 범위를 구분한다.
-
-`Runtime.PasswordResetPersistence(manager, config)`는 해당 Identity runtime의 정확한 durable store와 manager에 결합한다.
-생성은 I/O 없이 수행하고, `Resetter()`로 같은 key ring·policy owner에 메일 requester를 연결한다.
+선택 `Runtime.PasswordResetter(config)`는 해당 runtime의 정확한 store·manager·verifier·정책에 결합한다.
+생성은 I/O 없이 수행하고, 같은 reset owner를 메일 requester의 source로 연결한다.
 공통 `auth.PasswordResetPersistence` 계약을 Web runtime에 명시적으로 주입하며 Web 설정의 manager와 다르면 startup에서 거부한다.
 Persistence는 초기화된 `auth.PasswordResetAuthority`를 제공한다. 이는 immutable reset owner 하나의 프로세스 내 식별이며
 서명 키·durable credential domain·bearer capability가 아니다. Mail source와 완료 persistence는 같은 식별을 공유해야 한다.
 키나 경로가 우연히 같아도 다른 owner를 조립하면 `identity/account` 시작 시 거부한다. 이 검사는 DB·해싱·메일 I/O를 수행하지 않는다.
-Legacy operator runtime은 이 기능을 제공하지 않는다.
+역사 `systemstate` runtime은 이 기능을 제공하지 않는다. 저장된 역사 데이터의 이행·퇴역·복구는 별도 handoff 계약을 따른다.
 
 Entry는 현재 token을 읽기 전용으로 검사한 다음 같은 write fence에서 다시 확인한다. 기존의 활성 session이 있으면
 최신 payload·인증 값·생성 시각·absolute lifetime을 보존하면서 ID를 회전하고 reset target/token을 서버 값에 추가한다.
