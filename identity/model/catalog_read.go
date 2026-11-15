@@ -3,8 +3,6 @@ package model
 import (
 	"context"
 	"fmt"
-	"strings"
-	"unicode/utf8"
 
 	accountaudit "github.com/progresshans/godj/account/audit"
 	"github.com/progresshans/godj/admin"
@@ -178,13 +176,8 @@ func checkCatalogScalars(model ir.Model, name, code string, values map[string]qu
 		if !present {
 			continue
 		}
-		if text, textual := value.String(); textual {
-			if !utf8.ValidString(text) || strings.ContainsRune(text, 0) {
-				return profileInputError(field.Name, "invalid")
-			}
-			if field.MaxLength > 0 && utf8.RuneCountInString(text) > field.MaxLength {
-				return profileInputError(field.Name, "max_length")
-			}
+		if err := checkModelText(field, value); err != nil {
+			return err
 		}
 		if field.Name == name {
 			if text, valid := value.String(); !valid || text == "" {

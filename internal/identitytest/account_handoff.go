@@ -447,9 +447,6 @@ func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, T
 				if err := f.runtime.AppendAudit(t.Context(), scope, event); err == nil {
 					t.Fatal("borrowed writer changed the retired archive")
 				}
-				if _, err := f.runtime.RevokePrincipalSessions(t.Context(), scope, f.user.PrincipalID); err == nil {
-					t.Fatal("borrowed writer revoked retired sessions")
-				}
 				return nil
 			}))
 			if err := f.runtime.SessionStore().Delete(t.Context(), f.ids[0]); err == nil {

@@ -116,24 +116,24 @@ func (*PasswordResetMailer) MarshalJSON() ([]byte, error) {
 
 func NewPasswordResetMailer(source auth.PasswordResetMailSource, sender mail.Sender, config PasswordResetMailConfig) (*PasswordResetMailer, error) {
 	if nilIdentityValue(source) || !source.PasswordResetAuthority().Valid() || !source.PasswordResetEmailAvailable() || nilIdentityValue(sender) || config.From.Mailbox() == "" {
-		return nil, managementError(CodeInvalidConfig, "password_reset_mail", nil)
+		return nil, identityFailure(CodeInvalidConfig, "password_reset_mail", nil)
 	}
 	origin, err := url.Parse(config.Origin)
 	if err != nil || origin == nil || origin.Host == "" || origin.Hostname() == "" || strings.HasSuffix(origin.Host, ":") || origin.Opaque != "" || origin.User != nil || origin.Path != "" ||
 		origin.RawPath != "" || origin.RawQuery != "" || origin.ForceQuery || origin.Fragment != "" || origin.RawFragment != "" ||
 		strings.ContainsAny(config.Origin, "\\\r\n\t #?") || len(config.Origin) > 2048 {
-		return nil, managementError(CodeInvalidConfig, "password_reset_origin", nil)
+		return nil, identityFailure(CodeInvalidConfig, "password_reset_origin", nil)
 	}
 	if origin.Scheme != "https" {
 		ip := net.ParseIP(origin.Hostname())
 		if origin.Scheme != "http" || ip == nil || !ip.IsLoopback() {
-			return nil, managementError(CodeInvalidConfig, "password_reset_origin", nil)
+			return nil, identityFailure(CodeInvalidConfig, "password_reset_origin", nil)
 		}
 	}
 	if port := origin.Port(); port != "" {
 		value, err := strconv.Atoi(port)
 		if err != nil || value < 1 || value > 65535 || strconv.Itoa(value) != port {
-			return nil, managementError(CodeInvalidConfig, "password_reset_origin", nil)
+			return nil, identityFailure(CodeInvalidConfig, "password_reset_origin", nil)
 		}
 	}
 	if config.ConfirmPath == "" {
@@ -142,18 +142,18 @@ func NewPasswordResetMailer(source auth.PasswordResetMailSource, sender mail.Sen
 	if len(config.ConfirmPath) > 128 || !utf8.ValidString(config.ConfirmPath) || config.ConfirmPath == "/" ||
 		!strings.HasPrefix(config.ConfirmPath, "/") || path.Clean(config.ConfirmPath) != config.ConfirmPath ||
 		strings.ContainsAny(config.ConfirmPath, "\\%?#<> ") || strings.IndexFunc(config.ConfirmPath, func(char rune) bool { return char < 32 || char == 127 }) >= 0 {
-		return nil, managementError(CodeInvalidConfig, "password_reset_path", nil)
+		return nil, identityFailure(CodeInvalidConfig, "password_reset_path", nil)
 	}
 	if config.SiteName == "" {
 		config.SiteName = "GoDj"
 	}
 	if !utf8.ValidString(config.SiteName) || len(config.SiteName) > 256 || strings.IndexFunc(config.SiteName, func(char rune) bool { return char < 32 || char == 127 }) >= 0 {
-		return nil, managementError(CodeInvalidConfig, "password_reset_site", nil)
+		return nil, identityFailure(CodeInvalidConfig, "password_reset_site", nil)
 	}
 	if config.Renderer == nil {
 		config.Renderer = PasswordResetMailRendererFunc(defaultPasswordResetMail)
 	} else if nilIdentityValue(config.Renderer) {
-		return nil, managementError(CodeInvalidConfig, "password_reset_renderer", nil)
+		return nil, identityFailure(CodeInvalidConfig, "password_reset_renderer", nil)
 	}
 	config.Origin = origin.String()
 	return &PasswordResetMailer{&passwordResetMailer{source, sender, config}}, nil
@@ -191,13 +191,13 @@ func (mailer *PasswordResetMailer) PasswordResetAuthority() auth.PasswordResetAu
 // exposing addresses or links, and the operation never automatically retries.
 func (mailer *PasswordResetMailer) Request(ctx context.Context, email string) error {
 	if nilIdentityValue(ctx) {
-		return managementError(CodeInvalidInput, "context", nil)
+		return identityFailure(CodeInvalidInput, "context", nil)
 	}
 	if err := ctx.Err(); err != nil {
-		return managementError(CodePersistence, "password_reset_request", err)
+		return identityFailure(CodePersistence, "password_reset_request", err)
 	}
 	if mailer == nil || mailer.state == nil {
-		return managementError(CodeInvalidConfig, "password_reset_mail", nil)
+		return identityFailure(CodeInvalidConfig, "password_reset_mail", nil)
 	}
 	cleaned, failures := auth.CleanPasswordResetEmail(email)
 	if !failures.Empty() {
@@ -209,36 +209,36 @@ func (mailer *PasswordResetMailer) Request(ctx context.Context, email string) er
 		return err
 	}
 	if err := ctx.Err(); err != nil {
-		return managementError(CodePersistence, "password_reset_request", err)
+		return identityFailure(CodePersistence, "password_reset_request", err)
 	}
 	if len(tokens) > auth.MaximumPasswordResetCandidates {
-		return managementError(CodePersistence, "password_reset_candidates", nil)
+		return identityFailure(CodePersistence, "password_reset_candidates", nil)
 	}
 	messages := make([]mail.Message, 0, len(tokens))
 	for _, token := range tokens {
 		if _, valid := auth.ParsePasswordResetToken(token.Encoded()); !valid || token.PrincipalID() == "" {
-			return managementError(CodePersistence, "password_reset_candidates", nil)
+			return identityFailure(CodePersistence, "password_reset_candidates", nil)
 		}
 		recipient, err := mail.ParseAddress(token.Email())
 		if err != nil {
-			return managementError(CodeDelivery, "password_reset_recipient", err)
+			return identityFailure(CodeDelivery, "password_reset_recipient", err)
 		}
 		link := state.config.Origin + state.config.ConfirmPath + "/" + base64.RawURLEncoding.EncodeToString([]byte(token.PrincipalID())) + "/" + token.Encoded() + "/"
 		data := PasswordResetMail{&passwordResetMail{token.Username(), state.config.SiteName, link}}
 		content, err := state.config.Renderer.RenderPasswordResetMail(ctx, data)
 		if err = errors.Join(err, ctx.Err()); err != nil {
-			return managementError(CodeDelivery, "password_reset_render", err)
+			return identityFailure(CodeDelivery, "password_reset_render", err)
 		}
 		remaining := MaximumPasswordResetMailBytes
 		for _, value := range []string{content.Subject, content.Text, content.HTML} {
 			if len(value) > remaining {
-				return managementError(CodeDelivery, "password_reset_render_size", nil)
+				return identityFailure(CodeDelivery, "password_reset_render_size", nil)
 			}
 			remaining -= len(value)
 		}
 		message, err := mail.NewMessage(mail.MessageConfig{From: state.config.From, To: []mail.Address{recipient}, Subject: content.Subject, Text: content.Text, HTML: content.HTML})
 		if err != nil {
-			return managementError(CodeDelivery, "password_reset_render", err)
+			return identityFailure(CodeDelivery, "password_reset_render", err)
 		}
 		messages = append(messages, message)
 	}
@@ -257,7 +257,7 @@ func (mailer *PasswordResetMailer) Request(ctx context.Context, email string) er
 		if errors.Is(err, &mail.Error{Code: mail.CodeOutcomeUnknown}) {
 			code = CodeOutcomeUnknown
 		}
-		return managementError(code, "password_reset_delivery", err)
+		return identityFailure(code, "password_reset_delivery", err)
 	}
 	// A sender's confirmed acceptance is not revoked by late cancellation.
 	return nil

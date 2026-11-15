@@ -119,6 +119,16 @@ func TestAccountPasswordEditorRequiresExactSourceAndOwnersBeforeIO(t *testing.T)
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, empty := range []*accountmodel.PasswordEditor[models.User]{nil, {}} {
+		result, err := empty.SetPassword(t.Context(), actor, 1, 1, "private password")
+		if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) || result != (accountmodel.PasswordEditResult{}) {
+			t.Fatal("uninitialized password owner admitted a replacement", err)
+		}
+		result, err = empty.SetUnusablePassword(t.Context(), actor, 1, 1)
+		if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeInvalidConfig}) || result != (accountmodel.PasswordEditResult{}) {
+			t.Fatal("uninitialized password owner admitted disablement", err)
+		}
+	}
 	for _, revision := range []int64{-1, 0, math.MaxInt64} {
 		if result, err := owner.SetPassword(t.Context(), actor, 0, revision, "secret"); err == nil || result != (accountmodel.PasswordEditResult{}) {
 			t.Fatal("invalid revision reached I/O")

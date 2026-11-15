@@ -104,13 +104,13 @@ Startup이 DDL이나 backfill을 대신하지 않는다. 이 schema 기반의 �
 
 ## 관리자 비밀번호 교체
 
-`identity.Manager.SetPassword`는 인증된 actor와 대상 User ID·expected revision을 받는다. 먼저 native snapshot에서
-actor의 현재 active/직접·그룹/superuser 권한과 대상 revision을 확인한다. `godj_identity.change_user`와 Authorizer의
+선택 `Runtime.Accounts().Passwords().SetPassword`는 인증된 actor와 대상 계정 ID·expected revision을 받는다. 먼저 native snapshot에서
+현재 domain과 actor의 active/직접·그룹/superuser 권한 및 대상 revision을 확인한다. 명시한 change·추가 권한과 Authorizer의
 deny overlay를 모두 요구하며 요청에 실린 오래된 권한을 현재 권한 대신 쓰지 않는다. 해시는 읽기 종료 뒤 최대 한 번 생성한다.
 같은 coordinated write fence 안에서 현재 인가·revision·이전 credential stamp를 다시 확인한 후 hash와 revision을 갱신한다.
 Hash가 기존 credential과 같으면 새 stamp를 만들지 못하므로 거부한다. 같은 원문 비밀번호의 정상적인 새 salt는 허용한다.
 
-대상 principal의 durable session만 폐기하고 값 없는 `password` 변경 audit를 같은 transaction에 쓴다. 세션은 전체 bounded
+현재 domain의 대상 principal session만 폐기하고 실제 Password 역할 필드의 값 없는 audit를 같은 transaction에 쓴다. 세션은 전체 bounded
 inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 뒤 삭제한다. 뒤 batch의 손상·삭제 실패·감사 저장 실패에도
 앞의 User/session 변경을 rollback한다. 다른 사용자와 anonymous session의 bytes는 보존한다.
 `auth.SessionPrincipalIDKey`·`SessionCredentialStampKey`가 로그인과 maintenance의 같은 서버 저장 키를 소유한다.
@@ -121,26 +121,29 @@ inventory를 확인한 뒤 256행 keyset batch로 읽으며 SELECT를 종료한 
 자기 계정을 관리자 권한으로 교체해도 현재 세션을 특별히 유지하지 않는다. 자기 비밀번호 확인·현재 세션 회전을 제공하는
 self-service와 reset service, 메일 요청·Form/API 소비자는 아래 별도 계약을 사용한다. 관리 Form/Admin/API는 이 정책을 사용한다.
 
-실패나 unknown outcome에는 Profile을 게시하지 않고 자동 재시도하지 않는다. Unknown rollback/commit 분류는 일반 callback
+실패나 unknown outcome에는 결과 metadata를 게시하지 않고 자동 재시도하지 않는다. Unknown rollback/commit 분류는 일반 callback
 오류보다 우선하며 `errors.Is/As`로 확인한다. 정상 commit 뒤 늦은 취소는 이미 확인된 성공을 뒤집지 않는다. 현재 revision과
 audit 조회만으로 특정 요청의 성공을 증명한다고 주장하지 않으며, 이 서비스는 일반적인 command receipt/idempotency API를 제공하지 않는다.
 
 ## 사용자 생성·조회·편집·삭제
 
-`identity.Manager`는 현재 저장 인가를 사용하는 `CreateUser`, `User`/`Users`, `UpdateUser`, `DeleteUser`를 제공한다.
+선택 `Runtime.Accounts()`의 Creator·Reader·Editor·Deleter가 현재 저장 인가를 사용하는 생성·조회·편집·삭제를 제공한다.
+고정 `identity.Manager`와 전용 입력 DTO·준비 값·설정 adapter는 제거하며 기본 User도 같은 선택 owner를 사용한다.
 생성에는 `add_user`와 `change_user`를 모두 요구한다. 고정 Django `UserAdmin`의 실제 add view가 두 권한을 요구하기 때문이다.
 조회에는 `view_user` 또는 `change_user`, 편집에는 `change_user`, 삭제에는 `delete_user`가 필요하다.
 각 permission의 Authorizer deny overlay도 적용한다. 이 service의 인가는 Admin의 active staff 진입 조건과 별개다.
 호스트는 이미 인증한 actor를 전달하며 요청에 담긴 과거 권한 대신 현재 User·직접/그룹 grant·role을 같은 snapshot에서 확인한다.
 
-`UserCreate`의 principal ID는 호스트가 선택하고 이후 불변이다. Password는 별도 인자로 받는다.
-`UserPatch`는 공개 profile·role·그룹/직접 권한만 허용하며 hash·principal ID·revision·가입/최근 로그인 시각 setter를 제공하지 않는다.
+Principal ID는 호스트의 생성 공급자가 선택하고 이후 불변이다. Password는 별도 명령 인자로 받는다.
+선택 ModelInput은 공개 profile·role·그룹/직접 권한만 허용하며 hash·principal ID·revision·가입/최근 로그인 시각을 제출 필드로 받지 않는다.
 입력과 반환 collection은 복사본이다. 관계 입력 생략은 유지, 명시적 빈 collection은 전체 해제다.
 삭제 결과에는 ID·revision·삭제 건수만 포함한다. 삭제 권한만으로 전체 Profile을 공개하지 않는다.
 
-Username의 NFKC와 email의 마지막 `@` 뒤 domain에 대한 full Unicode 소문자 변환은 고정 Django manager를 따른다.
+기본 User의 명시된 Username NFKC와 email의 마지막 `@` 뒤 domain에 대한 full Unicode 소문자 정책은 고정 Django manager를 따른다.
 정규화 전후 username에는 auth의 UTF-8·1,024-byte·NUL/바깥 공백 제한을 적용하고, 정규화 결과는 User의 Schema IR 256자 한도를 검사한다.
-Byte envelope는 모든 UTF-8 폭의 256자를 운반하는 상한이며 모델의 글자 수 제한을 대신하지 않는다. 저장 profile 조회에도 IR 한도를 적용한다.
+Byte envelope는 모든 UTF-8 폭의 256자를 운반하는 상한이며 모델의 글자 수 제한을 대신하지 않는다. 다른 선택 모델은 자신의 역할 정책과 IR 한도를 쓴다.
+저장 profile의 상세·목록·이력은 모든 문자열의 UTF-8·NUL·IR 길이를 검사한다. 손상은 실행 오류이며 부분 결과를 게시하지 않는다.
+Catalog와 같은 표현 검사를 사용하지만 읽기에서 입력 정규화·필수/choice/host validation을 실행하지 않으므로 표현 가능한 역사 원문은 보존한다.
 Email은 변환 전 잘못된 UTF-8·NUL·4,096-byte 초과를 거부하고, 최종 email 254자와 이름 각 150자 제한을 적용한다.
 단순 `strings.ToLower`는 `İ` 확장과 문맥에 따른 Greek sigma가 달라 사용하지 않는다. 고정 Unicode 16의 full lowercase와 Final_Sigma를 사용한다.
 이는 Django `UserCreationForm` 전체 호환 선언이 아니다. Form의 현재 지원 범위와 Unicode/credential의 계층별 경계는 아래에 명시한다.
@@ -153,7 +156,7 @@ Email은 변환 전 잘못된 UTF-8·NUL·4,096-byte 초과를 거부하고, 최
 Active에서 inactive로 바뀌면 현재 저장된 대상 session을 같은 transaction에서 폐기한다. 이미 허용된 요청에 대한 제한은 password 교체와 같다.
 그룹 입력과 저장 집합은 최대 256개, 직접/그룹 유효 권한 합집합은 기존 auth 한도인 256개다. 초과를 자르지 않고 거부한다.
 
-삭제에는 호스트가 생성한 전체 `orm.RelationDeleter[models.User]`를 명시한다. Identity 앱만의 정책을 자동 선택하지 않는다.
+삭제에는 선택 runtime을 조립할 때 호스트가 생성한 전체 typed relation deleter를 명시한다. Identity 앱만의 정책을 자동 선택하지 않는다.
 `DeleteInSession`은 native `SessionValidator`가 있는 borrowed relation session에서 전체 CASCADE·PROTECT·SET_NULL을 실행한다.
 새 transaction을 열거나 caller model의 PK를 지우지 않으며 반환 건수는 바깥 commit 전까지 잠정 값이다.
 호스트 관계 삭제·대상 session 폐기·감사는 같은 transaction이고 뒤의 실패도 전부 rollback한다.
@@ -356,9 +359,9 @@ Initial과 raw redisplay를 변경하지 않으며 changed 비교에도 같은 �
 Email은 고정 Django EmailValidator의 quoted local/Unicode BMP domain/IP literal 문법을 적용한다. Password 두 값은 strip/NFKC
 없이 비교하고 mismatch를 password2에 표시하며 모든 재표시에서 원문을 비공개로 유지한다.
 
-`identity.WithPasswordValidators`는 pure·동시 사용 가능한 host 정책을 설정한다. 기본은 Django의 빈
-AUTH_PASSWORD_VALIDATORS와 같이 strength 검사가 없다. Create/SetPassword는 hash 전과 마지막 write fence 안에서 정책을
-검사하며 각 validator에 Profile의 복사본을 준다. Password 또는 non-field 오류만 허용하고, 취소/cleanup/unknown을 확인된
+`RuntimeConfig.Accounts.ValidatePassword`는 pure·동시 사용 가능한 typed host 정책을 설정한다. 생략하면 Django의 빈
+AUTH_PASSWORD_VALIDATORS와 같이 strength 검사가 없다. 생성/비밀번호 변경은 hash 전과 마지막 write fence 안에서 정책을
+검사하며 현재 프로필을 불변 `ModelView`로 준다. Password 또는 non-field 오류만 허용하고, 취소/cleanup/unknown을 확인된
 입력 거부로 바꾸지 않는다. Form adapter는 password 오류를 password2로 연결한다. 내장 strength 정책은 아래에 정의한다.
 
 `internal/unicode16`은 고정 CPython 3.14.3과 같은 Unicode 16.0.0의 NFKC·full lowercase·문자 분류를 소유한다.
@@ -386,7 +389,7 @@ Callback은 불변 Form의 오류를 먼저 확인하고 성공한 입력만 검
 Pure `forms.Spec`에 DB I/O를 넣지 않는다. 이 읽기 검증은 저장 권한이나 재사용할 수 있는 성공 증명이 아니다.
 
 선택 생성은 같은 read snapshot의 현재 add/change·추가 권한과 명시한 대소문자 무시 중복 정책을 검사하고,
-남은 confirmation 입력을 typed host 정책에 전달한다. 남은 역사 Manager 소비자의 `CheckUserCreation`과 제품 owner를 구분한다. 이름의 required/길이/NUL 오류나 중복은
+남은 confirmation 입력을 typed host 정책에 전달한다. 고정 Manager의 별도 advisory API는 두지 않는다. 이름의 required/길이/NUL 오류나 중복은
 candidate username을 비운다. 모델 문자 문법 오류는 candidate 이름을 유지한 채 strength 검사도 수행한다.
 따라서 중복 이름과 짧은 password, 누락된 password1과 유효한 password2의 정책 오류를 한 번에 표시한다.
 Confirmation mismatch 또는 password2의 field 오류는 strength 검사를 생략한다. 사용 불가 password 선택은
@@ -432,34 +435,23 @@ Django 입력·저장 수명 기준은 선택 Form과 실제 Admin 소비자로�
 초기화되지 않은 Form의 Definition은 명시적 빈 field 선택으로 실패한다. Nil 선택의 전체 model field 의미로 되돌아가
 private 저장 필드를 노출하지 않는다. 독립 Django 입력·준비/저장 기준은 선택 소비자로 이어지며 producer/capture를 유지한다.
 
-다음 Manager 준비/저장 설명은 남은 역사·서비스 소비자의 계약이다. 현재 제품 Form/Admin은 위의 선택 Creator를 사용한다.
-
-`Prepare`는 cleaned 값의 선택·타입·confirmation·문자 문법을 다시 검사한 뒤 현재 Manager에서 credential을 준비한다.
-`Manager.PrepareUserCreation`은 정규화·현재 인가·관계·중복·policy 읽기를 끝내고 hash를 한 번 수행한다.
-사용 불가 준비는 정책/hash를 호출하지 않는다. 이 단계에서는 user·관계·session·audit를 쓰지 않는다.
-결과 `PreparedUserCreation`은 비밀번호·encoding을 공개하지 않는 불변 값이며 원래 Manager와 actor ID에 결합한다.
-준비 시각에 date_joined와 profile 입력을 고정한다. 작업 종료 후 참조를 버리며 암호 메모리의 물리적 삭제를 보장한다고 하지 않는다.
-
-`CommitUserCreation`은 hash 없이 현재 권한·중복·관계·policy를 coordinated write fence에서 다시 검사하고 기존 user/관계/audit의
-원자 저장을 수행한다. 다른 Manager·actor의 후보는 거부하며, 준비 후 권한 회수·중복·관계 삭제도 최종 결과에 반영한다.
-실패나 unknown에는 UserDetails를 게시하지 않고 자동 재시도하지 않는다. 후보의 모든 복사본은 한 번의 저장 시도를 공유한다.
-해당 시도에 진입하면 확정 실패·unknown에도 소비 상태를 유지하며 재시도에는 새 Prepare가 필요하다.
-성공한 사용자가 삭제된 후에도 과거 credential을 재생성할 수 없다. 소유자 거부·진입 전 취소는 후보를 소비하지 않는다.
-남은 Manager의 CreateUser/CreateUserWithUnusablePassword도 이 prepare/commit 경로를 사용한다.
+현재 Form/Admin과 직접 typed 생성은 선택 Creator의 Prepare/PrepareUnusable/Commit을 사용한다. 고정 Manager의
+`PreparedUserCreation`이나 별도 준비·저장 API는 남기지 않는다. 한 번의 hash·현재 owner/actor/domain·후보 사본의 단일 시도,
+최종 권한·중복·관계·정책 재검사와 실패/unknown 뒤 재사용 금지는 위 선택 생성 Form 계약을 따른다.
+사용 불가 준비는 정책/hash를 호출하지 않으며 준비 단계에는 user·관계·session·audit 쓰기가 없다.
+작업 종료 후 준비 값의 참조를 버리며 암호 메모리의 물리적 삭제를 보장한다고 하지 않는다.
 
 고정 Django의 `save(commit=False)`에서 hash 시점·저장 없음·나중 save의 외부 결과를 양 DB에서 관찰한다.
-Python unsaved model의 mutable 속성·password getter·암묵적 권한은 복제하지 않는다. 추가 profile/role/관계는 typed UserCreate로
-준비 전에 선택하고, 그 선택 전체를 마지막 write에서 검사한다. 이 역사 Manager 경로를 모든 ModelForm 저장이나
-선택 모델 제품의 전체 수용으로 계산하지 않는다. [사용 흐름](../../identity/USER_CREATION.md)과 실제 환경별 Evidence를 함께 따른다.
+Python unsaved model의 mutable 속성·password getter·암묵적 권한은 복제하지 않는다. 추가 profile/role/관계는 typed ModelInput으로
+준비 전에 선택하고 전체를 마지막 write에서 검사한다. [사용 흐름](../../identity/USER_CREATION.md)과 실제 환경별 Evidence를 함께 따른다.
 
 ## 내장 password validator와 공통 정책 선택
 
 `auth/passwordpolicy.Default()`는 고정 Django startproject의 similarity·최소 8자·common·numeric 순서를 반환한다.
 자동으로 전역 정책을 켜지 않으며, policy 생략은 기존 빈 AUTH_PASSWORD_VALIDATORS 의미를 유지한다.
 현재 조립은 선택 binding의 typed 정책을 하나의 runtime에 전달해 Form/Admin/API·self-service/reset이 공유한다.
-`Binding.DefaultPasswordValidator`는 실제 속성 선언의 복사본을 소유한다. 고정 Profile용 내장 validator factory는 제거하며,
-남은 역사 password/reset 소비자는 같은 공통 규칙을 host callback으로 조립한다. 역사 Manager의 WithPasswordValidators도
-caller slice를 분리하지만 이 계약이 별도의 고정 제품 조립을 요구하지 않는다.
+`Binding.DefaultPasswordValidator`는 실제 속성 선언의 복사본을 소유한다. 고정 Profile용 factory·validator interface·Manager
+option은 제거했다. 입력·관측과 nullable 프로필의 사본은 공통 ModelInput/ModelView가 소유하며 callback 사이에 가변 행을 공유하지 않는다.
 
 길이는 Unicode 글자 수, 숫자 판정은 Unicode 16 isdigit이다. Similarity는 선택한 public profile 문자열의 full lowercase,
 Python `\W+` 분리(양 끝의 빈 부분 포함), 전체 값에 대한 quick_ratio의 multiset overlap과 inclusive threshold를 따른다.
@@ -490,11 +482,11 @@ Verifier 실행 실패·취소와 실제 malformed hash는 기존 오류 분류�
 사용 불가 설정도 매번 stamp를 바꾸므로 반복 설정은 그 사이의 세션을 무효화한다.
 PasswordHasher.Hash가 예약된 사용 불가 값을 반환하는 잘못된 구성은 허용하지 않는다.
 
-`Manager.CreateUserWithUnusablePassword`는 기존 생성의 현재 add/change 권한·profile·관계·unique와 감사 transaction을 사용한다.
-`Manager.SetUnusablePassword`는 SetPassword와 동일한 현재 인가·expected revision·credential 재검사,
+선택 Creator의 `PrepareUnusable`·`Commit`은 현재 add/change 권한·profile·관계·unique와 감사 transaction을 사용한다.
+선택 PasswordEditor의 `SetUnusablePassword`는 SetPassword와 동일한 현재 인가·expected revision·credential 재검사,
 대상 session 폐기·revision 증가·값 없는 password 감사의 원자성을 사용한다. Marker 생성은 preflight 후 DB scope 밖에서
 한 번만 수행하며 raw password validator/hasher를 호출하지 않는다. 반복 설정도 새 변경이고 no-op으로 축약하지 않는다.
-SetPassword로 복구할 때는 기존 정책·원문·hash 작업을 모두 적용한다. 실패/unknown은 성공 Profile을 게시하지 않으며 재시도하지 않는다.
+SetPassword로 복구할 때는 기존 정책·원문·hash 작업을 모두 적용한다. 실패/unknown은 결과 metadata를 게시하지 않으며 재시도하지 않는다.
 기존 generic login과 관리 변경의 경쟁은 다음 요청의 stamp 검사 경계를 유지한다.
 
 관리 JSON API의 생성/password command는 required `password` member를 사용한다. 명시적 JSON null만 사용 불가 요청이고,

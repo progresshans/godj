@@ -10,6 +10,8 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 const MaximumProfilePageSize = 100
@@ -39,6 +41,7 @@ type ProfileReader[M any] struct{ state *profileReadState[M] }
 type profileReadState[M any] struct {
 	store               *CredentialStore[M]
 	overlay             auth.Authorizer
+	model               ir.Model
 	fields              []string
 	listFields          []string
 	groups, permissions bool
@@ -102,7 +105,7 @@ func NewProfileReader[M any](store *CredentialStore[M], overlay auth.Authorizer,
 		return nil, managementError(CodeInvalidConfig, err)
 	}
 	collections := slices.DeleteFunc(profileMemberships(memberships), func(value deletionMembership) bool { return !selected[value.field] })
-	return &ProfileReader[M]{state: &profileReadState[M]{store: store, overlay: overlay,
+	return &ProfileReader[M]{state: &profileReadState[M]{store: store, overlay: overlay, model: metadata,
 		fields: slices.Clone(config.Fields), listFields: listFields, groups: selected[role.Groups], permissions: selected[role.Permissions], collections: collections, view: view, change: change}}, nil
 }
 
@@ -277,6 +280,9 @@ func (reader *ProfileReader[M]) History(ctx context.Context, actor auth.Principa
 		if _, err := binding.prepareCredentialForDomain(namespace, row, permissions); err != nil {
 			return nil, false, err
 		}
+		if _, err := reader.storedValues(row); err != nil {
+			return nil, false, err
+		}
 		model := binding.state.role.Model
 		entries, err := accountaudit.HistoryIn(work, scope, namespace, model.AppLabel+"."+model.ModelName, id, limit)
 		return entries, true, err
@@ -304,7 +310,7 @@ func (reader *ProfileReader[M]) project(namespace auth.CredentialDomain, row M, 
 	if err != nil {
 		return Profile[M]{}, err
 	}
-	values, err := binding.state.objects.ModelValues(row)
+	values, err := reader.storedValues(row)
 	if err != nil {
 		return Profile[M]{}, err
 	}
@@ -322,6 +328,19 @@ func (reader *ProfileReader[M]) project(namespace auth.CredentialDomain, row M, 
 		return Profile[M]{}, invalidAccountCredential()
 	}
 	return Profile[M]{state: &profileData[M]{view: view, id: id, revision: revision, passwordUsable: credential.HasUsablePassword()}}, nil
+}
+
+func (reader *ProfileReader[M]) storedValues(row M) (map[string]query.Value, error) {
+	values, err := reader.state.store.state.binding.state.objects.ModelValues(row)
+	if err != nil {
+		return nil, err
+	}
+	for _, field := range reader.state.model.Fields {
+		if err := checkModelText(field, values[field.Name]); err != nil {
+			return nil, managementError(CodePersistence, err)
+		}
+	}
+	return values, nil
 }
 
 func profileSnapshot[M, T any](ctx context.Context, reader *ProfileReader[M], actor auth.Principal, read func(context.Context, db.Queryer, auth.CredentialDomain) (T, bool, error)) (T, error) {

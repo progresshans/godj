@@ -6045,6 +6045,49 @@ import의 텍스트 소비·helper 선언 중복·필수 목록의 정확한 증
 실행하지 않았다. 작성과 필수 목록 연결은 실제 양 DB·race·CGO0·process·전체 platform
 수용이 아니며, 이 source의 전체 원격 결과와 필수 원본 대조 및 I1 전체 수용은 계속 필요하다.
 
+## GDJ-0138 — 고정 Manager 제거와 선택 프로필 저장 문자열 검사
+
+선행 source `fea63c52bbe3b85a98597c394cac4926f02e3a0a`의
+[CI 43657119389](https://github.com/progresshans/godj/actions/runs/43657119389)에서 CGO-disabled core 작업 `132638192444`가
+통과했다. 실제 checkout `63c621fd27fc03f62bf7cdc5e20c48a15ca17e6e`의 tree
+`0a2c69ca2952717a182e4cc7b3c4c495dd5e059a`는 제출 source와 같다. Job 원본의 검증기는 141개 package·필수 490개,
+14,459개 실행과 선택 환경 skip 222개를 보고한다. 앞선 reset refusal compile 실패가 해소된 core 범위의 근거이며
+양 DB native·relation/browser/process·전체 I1 완료나 뒤의 Manager 제거 source의 통과 근거가 아니다.
+원본과 판정은 `gdj0138-fea63c52-ci-43657119389/core-compile-recovery.json`에 연결했다
+(SHA-256 `e8b85c193b2d5f89c8c640b4a4bb33e8b8873765b3514ae68ad38e79e158a697`).
+
+그 source 위에서 고정 `identity.Manager`·관리 backend interface·사용자 CRUD/비밀번호/Form advisory·준비 객체·입력 DTO·
+validator option을 제거했다. 실제 외부 호출자는 이미 선택 runtime으로 이관됐으며 남은 네 unit root의 책임을 대응시켰다.
+설정의 nil/zero owner·현재 권한/입력·정책 사본/취소/생략·다른 field 진단은 현행 선택 constructor·native·독립 생성 소비자가
+소유한다. Nullable profile 사본은 공통 ModelView, 입력의 caller map/slice·사본·명시적 빈 집합과 생략·순서/중복은 ModelInput이
+검사한다. 관계의 최종 dedup/한도는 선택 mutation owner가 소유하고, 존재하는 0/음수 key를 거부하는 고정 DTO 규칙은 복제하지 않는다.
+
+새 native 입력 거부 여덟 child는 username 바깥 공백/NUL·email NUL/잘못된 UTF-8·일반 profile UTF-8·없는 음수 group·
+group/permission raw 한도를 실제 선택 편집기에 전달한다. Field 진단·비게시 결과와 credential/bearer 작업 없음, 전체
+native/host 상태 보존을 대조한다. Unicode 16 email domain의 기존 literal 기준은 같은 요청 입력 사본과 전체 행을 관찰하는
+양 DB child로 옮겼다. 고정 Username 정규화는 역사 provisioning에 필요하므로 그대로 남기고 해당 unit만 역사 이름으로 옮겼다.
+공통 identity 오류의 private cause 검사도 이름만 맞춰 유지한다. 독립 Django 원문·producer와 생성물은 변경하지 않았다.
+
+고정 목록 helper를 대체할 코드를 대조하는 과정에서 선택 ProfileReader가 credential 역할 외의 저장 문자열은 IR 길이로
+검사하지 않는 경로를 확인했다. Catalog와 계정 쓰기가 사용하던 UTF-8/NUL/IR 길이 검사를 공유하고 ProfileReader의 상세·
+목록·이력에 연결했다. 저장 손상은 일반 입력 거부가 아니라 비공개 실행 실패이며 결과 prefix를 게시하지 않는다.
+회귀 unit은 unselected 일반 profile도 포함한 길이·UTF-8·NUL 일곱 사례와 정상 경계·미정규화/형식 검증 전 역사 원문의
+그대로 읽기를 확인하도록 작성했다. 이 검사는 순수 projection/저장 값 관측 경계이며 실제 DB 손상 주입 실행을 했다는 뜻은 아니다.
+기존 native 조회와 새 body의 환경별 실행은 다음 원격 source에서 확인한다.
+
+Systemstate의 Manager 전용 대상 세션 폐기 API와 그 API를 호출하는 역사 퇴역 assertion을 제거했다. 역사 read/auth/login·
+coordinated write·borrowed audit·session delete 거부와 전체 보관 원문 비교는 유지한다. Snapshot/atomic 어댑터·migration과
+provision/adoption/handoff 계약을 제거하거나 새 domain에 암묵적으로 연결하지 않는다.
+
+Relation 필수 목록은 4,864→4,878, PostgreSQL은 5,902→5,912다. 네 root 제거·두 root 이름 변경·새 relation 18개/PG 10개와
+기존 목록의 상대 순서, 남긴 assertion의 새 책임 및 원문 동일성은
+`gdj0138-fixed-manager-retirement-v1/responsibility-map.json`에 기록했다
+(SHA-256 `ea7f733d90f99021c9d5f5d22d11cb868c5fcab35a84fa71588be373bfe47b8c`).
+Python CI owner/분할 검사 37개(154.688초), 마지막 native child 추가 뒤 최종 필수 목록의 owner/분할 검사 네 개(0.475초)는
+통과했다. Gofmt 18개 Go 파일·diff·245개 문서 링크, 제거 API의 qualified 참조·새 internal unit의 정적 import cycle·
+역사 정규화 본문 동일성·필수 목록/원문과 선행 core 목록 digest를 확인했다. 로컬 Go compile/test/generate/DB는 실행하지 않았다. 제품 API 제거와 새 저장 문자열 거부·필수 실행의
+전체 원격 수용, 남은 Directory 소비자 경계 및 I1 전체 수용은 계속 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

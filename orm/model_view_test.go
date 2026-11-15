@@ -186,9 +186,29 @@ func TestModelViewInputKeepsMissingValuesSourceAndOwnership(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	input, err = input.WithCollections(map[string][]int64{"groups": {7, 0}})
+	keys := []int64{7, 0, 7}
+	collections := map[string][]int64{"groups": keys}
+	input, err = input.WithCollections(collections)
 	if err != nil {
 		t.Fatal(err)
+	}
+	keys[0] = 99
+	collections["groups"] = nil
+	if actual, present := input.Collection("groups"); !present || !slices.Equal(actual, []int64{7, 0, 7}) {
+		t.Fatal("model input borrowed caller membership intent")
+	}
+	if _, present := input.Collection("permissions"); present {
+		t.Fatal("omitted membership became an explicit selection")
+	}
+	cleared, err := input.WithCollections(map[string][]int64{"groups": nil})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual, present := cleared.Collection("groups"); !present || len(actual) != 0 {
+		t.Fatal("explicit empty membership lost presence")
+	}
+	if actual, _ := input.Collection("groups"); !slices.Equal(actual, []int64{7, 0, 7}) {
+		t.Fatal("membership replacement changed its source input")
 	}
 	view, err := objects.ViewInput(input)
 	if err != nil {
@@ -212,11 +232,11 @@ func TestModelViewInputKeepsMissingValuesSourceAndOwnership(t *testing.T) {
 		}
 	}
 	keys, loaded := view.Collection("groups")
-	if !loaded || !slices.Equal(keys, []int64{7, 0}) {
+	if !loaded || !slices.Equal(keys, []int64{7, 0, 7}) {
 		t.Fatal("input collection lost explicit presence")
 	}
 	keys[0] = 99
-	if current, _ := view.Collection("groups"); !slices.Equal(current, []int64{7, 0}) {
+	if current, _ := view.Collection("groups"); !slices.Equal(current, []int64{7, 0, 7}) {
 		t.Fatal("input view borrowed collection storage")
 	}
 	bound, err := input.WithTargetKey(query.Integer(0))

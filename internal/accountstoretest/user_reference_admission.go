@@ -15,6 +15,7 @@ import (
 )
 
 func runUserManagementReferences(t *testing.T, vendor string, open Open) {
+	t.Run("user_input_refusals", func(t *testing.T) { userInputRefusals(t, open) })
 	t.Run("user_native_reference", func(t *testing.T) {
 		backend, reopen := open(t)
 		userReferenceLifecycle(t, vendor, backend, reopen)
@@ -55,6 +56,21 @@ func userReferenceEmail(t *testing.T, vendor string, backend Backend, reopen fun
 		}
 	}
 	reference.assert(t, "email_normalization", actual)
+	t.Run("unicode16_domain", func(t *testing.T) {
+		before := userReferenceSnapshot(t, reopen(t))
+		input := profileInput(t, map[string]query.Value{"email": query.String("Mixed@\u1c89.\ua7cb")})
+		changed, err := f.runtime.Accounts().Editor().Update(t.Context(), f.actor.Principal(), row.ID, row.Revision, input)
+		if err != nil || changed.ID != row.ID || changed.Revision != row.Revision+1 || changed.RevokedSessions != 0 || !slices.Equal(changed.ChangedFields, []string{"email"}) {
+			t.Fatal("selected Unicode 16 email edit", err)
+		}
+		row.Email, row.Revision = "Mixed@\u1c8a.\u0264", row.Revision+1
+		userReferenceReplace(&before.account, row)
+		assertUserReferenceState(t, before, userReferenceSnapshot(t, reopen(t)), f.actor.Principal(), catalogExpectedEvent{"user", row.ID, admin.ActionChange, []string{"email"}})
+		value, present := input.Get("email")
+		if !present || !value.Equal(query.String("Mixed@\u1c89.\ua7cb")) {
+			t.Fatal("selected email normalization mutated the submitted input")
+		}
+	})
 }
 
 func userReferenceAdmission(t *testing.T, vendor string, open Open) {

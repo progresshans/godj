@@ -32,9 +32,6 @@ func TestStoredProfileCannotUseTheByteEnvelopeToEscapeIR(t *testing.T) {
 		if account, err := directory.accountFromRow(t.Context(), nil, row); err == nil || account.Profile().ID != 0 {
 			t.Fatal("invalid stored profile published", err)
 		}
-		if err := validateManagedUserRow(row); err == nil {
-			t.Fatal("list accepted invalid stored profile")
-		}
 	}
 }
 

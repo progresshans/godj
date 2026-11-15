@@ -1000,6 +1000,15 @@ HTTP 상태·쿠키·실제 효과로 나타나도록 검사한다. 고정 reset
 보강했다. 역사 schema 업그레이드와 handoff가 쓰는 원래 fixture는 해당 책임으로 남겼다. 새 본문의 실행과 선행 reset 거부
 검사에서 발견한 선언 오류의 수정 확인은 TEST_EVIDENCE를 따르며, 남은 Manager 제품·설정 검사는 아직 제거하지 않았다.
 
+고정 Manager의 사용자 CRUD·비밀번호·Form advisory·준비 값·입력 DTO와 validator option을 제거했다. 설정·입력의 네
+필수 unit 책임은 선택 owner·공통 ModelInput/ModelView와 native 거부 검사로 연결한다. 기본 permission 상수, 역사 Username
+정규화·Directory·provision/adoption/handoff와 공통 메일 오류는 유지한다. Manager만 쓰던 systemstate의 대상별 폐기 API는
+제거했고 역사 runtime의 snapshot·atomic·audit·session 퇴역 거부는 계속 검증한다.
+검사 이관 중 발견한 선택 프로필의 일반 문자열 읽기 한도 누락은 catalog·쓰기 정규화와 같은 IR 표현 검사로 보완했다.
+상세/목록/이력은 UTF-8·NUL·길이 손상을 실행 실패로 처리하며 입력 정책을 재적용해 역사 원문을 바꾸지 않는다.
+고정 목록 helper의 검증 책임과 nullable 값·collection 사본·생략/빈 집합·순서/중복은 공통 선택 소비자에 유지한다.
+이 구현과 static 확인, 새 원격 본문의 실제 수용 및 남은 Directory 소비자의 경계 정리는 별도로 추적한다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

@@ -43,13 +43,8 @@ func normalizeAccountInput(metadata ir.Model, role ir.AccountRole, values map[st
 			value = query.String(email)
 			values[field.Name] = value
 		}
-		if text, ok := value.String(); ok {
-			if !utf8.ValidString(text) || strings.ContainsRune(text, 0) {
-				return profileInputError(field.Name, "invalid")
-			}
-			if field.MaxLength > 0 && utf8.RuneCountInString(text) > field.MaxLength {
-				return profileInputError(field.Name, "max_length")
-			}
+		if err := checkModelText(field, value); err != nil {
+			return err
 		}
 	}
 	return nil
