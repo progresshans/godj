@@ -993,6 +993,13 @@ HTTP 상태·쿠키·실제 효과로 나타나도록 검사한다. 고정 reset
 기존 필수 실행 항목은 그대로다. 남은 고정 Manager 관리자 비밀번호 검사와 사용자 서비스, Directory·역사 이행은 별도다.
 제품 API 제거와 정적 확인을 현재 source의 양 DB·원격 전체 수용으로 계산하지 않는다.
 
+고정 Manager의 관리자 비밀번호 root와 29개 필수 항목/DB를 선택 PasswordEditor 소비자에 연결했다. 대량 대상 폐기와
+뒤쪽 payload 손상, 현재 그룹 권한·deny overlay·hash 중 별도 연결의 권한 회수는 실제 host graph와 전체 native 상태를
+검사한다. 확정 rollback·실제 update/delete/audit 뒤 실패·callback 취소/삼킨 실패/불투명 원인·결과 불명은 전체 행과 정확한
+쓰기 효과를 비교한다. 기존 수명/입구/현재 변경/두 관리자 경합도 계정·catalog·through·session·domain·audit 전체를 대조하도록
+보강했다. 역사 schema 업그레이드와 handoff가 쓰는 원래 fixture는 해당 책임으로 남겼다. 새 본문의 실행과 선행 reset 거부
+검사에서 발견한 선언 오류의 수정 확인은 TEST_EVIDENCE를 따르며, 남은 Manager 제품·설정 검사는 아직 제거하지 않았다.
+
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.

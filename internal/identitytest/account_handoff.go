@@ -41,7 +41,7 @@ func handoffRows[T any](t *testing.T, objects interface {
 var handoffAt = time.Date(2026, 11, 6, 1, 2, 3, 456789000, time.UTC)
 
 type handoffFixture struct {
-	*managementFixture
+	*historicalIdentityFixture
 	group      models.Group
 	permission models.Permission
 	grant      models.GroupPermissionsLink
@@ -59,7 +59,7 @@ func handoffMust(t *testing.T, err error) {
 
 func newHandoffFixture(t *testing.T, backend TransitionBackend) *handoffFixture {
 	t.Helper()
-	f := newManagementFixture(t, backend, 3)
+	f := newHistoricalIdentityFixture(t, backend, 3)
 	sources := append(systemstate.IdentityMigrationSources(), domain.MigrationSources()...)
 	sources = append(sources, accountaudit.MigrationSources()...)
 	sources = append(sources, sessiondb.MigrationSources()...)
@@ -431,7 +431,7 @@ func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, T
 			if _, err := f.runtime.Authenticator().Resolve(t.Context(), f.user.PrincipalID); err == nil {
 				t.Fatal("retained historical authenticator survived handoff")
 			}
-			if _, err := f.runtime.Authenticator().Authenticate(t.Context(), f.user.Username, managementOldPassword); err == nil {
+			if _, err := f.runtime.Authenticator().Authenticate(t.Context(), f.user.Username, historicalPassword); err == nil {
 				t.Fatal("retained historical login survived handoff")
 			}
 			if _, _, err := f.runtime.SessionStore().Load(t.Context(), f.ids[0]); err == nil {
@@ -463,7 +463,7 @@ func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, T
 			}
 			authenticator, err := project.NewAccountAuthenticator(t.Context(), second, f.hasher)
 			handoffMust(t, err)
-			credential, err := authenticator.Authenticate(t.Context(), f.user.Username, managementOldPassword)
+			credential, err := authenticator.Authenticate(t.Context(), f.user.Username, historicalPassword)
 			handoffMust(t, err)
 			if _, bound := credential.Principal().CredentialDomain(); !bound {
 				t.Fatal("adopted account has no selected domain")

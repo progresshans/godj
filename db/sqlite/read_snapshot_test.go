@@ -121,10 +121,6 @@ func TestSQLiteIdentityTransitionFailureConcurrencyAndReadOwnership(t *testing.T
 	identitytest.RunTransitionBoundaries(t, openSQLiteIdentityPair)
 }
 
-func TestSQLiteIdentityPasswordManagement(t *testing.T) {
-	identitytest.RunPasswordManagement(t, openSQLiteIdentityPair)
-}
-
 func TestSQLiteIdentityPermissionRevisionMigration(t *testing.T) {
 	backend, _ := openSQLiteIdentityPair(t)
 	identitytest.RunPermissionRevisionMigration(t, backend)

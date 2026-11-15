@@ -4,18 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"reflect"
+	"slices"
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/orm"
-	"github.com/progresshans/godj/query"
 	"github.com/progresshans/godj/schema/ir"
-	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/validation"
 )
 
@@ -31,7 +30,14 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 			now := joined
 			target := roleTarget(t, backend, f, "admin-recheck-"+mode)
 			tracked := &passwordScopeOwner{Backend: backend}
-			hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
+			var encoded string
+			hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes, encode: func(ctx context.Context, raw string) (string, error) {
+				value, err := f.hasher.Hash(ctx, raw)
+				if err == nil {
+					encoded = value
+				}
+				return value, err
+			}}
 			configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 			config := passwordEditConfig()
 			policies := 0
@@ -47,41 +53,58 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 			}
 			owner := passwordEditOwner(t, configured, config)
 			previous := passwordSession(t, configured.manager, passwordCredential(t, f, target), "target")
-			var checkpoint passwordDurableState
+			checkpoint := accountNativeSnapshot(t, reopen(t))
+			expected := checkpoint
+			writer := reopen(t)
 			hasher.hashes.Store(0)
 			tracked.writes.Store(0)
 			hasher.beforeHash = func(context.Context) error {
 				patch := models.UserPatch{}
+				row := target
 				switch mode {
 				case "current_profile", "policy_rejection":
 					patch = patch.WithFirstName("after-hash").WithLastLogin(joined.Add(-time.Hour))
+					at := joined.Add(-time.Hour)
+					row.FirstName, row.LastLogin = "after-hash", &at
 				case "target_revision":
 					patch = patch.WithRevision(2)
+					row.Revision = 2
 				case "target_hash":
 					patch = patch.WithEncodedPassword(changedHash)
+					row.EncodedPassword = changedHash
 				case "target_principal":
 					patch = patch.WithPrincipalID("replacement-principal")
+					row.PrincipalID = "replacement-principal"
 				case "target_deleted":
-					if _, err := models.UserObjects.Delete(t.Context(), backend, &target); err != nil {
+					expected.users = slices.DeleteFunc(slices.Clone(expected.users), func(row models.User) bool { return row.ID == target.ID })
+					if _, err := models.UserObjects.Delete(t.Context(), writer, &target); err != nil {
 						return err
 					}
 				case "actor_inactive":
-					if _, err := models.UserObjects.Patch(t.Context(), backend, f.user, models.UserPatch{}.WithActive(false)); err != nil {
+					current := f.user
+					current.Active = false
+					userReferenceReplace(&expected, current)
+					if _, err := models.UserObjects.Patch(t.Context(), writer, f.user, models.UserPatch{}.WithActive(false)); err != nil {
 						return err
 					}
 				case "actor_revoked":
-					if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), backend, &f.direct); err != nil || count != 1 {
+					expected.direct = slices.DeleteFunc(slices.Clone(expected.direct), func(row models.UserPermissionsLink) bool { return row.ID == f.direct.ID })
+					if count, err := models.UserPermissionsLinkObjects.Delete(t.Context(), writer, &f.direct); err != nil || count != 1 {
 						return errors.Join(err, errors.New("actor grant not removed"))
 					}
 				case "domain_changed":
-					f.ownership = transitionSessionDomain(t, backend, f.binding, f.ownership)
+					f.ownership = transitionSessionDomain(t, writer, f.binding, f.ownership)
 				}
 				if mode == "current_profile" || mode == "policy_rejection" || mode == "target_revision" || mode == "target_hash" || mode == "target_principal" {
-					if _, err := models.UserObjects.Patch(t.Context(), backend, target, patch); err != nil {
+					if _, err := models.UserObjects.Patch(t.Context(), writer, target, patch); err != nil {
 						return err
 					}
+					userReferenceReplace(&expected, row)
 				}
-				checkpoint = passwordState(t, backend)
+				checkpoint = accountNativeSnapshot(t, reopen(t))
+				if mode != "domain_changed" {
+					assertCatalogRows(t, expected, checkpoint, actor)
+				}
 				return nil
 			}
 			result, err := owner.SetPassword(t.Context(), actor, target.ID, target.Revision, password+"-new")
@@ -94,6 +117,13 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 					t.Fatal("password edit lost concurrent profile", err)
 				}
 				accountSessionRecord(t, configured.store, previous, false)
+				current := target
+				at := joined.Add(-time.Hour)
+				current.FirstName, current.LastLogin = "after-hash", &at
+				current.EncodedPassword, current.Revision = encoded, 2
+				userReferenceReplace(&checkpoint, current)
+				loginRemoveRecord(t, &checkpoint, loginNamespace(t, passwordCredential(t, f, target)), previous.ID())
+				assertCatalogRowsAt(t, checkpoint, accountNativeSnapshot(t, reopen(t)), actor, now, catalogExpectedEvent{"user", target.ID, admin.ActionChange, []string{"encoded_password"}})
 			} else {
 				passwordEditNoResult(t, result, err)
 				if mode == "policy_rejection" {
@@ -110,7 +140,7 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 					}
 					requireProfileCode(t, err, code)
 				}
-				passwordUnchanged(t, reopen(t), checkpoint)
+				assertCatalogRows(t, checkpoint, accountNativeSnapshot(t, reopen(t)), actor)
 			}
 			// Independent subcases retain their original actor; domain change is last.
 			if mode == "actor_inactive" {
@@ -125,125 +155,6 @@ func passwordAdminRechecks(t *testing.T, backend Backend, reopen func(*testing.T
 					t.Fatal(err)
 				}
 			}
-		})
-	}
-}
-
-func passwordAdminCommitFailures(t *testing.T, backend Backend, reopen func(*testing.T) Backend) {
-	f := provision(t, backend, ir.AccountExact)
-	actor := profileActor(t, f).Principal()
-	now := joined
-	base, manager, _ := accountSessions(t, backend, &now)
-	control := passwordSession(t, manager, profileActor(t, f), "other-account")
-	for _, mode := range []string{"skipped", "nil_session", "root_session", "password_update", "revoke_failure", "late_revoke_failure", "audit_insert", "unusable_audit", "repeated", "validator_rejection", "validator_failure", "cleanup_failure", "swallowed_rejection", "invalid_clock", "unknown_rollback", "unknown_commit", "cancel_confirmed_rollback", "post_commit_cancel"} {
-		t.Run(mode, func(t *testing.T) {
-			target := roleTarget(t, backend, f, "admin-failure-"+mode)
-			credential := passwordCredential(t, f, target)
-			count := 2
-			if mode == "late_revoke_failure" {
-				count = 258
-			}
-			previous := make([]sessions.Record, count)
-			for i := range previous {
-				previous[i] = passwordSession(t, manager, credential, "revoke")
-			}
-			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
-			fault := errors.New("private admin password storage failure")
-			backendOwner := &profileFaultBackend{Backend: backend, mode: mode, fault: fault, cancel: cancel}
-			effects := map[string]int{}
-			backendOwner.decorate = func(scope db.Session) db.Session {
-				faultMode := mode
-				if mode == "unusable_audit" {
-					faultMode = "audit_insert"
-				}
-				return &passwordFaultScope{scope, faultMode, fault, effects}
-			}
-			hasher := &passwordChangeHasher{PasswordHasher: f.hasher}
-			configured := passwordComposition(t, backendOwner, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
-			config := passwordEditConfig()
-			if mode == "invalid_clock" {
-				config.Now = func() time.Time { return time.Time{} }
-			}
-			final := false
-			config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
-				if final && (mode == "validator_rejection" || mode == "validator_failure" || mode == "cleanup_failure" || mode == "swallowed_rejection") {
-					diagnostics := validation.NewErrors(validation.New("password", "changed_policy"))
-					if mode == "validator_failure" {
-						return diagnostics, fault
-					}
-					return diagnostics, nil
-				}
-				return validation.Errors{}, nil
-			}
-			owner := passwordEditOwner(t, configured, config)
-			hasher.hashes.Store(0)
-			hasher.beforeHash = func(context.Context) error { final = true; return nil }
-			before := passwordState(t, backend)
-			var result accountmodel.PasswordEditResult
-			var err error
-			if mode == "unusable_audit" {
-				result, err = owner.SetUnusablePassword(ctx, actor, target.ID, 1)
-			} else {
-				result, err = owner.SetPassword(ctx, actor, target.ID, 1, password+"-new")
-			}
-			committed := mode == "unknown_commit" || mode == "post_commit_cancel"
-			if mode == "post_commit_cancel" {
-				if err != nil || result.ID != target.ID || result.Revision != 2 || result.RevokedSessions != count || ctx.Err() == nil {
-					t.Fatal("confirmed commit lost to late cancellation", err)
-				}
-			} else {
-				passwordEditNoResult(t, result, err)
-				if mode == "validator_rejection" {
-					if diagnostics, rejected := validation.Rejected(err); !rejected || diagnostics.ByField("password").Empty() {
-						t.Fatal("safe final rejection lost", err)
-					}
-				} else {
-					if _, rejected := validation.Rejected(err); rejected {
-						t.Fatal("storage failure became validation")
-					}
-					code := accountmodel.CodePersistence
-					if mode == "skipped" || mode == "repeated" || mode == "swallowed_rejection" || mode == "unknown_commit" || mode == "unknown_rollback" {
-						code = accountmodel.CodeOutcomeUnknown
-					}
-					requireProfileCode(t, err, code)
-				}
-			}
-			wantHashes := int64(1)
-			if mode == "unusable_audit" {
-				wantHashes = 0
-			}
-			if backendOwner.calls != 1 || hasher.hashes.Load() != wantHashes {
-				t.Fatal("administrative password failure retried")
-			}
-			if mode == "password_update" || mode == "revoke_failure" || mode == "late_revoke_failure" || mode == "audit_insert" || mode == "unusable_audit" || mode == "validator_failure" || mode == "cleanup_failure" {
-				if !errors.Is(err, fault) {
-					t.Fatal("fault not retained", err)
-				}
-			}
-			if mode == "late_revoke_failure" && effects["session_delete"] != 258 || mode == "revoke_failure" && effects["session_delete"] != 2 || (mode == "audit_insert" || mode == "unusable_audit") && (effects["session_delete"] != 2 || effects["update:godj_identity_user"] != 1 || effects["insert:godj_account_audit_event"] != 1) {
-				t.Fatal("fault missed completed writes", effects)
-			}
-			if mode == "cancel_confirmed_rollback" && (!errors.Is(err, context.Canceled) || errors.Is(err, &query.Error{Code: query.CodeTransactionOutcomeUnknown}) || errors.Is(err, &query.Error{Code: query.CodeCommitOutcomeUnknown})) {
-				t.Fatal("confirmed rollback classification lost", err)
-			}
-			if committed {
-				row := profileRow(t, reopen(t), target.ID)
-				if row.Revision != 2 || row.EncodedPassword == target.EncodedPassword || accountSessionCount(t, backend) != int64(len(before.sessions)-count) || len(profileHistory(t, backend, actor, target.ID)) != 1 {
-					t.Fatal("partial administrative password commit")
-				}
-				preserved := row
-				preserved.Revision, preserved.EncodedPassword = target.Revision, target.EncodedPassword
-				if !reflect.DeepEqual(preserved, target) {
-					t.Fatal("committed password overwrote profile")
-				}
-				for _, old := range previous {
-					accountSessionRecord(t, base, old, false)
-				}
-			} else {
-				passwordUnchanged(t, reopen(t), before)
-			}
-			accountSessionRecord(t, base, control, true)
 		})
 	}
 }

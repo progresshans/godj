@@ -9,6 +9,8 @@ import (
 	"github.com/progresshans/godj/systemstate"
 )
 
+const unicodePassword = "replacement managed-user password"
+
 // Historical provisioning and adoption must retain their own normalization and
 // byte-preservation checks. Selected service/Form observations live in the
 // generated account consumers and use the original independent corpus.
@@ -26,14 +28,14 @@ func RunIdentityUnicodeProfile(t *testing.T, open func(*testing.T) (TransitionBa
 			t.Fatal(err)
 		}
 		username := "\U0001ccd6" + strings.Repeat("\U000105c0", 149)
-		if _, err := systemstate.ProvisionIdentity(t.Context(), backend, systemstate.ProvisionIdentityConfig{Username: username, Password: managementNewPassword, PasswordHasher: hasher, Principal: principal}); err != nil {
+		if _, err := systemstate.ProvisionIdentity(t.Context(), backend, systemstate.ProvisionIdentityConfig{Username: username, Password: unicodePassword, PasswordHasher: hasher, Principal: principal}); err != nil {
 			t.Fatal(err)
 		}
 		runtime, err := systemstate.OpenIdentity(t.Context(), second, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := runtime.Authenticator().Authenticate(t.Context(), "A"+strings.Repeat("\U000105c0", 149), managementNewPassword); err != nil {
+		if _, err := runtime.Authenticator().Authenticate(t.Context(), "A"+strings.Repeat("\U000105c0", 149), unicodePassword); err != nil {
 			t.Fatal("fresh Unicode bootstrap cannot authenticate", err)
 		}
 	})
@@ -50,7 +52,7 @@ func RunIdentityUnicodeProfile(t *testing.T, open func(*testing.T) (TransitionBa
 		}
 		policy := systemstate.CredentialPolicy{Principal: principal, PasswordHasher: hasher}
 		username := "Ｆ" + strings.Repeat("\U000105c0", 149)
-		if err := systemstate.ProvisionOperator(t.Context(), backend, systemstate.ProvisionOperatorConfig{Username: username, Password: managementNewPassword, CredentialPolicy: policy}); err != nil {
+		if err := systemstate.ProvisionOperator(t.Context(), backend, systemstate.ProvisionOperatorConfig{Username: username, Password: unicodePassword, CredentialPolicy: policy}); err != nil {
 			t.Fatal(err)
 		}
 		applyIdentitySources(t, backend, systemstate.IdentityMigrationSources()...)
@@ -61,10 +63,10 @@ func RunIdentityUnicodeProfile(t *testing.T, open func(*testing.T) (TransitionBa
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := runtime.Authenticator().Authenticate(t.Context(), username, managementNewPassword); err != nil {
+		if _, err := runtime.Authenticator().Authenticate(t.Context(), username, unicodePassword); err != nil {
 			t.Fatal("adoption changed source username", err)
 		}
-		if _, err := runtime.Authenticator().Authenticate(t.Context(), "F"+strings.Repeat("\U000105c0", 149), managementNewPassword); err == nil {
+		if _, err := runtime.Authenticator().Authenticate(t.Context(), "F"+strings.Repeat("\U000105c0", 149), unicodePassword); err == nil {
 			t.Fatal("adoption silently normalized stored identity")
 		}
 	})

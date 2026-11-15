@@ -155,7 +155,6 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 		{"password_admin_lifecycle", passwordAdminLifecycle},
 		{"password_admin_admission", passwordAdminAdmission},
 		{"password_admin_rechecks", passwordAdminRechecks},
-		{"password_admin_commit_failures", passwordAdminCommitFailures},
 		{"password_admin_read_failures", passwordAdminReadFailures},
 		{"password_admin_concurrent", passwordAdminConcurrent},
 		{"password_admin_nonpositive_keys", func(t *testing.T, backend Backend, _ func(*testing.T) Backend) {
@@ -232,6 +231,7 @@ func Run(t *testing.T, referenceBackend string, open Open, storedKey StoredKeyFi
 	}
 	runCatalogMutationOutcomes(t, open)
 	runUserManagementReferences(t, referenceBackend, open)
+	runPasswordAdminNative(t, open)
 	runSelfPasswordNative(t, open)
 	runResetMailNative(t, open)
 	runResetWriteNative(t, open)

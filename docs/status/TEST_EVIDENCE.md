@@ -6008,6 +6008,43 @@ Go compile/test/generate/DB는 실행하지 않았다. 선행 source의 [CI 4365
 아직 진행 중이며 새 API 제거 source의 통과 근거가 아니다. 이 변경의 전체 원격 compile·양 DB·race·CGO0·process·platform과
 필수 원본 대조 및 I1 전체 수용은 계속 필요하다.
 
+## GDJ-0138 — 선택 관리자 비밀번호 소비자와 reset 거부 compile 수정
+
+Source `71ebf47aae79e6476b01bf68adb2ef44984809ee`의
+[CI 43656310211](https://github.com/progresshans/godj/actions/runs/43656310211)에서 `Portable Go (cgo0, core)` 작업
+`132635646344`가 `account_reset_refusals.go:166`의 선언되지 않은 `response`로 실패했다. 후속 사용 다섯 위치와
+`db/postgres`·`internal/accountstoretest`의 build 실패를 원본으로 확인했다. 실제 PR checkout
+`587781f5ce24477495e53ef5482e3dae686437ba`의 tree `22b1631b94e8d4a6df65244538603c8240c54ffd`는 제출 source와 같다.
+각 refusal child 안에서 기존 body와 함께 응답 변수를 short declaration으로 선언하도록 고쳤다. 이 실패는 native 본문 실행
+근거가 아니며 수정 본문은 다음 source에서 확인한다. 실패 원본과 진단은 검증 보관소
+`gdj0138-71ebf47a-ci-43656310211/reset-refusal-compile-failure.json`에 연결했다
+(SHA-256 `5883814d2e11b494fca9433118409a86983c53c0ca947d4588158016b42c0552`).
+
+같은 source 위에서 고정 관리자 비밀번호의 root와 child 29개/DB를 선택 PasswordEditor의 기존 수명·입구·현재 상태·
+읽기·쓰기·경합 소비자에 대응시켰다. 새 `password_admin_native` 네 child는 실제 host graph·258개 대상 세션·익명/actor·
+옛 stamp·역사 namespace를 포함한다. 저장 전에 관측한 hash와 이전 전체 행으로 정확한 변경/폐기/audit를 계산한다.
+다른 연결로 재구성한 owner의 실제 TCP/CSRF 로그인과 old/현재 password·권한·LastLogin도 대조한다. 뒤 batch의 실제
+payload 손상은 password update와 먼저 실행한 delete까지 전체 rollback해야 한다. 현재 그룹 권한은 입력 principal의
+옛 superuser/빈 grants와 구분하며 deny overlay와 hash 중 독립 native 연결의 그룹 grant 삭제를 확인한다.
+
+기존 `password_admin_commit_failures` 18개 본문은 전체 native/host fixture로 옮기고 callback 취소·삼킨 실제 audit 실패·
+비교 불가능한 원인 세 가지를 추가했다. 실제 update/delete/audit 쓰기 횟수·오류 원인/불명 분류와 해싱·검증·bearer entropy를
+대조한다. Unknown commit은 관측한 해시와 요청으로 전체 예상 상태를 만들며, 뒤 batch 실패는 258번째 실제 대상 delete 뒤에
+발생해야 한다. 기존 수명·입구와 현재 상태 9개·두 관리자 경합의 관측도 세 테이블/count에서 전체 native 행으로 보강했다.
+Hash 중 편집은 별도 연결로 수행하고, 경합 실패에서도 대기 중 goroutine을 취소·해제·join한다.
+
+고정 DB wrapper와 전용 관리/HTTP fault 코드는 제거했다. 역사 migration·handoff의 초기 계정·원문 password·역할·세션
+seed는 `historical_fixture.go`가 소유하며 검사에 불필요한 counting hasher만 제거했다. Unicode bootstrap/adoption의
+기존 password bytes, 독립 Django 원문과 producer는 유지한다. 고정 Manager 제품·설정 검사와 Directory는 후속 대상이다.
+
+Relation 필수 목록은 4,884→4,864, PostgreSQL은 5,922→5,902다. 옛 29개 항목 전부의 대응, 새 9개 항목, 다른 항목의
+상대 순서와 원문 동일성은 `gdj0138-selected-admin-password-migration-v1/responsibility-map.json`에 보존했다
+(SHA-256 `3db21c220a71a62569037dcd3ac66e876838a6e472ead4c1a055844633dfb536`).
+로컬 gofmt 15개 Go 파일·diff·245개 문서 링크와 Python CI owner/분할 검사 37개(154.364초)는 통과했다. 제거 참조·변경
+import의 텍스트 소비·helper 선언 중복·필수 목록의 정확한 증감과 원문 bytes도 확인했다. Go compile/test/generate/DB는
+실행하지 않았다. 작성과 필수 목록 연결은 실제 양 DB·race·CGO0·process·전체 platform
+수용이 아니며, 이 source의 전체 원격 결과와 필수 원본 대조 및 I1 전체 수용은 계속 필요하다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

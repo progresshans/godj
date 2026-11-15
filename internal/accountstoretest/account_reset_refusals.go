@@ -163,7 +163,7 @@ func accountResetRefusals(t *testing.T, open Open) {
 							body = `{"new_password":"short"}`
 						}
 					}
-					response, body = h.send(t, client, method, path, body, media, headers)
+					response, body := h.send(t, client, method, path, body, media, headers)
 					resetHTTPHeaders(t, response)
 					if response.StatusCode != want {
 						t.Fatal("wrong reset refusal", mode, response.StatusCode, body)

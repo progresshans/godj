@@ -26,7 +26,7 @@ func RunUserEmailMigration(t *testing.T, backend TransitionBackend) {
 
 func runIdentityMetadataMigration(t *testing.T, backend TransitionBackend, previous migrations.MigrationKey) {
 	t.Helper()
-	f := newManagementFixture(t, backend, 3)
+	f := newHistoricalIdentityFixture(t, backend, 3)
 	managementHost(t, backend)
 	group, permission, _ := managementUserSelections(t, f)
 	if _, err := models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(f.user.ID, group.ID)); err != nil {
@@ -59,7 +59,7 @@ func runIdentityMetadataMigration(t *testing.T, backend TransitionBackend, previ
 	if _, err := executor.Migrate(t.Context(), loaded, migrations.TargetedLifecycleRequest(migrations.NamedTarget(previous))); err != nil {
 		t.Fatal("historical identity schema", err)
 	}
-	config := systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher.PasswordHasher, MaxSessions: 512}
+	config := systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher, MaxSessions: 512}
 	if runtime, err := systemstate.OpenIdentity(t.Context(), backend, config); runtime != nil || !errors.Is(err, &systemstate.Error{Code: systemstate.CodeSchemaUnavailable}) {
 		t.Fatal("unmigrated identity was silently adopted", err)
 	}
@@ -99,7 +99,7 @@ func runIdentityMetadataMigration(t *testing.T, backend TransitionBackend, previ
 	if err != nil || current.SessionStamp() != credential.SessionStamp() || !reflect.DeepEqual(current.Principal().Permissions(), credential.Principal().Permissions()) {
 		t.Fatal("upgrade changed grants or session binding", err)
 	}
-	if _, err := runtime.Authenticator().Authenticate(t.Context(), user.Username, managementOldPassword); err != nil {
+	if _, err := runtime.Authenticator().Authenticate(t.Context(), user.Username, historicalPassword); err != nil {
 		t.Fatal("upgrade lost password login", err)
 	}
 }

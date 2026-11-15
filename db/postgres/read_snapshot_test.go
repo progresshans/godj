@@ -84,18 +84,6 @@ func TestPostgresIdentityTransitionFailureConcurrencyAndReadOwnership(t *testing
 	})
 }
 
-func TestPostgresIdentityPasswordManagement(t *testing.T) {
-	url := postgresIntegrationURL(t)
-	identitytest.RunPasswordManagement(t, func(t *testing.T) (identitytest.TransitionBackend, identitytest.TransitionBackend) {
-		namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)
-		first := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-		second := openPostgresMigrationIntegrationBackend(t, t.Context(), url, namespace)
-		first.database.SetMaxOpenConns(1)
-		second.database.SetMaxOpenConns(1)
-		return first, second
-	})
-}
-
 func TestPostgresIdentityPermissionRevisionMigration(t *testing.T) {
 	url := postgresIntegrationURL(t)
 	namespace := postgresMigrationIntegrationSchema(t, t.Context(), url)

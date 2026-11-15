@@ -18,7 +18,6 @@ import (
 	"github.com/progresshans/godj/identity/models"
 	"github.com/progresshans/godj/sessions"
 	"github.com/progresshans/godj/settings"
-	"github.com/progresshans/godj/systemstate"
 	"github.com/progresshans/godj/web"
 	"github.com/progresshans/godj/web/sessionauth"
 )
@@ -41,14 +40,6 @@ func newIdentityHTTP(t *testing.T, authenticator auth.CredentialAuthenticator) *
 }
 
 func newIdentityHTTPWithStore(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
-	return newIdentityHTTPConfigured(t, authenticator, store, nil, extra...)
-}
-
-func newIdentityHTTPWithRuntime(t *testing.T, runtime *systemstate.Runtime, extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
-	return newIdentityHTTPConfigured(t, runtime.Authenticator(), runtime.SessionStore(), runtime.LoginPersistence, extra...)
-}
-
-func newIdentityHTTPConfigured(t *testing.T, authenticator auth.CredentialAuthenticator, store sessions.Store, login func(*sessions.Manager) (auth.LoginPersistence, error), extra ...func(*sessionauth.Runtime) ([]web.Route, []web.Middleware, error)) *identityHTTP {
 	t.Helper()
 	observedAt := time.Now().UTC().Truncate(time.Microsecond)
 	clock := func() time.Time { return observedAt }
@@ -60,12 +51,6 @@ func newIdentityHTTPConfigured(t *testing.T, authenticator auth.CredentialAuthen
 		SessionCookie: sessionauth.CookieConfig{AllowInsecure: true}, CSRFCookie: sessionauth.CookieConfig{AllowInsecure: true},
 		LoginPath: "/login/", FallbackPath: "/", AllowedNextPaths: []string{"/", "/login/", "/view/", "/change/", "/deny/"}}
 	config.Clock = clock
-	if login != nil {
-		config.LoginPersistence, err = login(manager)
-		if err != nil {
-			t.Fatal(err)
-		}
-	}
 	runtime, err := sessionauth.New(config)
 	if err != nil {
 		t.Fatal(err)

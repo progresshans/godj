@@ -39,7 +39,7 @@ func managementHost(t *testing.T, backend TransitionBackend) hostproject.Relatio
 	return policy
 }
 
-func managementUserSelections(t *testing.T, f *managementFixture) (models.Group, models.Permission, models.Permission) {
+func managementUserSelections(t *testing.T, f *historicalIdentityFixture) (models.Group, models.Permission, models.Permission) {
 	t.Helper()
 	view, found, err := models.PermissionObjects.Using(f.backend).Filter(models.PermissionFields.Code.Exact("helpdesk.ticket.view")).OrderBy(models.PermissionFields.ID.Asc()).First(t.Context())
 	if err != nil || !found {

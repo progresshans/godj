@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
@@ -45,7 +46,14 @@ func passwordAdminLifecycle(t *testing.T, backend Backend, reopen func(*testing.
 	actor := profileActor(t, f).Principal()
 	now := joined
 	tracked := &passwordScopeOwner{Backend: backend}
-	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
+	var encoded string
+	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes, encode: func(ctx context.Context, raw string) (string, error) {
+		value, err := f.hasher.Hash(ctx, raw)
+		if err == nil {
+			encoded = value
+		}
+		return value, err
+	}}
 	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
 	policyScopes := []int64{}
 	config := passwordEditConfig()
@@ -102,6 +110,8 @@ func passwordAdminLifecycle(t *testing.T, backend Backend, reopen func(*testing.
 			hasher.verifies.Store(0)
 			tracked.writes.Store(0)
 			policyScopes = nil
+			encoded = ""
+			beforeNative := accountNativeSnapshot(t, reopen(t))
 			now = now.Add(time.Minute)
 			unusable := mode == "disable" || mode == "repeat_disable"
 			var result accountmodel.PasswordEditResult
@@ -154,6 +164,26 @@ func passwordAdminLifecycle(t *testing.T, backend Backend, reopen func(*testing.
 			if got, present, err := history.Load(t.Context(), previous[0].ID()); !present || err != nil || !reflect.DeepEqual(got.Snapshot(), previous[0].Snapshot()) {
 				t.Fatal("historical namespace changed", err)
 			}
+			expected := beforeNative
+			row := before
+			row.Revision++
+			row.EncodedPassword = encoded
+			if unusable {
+				assertUnusableEncoding(t, after.EncodedPassword)
+				row.EncodedPassword = after.EncodedPassword
+			}
+			if row.EncodedPassword == "" || row.EncodedPassword == before.EncodedPassword {
+				t.Fatal("administrative lifecycle lacks its fresh encoding")
+			}
+			userReferenceReplace(&expected, row)
+			namespace := loginNamespace(t, credential)
+			for _, record := range previous {
+				loginRemoveRecord(t, &expected, namespace, record.ID())
+			}
+			if mode == "self" {
+				loginRemoveRecord(t, &expected, namespace, other.ID())
+			}
+			assertCatalogRowsAt(t, expected, accountNativeSnapshot(t, reopen(t)), actor, now, catalogExpectedEvent{"user", id, admin.ActionChange, []string{"encoded_password"}})
 			entries := profileHistory(t, reopen(t), actor, id)
 			last := entries[len(entries)-1]
 			if len(entries) != int(after.Revision-1) || last.ActorID() != actor.ID() || !last.At().Equal(now) || !reflect.DeepEqual(last.ChangedFields(), []string{"encoded_password"}) {
@@ -173,12 +203,17 @@ func passwordAdminAdmission(t *testing.T, backend Backend, reopen func(*testing.
 	tracked := &passwordScopeOwner{Backend: backend}
 	hasher := &passwordChangeHasher{PasswordHasher: f.hasher, scopes: &tracked.scopes}
 	configured := passwordComposition(t, tracked, &now, hasher, accountmodel.PasswordChangeConfig[models.User]{})
+	passwordSession(t, configured.manager, profileActor(t, f), "preserved admission actor")
+	if _, err := configured.manager.Create(t.Context(), map[string]string{"anonymous": "preserved admission control"}); err != nil {
+		t.Fatal(err)
+	}
 	fault := errors.New("private administrative password failure")
-	for _, mode := range []string{"missing_permission", "missing_additional", "missing_target", "stale", "empty", "byte_limit", "policy_rejection", "policy_failure", "caused_rejection", "foreign_field", "hash_failure", "hash_cancel", "hash_invalid_input", "hash_wrapped_input", "invalid_encoding", "unusable_hash", "unchanged_hash"} {
+	for _, mode := range []string{"anonymous", "missing_permission", "missing_additional", "missing_target", "stale", "empty", "byte_limit", "policy_rejection", "policy_failure", "caused_rejection", "foreign_field", "hash_failure", "hash_cancel", "hash_invalid_input", "hash_wrapped_input", "invalid_encoding", "unusable_hash", "unchanged_hash"} {
 		t.Run(mode, func(t *testing.T) {
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			config := passwordEditConfig()
+			principal := actor
 			config.MaxPasswordBytes = 64
 			config.ValidatePassword = func(context.Context, string, orm.ModelView[models.User]) (validation.Errors, error) {
 				diagnostics := validation.NewErrors(validation.New("password", "weak"))
@@ -197,6 +232,8 @@ func passwordAdminAdmission(t *testing.T, backend Backend, reopen func(*testing.
 			id, revision, raw := f.user.ID, f.user.Revision, password+"-new"
 			code := accountmodel.CodeInvalidInput
 			switch mode {
+			case "anonymous":
+				principal, code = auth.Anonymous(), accountmodel.CodePermission
 			case "missing_permission":
 				config.ChangePermission = "account.absent"
 				code = accountmodel.CodePermission
@@ -247,8 +284,8 @@ func passwordAdminAdmission(t *testing.T, backend Backend, reopen func(*testing.
 			owner := passwordEditOwner(t, configured, config)
 			hasher.hashes.Store(0)
 			tracked.writes.Store(0)
-			before := passwordState(t, backend)
-			result, err := owner.SetPassword(ctx, actor, id, revision, raw)
+			before := accountNativeSnapshot(t, backend)
+			result, err := owner.SetPassword(ctx, principal, id, revision, raw)
 			passwordEditNoResult(t, result, err)
 			if mode == "empty" || mode == "byte_limit" || mode == "policy_rejection" || mode == "hash_invalid_input" {
 				if diagnostics, rejected := validation.Rejected(err); !rejected || diagnostics.ByField("password").Empty() || errors.Unwrap(err) != nil {
@@ -276,7 +313,7 @@ func passwordAdminAdmission(t *testing.T, backend Backend, reopen func(*testing.
 			if (mode == "hash_failure" || mode == "policy_failure" || mode == "caused_rejection") && !errors.Is(err, fault) {
 				t.Fatal("private cause lost")
 			}
-			passwordUnchanged(t, reopen(t), before)
+			assertCatalogRows(t, before, accountNativeSnapshot(t, reopen(t)), actor)
 		})
 	}
 }

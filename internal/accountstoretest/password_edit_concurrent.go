@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/progresshans/godj/admin"
 	"github.com/progresshans/godj/auth"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
@@ -30,7 +31,17 @@ func passwordAdminConcurrent(t *testing.T, backend Backend, reopen func(*testing
 			}
 			beforeCount := accountSessionCount(t, backend)
 			ready, start := make(chan struct{}, 2), make(chan struct{})
+			encoded := make([]string, 2)
 			hashers := []*passwordChangeHasher{{PasswordHasher: f.hasher}, {PasswordHasher: f.hasher}}
+			for index, hasher := range hashers {
+				hasher.encode = func(ctx context.Context, raw string) (string, error) {
+					value, err := f.hasher.Hash(ctx, raw)
+					if err == nil {
+						encoded[index] = value
+					}
+					return value, err
+				}
+			}
 			configured := passwordComposition(t, &passwordWriteGate{backend, ready, start}, &now, hashers[0], accountmodel.PasswordChangeConfig[models.User]{})
 			peer := passwordComposition(t, &passwordWriteGate{reopen(t), ready, start}, &now, hashers[1], accountmodel.PasswordChangeConfig[models.User]{})
 			owner := passwordEditOwner(t, configured, passwordEditConfig())
@@ -43,8 +54,11 @@ func passwordAdminConcurrent(t *testing.T, backend Backend, reopen func(*testing
 				hasher.hashes.Store(0)
 			}
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
-			defer cancel()
 			var wait sync.WaitGroup
+			var releaseOnce sync.Once
+			release := func() { releaseOnce.Do(func() { close(start) }) }
+			defer func() { cancel(); release(); wait.Wait() }()
+			beforeNative := accountNativeSnapshot(t, reopen(t))
 			var result, otherResult accountmodel.PasswordEditResult
 			var selfResult auth.PasswordChangeResult
 			var loginResult auth.SessionLoginResult
@@ -72,7 +86,7 @@ func passwordAdminConcurrent(t *testing.T, backend Backend, reopen func(*testing
 					t.Fatal("independent admin and peer writes did not reach native fences")
 				}
 			}
-			close(start)
+			release()
 			wait.Wait()
 			if hashers[0].hashes.Load() != 1 || mode != "login" && hashers[1].hashes.Load() != 1 {
 				t.Fatal("concurrent password owner retried hash")
@@ -128,6 +142,21 @@ func passwordAdminConcurrent(t *testing.T, backend Backend, reopen func(*testing
 				t.Fatal("password race left partial or repeated effects")
 			}
 			accountSessionRecord(t, base, previous, false)
+			if mode == "administrator" {
+				winner := 0
+				if failure != nil {
+					winner = 1
+				}
+				expected := beforeNative
+				row := target
+				row.EncodedPassword, row.Revision = encoded[winner], target.Revision+1
+				if row.EncodedPassword == "" || row.EncodedPassword == target.EncodedPassword {
+					t.Fatal("administrative race lacks its winning upstream hash")
+				}
+				userReferenceReplace(&expected, row)
+				loginRemoveRecord(t, &expected, loginNamespace(t, credential), previous.ID())
+				assertCatalogRowsAt(t, expected, accountNativeSnapshot(t, reopen(t)), actor, now, catalogExpectedEvent{"user", target.ID, admin.ActionChange, []string{"encoded_password"}})
+			}
 		})
 	}
 }
