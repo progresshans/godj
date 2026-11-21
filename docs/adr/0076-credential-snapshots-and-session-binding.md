@@ -2086,7 +2086,7 @@ borrowed 감사/세션 폐기 경로도 퇴역 이후 사용을 거부한다. Ra
 전체 inventory를 1:1로 대응시키며, 같은 row key·principal·hash만으로 대응이나 소유권 이전을 추론하지 않는다.
 `PrepareCreation`은 빈 대상 모델에 새 행을 생성하는 명시적 입력을 받는다. 일반 host FK/OneToOne의 명시적 재매핑은 아래
 staged reference 계약을 따른다. Catalog는 같거나 아래의 명시적 전체 대응표로 연결한다.
-기존 `godj_system` adoption과 나머지 nested identity/전환 생성 수명은 I1의 잔여 작업이다.
+기존 `godj_system`의 고정 User는 먼저 `IdentityHandoff`로 최초 선택 도메인에 이행한다. 이어 다른 모델로 옮길 때 이 typed 전환을 사용한다. [두 단계의 운영 절차](../DEVELOPER_EXPERIENCE.md#기존-operator-이전)
 
 `Prepare`는 framework migration identity를 확인한 뒤 한 native snapshot에서 현재 source actor의 명시적 전환 권한과
 추가 권한·deny overlay, 전체 domain 이력·감사·session inventory, 두 typed 모델의 전체 행을 검사한다.
@@ -2259,8 +2259,8 @@ contraction 뒤에도 같은 source binding과 보관 manifest로 이력을 확�
 계정 생성·퇴역·receipt·마지막 정책 이후까지 물리 링크와 전체 행을 대조하고, 늦은 endpoint/payload 변경은 rollback한다.
 최종 incoming 검사는 직전에 전체 행/컬럼을 재검증한 account/Group/Permission과 명시한 host 참조/역할 링크의 소유권을
 구분한다. 그 밖의 host FK가 새 catalog를 가리키면 거부하며, 전체 inventory 대조로 소유 행의 늦은 추가/변경도 거부한다.
-필수 FK 순환의 native 할당 수명은 남은 통합 대상이다. 직접 INSERT와 아래 collection 생성 코드의 존재를
-I1 전체 지원 또는 환경별 검증 완료로 계산하지 않는다.
+필수 FK 순환은 각 연결 성분의 실제 키를 먼저 예약하고 모든 참조를 결합한 뒤 한 문장으로 삽입한다.
+계정과 카탈로그가 함께 순환하는 경우를 포함한 환경별 결과는 [I1 실행 기록](../status/TEST_EVIDENCE.md#gdj-0138--계정-역할의-프로젝트-선언과-typed-생성-binding)을 따른다.
 
 ### 순환 참조를 위한 native key 예약 기반
 

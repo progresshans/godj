@@ -36,7 +36,7 @@ SQLite/PostgreSQL·고정 module 설치·cold/race·독립 Django 관측·브라
 운영 topology·향후 릴리스 upgrade 정책은 O1, Web/static/media 확장은 C2, durable event 전달은 R2에 남는다.
 I1 구현은 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 모았다. 선택 계정 역할·domain·typed 관리,
 Admin/JSON·비밀번호 변경, 첫 계정 명령을 Article과 기본 starter에 연결했다. 선택 runtime은 명시적으로 구성한
-비밀번호 재설정을 지원한다. 새 프로젝트의 기본 User와 별도 Member는 SQLite·PostgreSQL에서 첫 계정 생성, 권한·프로필 변경, 재시작 후 reset과 삭제까지 통과했다. [공개 명령·HTTP·Chromium 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go) · [검증 원본](TEST_EVIDENCE.md#a32041e1-새-프로젝트-계정-수명주기)
+비밀번호 재설정을 지원한다. 새 프로젝트의 기본 User와 별도 Member는 SQLite·PostgreSQL에서 첫 계정 생성, 권한·프로필 변경, 재시작 후 reset과 삭제까지 통과했다. [공개 명령·HTTP·Chromium 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go) · [검증 원본](TEST_EVIDENCE.md#c6629558-전환-기록-재조회-검증)
 Helpdesk 조립, 명시적 FK/OneToOne 정책과 프로필 파일 편집/Form 생성·초기 CLI 파일 입력을 작성했다.
 계정 생성의 관계 수명과 typed 계정-as-through 생성을 추가했다.
 추가 M2M의 명시적 선택 정책·생성/편집/조회·Form/Admin/JSON과 전체 수명 projection을 연결했다.
@@ -72,7 +72,7 @@ credential 상태 검사는 생성 HTTP 소비자와 독립 SDK로 이관했다.
 공개 고정 `identity.Directory`·`identity.Account`·`identity.Profile`·`identity.Manager`는 제거했다.
 기본·custom 모델의 공개 인증·관리는 선택 모델의 runtime이 담당하고, 역사 저장소의 고정 User 조회와 로그인 기록은
 `systemstate.OpenIdentity` 내부에 있다. 기본/custom 일곱 변형의 독립 HTTP 소비자와 OpenAPI 클라이언트도 선택 runtime에 연결했다.
-계정 전환·복구와 새 앱을 포함한 I1 전체 수용은 미완료다. [요구별 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [I1 제품 커밋의 CI 결과](TEST_EVIDENCE.md#ad25f5ed-원격-ci)
+데이터가 있는 DB의 선택 모델 전환과 기록 재조회는 `c6629558`에서 양 DB의 normal·race·CGO 비활성으로 검증했다. 익명 로그인·비밀번호 재설정 경합의 기대값을 수정했으며 I1 전체 수용은 남아 있다. [요구별 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [제품 커밋의 CI 결과](TEST_EVIDENCE.md#c6629558-전환-기록-재조회-검증)
 
 GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
 양 backend가 같은 고정 전환표를 사용하고, 원본·지역 값·최종 UTC 결과의 전체 모델 범위를 검사한다.

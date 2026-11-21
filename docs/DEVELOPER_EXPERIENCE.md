@@ -304,7 +304,7 @@ Article의 [adoptoperator 명령](../examples/article/cmd/adoptoperator/main.go)
 
 ### 데이터가 있는 선택 계정 모델 전환
 
-1. 같은 DB에 원본과 대상 모델을 함께 설치하는 migration을 적용한다. 업무 FK나 OneToOne을 옮길 때는 원본 참조를 유지한 채 대상 참조를 추가한다. 두 모델을 포함한 프로젝트에서 생성한 source·target 계정 저장소로 `accountmodel.NewTransition`을 구성하고, 전환에 필요한 권한과 업무 참조 정책을 지정한다. [생성 프로젝트 구성 예제](../codegen/consumertest/testdata/accountbinding/historical_handoff_test.go.tmpl)
+1. 같은 DB에 원본과 대상 모델을 함께 설치하는 migration을 적용한다. 업무 FK나 OneToOne을 옮길 때는 원본 참조를 유지한 채 대상 참조를 추가한다. 같은 전체 모델 그래프에 대해 원본 역할과 대상 역할의 binding을 각각 구성한다. 같은 backend 인스턴스로 두 저장소를 열고 `accountmodel.NewTransition`에 전환 권한·업무 참조 정책과 함께 전달한다. [생성 프로젝트 구성 예제](../codegen/consumertest/testdata/accountbinding/historical_handoff_test.go.tmpl)
 2. 전환할 권한이 있는 원본 계정과 이 작업을 식별할 새 64자리 소문자 16진수 operation ID를 준비한다. 이미 준비한 대상 행을 사용할 때는 `Prepare`에 모든 원본·대상 계정의 실제 키와 revision을 일대일로 넘긴다. 빈 대상 모델에 새 행을 만들 때는 `PrepareCreation`에 원본 키·revision과 새 모델의 필수 프로필 입력을 넘긴다. 카탈로그도 바뀐다면 그룹·권한 대응표 또는 명시적인 생성 정책을 함께 지정한다. [전환 API](../identity/model/transition.go) · [대상 생성](../identity/model/transition_creation.go)
 3. `prepared.Manifest()`를 보관한 뒤 `Commit`을 호출한다. 커밋 후 대상 모델로 사이트를 열어 이행한 계정으로 다시 로그인한다. 기존 세션과 reset proof는 폐기되며 이전 감사 이력은 원래 계정 도메인에 남는다. 대상 참조가 저장된 뒤 원본 참조의 제거를 별도 migration으로 적용한다.
 4. 커밋 응답을 잃었거나 결과가 불명확하면 원래 프로젝트 binding과 보관한 manifest로 `Reconcile`을 호출한다. 오류 없이 `found=true`여야 그 작업의 저장 기록을 확인한 것이다. `found=false`는 해당 조회 시점의 미관측 결과다. 이 값만으로 롤백이나 재시도를 결정할 수 없다. [별도 프로세스의 응답 유실·재접속 예제](../codegen/consumertest/account_historical_handoff_test.go)

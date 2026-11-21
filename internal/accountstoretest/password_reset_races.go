@@ -17,8 +17,15 @@ import (
 )
 
 func passwordResetConcurrent(t *testing.T, open Open) {
-	for _, mode := range []string{"reset", "shared_proof", "self_change", "administrator", "login", "deactivate"} {
-		t.Run(mode, func(t *testing.T) {
+	for _, name := range []string{"reset", "shared_proof", "self_change", "administrator", "login", "deactivate", "login_before_reset", "reset_before_login"} {
+		t.Run(name, func(t *testing.T) {
+			mode, firstWriter := name, -1
+			switch name {
+			case "login_before_reset":
+				mode, firstWriter = "login", 1
+			case "reset_before_login":
+				mode, firstWriter = "login", 0
+			}
 			backend, reopen := open(t)
 			f := provisionSelfPassword(t, backend)
 			base := resetNativeOwner(t, f)
@@ -41,6 +48,7 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 			}
 			f.instant.Add(int64(time.Minute))
 			ready, start := make(chan struct{}, 2), make(chan struct{})
+			afterFirst := make(chan struct{})
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			var once sync.Once
 			release := func() { once.Do(func() { close(start) }) }
@@ -53,7 +61,11 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 				config := f.config(t)
 				config.Accounts.Now = f.clock
 				config.Sessions.Random = &entropy[index]
-				owners[index] = newUserReferenceOwner(t, &passwordWriteGate{connection, ready, start}, f.userReferenceFixture, config)
+				gate := start
+				if firstWriter >= 0 && index != firstWriter {
+					gate = afterFirst
+				}
+				owners[index] = newUserReferenceOwner(t, &passwordWriteGate{connection, ready, gate}, f.userReferenceFixture, config)
 				var err error
 				resetters[index], err = owners[index].runtime.PasswordResetter(resetNativeConfig(t, f))
 				if err != nil {
@@ -109,10 +121,18 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 			}
 			release()
 			results := make([]outcome, 2)
-			for range 2 {
+			for received := range 2 {
 				select {
 				case result := <-done:
 					results[result.index] = result
+					// Both calls prepared independently. In the ordered cases the
+					// second writer enters only after the first confirmed commit.
+					if firstWriter >= 0 && received == 0 {
+						if result.index != firstWriter || result.err != nil {
+							t.Fatal("scheduled first writer did not commit", name, result.err)
+						}
+						close(afterFirst)
+					}
 				case <-ctx.Done():
 					t.Fatal("reset peer writes did not finish", ctx.Err())
 				}
@@ -206,9 +226,12 @@ func passwordResetConcurrent(t *testing.T, open Open) {
 					assertUserReferenceStateAt(t, expected, after, f.credential.Principal(), f.clock(), catalogExpectedEvent{"user", f.target.ID, admin.ActionChange, []string{"encoded_password"}})
 				case "login":
 					winningPassword = password
-					record := loginExpectedRecord(t, f.credential, peerPrevious, "replace", peerID, f.clock())
-					if !reflect.DeepEqual(peer.login.Record.Snapshot(), record.Snapshot()) || !peer.login.Credential.MatchesSessionStamp(f.credential.SessionStamp()) || !reflect.DeepEqual(peer.login.Credential.Principal(), f.credential.Principal()) {
-						t.Fatal("winning login lost its current credential or fresh browser lifetime")
+					record := loginExpectedRecord(t, f.credential, peerPrevious, "rotate", peerID, f.clock())
+					if !reflect.DeepEqual(peer.login.Record.Snapshot(), record.Snapshot()) {
+						t.Fatal("winning login did not rotate the anonymous session with its existing data and absolute expiry")
+					}
+					if !peer.login.Credential.MatchesSessionStamp(f.credential.SessionStamp()) || !reflect.DeepEqual(peer.login.Credential.Principal(), f.credential.Principal()) {
+						t.Fatal("winning login returned a different credential")
 					}
 					expected := loginExpectedState(t, before, after, f.credential, f.target, peerPrevious, record, f.clock())
 					assertUserReferenceState(t, expected, after, f.actor.Principal())
