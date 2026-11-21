@@ -6439,6 +6439,30 @@ macOS 첫 계정 명령의 터미널·프로세스 검사 81건은 Intel의 세 
 
 전체 작업은 68개 패키지·필수 검사 4,516개를 확인했고 테스트 이름별 시작·성공이 10,818쌍, 테스트 skip은 0이었다. 별도로 이어 실행한 `godjcheck`까지 통과했다. 원본 판독 기록은 `gdj0138-d7584767-ci44944607875/relation-product-linux-arm64-race-0-1-verified.json`이며 SHA-256은 `7f0ede942bed5cead2fdccfbe5526f3f451cca8f0751163a4a58526d9da90515`다. [이벤트와 실행 계획 `d682be04`](https://github.com/progresshans/godj/actions/runs/44944607875/artifacts/14726462294)
 
+후속 제품 변경 제출로 이 실행은 성공 작업 244개와 취소 작업 123개로 종료됐다. 최종 집계 작업은 프로젝트 명령·관계 제품·참조 대조 작업의 취소를 감지해 실패했다. [최종 집계](https://github.com/progresshans/godj/actions/runs/44944607875/job/137002111909)
+
+### 512c17f1 새 프로젝트의 필수 계정 파일
+
+PR 소스 `512c17f1b69f121040ac1e9677bebfddf17e280d`와 실행 `44955313490` 시도 1의 checkout `2734b7f10a0328b3a00f17b83e7bcabe6c7ce0c8`은 같은 트리 `c98c9f0e9da041f80a75c3969652e4351e83aa36`를 사용했다. 이전 소스에서 파일 명령·Admin을 직접 조립한 생성 앱은 빈 업로드 설정을 거부했다. 당시 starter는 첫 계정 명령에 빈 설정만 전달했고 Admin에도 파일 보고 함수를 전달하지 않았다. [기존 생성 앱 원본 `0c9c6076`](https://github.com/progresshans/godj/actions/runs/44944607875/artifacts/14724198157) · [현재 실행](https://github.com/progresshans/godj/actions/runs/44955313490)
+
+공개 `startproject`로 기본 User, 별도 Member, 필수 문서가 있는 Member의 세 프로젝트를 생성했다. 생성 manifest 세 개가 서로 달랐다. 세 프로젝트의 SQLite·PostgreSQL 최초 기동과 재시작 12건을 Chromium 155.0.8059.12로 확인했다. 필수 문서 프로젝트의 파일 한도 거부 2건도 확인했다. 상위 테스트를 포함해 24건이 한 번씩 실행·통과했고 skip은 0이었다. 원본 판독 기록은 `gdj0138-512c17f1-ci44955313490/starter-account-browser-1-document.json`이며 SHA-256은 `fdf2a376694f2224066a9228a8bb18c5d72fd139706659a2f5e6a13780f507b9`다. [브라우저·명령 원본 `ca768570`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14726819448)
+
+파일당·합계 128바이트를 선언한 첫 계정 명령은 129바이트 파일을 비밀번호 입력 전에 거부했다. 독립 DB 연결에서 계정·도메인·감사 행이 0개였고 저장소·보고 디렉터리도 비어 있었다. 정상 입력으로 만든 계정의 operation ID·키·revision·저장 이름과 파일 바이트를 대조했다. Admin은 실제 multipart 폼으로 다른 회원을 생성했고 재시작 뒤 동명 파일을 교체했다. 저장 이름을 보낸 JSON 요청과 필수 파일 누락은 거부됐다. 보고 파일을 덮어쓸 수 없어 후속 수정이 500을 반환한 경우에도 실제 계정 revision·새 파일·이전 게시물과 기존 보고가 보존됐음을 API와 독립 SQL·파일 읽기로 확인했다. [브라우저 시나리오](../../conformance/runserverproduct/testdata/starteraccount/browser.cjs) · [저장 결과 대조](../../conformance/runserverproduct/starter_documents_linux_test.go)
+
+생성 앱의 파일 생성·편집 회귀 검사는 SQLite·PostgreSQL에서 DB별 230건씩 normal·race·CGO-disabled로 통과했다. 총 1,380건은 상위 테스트를 포함하며 skip은 0이었다. 기본·사용자 정의 모델에서 부분 게시, 입력 한도·이미지 검사, 보고 함수 실패와 커밋 응답 유실을 포함한다. 각 모드의 실제 자식 프로세스 8개의 출력 해시와 검사 목록을 대조했다. 보관 기록 `profile-file-lifecycle.json`의 SHA-256은 `a2cabf9388dda126b23410a6cc2685c1c49d2394195d1df7c1777a50fceb0354`다. [normal `df5c7b66`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728415311) · [race `819ccd03`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728492616) · [CGO-disabled `940af3f5`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728795712)
+
+Linux amd64에서 CI 도구 검사 111건과 `go vet ./...`가 통과했다. Portable core 141개 패키지의 필수 검사 500건이 전부 실행·통과했다. 같은 원본에서 Schema IR의 계정 역할 검사 6개와 잘못된 선언 23개의 시작·성공을 각각 확인했다. 전체 Go 실행의 skip 221건은 필수 목록 밖에 있다. [원본 `39ff5578`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14727671837)
+
+같은 소스에서 고정 Django 6.1·Python 3.14.3의 계정 관측기 9종을 SQLite 3.50.4와 PostgreSQL 17.10에서 각각 실행했다. 원본 18개를 DB별 보관값·Django 소스 해시와 대조했다. Python 3.12.13·3.13.15·3.14.3·3.14.7에서 계정 검사 21건이 버전마다 통과했고, macOS arm64의 고정 환경에서는 전체 409건이 skip 없이 통과했다. [양 DB 원본 `84213dcd`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728391545) · [3.12.13 `84f0a2fb`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728296446) · [3.13.15 `be5f9289`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728426714) · [3.14.3 `f1e402a4`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728640565) · [3.14.7 `f7dfaedd`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14727594076) · [macOS 고정 환경](https://github.com/progresshans/godj/actions/runs/44955313490/job/137002192026)
+
+### 512c17f1 계정 수명 회귀
+
+생성 앱 45개 작업의 필수 목록과 부모 로그에 남은 자식 출력 해시, 프로세스별 시작·성공 이벤트를 대조했다. normal·race·CGO-disabled 각각에서 15개 작업, 133개 자식 프로세스의 검사 10,229건이 통과했다. 세 모드의 목록이 같았고 skip은 0이었다. 이 수에는 위 파일 검사와 아래 그룹 권한 검사가 포함된다. 역할 선언·첫 계정·비밀번호 재설정·프로필·채운 DB 전환·별도 프로세스 재접속을 포함한 보관 기록은 `gdj0138-512c17f1-ci44955313490/selected-account-generated-inventory.json`이며 SHA-256은 `d3361afb461a35b144ec5e297482e854ab121f7a0f049fa2c7fcdaa0b04a03bf`다. [계정 전환 `d75a0a64`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728247664) · [대상 참조와 생성 `7805790e`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728727507) · [별도 프로세스 재접속 `78e41bb3`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728067387)
+
+일반 Catalog의 그룹 권한 쓰기를 기본·사용자 정의 모델과 세 가지 중간 모델 구성에서 회귀 검증했다. DB별 106건이 normal·race·CGO-disabled에서 모두 통과했다. 모드 간 검사 목록이 일치했고 총 636건의 skip은 0이었다. [normal `0d229280`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728265148) · [race `66e412e1`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728790214) · [CGO-disabled `1eaf4f69`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728292887)
+
+PostgreSQL 17.10에서는 세 모드 각각 선택 계정 저장소 필수 검사 2,219건과 역사 운영자 이행 51건이 모두 통과했다. race 작업의 필수 검사 2,669건과 `db/postgres` 패키지 종료를 확인했다. 로그인·비밀번호 재설정 경합 9건을 포함한다. [normal `8b2e6e9c`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728601697) · [race `8c597eb2`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728079241) · [CGO-disabled `41c807f6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728098991)
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

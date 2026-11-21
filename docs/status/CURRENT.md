@@ -6,6 +6,6 @@
 
 ## 재개 지점
 
-1. `d7584767`에서 I1-03의 일반 Catalog 그룹 권한 생성·수정을 양 DB의 세 모드에서 검증했다. 실제 Admin과 관리 JSON, 회원 권한 회수·세션 폐기·롤백·재접속을 포함한다. 같은 소스에서 고정 Django 계정 관측 18개와 기본 User·사용자 정의 Member의 브라우저 최초 기동·재시작 8건도 확인했다. [그룹 권한과 브라우저 검증](TEST_EVIDENCE.md#d7584767-일반-catalog의-그룹-권한-쓰기)
-2. 같은 소스에서 첫 계정·프로필·비밀번호 재설정, 채운 DB의 계정·권한 전환과 응답 유실 후 재접속을 양 DB·세 모드로 확인했다. Linux arm64 SQLite race에서 이전에 끝나지 않았던 필수 검사 19개와 패키지 종료도 확인했다. [생성 앱의 전환](TEST_EVIDENCE.md#d7584767-생성-앱의-계정-수명과-전환) · [SQLite 재검증](TEST_EVIDENCE.md#d7584767-linux-arm64-race-sqlite-재검증)
-3. 후속 구현에서 새 프로젝트의 첫 계정 명령과 Admin에 파일 업로드 정책·보고 함수를 연결했다. 필수 문서를 받는 새 Member 앱으로 한도 초과 거부, 최초 생성, Admin 파일 생성·수정과 재시작을 양 DB에서 확인한다. 해당 소스의 플랫폼·전체 CI와 I1-01~08을 수용한 뒤 M1 스키마·데이터 마이그레이션으로 넘어간다. [프로젝트 사용법](../DEVELOPER_EXPERIENCE.md#선택-계정-구성) · [I1 요구표](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [통합 PR](https://github.com/progresshans/godj/pull/1)
+1. `512c17f1`에서 새 프로젝트의 필수 파일 프로필을 검증했다. 공개 첫 계정 명령의 한도 초과 거부와 생성, Admin의 파일 생성·교체, 보고 실패 후 확정 상태 재조회를 SQLite·PostgreSQL에서 확인했다. 기본 모델과 두 사용자 정의 프로젝트의 최초 기동·재시작도 통과했다. [최신 검증](TEST_EVIDENCE.md#512c17f1-새-프로젝트의-필수-계정-파일)
+2. 같은 소스에서 일반 Catalog 그룹 권한 쓰기, 생성 앱의 계정 관리·프로필·재설정, 채운 DB의 계정·권한 전환과 재접속을 양 DB·세 모드에서 확인했다. PostgreSQL 계정 저장소와 고정 Django의 양 DB 관측도 확인했다. [계정 수명 회귀](TEST_EVIDENCE.md#512c17f1-계정-수명-회귀)
+3. 남은 Linux·macOS 환경의 SQLite 저장소·첫 계정 명령, 공통 호환성 및 전체 CI 결과를 대조한다. I1-01~08 수용 후 M1 스키마·데이터 마이그레이션으로 넘어간다. [I1 요구표](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [전체 CI](https://github.com/progresshans/godj/actions/runs/44955313490)
