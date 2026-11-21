@@ -19,6 +19,7 @@ import (
  "example.com/godj-project-bundle/host"
  accountaudit "github.com/progresshans/godj/account/audit"
  "github.com/progresshans/godj/account/domain"
+ domainmodels "github.com/progresshans/godj/account/domain/models"
  "github.com/progresshans/godj/auth"
  "github.com/progresshans/godj/db"
  accountmodel "github.com/progresshans/godj/identity/model"
@@ -32,8 +33,19 @@ import (
  "github.com/progresshans/godj/validation"
 )
 
-type transitionBackend struct { database.Backend; mode string; target int64; completed, faults, created atomic.Int32; creationTarget atomic.Int64; choiceDenied atomic.Bool }
+type transitionBackend struct {
+ database.Backend
+ mode string
+ target int64
+ completed, faults, created atomic.Int32
+ creationTarget atomic.Int64
+ choiceDenied atomic.Bool
+ beforeSnapshot func()
+}
 func (b *transitionBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+ if b.beforeSnapshot != nil {
+  b.beforeSnapshot()
+ }
  visit:=read
  if b.mode=="unexpected_reference_read"{visit=func(scope db.Queryer)error{return read(transitionReferenceRead{Queryer:scope,owner:b})}}
  err:=b.Backend.ReadSnapshot(ctx,visit);if err==nil&&b.mode=="read_cleanup" { return errors.New("private transition read cleanup") };return err
@@ -112,6 +124,25 @@ func (s *transitionScope) Insert(ctx context.Context,plan query.InsertPlan)(int6
 type transitionOverlay struct{denied bool}
 func (o *transitionOverlay)Allowed(_ context.Context,p auth.Principal,permission auth.Permission)(bool,error){return p.Has(permission)&&!o.denied,nil}
 func transitionCheck(t *testing.T,err error){t.Helper();if err!=nil{t.Fatal(err)}}
+func checkReconcileInput(t *testing.T, backend *transitionBackend, owner *accountmodel.Transition[models.User, members.Member], manifest accountmodel.TransitionManifest, change func(*accountmodel.TransitionManifest)) {
+ t.Helper()
+ writes := backend.completed.Load()
+ calls := 0
+ backend.beforeSnapshot = func() {
+  calls++
+  change(&manifest)
+ }
+ receipt, found, err := owner.Reconcile(t.Context(), manifest)
+ backend.beforeSnapshot = nil
+ if err != nil || !found || calls != 1 || receipt.OperationID() != manifest.OperationID || receipt.Sequence() != manifest.PriorSequence+1 {
+  t.Fatal("reconciliation did not retain the correspondence supplied before the snapshot", calls, err)
+ }
+ rejected, present, err := owner.Reconcile(t.Context(), manifest)
+ if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeConflict}) || present || rejected.Sequence() != 0 || backend.completed.Load() != writes {
+  t.Fatal("changed correspondence matched the durable receipt or opened a writer", err)
+ }
+}
+
 func transitionPatch[M any](t *testing.T,backend db.Mutator,objects orm.Manager[M],row M,values map[string]query.Value)M{
  t.Helper();prepared,err:=objects.PrepareValues(&row,values);transitionCheck(t,err);result,err:=prepared.Model();transitionCheck(t,err);transitionCheck(t,prepared.Save(t.Context(),backend,&result));return result
 }
@@ -234,6 +265,33 @@ func TestAccountTransition(t *testing.T){
    if mode=="unknown_commit"||mode=="unknown_rollback"{if !errors.Is(failure,&query.Error{Code:query.CodeCommitOutcomeUnknown}){t.Fatal("unknown outcome lost",failure)}}
    reopened,err:=database.Open(t.Context(),selected);transitionCheck(t,err);defer reopened.Close();freshOld,freshNext:=transitionStores(t,reopened);freshOwner,err:=accountmodel.NewTransition(freshOld,freshNext,config);transitionCheck(t,err)
    receipt,found,err:=freshOwner.Reconcile(t.Context(),retained);transitionCheck(t,err);if found!=applied||found&&receipt.OperationID()!=operation{t.Fatal("reconciliation disagrees with native durable outcome")}
+   if mode == "lifecycle" {
+    t.Run("reconcile_input", func(t *testing.T) {
+     checkReconcileInput(t, backend, owner, prepared.Manifest(), func(value *accountmodel.TransitionManifest) {
+      value.Mappings[0].TargetRevision++
+     })
+    })
+    t.Run("predecessor_role", func(t *testing.T) {
+     prior, err := domainmodels.TransitionObjects.Using(native).Filter(domainmodels.TransitionFields.OperationID.Exact(retained.PriorOperationID)).Get(t.Context())
+     transitionCheck(t, err)
+     if prior.RoleFingerprint != retained.SourceRoleSHA256 || prior.RoleFingerprint == receipt.RoleFingerprint() {
+      t.Fatal("fixture does not have distinct source and target roles")
+     }
+     altered := transitionPatch(t, native, domainmodels.TransitionObjects, prior, map[string]query.Value{"role_fingerprint": query.String(receipt.RoleFingerprint())})
+     observed, err := domain.Lookup(t.Context(), reopened, retained.PriorOperationID)
+     transitionCheck(t, err)
+     if observed.RoleFingerprint() != receipt.RoleFingerprint() || !receipt.Follows(observed) {
+      t.Fatal("changed source role did not retain the original predecessor link")
+     }
+     rejected, present, refusal := freshOwner.Reconcile(t.Context(), retained)
+     transitionPatch(t, native, domainmodels.TransitionObjects, altered, map[string]query.Value{"role_fingerprint": query.String(prior.RoleFingerprint)})
+     restored, found, err := freshOwner.Reconcile(t.Context(), retained)
+     if !errors.Is(refusal, &accountmodel.Error{Code: accountmodel.CodeConflict}) || present || rejected.Sequence() != 0 ||
+        err != nil || !found || restored.OperationID() != receipt.OperationID() {
+      t.Fatal("reconciliation did not distinguish the changed and restored source role", refusal, err)
+     }
+    })
+   }
    if _,present,err:=foreign.Load(t.Context(),foreignRecord.ID());err!=nil||!present{t.Fatal("foreign session was altered",err)}
    oldNamespace,err:=binding.CredentialDomain(initial.Generation());transitionCheck(t,err);historical,err:=storage.Store(oldNamespace.Identifier());transitionCheck(t,err)
    for _,id:=range ids{_,present,err:=historical.Load(t.Context(),id);transitionCheck(t,err);if present==applied{t.Fatal("old session/reset/anonymous record retirement mismatch")}}

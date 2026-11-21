@@ -281,7 +281,11 @@ func (owner *IdentityHandoff) Commit(ctx context.Context, actor auth.Principal, 
 		if count, err := accountaudit.InspectIn(work, scope); err != nil || count != 0 {
 			return domain.Receipt{}, handoffError(CodeHandoffConflict, err)
 		}
-		actual, found, err := owner.reconcileIn(work, scope, state.manifest)
+		evidence, err := owner.manifestEvidence(state.manifest)
+		if err != nil {
+			return domain.Receipt{}, handoffError(CodeHandoffConflict, err)
+		}
+		actual, found, err := owner.reconcileIn(work, scope, state.manifest, evidence)
 		if err != nil || !found || !reflect.DeepEqual(actual, receipt) {
 			return domain.Receipt{}, handoffError(CodeHandoffConflict, err)
 		}
@@ -300,8 +304,8 @@ func (owner *IdentityHandoff) Reconcile(ctx context.Context, manifest IdentityHa
 	if err := owner.valid(ctx); err != nil {
 		return domain.Receipt{}, false, err
 	}
-	manifest = cloneHandoffManifest(manifest)
-	if _, err := owner.manifestEvidence(manifest); err != nil {
+	manifest, evidence, err := owner.retainedManifest(manifest)
+	if err != nil {
 		return domain.Receipt{}, false, err
 	}
 	if err := owner.requireMigrations(ctx); err != nil {
@@ -312,7 +316,7 @@ func (owner *IdentityHandoff) Reconcile(ctx context.Context, manifest IdentityHa
 		found   bool
 	}
 	value, err := db.ReadSnapshotResult(ctx, owner.backend, func(work context.Context, scope db.Queryer) (result, error) {
-		receipt, found, err := owner.reconcileIn(work, scope, manifest)
+		receipt, found, err := owner.reconcileIn(work, scope, manifest, evidence)
 		return result{receipt, found}, err
 	})
 	if err != nil {
@@ -335,7 +339,11 @@ func (owner *IdentityHandoff) AuditHistoryIn(ctx context.Context, scope db.Query
 	if _, err := admin.PrepareEvent("handoff-history", model, objectID, admin.ActionChange, nil, ""); err != nil {
 		return nil, handoffError(CodeInvalidInput, err)
 	}
-	if _, found, err := owner.reconcileIn(ctx, scope, cloneHandoffManifest(manifest)); err != nil || !found {
+	manifest, evidence, err := owner.retainedManifest(manifest)
+	if err != nil {
+		return nil, handoffError(CodeHandoffConflict, err)
+	}
+	if _, found, err := owner.reconcileIn(ctx, scope, manifest, evidence); err != nil || !found {
 		return nil, handoffError(CodeHandoffConflict, err)
 	}
 	entries, err := readAuditHistory(ctx, scope, model, objectID, limit)
@@ -349,11 +357,17 @@ func (owner *IdentityHandoff) AuditHistoryIn(ctx context.Context, scope db.Query
 	return entries, nil
 }
 
-func (owner *IdentityHandoff) reconcileIn(ctx context.Context, scope db.Queryer, manifest IdentityHandoffManifest) (domain.Receipt, bool, error) {
+func (owner *IdentityHandoff) retainedManifest(manifest IdentityHandoffManifest) (IdentityHandoffManifest, string, error) {
+	// Check the configured account and catalog limits before copying the
+	// correspondence that subsequent database calls will use.
 	evidence, err := owner.manifestEvidence(manifest)
 	if err != nil {
-		return domain.Receipt{}, false, err
+		return IdentityHandoffManifest{}, "", err
 	}
+	return cloneHandoffManifest(manifest), evidence, nil
+}
+
+func (owner *IdentityHandoff) reconcileIn(ctx context.Context, scope db.Queryer, manifest IdentityHandoffManifest, evidence string) (domain.Receipt, bool, error) {
 	receipt, found, err := domain.LookupIn(ctx, scope, manifest.OperationID)
 	if err != nil || !found {
 		return domain.Receipt{}, false, err

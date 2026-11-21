@@ -274,14 +274,17 @@ func (prepared PreparedTransition[S, T]) Manifest() TransitionManifest {
 	if prepared.state == nil {
 		return TransitionManifest{}
 	}
-	result := prepared.state.manifest
-	result.Mappings = slices.Clone(result.Mappings)
-	result.CreationSources = slices.Clone(result.CreationSources)
-	result.References = cloneTransitionReferenceManifests(result.References)
-	result.Catalog = cloneCatalogMappings(result.Catalog)
-	result.CatalogCreation = cloneCatalogCreationManifest(result.CatalogCreation)
-	result.Collections = slices.Clone(result.Collections)
-	return result
+	return prepared.state.manifest.clone()
+}
+
+func (manifest TransitionManifest) clone() TransitionManifest {
+	manifest.Mappings = slices.Clone(manifest.Mappings)
+	manifest.CreationSources = slices.Clone(manifest.CreationSources)
+	manifest.References = cloneTransitionReferenceManifests(manifest.References)
+	manifest.Catalog = cloneCatalogMappings(manifest.Catalog)
+	manifest.CatalogCreation = cloneCatalogCreationManifest(manifest.CatalogCreation)
+	manifest.Collections = slices.Clone(manifest.Collections)
+	return manifest
 }
 
 // Prepare is read-only. operationID is one fresh canonical 256-bit hex ID
@@ -570,6 +573,9 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 	if err != nil || manifest.ProjectSHA256 != owner.source || manifest.SourceRoleSHA256 != old || manifest.TargetRoleSHA256 != next {
 		return domain.Receipt{}, false, managementError(CodeInvalidInput, err)
 	}
+	// The digest above binds the supplied wire shape. Keep its validated
+	// correspondence independent of the caller throughout the native read.
+	manifest = manifest.clone()
 	type observed struct {
 		receipt domain.Receipt
 		found   bool
@@ -583,7 +589,8 @@ func (owner *Transition[S, T]) Reconcile(ctx context.Context, manifest Transitio
 		if err != nil {
 			return observed{}, err
 		}
-		if !priorFound || !receipt.Follows(prior) || receipt.RoleFingerprint() != next || receipt.EvidenceSHA256() != evidence || receipt.Sequence() != manifest.PriorSequence+1 {
+		if !priorFound || !receipt.Follows(prior) || prior.RoleFingerprint() != old || receipt.RoleFingerprint() != next ||
+			receipt.EvidenceSHA256() != evidence || receipt.Sequence() != manifest.PriorSequence+1 {
 			return observed{}, managementError(CodeConflict, nil)
 		}
 		inventory, err := domain.LookupMappingInventoryIn(work, scope, receipt)
@@ -665,7 +672,17 @@ func compareInt64(a, b int64) int {
 }
 
 func (manifest TransitionManifest) evidence() (string, error) {
-	if manifest.Version != transitionManifestVersion(manifest.Catalog, manifest.References, manifest.CatalogCreation, manifest.Collections) || manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 || (len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) || len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts || manifest.CatalogCreation != nil && manifest.Catalog != nil || len(manifest.Collections) > MaximumThroughCreations || len(manifest.Collections) != 0 && len(manifest.CreationSources) == 0 && manifest.CatalogCreation == nil {
+	if manifest.PriorSequence < 1 || manifest.PriorSequence == math.MaxInt64 ||
+		(len(manifest.Mappings) == 0) == (len(manifest.CreationSources) == 0) ||
+		len(manifest.Mappings) > MaximumTransitionAccounts || len(manifest.CreationSources) > MaximumTransitionAccounts ||
+		manifest.CatalogCreation != nil && manifest.Catalog != nil || len(manifest.Collections) > MaximumThroughCreations ||
+		len(manifest.Collections) != 0 && len(manifest.CreationSources) == 0 && manifest.CatalogCreation == nil {
+		return "", managementError(CodeInvalidInput, nil)
+	}
+	if err := validateTransitionReferenceManifests(manifest.References); err != nil {
+		return "", err
+	}
+	if manifest.Version != transitionManifestVersion(manifest.Catalog, manifest.References, manifest.CatalogCreation, manifest.Collections) {
 		return "", managementError(CodeInvalidInput, nil)
 	}
 	for _, collection := range manifest.Collections {
@@ -678,9 +695,6 @@ func (manifest TransitionManifest) evidence() (string, error) {
 	}
 	if catalog, err := normalizeCatalogMappings(manifest.Catalog); err != nil || !equalCatalogMappings(catalog, manifest.Catalog) {
 		return "", managementError(CodeInvalidInput, err)
-	}
-	if err := validateTransitionReferenceManifests(manifest.References); err != nil {
-		return "", err
 	}
 	for _, digest := range []string{manifest.OperationID, manifest.PriorOperationID, manifest.ProjectSHA256, manifest.SourceRoleSHA256, manifest.TargetRoleSHA256, manifest.StateSHA256} {
 		if !transitionDigest(digest) {

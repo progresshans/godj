@@ -182,6 +182,13 @@ func TestAccountTransitionCreation(t *testing.T){
    reopened,err:=database.Open(t.Context(),selected);transitionCheck(t,err);defer reopened.Close()
    freshOld,freshNext:=transitionStores(t,reopened);freshOwner,err:=accountmodel.NewTransition(freshOld,freshNext,config);transitionCheck(t,err)
    receipt,found,err:=freshOwner.Reconcile(t.Context(),retained);transitionCheck(t,err);if found!=applied{t.Fatal("restart creation reconciliation disagrees")}
+   if mode == "lifecycle" {
+    t.Run("reconcile_input", func(t *testing.T) {
+     checkReconcileInput(t, backend, owner, prepared.Manifest(), func(value *accountmodel.TransitionManifest) {
+      value.CreationSources[0].Revision++
+     })
+    })
+   }
    count,err:=members.MemberObjects.Using(reopened).Count(t.Context());transitionCheck(t,err)
    want:=int64(0);if applied{want=2}else if mode=="new_target"{want=1};if count!=want{t.Fatal("partial or duplicate target survived")}
    stored,err:=sessiondb.New(reopened,sessiondb.Config{});transitionCheck(t,err);oldNamespace,err:=stored.Store(namespace.Identifier());transitionCheck(t,err)

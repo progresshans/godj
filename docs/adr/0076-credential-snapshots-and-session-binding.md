@@ -2110,6 +2110,7 @@ session 전체를 제거하되 다른 namespace는 보존한다. Source domain�
 
 Commit·cleanup·unknown 실패는 성공 receipt를 게시하지 않고 자동 재시도하지 않는다. `Reconcile`은 보관한 manifest를
 정확한 operation·evidence·실제 predecessor 링크와 한 snapshot에서 대조하므로 restart·후속 전환 뒤에도 조회할 수 있다.
+이때 이전 receipt의 역할은 원본 binding, 새 receipt의 역할은 대상 binding과 각각 일치해야 한다. 호출 시 받은 manifest의 원래 표현으로 digest를 계산하고, 검증한 대응표의 사본을 DB 조회가 끝날 때까지 사용한다. 역사 이행의 재조회와 감사 조회도 계정·카탈로그 행 한도를 검사한 뒤 사본을 만든다.
 미관측 결과는 rollback 확정이 아니다. Unknown fence는 호스트가 별도로 조정한다. `domain.LookupIn`의 부재는 외부 snapshot
 종료 전에는 데이터이며, `Lookup`도 cleanup 성공 뒤에만 정확한 `ErrUninitialized`를 반환한다. Scope 위반·중복 operation·
 cleanup 오류는 정상 부재가 아니며 `Receipt.Follows`는 sequence 값만으로 predecessor를 인정하지 않는다.

@@ -6214,6 +6214,22 @@ Member의 [관계 선언](../../internal/testschema/account.go)과 [ModelForm �
 
 공개 `Runtime.ReadSnapshot`에서 backend가 callback을 생략하거나 오류를 누락하면 정상 종료할 수 있었다. 기존 `db.ReadSnapshotResult`를 연결해 소유권 확인·callback 1회·정리 결과를 함께 반환한다. [양 DB 소비자](../../internal/identitytest/account_handoff.go)는 실제 그룹 조회, 생략·반복, 거부 누락, 정리 오류, 정상 이행 뒤 퇴역한 runtime의 읽기 거부를 검사한다. 두 DB 필수 목록에 각각 상위 1개와 하위 6개를 연결했고, 로컬 Python 분할 검사 27개가 통과했다. Go 실행은 원격 확인 대상이다.
 
+### a32041e1 채운 DB의 선택 계정 전환
+
+제출 커밋 `a32041e1`의 [CI 44911895052](https://github.com/progresshans/godj/actions/runs/44911895052) attempt 1에서 각 작업의 checkout `bd6b6a6e`와 제출 tree `deaa060385f7345e48de9494c401e586fea04fe9`를 확인했다. 생성 앱은 이미 준비한 대상 행의 전환, 새 대상 행 생성, 일반 host 참조를 각각 실행했다. 권한 회수·동시 전환·원본 변경·부분 쓰기 실패와 커밋 응답 유실 양쪽 결과를 저장된 행·매핑·이력·세션 상태와 대조한다. [생성 앱과 필수 목록](../../codegen/consumertest/account_transition_test.go)
+
+| 원격 환경 | SQLite 생성 앱 | PostgreSQL 생성 앱 | 원본 ZIP SHA-256 |
+|---|---|---|---|
+| [normal](https://github.com/progresshans/godj/actions/runs/44911895052/job/136869467766) | 138/138 | 138/138 | [`f8d785c99bc5668ba3963005b97e7dbcc0438e1983b16dea8951def5a43d5baf`](https://github.com/progresshans/godj/actions/runs/44911895052/artifacts/14711490334) |
+| [CGO_ENABLED=0](https://github.com/progresshans/godj/actions/runs/44911895052/job/136869467895) | 138/138 | 138/138 | [`b486ddec13dfb60cb636c2e2ccf764be42e70163ffb74f51eb020c8c983dfef5`](https://github.com/progresshans/godj/actions/runs/44911895052/artifacts/14710567587) |
+| [race](https://github.com/progresshans/godj/actions/runs/44911895052/job/136869467869) | 138/138 | 138/138 | [`f1a8f15ef17245455553eb300c990cf867fe4f09c90fc250b98aa2fa4ba96131`](https://github.com/progresshans/godj/actions/runs/44911895052/artifacts/14709989642) |
+
+여섯 자식 프로세스에서 패키지 종료와 skip 0을 확인했다. 부모가 기록한 DB별 stdout checksum을 실제 바이트와 대조하고 이 커밋의 필수 테스트 목록 전체와 일치하는지 확인했다. 원본 ZIP과 검증 기록은 로컬 검증 보관소의 `gdj0138-a32041e1-ci44911895052/`에 있다.
+
+같은 커밋의 [Linux arm64 SQLite normal](https://github.com/progresshans/godj/actions/runs/44911895052/job/136869472757)에서는 역사 이행·경합 필수 49개와 약한 비밀번호 거부가 통과했고 패키지가 정상 종료했다. 쓰기 반환값 8개와 읽기 소유권 7개는 각각 상위 테스트를 포함한 수다. [원본 SHA-256 `35fe1c4d9b38b24ac66f60b82686c8b4f1f15d56703df9c15dfc4a9aae45cfee`](https://github.com/progresshans/godj/actions/runs/44911895052/artifacts/14710689383)
+
+후속 수정은 선택 모델의 `Reconcile`에서 이전 receipt의 역할을 원본 binding과 대조하고, native snapshot에 들어가기 전에 검증한 대응표를 복사한다. 역사 이행과 감사 조회도 입력 한도를 먼저 검사한다. 원본 역할만 바뀐 이력, 조회 중 변경된 대상 행·생성 원본 대응표, 명시적 빈 카탈로그와 null, 역사 이행 입력·한도 검사를 추가했다. 이 수정의 생성 앱과 DB 결과는 새 제품 커밋에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

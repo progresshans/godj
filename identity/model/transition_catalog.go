@@ -211,14 +211,14 @@ func cloneCatalogMappings(input *CatalogMappings) *CatalogMappings {
 }
 
 func normalizeCatalogMappings(input *CatalogMappings) (*CatalogMappings, error) {
-	result := cloneCatalogMappings(input)
-	if result == nil {
+	if input == nil {
 		return nil, nil
 	}
+	if len(input.Groups) > MaximumTransitionCatalogRows || len(input.Permissions) > MaximumTransitionCatalogRows {
+		return nil, managementError(CodeInvalidInput, nil)
+	}
+	result := cloneCatalogMappings(input)
 	for _, rows := range []*[]domain.Mapping{&result.Groups, &result.Permissions} {
-		if len(*rows) > MaximumTransitionCatalogRows {
-			return nil, managementError(CodeInvalidInput, nil)
-		}
 		slices.SortFunc(*rows, func(a, b domain.Mapping) int { return compareInt64(a.SourceID, b.SourceID) })
 		targets := make(map[int64]bool, len(*rows))
 		for index, pair := range *rows {

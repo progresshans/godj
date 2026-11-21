@@ -27,7 +27,12 @@ var accountTransitionReferencesConsumer string
 
 func TestGeneratedAccountTransition(t *testing.T) {
 	root := writeAccountTransitionConsumer(t)
-	required := []string{"TestAccountTransition"}
+	required := []string{
+		"TestAccountTransition",
+		"TestAccountTransition/lifecycle/reconcile_input",
+		"TestAccountTransition/lifecycle/predecessor_role",
+		"TestAccountTransitionCreation/lifecycle/reconcile_input",
+	}
 	for _, name := range []string{"lifecycle", "signed_keys", "round_trip", "duplicate_mapping", "incomplete_mapping", "account_limit", "wrong_password", "wrong_principal", "wrong_roles", "wrong_membership", "source_changed", "target_changed", "profile_collection_changed", "new_source", "new_target", "grant_changed", "policy_changed", "permission_revoked", "old_domain", "canceled", "read_cleanup", "rollback", "audit_failure", "receipt_failure", "mapping_failure", "late_target_change", "late_link_key", "unknown_commit", "unknown_rollback", "concurrent", "configuration"} {
 		required = append(required, "TestAccountTransition/"+name)
 	}

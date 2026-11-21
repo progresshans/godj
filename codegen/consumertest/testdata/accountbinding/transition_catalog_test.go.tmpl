@@ -471,6 +471,15 @@ func testAccountCatalogTransition(t *testing.T,strategy,mode string){
  if mode!="explicit_empty"{
   bad:=retained;bad.Catalog=&accountmodel.CatalogMappings{Groups:slices.Clone(retained.Catalog.Groups),Permissions:slices.Clone(retained.Catalog.Permissions)};bad.Catalog.Groups[0].TargetID=99999
   if _,found,err:=freshOwner.Reconcile(t.Context(),bad);err==nil||found{t.Fatal("wrong retained catalog correspondence accepted")}
+ } else {
+  changed := retained
+  catalog := *retained.Catalog
+  catalog.Groups = nil
+  changed.Catalog = &catalog
+  value, found, err := freshOwner.Reconcile(t.Context(), changed)
+  if !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeConflict}) || found || value.Sequence() != 0 {
+   t.Fatal("a null inventory matched the digest of an explicitly empty inventory", err)
+  }
  }
 }
 

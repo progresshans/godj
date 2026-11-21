@@ -132,9 +132,13 @@ type handoffBackend struct {
 	mode           string
 	writes, faults int
 	afterMarker    func(context.Context, db.Session) error
+	beforeRead     func()
 }
 
 func (backend *handoffBackend) ReadSnapshot(ctx context.Context, read func(db.Queryer) error) error {
+	if backend.beforeRead != nil {
+		backend.beforeRead()
+	}
 	if backend.mode == "read_missing" {
 		return nil
 	}
@@ -558,6 +562,56 @@ func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, T
 				if value, found, err := reopened.Reconcile(t.Context(), changed); err == nil || found || value.Sequence() != 0 {
 					t.Fatal("modified review evidence was accepted")
 				}
+				t.Run("retained_input", func(t *testing.T) {
+					supplied := prepared.Manifest()
+					calls := 0
+					boundary.beforeRead = func() {
+						calls++
+						supplied.Accounts[0].SourceRevision++
+						supplied.Accounts[0].TargetRevision++
+					}
+					value, found, err := owner.Reconcile(t.Context(), supplied)
+					boundary.beforeRead = nil
+					if err != nil || !found || calls != 1 || value.OperationID() != manifest.OperationID {
+						t.Fatal("historical reconciliation lost the supplied correspondence", calls, err)
+					}
+					refused, present, err := reopened.Reconcile(t.Context(), supplied)
+					if !errors.Is(err, &systemstate.Error{Code: systemstate.CodeHandoffConflict}) || present || refused.Sequence() != 0 {
+						t.Fatal("modified correspondence matched the original receipt", err)
+					}
+				})
+				t.Run("inventory_limits", func(t *testing.T) {
+					ctx := t.Context()
+					invalid := &systemstate.Error{Code: systemstate.CodeInvalidInput}
+					calls := 0
+					boundary.beforeRead = func() { calls++ }
+					defer func() { boundary.beforeRead = nil }()
+					for _, role := range []string{"accounts", "groups", "permissions"} {
+						supplied := prepared.Manifest()
+						rows, limit := &supplied.Accounts, config.MaxAccounts
+						switch role {
+						case "groups":
+							rows, limit = &supplied.Catalog.Groups, config.MaxCatalogRows
+						case "permissions":
+							rows, limit = &supplied.Catalog.Permissions, config.MaxCatalogRows
+						}
+						*rows = make([]domain.Mapping, limit+1)
+						for i := range *rows {
+							(*rows)[i] = domain.Mapping{SourceID: int64(i), TargetID: int64(i), SourceRevision: 1, TargetRevision: 1}
+						}
+						value, found, err := owner.Reconcile(ctx, supplied)
+						if !errors.Is(err, invalid) || found || value.Sequence() != 0 || calls != 0 {
+							t.Fatal("out-of-range correspondence reached reconciliation", role, err)
+						}
+						handoffMust(t, second.ReadSnapshot(ctx, func(reader db.Queryer) error {
+							entries, err := owner.AuditHistoryIn(ctx, reader, supplied, "tickets.ticket", 7, 10)
+							if !errors.Is(err, invalid) || len(entries) != 0 {
+								return errors.New("out-of-range correspondence published audit history")
+							}
+							return nil
+						}))
+					}
+				})
 			}
 			if mode == "foreign_namespace" {
 				count, err := sessionmodels.SessionObjects.Using(second).Count(t.Context())
