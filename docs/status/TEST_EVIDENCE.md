@@ -6132,6 +6132,25 @@ Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 
 로컬 Go compile/test/generate/DB는 실행하지 않았다. 새 source의 실제 양 DB·race·CGO-disabled·process/browser·전체 platform과
 필수 원본 대조 및 I1-01~08 수용은 계속 필요하다.
 
+### ad25f5ed 원격 CI
+
+2026-11-15 종료된 [PR #1 CI 43659728789, attempt 1](https://github.com/progresshans/godj/actions/runs/43659728789)의 결과는 **실패**다.
+제출 커밋 `ad25f5ed311d1610f7700370d075c7958fae02e2`와 실행 작업이 checkout한
+[PR merge 커밋](https://github.com/progresshans/godj/commit/3cd2da8ec3ca02e0922eb73a89153a6e45fc7bb2)의 tree는 모두
+`25aaaaf661c9586ec4f98d042ef0fa623a8a9468`이다. 2026-11-21에 이 attempt의 작업 목록과 로그를 대조했다.
+
+- 총 367개 작업 중 성공 346개, 실패 20개, 건너뜀 1개다. Portable Go 3개, PostgreSQL 4개, Relation product 12개의
+  로그 모두 [삭제 경합 테스트](../../internal/accountstoretest/authentication_native.go)의 `deleters.IdentityUser undefined`를 기록했다.
+  [생성된 삭제자](../../conformance/identityfixture/project/zz_godj_relation_delete.go)의 필드는 `AccountsUser`다.
+  이 패키지의 인증 테스트는 컴파일에서 막혔다. [Portable Go 실패 로그](https://github.com/progresshans/godj/actions/runs/43659728789/job/132646369895)
+- 나머지 실패 1개는 [최종 집계](https://github.com/progresshans/godj/actions/runs/43659728789/job/132775752143)다.
+  PostgreSQL 작업에 의존하는 [참조·capture 대조 작업](https://github.com/progresshans/godj/actions/runs/43659728789/job/132659342937)은 건너뛰어 같은 실행의 capture 소비와 그 작업의 Linux 32비트 검증도 미실행이다.
+- 같은 source의 PostgreSQL normal에서 `codegen/consumertest`의 [reset 작업](https://github.com/progresshans/godj/actions/runs/43659728789/job/132646370614)은
+  8개 run/pass, [계정 전환 작업](https://github.com/progresshans/godj/actions/runs/43659728789/job/132646370714)은 3개 run/pass, 모두 skip 0을 보고했다.
+  [Portable integration](https://github.com/progresshans/godj/actions/runs/43659728789/job/132646369785)의 Chromium 단계는 기본 User를 쓰는 Helpdesk와 Admin inline 예제에서 성공했다.
+
+새 scaffold에서 custom 계정의 첫 생성부터 인증·reset·재시작까지 잇는 브라우저 흐름과 I1-01~08의 전체 수용은 미완료다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

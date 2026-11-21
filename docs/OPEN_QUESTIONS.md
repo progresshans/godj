@@ -6,7 +6,7 @@
 
 | ID | 현재 남은 질문 | 현재 기준 |
 |---|---|---|
-| Q-010 | project scaffold, installed version negotiation와 첫 지원 릴리스 이후 upgrade 정책 | 현재 CLI/generate/migration command는 구현됨 |
+| Q-010 | 첫 지원 릴리스 이후의 업그레이드 정책 | C1에서 project/app scaffold, 고정 모듈 설치와 도구·runtime·생성 ABI 호환성 검사를 수용했다. 운영 업그레이드는 O1에서 다룬다. |
 | Q-011 | 넓은 expression/aggregate/bulk/locking과 background 평가 소유권 | immutable AST와 cache/terminal 의미는 구현됨 |
 | Q-012 | custom/data operation, destructive/general writer, repair/crash reconciliation | loaded definition, revision-fenced lifecycle와 bounded target/reverse는 구현됨 |
 | Q-013 | arbitrary target/depth/cycle와 더 넓은 relation expression/projection | AutoField-target FK와 현행 query/cache/delete 단면 구현; OneToOne 선언·migration·single reverse/prefetch·직접 조건·facade typed/dynamic 혼합 eager·forward/reverse 할당은 GDJ-0096에서 ServiceReport 전체 소비자까지 연결·통합 검증; GDJ-0099의 ManyToMany 선언·migration·query/prefetch/streaming과 Ticket 컬렉션 소비자는 구현·영향 검증·Hosted 통합 완료; GDJ-0124 single-valued 관계 표현식·보고서 상태 조회는 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합 완료; GDJ-0125 collection field 집계·라벨 사용 현황은 source `fceff454`의 양 DB·세 모드·전체 Hosted 통합 완료; 나머지 관계 범위는 미완료 |
@@ -15,7 +15,7 @@
 | Q-019 | SQLite quarantine의 운영 recovery 안내 | single retained handle·새 I/O 거부는 GDJ-0057에서 통합 검증 완료; 자동 복구 미지원 |
 | Q-020 | 비협력 writer, 넓은 deployment topology·key distribution | 같은 normalized policy의 cooperative runtime만 지원 |
 | Q-021 | token issuance/refresh, OAuth/OIDC/JWT, production BFF | injected Bearer resource-server와 Session 경계는 구현됨 |
-| Q-022 | custom user와 더 넓은 multi-user/credential lifecycle | 기본 User/Group/Permission 저장·관리, login/logout/password/reset과 session 폐기의 현행 구현·환경별 근거는 [구현 현황](status/IMPLEMENTATION_MATRIX.md)을 따름; custom 모델 연결은 I1, token/provider는 I2에서 진행 |
+| Q-022 | 사용자 정의 계정과 전체 계정 수명의 수용 | I1에서 기본·custom 모델을 같은 인증·권한·관리 경로에 연결했다. 새 앱과 채운 DB에서 남은 확인은 [I1 요구표](../work/0138-custom-account-lifecycle.md#요구와-실제-소비자), token/provider는 I2에서 추적한다. |
 
 ## Q-017 — 모델 사용성과 생성물
 

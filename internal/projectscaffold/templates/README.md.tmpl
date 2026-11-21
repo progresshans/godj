@@ -28,6 +28,12 @@ provides the identity JSON API at `/api/identity/`; unsafe requests require the
 authenticated session and its masked CSRF token. The OpenAPI document at
 `/api/identity/openapi.json` requires identity model permissions.
 
+The starter also provides account login, logout and password change. For email
+reset, use `runtime.PasswordResetter` with your reset keys in
+`internal/site/application.go`. Pass it to `websessionauth.Config.PasswordResetPersistence`
+and use it to construct the reset mailer with a sender, From address and trusted
+origin. Supply the mailer and a private error reporter in `identityaccount.Config.PasswordReset`.
+
 The management collections are `accounts/`, `groups/` and `permissions/`. Model
 input belongs in `fields`; credential commands belong in `credential`. Writes
 to existing objects require their current `If-Revision` value. The same owners
@@ -62,6 +68,10 @@ separate production entrypoint.
   Keep callback policy in that file so its embedded source digest changes with
   the first-account declaration. A populated database needs an explicit account
   transition; changing source does not transfer existing authority.
+- When replacing the built-in User, update the model type in `FirstAccountConfig`
+  in `internal/accounts/runtime.go` to match the selected account. If you rename
+  account or catalog fields, update the Admin `ListFields` in
+  `internal/site/application.go` to match the readable fields in your policy.
 - Add Admin resources and authenticated API routes in `internal/site/models.go`.
   Choose exposed fields and permissions explicitly; adding a model does not
   automatically publish its fields as HTTP input.

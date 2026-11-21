@@ -106,6 +106,6 @@ Unknown outcome은 503 `outcome_unknown`이며 Retry-After나 자동 재시도�
 
 필수 파일을 공급하는 생성은 `Creator.CreateForm`과 Admin multipart 경로를 사용한다. 파일을 생략한 JSON 생성은 필수 입력
 거부이며 문자열 이름을 업로드로 취급하지 않는다. 첫 계정의 typed Form owner도 별도 명시적 operation ID를 받는다.
-고정 User 전용 JSON application과 Manager의 catalog CRUD·Form 검사·choice API는 제거했으며 기본 계정/catalog도 위 선택 owner를 사용한다.
-남은 Directory/Manager의 사용자·credential 서비스 이관과
-공개 첫 명령·파일/추가 M2M·채운 DB 전환·복구의 같은 source 전체 환경 수용은 I1에서 추적한다.
+기본 계정과 사용자 정의 계정 모두 선택 모델의 관리·인증 서비스를 사용한다. 역사 저장소의 고정 User 조회와 로그인 기록은
+`systemstate.OpenIdentity` 내부에 있다. 첫 계정 명령, 파일·추가 M2M 관리, 채운 DB 전환과 복구의 환경별 검증은
+[I1 요구와 실제 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)에서 추적한다.

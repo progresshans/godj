@@ -28,7 +28,7 @@ export GODJ_ARTICLE_SQLITE_DATABASE="$godj_demo_dir/article.sqlite3"
 [Article](http://127.0.0.1:8000/)과 [Admin](http://127.0.0.1:8000/admin/)을 열고, 종료는 Ctrl-C를 사용한다.
 같은 DB로 다시 실행할 때는 `runserver`만 실행한다. Startup은 저장된 User와 현재 권한을 읽으며 계정을 자동 생성하거나 이전하지 않는다.
 결과 JSON은 operation ID·생성 상태·오류 코드·정리 실패를 구분한다. 결과 유실이나 정리 실패 뒤 같은 입력을 자동 재시도하지 않는다.
-기존 `godj_system` 저장소는 현재 기동에서 거부한다. [채운 DB의 계정 전환](docs/DEVELOPER_EXPERIENCE.md#기존-operator-이전)은 아직 구현 중이다.
+기존 `godj_system` 계정이 있는 DB는 명시적으로 이행해야 한다. 기동 시 첫 선택 계정 domain의 이행 기록과 역사 저장소의 퇴역 표시를 확인한다. [채운 DB의 계정 전환](docs/DEVELOPER_EXPERIENCE.md#기존-operator-이전)
 
 Admin에 로그인한 같은 브라우저에서 [Article OpenAPI](http://127.0.0.1:8000/api/openapi.json)를 조회할 수 있다.
 기존 API의 모델 기반 요청·응답, route와 Session/CSRF 조건을 제공한다. [코드에서 사용하는 방법](docs/DEVELOPER_EXPERIENCE.md#openapi와-client)은 개발 흐름을 따른다.

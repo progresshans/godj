@@ -2,7 +2,7 @@
 
 - 상태: I1 구현 중 — C1 수용 확인 후 주 작업 전환
 - 통합: [PR #8](https://github.com/progresshans/godj/pull/8)은 merge `86c4ce01`로
-  [PR #1](https://github.com/progresshans/godj/pull/1) 작업 브랜치에 합쳤다. 관리 JSON `11349e45`도 함께 통합한다.
+  [PR #1](https://github.com/progresshans/godj/pull/1) 작업 브랜치에 합쳤다. 관리 JSON `11349e45`도 통합 브랜치에 포함됐다.
   후속 변경은 완성된 코드 묶음 단위로 #1에 계속 반영하며, 최신 통합 source의 원격 CI와 미완료 수용을 추적한다.
 - 시작: 2026-10-24
 - 출발 source: `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`
@@ -19,16 +19,18 @@
 
 ## 요구와 실제 소비자
 
-| ID | 필요한 결과 | 완료에 필요한 확인 |
-|---|---|---|
-| I1-01 | 프로젝트가 하나의 계정 모델과 필드 역할·login 정책을 선택한다. | 별도 app/model·다른 unique login 필드와 잘못된 모델/타입/중복/관계 참조를 생성 및 I/O 전 검사한다. 생성·수정·인증의 Unicode와 대소문자 정책을 명시한다. |
-| I1-02 | 사용자 정의 필수 프로필을 포함해 첫 계정을 생성한다. | 공개 프로젝트 명령과 생성 Form/Admin/API가 같은 타입·기본값·validation 의미를 사용한다. 잘못된 입력이나 실패가 부분 계정을 남기지 않는다. |
-| I1-03 | 역할·직접 권한·그룹 권한을 읽고 변경한다. | active/staff/superuser·현재 권한·snapshot·revision·권한 한도와 관계 소유권을 유지한다. 다른 모델이나 오래된 권한으로 쓰지 못한다. |
-| I1-04 | login, password change/reset, session 폐기를 연결한다. | 사용자 정의 email 참조, inactive/unusable 제외, 해싱 한도·재검사·동시 reset·비밀값 비노출과 restart를 실제 HTTP/DB에서 확인한다. |
-| I1-05 | 추가 프로필을 typed Form/Admin/API에서 조회·편집한다. | hash·principal identity·revision·서버 timestamp와 권한 필드를 임의 입력으로 덮거나 노출하지 못한다. 거부·stale revision 뒤 durable 상태를 대조한다. |
-| I1-06 | host 관계와 계정 삭제를 함께 처리한다. | 외부 모델의 CASCADE/PROTECT/SET_NULL, 권한 관계, session 폐기와 audit의 원자성·rollback·unknown outcome을 확인한다. |
-| I1-07 | 채운 기본 계정 DB를 새 모델로 명시적으로 전환한다. | 저장된 모델/domain과 설정의 불일치를 거부한다. row ID·principal ID·hash가 우연히 같은 다른 모델이 session/reset/권한/audit를 승계하지 못한다. mapping·history·receipt·복구·restart를 확인한다. |
-| I1-08 | 기본 및 사용자 정의 계정을 실제 새 앱에서 사용한다. | scaffold→generate/migration→첫 계정→인증된 프로필/권한/password/reset/비활성화/삭제→restart를 SQLite·PostgreSQL과 독립 HTTP/browser에서 실행한다. 고정 Django 공유 의미와 Go의 소유권·경합 의미를 별도로 대조한다. |
+제품 커밋 `ad25f5ed`의 구현과 남은 확인을 기록한다. I1의 여덟 요구는 전체 수용 전이다. [같은 커밋의 실패·부분 통과 근거](../docs/status/TEST_EVIDENCE.md#ad25f5ed-원격-ci)
+
+| ID | 필요한 결과 | 완료에 필요한 확인 | 현재 소비자와 남은 확인 |
+|---|---|---|---|
+| I1-01 | 프로젝트가 하나의 계정 모델과 필드 역할·login 정책을 선택한다. | 별도 app/model·다른 unique login 필드와 잘못된 모델/타입/중복/관계 참조를 생성 및 I/O 전 검사한다. 생성·수정·인증의 Unicode와 대소문자 정책을 명시한다. | [기본·custom binding 소비자](../codegen/consumertest/account_binding_test.go)가 선택 모델과 정책 혼용을 검사한다. 잘못된 선언과 입력 정책의 필수 실행 대조가 남았다. |
+| I1-02 | 사용자 정의 필수 프로필을 포함해 첫 계정을 생성한다. | 공개 프로젝트 명령과 생성 Form/Admin/API가 같은 타입·기본값·validation 의미를 사용한다. 잘못된 입력이나 실패가 부분 계정을 남기지 않는다. | [Member 첫 계정 소비자](../codegen/consumertest/testdata/accountbinding/first_custom_test.go)가 필수 프로필을 넣어 생성한다. 새 starter의 첫 계정 명령에는 기본 User 타입이 남아 있다. |
+| I1-03 | 역할·직접 권한·그룹 권한을 읽고 변경한다. | active/staff/superuser·현재 권한·snapshot·revision·권한 한도와 관계 소유권을 유지한다. 다른 모델이나 오래된 권한으로 쓰지 못한다. | [권한 합집합](../internal/accountstoretest/store.go)과 [동시 역할 변경](../internal/accountstoretest/roles_concurrency.go) 검사는 공통 인증 테스트 패키지의 컴파일 복구 후 양 DB 결과를 확인한다. |
+| I1-04 | login, password change/reset, session 폐기를 연결한다. | 사용자 정의 email 참조, inactive/unusable 제외, 해싱 한도·재검사·동시 reset·비밀값 비노출과 restart를 실제 HTTP/DB에서 확인한다. | [인증 중 변경 검사](../internal/accountstoretest/authentication_native.go)는 컴파일에서 막혔다. 생성 앱의 reset은 PostgreSQL normal에서 부분 확인했고 나머지 로그인·세션 수명과 함께 대조해야 한다. |
+| I1-05 | 추가 프로필을 typed Form/Admin/API에서 조회·편집한다. | hash·principal identity·revision·서버 timestamp와 권한 필드를 임의 입력으로 덮거나 노출하지 못한다. 거부·stale revision 뒤 durable 상태를 대조한다. | [생성 앱의 프로필 HTTP](../codegen/consumertest/testdata/accountbinding/profile_http_test.go)와 [추가 collection](../codegen/consumertest/account_profile_collections_test.go) 소비자가 있다. 새 starter의 Admin 목록은 기본 필드명에 묶여 있다. |
+| I1-06 | host 관계와 계정 삭제를 함께 처리한다. | 외부 모델의 CASCADE/PROTECT/SET_NULL, 권한 관계, session 폐기와 audit의 원자성·rollback·unknown outcome을 확인한다. | [host 관계 삭제 소비자](../internal/accountstoretest/user_host_delete.go)의 보호·rollback 검사를 포함해 인증 테스트 패키지의 컴파일 복구 후 양 DB의 필수 실행을 확인한다. |
+| I1-07 | 채운 기본 계정 DB를 새 모델로 명시적으로 전환한다. | 저장된 모델/domain과 설정의 불일치를 거부한다. row ID·principal ID·hash가 우연히 같은 다른 모델이 session/reset/권한/audit를 승계하지 못한다. mapping·history·receipt·복구·restart를 확인한다. | [별도 프로세스 이행](../codegen/consumertest/account_historical_handoff_test.go)과 [선택 모델 간 전환](../codegen/consumertest/account_transition_test.go) 소비자가 있다. PostgreSQL normal 전환 작업의 부분 통과와 별도로 전체 이행·복구를 대조해야 한다. |
+| I1-08 | 기본 및 사용자 정의 계정을 실제 새 앱에서 사용한다. | scaffold→generate/migration→첫 계정→인증된 프로필/권한/password/reset/비활성화/삭제→restart를 SQLite·PostgreSQL과 독립 HTTP/browser에서 실행한다. 고정 Django 공유 의미와 Go의 소유권·경합 의미를 별도로 대조한다. | [Helpdesk 브라우저](../scripts/ci/helpdesk_browser.py)는 기본 User를 사용한다. 새 starter에서 custom 계정으로 첫 명령·Admin·API·명시적 reset·재시작까지 잇는 실제 브라우저 검증이 남았다. |
 
 ## 구현 경계
 
@@ -49,6 +51,8 @@
   현재 I1에 필요한 명시적 모델 전환을 이 후속 작업으로 미루지 않는다.
 
 ## 진행과 검증
+
+아래는 구현 순서에 따른 기록이다. 현재 재개 지점은 [CURRENT](../docs/status/CURRENT.md), 요구별 남은 확인은 위 표를 따른다.
 
 계정 역할 IR·프로젝트 wire·source digest·생성 snapshot과 typed `BindAccount`를 구현했다. 선택적인 서버 생성 시각과
 login/인증/email의 명시적 정규화 정책을 같은 역할 fingerprint에 포함한다. 기본 User와 별도 Member·catalog·host FK
@@ -334,8 +338,9 @@ password 정책을 공유한다. 고정 비밀번호 알고리즘/사전을 공�
 
 공개 `createsuperuser`·Article·새 scaffold를 선택 계정 runtime에 연결했다. 선언 runner는 Schema IR과 독립 migration만 읽고,
 별도 commands runtime이 동일 typed 정책의 첫 계정을 생성한다. 실제 opener의 startup 검사 뒤 획득한 backend는 process owner가
-한 번 닫는다. Article/scaffold의 자동 Account/Catalog Admin·관리 JSON·login/password/reset은 같은 credential/session owner를 쓴다.
-기존 `godj_system` 이력은 데이터 읽기 전에 명시적 전환 필요로 거부하며 자동 Fresh/adoption을 하지 않는다.
+한 번 닫는다. Article과 기본 scaffold의 Account/Catalog Admin·관리 JSON·login/password는 같은 credential/session owner를 쓴다.
+Article의 메일 reset은 명시적 설정으로 연결하며, 기본 scaffold에는 reset 경로가 등록되지 않는다.
+알려진 `godj_system` 이력이 있는 DB는 첫 선택 domain으로 명시적으로 이행해야 한다.
 
 Article 업무 Admin/API도 전체 Principal로 같은 native snapshot/write fence에서 현재 domain·active/권한을 재확인한다.
 Admin mutation과 값 없는 domain audit를 함께 저장하고 읽기 정리/commit이 확인된 뒤 결과를 게시한다. 실제 SQLite/PostgreSQL의
@@ -1024,13 +1029,11 @@ snapshot·복사본·입력/저장 한도는 공통 선택 소비자가 담당�
 
 공유 물리 through 전환과 계정/catalog through 편집·생성 및 새 전환 collection 생성의 실제 검증,
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
-남은 고정 소비자 교체 및 같은 source의 전체 환경 수용은 미완료이며 I1-07/08을 수용 완료로 처리하지 않는다.
+새 scaffold의 custom 계정 브라우저 흐름과 같은 source의 전체 환경 수용이 남아 있다. I1-07/08은 수용 전이다.
 
-1. 기본 계정과 renamed field·추가 프로필을 가진 소비자를 기준으로 정규화·생성 binding을 구현한다.
-2. 공통 credential/관리 runtime과 typed 프로필, catalog 소유권, durable domain/전환을 함께 연결한다.
-3. 공개 명령·Form/Admin/API·password/reset·host 삭제·restart 소비자와 실패 검사를 완성한다.
-4. 사용자 지시에 따라 로컬 Go 실행은 중단하고 포맷·정적 확인 뒤 변경 묶음을 push한다. 영향 compile·테스트·generated drift·양 DB·race/process·
-   독립 기준·브라우저 및 전체 원격 CI를 실행한다. 결과 상세는 TEST_EVIDENCE에 기록한다.
+현재 실행 순서는 [재개 지점](../docs/status/CURRENT.md#재개-지점)을 따른다.
+사용자 지시에 따라 로컬 Go 실행은 중단하고 포맷·정적 확인 뒤 변경 묶음을 push한다. 영향 compile·테스트·generated drift·양 DB·race/process·
+독립 기준·브라우저 및 전체 원격 CI를 실행한다. 결과 상세는 TEST_EVIDENCE에 기록한다.
 
 - [ ] I1-01~08 제품 코드·생성기·소비자를 완성한다.
 - [ ] 같은 source의 필수 원격 실행과 원본·독립 기준을 대조한다.

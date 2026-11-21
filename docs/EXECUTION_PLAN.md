@@ -2,15 +2,14 @@
 
 - 수립: 2026-10-20
 - 대상: [헌장](CHARTER.md)과 [기능 카탈로그](CAPABILITY_CATALOG.md)의 전체 범위
-- 기준: GDJ-0133까지 포함한 `b2a862766a298cf640dcf67c1c292f193aa77d27`
+- 계획 수립 당시 기준: GDJ-0133까지 포함한 `b2a862766a298cf640dcf67c1c292f193aa77d27`
 - 성격: 개발 순서·의존성·완료 판정 기준. 이 문서의 채택은 제품 구현이나 검증 완료가 아니다.
 - 현재 실행 상태는 [CURRENT](status/CURRENT.md), 지원 범위는 [구현 현황](status/IMPLEMENTATION_MATRIX.md)과
   [Backend Matrix](BACKEND_MATRIX.md), 실행 상세는 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)가 소유한다.
 
 범위와 품질을 유지하면서 다른 영역의 착수가 ORM의 전체 완성 뒤로 밀리지 않게 한다.
-**GDJ-0134의 named annotation을 끝내고 아래 ORM 전환 기준을 충족하면, 주 작업을 A1의 모델 중심
-Form/Admin/API 조립으로 옮긴다.** 일반 함수·subquery/window·고급 관계·추가 필드는 후속 작업으로
-명시적으로 남기고 배정된 순서에 수행한다. 이 전환은 ORM 전체의 완료 판정이 아니다.
+GDJ-0134에서 named annotation과 ORM 전환 기준을 충족해 A1의 모델 중심 Form/Admin/API 조립으로 넘어갔다.
+일반 함수·subquery/window·고급 관계·추가 필드는 해당 후속 작업에서 검증한다.
 
 ## 계획의 기준과 해석
 
@@ -32,14 +31,8 @@ Form/Admin/API 조립으로 옮긴다.** 일반 함수·subquery/window·고급 
 
 ### 기준 source와 재개 준비
 
-기준 branch에는 GDJ-0130~0133의 구현 및 환경별 검증 기록이 들어 있다.
-현재 기본 checkout의 이전 CURRENT만 읽어서 이 후속 작업들을 미완료로 되돌리지 않는다.
-PR의 미병합 상태, 제품 코드의 존재, 실행 증거는 각각 별도로 판단한다.
-
-GDJ-0134의 이전 미커밋 작업 사본은 계획 수립 시 원래 경로에서 확인되지 않았다.
-남아 있는 `codex/named-query-annotations`의 commit은 기준 source와 같으며 annotation 구현을 포함하지 않는다.
-따라서 이전 compile 기록을 현재 구현의 증거로 쓰지 않는다. B0에서 보존된 사본·증거를 확인하고,
-복구할 수 없는 부분은 명확히 기록한 뒤 Q1에서 다시 구현한다. 복구 조사 자체가 장기 대기 사유가 되어서는 안 된다.
+B0는 GDJ-0133 이후 Q1을 재개할 기준을 확인한 단계다. 이후 수용한 Q1·A1·F1·C1의 제품 커밋과
+검증 범위는 [구현 현황](status/IMPLEMENTATION_MATRIX.md)에 있다. 다음 작업을 재개할 위치는 [CURRENT](status/CURRENT.md)를 따른다.
 
 ## 우선순위와 기본 실행 순서
 
@@ -49,7 +42,7 @@ GDJ-0134의 이전 미커밋 작업 사본은 계획 수립 시 원래 경로에
 | 단계 | 우선순위 | 기본 실행 순서 | 단계가 끝나면 확보할 결과 |
 |---|---|---|---|
 | 0 | P0 재개 조건 | B0 | 기준 source·미커밋 작업의 보존 여부·즉시 작업과 환경을 확정 |
-| 1 | P0 현재 작업 | Q1 | named annotation의 전체 계약과 실제 소비자, ORM 전환 기준 충족 |
+| 1 | P0 ORM 전환 | Q1 | named annotation의 전체 계약과 실제 소비자, ORM 전환 기준 충족 |
 | 2 | P1 첫 영역 전환 | A1 → F1 → C1 → I1 | 공통 CRUD 조립·Form/Admin 확장·새 프로젝트 시작·custom user 연결 |
 | 3 | P1 앱 성장과 표현 | M1 → A2 → T1 → L1 | 안전한 모델/data 변경·일반 API 도구·템플릿 확장·지역화 |
 | 4 | P2 공통 기능 폭 | Q2 → S1 → I2 → C2 → K1 → R1 | 함수/관계 폭·인증 provider·Web/contrib·단일 서버 Realtime |
@@ -83,15 +76,15 @@ GDJ-0134의 이전 미커밋 작업 사본은 계획 수립 시 원래 경로에
 | C03 | Schema/Model | 정규화 IR, generated type/FieldSet/codec, 모델별 Go method, 현재 metadata | custom field/options/default/validator 확장, 모델 구성·상속 요구의 Go 표현, introspection과 더 넓은 key/관계 의미 | S1, S2, M2 |
 | C04 | Fields | Auto/Integer/Float/Decimal/Boolean, Char/Text/Slug/Email/URL/UUID, Date/DateTime/Time/Duration, Binary/JSON, File/Image, choices의 현재 단면 | 기존 타입의 미지원 연산·default/constraint 조합, backend array/range/generated field, spatial 타입의 전 계층 연결 | Q2, Q3, S1, S2, G1 |
 | C05 | Relation | FK/OneToOne/ManyToMany, forward/reverse manager, eager/prefetch, 할당·삭제와 유한 graph | AutoField 이외 target·relation-as-PK, 남은 cyclic/cross-app 조합, collection 값 projection/정렬·표현식과 관계 UI | S1, Q2, Q3, F1 |
-| C06 | QuerySet | lazy/cache/iterator, Q/F, lookup/order/limit/distinct, projection/group/having/aggregate, 결과 stage | named annotation/alias, 남은 function·lookup·JSON/tuple/집합 연산, subquery/상관 참조/window, 각 조합의 평가·cache 수명 | Q1, Q2, Q3 |
+| C06 | QuerySet | lazy/cache/iterator, Q/F, lookup/order/limit/distinct, projection/group/having/aggregate, 결과 stage, Q1의 named annotation/alias | named 결과와 eager/prefetch 조합, named 표현식 쓰기, 남은 function·lookup·JSON/tuple/집합 연산, subquery/상관 참조/window, 각 조합의 평가·cache 수명 | Q1, Q2, Q3 |
 | C07 | ORM writes | create/save/update/delete, get-or-create/update-or-create, bulk, 행 잠금·transaction/savepoint | Save/BulkUpdate expression, subquery 기반 쓰기, 넓어진 key/관계/잠금 target·batch와 실패/retry의 조합 | Q3, S1 |
 | C08 | Migration | writer/autodetector·graph/history/state, 제한된 schema 변경·reverse·revision fence·재개 | 일반 schema/custom/data operation, populated 변경·복구/adoption, fake/squash/optimizer, multi-DB와 introspection | M1, M2 |
 | C09 | Database | SQLite/PostgreSQL의 현재 compiler/editor·연결/transaction·schema 검사 | MySQL/MariaDB/Oracle, introspection, 확장 constraints/indexes, 새 기능별 capability와 각 DB의 실제 검증 | M2, D1, D2, S1, S2, O1 |
-| C10 | Validation/Form | 공통 validation, Form/ModelForm, cleaned/errors/widgets, choices, formset/inline, 파일·cross-field의 현재 단면 | 지원 모델/관계 전반의 재사용 저장·검증, 확장점·widget/오류 흐름, 새 타입/지역화/identity/GIS 통합과 범용성 검증 | A1, F1, I1, L1, S1, S2, G1 |
+| C10 | Validation/Form | 공통 validation, Form/ModelForm, A1의 모델 입력·저장, F1의 관계 선택·formset/inline·파일 저장·widget/validation 확장 | 새 필드·관계·사용자 정의 계정·지역화·GIS까지 재사용 가능한 입력·저장·검증, widget 확장과 복합 오류 처리를 대조 | A1, F1, I1, L1, S1, S2, G1 |
 | C11 | Template | escaping/trusted value, if/for, inheritance/include, default/length/lower 등 닫힌 필터 | 나머지 선택된 tag/filter와 안전한 Go 확장점, 지역화, loader/cache·오류·자원 한도의 조합 | T1, L1 |
-| C12 | Admin | metadata 등록, list/search/filter/order/page, CRUD/actions/history, 권한·관계/inline·파일 UI의 현재 단면 | 기본 CRUD 조립, 넓은 관계 UI/선택·안전한 확장점, 새 모델/locale/custom user/GIS 연결과 범용성 검증 | A1, F1, I1, L1, S1, S2, G1 |
-| C13 | Identity/security | User/Group/Permission, password/session/CSRF, login/logout/reset/revocation·audit, injected Bearer | custom user, token 발급/갱신/JWT/OAuth/OIDC, 넓은 사용자 수명·policy/key 분배, security header·운영 통합 | I1, I2, S1, C2, O1 |
-| C14 | API | serializer/model serializer, typed 입력/출력/endpoint, JSON·filter/page, Session/Bearer, OpenAPI·고정 Go client | 일반 viewset/router/CRUD 조립, 출력 optional omission, browsable API/docs UI, 배포형·다언어 client, throttling/versioning, 새 인증 profile | A1, A2, I2, L1, O1 |
+| C12 | Admin | metadata 등록, list/search/filter/order/page, A1의 기본 CRUD 조립, actions/history, F1의 권한·관계 선택·inline·파일 UI | 더 넓은 관계 UI·선택과 안전한 확장점, 새 모델·locale·사용자 정의 계정·GIS 연결과 범용성 검증 | A1, F1, I1, L1, S1, S2, G1 |
+| C13 | Identity/security | 선택 모델의 인증·직접/그룹 권한·관리, password/session/CSRF, login/logout/reset/revocation·audit, injected Bearer | I1의 새 앱·채운 DB 전환과 계정 수명 전체 수용, token 발급/갱신/JWT/OAuth/OIDC, 넓은 사용자 수명·policy/key 분배, security header·운영 통합 | I1, I2, S1, C2, O1 |
+| C14 | API | serializer/model serializer, A1의 모델 CRUD 조립, typed 입력/출력/endpoint, JSON·filter/page, Session/Bearer, OpenAPI·고정 Go client | 일반 viewset/router를 통한 CRUD 구성, 출력 optional omission, browsable API/docs UI, 배포형·다언어 client, throttling/versioning, 새 인증 profile | A1, A2, I2, L1, O1 |
 | C15 | Realtime | 유한 HTTP streaming은 존재; Realtime 완료 증거 없음 | WebSocket/SSE, consumer, groups/channel layer, presence, backpressure/cancel, 다중 process 전달 | C2, R1, R2, O1 |
 | C16 | GIS | 현재 일반 scalar/관계 기반; GIS 완료 증거 없음 | spatial fields/lookups/geometry, capability 협상, projection/distance, GeoJSON·Admin/map과 migration | S2, G1 |
 | C17 | i18n/지역화 | 고정 IANA timezone·지역 달력 계산 | gettext/catalog·locale, 표시/입력 format, 번역 validation/template/Admin, 사용자별 시간대와 naive/wall-time 입력 정책 | T1, L1, I1 |
@@ -185,7 +178,7 @@ G-ORM은 다음 여섯 조건을 모두 요구한다.
 | H5. source에 결합된 실행 | 양 DB·독립 기준·실제 소비자·생성 drift·관련 race/process와 현재 원격 CI의 필수 실행/원본을 대조. 다른 source 성공·skip·누락으로 대신하지 않음 |
 | H6. 다음 소비자의 준비 | A1의 단일 모델 CRUD, 관계 모델 CRUD, 계산 결과 목록 흐름에 필요한 기존 공개 기능과 policy를 확인. 실제로 막히는 결함만 재현·담당·수정 범위로 등록하고 해소 |
 
-H1~H6을 충족하면 CURRENT의 다음 주 작업은 A1이다. 다음을 추가 선행 조건으로 끼워 넣지 않는다.
+H1~H6은 Q1에서 A1로 넘어갈 때 적용한 기준이다. 다음 항목은 각 후속 작업에서 다룬다.
 
 - 함수 전체, subquery/window, 모든 JSON/collection 조합의 완성
 - 모든 PK/관계/constraint 형태, 모든 migration 도구, 모든 DB의 완성

@@ -323,10 +323,12 @@ User/Group/Permission과 사용자 정의 모델은 생성 binding과 같은 typ
 저장한다. 별도의 `commands_package`가 policy와 DB 연결을 소유하고 선언 runner는 생성 모델을 import하지 않는다.
 Article/scaffold는 독립 domain·audit·session 설치 뒤 `NewAccountRuntime`과 읽기 전용 `InspectStartup`을 조립한다.
 기동은 password를 다시 받거나 데이터를 이전하지 않는다. 결과 유실·unknown은 operation receipt와 실제 저장 상태로
-조정하며 자동 재시도하지 않는다. 기존 `godj_system` 이력은 명시적 전환이 필요하므로 새 runtime에서 거부한다.
+조정하며 자동 재시도하지 않는다. 알려진 `godj_system` 이력이 있으면 첫 선택 domain의 이행 기록과
+같은 operation의 역사 저장소 퇴역 표시를 기동 시 확인한다.
 
-기존 `AdoptOperator`·`OpenIdentity`는 역사적인 operator→고정 User 도메인의 API다. 새 선택 모델로의 mapping·retirement·
-복구를 대신하지 않는다. 자세한 결정과 남은 이행 경계는 [ADR-0076](adr/0076-credential-snapshots-and-session-binding.md)을 따른다.
+기존 `AdoptOperator`·`OpenIdentity`는 역사적인 operator→고정 User 도메인의 API다.
+그 User를 첫 선택 domain으로 이행하는 책임은 `systemstate.IdentityHandoff`에, 선택 계정 모델 사이의 명시적 전환은
+`identity/model.Transition`에 있다. [계정 전환과 복구 계약](adr/0076-credential-snapshots-and-session-binding.md)
 `identity/account`는 같은 runtime의 일반 login/logout·password change와 선택적인 email reset Form/API를 구성한다.
 Reset은 CSRF-only admission과 application-owned proof cookie를 구분하며, token을 서버 session으로 옮긴 뒤 token-free
 URL로 전환한다. 현재 proof·credential 재검사, password/session/audit의 원자 저장과 공개 응답/내부 오류 보고는 각각

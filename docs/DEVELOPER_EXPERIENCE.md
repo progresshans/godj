@@ -36,8 +36,8 @@ cd ../my-site
 자동으로 HTTP에 공개하지 않는다. `published_...` 오류는 이미 생성된 디렉터리를 의미하므로 이를 미게시로 보고 반복하지 않는다.
 Source 게시와 실패 시 소유권은 [ADR-0004](adr/0004-cli-and-project-binary.md#현재-startproject-게시)를 따른다.
 일반 command의 현재 사용은 아래를 따른다. 모든 프로젝트 명령은 실행 전 호환성 검사를 사용한다.
-독립 고정 module 조합과 reload의 전체 환경 검증은 [C1](../work/0137-project-core-startup.md)에 남아 있다.
-이 명령의 실제 환경별 검증은 [TEST_EVIDENCE](status/TEST_EVIDENCE.md)를 따른다.
+[C1](../work/0137-project-core-startup.md)에서 고정 모듈 설치, 도구·runtime·생성 ABI 호환성 검사와 reload를 검증했다.
+해당 제품 커밋과 실제 실행 환경은 [C1 수용 기록](status/TEST_EVIDENCE.md#gdj-0137--projectcore-전체-원격-검증과-i1-전환)에 있다.
 
 `godj startapp LABEL [DIRECTORY]`는 `modeldef/schema.go`와 등록 안내를 새 디렉터리에 만든다.
 생략한 대상은 현재 디렉터리 아래 LABEL이다. 기존 대상은 거부하며 프로젝트 탐색·실행·DB I/O는 하지 않는다.
@@ -260,6 +260,11 @@ Article와 새 scaffold는 `modeldef`에서 계정 역할을 선택한다. 기�
 사용자 정의 모델을 선택할 때는 역할 참조·필수 최초 입력·노출·권한·비밀번호 정책과 해당 모델의 migration을 함께 변경한다.
 기존 migration 파일을 새 모델의 초기 정의로 덮어쓰지 않는다.
 
+현재 starter에서 기본 User를 다른 타입으로 교체하면 생성된 앱의 `internal/accounts/runtime.go`에 있는
+`FirstAccountConfig[models.User]`도 선택 모델에 맞춰야 한다. 로그인·catalog 필드의 이름이나 노출 목록이 바뀌면
+`internal/site/application.go`의 Admin 목록 열도 맞춰야 첫 계정 생성 후 Admin을 기동할 수 있다.
+[첫 계정 명령 템플릿](../internal/projectscaffold/templates/internal/accounts/runtime.go.tmpl) · [Admin 등록 템플릿](../internal/projectscaffold/templates/internal/site/application.go.tmpl)
+
 생성 `NewAccountRuntime`은 같은 credential/session owner의 인증·login·자기 비밀번호 변경·관리 owner·catalog를 묶는다.
 `InspectStartup`은 설치 이력과 현재 domain·account/catalog·audit·모든 session namespace를 읽기 전용으로 검사한다.
 정확한 Fresh 상태일 때만 공개 페이지로 기동하며 Ready이면 저장된 현재 권한으로 Admin/API를 조립한다. 서버가 계정을
@@ -276,24 +281,25 @@ Slug·목록 열과 읽기/생성/수정의 명시적 노출·권한을 선택�
 
 [일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON을 제공한다.
 변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.
-메일 reset은 같은 runtime에 key·sender·신뢰한 origin·비공개 오류 reporter를 명시해 활성화한다. 계정 생성·변경과 같은
-실제 typed 비밀번호 정책을 사용하고 자동 로그인하지 않는다.
+Article은 `WithPasswordReset`으로 키·메일 발신 설정·신뢰한 origin·비공개 오류 reporter를 지정하면 같은 runtime에
+reset을 연결한다. 기본 starter는 로그인·로그아웃·비밀번호 변경 경로를 등록한다. reset 경로를 등록하려면 호스트가
+Web runtime에 `PasswordResetPersistence`를, 일반 계정 앱에 `PasswordReset` 설정을 함께 전달한다. [reset 구성](../identity/account/README.md#optional-password-reset)
 
 Article의 업무 Admin/API도 전체 Principal을 받아 현재 domain·계정·권한을 실제 읽기 snapshot/쓰기 transaction 안에서
 다시 검사한다. Admin의 감사는 그 actor의 domain에 속하며 프로필 값이나 display label을 저장하지 않는다.
-[Article 구성](../examples/article/internal/siteapp/siteapp.go)과 [I1 진행](../work/0138-custom-account-lifecycle.md)은
-이 구현과 아직 미완료인 환경별 수용·추가 프로필 관계/파일·채운 DB 전환을 구분한다.
+구현은 [Article 구성](../examples/article/internal/siteapp/siteapp.go), 추가 프로필 관계·파일과 채운 DB 전환의 수용 범위는
+[I1 요구와 실제 소비자](../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)에 있다.
 
 ## 기존 operator 이전
 
-현재 Article/scaffold는 `godj_system` migration 이력이 있으면 `account_transition_required`로 시작을 거부한다.
-기존 operator 행이 없거나 새 선택 계정 저장소가 비어 있어도 자동 Fresh로 취급하지 않는다. 선언 변경이나 새 migration
-설치만으로 기존 session·reset·권한·audit를 다른 모델에 넘기지 않는다.
+Article의 [adoptoperator 명령](../examples/article/cmd/adoptoperator/main.go)은 기존 operator를 역사 저장소의 고정 User로
+이전한다. 그 User를 선택 계정 체계로 이행하는 단계는 `systemstate.NewIdentityHandoff`가 담당한다.
+호스트가 현재 권한으로 `Prepare`한 대응표를 확인하고 `Commit`하면 첫 domain의 receipt와 역사 저장소의 퇴역 표시를
+같은 트랜잭션에 기록한다. 결과를 받지 못했을 때는 보관한 manifest로 `Reconcile`하여 저장 결과를 확인한다. [Article 이행 소비자](../examples/article/cmd/adoptoperator/main_test.go)
 
-`systemstate.AdoptOperator`와 예전 `cmd/adoptoperator`는 역사적인 operator→고정 User 전환을 위한 API다.
-이 도구는 새 선택 계정 domain으로의 mapping·retirement·복구를 완료하지 않으므로 현재 runtime을 준비하는 명령으로
-사용할 수 없다. 저장된 계정과 소유권을 명시적으로 옮기는 전체 경로는 [I1-07](../work/0138-custom-account-lifecycle.md)의
-남은 구현이다. 기존 데이터는 보존한다. Fresh 새 프로젝트 사용과 채운 DB 전환의 검증은 별도로 판정한다.
+알려진 `godj_system` 이력이 있는 DB에서 선택 runtime은 첫 domain의 이행 기록과 같은 작업의 퇴역 표시를 확인한다.
+명시적 이행 전에는 새 계정 저장소를 설치해도 `account_transition_required`로 기동을 거부한다.
+다른 사용자 정의 모델로 옮기는 단계는 별도의 typed `Transition`이 담당한다. [기동 검사](../identity/model/startup.go) · [I1-07 수용 범위](../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)
 
 ## Form, Admin과 API
 
