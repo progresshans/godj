@@ -6463,6 +6463,14 @@ Linux amd64에서 CI 도구 검사 111건과 `go vet ./...`가 통과했다. Por
 
 PostgreSQL 17.10에서는 세 모드 각각 선택 계정 저장소 필수 검사 2,219건과 역사 운영자 이행 51건이 모두 통과했다. race 작업의 필수 검사 2,669건과 `db/postgres` 패키지 종료를 확인했다. 로그인·비밀번호 재설정 경합 9건을 포함한다. [normal `8b2e6e9c`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728601697) · [race `8c597eb2`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728079241) · [CGO-disabled `41c807f6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728098991)
 
+### 512c17f1 첫 계정 명령과 생성 정책
+
+Linux amd64 normal에서 staff 정책을 바꾼 프로젝트의 전체 생성 코드는 컴파일됐다. 그중 계정 파일 하나를 이전 정책의 생성물로 바꾸자 이전 snapshot 심볼이 없어 컴파일이 거부됐다. 해당 테스트의 시작·성공과 같은 작업의 필수 검사 131건을 확인했다. [생성물 대조군과 혼용 검사](../../codegen/consumertest/account_binding_test.go) · [원본 `21da4b4b`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728484279)
+
+Linux amd64·arm64에서 일반·race·CGO-disabled의 여섯 조합 모두 첫 계정 명령의 터미널 입력·실패 후 복원, 기본 User와 사용자 정의 Member의 생성 프로젝트 실행을 확인했다. 조합마다 터미널 필수 32건을 포함해 81건, 기본·사용자 정의 프로젝트에서 각각 14건이 통과했고 이 목록의 skip은 0이었다. 원본 18개를 묶은 `gdj0138-512c17f1-ci44955313490/first-account-linux-matrix.json`의 SHA-256은 `3e7536bc9b0dd06b219f0508b0664d56673bdc9aea3d1cc02e800dc2ecfb30e2`다. [amd64 터미널 `35e15a0a`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729021389) · [arm64 터미널 `10ea4b85`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728762921) · [기본 프로젝트 `3576be78`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728963025) · [사용자 정의 프로젝트 `e6419b85`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729292417)
+
+macOS에서는 Intel CGO-disabled와 arm64 race에서 같은 터미널 검사 81건씩을 확인했다. SQLite 저장소는 Linux amd64·arm64 양쪽에서 일반·CGO-disabled로 각각 선택 계정 검사 2,219건과 역사 운영자 이행 51건이 통과했다. 권한 합집합·회수, 로그인·재설정 경합, 프로젝트가 참조하는 계정 삭제와 롤백을 포함한다. [Intel 터미널 `84539af6`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729800078) · [arm64 터미널 `9925ce24`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729436794) · [SQLite amd64 일반 `8439b8ec`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728619417) · [amd64 CGO-disabled `70290f1d`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14727799354) · [arm64 일반 `21e60a16`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14728412926) · [arm64 CGO-disabled `98558f65`](https://github.com/progresshans/godj/actions/runs/44955313490/artifacts/14729641178)
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
