@@ -276,12 +276,41 @@ class ExecutionOwnerTests(unittest.TestCase):
         self.assertEqual(packages, selected(packages, 'core', JOBS))
         self.assertEqual([], selected(packages, 'relation', JOBS))
 
+    def postgres_workflow_flags(self, root, workflow, mode, shard, **inventories):
+        declarations = workflow.index('          operator_target_required_passes=(')
+        download = workflow.index('          go mod download all', declarations)
+        setup = workflow.index('          case "$shard" in', download)
+        selection = workflow.index('          required_tests=()', setup)
+        end = workflow.index('          case "$mode" in', selection)
+        # Exercise the workflow's real plan reader and operator configuration.
+        # Building the selector needs neither downloaded modules nor a Go process.
+        script = workflow[declarations:download] + workflow[setup:selection]
+        script += 'capture_flags() {\n' + workflow[selection:end] + '''
+            printf '%s\\n' "${required_passes[@]}" > "$RUNNER_TEMP/required-$1"
+            printf '%s\\n' "${test_flags[@]}" > "$RUNNER_TEMP/flags-$1"
+        }
+        capture_flags selected
+        for label in "$@"; do
+            required_passes=()
+            while IFS= read -r entry; do required_passes+=("$entry"); done < "$RUNNER_TEMP/input-$label"
+            capture_flags "$label"
+        done
+        '''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)
+            for label, lines in inventories.items():
+                (path / ('input-' + label)).write_text('\n'.join(lines) + '\n')
+            result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script, 'postgres-selector', *inventories],
+                                    cwd=root, env=dict(os.environ, RUNNER_TEMP=directory, mode=mode, shard=shard),
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(0, result.returncode, result.stderr)
+            return {label: ((path / ('required-' + label)).read_text().splitlines(),
+                            (path / ('flags-' + label)).read_text().splitlines())
+                    for label in ('selected', *inventories)}
+
     def test_postgres_child_sentinels_select_their_enclosing_tests(self):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / '.github/workflows/ci.yml').read_text()
-        start = workflow.index('          required_tests=()')
-        end = workflow.index('          case "$mode" in', start)
-        selection = workflow[start:end]
         entries = (root / 'scripts/ci/postgres-core-required.txt').read_text().splitlines()
         # Reproduce the failure: the new SQLite editor had child requirements
         # but no separate top-level sentinel. Never rely on that duplication.
@@ -292,35 +321,30 @@ class ExecutionOwnerTests(unittest.TestCase):
         scheduled = re.findall(r'^\s+- mode: (normal|race|cgo0)\n\s+shard: ([a-z0-9-]+)\n', postgres_job[0], re.MULTILINE)
         self.assertTrue(scheduled)
         self.assertEqual(len(scheduled), len(set(scheduled)))
-        coordinates = [
-            (mode, shard, '30m' if shard.startswith(('core-account-', 'core-consumer')) or mode != 'race' and shard == 'core' else '18m')
-            for mode, shard in scheduled
-        ]
-        for required, (mode, shard, timeout) in ((required, coordinate) for required in [entries, child_only] for coordinate in coordinates):
-            with self.subTest(child_only=required is child_only, mode=mode, shard=shard):
-                script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'
-                script += f'mode={mode}\nshard={shard}\n'
-                script += selection + '\nprintf "%s\\n" "${test_flags[@]}"\n'
-                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
-                                        input='\n'.join(required) + '\n', cwd=root,
-                                        capture_output=True, text=True, timeout=10)
-                self.assertEqual(0, result.returncode, result.stderr)
-                flags = result.stdout.splitlines()
-                self.assertEqual(['-p=1', '-timeout=' + timeout, '-json', '-count=1', '-run'], flags[:-1])
-                pattern = flags[-1]
-                self.assertNotIn('/', pattern)
-                expected = {entry.split('|')[1].split('/')[0] for entry in required}
-                for name in expected:
-                    self.assertRegex(name, pattern)
-                self.assertNotRegex('TestUnrelatedUnregisteredProduct', pattern)
-                self.assertEqual(len(expected), len(pattern.removeprefix('^(').removesuffix(')$').split('|')))
+        for mode, shard in scheduled:
+            with self.subTest(mode=mode, shard=shard):
+                cases = self.postgres_workflow_flags(root, workflow, mode, shard, all_tests=entries, child_only=child_only)
+                self.assertEqual(entries, cases['all_tests'][0])
+                self.assertEqual(child_only, cases['child_only'][0])
+                selected_roots = {entry.split('|')[1].split('/')[0] for entry in cases['selected'][0]}
+                long_package = (shard.startswith(('core-account-', 'core-consumer')) or mode != 'race' and shard == 'core'
+                                or 'TestPostgresAccountCredentialStore' in selected_roots)
+                timeout = '30m' if long_package else '18m'
+                for label, (required, flags) in cases.items():
+                    with self.subTest(inventory=label):
+                        self.assertEqual(['-p=1', '-timeout=' + timeout, '-json', '-count=1', '-run'], flags[:-1])
+                        pattern = flags[-1]
+                        self.assertNotIn('/', pattern)
+                        expected = {entry.split('|')[1].split('/')[0] for entry in required}
+                        for name in expected:
+                            self.assertRegex(name, pattern)
+                        self.assertNotRegex('TestUnrelatedUnregisteredProduct', pattern)
+                        self.assertEqual(len(expected), len(pattern.removeprefix('^(').removesuffix(')$').split('|')))
 
     def test_postgres_race_helpdesk_roots_run_in_separate_workflow_invocations(self):
-        from postgres_shards import plan, required_entries
+        from postgres_shards import required_entries
         root = Path(__file__).resolve().parents[2]
         workflow = (root / '.github/workflows/ci.yml').read_text()
-        start = workflow.index('          required_tests=()')
-        selection = workflow[start:workflow.index('          case "$mode" in', start)]
         entries = required_entries(root / 'scripts/ci/postgres-core-required.txt')
         helpdesk = MODULE + 'examples/helpdesk|'
         all_roots = {entry.removeprefix(helpdesk).split('/')[0] for entry in entries if entry.startswith(helpdesk)}
@@ -331,15 +355,7 @@ class ExecutionOwnerTests(unittest.TestCase):
         seen = set()
         for shard, expected in (('core', all_roots - postgres), ('core-helpdesk-postgres', postgres)):
             with self.subTest(shard=shard):
-                required = plan('race', shard, entries)['required']
-                script = 'required_passes=()\nwhile IFS= read -r entry; do required_passes+=("$entry"); done\n'
-                script += f'mode=race\nshard={shard}\n'
-                script += selection + '\nprintf "%s\\n" "${test_flags[@]}"\n'
-                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
-                                        input='\n'.join(required) + '\n', cwd=root,
-                                        capture_output=True, text=True, timeout=10)
-                self.assertEqual(0, result.returncode, result.stderr)
-                flags = result.stdout.splitlines()
+                _, flags = self.postgres_workflow_flags(root, workflow, 'race', shard)['selected']
                 self.assertEqual(['-p=1', '-timeout=18m', '-json', '-count=1', '-run'], flags[:-1])
                 pattern = flags[-1]
                 for name in all_roots:

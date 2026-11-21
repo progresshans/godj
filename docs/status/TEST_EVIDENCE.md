@@ -6285,6 +6285,22 @@ PostgreSQL에서는 [normal](https://github.com/progresshans/godj/actions/runs/4
 - Django 6.1·Python 3.14.3의 계정 관련 9개 모듈에서 21/21이 통과했다. SQLite에서 다시 생성한 관측과 저장된 양 DB의 공유 동작·Django 소스 해시를 대조했다. 전체 409개 중 Darwin 전용 skip 4개는 이 21개에 포함되지 않는다. [독립 기준 `691d5589`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713667736)
 - normal·race·CGO 비활성에서 기본·사용자 정의 모델과 SQLite·PostgreSQL의 네 조합을 검증했다. 조합별로 프로필 파일 편집 29개, 파일을 포함한 생성 86개, FK·OneToOne 16개, 다대다 관계·Form/Admin/JSON 40개가 모두 통과했다. 파일 게시 후 취소·커밋 응답 유실, 선택 범위 변경, 오래된 revision과 권한 회수를 포함한다. 각 모드의 생성 앱 16개 프로세스에서 stdout 해시·필수 목록·skip 0을 확인했다. [normal `2b4b330e`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713937439) · [race `c428fc17`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14714028201) · [CGO 비활성 `c5a469d7`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713722931)
 
+### bb975c1d PostgreSQL race 패키지 검증
+
+제출 커밋 `bb975c1d1200bfbb3ac5f9aa825f7c8ecba85635`와 [CI 44924300347](https://github.com/progresshans/godj/actions/runs/44924300347) attempt 1의 checkout `68fd4bcf00d83136c37d8b0af3943d8194c91638`는 같은 tree `673f495380423202631224bc24fb291696f5b2d1`다. 원본 ZIP과 해시 대조 기록은 검증 보관소의 `gdj0138-bb975c1d-ci44924300347/`에 있다.
+
+[PostgreSQL 17.10 · Linux amd64 · race](https://github.com/progresshans/godj/actions/runs/44924300347/job/136907076464)의 원본 실행 계획은 패키지에 30분을 배정했다. 실제 패키지는 1,047.962초에 성공 종료했고 필수 검사 2,669개가 모두 실행·통과했다. 계정 저장소 2,219개, 그중 로그인·reset 경합 9개, 별도의 역사 이행·경합 51개를 포함한다. skip은 0이었다. 파티션과 실제 실행의 필수 목록, 전체 manifest SHA-256 `e71403c66a447def8a2eaf555589f4a60ca338b238144fd6c3ed6a38b5a47468`를 제출 소스와 대조했다. [원본 `107a1f9a`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14716431951)
+
+새 프로젝트의 기본 User·사용자 정의 Member가 SQLite·PostgreSQL 최초 기동과 재시작 8건을 Chromium 155.0.8059.12로 통과했다. 상위 테스트 포함 15/15, skip 0이고 stderr는 비어 있었다. [브라우저 원본 `35112108`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14714549265)
+
+채운 DB에서 선택 계정 모델을 전환하는 생성 앱은 SQLite·PostgreSQL 각각 normal·race·CGO 비활성 141/141, skip 0이었다. [normal `ca13ffa5`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14715447700) · [race `b0c4c797`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14715438802) · [CGO 비활성 `c19fe36f`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14716051765)
+
+normal·race·CGO 비활성에서 계정·그룹·권한에 같은 중간 테이블을 쓰는 생성 앱을 양 DB에서 확인했다. 일반 테이블과 unique 제약이 있는 테이블 모두 대상 행 준비 20개, 새 대상 생성 28개가 통과했다. 늦은 관계 대상·추가 필드 변경, 권한 상승 거부, 감사 실패·롤백·커밋 응답 유실을 포함한다. 각 모드의 자식 프로세스 8개에서 부모가 기록한 stdout 해시, 필수 검사와 패키지 종료를 대조했다. [공유 중간 테이블 소비자](../../codegen/consumertest/account_shared_through_test.go) · [normal `8d1e27ad`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14715229926) · [race `bb5d8754`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14715883483) · [CGO 비활성 `f005f4c3`](https://github.com/progresshans/godj/actions/runs/44924300347/artifacts/14715773167)
+
+[Portable Go normal/core-vet](https://github.com/progresshans/godj/actions/runs/44924300347/job/136907075366)는 CI 도구 검사에서 실패해 Go 패키지 실행에 도달하지 않았다. 두 Python 검사가 실제 워크플로의 계획 읽기 단계 뒤부터 Bash를 실행해 `test_timeout`이 빠졌다. 122개 하위 사례와 Helpdesk 검사의 하위 사례·최종 집합 확인 3개가 실패했다. checkout과 job 원본 SHA-256 `376d113b0b29cc071a29dbae582a7b16148dcedf008906cd3100d751a646d72f`를 확인했다. 후속 검사는 실제 파티션 계획과 운영 명령 설정을 먼저 읽은 뒤 선택된 테스트 목록, 전체 목록, 하위 테스트만 있는 목록에 같은 플래그 구성을 실행한다. [CI 도구 검사](../../scripts/ci/test_packages.py)
+
+후속 변경의 로컬 Python 실행에서는 위 두 검사가 통과했다. Go 실행을 막은 전체 도구 검사에서 104/105개가 통과했고, scaffold 패키지 담당자를 실제 `go list`로 찾는 한 검사는 이 환경에서 완료할 수 없었다. 전체 도구 검증은 후속 커밋의 원격 실행을 따른다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

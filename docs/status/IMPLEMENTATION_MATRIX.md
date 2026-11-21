@@ -72,7 +72,7 @@ credential 상태 검사는 생성 HTTP 소비자와 독립 SDK로 이관했다.
 공개 고정 `identity.Directory`·`identity.Account`·`identity.Profile`·`identity.Manager`는 제거했다.
 기본·custom 모델의 공개 인증·관리는 선택 모델의 runtime이 담당하고, 역사 저장소의 고정 User 조회와 로그인 기록은
 `systemstate.OpenIdentity` 내부에 있다. 기본/custom 일곱 변형의 독립 HTTP 소비자와 OpenAPI 클라이언트도 선택 runtime에 연결했다.
-데이터가 있는 DB의 선택 모델 전환과 기록 재조회는 `f3474ab1`에서 양 DB의 normal·race·CGO 비활성으로 검증했다. 익명 로그인·비밀번호 재설정의 두 커밋 순서도 양 DB에서 확인했다. PostgreSQL race 패키지와 나머지 환경을 포함한 I1 전체 수용은 남아 있다. [요구별 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [제품 커밋의 CI 결과](TEST_EVIDENCE.md#f3474ab1-익명-로그인과-비밀번호-재설정의-커밋-순서)
+데이터가 있는 DB의 선택 모델 전환·기록 재조회·공유 중간 테이블은 `bb975c1d`에서 양 DB의 normal·race·CGO 비활성으로 검증했다. 익명 로그인·비밀번호 재설정의 두 커밋 순서와 PostgreSQL race 패키지도 검증했으며 I1 전체 수용은 남아 있다. [요구별 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) · [제품 커밋의 CI 결과](TEST_EVIDENCE.md#bb975c1d-postgresql-race-패키지-검증)
 
 GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
 양 backend가 같은 고정 전환표를 사용하고, 원본·지역 값·최종 UTC 결과의 전체 모델 범위를 검사한다.
