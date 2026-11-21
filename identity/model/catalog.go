@@ -48,6 +48,11 @@ type CatalogModelConfig[M any] struct {
 type CatalogConfig[G, P any] struct {
 	Group      CatalogModelConfig[G]
 	Permission CatalogModelConfig[P]
+	// GroupThroughCreations binds the writable group-permissions field to its
+	// selected account, group or permission insertion policy. The limit counts
+	// new physical rows across one Create or Update.
+	GroupThroughCreations map[string]ThroughCreation
+	ThroughCreationLimit  int
 	// AccountPermissions applies when the host deletion graph directly
 	// deletes or nulls selected account rows during any catalog mutation.
 	// Implicit membership revisions remain consequences of that operation.
@@ -99,6 +104,8 @@ type catalogModelState[M any] struct {
 	readKeys                                  func(context.Context, db.Queryer, int64) ([]int64, error)
 	checkKeys                                 func(context.Context, db.Queryer, []int64) error
 	collectionChange                          func(M, []int64) (orm.CollectionChange, error)
+	through                                   map[string]*throughCreationState
+	throughLimit                              int
 	delete                                    func(context.Context, db.Session, auth.Principal, M) (int64, int, error)
 }
 type catalogScope struct {
@@ -106,7 +113,8 @@ type catalogScope struct {
 	writer    db.CoordinatedRelationAtomic
 	authorize func(context.Context, db.Queryer, auth.Principal, []auth.Permission) (auth.Principal, bool, error)
 	project   orm.ProjectBinding
-	prepare   func(context.Context, db.RelationSession, auth.Principal, orm.RelationDeleteEffects, []orm.CollectionInsertEffect, *lifecycleEdit) (lifecycleWritePlan, error)
+	prepare   func(context.Context, db.Queryer, auth.Principal, orm.RelationDeleteEffects, []orm.CollectionInsertEffect, *lifecycleEdit) (lifecycleWritePlan, error)
+	now       func() time.Time
 }
 type catalogPermissions struct{ view, add, change, delete []auth.Permission }
 
@@ -177,7 +185,11 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 			return nil, managementError(CodeInvalidConfig, err)
 		}
 	}
-	if slices.Contains(config.Group.WriteFields, role.Catalog.GroupPermissions) {
+	definitions, ordinary, err := prepareOwnedThroughDefinitions(project, binding.state.roleFingerprint, role.Catalog.Group, config.Group.WriteFields, config.GroupThroughCreations, config.ThroughCreationLimit)
+	if err != nil {
+		return nil, err
+	}
+	if slices.Contains(ordinary, role.Catalog.GroupPermissions) {
 		if err := validateCatalogCollectionStorage(project, role); err != nil {
 			return nil, managementError(CodeInvalidConfig, err)
 		}
@@ -191,11 +203,11 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 	if err != nil {
 		return nil, err
 	}
-	shared := &catalogScope{reader: store.state.backend, writer: writer, project: project,
+	shared := &catalogScope{reader: store.state.backend, writer: writer, project: project, now: lifecycle.now,
 		authorize: func(ctx context.Context, scope db.Queryer, actor auth.Principal, required []auth.Permission) (auth.Principal, bool, error) {
 			return store.AuthorizeIn(ctx, scope, actor, overlay, required[0], required[1:]...)
 		},
-		prepare: func(ctx context.Context, scope db.RelationSession, actor auth.Principal, effects orm.RelationDeleteEffects, insertions []orm.CollectionInsertEffect, root *lifecycleEdit) (lifecycleWritePlan, error) {
+		prepare: func(ctx context.Context, scope db.Queryer, actor auth.Principal, effects orm.RelationDeleteEffects, insertions []orm.CollectionInsertEffect, root *lifecycleEdit) (lifecycleWritePlan, error) {
 			return lifecycle.prepare(ctx, scope, actor, effects, insertions, root)
 		},
 	}
@@ -203,6 +215,11 @@ func NewCatalog[M, G, P, L any](sessions *SessionStore[M], expected Binding[M], 
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)
 	}
+	groupState.through, err = attachThroughDefinitions(store, definitions)
+	if err != nil {
+		return nil, err
+	}
+	groupState.throughLimit = config.ThroughCreationLimit
 	permissionState, err := newCatalogModel(shared, orm.NewManager[P](permissions), role.Catalog.Permission, role.Catalog.PermissionName, role.Catalog.PermissionCode, role.Catalog.PermissionRevision, "", config.Permission)
 	if err != nil {
 		return nil, managementError(CodeInvalidConfig, err)

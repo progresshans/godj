@@ -306,14 +306,7 @@ func (editor *AccountEditor[M]) update(ctx context.Context, actor auth.Principal
 		var batch orm.PreparedCollectionChanges
 		var effects orm.CollectionChangeEffects
 		if len(changes) != 0 {
-			if pending != nil {
-				batch, err = pending.observation.PrepareInSession(work, scope, changes...)
-				if changed, ok := err.(*query.Error); ok && changed.Category == query.CategoryModelState && changed.Code == query.CodeCollectionChanged && changed.Cause == nil {
-					return AccountChange{}, managementError(CodeConflict, changed)
-				}
-			} else {
-				batch, err = orm.PrepareCollectionChangesInSession(work, scope, changes...)
-			}
+			batch, err = pending.prepareChanges(work, scope, changes...)
 			if err != nil {
 				return AccountChange{}, err
 			}

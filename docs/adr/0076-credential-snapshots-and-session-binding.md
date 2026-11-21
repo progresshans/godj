@@ -1059,8 +1059,15 @@ credential/hash/session stamp를 변경하는 작업으로 확대하지 않는�
 resource의 기존 권한을 사용한다. Catalog 생성/수정/삭제가 계정도 지우면 반환값의 `RevokedSessions`에 같은 domain의 실제 폐기 수를 담는다.
 Group grant 교체는 아래의 공통 전체 수명 조정을 사용한다. Incoming CASCADE/SET_NULL이 추가 계정/catalog이나 다른 소속의
 through를 바꾸는 조합도 전체 최종 상태로 검사한다. Through 모델 자체가 선택 계정/Group/Permission이면 새 링크 생성에도
-새 행의 생성 정책과 권한이 필요하다. 일반 `CatalogConfig`에는 그룹 권한에 이 정책을 지정하는 항목이 없어
-해당 필드를 쓰기로 노출하면 Catalog 구성 단계에서 거부한다. 읽기와 기존 수명 정책에 따른 삭제는 가능하다. [Catalog 구성](../../identity/model/catalog.go) · [중간 모델 검사](../../identity/model/catalog_relations.go)
+새 행의 생성 정책과 권한이 필요하다. 그룹 권한 필드를 쓰기로 노출하는 프로젝트는 `CatalogConfig.GroupThroughCreations`에
+그 필드의 typed 생성 정책을, `ThroughCreationLimit`에 한 요청이 새로 만들 수 있는 물리 행의 수를 지정한다.
+Catalog 구성은 같은 프로젝트 소스·역할·중간 모델·양쪽 FK와 쓰기 필드를 확인한다. 읽기 전용 등록은 생성 정책 없이 가능하다. [Catalog 구성](../../identity/model/catalog.go)
+
+그룹을 만들 때는 읽기 snapshot에서 현재 actor와 권한 키를 확인하고, 그룹 FK를 미정으로 둔 생성 입력을 준비한다.
+계정인 중간 행의 비밀번호는 snapshot이 정상 종료된 뒤 해시한다. 쓰기 transaction은 actor를 다시 읽고 새 그룹의 실제 키를
+두 FK와 결합한다. 기존 그룹을 편집할 때는 revision과 물리 링크·삭제 영향을 관측하고 같은 transaction에서 다시 대조한다.
+유지하는 링크는 기존 행을 사용한다. 그룹 쓰기 권한과 중간 행의 생성·관계 권한을 독립적으로 검사하며
+그룹의 최종 권한 집합, 관련 revision·세션 폐기·행별 감사와 삽입 행의 최종 재조회를 한 번의 커밋에 묶는다. [그룹 권한 준비](../../identity/model/catalog_through.go) · [저장](../../identity/model/catalog_write.go)
 Admin과 관리 JSON은 기본 모델과 사용자 정의 모델 모두 선택한 Catalog와 계정 관리 객체에 연결한다.
 
 ## 선택 계정과 catalog 삭제의 전체 수명 조정

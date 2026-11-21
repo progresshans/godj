@@ -37,11 +37,11 @@ func TestGeneratedAccountCatalogThroughCreation(t *testing.T) {
 }
 
 func writeAccountCatalogThroughConsumer(t *testing.T, custom bool, kind string) string {
-	root, _ := writeAccountCatalogThroughConsumerWithSpec(t, custom, kind)
+	root, _ := writeAccountCatalogThroughConsumerWithSpec(t, custom, kind, false)
 	return root
 }
 
-func writeAccountCatalogThroughConsumerWithSpec(t *testing.T, custom bool, kind string) (string, codegen.ProjectSpec) {
+func writeAccountCatalogThroughConsumerWithSpec(t *testing.T, custom bool, kind string, groupGrantThrough bool) (string, codegen.ProjectSpec) {
 	t.Helper()
 	spec := accountBindingConsumerSpec(t, custom)
 	if custom {
@@ -57,6 +57,13 @@ func writeAccountCatalogThroughConsumerWithSpec(t *testing.T, custom bool, kind 
 		for j := range spec.Apps[i].Schema.Models {
 			model := &spec.Apps[i].Schema.Models[j]
 			identity := ir.ModelIdentity{AppLabel: spec.Apps[i].Schema.AppLabel, ModelName: model.Name}
+			if groupGrantThrough && identity == spec.Account.Catalog.Group {
+				for i := range model.ManyToMany {
+					if model.ManyToMany[i].Name == spec.Account.Catalog.GroupPermissions {
+						model.ManyToMany[i].Through = &ir.ThroughModel{Model: through, SourceField: "catalog_owner", TargetField: "catalog_permission"}
+					}
+				}
+			}
 			if identity == spec.Account.Model {
 				model.ManyToMany = append(model.ManyToMany, ir.ManyToManyField{Name: "catalog_links", GoName: "CatalogLinks", Target: spec.Account.Catalog.Permission, Blank: true,
 					Reverse: ir.ReverseRelation{Disabled: true}, Through: &ir.ThroughModel{Model: through, SourceField: "link_owner", TargetField: "link_target"}})
@@ -64,10 +71,15 @@ func writeAccountCatalogThroughConsumerWithSpec(t *testing.T, custom bool, kind 
 					Relation: &ir.ForeignKeyRelation{Target: through, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteCascade, Reverse: ir.ReverseRelation{Disabled: true}}})
 			}
 			if identity == through {
-				for _, field := range []struct {
+				type endpoint struct {
 					name, goName string
 					target       ir.ModelIdentity
-				}{{"link_owner", "LinkOwnerID", spec.Account.Model}, {"link_target", "LinkTargetID", spec.Account.Catalog.Permission}} {
+				}
+				endpoints := []endpoint{{"link_owner", "LinkOwnerID", spec.Account.Model}, {"link_target", "LinkTargetID", spec.Account.Catalog.Permission}}
+				if groupGrantThrough {
+					endpoints = append(endpoints, endpoint{"catalog_owner", "CatalogOwnerID", spec.Account.Catalog.Group}, endpoint{"catalog_permission", "CatalogPermissionID", spec.Account.Catalog.Permission})
+				}
+				for _, field := range endpoints {
 					model.Fields = append(model.Fields, ir.Field{Name: field.name, GoName: field.goName, Column: field.name + "_id", Kind: ir.FieldForeignKey, Nullable: true, Blank: true,
 						Relation: &ir.ForeignKeyRelation{Target: field.target, Cardinality: ir.RelationManyToOne, OnDelete: ir.DeleteCascade, Reverse: ir.ReverseRelation{Disabled: true}}})
 				}

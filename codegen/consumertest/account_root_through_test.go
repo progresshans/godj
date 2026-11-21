@@ -14,6 +14,9 @@ import (
 //go:embed testdata/accountbinding/root_through_test.go.tmpl
 var accountRootThroughConsumer string
 
+//go:embed testdata/accountbinding/catalog_grant_write_test.go.tmpl
+var catalogGrantWriteConsumer string
+
 func TestGeneratedAccountRootThroughCreation(t *testing.T) {
 	for _, custom := range []bool{false, true} {
 		name := "default"
@@ -31,7 +34,14 @@ func TestGeneratedAccountRootThroughCreation(t *testing.T) {
 							required = append(required, "TestRootThroughCreation/"+operation+"/"+mode)
 						}
 					}
-					runAccountConsumerDatabases(t, root, required, "TestRootThroughCreation")
+					required = append(required, "TestCatalogGrantWrite")
+					for _, name := range []string{"configuration", "admin_create", "group_member", "api_replace", "retained", "denied_add", "denied_related", "stale", "limit", "snapshot_cleanup", "create_rollback", "late_child_validation", "late_child_payload", "rollback", "unknown_restart", "clear", "signed_endpoints"} {
+						required = append(required, "TestCatalogGrantWrite/"+name)
+					}
+					if kind == "account" {
+						required = append(required, "TestCatalogGrantWrite/revoked_during_hash", "TestCatalogGrantWrite/replaced_link_during_hash")
+					}
+					runAccountConsumerDatabases(t, root, required, "TestRootThroughCreation", "TestCatalogGrantWrite")
 				})
 			}
 		})
@@ -45,7 +55,7 @@ func writeAccountRootThroughConsumer(t *testing.T, custom bool, kind string) str
 	if kind == "account" {
 		root, spec = writeAccountCreationGraphConsumerWithSpec(t, custom, "profile")
 	} else {
-		root, spec = writeAccountCatalogThroughConsumerWithSpec(t, custom, kind)
+		root, spec = writeAccountCatalogThroughConsumerWithSpec(t, custom, kind, true)
 	}
 	types := make(map[ir.ModelIdentity]string)
 	var imports []string
@@ -80,17 +90,31 @@ func writeAccountRootThroughConsumer(t *testing.T, custom bool, kind string) str
  `
 	if kind == "account" {
 		policy = `
- sourcePolicy,err:=accountmodel.NewProfileRelation(binding,"@@SOURCE@@",objects,accountmodel.ProfileRelationConfig[@@ACCOUNT@@]{Choices:formmodel.ModelChoiceConfig[@@ACCOUNT@@]{Label:func(@@ACCOUNT@@)(string,error){return "Parent",nil}},Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@ACCOUNT@@],error){return nil,nil}});check(err)
+ sourcePolicy,err:=accountmodel.NewProfileRelation(binding,"@@SOURCE@@",@@PARENT_MANAGER@@,accountmodel.ProfileRelationConfig[@@PARENT_TYPE@@]{Choices:formmodel.ModelChoiceConfig[@@PARENT_TYPE@@]{Label:func(@@PARENT_TYPE@@)(string,error){return "Parent",nil}},Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@PARENT_TYPE@@],error){return nil,nil}});check(err)
  targetPolicy,err:=accountmodel.NewProfileRelation(binding,"@@TARGET@@",permissions,accountmodel.ProfileRelationConfig[@@PERMISSION@@]{Choices:formmodel.ModelChoiceConfig[@@PERMISSION@@]{Label:func(@@PERMISSION@@)(string,error){return "Target",nil}},Filter:func(context.Context,db.Queryer,auth.Principal,accountmodel.ProfileRelationOrigin)([]orm.Predicate[@@PERMISSION@@],error){return nil,nil}});check(err)
  policy,err:=accountmodel.NewAccountThroughCreation(binding,collections.@@PREFIX@@@@GROUPS@@,collections.@@PREFIX@@@@PERMISSIONS@@,overlay,hasher,accountmodel.CreationConfig[@@ACCOUNT@@]{CreationPolicy:accountmodel.CreationPolicy[@@ACCOUNT@@]{Fields:append(slices.Clone(childFields),"@@SOURCE@@","@@TARGET@@"),Relations:[]accountmodel.ProfileRelation[@@ACCOUNT@@]{sourcePolicy,targetPolicy},RelatedPermissions:nestedRelated,Validate:func(ctx context.Context,reader db.Queryer,row @@ACCOUNT@@,_ accountmodel.AccountMemberships)(validation.Errors,error){return validateNested(ctx,reader,nil,row)}},AddPermission:"nested.add",ChangePermission:"nested.change"},accountmodel.AccountThroughConfig[@@ACCOUNT@@]{Prepare:func(ctx context.Context,pair accountmodel.ThroughEndpoints)(accountmodel.AccountThroughInput[@@ACCOUNT@@],error){input,e:=prepareNested(ctx,pair);return accountmodel.AccountThroughInput[@@ACCOUNT@@]{Input:input,Password:accountPasswordText},e}});check(err)
  `
 	}
-	sourceText := strings.ReplaceAll(accountRootThroughConsumer, "@@POLICY@@", policy)
-	sourceText = strings.NewReplacer("@@MIGRATIONS@@", accountConsumerMigrationSources(t, spec), "@@IMPORTS@@", strings.Join(imports, "\n"), "@@ACCOUNT@@", types[spec.Account.Model], "@@GROUP@@", types[spec.Account.Catalog.Group], "@@PERMISSION@@", types[spec.Account.Catalog.Permission], "@@THROUGH@@", types[through], "@@KIND@@", kind, "@@FIELD@@", field, "@@COLLECTION@@", collection, "@@SOURCE@@", source, "@@TARGET@@", target, "@@PROFILE@@", profile, "@@PREFIX@@", prefix, "@@GROUPS@@", groups, "@@PERMISSIONS@@", permissions, "@@FACTORY@@", factory).Replace(sourceText)
-	formatted, err := format.Source([]byte(sourceText))
-	if err != nil {
-		t.Fatal(err)
+	policyFor := func(manager, parent, sourceField, targetField string) string {
+		return strings.NewReplacer("@@PARENT_MANAGER@@", manager, "@@PARENT_TYPE@@", parent, "@@SOURCE@@", sourceField, "@@TARGET@@", targetField).Replace(policy)
 	}
-	writeGeneratedTestFile(t, root, "consumer/root_through_test.go", formatted)
+	replacer := strings.NewReplacer("@@MIGRATIONS@@", accountConsumerMigrationSources(t, spec), "@@IMPORTS@@", strings.Join(imports, "\n"), "@@ACCOUNT@@", types[spec.Account.Model], "@@GROUP@@", types[spec.Account.Catalog.Group], "@@PERMISSION@@", types[spec.Account.Catalog.Permission], "@@THROUGH@@", types[through], "@@KIND@@", kind, "@@FIELD@@", field, "@@COLLECTION@@", collection, "@@SOURCE@@", source, "@@TARGET@@", target, "@@PROFILE@@", profile, "@@PREFIX@@", prefix, "@@GROUPS@@", groups, "@@PERMISSIONS@@", permissions, "@@FACTORY@@", factory)
+	write := func(filename, template, declaration string) {
+		t.Helper()
+		sourceText := replacer.Replace(strings.ReplaceAll(template, "@@POLICY@@", declaration))
+		formatted, err := format.Source([]byte(sourceText))
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeGeneratedTestFile(t, root, filename, formatted)
+	}
+	write("consumer/root_through_test.go", accountRootThroughConsumer, policyFor("objects", types[spec.Account.Model], source, target))
+	grantPolicy := policyFor("groups", types[spec.Account.Catalog.Group], "catalog_owner", "catalog_permission")
+	formsImport := ""
+	if kind == "account" {
+		grantPolicy = "collections,err:=project.BindCollections();check(err)\n" + grantPolicy
+		formsImport = `formmodel "github.com/progresshans/godj/forms/model"`
+	}
+	write("consumer/catalog_grant_write_test.go", strings.ReplaceAll(catalogGrantWriteConsumer, "@@FORM_IMPORT@@", formsImport), grantPolicy)
 	return root
 }

@@ -58,88 +58,56 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 	if create {
 		required = state.permissions.add
 	}
+	grants, err := state.prepareGrantWrite(ctx, actor, id, revision, prepared, required, create)
+	if err != nil {
+		return CatalogChange{}, err
+	}
 	return managementRelationWrite(ctx, state.shared.writer, func(work context.Context, scope db.RelationSession) (CatalogChange, error) {
-		currentActor, allowed, err := state.shared.authorize(work, scope, actor, required)
+		write, err := state.readWrite(work, scope, actor, id, revision, prepared, required, create)
 		if err != nil {
 			return CatalogChange{}, err
-		}
-		if !allowed {
-			return CatalogChange{}, managementError(CodePermission, nil)
-		}
-		var current *M
-		if !create {
-			row, found, err := state.resource.Get(work, scope, id)
-			if err != nil {
-				return CatalogChange{}, err
-			}
-			if !found {
-				return CatalogChange{}, managementError(CodeNotFound, nil)
-			}
-			_, key, actual, err := state.inspect(row, true)
-			if err != nil || key != id {
-				return CatalogChange{}, managementError(CodePersistence, err)
-			}
-			if actual != revision {
-				return CatalogChange{}, managementError(CodeConflict, nil)
-			}
-			current = &row
-		}
-		keys, selected := prepared.Collection(state.collection)
-		if selected {
-			if err := state.checkKeys(work, scope, keys); err != nil {
-				return CatalogChange{}, err
-			}
 		}
 		objects := state.resource.Manager()
+		pending := grants.edit
 		if create {
-			prepared, err = objects.WithServerValues(prepared, map[string]query.Value{state.revision: query.Integer(1)})
-			if err != nil {
+			if err := grants.creation.check(work, scope, write.actor, false); err != nil {
 				return CatalogChange{}, err
 			}
-		}
-		model, err := objects.PrepareInput(prepared, current)
-		if err != nil {
-			return CatalogChange{}, err
-		}
-		candidate, err := model.Model()
-		if err != nil {
-			return CatalogChange{}, err
-		}
-		if _, _, _, err := state.inspect(candidate, false); err != nil {
-			return CatalogChange{}, err
-		}
-		if create {
 			// A generated owner key is needed to inspect any links established
 			// by database rules. This provisional insert and every later refusal
 			// remain under the same native transaction; nothing is published yet.
-			failures, err := model.ValidateUnique(work, scope, candidate)
+			failures, err := write.model.ValidateUnique(work, scope, write.candidate)
 			if err != nil {
 				return CatalogChange{}, err
 			}
 			if err := validation.Reject(failures, nil); err != nil {
 				return CatalogChange{}, err
 			}
-			if err := model.Save(work, scope, &candidate); err != nil {
+			if err := write.model.Save(work, scope, &write.candidate); err != nil {
 				return CatalogChange{}, err
 			}
-			_, id, revision, err = state.inspect(candidate, true)
+			_, id, revision, err = state.inspect(write.candidate, true)
 			if err != nil || revision != 1 {
 				return CatalogChange{}, managementError(CodePersistence, err)
 			}
 			// The final scalar save is now update-only, never a second insert.
-			model, err = objects.PrepareValues(&candidate, nil)
+			write.model, err = objects.PrepareValues(&write.candidate, nil)
+			if err != nil {
+				return CatalogChange{}, err
+			}
+			pending, err = grants.creation.bind(work, scope, write.actor, id)
 			if err != nil {
 				return CatalogChange{}, err
 			}
 		}
 		var batch orm.PreparedCollectionChanges
 		var effects orm.CollectionChangeEffects
-		if selected {
-			change, err := state.collectionChange(candidate, keys)
+		if write.selected {
+			change, err := state.grantChange(work, scope, write, pending, true)
 			if err != nil {
 				return CatalogChange{}, err
 			}
-			batch, err = orm.PrepareCollectionChangesInSession(work, scope, change)
+			batch, err = grants.edit.prepareChanges(work, scope, change)
 			if err != nil {
 				return CatalogChange{}, err
 			}
@@ -148,35 +116,21 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 			}
 			effects = batch.Effects()
 		}
-		fields := model.ChangedFields()
-		if create {
-			fields = slices.Clone(state.writeFields)
+		if pending != nil {
+			if err := pending.check(work, scope, write.actor, effects, true); err != nil {
+				return CatalogChange{}, err
+			}
 		}
-		values, err := objects.ModelValues(candidate)
+		plan, err := state.planWrite(work, scope, &write, id, revision, required, effects)
 		if err != nil {
 			return CatalogChange{}, err
 		}
-		plan, err := state.shared.prepare(work, scope, currentActor, effects.Deletions(), effects.Insertions(), &lifecycleEdit{
-			key: deletionKey{state.identity, id}, revision: revision, required: required, fields: fields, values: values, created: create,
-		})
-		if err != nil {
-			return CatalogChange{}, err
-		}
-		touch, nextRevision, _ := plan.rootState()
-		final := map[string]query.Value{state.revision: query.Integer(nextRevision)}
-		for _, field := range touch.nulls {
-			final[field] = query.Null()
-		}
-		candidate, err = objects.ApplyValues(candidate, final)
-		if err != nil {
-			return CatalogChange{}, err
-		}
-		if err := state.validateCandidate(work, scope, current, candidate); err != nil {
+		if err := state.validateCandidate(work, scope, write.current, write.candidate); err != nil {
 			return CatalogChange{}, err
 		}
 		revoked := 0
 		var applied orm.AppliedCollectionChanges
-		if selected {
+		if write.selected {
 			applied, err = batch.Apply(work, func(ctx context.Context, _ orm.CollectionChangeEffects) error {
 				var err error
 				revoked, err = plan.apply(ctx, scope)
@@ -188,26 +142,127 @@ func (resource CatalogResource[M]) save(ctx context.Context, actor auth.Principa
 		if err != nil {
 			return CatalogChange{}, err
 		}
-		failures, err := model.ValidateUnique(work, scope, candidate)
+		failures, err := write.model.ValidateUnique(work, scope, write.candidate)
 		if err != nil {
 			return CatalogChange{}, err
 		}
 		if err := validation.Reject(failures, nil); err != nil {
 			return CatalogChange{}, err
 		}
-		if err := model.Save(work, scope, &candidate); err != nil {
+		if err := write.model.Save(work, scope, &write.candidate); err != nil {
 			return CatalogChange{}, err
+		}
+		if pending != nil && len(pending.ordered) > 0 {
+			verifiers, err := pending.finish(work, scope, write.actor, applied, state.shared.now())
+			if err != nil {
+				return CatalogChange{}, err
+			}
+			for _, verify := range verifiers {
+				if err := verify(work, scope); err != nil {
+					return CatalogChange{}, err
+				}
+			}
 		}
 		if err := plan.verify(work, scope); err != nil {
 			return CatalogChange{}, err
 		}
-		if selected {
+		if write.selected {
 			if err := applied.Verify(work); err != nil {
 				return CatalogChange{}, err
 			}
 		}
+		touch, nextRevision, _ := plan.rootState()
 		return CatalogChange{ID: id, Revision: nextRevision, ChangedFields: lifecycleChangedFields(state.model, touch), RevokedSessions: revoked}, nil
 	})
+}
+
+type catalogWrite[M any] struct {
+	actor     auth.Principal
+	current   *M
+	model     orm.PreparedModel[M]
+	candidate M
+	keys      []int64
+	selected  bool
+}
+
+// readWrite checks the actor and the current root before any provisional
+// insertion. The same checks run again after preparing selected through rows.
+func (state *catalogModelState[M]) readWrite(ctx context.Context, scope db.Queryer, actor auth.Principal, id, revision int64, input orm.ModelInput[M], required []auth.Permission, create bool) (catalogWrite[M], error) {
+	var write catalogWrite[M]
+	currentActor, allowed, err := state.shared.authorize(ctx, scope, actor, required)
+	if err != nil {
+		return write, err
+	}
+	if !allowed {
+		return write, managementError(CodePermission, nil)
+	}
+	write.actor = currentActor
+	if !create {
+		row, found, err := state.resource.Get(ctx, scope, id)
+		if err != nil {
+			return write, err
+		}
+		if !found {
+			return write, managementError(CodeNotFound, nil)
+		}
+		_, key, actual, err := state.inspect(row, true)
+		if err != nil || key != id {
+			return write, managementError(CodePersistence, err)
+		}
+		if actual != revision {
+			return write, managementError(CodeConflict, nil)
+		}
+		write.current = &row
+	}
+	write.keys, write.selected = input.Collection(state.collection)
+	if write.selected {
+		if err := state.checkKeys(ctx, scope, write.keys); err != nil {
+			return write, err
+		}
+	}
+	objects := state.resource.Manager()
+	if create {
+		input, err = objects.WithServerValues(input, map[string]query.Value{state.revision: query.Integer(1)})
+		if err != nil {
+			return write, err
+		}
+	}
+	write.model, err = objects.PrepareInput(input, write.current)
+	if err != nil {
+		return write, err
+	}
+	write.candidate, err = write.model.Model()
+	if err != nil {
+		return write, err
+	}
+	_, _, _, err = state.inspect(write.candidate, false)
+	return write, err
+}
+
+func (state *catalogModelState[M]) planWrite(ctx context.Context, scope db.Queryer, write *catalogWrite[M], id, revision int64, required []auth.Permission, effects orm.CollectionChangeEffects) (lifecycleWritePlan, error) {
+	fields := write.model.ChangedFields()
+	create := write.current == nil
+	if create {
+		fields = slices.Clone(state.writeFields)
+	}
+	objects := state.resource.Manager()
+	values, err := objects.ModelValues(write.candidate)
+	if err != nil {
+		return nil, err
+	}
+	plan, err := state.shared.prepare(ctx, scope, write.actor, effects.Deletions(), effects.Insertions(), &lifecycleEdit{
+		key: deletionKey{state.identity, id}, revision: revision, required: required, fields: fields, values: values, created: create,
+	})
+	if err != nil {
+		return nil, err
+	}
+	touch, nextRevision, _ := plan.rootState()
+	final := map[string]query.Value{state.revision: query.Integer(nextRevision)}
+	for _, field := range touch.nulls {
+		final[field] = query.Null()
+	}
+	write.candidate, err = objects.ApplyValues(write.candidate, final)
+	return plan, err
 }
 
 func (resource CatalogResource[M]) prepareInput(input orm.ModelInput[M], id int64, create bool) (orm.ModelInput[M], error) {

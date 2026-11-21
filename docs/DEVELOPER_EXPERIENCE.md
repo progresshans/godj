@@ -278,7 +278,9 @@ Admin 목록은 행 키와 읽기가 허용된 역할 필드를 표시한다. �
 [`identityadmin.RegisterCatalog`](../identity/admin/selected_catalog.go)는 실제 typed owner를 공통 Admin에 연결한다.
 Slug·목록 열과 읽기/생성/수정의 명시적 노출·권한을 선택한다. 계정 생성은 add와 change를 모두 요구하며,
 현재 인가·revision·관련 행·세션 폐기·감사를 같은 native transaction에 묶는다. 저장 뒤에는 확정 ID/revision을 사용한다.
-그룹 권한 관계의 중간 모델 자체가 선택 계정·그룹·권한인 경우 일반 Catalog에는 그 필드를 읽기로만 등록할 수 있다. 쓰기 등록은 구성 단계에서 거부된다. [Catalog의 중간 모델 검사](../identity/model/catalog_relations.go)
+그룹 권한을 잇는 중간 모델 자체가 선택 계정·그룹·권한이라면, 쓰기로 노출할 때 그 행의 생성 정책도 지정한다.
+`CatalogConfig.GroupThroughCreations`의 키는 `role.Catalog.GroupPermissions`, 값은 해당 모델의 `NewAccountThroughCreation`, `NewGroupThroughCreation` 또는 `NewPermissionThroughCreation`으로 만든 정책이다.
+`ThroughCreationLimit`에는 한 요청에서 새로 만들 수 있는 행 수를 지정한다. 기존 연결을 유지할 때는 생성 정책을 다시 호출하지 않는다. [Catalog 구성](../identity/model/catalog.go) · [생성 프로젝트의 Admin·JSON 사용 예](../codegen/consumertest/testdata/accountbinding/catalog_grant_write_test.go.tmpl)
 
 [`identityapi.NewManagement`](../identity/api/README.md)는 같은 owner를 `/api/identity/accounts/`, `groups/`, `permissions/`에 연결한다.
 모델 입력은 `fields`, 비밀번호 명령은 `credential` 객체로 전달하며 기존 객체 쓰기는 현재 `If-Revision`을 사용한다.

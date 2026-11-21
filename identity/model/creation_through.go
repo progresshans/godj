@@ -6,6 +6,7 @@ import (
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/db"
 	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/schema/ir"
 )
 
 type creationThroughDraft struct {
@@ -29,25 +30,38 @@ func (state *creationState[M]) prepareCreationThrough(ctx context.Context, scope
 		return candidate.through.check(ctx, scope, actor, operator)
 	}
 	pending := &creationThroughPreparation{domain: domain, operator: operator, limit: state.config.ThroughCreationLimit}
-	seen := make(map[throughPairKey]bool)
 	project, role := state.binding.state.project, state.binding.state.role
+	keys := func(field string) []int64 {
+		switch field {
+		case role.Groups:
+			return candidate.groups
+		case role.Permissions:
+			return candidate.permissions
+		default:
+			return candidate.profile[field]
+		}
+	}
+	if err := pending.prepare(ctx, scope, actor, project, role.Model, state.through, keys); err != nil {
+		return err
+	}
+	candidate.through = pending
+	return nil
+}
+
+// prepare owns the missing parent endpoint until the actual INSERT returns its
+// key. Multiple fields can share a single physical pair and creation policy.
+func (pending *creationThroughPreparation) prepare(ctx context.Context, scope db.Queryer, actor auth.Principal, project orm.ProjectBinding, owner ir.ModelIdentity, policies map[string]*throughCreationState, keys func(string) []int64) error {
+	seen := make(map[throughPairKey]bool)
 	for _, relation := range project.ManyToManyRelations() {
-		if relation.Source != role.Model {
+		if relation.Source != owner {
 			continue
 		}
-		policy := state.through[relation.Field]
+		policy := policies[relation.Field]
 		if policy == nil {
 			continue
 		}
 		if policy.draft == nil {
 			return managementError(CodeInvalidConfig, nil)
-		}
-		keys := candidate.profile[relation.Field]
-		if relation.Field == role.Groups {
-			keys = candidate.groups
-		}
-		if relation.Field == role.Permissions {
-			keys = candidate.permissions
 		}
 		metadata, found := project.Model(relation.Through.Model)
 		source, sourceFound := namedField(metadata, relation.Through.SourceField)
@@ -55,7 +69,7 @@ func (state *creationState[M]) prepareCreationThrough(ctx context.Context, scope
 		if !found || !sourceFound || !targetFound {
 			return managementError(CodeInvalidConfig, nil)
 		}
-		for _, key := range keys {
+		for _, key := range keys(relation.Field) {
 			pairKey := throughPairKey{policy: policy, source: source.Name, target: target.Name, targetKey: key}
 			if seen[pairKey] {
 				continue
@@ -64,7 +78,7 @@ func (state *creationState[M]) prepareCreationThrough(ctx context.Context, scope
 				return managementError(CodeInvalidInput, nil)
 			}
 			pair := ThroughEndpoints{source: source.Clone(), target: target.Clone(), targetKey: key, targetPresent: true}
-			draft, err := policy.draft(ctx, scope, actor, operator, pair, domain)
+			draft, err := policy.draft(ctx, scope, actor, pending.operator, pair, pending.domain)
 			if err != nil {
 				return err
 			}
@@ -75,8 +89,7 @@ func (state *creationState[M]) prepareCreationThrough(ctx context.Context, scope
 			seen[pairKey] = true
 		}
 	}
-	candidate.through = pending
-	return pending.check(ctx, scope, actor, operator)
+	return pending.check(ctx, scope, actor, pending.operator)
 }
 
 func (pending *creationThroughPreparation) check(ctx context.Context, scope db.Queryer, actor auth.Principal, operator bool) error {

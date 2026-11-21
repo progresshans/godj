@@ -67,6 +67,7 @@ type rootThroughHasher struct {
 	auth.PasswordHasher
 	backend       *rootThroughBackend
 	calls, failAt int
+	after         func(context.Context) error
 }
 
 func (h *rootThroughHasher) Hash(ctx context.Context, raw string) (string, error) {
@@ -77,7 +78,13 @@ func (h *rootThroughHasher) Hash(ctx context.Context, raw string) (string, error
 	if h.failAt > 0 && h.calls == h.failAt {
 		return "", errors.New("root through hash failure")
 	}
-	return h.PasswordHasher.Hash(ctx, raw)
+	encoded, err := h.PasswordHasher.Hash(ctx, raw)
+	if err == nil && h.after != nil {
+		after := h.after
+		h.after = nil
+		err = after(ctx)
+	}
+	return encoded, err
 }
 
 type rootThroughOverlay struct{ deny auth.Permission }

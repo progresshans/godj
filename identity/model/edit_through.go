@@ -288,10 +288,28 @@ func (state *accountEditState[M]) prepareThrough(ctx context.Context, actor auth
 	if err != nil {
 		return nil, err
 	}
-	for _, candidate := range pending.ordered {
-		if err := candidate.encode(ctx); err != nil {
-			return nil, err
-		}
+	if err := pending.encode(ctx); err != nil {
+		return nil, err
 	}
 	return pending, nil
+}
+
+func (pending *throughPreparation) encode(ctx context.Context) error {
+	for _, candidate := range pending.ordered {
+		if err := candidate.encode(ctx); err != nil {
+			return err
+		}
+	}
+	return ctx.Err()
+}
+
+func (pending *throughPreparation) prepareChanges(ctx context.Context, scope db.RelationSession, changes ...orm.CollectionChange) (orm.PreparedCollectionChanges, error) {
+	if pending == nil {
+		return orm.PrepareCollectionChangesInSession(ctx, scope, changes...)
+	}
+	batch, err := pending.observation.PrepareInSession(ctx, scope, changes...)
+	if changed, ok := err.(*query.Error); ok && changed.Category == query.CategoryModelState && changed.Code == query.CodeCollectionChanged && changed.Cause == nil {
+		return orm.PreparedCollectionChanges{}, managementError(CodeConflict, changed)
+	}
+	return batch, err
 }
