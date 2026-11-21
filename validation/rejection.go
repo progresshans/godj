@@ -1,6 +1,9 @@
 package validation
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 // Reject reports an expected input rejection. Callers may retain an underlying
 // cause for diagnostics without placing its text in the presentation message.
@@ -24,6 +27,12 @@ type rejection struct {
 
 func (*rejection) Error() string   { return "input validation rejected" }
 func (r *rejection) Unwrap() error { return r.cause }
+
+// Formatting a rejection must keep its parameters and cause private. Consumers
+// obtain the structured diagnostics through Rejected and the cause through Unwrap.
+func (r *rejection) Format(state fmt.State, verb rune) {
+	_, _ = fmt.Fprintf(state, fmt.FormatString(state, verb), r.Error())
+}
 
 // Rejected recognizes only a directly returned input rejection. It deliberately
 // does not search a wrapped or joined error tree: an additional owner or failure

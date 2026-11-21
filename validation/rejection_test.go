@@ -9,11 +9,20 @@ import (
 
 func TestRejectionPreservesDiagnosticsAndCauseWithoutDisplayingIt(t *testing.T) {
 	cause := errors.New("private database value")
-	diagnostics := NewErrors(New("reference", CodeUnique))
+	const parameter = "private diagnostic marker"
+	diagnostics := NewErrors(New("reference", CodeUnique, NewParam("detail", parameter)))
 	err := Reject(diagnostics, cause)
 	got, rejected := Rejected(err)
 	if !rejected || got.Len() != 1 || got.All()[0].Field() != "reference" || got.All()[0].Code() != CodeUnique || !errors.Is(err, cause) || strings.Contains(err.Error(), cause.Error()) {
 		t.Fatal("invalid input rejection", got.All(), err)
+	}
+	if got.All()[0].Params()[0].Value() != parameter {
+		t.Fatal("structured diagnostics lost the caller's parameter")
+	}
+	for _, format := range []string{"%v", "%+v", "%#v", "%s", "%q", "%d", "%x"} {
+		if rendered := fmt.Sprintf(format, err); rendered != fmt.Sprintf(format, err.Error()) {
+			t.Fatalf("validation rejection exposed its representation with %s", format)
+		}
 	}
 	copy := got.All()
 	copy[0] = New("other", "other")

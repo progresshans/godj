@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/progresshans/godj/auth"
@@ -27,7 +28,8 @@ func selfPasswordRefusals(t *testing.T, open Open) {
 			case "empty_new":
 				next = ""
 			case "weak":
-				next = "short"
+				// Keep the private input distinct from the public password_too_short code.
+				next = "Q7!xZ"
 			case "canceled":
 				cancel()
 			case "nil_context":
@@ -49,6 +51,11 @@ func selfPasswordRefusals(t *testing.T, open Open) {
 				}
 				if !rejected || diagnostics.ByField(field).Empty() || errors.Unwrap(err) != nil {
 					t.Fatal("self password input refusal lost its direct diagnostics", mode, err)
+				}
+				if mode == "weak" && !slices.ContainsFunc(diagnostics.ByField(field).All(), func(item validation.Violation) bool {
+					return item.Code() == "password_too_short"
+				}) {
+					t.Fatal("short password lost its minimum-length diagnostic")
 				}
 			} else if rejected || err == auth.ErrInvalidCredentials {
 				t.Fatal("self password execution error became ordinary refusal", mode, err)
