@@ -6166,6 +6166,8 @@ Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 
 후속 수정 `dfc8a64a`는 모든 출력 형식에 공개 오류 문자열을 사용하고, 호출자가 구조화된 진단과 원인을 명시적으로 읽는 계약을 유지한다.
 테스트는 구별 가능한 짧은 입력으로 원문 비노출과 길이 오류 코드를 함께 검사한다.
 
+후속 제품 커밋 `99eca524`의 [Linux arm64 SQLite normal 작업](https://github.com/progresshans/godj/actions/runs/44909427944/job/136862039313)은 checkout `730fab29`를 사용했다. [아카이브](https://github.com/progresshans/godj/actions/runs/44909427944/artifacts/14709916700)의 SHA-256은 `36c735e29ed9f054e68c179b497bebb8f32e7817e58d566c12cc912a927c6872`다. 이 환경에서 `self_password_refusals/weak`와 SQLite 패키지의 통과 이벤트를 확인했다. 전체 작업은 이후 취소됐다.
+
 새 [starter 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go)는 공개 `startproject`로 기본 프로젝트를 만들고,
 사용자 정의 구성에서는 모델 선언·migration source·프로젝트 정책을 교체해 `people.Member`의 `contact`와 필수 `region`을 첫 명령에 제출한다.
 두 구성 모두 SQLite와 PostgreSQL에서 독립 HTTP 클라이언트와 Chromium을 사용한다. Chromium은 Admin 수정, 그룹 권한 회수·복원,
@@ -6191,7 +6193,13 @@ Member의 [관계 선언](../../internal/testschema/account.go)과 [ModelForm �
 
 [starter 작업](https://github.com/progresshans/godj/actions/runs/44910785840/job/136866161928)의 제출 커밋 `ddf2b250`과 checkout `370ae7c7`은 같은 tree `2bd53e5c888bc8717db5fb10c05f70c52106e486`다. [아카이브](https://github.com/progresshans/godj/actions/runs/44910785840/artifacts/14709643665)의 SHA-256 `7a89b0b78b6c524de6df19b7577fc3aba3bfea764f90f4709e32d8b1ba43e0fd`와 원본 이벤트를 대조했다.
 
-기본 User의 양 DB 최초 기동·재시작 4건이 통과했다. 양 DB의 Member는 빈 직접 권한으로 제출했을 때 `grants/required` 하나를 받았고 독립 API 조회에서 프로필·revision·팀·직접 권한이 모두 보존됐다. 이후 화면에 아직 없는 권한을 선택하려다 멈췄다. [Admin](../../admin/site_choices.go)은 오류 폼에 제출한 선택값을 표시하고 추가 후보는 검색으로 제공한다. 후속 소비자는 같은 폼의 검색창으로 직접 권한을 조회하고 응답의 key를 대조한 뒤 그 항목을 선택해 제출한다.
+기본 User의 양 DB 최초 기동·재시작 4건이 통과했다. 양 DB의 Member는 빈 직접 권한으로 제출했을 때 `grants/required` 하나를 받았고 같은 관리자 세션의 별도 API 조회에서 프로필·revision·팀·직접 권한이 모두 보존됐다. 이후 화면에 아직 없는 권한을 선택하려다 멈췄다. [Admin](../../admin/site_choices.go)은 오류 폼에 제출한 선택값을 표시하고 추가 후보는 검색으로 제공한다. 후속 소비자는 같은 폼의 검색창으로 직접 권한을 조회하고 응답의 key를 대조한 뒤 그 항목을 선택해 제출한다.
+
+### a32041e1 새 프로젝트 계정 수명주기
+
+제출 커밋 `a32041e1b28b7f2600ec88a3827936d7bab43c5c`와 Linux checkout `bd6b6a6eeee94c9c6068d97aeff8b489157e5d2f`의 tree가 `deaa060385f7345e48de9494c401e586fea04fe9`로 일치했다. [원격 starter 작업](https://github.com/progresshans/godj/actions/runs/44911895052/job/136869466692)과 [원본 아카이브](https://github.com/progresshans/godj/actions/runs/44911895052/artifacts/14710119414)의 SHA-256 `836403ce1f5c9db2730415fd725589fbcc7ff1e03b8bee94fbb548b07160ccdd`를 대조했다. 필수 목록으로 원본을 다시 검사한 결과 1 package, 상위 테스트를 포함해 15 run·15 pass·skip 0이었다.
+
+기본 User와 `people.Member`가 SQLite·PostgreSQL에서 최초 기동과 재시작을 각각 통과했다. 8건 모두 Chromium 155.0.8059.12를 사용했다. Member는 필수 프로필과 직접 권한 누락 거부, 오류 폼에서 별도 권한 검색·선택·저장, 오래된 revision 거부를 거쳤다. 두 모델에서 그룹 권한 회수·복원, 비밀번호 변경, 재시작 후 reset과 이전 세션 폐기, 비활성화·삭제를 확인했다. 별도 HTTP 클라이언트는 계정 목록과 프로필을, 종료 후 독립 SQL은 계정·소속·직접 권한 연결과 삭제 감사를 대조했다. 채운 DB의 모델 전환·복구와 I1 전체 검증은 같은 커밋의 다른 작업에서 판정한다.
 
 ### 역사 runtime 쓰기 결과의 확정
 
@@ -6199,6 +6207,8 @@ Member의 [관계 선언](../../internal/testschema/account.go)과 [ModelForm �
 [양 DB 검사](../../internal/identitytest/historical_mutations.go)는 원래 marker를 바꾸는 문장이 실행된 뒤의 거부, 정상 commit과 영향 행 0건, rollback, 미확정 commit의 양쪽 실제 상태를 별도 연결로 확인한다.
 
 로컬 gofmt·diff·문서 링크와 Python CI 분할 검사 27개를 확인했다. [SQLite 필수 목록](../../scripts/ci/relation-required.txt)과 [PostgreSQL 필수 목록](../../scripts/ci/postgres-core-required.txt)에 각각 상위 1개와 하위 7개를 추가했다. 실제 Go 실행과 전체 환경 수용은 이 변경을 포함하는 제품 커밋에서 확인한다.
+
+`ddf2b250`의 [Linux arm64 SQLite normal 작업](https://github.com/progresshans/godj/actions/runs/44910785840/job/136866165770)은 checkout `370ae7c7`을 사용했다. 취소 전 게시한 [아카이브](https://github.com/progresshans/godj/actions/runs/44910785840/artifacts/14710560646)의 SHA-256은 `d80f24784a23e9c507be834cd554fc9783529c03c1750ea04900173767d2a9ef`다. `runtime_mutations` 상위 1개와 하위 7개 모두 실행·통과했다. 패키지 종료 이벤트는 없었고, PostgreSQL과 후속 읽기 소유권 검사는 이 결과의 범위 밖이다.
 
 ### 역사 runtime의 읽기 소유권
 
