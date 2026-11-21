@@ -8,8 +8,10 @@ import (
 	"github.com/progresshans/godj/api"
 	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/identity"
+	identityadmin "github.com/progresshans/godj/identity/admin"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
+	"github.com/progresshans/godj/project/firstaccount"
 )
 
 type Runtime = accountmodel.Runtime[models.User, models.Group, models.Permission]
@@ -60,11 +62,15 @@ func Policy() (accountmodel.RuntimeConfig[models.User, models.Group, models.Perm
 
 // Select every required operator input here. The command binds this policy's
 // source digest before passing the typed configuration to the generated factory.
-func firstAccountConfig(management accountmodel.AccountManagementConfig[models.User]) accountmodel.FirstAccountConfig[models.User] {
+func firstAccountConfig(management accountmodel.AccountManagementConfig[models.User]) (accountmodel.FirstAccountConfig[models.User], firstaccount.Config) {
 	return accountmodel.FirstAccountConfig[models.User]{CreationPolicy: accountmodel.CreationPolicy[models.User]{
 		Fields: []string{"username", "email"}, MaxPasswordBytes: management.MaxPasswordBytes,
 		ValidatePassword: management.ValidatePassword, Validate: management.ValidateCreate,
 		CaseInsensitiveLogin: management.CaseInsensitiveCreationLogin,
 		PrincipalID:          management.PrincipalID, Now: management.Now,
-	}}
+	}}, firstaccount.Config{}
+}
+
+func AdminAccountRegistration(listFields []string) identityadmin.AccountRegistration {
+	return identityadmin.AccountRegistration{Slug: "users", ListFields: listFields}
 }

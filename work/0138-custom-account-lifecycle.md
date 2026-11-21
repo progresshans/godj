@@ -34,6 +34,10 @@ I1의 여덟 요구는 전체 수용 전이다. 요구별 소비자는 아래 �
 
 ## 구현 경계
 
+새 프로젝트가 필수 파일 프로필을 선언하면 첫 계정 명령은 프로젝트가 정한 입력 한도와 게시 결과 보고 함수를 받는다.
+Admin도 업로드를 받는 생성·수정 폼별 보고 함수를 같은 프로젝트 정책에서 가져온다.
+기존 `d7584767`은 생성 앱에서 파일 owner와 명령을 직접 조립해 검증했다. 후속 starter 소비자는 공개 `startproject`에서 이 조립을 받아 CLI·Chromium·독립 DB/파일 관측으로 확인한다. [starter의 정책](../internal/projectscaffold/templates/internal/accounts/policy.go.tmpl) · [문서 프로필 소비자](../conformance/runserverproduct/starter_documents_linux_test.go)
+
 - 계정 역할은 `schema/ir`의 명시적 model/field/relation 참조다. 프로젝트의 선택을 정규화한 뒤 생성 snapshot과
   typed adapter에 연결한다. `username`, `email` 등의 문자열 이름에서 역할을 추론하지 않는다.
 - 계정 선택과 보안 정책은 프로젝트 binding이다. DB table/column의 역사와 혼동해 이미 적용한 migration 정의를

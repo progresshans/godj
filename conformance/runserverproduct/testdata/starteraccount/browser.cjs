@@ -12,7 +12,7 @@ const reader = "reader@example.test";
 const readerPassword = "Sunlit-Cliff-812!private";
 const changedPassword = "Willow-Grove-829!private";
 const resetPassword = "Linen-Forest-437!private";
-const custom = variant === "custom";
+const custom = variant !== "default";
 const loginField = custom ? "contact" : "username";
 const profile = custom ? "region" : "first_name";
 const active = custom ? "enabled" : "active";
@@ -76,6 +76,7 @@ async function submitProfile(page, form, expectedStatus) {
         unexpectedStatus = "profile form expected " + expectedStatus + " received " + response.status();
         throw new Error("unexpected form status");
     }
+    return response;
 }
 
 function mailLink() {
@@ -143,7 +144,87 @@ async function completeReset(browser) {
     return login(browser, reader, resetPassword);
 }
 
+async function chooseDocumentRelation(form, field, term, id) {
+    const select = form.locator('select[name="' + field + '"]');
+    const option = select.locator('option[value="' + id + '"]');
+    if (!await option.count()) {
+        const chooser = form.locator('[data-field-name="' + field + '"][data-choice-url]');
+        await chooser.getByRole("searchbox").fill(term);
+        await option.waitFor({state: "attached"});
+    }
+    await select.selectOption(String(id));
+}
+
+async function exerciseDocuments(browser) {
+    stage = "login with the provisioned document account";
+    const admin = await login(browser, operator, "Slate-Meadow-946!private");
+    const accounts = base + "accounts/";
+    const listing = async () => (await api(admin, "GET", accounts, 200)).json();
+    const upload = (form, content, name = "reader.txt") => form.locator('input[type="file"][name="document"]').setInputFiles({
+        name, mimeType: "text/plain", buffer: Buffer.from(content),
+    });
+    const before = await listing();
+    assert.equal(before.items.find(row => row.fields.contact === operator).fields.document, "documents/operator.txt");
+    if (phase === "initial") {
+        stage = "required file on account creation";
+        assert.equal(before.count, 1);
+        const permission = await (await api(admin, "POST", base + "permissions/", 201, {fields: {key: schemaGrant, title: "Read schema"}})).json();
+        const group = await (await api(admin, "POST", base + "groups/", 201, {fields: {title: "Schema readers", grants: [permission.id]}})).json();
+        const fields = {contact: reader, region: "Initial", teams: [group.id], grants: [permission.id]};
+        for (const input of [fields, {...fields, document: "documents/operator.txt"}]) {
+            await api(admin, "POST", accounts, 400, {fields: input, credential: {password: readerPassword}});
+        }
+        assert.equal((await listing()).count, 1);
+        await admin.goto(origin + "/admin/users/add/");
+        const form = admin.locator('form:has(input[type="file"][name="document"])');
+        assert.equal(await form.getAttribute("enctype"), "multipart/form-data");
+        await form.locator('[name="contact"]').fill(reader);
+        await form.locator('[name="region"]').fill("Initial");
+        await form.locator('[name="enabled"]').check();
+        await chooseDocumentRelation(form, "teams", "Schema readers", group.id);
+        await chooseDocumentRelation(form, "grants", schemaGrant, permission.id);
+        await form.locator('[name="password1"]').fill(readerPassword);
+        await form.locator('[name="password2"]').fill(readerPassword);
+        await upload(form, "starter member document\n");
+        await submitProfile(admin, form, 302);
+        const created = await listing();
+        assert.equal(created.count, 2);
+        assert.equal(created.items.find(row => row.fields.contact === reader).fields.document, "documents/reader.txt");
+        const member = await login(browser, reader, readerPassword);
+        await member.close();
+    } else {
+        stage = "edit a stored document after restart";
+        const target = before.items.find(row => row.fields.contact === reader);
+        assert.equal(target.fields.document, "documents/reader.txt");
+        await admin.goto(origin + "/admin/users/");
+        await admin.locator('tr[data-object-id="' + target.id + '"]').getByRole("link", {name: "Change"}).click();
+        const form = admin.locator('form:has([name="expected_revision"])');
+        const changeURL = admin.url();
+        await form.locator('[name="region"]').fill("Reviewed");
+        await upload(form, "starter revised document\n");
+        await submitProfile(admin, form, 302);
+        const detail = accounts + target.id + "/";
+        const revised = await (await api(admin, "GET", detail, 200)).json();
+        assert.equal(revised.fields.region, "Reviewed");
+        assert.notEqual(revised.fields.document, target.fields.document);
+        assert.ok(revised.revision > target.revision);
+        await api(admin, "PATCH", detail, 412, {fields: {region: "Stale"}}, target.revision);
+        assert.equal((await (await api(admin, "GET", detail, 200)).json()).fields.document, revised.fields.document);
+        stage = "reconcile a committed edit after the report sink refused it";
+        await admin.goto(changeURL);
+        await upload(form, "starter unreported document\n", "reconciled.txt");
+        const failed = await submitProfile(admin, form, 500);
+        const body = await failed.text();
+        assert.ok(!body.includes("edit.json") && !body.includes("starter unreported document"));
+        const committed = await (await api(admin, "GET", detail, 200)).json();
+        assert.equal(committed.revision, revised.revision + 1);
+        assert.equal(committed.fields.document, "documents/reconciled.txt");
+    }
+    await admin.close();
+}
+
 async function exercise(browser) {
+    if (variant === "document") return exerciseDocuments(browser);
     stage = "anonymous schema";
     const anonymous = await browser.newPage();
     await api(anonymous, "GET", base + "openapi.json", 403);
@@ -275,7 +356,7 @@ async function exercise(browser) {
 }
 
 async function main() {
-    assert.ok(["custom", "default"].includes(variant) && ["initial", "restart"].includes(phase));
+    assert.ok(["custom", "default", "document"].includes(variant) && ["initial", "restart"].includes(phase));
     assert.match(origin, /^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/);
     stage = "Chromium executable";
     const executablePath = chromium.executablePath();

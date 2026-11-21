@@ -1331,6 +1331,9 @@ commands 미설정·ABI/source 불일치와 실제 typed Description의 불일�
 이 파일 hash는 선언 식별자이며 임의 callback의 행동을 증명하지 않는다. Opener는 실제 backend를 획득한 뒤 startup을 검사하며,
 검사 실패에도 획득한 자원을 반환해 process owner가 정확히 한 번 닫는다. Constructor/Description은 DB를 열지 않는다.
 
+새 프로젝트의 첫 계정 정책은 모델의 파일 저장 정책과 CLI의 파일당·합계 한도 및 `ReportFiles`를 함께 지정한다.
+Admin 등록은 같은 호스트 정책에서 생성·수정 폼의 게시 보고 함수를 받는다. 로컬 입력, 저장 매체의 게시 결과와 DB의 커밋 결과는 각 소유자가 확인한다. [새 프로젝트 구성](../DEVELOPER_EXPERIENCE.md#선택-계정-구성)
+
 서버는 같은 `NewAccountRuntime`의 SessionStore·Authenticator·LoginPersistence·관리/catalog·password owner를 사용한다.
 자동 Account/Catalog Admin과 관리 JSON을 연결하며 저장된 현재 domain과 권한을 요청마다 확인한다. `Runtime.Credentials()`는
 그 runtime의 동일한 scoped reader/authorizer다. 업무 Article도 전체 Principal을 native snapshot/write fence에서 재인가한다.

@@ -282,6 +282,11 @@ Slug·목록 열과 읽기/생성/수정의 명시적 노출·권한을 선택�
 `CatalogConfig.GroupThroughCreations`의 키는 `role.Catalog.GroupPermissions`, 값은 해당 모델의 `NewAccountThroughCreation`, `NewGroupThroughCreation` 또는 `NewPermissionThroughCreation`으로 만든 정책이다.
 `ThroughCreationLimit`에는 한 요청에서 새로 만들 수 있는 행 수를 지정한다. 기존 연결을 유지할 때는 생성 정책을 다시 호출하지 않는다. [Catalog 구성](../identity/model/catalog.go) · [생성 프로젝트의 Admin·JSON 사용 예](../codegen/consumertest/testdata/accountbinding/catalog_grant_write_test.go.tmpl)
 
+새 프로젝트에서 계정 프로필에 파일이나 이미지를 받을 때는 `internal/accounts/policy.go`에 저장 정책과 결과를 받을 함수를 선언한다.
+첫 계정의 `firstAccountConfig`는 모델의 `FirstAccountConfig`와 명령의 `firstaccount.Config`를 함께 반환한다.
+명령 설정에는 파일당·전체 바이트 한도와 `ReportFiles`를 지정한다. Admin의 `AdminAccountRegistration`에는 업로드를 받는 생성 폼의 `ReportFileCreate`, 수정 폼의 `ReportFileEdit`를 지정한다.
+보고 함수는 실제 게시된 파일과 계정 저장 결과를 함께 받아 보관한다. 파일을 받지 않는 첫 계정은 빈 명령 설정을 사용한다. [프로젝트 정책](../internal/projectscaffold/templates/internal/accounts/policy.go.tmpl) · [첫 계정 파일 입력](../project/firstaccount/README.md) · [Admin 파일 보고](../identity/admin/selected_account_files.go)
+
 [`identityapi.NewManagement`](../identity/api/README.md)는 같은 owner를 `/api/identity/accounts/`, `groups/`, `permissions/`에 연결한다.
 모델 입력은 `fields`, 비밀번호 명령은 `credential` 객체로 전달하며 기존 객체 쓰기는 현재 `If-Revision`을 사용한다.
 같은 브라우저의 Session/CSRF와 현재 권한을 검사한다. 자세한 요청 예시는 해당 API 문서를 따른다.

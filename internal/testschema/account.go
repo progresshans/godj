@@ -8,7 +8,7 @@ import (
 // CustomAccount declares a separately owned account, a permission catalog and
 // a host model referring to that account. It intentionally has no User model,
 // username field, staff column or built-in identity app.
-func CustomAccount() (ir.AccountRole, []ir.Schema, error) {
+func CustomAccount(profile ...schema.Field) (ir.AccountRole, []ir.Schema, error) {
 	catalog, err := schema.Build(schema.Definition{AppLabel: "access", Models: []schema.Model{
 		{Name: "grant", GoName: "Grant", Fields: []schema.Field{
 			schema.CharField("key", "Key", 128, schema.Unique()), schema.CharField("title", "Title", 255), schema.IntegerField("version", "Version", schema.Default(int64(1))),
@@ -25,7 +25,7 @@ func CustomAccount() (ir.AccountRole, []ir.Schema, error) {
 		return ir.AccountRole{}, nil, err
 	}
 	people, err := schema.Build(schema.Definition{AppLabel: "people", Models: []schema.Model{{
-		Name: "member", GoName: "Member", Fields: []schema.Field{
+		Name: "member", GoName: "Member", Fields: append([]schema.Field{
 			schema.CharField("subject", "Subject", 128, schema.Unique()),
 			schema.EmailField("contact", "Contact", schema.Unique()),
 			schema.CharField("secret", "Secret", 2048),
@@ -34,7 +34,7 @@ func CustomAccount() (ir.AccountRole, []ir.Schema, error) {
 			schema.BooleanField("enabled", "Enabled", schema.Default(true)),
 			schema.BooleanField("root", "Root", schema.Default(false)),
 			schema.CharField("region", "Region", 24),
-		}, ManyToMany: []schema.ManyToManyField{
+		}, profile...), ManyToMany: []schema.ManyToManyField{
 			schema.ManyToMany("teams", "Teams", schema.Target("access", "team"), schema.NoReverse()),
 			schema.ManyToMany("grants", "Grants", schema.Target("access", "grant"), schema.NoReverse()),
 		},

@@ -69,6 +69,11 @@ separate production entrypoint.
   the first-account declaration. A populated database needs an explicit account
   transition; changing source does not transfer existing authority.
 - The first-account command uses the model and inputs in `firstAccountConfig`.
+  For an upload field, return its typed file policy along with a
+  `firstaccount.Config` that sets per-file and total byte limits and
+  `ReportFiles`. In `AdminAccountRegistration`, set `ReportFileCreate` and
+  `ReportFileEdit` for the Admin forms that accept uploads. These callbacks
+  receive the stored file outcome and the account result for reconciliation.
   Admin lists display the row key and readable role fields in the selected
   models. `count-groups` uses the selected catalog. Set `OpenAPIAccess` in
   `internal/accounts/policy.go` to choose who may read the management schema.

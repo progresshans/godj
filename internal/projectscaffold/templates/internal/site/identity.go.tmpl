@@ -63,9 +63,7 @@ func registerIdentityModels(builder *admin.Builder, runtime *accounts.Runtime) e
 
 	columns := identityListFields(account.KeyField, runtime.Accounts().Reader().ListFields(),
 		role.Login, role.Email, role.Active.Field, role.Staff.Field, role.Superuser.Field)
-	if err := identityadmin.RegisterAccount(builder, runtime.Accounts(), identityadmin.AccountRegistration{
-		Slug: "users", ListFields: columns,
-	}); err != nil {
+	if err := identityadmin.RegisterAccount(builder, runtime.Accounts(), accounts.AdminAccountRegistration(columns)); err != nil {
 		return err
 	}
 	return identityadmin.RegisterCatalog(builder, runtime.Catalog(), identityadmin.CatalogRegistration{

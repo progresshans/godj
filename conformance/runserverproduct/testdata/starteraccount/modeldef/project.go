@@ -3,6 +3,7 @@ package modeldef
 import (
 	"context"
 
+	"example.com/started-site/internal/hostprofile"
 	"example.com/started-site/modeldef/testschema"
 	"github.com/progresshans/godj/codegen"
 	"github.com/progresshans/godj/schema"
@@ -12,7 +13,11 @@ func ProjectSpec(ctx context.Context) (codegen.ProjectSpec, error) {
 	if err := ctx.Err(); err != nil {
 		return codegen.ProjectSpec{}, err
 	}
-	role, schemas, err := testschema.CustomAccount()
+	var profile []schema.Field
+	if hostprofile.Document {
+		profile = append(profile, schema.FileField("document", "Document"))
+	}
+	role, schemas, err := testschema.CustomAccount(profile...)
 	if err != nil {
 		return codegen.ProjectSpec{}, err
 	}

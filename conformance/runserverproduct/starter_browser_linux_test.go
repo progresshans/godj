@@ -42,7 +42,7 @@ func TestStarterSelectedAccountBrowser(t *testing.T) {
 	if !filepath.IsAbs(tools) || os.Getenv(runserverPostgresTestURLEnv) == "" {
 		t.Fatal("starter browser requires locked browser tools and PostgreSQL")
 	}
-	for _, variant := range []string{"default", "custom"} {
+	for _, variant := range []string{"default", "custom", "document"} {
 		t.Run(variant, func(t *testing.T) {
 			workspaces := t.TempDir()
 			env := testenv.Without(runserverEnvironment(t, "", workspaces), articleSQLiteDatabaseEnv,
@@ -62,8 +62,9 @@ func TestStarterSelectedAccountBrowser(t *testing.T) {
 				writeStartedAppSource(t, project, to, string(source))
 			}
 			copySource(filepath.Join(app.fixture, "internal/site/password_reset.go"), "internal/site/password_reset.go")
-			if variant == "custom" {
+			if variant != "default" {
 				copySource(filepath.Join(repo, "internal/testschema/account.go"), "modeldef/testschema/account.go")
+				writeStartedAppSource(t, project, "internal/hostprofile/profile.go", fmt.Sprintf("package hostprofile\n\nconst Document = %t\n", variant == "document"))
 				for _, name := range []string{"modeldef/project.go", "modeldef/migrations.go", "internal/accounts/policy.go"} {
 					copySource(filepath.Join(app.fixture, name), name)
 				}
@@ -129,13 +130,35 @@ func (app starterBrowserProject) exerciseDatabase(t *testing.T, variant, vendor 
 	selected["STARTER_MAILBOX"] = mailbox
 	selected["STARTER_RESET_KEY_FILE"] = keyFile
 	selected["STARTER_RESET_ORIGIN"] = "http://" + address
+	if variant == "document" {
+		selected["STARTER_MEDIA_DIR"] = t.TempDir()
+		selected["STARTER_REPORTS_DIR"] = t.TempDir()
+	}
 	environment := testenv.With(app.env, selected)
 	app.cli(t, app.root, environment, "migrate")
 	if app.cli(t, app.root, environment, "command", "count-groups") != "0\n" {
 		t.Fatal("initial catalog contains groups")
 	}
 	descriptor := filepath.Join(app.root, "godj.toml")
-	if variant == "custom" {
+	if variant == "document" {
+		path := filepath.Join(t.TempDir(), "operator.txt")
+		login := operatorAnswer{`"Contact": `, starterOperator}
+		region := operatorAnswer{`"Region": `, "NZ"}
+		file := operatorAnswer{`"Document" (file path): `, path}
+		if err := os.WriteFile(path, make([]byte, 129), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if !t.Run("upload_limit", func(t *testing.T) {
+			runFirstAccountTerminal(t, app.global, app.root, descriptor, environment, starterPassword, true, login, region, file)
+			checkStarterDocumentRefusal(t, selected)
+		}) {
+			return
+		}
+		if err := os.WriteFile(path, []byte("starter operator document\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		provisionRunserverAccount(t, app.global, app.root, descriptor, environment, starterPassword, login, region, file)
+	} else if variant == "custom" {
 		provisionRunserverAccount(t, app.global, app.root, descriptor, environment, starterPassword,
 			operatorAnswer{`"Contact": `, starterOperator}, operatorAnswer{`"Region": `, "NZ"})
 	} else {
@@ -239,7 +262,7 @@ func readStarterAccount(address, variant, phase string, secrets *[]string) error
 		return errors.New("independent account listing has unexpected members")
 	}
 	loginField, profileField, operatorProfile, active := "username", "first_name", "", "active"
-	if variant == "custom" {
+	if variant != "default" {
 		loginField, profileField, operatorProfile, active = "contact", "region", "NZ", "enabled"
 	}
 	observed := make(map[string]string)
@@ -255,24 +278,33 @@ func readStarterAccount(address, variant, phase string, secrets *[]string) error
 			json.Unmarshal(row.Fields[active], &enabled) != nil || !enabled {
 			return errors.New("account listing differs from the selected profile and active state")
 		}
+		if variant == "document" {
+			want := "documents/operator.txt"
+			if name == starterReader {
+				want = "documents/reader.txt"
+			}
+			var stored string
+			if json.Unmarshal(row.Fields["document"], &stored) != nil || stored != want {
+				return errors.New("independent account listing lost its published document")
+			}
+		}
 		observed[name] = profile
 	}
+	readerProfile := "Updated"
+	if variant == "document" {
+		readerProfile = "Initial"
+	}
 	if v, ok := observed[starterOperator]; !ok || v != operatorProfile || len(observed) != count ||
-		phase == "restart" && observed[starterReader] != "Updated" {
+		phase == "restart" && observed[starterReader] != readerProfile {
 		return errors.New("operator or restarted profile differs")
 	}
 	return nil
 }
 
-// Observe only the isolated native database after the server process exits.
-func checkStarterRows(t *testing.T, variant, phase string, settings map[string]string) {
+func starterObserver(t *testing.T, settings map[string]string) *sql.DB {
 	t.Helper()
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
 	var database *sql.DB
 	var err error
-	parameter := "?"
-	legacyTable := "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='godj_identity_user'"
 	if path := settings["GODJ_SQLITE_DATABASE"]; path != "" {
 		u := url.URL{Scheme: "file", Path: path, RawQuery: "mode=ro"}
 		database, err = sql.Open("sqlite", u.String())
@@ -283,17 +315,34 @@ func checkStarterRows(t *testing.T, variant, phase string, settings map[string]s
 		}
 		cfg.RuntimeParams["search_path"] = settings["GODJ_POSTGRES_SCHEMA"]
 		database = stdlib.OpenDB(*cfg)
-		parameter = "$1"
-		legacyTable = "SELECT count(*) FROM information_schema.tables WHERE table_schema=current_schema() AND table_name='godj_identity_user'"
 	}
 	if err != nil {
 		t.Fatal("open independent database observer")
 	}
-	defer func() {
+	t.Cleanup(func() {
 		if err := database.Close(); err != nil {
 			t.Error("close independent database observer")
 		}
-	}()
+	})
+	return database
+}
+
+// Observe only the isolated native database after the server process exits.
+func checkStarterRows(t *testing.T, variant, phase string, settings map[string]string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	database := starterObserver(t, settings)
+	if variant == "document" {
+		checkStarterDocuments(t, ctx, database, phase, settings)
+		return
+	}
+	parameter := "?"
+	legacyTable := "SELECT count(*) FROM sqlite_schema WHERE type='table' AND name='godj_identity_user'"
+	if settings["GODJ_POSTGRES_URL"] != "" {
+		parameter = "$1"
+		legacyTable = "SELECT count(*) FROM information_schema.tables WHERE table_schema=current_schema() AND table_name='godj_identity_user'"
+	}
 	table, login, profile, active, password := "godj_identity_user", "username", "first_name", "active", "encoded_password"
 	teamTable, teamName, operatorProfile, wantLegacy := "godj_identity_group", "name", "", 1
 	if variant == "custom" {

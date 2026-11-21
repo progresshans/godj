@@ -133,6 +133,13 @@ func provisionRunserverAccount(t *testing.T, globalBinary, repository, descripto
 	password string, first operatorAnswer, rest ...operatorAnswer,
 ) {
 	t.Helper()
+	runFirstAccountTerminal(t, globalBinary, repository, descriptor, environment, password, false, first, rest...)
+}
+
+func runFirstAccountTerminal(t *testing.T, globalBinary, repository, descriptor string, environment []string,
+	password string, rejectBeforePassword bool, first operatorAnswer, rest ...operatorAnswer,
+) {
+	t.Helper()
 	environment = ensureRunserverGoAuditEnvironment(t, environment)
 	assertRunserverOperatorEnvironment(t, environment, password)
 
@@ -203,15 +210,22 @@ func provisionRunserverAccount(t *testing.T, globalBinary, repository, descripto
 		awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, field.prompt, 2*time.Minute)
 		writeRunserverProvisionLine(t, master, field.value)
 	}
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password: ", 2*time.Minute)
-	writeRunserverProvisionLine(t, master, password)
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password (again): ", 2*time.Minute)
-	writeRunserverProvisionLine(t, master, password)
+	if !rejectBeforePassword {
+		awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password: ", 2*time.Minute)
+		writeRunserverProvisionLine(t, master, password)
+		awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password (again): ", 2*time.Minute)
+		writeRunserverProvisionLine(t, master, password)
+	}
 
 	select {
 	case <-exited:
 		waitErr := <-waited
-		if waitErr != nil {
+		if rejectBeforePassword {
+			var failure *exec.ExitError
+			if !errors.As(waitErr, &failure) || failure.ExitCode() != 2 {
+				t.Fatalf("expected createsuperuser input rejection, got %v", waitErr)
+			}
+		} else if waitErr != nil {
 			t.Fatalf("createsuperuser exited unsuccessfully: %v", waitErr)
 		}
 		finished = true
@@ -229,18 +243,16 @@ func provisionRunserverAccount(t *testing.T, globalBinary, repository, descripto
 		}
 	}
 	transcript, truncated := output.Snapshot()
+	wantResult := `"status":"created","code":"","cleanup_failed":false`
+	wantPassword := !rejectBeforePassword
+	if rejectBeforePassword {
+		wantResult = `"status":"not_created","code":"invalid_input","cleanup_failed":false`
+	}
 	if truncated || !strings.Contains(transcript, first.prompt) ||
-		!strings.Contains(transcript, "Password: ") ||
-		!strings.Contains(transcript, "Password (again): ") ||
-		!strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`) {
-		t.Fatalf("createsuperuser transcript shape = prompts:%t/%t/%t success:%t bytes:%d truncated:%t",
-			strings.Contains(transcript, first.prompt),
-			strings.Contains(transcript, "Password: "),
-			strings.Contains(transcript, "Password (again): "),
-			strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`),
-			len(transcript),
-			truncated,
-		)
+		strings.Contains(transcript, "Password: ") != wantPassword ||
+		strings.Contains(transcript, "Password (again): ") != wantPassword ||
+		!strings.Contains(transcript, wantResult) {
+		t.Fatalf("unexpected createsuperuser prompts or result (bytes=%d truncated=%t)", len(transcript), truncated)
 	}
 	if strings.Contains(transcript, password) {
 		t.Fatal("createsuperuser PTY exposed the raw password")

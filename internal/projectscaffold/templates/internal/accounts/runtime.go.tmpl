@@ -47,7 +47,7 @@ func FirstAccount(open func(context.Context) (firstaccount.Backend, error)) (fir
 		return firstaccount.Command{}, err
 	}
 	digest := sha256.Sum256(policySource)
-	config := firstAccountConfig(runtimeConfig.Accounts)
+	config, commandConfig := firstAccountConfig(runtimeConfig.Accounts)
 	config.EvidenceSHA256 = hex.EncodeToString(digest[:])
 	definition, err := project.NewFirstAccountDefinition(hasher, config)
 	if err != nil {
@@ -68,5 +68,5 @@ func FirstAccount(open func(context.Context) (firstaccount.Backend, error)) (fir
 		}
 		_, err = store.InspectStartup(ctx)
 		return backend, err
-	}, firstaccount.Config{})
+	}, commandConfig)
 }
