@@ -770,6 +770,10 @@ func TestRuntimeGateSerializesAtomicCallsAndValidatesBeforeBackend(t *testing.T)
 	if err := runtime.withAtomic(nil, func(db.Session) error { return nil }); !errors.Is(err, &Error{Code: CodeInvalidInput, Field: "context"}) {
 		t.Fatalf("withAtomic(nil context): %#v", err)
 	}
+	var missing *struct{ context.Context }
+	if key, err := runtime.Insert(missing, query.InsertPlan{}); key != 0 || !errors.Is(err, &Error{Code: CodeInvalidInput, Field: "context"}) {
+		t.Fatalf("Insert(typed nil context) = (%d, %v)", key, err)
+	}
 	if err := runtime.withAtomic(ctx, nil); !errors.Is(err, &Error{Code: CodeInvalidInput, Field: "callback"}) {
 		t.Fatalf("withAtomic(nil callback): %#v", err)
 	}

@@ -1031,6 +1031,9 @@ snapshot·복사본·입력/저장 한도는 공통 선택 소비자가 담당�
 필수 FK 순환의 typed 전환과 역사 이행의 외부 조립에 대한 전체 환경 검증,
 새 scaffold의 기본·custom 계정 브라우저 소비자와 같은 source의 전체 원격 실행·원본 대조가 남아 있다. I1-07/08은 수용 전이다.
 
+역사 runtime은 일반·관계 쓰기의 소유권 재검사를 commit에 포함하고, 최상위 insert/update/delete의 결과를 확정 뒤에만 반환한다.
+[양 DB 소비자](../internal/identitytest/historical_mutations.go)가 별도 연결로 실제 행과 이행 marker를 대조한다. 실행 여부는 [검증 기록](../docs/status/TEST_EVIDENCE.md)을 따른다.
+
 현재 실행 순서는 [재개 지점](../docs/status/CURRENT.md#재개-지점)을 따른다.
 사용자 지시에 따라 로컬 Go 실행은 중단하고 포맷·정적 확인 뒤 변경 묶음을 push한다. 영향 compile·테스트·generated drift·양 DB·race/process·
 독립 기준·브라우저 및 전체 원격 CI를 실행한다. 결과 상세는 TEST_EVIDENCE에 기록한다.

@@ -380,40 +380,26 @@ func (runtime *Runtime) Query(ctx context.Context, plan query.Plan) (db.Rows, er
 	return runtime.backend.Query(ctx, plan)
 }
 
-// Insert publishes one top-level mutation through exactly one gated database
-// transaction.
+// Insert returns the row key only after the historical owner and the native
+// commit are confirmed. An unknown outcome requires reconciliation.
 func (runtime *Runtime) Insert(ctx context.Context, plan query.InsertPlan) (int64, error) {
-	var identifier int64
-	err := runtime.withAtomic(ctx, func(session db.Session) error {
-		var err error
-		identifier, err = session.Insert(ctx, plan)
-		return err
+	return historicalAtomicResult(ctx, runtime, func(work context.Context, session db.Session) (int64, error) {
+		return session.Insert(work, plan)
 	})
-	return identifier, err
 }
 
-// Update publishes one top-level mutation through exactly one gated database
-// transaction.
+// Update returns the affected count only after a confirmed commit.
 func (runtime *Runtime) Update(ctx context.Context, plan query.UpdatePlan) (int64, error) {
-	var affected int64
-	err := runtime.withAtomic(ctx, func(session db.Session) error {
-		var err error
-		affected, err = session.Update(ctx, plan)
-		return err
+	return historicalAtomicResult(ctx, runtime, func(work context.Context, session db.Session) (int64, error) {
+		return session.Update(work, plan)
 	})
-	return affected, err
 }
 
-// Delete publishes one top-level mutation through exactly one gated database
-// transaction.
+// Delete returns the affected count only after a confirmed commit.
 func (runtime *Runtime) Delete(ctx context.Context, plan query.DeletePlan) (int64, error) {
-	var affected int64
-	err := runtime.withAtomic(ctx, func(session db.Session) error {
-		var err error
-		affected, err = session.Delete(ctx, plan)
-		return err
+	return historicalAtomicResult(ctx, runtime, func(work context.Context, session db.Session) (int64, error) {
+		return session.Delete(work, plan)
 	})
-	return affected, err
 }
 
 // Atomic runs the caller callback under the same database coordination fence
@@ -440,45 +426,52 @@ func (runtime *Runtime) AtomicRelation(ctx context.Context, callback func(db.Rel
 	}
 	runtime.mu.Lock()
 	defer runtime.mu.Unlock()
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	return backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
-		if err := runtime.requireHistoricalOwnership(ctx, scope); err != nil {
-			return err
-		}
-		if err := callback(scope); err != nil {
-			return err
-		}
-		return runtime.requireHistoricalOwnership(ctx, scope)
-	})
+	_, err := db.CoordinatedRelationAtomicResult(ctx, backend, historicalWrite(runtime, withoutResult(callback)))
+	return err
 }
 
-// withAtomic is the one cooperative gate shared by the durable session and
-// audit adapters. The mutex reduces contention within this Runtime; the
-// backend's database/schema fence owns correctness across Runtime instances.
-// Every valid call invokes Backend.CoordinatedAtomic exactly once.
 func (runtime *Runtime) withAtomic(ctx context.Context, callback func(db.Session) error) error {
+	_, err := historicalAtomicResult(ctx, runtime, withoutResult(callback))
+	return err
+}
+
+// The local gate is shared with AtomicRelation. The native coordinated owner
+// publishes the result of the complete ownership check, write and recheck.
+func historicalAtomicResult[T any](ctx context.Context, runtime *Runtime, write func(context.Context, db.Session) (T, error)) (T, error) {
+	var zero T
 	if err := runtime.validBackendCall(ctx); err != nil {
-		return err
+		return zero, err
 	}
-	if callback == nil {
-		return &Error{Code: CodeInvalidInput, Field: "callback", Detail: "atomic callback is nil"}
+	if write == nil {
+		return zero, &Error{Code: CodeInvalidInput, Field: "callback", Detail: "atomic callback is nil"}
 	}
 	runtime.mu.Lock()
 	defer runtime.mu.Unlock()
-	if err := ctx.Err(); err != nil {
-		return err
+	return db.CoordinatedAtomicResult(ctx, runtime.backend, historicalWrite(runtime, write))
+}
+
+func withoutResult[S db.Session](callback func(S) error) func(context.Context, S) (struct{}, error) {
+	if callback == nil {
+		return nil
 	}
-	return runtime.backend.CoordinatedAtomic(ctx, func(scope db.Session) error {
+	return func(_ context.Context, scope S) (struct{}, error) { return struct{}{}, callback(scope) }
+}
+
+func historicalWrite[S db.Session, T any](runtime *Runtime, write func(context.Context, S) (T, error)) func(context.Context, S) (T, error) {
+	return func(ctx context.Context, scope S) (T, error) {
+		var zero T
 		if err := runtime.requireHistoricalOwnership(ctx, scope); err != nil {
-			return err
+			return zero, err
 		}
-		if err := callback(scope); err != nil {
-			return err
+		value, err := write(ctx, scope)
+		if err != nil {
+			return zero, err
 		}
-		return runtime.requireHistoricalOwnership(ctx, scope)
-	})
+		if err := runtime.requireHistoricalOwnership(ctx, scope); err != nil {
+			return zero, err
+		}
+		return value, nil
+	}
 }
 
 func (runtime *Runtime) requireHistoricalOwnership(ctx context.Context, scope db.Queryer) error {
@@ -511,7 +504,7 @@ func (runtime *Runtime) requireHistoricalOwnership(ctx context.Context, scope db
 }
 
 func (runtime *Runtime) validBackendCall(ctx context.Context) error {
-	if ctx == nil {
+	if isNilInterface(ctx) {
 		return &Error{Code: CodeInvalidInput, Field: "context", Detail: "context is nil"}
 	}
 	if err := ctx.Err(); err != nil {

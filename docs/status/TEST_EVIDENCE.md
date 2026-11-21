@@ -6179,6 +6179,13 @@ Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 
 
 기본·custom 프로젝트 모두 생성·빌드됐고, SQLite·PostgreSQL 각각에서 migration·빈 그룹 조회·PTY 첫 계정 생성·서버 기동·별도 HTTP 로그인과 계정 조회까지 진행했다. 네 경우 모두 Chromium 시작 단계에서 중단돼 브라우저 조작과 재시작 검사는 실행되지 않았다. 원래 로그에는 시작 실패의 세부 오류가 없다. 후속 검사는 Linux Chromium에 짧은 전용 임시 경로를 제공하고, 실행 파일·시작·버전 대조에서 실패한 위치를 기록한다.
 
+### 역사 runtime 쓰기 결과의 확정
+
+`Runtime.Insert/Update/Delete`가 문장 실행 중 얻은 값을 바깥 transaction 오류와 함께 반환하던 경로를 고쳤다. 일반·관계 transaction은 같은 historical ownership 검사를 유지하고, backend가 callback 누락·반복·오류 누락을 성공으로 반환해도 결과를 게시하지 않는다.
+[양 DB 검사](../../internal/identitytest/historical_mutations.go)는 원래 marker를 바꾸는 문장이 실행된 뒤의 거부, 정상 commit과 영향 행 0건, rollback, 미확정 commit의 양쪽 실제 상태를 별도 연결로 확인한다.
+
+로컬 gofmt·diff·문서 링크와 Python CI 분할 검사 27개를 확인했다. [SQLite 필수 목록](../../scripts/ci/relation-required.txt)과 [PostgreSQL 필수 목록](../../scripts/ci/postgres-core-required.txt)에 각각 상위 1개와 하위 7개를 추가했다. 실제 Go 실행과 전체 환경 수용은 이 변경을 포함하는 제품 커밋에서 확인한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

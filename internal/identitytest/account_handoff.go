@@ -164,6 +164,10 @@ func (backend *handoffBackend) CoordinatedAtomic(ctx context.Context, write func
 		}
 		return nil
 	})
+	if backend.mode == "swallowed_recheck" && err != nil {
+		backend.faults++
+		return nil
+	}
 	if err == nil && backend.mode == "unknown_commit" || backend.mode == "unknown_rollback" && errors.Is(err, handoffFailure) {
 		return &query.Error{Category: query.CategoryBackend, Code: query.CodeCommitOutcomeUnknown, Cause: handoffFailure}
 	}
@@ -204,6 +208,7 @@ func (scope *handoffScope) Update(ctx context.Context, plan query.UpdatePlan) (i
 // Every refusal is exercised against native storage and compared with the
 // independent complete identity/session/audit snapshot, not just an error code.
 func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend), rekey func(*testing.T, TransitionBackend, int64, int64)) {
+	t.Run("runtime_mutations", func(t *testing.T) { historicalMutationResults(t, open) })
 	for _, mode := range []string{"lifecycle", "owned_manifest", "signed_keys", "foreign_namespace", "inactive_actor", "revoked_actor", "denied_overlay", "changed_account", "changed_grant", "changed_session", "changed_audit", "corrupt_session", "corrupt_audit", "account_limit", "session_limit", "audit_limit", "read_missing", "read_cleanup", "write_missing", "write_twice", "header_insert", "mapping_insert", "marker_update", "late_account", "late_archive", "late_marker", "late_cancel", "rollback", "unknown_commit", "unknown_rollback", "cancelled", "manifest_tamper"} {
 		t.Run(mode, func(t *testing.T) {
 			backend, second := open(t)
