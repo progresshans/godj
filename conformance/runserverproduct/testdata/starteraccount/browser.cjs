@@ -21,6 +21,7 @@ const groupGrants = custom ? "grants" : "permissions";
 const grantCode = custom ? "key" : "code";
 const grantName = custom ? "title" : "name";
 const schemaGrant = custom ? "people.read_schema" : "godj_identity.view_user";
+const noteGrant = "people.read_note";
 const base = "/api/identity/";
 let stage = "arguments";
 let unexpectedStatus = "";
@@ -220,7 +221,7 @@ async function exercise(browser) {
     if (custom) {
         // A distinct grant keeps schema access dependent on the group.
         directGrant = await (await api(admin, "POST", base + "permissions/", 201, {
-            fields: {[grantCode]: "people.read_note", [grantName]: "Read note"},
+            fields: {[grantCode]: noteGrant, [grantName]: "Read note"},
         })).json();
     }
     await admin.goto(origin + "/admin/users/");
@@ -237,7 +238,25 @@ async function exercise(browser) {
         assert.equal(unchanged.fields[profile], "Initial");
         assert.deepEqual(unchanged.fields.teams, [group.id]);
         assert.deepEqual(unchanged.fields.grants, []);
-        await modelForm.locator('select[name="grants"]').selectOption(String(directGrant.id));
+        stage = "search direct grants on the rejected form";
+        const chooser = modelForm.locator('[data-field-name="grants"][data-choice-url]');
+        const choices = new URL(await chooser.getAttribute("data-choice-url"), origin);
+        assert.equal(choices.origin, origin);
+        const [page] = await Promise.all([
+            admin.waitForResponse(response => {
+                const url = new URL(response.url());
+                return response.request().method() === "GET" && url.origin === origin && url.pathname === choices.pathname &&
+                    url.searchParams.get("id") === String(target.id) && url.searchParams.get("q") === noteGrant;
+            }),
+            chooser.getByRole("searchbox").fill(noteGrant),
+        ]);
+        if (page.status() !== 200) {
+            unexpectedStatus = "grant search received " + page.status();
+            throw new Error("unexpected choice status");
+        }
+        const results = await page.json();
+        assert.deepEqual(results.items.map(item => item.value), [String(directGrant.id)]);
+        await chooser.locator('select[name="grants"]').selectOption(String(directGrant.id));
     }
     stage = "save profile and reject stale revision";
     await submitProfile(admin, modelForm, 302);

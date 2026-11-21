@@ -6187,6 +6187,12 @@ Linux Chromium 155.0.8059.12로 기본 User는 SQLite·PostgreSQL의 최초 기�
 
 Member의 [관계 선언](../../internal/testschema/account.go)과 [ModelForm 투영](../../forms/model/many_to_many.go)에서 직접 권한 `grants`는 필수다. 기존 시나리오는 그룹만 부여한 뒤 빈 직접 권한으로 변경 폼을 제출했다. 후속 검사는 이 제출의 필드 오류와 DB에서 다시 읽은 프로필·revision·소속을 확인한 뒤, 스키마 열람과 무관한 직접 권한을 선택해 정상 저장과 오래된 revision 거부를 확인한다. 프로세스 종료 후 독립 SQL로 직접 권한 연결도 대조한다.
 
+### ddf2b250 Member 프로필 거부
+
+[starter 작업](https://github.com/progresshans/godj/actions/runs/44910785840/job/136866161928)의 제출 커밋 `ddf2b250`과 checkout `370ae7c7`은 같은 tree `2bd53e5c888bc8717db5fb10c05f70c52106e486`다. [아카이브](https://github.com/progresshans/godj/actions/runs/44910785840/artifacts/14709643665)의 SHA-256 `7a89b0b78b6c524de6df19b7577fc3aba3bfea764f90f4709e32d8b1ba43e0fd`와 원본 이벤트를 대조했다.
+
+기본 User의 양 DB 최초 기동·재시작 4건이 통과했다. 양 DB의 Member는 빈 직접 권한으로 제출했을 때 `grants/required` 하나를 받았고 독립 API 조회에서 프로필·revision·팀·직접 권한이 모두 보존됐다. 이후 화면에 아직 없는 권한을 선택하려다 멈췄다. [Admin](../../admin/site_choices.go)은 오류 폼에 제출한 선택값을 표시하고 추가 후보는 검색으로 제공한다. 후속 소비자는 같은 폼의 검색창으로 직접 권한을 조회하고 응답의 key를 대조한 뒤 그 항목을 선택해 제출한다.
+
 ### 역사 runtime 쓰기 결과의 확정
 
 `Runtime.Insert/Update/Delete`가 문장 실행 중 얻은 값을 바깥 transaction 오류와 함께 반환하던 경로를 고쳤다. 일반·관계 transaction은 같은 historical ownership 검사를 유지하고, backend가 callback 누락·반복·오류 누락을 성공으로 반환해도 결과를 게시하지 않는다.
