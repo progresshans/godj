@@ -2,7 +2,7 @@
 
 - 상태: accepted
 - 날짜: 2026-09-27
-- 관련 작업: [GDJ-0100](../../work/0100-multi-user-credential-and-session-lifecycle.md)
+- 관련 작업: [다중 사용자와 세션 수명](../../work/0100-multi-user-credential-and-session-lifecycle.md) · [I1 사용자 정의 계정](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)
 
 ## 결정과 이유
 
@@ -12,8 +12,8 @@
 `Principal()`은 그 관찰에 속한 권한 snapshot이다. 권한과 비밀번호 상태를 각각 읽어 서로 다른 시점의 값을 조합하지 않는다.
 Resolve는 현재 상태를 반환하며 이전 요청에서 허용한 immutable Principal을 소급 변경하지 않는다.
 
-`Credential.SessionStamp()`는 버전 구분자·principal ID·이미 salt가 포함된 encoded password의 SHA-256이다.
-ID와 encoded password는 NUL을 허용하지 않아 각 구성 요소를 NUL로 구분한다.
+`Credential.SessionStamp()`는 버전 구분자·principal ID·이미 salt가 포함된 encoded password로 SHA-256을 계산한다.
+선택 계정의 v2 stamp는 버전 뒤에 계정 도메인 식별자도 넣는다. 도메인 없는 인증기는 v1을 사용하며 각 구성 요소는 NUL로 구분한다. [Credential 구현](../../auth/credentials.go)
 서버 세션의 `_godj_principal_id`와 `_godj_credential_stamp`를 함께 생성하거나 회전한다.
 다음 요청은 한 번 Resolve한 credential의 ID·active 상태·stamp를 검증한다. 비교에는 constant-time equality를 쓴다.
 Stamp는 password verifier나 bearer credential이 아니며 client cookie·응답·로그에 노출하지 않는다.
@@ -1059,9 +1059,9 @@ credential/hash/session stamp를 변경하는 작업으로 확대하지 않는�
 resource의 기존 권한을 사용한다. Catalog 생성/수정/삭제가 계정도 지우면 반환값의 `RevokedSessions`에 같은 domain의 실제 폐기 수를 담는다.
 Group grant 교체는 아래의 공통 전체 수명 조정을 사용한다. Incoming CASCADE/SET_NULL이 추가 계정/catalog이나 다른 소속의
 through를 바꾸는 조합도 전체 최종 상태로 검사한다. Through 모델 자체가 선택 계정/Group/Permission이면 새 링크 생성에도
-별도의 identity 생성 owner가 필요하므로 해당 collection을 쓰기로 노출할 때 `unsupported`로 거부한다. 이 저장/생성 조립은
-잔여 요구이며 읽기나 기존 전체 수명 owner의 행 삭제를 함께 차단하지 않는다.
-공통 Admin과 JSON 조립은 아래의 선택 Catalog/Account 등록과 관리 JSON을 사용한다. 기존 고정 모델 Manager host 교체는 남아 있다.
+새 행의 생성 정책과 권한이 필요하다. 일반 `CatalogConfig`에는 그룹 권한에 이 정책을 지정하는 항목이 없어
+해당 필드를 쓰기로 노출하면 Catalog 구성 단계에서 거부한다. 읽기와 기존 수명 정책에 따른 삭제는 가능하다. [Catalog 구성](../../identity/model/catalog.go) · [중간 모델 검사](../../identity/model/catalog_relations.go)
+Admin과 관리 JSON은 기본 모델과 사용자 정의 모델 모두 선택한 Catalog와 계정 관리 객체에 연결한다.
 
 ## 선택 계정과 catalog 삭제의 전체 수명 조정
 
@@ -1160,7 +1160,7 @@ actor만 효과 인가에 사용하며, INSERT가 새로 부여한 권한으로 
 현재/최종 권한 합집합·필요한 owner revision·값 없는 audit를 대조한다. 동일한 물리 link가 하나 늘어도 논리 소속이 같으면
 추가 membership revision/audit를 만들지 않으며, 해당 owner의 현재 change 권한은 계속 필요하다. 이 endpoint의
 `ProfileRelation`은 생성에서만 사용할 수 있고 ProfileEditor/AccountEditor의 scalar 편집에서는 구성 시 거부한다.
-일반 collection setter가 선택 계정/catalog identity 행을 자동 생성하는 조립은 별도의 미완료 요구다.
+새 계정·그룹·권한을 중간 행으로 만드는 계정 쓰기는 해당 필드에 선언한 생성 정책과 개수 한도를 검사한다. [일반·첫 계정 생성](#일반첫-계정-생성의-미정-부모-key)
 
 관계·동반 scalar·세션 폐기·audit를 적용한 뒤 typed/password policy와 unique를 최종 그래프에서 다시 확인한다. 이 시점의
 candidate에는 실제 key가 있고, 자기 행은 unique/IExact 조회에서 제외한다. Hash는 늘 한 번이며 validator에는 비밀번호를
@@ -1365,19 +1365,16 @@ OneToOne의 unique 검사·native 제약, 전체 필드/collection·revision·au
 
 첫 계정 명령은 DB를 열기 전에 실제 IR의 integer/null/default/static-choice 의미로 관계 key를 파싱한다.
 이 단계는 대상 선택의 허가가 아니며 실제 FirstAccount owner가 별도 첫 계정 operation과 빈 actor로 정책을 검사한다.
-선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 파일 편집은 아래 계약을 따르고,
-파일의 Form 생성과 공개 첫 명령의 입력/전송은 아래 계약을 따른다. 추가 M2M profile은 다음 절의 명시적 정책을 사용하며,
-공개 첫 명령도 아래 collection 정책을 사용한다. 선택 계정 through 편집은 아래 명시적 생성 조립을 사용하며
-선택 catalog·나머지 생성/전환 수명은 I1에 남는다.
-환경별 실행 결과는 TEST_EVIDENCE를 따른다.
+선택 거부 뒤 부분 계정/domain을 남기거나 해싱·write를 자동 재시도하지 않는다. 추가 M2M과 파일은 각각 선언한 정책에 따라
+Form과 공개 첫 계정 명령에서 입력받는다. [첫 명령의 collection 입력](#공개-첫-명령의-collection-입력) · [첫 명령의 파일 입력](#공개-첫-명령의-파일-입력과-보고)
 
 ### 추가 프로필 collection
 
 `NewProfileCollection`은 선택 계정의 실제 typed `ManyToMany`와 target manager, 명시한 field를 전체 project source/role에
 묶는다. `ProfileCollectionConfig`는 현재 선택 Filter·bounded 선택의 label/search/order와 양수 `MaximumItems`를 요구한다.
 그룹/직접 권한은 기존 권한 정책을 계속 사용하며 프로필 정책으로 바꾸지 못한다. 잘못된 source·역방향 accessor·누락/중복
-정책과 선택하지 않은 정책은 구성 단계에서 거부한다. 일반 setter가 계정/catalog identity 자체를 through 행으로 생성하는
-조립은 별도 owner가 필요하다. 아래 계정 through 생성 정책을 명시적으로 연결한 편집 이외에는 계속 거부한다.
+정책과 선택하지 않은 정책은 구성 단계에서 거부한다. 계정·그룹·권한 자체를 새 중간 행으로 만들 때는
+해당 쓰기 경로에 모델과 필드가 일치하는 생성 정책을 연결한다. [계정 편집](#선택-계정-through의-명시적-생성과-편집) · [전환 중 생성](#전환-collection의-추가-선택-identity-생성)
 
 계정 관리의 추가 collection은 필드별로 전체 소속을 최대 1,024개까지 관측한다. 이를 넘는 저장 소속은 잘린 목록으로 게시하지 않고 오류로 처리한다.
 필드별 입력 정책은 1~1,024 사이에서 더 작은 한도를 정할 수 있다. JSON/typed 입력은 정렬·중복 제거 전 길이를 검사하며,
@@ -1431,8 +1428,7 @@ collection의 최종 조회 실패에는 부분 key/행을 반환하지 않는�
 기존 대상 계정을 mapping하는 전환도 이전/새 계정의 전체 물리 소속·프로필 inventory를 준비 상태에 묶고 최종 재검사한다.
 전체 삽입 값과 역할별 행도 기존 64MiB 최종 state 합계에 포함한다.
 
-선택 계정의 역할·추가 프로필 through 편집은 아래 생성 정책을 사용한다. 선택 catalog·나머지 through/전환 조립은
-후속 I1 요구이며 해당 경로의 명시적 거부를 유지한다. 코드 작성과 실제 양 DB·플랫폼 검증은 TEST_EVIDENCE에서 구분한다.
+전환 중 새 중간 행이 필요하면 전환 대상의 선언과 전체 생성 한도에 묶는다. [전환 중 생성 정책](#전환-collection의-추가-선택-identity-생성)
 
 ### Collection 후보의 읽기 관측과 최종 재검사
 
@@ -1457,7 +1453,7 @@ session·한 번 Apply·native 실제 key·전체 typed row readback·외부 rol
 경로에는 관측 전용 incoming edge 사본을 추가로 보관하지 않는다.
 
 이 기반만으로 선택 계정/catalog을 생성할 권한을 얻지 않는다. 선택 계정의 역할·추가 프로필 through 편집은 다음 명시적
-생성 정책을 결합한다. Catalog와 일반/첫 계정 생성의 through도 아래의 명시적 정책을 사용하며 전환 조립은 I1의 후속 구현이다.
+생성 정책을 결합한다. 같은 선언을 일반 계정 생성, 첫 계정 생성과 모델 전환에 사용할 때는 각 작업의 권한과 한도를 검사한다.
 
 ### 선택 계정 through의 명시적 생성과 편집
 
@@ -1728,9 +1724,8 @@ Anonymous/동일 credential의 session 회전, 다른 credential의 fresh replac
 거부는 storage failure와 원인 연결을 유지한다. `Manager.Load`도 AccessPolicy의 오류를 그대로 반환받은 경우에만 일반
 policy 오류로 분류하며 wrapped/joined cleanup 실패를 정상 policy 거부로 축소하지 않는다.
 
-이 로그인 구성만으로 계정의 다른 쓰기를 수행하지 않는다. 자기 비밀번호 변경은 아래의 별도 owner를 명시적으로
-연결한다. Reset은 아래의 선택 계정 owner를 사용한다. 계정/host 삭제·첫 계정 명령·설치/startup·역사 mapping/retirement와 공개 Admin/HTTP 제품 조립,
-양 DB의 독립 HTTP/process 재시작 수용은 I1에 남는다.
+자기 비밀번호 변경과 reset은 선택 계정의 해당 쓰기 정책을 사용한다. 공개 첫 계정 명령과 Admin/HTTP도 같은 선택 모델을 사용한다.
+기존 operator의 이행과 재시작은 저장된 이행 기록을 확인한다. [역사 저장소 이행](#역사-systemstate에서-최초-선택-domain으로-이행) · [실제 소비자와 검증 범위](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)
 
 ## 선택 계정의 자기 비밀번호 변경
 
@@ -1897,8 +1892,8 @@ Scope의 source/operation과 현재 권한을 확인하며, 최종 쓰기는 동
 화면에 투영한다. 공통 Admin의 active staff·CSRF·최종 current authority 경계와 기존 host graph/rollback/unknown 의미를 유지한다.
 
 공개 첫 계정 명령/scaffold/runtime과 FK/OneToOne·파일 편집/Form 생성·CLI 전송은 각 현행 절의 계약을 따른다.
-추가 M2M은 위 명시적 정책을 사용하며, 일반 collection의 선택 모델-as-through identity 생성,
-채운 DB의 명시적 mapping/retirement와 통합 restart는 남아 있다.
+추가 M2M의 계정 편집과 계정 모델 전환은 각각 지정한 생성 정책을 사용한다. 채운 DB의 모델 교체는 원본과 대상의 대응표를 보관하고
+재시작 뒤 같은 manifest로 전환 결과를 조회한다. [선택 모델 사이의 전환](#두-선택-모델-사이의-명시적-계정-전환)
 Native signed key를 지원한다는 사실만으로 공통 Admin 양수 객체 URL의
 경계를 완료했다고 계산하지 않는다. 구현·최소 compile·환경별 본문 실행은 TEST_EVIDENCE에서 구분한다.
 

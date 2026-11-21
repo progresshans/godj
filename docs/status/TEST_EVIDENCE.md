@@ -6385,6 +6385,14 @@ macOS Intel의 CGO-disabled 작업에서도 첫 계정 터미널·프로세스 �
 
 수정한 워크플로는 이 좌표의 `db/sqlite`를 필터 없이 45분 제한으로 한 번 실행한다. 나머지 패키지는 35분을 사용하고 작업 전체에는 준비·실행·업로드를 포함해 70분을 준다. 로컬에서 실제 Bash 실행부에 명령 기록기를 연결해 matrix 249개 작업과 분할 없는 대조군 1개의 패키지 배정·인수를 확인했다. 회귀 검사는 두 호출 각각의 실패 전파, 누적 stdout/stderr와 계획에서 빠진 SQLite 패키지의 거부도 확인했다. 실제 Go 패키지 종료와 3,190개 필수 검증은 수정 소스의 원격 실행에서 확인한다.
 
+### f8379412 SQLite 시간 제한 수정 후 원격 검증
+
+통합 PR 소스 `f83794126e42bfb049b0b2ac3067e26cf10f3ca3`와 CI 실행 `44941172969` 시도 1의 checkout `5537de204345700a49bdb2c12a1d355851593645`의 Git 트리는 모두 `679bf435bc3feda717c1f87fa9dfd6b657b1fa0f`다. 원격 계획이 만든 관계 검사 249개 작업의 이름과 실행 ID를 소스의 분배표와 대조했다. 이전 소스와 비교해 실행 시간이 달라진 작업은 Linux arm64 race의 런타임 작업 하나다. [원격 계획](https://github.com/progresshans/godj/actions/runs/44941172969/job/136958709060) · [SQLite 런타임 작업](https://github.com/progresshans/godj/actions/runs/44941172969/job/136958763590)
+
+Linux amd64에서 CI 도구 검사 111건이 skip 없이 통과했다. 여기에는 변경한 Bash 실행부에 SQLite·일반 패키지의 실패를 각각 주입한 회귀 검사가 포함된다. 같은 작업에서 `go vet ./...`와 portable core 필수 검사 500건이 통과했다. [검사 로그](https://github.com/progresshans/godj/actions/runs/44941172969/job/136958752703) · [portable core 원본 `9e06dd4f`](https://github.com/progresshans/godj/actions/runs/44941172969/artifacts/14721634092)
+
+같은 소스에서 기본 User·사용자 정의 Member의 SQLite·PostgreSQL 최초 기동과 재시작 8건이 Chromium 155.0.8059.12에서 통과했다. 상위 검사를 포함한 15건의 시작·성공 이벤트와 필수 목록을 대조했고 skip은 0이었다. [브라우저 원본 `a10a46de`](https://github.com/progresshans/godj/actions/runs/44941172969/artifacts/14721593711)
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

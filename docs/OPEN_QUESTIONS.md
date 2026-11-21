@@ -15,7 +15,7 @@
 | Q-019 | SQLite quarantine의 운영 recovery 안내 | single retained handle·새 I/O 거부는 GDJ-0057에서 통합 검증 완료; 자동 복구 미지원 |
 | Q-020 | 비협력 writer, 넓은 deployment topology·key distribution | 같은 normalized policy의 cooperative runtime만 지원 |
 | Q-021 | token issuance/refresh, OAuth/OIDC/JWT, production BFF | injected Bearer resource-server와 Session 경계는 구현됨 |
-| Q-022 | 사용자 정의 계정과 전체 계정 수명의 수용 | I1에서 기본·custom 모델을 같은 인증·권한·관리 경로에 연결했다. 새 앱과 채운 DB에서 남은 확인은 [I1 요구표](../work/0138-custom-account-lifecycle.md#요구와-실제-소비자), token/provider는 I2에서 추적한다. |
+| Q-022 | 사용자 정의 계정과 전체 계정 수명의 수용 | I1에서 기본·사용자 정의 모델을 같은 인증·권한·관리 경로에 연결했다. 그룹 권한 편집에 남은 구현과 새 앱·채운 DB의 환경별 검증은 I1에서, token/provider는 I2에서 추적한다. [I1 요구표](../work/0138-custom-account-lifecycle.md#요구와-실제-소비자) |
 
 ## Q-017 — 모델 사용성과 생성물
 
