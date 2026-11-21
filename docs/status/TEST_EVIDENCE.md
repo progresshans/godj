@@ -6194,6 +6194,10 @@ Member의 [관계 선언](../../internal/testschema/account.go)과 [ModelForm �
 
 로컬 gofmt·diff·문서 링크와 Python CI 분할 검사 27개를 확인했다. [SQLite 필수 목록](../../scripts/ci/relation-required.txt)과 [PostgreSQL 필수 목록](../../scripts/ci/postgres-core-required.txt)에 각각 상위 1개와 하위 7개를 추가했다. 실제 Go 실행과 전체 환경 수용은 이 변경을 포함하는 제품 커밋에서 확인한다.
 
+### 역사 runtime의 읽기 소유권
+
+공개 `Runtime.ReadSnapshot`에서 backend가 callback을 생략하거나 오류를 누락하면 정상 종료할 수 있었다. 기존 `db.ReadSnapshotResult`를 연결해 소유권 확인·callback 1회·정리 결과를 함께 반환한다. [양 DB 소비자](../../internal/identitytest/account_handoff.go)는 실제 그룹 조회, 생략·반복, 거부 누락, 정리 오류, 정상 이행 뒤 퇴역한 runtime의 읽기 거부를 검사한다. 두 DB 필수 목록에 각각 상위 1개와 하위 6개를 연결했고, 로컬 Python 분할 검사 27개가 통과했다. Go 실행은 원격 확인 대상이다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

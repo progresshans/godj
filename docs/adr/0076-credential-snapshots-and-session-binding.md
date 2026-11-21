@@ -2067,6 +2067,7 @@ Canonical bytes·전체 checksum·배열/byte 한도·불변 history chain 검�
 소속·session·audit bytes는 보존한다. 새 credential stamp와 session namespace는 이전 것을 승계하지 않는다.
 기존 `OpenIdentity` runtime은 매 snapshot과 쓰기 전후 소유권을 확인하며, 보관 중인 operator session owner와
 borrowed 감사/세션 폐기 경로도 퇴역 이후 사용을 거부한다. Raw DB writer까지 차단하는 보증은 아니다.
+`Runtime.ReadSnapshot`은 읽기 전용 scope에서 소유권을 확인한 뒤 callback을 한 번 실행하고, 그 callback과 snapshot 정리가 모두 성공해야 읽기를 확정한다. Backend가 callback을 생략하거나 소유권 거부를 누락해도 호출자에게 오류를 전달한다.
 최상위 `Runtime.Insert/Update/Delete`는 쓰기 전후의 소유권 검사와 commit이 모두 성공한 뒤에만 생성 키나 영향 행 수를 반환한다.
 오류일 때 반환값은 0이다. commit 결과가 불명확하면 호출자가 실제 행을 다시 읽어 판단한다. 일반·관계 transaction에서 빌린 session의 문장 결과는 그 transaction 안에서만 잠정적으로 사용할 수 있다.
 퇴역한 domain의 재기동은 `identity_transition_required`로 거부한다. 같은 공개 오류를 사용하는 소유권 부재와

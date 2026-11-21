@@ -21,12 +21,13 @@ func (runtime *Runtime) ReadSnapshot(ctx context.Context, callback func(db.Query
 	if callback == nil {
 		return &Error{Code: CodeInvalidInput, Field: "callback", Detail: "snapshot callback is nil"}
 	}
-	return backend.ReadSnapshot(ctx, func(scope db.Queryer) error {
-		if err := runtime.requireHistoricalOwnership(ctx, scope); err != nil {
-			return err
+	_, err := db.ReadSnapshotResult(ctx, backend, func(work context.Context, scope db.Queryer) (struct{}, error) {
+		if err := runtime.requireHistoricalOwnership(work, scope); err != nil {
+			return struct{}{}, err
 		}
-		return callback(scope)
+		return struct{}{}, callback(scope)
 	})
+	return err
 }
 
 // CoordinatedAtomic exposes the same fence used by Runtime.Atomic, sessions and

@@ -1033,6 +1033,7 @@ snapshot·복사본·입력/저장 한도는 공통 선택 소비자가 담당�
 
 역사 runtime은 일반·관계 쓰기의 소유권 재검사를 commit에 포함하고, 최상위 insert/update/delete의 결과를 확정 뒤에만 반환한다.
 [양 DB 소비자](../internal/identitytest/historical_mutations.go)가 별도 연결로 실제 행과 이행 marker를 대조한다. 실행 여부는 [검증 기록](../docs/status/TEST_EVIDENCE.md)을 따른다.
+역사 runtime의 snapshot도 callback 1회와 정리까지 확인한다. backend가 퇴역한 소유권의 거부를 누락하는 경우는 [이행 소비자](../internal/identitytest/account_handoff.go)에 포함했다.
 
 현재 실행 순서는 [재개 지점](../docs/status/CURRENT.md#재개-지점)을 따른다.
 사용자 지시에 따라 로컬 Go 실행은 중단하고 포맷·정적 확인 뒤 변경 묶음을 push한다. 영향 compile·테스트·generated drift·양 DB·race/process·

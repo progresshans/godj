@@ -138,7 +138,19 @@ func (backend *handoffBackend) ReadSnapshot(ctx context.Context, read func(db.Qu
 	if backend.mode == "read_missing" {
 		return nil
 	}
-	err := backend.TransitionBackend.ReadSnapshot(ctx, read)
+	err := backend.TransitionBackend.ReadSnapshot(ctx, func(scope db.Queryer) error {
+		if err := read(scope); err != nil {
+			return err
+		}
+		if backend.mode == "read_twice" {
+			return read(scope)
+		}
+		return nil
+	})
+	if err != nil && backend.mode == "read_ignored_error" {
+		backend.faults++
+		return nil
+	}
 	if err == nil && backend.mode == "read_cleanup" {
 		backend.faults++
 		return handoffFailure
@@ -205,10 +217,67 @@ func (scope *handoffScope) Update(ctx context.Context, plan query.UpdatePlan) (i
 	return changed, err
 }
 
+func historicalSnapshotOwnership(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend)) {
+	backend, observer := open(t)
+	f := newHandoffFixture(t, backend)
+	boundary := &handoffBackend{TransitionBackend: backend}
+	runtime, err := systemstate.OpenIdentity(t.Context(), boundary, systemstate.IdentityRuntimeConfig{PasswordHasher: f.hasher})
+	handoffMust(t, err)
+	invalid := &query.Error{Code: query.CodeInvalidPlan}
+	for _, tc := range []struct {
+		mode    string
+		calls   int
+		refusal error
+		want    error
+	}{
+		{"confirmed", 1, nil, nil},
+		{"read_missing", 0, nil, invalid},
+		{"read_twice", 1, nil, invalid},
+		{"read_ignored_error", 1, handoffFailure, handoffFailure},
+		{"read_cleanup", 1, nil, handoffFailure},
+	} {
+		t.Run(tc.mode, func(t *testing.T) {
+			boundary.mode = tc.mode
+			calls := 0
+			err := runtime.ReadSnapshot(t.Context(), func(reader db.Queryer) error {
+				calls++
+				group, err := models.GroupObjects.Using(reader).Filter(models.GroupFields.ID.Exact(f.group.ID)).Get(t.Context())
+				if err != nil {
+					return err
+				}
+				if group.Name != f.group.Name || group.Revision != f.group.Revision {
+					return errors.New("historical group snapshot differs")
+				}
+				return tc.refusal
+			})
+			if calls != tc.calls || !errors.Is(err, tc.want) || boundary.writes != 0 {
+				t.Fatal("historical snapshot admitted the wrong callback or outcome", calls, err)
+			}
+		})
+	}
+	t.Run("retired", func(t *testing.T) {
+		ctx := t.Context()
+		prepared, err := f.owner.Prepare(ctx, f.actor, strings.Repeat("a", 64))
+		handoffMust(t, err)
+		_, err = f.owner.Commit(ctx, f.actor, prepared)
+		handoffMust(t, err)
+		before := handoffMarker(t, observer)
+		boundary.mode = "read_ignored_error"
+		faults := boundary.faults
+		calls := 0
+		err = runtime.ReadSnapshot(ctx, func(db.Queryer) error { calls++; return nil })
+		if calls != 0 || !errors.Is(err, &systemstate.Error{Code: systemstate.CodeIdentityTransitionRequired}) ||
+			boundary.faults != faults+1 || boundary.writes != 0 || !reflect.DeepEqual(before, handoffMarker(t, observer)) {
+			t.Fatal("retired historical snapshot lost its ownership refusal", calls, err)
+		}
+	})
+}
+
 // Every refusal is exercised against native storage and compared with the
 // independent complete identity/session/audit snapshot, not just an error code.
 func RunAccountHandoff(t *testing.T, open func(*testing.T) (TransitionBackend, TransitionBackend), rekey func(*testing.T, TransitionBackend, int64, int64)) {
 	t.Run("runtime_mutations", func(t *testing.T) { historicalMutationResults(t, open) })
+	t.Run("runtime_snapshot", func(t *testing.T) { historicalSnapshotOwnership(t, open) })
 	for _, mode := range []string{"lifecycle", "owned_manifest", "signed_keys", "foreign_namespace", "inactive_actor", "revoked_actor", "denied_overlay", "changed_account", "changed_grant", "changed_session", "changed_audit", "corrupt_session", "corrupt_audit", "account_limit", "session_limit", "audit_limit", "read_missing", "read_cleanup", "write_missing", "write_twice", "header_insert", "mapping_insert", "marker_update", "late_account", "late_archive", "late_marker", "late_cancel", "rollback", "unknown_commit", "unknown_rollback", "cancelled", "manifest_tamper"} {
 		t.Run(mode, func(t *testing.T) {
 			backend, second := open(t)
