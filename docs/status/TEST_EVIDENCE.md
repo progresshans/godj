@@ -6149,6 +6149,8 @@ Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 
   8개 run/pass, [계정 전환 작업](https://github.com/progresshans/godj/actions/runs/43659728789/job/132646370714)은 3개 run/pass, 모두 skip 0을 보고했다.
   [Portable integration](https://github.com/progresshans/godj/actions/runs/43659728789/job/132646369785)의 Chromium 단계는 기본 User를 쓰는 Helpdesk와 Admin inline 예제에서 성공했다.
 
+후속 수정은 인증 도중 행을 삭제하는 분기에서 생성 필드 `AccountsUser`를 사용한다. 같은 DB 연결과 바깥 transaction, 삭제 후 재인증 거부 및 durable 상태 검사는 그대로 실행 대상이다. 수정된 테스트의 실행 결과는 후속 커밋의 원격 CI에서 확인한다.
+
 새 scaffold에서 custom 계정의 첫 생성부터 인증·reset·재시작까지 잇는 브라우저 흐름과 I1-01~08의 전체 수용은 미완료다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한

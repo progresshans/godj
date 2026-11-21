@@ -138,7 +138,7 @@ func runAuthenticationNative(t *testing.T, open Open) {
 							return err
 						}
 						return backend.CoordinatedAtomicRelation(ctx, func(scope db.RelationSession) error {
-							_, err := deleters.IdentityUser.DeleteInSession(ctx, scope, row)
+							_, err := deleters.AccountsUser.DeleteInSession(ctx, scope, row)
 							return err
 						})
 					}
