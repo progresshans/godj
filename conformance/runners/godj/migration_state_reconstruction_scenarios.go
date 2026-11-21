@@ -407,12 +407,12 @@ func migrationStateAutoField() ir.Field {
 	return ir.Field{Name: "id", GoName: "ID", Column: "id", Kind: ir.FieldAuto, PrimaryKey: true}
 }
 
-func migrationStateStringDefault(value string) *ir.ScalarDefault {
-	return &ir.ScalarDefault{Kind: ir.ScalarString, String: value}
+func migrationStateStringDefault(value string) *ir.Scalar {
+	return &ir.Scalar{Kind: ir.ScalarString, String: value}
 }
 
-func migrationStateBooleanDefault(value bool) *ir.ScalarDefault {
-	return &ir.ScalarDefault{Kind: ir.ScalarBoolean, Boolean: value}
+func migrationStateBooleanDefault(value bool) *ir.Scalar {
+	return &ir.Scalar{Kind: ir.ScalarBoolean, Boolean: value}
 }
 
 func migrationStateProjectValue(state migrations.ProjectState) (protocol.Value, error) {
@@ -487,7 +487,7 @@ func migrationStateFieldValue(field ir.Field) (protocol.Value, error) {
 	}), nil
 }
 
-func migrationStateDefaultValue(value *ir.ScalarDefault) (protocol.Value, error) {
+func migrationStateDefaultValue(value *ir.Scalar) (protocol.Value, error) {
 	if value == nil {
 		return protocol.Object(map[string]protocol.Value{
 			"present": protocol.Boolean(false),

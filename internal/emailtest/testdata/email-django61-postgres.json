@@ -1,0 +1,1491 @@
+{
+  "backend": "postgresql",
+  "django": "6.1",
+  "drf": "3.18.0",
+  "forms": {
+    "form": {
+      "cases": {
+        "bare_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bounded_form_length": {
+          "codes": [],
+          "value": "long-local@example.com"
+        },
+        "consecutive_local_dots": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "display_name": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "idn": {
+          "codes": [],
+          "value": "member@도메인.한국"
+        },
+        "invalid_long_nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ipv4": {
+          "codes": [],
+          "value": "user@[127.0.0.1]"
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "user@[::1]"
+        },
+        "localhost": {
+          "codes": [],
+          "value": "member@localhost"
+        },
+        "missing": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ordinary": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "over_320": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "python_space": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "quoted": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quoted_nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "trailing_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_local": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper_localhost": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "valid_254": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        },
+        "valid_255": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        },
+        "valid_320": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        }
+      },
+      "max_length": 320,
+      "required": true,
+      "widget": "EmailInput"
+    },
+    "form_optional": {
+      "cases": {
+        "bare_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bounded_form_length": {
+          "codes": [],
+          "value": "long-local@example.com"
+        },
+        "consecutive_local_dots": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "display_name": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": ""
+        },
+        "idn": {
+          "codes": [],
+          "value": "member@도메인.한국"
+        },
+        "invalid_long_nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ipv4": {
+          "codes": [],
+          "value": "user@[127.0.0.1]"
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "user@[::1]"
+        },
+        "localhost": {
+          "codes": [],
+          "value": "member@localhost"
+        },
+        "missing": {
+          "codes": [],
+          "value": ""
+        },
+        "nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ordinary": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "over_320": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "python_space": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "quoted": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quoted_nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [],
+          "value": ""
+        },
+        "trailing_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_local": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper_localhost": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "valid_254": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        },
+        "valid_255": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        },
+        "valid_320": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        }
+      },
+      "max_length": 320,
+      "required": false,
+      "widget": "EmailInput"
+    },
+    "model": {
+      "cases": {
+        "bare_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bounded_form_length": {
+          "codes": [],
+          "value": "long-local@example.com"
+        },
+        "consecutive_local_dots": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "display_name": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "idn": {
+          "codes": [],
+          "value": "member@도메인.한국"
+        },
+        "invalid_long_nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ipv4": {
+          "codes": [],
+          "value": "user@[127.0.0.1]"
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "user@[::1]"
+        },
+        "localhost": {
+          "codes": [],
+          "value": "member@localhost"
+        },
+        "missing": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ordinary": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "over_320": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "python_space": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "quoted": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quoted_nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "trailing_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_local": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper_localhost": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "valid_254": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        },
+        "valid_255": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "valid_320": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 254,
+      "required": true,
+      "widget": "EmailInput"
+    },
+    "model_nullable": {
+      "cases": {
+        "bare_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bounded_form_length": {
+          "codes": [],
+          "value": "long-local@example.com"
+        },
+        "consecutive_local_dots": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "display_name": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": null
+        },
+        "idn": {
+          "codes": [],
+          "value": "member@도메인.한국"
+        },
+        "invalid_long_nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ipv4": {
+          "codes": [],
+          "value": "user@[127.0.0.1]"
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "user@[::1]"
+        },
+        "localhost": {
+          "codes": [],
+          "value": "member@localhost"
+        },
+        "missing": {
+          "codes": [],
+          "value": null
+        },
+        "nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ordinary": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "over_320": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "python_space": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "quoted": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quoted_nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [],
+          "value": null
+        },
+        "trailing_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_local": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper_localhost": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "valid_254": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        },
+        "valid_255": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "valid_320": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 254,
+      "required": false,
+      "widget": "EmailInput"
+    },
+    "model_optional": {
+      "cases": {
+        "bare_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bounded_form_length": {
+          "codes": [],
+          "value": "long-local@example.com"
+        },
+        "consecutive_local_dots": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "display_name": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": ""
+        },
+        "idn": {
+          "codes": [],
+          "value": "member@도메인.한국"
+        },
+        "invalid_long_nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ipv4": {
+          "codes": [],
+          "value": "user@[127.0.0.1]"
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "user@[::1]"
+        },
+        "localhost": {
+          "codes": [],
+          "value": "member@localhost"
+        },
+        "missing": {
+          "codes": [],
+          "value": ""
+        },
+        "nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ordinary": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "over_320": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "python_space": {
+          "codes": [],
+          "value": "User@Example.COM"
+        },
+        "quoted": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quoted_nul": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [],
+          "value": ""
+        },
+        "trailing_dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_local": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper_localhost": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "valid_254": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+        },
+        "valid_255": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "valid_320": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 254,
+      "required": false,
+      "widget": "EmailInput"
+    },
+    "model_short": {
+      "cases": {
+        "bare_at": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bounded_form_length": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "consecutive_local_dots": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "display_name": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "idn": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "invalid_long_nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ipv4": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "ipv6": {
+          "codes": [],
+          "value": "user@[::1]"
+        },
+        "localhost": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "missing": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "ordinary": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "over_320": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "python_space": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "quoted": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "quoted_nul": {
+          "codes": [
+            "invalid",
+            "max_length",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "trailing_dot": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "unicode_local": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "upper_localhost": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "valid_254": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "valid_255": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "valid_320": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 12,
+      "required": true,
+      "widget": "EmailInput"
+    }
+  },
+  "input_sha256": "6bc55db8be066f112525b412192b19a14e1fad9ceaaa06ffc3b77c05db567c53",
+  "python": "3.14.3",
+  "serializer_defaults": {
+    "empty": "",
+    "legacy": "not-an-email",
+    "null": null,
+    "padded": "  User@Example.COM  "
+  },
+  "serializers": {
+    "model": {
+      "bare_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bounded_form_length": {
+        "codes": [],
+        "value": "long-local@example.com"
+      },
+      "consecutive_local_dots": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "display_name": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [],
+        "value": ""
+      },
+      "idn": {
+        "codes": [],
+        "value": "member@도메인.한국"
+      },
+      "invalid_long_nul": {
+        "codes": [
+          "max_length",
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv4": {
+        "codes": [],
+        "value": "user@[127.0.0.1]"
+      },
+      "ipv6": {
+        "codes": [],
+        "value": "user@[::1]"
+      },
+      "localhost": {
+        "codes": [],
+        "value": "member@localhost"
+      },
+      "missing": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ordinary": {
+        "codes": [],
+        "value": "User@Example.COM"
+      },
+      "over_320": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "python_space": {
+        "codes": [],
+        "value": "User@Example.COM"
+      },
+      "quoted": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quoted_nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [],
+        "value": ""
+      },
+      "trailing_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_local": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper_localhost": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "valid_254": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+      },
+      "valid_255": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "valid_320": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      }
+    },
+    "optional": {
+      "bare_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bounded_form_length": {
+        "codes": [],
+        "value": "long-local@example.com"
+      },
+      "consecutive_local_dots": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "display_name": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [],
+        "value": ""
+      },
+      "idn": {
+        "codes": [],
+        "value": "member@도메인.한국"
+      },
+      "invalid_long_nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv4": {
+        "codes": [],
+        "value": "user@[127.0.0.1]"
+      },
+      "ipv6": {
+        "codes": [],
+        "value": "user@[::1]"
+      },
+      "localhost": {
+        "codes": [],
+        "value": "member@localhost"
+      },
+      "missing": {
+        "codes": [],
+        "value": null
+      },
+      "nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ordinary": {
+        "codes": [],
+        "value": "User@Example.COM"
+      },
+      "over_320": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "python_space": {
+        "codes": [],
+        "value": "User@Example.COM"
+      },
+      "quoted": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quoted_nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [],
+        "value": ""
+      },
+      "trailing_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_local": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper_localhost": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "valid_254": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+      },
+      "valid_255": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+      },
+      "valid_320": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+      }
+    },
+    "required": {
+      "bare_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bounded_form_length": {
+        "codes": [],
+        "value": "long-local@example.com"
+      },
+      "consecutive_local_dots": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "display_name": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "idn": {
+        "codes": [],
+        "value": "member@도메인.한국"
+      },
+      "invalid_long_nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv4": {
+        "codes": [],
+        "value": "user@[127.0.0.1]"
+      },
+      "ipv6": {
+        "codes": [],
+        "value": "user@[::1]"
+      },
+      "localhost": {
+        "codes": [],
+        "value": "member@localhost"
+      },
+      "missing": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ordinary": {
+        "codes": [],
+        "value": "User@Example.COM"
+      },
+      "over_320": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "python_space": {
+        "codes": [],
+        "value": "User@Example.COM"
+      },
+      "quoted": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quoted_nul": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "trailing_dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_local": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper_localhost": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "valid_254": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+      },
+      "valid_255": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+      },
+      "valid_320": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@example.com"
+      }
+    },
+    "short": {
+      "bare_at": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bounded_form_length": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "consecutive_local_dots": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "display_name": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "idn": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "invalid_long_nul": {
+        "codes": [
+          "max_length",
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ipv4": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "ipv6": {
+        "codes": [],
+        "value": "user@[::1]"
+      },
+      "localhost": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "missing": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "nul": {
+        "codes": [
+          "max_length",
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "ordinary": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "over_320": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "python_space": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "quoted": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "quoted_nul": {
+        "codes": [
+          "max_length",
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "trailing_dot": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_local": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper_localhost": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "valid_254": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "valid_255": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "valid_320": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      }
+    }
+  },
+  "source_sha256": {
+    "form_fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "model_base": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f",
+    "model_fields": "744392031020fc9599ec341132f8c793a8c0ce1e3981b4b304d3b3fcccb8535f",
+    "serializer_fields": "c0c1540aacc5b4b9d9ee972cae322b0a0a10823d017ea3ffc0d3b85d500143d6",
+    "validators": "262c79a3ea6c4990847bc4c8764e03af1370979098be3d8fc9b4d7365de24ea0"
+  },
+  "storage": {
+    "after": [
+      [
+        "upper",
+        "Person@Example.com"
+      ],
+      [
+        "lower",
+        "person@example.com"
+      ],
+      [
+        "invalid",
+        "not-an-email"
+      ],
+      [
+        "empty",
+        ""
+      ],
+      [
+        "null",
+        null
+      ]
+    ],
+    "alter_sql_count": 0,
+    "before": [
+      [
+        "upper",
+        "Person@Example.com"
+      ],
+      [
+        "lower",
+        "person@example.com"
+      ],
+      [
+        "invalid",
+        "not-an-email"
+      ],
+      [
+        "empty",
+        ""
+      ],
+      [
+        "null",
+        null
+      ]
+    ],
+    "queries": {
+      "contains": [
+        "upper",
+        "lower"
+      ],
+      "exact": [
+        "upper"
+      ],
+      "iexact": [
+        "upper",
+        "lower"
+      ],
+      "null": [
+        "null"
+      ]
+    },
+    "reverse": [
+      [
+        "upper",
+        "Person@Example.com"
+      ],
+      [
+        "lower",
+        "person@example.com"
+      ],
+      [
+        "invalid",
+        "not-an-email"
+      ],
+      [
+        "empty",
+        ""
+      ],
+      [
+        "null",
+        null
+      ],
+      [
+        "new_invalid",
+        "also-not-email"
+      ]
+    ],
+    "reverse_sql_count": 0,
+    "unvalidated_save": "also-not-email"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "cases": [
+    {
+      "hex": "0062696e617279ff",
+      "name": "plain.bin",
+      "size": 8,
+      "stored": "plain.bin"
+    },
+    {
+      "hex": "ed959ceab88020eb82b4ec9aa9",
+      "name": "\ubb38\uc11c/\uc694\uc57d.txt",
+      "size": 13,
+      "stored": "\ubb38\uc11c/\uc694\uc57d.txt"
+    },
+    {
+      "hex": "",
+      "name": "empty.dat",
+      "size": 0,
+      "stored": "empty.dat"
+    }
+  ],
+  "django": "6.1",
+  "instance_isolation": true,
+  "partial_after_failure": true,
+  "python": "3.14.3",
+  "recursive_directory_delete": true,
+  "shared_readers": true,
+  "source_sha256": "7940d107b075b9355bd5aef4cde6ac225577dd3de47c5705f5ccafcfde12e24f"
+}

@@ -1,0 +1,9 @@
+{
+  "name": "godj-helpdesk-browser-tools",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned CLI used by the isolated Helpdesk browser fixture",
+  "dependencies": {
+    "@playwright/cli": "0.1.22"
+  }
+}

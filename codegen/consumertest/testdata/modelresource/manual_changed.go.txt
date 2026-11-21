@@ -1,0 +1,108 @@
+package consumer
+
+// Comparison fixture only: the explicit DTO/setter/Form-to-builder pattern
+// used by Article at 82142bbf. It is not a production compatibility adapter.
+import (
+	"errors"
+
+	"example.com/godj-project-bundle/inventory"
+	"github.com/progresshans/godj/api"
+	bodyinput "github.com/progresshans/godj/api/input"
+	"github.com/progresshans/godj/auth"
+	formmodel "github.com/progresshans/godj/forms/model"
+	"github.com/progresshans/godj/serializers"
+)
+
+type manualInput struct {
+	code     bodyinput.Presence[string]
+	enabled  bodyinput.Presence[bool]
+	note     bodyinput.Presence[*string]
+	priority bodyinput.Presence[int64]
+}
+
+func manualBody(spec serializers.Spec) (bodyinput.Body[manualInput], error) {
+	return bodyinput.New(spec, api.ParserConfig{},
+		bodyinput.Field("code", bodyinput.String(), func(value *manualInput, field bodyinput.Presence[string]) { value.code = field }),
+		bodyinput.Field("enabled", bodyinput.Boolean(), func(value *manualInput, field bodyinput.Presence[bool]) { value.enabled = field }),
+		bodyinput.Field("note", bodyinput.Nullable(bodyinput.String()), func(value *manualInput, field bodyinput.Presence[*string]) { value.note = field }),
+		bodyinput.Field("priority", bodyinput.Integer(), func(value *manualInput, field bodyinput.Presence[int64]) { value.priority = field }),
+	)
+}
+
+func (input manualInput) create(workspace int64) inventory.AssetCreate {
+	code, _ := input.code.Get()
+	result := inventory.NewAssetCreate(code, workspace)
+	if value, present := input.enabled.Get(); present {
+		result = result.WithEnabled(value)
+	}
+	if value, present := input.note.Get(); present {
+		if value == nil {
+			result = result.WithNoteNull()
+		} else {
+			result = result.WithNote(*value)
+		}
+	}
+	if value, present := input.priority.Get(); present {
+		result = result.WithPriority(value)
+	}
+	return result
+}
+
+func (input manualInput) patch() inventory.AssetPatch {
+	result := inventory.AssetPatch{}
+	if value, present := input.code.Get(); present {
+		result = result.WithCode(value)
+	}
+	if value, present := input.enabled.Get(); present {
+		result = result.WithEnabled(value)
+	}
+	if value, present := input.note.Get(); present {
+		if value == nil {
+			result = result.WithNoteNull()
+		} else {
+			result = result.WithNote(*value)
+		}
+	}
+	if value, present := input.priority.Get(); present {
+		result = result.WithPriority(value)
+	}
+	return result
+}
+
+func manualFormCreate(bound formmodel.BoundForm, workspace int64) (inventory.AssetCreate, error) {
+	values, err := bound.Input()
+	if err != nil {
+		return inventory.AssetCreate{}, err
+	}
+	code, ok := values.String("code")
+	if !ok {
+		return inventory.AssetCreate{}, errors.New("missing code")
+	}
+	enabled, ok := values.Boolean("enabled")
+	if !ok {
+		return inventory.AssetCreate{}, errors.New("missing enabled")
+	}
+	result := inventory.NewAssetCreate(code, workspace).WithEnabled(enabled)
+	note, present := values.Get("note")
+	if !present {
+		return inventory.AssetCreate{}, errors.New("missing note")
+	}
+	if note.IsNull() {
+		result = result.WithNoteNull()
+	} else {
+		text, ok := note.AsString()
+		if !ok {
+			return inventory.AssetCreate{}, errors.New("invalid note")
+		}
+		result = result.WithNote(text)
+	}
+	priority, ok := values.Integer("priority")
+	if !ok {
+		return inventory.AssetCreate{}, errors.New("missing priority")
+	}
+	result = result.WithPriority(priority)
+	return result, nil
+}
+
+func manualPermission() auth.Permission { return "inventory.manage_asset" }
+func manualResponseFields() []string    { return []string{"id", "code", "enabled", "priority"} }

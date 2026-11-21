@@ -1,0 +1,6 @@
+package consumer
+import (
+	"github.com/progresshans/godj/api/input"
+	"github.com/progresshans/godj/serializers"
+)
+var _ = input.Codec[string]{read:func(serializers.Value)(string,bool){return "forged",true}}

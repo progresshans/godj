@@ -1,0 +1,8 @@
+module [[.Module]]
+
+go 1.26.0
+
+require github.com/progresshans/godj [[if .FrameworkSource]]v0.0.0[[else]][[.FrameworkVersion]][[end]]
+[[if .FrameworkSource]]
+replace github.com/progresshans/godj => [[printf "%q" .FrameworkSource]]
+[[end]]

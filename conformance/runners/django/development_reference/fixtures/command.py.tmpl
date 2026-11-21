@@ -1,0 +1,45 @@
+import json
+import os
+
+from django.contrib.auth.models import Group, Permission, User
+from django.core.management.base import BaseCommand, CommandError
+from django.db import connection
+from notes.models import Article, Note
+
+
+class Command(BaseCommand):
+    help = "Operate synthetic records through public project-owned Django code."
+
+    def add_arguments(self, parser):
+        parser.add_argument("action", choices=["seed", "revoke", "grant", "columns", "save-fail", "find"])
+        parser.add_argument("--title", default="")
+        parser.add_argument("--group", default="")
+
+    def handle(self, *args, **options):
+        action = options["action"]
+        if action == "seed":
+            user = User.objects.create_user(
+                username="reload-reader", password=os.environ["DEVELOPMENT_REFERENCE_READER_PASSWORD"], is_staff=True,
+            )
+            group = Group.objects.create(name=options["group"])
+            group.permissions.add(Permission.objects.get(content_type__app_label="notes", codename="view_article"))
+            user.groups.add(group)
+            Article.objects.create(title=options["title"], summary="durable")
+            value = {"member": user.groups.filter(pk=group.pk).exists()}
+        elif action in {"revoke", "grant"}:
+            group = Group.objects.get(name=options["group"])
+            if action == "revoke":
+                group.permissions.clear()
+            else:
+                group.permissions.add(Permission.objects.get(content_type__app_label="notes", codename="view_article"))
+            value = {"permission_count": group.permissions.count()}
+        elif action == "columns":
+            with connection.cursor() as cursor:
+                value = {"columns": [column.name for column in connection.introspection.get_table_description(cursor, Note._meta.db_table)]}
+        elif action == "save-fail":
+            Note.objects.create(title=options["title"])
+            raise CommandError("synthetic failure after confirmed save")
+        else:
+            row = Note.objects.get(title=options["title"])
+            value = {"title": row.title, "summary": row.summary}
+        self.stdout.write(json.dumps(value, sort_keys=True))

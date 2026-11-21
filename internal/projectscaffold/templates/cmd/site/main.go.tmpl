@@ -1,0 +1,73 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"[[.Module]]/internal/config"
+	"[[.Module]]/internal/site"
+	"github.com/progresshans/godj/project/compatibility"
+	projectserver "github.com/progresshans/godj/project/server"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+)
+
+func main() {
+	if handled, err := compatibility.Serve(context.Background(), os.Args[1:], os.Stdout); handled {
+		if err != nil {
+			os.Exit(1)
+		}
+		return
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx, os.Args[1:], os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, "site startup or shutdown failed")
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context, args []string, stdout io.Writer) error {
+	environment, err := settings.NewEnvironment(os.Environ())
+	if err != nil {
+		return err
+	}
+	selected, err := config.Database(environment)
+	if err != nil {
+		return err
+	}
+	logger, err := config.Logger(environment, os.Stderr, "site")
+	if err != nil {
+		return err
+	}
+	return projectserver.Serve(ctx, args, projectserver.Config{
+		Logger: logger,
+		Start: func(startup context.Context) (projectserver.Runtime, error) {
+			backend, err := database.Open(startup, selected)
+			if err != nil {
+				return projectserver.Runtime{}, err
+			}
+			transferred := false
+			defer func() {
+				if !transferred {
+					_ = backend.Close()
+				}
+			}()
+			application, err := site.Application(startup, backend)
+			transferred = true
+			return projectserver.Runtime{Application: application, Stop: func(context.Context) error { return backend.Close() }}, err
+		},
+		Ready: func(_ context.Context, info projectserver.ListenerInfo) error {
+			document := "site listening on http://" + info.Address + "\n"
+			n, err := io.WriteString(stdout, document)
+			if err == nil && n != len(document) {
+				return io.ErrShortWrite
+			}
+			return err
+		},
+	})
+}

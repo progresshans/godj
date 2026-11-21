@@ -1,0 +1,3 @@
+package misuse
+import "github.com/progresshans/godj/examples/helpdesk/models"
+var _ = models.TicketFields.Effort.Exact(float32(1))

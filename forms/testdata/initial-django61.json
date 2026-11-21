@@ -1,0 +1,204 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "source_sha256": {
+    "django.forms.forms": "96e0a533d1baf2738c6aba616a24b1d876062a5b41b607612f79a1cfdedb410a",
+    "django.forms.fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "django.forms.models": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910"
+  },
+  "query_count": 0,
+  "cases": [
+    {
+      "name": "char_corrected",
+      "kind": "char",
+      "initial": "long<&\"",
+      "submitted": "ok",
+      "unbound_value": "long<&\"",
+      "unbound_html": "<input type=\"text\" name=\"value\" value=\"long&lt;&amp;&quot;\" maxlength=\"4\" required id=\"id_value\">",
+      "valid": true,
+      "codes": [],
+      "cleaned": "ok",
+      "changed": true,
+      "bound_value": "ok"
+    },
+    {
+      "name": "char_unchanged_invalid",
+      "kind": "char",
+      "initial": "long<&\"",
+      "submitted": "long<&\"",
+      "unbound_value": "long<&\"",
+      "unbound_html": "<input type=\"text\" name=\"value\" value=\"long&lt;&amp;&quot;\" maxlength=\"4\" required id=\"id_value\">",
+      "valid": false,
+      "codes": [
+        "max_length"
+      ],
+      "cleaned": null,
+      "changed": false,
+      "bound_value": "long<&\""
+    },
+    {
+      "name": "char_changed_invalid",
+      "kind": "char",
+      "initial": "long<&\"",
+      "submitted": "longer!",
+      "unbound_value": "long<&\"",
+      "unbound_html": "<input type=\"text\" name=\"value\" value=\"long&lt;&amp;&quot;\" maxlength=\"4\" required id=\"id_value\">",
+      "valid": false,
+      "codes": [
+        "max_length"
+      ],
+      "cleaned": null,
+      "changed": true,
+      "bound_value": "longer!"
+    },
+    {
+      "name": "char_empty",
+      "kind": "char",
+      "initial": "long<&\"",
+      "submitted": "",
+      "unbound_value": "long<&\"",
+      "unbound_html": "<input type=\"text\" name=\"value\" value=\"long&lt;&amp;&quot;\" maxlength=\"4\" required id=\"id_value\">",
+      "valid": false,
+      "codes": [
+        "required"
+      ],
+      "cleaned": null,
+      "changed": true,
+      "bound_value": ""
+    },
+    {
+      "name": "char_missing",
+      "kind": "char",
+      "initial": "long<&\"",
+      "submitted": null,
+      "unbound_value": "long<&\"",
+      "unbound_html": "<input type=\"text\" name=\"value\" value=\"long&lt;&amp;&quot;\" maxlength=\"4\" required id=\"id_value\">",
+      "valid": false,
+      "codes": [
+        "required"
+      ],
+      "cleaned": null,
+      "changed": true,
+      "bound_value": null
+    },
+    {
+      "name": "char_trimmed",
+      "kind": "char",
+      "initial": "abcd ",
+      "submitted": "abcd",
+      "unbound_value": "abcd ",
+      "unbound_html": "<input type=\"text\" name=\"value\" value=\"abcd \" maxlength=\"4\" required id=\"id_value\">",
+      "valid": true,
+      "codes": [],
+      "cleaned": "abcd",
+      "changed": true,
+      "bound_value": "abcd"
+    },
+    {
+      "name": "email_corrected",
+      "kind": "email",
+      "initial": "person@example.com",
+      "submitted": "a@b.co",
+      "unbound_value": "person@example.com",
+      "unbound_html": "<input type=\"email\" name=\"value\" value=\"person@example.com\" maxlength=\"10\" required id=\"id_value\">",
+      "valid": true,
+      "codes": [],
+      "cleaned": "a@b.co",
+      "changed": true,
+      "bound_value": "a@b.co"
+    },
+    {
+      "name": "email_unchanged_invalid",
+      "kind": "email",
+      "initial": "person@example.com",
+      "submitted": "person@example.com",
+      "unbound_value": "person@example.com",
+      "unbound_html": "<input type=\"email\" name=\"value\" value=\"person@example.com\" maxlength=\"10\" required id=\"id_value\">",
+      "valid": false,
+      "codes": [
+        "max_length"
+      ],
+      "cleaned": null,
+      "changed": false,
+      "bound_value": "person@example.com"
+    },
+    {
+      "name": "decimal_digits_corrected",
+      "kind": "decimal",
+      "initial": "1234.56",
+      "submitted": "12.34",
+      "unbound_value": "1234.56",
+      "unbound_html": "<input type=\"number\" name=\"value\" value=\"1234.56\" step=\"0.01\" required id=\"id_value\">",
+      "valid": true,
+      "codes": [],
+      "cleaned": "12.34",
+      "changed": true,
+      "bound_value": "12.34"
+    },
+    {
+      "name": "decimal_digits_unchanged_invalid",
+      "kind": "decimal",
+      "initial": "1234.56",
+      "submitted": "1234.56",
+      "unbound_value": "1234.56",
+      "unbound_html": "<input type=\"number\" name=\"value\" value=\"1234.56\" step=\"0.01\" required id=\"id_value\">",
+      "valid": false,
+      "codes": [
+        "max_digits"
+      ],
+      "cleaned": null,
+      "changed": false,
+      "bound_value": "1234.56"
+    },
+    {
+      "name": "decimal_scale_corrected",
+      "kind": "decimal",
+      "initial": "1.234",
+      "submitted": "1.23",
+      "unbound_value": "1.234",
+      "unbound_html": "<input type=\"number\" name=\"value\" value=\"1.234\" step=\"0.01\" required id=\"id_value\">",
+      "valid": true,
+      "codes": [],
+      "cleaned": "1.23",
+      "changed": true,
+      "bound_value": "1.23"
+    },
+    {
+      "name": "decimal_scale_unchanged_invalid",
+      "kind": "decimal",
+      "initial": "1.234",
+      "submitted": "1.234",
+      "unbound_value": "1.234",
+      "unbound_html": "<input type=\"number\" name=\"value\" value=\"1.234\" step=\"0.01\" required id=\"id_value\">",
+      "valid": false,
+      "codes": [
+        "max_decimal_places"
+      ],
+      "cleaned": null,
+      "changed": false,
+      "bound_value": "1.234"
+    }
+  ],
+  "model_cases": [
+    {
+      "name": "corrected",
+      "initial": "stored-title",
+      "valid": true,
+      "changed": true,
+      "codes": [],
+      "candidate": "new",
+      "prepared": "new"
+    },
+    {
+      "name": "unchanged_invalid",
+      "initial": "stored-title",
+      "valid": false,
+      "changed": false,
+      "codes": [
+        "max_length"
+      ],
+      "candidate": "stored-title",
+      "prepared": null
+    }
+  ]
+}

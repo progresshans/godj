@@ -11,12 +11,21 @@ import (
 var _ orm.ModelDescriptor[models.Article] = models.ArticleDescriptor{}
 
 func BuildArticleQuery(backend db.Queryer) (orm.QuerySet[models.Article], error) {
+	search := orm.Or(
+		models.ArticleFields.Title.IContains("django"),
+		models.ArticleFields.Summary.IContains("django"),
+	)
+	visibility := orm.And(
+		models.ArticleFields.Published.Exact(true),
+		orm.Not(models.ArticleFields.Title.IContains("draft")),
+	)
+	advanced := orm.And(
+		models.ArticleFields.ID.GreaterThanOrEqual(1),
+		models.ArticleFields.ID.LessThanOrEqual(100),
+		models.ArticleFields.Title.ExactField(orm.F(models.ArticleFields.Summary)),
+	)
 	querySet := models.ArticleObjects.Using(backend).
-		Filter(
-			models.ArticleFields.Published.Exact(true),
-			models.ArticleFields.Title.IContains("django"),
-			models.ArticleFields.Summary.IsNull(false),
-		).
+		Filter(search, visibility, advanced).
 		OrderBy(models.ArticleFields.ID.Desc())
 	return querySet.Limit(2)
 }

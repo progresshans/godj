@@ -1,0 +1,107 @@
+
+func commandFileInput(f *creationFileFixture, description firstaccount.Description, second bool)[]firstaccount.Value{
+    raw:=map[string]string{f.role.Login:"command@example.test","@@PROFILE@@":"NZ","preset":"presets/first.png"}
+    values:=make([]firstaccount.Value,len(description.Fields))
+    for i,field:=range description.Fields{
+        values[i].Name=field.Name
+        if field.Upload{
+            switch field.Name{
+            case "document":values[i].Present=true;values[i].Upload=&firstaccount.Upload{Name:"same.txt",Content:bytes.Clone(f.document)}
+            case "portrait":values[i].Present=true;values[i].Upload=&firstaccount.Upload{Name:"photo.png",Content:bytes.Clone(f.portrait)}
+            case "second_document":if second{values[i].Present=true;values[i].Upload=&firstaccount.Upload{Name:"second.txt",Content:bytes.Clone(f.document)}}
+            }
+        }else{value,present:=raw[field.Name];values[i].Present,values[i].Text=present,[]byte(value)}
+    };return values
+}
+func clearCommandFileInput(values []firstaccount.Value){for i:=range values{values[i].Clear()}}
+
+func testProfileFileCommand(t *testing.T){
+    for _,mode:=range []string{"construction","preflight","created","mutated_input","abandon","not_fresh","partial","validation","hash","audit","cleanup","unknown","canceled","report_error","report_panic","report_goexit"}{t.Run(mode,func(t *testing.T){
+        f:=newCreationFileFixture(t);before:=f.snapshot(t);opened:=0
+        opener:=func(context.Context)(firstaccount.Backend,error){opened++;return f.backend,nil}
+        var reports []firstaccount.FileReport
+        reportFault:=errors.New("private report failure")
+        config:=firstaccount.Config{MaxFileBytes:4096,MaxFilesBytes:8192,ReportFiles:func(_ context.Context,report firstaccount.FileReport)error{
+            // Publication is over and no retained upload capability may outlive it.
+            f.disk.mu.Lock();retained:=slices.Clone(f.disk.retained);f.disk.mu.Unlock()
+            for _,upload:=range retained{reader,err:=upload.Open(t.Context());if reader!=nil{_ = reader.Close()};if !errors.Is(err,&uploads.Error{Code:"closed"}){return errors.New("command report retained a live upload")}}
+            reports=append(reports,report)
+            switch mode{case "report_error":return reportFault;case "report_panic":panic("private report panic");case "report_goexit":runtime.Goexit()}
+            return nil
+        }}
+        if mode=="construction"{
+            for _,bad:=range []firstaccount.Config{{},{MaxFileBytes:4096,MaxFilesBytes:8192},{MaxFileBytes:0,MaxFilesBytes:8192,ReportFiles:config.ReportFiles},{MaxFileBytes:4096,MaxFilesBytes:4095,ReportFiles:config.ReportFiles},{MaxFileBytes:4096,MaxFilesBytes:firstaccount.MaxUploadBytes+1,ReportFiles:config.ReportFiles}}{
+                if _,err:=firstaccount.New(f.definition,opener,bad);err==nil{t.Fatal("invalid upload command declaration accepted")}
+            }
+            if opened!=0||f.disk.names.Load()!=0||f.disk.saves.Load()!=0||f.hasher.calls.Load()!=0{t.Fatal("command declaration acquired resources")};f.same(t,before);return
+        }
+        command,err:=firstaccount.New(f.definition,opener,config);fileCheck(t,err)
+        description,err:=command.Description();fileCheck(t,err)
+        if description.MaxFileBytes!=4096||description.MaxFilesBytes!=8192||len(description.Fields)!=6{t.Fatal("command lost file limits or exposed image dimensions")}
+        for _,field:=range description.Fields{if field.Name=="document"&&!field.Upload||field.Name=="preset"&&field.Upload{t.Fatal("command conflated upload and choice")}}
+        if mode=="preflight"{
+            for _,name:=range []string{"foreign","reference","wrong_kind","file_bytes","file_total","filename","required","image","empty"}{t.Run(name,func(t *testing.T){
+                input:=commandFileInput(f,description,true);fingerprint:=description.Fingerprint
+                document:=slices.IndexFunc(input,func(value firstaccount.Value)bool{return value.Name=="document"})
+                portrait:=slices.IndexFunc(input,func(value firstaccount.Value)bool{return value.Name=="portrait"})
+                switch name{
+                case "foreign":fingerprint=strings.Repeat("f",64)
+                case "reference":input[document].Upload=nil;input[document].Text=[]byte("private/existing")
+                case "wrong_kind":input[0].Upload=input[document].Upload
+                case "file_bytes":input[document].Upload.Content=make([]byte,4097)
+                case "file_total":for i:=range input{if input[i].Upload!=nil{input[i].Upload.Content=make([]byte,4096)}}
+                case "filename":input[document].Upload.Name="../private.txt"
+                case "required":input[document].Clear();input[document].Name="document"
+                case "image":input[portrait].Upload.Content=[]byte("not an image")
+                case "empty":input[document].Upload.Content=nil
+                }
+                prepared,err:=command.Prepare(t.Context(),fingerprint,input);clearCommandFileInput(input);prepared.Clear()
+                if err==nil{t.Fatal("invalid upload input reached native owner")}
+                if opened!=0||f.disk.names.Load()!=0||f.disk.saves.Load()!=0||f.hasher.calls.Load()!=0||len(reports)!=0{t.Fatal("input rejection performed publication, hashing or acquisition")};f.same(t,before)
+            })};return
+        }
+        if mode=="not_fresh"{
+            original,files,err:=f.first(t,t.Context(),strings.Repeat("a",64),"existing@example.test",false);fileCheck(t,err);f.confirmed(t,original.Account,files,"existing@example.test");before=f.snapshot(t)
+        }
+        input:=commandFileInput(f,description,mode=="partial")
+        prepared,err:=command.Prepare(t.Context(),description.Fingerprint,input);fileCheck(t,err);defer prepared.Clear()
+        if mode=="mutated_input"{for i:=range input{if input[i].Upload!=nil{clear(input[i].Upload.Content);input[i].Upload.Name="mutated"}else{clear(input[i].Text)}}}
+        clearCommandFileInput(input)
+        if opened!=0||f.disk.saves.Load()!=0&&mode!="not_fresh"{t.Fatal("preparation published or acquired a resource")}
+        ctx,cancel:=context.WithCancel(t.Context());defer cancel()
+        switch mode{
+        case "abandon":prepared.Clear()
+        case "partial":f.disk.set("partial",nil)
+        case "validation":f.reject.Store(true)
+        case "hash":f.hasher.fail.Store(true)
+        case "audit","cleanup","unknown":f.backend.mode.Store(mode)
+        case "canceled":f.disk.set("",func()error{cancel();return nil})
+        }
+        result,failure:=command.Provision(ctx,f.backend,strings.Repeat("d",64),prepared,accountPasswordText)
+        saved:=mode=="created"||mode=="mutated_input"||strings.HasPrefix(mode,"report_")
+        if saved{
+            fileCheck(t,failure);f.confirmed(t,result.Account,result.Files(),"command@example.test")
+            receipt,err:=accountdomain.Lookup(t.Context(),f.native,strings.Repeat("d",64));fileCheck(t,err);if receipt.Generation()!=result.Ownership.Generation(){t.Fatal("command result lost its operation")}
+        }else{
+            if failure==nil||!reflect.DeepEqual(result.FirstAccountCreation,accountmodel.FirstAccountCreation{}){t.Fatal("failed command published a creation")}
+            if mode=="unknown"{rows,err:=f.objects.Using(f.native).All(t.Context());fileCheck(t,err);receipt,err:=accountdomain.Lookup(t.Context(),f.native,strings.Repeat("d",64));fileCheck(t,err);if len(rows)!=1||receipt.Sequence()!=1{t.Fatal("unknown command lost committed reconciliation")}}else{f.same(t,before)}
+        }
+        wantReport:=mode!="abandon"&&mode!="not_fresh"
+        if wantReport{
+            if len(reports)!=1||reports[0].OperationID()!=strings.Repeat("d",64)||len(reports[0].Files())!=len(result.Files())||(reports[0].Err()==nil)!=(failure==nil){t.Fatal("command lost file report on terminal outcome")}
+            files:=result.Files();if len(files)==0{t.Fatal("publication report lost attempts")};original:=files[0].Field();files[0]=formmodel.FilePublication{};if result.Files()[0].Field()!=original||reports[0].Files()[0].Field()!=original{t.Fatal("file report shared mutable container")}
+            if saved{creation:=reports[0].Creation();creation.Account.ChangedFields[0]="mutated";if reports[0].Creation().Account.ChangedFields[0]=="mutated"{t.Fatal("report creation shares fields")}}
+            f.stored(t,result.Files())
+        }else if len(reports)!=0||len(result.Files())!=0{t.Fatal("unattempted publication generated a report")}
+        if (result.ReportErr()!=nil)!=strings.HasPrefix(mode,"report_"){t.Fatal("report failure erased or confused database result")}
+        if strings.HasPrefix(mode,"report_")&&!errors.Is(result.ReportErr(),&firstaccount.Error{Code:firstaccount.ReportFailed}){t.Fatal("report failure lost its closed code")}
+        if mode=="report_error"&&!errors.Is(result.ReportErr(),reportFault){t.Fatal("trusted caller lost the report I/O cause")}
+        if mode!="abandon"&&mode!="not_fresh"{
+            if reader,err:=f.disk.lastUpload().Open(t.Context());reader!=nil||!errors.Is(err,&uploads.Error{Code:"closed"}){if reader!=nil{_ = reader.Close()};t.Fatal("upload survived command return",err)}
+        }
+        names,saves,hashes:=f.disk.names.Load(),f.disk.saves.Load(),f.hasher.calls.Load()
+        if _,err:=command.Provision(t.Context(),f.backend,strings.Repeat("e",64),prepared,accountPasswordText);!errors.Is(err,&firstaccount.Error{Code:firstaccount.Consumed}){t.Fatal("file input retried",err)}
+        if opened!=0||names!=f.disk.names.Load()||saves!=f.disk.saves.Load()||hashes!=f.hasher.calls.Load(){t.Fatal("command replay performed I/O")}
+        for _,value:=range []any{result,prepared,reports}{if strings.Contains(fmt.Sprintf("%#v",value),"private"){t.Fatal("command formatting leaked private result")}}
+    })}
+}

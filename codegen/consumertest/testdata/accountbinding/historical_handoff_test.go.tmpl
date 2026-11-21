@@ -1,0 +1,738 @@
+package consumer
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	contractedhost "example.com/godj-project-bundle/contracted/host"
+	contractedproject "example.com/godj-project-bundle/contracted/project"
+	"example.com/godj-project-bundle/host"
+	legacyhost "example.com/godj-project-bundle/legacy/host"
+	"example.com/godj-project-bundle/members"
+	"example.com/godj-project-bundle/project"
+	"example.com/godj-project-bundle/selected"
+	"github.com/progresshans/godj/account/domain"
+	domainmodels "github.com/progresshans/godj/account/domain/models"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/db"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/identity/models"
+	identityproject "github.com/progresshans/godj/identity/project"
+	"github.com/progresshans/godj/migrations/definition"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/sessions"
+	sessiondb "github.com/progresshans/godj/sessions/database"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/systemstate"
+	"github.com/progresshans/godj/validation"
+)
+
+const historicalActor = "historical-operator"
+const historicalWorkerEnv = "GODJ_HISTORICAL_OPERATOR_REQUEST"
+
+type historicalWorkerRequest struct {
+	Action, Mode, Directory                 string
+	Vendor                                  database.Kind
+	SQLitePath, PostgresURL, PostgresSchema string
+}
+type historicalWorkerReply struct {
+	Status, Operation string
+	Sequence          int64
+	PID               int
+}
+type historicalProcessOutput struct {
+	buffer   bytes.Buffer
+	overflow bool
+}
+
+func (output *historicalProcessOutput) Len() int { return output.buffer.Len() }
+func (output *historicalProcessOutput) Write(data []byte) (int, error) {
+	if len(data) > 65536-output.Len() {
+		output.overflow = true
+		return 0, errors.New("operator diagnostic exceeds its bound")
+	}
+	return output.buffer.Write(data)
+}
+func historicalMust(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func historicalWriteJSON(path string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	temporary := path + ".pending"
+	if err := os.WriteFile(temporary, data, 0600); err != nil {
+		return err
+	}
+	return os.Rename(temporary, path)
+}
+func historicalReadJSON(t *testing.T, path string, value any) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	historicalMust(t, err)
+	if len(data) > domain.MaximumMappingBytes {
+		t.Fatal("operator journal exceeded its bound")
+	}
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	historicalMust(t, decoder.Decode(value))
+	if decoder.Decode(new(any)) != io.EOF {
+		t.Fatal("operator journal has trailing data")
+	}
+}
+
+func historicalHandoffOwner(t *testing.T, backend database.Backend, currentGraph bool) *systemstate.IdentityHandoff {
+	t.Helper()
+	binding, err := project.BindAccount()
+	historicalMust(t, err)
+	if currentGraph {
+		binding, err = identityproject.BindAccount()
+		historicalMust(t, err)
+	}
+	owner, err := systemstate.NewIdentityHandoff(backend, binding, systemstate.IdentityHandoffConfig{
+		Permission: "account.handoff", Authorizer: auth.PrincipalAuthorizer{}, MaxAccounts: 8, MaxCatalogRows: 16, MaxSessions: 32, AuditCapacity: 32,
+	})
+	historicalMust(t, err)
+	return owner
+}
+
+func historicalTransitionOwner(t *testing.T, backend database.Backend) (*accountmodel.Transition[models.User, members.Member], *accountmodel.SessionStore[models.User], *accountmodel.SessionStore[members.Member]) {
+	t.Helper()
+	source, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+	historicalMust(t, err)
+	targetStore, err := selected.NewAccountSessionStore(backend, sessiondb.Config{})
+	historicalMust(t, err)
+	oldBinding, err := project.BindAccount()
+	historicalMust(t, err)
+	nextBinding, err := selected.BindAccount()
+	historicalMust(t, err)
+	collections, err := selected.BindCollections()
+	historicalMust(t, err)
+	target, err := accountmodel.NewTransitionTarget(nextBinding, collections.MembersMemberGroups, collections.MembersMemberPermissions, accountmodel.TransitionTargetConfig[members.Member]{Fields: []string{"handle", "region"}})
+	historicalMust(t, err)
+	policy := func(actor auth.Principal) (validation.Errors, error) {
+		if actor.ID() != historicalActor || !actor.Has("host.remap") {
+			return validation.Errors{}, errors.New("host mapping lost its current source actor")
+		}
+		return validation.Errors{}, nil
+	}
+	ticket, err := accountmodel.NewTransitionReference(oldBinding, nextBinding, ir.ModelIdentity{AppLabel: "host", ModelName: "ticket"}, host.TicketDescriptor{}, accountmodel.TransitionReferenceConfig[host.Ticket]{
+		Fields: []accountmodel.TransitionReferenceFields{{Source: "old_owner", Target: "owner"}, {Source: "old_reviewer", Target: "reviewer"}}, RevisionField: "revision", Permission: "host.remap", AdditionalPermissions: []auth.Permission{"host.audit"},
+		Validate: func(_ context.Context, _ db.Queryer, actor auth.Principal, before, after host.Ticket) (validation.Errors, error) {
+			if before.Title != after.Title || !reflect.DeepEqual(before.OldOwnerID, after.OldOwnerID) || !reflect.DeepEqual(before.OldReviewerID, after.OldReviewerID) {
+				return validation.Errors{}, errors.New("host mapping changed its source fields")
+			}
+			return policy(actor)
+		},
+	})
+	historicalMust(t, err)
+	badge, err := accountmodel.NewTransitionReference(oldBinding, nextBinding, ir.ModelIdentity{AppLabel: "host", ModelName: "badge"}, host.BadgeDescriptor{}, accountmodel.TransitionReferenceConfig[host.Badge]{Fields: []accountmodel.TransitionReferenceFields{{Source: "old_user", Target: "user"}}, Permission: "host.remap", Validate: func(_ context.Context, _ db.Queryer, actor auth.Principal, before, after host.Badge) (validation.Errors, error) {
+		if before.Name != after.Name {
+			return validation.Errors{}, errors.New("badge payload changed")
+		}
+		return policy(actor)
+	}})
+	historicalMust(t, err)
+	assignment, err := accountmodel.NewTransitionReference(oldBinding, nextBinding, ir.ModelIdentity{AppLabel: "host", ModelName: "assignment"}, host.AssignmentDescriptor{}, accountmodel.TransitionReferenceConfig[host.Assignment]{Fields: []accountmodel.TransitionReferenceFields{{Source: "old_user", Target: "user"}}, RevisionField: "revision", Permission: "host.remap", Validate: func(_ context.Context, _ db.Queryer, actor auth.Principal, before, after host.Assignment) (validation.Errors, error) {
+		if before.Note != after.Note || !reflect.DeepEqual(before.WorkspaceID, after.WorkspaceID) {
+			return validation.Errors{}, errors.New("business through payload changed")
+		}
+		return policy(actor)
+	}})
+	historicalMust(t, err)
+	owner, err := accountmodel.NewTransition(source, targetStore, accountmodel.TransitionConfig[models.User, members.Member]{Permission: "account.transition", Authorizer: auth.PrincipalAuthorizer{}, MaxAccounts: 8, TargetCreation: target, References: []accountmodel.TransitionReference[models.User, members.Member]{ticket, badge, assignment},
+		Validate: func(_ context.Context, _ db.Queryer, before models.User, after members.Member, left, right accountmodel.AccountMemberships) (validation.Errors, error) {
+			if before.EncodedPassword != "" || after.SecretHash != "" || after.Region != "migrated" || !slices.Equal(left.Groups(), right.Groups()) || !slices.Equal(left.Permissions(), right.Permissions()) {
+				return validation.Errors{}, errors.New("custom transition lost typed policy or memberships")
+			}
+			return validation.Errors{}, nil
+		},
+	})
+	historicalMust(t, err)
+	return owner, source, targetStore
+}
+
+// The retained preparation never leaves the operator process. Only its public
+// manifest is journaled before the final attempt, including before response loss.
+func historicalWorker(t *testing.T, path string) {
+	var request historicalWorkerRequest
+	historicalReadJSON(t, path, &request)
+	var config database.Config
+	var err error
+	switch request.Vendor {
+	case database.KindSQLite:
+		config, err = database.SQLite(request.SQLitePath)
+	case database.KindPostgres:
+		config, err = database.PostgreSQL(request.PostgresURL, request.PostgresSchema)
+	default:
+		t.Fatal("invalid operator backend")
+	}
+	historicalMust(t, err)
+	backend, err := database.Open(t.Context(), config)
+	historicalMust(t, err)
+	defer func() { historicalMust(t, backend.Close()) }()
+	hasher, err := auth.NewPBKDF2(auth.PBKDF2Config{Iterations: 10_000})
+	historicalMust(t, err)
+	var commit func() (domain.Receipt, error)
+	operation := strings.Repeat("a", 64)
+	manifestPath := filepath.Join(request.Directory, request.Action+"-manifest.json")
+	if request.Action == "handoff" {
+		legacy, err := systemstate.OpenIdentity(t.Context(), backend, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher})
+		historicalMust(t, err)
+		credential, err := legacy.Authenticator().Resolve(t.Context(), historicalActor)
+		historicalMust(t, err)
+		owner := historicalHandoffOwner(t, backend, false)
+		prepared, err := owner.Prepare(t.Context(), credential.Principal(), operation)
+		historicalMust(t, err)
+		historicalMust(t, historicalWriteJSON(manifestPath, prepared.Manifest()))
+		commit = func() (domain.Receipt, error) { return owner.Commit(t.Context(), credential.Principal(), prepared) }
+	} else if request.Action == "transition" {
+		operation = strings.Repeat("b", 64)
+		owner, store, _ := historicalTransitionOwner(t, backend)
+		verifier, err := store.Authenticator(t.Context(), hasher)
+		historicalMust(t, err)
+		credential, err := verifier.Resolve(t.Context(), historicalActor)
+		historicalMust(t, err)
+		originals, err := models.UserObjects.Using(backend).OrderBy(models.UserFields.ID.Asc()).All(t.Context())
+		historicalMust(t, err)
+		requests := make([]accountmodel.AccountCreation[members.Member], 0, len(originals))
+		for _, old := range originals {
+			input, err := members.MemberObjects.Input(map[string]query.Value{"handle": query.String(old.Username + "-member"), "region": query.String("migrated")})
+			historicalMust(t, err)
+			requests = append(requests, accountmodel.AccountCreation[members.Member]{Source: accountmodel.SourceAccount{ID: old.ID, Revision: old.Revision}, Input: input})
+		}
+		prepared, err := owner.PrepareCreation(t.Context(), credential.Principal(), operation, requests)
+		historicalMust(t, err)
+		historicalMust(t, historicalWriteJSON(manifestPath, prepared.Manifest()))
+		commit = func() (domain.Receipt, error) {
+			result, err := owner.Commit(t.Context(), credential.Principal(), prepared)
+			return result.Ownership, err
+		}
+	} else {
+		t.Fatal("unknown operator action")
+	}
+	historicalMust(t, json.NewEncoder(os.Stdout).Encode(struct {
+		Ready bool
+		PID   int
+	}{true, os.Getpid()}))
+	input, err := bufio.NewReader(io.LimitReader(os.Stdin, 32)).ReadString('\n')
+	historicalMust(t, err)
+	if input != "commit\n" {
+		t.Fatal("invalid commit boundary")
+	}
+	receipt, err := commit()
+	reply := historicalWorkerReply{Status: "committed", Operation: operation, Sequence: receipt.Sequence(), PID: os.Getpid()}
+	if request.Mode == request.Action+"_source_changed" {
+		expected := error(&systemstate.Error{Code: systemstate.CodeHandoffConflict})
+		if request.Action == "transition" {
+			expected = &accountmodel.Error{Code: accountmodel.CodeConflict}
+		}
+		if !errors.Is(err, expected) || receipt.Sequence() != 0 {
+			t.Fatal("changed source did not reject the retained preparation", err)
+		}
+		reply.Status = "rejected"
+	} else {
+		historicalMust(t, err)
+		wanted := int64(1)
+		if request.Action == "transition" {
+			wanted = 2
+		}
+		if receipt.Sequence() != wanted || receipt.OperationID() != operation {
+			t.Fatal("operator published a different receipt")
+		}
+	}
+	if request.Mode == request.Action+"_response_lost" {
+		os.Exit(29)
+	}
+	historicalMust(t, historicalWriteJSON(filepath.Join(request.Directory, request.Action+"-reply.json"), reply))
+}
+
+func historicalRunOperator(t *testing.T, selected database.Config, action, mode, directory string, interleave func()) historicalWorkerReply {
+	t.Helper()
+	executable, err := os.Executable()
+	historicalMust(t, err)
+	request := historicalWorkerRequest{Action: action, Mode: mode, Directory: directory, Vendor: selected.Kind(), SQLitePath: selected.SQLiteDatabase(), PostgresURL: selected.PostgresURL(), PostgresSchema: selected.PostgresSchema()}
+	path := filepath.Join(directory, action+"-request.json")
+	historicalMust(t, historicalWriteJSON(path, request))
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+	defer cancel()
+	command := exec.CommandContext(ctx, executable, "-test.run=^TestHistoricalAccountOperatorFlow$", "-test.timeout=110s")
+	command.Env = append(os.Environ(), historicalWorkerEnv+"="+path)
+	var stderr historicalProcessOutput
+	command.Stderr = &stderr
+	stdout, err := command.StdoutPipe()
+	historicalMust(t, err)
+	defer stdout.Close()
+	stdin, err := command.StdinPipe()
+	historicalMust(t, err)
+	defer stdin.Close()
+	historicalMust(t, command.Start())
+	type output struct {
+		data []byte
+		err  error
+	}
+	ready, finished := make(chan output, 1), make(chan output, 1)
+	go func() {
+		reader := bufio.NewReaderSize(stdout, 4096)
+		line, err := reader.ReadSlice('\n')
+		ready <- output{bytes.Clone(line), err}
+		tail, err := io.ReadAll(io.LimitReader(reader, 65537))
+		finished <- output{tail, err}
+	}()
+	waited, readDone := false, false
+	var capturedFirst, capturedTail []byte
+	defer func() {
+		cancel()
+		_ = stdin.Close()
+		if !waited {
+			_ = command.Wait()
+		}
+		if !readDone {
+			capturedTail = (<-finished).data
+		}
+		if t.Failed() {
+			diagnostic := string(capturedFirst) + string(capturedTail) + stderr.buffer.String()
+			for _, secret := range []string{selected.PostgresURL(), accountPasswordText} {
+				if secret != "" {
+					diagnostic = strings.ReplaceAll(diagnostic, secret, "[redacted]")
+				}
+			}
+			t.Logf("operator %s diagnostics (overflow=%t):\n%s", action, stderr.overflow, diagnostic)
+		}
+	}()
+	first := <-ready
+	capturedFirst = first.data
+	if first.err != nil || len(first.data) > 4096 {
+		t.Fatal("operator did not reach its prepared boundary")
+	}
+	var boundary struct {
+		Ready bool
+		PID   int
+	}
+	decoder := json.NewDecoder(bytes.NewReader(first.data))
+	decoder.DisallowUnknownFields()
+	historicalMust(t, decoder.Decode(&boundary))
+	if decoder.Decode(new(any)) != io.EOF {
+		t.Fatal("operator readiness has trailing data")
+	}
+	if !boundary.Ready || boundary.PID == os.Getpid() || boundary.PID != command.Process.Pid {
+		t.Fatal("operator did not execute in an independent process")
+	}
+	if interleave != nil {
+		interleave()
+	}
+	_, err = io.WriteString(stdin, "commit\n")
+	historicalMust(t, err)
+	historicalMust(t, stdin.Close())
+	rest := <-finished
+	capturedTail = rest.data
+	readDone = true
+	failure := command.Wait()
+	waited = true
+	if ctx.Err() != nil || rest.err != nil || len(rest.data) > 65536 || stderr.Len() != 0 || stderr.overflow {
+		t.Fatal("operator output or deadline failed")
+	}
+	if mode == action+"_response_lost" {
+		var exit *exec.ExitError
+		if !errors.As(failure, &exit) || exit.ExitCode() != 29 || len(rest.data) != 0 {
+			t.Fatal("response loss did not follow the explicit process boundary")
+		}
+		if _, err := os.Stat(filepath.Join(directory, action+"-reply.json")); !errors.Is(err, os.ErrNotExist) {
+			t.Fatal("lost response published a completion reply")
+		}
+		return historicalWorkerReply{Status: "lost", PID: boundary.PID}
+	}
+	if failure != nil || string(rest.data) != "PASS\n" {
+		t.Fatal("operator failed after preparation")
+	}
+	var reply historicalWorkerReply
+	historicalReadJSON(t, filepath.Join(directory, action+"-reply.json"), &reply)
+	wanted, sequence, operation := "committed", int64(1), strings.Repeat("a", 64)
+	if action == "transition" {
+		sequence, operation = 2, strings.Repeat("b", 64)
+	}
+	if mode == action+"_source_changed" {
+		wanted, sequence = "rejected", 0
+	}
+	if reply.PID != boundary.PID || reply.Status != wanted || reply.Sequence != sequence || reply.Operation != operation {
+		t.Fatal("operator response has different process or completion evidence")
+	}
+	return reply
+}
+
+func historicalRows[M any](t *testing.T, backend db.Queryer, objects orm.Manager[M]) any {
+	t.Helper()
+	field, err := objects.PrimaryKeyField()
+	historicalMust(t, err)
+	rows, err := objects.Using(backend).OrderBy(orm.NewAutoField[M](field).Asc()).All(t.Context())
+	historicalMust(t, err)
+	values := make([]map[string]query.Value, len(rows))
+	for index, row := range rows {
+		values[index], err = objects.ModelValues(row)
+		historicalMust(t, err)
+	}
+	return values
+}
+func historicalBusinessState(t *testing.T, backend db.Queryer) []any {
+	return []any{historicalRows(t, backend, models.UserObjects), historicalRows(t, backend, models.GroupObjects), historicalRows(t, backend, models.PermissionObjects), historicalRows(t, backend, models.UserGroupsLinkObjects), historicalRows(t, backend, models.UserPermissionsLinkObjects), historicalRows(t, backend, models.GroupPermissionsLinkObjects), historicalRows(t, backend, members.MemberObjects), historicalRows(t, backend, host.TicketObjects), historicalRows(t, backend, host.BadgeObjects), historicalRows(t, backend, host.WorkspaceObjects), historicalRows(t, backend, host.AssignmentObjects)}
+}
+func historicalArchiveTable(t *testing.T, backend db.Queryer, table string, names ...string) [][]string {
+	t.Helper()
+	fields := []query.FieldRef{query.NewFieldRef("id", "id", query.FieldInteger, false)}
+	for _, name := range names {
+		fields = append(fields, query.NewFieldRef(name, name, query.FieldString, false))
+	}
+	plan, err := query.NewPlan(table, fields).WithOrderings(query.NewOrdering(fields[0], query.Ascending)).WithLimit(65)
+	historicalMust(t, err)
+	rows, err := backend.Query(t.Context(), plan)
+	historicalMust(t, err)
+	defer rows.Close()
+	result := [][]string{}
+	for rows.Next() {
+		var id int64
+		values := make([]string, len(names)+1)
+		scan := []any{&id}
+		for index := range names {
+			scan = append(scan, &values[index+1])
+		}
+		historicalMust(t, rows.Scan(scan...))
+		values[0] = strconv.FormatInt(id, 10)
+		result = append(result, values)
+		if len(result) > 64 {
+			t.Fatal("historical fixture overflow")
+		}
+	}
+	historicalMust(t, rows.Err())
+	historicalMust(t, rows.Close())
+	return result
+}
+func historicalArchive(t *testing.T, backend db.Queryer) any {
+	return []any{historicalArchiveTable(t, backend, "godj_system_session", "digest", "payload"), historicalArchiveTable(t, backend, "godj_system_audit", "actor_id", "model", "object_id", "action", "changed_fields", "display_label")}
+}
+
+func TestHistoricalAccountOperatorFlow(t *testing.T) {
+	if path := os.Getenv(historicalWorkerEnv); path != "" {
+		historicalWorker(t, path)
+		return
+	}
+	for _, mode := range []string{"lifecycle", "signed_key", "handoff_source_changed", "transition_source_changed", "handoff_response_lost", "transition_response_lost"} {
+		t.Run(mode, func(t *testing.T) {
+			backend, selection := openAccountDatabase(t)
+			migrateAccountDefinitions(t, backend, systemstate.InitialDefinitionSource())
+			hasher, encoded := accountPassword(t)
+			principal, err := auth.NewPrincipal(auth.PrincipalConfig{ID: historicalActor, Active: true, Permissions: []auth.Permission{"account.handoff", "account.transition", "host.remap", "host.audit", "work.view"}})
+			historicalMust(t, err)
+			policy := systemstate.CredentialPolicy{Principal: principal, PasswordHasher: hasher}
+			historicalMust(t, systemstate.ProvisionOperator(t.Context(), backend, systemstate.ProvisionOperatorConfig{Username: "operator", Password: accountPasswordText, CredentialPolicy: policy}))
+			old, err := systemstate.OpenExisting(t.Context(), backend, systemstate.RuntimeConfig{CredentialPolicy: policy})
+			historicalMust(t, err)
+			oldCredential, err := old.Authenticator().Authenticate(t.Context(), "operator", accountPasswordText)
+			historicalMust(t, err)
+			manager, err := sessions.NewManager(old.SessionStore(), sessions.Config{})
+			historicalMust(t, err)
+			oldSession, err := manager.Create(t.Context(), map[string]string{auth.SessionPrincipalIDKey: historicalActor, auth.SessionCredentialStampKey: oldCredential.SessionStamp(), "application": "preserve"})
+			historicalMust(t, err)
+			migrateAccountDefinitions(t, backend, @@LEGACY@@)
+			adopted, err := systemstate.AdoptOperator(t.Context(), backend, systemstate.AdoptOperatorConfig{Expected: systemstate.RuntimeConfig{CredentialPolicy: policy}, Staff: true})
+			historicalMust(t, err)
+			root, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(adopted.UserID())).Get(t.Context())
+			historicalMust(t, err)
+			other, err := models.UserObjects.Create(t.Context(), backend, models.NewUserCreate("other-historical-member", "other", encoded, time.Now().UTC().Truncate(time.Microsecond)))
+			historicalMust(t, err)
+			if mode == "signed_key" {
+				accountStoredKey(t, backend, selection, "godj_identity_user", "id", other.ID, 0)
+				other.ID = 0
+			}
+			group, err := models.GroupObjects.Create(t.Context(), backend, models.NewGroupCreate("reviewers"))
+			historicalMust(t, err)
+			grant, err := models.PermissionObjects.Create(t.Context(), backend, models.NewPermissionCreate("work.edit", "Edit work"))
+			historicalMust(t, err)
+			_, err = models.GroupPermissionsLinkObjects.Create(t.Context(), backend, models.NewGroupPermissionsLinkCreate(group.ID, grant.ID))
+			historicalMust(t, err)
+			for _, user := range []models.User{root, other} {
+				_, err = models.UserGroupsLinkObjects.Create(t.Context(), backend, models.NewUserGroupsLinkCreate(user.ID, group.ID))
+				historicalMust(t, err)
+			}
+			first, err := legacyhost.TicketObjects.Create(t.Context(), backend, legacyhost.NewTicketCreate("original work").WithOldOwnerID(root.ID).WithOldReviewerID(other.ID))
+			historicalMust(t, err)
+			badge, err := legacyhost.BadgeObjects.Create(t.Context(), backend, legacyhost.NewBadgeCreate("original badge").WithOldUserID(root.ID))
+			historicalMust(t, err)
+			workspace, err := legacyhost.WorkspaceObjects.Create(t.Context(), backend, legacyhost.NewWorkspaceCreate("original workspace"))
+			historicalMust(t, err)
+			for index, user := range []models.User{root, other} {
+				_, err = legacyhost.AssignmentObjects.Create(t.Context(), backend, legacyhost.NewAssignmentCreate(fmt.Sprint("original assignment ", index)).WithWorkspaceID(workspace.ID).WithOldUserID(user.ID))
+				historicalMust(t, err)
+			}
+			legacy, err := systemstate.OpenIdentity(t.Context(), backend, systemstate.IdentityRuntimeConfig{PasswordHasher: hasher})
+			historicalMust(t, err)
+			event, err := admin.PrepareEvent(historicalActor, "host.ticket", first.ID, admin.ActionChange, []string{"title"}, "historical label")
+			historicalMust(t, err)
+			historicalMust(t, legacy.CoordinatedAtomic(t.Context(), func(scope db.Session) error { return legacy.AppendAudit(t.Context(), scope, event) }))
+			archive := historicalArchive(t, backend)
+			migrateAccountDefinitions(t, backend, @@EXPANDED@@)
+			sourceStore, err := project.NewAccountSessionStore(backend, sessiondb.Config{})
+			historicalMust(t, err)
+			if value, err := sourceStore.InspectStartup(t.Context()); !errors.Is(err, &accountmodel.Error{Code: accountmodel.CodeTransitionRequired}) || value.Ready() || value.Fresh() {
+				t.Fatal("expanded schema implicitly adopted historical accounts", err)
+			}
+			before := historicalBusinessState(t, backend)
+			directory := t.TempDir()
+			mutate := func() {
+				_, err := models.UserObjects.Patch(t.Context(), backend, other, models.UserPatch{}.WithFirstName("unreviewed external change"))
+				historicalMust(t, err)
+				before = historicalBusinessState(t, backend)
+			}
+			var interleave func()
+			if mode == "handoff_source_changed" {
+				interleave = mutate
+			}
+			reply := historicalRunOperator(t, selection, "handoff", mode, directory, interleave)
+			if mode == "handoff_response_lost" && reply.Status != "lost" {
+				t.Fatal("handoff response-loss control was not reached")
+			}
+			var origin systemstate.IdentityHandoffManifest
+			historicalReadJSON(t, filepath.Join(directory, "handoff-manifest.json"), &origin)
+			observer := historicalHandoffOwner(t, backend, false)
+			initial, found, err := observer.Reconcile(t.Context(), origin)
+			historicalMust(t, err)
+			if !reflect.DeepEqual(archive, historicalArchive(t, backend)) || !reflect.DeepEqual(before, historicalBusinessState(t, backend)) {
+				t.Fatal("handoff changed original rows, host references or archive bytes")
+			}
+			if mode == "handoff_source_changed" {
+				if reply.Status != "rejected" || found || initial.Sequence() != 0 {
+					t.Fatal("changed source acquired a selected domain")
+				}
+				count, err := domainmodels.TransitionObjects.Using(backend).Count(t.Context())
+				historicalMust(t, err)
+				if count != 0 {
+					t.Fatal("failed operator left a partial domain")
+				}
+				return
+			}
+			if !found || initial.Sequence() != 1 || len(origin.Accounts) != 2 || origin.Origin.SessionRecords != 1 || origin.Origin.AuditEvents != 1 {
+				t.Fatal("operator did not retain complete initial evidence")
+			}
+			if _, _, err := old.SessionStore().Load(t.Context(), oldSession.ID()); err == nil {
+				t.Fatal("retained operator session owner survived handoff")
+			}
+			if _, err := legacy.Authenticator().Resolve(t.Context(), historicalActor); err == nil {
+				t.Fatal("retained historical identity owner survived handoff")
+			}
+			sourceVerifier, err := project.NewAccountAuthenticator(t.Context(), backend, hasher)
+			historicalMust(t, err)
+			current, err := sourceVerifier.Authenticate(t.Context(), "operator", accountPasswordText)
+			historicalMust(t, err)
+			if current.MatchesSessionStamp(oldCredential.SessionStamp()) || !current.Principal().Has("work.edit") {
+				t.Fatal("selected source inherited the old stamp or lost group grants")
+			}
+			manager, err = sessions.NewManager(sourceStore, sessions.Config{})
+			historicalMust(t, err)
+			selectedSession, err := manager.Create(t.Context(), map[string]string{auth.SessionPrincipalIDKey: historicalActor, auth.SessionCredentialStampKey: current.SessionStamp()})
+			historicalMust(t, err)
+			before = historicalBusinessState(t, backend)
+			interleave = nil
+			if mode == "transition_source_changed" {
+				interleave = mutate
+			}
+			reply = historicalRunOperator(t, selection, "transition", mode, directory, interleave)
+			if mode == "transition_response_lost" && reply.Status != "lost" {
+				t.Fatal("transition response-loss control was not reached")
+			}
+			var manifest accountmodel.TransitionManifest
+			historicalReadJSON(t, filepath.Join(directory, "transition-manifest.json"), &manifest)
+			owner, _, targetStore := historicalTransitionOwner(t, backend)
+			outcome, found, err := owner.Reconcile(t.Context(), manifest)
+			historicalMust(t, err)
+			if mode == "transition_source_changed" {
+				if reply.Status != "rejected" || found || outcome.Sequence() != 0 || !reflect.DeepEqual(before, historicalBusinessState(t, backend)) {
+					t.Fatal("changed source retained partial target or host writes")
+				}
+				count, err := domainmodels.TransitionObjects.Using(backend).Count(t.Context())
+				historicalMust(t, err)
+				if count != 1 {
+					t.Fatal("failed transition changed historical ownership")
+				}
+				if _, found, err := sourceStore.Load(t.Context(), selectedSession.ID()); err != nil || !found {
+					t.Fatal("failed transition removed the source session", err)
+				}
+				if !reflect.DeepEqual(archive, historicalArchive(t, backend)) {
+					t.Fatal("failed transition changed the retired archive")
+				}
+				return
+			}
+			if !found || outcome.Sequence() != 2 || outcome.MappingCount() != 2 {
+				t.Fatal("custom transition did not reconcile actual target keys")
+			}
+			created, err := members.MemberObjects.Using(backend).Count(t.Context())
+			historicalMust(t, err)
+			if created != 2 {
+				t.Fatal("custom transition created an unreviewed identity")
+			}
+			mappings, err := db.ReadSnapshotResult(t.Context(), backend, func(ctx context.Context, scope db.Queryer) ([]domain.Mapping, error) {
+				return domain.LookupMappingsIn(ctx, scope, outcome)
+			})
+			historicalMust(t, err)
+			mapping := map[int64]int64{}
+			for _, row := range mappings {
+				mapping[row.SourceID] = row.TargetID
+			}
+			for _, old := range []models.User{root, other} {
+				key, present := mapping[old.ID]
+				if !present {
+					t.Fatal("durable correspondence omitted a source identity")
+				}
+				next, err := members.MemberObjects.Using(backend).Filter(members.MemberFields.ID.Exact(key)).Get(t.Context())
+				historicalMust(t, err)
+				if next.Subject != old.PrincipalID || next.Handle != old.Username+"-member" || next.SecretHash != old.EncodedPassword || next.Active != old.Active || next.Staff != old.Staff || next.Superuser != old.Superuser || next.Version != 1 || next.Region != "migrated" || !next.DateJoined.Equal(old.DateJoined) {
+					t.Fatal("created custom account differs from the reviewed source and typed input")
+				}
+				retired, err := models.UserObjects.Using(backend).Filter(models.UserFields.ID.Exact(old.ID)).Get(t.Context())
+				historicalMust(t, err)
+				if retired.Active || retired.Revision != old.Revision+1 || !strings.HasPrefix(retired.EncodedPassword, "!") {
+					t.Fatal("custom transition did not retire the source credential")
+				}
+				oldGroups, err := models.UserGroupsLinkObjects.Using(backend).Filter(models.UserGroupsLinkFields.SourceID.Exact(old.ID)).OrderBy(models.UserGroupsLinkFields.TargetID.Asc()).All(t.Context())
+				historicalMust(t, err)
+				newGroups, err := members.MemberGroupsLinkObjects.Using(backend).Filter(members.MemberGroupsLinkFields.SourceID.Exact(key)).OrderBy(members.MemberGroupsLinkFields.TargetID.Asc()).All(t.Context())
+				historicalMust(t, err)
+				if len(oldGroups) != len(newGroups) {
+					t.Fatal("custom transition changed direct group membership")
+				}
+				for index, row := range oldGroups {
+					if row.TargetID != newGroups[index].TargetID {
+						t.Fatal("custom transition substituted another group")
+					}
+				}
+				oldPermissions, err := models.UserPermissionsLinkObjects.Using(backend).Filter(models.UserPermissionsLinkFields.SourceID.Exact(old.ID)).OrderBy(models.UserPermissionsLinkFields.TargetID.Asc()).All(t.Context())
+				historicalMust(t, err)
+				newPermissions, err := members.MemberPermissionsLinkObjects.Using(backend).Filter(members.MemberPermissionsLinkFields.SourceID.Exact(key)).OrderBy(members.MemberPermissionsLinkFields.TargetID.Asc()).All(t.Context())
+				historicalMust(t, err)
+				if len(oldPermissions) != len(newPermissions) {
+					t.Fatal("custom transition changed direct grants")
+				}
+				for index, row := range oldPermissions {
+					if row.TargetID != newPermissions[index].TargetID {
+						t.Fatal("custom transition substituted another direct grant")
+					}
+				}
+			}
+			ticket, err := host.TicketObjects.Using(backend).Filter(host.TicketFields.ID.Exact(first.ID)).Get(t.Context())
+			historicalMust(t, err)
+			if ticket.Title != "original work" || ticket.Revision != 2 || ticket.OwnerID == nil || *ticket.OwnerID != mapping[root.ID] || ticket.ReviewerID == nil || *ticket.ReviewerID != mapping[other.ID] || ticket.OldOwnerID == nil || *ticket.OldOwnerID != root.ID {
+				t.Fatal("host FK mapping lost native targets or original payload")
+			}
+			currentBadge, err := host.BadgeObjects.Using(backend).Filter(host.BadgeFields.ID.Exact(badge.ID)).Get(t.Context())
+			historicalMust(t, err)
+			if currentBadge.Name != badge.Name || currentBadge.UserID == nil || *currentBadge.UserID != mapping[root.ID] {
+				t.Fatal("OneToOne mapping lost the original badge")
+			}
+			assignments, err := host.AssignmentObjects.Using(backend).OrderBy(host.AssignmentFields.ID.Asc()).All(t.Context())
+			historicalMust(t, err)
+			if len(assignments) != 2 {
+				t.Fatal("business through inventory changed")
+			}
+			for index, row := range assignments {
+				if row.Note != fmt.Sprint("original assignment ", index) || row.Revision != 2 || row.OldUserID == nil || row.UserID == nil || *row.UserID != mapping[*row.OldUserID] || row.WorkspaceID == nil || *row.WorkspaceID != workspace.ID {
+					t.Fatal("business through mapping lost its row or payload")
+				}
+			}
+			targetVerifier, err := selected.NewAccountAuthenticator(t.Context(), backend, hasher)
+			historicalMust(t, err)
+			targetCredential, err := targetVerifier.Authenticate(t.Context(), "operator-member", accountPasswordText)
+			historicalMust(t, err)
+			if targetCredential.MatchesSessionStamp(current.SessionStamp()) || !slices.Equal(targetCredential.Principal().Permissions(), current.Principal().Permissions()) {
+				t.Fatal("custom model inherited a source stamp or lost current grants")
+			}
+			for _, id := range []sessions.ID{oldSession.ID(), selectedSession.ID()} {
+				if _, present, err := targetStore.Load(t.Context(), id); err != nil || present {
+					t.Fatal("earlier namespace session entered custom model", err)
+				}
+			}
+			migrateAccountDefinitions(t, backend, @@CONTRACTED@@)
+			reconnected, err := database.Open(t.Context(), selection)
+			historicalMust(t, err)
+			defer func() { historicalMust(t, reconnected.Close()) }()
+			finalStore, err := contractedproject.NewAccountSessionStore(reconnected, sessiondb.Config{})
+			historicalMust(t, err)
+			startup, err := finalStore.InspectStartup(t.Context())
+			historicalMust(t, err)
+			if !startup.Ready() || startup.Fresh() {
+				t.Fatal("custom schema restart lost initial origin or latest role")
+			}
+			finalTicket, err := contractedhost.TicketObjects.Using(reconnected).Filter(contractedhost.TicketFields.ID.Exact(first.ID)).Get(t.Context())
+			historicalMust(t, err)
+			if finalTicket.OwnerID == nil || *finalTicket.OwnerID != mapping[root.ID] || finalTicket.Title != ticket.Title || finalTicket.Revision != ticket.Revision {
+				t.Fatal("schema contraction lost remapped work")
+			}
+			for _, field := range []string{"old_owner_id", "old_reviewer_id"} {
+				rows, err := reconnected.Query(t.Context(), query.NewPlan("transition_ticket", []query.FieldRef{query.NewFieldRef(field, field, query.FieldInteger, true)}))
+				if err == nil {
+					_ = rows.Close()
+					t.Fatal("old physical FK column survived contraction")
+				}
+			}
+			fresh, err := contractedproject.NewAccountAuthenticator(t.Context(), reconnected, hasher)
+			historicalMust(t, err)
+			reopenedCredential, err := fresh.Authenticate(t.Context(), "operator-member", accountPasswordText)
+			historicalMust(t, err)
+			if !reopenedCredential.MatchesSessionStamp(targetCredential.SessionStamp()) {
+				t.Fatal("host schema contraction changed an unrelated account domain")
+			}
+			// A different current host graph still reads the original canonical origin;
+			// it does not reinterpret that historical record as current authority.
+			archiveOwner := historicalHandoffOwner(t, reconnected, true)
+			retained, present, err := archiveOwner.Reconcile(t.Context(), origin)
+			historicalMust(t, err)
+			if !present || retained.OperationID() != initial.OperationID() || !reflect.DeepEqual(archive, historicalArchive(t, reconnected)) {
+				t.Fatal("custom transition/restart rewrote the frozen historical archive")
+			}
+			credentials, err := contractedproject.NewAccountCredentialStore(reconnected)
+			historicalMust(t, err)
+			historicalMust(t, reconnected.ReadSnapshot(t.Context(), func(scope db.Queryer) error {
+				for _, stale := range []auth.Principal{oldCredential.Principal(), current.Principal()} {
+					actor, allowed, err := credentials.AuthorizeIn(t.Context(), scope, stale, auth.PrincipalAuthorizer{}, "work.view")
+					if err != nil {
+						return err
+					}
+					if allowed || actor.Authenticated() {
+						t.Fatal("historical actor gained current archive access from its coincident identity")
+					}
+				}
+				actor, allowed, err := credentials.AuthorizeIn(t.Context(), scope, reopenedCredential.Principal(), auth.PrincipalAuthorizer{}, "work.view")
+				if err != nil {
+					return err
+				}
+				if !allowed || actor.ID() != historicalActor {
+					t.Fatal("archive read lost current selected-domain authority")
+				}
+				entries, err := archiveOwner.AuditHistoryIn(t.Context(), scope, origin, "host.ticket", first.ID, 10)
+				if err == nil && (len(entries) != 1 || entries[0].DisplayLabel != "historical label") {
+					t.Fatal("historical display value was reattributed")
+				}
+				return err
+			}))
+		})
+	}
+}

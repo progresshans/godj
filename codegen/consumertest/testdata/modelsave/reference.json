@@ -1,0 +1,456 @@
+{
+  "architecture": "arm64",
+  "backend": "sqlite3",
+  "cases": [
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "new_save",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "has_key": true,
+        "ok": true,
+        "same_instance": true
+      },
+      "stored": [
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "new_repeat",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "has_key": true,
+        "ok": true,
+        "same_instance": true
+      },
+      "stored": [
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "new_deferred",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "has_key": true,
+        "ok": true,
+        "same_instance": true
+      },
+      "stored": [
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "server-edited"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "new_deferred_unsaved_m2m",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "has_key": true,
+        "ok": true,
+        "same_instance": true
+      },
+      "stored": [
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "server-edited"
+        }
+      ],
+      "unsaved_collections": {
+        "error": "ValueError",
+        "ok": false,
+        "query_count": 0
+      },
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "existing_replace",
+      "prepare": {
+        "has_key": true,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "has_key": true,
+        "ok": true,
+        "same_instance": true
+      },
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "c"
+          ],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [],
+      "errors": {},
+      "name": "existing_clear",
+      "prepare": {
+        "has_key": true,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "has_key": true,
+        "ok": true,
+        "same_instance": true
+      },
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [],
+          "reviewers": [],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [],
+      "errors": {},
+      "name": "existing_excluded",
+      "prepare": {
+        "has_key": true,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "has_key": true,
+        "ok": true,
+        "same_instance": true
+      },
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [],
+      "errors": {
+        "title": [
+          "required"
+        ]
+      },
+      "name": "invalid_scalar",
+      "prepare": {
+        "error": "ValueError",
+        "ok": false,
+        "query_count": 0
+      },
+      "save": {
+        "error": "ValueError",
+        "has_key": false,
+        "ok": false
+      },
+      "stored": [],
+      "unsaved_collections": null,
+      "valid": false
+    },
+    {
+      "collection_events": [],
+      "errors": {
+        "labels": [
+          "invalid_choice"
+        ]
+      },
+      "name": "invalid_choice",
+      "prepare": {
+        "error": "ValueError",
+        "ok": false,
+        "query_count": 0
+      },
+      "save": {
+        "error": "ValueError",
+        "has_key": false,
+        "ok": false
+      },
+      "stored": [],
+      "unsaved_collections": null,
+      "valid": false
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "new_collection_failure",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "error": "RuntimeError",
+        "has_key": true,
+        "ok": false
+      },
+      "stored": [
+        {
+          "hidden": "initial",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "new_collection_failure_atomic",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "error": "RuntimeError",
+        "has_key": true,
+        "ok": false
+      },
+      "stored": [],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "existing_collection_failure",
+      "prepare": {
+        "has_key": true,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "error": "RuntimeError",
+        "has_key": true,
+        "ok": false
+      },
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "b"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "existing_collection_failure_atomic",
+      "prepare": {
+        "has_key": true,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "error": "RuntimeError",
+        "has_key": true,
+        "ok": false
+      },
+      "stored": [
+        {
+          "hidden": "stored",
+          "labels": [
+            "a"
+          ],
+          "reviewers": [
+            "a"
+          ],
+          "title": "old"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels"
+      ],
+      "errors": {},
+      "name": "new_late_deleted_choice",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "error": "IntegrityError",
+        "has_key": true,
+        "ok": false
+      },
+      "stored": [
+        {
+          "hidden": "initial",
+          "labels": [],
+          "reviewers": [],
+          "title": "changed"
+        }
+      ],
+      "unsaved_collections": null,
+      "valid": true
+    },
+    {
+      "collection_events": [
+        "labels",
+        "reviewers"
+      ],
+      "errors": {},
+      "name": "new_late_deleted_choice_atomic",
+      "prepare": {
+        "has_key": false,
+        "ok": true,
+        "query_count": 0,
+        "same_instance": true
+      },
+      "save": {
+        "error": "IntegrityError",
+        "has_key": true,
+        "ok": false
+      },
+      "stored": [],
+      "unsaved_collections": null,
+      "valid": true
+    }
+  ],
+  "cleanup_empty": true,
+  "django": "6.1",
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "platform": "darwin",
+  "python": "3.14.3",
+  "scope": "native ModelForm scalar and selected collection save ordering, deferred save, partial failure and explicit atomic rollback",
+  "source_sha256": {
+    "form_models": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+    "model_base": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f",
+    "related_descriptors": "9b8ff28fb6c66b034b98b39e6242c720584d539851c8203db8363d069bf54d9c"
+  },
+  "sqlite_version": "3.50.4"
+}

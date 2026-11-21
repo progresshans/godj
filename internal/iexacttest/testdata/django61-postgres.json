@@ -1,0 +1,5739 @@
+{
+  "backend": "postgresql",
+  "collation": [
+    "C",
+    "C",
+    "c"
+  ],
+  "creation": [
+    {
+      "accepted": false,
+      "codes": [
+        "unique"
+      ],
+      "stored": "member",
+      "username": null
+    },
+    {
+      "accepted": false,
+      "codes": [
+        "unique"
+      ],
+      "stored": "member",
+      "username": null
+    },
+    {
+      "accepted": false,
+      "codes": [
+        "unique"
+      ],
+      "stored": "member",
+      "username": null
+    },
+    {
+      "accepted": true,
+      "codes": [],
+      "stored": "member",
+      "username": "member2"
+    },
+    {
+      "accepted": true,
+      "codes": [],
+      "stored": "fréd",
+      "username": "FRÉD"
+    },
+    {
+      "accepted": true,
+      "codes": [],
+      "stored": "Straße",
+      "username": "STRASSE"
+    },
+    {
+      "accepted": true,
+      "codes": [],
+      "stored": "σ",
+      "username": "ς"
+    },
+    {
+      "accepted": true,
+      "codes": [],
+      "stored": "i",
+      "username": "İ"
+    },
+    {
+      "accepted": true,
+      "codes": [],
+      "stored": "I",
+      "username": "ı"
+    },
+    {
+      "accepted": false,
+      "codes": [
+        "unique"
+      ],
+      "stored": "é",
+      "username": null
+    },
+    {
+      "accepted": false,
+      "codes": [
+        "unique"
+      ],
+      "stored": "Fred",
+      "username": null
+    }
+  ],
+  "database_version": "170010",
+  "django": "6.1",
+  "input_sha256": "f278b3239d2c0865cea886a2bf715dccb0f4312b963fb0eda70892af0a4010a9",
+  "python": "3.14.3",
+  "queries": [
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "title_00_filter",
+      "params": [
+        ""
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_00_exclude",
+      "params": [
+        ""
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "name": "title_01_filter",
+      "params": [
+        "Alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_01_exclude",
+      "params": [
+        "Alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "name": "title_02_filter",
+      "params": [
+        "ALPHA"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_02_exclude",
+      "params": [
+        "ALPHA"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "name": "title_03_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_03_exclude",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        5
+      ],
+      "name": "title_04_filter",
+      "params": [
+        "alphabet"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_04_exclude",
+      "params": [
+        "alphabet"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        6
+      ],
+      "name": "title_05_filter",
+      "params": [
+        " alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_05_exclude",
+      "params": [
+        " alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        7
+      ],
+      "name": "title_06_filter",
+      "params": [
+        "alpha "
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_06_exclude",
+      "params": [
+        "alpha "
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        8
+      ],
+      "name": "title_07_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_07_exclude",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        9
+      ],
+      "name": "title_08_filter",
+      "params": [
+        "AxxxB"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_08_exclude",
+      "params": [
+        "AxxxB"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        10
+      ],
+      "name": "title_09_filter",
+      "params": [
+        "%"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_09_exclude",
+      "params": [
+        "%"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        11
+      ],
+      "name": "title_10_filter",
+      "params": [
+        "_"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_10_exclude",
+      "params": [
+        "_"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        12
+      ],
+      "name": "title_11_filter",
+      "params": [
+        "\\"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_11_exclude",
+      "params": [
+        "\\"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        13,
+        14
+      ],
+      "name": "title_12_filter",
+      "params": [
+        "O'Reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_12_exclude",
+      "params": [
+        "O'Reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        13,
+        14
+      ],
+      "name": "title_13_filter",
+      "params": [
+        "o'reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_13_exclude",
+      "params": [
+        "o'reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        15
+      ],
+      "name": "title_14_filter",
+      "params": [
+        "élan"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_14_exclude",
+      "params": [
+        "élan"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        16
+      ],
+      "name": "title_15_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_15_exclude",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        17
+      ],
+      "name": "title_16_filter",
+      "params": [
+        "straße"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_16_exclude",
+      "params": [
+        "straße"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        18
+      ],
+      "name": "title_17_filter",
+      "params": [
+        "STRASSE"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_17_exclude",
+      "params": [
+        "STRASSE"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        19
+      ],
+      "name": "title_18_filter",
+      "params": [
+        "σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_18_exclude",
+      "params": [
+        "σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        20
+      ],
+      "name": "title_19_filter",
+      "params": [
+        "ς"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_19_exclude",
+      "params": [
+        "ς"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        21
+      ],
+      "name": "title_20_filter",
+      "params": [
+        "Σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_20_exclude",
+      "params": [
+        "Σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        22,
+        25
+      ],
+      "name": "title_21_filter",
+      "params": [
+        "I"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_21_exclude",
+      "params": [
+        "I"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        23
+      ],
+      "name": "title_22_filter",
+      "params": [
+        "ı"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_22_exclude",
+      "params": [
+        "ı"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        24
+      ],
+      "name": "title_23_filter",
+      "params": [
+        "İ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_23_exclude",
+      "params": [
+        "İ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        22,
+        25
+      ],
+      "name": "title_24_filter",
+      "params": [
+        "i"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_24_exclude",
+      "params": [
+        "i"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        26
+      ],
+      "name": "title_25_filter",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_25_exclude",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        27
+      ],
+      "name": "title_26_filter",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_26_exclude",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        28
+      ],
+      "name": "title_27_filter",
+      "params": [
+        "Ｆｒｅｄ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "title_27_exclude",
+      "params": [
+        "Ｆｒｅｄ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        29
+      ],
+      "name": "title_28_filter",
+      "params": [
+        "Fred"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        32
+      ],
+      "name": "title_28_exclude",
+      "params": [
+        "Fred"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        30
+      ],
+      "name": "title_29_filter",
+      "params": [
+        "1.2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        32
+      ],
+      "name": "title_29_exclude",
+      "params": [
+        "1.2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        31
+      ],
+      "name": "title_30_filter",
+      "params": [
+        "1_2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        32
+      ],
+      "name": "title_30_exclude",
+      "params": [
+        "1_2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        32
+      ],
+      "name": "title_31_filter",
+      "params": [
+        "a\nb"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "name": "title_31_exclude",
+      "params": [
+        "a\nb"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"title\"::text) = UPPER(%s)) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "summary_00_filter",
+      "params": [
+        ""
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_00_exclude",
+      "params": [
+        ""
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "name": "summary_01_filter",
+      "params": [
+        "Alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_01_exclude",
+      "params": [
+        "Alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "name": "summary_02_filter",
+      "params": [
+        "ALPHA"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_02_exclude",
+      "params": [
+        "ALPHA"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4
+      ],
+      "name": "summary_03_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_03_exclude",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        5
+      ],
+      "name": "summary_04_filter",
+      "params": [
+        "alphabet"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_04_exclude",
+      "params": [
+        "alphabet"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "summary_05_filter",
+      "params": [
+        " alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_05_exclude",
+      "params": [
+        " alpha"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        7
+      ],
+      "name": "summary_06_filter",
+      "params": [
+        "alpha "
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_06_exclude",
+      "params": [
+        "alpha "
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        8
+      ],
+      "name": "summary_07_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_07_exclude",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        9
+      ],
+      "name": "summary_08_filter",
+      "params": [
+        "AxxxB"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_08_exclude",
+      "params": [
+        "AxxxB"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        10
+      ],
+      "name": "summary_09_filter",
+      "params": [
+        "%"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_09_exclude",
+      "params": [
+        "%"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "summary_10_filter",
+      "params": [
+        "_"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_10_exclude",
+      "params": [
+        "_"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        12
+      ],
+      "name": "summary_11_filter",
+      "params": [
+        "\\"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_11_exclude",
+      "params": [
+        "\\"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        13,
+        14
+      ],
+      "name": "summary_12_filter",
+      "params": [
+        "O'Reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_12_exclude",
+      "params": [
+        "O'Reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        13,
+        14
+      ],
+      "name": "summary_13_filter",
+      "params": [
+        "o'reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_13_exclude",
+      "params": [
+        "o'reilly"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        15
+      ],
+      "name": "summary_14_filter",
+      "params": [
+        "élan"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_14_exclude",
+      "params": [
+        "élan"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "summary_15_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_15_exclude",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        17
+      ],
+      "name": "summary_16_filter",
+      "params": [
+        "straße"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_16_exclude",
+      "params": [
+        "straße"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        18
+      ],
+      "name": "summary_17_filter",
+      "params": [
+        "STRASSE"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_17_exclude",
+      "params": [
+        "STRASSE"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        19
+      ],
+      "name": "summary_18_filter",
+      "params": [
+        "σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_18_exclude",
+      "params": [
+        "σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        20
+      ],
+      "name": "summary_19_filter",
+      "params": [
+        "ς"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_19_exclude",
+      "params": [
+        "ς"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "summary_20_filter",
+      "params": [
+        "Σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_20_exclude",
+      "params": [
+        "Σ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        22,
+        25
+      ],
+      "name": "summary_21_filter",
+      "params": [
+        "I"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_21_exclude",
+      "params": [
+        "I"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        23
+      ],
+      "name": "summary_22_filter",
+      "params": [
+        "ı"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_22_exclude",
+      "params": [
+        "ı"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        24
+      ],
+      "name": "summary_23_filter",
+      "params": [
+        "İ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_23_exclude",
+      "params": [
+        "İ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        22,
+        25
+      ],
+      "name": "summary_24_filter",
+      "params": [
+        "i"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        23,
+        24,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_24_exclude",
+      "params": [
+        "i"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "summary_25_filter",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_25_exclude",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        27
+      ],
+      "name": "summary_26_filter",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_26_exclude",
+      "params": [
+        "é"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        28
+      ],
+      "name": "summary_27_filter",
+      "params": [
+        "Ｆｒｅｄ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_27_exclude",
+      "params": [
+        "Ｆｒｅｄ"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        29
+      ],
+      "name": "summary_28_filter",
+      "params": [
+        "Fred"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_28_exclude",
+      "params": [
+        "Fred"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        30
+      ],
+      "name": "summary_29_filter",
+      "params": [
+        "1.2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        31,
+        32
+      ],
+      "name": "summary_29_exclude",
+      "params": [
+        "1.2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "summary_30_filter",
+      "params": [
+        "1_2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "summary_30_exclude",
+      "params": [
+        "1_2"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        32
+      ],
+      "name": "summary_31_filter",
+      "params": [
+        "a\nb"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "name": "summary_31_exclude",
+      "params": [
+        "a\nb"
+      ],
+      "sql": "SELECT \"godj_conformance_article\".\"id\", \"godj_conformance_article\".\"title\", \"godj_conformance_article\".\"published\", \"godj_conformance_article\".\"summary\" FROM \"godj_conformance_article\" WHERE NOT (UPPER(\"godj_conformance_article\".\"summary\"::text) = UPPER(%s) AND \"godj_conformance_article\".\"summary\" IS NOT NULL) ORDER BY \"godj_conformance_article\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        4,
+        5,
+        10
+      ],
+      "name": "post_title_0_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 7,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        6,
+        7,
+        8,
+        9
+      ],
+      "name": "post_title_0_exclude",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE NOT (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s)) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        1,
+        4,
+        5,
+        10
+      ],
+      "name": "post_title_0_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 6,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        6,
+        7,
+        8,
+        9
+      ],
+      "name": "post_title_0_not_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE NOT (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        4,
+        5,
+        10
+      ],
+      "name": "post_title_0_double_not",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "post_title_1_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 10,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_title_1_exclude",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE NOT (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s)) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "post_title_1_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 9,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_title_1_not_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE NOT (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "post_title_1_double_not",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "post_title_2_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 10,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_title_2_exclude",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE NOT (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s)) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "post_title_2_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 9,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_title_2_not_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE NOT (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "post_title_2_double_not",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        1,
+        3,
+        4,
+        5,
+        10
+      ],
+      "name": "post_author__name_0_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        2,
+        6,
+        7,
+        8,
+        9
+      ],
+      "name": "post_author__name_0_exclude",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s)) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        1,
+        3,
+        4,
+        5,
+        10
+      ],
+      "name": "post_author__name_0_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        2,
+        6,
+        7,
+        8,
+        9
+      ],
+      "name": "post_author__name_0_not_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        1,
+        3,
+        4,
+        5,
+        10
+      ],
+      "name": "post_author__name_0_double_not",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        7,
+        8
+      ],
+      "name": "post_author__name_1_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 8,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        9,
+        10
+      ],
+      "name": "post_author__name_1_exclude",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s)) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        1,
+        7,
+        8
+      ],
+      "name": "post_author__name_1_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 7,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        9,
+        10
+      ],
+      "name": "post_author__name_1_not_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        7,
+        8
+      ],
+      "name": "post_author__name_1_double_not",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "post_author__name_2_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 10,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_author__name_2_exclude",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s)) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "post_author__name_2_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 9,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_author__name_2_not_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "post_author__name_2_double_not",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"author_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        3,
+        4,
+        7,
+        10
+      ],
+      "name": "post_reviewer__name_0_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 6,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        5,
+        6,
+        8,
+        9
+      ],
+      "name": "post_reviewer__name_0_exclude",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) AND \"authors_author\".\"name\" IS NOT NULL) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        1,
+        3,
+        4,
+        7,
+        10
+      ],
+      "name": "post_reviewer__name_0_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        2,
+        5,
+        6,
+        8,
+        9
+      ],
+      "name": "post_reviewer__name_0_not_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE NOT ((UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) AND \"authors_author\".\"name\" IS NOT NULL) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        3,
+        4,
+        7,
+        10
+      ],
+      "name": "post_reviewer__name_0_double_not",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        6
+      ],
+      "name": "post_reviewer__name_1_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 9,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_reviewer__name_1_exclude",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) AND \"authors_author\".\"name\" IS NOT NULL) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        1,
+        6
+      ],
+      "name": "post_reviewer__name_1_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 8,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        7,
+        8,
+        9,
+        10
+      ],
+      "name": "post_reviewer__name_1_not_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE NOT ((UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) AND \"authors_author\".\"name\" IS NOT NULL) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        6
+      ],
+      "name": "post_reviewer__name_1_double_not",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        8
+      ],
+      "name": "post_reviewer__name_2_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 9,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10
+      ],
+      "name": "post_reviewer__name_2_exclude",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE NOT (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) AND \"authors_author\".\"name\" IS NOT NULL) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        1,
+        8
+      ],
+      "name": "post_reviewer__name_2_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE (UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 8,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10
+      ],
+      "name": "post_reviewer__name_2_not_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" LEFT OUTER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE NOT ((UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) AND \"authors_author\".\"name\" IS NOT NULL) OR \"blog_post\".\"id\" = %s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        8
+      ],
+      "name": "post_reviewer__name_2_double_not",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"blog_post\".\"id\", \"blog_post\".\"title\", \"blog_post\".\"author_id\", \"blog_post\".\"reviewer_id\" FROM \"blog_post\" INNER JOIN \"authors_author\" ON (\"blog_post\".\"reviewer_id\" = \"authors_author\".\"id\") WHERE UPPER(\"authors_author\".\"name\"::text) = UPPER(%s) ORDER BY \"blog_post\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        2,
+        3
+      ],
+      "name": "author_posts__title_0_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__title_0_exclude",
+      "params": [
+        1,
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        2,
+        3
+      ],
+      "name": "author_posts__title_0_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__title_0_not_or_id1",
+      "params": [
+        1,
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        2,
+        3
+      ],
+      "name": "author_posts__title_0_double_not",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_posts__title_1_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__title_1_exclude",
+      "params": [
+        1,
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "author_posts__title_1_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__title_1_not_or_id1",
+      "params": [
+        1,
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_posts__title_1_double_not",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_posts__title_2_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__title_2_exclude",
+      "params": [
+        1,
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "author_posts__title_2_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__title_2_not_or_id1",
+      "params": [
+        1,
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_posts__title_2_double_not",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        2,
+        2,
+        3,
+        16
+      ],
+      "name": "author_posts__reviewer__name_0_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__reviewer__name_0_exclude",
+      "params": [
+        1,
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"reviewer_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        2,
+        3,
+        16
+      ],
+      "name": "author_posts__reviewer__name_0_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") LEFT OUTER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE (UPPER(\"T3\".\"name\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 28,
+      "exists": true,
+      "ids": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__reviewer__name_0_not_or_id1",
+      "params": [
+        1,
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"reviewer_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        2,
+        2,
+        3,
+        16
+      ],
+      "name": "author_posts__reviewer__name_0_double_not",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        15
+      ],
+      "name": "author_posts__reviewer__name_1_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__reviewer__name_1_exclude",
+      "params": [
+        1,
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"reviewer_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        1,
+        15
+      ],
+      "name": "author_posts__reviewer__name_1_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") LEFT OUTER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE (UPPER(\"T3\".\"name\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__reviewer__name_1_not_or_id1",
+      "params": [
+        1,
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"reviewer_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        15
+      ],
+      "name": "author_posts__reviewer__name_1_double_not",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        16
+      ],
+      "name": "author_posts__reviewer__name_2_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__reviewer__name_2_exclude",
+      "params": [
+        1,
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"reviewer_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        1,
+        16
+      ],
+      "name": "author_posts__reviewer__name_2_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") LEFT OUTER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE (UPPER(\"T3\".\"name\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_posts__reviewer__name_2_not_or_id1",
+      "params": [
+        1,
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"reviewer_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"author_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        16
+      ],
+      "name": "author_posts__reviewer__name_2_double_not",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"author_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"reviewer_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        15
+      ],
+      "name": "author_reviewed_posts__title_0_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__title_0_exclude",
+      "params": [
+        1,
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        15
+      ],
+      "name": "author_reviewed_posts__title_0_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 28,
+      "exists": true,
+      "ids": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__title_0_not_or_id1",
+      "params": [
+        1,
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        15
+      ],
+      "name": "author_reviewed_posts__title_0_double_not",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_reviewed_posts__title_1_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__title_1_exclude",
+      "params": [
+        1,
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "author_reviewed_posts__title_1_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__title_1_not_or_id1",
+      "params": [
+        1,
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_reviewed_posts__title_1_double_not",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_reviewed_posts__title_2_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__title_2_exclude",
+      "params": [
+        1,
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "author_reviewed_posts__title_2_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE (UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__title_2_not_or_id1",
+      "params": [
+        1,
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" WHERE (UPPER(\"U1\".\"title\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_reviewed_posts__title_2_double_not",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") WHERE UPPER(\"blog_post\".\"title\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        2,
+        2,
+        3,
+        15
+      ],
+      "name": "author_reviewed_posts__author__name_0_filter",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        1,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__author__name_0_exclude",
+      "params": [
+        1,
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"author_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 5,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        2,
+        3,
+        15
+      ],
+      "name": "author_reviewed_posts__author__name_0_or_id1",
+      "params": [
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") LEFT OUTER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE (UPPER(\"T3\".\"name\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 28,
+      "exists": true,
+      "ids": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__author__name_0_not_or_id1",
+      "params": [
+        1,
+        "alpha",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"author_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 4,
+      "exists": true,
+      "ids": [
+        2,
+        2,
+        3,
+        15
+      ],
+      "name": "author_reviewed_posts__author__name_0_double_not",
+      "params": [
+        "alpha"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        2,
+        8
+      ],
+      "name": "author_reviewed_posts__author__name_1_filter",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 30,
+      "exists": true,
+      "ids": [
+        1,
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__author__name_1_exclude",
+      "params": [
+        1,
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"author_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 3,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        8
+      ],
+      "name": "author_reviewed_posts__author__name_1_or_id1",
+      "params": [
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") LEFT OUTER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE (UPPER(\"T3\".\"name\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 29,
+      "exists": true,
+      "ids": [
+        3,
+        4,
+        5,
+        6,
+        7,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__author__name_1_not_or_id1",
+      "params": [
+        1,
+        "ÉLAN",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"author_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 2,
+      "exists": true,
+      "ids": [
+        2,
+        8
+      ],
+      "name": "author_reviewed_posts__author__name_1_double_not",
+      "params": [
+        "ÉLAN"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_reviewed_posts__author__name_2_filter",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 32,
+      "exists": true,
+      "ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__author__name_2_exclude",
+      "params": [
+        1,
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"author_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1)) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 1,
+      "exists": true,
+      "ids": [
+        1
+      ],
+      "name": "author_reviewed_posts__author__name_2_or_id1",
+      "params": [
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" LEFT OUTER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") LEFT OUTER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE (UPPER(\"T3\".\"name\"::text) = UPPER(%s) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 31,
+      "exists": true,
+      "ids": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "name": "author_reviewed_posts__author__name_2_not_or_id1",
+      "params": [
+        1,
+        "A%_\\B",
+        1
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" WHERE NOT (EXISTS(SELECT %s AS \"a\" FROM \"blog_post\" \"U1\" INNER JOIN \"authors_author\" \"U2\" ON (\"U1\".\"author_id\" = \"U2\".\"id\") WHERE (UPPER(\"U2\".\"name\"::text) = UPPER(%s) AND \"U1\".\"reviewer_id\" = (\"authors_author\".\"id\")) LIMIT 1) OR \"authors_author\".\"id\" = %s) ORDER BY \"authors_author\".\"id\" ASC"
+    },
+    {
+      "count": 0,
+      "exists": false,
+      "ids": [],
+      "name": "author_reviewed_posts__author__name_2_double_not",
+      "params": [
+        "A%_\\B"
+      ],
+      "sql": "SELECT \"authors_author\".\"id\", \"authors_author\".\"name\" FROM \"authors_author\" INNER JOIN \"blog_post\" ON (\"authors_author\".\"id\" = \"blog_post\".\"reviewer_id\") INNER JOIN \"authors_author\" \"T3\" ON (\"blog_post\".\"author_id\" = \"T3\".\"id\") WHERE UPPER(\"T3\".\"name\"::text) = UPPER(%s) ORDER BY \"authors_author\".\"id\" ASC"
+    }
+  ],
+  "source_sha256": {
+    "auth_forms": "6c572868521f2b8023f3d5da86cc0d7f75974447f277b37eef7e17108453df25",
+    "lookups": "9dfcbe99d086a154f2363c6d6332de88adc84d5b850a36b722e612174a15d713",
+    "operations": "49cde1854e7cee24f376fff3b2647c8ff315b854e96224241154ec167cb345ef"
+  }
+}

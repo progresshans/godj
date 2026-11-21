@@ -1,0 +1,37 @@
+{
+  "format_version": 2,
+  "profile_id": "django-6.1-sqlite-darwin-arm64",
+  "decision": "DEV-0005",
+  "contracts": [
+    {
+      "id": "ADM-002",
+      "changes": [
+        {
+          "dimension": "result",
+          "path": "actions",
+          "operation": "replace",
+          "reference": {
+            "type": "list",
+            "items": [
+              {"type": "string", "value": "delete_selected"},
+              {"type": "string", "value": "publish_selected"}
+            ]
+          },
+          "product": {
+            "type": "list",
+            "items": [
+              {"type": "string", "value": "publish"}
+            ]
+          }
+        },
+        {
+          "dimension": "metrics",
+          "path": "registered_models",
+          "operation": "replace",
+          "reference": {"type": "int", "value": "3"},
+          "product": {"type": "int", "value": "1"}
+        }
+      ]
+    }
+  ]
+}

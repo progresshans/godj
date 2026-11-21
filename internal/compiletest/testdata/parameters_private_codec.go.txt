@@ -1,0 +1,5 @@
+package consumer
+
+import "github.com/progresshans/godj/api/parameters"
+
+var _ = parameters.Codec[int64]{decode: func(string) (int64, bool) { return 1, true }}

@@ -1,0 +1,1409 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "source_sha256": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+  "backend": "sqlite",
+  "storage_unchanged": true,
+  "cases": [
+    {
+      "name": "unbound",
+      "bound": false,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": false,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "stored-one",
+            "published": true
+          },
+          "changed": null,
+          "errors": {},
+          "cleaned_title": null
+        },
+        {
+          "valid": false,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": null,
+            "published": false
+          },
+          "changed": null,
+          "errors": {},
+          "cleaned_title": null
+        },
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": null,
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": null,
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [],
+      "queries": 1
+    },
+    {
+      "name": "unchanged",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2
+      ],
+      "queries": 3
+    },
+    {
+      "name": "change_one",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "changed",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "changed",
+            "summary": "clean:changed",
+            "published": true
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {},
+          "cleaned_title": "changed"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [
+        {
+          "id": 1,
+          "title": "changed",
+          "summary": "clean:changed",
+          "published": true
+        }
+      ],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2
+      ],
+      "queries": 3
+    },
+    {
+      "name": "add_one",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two",
+        "items-2-id": "",
+        "items-2-title": "new"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "new",
+            "summary": "clean:new",
+            "published": false
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {},
+          "cleaned_title": "new"
+        }
+      ],
+      "errors": [],
+      "prepared": [
+        {
+          "id": null,
+          "title": "new",
+          "summary": "clean:new",
+          "published": false
+        }
+      ],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2,
+        null
+      ],
+      "queries": 3
+    },
+    {
+      "name": "reordered_identities",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "2",
+        "items-0-title": "two",
+        "items-1-id": "1",
+        "items-1-title": "changed"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "changed",
+            "summary": "clean:changed",
+            "published": true
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {},
+          "cleaned_title": "changed"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [
+        {
+          "id": 1,
+          "title": "changed",
+          "summary": "clean:changed",
+          "published": true
+        }
+      ],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        2,
+        1
+      ],
+      "queries": 3
+    },
+    {
+      "name": "invalid_title",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "too-long-title",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": false,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {
+            "title": [
+              "max_length"
+            ]
+          },
+          "cleaned_title": null
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": null,
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2
+      ],
+      "queries": 3
+    },
+    {
+      "name": "model_rejection",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "blocked",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": false,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": 1,
+            "title": "blocked",
+            "summary": "clean:blocked",
+            "published": true
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {
+            "title": [
+              "blocked_title"
+            ]
+          },
+          "cleaned_title": null
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": null,
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2
+      ],
+      "queries": 3
+    },
+    {
+      "name": "delete_invalid",
+      "bound": true,
+      "options": {
+        "can_delete": true
+      },
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "",
+        "items-0-DELETE": "on",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [
+            "title",
+            "DELETE"
+          ],
+          "errors": {
+            "title": [
+              "required"
+            ]
+          },
+          "cleaned_title": null
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [],
+      "deleted": [
+        1
+      ],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2
+      ],
+      "queries": 3
+    },
+    {
+      "name": "delete_extra",
+      "bound": true,
+      "options": {
+        "can_delete": true
+      },
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two",
+        "items-2-title": "",
+        "items-2-DELETE": "on"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": "clean:",
+            "published": false
+          },
+          "changed": [
+            "DELETE"
+          ],
+          "errors": {
+            "title": [
+              "required"
+            ]
+          },
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2,
+        null
+      ],
+      "queries": 3
+    },
+    {
+      "name": "ordered",
+      "bound": true,
+      "options": {
+        "can_order": true
+      },
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-0-ORDER": "2",
+        "items-1-id": "2",
+        "items-1-title": "two",
+        "items-1-ORDER": "1",
+        "items-2-title": "new",
+        "items-2-ORDER": "0"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [
+            "ORDER"
+          ],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [
+            "ORDER"
+          ],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "new",
+            "summary": "clean:new",
+            "published": false
+          },
+          "changed": [
+            "title",
+            "ORDER"
+          ],
+          "errors": {},
+          "cleaned_title": "new"
+        }
+      ],
+      "errors": [],
+      "prepared": [
+        {
+          "id": 1,
+          "title": "one",
+          "summary": "clean:one",
+          "published": true
+        },
+        {
+          "id": 2,
+          "title": "two",
+          "summary": "clean:two",
+          "published": false
+        },
+        {
+          "id": null,
+          "title": "new",
+          "summary": "clean:new",
+          "published": false
+        }
+      ],
+      "deleted": [],
+      "ordered": [
+        2,
+        1,
+        0
+      ],
+      "clean_calls": [
+        1,
+        2,
+        null
+      ],
+      "queries": 3
+    },
+    {
+      "name": "missing_identity",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": false,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "one",
+            "summary": "clean:one",
+            "published": false
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {
+            "id": [
+              "required"
+            ]
+          },
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": null,
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        null,
+        2
+      ],
+      "queries": 2
+    },
+    {
+      "name": "invalid_identity",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "bad",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": false,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "one",
+            "summary": "clean:one",
+            "published": false
+          },
+          "changed": [
+            "title",
+            "id"
+          ],
+          "errors": {
+            "id": [
+              "invalid_choice"
+            ]
+          },
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": null,
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        null,
+        2
+      ],
+      "queries": 2
+    },
+    {
+      "name": "outside_identity",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "3",
+        "items-0-title": "changed",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "changed",
+            "summary": "clean:changed",
+            "published": false
+          },
+          "changed": [
+            "title",
+            "id"
+          ],
+          "errors": {},
+          "cleaned_title": "changed"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        null,
+        2
+      ],
+      "queries": 3
+    },
+    {
+      "name": "duplicate_identity",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "1",
+        "items-1-title": "changed"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "changed",
+            "summary": "clean:changed",
+            "published": true
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "changed",
+            "summary": "clean:changed",
+            "published": true
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {},
+          "cleaned_title": "changed"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [
+        {
+          "id": 1,
+          "title": "changed",
+          "summary": "clean:changed",
+          "published": true
+        }
+      ],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        1
+      ],
+      "queries": 3
+    },
+    {
+      "name": "extra_identity",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two",
+        "items-2-id": "1",
+        "items-2-title": "new"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "new",
+            "summary": "clean:new",
+            "published": false
+          },
+          "changed": [
+            "title",
+            "id"
+          ],
+          "errors": {},
+          "cleaned_title": "new"
+        }
+      ],
+      "errors": [],
+      "prepared": [
+        {
+          "id": null,
+          "title": "new",
+          "summary": "clean:new",
+          "published": false
+        }
+      ],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2,
+        null
+      ],
+      "queries": 4
+    },
+    {
+      "name": "empty_extra_identity",
+      "bound": true,
+      "options": {},
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two",
+        "items-2-id": "1"
+      },
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": "clean:",
+            "published": false
+          },
+          "changed": [
+            "id"
+          ],
+          "errors": {
+            "title": [
+              "required"
+            ]
+          },
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": null,
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2,
+        null
+      ],
+      "queries": 4
+    },
+    {
+      "name": "deleted_outside_identity",
+      "bound": true,
+      "options": {
+        "can_delete": true
+      },
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "3",
+        "items-0-title": "",
+        "items-0-DELETE": "on",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": "clean:",
+            "published": false
+          },
+          "changed": [
+            "id",
+            "DELETE"
+          ],
+          "errors": {
+            "title": [
+              "required"
+            ]
+          },
+          "cleaned_title": null
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        null,
+        2
+      ],
+      "queries": 3
+    },
+    {
+      "name": "deleted_missing_identity",
+      "bound": true,
+      "options": {
+        "can_delete": true
+      },
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-title": "",
+        "items-0-DELETE": "on",
+        "items-1-id": "2",
+        "items-1-title": "two"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": "clean:",
+            "published": false
+          },
+          "changed": [
+            "DELETE"
+          ],
+          "errors": {
+            "title": [
+              "required"
+            ],
+            "id": [
+              "required"
+            ]
+          },
+          "cleaned_title": null
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": null,
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        null,
+        2
+      ],
+      "queries": 2
+    },
+    {
+      "name": "deleted_extra_identity",
+      "bound": true,
+      "options": {
+        "can_delete": true
+      },
+      "data": {
+        "items-TOTAL_FORMS": "3",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-1-id": "2",
+        "items-1-title": "two",
+        "items-2-id": "1",
+        "items-2-DELETE": "on"
+      },
+      "valid": true,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": true,
+          "candidate": {
+            "id": 2,
+            "title": "two",
+            "summary": "clean:two",
+            "published": false
+          },
+          "changed": [],
+          "errors": {},
+          "cleaned_title": "two"
+        },
+        {
+          "valid": false,
+          "candidate": {
+            "id": null,
+            "title": "",
+            "summary": "clean:",
+            "published": false
+          },
+          "changed": [
+            "id",
+            "DELETE"
+          ],
+          "errors": {
+            "title": [
+              "required"
+            ]
+          },
+          "cleaned_title": null
+        }
+      ],
+      "errors": [],
+      "prepared": [],
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2,
+        null
+      ],
+      "queries": 4
+    },
+    {
+      "name": "model_errors_before_max",
+      "bound": true,
+      "options": {
+        "can_delete": true,
+        "max_num": 1,
+        "validate_max": true
+      },
+      "data": {
+        "items-TOTAL_FORMS": "2",
+        "items-INITIAL_FORMS": "2",
+        "items-0-id": "1",
+        "items-0-title": "one",
+        "items-0-DELETE": "on",
+        "items-1-id": "2",
+        "items-1-title": "blocked"
+      },
+      "valid": false,
+      "forms": [
+        {
+          "valid": true,
+          "candidate": {
+            "id": 1,
+            "title": "one",
+            "summary": "clean:one",
+            "published": true
+          },
+          "changed": [
+            "DELETE"
+          ],
+          "errors": {},
+          "cleaned_title": "one"
+        },
+        {
+          "valid": false,
+          "candidate": {
+            "id": 2,
+            "title": "blocked",
+            "summary": "clean:blocked",
+            "published": false
+          },
+          "changed": [
+            "title"
+          ],
+          "errors": {
+            "title": [
+              "blocked_title"
+            ]
+          },
+          "cleaned_title": null
+        }
+      ],
+      "errors": [
+        "too_many_forms"
+      ],
+      "prepared": null,
+      "deleted": [],
+      "ordered": null,
+      "clean_calls": [
+        1,
+        2
+      ],
+      "queries": 3
+    }
+  ]
+}

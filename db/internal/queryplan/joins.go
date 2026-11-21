@@ -1,0 +1,532 @@
+package queryplan
+
+import (
+	"fmt"
+	"maps"
+	"slices"
+
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+)
+
+// Join contains unquoted SQL-independent names. Compilers own qualification,
+// quoting, placeholders and the final SQL text.
+type Join struct {
+	Table, FromAlias, FromColumn, Column, Alias string
+	LeftOuter                                   bool
+}
+
+type Joins struct {
+	Keys        []RelationKey
+	ByKey       map[RelationKey]Join
+	ResultByKey map[RelationKey]Join
+	Exists      map[int]CollectionExists
+	Annotations map[query.AnnotationRef]map[RelationKey]Join
+}
+
+// PrepareJoins validates the private occurrence graph and declaration inventory.
+// Every compilation owns its maps; aliases and parent joins are deterministic.
+func PrepareJoins(plan query.Plan, backendName string) (Joins, error) {
+	type edge struct {
+		hop       query.RelationHop
+		parent    RelationKey
+		hasParent bool
+		filter    bool
+	}
+	edges := make(map[RelationKey]edge)
+	type declarationKey struct {
+		source ir.ModelIdentity
+		field  string
+	}
+	declarations := make(map[declarationKey]query.RelationHop)
+	tables := make(map[ir.ModelIdentity]string)
+	primaryKeys := make(map[ir.ModelIdentity]string)
+	var root ir.ModelIdentity
+	anchor := func(identity ir.ModelIdentity) error {
+		if root == (ir.ModelIdentity{}) {
+			root = identity
+			tables[root] = plan.Table()
+		} else if root != identity {
+			return invalidPlan("relation routes do not share one logical root")
+		}
+		return nil
+	}
+	declare := func(hop query.RelationHop) error {
+		for _, model := range []struct {
+			identity ir.ModelIdentity
+			table    string
+		}{{hop.Source(), hop.SourceTable()}, {hop.Target(), hop.TargetTable()}} {
+			if previous, exists := tables[model.identity]; exists && previous != model.table {
+				return invalidPlan("one relation model has conflicting table metadata")
+			}
+			tables[model.identity] = model.table
+		}
+		if previous, exists := primaryKeys[hop.Target()]; exists && previous != hop.TargetPrimaryKeyColumn() {
+			return invalidPlan("one relation target has conflicting primary key metadata")
+		}
+		primaryKeys[hop.Target()] = hop.TargetPrimaryKeyColumn()
+		if hop.Source() == root && !ContainsField(plan.SourceFields(), query.NewFieldRef(hop.Field(), hop.SourceColumn(), query.FieldInteger, hop.Nullable())) {
+			return invalidPlan("root-owned relation source key disagrees with selected model metadata")
+		}
+		key := declarationKey{hop.Source(), hop.Field()}
+		if previous, exists := declarations[key]; exists && !sameForeignKeyDeclaration(previous, hop) {
+			return invalidPlan("source-key provenance conflicts across projection and filter routes")
+		}
+		declarations[key] = hop
+		return nil
+	}
+	addPath := func(path query.RelationPath, filter, materialize bool) error {
+		if err := path.Validate(); err != nil {
+			return err
+		}
+		hops := path.Hops()
+		identity := hops[0].Source()
+		if hops[0].Direction() == query.RelationReverse {
+			identity = hops[0].Target()
+		}
+		if err := anchor(identity); err != nil {
+			return err
+		}
+		if keys := path.PrimaryKeys(); len(keys) != 0 {
+			for index, key := range keys {
+				model := identity
+				if index > 0 {
+					model, _ = hops[index-1].To()
+				}
+				if previous, exists := primaryKeys[model]; exists && previous != key.Column() {
+					return invalidPlan("one relation model has conflicting primary key metadata")
+				}
+				primaryKeys[model] = key.Column()
+			}
+		}
+		materialized := len(hops)
+		if path.TerminalScope() == query.RelationTerminalSourceKey {
+			materialized--
+		}
+		for index, hop := range hops {
+			if err := declare(hop); err != nil {
+				return err
+			}
+			if !materialize || index >= materialized {
+				continue
+			}
+			key := KeyForPath(hops[:index+1])
+			if previous, exists := edges[key]; exists && !previous.hop.Equal(hop) {
+				return invalidPlan("one relation route has conflicting hop metadata")
+			}
+			item := edge{hop: hop, hasParent: index > 0, filter: filter || edges[key].filter}
+			if index > 0 {
+				item.parent = KeyForPath(hops[:index])
+			}
+			edges[key] = item
+		}
+		return nil
+	}
+	// Result expressions retain their unbound identity for HAVING and selected
+	// result stages. Only this compilation maps an aggregate to the latest
+	// materialized occurrence of its first collection. Descendants use that
+	// same occurrence; another filter's similarly named child is not reusable.
+	resultKeys := make(map[RelationKey]RelationKey)
+	addAggregatePath := func(path query.RelationPath, limit uint32, bindings map[RelationKey]RelationKey) error {
+		hops := path.Hops()
+		var scope uint32
+		for index, hop := range hops {
+			if hop.Cardinality().SingleValued() {
+				continue
+			}
+			key := KeyForPath(hops[:index+1])
+			key.FilterScope = 0
+			for candidate := range edges {
+				unbound := candidate
+				unbound.FilterScope = 0
+				if unbound == key && candidate.FilterScope < limit && candidate.FilterScope > scope {
+					scope = candidate.FilterScope
+				}
+			}
+			break
+		}
+		bound, err := path.WithCollectionFilterScope(scope)
+		if err != nil {
+			return err
+		}
+		if err := addPath(bound, false, true); err != nil {
+			return err
+		}
+		boundHops := bound.Hops()
+		materialized := len(hops)
+		if path.TerminalScope() == query.RelationTerminalSourceKey {
+			materialized--
+		}
+		for index := 0; index < materialized; index++ {
+			key, resolved := KeyForPath(hops[:index+1]), KeyForPath(boundHops[:index+1])
+			if previous, present := bindings[key]; present && previous != resolved {
+				return invalidPlan("aggregate route resolved to conflicting occurrences")
+			}
+			bindings[key] = resolved
+		}
+		return nil
+	}
+	addScalarFor := func(value query.ScalarExpression, aggregate bool, source query.Plan, bindings map[RelationKey]RelationKey) error {
+		validate := source.ValidateScalar
+		if aggregate {
+			validate = source.ValidateAggregateScalar
+		}
+		if err := validate(value); err != nil {
+			return err
+		}
+		for _, path := range value.RelationPaths() {
+			// A value or CASE branch does not prove that an optional row exists.
+			var err error
+			if aggregate {
+				err = addAggregatePath(path, source.CollectionFilterLimit(), bindings)
+			} else {
+				err = addPath(path, false, true)
+			}
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	addScalar := func(value query.ScalarExpression, aggregate bool) error {
+		return addScalarFor(value, aggregate, plan, resultKeys)
+	}
+	addComputedCondition := func(condition query.Condition, aggregate bool) error {
+		left, _ := condition.Scalar()
+		right, _ := condition.RHSScalar()
+		for _, value := range []query.ScalarExpression{left, right} {
+			if value.Kind() != 0 {
+				if err := addScalar(value, aggregate); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	type existenceRequest struct {
+		condition        query.Condition
+		correlationDepth int
+	}
+	existences := make(map[int]existenceRequest)
+	for index, leaf := range conditionLeaves(plan) {
+		condition := leaf.condition
+		if err := addComputedCondition(condition, false); err != nil {
+			return Joins{}, err
+		}
+		if path, related := condition.RelationPath(); related {
+			if err := RelationCondition(plan, condition, path, backendName); err != nil {
+				return Joins{}, err
+			}
+			exists := leaf.negated && !path.SingleValued()
+			if err := addPath(path, true, !exists); err != nil {
+				return Joins{}, err
+			}
+			if exists {
+				if len(path.PrimaryKeys()) == 0 {
+					return Joins{}, invalidPlan("collection negation requires explicit model row identities")
+				}
+				depth := 0
+				for i, hop := range path.Hops() {
+					if !hop.Cardinality().SingleValued() {
+						if _, reusable := edges[KeyForPath(path.Hops()[:i+1])]; reusable {
+							depth = i + 1
+						}
+						break
+					}
+				}
+				existences[index] = existenceRequest{condition: condition, correlationDepth: depth}
+			}
+		}
+	}
+	for _, projection := range plan.RelationProjections() {
+		if _, err := RelationProjection(plan, projection, backendName); err != nil {
+			return Joins{}, err
+		}
+		if err := addPath(projection.Path(), false, true); err != nil {
+			return Joins{}, err
+		}
+	}
+	addResult := func(expression query.ResultExpression, source query.Plan, bindings map[RelationKey]RelationKey) error {
+		if scalar, present := expression.Scalar(); present {
+			if err := addScalarFor(scalar, expression.IsAggregateCall(), source, bindings); err != nil {
+				return err
+			}
+		}
+		if path, related := expression.RelationPath(); related {
+			var err error
+			if expression.IsAggregateCall() {
+				err = addAggregatePath(path, source.CollectionFilterLimit(), bindings)
+			} else {
+				err = addPath(path, false, true)
+			}
+			if err != nil {
+				return err
+			}
+		}
+		if filter, present := expression.Filter(); present {
+			var visit func(query.Expression) error
+			visit = func(value query.Expression) error {
+				if condition, leaf := value.Condition(); leaf {
+					left, _ := condition.Scalar()
+					right, _ := condition.RHSScalar()
+					for _, scalar := range []query.ScalarExpression{left, right} {
+						if scalar.Kind() != 0 {
+							if err := addScalarFor(scalar, true, source, bindings); err != nil {
+								return err
+							}
+						}
+					}
+					if path, related := condition.RelationPath(); related {
+						if err := RelationCondition(source, condition, path, backendName); err != nil {
+							return err
+						}
+						// FILTER must preserve rows that do not match it.
+						return addAggregatePath(path, source.CollectionFilterLimit(), bindings)
+					}
+				}
+				for _, child := range value.Children() {
+					if err := visit(child); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+			return visit(filter)
+		}
+		return nil
+	}
+	annotationKeys := make(map[query.AnnotationRef]map[RelationKey]RelationKey)
+	for _, ref := range plan.AnnotationBindings() {
+		value, _ := ref.Expression()
+		source, _ := ref.Source()
+		bindings := make(map[RelationKey]RelationKey)
+		if err := addResult(value, source, bindings); err != nil {
+			return Joins{}, err
+		}
+		annotationKeys[ref] = bindings
+	}
+	for _, expression := range plan.ResultShape().Expressions() {
+		if err := addResult(expression, plan, resultKeys); err != nil {
+			return Joins{}, err
+		}
+	}
+	if keys, grouped := plan.AnnotationGroupKeys(); grouped {
+		for _, key := range keys {
+			if err := addResult(key, plan, resultKeys); err != nil {
+				return Joins{}, err
+			}
+		}
+	}
+	for _, ordering := range plan.Orderings() {
+		if scalar, present := ordering.Expression().Scalar(); present {
+			if err := addScalar(scalar, false); err != nil {
+				return Joins{}, err
+			}
+		}
+		if path, related := ordering.Expression().RelationPath(); related {
+			if err := addPath(path, false, true); err != nil {
+				return Joins{}, err
+			}
+		}
+	}
+	if err := plan.ValidateRowLock(); err != nil {
+		return Joins{}, err
+	}
+	if lock, present := plan.RowLock(); present {
+		for _, target := range lock.Targets() {
+			if path, related := target.RelationPath(); related {
+				if err := addPath(path, false, false); err != nil {
+					return Joins{}, err
+				}
+			}
+			hops := target.Hops()
+			for index, hop := range hops {
+				edge, found := edges[KeyForPath(hops[:index+1])]
+				if !found || !edge.hop.Equal(hop) {
+					return Joins{}, invalidPlan("row lock target is not the canonical materialized relation occurrence")
+				}
+			}
+		}
+	}
+	keys := make([]RelationKey, 0, len(edges))
+	for key := range edges {
+		keys = append(keys, key)
+	}
+	slices.SortFunc(keys, CompareRelationKey)
+	required := map[RelationKey]bool(nil)
+	if where, ok := plan.Where(); ok {
+		required = requiredJoins(where, false)
+	}
+	joins := make(map[RelationKey]Join, len(keys))
+	// Track declared optional ancestry separately from the final join type.
+	// OR can require a shared parent while each child branch remains optional;
+	// demoting that parent must not erase the child's original outer semantics.
+	optionalRoutes := make(map[RelationKey]bool, len(keys))
+	for index, key := range keys {
+		item := edges[key]
+		hop := item.hop
+		fromAlias := "t0"
+		parentOuter := false
+		optional := hop.Optional()
+		if item.hasParent {
+			parent, found := joins[item.parent]
+			if !found {
+				return Joins{}, invalidPlan("relation parent route was not materialized")
+			}
+			fromAlias = parent.Alias
+			parentOuter = parent.LeftOuter
+			// Filter branches retain their declared optional ancestry under OR.
+			// A selection-only edge is introduced after filtering: a required
+			// child of a proven-present parent can use an INNER JOIN. The
+			// final parentOuter check still propagates an absent ancestor.
+			if item.filter {
+				optional = optional || optionalRoutes[item.parent]
+			}
+		}
+		optionalRoutes[key] = optional
+		joined := Join{Table: hop.TargetTable(), FromAlias: fromAlias, FromColumn: hop.SourceColumn(), Column: hop.TargetPrimaryKeyColumn(), Alias: fmt.Sprintf("t%d", index+1), LeftOuter: parentOuter || optional && !required[key]}
+		if hop.Direction() == query.RelationReverse {
+			joined.Table = hop.SourceTable()
+			joined.FromColumn = hop.TargetPrimaryKeyColumn()
+			joined.Column = hop.SourceColumn()
+		}
+		joins[key] = joined
+	}
+	resultJoins := joins
+	if len(resultKeys) != 0 {
+		resultJoins = maps.Clone(joins)
+		for key, resolved := range resultKeys {
+			join, present := joins[resolved]
+			if !present {
+				return Joins{}, invalidPlan("aggregate occurrence was not materialized")
+			}
+			resultJoins[key] = join
+		}
+	}
+	var annotationJoins map[query.AnnotationRef]map[RelationKey]Join
+	if len(annotationKeys) != 0 {
+		annotationJoins = make(map[query.AnnotationRef]map[RelationKey]Join, len(annotationKeys))
+	}
+	for ref, bindings := range annotationKeys {
+		resolvedJoins := maps.Clone(joins)
+		for key, resolved := range bindings {
+			join, present := joins[resolved]
+			if !present {
+				return Joins{}, invalidPlan("annotation occurrence was not materialized")
+			}
+			resolvedJoins[key] = join
+		}
+		annotationJoins[ref] = resolvedJoins
+	}
+	result := Joins{Keys: keys, ByKey: joins, ResultByKey: resultJoins, Exists: make(map[int]CollectionExists, len(existences)), Annotations: annotationJoins}
+	for index, request := range existences {
+		exists, err := prepareCollectionExists(plan, request.condition, request.correlationDepth, result, backendName)
+		if err != nil {
+			return Joins{}, err
+		}
+		result.Exists[index] = exists
+	}
+	return result, nil
+}
+
+// Direction and reverse accessor describe the view of a declaration. A
+// OneToOne declaration must retain that cardinality in either direction;
+// ordinary many-to-one and one-to-many remain the same physical FK.
+func sameForeignKeyDeclaration(left, right query.RelationHop) bool {
+	return left.Source() == right.Source() && left.SourceTable() == right.SourceTable() &&
+		left.Field() == right.Field() && left.SourceColumn() == right.SourceColumn() &&
+		left.Target() == right.Target() && left.TargetTable() == right.TargetTable() &&
+		left.TargetPrimaryKeyColumn() == right.TargetPrimaryKeyColumn() && left.Nullable() == right.Nullable() &&
+		(left.Cardinality() == ir.RelationOneToOne) == (right.Cardinality() == ir.RelationOneToOne)
+}
+
+// requiredJoins finds edges whose joined row must exist for the
+// predicate to be true. It owns only join presence, not SQL rendering. Odd
+// negation swaps AND/OR and nullable negated leaves can match an absent row.
+// Keeping an optional edge outer is conservative when no proof is available.
+func requiredJoins(expression query.Expression, negated bool) map[RelationKey]bool {
+	switch expression.Kind() {
+	case query.ExpressionLeaf:
+		condition, ok := expression.Condition()
+		if !ok {
+			return nil
+		}
+		path, related := condition.RelationPath()
+		if !related {
+			return nil
+		}
+		hops := path.Hops()
+		if negated && !path.SingleValued() {
+			return nil
+		}
+		if path.TerminalScope() == query.RelationTerminalSourceKey && condition.Lookup() == query.LookupIsNull {
+			isNull, valid := condition.Value().Boolean()
+			if valid && isNull == negated {
+				// A present FK implies its target exists under the declared FK
+				// constraint. This can promote an edge used elsewhere in the tree.
+				return requiredPrefixes(hops)
+			}
+			return nil
+		}
+		if path.TerminalScope() != query.RelationTerminalRelatedField {
+			return nil
+		}
+		if condition.Lookup() == query.LookupIsNull {
+			isNull, valid := condition.Value().Boolean()
+			if valid && isNull == negated {
+				return requiredPrefixes(hops)
+			}
+			return nil
+		}
+		if !negated {
+			switch condition.Lookup() {
+			case query.LookupExact, query.LookupIExact, query.LookupGreaterThan, query.LookupGreaterThanOrEqual,
+				query.LookupLessThan, query.LookupLessThanOrEqual, query.LookupIContains, query.LookupIn,
+				query.LookupContains, query.LookupContainedBy, query.LookupHasKey, query.LookupHasKeys, query.LookupHasAnyKeys:
+				return requiredPrefixes(hops)
+			}
+		}
+		return nil
+	case query.ExpressionNot:
+		children := expression.Children()
+		if len(children) != 1 {
+			return nil
+		}
+		return requiredJoins(children[0], !negated)
+	case query.ExpressionAnd, query.ExpressionOr:
+		union := (expression.Kind() == query.ExpressionAnd) != negated
+		var required map[RelationKey]bool
+		for index, child := range expression.Children() {
+			current := requiredJoins(child, negated)
+			if index == 0 {
+				required = current
+				continue
+			}
+			if union {
+				if required == nil {
+					required = make(map[RelationKey]bool, len(current))
+				}
+				for key := range current {
+					required[key] = true
+				}
+			} else {
+				for key := range required {
+					if !current[key] {
+						delete(required, key)
+					}
+				}
+			}
+		}
+		return required
+	default:
+		return nil
+	}
+}
+
+func requiredPrefixes(hops []query.RelationHop) map[RelationKey]bool {
+	required := make(map[RelationKey]bool, len(hops))
+	for index := range hops {
+		required[KeyForPath(hops[:index+1])] = true
+	}
+	return required
+}

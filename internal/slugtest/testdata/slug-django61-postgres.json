@@ -1,0 +1,7661 @@
+{
+  "backend": "postgresql",
+  "changed": [
+    {
+      "changed": false,
+      "initial": "Old_Name",
+      "submitted": " Old_Name "
+    },
+    {
+      "changed": true,
+      "initial": "Old_Name",
+      "submitted": "old_name"
+    },
+    {
+      "changed": true,
+      "initial": "한글",
+      "submitted": "한글"
+    },
+    {
+      "changed": true,
+      "initial": "café",
+      "submitted": "café"
+    },
+    {
+      "changed": false,
+      "initial": null,
+      "submitted": ""
+    },
+    {
+      "changed": true,
+      "initial": "old",
+      "submitted": "bad/value"
+    }
+  ],
+  "django": "6.1",
+  "drf": "3.18.0",
+  "forms": {
+    "form": {
+      "allow_unicode": false,
+      "cases": {
+        "arabic_digits": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "arabic_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "deseret": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "fraction": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "han": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hangul": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sharp_s": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_letter": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_50": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_51": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": null,
+      "required": true,
+      "strip": true,
+      "widget": "TextInput"
+    },
+    "form_optional": {
+      "allow_unicode": false,
+      "cases": {
+        "arabic_digits": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "arabic_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "deseret": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": ""
+        },
+        "fraction": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "han": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hangul": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [],
+          "value": ""
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sharp_s": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [],
+          "value": ""
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_letter": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_50": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_51": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": null,
+      "required": false,
+      "strip": true,
+      "widget": "TextInput"
+    },
+    "form_unicode": {
+      "allow_unicode": true,
+      "cases": {
+        "arabic_digits": {
+          "codes": [],
+          "value": "١٢٣"
+        },
+        "arabic_letters": {
+          "codes": [],
+          "value": "مقالة"
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [],
+          "value": "①"
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [],
+          "value": "статья"
+        },
+        "deseret": {
+          "codes": [],
+          "value": "𐐀𐐨"
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "fraction": {
+          "codes": [],
+          "value": "¼"
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [],
+          "value": "ＡＢＣ１２３"
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [],
+          "value": "Σίσυφος"
+        },
+        "han": {
+          "codes": [],
+          "value": "中文-文章"
+        },
+        "hangul": {
+          "codes": [],
+          "value": "읽기-쉬운_주소"
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [],
+          "value": "한"
+        },
+        "latin": {
+          "codes": [],
+          "value": "café"
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [],
+          "value": "Ⅳ"
+        },
+        "sharp_s": {
+          "codes": [],
+          "value": "Straße"
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [],
+          "value": "²"
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [],
+          "value": "௰"
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [],
+          "value": "𞗱"
+        },
+        "unicode16_letter": {
+          "codes": [],
+          "value": "𞗐"
+        },
+        "unicode_50": {
+          "codes": [],
+          "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+        },
+        "unicode_51": {
+          "codes": [],
+          "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+        },
+        "unicode_padding": {
+          "codes": [],
+          "value": "이름-2"
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": null,
+      "required": true,
+      "strip": true,
+      "widget": "TextInput"
+    },
+    "form_untrimmed": {
+      "allow_unicode": false,
+      "cases": {
+        "arabic_digits": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "arabic_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ascii_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "crlf_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "cyrillic": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "deseret": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "fraction": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "han": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hangul": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sharp_s": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "two_newlines": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_letter": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_50": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_51": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": null,
+      "required": true,
+      "strip": false,
+      "widget": "TextInput"
+    },
+    "model": {
+      "allow_unicode": false,
+      "cases": {
+        "arabic_digits": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "arabic_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "deseret": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "fraction": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "han": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hangul": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sharp_s": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_letter": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_50": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_51": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 50,
+      "required": true,
+      "strip": true,
+      "widget": "TextInput"
+    },
+    "model_nullable": {
+      "allow_unicode": false,
+      "cases": {
+        "arabic_digits": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "arabic_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "deseret": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": null
+        },
+        "fraction": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "han": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hangul": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [],
+          "value": null
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sharp_s": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [],
+          "value": null
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_letter": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_50": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_51": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 50,
+      "required": false,
+      "strip": true,
+      "widget": "TextInput"
+    },
+    "model_optional": {
+      "allow_unicode": false,
+      "cases": {
+        "arabic_digits": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "arabic_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "deseret": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [],
+          "value": ""
+        },
+        "fraction": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "han": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hangul": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [],
+          "value": ""
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sharp_s": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [],
+          "value": ""
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_letter": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_50": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_51": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 50,
+      "required": false,
+      "strip": true,
+      "widget": "TextInput"
+    },
+    "model_short": {
+      "allow_unicode": false,
+      "cases": {
+        "arabic_digits": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "arabic_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "deseret": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "fraction": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "han": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hangul": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "length_50": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "length_51": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "sharp_s": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "sql": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_letter": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode_50": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "unicode_51": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "upper": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "url": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 12,
+      "required": true,
+      "strip": true,
+      "widget": "TextInput"
+    },
+    "model_unicode": {
+      "allow_unicode": true,
+      "cases": {
+        "arabic_digits": {
+          "codes": [],
+          "value": "١٢٣"
+        },
+        "arabic_letters": {
+          "codes": [],
+          "value": "مقالة"
+        },
+        "ascii_padding": {
+          "codes": [],
+          "value": "Article_Name"
+        },
+        "backslash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "bidi_override": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "circled_digit": {
+          "codes": [],
+          "value": "①"
+        },
+        "colon": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "combining_mark": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "control_padding": {
+          "codes": [],
+          "value": "Plain"
+        },
+        "crlf_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "cyrillic": {
+          "codes": [],
+          "value": "статья"
+        },
+        "deseret": {
+          "codes": [],
+          "value": "𐐀𐐨"
+        },
+        "devanagari_marks": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "digits": {
+          "codes": [],
+          "value": "123"
+        },
+        "dot": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "em_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "email": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "embedded_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "emoji": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "empty": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "fraction": {
+          "codes": [],
+          "value": "¼"
+        },
+        "fullwidth_dash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "fullwidth_letters": {
+          "codes": [],
+          "value": "ＡＢＣ１２３"
+        },
+        "fullwidth_underscore": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "greek": {
+          "codes": [],
+          "value": "Σίσυφος"
+        },
+        "han": {
+          "codes": [],
+          "value": "中文-文章"
+        },
+        "hangul": {
+          "codes": [],
+          "value": "읽기-쉬운_주소"
+        },
+        "hash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "invalid_long": {
+          "codes": [
+            "invalid",
+            "max_length"
+          ],
+          "value": null
+        },
+        "jamo": {
+          "codes": [],
+          "value": "한"
+        },
+        "latin": {
+          "codes": [],
+          "value": "café"
+        },
+        "latin_decomposed": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "length_12": {
+          "codes": [],
+          "value": "aaaaaaaaaaaa"
+        },
+        "length_13": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaa"
+        },
+        "length_50": {
+          "codes": [],
+          "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "length_51": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "markup": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "newline_end": {
+          "codes": [],
+          "value": "plain"
+        },
+        "newline_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "next_line_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "null": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "null_byte": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "null_end": {
+          "codes": [
+            "invalid",
+            "null_characters_not_allowed"
+          ],
+          "value": null
+        },
+        "only_dash": {
+          "codes": [],
+          "value": "-"
+        },
+        "only_underscore": {
+          "codes": [],
+          "value": "_"
+        },
+        "padded_50": {
+          "codes": [],
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        },
+        "percent": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "plain": {
+          "codes": [],
+          "value": "article-name"
+        },
+        "question": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "quote": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "repeated": {
+          "codes": [],
+          "value": "__--"
+        },
+        "replacement": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "roman_numeral": {
+          "codes": [],
+          "value": "Ⅳ"
+        },
+        "sharp_s": {
+          "codes": [],
+          "value": "Straße"
+        },
+        "slash": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "spaces": {
+          "codes": [
+            "required"
+          ],
+          "value": null
+        },
+        "sql": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "superscript": {
+          "codes": [],
+          "value": "²"
+        },
+        "tab_middle": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "tamil_number": {
+          "codes": [],
+          "value": "௰"
+        },
+        "two_newlines": {
+          "codes": [],
+          "value": "plain"
+        },
+        "unassigned": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "unicode16_digit": {
+          "codes": [],
+          "value": "𞗱"
+        },
+        "unicode16_letter": {
+          "codes": [],
+          "value": "𞗐"
+        },
+        "unicode_50": {
+          "codes": [],
+          "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+        },
+        "unicode_51": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "unicode_padding": {
+          "codes": [],
+          "value": "이름-2"
+        },
+        "upper": {
+          "codes": [],
+          "value": "Article_Name-9"
+        },
+        "url": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "very_long": {
+          "codes": [
+            "max_length"
+          ],
+          "value": null
+        },
+        "zero_width_joiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_nonjoiner": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        },
+        "zero_width_space": {
+          "codes": [
+            "invalid"
+          ],
+          "value": null
+        }
+      },
+      "max_length": 50,
+      "required": true,
+      "strip": true,
+      "widget": "TextInput"
+    }
+  },
+  "input_sha256": "dc4e8ef4f3b07d9fa705b7b28e64c807a97d1a35c5a1836c64cc1614ac472886",
+  "model_choices": {
+    "Old Slug!": {
+      "candidate": "Old Slug!",
+      "errors": [
+        "invalid"
+      ],
+      "valid": false
+    },
+    "current-name": {
+      "candidate": "current-name",
+      "errors": [],
+      "valid": true
+    },
+    "unknown-name": {
+      "candidate": "",
+      "errors": [
+        "invalid_choice"
+      ],
+      "valid": false
+    }
+  },
+  "model_defaults": {
+    "allow_unicode": false,
+    "db_index": true,
+    "max_length": 50
+  },
+  "model_forms": {
+    "ascii": {
+      "empty": {
+        "candidate": null,
+        "cleaned": null,
+        "errors": [],
+        "valid": true
+      },
+      "invalid": {
+        "candidate": "old",
+        "cleaned": null,
+        "errors": [
+          "invalid"
+        ],
+        "valid": false
+      },
+      "omitted": {
+        "candidate": null,
+        "cleaned": null,
+        "errors": [],
+        "valid": true
+      },
+      "unicode": {
+        "candidate": "old",
+        "cleaned": null,
+        "errors": [
+          "invalid"
+        ],
+        "valid": false
+      },
+      "valid": {
+        "candidate": "New_Name-2",
+        "cleaned": "New_Name-2",
+        "errors": [],
+        "valid": true
+      }
+    },
+    "unicode": {
+      "empty": {
+        "candidate": null,
+        "cleaned": null,
+        "errors": [],
+        "valid": true
+      },
+      "invalid": {
+        "candidate": "old",
+        "cleaned": null,
+        "errors": [
+          "invalid"
+        ],
+        "valid": false
+      },
+      "omitted": {
+        "candidate": null,
+        "cleaned": null,
+        "errors": [],
+        "valid": true
+      },
+      "unicode": {
+        "candidate": "읽기-쉬운_주소",
+        "cleaned": "읽기-쉬운_주소",
+        "errors": [],
+        "valid": true
+      },
+      "valid": {
+        "candidate": "New_Name-2",
+        "cleaned": "New_Name-2",
+        "errors": [],
+        "valid": true
+      }
+    }
+  },
+  "python": "3.14.3",
+  "serializer_defaults": {
+    "empty": "",
+    "legacy": "Old Slug!",
+    "null": null,
+    "padded": "  Old_Name  "
+  },
+  "serializers": {
+    "model": {
+      "arabic_digits": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "arabic_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ascii_padding": {
+        "codes": [],
+        "value": "Article_Name"
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [],
+        "value": "Plain"
+      },
+      "crlf_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "cyrillic": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "deseret": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [],
+        "value": ""
+      },
+      "fraction": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "han": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hangul": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaa"
+      },
+      "length_50": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "length_51": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [],
+        "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "sharp_s": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [],
+        "value": ""
+      },
+      "sql": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "two_newlines": {
+        "codes": [],
+        "value": "plain"
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_letter": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_50": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_51": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper": {
+        "codes": [],
+        "value": "Article_Name-9"
+      },
+      "url": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    },
+    "model_unicode": {
+      "arabic_digits": {
+        "codes": [],
+        "value": "١٢٣"
+      },
+      "arabic_letters": {
+        "codes": [],
+        "value": "مقالة"
+      },
+      "ascii_padding": {
+        "codes": [],
+        "value": "Article_Name"
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [],
+        "value": "①"
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [],
+        "value": "Plain"
+      },
+      "crlf_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "cyrillic": {
+        "codes": [],
+        "value": "статья"
+      },
+      "deseret": {
+        "codes": [],
+        "value": "𐐀𐐨"
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [],
+        "value": ""
+      },
+      "fraction": {
+        "codes": [],
+        "value": "¼"
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [],
+        "value": "ＡＢＣ１２３"
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [],
+        "value": "Σίσυφος"
+      },
+      "han": {
+        "codes": [],
+        "value": "中文-文章"
+      },
+      "hangul": {
+        "codes": [],
+        "value": "읽기-쉬운_주소"
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [],
+        "value": "한"
+      },
+      "latin": {
+        "codes": [],
+        "value": "café"
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaa"
+      },
+      "length_50": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "length_51": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [],
+        "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [],
+        "value": "Ⅳ"
+      },
+      "sharp_s": {
+        "codes": [],
+        "value": "Straße"
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [],
+        "value": ""
+      },
+      "sql": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [],
+        "value": "²"
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [],
+        "value": "௰"
+      },
+      "two_newlines": {
+        "codes": [],
+        "value": "plain"
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [],
+        "value": "𞗱"
+      },
+      "unicode16_letter": {
+        "codes": [],
+        "value": "𞗐"
+      },
+      "unicode_50": {
+        "codes": [],
+        "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+      },
+      "unicode_51": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "unicode_padding": {
+        "codes": [],
+        "value": "이름-2"
+      },
+      "upper": {
+        "codes": [],
+        "value": "Article_Name-9"
+      },
+      "url": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    },
+    "optional": {
+      "arabic_digits": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "arabic_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ascii_padding": {
+        "codes": [],
+        "value": "Article_Name"
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [],
+        "value": "Plain"
+      },
+      "crlf_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "cyrillic": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "deseret": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [],
+        "value": ""
+      },
+      "fraction": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "han": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hangul": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaa"
+      },
+      "length_50": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "length_51": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [],
+        "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "sharp_s": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [],
+        "value": ""
+      },
+      "sql": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "two_newlines": {
+        "codes": [],
+        "value": "plain"
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_letter": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_50": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_51": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper": {
+        "codes": [],
+        "value": "Article_Name-9"
+      },
+      "url": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    },
+    "required": {
+      "arabic_digits": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "arabic_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ascii_padding": {
+        "codes": [],
+        "value": "Article_Name"
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [],
+        "value": "Plain"
+      },
+      "crlf_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "cyrillic": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "deseret": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "fraction": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "han": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hangul": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaa"
+      },
+      "length_50": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "length_51": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [],
+        "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "sharp_s": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "sql": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "two_newlines": {
+        "codes": [],
+        "value": "plain"
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_letter": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_50": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_51": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper": {
+        "codes": [],
+        "value": "Article_Name-9"
+      },
+      "url": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    },
+    "short": {
+      "arabic_digits": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "arabic_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ascii_padding": {
+        "codes": [],
+        "value": "Article_Name"
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [],
+        "value": "Plain"
+      },
+      "crlf_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "cyrillic": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "deseret": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "fraction": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "han": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hangul": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "length_50": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "length_51": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "sharp_s": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "sql": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "two_newlines": {
+        "codes": [],
+        "value": "plain"
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_letter": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_50": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_51": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "url": {
+        "codes": [
+          "max_length",
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [
+          "max_length"
+        ],
+        "value": null
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    },
+    "unicode": {
+      "arabic_digits": {
+        "codes": [],
+        "value": "١٢٣"
+      },
+      "arabic_letters": {
+        "codes": [],
+        "value": "مقالة"
+      },
+      "ascii_padding": {
+        "codes": [],
+        "value": "Article_Name"
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [],
+        "value": "①"
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [],
+        "value": "Plain"
+      },
+      "crlf_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "cyrillic": {
+        "codes": [],
+        "value": "статья"
+      },
+      "deseret": {
+        "codes": [],
+        "value": "𐐀𐐨"
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "fraction": {
+        "codes": [],
+        "value": "¼"
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [],
+        "value": "ＡＢＣ１２３"
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [],
+        "value": "Σίσυφος"
+      },
+      "han": {
+        "codes": [],
+        "value": "中文-文章"
+      },
+      "hangul": {
+        "codes": [],
+        "value": "읽기-쉬운_주소"
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [],
+        "value": "한"
+      },
+      "latin": {
+        "codes": [],
+        "value": "café"
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaa"
+      },
+      "length_50": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "length_51": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [],
+        "value": "plain"
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [],
+        "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [],
+        "value": "Ⅳ"
+      },
+      "sharp_s": {
+        "codes": [],
+        "value": "Straße"
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "sql": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [],
+        "value": "²"
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [],
+        "value": "௰"
+      },
+      "two_newlines": {
+        "codes": [],
+        "value": "plain"
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [],
+        "value": "𞗱"
+      },
+      "unicode16_letter": {
+        "codes": [],
+        "value": "𞗐"
+      },
+      "unicode_50": {
+        "codes": [],
+        "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+      },
+      "unicode_51": {
+        "codes": [],
+        "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+      },
+      "unicode_padding": {
+        "codes": [],
+        "value": "이름-2"
+      },
+      "upper": {
+        "codes": [],
+        "value": "Article_Name-9"
+      },
+      "url": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    },
+    "unicode_untrimmed": {
+      "arabic_digits": {
+        "codes": [],
+        "value": "١٢٣"
+      },
+      "arabic_letters": {
+        "codes": [],
+        "value": "مقالة"
+      },
+      "ascii_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [],
+        "value": "①"
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "crlf_end": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "cyrillic": {
+        "codes": [],
+        "value": "статья"
+      },
+      "deseret": {
+        "codes": [],
+        "value": "𐐀𐐨"
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "fraction": {
+        "codes": [],
+        "value": "¼"
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [],
+        "value": "ＡＢＣ１２３"
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [],
+        "value": "Σίσυφος"
+      },
+      "han": {
+        "codes": [],
+        "value": "中文-文章"
+      },
+      "hangul": {
+        "codes": [],
+        "value": "읽기-쉬운_주소"
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [],
+        "value": "한"
+      },
+      "latin": {
+        "codes": [],
+        "value": "café"
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaa"
+      },
+      "length_50": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "length_51": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [],
+        "value": "Ⅳ"
+      },
+      "sharp_s": {
+        "codes": [],
+        "value": "Straße"
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "sql": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [],
+        "value": "²"
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [],
+        "value": "௰"
+      },
+      "two_newlines": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [],
+        "value": "𞗱"
+      },
+      "unicode16_letter": {
+        "codes": [],
+        "value": "𞗐"
+      },
+      "unicode_50": {
+        "codes": [],
+        "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+      },
+      "unicode_51": {
+        "codes": [],
+        "value": "한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한"
+      },
+      "unicode_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper": {
+        "codes": [],
+        "value": "Article_Name-9"
+      },
+      "url": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    },
+    "untrimmed": {
+      "arabic_digits": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "arabic_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "ascii_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "backslash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "bidi_override": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "circled_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "colon": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "combining_mark": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "control_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "crlf_end": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "cyrillic": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "deseret": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "devanagari_marks": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "digits": {
+        "codes": [],
+        "value": "123"
+      },
+      "dot": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "em_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "email": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "embedded_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "emoji": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "empty": {
+        "codes": [
+          "blank"
+        ],
+        "value": null
+      },
+      "fraction": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_dash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_letters": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "fullwidth_underscore": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "greek": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "han": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hangul": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "hash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "invalid_long": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "jamo": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "latin_decomposed": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "length_12": {
+        "codes": [],
+        "value": "aaaaaaaaaaaa"
+      },
+      "length_13": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaa"
+      },
+      "length_50": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "length_51": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "markup": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "newline_end": {
+        "codes": [],
+        "value": "plain\n"
+      },
+      "newline_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "next_line_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "null": {
+        "codes": [
+          "null"
+        ],
+        "value": null
+      },
+      "null_byte": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "null_end": {
+        "codes": [
+          "null_characters_not_allowed",
+          "invalid"
+        ],
+        "value": null
+      },
+      "only_dash": {
+        "codes": [],
+        "value": "-"
+      },
+      "only_underscore": {
+        "codes": [],
+        "value": "_"
+      },
+      "padded_50": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "percent": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "plain": {
+        "codes": [],
+        "value": "article-name"
+      },
+      "question": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "quote": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "repeated": {
+        "codes": [],
+        "value": "__--"
+      },
+      "replacement": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "roman_numeral": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "sharp_s": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "slash": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "spaces": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "sql": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "superscript": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tab_middle": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "tamil_number": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "two_newlines": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unassigned": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_digit": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode16_letter": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_50": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_51": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "unicode_padding": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "upper": {
+        "codes": [],
+        "value": "Article_Name-9"
+      },
+      "url": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "very_long": {
+        "codes": [],
+        "value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "zero_width_joiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_nonjoiner": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      },
+      "zero_width_space": {
+        "codes": [
+          "invalid"
+        ],
+        "value": null
+      }
+    }
+  },
+  "source_sha256": {
+    "form_fields": "2b756230a12f2329e2796314dd99fc57a8d0b016658863be2e899a2988d33f66",
+    "model_base": "6dc2179eb23eacd9bcc58561ebc30bf9eab180844235c4e1ec5af251b02ab62f",
+    "model_fields": "744392031020fc9599ec341132f8c793a8c0ce1e3981b4b304d3b3fcccb8535f",
+    "serializer_fields": "c0c1540aacc5b4b9d9ee972cae322b0a0a10823d017ea3ffc0d3b85d500143d6",
+    "validators": "262c79a3ea6c4990847bc4c8764e03af1370979098be3d8fc9b4d7365de24ea0"
+  },
+  "storage": {
+    "before": {
+      "indexes": {
+        "slug_reference_article_pkey": {
+          "columns": [
+            "id"
+          ],
+          "index": false,
+          "orders": null,
+          "primary_key": true,
+          "type": null,
+          "unique": true
+        }
+      },
+      "rows": [
+        [
+          "upper",
+          "Old_Name"
+        ],
+        [
+          "lower",
+          "old_name"
+        ],
+        [
+          "unicode",
+          "한글-주소"
+        ],
+        [
+          "invalid",
+          "Old Slug!"
+        ],
+        [
+          "empty",
+          ""
+        ],
+        [
+          "null",
+          null
+        ]
+      ]
+    },
+    "form_saved": "읽기-쉬운_주소",
+    "lifecycle": [
+      {
+        "indexes": {
+          "slug_reference_article_address_93284ccf": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_address_93284ccf_like": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_pkey": {
+            "columns": [
+              "id"
+            ],
+            "index": false,
+            "orders": null,
+            "primary_key": true,
+            "type": null,
+            "unique": true
+          }
+        },
+        "rows": [
+          [
+            "upper",
+            "Old_Name"
+          ],
+          [
+            "lower",
+            "old_name"
+          ],
+          [
+            "unicode",
+            "한글-주소"
+          ],
+          [
+            "invalid",
+            "Old Slug!"
+          ],
+          [
+            "empty",
+            ""
+          ],
+          [
+            "null",
+            null
+          ]
+        ],
+        "sql_count": 2,
+        "stage": "add_index"
+      },
+      {
+        "indexes": {
+          "slug_reference_article_address_93284ccf": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_address_93284ccf_like": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_pkey": {
+            "columns": [
+              "id"
+            ],
+            "index": false,
+            "orders": null,
+            "primary_key": true,
+            "type": null,
+            "unique": true
+          }
+        },
+        "rows": [
+          [
+            "upper",
+            "Old_Name"
+          ],
+          [
+            "lower",
+            "old_name"
+          ],
+          [
+            "unicode",
+            "한글-주소"
+          ],
+          [
+            "invalid",
+            "Old Slug!"
+          ],
+          [
+            "empty",
+            ""
+          ],
+          [
+            "null",
+            null
+          ]
+        ],
+        "sql_count": 0,
+        "stage": "allow_unicode"
+      },
+      {
+        "indexes": {
+          "slug_reference_article_pkey": {
+            "columns": [
+              "id"
+            ],
+            "index": false,
+            "orders": null,
+            "primary_key": true,
+            "type": null,
+            "unique": true
+          }
+        },
+        "rows": [
+          [
+            "upper",
+            "Old_Name"
+          ],
+          [
+            "lower",
+            "old_name"
+          ],
+          [
+            "unicode",
+            "한글-주소"
+          ],
+          [
+            "invalid",
+            "Old Slug!"
+          ],
+          [
+            "empty",
+            ""
+          ],
+          [
+            "null",
+            null
+          ]
+        ],
+        "sql_count": 4,
+        "stage": "remove_index"
+      },
+      {
+        "indexes": {
+          "slug_reference_article_address_93284ccf": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_address_93284ccf_like": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_pkey": {
+            "columns": [
+              "id"
+            ],
+            "index": false,
+            "orders": null,
+            "primary_key": true,
+            "type": null,
+            "unique": true
+          }
+        },
+        "rows": [
+          [
+            "upper",
+            "Old_Name"
+          ],
+          [
+            "lower",
+            "old_name"
+          ],
+          [
+            "unicode",
+            "한글-주소"
+          ],
+          [
+            "invalid",
+            "Old Slug!"
+          ],
+          [
+            "empty",
+            ""
+          ],
+          [
+            "null",
+            null
+          ]
+        ],
+        "sql_count": 2,
+        "stage": "readd_index"
+      },
+      {
+        "indexes": {
+          "slug_reference_article_address_93284ccf_like": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_address_93284ccf_uniq": {
+            "columns": [
+              "address"
+            ],
+            "index": false,
+            "orders": null,
+            "primary_key": false,
+            "type": null,
+            "unique": true
+          },
+          "slug_reference_article_pkey": {
+            "columns": [
+              "id"
+            ],
+            "index": false,
+            "orders": null,
+            "primary_key": true,
+            "type": null,
+            "unique": true
+          }
+        },
+        "rows": [
+          [
+            "upper",
+            "Old_Name"
+          ],
+          [
+            "lower",
+            "old_name"
+          ],
+          [
+            "unicode",
+            "한글-주소"
+          ],
+          [
+            "invalid",
+            "Old Slug!"
+          ],
+          [
+            "empty",
+            ""
+          ],
+          [
+            "null",
+            null
+          ]
+        ],
+        "sql_count": 6,
+        "stage": "unique"
+      },
+      {
+        "indexes": {
+          "slug_reference_article_address_93284ccf": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_address_93284ccf_like": {
+            "columns": [
+              "address"
+            ],
+            "index": true,
+            "orders": [
+              "ASC"
+            ],
+            "primary_key": false,
+            "type": "idx",
+            "unique": false
+          },
+          "slug_reference_article_pkey": {
+            "columns": [
+              "id"
+            ],
+            "index": false,
+            "orders": null,
+            "primary_key": true,
+            "type": null,
+            "unique": true
+          }
+        },
+        "rows": [
+          [
+            "upper",
+            "Old_Name"
+          ],
+          [
+            "lower",
+            "old_name"
+          ],
+          [
+            "unicode",
+            "한글-주소"
+          ],
+          [
+            "invalid",
+            "Old Slug!"
+          ],
+          [
+            "empty",
+            ""
+          ],
+          [
+            "null",
+            null
+          ]
+        ],
+        "sql_count": 4,
+        "stage": "nonunique"
+      }
+    ],
+    "prepared": {
+      "address": "읽기-쉬운_주소",
+      "persisted": false
+    },
+    "queries": {
+      "contains": [
+        "upper",
+        "lower",
+        "invalid"
+      ],
+      "exact": [
+        "upper"
+      ],
+      "iexact": [
+        "upper",
+        "lower"
+      ],
+      "null": [
+        "null"
+      ]
+    },
+    "reverse": {
+      "indexes": {
+        "slug_reference_article_pkey": {
+          "columns": [
+            "id"
+          ],
+          "index": false,
+          "orders": null,
+          "primary_key": true,
+          "type": null,
+          "unique": true
+        }
+      },
+      "rows": [
+        [
+          "upper",
+          "Old_Name"
+        ],
+        [
+          "lower",
+          "old_name"
+        ],
+        [
+          "unicode",
+          "한글-주소"
+        ],
+        [
+          "invalid",
+          "Old Slug!"
+        ],
+        [
+          "empty",
+          ""
+        ],
+        [
+          "null",
+          null
+        ],
+        [
+          "new_invalid",
+          "another invalid slug"
+        ],
+        [
+          "form_saved",
+          "읽기-쉬운_주소"
+        ]
+      ]
+    },
+    "reverse_sql_count": 4,
+    "rollback_absent": true,
+    "unique_rejects_duplicate": true,
+    "unvalidated_save": "another invalid slug"
+  },
+  "validators": {
+    "ascii": {
+      "arabic_digits": false,
+      "arabic_letters": false,
+      "ascii_padding": false,
+      "backslash": false,
+      "bidi_override": false,
+      "circled_digit": false,
+      "colon": false,
+      "combining_mark": false,
+      "control_padding": false,
+      "crlf_end": false,
+      "cyrillic": false,
+      "deseret": false,
+      "devanagari_marks": false,
+      "digits": true,
+      "dot": false,
+      "em_dash": false,
+      "email": false,
+      "embedded_space": false,
+      "emoji": false,
+      "empty": false,
+      "fraction": false,
+      "fullwidth_dash": false,
+      "fullwidth_letters": false,
+      "fullwidth_underscore": false,
+      "greek": false,
+      "han": false,
+      "hangul": false,
+      "hash": false,
+      "invalid_long": false,
+      "jamo": false,
+      "latin": false,
+      "latin_decomposed": false,
+      "length_12": true,
+      "length_13": true,
+      "length_50": true,
+      "length_51": true,
+      "markup": false,
+      "newline_end": false,
+      "newline_middle": false,
+      "next_line_middle": false,
+      "null": true,
+      "null_byte": false,
+      "null_end": false,
+      "only_dash": true,
+      "only_underscore": true,
+      "padded_50": false,
+      "percent": false,
+      "plain": true,
+      "question": false,
+      "quote": false,
+      "repeated": true,
+      "replacement": false,
+      "roman_numeral": false,
+      "sharp_s": false,
+      "slash": false,
+      "spaces": false,
+      "sql": false,
+      "superscript": false,
+      "tab_middle": false,
+      "tamil_number": false,
+      "two_newlines": false,
+      "unassigned": false,
+      "unicode16_digit": false,
+      "unicode16_letter": false,
+      "unicode_50": false,
+      "unicode_51": false,
+      "unicode_padding": false,
+      "upper": true,
+      "url": false,
+      "very_long": true,
+      "zero_width_joiner": false,
+      "zero_width_nonjoiner": false,
+      "zero_width_space": false
+    },
+    "unicode": {
+      "arabic_digits": true,
+      "arabic_letters": true,
+      "ascii_padding": false,
+      "backslash": false,
+      "bidi_override": false,
+      "circled_digit": true,
+      "colon": false,
+      "combining_mark": false,
+      "control_padding": false,
+      "crlf_end": false,
+      "cyrillic": true,
+      "deseret": true,
+      "devanagari_marks": false,
+      "digits": true,
+      "dot": false,
+      "em_dash": false,
+      "email": false,
+      "embedded_space": false,
+      "emoji": false,
+      "empty": false,
+      "fraction": true,
+      "fullwidth_dash": false,
+      "fullwidth_letters": true,
+      "fullwidth_underscore": false,
+      "greek": true,
+      "han": true,
+      "hangul": true,
+      "hash": false,
+      "invalid_long": false,
+      "jamo": true,
+      "latin": true,
+      "latin_decomposed": false,
+      "length_12": true,
+      "length_13": true,
+      "length_50": true,
+      "length_51": true,
+      "markup": false,
+      "newline_end": false,
+      "newline_middle": false,
+      "next_line_middle": false,
+      "null": true,
+      "null_byte": false,
+      "null_end": false,
+      "only_dash": true,
+      "only_underscore": true,
+      "padded_50": false,
+      "percent": false,
+      "plain": true,
+      "question": false,
+      "quote": false,
+      "repeated": true,
+      "replacement": false,
+      "roman_numeral": true,
+      "sharp_s": true,
+      "slash": false,
+      "spaces": false,
+      "sql": false,
+      "superscript": true,
+      "tab_middle": false,
+      "tamil_number": true,
+      "two_newlines": false,
+      "unassigned": false,
+      "unicode16_digit": true,
+      "unicode16_letter": true,
+      "unicode_50": true,
+      "unicode_51": true,
+      "unicode_padding": false,
+      "upper": true,
+      "url": false,
+      "very_long": true,
+      "zero_width_joiner": false,
+      "zero_width_nonjoiner": false,
+      "zero_width_space": false
+    }
+  }
+}

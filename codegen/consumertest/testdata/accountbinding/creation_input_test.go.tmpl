@@ -1,0 +1,1187 @@
+package consumer
+
+import (
+	"context"
+	"crypto/sha256"
+	"embed"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"html"
+	"io"
+	"net/http"
+	"net/http/cookiejar"
+	"net/http/httptest"
+	"net/url"
+	"reflect"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	@@IMPORTS@@
+	"example.com/godj-project-bundle/project"
+	auditmodels "github.com/progresshans/godj/account/audit/models"
+	domainmodels "github.com/progresshans/godj/account/domain/models"
+	"github.com/progresshans/godj/admin"
+	"github.com/progresshans/godj/apps"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/auth/passwordpolicy"
+	"github.com/progresshans/godj/db"
+	"github.com/progresshans/godj/forms"
+	formmodel "github.com/progresshans/godj/forms/model"
+	identityadmin "github.com/progresshans/godj/identity/admin"
+	accountmodel "github.com/progresshans/godj/identity/model"
+	"github.com/progresshans/godj/orm"
+	"github.com/progresshans/godj/query"
+	"github.com/progresshans/godj/schema/ir"
+	"github.com/progresshans/godj/sessions"
+	sessionmodels "github.com/progresshans/godj/sessions/database/models"
+	"github.com/progresshans/godj/settings"
+	"github.com/progresshans/godj/settings/database"
+	"github.com/progresshans/godj/validation"
+	"github.com/progresshans/godj/web"
+	websession "github.com/progresshans/godj/web/sessionauth"
+)
+
+//go:embed testdata/user-creation-*.json
+var creationInputReferences embed.FS
+
+type usernameAccount = @@ACCOUNT@@
+type creationInputCase struct{ Name, Username, Password1, Password2 string }
+type creationInputObservation struct {
+	Valid     bool
+	Codes     map[string][]string
+	Username  *string   `json:"cleaned_username"`
+	Profiles  []*string `json:"policy_profiles"`
+	UserDelta int       `json:"user_delta"`
+}
+type creationInputReference struct {
+	Django, Python, Unicode, Backend string
+	InputSHA                         string            `json:"input_sha256"`
+	Sources                          map[string]string `json:"source_sha256"`
+	Observations                     map[string]map[string]creationInputObservation
+	Lifecycle                        map[string]map[string]map[string]any
+}
+
+func creationInputCheck(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+func creationInputRun(t *testing.T, name string, body func(*testing.T)) {
+	t.Helper()
+	if !t.Run(name, body) {
+		t.FailNow()
+	}
+}
+
+func creationInputReferenceData(t *testing.T) ([]creationInputCase, creationInputReference) {
+	t.Helper()
+	raw, err := creationInputReferences.ReadFile("testdata/user-creation-inputs.json")
+	creationInputCheck(t, err)
+	var cases []creationInputCase
+	creationInputCheck(t, json.Unmarshal(raw, &cases))
+	if len(cases) != 20 {
+		t.Fatal("independent creation input corpus is incomplete")
+	}
+	digest := sha256.Sum256(raw)
+	var reference creationInputReference
+	var previous []byte
+	for _, vendor := range []string{"sqlite", "postgres"} {
+		data, err := creationInputReferences.ReadFile("testdata/user-creation-django61-" + vendor + ".json")
+		creationInputCheck(t, err)
+		reference = creationInputReference{}
+		creationInputCheck(t, json.Unmarshal(data, &reference))
+		if reference.Django != "6.1" || reference.Python != "3.14.3" || reference.Unicode != "16.0.0" || reference.Backend != vendor ||
+			reference.InputSHA != hex.EncodeToString(digest[:]) || len(reference.Sources) != 6 || len(reference.Observations) != 3 || len(reference.Lifecycle) != 3 {
+			t.Fatal("creation reference lost its independent runtime or input binding")
+		}
+		for _, source := range []string{"auth_forms", "base_user", "hashers", "model_base", "model_forms", "password_validation"} {
+			raw, err := hex.DecodeString(reference.Sources[source])
+			if err != nil || len(raw) != 32 || hex.EncodeToString(raw) != reference.Sources[source] {
+				t.Fatal("creation reference lost a producer source")
+			}
+		}
+		observed, err := json.Marshal(struct {
+			Observations any
+			Lifecycle    any
+			Sources      any
+		}{reference.Observations, reference.Lifecycle, reference.Sources})
+		creationInputCheck(t, err)
+		if previous != nil && !slices.Equal(previous, observed) {
+			t.Fatal("independent backend observations differ")
+		}
+		previous = observed
+		for _, mode := range []string{"standard", "admin_enabled", "admin_disabled"} {
+			if len(reference.Observations[mode]) != len(cases) || len(reference.Lifecycle[mode]) != 4 {
+				t.Fatal("creation reference omitted a required observation")
+			}
+		}
+	}
+	return cases, reference
+}
+
+type creationInputHasher struct {
+	auth.PasswordHasher
+	calls atomic.Int64
+	hook  atomic.Pointer[creationInputHashHook]
+}
+
+type creationInputHashHook struct{ run func(context.Context) error }
+
+func (hasher *creationInputHasher) Hash(ctx context.Context, raw string) (string, error) {
+	hasher.calls.Add(1)
+	encoded, err := hasher.PasswordHasher.Hash(ctx, raw)
+	if err == nil {
+		if hook := hasher.hook.Swap(nil); hook != nil {
+			err = hook.run(ctx)
+		}
+	}
+	if err != nil {
+		return "", err
+	}
+	return encoded, nil
+}
+
+type creationInputFixture struct {
+	native   database.Backend
+	database database.Config
+	binding  accountmodel.Binding[usernameAccount]
+	role     ir.AccountRole
+	objects  orm.Manager[usernameAccount]
+	metadata ir.Model
+	key      orm.AutoField[usernameAccount]
+	login    orm.StringField[usernameAccount]
+	runtime  *accountmodel.Runtime[usernameAccount, @@GROUP@@, @@PERMISSION@@]
+	config   accountmodel.RuntimeConfig[usernameAccount, @@GROUP@@, @@PERMISSION@@]
+	actor    auth.Principal
+	hasher   *creationInputHasher
+	ids      atomic.Int64
+	mu       sync.Mutex
+	profiles []string
+	plans    []query.Plan
+	keys     map[string]int
+	now      time.Time
+}
+
+func newCreationInputFixture(t *testing.T, nonstaff bool) *creationInputFixture {
+	t.Helper()
+	f := &creationInputFixture{now: time.Date(2035, 1, 2, 3, 4, 5, 0, time.UTC)}
+	var err error
+	f.binding, err = project.BindAccount()
+	creationInputCheck(t, err)
+	f.role, err = f.binding.Role()
+	creationInputCheck(t, err)
+	f.objects, err = f.binding.Objects()
+	creationInputCheck(t, err)
+	f.metadata, err = f.objects.Metadata()
+	creationInputCheck(t, err)
+	key, err := f.objects.PrimaryKeyField()
+	creationInputCheck(t, err)
+	f.key = orm.NewAutoField[usernameAccount](key)
+	for _, field := range f.metadata.Fields {
+		if field.Name == f.role.Login {
+			f.login = orm.NewStringField[usernameAccount](field)
+			if field.MaxLength != 256 {
+				t.Fatal("fixture changed the stored login limit")
+			}
+		}
+	}
+	schemas := []ir.Schema{@@SCHEMAS@@}
+	f.native, f.database = accountDatabaseWithConfig(t, schemas...)
+	base, _ := accountPassword(t)
+	f.hasher = &creationInputHasher{PasswordHasher: base}
+	fields := []string{f.role.Login, "@@PROFILE@@"}
+	clock := func() time.Time { return f.now }
+	definition, err := project.NewFirstAccountDefinition(f.hasher, accountmodel.FirstAccountConfig[usernameAccount]{
+		CreationPolicy: accountmodel.CreationPolicy[usernameAccount]{Fields: fields, Now: clock}, EvidenceSHA256: strings.Repeat("e", 64),
+	})
+	creationInputCheck(t, err)
+	first, err := definition.Bind(f.native)
+	creationInputCheck(t, err)
+	input, err := f.objects.Input(map[string]query.Value{f.role.Login: query.String("manager"), "@@PROFILE@@": query.String("NZ")})
+	creationInputCheck(t, err)
+	prepared, err := first.PrepareOperation(t.Context(), strings.Repeat("c", 64), input, accountPasswordText)
+	creationInputCheck(t, err)
+	initial, err := first.Commit(t.Context(), prepared)
+	creationInputCheck(t, err)
+	minimum, err := passwordpolicy.NewMinimumLengthValidator(8)
+	creationInputCheck(t, err)
+	similarity, err := passwordpolicy.NewSimilarityValidator(0)
+	creationInputCheck(t, err)
+	accounts := accountmodel.AccountPermissions{View: "account.view", Add: "account.add", Change: "account.change", Delete: "account.delete"}
+	groups := accountmodel.CatalogPermissions{View: "catalog.view_group", Add: "catalog.add_group", Change: "catalog.change_group", Delete: "catalog.delete_group"}
+	permissions := accountmodel.CatalogPermissions{View: "catalog.view_permission", Add: "catalog.add_permission", Change: "catalog.change_permission", Delete: "catalog.delete_permission"}
+	read := slices.Clone(fields)
+	for _, name := range []string{f.role.Active.Field, f.role.Staff.Field, f.role.Superuser.Field, f.role.LastLogin} {
+		if name != "" && !slices.Contains(read, name) {
+			read = append(read, name)
+		}
+	}
+	config := accountmodel.RuntimeConfig[usernameAccount, @@GROUP@@, @@PERMISSION@@]{
+		Sessions: sessions.Config{Clock: clock},
+		Accounts: accountmodel.AccountManagementConfig[usernameAccount]{
+			ReadFields: read, CreateFields: fields, EditFields: fields, Permissions: accounts, Now: clock, CaseInsensitiveCreationLogin: true,
+			PrincipalID: func(context.Context) (string, error) {
+				return "generated-user-" + strconv.FormatInt(f.ids.Add(1), 10), nil
+			},
+			ValidatePassword: func(_ context.Context, raw string, profile orm.ModelView[usernameAccount]) (validation.Errors, error) {
+				source, valid := profile.Model()
+				if !valid || !source.Equal(f.metadata) {
+					return validation.Errors{}, errors.New("creation policy received another model")
+				}
+				value, _ := profile.Get(f.role.Login)
+				name, _ := value.String()
+				secret, _ := profile.Get(f.role.Password)
+				text, _ := secret.String()
+				if text != "" {
+					return validation.Errors{}, errors.New("creation policy received a credential")
+				}
+				f.mu.Lock()
+				f.profiles = append(f.profiles, name)
+				f.mu.Unlock()
+				attributes := []passwordpolicy.Attribute{{Label: "username", Value: name}}
+				return validation.Join(minimum.ValidatePassword(raw, attributes), similarity.ValidatePassword(raw, attributes)), nil
+			},
+			GroupPermissions:      accountmodel.DeletionPermissions{Change: groups.Change, Delete: groups.Delete},
+			PermissionPermissions: accountmodel.DeletionPermissions{Change: permissions.Change, Delete: permissions.Delete},
+		},
+		Catalog: accountmodel.CatalogConfig[@@GROUP@@, @@PERMISSION@@]{Now: clock,
+			Group:              accountmodel.CatalogModelConfig[@@GROUP@@]{ReadFields: []string{f.role.Catalog.GroupName, f.role.Catalog.GroupPermissions}, WriteFields: []string{f.role.Catalog.GroupName, f.role.Catalog.GroupPermissions}, Permissions: groups},
+			Permission:         accountmodel.CatalogModelConfig[@@PERMISSION@@]{ReadFields: []string{f.role.Catalog.PermissionName, f.role.Catalog.PermissionCode}, WriteFields: []string{f.role.Catalog.PermissionName, f.role.Catalog.PermissionCode}, Permissions: permissions},
+			AccountPermissions: accountmodel.DeletionPermissions{Change: accounts.Change, Delete: accounts.Delete},
+		},
+	}
+	f.config = config
+	f.runtime, err = project.NewAccountRuntime(t.Context(), f.native, f.hasher, auth.PrincipalAuthorizer{}, config)
+	creationInputCheck(t, err)
+	credential, err := f.runtime.Authenticator().Authenticate(t.Context(), "manager", accountPasswordText)
+	creationInputCheck(t, err)
+	f.actor = credential.Principal()
+	if nonstaff {
+		row, err := f.objects.Using(f.native).Filter(f.key.Exact(initial.Account.ID)).Get(t.Context())
+		creationInputCheck(t, err)
+		row, err = f.objects.ApplyValues(row, map[string]query.Value{f.role.Staff.Field: query.Boolean(false), f.role.Revision: query.Integer(2)})
+		creationInputCheck(t, err)
+		creationInputCheck(t, f.objects.Save(t.Context(), f.native, &row, orm.ForceUpdate[usernameAccount]()))
+		current, err := f.runtime.Authenticator().Resolve(t.Context(), f.actor.ID())
+		creationInputCheck(t, err)
+		f.actor = current.Principal()
+		if f.actor.Staff() {
+			t.Fatal("reusable Form still has a staff actor")
+		}
+	}
+	f.insert(t, "member")
+	f.insert(t, "bad name")
+	projectBinding, err := f.binding.Project()
+	creationInputCheck(t, err)
+	models := make(map[string]ir.Model)
+	add := func(model ir.Model) {
+		if old, present := models[model.DBTable]; present && !old.Equal(model) {
+			t.Fatal("snapshot table has conflicting source metadata")
+		}
+		models[model.DBTable] = model
+	}
+	for _, schema := range append(schemas, domainmodels.GoDjRelationSchema(), auditmodels.GoDjRelationSchema(), sessionmodels.GoDjRelationSchema()) {
+		for _, model := range schema.Models {
+			add(model)
+		}
+	}
+	for _, relation := range projectBinding.ManyToManyRelations() {
+		model, found := projectBinding.Model(relation.Through.Model)
+		if !found {
+			t.Fatal("snapshot lost a through table")
+		}
+		add(model)
+	}
+	var tables []string
+	for table := range models {
+		tables = append(tables, table)
+	}
+	slices.Sort(tables)
+	f.keys = make(map[string]int)
+	for _, table := range tables {
+		model := models[table]
+		fields := make([]query.FieldRef, len(model.Fields))
+		primary := -1
+		for index, field := range model.Fields {
+			var kind query.FieldKind
+			switch field.Kind {
+			case ir.FieldAuto, ir.FieldInteger, ir.FieldForeignKey:
+				kind = query.FieldInteger
+			case ir.FieldChar, ir.FieldEmail, ir.FieldText:
+				kind = query.FieldString
+			case ir.FieldBoolean:
+				kind = query.FieldBoolean
+			case ir.FieldDateTime:
+				kind = query.FieldDateTime
+			default:
+				t.Fatal("snapshot needs an explicit projection for a new field kind", field.Kind)
+			}
+			fields[index] = query.NewFieldRef(field.Name, field.Column, kind, field.Nullable)
+			if field.PrimaryKey {
+				if primary != -1 || kind != query.FieldInteger {
+					t.Fatal("snapshot key changed")
+				}
+				primary = index
+			}
+		}
+		if primary == -1 {
+			t.Fatal("snapshot lacks a primary key")
+		}
+		f.keys[table] = primary
+		f.plans = append(f.plans, query.NewPlan(table, fields).WithOrderings(query.NewOrdering(fields[primary], query.Ascending)))
+	}
+	return f
+}
+
+func (f *creationInputFixture) insert(t *testing.T, name string) accountmodel.Creation {
+	t.Helper()
+	input, err := f.objects.Input(map[string]query.Value{f.role.Login: query.String(name), "@@PROFILE@@": query.String("NZ")})
+	creationInputCheck(t, err)
+	prepared, err := f.runtime.Accounts().Creator().PrepareUnusable(t.Context(), f.actor, input)
+	creationInputCheck(t, err)
+	created, err := f.runtime.Accounts().Creator().Commit(t.Context(), f.actor, prepared)
+	creationInputCheck(t, err)
+	return created
+}
+
+type creationInputState map[string][][]any
+
+func (f *creationInputFixture) snapshot(t *testing.T) creationInputState {
+	t.Helper()
+	state := make(creationInputState)
+	visits := 0
+	creationInputCheck(t, f.native.ReadSnapshot(t.Context(), func(reader db.Queryer) error {
+		visits++
+		if visits != 1 {
+			return errors.New("snapshot repeated its callback")
+		}
+		for _, plan := range f.plans {
+			rows, err := reader.Query(t.Context(), plan)
+			if err != nil {
+				if rows != nil {
+					err = errors.Join(err, rows.Close())
+				}
+				return err
+			}
+			if rows == nil {
+				return errors.New("snapshot has no rowset")
+			}
+			state[plan.Table()] = [][]any{}
+			var last int64
+			present := false
+			for rows.Next() {
+				values := make([]any, len(plan.SourceFields()))
+				destinations := make([]any, len(values))
+				for index := range values {
+					destinations[index] = &values[index]
+				}
+				if err := rows.Scan(destinations...); err != nil {
+					return errors.Join(err, rows.Close())
+				}
+				id, valid := values[f.keys[plan.Table()]].(int64)
+				if !valid || present && id <= last {
+					return errors.Join(errors.New("snapshot has an invalid or repeated key"), rows.Close())
+				}
+				last, present = id, true
+				for index, value := range values {
+					if raw, binary := value.([]byte); binary {
+						values[index] = slices.Clone(raw)
+					}
+				}
+				state[plan.Table()] = append(state[plan.Table()], values)
+			}
+			if err := errors.Join(rows.Err(), rows.Close(), t.Context().Err()); err != nil {
+				return err
+			}
+		}
+		return nil
+	}))
+	if visits != 1 {
+		t.Fatal("snapshot skipped its callback")
+	}
+	return state
+}
+func (f *creationInputFixture) recorded(clear bool) []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	values := append([]string{}, f.profiles...)
+	if clear {
+		f.profiles = nil
+	}
+	return values
+}
+func (f *creationInputFixture) form(t *testing.T, mode string) *accountmodel.CreationForm[usernameAccount] {
+	t.Helper()
+	form, err := accountmodel.NewCreationForm(f.runtime.Accounts(), accountmodel.CreationFormConfig{AllowUnusablePassword: mode != "standard", LoginInput: accountmodel.UnicodeUsernameInput(150)})
+	creationInputCheck(t, err)
+	return form
+}
+func (f *creationInputFixture) data(form *accountmodel.CreationForm[usernameAccount], mode string, probe creationInputCase) forms.Data {
+	fields := form.PasswordFields()
+	values := map[string][]string{f.role.Login: {probe.Username}, "@@PROFILE@@": {"NZ"}, fields.First: {probe.Password1}, fields.Confirmation: {probe.Password2}}
+	if mode == "admin_disabled" {
+		values[fields.Unusable] = []string{"true"}
+	}
+	return forms.NewData(values)
+}
+func (f *creationInputFixture) codes(form *accountmodel.CreationForm[usernameAccount], errors validation.Errors) map[string][]string {
+	result := make(map[string][]string)
+	names := form.PasswordFields()
+	for _, item := range errors.All() {
+		name := string(item.Field())
+		switch name {
+		case f.role.Login:
+			name = "username"
+		case names.First:
+			name = "password1"
+		case names.Confirmation:
+			name = "password2"
+		}
+		result[name] = append(result[name], string(item.Code()))
+	}
+	return result
+}
+func creationInputProfiles(want creationInputObservation) []string {
+	values := []string{}
+	for _, profile := range want.Profiles {
+		name := ""
+		if profile != nil {
+			name = *profile
+		}
+		values = append(values, name)
+	}
+	return values
+}
+
+func (f *creationInputFixture) saved(t *testing.T, before creationInputState, created accountmodel.Creation, name, raw string, usable bool) map[string]any {
+	t.Helper()
+	if created.ID <= 0 || created.Revision != 1 {
+		t.Fatal("creation did not publish a confirmed receipt")
+	}
+	row, err := f.objects.Using(f.native).Filter(f.key.Exact(created.ID)).Get(t.Context())
+	creationInputCheck(t, err)
+	values, err := f.objects.ModelValues(row)
+	creationInputCheck(t, err)
+	actual, _ := values[f.role.Login].String()
+	profile, _ := values["@@PROFILE@@"].String()
+	principal, _ := values[f.role.PrincipalID].String()
+	revision, _ := values[f.role.Revision].Integer()
+	if actual != name || profile != "NZ" || principal == "" || revision != 1 || f.role.LastLogin != "" && !values[f.role.LastLogin].IsNull() {
+		t.Fatal("stored creation profile differs")
+	}
+	credential, found, err := f.runtime.Credentials().CredentialByID(t.Context(), principal)
+	creationInputCheck(t, err)
+	if !found || credential.HasUsablePassword() != usable || !credential.Principal().Active() || credential.Principal().Staff() || credential.Principal().Superuser() {
+		t.Fatal("stored creation credential defaults differ")
+	}
+	if f.role.Login != "username" {
+		for field, expected := range map[string]string{"username": "unrelated-name", "password1": "unrelated-command-name"} {
+			value, _ := values[field].String()
+			if value != expected {
+				t.Fatal("login or command projection overwrote an unselected profile")
+			}
+		}
+	}
+	if f.role.CreatedAt != "" && !values[f.role.CreatedAt].Equal(query.DateTime(f.now)) {
+		t.Fatal("creation lost its server time")
+	}
+	if raw != "" {
+		_, err := f.runtime.Authenticator().Authenticate(t.Context(), name, raw)
+		if usable && err != nil || !usable && !errors.Is(err, auth.ErrInvalidCredentials) {
+			t.Fatal("created credential has a different password outcome", err)
+		}
+	}
+	audits, err := auditmodels.EventObjects.Using(f.native).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
+	creationInputCheck(t, err)
+	auditMetadata := (auditmodels.EventDescriptor{}).Metadata()
+	if len(audits) != len(before[auditMetadata.DBTable])+1 {
+		t.Fatal("creation did not add one audit")
+	}
+	event := audits[len(audits)-1]
+	domain, _ := f.actor.CredentialDomain()
+	if event.ObjectID != created.ID || event.Model != f.role.Model.AppLabel+"."+f.role.Model.ModelName || event.ActorID != f.actor.ID() || event.Domain != domain.Identifier() || event.Action != string(admin.ActionAdd) {
+		t.Fatal("creation audit differs from the current owner")
+	}
+	after := f.snapshot(t)
+	for table, id := range map[string]int64{f.metadata.DBTable: created.ID, auditMetadata.DBTable: event.ID} {
+		index := f.keys[table]
+		removed := 0
+		retained := make([][]any, 0, len(after[table]))
+		for _, row := range after[table] {
+			if row[index] == id {
+				removed++
+			} else {
+				retained = append(retained, row)
+			}
+		}
+		if removed != 1 || len(after[table]) != len(before[table])+1 {
+			t.Fatal("creation changed unexpected row cardinality")
+		}
+		after[table] = retained
+	}
+	if !reflect.DeepEqual(before, after) {
+		t.Fatal("creation changed an unrelated native row, membership, session or domain")
+	}
+	return map[string]any{"usable": credential.HasUsablePassword(), "active": credential.Principal().Active(),
+		"staff": credential.Principal().Staff(), "superuser": credential.Principal().Superuser(),
+		"last_login_none": f.role.LastLogin == "" || values[f.role.LastLogin].IsNull()}
+}
+
+func (f *creationInputFixture) bindProbe(t *testing.T, mode string, probe creationInputCase, want creationInputObservation) {
+	t.Helper()
+	form := f.form(t, mode)
+	before := f.snapshot(t)
+	hashes, ids := f.hasher.calls.Load(), f.ids.Load()
+	f.recorded(true)
+	bound, err := form.Bind(t.Context(), f.actor, f.data(form, mode, probe))
+	creationInputCheck(t, err)
+	name, present := bound.Form().Cleaned().String(f.role.Login)
+	if bound.Form().Valid() != want.Valid || !reflect.DeepEqual(f.codes(form, bound.Form().Errors()), want.Codes) || present != (want.Username != nil) || present && name != *want.Username {
+		t.Fatal("selected reusable Form differs from independent input observation", f.codes(form, bound.Form().Errors()), want.Codes)
+	}
+	if !reflect.DeepEqual(f.recorded(false), creationInputProfiles(want)) {
+		t.Fatal("password policy observed a different candidate")
+	}
+	if want.UserDelta != 0 || f.hasher.calls.Load() != hashes || f.ids.Load() != ids || !reflect.DeepEqual(before, f.snapshot(t)) {
+		t.Fatal("Bind allocated identity, hashed or changed durable state")
+	}
+}
+
+func (f *creationInputFixture) lifecycle(t *testing.T, mode, operation string, want map[string]any) {
+	t.Helper()
+	form := f.form(t, mode)
+	name := "Lifecycle_" + mode + "_" + operation
+	if operation == "invalid" {
+		name = "MEMBER"
+	}
+	probe := creationInputCase{Username: name, Password1: "independent-secret", Password2: "independent-secret"}
+	before := f.snapshot(t)
+	hashes := f.hasher.calls.Load()
+	state := func() map[string]any {
+		snapshot := f.snapshot(t)
+		return map[string]any{"user_delta": len(snapshot[f.metadata.DBTable]) - len(before[f.metadata.DBTable]), "hashes": f.hasher.calls.Load() - hashes}
+	}
+	bound, err := form.Bind(t.Context(), f.actor, f.data(form, mode, probe))
+	creationInputCheck(t, err)
+	actual := map[string]any{"valid": bound.Form().Valid(), "checked": state()}
+	var created accountmodel.Creation
+	if operation == "immediate" {
+		var publications []formmodel.FilePublication
+		created, publications, err = form.Create(t.Context(), f.actor, bound)
+		creationInputCheck(t, err)
+		if len(publications) != 0 {
+			t.Fatal("scalar creation published a file")
+		}
+		phase := state()
+		phase["pk_set"] = created.ID > 0
+		actual["prepared"] = phase
+	} else {
+		prepared, publications, failure := form.Prepare(t.Context(), f.actor, bound)
+		if len(publications) != 0 {
+			t.Fatal("scalar preparation published a file")
+		}
+		if operation == "invalid" {
+			_, rejected := validation.Rejected(failure)
+			actual["rejected"] = rejected
+			if failure == nil || !rejected {
+				t.Fatal("invalid Form reached preparation", failure)
+			}
+		} else {
+			creationInputCheck(t, failure)
+			phase := state()
+			phase["pk_set"] = false
+			actual["prepared"] = phase
+			encoded, err := json.Marshal(prepared)
+			creationInputCheck(t, err)
+			printed := fmt.Sprintf("%v %+v %#v %x %p", prepared, prepared, prepared, prepared, prepared) + string(encoded)
+			if strings.Contains(printed, probe.Password1) || strings.Contains(printed, name) || strings.Contains(printed, "generated-user-") {
+				t.Fatal("prepared creation exposed private input")
+			}
+		}
+		if !reflect.DeepEqual(before, f.snapshot(t)) {
+			t.Fatal("Prepare changed native rows")
+		}
+		if operation == "deferred" {
+			created, err = form.Commit(t.Context(), f.actor, prepared)
+			creationInputCheck(t, err)
+			copyResult, failure := form.Commit(t.Context(), f.actor, prepared)
+			if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodeConflict}) || copyResult.ID != 0 {
+				t.Fatal("prepared creation was reused", failure)
+			}
+		}
+	}
+	for key, value := range state() {
+		actual[key] = value
+	}
+	if created.ID != 0 {
+		for key, value := range f.saved(t, before, created, name, probe.Password1, mode != "admin_disabled") {
+			actual[key] = value
+		}
+	} else if !reflect.DeepEqual(before, f.snapshot(t)) {
+		t.Fatal("abandoned or rejected creation wrote")
+	}
+	expected := make(map[string]any)
+	for key, value := range want {
+		switch key {
+		case "usable", "active", "staff", "superuser", "last_login_none":
+			// An opaque abandoned candidate has no public model attributes.
+			// Compare all five values directly to the independent capture once
+			// the account is actually stored.
+			if created.ID == 0 {
+				continue
+			}
+		}
+		expected[key] = value
+	}
+	got, err := json.Marshal(actual)
+	creationInputCheck(t, err)
+	reference, err := json.Marshal(expected)
+	creationInputCheck(t, err)
+	if !slices.Equal(got, reference) {
+		t.Fatal("selected creation lifecycle differs from independent observation")
+	}
+}
+
+func (f *creationInputFixture) preparedOwnership(t *testing.T, operation, mode string) {
+	t.Helper()
+	formMode := "standard"
+	wantHashes := int64(1)
+	if mode == "unusable" {
+		formMode, wantHashes = "admin_disabled", 0
+	}
+	form := f.form(t, formMode)
+	name := "Owner_" + operation + "_" + mode
+	probe := creationInputCase{Username: name, Password1: "independent-secret", Password2: "independent-secret"}
+	var otherActor auth.Principal
+	if operation == "unadmitted_calls" {
+		other := f.insert(t, "Authorized_"+mode)
+		row, err := f.objects.Using(f.native).Filter(f.key.Exact(other.ID)).Get(t.Context())
+		creationInputCheck(t, err)
+		row, err = f.objects.ApplyValues(row, map[string]query.Value{f.role.Superuser.Field: query.Boolean(true), f.role.Revision: query.Integer(2)})
+		creationInputCheck(t, err)
+		creationInputCheck(t, f.objects.Save(t.Context(), f.native, &row, orm.ForceUpdate[usernameAccount]()))
+		values, err := f.objects.ModelValues(row)
+		creationInputCheck(t, err)
+		id, _ := values[f.role.PrincipalID].String()
+		credential, found, err := f.runtime.Credentials().CredentialByID(t.Context(), id)
+		creationInputCheck(t, err)
+		otherActor = credential.Principal()
+		if !found || !otherActor.Active() || !otherActor.Superuser() || otherActor.ID() == f.actor.ID() {
+			t.Fatal("second actor does not have independent current authority")
+		}
+	}
+	before := f.snapshot(t)
+	hashes, ids := f.hasher.calls.Load(), f.ids.Load()
+	bound, err := form.Bind(t.Context(), f.actor, f.data(form, formMode, probe))
+	creationInputCheck(t, err)
+	if !bound.Form().Valid() {
+		t.Fatal("prepared ownership fixture has invalid inputs")
+	}
+	prepared, publications, err := form.Prepare(t.Context(), f.actor, bound)
+	creationInputCheck(t, err)
+	if len(publications) != 0 || f.hasher.calls.Load() != hashes+wantHashes || f.ids.Load() != ids+1 || !reflect.DeepEqual(before, f.snapshot(t)) {
+		t.Fatal("ownership preparation repeated private work or changed native state")
+	}
+	retained := prepared
+	if operation == "unadmitted_calls" {
+		// Prove that another currently authorized actor is rejected by the
+		// prepared capability's ownership, not merely by an ordinary deny.
+		otherBound, err := form.Bind(t.Context(), otherActor, f.data(form, formMode, probe))
+		creationInputCheck(t, err)
+		if !otherBound.Form().Valid() {
+			t.Fatal("second actor lacked current creation authority")
+		}
+		result, failure := form.Commit(t.Context(), otherActor, retained)
+		if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodePermission}) || !reflect.DeepEqual(result, accountmodel.Creation{}) {
+			t.Fatal("authorized foreign actor adopted a prepared operation", failure)
+		}
+		canceled, cancel := context.WithCancel(t.Context())
+		cancel()
+		result, failure = form.Commit(canceled, f.actor, retained)
+		if !errors.Is(failure, context.Canceled) || !reflect.DeepEqual(result, accountmodel.Creation{}) {
+			t.Fatal("unadmitted canceled call lost its cause", failure)
+		}
+		result, failure = form.Commit(t.Context(), f.actor, accountmodel.PreparedCreation[usernameAccount]{})
+		if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) || !reflect.DeepEqual(result, accountmodel.Creation{}) {
+			t.Fatal("zero prepared operation reached persistence", failure)
+		}
+		if f.hasher.calls.Load() != hashes+wantHashes || f.ids.Load() != ids+1 || !reflect.DeepEqual(before, f.snapshot(t)) {
+			t.Fatal("unadmitted calls allocated, rehashed or changed native state")
+		}
+	}
+	var created accountmodel.Creation
+	if operation == "concurrent_copies" {
+		type result struct {
+			creation accountmodel.Creation
+			err      error
+		}
+		start := make(chan struct{})
+		results := make(chan result, 4)
+		var workers sync.WaitGroup
+		for range 4 {
+			workers.Add(1)
+			go func(copy accountmodel.PreparedCreation[usernameAccount]) {
+				defer workers.Done()
+				<-start
+				creation, err := form.Commit(t.Context(), f.actor, copy)
+				results <- result{creation, err}
+			}(prepared)
+		}
+		close(start)
+		workers.Wait()
+		close(results)
+		succeeded, conflicted := 0, 0
+		for result := range results {
+			if result.err == nil {
+				created = result.creation
+				succeeded++
+			} else if errors.Is(result.err, &accountmodel.Error{Code: accountmodel.CodeConflict}) && reflect.DeepEqual(result.creation, accountmodel.Creation{}) {
+				conflicted++
+			} else {
+				t.Fatal("prepared copy produced an unexpected concurrent outcome", result.err)
+			}
+		}
+		if succeeded != 1 || conflicted != 3 {
+			t.Fatal("prepared copies did not share exactly one attempt", succeeded, conflicted)
+		}
+	} else {
+		created, err = form.Commit(t.Context(), f.actor, prepared)
+		creationInputCheck(t, err)
+	}
+	f.saved(t, before, created, name, probe.Password1, mode != "unusable")
+	if operation == "single_attempt_after_delete" {
+		removed, err := f.runtime.Accounts().Deleter().Delete(t.Context(), f.actor, created.ID, created.Revision)
+		creationInputCheck(t, err)
+		if removed.ID != created.ID || removed.DeletedRows != 1 || removed.RevokedSessions != 0 {
+			t.Fatal("prepared deletion fixture changed unrelated data")
+		}
+		audits, err := auditmodels.EventObjects.Using(f.native).OrderBy(auditmodels.EventFields.ID.Asc()).All(t.Context())
+		creationInputCheck(t, err)
+		table := (auditmodels.EventDescriptor{}).Metadata().DBTable
+		if len(audits) != len(before[table])+2 {
+			t.Fatal("create and delete did not produce exactly two audits")
+		}
+		event := audits[len(audits)-1]
+		domain, _ := f.actor.CredentialDomain()
+		if event.ObjectID != created.ID || event.Model != f.role.Model.AppLabel+"."+f.role.Model.ModelName || event.ActorID != f.actor.ID() || event.Domain != domain.Identifier() || event.Action != string(admin.ActionDelete) {
+			t.Fatal("deletion audit differs from the current owner")
+		}
+		after := f.snapshot(t)
+		if len(after[table]) != len(before[table])+2 {
+			t.Fatal("physical audit rows disagree with typed deletion observations")
+		}
+		after[table] = after[table][:len(before[table])]
+		if !reflect.DeepEqual(before, after) {
+			t.Fatal("creation followed by deletion changed other rows or retained its account")
+		}
+	}
+	beforeReplay := f.snapshot(t)
+	replayed, failure := form.Commit(t.Context(), f.actor, retained)
+	if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodeConflict}) || !reflect.DeepEqual(replayed, accountmodel.Creation{}) ||
+		f.hasher.calls.Load() != hashes+wantHashes || f.ids.Load() != ids+1 || !reflect.DeepEqual(beforeReplay, f.snapshot(t)) {
+		t.Fatal("consumed prepared copy allocated, rehashed or changed durable state", failure)
+	}
+}
+
+type creationInputHTTP struct {
+	fixture *creationInputFixture
+	client  *http.Client
+	server  *httptest.Server
+}
+
+var creationInputToken = regexp.MustCompile(`name="csrfmiddlewaretoken" value="([A-Za-z0-9_-]{128})"`)
+
+func (f *creationInputFixture) admin(t *testing.T) *creationInputHTTP {
+	t.Helper()
+	configured, err := settings.New(settings.Definition{ProjectName: "creation_inputs", InstalledApps: append(project.InstalledApps(), apps.Config{Name: "example.com/godj-project-bundle/consumer", Label: "creationinput"})})
+	creationInputCheck(t, err)
+	builder := admin.NewBuilder(configured.Apps())
+	creationInputCheck(t, identityadmin.RegisterAccount(builder, f.runtime.Accounts(), identityadmin.AccountRegistration{Slug: "accounts", CreationLoginInput: accountmodel.UnicodeUsernameInput(150)}))
+	registry, err := builder.Build()
+	creationInputCheck(t, err)
+	paths, err := admin.SiteAllowedNextPaths(registry, "/admin")
+	creationInputCheck(t, err)
+	runtime, err := websession.New(websession.Config{Sessions: f.runtime.Sessions(), Authenticator: f.runtime.Authenticator(), Authorizer: auth.PrincipalAuthorizer{}, LoginPersistence: f.runtime.LoginPersistence(), Clock: func() time.Time { return f.now },
+		SessionCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, CSRFCookie: websession.CookieConfig{Path: "/", AllowInsecure: true}, LoginPath: "/admin/login/", FallbackPath: "/admin/", AllowedNextPaths: paths})
+	creationInputCheck(t, err)
+	site, err := admin.NewSite(admin.SiteConfig{Apps: configured.Apps(), Namespace: "creationinput", Registry: registry, Auth: runtime})
+	creationInputCheck(t, err)
+	app, err := web.NewApplication(web.Config{Settings: configured, Routes: site.Routes()})
+	creationInputCheck(t, err)
+	h := &creationInputHTTP{fixture: f, server: httptest.NewServer(app)}
+	t.Cleanup(h.server.Close)
+	jar, err := cookiejar.New(nil)
+	creationInputCheck(t, err)
+	h.client = &http.Client{Transport: h.server.Client().Transport, Jar: jar, Timeout: 30 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	status, _, body := h.send(t, "GET", "/admin/login/", nil)
+	if status != 200 {
+		t.Fatal("login page", status)
+	}
+	token := creationInputToken.FindSubmatch(body)
+	if len(token) != 2 {
+		t.Fatal("login token missing")
+	}
+	status, _, _ = h.send(t, "POST", "/admin/login/", url.Values{"username": {"manager"}, "password": {accountPasswordText}, "csrfmiddlewaretoken": {string(token[1])}})
+	if status != 302 {
+		t.Fatal("selected Admin login", status)
+	}
+	return h
+}
+func (h *creationInputHTTP) send(t *testing.T, method, path string, data url.Values) (int, http.Header, []byte) {
+	t.Helper()
+	var body io.Reader
+	if data != nil {
+		body = strings.NewReader(data.Encode())
+	}
+	request, err := http.NewRequestWithContext(t.Context(), method, h.server.URL+path, body)
+	creationInputCheck(t, err)
+	if data != nil {
+		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		request.Header.Set("Origin", h.server.URL)
+	}
+	response, err := h.client.Do(request)
+	creationInputCheck(t, err)
+	raw, err := io.ReadAll(response.Body)
+	creationInputCheck(t, err)
+	creationInputCheck(t, response.Body.Close())
+	return response.StatusCode, response.Header, raw
+}
+
+func creationInputDiagnostics(t *testing.T, form *accountmodel.CreationForm[usernameAccount], body []byte) validation.Errors {
+	t.Helper()
+	failures := []validation.Violation{}
+	for _, match := range regexp.MustCompile(`data-error-field="([^"]+)" data-error-code="([^"]+)"`).FindAllSubmatch(body, -1) {
+		failures = append(failures, validation.New(validation.Field(html.UnescapeString(string(match[1]))), validation.Code(html.UnescapeString(string(match[2])))))
+	}
+	names := form.PasswordFields()
+	for _, input := range regexp.MustCompile(`<input[^>]*>`).FindAll(body, -1) {
+		for _, name := range []string{names.First, names.Confirmation} {
+			if strings.Contains(string(input), `name="`+name+`"`) {
+				value := regexp.MustCompile(`value="([^"]*)"`).FindSubmatch(input)
+				if len(value) != 0 && len(value[1]) != 0 {
+					t.Fatal("rejected Admin form redisplayed a password")
+				}
+			}
+		}
+	}
+	return validation.NewErrors(failures...)
+}
+
+func (h *creationInputHTTP) probe(t *testing.T, mode string, probe creationInputCase, want creationInputObservation) {
+	t.Helper()
+	f := h.fixture
+	form := f.form(t, mode)
+	names := form.PasswordFields()
+	status, _, body := h.send(t, "GET", "/admin/accounts/add/", nil)
+	if status != 200 {
+		t.Fatal("creation page", status)
+	}
+	token := creationInputToken.FindSubmatch(body)
+	if len(token) != 2 {
+		t.Fatal("creation token missing")
+	}
+	data := url.Values{f.role.Login: {probe.Username}, "@@PROFILE@@": {"NZ"}, names.First: {probe.Password1}, names.Confirmation: {probe.Password2}, "csrfmiddlewaretoken": {string(token[1])}}
+	if mode == "admin_disabled" {
+		data[names.Unusable] = []string{"true"}
+	}
+	before := f.snapshot(t)
+	hashes, ids := f.hasher.calls.Load(), f.ids.Load()
+	f.recorded(true)
+	status, header, body := h.send(t, "POST", "/admin/accounts/add/", data)
+	expectedStatus := 200
+	if want.Valid {
+		expectedStatus = 302
+	}
+	if status != expectedStatus || want.Valid && !strings.HasPrefix(header.Get("Location"), "/admin/accounts/") {
+		t.Fatal("selected Admin creation response", status)
+	}
+	if !reflect.DeepEqual(f.codes(form, creationInputDiagnostics(t, form, body)), want.Codes) {
+		t.Fatal("Admin input phases differ from independent reference")
+	}
+	profiles := creationInputProfiles(want)
+	expectedHashes, expectedIDs := int64(0), int64(0)
+	if want.Valid {
+		expectedIDs = 1
+		if mode == "admin_enabled" {
+			expectedHashes = 1
+			// Selected creation checks before hashing, before insertion and
+			// again against the final collected graph. These are Go fences,
+			// in addition to the one independent Form policy observation.
+			profiles = append(profiles, *want.Username, *want.Username, *want.Username)
+		}
+		row, err := f.objects.Using(f.native).Filter(f.login.Exact(*want.Username)).Get(t.Context())
+		creationInputCheck(t, err)
+		key, present, err := f.objects.PrimaryKey(row)
+		creationInputCheck(t, err)
+		id, valid := key.Integer()
+		if !present || !valid {
+			t.Fatal("Admin creation lost its key")
+		}
+		f.saved(t, before, accountmodel.Creation{ID: id, Revision: 1}, *want.Username, probe.Password1, mode != "admin_disabled")
+	} else if !reflect.DeepEqual(before, f.snapshot(t)) {
+		t.Fatal("rejected Admin input changed native rows")
+	}
+	if !reflect.DeepEqual(f.recorded(false), profiles) || f.hasher.calls.Load()-hashes != expectedHashes || f.ids.Load()-ids != expectedIDs {
+		t.Fatal("Admin creation lost candidate phases or performed extra work")
+	}
+}
+
+func (f *creationInputFixture) foreignValues(t *testing.T, mode string) {
+	t.Helper()
+	boundary := &creationReadBoundary{Backend: f.native, mode: "read_zero"}
+	owner, err := project.NewAccountRuntime(t.Context(), boundary, f.hasher, auth.PrincipalAuthorizer{}, f.config)
+	creationInputCheck(t, err)
+	form, err := accountmodel.NewCreationForm(owner.Accounts(), accountmodel.CreationFormConfig{AllowUnusablePassword: mode == "admin_enabled", LoginInput: accountmodel.UnicodeUsernameInput(150)})
+	creationInputCheck(t, err)
+	names := form.PasswordFields()
+	for _, kind := range []string{"mismatch", "grammar", "type", "field", "canceled"} {
+		creationInputRun(t, kind, func(t *testing.T) {
+			fields := form.Spec().Fields()
+			data := map[string][]string{f.role.Login: {"Candidate"}, "@@PROFILE@@": {"NZ"}, names.First: {"independent-secret"}, names.Confirmation: {"independent-secret"}}
+			if names.Unusable != "" {
+				data[names.Unusable] = []string{"false"}
+			}
+			switch kind {
+			case "mismatch":
+				data[names.Confirmation] = []string{"different-secret"}
+			case "grammar":
+				data[f.role.Login] = []string{"bad/name"}
+				for i := range fields {
+					if fields[i].Name() == f.role.Login {
+						fields[i], err = forms.CharField(f.role.Login, forms.WithTrimWhitespace(false))
+						creationInputCheck(t, err)
+					}
+				}
+			case "type":
+				for i := range fields {
+					if fields[i].Name() == f.role.Login {
+						fields[i], err = forms.BooleanField(f.role.Login)
+						creationInputCheck(t, err)
+					}
+				}
+				data[f.role.Login] = []string{"true"}
+			case "field":
+				if f.role.Staff.Field == "" {
+					t.Fatal("forged field fixture has no stored role")
+				}
+				field, err := forms.BooleanField(f.role.Staff.Field)
+				creationInputCheck(t, err)
+				fields = append(fields, field)
+				data[field.Name()] = []string{"true"}
+			}
+			// A valid general Form grants no model or creation authority.
+			// Deliberately omit cross validators to exercise defensive Prepare.
+			spec, err := forms.NewSpec(fields)
+			creationInputCheck(t, err)
+			generic, err := spec.Bind(t.Context(), forms.NewData(data), nil)
+			creationInputCheck(t, err)
+			if !generic.Valid() {
+				t.Fatal("foreign-value control is not a valid general Form")
+			}
+			before, hashes, ids := f.snapshot(t), f.hasher.calls.Load(), f.ids.Load()
+			f.recorded(true)
+			bound, failure := formmodel.Bind(t.Context(), f.metadata, spec, forms.NewData(data), nil, formmodel.PostClean{})
+			if kind == "type" {
+				var invalid *formmodel.Error
+				if !errors.As(failure, &invalid) || invalid.Code != "type_mismatch" || invalid.Path != "fields."+f.role.Login || bound.Form().Bound() {
+					t.Fatal("general Form changed the stored login type", failure)
+				}
+			} else {
+				creationInputCheck(t, failure)
+				if !bound.Form().Valid() {
+					t.Fatal("foreign Form did not reach defensive creation preparation")
+				}
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				if kind == "canceled" {
+					cancel()
+				}
+				prepared, publications, failure := form.Prepare(ctx, f.actor, bound)
+				if failure == nil || len(publications) != 0 {
+					t.Fatal("foreign Form acquired creation or publication authority", failure)
+				}
+				diagnostics, rejected := validation.Rejected(failure)
+				switch kind {
+				case "mismatch", "grammar":
+					field := names.Confirmation
+					if kind == "grammar" {
+						field = f.role.Login
+					}
+					if !rejected || diagnostics.ByField(validation.Field(field)).Empty() {
+						t.Fatal("defensive preparation lost the input diagnostic", kind, failure)
+					}
+				case "field":
+					if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) || rejected {
+						t.Fatal("foreign field selection reached persistence", failure)
+					}
+				case "canceled":
+					if !errors.Is(failure, context.Canceled) || rejected {
+						t.Fatal("canceled preparation became ordinary validation", failure)
+					}
+				}
+				created, commitError := form.Commit(t.Context(), f.actor, prepared)
+				if !errors.Is(commitError, &accountmodel.Error{Code: accountmodel.CodeInvalidInput}) || !reflect.DeepEqual(created, accountmodel.Creation{}) {
+					t.Fatal("failed preparation published a usable candidate", commitError)
+				}
+			}
+			if boundary.reads != 0 || f.hasher.calls.Load() != hashes || f.ids.Load() != ids || len(f.recorded(false)) != 0 || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("foreign Form entered a DB scope, ran password/identity work or changed native rows")
+			}
+		})
+	}
+}
+
+func TestCreationInputPolicy(t *testing.T) {
+	cases, reference := creationInputReferenceData(t)
+	for _, surface := range []string{"form", "admin"} {
+		creationInputRun(t, surface, func(t *testing.T) {
+			modes := []string{"standard", "admin_enabled", "admin_disabled"}
+			if surface == "admin" {
+				modes = modes[1:]
+			}
+			for _, mode := range modes {
+				creationInputRun(t, mode, func(t *testing.T) {
+					f := newCreationInputFixture(t, surface == "form")
+					var h *creationInputHTTP
+					if surface == "admin" {
+						h = f.admin(t)
+					}
+					for _, probe := range cases {
+						creationInputRun(t, probe.Name, func(t *testing.T) {
+							want, found := reference.Observations[mode][probe.Name]
+							if !found {
+								t.Fatal("reference omitted input")
+							}
+							if h != nil {
+								h.probe(t, mode, probe, want)
+							} else {
+								f.bindProbe(t, mode, probe, want)
+							}
+						})
+					}
+					if surface == "form" {
+						for _, operation := range []string{"immediate", "deferred", "abandoned", "invalid"} {
+							creationInputRun(t, "lifecycle_"+operation, func(t *testing.T) { f.lifecycle(t, mode, operation, reference.Lifecycle[mode][operation]) })
+						}
+					}
+				})
+			}
+		})
+	}
+	creationInputRun(t, "boundaries", func(t *testing.T) {
+		f := newCreationInputFixture(t, true)
+		form := f.form(t, "standard")
+		creationInputRun(t, "stored_limit", func(t *testing.T) {
+			name := strings.Repeat("long", 50)
+			before := f.snapshot(t)
+			created := f.insert(t, name)
+			f.saved(t, before, created, name, "", false)
+			row, err := f.objects.Using(f.native).Filter(f.key.Exact(created.ID)).Get(t.Context())
+			creationInputCheck(t, err)
+			definition, err := f.runtime.Accounts().FormDefinition(admin.ActionChange)
+			creationInputCheck(t, err)
+			spec, err := definition.Spec(f.metadata)
+			creationInputCheck(t, err)
+			for _, field := range spec.Fields() {
+				if field.Name() == f.role.Login && field.MaxLength() != 256 {
+					t.Fatal("creation narrowing changed editing")
+				}
+			}
+			instance, err := formmodel.BindInstance(t.Context(), f.objects, spec, forms.NewData(map[string][]string{f.role.Login: {name}, "@@PROFILE@@": {"NZ"}}), &row, definition.PostClean)
+			creationInputCheck(t, err)
+			if !instance.BoundForm().Form().Valid() {
+				t.Fatal("existing long login cannot round-trip through editing")
+			}
+			creationInputCheck(t, f.runtime.Accounts().CheckChangeForm(t.Context(), f.actor, created.ID, 1, instance.BoundForm()))
+		})
+		creationInputRun(t, "raw_normalization_limit", func(t *testing.T) {
+			before := f.snapshot(t)
+			hashes, ids := f.hasher.calls.Load(), f.ids.Load()
+			bound, err := form.Bind(t.Context(), f.actor, f.data(form, "standard", creationInputCase{Username: strings.Repeat("Å", 76), Password1: "independent-secret", Password2: "independent-secret"}))
+			creationInputCheck(t, err)
+			if bound.Form().Valid() || bound.Form().Errors().ByField(validation.Field(f.role.Login)).Empty() || f.hasher.calls.Load() != hashes || f.ids.Load() != ids || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("normalization erased the raw input bound")
+			}
+		})
+		for _, kind := range []string{"length", "grammar", "normalization"} {
+			creationInputRun(t, "forged_"+kind, func(t *testing.T) {
+				loose, err := f.runtime.Accounts().Creator().FormDefinition()
+				creationInputCheck(t, err)
+				strict := form.Definition()
+				loose.ExtraFields, loose.Validators = strict.ExtraFields, strict.Validators
+				spec, err := loose.Spec(f.metadata)
+				creationInputCheck(t, err)
+				name := "bad input"
+				if kind == "length" {
+					name = strings.Repeat("z", 200)
+				}
+				if kind == "normalization" {
+					name = "\x1cUntrimmed\x1c"
+				}
+				instance, err := formmodel.BindInstance(t.Context(), f.objects, spec, f.data(form, "standard", creationInputCase{Username: name, Password1: "independent-secret", Password2: "independent-secret"}), nil, loose.PostClean)
+				creationInputCheck(t, err)
+				if !instance.BoundForm().Form().Valid() {
+					t.Fatal("weaker projection did not produce a valid test input")
+				}
+				before := f.snapshot(t)
+				hashes, ids := f.hasher.calls.Load(), f.ids.Load()
+				_, publications, failure := form.Prepare(t.Context(), f.actor, instance.BoundForm())
+				failures, rejected := validation.Rejected(failure)
+				if !rejected || failures.ByField(validation.Field(f.role.Login)).Empty() || len(publications) != 0 || f.hasher.calls.Load() != hashes || f.ids.Load() != ids || !reflect.DeepEqual(before, f.snapshot(t)) {
+					t.Fatal("prepared creation trusted a weaker login projection", failure)
+				}
+			})
+		}
+		creationInputRun(t, "late_duplicate", func(t *testing.T) {
+			probe := creationInputCase{Username: "RacingUsername", Password1: "independent-secret", Password2: "independent-secret"}
+			bound, err := form.Bind(t.Context(), f.actor, f.data(form, "standard", probe))
+			creationInputCheck(t, err)
+			if !bound.Form().Valid() {
+				t.Fatal("fresh duplicate fixture was invalid")
+			}
+			before := f.snapshot(t)
+			prepared, publications, err := form.Prepare(t.Context(), f.actor, bound)
+			creationInputCheck(t, err)
+			if len(publications) != 0 || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("Prepare wrote before the competing account")
+			}
+			f.insert(t, "racingusername")
+			before = f.snapshot(t)
+			hashes := f.hasher.calls.Load()
+			created, failure := form.Commit(t.Context(), f.actor, prepared)
+			failures, rejected := validation.Rejected(failure)
+			if !rejected || failures.ByField(validation.Field(f.role.Login)).Empty() || created.ID != 0 || f.hasher.calls.Load() != hashes || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("late case-insensitive duplicate was not fenced", failure)
+			}
+			_, failure = form.Commit(t.Context(), f.actor, prepared)
+			if !errors.Is(failure, &accountmodel.Error{Code: accountmodel.CodeConflict}) || !reflect.DeepEqual(before, f.snapshot(t)) {
+				t.Fatal("failed creation attempt was reused", failure)
+			}
+		})
+	})
+	creationInputRun(t, "prepared_ownership", func(t *testing.T) {
+		f := newCreationInputFixture(t, true)
+		for _, operation := range []string{"single_attempt_after_delete", "concurrent_copies", "unadmitted_calls"} {
+			creationInputRun(t, operation, func(t *testing.T) {
+				for _, mode := range []string{"usable", "unusable"} {
+					creationInputRun(t, mode, func(t *testing.T) { f.preparedOwnership(t, operation, mode) })
+				}
+			})
+		}
+	})
+	creationInputRun(t, "foreign_values", func(t *testing.T) {
+		f := newCreationInputFixture(t, true)
+		for _, mode := range []string{"standard", "admin_enabled"} {
+			creationInputRun(t, mode, func(t *testing.T) { f.foreignValues(t, mode) })
+		}
+	})
+}

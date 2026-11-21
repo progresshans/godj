@@ -1,0 +1,42 @@
+package consumer
+
+import (
+	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/api/endpoint"
+	"github.com/progresshans/godj/api/input"
+	"github.com/progresshans/godj/api/openapi"
+	"github.com/progresshans/godj/api/output"
+	"github.com/progresshans/godj/auth"
+	"github.com/progresshans/godj/serializers"
+	"github.com/progresshans/godj/web"
+	"strconv"
+)
+
+type body struct{ Name input.Presence[string] }
+type resource struct {
+	ID   string
+	Name string
+}
+
+func prepare(authentication api.Authentication, requestBody input.Body[body], response output.Output[resource]) ([]openapi.Operation, []openapi.NamedSchema, error) {
+	path := endpoint.Resolve(endpoint.Sequence(endpoint.PathInt64("id"), endpoint.PathString("key")),
+		func(_ *web.Request, actor auth.Principal, value endpoint.Pair[int64, string]) (resource, error) {
+			return resource{ID: strconv.FormatInt(value.First, 10), Name: actor.ID() + value.Second}, nil
+		})
+	prepared, err := endpoint.New(authentication, endpoint.Config[endpoint.Pair[resource, body], resource]{
+		Route:     web.Route{Name: "items:update", Method: "PUT", Path: "/items/<int64:id>/<str:key>/"},
+		Admission: endpoint.Authenticated(),
+		Input:     endpoint.Sequence(path, endpoint.NoQuery(endpoint.JSONBody("Body", requestBody, serializers.ModeFull, "Body."))),
+		Output:    response, Success: []endpoint.Status{{Code: 200, Description: "Updated."}},
+		Handle: func(request *web.Request, _ auth.Principal, value endpoint.Pair[resource, body]) (output.Prepared[resource], error) {
+			if name, present := value.Second.Name.Get(); present {
+				value.First.Name = name
+			}
+			return response.Prepare(request.Context(), 200, value.First)
+		},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	return endpoint.Collect([]endpoint.Endpoint{prepared})
+}

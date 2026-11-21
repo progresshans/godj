@@ -1,0 +1,37 @@
+{
+  "categories": ["a", "b", "empty"],
+  "labels": [
+    {"code": "red", "category": "a"},
+    {"code": "blue", "category": "a"},
+    {"code": "none", "category": "a"},
+    {"code": "foreign", "category": "b"},
+    {"code": "orphan", "category": null},
+    {"code": "nullonly", "category": "a"}
+  ],
+  "tickets": [
+    {"code": "a", "category": "a", "amount": 2, "enabled": true, "score": 1.5, "price": "12.50", "elapsed": 3},
+    {"code": "b", "category": "a", "amount": 5, "enabled": false, "score": 2.5, "price": "12.50", "elapsed": null},
+    {"code": "c", "category": "b", "amount": null, "enabled": null, "score": -1.0, "price": null, "elapsed": -2},
+    {"code": "d", "category": "a", "amount": -3, "enabled": true, "score": null, "price": "-2.25", "elapsed": 4},
+    {"code": "e", "category": null, "amount": 9, "enabled": false, "score": 3.0, "price": "5.00", "elapsed": 1},
+    {"code": "f", "category": "a", "amount": null, "enabled": true, "score": null, "price": null, "elapsed": null}
+  ],
+  "links": [
+    {"ticket": "a", "label": "red"},
+    {"ticket": "a", "label": "red"},
+    {"ticket": "b", "label": "red"},
+    {"ticket": "c", "label": "red"},
+    {"ticket": "a", "label": "blue"},
+    {"ticket": "d", "label": "blue"},
+    {"ticket": "c", "label": "foreign"},
+    {"ticket": "e", "label": "orphan"},
+    {"ticket": "f", "label": "nullonly"},
+    {"ticket": null, "label": "red"},
+    {"ticket": "b", "label": null}
+  ],
+  "details": [
+    {"ticket": "a", "bonus": 7},
+    {"ticket": "b", "bonus": null},
+    {"ticket": "f", "bonus": -2}
+  ]
+}

@@ -36,7 +36,7 @@ func TestAtomicCommitRollbackAndExpiredSession(t *testing.T) {
 
 	rollbackSignal := errors.New("rollback requested")
 	err := backend.Atomic(ctx, func(session db.Session) error {
-		if _, err := models.ArticleObjects.Update(ctx, session, committed, models.ArticlePatch{}.WithTitle("Rolled Back Update")); err != nil {
+		if _, err := models.ArticleObjects.Patch(ctx, session, committed, models.ArticlePatch{}.WithTitle("Rolled Back Update")); err != nil {
 			return err
 		}
 		if _, err := models.ArticleObjects.Create(ctx, session, models.NewArticleCreate("Rolled Back Create")); err != nil {

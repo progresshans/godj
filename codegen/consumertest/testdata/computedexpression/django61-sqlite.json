@@ -1,0 +1,984 @@
+{
+  "backend": "sqlite",
+  "cases": [
+    {
+      "name": "priority_preview_boundaries",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "2",
+            "type": "int"
+          },
+          "other": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          },
+          "other": null
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "1",
+            "type": "int"
+          },
+          "other": {
+            "text": "0",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "2",
+            "type": "int"
+          },
+          "other": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "-2",
+            "type": "int"
+          },
+          "other": {
+            "text": "-2",
+            "type": "int"
+          }
+        },
+        {
+          "code": "minimum",
+          "derived": {
+            "text": "-9223372036854775808",
+            "type": "int"
+          },
+          "other": {
+            "text": "-9223372036854775808",
+            "type": "int"
+          }
+        },
+        {
+          "code": "maximum",
+          "derived": {
+            "text": "9223372036854775807",
+            "type": "int"
+          },
+          "other": {
+            "text": "9223372036854775807",
+            "type": "int"
+          }
+        },
+        {
+          "code": "low",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          },
+          "other": {
+            "text": "-1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "urgent",
+          "derived": {
+            "text": "1",
+            "type": "int"
+          },
+          "other": {
+            "text": "1",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "INSERT INTO \"gdj_annotation_measure\" (\"code\", \"group_key\", \"enabled\", \"amount\", \"other\", \"score\", \"price\", \"elapsed\", \"document\", \"category_id\") VALUES ('minimum', NULL, 1, 0, -9223372036854775808, NULL, NULL, NULL, NULL, NULL) RETURNING \"gdj_annotation_measure\".\"id\"",
+        "INSERT INTO \"gdj_annotation_measure\" (\"code\", \"group_key\", \"enabled\", \"amount\", \"other\", \"score\", \"price\", \"elapsed\", \"document\", \"category_id\") VALUES ('maximum', NULL, 1, 0, 9223372036854775807, NULL, NULL, NULL, NULL, NULL) RETURNING \"gdj_annotation_measure\".\"id\"",
+        "INSERT INTO \"gdj_annotation_measure\" (\"code\", \"group_key\", \"enabled\", \"amount\", \"other\", \"score\", \"price\", \"elapsed\", \"document\", \"category_id\") VALUES ('low', NULL, 1, 0, -1, NULL, NULL, NULL, NULL, NULL) RETURNING \"gdj_annotation_measure\".\"id\"",
+        "INSERT INTO \"gdj_annotation_measure\" (\"code\", \"group_key\", \"enabled\", \"amount\", \"other\", \"score\", \"price\", \"elapsed\", \"document\", \"category_id\") VALUES ('urgent', NULL, 1, 0, 1, NULL, NULL, NULL, NULL, NULL) RETURNING \"gdj_annotation_measure\".\"id\"",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", \"gdj_annotation_measure\".\"other\" AS \"other\", CASE WHEN \"gdj_annotation_measure\".\"other\" IS NULL THEN 0 WHEN \"gdj_annotation_measure\".\"other\" IN (-1, 0) THEN (\"gdj_annotation_measure\".\"other\" + 1) ELSE \"gdj_annotation_measure\".\"other\" END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "first_matching_branch",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "11",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "-1",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "11",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "11",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "11",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"amount\" >= 0 THEN 11 WHEN \"gdj_annotation_measure\".\"amount\" > 0 THEN 22 ELSE -1 END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "no_branches_default",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "-7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", \"gdj_annotation_measure\".\"amount\" AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "nullable_branch",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": null
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 0 THEN NULL ELSE \"gdj_annotation_measure\".\"amount\" END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "nullable_condition_falls_through",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "8",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "-10",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "-10",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "8",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "-10",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"other\" > 0 THEN (\"gdj_annotation_measure\".\"amount\" + 3) ELSE -10 END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "unselected_row_overflow",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "-7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"code\" = 'never' THEN (\"gdj_annotation_measure\".\"amount\" + 9223372036854775807) ELSE \"gdj_annotation_measure\".\"amount\" END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "unselected_constant_zero_division",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "-7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "5",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"code\" = 'never' THEN (1 / 0) ELSE \"gdj_annotation_measure\".\"amount\" END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "selected_zero_division",
+      "result": [
+        {
+          "code": "a",
+          "derived": null
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "-7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": null
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 1 THEN (\"gdj_annotation_measure\".\"amount\" / 0) ELSE \"gdj_annotation_measure\".\"amount\" END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "not_computed_null",
+      "result": [
+        {
+          "code": "c",
+          "derived": {
+            "text": "3",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 0 THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END AS \"derived\" FROM \"gdj_annotation_measure\" WHERE NOT (CASE WHEN (\"gdj_annotation_measure\".\"enabled\" = 0) THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END = 7) ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "mixed_or_computed_and_field",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "7",
+            "type": "int"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "-2",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") AS \"derived\" FROM \"gdj_annotation_measure\" WHERE ((\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") > 5 OR \"gdj_annotation_measure\".\"enabled\" = 0) ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_aggregate",
+      "result": {
+        "average": {
+          "hex": "0x1.6aaaaaaaaaaabp+2",
+          "text": "5.666666666666667",
+          "type": "float"
+        },
+        "maximum": {
+          "text": "7",
+          "type": "int"
+        },
+        "present": {
+          "text": "3",
+          "type": "int"
+        },
+        "total": {
+          "text": "17",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT SUM(CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 0 THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END) AS \"total\", AVG(CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 0 THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END) AS \"average\", COUNT(CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 0 THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END) AS \"present\", MAX(CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 0 THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END) AS \"maximum\" FROM \"gdj_annotation_measure\"",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_group_key",
+      "result": [
+        {
+          "amount": {
+            "text": "-5",
+            "type": "int"
+          },
+          "bucket": {
+            "text": "0",
+            "type": "int"
+          },
+          "total": {
+            "text": "2",
+            "type": "int"
+          }
+        },
+        {
+          "amount": {
+            "text": "16",
+            "type": "int"
+          },
+          "bucket": {
+            "text": "1",
+            "type": "int"
+          },
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 1 THEN 1 ELSE 0 END AS \"bucket\", COUNT(\"gdj_annotation_measure\".\"id\") AS \"total\", SUM((\"gdj_annotation_measure\".\"amount\" + 1)) AS \"amount\" FROM \"gdj_annotation_measure\" GROUP BY 1 ORDER BY 1 ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_group_having",
+      "result": [
+        {
+          "group_key": null,
+          "total": {
+            "text": "3",
+            "type": "int"
+          }
+        },
+        {
+          "group_key": "x",
+          "total": {
+            "text": "14",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"group_key\" AS \"group_key\", SUM(CASE WHEN \"gdj_annotation_measure\".\"enabled\" = 0 THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END) AS \"total\" FROM \"gdj_annotation_measure\" GROUP BY 1 HAVING SUM(CASE WHEN (\"gdj_annotation_measure\".\"enabled\" = 0) THEN NULL ELSE (\"gdj_annotation_measure\".\"amount\" + \"gdj_annotation_measure\".\"other\") END) > 0 ORDER BY 1 ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_distinct_order",
+      "result": [
+        {
+          "derived": {
+            "text": "-2",
+            "type": "int"
+          }
+        },
+        {
+          "derived": {
+            "text": "0",
+            "type": "int"
+          }
+        },
+        {
+          "derived": {
+            "text": "1",
+            "type": "int"
+          }
+        },
+        {
+          "derived": {
+            "text": "2",
+            "type": "int"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT DISTINCT CASE WHEN \"gdj_annotation_measure\".\"other\" IS NULL THEN 0 WHEN \"gdj_annotation_measure\".\"other\" IN (-1, 0) THEN (\"gdj_annotation_measure\".\"other\" + 1) ELSE \"gdj_annotation_measure\".\"other\" END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY 1 ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_sliced_sum",
+      "result": {
+        "total": {
+          "text": "3",
+          "type": "int"
+        }
+      },
+      "sql": [
+        "BEGIN",
+        "SELECT SUM(CASE WHEN \"__col1\" IS NULL THEN 0 WHEN \"__col1\" IN (-1, 0) THEN (\"__col1\" + 1) ELSE \"__col1\" END) FROM (SELECT \"gdj_annotation_measure\".\"other\" AS \"__col1\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC LIMIT 3) subquery",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_decimal_copy",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "text": "1.23000000000000",
+            "type": "Decimal"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "text": "0.0300000000000000",
+            "type": "Decimal"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "text": "0",
+            "type": "Decimal"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "text": "1.23000000000000",
+            "type": "Decimal"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "text": "0",
+            "type": "Decimal"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (CAST(CASE WHEN \"gdj_annotation_measure\".\"price\" IS NULL THEN (CAST('0.00' AS REAL)) ELSE \"gdj_annotation_measure\".\"price\" END AS NUMERIC)) AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_duration_copy",
+      "result": [
+        {
+          "code": "a",
+          "derived": {
+            "microseconds": "3",
+            "type": "timedelta"
+          }
+        },
+        {
+          "code": "b",
+          "derived": {
+            "microseconds": "4",
+            "type": "timedelta"
+          }
+        },
+        {
+          "code": "c",
+          "derived": {
+            "microseconds": "7",
+            "type": "timedelta"
+          }
+        },
+        {
+          "code": "d",
+          "derived": {
+            "microseconds": "3",
+            "type": "timedelta"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "microseconds": "0",
+            "type": "timedelta"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", CASE WHEN \"gdj_annotation_measure\".\"elapsed\" IS NULL THEN 7 ELSE \"gdj_annotation_measure\".\"elapsed\" END AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "error": {
+        "message": "Expression contains mixed types: CharField, BigIntegerField. You must set output_field.",
+        "sqlstate": null,
+        "type": "FieldError"
+      },
+      "name": "conditional_mixed_types",
+      "sql": [
+        "BEGIN",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "conditional_update_original_rows",
+      "result": {
+        "matched": {
+          "text": "5",
+          "type": "int"
+        },
+        "rows": [
+          {
+            "amount": {
+              "text": "5",
+              "type": "int"
+            },
+            "code": "a",
+            "other": {
+              "text": "2",
+              "type": "int"
+            }
+          },
+          {
+            "amount": {
+              "text": "-7",
+              "type": "int"
+            },
+            "code": "b",
+            "other": {
+              "text": "0",
+              "type": "int"
+            }
+          },
+          {
+            "amount": {
+              "text": "3",
+              "type": "int"
+            },
+            "code": "c",
+            "other": {
+              "text": "1",
+              "type": "int"
+            }
+          },
+          {
+            "amount": {
+              "text": "5",
+              "type": "int"
+            },
+            "code": "d",
+            "other": {
+              "text": "2",
+              "type": "int"
+            }
+          },
+          {
+            "amount": {
+              "text": "0",
+              "type": "int"
+            },
+            "code": "e",
+            "other": {
+              "text": "-2",
+              "type": "int"
+            }
+          }
+        ]
+      },
+      "sql": [
+        "BEGIN",
+        "UPDATE \"gdj_annotation_measure\" SET \"other\" = CASE WHEN (\"gdj_annotation_measure\".\"other\" IS NULL) THEN 0 WHEN (\"gdj_annotation_measure\".\"other\" IN (-1, 0)) THEN (\"gdj_annotation_measure\".\"other\" + 1) ELSE \"gdj_annotation_measure\".\"other\" END",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", \"gdj_annotation_measure\".\"amount\" AS \"amount\", \"gdj_annotation_measure\".\"other\" AS \"other\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    },
+    {
+      "name": "float_scalar_nan",
+      "result": [
+        {
+          "code": "a",
+          "derived": null
+        },
+        {
+          "code": "b",
+          "derived": null
+        },
+        {
+          "code": "c",
+          "derived": null
+        },
+        {
+          "code": "d",
+          "derived": {
+            "hex": "0x0.0p+0",
+            "text": "0.0",
+            "type": "float"
+          }
+        },
+        {
+          "code": "e",
+          "derived": {
+            "hex": "0x0.0p+0",
+            "text": "0.0",
+            "type": "float"
+          }
+        }
+      ],
+      "sql": [
+        "BEGIN",
+        "UPDATE \"gdj_annotation_measure\" SET \"score\" = 9.0e+999 WHERE \"gdj_annotation_measure\".\"code\" = 'a'",
+        "UPDATE \"gdj_annotation_measure\" SET \"score\" = -9.0e+999 WHERE \"gdj_annotation_measure\".\"code\" = 'b'",
+        "SELECT \"gdj_annotation_measure\".\"code\" AS \"code\", (\"gdj_annotation_measure\".\"score\" - \"gdj_annotation_measure\".\"score\") AS \"derived\" FROM \"gdj_annotation_measure\" ORDER BY \"gdj_annotation_measure\".\"id\" ASC",
+        "ROLLBACK"
+      ]
+    }
+  ],
+  "django_commit": "fe0a859f537d4238cf49fca39073513206f83122",
+  "input": [
+    {
+      "amount": {
+        "text": "5",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "1",
+        "type": "int"
+      },
+      "code": "a",
+      "document": {
+        "n": {
+          "text": "1",
+          "type": "int"
+        }
+      },
+      "elapsed": {
+        "microseconds": "3",
+        "type": "timedelta"
+      },
+      "enabled": true,
+      "group_key": "x",
+      "other": {
+        "text": "2",
+        "type": "int"
+      },
+      "price": {
+        "text": "1.23",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x1.8000000000000p+0",
+        "text": "1.5",
+        "type": "float"
+      }
+    },
+    {
+      "amount": {
+        "text": "-7",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "1",
+        "type": "int"
+      },
+      "code": "b",
+      "document": {
+        "n": {
+          "text": "2",
+          "type": "int"
+        }
+      },
+      "elapsed": {
+        "microseconds": "4",
+        "type": "timedelta"
+      },
+      "enabled": false,
+      "group_key": "x",
+      "other": null,
+      "price": {
+        "text": "0.03",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x1.4000000000000p+1",
+        "text": "2.5",
+        "type": "float"
+      }
+    },
+    {
+      "amount": {
+        "text": "3",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "2",
+        "type": "int"
+      },
+      "code": "c",
+      "document": null,
+      "elapsed": null,
+      "enabled": true,
+      "group_key": null,
+      "other": {
+        "text": "0",
+        "type": "int"
+      },
+      "price": null,
+      "score": null
+    },
+    {
+      "amount": {
+        "text": "5",
+        "type": "int"
+      },
+      "category_id": null,
+      "code": "d",
+      "document": {
+        "n": {
+          "text": "1",
+          "type": "int"
+        }
+      },
+      "elapsed": {
+        "microseconds": "3",
+        "type": "timedelta"
+      },
+      "enabled": true,
+      "group_key": "x",
+      "other": {
+        "text": "2",
+        "type": "int"
+      },
+      "price": {
+        "text": "1.23",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x1.8000000000000p+0",
+        "text": "1.5",
+        "type": "float"
+      }
+    },
+    {
+      "amount": {
+        "text": "0",
+        "type": "int"
+      },
+      "category_id": {
+        "text": "2",
+        "type": "int"
+      },
+      "code": "e",
+      "document": {},
+      "elapsed": {
+        "microseconds": "0",
+        "type": "timedelta"
+      },
+      "enabled": false,
+      "group_key": "",
+      "other": {
+        "text": "-2",
+        "type": "int"
+      },
+      "price": {
+        "text": "0.00",
+        "type": "Decimal"
+      },
+      "score": {
+        "hex": "0x0.0p+0",
+        "text": "0.0",
+        "type": "float"
+      }
+    }
+  ],
+  "kind": "django-computed-case-reference-v1",
+  "observer_sha256": "4258a93e6dea3862a991db5b184b7316056c41a12f085508ce05e16ff6e52cad",
+  "runtime": {
+    "django": "6.1",
+    "python": "3.14.3",
+    "sqlite": "3.50.4"
+  },
+  "source_verification_sha256": "96b6203d6d72e0031d1dd17bbee2acdef14e53c40637731e112161aa67401f87",
+  "storage_unchanged": true
+}

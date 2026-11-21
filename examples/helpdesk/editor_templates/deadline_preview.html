@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Deadline preview</title></head>
+<body><main><h1>Deadline preview</h1>
+<p><a href="/tickets/summary/">Ticket summary</a> · <a href="/tickets/deadline-calendar/">Deadline calendar</a> · <a href="/tickets/edit/">Ticket editor</a></p>
+<p>Preview a shift to ticket deadlines and the time remaining from a reference time you choose. Stored tickets stay unchanged. Missing deadlines remain unset.</p>
+<form id="deadline-adjustment" method="get" action="/tickets/deadline-preview/">
+<label for="deadline-reference">Reference time</label> <input id="deadline-reference" name="as_of" value="{{ as_of }}" maxlength="64" required aria-describedby="deadline-reference-help">
+<span id="deadline-reference-help">Include a timezone offset, for example 2026-10-15T09:00:00+09:00. Results use UTC.</span>
+<label for="deadline-shift">Shift</label> <input id="deadline-shift" name="shift" value="{{ shift }}" maxlength="26" required aria-describedby="deadline-shift-help">
+<span id="deadline-shift-help">Use 01:30:00 for 90 minutes, 1 00:00:00 for one day, or -1 23:59:59.999999 for minus one microsecond. Zero is 00:00:00.</span>
+{% if has_minimum %}<input type="hidden" name="min_remaining" value="{{ minimum }}">{% endif %}
+<button type="submit">Preview deadlines</button> <a href="/tickets/deadline-preview/">Choose another reference time</a>
+</form>
+{% if has_preview %}
+<p>Category: {{ category }}. Reference time: <time>{{ as_of }}</time>.</p>
+<form id="deadline-minimum" method="get" action="/tickets/deadline-preview/">
+<input type="hidden" name="as_of" value="{{ as_of }}"><input type="hidden" name="shift" value="{{ shift }}">
+<label for="deadline-min">Minimum remaining time</label> <input id="deadline-min" name="min_remaining" value="{{ minimum }}" maxlength="26" required>
+<button type="submit">Filter current preview</button> {% if has_minimum %}<a href="{{ clear_minimum }}">Clear minimum</a>{% endif %}
+</form>
+<p>{{ total }} tickets. Page {{ page }}.</p>
+<table><caption>Tickets by remaining time, shortest first; unset deadlines last</caption><thead><tr><th scope="col">Ticket</th><th scope="col">Original deadline</th><th scope="col">Adjusted deadline</th><th scope="col">Remaining time</th></tr></thead><tbody>
+{% for row in rows %}<tr data-ticket-id="{{ row.id }}"><th scope="row">{{ row.subject }}</th><td>{{ row.original }}</td><td>{{ row.adjusted }}</td><td>{{ row.remaining }}</td></tr>{% empty %}<tr><td colspan="4">No tickets on this page.</td></tr>{% endfor %}
+</tbody></table>
+<nav aria-label="Deadline preview pages">{% if previous %}<a href="{{ previous }}">Previous page</a>{% endif %} {% if next %}<a href="{{ next }}">Next page</a>{% endif %}</nav>
+{% else %}<p>Enter a reference time to load the preview.</p>{% endif %}
+</main></body></html>

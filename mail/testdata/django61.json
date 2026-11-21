@@ -1,0 +1,86 @@
+{
+  "django": "6.1",
+  "observations": {
+    "envelope": {
+      "idna": {
+        "mailbox": "user@xn--bcher-kva.example"
+      },
+      "multiple": {
+        "invalid": true
+      },
+      "quoted": {
+        "mailbox": "\"a b\"@example.test"
+      },
+      "transitional": {
+        "mailbox": "user@fass.de"
+      },
+      "unicode_local": {
+        "invalid": true
+      }
+    },
+    "injection": {
+      "bcc_override": true,
+      "extra": true,
+      "from_email": true,
+      "subject": true,
+      "to": true
+    },
+    "memory": {
+      "body_owned": true,
+      "count": 1,
+      "empty_sent": 0,
+      "recipients_owned": true,
+      "sent": 1
+    },
+    "mime": {
+      "bcc_header": false,
+      "cc": [
+        "copy@example.test"
+      ],
+      "extra": "account",
+      "from": [
+        "sender@example.test"
+      ],
+      "line_limit": true,
+      "parts": [
+        {
+          "filename": "",
+          "text": "Reset instructions: \ube44\ubc00\ubc88\ud638\n.\nend  \n",
+          "type": "text/plain"
+        },
+        {
+          "filename": "",
+          "text": "<p>Reset <strong>\ube44\ubc00\ubc88\ud638</strong></p>\n",
+          "type": "text/html"
+        },
+        {
+          "filename": "\ubcf4\uace0\uc11c.bin",
+          "sha256": "33bac44c20bf30d046bb211b18cb8b4362ce0bba39951424ded7dcc048dbfe4b",
+          "type": "application/octet-stream"
+        }
+      ],
+      "recipients": [
+        "member@example.test",
+        "copy@example.test",
+        "hidden@example.test"
+      ],
+      "reply_to": [
+        "reply@example.test"
+      ],
+      "subject": "Reset \ube44\ubc00\ubc88\ud638 \u2014 end",
+      "to": [
+        "member@example.test"
+      ],
+      "top_type": "multipart/mixed"
+    }
+  },
+  "python": "3.14.3",
+  "source_sha256": {
+    "django_mail": "c2aa662b60047208af951558f2edd72ae0f3a599f399dbb95c78eb14f1c4fcba",
+    "locmem": "c71806eaa9caade91a8c31ae8d866bde427297ec5bc306be831ea7758f6a0e42",
+    "message": "5d075bca80ed9df5f816565f96ae0e0a07494ba657d26248b7314297ac98bf62",
+    "python_message": "65620d24398c60137ea750c3830365916193978af32bd0b412131ee3fa6c7ee7",
+    "python_policy": "9dcd0d4849a92b8e3250b04ac02ebccead57b7172057984fc8abb85f818ba01d",
+    "smtp": "cd7a559fea8e75be26e748c5e3965be1fd4e11fe757fe91f91ba8dba79d19beb"
+  }
+}

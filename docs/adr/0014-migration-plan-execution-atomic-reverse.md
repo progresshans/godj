@@ -1,5 +1,9 @@
 # ADR-0014: Migration plan 실행은 migration별 commit과 원자적 reverse를 사용한다
 
+> 결정 이유를 보존한 기록이다. 현재 API·지원 범위는 [현행 아키텍처](../ARCHITECTURE.md)와
+> [구현 현황](../status/IMPLEMENTATION_MATRIX.md)를 따른다. 옛 내부 파일 구성·단계별 검증 절차는 현재 호환 요구가 아니다.
+> 당시의 전체 기록과 실행 증거는 [고정 원문](https://github.com/progresshans/godj/blob/003afee4524a0294ada8f02c140781f3e1751a5c/docs/adr/0014-migration-plan-execution-atomic-reverse.md)에 있다.
+
 - 상태: Accepted
 - 날짜: 2026-08-08
 - 관련 work/contract: GDJ-0011, GDJ-0012, MIG-017..MIG-026, Q-012, DEV-0001
@@ -132,20 +136,3 @@ reference의 phase `commit`, schema A1/records A1·A2를 이 값으로 덮어쓰
 - fake/fake-initial, replacement/squash/merge/optimizer
 - multi-process lock, crash recovery와 repair command
 - PostgreSQL/MySQL/Oracle의 DDL transaction 정책
-
-## 승인과 검증 증거
-
-다음 조건을 GDJ-0012에서 모두 검증했습니다.
-
-- `ExecutePlan` API와 full zero-I/O preflight의 unit/external compile test
-- migration별 commit, first-failure stop과 last durable `ProjectState` 검증
-- pre/between/in-flight context cancellation과 rollback cause 검증
-- MIG-017..026 실제 product adapter observation
-- MIG-018/020/022/024용 GoDj expected fixture가 reference oracle을 바꾸지 않는지 검증
-- [DEV-0001](../DEVIATIONS.md#dev-0001--역방향-migration의-schema와-recorder를-같은-transaction으로-처리) 승인·전용 expected 검증
-- full/race/CGO=0/vet, existing 57 differential과 false-green gate 통과
-
-제품 구현 commit은 `3bcd25ce557cfddc2d73652f9154b6db0fd0b065`이고 전체 명령,
-actual hash와 독립 감사 결과는
-[EVID-20260808-011](../status/TEST_EVIDENCE.md#evid-20260808-011--gdj-0012-migration-plan-execution-orchestrator-and-atomic-reverse)에
-기록합니다.

@@ -1,0 +1,8 @@
+package consumer
+
+import "github.com/progresshans/godj/api/endpoint"
+
+type row struct{ Value int64 }
+type other struct{ Value int64 }
+
+var invalid = endpoint.Config[row, string]{Input: endpoint.Input[other]{}}

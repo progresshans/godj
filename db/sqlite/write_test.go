@@ -35,6 +35,21 @@ func TestCompileWritePlansBindZeroEmptyAndNullValues(t *testing.T) {
 	if want := []any{"", false, nil}; !reflect.DeepEqual(insertArguments, want) {
 		t.Fatalf("insert arguments = %#v, want %#v", insertArguments, want)
 	}
+	returningSQL, returningArguments, err := sqlite.CompileInsert(
+		query.NewInsertPlanReturningKey("news_article", assignments, id),
+	)
+	if err != nil {
+		t.Fatalf("CompileInsert(returning key) error = %v", err)
+	}
+	if returningSQL != insertSQL || !reflect.DeepEqual(returningArguments, insertArguments) {
+		t.Fatalf(
+			"returning insert = %q %#v, want byte-identical %q %#v",
+			returningSQL,
+			returningArguments,
+			insertSQL,
+			insertArguments,
+		)
+	}
 
 	updateSQL, updateArguments, err := sqlite.CompileUpdate(query.NewUpdatePlan("news_article", assignments[1:], id, query.Integer(9)))
 	if err != nil {
@@ -98,6 +113,13 @@ func TestCompileWriteRejectsSQLiteCaseFoldedColumnCollisions(t *testing.T) {
 	if !errors.Is(err, &query.Error{Category: query.CategoryQuery, Code: query.CodeInvalidPlan}) {
 		t.Fatalf("case-folded key update error = %v, want invalid_plan", err)
 	}
+	statement, arguments, err := sqlite.CompileInsert(query.NewInsertPlan("news_article", []query.Assignment{
+		query.NewAssignment(query.NewFieldRef("upper", "Ä", query.FieldString, false), query.String("first")),
+		query.NewAssignment(query.NewFieldRef("lower", "ä", query.FieldString, false), query.String("second")),
+	}))
+	if err != nil || statement != `INSERT INTO "news_article" ("Ä", "ä") VALUES (?, ?)` || len(arguments) != 2 {
+		t.Fatalf("SQLite non-ASCII identifier case was folded: %q %v, %v", statement, arguments, err)
+	}
 }
 
 func TestSQLiteInsertDefaultValuesSupportsAutoOnlyModel(t *testing.T) {
@@ -130,6 +152,28 @@ func TestSQLiteInsertDefaultValuesSupportsAutoOnlyModel(t *testing.T) {
 	if identifier != 1 {
 		t.Fatalf("default insert ID = %d, want 1", identifier)
 	}
+	id := query.NewFieldRef("id", "id", query.FieldInteger, false)
+	returningPlan := query.NewInsertPlanReturningKey("only_id", nil, id)
+	returningStatement, returningArguments, err := sqlite.CompileInsert(returningPlan)
+	if err != nil {
+		t.Fatalf("CompileInsert(default values returning key) error = %v", err)
+	}
+	if returningStatement != statement || !reflect.DeepEqual(returningArguments, arguments) {
+		t.Fatalf(
+			"returning default insert = %q %#v, want byte-identical %q %#v",
+			returningStatement,
+			returningArguments,
+			statement,
+			arguments,
+		)
+	}
+	returningIdentifier, err := backend.Insert(ctx, returningPlan)
+	if err != nil {
+		t.Fatalf("Insert(default values returning key) error = %v", err)
+	}
+	if returningIdentifier != 2 {
+		t.Fatalf("returning-key default insert ID = %d, want 2", returningIdentifier)
+	}
 }
 
 func TestArticleManagerWriteVerticalSlice(t *testing.T) {
@@ -141,32 +185,32 @@ func TestArticleManagerWriteVerticalSlice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	if created.ID != 5 || created.Published || created.Summary != nil {
+	if created.ID != 5 || created.Published || created.Summary != nil || created.Slug != nil {
 		t.Fatalf("created Article = %#v", created)
 	}
 
-	updated, err := models.ArticleObjects.Update(
+	updated, err := models.ArticleObjects.Patch(
 		ctx,
 		backend,
 		created,
-		models.ArticlePatch{}.WithTitle("").WithPublished(false).WithSummary(""),
+		models.ArticlePatch{}.WithTitle("").WithPublished(false).WithSummary("").WithSlug("Stored_주소"),
 	)
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
-	if updated.Title != "" || updated.Published || updated.Summary == nil || *updated.Summary != "" {
+	if updated.Title != "" || updated.Published || updated.Summary == nil || *updated.Summary != "" || updated.Slug == nil || *updated.Slug != "Stored_주소" {
 		t.Fatalf("updated Article = %#v", updated)
 	}
 
-	nulled, err := models.ArticleObjects.Update(ctx, backend, updated, models.ArticlePatch{}.WithSummaryNull())
+	nulled, err := models.ArticleObjects.Patch(ctx, backend, updated, models.ArticlePatch{}.WithSummaryNull().WithSlugNull())
 	if err != nil {
 		t.Fatalf("explicit NULL Update() error = %v", err)
 	}
-	if nulled.Summary != nil {
+	if nulled.Summary != nil || nulled.Slug != nil {
 		t.Fatalf("explicit NULL summary = %#v", nulled.Summary)
 	}
 	stored, err := models.ArticleObjects.Using(backend).Filter(models.ArticleFields.ID.Exact(nulled.ID)).All(ctx)
-	if err != nil || len(stored) != 1 || stored[0].Summary != nil || stored[0].Title != "" || stored[0].Published {
+	if err != nil || len(stored) != 1 || stored[0].Summary != nil || stored[0].Slug != nil || stored[0].Title != "" || stored[0].Published {
 		t.Fatalf("stored after update = %#v, error = %v", stored, err)
 	}
 

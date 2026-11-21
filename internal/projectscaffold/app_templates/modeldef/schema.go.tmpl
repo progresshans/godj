@@ -1,0 +1,10 @@
+// Package modeldef declares the [[.Label]] app without importing generated code.
+package modeldef
+
+import "github.com/progresshans/godj/schema"
+
+// Definition returns a fresh declaration. Add models here, then explicitly
+// include this definition in the project's Applications/ProjectSpec.
+func Definition() schema.Definition {
+	return schema.Definition{AppLabel: "[[.Label]]"}
+}

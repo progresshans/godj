@@ -1,0 +1,1405 @@
+{
+  "django": "6.1",
+  "python": "3.14.3",
+  "source_sha256": "858772e26a8e1d023782b410d3de67b9fc73dfb98120683fdf14584c0d5b0910",
+  "backend": "sqlite",
+  "cleanup_empty": true,
+  "storage_unchanged": true,
+  "cases": [
+    {
+      "name": "unbound_saved",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": false,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": false,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": false,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": false,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": []
+    },
+    {
+      "name": "unbound_new",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "0"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ]
+      },
+      "valid": false,
+      "initial": 0,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": false,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": []
+    },
+    {
+      "name": "unchanged_omitted_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "changed",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "changed"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [
+            "name"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "new_child",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ],
+        "items-2-name": [
+          "new"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [
+            "name"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "name": "matching_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-0-category": [
+          "1"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ],
+        "items-1-category": [
+          "1"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "blank_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-0-category": [
+          ""
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "forged_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-0-category": [
+          "2"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": false,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": false,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {
+            "category": [
+              "invalid_choice"
+            ]
+          },
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "deleted_forged_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-0-category": [
+          "2"
+        ],
+        "items-0-DELETE": [
+          "on"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": false,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [
+            "DELETE"
+          ],
+          "errors": {
+            "category": [
+              "invalid_choice"
+            ]
+          },
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "empty_extra_forged_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ],
+        "items-2-category": [
+          "2"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "repeated_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-0-category": [
+          "2",
+          "1"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "aliased_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-0-category": [
+          "01"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": false,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": false,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {
+            "category": [
+              "invalid_choice"
+            ]
+          },
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "parent_was_selected",
+      "model": "label",
+      "fields": [
+        "name",
+        "category"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "a"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "b"
+        ]
+      },
+      "valid": true,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "duplicate_children",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 1,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "3"
+        ],
+        "items-INITIAL_FORMS": [
+          "2"
+        ],
+        "items-0-id": [
+          "10"
+        ],
+        "items-0-name": [
+          "same"
+        ],
+        "items-1-id": [
+          "11"
+        ],
+        "items-1-name": [
+          "same"
+        ]
+      },
+      "valid": false,
+      "initial": 2,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": 10,
+          "candidate_parent": 1,
+          "changed": [
+            "name"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": false,
+          "candidate_key": 11,
+          "candidate_parent": 1,
+          "changed": [
+            "name"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          },
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 1,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [
+        null
+      ],
+      "clean_calls": [
+        1,
+        1
+      ]
+    },
+    {
+      "name": "new_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ],
+        "items-0-name": [
+          "new"
+        ]
+      },
+      "valid": true,
+      "initial": 0,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "name"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        null
+      ]
+    },
+    {
+      "name": "new_parent_duplicates",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ],
+        "items-0-name": [
+          "same"
+        ],
+        "items-1-name": [
+          "same"
+        ]
+      },
+      "valid": false,
+      "initial": 0,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "name"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": false,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "name"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          },
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [
+        null
+      ],
+      "clean_calls": [
+        null,
+        null
+      ]
+    },
+    {
+      "name": "new_parent_forged",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ],
+        "items-0-name": [
+          "new"
+        ],
+        "items-0-category": [
+          "1"
+        ]
+      },
+      "valid": false,
+      "initial": 0,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": false,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "name"
+          ],
+          "errors": {
+            "category": [
+              "invalid_choice"
+            ]
+          },
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        null
+      ]
+    },
+    {
+      "name": "new_parent_none_spelling",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ],
+        "items-0-name": [
+          "new"
+        ],
+        "items-0-category": [
+          "None"
+        ]
+      },
+      "valid": true,
+      "initial": 0,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "name"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        null
+      ]
+    },
+    {
+      "name": "zero_parent",
+      "model": "label",
+      "fields": [
+        "name"
+      ],
+      "new_parent": false,
+      "parent_key": 0,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ],
+        "items-0-name": [
+          "new"
+        ],
+        "items-0-category": [
+          "0"
+        ]
+      },
+      "valid": true,
+      "initial": 0,
+      "max_num": 10,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": 0,
+          "changed": [
+            "name"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        0
+      ]
+    },
+    {
+      "name": "one_to_one_unbound",
+      "model": "report",
+      "fields": [
+        "summary",
+        "completed"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": false,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "0"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ]
+      },
+      "valid": false,
+      "initial": 0,
+      "max_num": 1,
+      "forms": [
+        {
+          "valid": false,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": []
+    },
+    {
+      "name": "one_to_one_new",
+      "model": "report",
+      "fields": [
+        "summary",
+        "completed"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "1"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ],
+        "items-0-summary": [
+          "new"
+        ]
+      },
+      "valid": true,
+      "initial": 0,
+      "max_num": 1,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "summary"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [],
+      "clean_calls": [
+        null
+      ]
+    },
+    {
+      "name": "one_to_one_duplicate",
+      "model": "report",
+      "fields": [
+        "summary",
+        "completed"
+      ],
+      "new_parent": true,
+      "parent_key": null,
+      "bound": true,
+      "data": {
+        "items-TOTAL_FORMS": [
+          "2"
+        ],
+        "items-INITIAL_FORMS": [
+          "0"
+        ],
+        "items-0-summary": [
+          "one"
+        ],
+        "items-1-summary": [
+          "two"
+        ]
+      },
+      "valid": false,
+      "initial": 0,
+      "max_num": 1,
+      "forms": [
+        {
+          "valid": true,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "summary"
+          ],
+          "errors": {},
+          "parent_hidden": true,
+          "parent_required": false
+        },
+        {
+          "valid": false,
+          "candidate_key": null,
+          "candidate_parent": null,
+          "changed": [
+            "summary"
+          ],
+          "errors": {
+            "__all__": [
+              null
+            ]
+          },
+          "parent_hidden": true,
+          "parent_required": false
+        }
+      ],
+      "non_form_errors": [
+        null
+      ],
+      "clean_calls": [
+        null,
+        null
+      ]
+    }
+  ],
+  "storage": [
+    {
+      "name": "parent_then_children",
+      "error": null,
+      "parent_key_assigned": true,
+      "parent_stored": true,
+      "children": [
+        "first",
+        "second"
+      ],
+      "writes_before_terminal": 2,
+      "deferred_writes": null
+    },
+    {
+      "name": "deferred",
+      "error": null,
+      "parent_key_assigned": true,
+      "parent_stored": true,
+      "children": [
+        "first",
+        "second"
+      ],
+      "writes_before_terminal": 2,
+      "deferred_writes": 0
+    },
+    {
+      "name": "late_failure",
+      "error": "RuntimeError",
+      "parent_key_assigned": true,
+      "parent_stored": false,
+      "children": [],
+      "writes_before_terminal": 1,
+      "deferred_writes": null
+    },
+    {
+      "name": "unsaved_parent",
+      "error": "ValueError",
+      "parent_key_assigned": false,
+      "parent_stored": false,
+      "children": [],
+      "writes_before_terminal": 0,
+      "deferred_writes": null
+    }
+  ]
+}

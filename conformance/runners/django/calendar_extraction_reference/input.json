@@ -1,0 +1,171 @@
+{
+  "schedules": [
+    {
+      "code": "north",
+      "anchor": "2021-01-01T00:30:59.999999+00:00",
+      "day": "2020-12-31",
+      "wall": "23:59:59.999999"
+    },
+    {
+      "code": "empty",
+      "anchor": null,
+      "day": null,
+      "wall": null
+    },
+    {
+      "code": "future",
+      "anchor": "9999-12-31T23:59:59.999999+00:00",
+      "day": "9999-12-31",
+      "wall": "23:59:59.999999"
+    },
+    {
+      "code": "unused",
+      "anchor": null,
+      "day": null,
+      "wall": null
+    }
+  ],
+  "events": [
+    {
+      "code": "a",
+      "bucket": "first",
+      "enabled": true,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "2021-01-01T08:30:59.999999+09:00",
+      "day": "2021-01-01",
+      "wall": "23:59:59.999999",
+      "part": 10,
+      "schedule": "north"
+    },
+    {
+      "code": "b",
+      "bucket": "first",
+      "enabled": false,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "2021-01-01T00:30:00+00:00",
+      "day": "2000-01-01",
+      "wall": "00:00:00",
+      "part": 11,
+      "schedule": "north"
+    },
+    {
+      "code": "c",
+      "bucket": "first",
+      "enabled": true,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "2019-12-30T12:34:56.000001+00:00",
+      "day": "2019-12-30",
+      "wall": "12:34:56.000001",
+      "part": 12,
+      "schedule": "north"
+    },
+    {
+      "code": "d",
+      "bucket": "leap",
+      "enabled": true,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "2000-02-29T23:59:59.999999+00:00",
+      "day": "2000-02-29",
+      "wall": "23:59:59.999999",
+      "part": 13,
+      "schedule": "north"
+    },
+    {
+      "code": "e",
+      "bucket": "leap",
+      "enabled": false,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "1900-03-01T00:00:00+00:00",
+      "day": "1900-03-01",
+      "wall": "00:00:00",
+      "part": 14,
+      "schedule": "empty"
+    },
+    {
+      "code": "f",
+      "bucket": "leap",
+      "enabled": true,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "2400-02-29T00:00:00.000001+00:00",
+      "day": "2400-02-29",
+      "wall": "00:00:00.000001",
+      "part": 15,
+      "schedule": "future"
+    },
+    {
+      "code": "g",
+      "bucket": "edge",
+      "enabled": true,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "0001-01-01T00:00:00+00:00",
+      "day": "0001-01-01",
+      "wall": "00:00:00",
+      "part": 16,
+      "schedule": "future"
+    },
+    {
+      "code": "h",
+      "bucket": "edge",
+      "enabled": false,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "9999-12-31T23:59:59.999999+00:00",
+      "day": "9999-12-31",
+      "wall": "23:59:59.999999",
+      "part": 17,
+      "schedule": "future"
+    },
+    {
+      "code": "i",
+      "bucket": "empty",
+      "enabled": false,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": null,
+      "day": null,
+      "wall": null,
+      "part": 18,
+      "schedule": null
+    },
+    {
+      "code": "j",
+      "bucket": "first",
+      "enabled": true,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": "2021-01-01T00:30:00.000001+00:00",
+      "day": "2021-01-01",
+      "wall": "00:30:00.000001",
+      "part": 19,
+      "schedule": "north"
+    },
+    {
+      "code": "k",
+      "bucket": "empty",
+      "enabled": true,
+      "start": "2024-02-29T00:00:00.000001+00:00",
+      "at": null,
+      "day": "2024-03-03",
+      "wall": "00:00:00",
+      "part": 20,
+      "schedule": null
+    }
+  ],
+  "details": [
+    {
+      "event": "a",
+      "at": "2024-03-03T00:00:00+00:00",
+      "day": "2024-03-03",
+      "wall": "00:00:00"
+    },
+    {
+      "event": "b",
+      "at": null,
+      "day": null,
+      "wall": null
+    },
+    {
+      "event": "f",
+      "at": "0001-01-01T00:00:00.000001+00:00",
+      "day": "0001-01-01",
+      "wall": "00:00:00.000001"
+    }
+  ]
+}

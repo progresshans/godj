@@ -1,0 +1,122 @@
+[
+  {
+    "name": "valid",
+    "username": "NovelValid",
+    "password1": "strongSecret!",
+    "password2": "strongSecret!"
+  },
+  {
+    "name": "duplicate_weak",
+    "username": "MEMBER",
+    "password1": "x",
+    "password2": "x"
+  },
+  {
+    "name": "invalid_weak",
+    "username": "bad input",
+    "password1": "x",
+    "password2": "x"
+  },
+  {
+    "name": "invalid_similar",
+    "username": "bad input",
+    "password1": "bad input",
+    "password2": "bad input"
+  },
+  {
+    "name": "duplicate_invalid",
+    "username": "BAD NAME",
+    "password1": "BAD NAME",
+    "password2": "BAD NAME"
+  },
+  {
+    "name": "missing_first_weak",
+    "username": "NovelMissingFirst",
+    "password1": "",
+    "password2": "x"
+  },
+  {
+    "name": "missing_second",
+    "username": "NovelMissingSecond",
+    "password1": "x",
+    "password2": ""
+  },
+  {
+    "name": "mismatch_weak",
+    "username": "NovelMismatch",
+    "password1": "x",
+    "password2": "y"
+  },
+  {
+    "name": "missing_username_weak",
+    "username": "",
+    "password1": "x",
+    "password2": "x"
+  },
+  {
+    "name": "long_username",
+    "username": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "password1": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "password2": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "name": "nul_first_weak",
+    "username": "NovelNulFirst",
+    "password1": "x\u0000",
+    "password2": "x"
+  },
+  {
+    "name": "nul_second",
+    "username": "NovelNulSecond",
+    "password1": "x",
+    "password2": "x\u0000"
+  },
+  {
+    "name": "duplicate_mismatch",
+    "username": "MEMBER",
+    "password1": "x",
+    "password2": "y"
+  },
+  {
+    "name": "invalid_mismatch",
+    "username": "bad input",
+    "password1": "x",
+    "password2": "y"
+  },
+  {
+    "name": "nfkc_duplicate",
+    "username": "ＭＥＭＢＥＲ",
+    "password1": "x",
+    "password2": "x"
+  },
+  {
+    "name": "missing_both",
+    "username": "NovelBoth",
+    "password1": "",
+    "password2": ""
+  },
+  {
+    "name": "both_required_and_duplicate",
+    "username": "MEMBER",
+    "password1": "",
+    "password2": ""
+  },
+  {
+    "name": "short_similar",
+    "username": "Short",
+    "password1": "Short",
+    "password2": "Short"
+  },
+  {
+    "name": "whitespace_password",
+    "username": "NovelWhitespace",
+    "password1": "        ",
+    "password2": "        "
+  },
+  {
+    "name": "valid_nfkc",
+    "username": " ＮｏｖｅｌＮＦＫＣ ",
+    "password1": "another-secret!",
+    "password2": "another-secret!"
+  }
+]
