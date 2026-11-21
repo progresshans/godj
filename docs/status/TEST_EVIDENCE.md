@@ -6301,6 +6301,14 @@ normal·race·CGO 비활성에서 계정·그룹·권한에 같은 중간 테이
 
 후속 변경의 로컬 Python 실행에서는 위 두 검사가 통과했다. Go 실행을 막은 전체 도구 검사에서 104/105개가 통과했고, scaffold 패키지 담당자를 실제 `go list`로 찾는 한 검사는 이 환경에서 완료할 수 없었다. 전체 도구 검증은 후속 커밋의 원격 실행을 따른다.
 
+### 48d84611 CI 계획과 검사 선택 검증
+
+제출 커밋 `48d84611e830de2ef038002a32369bdd11d1f080`와 [CI 44927566151](https://github.com/progresshans/godj/actions/runs/44927566151) attempt 1의 checkout `c4890ea0bcc5143ef4fac0ca1104c99c862d8ce8`는 같은 tree `c33f2faf727f3364961a1c84757405698fb11f00`다.
+
+[Portable Go normal/core-vet](https://github.com/progresshans/godj/actions/runs/44927566151/job/136917165089)에서 CI 도구 105/105개가 skip 없이 통과했다. 이전에 실패한 PostgreSQL 선택기 두 검사와 실제 `go list`를 사용하는 scaffold 검사도 포함된다. 이어 Go 141개 패키지와 `go vet ./...`가 성공했다. 필수 검사 500개는 모두 통과했다. 전체 Go 실행 이벤트 14,468개의 skip 221개는 이 필수 목록 밖에 있다. 원본 ZIP, 패키지·필수 목록, 이벤트 해시와 job 로그 SHA-256 `fa5d8671d1ca951c59928eaacecf85aa97d8be2a1e51386d8e32fc2c0aa21083`을 확인했다. [원본 `0bb9e1d3`](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14716558925)
+
+기본 User·사용자 정의 Member의 SQLite·PostgreSQL 최초 기동·재시작 8건도 Chromium 155.0.8059.12로 통과했다. 상위 테스트 포함 15/15, skip 0이다. 두 작업의 원본과 판독 기록은 검증 보관소의 `gdj0138-48d84611-ci44927566151/`에 있다. [브라우저 원본 `fc8ff3d4`](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14716393886)
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
