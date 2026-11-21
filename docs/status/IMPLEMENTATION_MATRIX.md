@@ -36,7 +36,7 @@ SQLite/PostgreSQL·고정 module 설치·cold/race·독립 Django 관측·브라
 운영 topology·향후 릴리스 upgrade 정책은 O1, Web/static/media 확장은 C2, durable event 전달은 R2에 남는다.
 I1 구현은 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 모았다. 선택 계정 역할·domain·typed 관리,
 Admin/JSON·비밀번호 변경, 첫 계정 명령을 Article과 기본 starter에 연결했다. 선택 runtime은 명시적으로 구성한
-비밀번호 재설정을 지원한다. 새 프로젝트의 기본 User와 별도 Member는 SQLite·PostgreSQL에서 첫 계정 생성, 권한·프로필 변경, 재시작 후 reset과 삭제까지 통과했다. [공개 명령·HTTP·Chromium 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go) · [검증 원본](TEST_EVIDENCE.md#c6629558-전환-기록-재조회-검증)
+비밀번호 재설정을 지원한다. 새 프로젝트의 기본 User와 별도 Member는 SQLite·PostgreSQL에서 첫 계정 생성, 권한·프로필 변경, 재시작 후 reset과 삭제까지 통과했다. 권한·관리·로그인·비밀번호의 Django 공유 동작은 두 DB에서 직접 관측해 대조했다. [공개 명령·HTTP·Chromium 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go) · [검증 원본](TEST_EVIDENCE.md#026a9627-고정-django-계정의-양-db-검증)
 Helpdesk 조립, 명시적 FK/OneToOne 정책과 프로필 파일 편집/Form 생성·초기 CLI 파일 입력을 작성했다.
 계정 생성의 관계 수명과 typed 계정-as-through 생성을 추가했다.
 추가 M2M의 명시적 선택 정책·생성/편집/조회·Form/Admin/JSON과 전체 수명 projection을 연결했다.

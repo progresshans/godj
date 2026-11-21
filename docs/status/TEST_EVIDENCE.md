@@ -6327,7 +6327,21 @@ normal·race·CGO 비활성에서 계정·그룹·권한에 같은 중간 테이
 
 Python 3.14.3의 고정 Django 계정 검사 9개 모듈·21개 테스트가 모두 통과했다. 이 검사는 SQLite에서 관측한 공유 동작을 양 DB의 보관값과 대조한다. 전체 Python suite의 409개 중 4개는 별도 플랫폼 담당 검사로 skip됐다. [Python 원본 `99b855eb`](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717430655)
 
-후속 워크플로는 계정 관측기 9종을 SQLite와 PostgreSQL에서 각각 새로 실행한다. 로컬에서는 비교기·실패 정리 5개, 기존 원본 판독기 7개, PostgreSQL 작업 배정 15개가 통과했다. 실제 Django 양 DB 관측은 후속 커밋의 원격 실행에서 확인한다. [실행 도구](../../scripts/ci/identity_reference.py)
+후속 워크플로는 계정 관측기 9종을 SQLite와 PostgreSQL에서 각각 새로 실행한다. 로컬에서는 비교기·실패 정리 5개, 기존 원본 판독기 7개, PostgreSQL 작업 배정 15개가 통과했다. [실행 도구](../../scripts/ci/identity_reference.py) · [후속 커밋의 양 DB 실행](#026a9627-고정-django-계정의-양-db-검증)
+
+### 026a9627 고정 Django 계정의 양 DB 검증
+
+[CI 44931649835](https://github.com/progresshans/godj/actions/runs/44931649835) attempt 1의 제출 소스 `026a9627381410c30f7720b508a5194b7218dd33`과 PR checkout `bb73a2703884e0f0cdb12659922bbc9aa633f113`은 같은 tree `62a22b2d4b56e243e3a36cca183d1c02dc77d2a8`를 사용했다. 이전 소스의 전체 실행은 새 PR push로 취소됐다.
+
+Django 6.1·Python 3.14.3에서 계정 관측기 9종을 SQLite 3.50.4와 PostgreSQL 17.10(psycopg 3.3.6)에서 각각 실행했다. 원본 JSON 18개와 각 DB의 보관 파일을 다시 읽어 관측값의 타입·목록 순서, Django 소스 해시, 계정 생성 입력 해시·Unicode 버전·단계별 결과가 일치함을 확인했다. 권한 기준 파일에 기록된 PostgreSQL 17.5와 이번 실행의 17.10을 구분했다. 대조표 SHA-256은 `d898bbfc855a0fe5e419ca0fcafc8d59c6c2930e74a4cc208bc707a4275b46c5`다. [양 DB 관측과 생성 앱 원본 `7d4e8489`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719680556)
+
+같은 normal/core-account-management 작업에서 기본 모델과 사용자 정의 6종의 양 DB 첫 계정·Admin·JSON 경로가 통과했다. 필수 상위 검사 22/22개, 생성 앱 14개 프로세스의 검사 4,150/4,150개, skip 0이다. 각 프로세스의 실제 출력 해시와 필수 검사별 시작·종료를 대조했다. [관리 경로 실행](https://github.com/progresshans/godj/actions/runs/44931649835/job/136929585632)
+
+Python 3.14.3 호환성 작업에서 같은 9개 계정 모듈의 기존 검사 21개가 모두 통과했다. 권한 조회·비밀번호 검증·세션 처리의 일부 동작을 바꿨을 때 관측값이 달라지는 부정 대조도 포함된다. 전체 409개 중 skip 4개는 별도 플랫폼 담당 검사다. [Python 원본 `c9b30a7e`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718971285)
+
+기본 User·사용자 정의 Member × SQLite·PostgreSQL × 최초 기동·재시작 8건이 Chromium 155.0.8059.12에서 모두 통과했다. 상위 테스트 포함 15/15, skip 0이다. [브라우저 원본 `8bed42cd`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717204520)
+
+Portable normal/core-vet에서 CI 도구 110/110개(새 계정 관측기 대조·실패 검사 5개 포함), Go 141개 패키지와 `go vet ./...`가 통과했다. 필수 Go 검사 500개가 전부 실행·통과했고, 전체 Go 실행 14,468개 중 skip 221개는 필수 목록 밖에 있다. [Portable 원본 `a2af5d54`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717763614)
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
