@@ -288,8 +288,8 @@ python3 scripts/ci/s3_service.py run --directory "$s3_build" -- \
 이 명령은 실제 S3와 SQLite 소비자를 실행한다. PostgreSQL은 기존의 명시적 `GODJ_TEST_POSTGRES_URL`과
 `GODJ_REQUIRE_POSTGRES=1`을 전달해 포함한다. Wrapper는 `GODJ_REQUIRE_S3=1`을 설정하고 endpoint/credential을 child와
 생성 소비자에 전달한다. 선택적 profile이 없으면 일반 portable 검사에서는 live root가 반환하지만, required/부분 설정은 실패한다.
-필수 실행 owner는 PostgreSQL product의 normal/cgo0 core와 race core/core-consumers이며 양 DB·S3 live 하위 사례와 Admin 저장의 실제 pass를
-`postgres-core-required.txt`와 생성 소비자의 child inventory로 요구한다. 서비스 없이 root만 통과한 실행은 이 gate를 만족하지 못한다.
+세 모드에서 `core`와 일반 생성 소비자 작업(`core-consumers`, `core-consumers-2`)이 S3 서비스를 기동한다.
+각 작업은 배정받은 양 DB·S3 하위 사례와 Admin 저장의 실제 통과를 필수 목록과 생성 소비자의 실행 기록으로 확인한다.
 
 PostgreSQL core의 race mode는 [postgres_shards.py](../scripts/ci/postgres_shards.py)가 framework, native PostgreSQL,
 generated consumer, process product를 나눈다. Framework는 core, process는 core-processes가 맡는다.
@@ -298,29 +298,34 @@ root도 포함하며 모든 child를 부모와 함께 실행한다. 생성 소�
 단일 객체 생성·update-or-create·행 잠금의 전체 root는 core-consumer-writes가 맡는다. Helpdesk의 PostgreSQL 소비자 root는
 core-helpdesk-postgres에서 실행한다. 같은 Go package에 있는 SQLite 소비자와 helper는 core가 맡아
 두 DB 소비자가 하나의 package timeout을 공유하지 않게 한다. Normal과 CGO-disabled는 framework·native PostgreSQL·process를
-core에 유지하고 generated consumer만 아래 네 owner로 나눈다. Normal의 system-state capture owner도 core로 유지한다.
-세 mode의 core 계열은 총 열아홉 coordinate이고 별도 operator-target 세 coordinate는 유지한다.
-필수 목록의 각 package/test는 mode마다 정확히 한 owner에 속하며 새 child sentinel도 해당 root의 owner를 따른다.
-누락·중복·모호한 package와 빈 partition, 같은 이름의 root가 다른 partition을 재선택하는 경우는 실패다.
-Package별 18분 timeout과 no-skip 검사를 유지하며,
-선택 계정의 일곱 HTTP 변형과 첫 계정 소비자 root는 모든 mode의 `core-account-consumers`가 맡는다.
-관계·collection·파일 편집/생성의 전체 프로필 소비자 root는 `core-account-profiles`가 맡는다.
-네 generated consumer owner는 모든 mode에서 기존 30분 한도를 사용한다.
-Normal의 해당 Go package vet는 core-consumers에서 한 번 실행한다.
-생성 소비자 자체의 짧은 실행 제한과 필수 하위 검사는 분할 전후 동일하며, 새로운 root는 기본 core-consumers가 맡는다.
+core에 유지한다. 필수 목록의 각 검사는 모드마다 한 작업에 속하고 하위 검사는 상위 테스트와 함께 실행한다.
+각 실행의 `plan.json`에 담당 패키지·시간 제한이, `required.txt`에 필수 검사 목록이 남는다.
+
+세 모드 모두 `core-account-consumers`가 모델 바인딩과 계정 생성 입력 정책을, `core-account-management`가 첫 계정 명령·Admin·JSON 관리를,
+`core-account-reset`이 비밀번호 재설정을 검증한다. 프로필 관계·컬렉션·파일은 `core-account-profiles`가 담당한다.
+전환·중간 테이블별 담당 작업은 [배정 함수](../scripts/ci/postgres_shards.py)를 따른다.
+이 함수가 나머지 일반 생성 소비자를 `core-consumers`와 `core-consumers-2`에 상위 테스트 단위로 나눈다.
+생성 소비자, normal/CGO-disabled의 core, native PostgreSQL credential 검사를 맡은 작업의 Go 패키지 제한은 30분이고
+나머지는 18분이다. 모든 작업이 필수 테스트의 실행·통과와 skip 유무를 확인한다. 일반 생성 소비자 패키지의 vet는 normal/core-consumers가 맡는다.
+
+normal/core-account-management에서 [Django 계정 관측기 실행 도구](../scripts/ci/identity_reference.py)가 모델 권한·관리·카탈로그,
+계정 생성·로그인, 비밀번호 변경·재설정·HTTP·사용 불가 비밀번호를 SQLite와 PostgreSQL에서 각각 실행한다.
+Go 검사가 읽는 같은 DB의 기준 파일과 관측값·Django 소스 해시를 대조한다. 기준과 실행의 DB 패치 버전은 각각 기록한다.
+18개 원본과 SHA-256 대조표는 해당 작업의 `identity-reference/`에 보관한다.
+
 Helpdesk의 같은 DB를 이어 쓰는 소비자는 normal/CGO-disabled 10분, race 15분의 전체 context를 사용한다.
 개별 동시성·취소 검사의 짧은 제한과 PostgreSQL 정리 20초는 별도로 유지한다.
 Normal core의 system-state capture 생산·service restart, operator-target의 별도 capture 생산도 그대로 실행한다.
 원 Go JSON/stderr·필수 목록·partition 계획은 성공 여부와 관계없이 `postgres-product-<mode>-<shard>-<attempt>`에 보존한다.
 취소 실행의 불완전한 로그는 진단 자료이며 package 완료나 필수 실행 PASS를 대신하지 않는다.
 
-GDJ-0124의 관계 표현식은 normal/core·CGO=0/core·race/core-consumers에서 먼저 고정
+GDJ-0124의 관계 표현식은 normal·CGO-disabled의 core와 세 모드의 일반 생성 소비자 작업에서 먼저 고정
 [Django observer](../conformance/runners/django/related_expression_reference/README.md)를 양 DB로 실행한다.
 그 실행의 원 reference와 생성 consumer의 native child JSON events를 같은 PostgreSQL product artifact에 남긴다.
 Parent는 현재 observer/input/module manifest hash와 정확한 17개 reference 사례·52개 native child 실행·5개 compile-negative를 요구한다.
 Portable의 SQLite invariant 실행은 이 reference/native 양 DB 검증을 대신하지 않는다.
 
-GDJ-0125·0127의 컬렉션 필드/계산식 집계도 같은 세 native owner에서 별도의
+GDJ-0125·0127의 컬렉션 필드/계산식 집계도 같은 작업에서 별도의
 [Django observer](../conformance/runners/django/collection_aggregate_reference/README.md)를 실행한다.
 역방향 FK·M2M·혼합 경로, NULL·중복·독립 JOIN의 행 곱·연속 필터의 JOIN 재사용과 Distinct,
 행별 숫자/Decimal·CASE·computed FILTER와 후속 결과 단계를 49개 사례로 대조한다.
@@ -331,7 +336,7 @@ Helpdesk의 라벨별 조정 비용은 기존 양 DB의 권한·Category·snapsh
 독립 client는 티켓별 유리수 계산과 required nullable wire, 브라우저는 28개 필수 검사를 소유한다.
 필수 실행 구성을 실제 PASS와 구분하며 source별 완료 상태는 TEST_EVIDENCE를 따른다.
 
-GDJ-0126의 Decimal 계산식은 같은 세 native owner에서 [독립 observer](../conformance/runners/django/decimal_expression_reference/README.md)의
+GDJ-0126의 Decimal 계산식도 같은 작업에서 [독립 observer](../conformance/runners/django/decimal_expression_reference/README.md)의
 양 DB 각 30개 사례와 현재 source hash/runtime/오류 목록·전체 컬럼 rollback/정리를 확인한다.
 생성 소비자는 양 DB reference/runtime 84개 child run/pass·skip 0과 compile-negative 7개를 요구하며
 `decimal-expression-reference/`의 원 JSON과 `godj-decimal-native.jsonl`을 같은 artifact에 보존한다.

@@ -27,7 +27,11 @@ def observe():
     with tempfile.TemporaryDirectory(prefix="godj-identity-reference-") as directory:
         database = {"ENGINE": "django.db.backends.sqlite3", "NAME": str(Path(directory) / "reference.sqlite3")}
         if name:
-            database = {"ENGINE": "django.db.backends.postgresql", "NAME": name, "HOST": "localhost", "PORT": 5432}
+            database = {
+                "ENGINE": "django.db.backends.postgresql", "NAME": name,
+                "HOST": os.environ.get("PGHOST", "localhost"), "PORT": os.environ.get("PGPORT", "5432"),
+                "USER": os.environ.get("PGUSER", ""), "PASSWORD": os.environ.get("PGPASSWORD", ""),
+            }
         settings.configure(
             SECRET_KEY="independent-identity-reference-only",
             INSTALLED_APPS=["django.contrib.auth", "django.contrib.contenttypes"],

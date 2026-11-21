@@ -6309,6 +6309,26 @@ normal·race·CGO 비활성에서 계정·그룹·권한에 같은 중간 테이
 
 기본 User·사용자 정의 Member의 SQLite·PostgreSQL 최초 기동·재시작 8건도 Chromium 155.0.8059.12로 통과했다. 상위 테스트 포함 15/15, skip 0이다. 두 작업의 원본과 판독 기록은 검증 보관소의 `gdj0138-48d84611-ci44927566151/`에 있다. [브라우저 원본 `fc8ff3d4`](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14716393886)
 
+### 48d84611 생성 앱의 계정 수명
+
+같은 제출 소스와 checkout에서 생성한 외부 앱의 필수 상위 검사와 자식 프로세스의 Go 이벤트를 대조했다. 표의 검사 수는 모드 한 번에 두 DB의 자식 프로세스에서 확인한 합계이며 중첩 검사의 상위 테스트를 포함한다. 각 링크는 해당 모드 원본 ZIP의 SHA-256 앞 8자리다.
+
+| 생성 앱에서 확인한 경로 | 프로세스 / 통과한 검사 | normal | race | CGO-disabled |
+|---|---:|---|---|---|
+| 첫 계정 명령·Admin·JSON 관리 | 14 / 4,150 | [536e7508](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717115418) | [e025b372](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717297303) | [17eb9473](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717861095) |
+| 선택 계정 비밀번호 재설정 | 7 / 707 | [54786798](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14716324903) | [356487a3](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14718021265) | [9e11c210](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717505325) |
+| 계정·역할·카탈로그의 중간 모델 생성 | 20 / 684 | [57f2c88e](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14716428380) | [1579d301](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717168174) | [6abc1c16](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717825640) |
+| 계정·그룹·권한 자체가 중간 모델인 경우 | 12 / 492 | [38c7a42c](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14716529441) | [4e8d07e3](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717274785) | [1949fa57](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14716014672) |
+| 중간 모델을 사용하는 계정 전환과 생성 | 6 / 154 | [4ed996ea](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717236262) | [82be98b2](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717323104) | [79def88c](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717227146) |
+
+각 모드에서 첫 계정·관리는 DB당 기본 모델 365개와 사용자 정의 6종 각각 285개를 확인했다. 권한 회수 뒤 쓰기, 감사 실패 롤백과 커밋 응답 유실 후 저장 상태를 포함한다. 재설정은 7개 생성 앱이 각각 두 DB를 실행했다. 표에 연결한 원본에서 모든 필수 하위 검사가 한 번씩 시작·통과했고 skip은 0이다. 부모가 기록한 자식 출력 해시와 원본별 판독 기록은 `gdj0138-48d84611-ci44927566151/`에 보관했다.
+
+같은 소스의 Linux arm64 SQLite normal에서 선택 계정 credential 필수 검사 2,219개와 역사 이행 검사 51개가 모두 통과했다. 외부 모델이 참조하는 계정의 삭제 6건과 삭제 실패 20건을 포함한다. [원본 `af3bc1d2`](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717145759)
+
+Python 3.14.3의 고정 Django 계정 검사 9개 모듈·21개 테스트가 모두 통과했다. 이 검사는 SQLite에서 관측한 공유 동작을 양 DB의 보관값과 대조한다. 전체 Python suite의 409개 중 4개는 별도 플랫폼 담당 검사로 skip됐다. [Python 원본 `99b855eb`](https://github.com/progresshans/godj/actions/runs/44927566151/artifacts/14717430655)
+
+후속 워크플로는 계정 관측기 9종을 SQLite와 PostgreSQL에서 각각 새로 실행한다. 로컬에서는 비교기·실패 정리 5개, 기존 원본 판독기 7개, PostgreSQL 작업 배정 15개가 통과했다. 실제 Django 양 DB 관측은 후속 커밋의 원격 실행에서 확인한다. [실행 도구](../../scripts/ci/identity_reference.py)
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

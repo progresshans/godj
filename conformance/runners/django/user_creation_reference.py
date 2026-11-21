@@ -126,7 +126,8 @@ def observe():
                                                       "staff": user.is_staff, "superuser": user.is_superuser,
                                                       "last_login_none": user.last_login is None}
             return {"django": django.get_version(), "python": platform.python_version(), "unicode": unicodedata.unidata_version,
-                    "backend": "postgres" if name else "sqlite", "input_sha256": hashlib.sha256(inputs_path.read_bytes()).hexdigest(),
+                    "backend": {"postgresql": "postgres", "sqlite": "sqlite"}[connection.vendor],
+                    "input_sha256": hashlib.sha256(inputs_path.read_bytes()).hexdigest(),
                     "source_sha256": {key: hashlib.sha256(Path(inspect.getfile(module)).read_bytes()).hexdigest()
                                       for key, module in {"auth_forms": forms, "password_validation": password_validation, "model_forms": model_forms,
                                                           "hashers": hashers, "base_user": base_user, "model_base": model_base}.items()},
