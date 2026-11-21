@@ -10,6 +10,7 @@ from relation_shards import matrix as relation_matrix
 JOBS = frozenset({
     'conformance-validation',
     'portable-go-matrix',
+    'starter-account-browser',
     'exact-darwin-validation',
     'relation-product-matrix',
     'product-project-check-matrix',

@@ -260,10 +260,10 @@ Article와 새 scaffold는 `modeldef`에서 계정 역할을 선택한다. 기�
 사용자 정의 모델을 선택할 때는 역할 참조·필수 최초 입력·노출·권한·비밀번호 정책과 해당 모델의 migration을 함께 변경한다.
 기존 migration 파일을 새 모델의 초기 정의로 덮어쓰지 않는다.
 
-현재 starter에서 기본 User를 다른 타입으로 교체하면 생성된 앱의 `internal/accounts/runtime.go`에 있는
-`FirstAccountConfig[models.User]`도 선택 모델에 맞춰야 한다. 로그인·catalog 필드의 이름이나 노출 목록이 바뀌면
-`internal/site/application.go`의 Admin 목록 열도 맞춰야 첫 계정 생성 후 Admin을 기동할 수 있다.
-[첫 계정 명령 템플릿](../internal/projectscaffold/templates/internal/accounts/runtime.go.tmpl) · [Admin 등록 템플릿](../internal/projectscaffold/templates/internal/site/application.go.tmpl)
+새 starter의 첫 계정 명령은 `internal/accounts/policy.go`의 `firstAccountConfig`에서 선택한 모델과 필수 입력을 받는다.
+Admin 목록은 행 키와 읽기가 허용된 역할 필드를 표시한다. 로그인과 이메일이 같은 필드이면 한 번만 표시하고, 상수 역할은 열에서 제외한다.
+`count-groups`는 선택한 그룹 모델을 조회하며, 관리 OpenAPI 문서의 열람 권한은 호스트의 `OpenAPIAccess`에서 지정한다.
+[프로젝트 정책](../internal/projectscaffold/templates/internal/accounts/policy.go.tmpl) · [Admin 등록](../internal/projectscaffold/templates/internal/site/identity.go.tmpl) · [관리 명령](../internal/projectscaffold/templates/internal/commands/commands.go.tmpl)
 
 생성 `NewAccountRuntime`은 같은 credential/session owner의 인증·login·자기 비밀번호 변경·관리 owner·catalog를 묶는다.
 `InspectStartup`은 설치 이력과 현재 domain·account/catalog·audit·모든 session namespace를 읽기 전용으로 검사한다.
@@ -282,8 +282,9 @@ Slug·목록 열과 읽기/생성/수정의 명시적 노출·권한을 선택�
 [일반 계정](../identity/account/README.md)은 login/logout Form과 자기 비밀번호 변경의 Form·Session JSON을 제공한다.
 변경은 현재 사용자에 한정하며 비밀번호·revision·현재 session 회전·다른 session 폐기·audit를 원자적으로 처리한다.
 Article은 `WithPasswordReset`으로 키·메일 발신 설정·신뢰한 origin·비공개 오류 reporter를 지정하면 같은 runtime에
-reset을 연결한다. 기본 starter는 로그인·로그아웃·비밀번호 변경 경로를 등록한다. reset 경로를 등록하려면 호스트가
-Web runtime에 `PasswordResetPersistence`를, 일반 계정 앱에 `PasswordReset` 설정을 함께 전달한다. [reset 구성](../identity/account/README.md#optional-password-reset)
+reset을 연결한다. 새 starter는 `internal/site/password_reset.go`의 `projectPasswordReset`이 설정을 반환하면 reset 경로도 등록한다.
+호스트가 재시작 후에도 유효한 키, 메일 sender·From·신뢰한 origin, 비공개 오류 reporter를 지정하면 사이트가 같은 resetter를 Web runtime과 mailer에 연결한다.
+[starter 설정](../internal/projectscaffold/templates/internal/site/password_reset.go.tmpl) · [reset 구성](../identity/account/README.md#optional-password-reset)
 
 Article의 업무 Admin/API도 전체 Principal을 받아 현재 domain·계정·권한을 실제 읽기 snapshot/쓰기 transaction 안에서
 다시 검사한다. Admin의 감사는 그 actor의 domain에 속하며 프로필 값이나 display label을 저장하지 않는다.

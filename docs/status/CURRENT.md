@@ -6,6 +6,6 @@
 
 ## 재개 지점
 
-1. 선택 계정의 인증 테스트가 생성된 `AccountsUser` 삭제자를 사용하도록 수정했다. 수정본의 전체 원격 CI와 필수 실행 결과를 확인한다. [이전 실패와 수정 범위](TEST_EVIDENCE.md#ad25f5ed-원격-ci)
-2. 새 프로젝트에서 로그인 필드 이름을 바꾸고 필수 프로필을 추가한 계정을 사용한다. 첫 계정 명령·Admin·API·비밀번호 재설정·비활성화·삭제·재시작을 SQLite와 PostgreSQL, 독립 HTTP 클라이언트와 실제 브라우저에서 확인한다. [현재 scaffold의 조립 범위](../DEVELOPER_EXPERIENCE.md#선택-계정-구성)
+1. 생성 삭제자 호출을 고친 뒤 SQLite normal·PostgreSQL race에서 인증 중 변경 6종이 통과했다. 두 환경에서 발견한 약한 비밀번호 진단 검사도 수정했다. 후속 커밋의 전체 원격 결과를 대조한다. [두 작업의 원본과 후속 수정](TEST_EVIDENCE.md#3a31d85e-인증-검사와-후속-수정)
+2. 새 starter의 첫 명령·Admin·권한 그룹·메일 재설정을 선택 모델에 연결했다. 기본 User와 필수 프로필을 가진 Member의 SQLite·PostgreSQL, 독립 HTTP·Chromium·재시작 검사를 원격에서 확인한다. [새 프로젝트 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go) · [구성 방법](../DEVELOPER_EXPERIENCE.md#선택-계정-구성)
 3. 채운 DB의 계정 전환·권한과 세션 격리·복구를 포함해 I1-01~08을 같은 제품 커밋의 환경별 증거와 대조한다. I1 수용 뒤 기본 순서는 M1의 schema/data migration이다. [실행 계획](../EXECUTION_PLAN.md#우선순위와-기본-실행-순서)

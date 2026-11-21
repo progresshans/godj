@@ -185,6 +185,10 @@ func exerciseStartedIdentity(address, username, password string, create bool, se
 	defer client.CloseIdleConnections()
 	base := "http://" + address
 	groups := base + "/api/identity/groups/"
+	reset, err := requestAuthenticatedRunserverEventually(client, http.MethodGet, base+"/account/reset/", "", "")
+	if err != nil || reset.status != 404 {
+		return fmt.Errorf("unconfigured starter reset endpoint: %d %w", reset.status, err)
+	}
 	anonymous, err := requestAuthenticatedRunserverEventually(client, http.MethodGet, groups, "application/json", "")
 	if err != nil || anonymous.status != 403 {
 		return fmt.Errorf("anonymous identity API: %d %w", anonymous.status, err)

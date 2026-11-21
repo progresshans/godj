@@ -123,6 +123,16 @@ func provisionRunserverOperator(
 	username, password string,
 ) {
 	t.Helper()
+	provisionRunserverAccount(t, globalBinary, repository, descriptor, environment, password,
+		operatorAnswer{`"Username": `, username}, operatorAnswer{`Use model default for "Email"? [Y/n]: `, "y"})
+}
+
+type operatorAnswer struct{ prompt, value string }
+
+func provisionRunserverAccount(t *testing.T, globalBinary, repository, descriptor string, environment []string,
+	password string, first operatorAnswer, rest ...operatorAnswer,
+) {
+	t.Helper()
 	environment = ensureRunserverGoAuditEnvironment(t, environment)
 	assertRunserverOperatorEnvironment(t, environment, password)
 
@@ -186,11 +196,13 @@ func provisionRunserverOperator(
 		defer func() {
 			t.Logf("createsuperuser preparation: %s", runserverPreparationProgress(environment, started, time.Now()))
 		}()
-		awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `"Username": `, runserverPreparationTimeout)
+		awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, first.prompt, runserverPreparationTimeout)
 	}()
-	writeRunserverProvisionLine(t, master, username)
-	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, `Use model default for "Email"? [Y/n]: `, 2*time.Minute)
-	writeRunserverProvisionLine(t, master, "y")
+	writeRunserverProvisionLine(t, master, first.value)
+	for _, field := range rest {
+		awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, field.prompt, 2*time.Minute)
+		writeRunserverProvisionLine(t, master, field.value)
+	}
 	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password: ", 2*time.Minute)
 	writeRunserverProvisionLine(t, master, password)
 	awaitRunserverProvisionPrompt(t, output, exited, &terminalWaitErr, "Password (again): ", 2*time.Minute)
@@ -217,12 +229,12 @@ func provisionRunserverOperator(
 		}
 	}
 	transcript, truncated := output.Snapshot()
-	if truncated || !strings.Contains(transcript, `"Username": `) ||
+	if truncated || !strings.Contains(transcript, first.prompt) ||
 		!strings.Contains(transcript, "Password: ") ||
 		!strings.Contains(transcript, "Password (again): ") ||
 		!strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`) {
 		t.Fatalf("createsuperuser transcript shape = prompts:%t/%t/%t success:%t bytes:%d truncated:%t",
-			strings.Contains(transcript, `"Username": `),
+			strings.Contains(transcript, first.prompt),
 			strings.Contains(transcript, "Password: "),
 			strings.Contains(transcript, "Password (again): "),
 			strings.Contains(transcript, `"status":"created","code":"","cleanup_failed":false`),

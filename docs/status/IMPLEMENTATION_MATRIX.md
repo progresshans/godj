@@ -36,7 +36,7 @@ SQLite/PostgreSQL·고정 module 설치·cold/race·독립 Django 관측·브라
 운영 topology·향후 릴리스 upgrade 정책은 O1, Web/static/media 확장은 C2, durable event 전달은 R2에 남는다.
 I1 구현은 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 모았다. 선택 계정 역할·domain·typed 관리,
 Admin/JSON·비밀번호 변경, 첫 계정 명령을 Article과 기본 starter에 연결했다. 선택 runtime은 명시적으로 구성한
-비밀번호 재설정을 지원한다. 새 starter에서 reset을 구성한 custom 계정의 실제 브라우저 검증은 I1-08에 남아 있다.
+비밀번호 재설정을 지원한다. 새 starter의 기본 User와 별도 Member에 대해 [공개 명령·HTTP·Chromium 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go)를 작성했다. 양 DB에서 재시작을 포함한 실행과 원본 대조는 I1-08에 남아 있다.
 Helpdesk 조립, 명시적 FK/OneToOne 정책과 프로필 파일 편집/Form 생성·초기 CLI 파일 입력을 작성했다.
 계정 생성의 관계 수명과 typed 계정-as-through 생성을 추가했다.
 추가 M2M의 명시적 선택 정책·생성/편집/조회·Form/Admin/JSON과 전체 수명 projection을 연결했다.

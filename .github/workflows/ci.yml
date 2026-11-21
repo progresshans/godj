@@ -342,6 +342,67 @@ jobs:
           git diff --exit-code
           test -z "$(git status --porcelain=v1)"
 
+  starter-account-browser:
+    needs: validation-plan
+    name: Starter accounts in Chromium on SQLite and PostgreSQL
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:17.10-bookworm@sha256:9b18b78397054fce88a9552e9d5a3ad5bb7fd258c5b3cc1c5028e46373d6ea8f
+        env:
+          POSTGRES_PASSWORD: godj-ci-pg-canary-8H2k7M4q9V6x3R
+          POSTGRES_DB: postgres
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C --locale-provider=libc"
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+        ports:
+          - 5432
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          check-latest: false
+      - name: Prepare the locked browser and offline Go dependencies
+        run: |
+          go mod download all
+          mkdir "$RUNNER_TEMP/starter-browser-tools"
+          cp examples/helpdesk/testdata/browser/tools/package{,-lock}.json "$RUNNER_TEMP/starter-browser-tools/"
+          npm ci --prefix "$RUNNER_TEMP/starter-browser-tools" --ignore-scripts --no-audit --no-fund
+          node "$RUNNER_TEMP/starter-browser-tools/node_modules/playwright/cli.js" install --with-deps chromium
+      - name: Exercise both account selections on both databases
+        env:
+          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          GODJ_STARTER_BROWSER_TOOLS: ${{ runner.temp }}/starter-browser-tools
+          GODJ_TEST_POSTGRES_URL: postgresql://postgres:godj-ci-pg-canary-8H2k7M4q9V6x3R@127.0.0.1:${{ job.services.postgres.ports['5432'] }}/postgres?sslmode=disable
+          GODJ_REQUIRE_POSTGRES: "1"
+        run: |
+          dir="$RUNNER_TEMP/starter-account"
+          mkdir "$dir"
+          for ref in HEAD "$GODJ_SOURCE_HEAD"; do
+            git log -1 --format='%H %T' "$ref"
+          done > "$dir/checkout.txt"
+          if ! go test -tags godj_starter_browser -count=1 -json -timeout 50m -run '^TestStarterSelectedAccountBrowser$' ./conformance/runserverproduct > "$dir/tests.json" 2> "$dir/stderr"; then
+            python3 scripts/ci/go_test_events.py "$dir/tests.json" --diagnostics --stderr "$dir/stderr"
+            exit 1
+          fi
+          python3 scripts/ci/go_test_events.py "$dir/tests.json" --required scripts/ci/starter-account-browser-required.txt --no-skips
+          git diff --exit-code
+          test -z "$(git status --porcelain=v1)"
+      - name: Publish starter account observations
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: starter-account-browser-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/starter-account/
+          if-no-files-found: error
+          retention-days: 90
+
   exact-darwin-validation:
     needs: validation-plan
     name: Validate exact darwin/arm64 profile and SQLite lifecycle
@@ -1865,6 +1926,7 @@ jobs:
       - validation-plan
       - conformance-validation
       - portable-go-matrix
+      - starter-account-browser
       - exact-darwin-validation
       - relation-product-matrix
       - product-project-check-matrix

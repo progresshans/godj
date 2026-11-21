@@ -6153,6 +6153,26 @@ Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 
 
 새 scaffold에서 custom 계정의 첫 생성부터 인증·reset·재시작까지 잇는 브라우저 흐름과 I1-01~08의 전체 수용은 미완료다.
 
+### 3a31d85e 인증 검사와 후속 수정
+
+제출 커밋 `3a31d85eec8588aaded91306820f5b19bde7008e`와 CI 44905262309 attempt 1의 [merge checkout](https://github.com/progresshans/godj/commit/e372a297d6acf9bc33b8285a236d42a3dd0c02f9)은 tree `ebbe2023f020bfb4b90a64561b9113f8ca3c74fa`를 공유한다.
+두 작업의 아카이브 SHA-256을 GitHub의 digest와 대조하고 원본 Go 이벤트를 확인했다.
+
+- [SQLite Linux arm64 normal 작업](https://github.com/progresshans/godj/actions/runs/44905262309/job/136849612136)의 [아카이브](https://github.com/progresshans/godj/actions/runs/44905262309/artifacts/14708064184)는 `d09d7db4a563985622debae086810e3895aa25fe0ba35a31f03698c27f639509`다.
+- [PostgreSQL Linux amd64 race 작업](https://github.com/progresshans/godj/actions/runs/44905262309/job/136849607915)의 [아카이브](https://github.com/progresshans/godj/actions/runs/44905262309/artifacts/14708064657)는 `24c99f9b6ba9c2900861cb12d40c3683a3425107eadf60b7d815d62adc63125f`다.
+
+두 작업 모두 `authentication_current_state`의 password·rehash·username·inactive·deleted·authorization 여섯 자식이 통과했다.
+두 작업은 `self_password_refusals/weak`에서 실패했다. 테스트 입력 `short`는 정책 코드 `password_too_short`와 겹쳤고, Go의 구조체 상세 출력은 validation 거부 오류의 비공개 필드까지 순회할 수 있었다.
+후속 수정 `dfc8a64a`는 모든 출력 형식에 공개 오류 문자열을 사용하고, 호출자가 구조화된 진단과 원인을 명시적으로 읽는 계약을 유지한다.
+테스트는 구별 가능한 짧은 입력으로 원문 비노출과 길이 오류 코드를 함께 검사한다.
+
+새 [starter 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go)는 공개 `startproject`로 기본 프로젝트를 만들고,
+사용자 정의 구성에서는 모델 선언·migration source·프로젝트 정책을 교체해 `people.Member`의 `contact`와 필수 `region`을 첫 명령에 제출한다.
+두 구성 모두 SQLite와 PostgreSQL에서 독립 HTTP 클라이언트와 Chromium을 사용한다. Chromium은 Admin 수정, 그룹 권한 회수·복원,
+비밀번호 변경, 메일로 받은 reset 증명의 재시작 후 사용, 비활성화·삭제를 검사한다. 서버 종료 후 별도 SQL 연결이 계정·그룹·관계·삭제 감사를 읽는다.
+로컬에서는 Go 소스·렌더링한 템플릿의 포맷과 구문, 브라우저 스크립트 구문, CI 구성·필수 목록과 문서 링크를 검사했다.
+새 소비자의 실제 Go·브라우저·두 DB 실행과 I1 전체 수용은 후속 제품 커밋의 원격 증거로 판정한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

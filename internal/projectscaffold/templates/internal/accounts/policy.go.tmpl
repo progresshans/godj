@@ -5,12 +5,23 @@ package accounts
 
 import (
 	"[[.Module]]/project"
+	"github.com/progresshans/godj/api"
+	"github.com/progresshans/godj/auth"
 	"github.com/progresshans/godj/identity"
 	accountmodel "github.com/progresshans/godj/identity/model"
 	"github.com/progresshans/godj/identity/models"
 )
 
 type Runtime = accountmodel.Runtime[models.User, models.Group, models.Permission]
+
+// OpenAPIAccess selects who may read the management schema. Each operation
+// in the schema separately enforces the grants in Policy.
+func OpenAPIAccess() (api.PermissionPolicy, error) {
+	return api.NewPermissionPolicy(nil, []auth.Permission{
+		identity.ViewUser, identity.ChangeUser, identity.ViewGroup, identity.ChangeGroup,
+		identity.ViewPermission, identity.ChangePermission,
+	})
+}
 
 func Policy() (accountmodel.RuntimeConfig[models.User, models.Group, models.Permission], error) {
 	var result accountmodel.RuntimeConfig[models.User, models.Group, models.Permission]
@@ -47,18 +58,13 @@ func Policy() (accountmodel.RuntimeConfig[models.User, models.Group, models.Perm
 	return result, nil
 }
 
-// FirstAccountPolicy selects operator prompts explicitly. Server identity,
-// active/staff/superuser and revision stay with the first-account owner. A
-// custom model must include every additional required profile field here.
-func FirstAccountPolicy() (accountmodel.CreationPolicy[models.User], error) {
-	config, err := Policy()
-	if err != nil {
-		return accountmodel.CreationPolicy[models.User]{}, err
-	}
-	return accountmodel.CreationPolicy[models.User]{
-		Fields: []string{"username", "email"}, MaxPasswordBytes: config.Accounts.MaxPasswordBytes,
-		ValidatePassword: config.Accounts.ValidatePassword, Validate: config.Accounts.ValidateCreate,
-		CaseInsensitiveLogin: config.Accounts.CaseInsensitiveCreationLogin,
-		PrincipalID:          config.Accounts.PrincipalID, Now: config.Accounts.Now,
-	}, nil
+// Select every required operator input here. The command binds this policy's
+// source digest before passing the typed configuration to the generated factory.
+func firstAccountConfig(management accountmodel.AccountManagementConfig[models.User]) accountmodel.FirstAccountConfig[models.User] {
+	return accountmodel.FirstAccountConfig[models.User]{CreationPolicy: accountmodel.CreationPolicy[models.User]{
+		Fields: []string{"username", "email"}, MaxPasswordBytes: management.MaxPasswordBytes,
+		ValidatePassword: management.ValidatePassword, Validate: management.ValidateCreate,
+		CaseInsensitiveLogin: management.CaseInsensitiveCreationLogin,
+		PrincipalID:          management.PrincipalID, Now: management.Now,
+	}}
 }
