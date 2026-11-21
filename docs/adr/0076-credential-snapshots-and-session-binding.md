@@ -428,8 +428,7 @@ IR default·NULL·key 문법을 공통 ChoiceInput으로 보존하고 숫자 lab
 
 `identityadmin.AccountRegistration.CreationLoginInput`도 같은 정책을 선택한다. 기본 User의 256자 저장·편집 한도와 typed
 생성·명령·JSON의 정책을 전역으로 줄이지 않으며 case-insensitive 생성 unique는 기존 owner 설정이다. 고정 User의 원본
-Django 입력·저장 수명 기준은 선택 Form과 실제 Admin 소비자로도 연결한다. 새 본문의 환경별 수용과 남은 고정 소비자 제거는
-별도 확인 대상으로 유지하며, 새 Form이 존재한다는 이유로 기존 기준이나 소비자를 제거하지 않는다.
+Django 입력·저장 수명 기준은 선택 Form과 실제 Admin 소비자로도 연결한다. [기본 모델과 사용자 정의 모델의 검증](../status/TEST_EVIDENCE.md#026a9627-고정-django-계정의-양-db-검증)
 
 기본 User도 이 선택 Form과 등록을 사용하며 과거 전용 생성 Form과 Admin Config는 남기지 않는다.
 초기화되지 않은 Form의 Definition은 명시적 빈 field 선택으로 실패한다. Nil 선택의 전체 model field 의미로 되돌아가
@@ -1100,7 +1099,7 @@ callback은 revision만 수정하고 수집한 topology를 변경하지 않는�
 
 조회/정리·인가·revision·session·audit·뒤 관계 DML 실패는 하나의 transaction에서 rollback한다. Callback의 정상적인 거부는 scope가
 유효할 때 원래 오류 identity를 보존하고, 취소/만료가 겹치면 이를 함께 유지한다. Unknown/cleanup에는 성공값을 게시하거나 자동 재시도하지
-않는다. 공개 계정 Admin/HTTP 조립과 통합 restart 수용은 I1의 잔여 요구다.
+않는다. 공개 Admin과 관리 JSON도 같은 삭제 결과와 오류를 사용한다. [관리 소비자와 환경별 검증](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)
 
 ## Collection 편집의 전체 최종 상태와 생성 효과
 
@@ -1210,8 +1209,8 @@ operator owner는 session revocation capability를 만들지 않으며, 예상 �
 준비 객체의 operation ID는 시도 뒤에도 남는다. Unknown 뒤에는 그 receipt와 write fence를 명시적으로 대조해야 하며,
 조회에서 receipt가 없다는 사실만으로 rollback을 확정하거나 같은 입력을 자동 재실행하지 않는다.
 
-이 기능은 fresh domain의 typed 저장 owner다. 공개 명령의 필수 profile prompt·비밀 입력 process·설치/startup과 기존 데이터의
-mapping/retirement·password/reset·공통 Admin/HTTP 조립 및 독립 양 DB 수용은 I1의 남은 작업이다.
+빈 도메인의 첫 계정은 공개 명령이 프로젝트에 선언된 필수 프로필과 비밀번호를 받아 생성한다. 기존 계정이 있는 DB는
+대응표와 이행 기록을 소유하는 별도의 절차를 사용한다. [공개 명령과 프로젝트](#공개-cli와-articlescaffold-통합) · [역사 저장소 이행](#역사-systemstate에서-최초-선택-domain으로-이행)
 
 ### DB 연결 전 선언과 명령 입력 준비
 
