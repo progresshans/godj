@@ -6179,6 +6179,14 @@ Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 
 
 기본·custom 프로젝트 모두 생성·빌드됐고, SQLite·PostgreSQL 각각에서 migration·빈 그룹 조회·PTY 첫 계정 생성·서버 기동·별도 HTTP 로그인과 계정 조회까지 진행했다. 네 경우 모두 Chromium 시작 단계에서 중단돼 브라우저 조작과 재시작 검사는 실행되지 않았다. 원래 로그에는 시작 실패의 세부 오류가 없다. 후속 검사는 Linux Chromium에 짧은 전용 임시 경로를 제공하고, 실행 파일·시작·버전 대조에서 실패한 위치를 기록한다.
 
+### 99eca524 새 프로젝트 브라우저
+
+제출 커밋 `99eca524`와 [starter 작업](https://github.com/progresshans/godj/actions/runs/44909427944/job/136862032515)의 checkout `730fab29`는 같은 tree `439086a72d5d02889b703f9313a1b3bc382cce2b`다. [원본 아카이브](https://github.com/progresshans/godj/actions/runs/44909427944/artifacts/14709531312)의 SHA-256 `8b7bb06775f3084e925f9c0be3f03d2460f7dc7d0858a54fa853f3aa47f0a68a`와 테스트별 종료 결과를 대조했다.
+
+Linux Chromium 155.0.8059.12로 기본 User는 SQLite·PostgreSQL의 최초 기동과 재시작 4건을 통과했다. 비밀번호 변경, 다른 세션 폐기, 재시작을 건넌 reset, 비활성화와 삭제 후 독립 SQL 조회까지 실행됐다. 두 DB의 사용자 정의 Member도 그룹 권한 회수·복원과 비밀번호 변경을 거쳤고 Admin 프로필 제출 뒤 목록을 기다리던 곳에서 실패했다. Member 재시작 검사는 실행되지 않았다.
+
+Member의 [관계 선언](../../internal/testschema/account.go)과 [ModelForm 투영](../../forms/model/many_to_many.go)에서 직접 권한 `grants`는 필수다. 기존 시나리오는 그룹만 부여한 뒤 빈 직접 권한으로 변경 폼을 제출했다. 후속 검사는 이 제출의 필드 오류와 DB에서 다시 읽은 프로필·revision·소속을 확인한 뒤, 스키마 열람과 무관한 직접 권한을 선택해 정상 저장과 오래된 revision 거부를 확인한다. 프로세스 종료 후 독립 SQL로 직접 권한 연결도 대조한다.
+
 ### 역사 runtime 쓰기 결과의 확정
 
 `Runtime.Insert/Update/Delete`가 문장 실행 중 얻은 값을 바깥 transaction 오류와 함께 반환하던 경로를 고쳤다. 일반·관계 transaction은 같은 historical ownership 검사를 유지하고, backend가 callback 누락·반복·오류 누락을 성공으로 반환해도 결과를 게시하지 않는다.

@@ -7,5 +7,5 @@
 ## 재개 지점
 
 1. 생성 삭제자 호출을 고친 뒤 SQLite normal·PostgreSQL race에서 인증 중 변경 6종이 통과했다. 두 환경에서 발견한 약한 비밀번호 진단 검사도 수정했다. 후속 커밋의 전체 원격 결과를 대조한다. [두 작업의 원본과 후속 수정](TEST_EVIDENCE.md#3a31d85e-인증-검사와-후속-수정)
-2. 새 starter의 기본 User와 필수 프로필을 가진 Member가 SQLite·PostgreSQL에서 첫 계정 생성과 독립 HTTP 조회를 마쳤다. Chromium 시작 실패를 보완한 커밋에서 브라우저 조작·재시작·저장 결과를 확인한다. [새 프로젝트 실행 기록](TEST_EVIDENCE.md#57f014e7-새-프로젝트-실행) · [구성 방법](../DEVELOPER_EXPERIENCE.md#선택-계정-구성)
+2. 새 starter의 기본 User가 SQLite·PostgreSQL에서 재시작과 삭제까지 통과했다. 두 DB의 Member가 멈춘 Admin 프로필 제출에는 필수 직접 권한의 거부·저장을 구분하는 검사를 추가했다. 후속 원격 실행에서 Member의 재시작과 삭제까지 대조한다. [브라우저 원본과 수정 근거](TEST_EVIDENCE.md#99eca524-새-프로젝트-브라우저) · [구성 방법](../DEVELOPER_EXPERIENCE.md#선택-계정-구성)
 3. 채운 DB의 계정 전환·권한과 세션 격리·복구를 포함해 I1-01~08을 같은 제품 커밋의 환경별 증거와 대조한다. I1 수용 뒤 기본 순서는 M1의 schema/data migration이다. [실행 계획](../EXECUTION_PLAN.md#우선순위와-기본-실행-순서)

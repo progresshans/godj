@@ -65,6 +65,18 @@ async function checkColumns(page, slug, fields) {
     assert.deepEqual(actual, fields);
 }
 
+async function submitProfile(page, form, expectedStatus) {
+    const action = new URL(await form.getAttribute("action"), page.url()).href;
+    const [response] = await Promise.all([
+        page.waitForResponse(result => result.url() === action && result.request().method() === "POST"),
+        form.locator(':scope > button[type="submit"]').click(),
+    ]);
+    if (response.status() !== expectedStatus) {
+        unexpectedStatus = "profile form expected " + expectedStatus + " received " + response.status();
+        throw new Error("unexpected form status");
+    }
+}
+
 function mailLink() {
     const message = JSON.parse(fs.readFileSync(path.join(mailbox, "message.json"), "utf8"));
     assert.equal(message.from, "sender@example.test");
@@ -204,16 +216,40 @@ async function exercise(browser) {
     await api(current, "GET", base + "openapi.json", 200);
     stage = "profile revision";
     const before = await (await api(admin, "GET", detail, 200)).json();
+    let directGrant;
+    if (custom) {
+        // A distinct grant keeps schema access dependent on the group.
+        directGrant = await (await api(admin, "POST", base + "permissions/", 201, {
+            fields: {[grantCode]: "people.read_note", [grantName]: "Read note"},
+        })).json();
+    }
     await admin.goto(origin + "/admin/users/");
     await admin.locator('tr[data-object-id="' + target.id + '"]').getByRole("link", {name: "Change"}).click();
     const modelForm = admin.locator('form:has([name="expected_revision"])');
     await modelForm.locator('[name="' + profile + '"]').fill("Updated");
-    await modelForm.locator(':scope > button[type="submit"]').click();
+    if (custom) {
+        stage = "profile required direct grant";
+        await submitProfile(admin, modelForm, 200);
+        await modelForm.locator('[data-error-field="grants"][data-error-code="required"]').waitFor();
+        assert.equal(await modelForm.locator("[data-error-code]").count(), 1);
+        const unchanged = await (await api(admin, "GET", detail, 200)).json();
+        assert.equal(unchanged.revision, before.revision);
+        assert.equal(unchanged.fields[profile], "Initial");
+        assert.deepEqual(unchanged.fields.teams, [group.id]);
+        assert.deepEqual(unchanged.fields.grants, []);
+        await modelForm.locator('select[name="grants"]').selectOption(String(directGrant.id));
+    }
+    stage = "save profile and reject stale revision";
+    await submitProfile(admin, modelForm, 302);
     await admin.locator('body[data-admin-view="list"]').waitFor();
     await api(admin, "PATCH", detail, 412, {fields: {[profile]: "Stale"}}, before.revision);
     const after = await (await api(admin, "GET", detail, 200)).json();
     assert.equal(after.fields[profile], "Updated");
     assert.ok(after.revision > before.revision);
+    if (custom) {
+        assert.deepEqual(after.fields.teams, [group.id]);
+        assert.deepEqual(after.fields.grants, [directGrant.id]);
+    }
     stage = "recipient mail and exchange for a reset proof";
     await prepareReset(browser, current);
     await Promise.all([member.close(), current.close(), admin.close()]);

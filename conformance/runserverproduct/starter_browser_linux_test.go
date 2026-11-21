@@ -309,9 +309,13 @@ func checkStarterRows(t *testing.T, variant, phase string, settings map[string]s
 	if err := database.QueryRowContext(ctx, "SELECT count(*), min("+teamName+") FROM "+teamTable).Scan(&teams, &team); err != nil || teams != 1 || team != "Schema readers" {
 		t.Fatal("durable selected group differs")
 	}
-	groupLinks, model := "godj_identity_user_groups", "godj_identity.user"
+	groupLinks, grantLinks, model := "godj_identity_user_groups", "godj_identity_user_permissions", "godj_identity.user"
+	wantGrants := 0
 	if variant == "custom" {
-		groupLinks, model = "people_member_teams", "people.member"
+		groupLinks, grantLinks, model = "people_member_teams", "people_member_grants", "people.member"
+		if phase == "initial" {
+			wantGrants = 1
+		}
 	}
 	wantLinks, wantDeletes := 1, 0
 	if phase == "restart" {
@@ -320,6 +324,9 @@ func checkStarterRows(t *testing.T, variant, phase string, settings map[string]s
 	var links, deletes int
 	if err := database.QueryRowContext(ctx, "SELECT count(*) FROM "+groupLinks).Scan(&links); err != nil || links != wantLinks {
 		t.Fatal("durable account group membership count differs")
+	}
+	if err := database.QueryRowContext(ctx, "SELECT count(*) FROM "+grantLinks).Scan(&links); err != nil || links != wantGrants {
+		t.Fatal("durable direct account permission count differs")
 	}
 	if err := database.QueryRowContext(ctx, "SELECT count(*) FROM godj_account_audit_event WHERE model = "+parameter+" AND action = 'delete'", model).Scan(&deletes); err != nil || deletes != wantDeletes {
 		t.Fatal("durable account deletion audit differs")
