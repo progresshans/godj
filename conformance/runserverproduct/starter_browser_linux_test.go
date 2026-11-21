@@ -167,7 +167,18 @@ func (app starterBrowserProject) exerciseDatabase(t *testing.T, variant, vendor 
 
 func (app starterBrowserProject) probe(t *testing.T, address, variant, phase, mailbox string) error {
 	t.Helper()
-	environment := testenv.With(app.env, map[string]string{"TMPDIR": t.TempDir()})
+	// Linux Chromium puts its profile's Unix socket below TMPDIR. A nested
+	// subtest name can consume the socket path limit before Chromium starts.
+	browserTemp, err := os.MkdirTemp("/tmp", "godj-chrome-")
+	if err != nil {
+		return err
+	}
+	t.Cleanup(func() {
+		if err := os.RemoveAll(browserTemp); err != nil {
+			t.Errorf("remove private Chromium temporary directory: %v", err)
+		}
+	})
+	environment := testenv.With(app.env, map[string]string{"TMPDIR": browserTemp})
 	probe := testprocess.Run(t, testprocess.CommandLimits{Timeout: 3 * time.Minute, Output: 8192}, app.fixture, environment,
 		"node", "browser.cjs", app.tools, "http://"+address, variant, phase, mailbox)
 	var receipt struct {

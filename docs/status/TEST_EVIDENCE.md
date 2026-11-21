@@ -6173,6 +6173,12 @@ Relation 필수 목록은 4,878→4,879(고정 native 30·이동 unit 4 제거, 
 로컬에서는 Go 소스·렌더링한 템플릿의 포맷과 구문, 브라우저 스크립트 구문, CI 구성·필수 목록과 문서 링크를 검사했다.
 새 소비자의 실제 Go·브라우저·두 DB 실행과 I1 전체 수용은 후속 제품 커밋의 원격 증거로 판정한다.
 
+### 57f014e7 새 프로젝트 실행
+
+[CI 44908350517의 starter 작업](https://github.com/progresshans/godj/actions/runs/44908350517/job/136858845837)에서 제출 커밋 `57f014e7`과 merge checkout `ce1a76a8`의 tree는 `ad428e769ed11bde98fc2b3a6f1e7ce182a58d4c`다. [원본 아카이브](https://github.com/progresshans/godj/actions/runs/44908350517/artifacts/14709370192)의 SHA-256은 `88f56d25cd002ba5ea87b574eab19f1deb6297c94d992141c517330839600c10`이다.
+
+기본·custom 프로젝트 모두 생성·빌드됐고, SQLite·PostgreSQL 각각에서 migration·빈 그룹 조회·PTY 첫 계정 생성·서버 기동·별도 HTTP 로그인과 계정 조회까지 진행했다. 네 경우 모두 Chromium 시작 단계에서 중단돼 브라우저 조작과 재시작 검사는 실행되지 않았다. 원래 로그에는 시작 실패의 세부 오류가 없다. 후속 검사는 Linux Chromium에 짧은 전용 임시 경로를 제공하고, 실행 파일·시작·버전 대조에서 실패한 위치를 기록한다.
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의

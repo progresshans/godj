@@ -22,8 +22,9 @@ const grantCode = custom ? "key" : "code";
 const grantName = custom ? "title" : "name";
 const schemaGrant = custom ? "people.read_schema" : "godj_identity.view_user";
 const base = "/api/identity/";
-let stage = "launch";
+let stage = "arguments";
 let unexpectedStatus = "";
+let launchDiagnostic = "";
 
 async function api(page, method, route, expected, data, revision) {
     const headers = {Accept: "application/json"};
@@ -221,10 +222,17 @@ async function exercise(browser) {
 async function main() {
     assert.ok(["custom", "default"].includes(variant) && ["initial", "restart"].includes(phase));
     assert.match(origin, /^http:\/\/127\.0\.0\.1:[1-9][0-9]*$/);
-    const browser = await chromium.launch({executablePath: chromium.executablePath(), headless: true});
+    stage = "Chromium executable";
+    const executablePath = chromium.executablePath();
+    fs.accessSync(executablePath, fs.constants.X_OK);
+    stage = "Chromium launch";
+    const browser = await chromium.launch({executablePath, headless: true});
     const version = browser.version();
     try {
+        stage = "Chromium version";
+        launchDiagnostic = "expected " + expectedVersion + " observed " + version;
         assert.equal(version, expectedVersion);
+        launchDiagnostic = "";
         await exercise(browser);
     } finally {
         await browser.close();
@@ -232,8 +240,14 @@ async function main() {
     process.stdout.write(JSON.stringify({variant, phase, browser_version: version}) + "\n");
 }
 
-main().catch(() => {
+main().catch(error => {
     // Keep credentials, cookies, form values and response bodies out of CI logs.
-    process.stderr.write("Starter browser failed at " + stage + " " + unexpectedStatus + "\n");
+    const line = /browser\.cjs:(\d+):(\d+)/.exec(error.stack || "");
+    const location = line ? " browser.cjs:" + line[1] + ":" + line[2] : "";
+    if (stage === "Chromium launch") {
+        const cause = /(ENAMETOOLONG|SingletonSocket|ProcessSingleton|EACCES|ENOENT|error while loading shared libraries|No usable sandbox)/i.exec(error.message || "");
+        launchDiagnostic = cause ? cause[1] : "launcher rejected before the browser connected";
+    }
+    process.stderr.write(["Starter browser failed at " + stage + location, launchDiagnostic, unexpectedStatus].filter(Boolean).join(" | ") + "\n");
     process.exitCode = 1;
 });
