@@ -6337,11 +6337,53 @@ Django 6.1·Python 3.14.3에서 계정 관측기 9종을 SQLite 3.50.4와 Postgr
 
 같은 normal/core-account-management 작업에서 기본 모델과 사용자 정의 6종의 양 DB 첫 계정·Admin·JSON 경로가 통과했다. 필수 상위 검사 22/22개, 생성 앱 14개 프로세스의 검사 4,150/4,150개, skip 0이다. 각 프로세스의 실제 출력 해시와 필수 검사별 시작·종료를 대조했다. [관리 경로 실행](https://github.com/progresshans/godj/actions/runs/44931649835/job/136929585632)
 
-Python 3.14.3 호환성 작업에서 같은 9개 계정 모듈의 기존 검사 21개가 모두 통과했다. 권한 조회·비밀번호 검증·세션 처리의 일부 동작을 바꿨을 때 관측값이 달라지는 부정 대조도 포함된다. 전체 409개 중 skip 4개는 별도 플랫폼 담당 검사다. [Python 원본 `c9b30a7e`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718971285)
+Python 3.12.13·3.13.15·3.14.3·3.14.7 각각에서 같은 9개 계정 모듈의 기존 검사 21개가 모두 통과했다. 권한 조회·비밀번호 검증·세션 처리의 일부 동작을 바꿨을 때 관측값이 달라지는 부정 대조도 포함된다. 각 호환성 실행의 전체 409개 중 skip 4개는 고정 darwin/arm64 환경이 맡았다. 그 환경에서는 409/409개가 skip 없이 통과했다. [3.12.13 `0a5ec803`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717859061) · [3.13.15 `572cd094`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717944618) · [3.14.3 `c9b30a7e`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718971285) · [3.14.7 `8392b207`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718368357) · [고정 macOS 실행](https://github.com/progresshans/godj/actions/runs/44931649835/job/136929584276)
 
 기본 User·사용자 정의 Member × SQLite·PostgreSQL × 최초 기동·재시작 8건이 Chromium 155.0.8059.12에서 모두 통과했다. 상위 테스트 포함 15/15, skip 0이다. [브라우저 원본 `8bed42cd`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717204520)
 
 Portable normal/core-vet에서 CI 도구 110/110개(새 계정 관측기 대조·실패 검사 5개 포함), Go 141개 패키지와 `go vet ./...`가 통과했다. 필수 Go 검사 500개가 전부 실행·통과했고, 전체 Go 실행 14,468개 중 skip 221개는 필수 목록 밖에 있다. [Portable 원본 `a2af5d54`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717763614)
+
+### 026a9627 계정 모델 전환과 생성 앱
+
+Linux amd64 normal에서 Schema IR의 계정 역할 검사 6개와 잘못된 선언 23개가 모두 실행·통과했다. 외부 생성 프로젝트에서는 새 staff 정책과 일치하는 생성물이 먼저 컴파일됐고 이전 정책의 계정 파일을 섞으면 해당 snapshot 심볼에서 컴파일이 실패했다. [IR 원본 `a2af5d54`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717763614) · [생성물 혼용 검사 `a5a05989`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719713679)
+
+같은 [CI 실행](https://github.com/progresshans/godj/actions/runs/44931649835)의 Linux amd64에서 생성 앱 15개 작업 묶음을 normal·race·CGO-disabled로 확인했다. 각 모드에서 133개 자식 프로세스의 검사 10,005개가 각각 한 번씩 실행·통과했다. 세 모드의 검사 목록이 같았고 skip은 0이었다. 표는 모드당 SQLite와 PostgreSQL을 합한 수이며 중첩된 상위 검사를 포함한다.
+
+| 외부 생성 앱의 검증 경로 | 프로세스 / 통과한 검사 | normal | race | CGO-disabled |
+|---|---:|---|---|---|
+| 모델·필드 역할 바인딩과 계정 생성 입력 | 18 / 1,612 | [3071e94b](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718262638) | [84494be1](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718723216) | [47d616f2](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719210401) |
+| 첫 계정 명령과 Admin·JSON 계정 관리 | 14 / 4,150 | [7d4e8489](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719680556) | [52a3da17](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719063517) | [b44e67e2](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718721663) |
+| 비밀번호 재설정 | 7 / 707 | [1276eabc](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718881473) | [ee2639c8](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718694963) | [d51c30c2](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718643320) |
+| 관계·컬렉션·파일 프로필 생성과 편집 | 16 / 684 | [447d9387](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717893702) | [16972b1a](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718239750) | [04c855fc](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718684164) |
+| 계정·역할·카탈로그의 중간 모델 생성 | 20 / 684 | [637c4f78](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718418016) | [12f67a4f](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719726039) | [d47713a2](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719005973) |
+| 계정·그룹·권한 자체를 중간 모델로 사용 | 12 / 492 | [965a0942](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718592690) | [20bf5c01](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718568934) | [7de292ba](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718428135) |
+| 중간 모델을 사용하는 계정 전환과 생성 | 6 / 154 | [4dce8ec1](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718188869) | [19e524d8](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718750622) | [8ed210b1](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718488377) |
+| 기존 대상과 새 대상에 대한 계정 대응표·전환 | 2 / 282 | [330acd0f](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14717793838) | [d7bf917c](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719590330) | [761019e4](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719075084) |
+| 준비된 권한 카탈로그 전환과 업무 참조 | 8 / 342 | [43195370](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718003217) | [806d4b39](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718863154) | [29d97902](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718099573) |
+| 그룹·권한을 새로 생성하는 전환 | 6 / 242 | [9c079219](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718561813) | [bec36141](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718653212) | [c5b6d564](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718074304) |
+| 계정과 카탈로그가 공유하는 중간 테이블 | 8 / 192 | [6af9799d](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718855726) | [862f2794](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718259167) | [e3ce1219](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719270658) |
+| 대상 계정의 FK와 자기·순환 참조 | 6 / 164 | [80707bda](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718491890) | [be05c28f](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719277814) | [d0e0666c](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718129962) |
+| 대상 카탈로그의 선택·필수 FK와 공동 생성 | 4 / 214 | [e5c3454b](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718845596) | [55e1f472](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718279830) | [d5a05ebd](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719570873) |
+| 그룹·권한·계정 사이 필수 FK 순환 | 4 / 72 | [715a4316](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718816142) | [f734cd9c](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719745886) | [3e3114f1](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718353372) |
+| 별도 프로세스의 역사 운영자 이행·응답 유실·재접속 | 2 / 14 | [96205945](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719740194) | [fb9c01c3](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719166980) | [6561c40e](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718896598) |
+
+전환 검사에서 도중 권한 회수, 충돌·응답 유실, 시도별 계정·그룹·권한 대응표와 재시작을 확인했다. 역사 운영자 이행은 새 프로세스가 저장된 manifest로 두 단계의 결과를 다시 조회했다. 부모 출력에 기록한 자식 JSON의 SHA-256, 프로세스별 시작·종료와 필수 검사 목록을 원본에서 대조했다. 모드별 판독 기록은 검증 보관소의 `gdj0138-026a9627-ci44931649835/selected-account-generated-inventory.json`에 있다. SHA-256은 `432af222121a6633f0066057019634d4664b5a5952536f5f599e2f5d9349b73f`다.
+
+### 026a9627 계정 저장소와 첫 계정 명령의 플랫폼 검증
+
+PostgreSQL 17.10의 normal·race·CGO-disabled에서 선택 계정 저장소 필수 검사 2,219개와 역사 운영자 이행 검사 51개가 모드마다 모두 통과했다. 현재 권한 합집합과 회수, 역할 변경, 비밀번호 재설정·로그인 경합 9개와 업무 모델·사용자 정의 계정 삭제의 보호·롤백·커밋 응답 유실을 확인했다. race 작업은 `db/postgres` 패키지를 1,398.257초에 마쳤고, 그 작업의 전체 필수 검사 2,669개와 패키지 모두 skip 없이 종료했다. [normal `f989a5c3`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719913936) · [race `e82feaeb`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14720116696) · [CGO-disabled `eccd9c61`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719376917)
+
+Linux amd64·arm64의 세 모드에서 첫 계정 터미널·프로세스 필수 검사 32개와 해당 구현의 추가 하위 검사까지 각각 81개가 통과했다. 입력 취소·터미널 복원, 파일 실패 뒤 입력 정리, 파이프가 막힌 자식 프로세스 회수와 인계 결과를 포함한다. 플랫폼 원본에 기록된 제출 소스·checkout·Go 1.26.5·OS·아키텍처·모드와 파일별 SHA-256을 대조했다. [Linux amd64 normal `0258ce0a`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14718851069)
+
+같은 Linux 6개 조합에서 기본 모델과 사용자 정의 모델의 선언 runner·생성 runtime을 각각 빌드해 첫 계정 명령을 실행했다. 모델별 14/14개(상위 테스트 포함)가 통과했다. 생성·재접속, 다른 소스 거부, 일부 파일 게시 뒤 실패, 커밋 응답 유실과 확정된 생성 뒤 정리 오류를 검증했다. [기본 모델 amd64 `c7f52582`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14719488241) · [사용자 정의 모델 arm64 `6ae0679f`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14720186269)
+
+macOS Intel의 CGO-disabled 작업에서도 첫 계정 터미널·프로세스 검사 81개가 통과했다. [플랫폼 원본 `032ecfb8`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14720942069)
+
+### 026a9627 Linux arm64 race SQLite 패키지 시간 제한
+
+같은 실행에서 Linux arm64 race의 `db/sqlite` 패키지가 2,100.095초에 35분 누적 제한으로 실패했다. 계정 저장소 상위 검사는 1,901.61초에 통과했다. 제한에 도달했을 때 `TestSQLitePrefetchOwnerWindowsMatchDjango/large_owner_universe_preserves_scope_and_integer_precision`은 실행한 지 1초였다. SQLite 필수 검사 3,190개 중 3,171개의 통과를 확인했다. 격리된 backend의 I/O 거부, 역사 관계 그래프, savepoint 실패·롤백 분류에 속한 19개는 통과 기록이 없었다. [실패 작업](https://github.com/progresshans/godj/actions/runs/44931649835/job/136929595184) · [Go 이벤트·실행 목록 `5d19d0a6`](https://github.com/progresshans/godj/actions/runs/44931649835/artifacts/14721425202)
+
+수정한 워크플로는 이 좌표의 `db/sqlite`를 필터 없이 45분 제한으로 한 번 실행한다. 나머지 패키지는 35분을 사용하고 작업 전체에는 준비·실행·업로드를 포함해 70분을 준다. 로컬에서 실제 Bash 실행부에 명령 기록기를 연결해 matrix 249개 작업과 분할 없는 대조군 1개의 패키지 배정·인수를 확인했다. 회귀 검사는 두 호출 각각의 실패 전파, 누적 stdout/stderr와 계획에서 빠진 SQLite 패키지의 거부도 확인했다. 실제 Go 패키지 종료와 3,190개 필수 검증은 수정 소스의 원격 실행에서 확인한다.
 
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 

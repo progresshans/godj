@@ -522,7 +522,7 @@ jobs:
           # Shard 0 owns all other relation packages on that coordinate.
           # Every job discovers the binary's roots and checks exact execution.
           test_timeout="${{ matrix.test_timeout }}"
-          test_flags=(-timeout="$test_timeout" -json -count=1)
+          test_flags=(-json -count=1)
           case "$mode" in
             normal) ;;
             race) test_flags+=(-race) ;;
@@ -547,7 +547,7 @@ jobs:
             cat scripts/ci/compile-required.txt >> "$required"
           fi
           discovery="$RUNNER_TEMP/relation-consumer-discovery.json"
-          go test "${test_flags[@]}" -list . "$consumer_package" > "$discovery"
+          go test -timeout="$test_timeout" "${test_flags[@]}" -list . "$consumer_package" > "$discovery"
           shard_dir="$RUNNER_TEMP/relation-shard"
           python3 scripts/ci/relation_shards.py plan --discovery "$discovery" --required "$required" --packages "$expected_packages" --output-dir "$shard_dir" "${partition_args[@]}"
           required="$shard_dir/required.txt"
@@ -557,22 +557,41 @@ jobs:
           fi
           stderr_log="$RUNNER_TEMP/relation-product.stderr"
           status=0
+          : > "$log"
+          : > "$stderr_log"
+          run_tests() {
+            local package_timeout="$1"
+            shift
+            go test -timeout="$package_timeout" "${test_flags[@]}" "$@" >> "$log" 2>> "$stderr_log" || status=$?
+          }
           if [ "$shards" -eq 1 ]; then
-            go test "${test_flags[@]}" "${packages[@]}" > "$log" 2> "$stderr_log" || status=$?
+            run_tests "$test_timeout" "${packages[@]}"
           elif [ "$shard" -eq 0 ]; then
+            sqlite_timeout="${{ matrix.sqlite_timeout }}"
+            sqlite_package=github.com/progresshans/godj/db/sqlite
+            if [ -n "$sqlite_timeout" ]; then grep -Fxq "$sqlite_package" "$expected_packages"; fi
             runtime_packages=()
             for package in "${packages[@]}"; do
-              if [ "$package" != "$consumer_package" ]; then runtime_packages+=("$package"); fi
+              if [ "$package" = "$consumer_package" ]; then continue; fi
+              if [ -n "$sqlite_timeout" ] && [ "$package" = "$sqlite_package" ]; then
+                echo "Running $package with Go package timeout $sqlite_timeout"
+                run_tests "$sqlite_timeout" "$package"
+              else
+                runtime_packages+=("$package")
+              fi
             done
-            test "${#runtime_packages[@]}" -gt 0
-            go test "${test_flags[@]}" "${runtime_packages[@]}" > "$log" 2> "$stderr_log" || status=$?
+            if [ "${#runtime_packages[@]}" -gt 0 ]; then
+              run_tests "$test_timeout" "${runtime_packages[@]}"
+            else
+              test -n "$sqlite_timeout"
+            fi
           else
-            go test "${test_flags[@]}" -run "$(cat "$shard_dir/run.txt")" "$consumer_package" > "$log" 2> "$stderr_log" || status=$?
+            run_tests "$test_timeout" -run "$(cat "$shard_dir/run.txt")" "$consumer_package"
           fi
           runtime_owner=false
           if [ "$shards" -eq 1 ] || [ "$shard" -eq 0 ]; then runtime_owner=true; fi
           if [ "$status" -eq 0 ] && [ "$runtime_owner" = true ] && [ "$PORTABLE_COVERED" != true ]; then
-            go test "${test_flags[@]}" -p=1 -run "$relation_godjcheck" ./conformance/cmd/godjcheck >> "$log" 2>> "$stderr_log" || status=$?
+            run_tests "$test_timeout" -p=1 -run "$relation_godjcheck" ./conformance/cmd/godjcheck
           fi
           if [ "$status" -ne 0 ]; then
             python3 scripts/ci/go_test_events.py "$log" --diagnostics --stderr "$stderr_log" || true

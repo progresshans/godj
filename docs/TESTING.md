@@ -155,15 +155,13 @@ Operator와 targeted migrate의 같은 OS/arch/mode는 `command-product-matrix`�
 다른 제품을 실행하며, 마지막 outcome 검사는 양쪽 step의 실패·skip·누락을 거부한다.
 PostgreSQL capture producer, exact reference, cold build와 32-bit 경계는 각각의 기존 owner가 맡는다.
 
-관계 matrix는 기본적으로 job 45분·각 Go test package 35분을 사용한다. 모든 race 좌표와 macOS Intel/ARM normal/CGO0는
-독립 generated module의 합산 빌드 비용 때문에 생성 소비자를 기본 세 job으로 나누고 일반 관계 검증을 별도 job에서 실행한다.
-관측된 누적 package timeout에 맞춰 Linux amd64/arm64 race와 macOS ARM race는 소비자 네 job,
-macOS Intel CGO0는 다섯 job을 사용한다. 나머지 분할 좌표는 세 job을 유지한다.
-normal/CGO0와 Linux race는 45분·package 35분을 유지한다.
-macOS Intel/ARM race는 90분·package 70분 한도를 사용한다.
-`scripts/ci/relation_shards.py`가 동일 OS/arch/mode의 실제 Go binary에서 `-list .`로 발견한 Test/Example/Fuzz root를
-결정적으로 분배한다. 필수 child는 부모를 따라가며 분할 좌표의 일반 관계 package와 추가 checker/runner는
-별도 runtime job(번호 0)만 맡는다. 다른 좌표는 한 job이 전체를 실행한다.
+관계 matrix는 Linux·macOS의 각 아키텍처와 모드에서 0번 작업이 일반 관계 패키지를 실행한다.
+생성 소비자는 같은 환경의 Go 바이너리가 `-list .`로 발견한 Test/Example/Fuzz 상위 테스트를 작업별로 배정하고 하위 검사를 함께 실행한다.
+계정 소비자의 전용 작업과 일반 소비자의 분배 수는 [실행 계획](../scripts/ci/relation_shards.py)에서 확인한다.
+
+기본 제한은 작업 45분, Go 패키지 35분이다. macOS의 0번 작업은 90분이며 macOS race는 모든 작업에 90분, 패키지에 70분을 적용한다.
+Linux arm64 race의 0번 작업은 70분이다. 이 작업에서 `db/sqlite` 전체를 45분 제한으로 한 번 실행하고 나머지 패키지는 35분으로 실행한다.
+두 호출의 Go 이벤트와 stderr를 같은 원본에 보관하고 전체 필수 목록을 대조한다. [SQLite 패키지 시간 제한의 근거](status/TEST_EVIDENCE.md#026a9627-linux-arm64-race-sqlite-패키지-시간-제한)
 각 job은 발견 목록 전체에 필수 consumer root가 존재하는지 확인하고 배정된 모든 root의 정확히 한 번 실행·성공과
 실제 package 집합의 정확한 일치를 요구한다. 실행용 필수 목록은 파일로 보존하고 로그에는 목록의 개수와 상위 테스트 지문을 남긴다.
 모든 shard의 성공은 기존 관계 owner와 최종 집계가 요구한다. 누락·중복·실패·skip·잘린 로그는 성공이 아니다.

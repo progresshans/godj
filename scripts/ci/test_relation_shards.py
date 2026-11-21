@@ -132,8 +132,11 @@ class RelationShardTest(unittest.TestCase):
             self.assertEqual(row['shards'], count)
             darwin = coordinate[1] == 'darwin'
             race = coordinate[3] == 'race'
-            budget = (90 if darwin and (race or row['shard'] == 0) else 45, '70m' if darwin and race else '35m')
-            self.assertEqual((row['job_timeout'], row['test_timeout']), budget)
+            job_minutes = 90 if darwin and (race or row['shard'] == 0) else 45
+            separate_sqlite = coordinate[1:] == ('linux', 'arm64', 'race') and row['shard'] == 0
+            self.assertEqual(row['job_timeout'], 70 if separate_sqlite else job_minutes)
+            self.assertEqual(row['test_timeout'], '70m' if darwin and race else '35m')
+            self.assertEqual(row['sqlite_timeout'], '45m' if separate_sqlite else '')
         expected = {(runner, goos, arch, mode): list(range(expected_counts[(runner, mode)] + 1))
                     for runner, goos, arch in [('ubuntu-24.04', 'linux', 'amd64'), ('ubuntu-24.04-arm', 'linux', 'arm64'),
                                               ('macos-15-intel', 'darwin', 'amd64'), ('macos-26', 'darwin', 'arm64')]
@@ -156,12 +159,62 @@ class RelationShardTest(unittest.TestCase):
                              Counter(required + [CONSUMER + '|' + root for root in self.roots]))
             self.assertEqual(sum(runtime in item['packages'] for item in plans), 1)
 
-    def test_linux_race_isolates_long_account_roots_without_longer_deadlines(self):
+    def test_linux_race_isolates_long_generated_account_roots_with_their_existing_deadlines(self):
         for runner in ('ubuntu-24.04', 'ubuntu-24.04-arm'):
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == 'race']
             count = 5 + len(ISOLATED_ACCOUNT_ROOTS)
             self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
-            self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
+            self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] for row in rows))
+            for row in rows[1:]:
+                self.assertEqual((row['test_timeout'], row['job_timeout'], row['sqlite_timeout']), ('35m', 45, ''))
+
+    def test_runtime_runs_the_whole_sqlite_package_once_and_keeps_each_result(self):
+        workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()
+        step = workflow.split('- name: Run relation product mode', 1)[1].split('\n      - name:', 1)[0]
+        body = textwrap.dedent(step.split('run: |\n', 1)[1])
+        flags = body[body.index('test_timeout='):body.index('selected_packages=')]
+        dispatch = body[body.index('status=0'):body.index('if [ "$status" -ne 0 ]; then')]
+        sqlite = 'github.com/progresshans/godj/db/sqlite'
+        ordinary = 'github.com/progresshans/godj/orm'
+        neighbor = sqlite + 'extra'
+        base = ['test', '-timeout=35m', '-json', '-count=1', '-race']
+        separate = ['test', '-timeout=45m', '-json', '-count=1', '-race', sqlite]
+        checker = base + ['-p=1', '-run', '^TestChecker$', './conformance/cmd/godjcheck']
+        log, stderr, planned = (self.directory / name for name in ('events', 'stderr', 'packages'))
+        for arch, failure, missing, exit_code in [('arm64', '', False, 0), ('arm64', sqlite, False, 23),
+                                                  ('arm64', ordinary, False, 23), ('amd64', '', False, 0),
+                                                  ('arm64', '', True, 1)]:
+            with self.subTest(arch=arch, failure=failure, missing=missing):
+                row = next(row for row in matrix()['include'] if row['mode'] == 'race' and row['shard'] == 0
+                           and row['platform']['runs_on'] == ('ubuntu-24.04-arm' if arch == 'arm64' else 'ubuntu-24.04'))
+                planned.write_text('\n'.join([ordinary, neighbor] if missing else [sqlite, ordinary, neighbor]) + '\n')
+                log.write_text('stale\n')
+                stderr.write_text('stale\n')
+                script = '''
+                    go() {
+                      echo "$*"
+                      echo "$*" >&2
+                      for arg in "$@"; do if [ "$arg" = "$FAIL_PACKAGE" ]; then return 23; fi; done
+                      return 0
+                    }
+                    packages=("$SQLITE" "$consumer_package" "$ORDINARY" "$NEIGHBOR")
+                ''' + flags + dispatch + 'exit "$status"\n'
+                script = script.replace('${{ matrix.test_timeout }}', row['test_timeout'])
+                script = script.replace('${{ matrix.sqlite_timeout }}', row['sqlite_timeout'])
+                env = dict(os.environ, mode='race', shard='0', shards=str(row['shards']),
+                           SQLITE=sqlite, ORDINARY=ordinary, NEIGHBOR=neighbor, consumer_package=CONSUMER,
+                           FAIL_PACKAGE=failure, expected_packages=str(planned), relation_godjcheck='^TestChecker$',
+                           PORTABLE_COVERED='true' if arch == 'amd64' else 'false', log=str(log), stderr_log=str(stderr))
+                process = subprocess.run(['bash', '-euo', 'pipefail', '-c', script],
+                                         env=env, capture_output=True, text=True, timeout=5)
+                expected = [separate, base + [ordinary, neighbor]] if arch == 'arm64' else [base + [sqlite, ordinary, neighbor]]
+                if arch == 'arm64' and not failure:
+                    expected.append(checker)
+                if missing:
+                    expected = []
+                self.assertEqual(process.returncode, exit_code, process.stderr)
+                for path in (log, stderr):
+                    self.assertEqual([line.split() for line in path.read_text().splitlines()], expected)
 
     def test_isolated_account_roots_keep_all_children_and_reject_wrong_execution(self):
         roots = self.roots + list(ISOLATED_ACCOUNT_ROOTS)

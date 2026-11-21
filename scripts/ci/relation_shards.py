@@ -91,16 +91,22 @@ def matrix():
             # Shard 0 owns the non-consumer packages so their runtime does not
             # accumulate after a consumer partition in the same job.
             for shard in range(count + 1):
+                # In CI 40636193670 the macOS ARM64 runtime reached
+                # internal/compiletest only after 43m34s of build/runtime work.
+                job_timeout = 90 if darwin_race or goos == 'darwin' and shard == 0 else 45
+                sqlite_timeout = ''
+                if goos == 'linux' and goarch == 'arm64' and mode == 'race' and shard == 0:
+                    # In CI 44931649835 the credential root passed in 1,902s.
+                    # The 35m SQLite package deadline then cut off a 1s prefetch case.
+                    sqlite_timeout = '45m'
+                    job_timeout = 70
                 rows.append({
                     'platform': {'runs_on': runner, 'expected_goos': goos, 'expected_goarch': goarch},
                     'mode': mode, 'shard': shard, 'shards': count,
                     'isolate_accounts': isolate_accounts,
-                    # In CI 40636193670 ARM64 normal runtime reached
-                    # internal/compiletest only after 43m34s of build/runtime
-                    # work. Allow its existing 35m package deadline to run;
-                    # this job limit includes compilation and artifact upload.
-                    'job_timeout': 90 if darwin_race or goos == 'darwin' and shard == 0 else 45,
+                    'job_timeout': job_timeout,
                     'test_timeout': '70m' if darwin_race else '35m',
+                    'sqlite_timeout': sqlite_timeout,
                 })
     return {'include': rows}
 

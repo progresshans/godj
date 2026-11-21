@@ -260,6 +260,10 @@ Article와 새 scaffold는 `modeldef`에서 계정 역할을 선택한다. 기�
 사용자 정의 모델을 선택할 때는 역할 참조·필수 최초 입력·노출·권한·비밀번호 정책과 해당 모델의 migration을 함께 변경한다.
 기존 migration 파일을 새 모델의 초기 정의로 덮어쓰지 않는다.
 
+새 프로젝트에서 검증한 `people.Member` 예제는 고유한 `contact`를 로그인과 이메일로, `region`을 필수 프로필로 사용한다.
+프로젝트의 `modeldef`에서 모델과 역할을 선언해 `ProjectSpec.Account`에 연결하고, `FirstAccountConfig[people.Member]`의 생성 정책에 `contact`와 `region`을 지정한다.
+빈 DB에서는 `godj generate`와 `godj makemigrations`로 생성물과 앱 migration을 준비하고, migration을 검토한 뒤 `godj migrate`와 `godj createsuperuser`를 실행한다. [모델과 역할 선언](../internal/testschema/account.go) · [프로젝트 구성](../conformance/runserverproduct/testdata/starteraccount/modeldef/project.go) · [설치할 migration](../conformance/runserverproduct/testdata/starteraccount/modeldef/migrations.go) · [타입이 지정된 정책](../conformance/runserverproduct/testdata/starteraccount/internal/accounts/policy.go)
+
 새 starter의 첫 계정 명령은 `internal/accounts/policy.go`의 `firstAccountConfig`에서 선택한 모델과 필수 입력을 받는다.
 Admin 목록은 행 키와 읽기가 허용된 역할 필드를 표시한다. 로그인과 이메일이 같은 필드이면 한 번만 표시하고, 상수 역할은 열에서 제외한다.
 `count-groups`는 선택한 그룹 모델을 조회하며, 관리 OpenAPI 문서의 열람 권한은 호스트의 `OpenAPIAccess`에서 지정한다.
@@ -306,8 +310,8 @@ Article의 [adoptoperator 명령](../examples/article/cmd/adoptoperator/main.go)
 
 1. 같은 DB에 원본과 대상 모델을 함께 설치하는 migration을 적용한다. 업무 FK나 OneToOne을 옮길 때는 원본 참조를 유지한 채 대상 참조를 추가한다. 같은 전체 모델 그래프에 대해 원본 역할과 대상 역할의 binding을 각각 구성한다. 같은 backend 인스턴스로 두 저장소를 열고 `accountmodel.NewTransition`에 전환 권한·업무 참조 정책과 함께 전달한다. [생성 프로젝트 구성 예제](../codegen/consumertest/testdata/accountbinding/historical_handoff_test.go.tmpl)
 2. 전환할 권한이 있는 원본 계정과 이 작업을 식별할 새 64자리 소문자 16진수 operation ID를 준비한다. 이미 준비한 대상 행을 사용할 때는 `Prepare`에 모든 원본·대상 계정의 실제 키와 revision을 일대일로 넘긴다. 빈 대상 모델에 새 행을 만들 때는 `PrepareCreation`에 원본 키·revision과 새 모델의 필수 프로필 입력을 넘긴다. 카탈로그도 바뀐다면 그룹·권한 대응표 또는 명시적인 생성 정책을 함께 지정한다. [전환 API](../identity/model/transition.go) · [대상 생성](../identity/model/transition_creation.go)
-3. `prepared.Manifest()`를 보관한 뒤 `Commit`을 호출한다. 커밋 후 대상 모델로 사이트를 열어 이행한 계정으로 다시 로그인한다. 기존 세션과 reset proof는 폐기되며 이전 감사 이력은 원래 계정 도메인에 남는다. 대상 참조가 저장된 뒤 원본 참조의 제거를 별도 migration으로 적용한다.
-4. 커밋 응답을 잃었거나 결과가 불명확하면 원래 프로젝트 binding과 보관한 manifest로 `Reconcile`을 호출한다. 오류 없이 `found=true`여야 그 작업의 저장 기록을 확인한 것이다. `found=false`는 해당 조회 시점의 미관측 결과다. 이 값만으로 롤백이나 재시도를 결정할 수 없다. [별도 프로세스의 응답 유실·재접속 예제](../codegen/consumertest/account_historical_handoff_test.go)
+3. `prepared.Manifest()`를 재시작 뒤에도 읽을 수 있게 저장한 다음, 준비할 때 사용한 전환 객체와 계정으로 `Commit`을 호출한다. 준비 결과는 사본을 만들더라도 한 번만 사용할 수 있다. 커밋 성공을 확인하면 대상 모델로 사이트를 열고 이행한 계정으로 다시 로그인한다. 기존 세션과 reset proof는 폐기되며 이전 감사 이력은 원래 계정 도메인에 남는다. 원본 참조를 제거하는 migration은 대상 참조의 저장을 확인한 뒤 별도로 적용한다.
+4. 커밋 응답을 잃었거나 결과가 불명확하면 보관한 manifest와 원래 프로젝트의 원본·대상 역할 binding으로 `Reconcile`을 호출한다. 오류 없이 `found=true`이면 그 작업의 receipt와 저장된 대응표를 확인한 것이다. `found=false`는 해당 조회 시점의 미관측 결과다. 이 값만으로 롤백이나 재시도를 결정할 수 없다. [별도 프로세스의 응답 유실·재접속 예제](../codegen/consumertest/account_historical_handoff_test.go)
 
 ## Form, Admin과 API
 
