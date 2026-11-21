@@ -1602,6 +1602,17 @@ jobs:
           python-version: "3.14.3"
           enable-cache: true
 
+      - name: Observe historical Django data migrations on both native databases
+        if: matrix.mode == 'normal' && matrix.shard == 'core'
+        env:
+          PGHOST: 127.0.0.1
+          PGPORT: ${{ job.services.postgres.ports['5432'] }}
+          PGUSER: postgres
+          PGPASSWORD: godj-ci-pg-canary-8H2k7M4q9V6x3R
+        run: >-
+          uv run --project conformance/reference/related-expressions --frozen python
+          scripts/ci/migration_data_reference.py --output "$RUNNER_TEMP/migration-data-reference"
+
       - name: Observe independent Django account lifecycles on both native databases
         if: matrix.mode == 'normal' && matrix.shard == 'core-account-management'
         env:
@@ -1922,6 +1933,7 @@ jobs:
             ${{ runner.temp }}/postgresql-plan-${{ matrix.mode }}-${{ matrix.shard }}/
             ${{ runner.temp }}/generated-consumer-diagnostics/
             ${{ runner.temp }}/identity-reference/
+            ${{ runner.temp }}/migration-data-reference/
             ${{ runner.temp }}/related-expression-reference/
             ${{ runner.temp }}/collection-aggregate-reference/
             ${{ runner.temp }}/decimal-expression-reference/

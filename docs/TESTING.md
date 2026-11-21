@@ -311,6 +311,8 @@ normal/core-account-management에서 [Django 계정 관측기 실행 도구](../
 Go 검사가 읽는 같은 DB의 기준 파일과 관측값·Django 소스 해시를 대조한다. 기준과 실행의 DB 패치 버전은 각각 기록한다.
 18개 원본과 SHA-256 대조표는 해당 작업의 `identity-reference/`에 보관한다.
 
+M1의 독립 Django 기준은 PostgreSQL 일반 모드의 `core` 작업에서 SQLite 파일과 일회용 PostgreSQL DB를 각각 사용한다. 과거 모델로 기존 행을 변환하고, 중간 오류와 비가역 작업 뒤 재접속해 행·제약·적용 기록을 읽는다. 양 DB의 관측 결과와 입력 해시를 대조한 뒤 원본 둘과 해시 목록을 `migration-data-reference/`에 게시한다. GoDj의 데이터 변환 API와 revision 검사는 별도 제품 검증 대상이다. [비교 실행기](../scripts/ci/migration_data_reference.py) · [Django 관측기](../conformance/runners/django/migration_data_reference.py)
+
 Helpdesk의 같은 DB를 이어 쓰는 소비자는 normal/CGO-disabled 10분, race 15분의 전체 context를 사용한다.
 개별 동시성·취소 검사의 짧은 제한과 PostgreSQL 정리 20초는 별도로 유지한다.
 Normal core의 system-state capture 생산·service restart, operator-target의 별도 capture 생산도 그대로 실행한다.

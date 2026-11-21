@@ -1,17 +1,16 @@
 """Run the independent Django account observers on both native databases."""
 import argparse
-from contextlib import contextmanager
 import hashlib
 import json
 import os
 from pathlib import Path
 import re
-import secrets
 import sqlite3
 import subprocess
 import sys
 import tempfile
 
+from django_reference_database import private_database
 from project_reference import decode, same
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -28,20 +27,6 @@ CASES = (
     ("password-reset", "password_reset_reference", "GODJ_PASSWORD_RESET_DATABASE"),
     ("password-reset-http", "password_reset_http_reference", "GODJ_PASSWORD_RESET_HTTP_DATABASE"),
 )
-
-
-@contextmanager
-def private_database(control, variable):
-    from psycopg import sql
-
-    prefix = variable.removesuffix("_DATABASE").lower()
-    name = f"{prefix}_{secrets.randbits(64)}"
-    identifier = sql.Identifier(name)
-    control.execute(sql.SQL("CREATE DATABASE {} TEMPLATE template0").format(identifier))
-    try:
-        yield name
-    finally:
-        control.execute(sql.SQL("DROP DATABASE {}").format(identifier))
 
 
 def compare(stem, vendor, version, expected, observed):
