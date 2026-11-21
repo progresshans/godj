@@ -202,7 +202,14 @@ def plan(mode, shard, entries):
             selected = [entry for entry in selected if entry.partition('|')[2].split('/')[0] in owned]
     if not selected:
         raise ValueError('PostgreSQL partition has no required execution')
+    # In CI 44919295465 the native credential suite was still running after
+    # 2,085 required passes at the 18-minute package deadline. Its owner can
+    # move when a new required root changes the hash partition.
+    credentials = MODULE + 'db/postgres|TestPostgresAccountCredentialStore'
+    owns_credentials = any(entry == credentials or entry.startswith(credentials + '/') for entry in selected)
+    long_package = shard in CONSUMER_PARTITIONS or (shard == 'core' and mode != 'race') or owns_credentials
     return {'mode': mode, 'shard': shard, 'packages': list(packages), 'required': selected,
+            'test_timeout': '30m' if long_package else '18m',
             'manifest_sha256': hashlib.sha256(('\n'.join(entries) + '\n').encode()).hexdigest()}
 
 

@@ -114,6 +114,18 @@ class PostgreSQLPartitionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             plan('normal', 'core-postgres-1', required)
 
+    def test_native_credential_suite_keeps_its_package_deadline_when_ownership_moves(self):
+        prefix = MODULE + 'db/postgres|'
+        credential = prefix + 'TestPostgresAccountCredentialStore/future_child'
+        similar = prefix + 'TestPostgresAccountCredentialStoreExtra/quick'
+        for required, owner in (([credential, similar], 'core-postgres-2'),
+                                ([credential, similar, prefix + 'TestAnotherNativeBoundary'], 'core-postgres-1')):
+            for shard in ('core-postgres-1', 'core-postgres-2'):
+                with self.subTest(owner=owner, shard=shard):
+                    selected = plan('race', shard, required)
+                    self.assertEqual(shard == owner, credential in selected['required'])
+                    self.assertEqual('30m' if shard == owner else '18m', selected['test_timeout'])
+
     def test_read_consumer_partitions_keep_whole_roots_and_future_children(self):
         prefix = MODULE + 'codegen/consumertest|'
         added = [prefix + 'TestFutureReadBoundary/only_child/deep_check',
@@ -256,7 +268,10 @@ class PostgreSQLPartitionTests(unittest.TestCase):
                     expected = plan(mode, shard, self.required)
                     for name in ('packages', 'required'):
                         self.assertEqual(expected[name], (Path(directory) / (name + '.txt')).read_text().splitlines())
-                    self.assertEqual(len(expected['required']), json.loads(result.stdout)['required_tests'])
+                    metadata = json.loads((Path(directory) / 'plan.json').read_text())
+                    self.assertEqual(metadata, json.loads(result.stdout))
+                    self.assertEqual(len(expected['required']), metadata['required_tests'])
+                    self.assertEqual(expected['test_timeout'], metadata['test_timeout'])
 
     def test_workflow_runs_every_partition_and_retains_canceled_logs(self):
         workflow = (self.root / '.github/workflows/ci.yml').read_text()

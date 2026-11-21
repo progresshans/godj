@@ -1440,10 +1440,10 @@ jobs:
             timeout_minutes: 60
           - mode: race
             shard: core-postgres-1
-            timeout_minutes: 40
+            timeout_minutes: 45
           - mode: race
             shard: core-postgres-2
-            timeout_minutes: 40
+            timeout_minutes: 45
           - mode: race
             shard: core-helpdesk-postgres
             timeout_minutes: 60
@@ -1721,12 +1721,14 @@ jobs:
               partition="$RUNNER_TEMP/postgresql-plan-${mode}-${shard}"
               python3 scripts/ci/postgres_shards.py --mode "$mode" --shard "$shard" \
                 --required scripts/ci/postgres-core-required.txt --output-dir "$partition"
+              test_timeout="$(jq -er '.test_timeout' "$partition/plan.json")"
               required_passes=()
               while IFS= read -r sentinel; do required_passes+=("$sentinel"); done < "$partition/required.txt"
               packages=()
               while IFS= read -r package; do packages+=("$package"); done < "$partition/packages.txt"
               ;;
             operator-target)
+              test_timeout=18m
               required_passes=("${operator_target_required_passes[@]}")
               packages=(
                 ./conformance/projectmigratetargetproduct
@@ -1750,14 +1752,6 @@ jobs:
             esac
           done
           required_regex="^($(IFS='|'; printf '%s' "${required_tests[*]}"))$"
-          test_timeout=18m
-          if { [ "$shard" = core ] && [ "$mode" != race ]; } ||
-             [ "$shard" = core-consumers ] || [ "$shard" = core-consumers-2 ] || [ "$shard" = core-account-consumers ] || [ "$shard" = core-account-management ] || [ "$shard" = core-account-reset ] || [ "$shard" = core-account-through ] || [ "$shard" = core-account-root-through ] || [ "$shard" = core-account-transition-through ] || [ "$shard" = core-account-transition ] || [ "$shard" = core-account-catalog ] || [ "$shard" = core-account-catalog-creation ] || [ "$shard" = core-account-shared-through ] || [ "$shard" = core-account-target-references ] || [ "$shard" = core-account-catalog-fields ] || [ "$shard" = core-account-catalog-cycles ] || [ "$shard" = core-account-profiles ] || [ "$shard" = core-consumer-writes ]; then
-            # The generated roots share one package deadline, including the
-            # complete child sets of each consumer partition. Individual
-            # deadlines and the complete required inventory remain unchanged.
-            test_timeout=30m
-          fi
           test_flags=(-p=1 -timeout="$test_timeout" -json -count=1 -run "$required_regex")
           case "$mode" in
             normal)

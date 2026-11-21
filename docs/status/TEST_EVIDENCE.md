@@ -6261,6 +6261,30 @@ PostgreSQL에서는 [normal](https://github.com/progresshans/godj/actions/runs/4
 
 후속 검사는 기존 경합을 유지하고 익명 로그인 기대값을 `rotate`로 고쳤다. 독립 연결 두 개에서 준비를 마친 뒤 로그인과 reset이 각각 먼저 커밋되도록 하는 두 경우도 양 DB 필수 목록에 넣었다. 두 순서 모두 반환 세션, 패자의 오류, 감사·자격·세션의 실제 저장 상태와 재접속을 대조한다. [경합 검사](../../internal/accountstoretest/password_reset_races.go)
 
+### f3474ab1 익명 로그인과 비밀번호 재설정의 커밋 순서
+
+제출 커밋 `f3474ab162cebbc4ca52ddcda6b173c86428c8c9`와 [CI 44919295465](https://github.com/progresshans/godj/actions/runs/44919295465) attempt 1의 checkout `8c57d0be8db11898b4f420253edd9aa31b0a5e01`는 같은 tree `0b60d765cf6e92869227cdc49c04ed755acea279`다. 아래 원본의 SHA-256, 소스별 필수 목록, 테스트·패키지 종료를 대조했다. ZIP과 판독 기록은 검증 보관소의 `gdj0138-f3474ab1-ci44919295465/`에 있다.
+
+아래 표는 DB 패키지가 성공한 실행이다. 로그인과 재설정이 별도 연결로 준비를 마친 뒤 자유 경합, 로그인 우선, 재설정 우선을 모두 통과했다. 각 승자의 반환값과 패자의 거부, 새 연결에서 저장된 계정·세션·감사를 대조했다. 경합 9개는 상위 테스트를 포함하며 계정 저장소 필수 검사에 포함된다. 확인한 계정 저장소·역사 이행 검사에 skip은 없었다. [경합 검사](../../internal/accountstoretest/password_reset_races.go)
+
+| DB와 원격 환경 | 재설정 경합 | 계정 저장소 | 역사 이행·경합 | 검증 원본 |
+|---|---|---|---|---|
+| SQLite · Linux amd64 · normal (이전 실패 환경) | 9/9 | 2,219/2,219 | 51/51 | [`380451f4`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14714817836) |
+| SQLite · Linux arm64 · normal | 9/9 | 2,219/2,219 | 51/51 | [`e06f233a`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713875767) |
+| PostgreSQL 17.10 · Linux amd64 · normal | 9/9 | 2,219/2,219 | 51/51 | [`405cad1f`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14714805084) |
+| PostgreSQL 17.10 · Linux amd64 · CGO 비활성 | 9/9 | 2,219/2,219 | 51/51 | [`f7d92be2`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14714877058) |
+
+[PostgreSQL race](https://github.com/progresshans/godj/actions/runs/44919295465/job/136891875266)에서는 경합 9개와 역사 이행 51개가 통과했다. 계정 저장소 필수 검사 2,085/2,219개가 통과한 뒤 삭제 검사 `delete_signed_keys`의 계정 준비 중 Go 패키지의 18분 제한에 도달했다. 패키지는 1,080.051초에 실패로 종료했고 나머지 134개의 통과는 확인할 수 없다. `c6629558`에서 같은 작업의 계정 저장소 상위 테스트는 858.13초, 패키지는 928.274초 걸렸다. [시간 초과 원본 `b9bffd66`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713919102) · [이전 정상 종료 `a4284d3e`](https://github.com/progresshans/godj/actions/runs/44915152453/artifacts/14711723918)
+
+후속 CI는 실제 필수 목록에 계정 저장소 테스트가 포함된 파티션에 30분의 패키지 시간을 배정한다. 해시 분할로 담당 파티션이 바뀌는 경우도 검사했다. race의 두 native 작업은 준비·패키지 실행·증거 업로드에 최대 45분을 쓴다. 기존 58개 PostgreSQL 파티션의 패키지·필수 테스트·목록 해시를 대조했으며 현재 목록에서 패키지 시간이 바뀐 곳은 race의 `core-postgres-1` 하나다. [실행 계획 생성](../../scripts/ci/postgres_shards.py) · [담당 파티션 변경 검사](../../scripts/ci/test_postgres_shards.py)
+
+- Linux amd64 normal·race·CGO 비활성에서 세션 소유권 검사 8개와 계정 역할 선언 검사 29개가 각각 통과했다. 익명·같은 계정의 데이터 보존과 다른 계정·바뀐 자격·인증 정보가 일부만 있는 세션의 데이터 제거를 검사한다. 새 ID와 세션 수명도 대조한다. [normal `30995024`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14712598681) · [race `e7118e96`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713760098) · [CGO 비활성 `e3ea6d01`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14712908572)
+- Linux amd64 normal에서 변경한 staff 정책으로 생성한 프로젝트가 컴파일됐다. 같은 프로젝트에 이전 정책의 계정 binding 파일을 넣으면 컴파일 단계에서 거부되는 대조 검사도 통과했다. [생성 프로젝트 소비자](../../codegen/consumertest/account_binding_test.go) · [원본 `89adfc27`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14714683281)
+- 새 프로젝트의 기본 User와 별도 Member가 SQLite·PostgreSQL 최초 기동·재시작 8건을 Chromium 155.0.8059.12로 통과했다. 상위 테스트를 포함해 15개 실행·15개 통과·skip 0이다. [브라우저 원본 `45dfd18b`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14712714538)
+- 데이터가 있는 DB의 선택 모델 전환은 SQLite·PostgreSQL 각각 normal·race·CGO 비활성 141/141, skip 0이었다. 대상 행 준비·생성, 불일치 거부, 응답 유실 뒤 재조회를 포함한다. 부모가 기록한 자식 stdout 해시와 소스의 필수 목록을 대조했다. [normal `262e1677`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14712978194) · [race `ce201206`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14714170556) · [CGO 비활성 `22bf38dc`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713328347)
+- Django 6.1·Python 3.14.3의 계정 관련 9개 모듈에서 21/21이 통과했다. SQLite에서 다시 생성한 관측과 저장된 양 DB의 공유 동작·Django 소스 해시를 대조했다. 전체 409개 중 Darwin 전용 skip 4개는 이 21개에 포함되지 않는다. [독립 기준 `691d5589`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713667736)
+- normal·race·CGO 비활성에서 기본·사용자 정의 모델과 SQLite·PostgreSQL의 네 조합을 검증했다. 조합별로 프로필 파일 편집 29개, 파일을 포함한 생성 86개, FK·OneToOne 16개, 다대다 관계·Form/Admin/JSON 40개가 모두 통과했다. 파일 게시 후 취소·커밋 응답 유실, 선택 범위 변경, 오래된 revision과 권한 회수를 포함한다. 각 모드의 생성 앱 16개 프로세스에서 stdout 해시·필수 목록·skip 0을 확인했다. [normal `2b4b330e`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713937439) · [race `c428fc17`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14714028201) · [CGO 비활성 `c5a469d7`](https://github.com/progresshans/godj/actions/runs/44919295465/artifacts/14713722931)
+
 ## GDJ-0137 — macOS arm64 runtime 작업 제한
 
 Source `b19aeeddcfdf6ac2aef5bbf0102d5f13c8a0e1e0`의
