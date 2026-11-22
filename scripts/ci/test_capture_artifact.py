@@ -1,14 +1,35 @@
 from copy import deepcopy
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
-from capture_artifact import CAPTURES, pack, producer, resolve, verify
+from capture_artifact import CAPTURES, github_read, pack, producer, resolve, verify
 
 
 class CaptureArtifactTest(unittest.TestCase):
+    def test_github_read_retries_only_transient_failures_with_a_limit(self):
+        transient = subprocess.CalledProcessError(1, "gh", stderr=b"gh: Server Error (HTTP 502)")
+        forbidden = subprocess.CalledProcessError(1, "gh", stderr=b"gh: Forbidden (HTTP 403)")
+        timeout = subprocess.TimeoutExpired("gh", 90)
+        with patch("capture_artifact.time.sleep") as sleep, patch("capture_artifact.subprocess.run") as call:
+            call.side_effect = [transient, timeout, subprocess.CompletedProcess([], 0, stdout=b"ok")]
+            self.assertEqual(github_read("repos/example/path"), b"ok")
+            self.assertEqual(call.call_count, 3)
+            self.assertEqual(sleep.call_count, 2)
+            call.reset_mock()
+            call.side_effect = forbidden
+            with self.assertRaises(subprocess.CalledProcessError):
+                github_read("repos/example/path")
+            self.assertEqual(call.call_count, 1)
+            call.reset_mock()
+            call.side_effect = transient
+            with self.assertRaises(subprocess.CalledProcessError):
+                github_read("repos/example/path")
+            self.assertEqual(call.call_count, 3)
+
     def setUp(self):
         self.filename = next(iter(CAPTURES))
         self.run = {

@@ -94,6 +94,12 @@ def matrix():
                 # In CI 40636193670 the macOS ARM64 runtime reached
                 # internal/compiletest only after 43m34s of build/runtime work.
                 job_timeout = 90 if darwin_race or goos == 'darwin' and shard == 0 else 45
+                if shard == 0 and goos == 'darwin':
+                    # With a cold ARM64 build, run 44962424321 reached protocol
+                    # at minute 89. Intel race passed SQLite in 3,798s and still
+                    # had packages to build. Keep every package deadline intact.
+                    job_timeout = {('arm64', 'normal'): 180, ('arm64', 'race'): 180,
+                                   ('amd64', 'race'): 135}.get((goarch, mode), job_timeout)
                 sqlite_timeout = ''
                 if goos == 'linux' and goarch == 'arm64' and mode == 'race' and shard == 0:
                     # In CI 44931649835 the credential root passed in 1,902s.

@@ -8,7 +8,7 @@
 |---|---|---|
 | Q-010 | 첫 지원 릴리스 이후의 업그레이드 정책 | C1에서 project/app scaffold, 고정 모듈 설치와 도구·runtime·생성 ABI 호환성 검사를 수용했다. 운영 업그레이드는 O1에서 다룬다. |
 | Q-011 | 넓은 expression/aggregate/bulk/locking과 background 평가 소유권 | immutable AST와 cache/terminal 의미는 구현됨 |
-| Q-012 | custom/data operation, destructive/general writer, repair/crash reconciliation | loaded definition, revision-fenced lifecycle와 bounded target/reverse는 구현됨 |
+| Q-012 | M1의 일반 스키마 변경·custom/data operation과 과거 모델의 행 접근, M2의 adoption·repair | 현행 writer는 기본 키가 아닌 필드의 제거와 제한된 속성·관계·제약 변경을 지원한다. 이력을 다시 읽고 revision을 검사하는 실행기와 역사 상태를 M1에서 재사용한다. [M1 착수 범위](EXECUTION_PLAN.md#m1의-첫-구현과-검증) |
 | Q-013 | arbitrary target/depth/cycle와 더 넓은 relation expression/projection | AutoField-target FK와 현행 query/cache/delete 단면 구현; OneToOne 선언·migration·single reverse/prefetch·직접 조건·facade typed/dynamic 혼합 eager·forward/reverse 할당은 GDJ-0096에서 ServiceReport 전체 소비자까지 연결·통합 검증; GDJ-0099의 ManyToMany 선언·migration·query/prefetch/streaming과 Ticket 컬렉션 소비자는 구현·영향 검증·Hosted 통합 완료; GDJ-0124 single-valued 관계 표현식·보고서 상태 조회는 source `7afe56f7`의 양 DB·세 모드·전체 Hosted 통합 완료; GDJ-0125 collection field 집계·라벨 사용 현황은 source `fceff454`의 양 DB·세 모드·전체 Hosted 통합 완료; 나머지 관계 범위는 미완료 |
 | Q-016 | 넓은 API schema·docs UI·배포형/다언어 client, viewset 일반화와 wider routing | bounded serializer/JSON CRUD/auth profile, Article·Helpdesk OpenAPI와 고정 ogen Go client 흐름은 구현됨 |
 | Q-017 | 현재 generated model의 사용성·namespace와 broader relation facade | whole-project publication과 current facade는 구현됨; consumer로 다음 제약을 찾음 |

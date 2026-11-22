@@ -133,6 +133,9 @@ class RelationShardTest(unittest.TestCase):
             darwin = coordinate[1] == 'darwin'
             race = coordinate[3] == 'race'
             job_minutes = 90 if darwin and (race or row['shard'] == 0) else 45
+            if row['shard'] == 0:
+                job_minutes = {('macos-26', 'normal'): 180, ('macos-26', 'race'): 180,
+                               ('macos-15-intel', 'race'): 135}.get((coordinate[0], coordinate[3]), job_minutes)
             separate_sqlite = coordinate[1:] == ('linux', 'arm64', 'race') and row['shard'] == 0
             self.assertEqual(row['job_timeout'], 70 if separate_sqlite else job_minutes)
             self.assertEqual(row['test_timeout'], '70m' if darwin and race else '35m')
@@ -248,13 +251,14 @@ class RelationShardTest(unittest.TestCase):
                 self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == '35m' and row['job_timeout'] == 45 for row in rows))
 
     def test_macos_account_partitions_preserve_package_deadlines_and_runtime_build_budget(self):
-        for runner, mode, count, package_minutes, job_minutes in (
-                ('macos-15-intel', 'normal', 5 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45), ('macos-15-intel', 'cgo0', 5 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45),
-                ('macos-15-intel', 'race', 3 + len(ISOLATED_ACCOUNT_ROOTS), '70m', 90), ('macos-26', 'normal', 3 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45),
-                ('macos-26', 'race', 4 + len(ISOLATED_ACCOUNT_ROOTS), '70m', 90), ('macos-26', 'cgo0', 3 + len(ISOLATED_ACCOUNT_ROOTS), '35m', 45)):
+        for runner, mode, count, package_minutes, job_minutes, runtime_minutes in (
+                ('macos-15-intel', 'normal', 5, '35m', 45, 90), ('macos-15-intel', 'cgo0', 5, '35m', 45, 90),
+                ('macos-15-intel', 'race', 3, '70m', 90, 135), ('macos-26', 'normal', 3, '35m', 45, 180),
+                ('macos-26', 'race', 4, '70m', 90, 180), ('macos-26', 'cgo0', 3, '35m', 45, 90)):
+            count += len(ISOLATED_ACCOUNT_ROOTS)
             rows = [row for row in matrix()['include'] if row['platform']['runs_on'] == runner and row['mode'] == mode]
             self.assertEqual(list(range(count + 1)), [row['shard'] for row in rows])
-            self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == package_minutes and row['job_timeout'] == (90 if row['shard'] == 0 else job_minutes) for row in rows))
+            self.assertTrue(all(row['shards'] == count and row['isolate_accounts'] and row['test_timeout'] == package_minutes and row['job_timeout'] == (runtime_minutes if row['shard'] == 0 else job_minutes) for row in rows))
 
     def test_relation_job_keeps_full_logs_and_discovery_even_on_failure(self):
         workflow = (Path(__file__).resolve().parents[2] / '.github/workflows/ci.yml').read_text()

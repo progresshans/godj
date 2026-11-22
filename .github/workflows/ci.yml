@@ -1327,38 +1327,36 @@ jobs:
     name: Compare independent project and event observations
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    env:
+      GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Download this run's pinned Python observations
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          digest-mismatch: error
-          name: python-project-reference-3.14.3-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/project-comparison/python
+      - name: Resolve successful project evidence producers
+        id: producers
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/ci/project_reference.py resolve "$RUNNER_TEMP/project-producers.json"
 
-      - name: Download this run's native baseline observations
+      - name: Download the selected project evidence archives
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           digest-mismatch: error
-          pattern: project-check-*-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/project-comparison/baseline
-
-      - name: Download this run's native reload observations
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          digest-mismatch: error
-          pattern: project-reload-*-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/project-comparison/reload
+          artifact-ids: ${{ steps.producers.outputs.artifact_ids }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+          path: ${{ runner.temp }}/project-comparison
 
       - name: Compare all 12 complete native coordinates
-        env:
-          GODJ_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: >
           python3 scripts/ci/project_reference.py verify "$RUNNER_TEMP/project-comparison"
+          --selection "$RUNNER_TEMP/project-producers.json"
           --output "$RUNNER_TEMP/project-reference-comparison.json"
 
       - name: Publish project-reference comparison

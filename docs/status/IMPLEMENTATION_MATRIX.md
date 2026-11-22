@@ -36,7 +36,8 @@ SQLite/PostgreSQL·고정 module 설치·cold/race·독립 Django 관측·브라
 운영 topology·향후 릴리스 upgrade 정책은 O1, Web/static/media 확장은 C2, durable event 전달은 R2에 남는다.
 I1 구현은 [통합 PR #1](https://github.com/progresshans/godj/pull/1)에 모았다. 선택 계정 역할·domain·typed 관리,
 Admin/JSON·비밀번호 변경, 첫 계정 명령을 Article과 기본 starter에 연결했다. 선택 runtime은 명시적으로 구성한
-비밀번호 재설정을 지원한다. 새 프로젝트의 기본 User와 별도 Member는 SQLite·PostgreSQL에서 첫 계정 생성, 권한·프로필 변경, 재시작 후 reset과 삭제까지 통과했다. 권한·관리·로그인·비밀번호의 Django 공유 동작은 두 DB에서 직접 관측해 대조했다. [공개 명령·HTTP·Chromium 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go) · [검증 원본](TEST_EVIDENCE.md#d7584767-일반-catalog의-그룹-권한-쓰기)
+비밀번호 재설정을 지원한다. 새 프로젝트의 기본 User와 별도 Member는 SQLite·PostgreSQL에서 첫 계정 생성, 권한·프로필 변경, 재시작 후 reset과 삭제까지 통과했다. 권한·관리·로그인·비밀번호의 Django 공유 동작은 두 DB에서 직접 관측해 대조했다. [공개 명령·HTTP·Chromium 소비자](../../conformance/runserverproduct/starter_browser_linux_test.go) · [검증 원본](TEST_EVIDENCE.md#512c17f1-새-프로젝트의-필수-계정-파일)
+필수 파일을 선언한 새 Member 프로젝트는 공개 명령의 업로드 한도와 Admin 생성·수정의 파일 게시 보고를 호스트 정책에서 지정한다. 양 DB에서 재시작 뒤 동명 파일 교체와 보고 실패 후 확정된 계정·파일의 재조회까지 확인했다. [필수 계정 파일 검증](TEST_EVIDENCE.md#512c17f1-새-프로젝트의-필수-계정-파일)
 Helpdesk 조립, 명시적 FK/OneToOne 정책과 프로필 파일 편집/Form 생성·초기 CLI 파일 입력을 작성했다.
 계정 생성의 관계 수명과 typed 계정-as-through 생성을 추가했다.
 추가 M2M의 명시적 선택 정책·생성/편집/조회·Form/Admin/JSON과 전체 수명 projection을 연결했다.
@@ -72,7 +73,7 @@ credential 상태 검사는 생성 HTTP 소비자와 독립 SDK로 이관했다.
 공개 고정 `identity.Directory`·`identity.Account`·`identity.Profile`·`identity.Manager`는 제거했다.
 기본·custom 모델의 공개 인증·관리는 선택 모델의 runtime이 담당하고, 역사 저장소의 고정 User 조회와 로그인 기록은
 `systemstate.OpenIdentity` 내부에 있다. 기본/custom 일곱 변형의 독립 HTTP 소비자와 OpenAPI 클라이언트도 선택 runtime에 연결했다.
-`d7584767`에서 채운 DB의 선택 모델 전환·기록 재조회·공유 중간 테이블과 신규 카탈로그 생성을 양 DB의 세 모드에서 검증했다. 일반 Catalog의 그룹 권한 쓰기도 같은 소스에서 선택 계정·그룹·권한을 중간 행으로 생성하고 권한·revision·세션·감사와 재접속을 검증했다. [생성 앱의 전환](TEST_EVIDENCE.md#d7584767-생성-앱의-계정-수명과-전환) · [그룹 권한 쓰기](TEST_EVIDENCE.md#d7584767-일반-catalog의-그룹-권한-쓰기) · [요구별 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)
+`512c17f1`에서 채운 DB의 선택 모델 전환·기록 재조회·공유 중간 테이블과 신규 카탈로그 생성을 양 DB의 세 모드에서 검증했다. 일반 Catalog의 그룹 권한 쓰기도 같은 소스에서 선택 계정·그룹·권한을 중간 행으로 생성하고 권한·revision·세션·감사와 재접속을 검증했다. [생성 앱 전환과 그룹 권한](TEST_EVIDENCE.md#512c17f1-계정-수명-회귀) · [요구별 소비자](../../work/0138-custom-account-lifecycle.md#요구와-실제-소비자)
 
 GDJ-0133은 IANA 2025c의 불변 시간대 값과 typed/dynamic 공통 AST에 지역 Date/Time·구성요소 추출과 절삭을 연결했다.
 양 backend가 같은 고정 전환표를 사용하고, 원본·지역 값·최종 UTC 결과의 전체 모델 범위를 검사한다.

@@ -21,10 +21,9 @@ Django 6.1의 관찰 가능한 authority는 전체 project state 비교, no-chan
 dependency, `CreateModel`/`AddField`, cross-app relation dependency, read-only `--dry-run`/`--check`입니다. Python migration
 module 문법, serializer class 구조, 질문기, timestamp header/name과 출력 byte parity는 GoDj의 authority가 아닙니다.
 
-현재 GoDj가 표현할 수 있는 operation은 `CreateModel`과 `AddField`뿐입니다. 또한 migration source discovery는 각 configured
-root 바로 아래의 `.godj.json` file을 flat/no-follow로 읽고 programmatic `definition.Source`도 같은 catalog에 합칩니다.
-따라서 첫 writer는 범용 rename/alter engine이 아니라 current supported domain을 정확히 생성하고 나머지를 fail-closed하는
-additive-only detector여야 합니다.
+GDJ-0050 착수 당시 GoDj가 표현할 수 있던 operation은 `CreateModel`과 `AddField`였다. 첫 writer는 이 두 작업을 생성하고
+나머지 변경을 명시적으로 거부했다. 현재 지원하는 변경과 제거 조건은 아래 결정에 기록한다. Migration source discovery는
+각 configured root 바로 아래의 `.godj.json` 파일을 flat/no-follow로 읽고 programmatic `definition.Source`도 같은 catalog에 합친다.
 
 ## 결정 기준
 

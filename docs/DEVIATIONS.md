@@ -1323,12 +1323,11 @@ field를 `unsupported_delta`, noncanonical applied leaf를 `noncanonical_leaf`�
 self/cyclic 관계를 거부 case에서 제외하고 backfill 없는 required field 추가로 교체했습니다. 현재 독립 Python decision을
 실행하여 MIG-107 관찰만 다시 기록했으며 같은 artifact의 나머지 11개 관찰과 Django profile은 그대로 보존합니다.
 GDJ-0138은 non-PK field removal을 지원하므로 해당 거부 사례를 `primary_key_replacement`로 교체했습니다. 독립 Python
-decision에서 이 관찰만 재생성하고 나머지 관찰·profile이 같음을 확인했습니다. 새 제품 본문과 환경별 대조는 현재
-source의 원격 CI 대상이며, 위 Verified 상태는 앞선 baseline의 결과입니다.
+decision에서 이 관찰만 재생성하고 나머지 관찰·profile이 같음을 확인했습니다. `512c17f1`의 원격 실행에서 이 거부 사례를 포함한 writer 계약 12건이 DEV-0010의 기대와 일치했다. [현재 계약 검증](status/TEST_EVIDENCE.md#512c17f1-생성물과-공통-호환성)
 
 ### GoDj에서 채택한 동작
 
-GoDj current writer는 지원하는 relation policy를 명시적으로 `PROTECT`로 기록하고, semantic input digest에서
+MIG-103의 GoDj 선언은 같은 앱과 다른 앱을 참조하는 두 FK에 각각 `PROTECT`를 지정한다. Writer는 선언의 삭제 정책을 definition에 보존하고, semantic input digest에서
 `0002_auto_7fb2bf122b7c` 같은 결정적 successor 이름을 만듭니다. Migration file은 project-owned flat root의
 `<app>_<name>.godj.json`이고 read-only/clean 결과와 candidate roster는 bounded canonical JSON 한 줄로 출력합니다. Python
 package marker나 `.py` source를 만들지 않습니다.
@@ -1359,17 +1358,15 @@ historical field order와 `0002_initial` 같은 이름을 만들 수 있습니�
 
 ### 이유와 고려한 대안
 
-GoDj가 지원하지 않는 `CASCADE`를 generated definition에 적거나 Django Python file ABI를 복제하면 current Schema IR,
-strict data-only Definition과 project-wide flat publication 경계를 거짓으로 표현하게 됩니다. Human-readable stdout을 별도 기본
+MIG-103의 GoDj 선언에 `CASCADE`를 대입하면 입력이 요청한 삭제 동작이 바뀐다. Python migration 파일을 그대로 생성하는 방식도 프로젝트가 채택한 데이터 전용 definition과 맞지 않는다. Human-readable stdout을 별도 기본
 format으로 추가하면 automation contract가 이중화됩니다. Phase-A 전용 세분 taxonomy를 public error로 유지하는 안도 internal
 detector 구조를 외부 ABI로 고정하므로 채택하지 않았습니다.
 
 ### 사용자·데이터·migration 영향
 
-Generated relation 삭제 의미는 Django default와 달리 `PROTECT`입니다. 이름과 file roster/output도 Django project와 byte-compatible하지
-않지만 같은 desired state에서는 결정적이고 repeat clean입니다. 기존 migration을 rewrite하지 않으며 current writer는
-CreateModel/AddField와 choices-only AlterField를 지원합니다. Remove/넓은 alter/rename/custom/data operation은 stable
-`unsupported_change`로 fail-closed합니다.
+MIG-103의 Django 입력은 `CASCADE`, GoDj 입력은 `PROTECT`를 명시한다. GoDj의 FK는 `PROTECT`, `CASCADE`, nullable 필드의 `SET_NULL`을 표현한다. [Django 비교 입력](../conformance/runners/django/migration_writer_scenarios.py) · [GoDj 비교 입력](../conformance/runners/godj/migration_writer_scenarios.go) · [관계 선언 검사](../schema/ir/normalize.go)
+
+같은 선언과 이력으로 writer를 다시 실행하면 기존 파일이 보존된다. 현재 writer는 지원하는 속성·관계·제약 변경과 기본 키가 아닌 필드의 제거를 계획한다. `RemoveField`의 역방향은 열의 선언과 논리적 위치를 복원한다. 정방향에서 삭제한 행별 값은 소실된다. 이름 변경인지 구분할 수 없는 필드 교체와 기본 키 제거는 자동 계획에서 거부한다. [지원하는 변경과 조건](adr/0052-project-linked-deterministic-makemigrations.md) · [변경 감지](../internal/migrationautodetect/detect.go) · [필드 제거](../migrations/remove_field.go)
 
 ### backend/concurrency/security 영향
 
@@ -1393,8 +1390,7 @@ temporary protocol은 stdout/stderr/artifact에 남기지 않습니다.
 
 ### 복귀 또는 supersede 조건
 
-GoDj가 `CASCADE`와 Django-style Python migration ABI/output을 current public format으로 채택하거나, migration name/error taxonomy를
-새 versioned public policy로 바꿀 때 새 ADR/deviation으로 supersede합니다. MIG-107의 Phase-A decision oracle을 Django 관찰로
+MIG-103 비교 입력의 삭제 정책, migration 파일 형식·이름 또는 공개 오류 분류가 바뀌면 영향을 받는 selector와 이 결정을 다시 검토한다. MIG-107의 Phase-A decision oracle을 Django 관찰로
 재분류하거나 comparator에서 file/output/error selector를 무시해 복귀하지 않습니다.
 
 ## DEV-0011 — DateTime 입력의 NUL을 거부하고 문자열 전체를 해석
